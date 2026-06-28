@@ -4,11 +4,18 @@ pub mod admin;
 pub mod card;
 pub mod dto;
 pub mod error;
-pub mod handlers;
 pub mod playback;
 pub mod poster;
-pub mod users;
 pub mod ws;
+
+mod accounts;
+mod images;
+mod invites;
+mod media;
+mod metadata;
+mod pin;
+mod stream;
+mod util;
 
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post};
@@ -22,59 +29,59 @@ use crate::state::SharedState;
 /// Build the application router with all `/api` routes plus CORS and tracing.
 pub fn router(state: SharedState) -> Router {
     let api = Router::new()
-        .route("/health", get(handlers::health))
-        .route("/libraries", get(handlers::list_libraries))
-        .route("/items", get(handlers::list_items))
-        .route("/movies", get(handlers::list_movies))
-        .route("/shows", get(handlers::list_shows))
-        .route("/shows/:id", get(handlers::get_show))
-        .route("/shows/:id/poster", get(handlers::show_poster))
-        .route("/shows/:id/metadata", get(handlers::show_metadata))
-        .route("/items/:id", get(handlers::get_item))
-        .route("/items/:id/stream", get(handlers::stream_item))
-        .route("/items/:id/hls/:variant/index.m3u8", get(handlers::hls_playlist))
-        .route("/items/:id/hls/:variant/:file", get(handlers::hls_segment))
-        .route("/items/:id/poster", get(handlers::item_poster))
-        .route("/items/:id/card", get(handlers::item_card))
-        .route("/items/:id/metadata", get(handlers::item_metadata))
-        .route("/items/:id/subtitles/:track", get(handlers::subtitles))
-        .route("/images/:name", get(handlers::image))
+        .route("/health", get(media::health))
+        .route("/libraries", get(media::list_libraries))
+        .route("/items", get(media::list_items))
+        .route("/movies", get(media::list_movies))
+        .route("/shows", get(media::list_shows))
+        .route("/shows/:id", get(media::get_show))
+        .route("/shows/:id/poster", get(images::show_poster))
+        .route("/shows/:id/metadata", get(metadata::show_metadata))
+        .route("/items/:id", get(media::get_item))
+        .route("/items/:id/stream", get(stream::stream_item))
+        .route("/items/:id/hls/:variant/index.m3u8", get(stream::hls_playlist))
+        .route("/items/:id/hls/:variant/:file", get(stream::hls_segment))
+        .route("/items/:id/poster", get(images::item_poster))
+        .route("/items/:id/card", get(images::item_card))
+        .route("/items/:id/metadata", get(metadata::item_metadata))
+        .route("/items/:id/subtitles/:track", get(stream::subtitles))
+        .route("/images/:name", get(images::image))
         .route("/events", get(ws::events))
-        .route("/status", get(handlers::status))
-        .route("/logs", get(handlers::logs))
-        .route("/scan", post(handlers::rescan))
+        .route("/status", get(media::status))
+        .route("/logs", get(media::logs))
+        .route("/scan", post(media::rescan))
         // --- accounts / sessions / profiles ---
-        .route("/auth/register", post(users::register))
-        .route("/auth/login", post(users::login))
-        .route("/auth/logout", post(users::logout))
-        .route("/auth/me", get(users::me).patch(users::update_me))
-        .route("/auth/pin/verify", post(users::verify_pin))
+        .route("/auth/register", post(accounts::register))
+        .route("/auth/login", post(accounts::login))
+        .route("/auth/logout", post(accounts::logout))
+        .route("/auth/me", get(accounts::me).patch(accounts::update_me))
+        .route("/auth/pin/verify", post(pin::verify_pin))
         .route(
             "/auth/me/pin",
-            axum::routing::patch(users::set_pin).delete(users::delete_pin),
+            axum::routing::patch(pin::set_pin).delete(pin::delete_pin),
         )
-        .route("/auth/quickconnect/initiate", post(users::quick_initiate))
-        .route("/auth/quickconnect/authorize", post(users::quick_authorize))
-        .route("/auth/quickconnect/poll", get(users::quick_poll))
-        .route("/users", get(users::list_users))
+        .route("/auth/quickconnect/initiate", post(accounts::quick_initiate))
+        .route("/auth/quickconnect/authorize", post(accounts::quick_authorize))
+        .route("/auth/quickconnect/poll", get(accounts::quick_poll))
+        .route("/users", get(accounts::list_users))
         .route(
             "/users/avatar",
-            post(users::upload_avatar).layer(DefaultBodyLimit::max(users::MAX_AVATAR_BYTES)),
+            post(accounts::upload_avatar).layer(DefaultBodyLimit::max(accounts::MAX_AVATAR_BYTES)),
         )
         // --- invitations (registration is invite-only after the owner) ---
-        .route("/invites", post(users::create_invite).get(users::list_invites))
+        .route("/invites", post(invites::create_invite).get(invites::list_invites))
         .route(
             "/invites/:token",
-            get(users::check_invite).delete(users::delete_invite),
+            get(invites::check_invite).delete(invites::delete_invite),
         )
         // --- playback progress / resume ---
-        .route("/progress", get(users::list_progress))
-        .route("/continue", get(users::continue_watching))
+        .route("/progress", get(playback::list_progress))
+        .route("/continue", get(playback::continue_watching))
         .route(
             "/progress/:id",
-            get(users::get_progress)
-                .put(users::save_progress)
-                .delete(users::delete_progress),
+            get(playback::get_progress)
+                .put(playback::save_progress)
+                .delete(playback::delete_progress),
         )
         // --- live playback sessions (admin dashboard "En cours de lecture") ---
         .route("/playback/ping", post(playback::ping))

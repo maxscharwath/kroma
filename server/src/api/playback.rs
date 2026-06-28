@@ -1,18 +1,19 @@
-//! Playback heartbeat endpoints. Clients (web/TV/mobile) `POST /api/playback/ping`
-//! every few seconds while a `<video>` is playing so the admin dashboard can show
-//! live "En cours de lecture" sessions; `POST /api/playback/stop` ends one
-//! cleanly. Both require a session (the catalogue is public, but a session
-//! belongs to a user).
+//! Playback heartbeat + progress endpoints. Clients (web/TV/mobile) `POST
+//! /api/playback/ping` every few seconds while a `<video>` is playing so the
+//! admin dashboard can show live "En cours de lecture" sessions; `POST
+//! /api/playback/stop` ends one cleanly. The `/progress` + `/continue` handlers
+//! persist resume positions per user. All require a session (the catalogue is
+//! public, but a session belongs to a user).
 
 use std::net::SocketAddr;
 
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 
-use crate::api::handlers::query;
+use crate::api::util::query;
 use crate::auth::AuthUser;
 use crate::db;
 use crate::infra::events::ServerEvent;
@@ -157,4 +158,74 @@ fn client_ip(headers: &HeaderMap, addr: &SocketAddr) -> String {
         }
     }
     addr.ip().to_string()
+}
+
+// ----- progress / resume ------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+pub struct ProgressBody {
+    #[serde(rename = "positionMs")]
+    pub position_ms: i64,
+    #[serde(rename = "durationMs")]
+    pub duration_ms: Option<i64>,
+}
+
+/// `PUT /api/progress/:id` (Bearer) `{ positionMs, durationMs }` → 204.
+pub async fn save_progress(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+    Json(body): Json<ProgressBody>,
+) -> Response {
+    let pos = body.position_ms.max(0);
+    match query(&state.db, move |pool| db::upsert_progress(&pool, &user.id, &item_id, pos, body.duration_ms))
+        .await
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `DELETE /api/progress/:id` (Bearer) → 204 (finished / removed from Continue).
+pub async fn delete_progress(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::delete_progress(&pool, &user.id, &item_id)).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `GET /api/progress/:id` (Bearer) → `ProgressEntry | null` for one item, so the
+/// player can resume without fetching the whole list.
+pub async fn get_progress(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::get_progress(&pool, &user.id, &item_id)).await {
+        Ok(entry) => Json(entry).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `GET /api/progress` (Bearer) → `ProgressEntry[]` (all saved positions).
+pub async fn list_progress(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
+    match query(&state.db, move |pool| db::list_progress(&pool, &user.id)).await {
+        Ok(p) => Json(p).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `GET /api/continue` (Bearer) → `ContinueItem[]` (resumable, newest first).
+pub async fn continue_watching(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+) -> Response {
+    match query(&state.db, move |pool| db::continue_watching(&pool, &user.id)).await {
+        Ok(items) => Json(items).into_response(),
+        Err(resp) => resp,
+    }
 }

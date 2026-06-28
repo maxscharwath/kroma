@@ -21,7 +21,7 @@ use crate::auth::{self, AuthUser};
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::model::{Permission, User};
-use crate::quickconnect::PollState;
+use crate::services::quickconnect::PollState;
 use crate::state::SharedState;
 
 /// Max avatar upload size (raw image bytes).
@@ -213,7 +213,7 @@ pub async fn upload_avatar(
 
     let data_dir = state.config.data_dir.clone();
     let bytes = body.to_vec();
-    let url = match blocking(move || Ok(crate::image::store_upload(&data_dir, &bytes))).await {
+    let url = match blocking(move || Ok(crate::infra::image::store_upload(&data_dir, &bytes))).await {
         Ok(Some(u)) => u,
         Ok(None) => return lerr(loc, StatusCode::UNSUPPORTED_MEDIA_TYPE, "error.imageUnreadable"),
         Err(resp) => return resp,

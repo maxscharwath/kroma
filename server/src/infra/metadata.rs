@@ -1,7 +1,7 @@
 //! Optional movie/show metadata enrichment via **TMDB** (The Movie Database) —
 //! overview, poster, genres, rating, and the TMDB + IMDb IDs.
 //!
-//! Like [`crate::probe`] (which shells out to `ffprobe`), this shells out to
+//! Like [`crate::infra::probe`] (which shells out to `ffprobe`), this shells out to
 //! `curl` instead of pulling an HTTP/TLS dependency. That keeps the crate lean
 //! and `rustc 1.81`-friendly and reuses a binary the runtime image already
 //! ships. `--data-urlencode` makes query building safe for titles with spaces,

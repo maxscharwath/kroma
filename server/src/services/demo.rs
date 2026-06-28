@@ -5,7 +5,7 @@
 use crate::model::{
     AudioStream, Kind, Library, LibraryKind, MediaFile, MediaItem, Show, SubtitleTrack, VideoStream,
 };
-use crate::scan::{now_iso8601, short_hash, ScanData};
+use crate::services::scan::{now_iso8601, short_hash, ScanData};
 
 /// Build a single synthetic (already-probed) file mirroring a demo item, so the
 /// new multi-file schema is consistent for demo content too.

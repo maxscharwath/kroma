@@ -14,11 +14,11 @@ use std::thread;
 
 use tracing::{info, warn};
 
-use crate::activity::{self, Shared as Activity};
+use crate::services::activity::{self, Shared as Activity};
 use crate::db::{self, Pool};
-use crate::events::{Bus, ServerEvent};
-use crate::image;
-use crate::metadata::{self, Cache, Target};
+use crate::infra::events::{Bus, ServerEvent};
+use crate::infra::image;
+use crate::infra::metadata::{self, Cache, Target};
 use crate::model::{Kind, MediaItem, Show};
 use crate::state::SharedState;
 

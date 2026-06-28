@@ -12,11 +12,11 @@ use tracing::{error, info};
 use crate::api::error::json_error;
 use crate::api::poster::render_poster;
 use crate::db;
-use crate::events::ServerEvent;
-use crate::metadata::{self, Target};
+use crate::infra::events::ServerEvent;
+use crate::infra::metadata::{self, Target};
 use crate::model::Kind;
 use crate::state::SharedState;
-use crate::stream::stream_or_demo_error;
+use crate::infra::stream::stream_or_demo_error;
 
 /// Run a blocking DB closure off the async runtime, mapping failures to a 500.
 pub(crate) async fn blocking<T, F>(f: F) -> Result<T, Response>
@@ -229,7 +229,7 @@ pub async fn hls_playlist(
     // Enforce the concurrent-transcode cap (Transcodage → Flux simultanés max).
     // Reusing an existing session for this key never counts against it.
     if !state.transcode.has(&key).await {
-        let cap = crate::settings::max_transcodes(&state.settings);
+        let cap = crate::services::settings::max_transcodes(&state.settings);
         if state.transcode.active_count().await >= cap {
             return Err(json_error(
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -246,10 +246,10 @@ pub async fn hls_playlist(
         // (-ss) starts the remux at the requested position so resume/seek to any
         // offset is available immediately, instead of waiting for a from-0 remux.
         let (aac, start_secs) = spec;
-        let mut tracks: Vec<crate::transcode::MasterTrack> = item
+        let mut tracks: Vec<crate::infra::transcode::MasterTrack> = item
             .audio_tracks
             .iter()
-            .map(|a| crate::transcode::MasterTrack {
+            .map(|a| crate::infra::transcode::MasterTrack {
                 index: a.index,
                 language: a.language.clone(),
                 default: false,
@@ -330,7 +330,7 @@ pub async fn image(State(state): State<SharedState>, Path(name): Path<String>) -
     if let Some(webp) = name.strip_suffix(".jpg").filter(|s| s.ends_with(".webp")) {
         let data_dir = state.config.data_dir.clone();
         let webp = webp.to_string();
-        let made = blocking(move || Ok(crate::image::jpeg_rendition(&data_dir, &webp))).await;
+        let made = blocking(move || Ok(crate::infra::image::jpeg_rendition(&data_dir, &webp))).await;
         return match made {
             Ok(Some(jpg)) => match tokio::fs::read(&jpg).await {
                 Ok(bytes) => image_response(bytes, "image/jpeg"),
@@ -340,7 +340,7 @@ pub async fn image(State(state): State<SharedState>, Path(name): Path<String>) -
         };
     }
 
-    let path = crate::image::images_dir(&state.config.data_dir).join(&name);
+    let path = crate::infra::image::images_dir(&state.config.data_dir).join(&name);
     match tokio::fs::read(&path).await {
         Ok(bytes) => image_response(bytes, content_type_for(&name)),
         Err(_) => json_error(StatusCode::NOT_FOUND, "image not found"),
@@ -411,12 +411,12 @@ pub async fn item_card(
     let data_dir = state.config.data_dir.clone();
 
     let rendered = blocking(move || {
-        let Some(base_path) = crate::image::card_base_png(&data_dir, &webp) else {
+        let Some(base_path) = crate::infra::image::card_base_png(&data_dir, &webp) else {
             return Ok(None);
         };
         let base = std::fs::read(&base_path)?;
         let logo_bytes = logo
-            .and_then(|name| crate::image::card_logo_png(&data_dir, &name))
+            .and_then(|name| crate::infra::image::card_logo_png(&data_dir, &name))
             .and_then(|path| std::fs::read(&path).ok());
         Ok(crate::api::card::render(&crate::api::card::Card {
             base_png: &base,
@@ -436,7 +436,7 @@ pub async fn item_card(
 
 /// Bare cache filename from a `/api/images/<name>` URL, or `None` if remote.
 fn cache_name(url: &str) -> Option<&str> {
-    url.strip_prefix(crate::image::PUBLIC_PREFIX)
+    url.strip_prefix(crate::infra::image::PUBLIC_PREFIX)
 }
 
 /// `GET /api/items/:id/subtitles/:track` → extract an embedded **text** subtitle
@@ -588,18 +588,18 @@ async fn resolve_metadata(
 
 /// `POST /api/scan` → rescan all dirs, reseeding demo content if empty.
 pub async fn rescan(State(state): State<SharedState>) -> Result<Response, Response> {
-    let defs = crate::settings::library_defs(&state.settings, &state.config);
+    let defs = crate::services::settings::library_defs(&state.settings, &state.config);
 
     state.events.publish(ServerEvent::ScanStarted);
-    crate::activity::scan_started(&state.activity);
+    crate::services::activity::scan_started(&state.activity);
 
     // Phase 1 (fast): walk + stat only, diff-synced (preserves metadata + probed
     // data via the mtime cache). Phase 2 probing is spawned afterwards.
     let data = query(&state.db, move |pool| {
-        let mut data = crate::scan::scan_all(&defs);
+        let mut data = crate::services::scan::scan_all(&defs);
         if data.items.is_empty() {
             info!("scan yielded no items; seeding demo content");
-            data = crate::demo::demo_data();
+            data = crate::services::demo::demo_data();
         }
         db::sync_all(&pool, &data.libraries, &data.shows, &data.items, &data.mtimes)?;
         Ok(data)
@@ -607,24 +607,24 @@ pub async fn rescan(State(state): State<SharedState>) -> Result<Response, Respon
     .await?;
 
     let (libraries, shows, items) = (data.libraries.len(), data.shows.len(), data.items.len());
-    crate::activity::scan_completed(&state.activity, libraries, shows, items, crate::scan::now_iso8601());
+    crate::services::activity::scan_completed(&state.activity, libraries, shows, items, crate::services::scan::now_iso8601());
     // Tell live clients the catalog changed, then run phase-2 probing and
     // re-resolve TMDB art in the background (both emit live updates).
     state.events.publish(ServerEvent::ScanCompleted { items, shows, libraries });
     state.events.publish(ServerEvent::LibraryUpdated);
-    crate::probe::spawn_probe_pass(
+    crate::infra::probe::spawn_probe_pass(
         state.db.clone(),
         state.ffprobe_available,
         state.events.clone(),
         state.activity.clone(),
     );
-    crate::enrich::maybe_spawn(&state, &data.items, &data.shows);
+    crate::services::enrich::maybe_spawn(&state, &data.items, &data.shows);
     Ok(Json(super::dto::ScanResult { scanned: items, libraries, shows }).into_response())
 }
 
 /// `GET /api/status` → live scan/enrichment snapshot.
 pub async fn status(State(state): State<SharedState>) -> Response {
-    let snap = crate::activity::snapshot(&state.activity);
+    let snap = crate::services::activity::snapshot(&state.activity);
     Json(snap).into_response()
 }
 

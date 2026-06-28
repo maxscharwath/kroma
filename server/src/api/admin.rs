@@ -18,10 +18,10 @@ use crate::api::error::lerr;
 use crate::api::handlers::{blocking, query};
 use crate::auth::AuthUser;
 use crate::db;
-use crate::events::ServerEvent;
+use crate::infra::events::ServerEvent;
 use crate::i18n;
 use crate::model::{Permission, User};
-use crate::settings::{self, LibraryDef};
+use crate::services::settings::{self, LibraryDef};
 use crate::state::SharedState;
 
 // ----- guards -----------------------------------------------------------------
@@ -111,7 +111,7 @@ pub async fn terminate_session(
     // Drop it from the registry (grace window blocks re-registration) + log it.
     if let Some(session) = state.playback.terminate(&id) {
         let _ = query(&state.db, move |pool| {
-            crate::playback::record(&pool, &session);
+            crate::services::playback::record(&pool, &session);
             Ok(())
         })
         .await;
@@ -150,7 +150,7 @@ pub async fn storage(
     require_any_admin(&user)?;
     let data_dir = state.config.data_dir.clone();
     let (volumes, media_bytes, cache_bytes) = query(&state.db, move |pool| {
-        let volumes = crate::metrics::read_disks();
+        let volumes = crate::infra::metrics::read_disks();
         let media = db::total_media_bytes(&pool).unwrap_or(0).max(0) as u64;
         let cache =
             dir_size(&data_dir.join("transcode")) + dir_size(&data_dir.join("images"));
@@ -296,7 +296,7 @@ pub async fn list_libraries(
     require_any_admin(&user)?;
     let defs = settings::library_defs(&state.settings, &state.config);
     let stats = query(&state.db, move |pool| db::library_stats(&pool)).await?;
-    let last_scan = crate::activity::snapshot(&state.activity).last_scan_at;
+    let last_scan = crate::services::activity::snapshot(&state.activity).last_scan_at;
 
     let libraries: Vec<super::dto::AdminLibrary> = defs
         .iter()
@@ -349,7 +349,7 @@ pub async fn create_library(
         return Err(lerr(user_locale(&user), StatusCode::BAD_REQUEST, "admin.nameRequired"));
     }
     let mut defs = settings::library_defs(&state.settings, &state.config);
-    let id = crate::scan::short_hash(&format!("lib|{name}|{}", crate::auth::random_token()));
+    let id = crate::services::scan::short_hash(&format!("lib|{name}|{}", crate::auth::random_token()));
     defs.push(LibraryDef {
         id: id.clone(),
         name,
@@ -450,12 +450,12 @@ fn spawn_rescan(state: SharedState) {
         let defs = settings::library_defs(&state.settings, &state.config);
         let has_folders = defs.iter().any(|d| !d.folders.is_empty());
         state.events.publish(ServerEvent::ScanStarted);
-        crate::activity::scan_started(&state.activity);
+        crate::services::activity::scan_started(&state.activity);
 
         let res = query(&state.db, move |pool| {
-            let mut data = crate::scan::scan_all(&defs);
+            let mut data = crate::services::scan::scan_all(&defs);
             if data.items.is_empty() && !has_folders {
-                data = crate::demo::demo_data();
+                data = crate::services::demo::demo_data();
             }
             db::sync_all(&pool, &data.libraries, &data.shows, &data.items, &data.mtimes)?;
             Ok(data)
@@ -464,18 +464,18 @@ fn spawn_rescan(state: SharedState) {
 
         if let Ok(data) = res {
             let (l, s, i) = (data.libraries.len(), data.shows.len(), data.items.len());
-            crate::activity::scan_completed(&state.activity, l, s, i, crate::scan::now_iso8601());
+            crate::services::activity::scan_completed(&state.activity, l, s, i, crate::services::scan::now_iso8601());
             state
                 .events
                 .publish(ServerEvent::ScanCompleted { items: i, shows: s, libraries: l });
             state.events.publish(ServerEvent::LibraryUpdated);
-            crate::probe::spawn_probe_pass(
+            crate::infra::probe::spawn_probe_pass(
                 state.db.clone(),
                 state.ffprobe_available,
                 state.events.clone(),
                 state.activity.clone(),
             );
-            crate::enrich::maybe_spawn(&state, &data.items, &data.shows);
+            crate::services::enrich::maybe_spawn(&state, &data.items, &data.shows);
         }
     });
 }

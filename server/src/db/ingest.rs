@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::*;
 
-use crate::metadata::Metadata;
+use crate::infra::metadata::Metadata;
 use crate::model::{Library, LibraryKind, Show};
 
 /// Attach resolved TMDB metadata to one item (used by the enrichment pass).
@@ -147,7 +147,7 @@ fn recompute_all_representatives(pool: &Pool) -> Result<()> {
 ///     only new or modified files get `probed=0` and will be re-probed.
 ///
 /// `mtimes` maps file id → unix-seconds mtime collected during the scan (see
-/// [`crate::scan::take_mtimes`]). `items` carry their `files[]`.
+/// [`crate::services::scan::take_mtimes`]). `items` carry their `files[]`.
 pub fn sync_all(
     pool: &Pool,
     libraries: &[Library],

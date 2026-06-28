@@ -18,10 +18,12 @@ use std::time::Duration;
 use notify::{RecursiveMode, Watcher};
 use tracing::{info, warn};
 
-use crate::events::ServerEvent;
+use crate::infra::events::ServerEvent;
 use crate::model::MediaItem;
 use crate::state::SharedState;
-use crate::{activity, db, enrich, probe, scan};
+use crate::db;
+use crate::infra::probe;
+use crate::services::{activity, enrich, scan};
 
 const DEFAULT_INTERVAL_SECS: u64 = 300;
 const DEBOUNCE: Duration = Duration::from_secs(2);
@@ -79,7 +81,7 @@ fn make_watcher(state: &SharedState, tx: mpsc::Sender<()>) -> Option<notify::Rec
     .map_err(|e| warn!(error = %e, "filesystem watcher unavailable (periodic re-scan only)"))
     .ok()?;
 
-    for dir in crate::settings::all_folders(&state.settings, &state.config) {
+    for dir in crate::services::settings::all_folders(&state.settings, &state.config) {
         if let Err(e) = watcher.watch(&dir, RecursiveMode::Recursive) {
             warn!(path = %dir.display(), error = %e, "could not watch media dir");
         }
@@ -90,7 +92,7 @@ fn make_watcher(state: &SharedState, tx: mpsc::Sender<()>) -> Option<notify::Rec
 /// Re-scan (fast, phase-1). If the file set changed since `last`, persist the
 /// diff, notify clients, and kick off probing/enrichment of the new files.
 fn rescan_if_changed(state: &SharedState, last: &mut u64) {
-    let defs = crate::settings::library_defs(&state.settings, &state.config);
+    let defs = crate::services::settings::library_defs(&state.settings, &state.config);
     let data = scan::scan_all(&defs);
     let sig = signature(&data.items, &data.mtimes);
     if sig == *last {

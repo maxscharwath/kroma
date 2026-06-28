@@ -1,6 +1,6 @@
 //! On-demand HLS **audio-transcode** sessions.
 //!
-//! LUMA's streaming policy is direct-play: [`crate::stream`] serves original
+//! LUMA's streaming policy is direct-play: [`crate::infra::stream`] serves original
 //! bytes and the server never re-encodes *video*. The one exception is audio.
 //! HEVC files routinely carry AC3/EAC3/DTS/TrueHD tracks that browsers
 //! (Chrome/Firefox) refuse to decode for licensing reasons, which yields

@@ -7,7 +7,7 @@ use axum::extract::State;
 use axum::response::Response;
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::events::ServerEvent;
+use crate::infra::events::ServerEvent;
 use crate::state::SharedState;
 
 pub async fn events(State(state): State<SharedState>, ws: WebSocketUpgrade) -> Response {

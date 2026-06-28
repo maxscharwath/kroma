@@ -8,9 +8,9 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::metrics::DiskInfo;
+use crate::infra::metrics::DiskInfo;
 use crate::model::{AdminUser, Permission, User};
-use crate::settings::SettingGroup;
+use crate::services::settings::SettingGroup;
 
 /// `GET /api/health`.
 #[derive(Serialize, TS)]

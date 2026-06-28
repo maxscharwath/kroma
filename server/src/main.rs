@@ -5,31 +5,17 @@
 //! files to clients. It never transcodes: clients decode HEVC/H.265/AV1
 //! themselves. `ffprobe` is used only to read metadata.
 
-mod activity;
 mod api;
 mod auth;
 mod config;
 mod db;
-mod demo;
-mod discovery;
 mod domain;
-mod enrich;
-mod events;
 mod i18n;
-mod image;
-mod metadata;
-mod metrics;
+mod infra;
 mod model;
 mod naming;
-mod playback;
-mod probe;
-mod quickconnect;
-mod scan;
-mod settings;
+mod services;
 mod state;
-mod stream;
-mod transcode;
-mod watch;
 
 use std::sync::OnceLock;
 use std::time::Instant;
@@ -65,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
         "starting LUMA server"
     );
 
-    let ffprobe_available = probe::ffprobe_available();
+    let ffprobe_available = infra::probe::ffprobe_available();
     if ffprobe_available {
         info!("ffprobe detected: full metadata extraction enabled");
     } else {
@@ -73,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if config.tmdb_api_key.is_some() {
-        if metadata::curl_available() {
+        if infra::metadata::curl_available() {
             info!(language = %config.tmdb_language, "TMDB enrichment enabled");
         } else {
             warn!("LUMA_TMDB_API_KEY is set but `curl` was not found; TMDB enrichment disabled");
@@ -84,13 +70,13 @@ async fn main() -> anyhow::Result<()> {
 
     // Persisted settings (incl. the editable library definitions, seeded from
     // LUMA_MEDIA_DIRS on first run).
-    let settings = settings::Settings::load(&db);
-    let library_defs = settings::library_defs(&settings, &config);
+    let settings = services::settings::Settings::load(&db);
+    let library_defs = services::settings::library_defs(&settings, &config);
     let has_folders = library_defs.iter().any(|d| !d.folders.is_empty());
 
     // Phase 1 (fast): walk + stat only, no ffprobe. The library becomes
     // browsable in seconds; codecs/duration/HDR fill in during phase 2 below.
-    let mut data = scan::scan_all(&library_defs);
+    let mut data = services::scan::scan_all(&library_defs);
 
     // An empty scan is ambiguous. With *no* media dirs configured it's a fresh
     // install → seed demo content. But if dirs are configured and still produced
@@ -102,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     let mount_outage = data.items.is_empty() && has_folders;
     if data.items.is_empty() && !has_folders {
         info!("no media dirs configured; seeding built-in demo content");
-        data = demo::demo_data();
+        data = services::demo::demo_data();
     }
 
     if mount_outage {
@@ -123,17 +109,17 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = config.socket_addr();
     let state = AppState::new(config, ffprobe_available, db, settings);
-    activity::scan_completed(
+    services::activity::scan_completed(
         &state.activity,
         data.libraries.len(),
         data.shows.len(),
         data.items.len(),
-        scan::now_iso8601(),
+        services::scan::now_iso8601(),
     );
 
     // Phase 2 (background): ffprobe every unprobed file, emitting live events as
     // codecs land. Spawned before serving so it overlaps request handling.
-    probe::spawn_probe_pass(
+    infra::probe::spawn_probe_pass(
         state.db.clone(),
         state.ffprobe_available,
         state.events.clone(),
@@ -141,12 +127,12 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Resolve TMDB art for the freshly-scanned catalog in the background.
-    enrich::maybe_spawn(&state, &data.items, &data.shows);
+    services::enrich::maybe_spawn(&state, &data.items, &data.shows);
 
     // Watch the library for changes (periodic re-scan + filesystem events) so new
     // files appear without a manual rescan. Baseline = the startup scan we just
     // applied, so it stays quiet until something actually changes.
-    watch::spawn(state.clone(), watch::signature(&data.items, &data.mtimes));
+    infra::watch::spawn(state.clone(), infra::watch::signature(&data.items, &data.mtimes));
 
     // Reap idle HLS audio-transcode sessions (ffmpeg children + temp dirs).
     state.transcode.spawn_reaper();
@@ -175,7 +161,7 @@ async fn main() -> anyhow::Result<()> {
     // settings. Best-effort: held alive until the process exits; failure (no
     // multicast, etc.) is non-fatal.
     let _mdns = if local_discovery {
-        match discovery::advertise(addr.port(), "LUMA") {
+        match infra::discovery::advertise(addr.port(), "LUMA") {
             Ok(daemon) => Some(daemon),
             Err(e) => {
                 warn!(error = %e, "mDNS advertising unavailable; clients must use an explicit address");

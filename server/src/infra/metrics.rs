@@ -16,7 +16,7 @@ use serde::Serialize;
 use sysinfo::{Disks, System};
 use ts_rs::TS;
 
-use crate::playback::Registry;
+use crate::services::playback::Registry;
 use crate::process_started;
 
 /// Sampling cadence. Matches the dashboard's live feel; well above sysinfo's

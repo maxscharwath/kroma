@@ -15,9 +15,9 @@ use serde::Deserialize;
 use crate::api::handlers::query;
 use crate::auth::AuthUser;
 use crate::db;
-use crate::events::ServerEvent;
-use crate::playback::{self, Ping};
-use crate::settings;
+use crate::infra::events::ServerEvent;
+use crate::services::playback::{self, Ping};
+use crate::services::settings;
 use crate::state::SharedState;
 
 #[derive(Debug, Deserialize)]

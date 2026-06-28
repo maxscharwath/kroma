@@ -4,7 +4,7 @@
 //! Phase 1 (this module's [`scan_all`]) is **fast**: it only `stat`s each video
 //! file (size + mtime — no read, no ffprobe). Files are grouped into logical
 //! items so the library is browsable in seconds. The slow per-file probing runs
-//! later in [`crate::probe`]'s background pass.
+//! later in [`crate::infra::probe`]'s background pass.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -17,7 +17,7 @@ use jwalk::{Parallelism, WalkDirGeneric};
 
 use crate::model::{Kind, Library, LibraryKind, MediaFile, MediaItem, Show};
 use crate::naming::{self, Parsed};
-use crate::settings::LibraryDef;
+use crate::services::settings::LibraryDef;
 
 /// Extensions we treat as playable video.
 const VIDEO_EXTENSIONS: &[&str] = &["mkv", "mp4", "m4v", "mov", "webm", "avi", "ts"];

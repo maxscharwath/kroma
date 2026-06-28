@@ -17,7 +17,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::db::Pool;
-use crate::events::{Bus, ServerEvent};
+use crate::infra::events::{Bus, ServerEvent};
 use crate::model::MediaItem;
 
 /// A session is considered ended once no ping arrives for this long. Clients

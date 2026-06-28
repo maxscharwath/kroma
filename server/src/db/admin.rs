@@ -148,7 +148,7 @@ pub fn record_play(
     watched_ms: i64,
 ) -> Result<()> {
     let conn = pool.get()?;
-    let id = crate::scan::short_hash(&format!(
+    let id = crate::services::scan::short_hash(&format!(
         "play|{}|{}|{started_at}|{}",
         user_id.unwrap_or("?"),
         item_id.unwrap_or("?"),

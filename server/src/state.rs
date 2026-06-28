@@ -3,16 +3,16 @@
 
 use std::sync::Arc;
 
-use crate::activity;
+use crate::services::activity;
 use crate::config::Config;
 use crate::db::Pool;
-use crate::events::Bus;
-use crate::metadata;
-use crate::metrics::Metrics;
-use crate::playback::Registry;
-use crate::quickconnect::{self, QuickConnect};
-use crate::settings::Settings;
-use crate::transcode;
+use crate::infra::events::Bus;
+use crate::infra::metadata;
+use crate::infra::metrics::Metrics;
+use crate::services::playback::Registry;
+use crate::services::quickconnect::{self, QuickConnect};
+use crate::services::settings::Settings;
+use crate::infra::transcode;
 
 pub struct AppState {
     pub config: Config,

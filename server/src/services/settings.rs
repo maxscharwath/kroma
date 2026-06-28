@@ -159,7 +159,7 @@ pub fn library_defs(settings: &Settings, config: &crate::config::Config) -> Vec<
                 .unwrap_or("Bibliothèque")
                 .to_string();
             LibraryDef {
-                id: crate::scan::short_hash(&path),
+                id: crate::services::scan::short_hash(&path),
                 name,
                 kind: String::new(),
                 folders: vec![path],

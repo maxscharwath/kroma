@@ -13,9 +13,9 @@ use std::thread;
 use serde::Deserialize;
 use tracing::{debug, info, warn};
 
-use crate::activity::{self, Shared as Activity};
+use crate::services::activity::{self, Shared as Activity};
 use crate::db::{self, Pool};
-use crate::events::{Bus, ServerEvent};
+use crate::infra::events::{Bus, ServerEvent};
 use crate::model::{AudioStream, SubtitleTrack, VideoStream};
 
 /// Max concurrent ffprobe processes in the phase-2 background pass. Tuned to
@@ -65,7 +65,7 @@ struct ProbeJob {
 /// write the result, and emit live events so clients fill in codec/HDR badges.
 ///
 /// Returns immediately; work runs on a small pool of detached threads, mirroring
-/// [`crate::enrich`]. A no-op when there are no unprobed files.
+/// [`crate::services::enrich`]. A no-op when there are no unprobed files.
 pub fn spawn_probe_pass(pool: Pool, ffprobe_present: bool, bus: Bus, activity: Activity) {
     let unprobed = match db::unprobed_files(&pool) {
         Ok(v) => v,

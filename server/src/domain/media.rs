@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::metadata::Metadata;
+use crate::infra::metadata::Metadata;
 
 /// What sort of thing a media item is.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]

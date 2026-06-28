@@ -10,11 +10,11 @@ import {
   type AuthResult,
   clearSession,
   forgetAccount,
+  type LumaClient,
   loadAccounts,
   loadSession,
-  type LumaClient,
-  saveSession,
   type StoredSession,
+  saveSession,
   type User,
 } from '@luma/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -42,52 +42,28 @@ export interface AuthSession {
   updateUser: (patch: Partial<User>) => void;
 }
 
-export interface AuthSessionOptions {
-  /** Read the stored session during the INITIAL render, so the very first authed
-   * fetch already carries the token (what the TV needs for "Reprendre"). Leave
-   * false on SSR clients (web) so server/client renders stay consistent and the
-   * session is applied in an effect instead, gated by `ready`. */
-  syncHydrate?: boolean;
-}
-
-export function useAuthSession(
-  client: LumaClient | null,
-  { syncHydrate = false }: AuthSessionOptions = {},
-): AuthSession {
-  const [session, setSession] = useState<StoredSession | null>(() => {
-    if (!syncHydrate) return null;
-    const s = loadSession();
-    // Apply the token during init (before children render) so the first authed
-    // fetch already carries it.
-    if (s) client?.setAuthToken(s.token);
-    return s;
-  });
-  const [accounts, setAccounts] = useState<StoredSession[]>(() =>
-    syncHydrate ? loadAccounts() : [],
-  );
-  const [ready, setReady] = useState(syncHydrate);
+export function useAuthSession(client: LumaClient | null): AuthSession {
+  const [session, setSession] = useState<StoredSession | null>(null);
+  const [accounts, setAccounts] = useState<StoredSession[]>([]);
+  const [ready, setReady] = useState(false);
 
   // Keep the bearer token in sync across client / session changes.
   useEffect(() => {
     client?.setAuthToken(session?.token);
   }, [client, session]);
 
-  // For effect-hydrated (SSR-safe) clients: hydrate the active session + accounts
-  // now. Then, for both, refresh the signed-in account from the server so a
-  // preference changed on another device (e.g. language) reaches here. Reads
-  // storage directly (not the `session` dep) so it runs once per client.
+  // Hydrate the active session + accounts now. Then refresh the signed-in account
+  // from the server so a preference changed on another device (e.g. language)
+  // reaches here. Reads storage directly (not the `session` dep) so it runs once
+  // per client.
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate once per client, not per session change.
   useEffect(() => {
-    if (!syncHydrate) {
-      const s = loadSession();
-      if (s) client?.setAuthToken(s.token);
-      setSession(s);
-      setAccounts(loadAccounts());
-      setReady(true);
-    }
-    if (!client) return;
     const s = loadSession();
-    if (!s) return;
+    if (s) client?.setAuthToken(s.token);
+    setSession(s);
+    setAccounts(loadAccounts());
+    setReady(true);
+    if (!client || !s) return;
     let cancelled = false;
     client
       .me()

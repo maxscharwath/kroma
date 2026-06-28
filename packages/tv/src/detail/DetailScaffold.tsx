@@ -1,7 +1,6 @@
 import { posterColors } from '@luma/core';
 import { useT } from '@luma/ui';
 import type { ReactNode } from 'react';
-import { useNav } from '#tv/router';
 import { badgeClasses, TvArt } from '#tv/TvMedia';
 
 const VEIL =
@@ -35,7 +34,6 @@ export function TvDetailScaffold({
   overview: string | null | undefined;
   children: ReactNode;
 }>) {
-  const nav = useNav();
   const t = useT();
   return (
     <div className="fixed inset-0 overflow-hidden bg-bg">
@@ -70,13 +68,13 @@ export function TvDetailScaffold({
         {children}
       </div>
 
-      <button
-        className="absolute left-16 top-8.5 z-5 cursor-pointer rounded-md border-none bg-transparent px-3 py-2 font-sans text-[16px] font-semibold text-muted transition-transform focus:scale-[1.04]"
-        data-focus=""
-        onClick={nav.back}
-      >
-        {t('content.detailBack')} <span className="text-dim">{t('content.detailBackHint')}</span>
-      </button>
+      {/* Back is the remote key (wired via useFocusNav onBack), so this is a
+          non-focusable hint. It's a self-contained chip with its own scrim so it
+          never collides with the title when the page is scrolled under it. */}
+      <div className="absolute left-16 top-8 z-10 inline-flex items-center gap-2 rounded-full bg-[rgba(10,10,12,0.55)] px-4 py-2 font-sans text-[14px] font-semibold text-[rgba(244,243,240,0.75)] backdrop-blur-md">
+        {t('content.detailBack')}
+        <span className="text-[rgba(244,243,240,0.4)]">{t('content.detailBackHint')}</span>
+      </div>
     </div>
   );
 }

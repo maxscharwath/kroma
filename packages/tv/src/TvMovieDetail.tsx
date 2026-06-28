@@ -1,18 +1,21 @@
 import { formatRuntime, qualityBadge } from '@luma/core';
 import { useT } from '@luma/ui';
 import { TvDetailScaffold } from '#tv/detail/DetailScaffold';
+import { CastRow, EndsAtHint, ListButton } from '#tv/detail/parts';
+import { useMyList } from '#tv/mylist';
 import { useClient, useNav, useParams } from '#tv/router';
 import { PlayGlyph, TV_PLAY_BTN } from '#tv/TvMedia';
 import { useFocusNav } from '#tv/useFocusNav';
 
-/** Film detail — backdrop, synopsis, metadata and a Lecture button. The movie
- * already carries its TMDB metadata from the catalog list, so no extra fetch.
- * Props-free: reads its target from the route, navigates via the router. */
+/** Film detail — backdrop, synopsis, metadata, a Lecture button, my-list, an
+ * "ends at" hint and the cast. The movie already carries its TMDB metadata from
+ * the catalog list, so no extra fetch. */
 export function TvMovieDetail() {
   const nav = useNav();
   const { item } = useParams('movie');
   const client = useClient();
   const t = useT();
+  const myList = useMyList();
   useFocusNav({ onBack: nav.back });
 
   const meta = item.metadata;
@@ -40,7 +43,10 @@ export function TvMovieDetail() {
           <PlayGlyph />
           {t('player.play')}
         </button>
+        <ListButton inList={myList.has(item.id)} onToggle={() => myList.toggle(item.id)} />
       </div>
+      <EndsAtHint runtimeMs={item.durationMs} />
+      <CastRow cast={item.metadata?.cast} />
     </TvDetailScaffold>
   );
 }

@@ -1,26 +1,41 @@
-import type { Activity, LumaClient, MediaItem, Show } from '@luma/core';
+import type { Activity, LumaClient, MediaItem, SavedServer, Show } from '@luma/core';
 import { createContext, type ReactNode, useContext } from 'react';
 import type { DeepLink } from '#tv/preview';
 
 export type ConnectStatus = 'discovering' | 'connecting' | 'ready' | 'error';
 
-/** Everything the connect screen + catalogue need from the server connection.
- * Exposed via context so `TvConnect` / `TvHome` read it from a hook (no props) and
- * can be registered as bare components in the router's screen map. */
+/** Multi-server connection state for the TV. The catalogue (movies/shows) and
+ * `client` always reflect the **active** server; the picker / add-profile wizard
+ * read `servers` and the LAN `discovered` list. Exposed via context so every
+ * screen reads it from a hook (no prop-drilling) and stays a bare router entry. */
 export interface Connection {
   platform: string;
   status: ConnectStatus;
-  serverUrl: string | null;
+  /** Every saved server, most-recently-used first. */
+  servers: SavedServer[];
+  /** The server the catalogue + `client` point at, or null before any is added. */
+  activeServerUrl: string | null;
+  /** Friendly name of the active server (host fallback). */
+  activeServerName: string | null;
   error: string;
-  /** Null until a server is reached. */
+  /** Client for the active server (null before any server is reached). */
   client: LumaClient | null;
   movies: MediaItem[];
   shows: Show[];
   activity: Activity | null;
+  /** LAN auto-discovery, for the first-run empty state + the wizard's local list. */
+  discovering: boolean;
+  discovered: string[];
   /** Pending Smart-Hub deep link, if any. */
   deepLink: DeepLink | null;
-  connect: (url: string) => void;
+  /** Add (upsert) a server and make it active. */
+  addServer: (url: string, name?: string | null) => void;
+  /** Switch the active server (rebuilds the client; clears the active session). */
+  setActiveServer: (url: string) => void;
+  /** Run LAN discovery again. */
   discover: () => void;
+  /** Forget a server and every remembered account on it. */
+  forgetServer: (url: string) => void;
   clearDeepLink: () => void;
 }
 

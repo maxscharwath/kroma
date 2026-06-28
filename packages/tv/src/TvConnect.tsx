@@ -1,72 +1,90 @@
-import { Button, Logo, useT } from '@luma/ui';
-import { useState } from 'react';
+import { useT } from '@luma/ui';
+import { IconWorldSearch } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
 import { useConnection } from '#tv/connection';
+import { useNav } from '#tv/router';
+import { AuthScreen, LumaMark, OnScreenKeyboard } from '#tv/ui';
 import { useFocusNav } from '#tv/useFocusNav';
 
 /**
- * Server discovery / connection screen. Prop-free — reads everything from
- * useConnection(). The router's guard shows it whenever status !== 'ready'.
+ * Add a (distant) server by address, via an on-screen URL keyboard. Reached on
+ * first run (no server saved) and from the add-profile wizard's "Add manually".
+ * On submit the server is upserted and the flow advances to Quick Connect. A
+ * Detect button kicks off LAN discovery and prefills the field.
  */
 export function TvConnect() {
-  const { status, serverUrl, error, platform, connect, discover } = useConnection();
+  const nav = useNav();
   const t = useT();
-  const [value, setValue] = useState(serverUrl ?? 'http://luma.local:4040');
-  const discovering = status === 'discovering';
-  // Wire the remote: spatial focus + OK across the input and buttons. Re-runs on
-  // status change so focus lands on the right control (button vs. form).
-  useFocusNav({ resetKey: status });
+  const { addServer, discover, discovered, discovering } = useConnection();
+  const [value, setValue] = useState('');
+  // `connect` is only ever reached from the Add-profile wizard, so Back returns
+  // there (never a dead-end at the launch screen).
+  useFocusNav({ onBack: nav.back, resetKey: discovered.length });
 
-  let heading = t('connect.serverNotFound');
-  if (discovering) heading = t('connect.searchingServer');
-  else if (status === 'connecting') heading = t('connect.connectingServer');
+  // When LAN discovery finds something, prefill the field (host only) so OK adds it.
+  useEffect(() => {
+    const found = discovered.at(-1);
+    if (found && !value) {
+      try {
+        setValue(new URL(found).host);
+      } catch {
+        setValue(found);
+      }
+    }
+    // biome-ignore lint/correctness/useExhaustiveDependencies: prefill once on a fresh hit.
+  }, [discovered]);
 
-  let sub = t('connect.serverNotFoundHint', { platform });
-  if (discovering) sub = t('connect.discoveryHint');
-  else if (status === 'connecting') sub = t('connect.connectingTo', { url: serverUrl ?? '' });
+  const submit = () => {
+    let url = value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//.test(url)) url = `http://${url}`;
+    addServer(url);
+    nav.go('quick');
+  };
 
   return (
-    <div className="grid min-h-screen place-items-center p-16 text-center">
-      <div className="max-w-170">
-        <div className="mb-7">
-          <Logo size={44} />
-        </div>
-        <h1 className="m-0 mb-3 font-display text-[38px] font-bold">{heading}</h1>
-        <p className="font-display text-[20px] font-normal text-muted">{sub}</p>
-        {error ? <p className="font-sans text-[13px] text-dim">{error}</p> : null}
-
-        {discovering ? (
-          <div className="mt-6">
-            <Button data-focus="" onClick={discover}>
-              {t('connect.searchAgain')}
-            </Button>
-          </div>
-        ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              connect(value.trim());
-            }}
-            className="mx-auto mt-6 flex w-full max-w-130 flex-col gap-4"
-          >
-            <input
-              data-focus=""
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="http://luma.local:4040"
-              spellCheck={false}
-              className="w-full rounded-md border border-border-strong bg-surface-2 px-5 py-4 text-center font-sans text-[18px] text-text"
-            />
-            <div className="flex justify-center gap-3.5">
-              <Button type="submit" data-focus="">
-                {t('connect.connect')}
-              </Button>
-              <Button type="button" variant="glass" data-focus="" onClick={discover}>
-                {t('connect.detect')}
-              </Button>
-            </div>
-          </form>
-        )}
+    <AuthScreen>
+      <div className="mb-6">
+        <LumaMark size={32} />
       </div>
-    </div>
+      <div className="w-full max-w-[720px]">
+        <h1 className="m-0 mb-1.5 text-center font-display text-[38px] font-semibold">
+          {t('connect.addServerTitle')}
+        </h1>
+        <p className="m-0 mb-6 text-center font-sans text-[16px] font-medium text-dim">
+          {t('connect.addServerSub')}
+        </p>
+
+        <div className="mb-5 flex items-center gap-3 rounded-[13px] border border-border-strong bg-[#0F0F13] px-5 py-4">
+          <IconWorldSearch size={20} className="flex-none text-dim" stroke={1.7} />
+          <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans text-[20px] font-semibold text-text">
+            {value || (
+              <span className="text-[rgba(244,243,240,0.3)]">{t('connect.serverPlaceholder')}</span>
+            )}
+            <span className="ml-px inline-block h-5.5 w-0.5 translate-y-1 bg-accent animate-[tv-blink_1s_step-end_infinite]" />
+          </span>
+          <button
+            data-focus=""
+            type="button"
+            onClick={discover}
+            className="flex-none cursor-pointer rounded-lg border border-border-strong bg-transparent px-4 py-2 font-sans text-[14px] font-semibold text-muted outline-none transition-transform focus:scale-[1.05] focus:border-accent focus:text-accent"
+          >
+            {discovering ? t('common.detecting') : t('connect.detect')}
+          </button>
+        </div>
+
+        <OnScreenKeyboard
+          value={value}
+          onChange={setValue}
+          onSubmit={submit}
+          layout="url"
+          submitLabel={t('connect.connect')}
+        />
+
+        <div className="mt-5 text-center font-sans text-[14px] font-medium text-[rgba(244,243,240,0.4)]">
+          {t('connect.keyboardHint')}
+        </div>
+      </div>
+    </AuthScreen>
   );
 }

@@ -270,6 +270,8 @@ fn migrate(conn: &Connection) {
         "ALTER TABLE users ADD COLUMN last_seen TEXT",
         // Per-account preferred UI locale ("fr" | "en"), synced across devices.
         "ALTER TABLE users ADD COLUMN language TEXT",
+        // Optional profile-lock PIN (PBKDF2 hash, own salt). NULL = no PIN.
+        "ALTER TABLE users ADD COLUMN pin_hash TEXT",
     ] {
         let _ = conn.execute(sql, []);
     }
@@ -844,8 +846,12 @@ fn representative_video(conn: &rusqlite::Connection, show_id: &str) -> Result<Op
 
 // ----- users / sessions / progress --------------------------------------------
 
-/// Map a row of `id,email,username,avatar_url,created_at,permissions,language` to
-/// a [`User`].
+/// Map a row of
+/// `id,email,username,avatar_url,created_at,permissions,language,has_pin` to a
+/// [`User`]. Column 7 is a boolean (`pin_hash IS NOT NULL`) — every SELECT that
+/// feeds this must project it (the password-hash lookups carry it before their
+/// trailing `password_hash`). Column 6 is read as `language`; the admin members
+/// query repurposes it for `last_seen` (which the caller re-reads itself).
 fn row_to_user(r: &Row) -> rusqlite::Result<User> {
     Ok(User {
         id: r.get(0)?,
@@ -855,6 +861,7 @@ fn row_to_user(r: &Row) -> rusqlite::Result<User> {
         created_at: r.get(4)?,
         permissions: parse_permissions(&r.get::<_, String>(5)?),
         language: r.get(6)?,
+        has_pin: r.get(7)?,
     })
 }
 
@@ -896,6 +903,7 @@ pub fn create_user(
         language: None,
         permissions,
         created_at,
+        has_pin: false,
     })
 }
 
@@ -998,10 +1006,10 @@ pub fn delete_invite(pool: &Pool, token: &str) -> Result<()> {
 pub fn find_user_by_email(pool: &Pool, email: &str) -> Result<Option<(User, String)>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id,email,username,avatar_url,created_at,permissions,language,password_hash FROM users WHERE email = ?1",
+        "SELECT id,email,username,avatar_url,created_at,permissions,language,(pin_hash IS NOT NULL),password_hash FROM users WHERE email = ?1",
     )?;
     let mut rows = stmt.query_map(params![email], |r| {
-        Ok((row_to_user(r)?, r.get::<_, String>(7)?))
+        Ok((row_to_user(r)?, r.get::<_, String>(8)?))
     })?;
     match rows.next() {
         Some(v) => Ok(Some(v?)),
@@ -1015,11 +1023,11 @@ pub fn find_user_by_email(pool: &Pool, email: &str) -> Result<Option<(User, Stri
 pub fn find_user_by_login(pool: &Pool, identifier: &str) -> Result<Option<(User, String)>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id,email,username,avatar_url,created_at,permissions,language,password_hash FROM users \
+        "SELECT id,email,username,avatar_url,created_at,permissions,language,(pin_hash IS NOT NULL),password_hash FROM users \
          WHERE email = ?1 COLLATE NOCASE OR username = ?1 LIMIT 1",
     )?;
     let mut rows = stmt.query_map(params![identifier], |r| {
-        Ok((row_to_user(r)?, r.get::<_, String>(7)?))
+        Ok((row_to_user(r)?, r.get::<_, String>(8)?))
     })?;
     match rows.next() {
         Some(v) => Ok(Some(v?)),
@@ -1030,13 +1038,15 @@ pub fn find_user_by_login(pool: &Pool, identifier: &str) -> Result<Option<(User,
 /// All users as the public (no-email) shape, for the profile picker.
 pub fn list_users(pool: &Pool) -> Result<Vec<PublicUser>> {
     let conn = pool.get()?;
-    let mut stmt =
-        conn.prepare("SELECT id,username,avatar_url FROM users ORDER BY created_at")?;
+    let mut stmt = conn.prepare(
+        "SELECT id,username,avatar_url,(pin_hash IS NOT NULL) FROM users ORDER BY created_at",
+    )?;
     let rows = stmt.query_map([], |r| {
         Ok(PublicUser {
             id: r.get(0)?,
             username: r.get(1)?,
             avatar_url: r.get(2)?,
+            has_pin: r.get(3)?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -1062,6 +1072,29 @@ pub fn set_user_language(pool: &Pool, user_id: &str, language: Option<&str>) -> 
     Ok(())
 }
 
+/// The stored PBKDF2 PIN hash for a user, or `None` when no PIN is set. Used by
+/// `/api/auth/pin/verify` and the set/clear handlers to compare the supplied PIN.
+pub fn user_pin_hash(pool: &Pool, user_id: &str) -> Result<Option<String>> {
+    let conn = pool.get()?;
+    let hash = conn
+        .query_row("SELECT pin_hash FROM users WHERE id = ?1", params![user_id], |r| {
+            r.get::<_, Option<String>>(0)
+        })
+        .optional()?
+        .flatten();
+    Ok(hash)
+}
+
+/// Set (or clear, with `None`) a user's PIN hash.
+pub fn set_user_pin(pool: &Pool, user_id: &str, pin_hash: Option<&str>) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE users SET pin_hash = ?2 WHERE id = ?1",
+        params![user_id, pin_hash],
+    )?;
+    Ok(())
+}
+
 /// Persist a new session token (expiry as a unix-seconds integer for robust
 /// comparison).
 pub fn create_session(pool: &Pool, token: &str, user_id: &str, expires_at: i64) -> Result<()> {
@@ -1078,7 +1111,7 @@ pub fn session_user(pool: &Pool, token: &str) -> Result<Option<User>> {
     let conn = pool.get()?;
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
     let mut stmt = conn.prepare(
-        "SELECT u.id,u.email,u.username,u.avatar_url,u.created_at,u.permissions,u.language \
+        "SELECT u.id,u.email,u.username,u.avatar_url,u.created_at,u.permissions,u.language,(u.pin_hash IS NOT NULL) \
          FROM sessions s JOIN users u ON u.id = s.user_id \
          WHERE s.token = ?1 AND s.expires_at > ?2",
     )?;
@@ -1423,7 +1456,9 @@ pub fn settings_set(pool: &Pool, key: &str, value: &serde_json::Value) -> Result
 // ----- admin: users -----------------------------------------------------------
 
 fn row_to_admin_user(r: &Row) -> rusqlite::Result<User> {
-    // Reuse the User shape (cols 0..=5 match row_to_user); last_seen handled by caller.
+    // Reuse the User shape: cols 0..=5 match row_to_user, col 6 carries last_seen
+    // (read as `language`, ignored by the caller, which re-reads col 6 itself),
+    // col 7 is the has_pin flag. The caller's SELECT must project all eight.
     row_to_user(r)
 }
 
@@ -1433,7 +1468,7 @@ fn row_to_admin_user(r: &Row) -> rusqlite::Result<User> {
 pub fn admin_users(pool: &Pool) -> Result<Vec<crate::model::AdminUser>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id,email,username,avatar_url,created_at,permissions,last_seen \
+        "SELECT id,email,username,avatar_url,created_at,permissions,last_seen,(pin_hash IS NOT NULL) \
          FROM users ORDER BY created_at",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -1465,7 +1500,7 @@ pub fn get_user(pool: &Pool, id: &str) -> Result<Option<User>> {
     let conn = pool.get()?;
     let user = conn
         .query_row(
-            "SELECT id,email,username,avatar_url,created_at,permissions,language FROM users WHERE id = ?1",
+            "SELECT id,email,username,avatar_url,created_at,permissions,language,(pin_hash IS NOT NULL) FROM users WHERE id = ?1",
             params![id],
             row_to_user,
         )

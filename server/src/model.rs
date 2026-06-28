@@ -226,6 +226,12 @@ pub struct User {
     pub permissions: Vec<Permission>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
+    /// Whether this account has a numeric profile-lock PIN set on the server
+    /// (`pin_hash IS NOT NULL`). Lets a client show its own PIN state (e.g. the
+    /// TV profile menu's "Change PIN" vs "Set PIN"); the PIN itself never leaves
+    /// the server. See `/api/auth/pin/*`.
+    #[serde(rename = "hasPin")]
+    pub has_pin: bool,
 }
 
 impl User {
@@ -288,6 +294,11 @@ pub struct PublicUser {
     pub username: String,
     #[serde(rename = "avatarUrl", skip_serializing_if = "Option::is_none")]
     pub avatar_url: Option<String>,
+    /// Whether this account has a profile-lock PIN (`pin_hash IS NOT NULL`), so
+    /// the "Qui regarde ?" picker can render a lock and route to the PIN screen
+    /// before switching in. Defaults to `false` for accounts without one.
+    #[serde(rename = "hasPin")]
+    pub has_pin: bool,
 }
 
 /// A registration invitation created by a user with `users.manage`. After the

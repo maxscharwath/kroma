@@ -81,7 +81,14 @@ export class LumaClient {
     if (this.locale) headers.set('Accept-Language', this.locale);
     const res = await this.fetchFn(`${this.baseUrl}/api${path}`, { ...init, headers });
     if (!res.ok) {
-      throw new LumaApiError(res.status, `${init?.method ?? 'GET'} ${path} failed (${res.status})`);
+      // Attach the error body (e.g. PIN verify's `{ error, retryAfter }`) so
+      // callers can react without a second read.
+      const body = await res.json().catch(() => undefined);
+      throw new LumaApiError(
+        res.status,
+        `${init?.method ?? 'GET'} ${path} failed (${res.status})`,
+        body,
+      );
     }
     // 204 No Content (progress writes) → nothing to parse.
     if (res.status === 204) return undefined as T;
@@ -293,6 +300,36 @@ export class LumaClient {
   /** Public profile list for the "Qui regarde ?" picker (no emails). */
   users(): Promise<PublicUser[]> {
     return this.json<PublicUser[]>('/users');
+  }
+
+  /** Verify a profile-lock PIN with the remembered token (TV switch-in). Resolves
+   * on 204; throws `LumaApiError` on 401 (wrong) / 429 (locked out — the error's
+   * `retryAfter` seconds are surfaced as a cooldown). */
+  pinVerify(pin: string): Promise<void> {
+    return this.json<void>('/auth/pin/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+  }
+
+  /** Set or rotate the signed-in user's PIN → the updated `{ user }`. `current`
+   * is required when one is already set. */
+  setPin(pin: string, current?: string): Promise<{ user: User }> {
+    return this.json<{ user: User }>('/auth/me/pin', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pin, current }),
+    });
+  }
+
+  /** Clear the signed-in user's PIN (verifying `current`) → the updated `{ user }`. */
+  clearPin(current: string): Promise<{ user: User }> {
+    return this.json<{ user: User }>('/auth/me/pin', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ current }),
+    });
   }
 
   /** Upload the current user's avatar (raw image bytes) → its cached WebP URL. */
@@ -531,6 +568,9 @@ export class LumaApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Parsed JSON error body when the server sent one (e.g. `{ error,
+     * retryAfter }` from a rate-limited PIN verify). */
+    readonly body?: unknown,
   ) {
     super(message);
     this.name = 'LumaApiError';

@@ -1,10 +1,15 @@
 import {
   type Activity,
   discoverServer,
+  forgetServer as forgetServerStore,
   LumaClient,
   LumaEvents,
+  loadSession,
   type MediaItem,
+  normalizeServerUrl as norm,
+  type SavedServer,
   type Show,
+  saveServer as saveServerStore,
 } from '@luma/core';
 import { LumaIntro } from '@luma/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,6 +18,7 @@ import { type Connection, ConnectionProvider, useConnection } from '#tv/connecti
 import { ContinueProvider } from '#tv/continue';
 import { type RedirectRule, resolveRedirect } from '#tv/guard';
 import { LocaleProvider } from '#tv/locale';
+import { MyListProvider } from '#tv/mylist';
 import { type DeepLink, onDeepLink, publishPreview, readDeepLink } from '#tv/preview';
 import {
   type RouteName,
@@ -22,12 +28,16 @@ import {
   type TvScreens,
   useNav,
 } from '#tv/router';
-import { initialServerUrl, setServerUrl } from '#tv/server';
+import { initialServers } from '#tv/server';
+import { TvAddProfile } from '#tv/TvAddProfile';
 import { TvConnect } from '#tv/TvConnect';
+import { TvGrid } from '#tv/TvGrid';
 import { TvHome } from '#tv/TvHome';
 import { TvMovieDetail } from '#tv/TvMovieDetail';
+import { TvPin } from '#tv/TvPin';
 import { TvPlayer } from '#tv/TvPlayer';
-import { TvLogin, TvProfiles, TvQuickConnect, TvRegister } from '#tv/TvProfiles';
+import { TvProfileMenu, TvProfiles, TvQuickConnect } from '#tv/TvProfiles';
+import { TvSearch } from '#tv/TvSearch';
 import { TvShowDetail } from '#tv/TvShowDetail';
 
 export interface TvAppProps {
@@ -36,6 +46,18 @@ export interface TvAppProps {
 }
 
 type Status = 'discovering' | 'connecting' | 'ready' | 'error';
+
+/** A readable name for a server URL (saved label, else the host). */
+function serverLabel(servers: SavedServer[], url: string | null): string | null {
+  if (!url) return null;
+  const saved = servers.find((s) => s.url === norm(url));
+  if (saved?.name) return saved.name;
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
 
 const EMPTY_ACTIVITY: Activity = {
   phase: 'idle',
@@ -63,96 +85,125 @@ const introAlreadySeen = (() => {
 })();
 
 export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
-  const [serverUrl, setUrl] = useState<string | null>(() => initialServerUrl());
-  const [client, setClient] = useState<LumaClient | null>(() =>
-    serverUrl ? new LumaClient({ baseUrl: serverUrl }) : null,
+  // The session present at boot — used to point the first client at the right
+  // server with its token already applied (no flicker on "Reprendre").
+  const bootSession = useMemo(() => loadSession(), []);
+  const [servers, setServers] = useState<SavedServer[]>(() => initialServers());
+  const [activeServerUrl, setActiveUrl] = useState<string | null>(
+    () => bootSession?.serverUrl ?? servers[0]?.url ?? null,
   );
-  const [status, setStatus] = useState<Status>(serverUrl ? 'connecting' : 'discovering');
+
+  const client = useMemo<LumaClient | null>(() => {
+    if (!activeServerUrl) return null;
+    const token =
+      bootSession && norm(bootSession.serverUrl ?? '') === norm(activeServerUrl)
+        ? bootSession.token
+        : undefined;
+    return new LumaClient({ baseUrl: activeServerUrl, authToken: token });
+    // bootSession is stable; rebuild only when the active server changes.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: bootSession is boot-stable.
+  }, [activeServerUrl]);
+
+  // Reported up by the auth provider; gates the catalogue + event stream so the
+  // signed-out picker makes no requests at all.
+  const [signedIn, setSignedIn] = useState(Boolean(bootSession));
+  const [status, setStatus] = useState<Status>(activeServerUrl ? 'connecting' : 'discovering');
   const [movies, setMovies] = useState<MediaItem[]>([]);
   const [shows, setShows] = useState<Show[]>([]);
   const [activity, setActivity] = useState<Activity | null>(null);
   const [error, setError] = useState('');
-  // A movie/show the app was launched into from a Smart Hub preview tile.
+  const [discovering, setDiscovering] = useState(false);
+  const [discovered, setDiscovered] = useState<string[]>([]);
   const [deepLink, setDeepLink] = useState<DeepLink | null>(() => readDeepLink());
-  // Cinematic brand intro — plays once per app launch (session), then hands off.
   const [introDone, setIntroDone] = useState(introAlreadySeen);
 
-  const connect = useCallback((url: string, persist = true) => {
-    if (persist) setServerUrl(url);
-    setUrl(url);
-    setClient(new LumaClient({ baseUrl: url }));
+  const setActiveServer = useCallback((url: string) => setActiveUrl(norm(url)), []);
+
+  const addServer = useCallback((url: string, name?: string | null) => {
+    const next = saveServerStore({ url, name });
+    setServers(next);
+    setActiveUrl(norm(url));
   }, []);
 
+  const forgetServer = useCallback(
+    (url: string) => {
+      const u = norm(url);
+      // Drop it from core storage (also clears its accounts + active session).
+      forgetServerStore(u);
+      const next = servers.filter((s) => s.url !== u);
+      setServers(next);
+      if (activeServerUrl && norm(activeServerUrl) === u) setActiveUrl(next[0]?.url ?? null);
+    },
+    [servers, activeServerUrl],
+  );
+
   const discover = useCallback(() => {
-    setStatus('discovering');
+    setDiscovering(true);
     let cancelled = false;
     void discoverServer().then((found) => {
       if (cancelled) return;
-      if (found) connect(found);
-      else setStatus('error');
+      setDiscovering(false);
+      if (found) {
+        setDiscovered((d) => (d.includes(found) ? d : [...d, found]));
+        // First-run bootstrap: no servers yet → adopt the discovered one.
+        if (servers.length === 0) addServer(found);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [connect]);
+  }, [servers.length, addServer]);
 
-  // No saved/baked address → auto-discover on the LAN.
+  // No saved servers → auto-discover on the LAN (first run).
   useEffect(() => {
-    if (!serverUrl) return discover();
-  }, [serverUrl, discover]);
+    if (servers.length === 0) return discover();
+    setStatus((s) => (s === 'discovering' ? 'connecting' : s));
+  }, [servers.length, discover]);
 
-  const load = useCallback(async (c: LumaClient) => {
-    setStatus('connecting');
+  // Fetch the catalogue. `quiet` skips the status/error toggles (used by the live
+  // refetch below — no "connecting" flicker, keep current data on a transient error).
+  const fetchCatalogue = useCallback(async (c: LumaClient, quiet = false) => {
+    if (!quiet) setStatus('connecting');
     try {
       const [mvs, shs] = await Promise.all([c.movies(), c.shows()]);
       setMovies(mvs);
       setShows(shs);
-      setStatus('ready');
+      if (!quiet) setStatus('ready');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setStatus('error');
+      if (!quiet) {
+        setError(err instanceof Error ? err.message : String(err));
+        setStatus('error');
+      }
     }
   }, []);
 
+  // Load the catalogue only once a profile is active — the signed-out picker
+  // stays silent (no /api/movies, /api/shows before sign-in).
   useEffect(() => {
-    if (client) void load(client);
-  }, [client, load]);
+    if (client && signedIn) void fetchCatalogue(client);
+  }, [client, signedIn, fetchCatalogue]);
 
-  // Quiet refetch (no "connecting" flicker) for live updates.
-  const refresh = useCallback(async (c: LumaClient) => {
-    try {
-      const [mvs, shs] = await Promise.all([c.movies(), c.shows()]);
-      setMovies(mvs);
-      setShows(shs);
-    } catch {
-      /* keep current data on a transient error */
-    }
-  }, []);
-
-  // Live sync: hold the event stream open and refetch when the catalog changes
-  // (scan finished, or TMDB art resolved) — no relaunch needed. A leading+trailing
-  // throttle coalesces bursts (e.g. enrichment of thousands of titles) into at
-  // most one refetch per window.
+  // Live sync: hold the event stream open and refetch when the catalog changes.
+  // A leading+trailing throttle coalesces bursts into at most one refetch/window.
+  // Only while signed in — the picker keeps the stream (and /api/status) closed.
   useEffect(() => {
-    if (!client) return;
+    if (!client || !signedIn) return;
     const MIN_MS = 2500;
     let last = 0;
     let trailing: ReturnType<typeof setTimeout> | undefined;
     const run = () => {
       last = Date.now();
-      void refresh(client);
+      void fetchCatalogue(client, true);
     };
     const trigger = () => {
       const since = Date.now() - last;
-      if (since >= MIN_MS) {
-        run();
-      } else {
+      if (since >= MIN_MS) run();
+      else {
         clearTimeout(trailing);
         trailing = setTimeout(run, MIN_MS - since);
       }
     };
     const events = new LumaEvents(client.baseUrl, {
-      // On (re)connect, grab the current scan/enrich snapshot.
       onOpen: () =>
         void client
           .status()
@@ -206,49 +257,55 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
       clearTimeout(trailing);
       events.close();
     };
-  }, [client, refresh]);
+  }, [client, signedIn, fetchCatalogue]);
 
-  // Smart Hub preview (Samsung TV): keep the home-screen carousel (resume +
-  // recently-added) in sync. Debounced so a burst of catalog updates coalesces.
+  // Smart Hub preview (Samsung TV): keep the home-screen carousel in sync.
   useEffect(() => {
     if (status !== 'ready' || !client) return;
     const id = setTimeout(() => void publishPreview(client, movies), 1500);
     return () => clearTimeout(id);
   }, [status, client, movies]);
 
-  // Honour a tile selection that re-targets the app while it's already running.
   useEffect(() => onDeepLink(setDeepLink), []);
 
-  // The router renders every screen — no view-gating `if`s. Each screen reads its
-  // own data from hooks (useConnection / useAuth / useParams / useContinue), so the
-  // registry holds bare components and <TvOutlet/> is prop-free.
   const connection = useMemo<Connection>(
     () => ({
       platform,
       status,
-      serverUrl,
+      servers,
+      activeServerUrl,
+      activeServerName: serverLabel(servers, activeServerUrl),
       error,
       client,
       movies,
       shows,
       activity,
+      discovering,
+      discovered,
       deepLink,
-      connect,
+      addServer,
+      setActiveServer,
       discover,
+      forgetServer,
       clearDeepLink: () => setDeepLink(null),
     }),
     [
       platform,
       status,
-      serverUrl,
+      servers,
+      activeServerUrl,
       error,
       client,
       movies,
       shows,
       activity,
+      discovering,
+      discovered,
       deepLink,
-      connect,
+      addServer,
+      setActiveServer,
       discover,
+      forgetServer,
     ],
   );
 
@@ -257,10 +314,17 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
       <TvNavProvider screens={SCREENS}>
         <ConnectionProvider value={connection}>
           <TvClientProvider client={client}>
-            <AuthProvider client={client}>
+            <AuthProvider
+              client={client}
+              activeServerUrl={activeServerUrl}
+              setActiveServer={setActiveServer}
+              onSignedInChange={setSignedIn}
+            >
               <LocaleProvider client={client}>
                 <ContinueProvider>
-                  <TvRouterGuard />
+                  <MyListProvider>
+                    <TvRouterGuard />
+                  </MyListProvider>
                 </ContinueProvider>
               </LocaleProvider>
             </AuthProvider>
@@ -268,8 +332,6 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
         </ConnectionProvider>
       </TvNavProvider>
       {introDone ? null : (
-        // `lite` = compositor-only animation for a smooth frame rate on TV GPUs.
-        // No buttons: it auto-ends with the sting, OK/Back on the remote skips.
         <LumaIntro
           lite
           onDone={() => {
@@ -286,60 +348,61 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
   );
 }
 
-/** Route → component registry (the "route tree"). Each screen is a bare component
- * that reads its own data from hooks — so `<TvOutlet/>` needs no props. */
+/** Route → component registry. Each screen reads its own data from hooks. */
 const SCREENS: TvScreens = {
   connect: TvConnect,
   profiles: TvProfiles,
-  login: TvLogin,
-  register: TvRegister,
+  addProfile: TvAddProfile,
   quick: TvQuickConnect,
+  pin: TvPin,
+  profileMenu: TvProfileMenu,
   home: TvHome,
+  grid: TvGrid,
+  search: TvSearch,
   movie: TvMovieDetail,
   show: TvShowDetail,
   player: TvPlayer,
 };
 
-// Screen groups for the navigation guard below.
-const CONNECT_SCREENS = ['connect'] as const; // pre-session discovery / connection
-const AUTH_SCREENS = ['profiles', 'login', 'register', 'quick'] as const; // signed-out
-const APP_SCREENS = ['home', 'movie', 'show', 'player'] as const; // signed-in app
+// Screen groups for the navigation guard. The profile picker is the signed-out
+// home even with no servers yet — it shows just "Ajouter un profil", which opens
+// the wizard (where `connect` / "Ajouter manuellement" lives). So `connect` is an
+// auth-flow screen, never the launch screen.
+const AUTH_SCREENS = ['profiles', 'addProfile', 'connect', 'quick', 'pin'] as const; // signed out
+const APP_SCREENS = [
+  'home',
+  'grid',
+  'search',
+  'movie',
+  'show',
+  'player',
+  'profileMenu',
+  'pin',
+] as const; // signed in (pin: set/clear)
 
 interface GuardState {
-  ready: boolean;
   signedIn: boolean;
 }
 
-// The guard only ever redirects to a param-less screen (so `nav.replace(target)`
-// needs no params).
-type GuardTarget = 'connect' | 'profiles' | 'home';
+type GuardTarget = 'profiles' | 'home';
 
-// Declarative navigation policy (first match wins), replacing the old nested
-// `if (status) … else if (!user) …` ladder: each rule says which screens are
-// allowed in a given state, and where to send the user otherwise.
+// Declarative navigation policy (first match wins): signed-out → the picker /
+// auth flow; signed-in → the app.
 const GUARD: readonly RedirectRule<GuardState, RouteName, GuardTarget>[] = [
-  { when: (s) => !s.ready, to: 'connect', allow: CONNECT_SCREENS }, // not connected → connect
-  { when: (s) => !s.signedIn, to: 'profiles', allow: AUTH_SCREENS }, // connected, signed out → auth flow
-  { when: () => true, to: 'home', allow: APP_SCREENS }, // signed in → the app (connect/auth bounce home)
+  { when: (s) => !s.signedIn, to: 'profiles', allow: AUTH_SCREENS },
+  { when: () => true, to: 'home', allow: APP_SCREENS },
 ];
 
-/** Drives the route from connection status + session and applies Smart-Hub deep
- * links, then renders the routed screen. Mounted inside every provider. */
+/** Drives the route from connection + session, then renders the routed screen. */
 function TvRouterGuard() {
   const nav = useNav();
-  const { status, deepLink, movies, shows, clearDeepLink } = useConnection();
+  const { deepLink, movies, shows, clearDeepLink } = useConnection();
   const { user } = useAuth();
 
-  // Apply the declarative guard: it returns the screen we must be on (or null to
-  // stay). `replace` = single-screen stack, so there's nothing to "go back" to.
   useEffect(() => {
-    const target = resolveRedirect(
-      GUARD,
-      { ready: status === 'ready', signedIn: Boolean(user) },
-      nav.route.name,
-    );
+    const target = resolveRedirect(GUARD, { signedIn: Boolean(user) }, nav.route.name);
     if (target) nav.replace(target);
-  }, [status, user, nav]);
+  }, [user, nav]);
 
   // Apply a pending Smart-Hub deep link once signed in and its target is loaded.
   useEffect(() => {

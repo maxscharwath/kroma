@@ -4,4 +4,10 @@
  * The publicly-listable subset of a user, surfaced by `GET /api/users` to
  * populate the "Qui regarde ?" profile picker (no email).
  */
-export type PublicUser = { id: string, username: string, avatarUrl: string | null, };
+export type PublicUser = { id: string, username: string, avatarUrl: string | null, 
+/**
+ * Whether this account has a profile-lock PIN (`pin_hash IS NOT NULL`), so
+ * the "Qui regarde ?" picker can render a lock and route to the PIN screen
+ * before switching in. Defaults to `false` for accounts without one.
+ */
+hasPin: boolean, };

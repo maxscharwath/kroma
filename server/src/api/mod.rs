@@ -48,6 +48,11 @@ pub fn router(state: SharedState) -> Router {
         .route("/auth/login", post(users::login))
         .route("/auth/logout", post(users::logout))
         .route("/auth/me", get(users::me).patch(users::update_me))
+        .route("/auth/pin/verify", post(users::verify_pin))
+        .route(
+            "/auth/me/pin",
+            axum::routing::patch(users::set_pin).delete(users::delete_pin),
+        )
         .route("/auth/quickconnect/initiate", post(users::quick_initiate))
         .route("/auth/quickconnect/authorize", post(users::quick_authorize))
         .route("/auth/quickconnect/poll", get(users::quick_poll))

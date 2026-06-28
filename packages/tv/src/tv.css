@@ -17,6 +17,13 @@
    package (symlinked), so scan them explicitly for utility class names. */
 @source './';
 
+/* TV-only focus depth shadow. The design's focus state is a CLEAN solid amber
+   ring + a dark drop shadow for lift — NOT an amber glow/bloom — so the ring
+   reads as a crisp border. (`0 0 0 4px #F4B642, 0 10px 28px rgba(0,0,0,.5)`.) */
+:root {
+  --glow-accent: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
 @theme {
   /* Colors → reference the LUMA tokens. */
   --color-bg: var(--luma-bg);
@@ -103,13 +110,62 @@
   }
 }
 
-/* Slow ambient amber breathing (live scan/enrichment dot). */
-@keyframes luma-breathe {
+/* --- New-design motion (compositor-only transforms/opacity for TV GPUs). --- */
+
+/* Screen entrance. */
+@keyframes tv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Pulsing accent glow (hero light, waiting dot). */
+@keyframes tv-breathe {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.45;
   }
   50% {
-    opacity: 0.6;
+    opacity: 0.85;
+  }
+}
+
+/* Side panel slide-in (player Audio & Subtitles drawer). */
+@keyframes tv-panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Text-input caret blink (on-screen keyboard fields). */
+@keyframes tv-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* A short error shake (wrong PIN). */
+@keyframes tv-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-8px);
+  }
+  40%,
+  80% {
+    transform: translateX(8px);
   }
 }

@@ -8,7 +8,7 @@
 // `playing` state; the TV player supplies platform labels + the raw <video> and
 // drives the prompt ping off the element's play/pause events.
 
-import { LumaApiError, LumaEvents, type LumaClient } from '@luma/core';
+import { LumaApiError, type LumaClient, LumaEvents } from '@luma/core';
 import { type RefObject, useEffect, useRef } from 'react';
 
 export interface PlaybackHeartbeatParams {

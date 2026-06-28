@@ -1,4 +1,4 @@
-import type { LumaClient, MediaItem, PublicUser, Show } from '@luma/core';
+import type { LumaClient, MediaItem, Show, StoredSession } from '@luma/core';
 import {
   type ComponentType,
   createContext,
@@ -28,17 +28,23 @@ import {
  *   }} />
  */
 export interface TvRoutes {
-  /** Server discovery / connection screen (no client yet). */
+  /** Add a (distant) server by address — on-screen URL keyboard. */
   connect: undefined;
-  /** Profile picker (signed out). */
+  /** Multi-server profile picker (signed out). */
   profiles: undefined;
-  /** Password entry for a chosen profile (signed out). */
-  login: { user: PublicUser };
-  /** New-account creation (signed out). */
-  register: undefined;
-  /** Quick Connect code / QR (signed out). */
+  /** Add-a-profile wizard: choose which server to pair on (signed out). */
+  addProfile: undefined;
+  /** Quick Connect code / QR against the active server (signed out). */
   quick: undefined;
+  /** PIN entry: verify a locked profile, or set/clear the active account's PIN. */
+  pin: { intent: 'verify' | 'set' | 'clear'; account?: StoredSession };
+  /** Profile menu: language, PIN, switch profile, sign out, forget server. */
+  profileMenu: undefined;
   home: undefined;
+  /** Full-screen catalogue grid for one section (Films / Séries / Ma liste). */
+  grid: { kind: 'films' | 'series' | 'mylist' };
+  /** Search with an on-screen keyboard. */
+  search: undefined;
   movie: { item: MediaItem };
   show: { show: Show };
   player: { item: MediaItem };
@@ -72,7 +78,7 @@ export interface TvNav {
   home: () => void;
 }
 
-const CONNECT = { name: 'connect', params: undefined } as TvRoute;
+const PROFILES = { name: 'profiles', params: undefined } as TvRoute;
 const HOME = { name: 'home', params: undefined } as TvRoute;
 const NavCtx = createContext<TvNav | null>(null);
 
@@ -93,9 +99,10 @@ export function TvNavProvider({
   screens,
   children,
 }: Readonly<{ screens: TvScreens; children: ReactNode }>) {
-  // Start on `connect` — the app boots into discovery/connection before anything
-  // else; the guard advances to profiles/home as the session resolves.
-  const [stack, setStack] = useState<TvRoute[]>([CONNECT]);
+  // Start on the profile picker — the signed-out home. Adding a server happens
+  // inside the Add-profile wizard, never as the launch screen. The guard advances
+  // to `home` once a session resolves.
+  const [stack, setStack] = useState<TvRoute[]>([PROFILES]);
 
   const go = useCallback(<K extends RouteName>(...[name, params]: GoArgs<K>) => {
     setStack((s) => [...s, make(name, params)]);

@@ -95,7 +95,7 @@ function TvCardImpl({
 }: Readonly<TvCardProps>) {
   return (
     <div
-      className="flex-none cursor-pointer rounded-xl transition-transform [contain-intrinsic-size:328px_185px] [content-visibility:auto] focus:scale-[1.06]"
+      className="flex-none cursor-pointer rounded-xl transition-transform focus:scale-[1.06]"
       data-focus=""
       tabIndex={0}
       role="button"
@@ -105,7 +105,7 @@ function TvCardImpl({
       }}
       style={{ width }}
     >
-      <div className="relative aspect-video overflow-hidden rounded-xl bg-surface-1 shadow-card">
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-surface-1 shadow-card [contain-intrinsic-size:328px_185px] [content-visibility:auto]">
         <TvArt src={backdrop} colors={colors} position="50% 28%" />
         <div className="absolute inset-0 bg-linear-to-b from-[rgba(0,0,0,0.05)] from-40% to-[rgba(0,0,0,0.75)]" />
         {badge ? (
@@ -152,11 +152,12 @@ export interface TvPosterProps {
 function TvPosterImpl({ title, badge, poster, colors, onClick }: Readonly<TvPosterProps>) {
   return (
     <button
-      className="w-full cursor-pointer rounded-lg border-none bg-transparent p-0 transition-transform [contain-intrinsic-size:200px_300px] [content-visibility:auto] focus:scale-[1.05]"
+      className="w-full cursor-pointer rounded-lg border-none bg-transparent p-0 transition-transform focus:scale-[1.05]"
       data-focus=""
+      type="button"
       onClick={onClick}
     >
-      <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-1 shadow-card">
+      <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-1 shadow-card [contain-intrinsic-size:200px_300px] [content-visibility:auto]">
         <TvArt src={poster} colors={colors} position="50% 50%" />
         <div className="absolute inset-0 bg-[linear-gradient(170deg,rgba(0,0,0,0.05)_35%,rgba(0,0,0,0.72))]" />
         {badge ? (

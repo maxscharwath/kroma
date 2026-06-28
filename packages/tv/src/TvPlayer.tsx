@@ -1,6 +1,7 @@
 import { audioSupport, metaLine } from '@luma/core';
-import { useT } from '@luma/ui';
+import { useLocale, useT } from '@luma/ui';
 import { useMemo } from 'react';
+import { endsAtClock } from '#tv/detail/parts';
 import { AvPanel } from '#tv/player/AvPanel';
 import { fmtTime } from '#tv/player/fmt';
 import {
@@ -20,6 +21,8 @@ import { TvSubtitles } from '#tv/TvSubtitles';
 const FOCUS_RING = 'scale-[1.07] shadow-[var(--ring-focus),var(--glow-accent)]';
 const CTRL =
   'flex items-center justify-center rounded-full text-white transition-[transform,box-shadow,background] duration-180';
+const CTRL_ON = 'bg-[rgba(255,255,255,0.22)]';
+const CTRL_OFF = 'bg-[rgba(255,255,255,0.12)]';
 
 /**
  * Fullscreen 10-foot direct-play surface. Composes three concerns: playback
@@ -31,6 +34,7 @@ export function TvPlayer() {
   const { item } = useParams('player');
   const client = useClient();
   const t = useT();
+  const locale = useLocale();
 
   const playback = useDirectPlayback(client, item);
   const subs = useSubtitleSelection(client, item);
@@ -59,6 +63,7 @@ export function TvPlayer() {
   const { cur, dur, bufEnd, playing, waiting, error, terminated, verdict } = playback;
   const pct = dur ? (cur / dur) * 100 : 0;
   const bufPct = dur ? (bufEnd / dur) * 100 : 0;
+  const endsAt = dur ? endsAtClock(Math.max(0, dur - cur) * 1000, locale) : '';
   const fade = controls ? 'opacity-100' : 'pointer-events-none opacity-0';
   // Warning pill text, by priority: admin stop → stream/codec load error →
   // direct-play verdict → audio support. All resolved to the active locale here.
@@ -110,11 +115,11 @@ export function TvPlayer() {
         ) : null}
       </div>
 
-      {/* bottom controls */}
+      {/* bottom controls — seek bar, the focusable control ring, then the hint */}
       <div
         className={`absolute inset-x-0 bottom-0 bg-[linear-gradient(0deg,rgba(0,0,0,0.82),transparent)] px-8.5 pb-7 transition-opacity duration-350 ${fade}`}
       >
-        <div className="mb-4.5 flex items-center gap-4">
+        <div className="mb-5 flex items-center gap-4">
           <span className="w-16 font-sans text-[15px] font-semibold text-[rgba(244,243,240,0.85)] tabular-nums">
             {fmtTime(cur)}
           </span>
@@ -143,12 +148,15 @@ export function TvPlayer() {
           <span className="w-16 text-right font-sans text-[15px] font-semibold text-[rgba(244,243,240,0.55)] tabular-nums">
             {fmtTime(dur)}
           </span>
+          {endsAt ? (
+            <span className="whitespace-nowrap font-sans text-[13px] font-semibold text-[rgba(244,243,240,0.42)] tabular-nums">
+              {t('content.endsAtShort', { time: endsAt })}
+            </span>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-center gap-5.5 pt-1">
-          <div
-            className={`${CTRL} h-17.5 w-17.5 ${barFocus(0) ? `${FOCUS_RING} bg-[rgba(255,255,255,0.22)]` : 'bg-[rgba(255,255,255,0.12)]'}`}
-          >
+          <div className={`${CTRL} h-17.5 w-17.5 ${barFocus(0) ? `${FOCUS_RING} ${CTRL_ON}` : CTRL_OFF}`}>
             <RewindGlyph />
           </div>
           <div
@@ -156,16 +164,12 @@ export function TvPlayer() {
           >
             {playing ? <PauseGlyph /> : <PlayGlyph />}
           </div>
-          <div
-            className={`${CTRL} h-17.5 w-17.5 ${barFocus(2) ? `${FOCUS_RING} bg-[rgba(255,255,255,0.22)]` : 'bg-[rgba(255,255,255,0.12)]'}`}
-          >
+          <div className={`${CTRL} h-17.5 w-17.5 ${barFocus(2) ? `${FOCUS_RING} ${CTRL_ON}` : CTRL_OFF}`}>
             <ForwardGlyph />
           </div>
           <div
             className={`flex h-16 items-center gap-2.75 rounded-full px-7 font-sans text-[18px] font-bold text-white transition-[transform,box-shadow,background] duration-180 ${
-              barFocus(3)
-                ? `${FOCUS_RING} bg-[rgba(255,255,255,0.22)]`
-                : 'bg-[rgba(255,255,255,0.12)]'
+              barFocus(3) ? `${FOCUS_RING} ${CTRL_ON}` : CTRL_OFF
             }`}
           >
             <TracksGlyph />

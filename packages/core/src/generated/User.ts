@@ -17,4 +17,11 @@ language: string | null,
  * account (owner) gets every permission; the rest default to `[Playback]`.
  * Clients unlock pages/actions from this set (admin panel, future stats…).
  */
-permissions: Array<Permission>, createdAt: string, };
+permissions: Array<Permission>, createdAt: string, 
+/**
+ * Whether this account has a numeric profile-lock PIN set on the server
+ * (`pin_hash IS NOT NULL`). Lets a client show its own PIN state (e.g. the
+ * TV profile menu's "Change PIN" vs "Set PIN"); the PIN itself never leaves
+ * the server. See `/api/auth/pin/*`.
+ */
+hasPin: boolean, };

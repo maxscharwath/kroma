@@ -33,7 +33,7 @@ export function AvPanel({
   // Subtitle rows follow the audio rows in the shared focus order.
   const subOffset = audioTracks.length;
   return (
-    <div className="absolute inset-y-0 right-0 w-100 overflow-y-auto border-l border-border bg-[rgba(16,16,20,0.92)] px-7 py-7.5 backdrop-blur-xl">
+    <div className="absolute inset-y-0 right-0 w-100 overflow-y-auto border-l border-border bg-[rgba(16,16,20,0.92)] px-7 py-7.5 backdrop-blur-xl animate-[tv-panel-in_0.3s_ease]">
       <div className="mb-6.5 font-display text-[22px] font-bold">{t('player.audioSubtitles')}</div>
 
       <div className={LABEL}>{t('player.audioTracks')}</div>

@@ -1,6 +1,15 @@
 import { dispatchRemoteKey, registerTvMediaKeys } from '@luma/core';
 import { useEffect } from 'react';
 
+// Don't let one physical OK carry past the screen it opened. The press that
+// navigates here (card → detail) would otherwise also fire the control the new
+// screen auto-focuses (detail → Play → player), via the remote's key repeat or a
+// keyup/keydown bounce. So we ignore OK for a short window after every screen
+// mounts (see the effect) — long enough to swallow the stray repeat, short enough
+// that a deliberate second press still lands. Module-scope so it survives the
+// transition's unmount/mount.
+let okGuardUntil = 0;
+
 function isVisible(el: HTMLElement): boolean {
   const r = el.getBoundingClientRect();
   return r.width > 0 && r.height > 0;
@@ -83,6 +92,9 @@ export interface FocusNavHandlers {
 export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers) {
   useEffect(() => {
     registerTvMediaKeys();
+    // Arm the OK guard before the keydown listener attaches, so the press that
+    // navigated here can't beat it and activate the control we auto-focus below.
+    okGuardUntil = Date.now() + 300;
     // Focus the first focusable on mount / view change.
     const first = focusables()[0];
     if (
@@ -117,13 +129,14 @@ export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers)
           Right: () => (inText ? false : moveFocus('Right')),
           Enter: () => {
             if (inText) return false; // native: submit the form / open the IME
+            if (Date.now() < okGuardUntil) return; // tail of the press that opened this screen
             const el = active as HTMLElement | null;
             if (el?.dataset.focus === undefined) return false; // not on a focusable
-            el.click(); // a fresh OK activates; auto-repeat is swallowed below
+            el.click();
           },
         },
-        // Ignore held OK so opening a new view (card → detail) can't carry over
-        // and auto-activate the newly focused control (detail → player).
+        // Held OK auto-repeats are swallowed too (the mount guard above only spans
+        // the first instant after a transition).
         { ignoreRepeat: ['Enter'] },
       );
     };

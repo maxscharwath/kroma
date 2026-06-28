@@ -19,6 +19,12 @@ use crate::model::User;
 pub const CODE_TTL_SECS: i64 = 300; // 5 minutes
 /// Number of digits in a Quick Connect code.
 const CODE_DIGITS: u32 = 4;
+/// Hard cap on concurrent pending codes. `initiate` is unauthenticated by design
+/// (the pairing device isn't signed in yet), so without a bound a flood of calls
+/// could grow the map unchecked within the TTL window. Capping it also keeps the
+/// map sparse against the 10^CODE_DIGITS keyspace so the code-generation loop
+/// below stays collision-free. Generous vs real concurrency (a handful of devices).
+const MAX_PENDING: usize = 256;
 
 struct Pending {
     secret: String,
@@ -68,6 +74,17 @@ impl QuickConnectInner {
     pub fn initiate(&self) -> Initiated {
         let mut map = self.map.lock().unwrap();
         Self::reap(&mut map);
+        // Bound memory: once at capacity (after reaping expired entries), evict the
+        // oldest pending code so a flood of unauthenticated initiate() calls can't
+        // grow the map past MAX_PENDING. Pairing stays functional (always issues a
+        // code); the evicted device simply re-initiates.
+        while map.len() >= MAX_PENDING {
+            let Some(oldest) = map.iter().min_by_key(|(_, p)| p.created_at).map(|(c, _)| c.clone())
+            else {
+                break;
+            };
+            map.remove(&oldest);
+        }
         let modulo = 10u32.pow(CODE_DIGITS);
         let code = loop {
             let candidate = format!("{:0>width$}", random_u32() % modulo, width = CODE_DIGITS as usize);
@@ -114,5 +131,20 @@ impl QuickConnectInner {
             }
             _ => PollState::Pending,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initiate_is_capped_under_flood() {
+        let qc = new();
+        for _ in 0..(MAX_PENDING + 100) {
+            qc.initiate();
+        }
+        // A flood of pending codes never grows the map past the cap.
+        assert!(qc.map.lock().unwrap().len() <= MAX_PENDING);
     }
 }

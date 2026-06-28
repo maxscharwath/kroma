@@ -1,10 +1,10 @@
 import { createRootRoute, HeadContent, Scripts, useRouterState } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { AuthGate } from '#web/components/AuthGate';
-import { Intro } from '#web/components/Intro';
-import { Sidebar } from '#web/components/Sidebar';
-import { AuthProvider } from '#web/lib/auth';
-import { LocaleProvider } from '#web/lib/locale';
+import { AuthGate } from '#web/features/accounts/AuthGate';
+import { Intro } from '#web/features/catalog/Intro';
+import { Sidebar } from '#web/features/catalog/Sidebar';
+import { AuthProvider } from '#web/shared/lib/auth';
+import { LocaleProvider } from '#web/shared/lib/locale';
 import appCss from '#web/styles.css?url';
 
 export const Route = createRootRoute({

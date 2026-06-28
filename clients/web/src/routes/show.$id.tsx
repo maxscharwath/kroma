@@ -19,8 +19,8 @@ import {
   type SimilarItem,
   SimilarRail,
   subString,
-} from '#web/components/detail';
-import { lumaClient } from '#web/lib/api';
+} from '#web/features/catalog/detail';
+import { lumaClient } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/show/$id')({
   loader: async ({ params }) => {

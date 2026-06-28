@@ -1,7 +1,7 @@
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
-import { useAuth } from '#web/lib/auth';
+import { useAuth } from '#web/shared/lib/auth';
 
 // "Connecter un appareil" — the approver side of Quick Connect. A TV shows a
 // short code (or a QR pointing here with `?code=`); a signed-in user enters it

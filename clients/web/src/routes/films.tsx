@@ -1,7 +1,7 @@
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { MovieGrid } from '#web/components/cards';
-import { lumaClient, toMovieView } from '#web/lib/api';
+import { MovieGrid } from '#web/features/catalog/cards';
+import { lumaClient, toMovieView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/films')({
   loader: async () => {

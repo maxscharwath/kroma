@@ -10,8 +10,8 @@ import {
   type SimilarItem,
   SimilarRail,
   subString,
-} from '#web/components/detail';
-import { lumaClient, type MovieView, toMovieView } from '#web/lib/api';
+} from '#web/features/catalog/detail';
+import { lumaClient, type MovieView, toMovieView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/movie/$id')({
   loader: async ({ params }) => {

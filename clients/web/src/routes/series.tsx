@@ -1,7 +1,7 @@
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { ShowGrid } from '#web/components/cards';
-import { lumaClient, toShowView } from '#web/lib/api';
+import { ShowGrid } from '#web/features/catalog/cards';
+import { lumaClient, toShowView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/series')({
   loader: async () => {

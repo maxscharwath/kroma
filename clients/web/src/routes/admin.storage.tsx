@@ -3,10 +3,10 @@ import { useT } from '@luma/ui';
 import { IconDatabase } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
-import { PageHeader, usePoll } from '#web/components/admin/shell';
-import { C, Card, ProgressBar, Section, Select, StatCard } from '#web/components/admin/ui';
-import { formatBytes } from '#web/lib/adminFormat';
-import { useAuth } from '#web/lib/auth';
+import { PageHeader, usePoll } from '#web/features/admin/shell';
+import { C, Card, ProgressBar, Section, Select, StatCard } from '#web/features/admin/ui';
+import { formatBytes } from '#web/shared/lib/adminFormat';
+import { useAuth } from '#web/shared/lib/auth';
 
 export const Route = createFileRoute('/admin/storage')({
   component: StoragePage,

@@ -1,8 +1,8 @@
 import { hasPermission } from '@luma/core';
 import { useT } from '@luma/ui';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
-import { AdminLayout } from '#web/components/admin/shell';
-import { useAuth } from '#web/lib/auth';
+import { AdminLayout } from '#web/features/admin/shell';
+import { useAuth } from '#web/shared/lib/auth';
 
 // Admin console layout + permission gate. Any management capability
 // (users/library/settings) unlocks the console; pages further gate their writes.

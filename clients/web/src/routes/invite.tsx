@@ -2,7 +2,7 @@ import { hasPermission, type Invite, type MessageKey, type Permission } from '@l
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import { useAuth } from '#web/lib/auth';
+import { useAuth } from '#web/shared/lib/auth';
 
 // Admin page to invite users. Gated by the `users.manage` permission — the only
 // way (besides the bootstrap owner) to create accounts is via these invites.

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { SettingsPage } from '#web/components/admin/settings';
+import { SettingsPage } from '#web/features/admin/settings';
 
 export const Route = createFileRoute('/admin/general')({
   component: () => (

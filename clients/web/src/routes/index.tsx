@@ -1,8 +1,8 @@
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
-import { ContinueRow } from '#web/components/ContinueRow';
-import { Hero, MovieRail, ShowRail } from '#web/components/cards';
-import { lumaClient, toMovieView, toShowView } from '#web/lib/api';
+import { ContinueRow } from '#web/features/catalog/ContinueRow';
+import { Hero, MovieRail, ShowRail } from '#web/features/catalog/cards';
+import { lumaClient, toMovieView, toShowView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/')({
   loader: async () => {

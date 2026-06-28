@@ -2,8 +2,8 @@ import { Logo, useT } from '@luma/ui';
 import { IconPlus } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { avatarGradient, initials } from '#web/components/UserAvatar';
-import { useAuth } from '#web/lib/auth';
+import { avatarGradient, initials } from '#web/features/accounts/UserAvatar';
+import { useAuth } from '#web/shared/lib/auth';
 
 // Public invitation acceptance page. An admin (with `users.manage`) shares
 // `/join?invite=TOKEN`; the invitee creates their account here. The global

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Player } from '#web/components/Player';
-import { lumaClient, toMovieView } from '#web/lib/api';
+import { Player } from '#web/features/playback/Player';
+import { lumaClient, toMovieView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/watch/$id')({
   loader: async ({ params }) => {

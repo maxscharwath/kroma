@@ -1,6 +1,6 @@
 import type { Activity, LumaClient, MediaItem, SavedServer, Show } from '@luma/core';
 import { createContext, type ReactNode, useContext } from 'react';
-import type { DeepLink } from '#tv/preview';
+import type { DeepLink } from '#tv/shared/preview';
 
 export type ConnectStatus = 'discovering' | 'connecting' | 'ready' | 'error';
 

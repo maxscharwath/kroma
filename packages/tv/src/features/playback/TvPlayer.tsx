@@ -1,9 +1,9 @@
 import { audioSupport, metaLine } from '@luma/core';
 import { useLocale, useT } from '@luma/ui';
 import { useMemo } from 'react';
-import { endsAtClock } from '#tv/detail/parts';
-import { AvPanel } from '#tv/player/AvPanel';
-import { fmtTime } from '#tv/player/fmt';
+import { endsAtClock } from '#tv/features/catalog/detail/parts';
+import { AvPanel } from '#tv/features/playback/player/AvPanel';
+import { fmtTime } from '#tv/features/playback/player/fmt';
 import {
   BackChevron,
   ForwardGlyph,
@@ -11,12 +11,12 @@ import {
   PlayGlyph,
   RewindGlyph,
   TracksGlyph,
-} from '#tv/player/icons';
-import { useDirectPlayback } from '#tv/player/useDirectPlayback';
-import { usePlayerControls } from '#tv/player/usePlayerControls';
-import { useSubtitleSelection } from '#tv/player/useSubtitleSelection';
-import { useClient, useNav, useParams } from '#tv/router';
-import { TvSubtitles } from '#tv/TvSubtitles';
+} from '#tv/features/playback/player/icons';
+import { useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
+import { usePlayerControls } from '#tv/features/playback/player/usePlayerControls';
+import { useSubtitleSelection } from '#tv/features/playback/player/useSubtitleSelection';
+import { useClient, useNav, useParams } from '#tv/app/router';
+import { TvSubtitles } from '#tv/features/playback/TvSubtitles';
 
 const FOCUS_RING = 'scale-[1.07] shadow-[var(--ring-focus),var(--glow-accent)]';
 const CTRL =

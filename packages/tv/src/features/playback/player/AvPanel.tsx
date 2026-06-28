@@ -1,8 +1,8 @@
 import { type AudioTrack, channelLabel } from '@luma/core';
 import { useT } from '@luma/ui';
-import { langCode, langName } from '#tv/player/fmt';
-import { CheckGlyph } from '#tv/player/icons';
-import type { SubView } from '#tv/player/useSubtitleSelection';
+import { langCode, langName } from '#tv/features/playback/player/fmt';
+import { CheckGlyph } from '#tv/features/playback/player/icons';
+import type { SubView } from '#tv/features/playback/player/useSubtitleSelection';
 
 const TRACK = 'flex items-center gap-3.5 rounded-xl border border-transparent px-4 py-3.5';
 const CODE =

@@ -13,7 +13,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { useAuth } from '#tv/auth';
+import { useAuth } from '#tv/app/providers/auth';
 
 const storageKey = (serverUrl?: string, userId?: string) =>
   serverUrl && userId ? `luma.mylist.${norm(serverUrl)}.${userId}` : null;

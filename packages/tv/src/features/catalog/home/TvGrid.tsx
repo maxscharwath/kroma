@@ -1,5 +1,5 @@
-import { useGrowingCount } from '#tv/home/useGrowingCount';
-import { TvPoster } from '#tv/TvMedia';
+import { useGrowingCount } from '#tv/features/catalog/home/useGrowingCount';
+import { TvPoster } from '#tv/shared/TvMedia';
 
 export interface GridCard {
   id: string;

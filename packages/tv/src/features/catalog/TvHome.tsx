@@ -8,12 +8,12 @@ import {
 } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useCallback, useEffect, useMemo } from 'react';
-import { useConnection } from '#tv/connection';
-import { useContinue } from '#tv/continue';
-import { TvTopNav } from '#tv/home/TopNav';
-import { useClient, useNav } from '#tv/router';
-import { badgeClasses, PlayGlyph, TvArt, TvCard } from '#tv/TvMedia';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useConnection } from '#tv/app/providers/connection';
+import { useContinue } from '#tv/app/providers/continue';
+import { TvTopNav } from '#tv/features/catalog/home/TopNav';
+import { useClient, useNav } from '#tv/app/router';
+import { badgeClasses, PlayGlyph, TvArt, TvCard } from '#tv/shared/TvMedia';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 const RAIL_LIMIT = 20;
 const HERO_VEIL =

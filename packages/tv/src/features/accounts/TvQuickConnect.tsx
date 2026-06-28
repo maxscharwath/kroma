@@ -1,0 +1,157 @@
+import {
+  type AuthResult,
+  type LumaClient,
+  type MessageKey,
+  type QuickConnectInit,
+} from '@luma/core';
+import { useT } from '@luma/ui';
+import { useEffect, useState } from 'react';
+import { useAuth } from '#tv/app/providers/auth';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav } from '#tv/app/router';
+import { AuthScreen, LumaMark } from '#tv/shared/ui';
+import { useFocusNav } from '#tv/app/useFocusNav';
+
+/**
+ * Quick Connect (route `quick`) against the active server: shows a code + QR; an
+ * already-signed-in user approves it from the web/mobile app and the TV pairs the
+ * profile on its next poll — no password typed on the remote.
+ */
+export function TvQuickConnect() {
+  const nav = useNav();
+  const t = useT();
+  const { client, activeServerUrl, activeServerName } = useConnection();
+  const { login } = useAuth();
+  const [info, setInfo] = useState<QuickConnectInit | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | ''>('');
+  useFocusNav({ onBack: nav.back });
+
+  useEffect(() => {
+    if (!client || !activeServerUrl) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let secret = '';
+
+    const onAuthenticated = (res: AuthResult) => login(res, activeServerUrl);
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const res = await client.quickConnectPoll(secret);
+        if (cancelled) return;
+        if (res.status === 'authorized') {
+          onAuthenticated({ token: res.token, user: res.user });
+          return;
+        }
+        if (res.status === 'expired') {
+          void begin();
+          return;
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+      timer = setTimeout(poll, 2500);
+    };
+
+    const begin = async () => {
+      try {
+        const init = await client.quickConnectInitiate();
+        if (cancelled) return;
+        secret = init.secret;
+        setInfo(init);
+        setQr(null);
+        const url = connectUrl(client, init.code, init.authorizeUrl);
+        if (url) {
+          void import('qrcode-generator')
+            .then((mod) => {
+              if (cancelled) return;
+              const qrc = mod.default(0, 'M');
+              qrc.addData(url);
+              qrc.make();
+              setQr(qrc.createSvgTag({ cellSize: 6, margin: 1, scalable: true }));
+            })
+            .catch(() => undefined);
+        }
+        timer = setTimeout(poll, 2500);
+      } catch {
+        if (!cancelled) setError('connect.quickConnectUnavailable');
+      }
+    };
+
+    void begin();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [client, activeServerUrl, login]);
+
+  return (
+    <AuthScreen>
+      <div className="mb-9">
+        <LumaMark size={40} />
+      </div>
+      <h1 className="m-0 mb-4 font-display text-[44px] font-semibold leading-none">
+        {t('connect.quickConnect')}
+      </h1>
+      <div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-border bg-[rgba(255,255,255,0.05)] px-4 py-2.25">
+        <span className="h-2 w-2 rounded-full bg-accent" />
+        <span className="font-sans text-[15px] font-semibold text-[rgba(244,243,240,0.88)]">
+          {activeServerName ?? 'LUMA'}
+        </span>
+      </div>
+
+      {error ? <p className="font-sans text-[16px] text-danger">{t(error)}</p> : null}
+
+      {!error && info ? (
+        <>
+          {qr ? (
+            <div
+              className="flex h-[280px] w-[280px] items-center justify-center rounded-[28px] bg-white p-5 shadow-pop [&>svg]:h-full [&>svg]:w-full"
+              // eslint-disable-next-line react/no-danger
+              dangerouslySetInnerHTML={{ __html: qr }}
+            />
+          ) : null}
+          <div className="mt-5 font-sans text-[17px] font-medium text-dim">
+            {t('connect.scanQrConnected')}
+          </div>
+          <div className="mt-6 font-sans text-[17px] font-medium text-muted">
+            {t('connect.orInAppPrefix')}
+            <b className="text-text">{t('nav.connectDevice')}</b>
+            {t('connect.orInAppSuffix')}
+          </div>
+          <div className="mt-5 flex gap-7 font-display text-[96px] font-bold leading-none text-accent tabular-nums">
+            {info.code}
+          </div>
+          <div className="mt-7 inline-flex items-center gap-2.5 rounded-full border border-[rgba(70,208,141,0.25)] bg-[rgba(70,208,141,0.1)] px-4.5 py-2.5">
+            <span className="h-2.25 w-2.25 rounded-full bg-success animate-[tv-breathe_1.6s_ease-in-out_infinite]" />
+            <span className="font-sans text-[14px] font-semibold text-success">
+              {t('connect.waitingApproval')}
+            </span>
+          </div>
+        </>
+      ) : null}
+      {!error && !info ? (
+        <div className="h-10 w-10 rounded-full border-[3px] border-[rgba(255,255,255,0.2)] border-t-accent animate-[tvp-spin_0.9s_linear_infinite]" />
+      ) : null}
+
+      <p className="mt-6 font-sans text-[15px] font-medium text-dim">
+        {t('connect.backToProfiles')}
+      </p>
+    </AuthScreen>
+  );
+}
+
+/** Resolve the web `/connect?code=` URL for the QR. */
+function connectUrl(client: LumaClient, code: string, serverUrl?: string | null): string {
+  if (serverUrl) return serverUrl;
+  try {
+    const u = new URL(client.baseUrl);
+    u.port = '3000';
+    u.pathname = '/connect';
+    u.search = `?code=${code}`;
+    return u.toString();
+  } catch {
+    return '';
+  }
+}

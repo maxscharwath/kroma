@@ -1,7 +1,7 @@
 import { posterColors } from '@luma/core';
 import { useT } from '@luma/ui';
 import type { ReactNode } from 'react';
-import { badgeClasses, TvArt } from '#tv/TvMedia';
+import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 
 const VEIL =
   'absolute inset-0 bg-[linear-gradient(90deg,#0A0A0C_12%,transparent_68%),linear-gradient(0deg,#0A0A0C_4%,transparent_60%)]';

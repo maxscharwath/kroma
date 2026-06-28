@@ -1,11 +1,11 @@
 import { LumaApiError, LumaClient, type MessageKey } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '#tv/auth';
-import { useConnection } from '#tv/connection';
-import { useNav, useParams } from '#tv/router';
-import { artUrl, AuthScreen, Keypad, LockGlyph, ProfileAvatar } from '#tv/ui';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useAuth } from '#tv/app/providers/auth';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav, useParams } from '#tv/app/router';
+import { artUrl, AuthScreen, Keypad, LockGlyph, ProfileAvatar } from '#tv/shared/ui';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 /**
  * PIN entry. Three intents share one keypad:

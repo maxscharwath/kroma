@@ -1,11 +1,11 @@
 import { formatRuntime, qualityBadge } from '@luma/core';
 import { useT } from '@luma/ui';
-import { TvDetailScaffold } from '#tv/detail/DetailScaffold';
-import { CastRow, EndsAtHint, ListButton } from '#tv/detail/parts';
-import { useMyList } from '#tv/mylist';
-import { useClient, useNav, useParams } from '#tv/router';
-import { PlayGlyph, TV_PLAY_BTN } from '#tv/TvMedia';
-import { useFocusNav } from '#tv/useFocusNav';
+import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
+import { CastRow, EndsAtHint, ListButton } from '#tv/features/catalog/detail/parts';
+import { useMyList } from '#tv/app/providers/mylist';
+import { useClient, useNav, useParams } from '#tv/app/router';
+import { PlayGlyph, TV_PLAY_BTN } from '#tv/shared/TvMedia';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 /** Film detail — backdrop, synopsis, metadata, a Lecture button, my-list, an
  * "ends at" hint and the cast. The movie already carries its TMDB metadata from

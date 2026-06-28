@@ -1,10 +1,10 @@
 import { useT } from '@luma/ui';
 import { IconWorldSearch } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useConnection } from '#tv/connection';
-import { useNav } from '#tv/router';
-import { AuthScreen, LumaMark, OnScreenKeyboard } from '#tv/ui';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav } from '#tv/app/router';
+import { AuthScreen, LumaMark, OnScreenKeyboard } from '#tv/shared/ui';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 /**
  * Add a (distant) server by address, via an on-screen URL keyboard. Reached on

@@ -2,12 +2,12 @@ import { formatRuntime, posterColors, qualityBadgeForVideo, type ShowDetail } fr
 import { useLocale, useT } from '@luma/ui';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
-import { TvDetailScaffold } from '#tv/detail/DetailScaffold';
-import { CastRow, EndsAtHint, endsAtClock, ListButton } from '#tv/detail/parts';
-import { useMyList } from '#tv/mylist';
-import { useClient, useNav, useParams } from '#tv/router';
-import { PlayGlyph, TV_PLAY_BTN, TvArt } from '#tv/TvMedia';
-import { useFocusNav } from '#tv/useFocusNav';
+import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
+import { CastRow, EndsAtHint, endsAtClock, ListButton } from '#tv/features/catalog/detail/parts';
+import { useMyList } from '#tv/app/providers/mylist';
+import { useClient, useNav, useParams } from '#tv/app/router';
+import { PlayGlyph, TV_PLAY_BTN, TvArt } from '#tv/shared/TvMedia';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 export function TvShowDetail() {
   const nav = useNav();

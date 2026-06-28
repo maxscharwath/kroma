@@ -2,11 +2,11 @@ import { posterColors, qualityBadge, qualityBadgeForVideo } from '@luma/core';
 import { useT } from '@luma/ui';
 import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { useConnection } from '#tv/connection';
-import { useClient, useNav } from '#tv/router';
-import { TvPoster } from '#tv/TvMedia';
-import { LumaMark, OnScreenKeyboard } from '#tv/ui';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useConnection } from '#tv/app/providers/connection';
+import { useClient, useNav } from '#tv/app/router';
+import { TvPoster } from '#tv/shared/TvMedia';
+import { LumaMark, OnScreenKeyboard } from '#tv/shared/ui';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 interface Hit {
   id: string;

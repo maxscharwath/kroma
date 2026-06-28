@@ -2,8 +2,8 @@ import type { CastMember } from '@luma/core';
 import { useLocale, useT } from '@luma/ui';
 import { IconClock, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useClient } from '#tv/router';
-import { AVATAR_GRADS, initials } from '#tv/ui';
+import { useClient } from '#tv/app/router';
+import { AVATAR_GRADS, initials } from '#tv/shared/ui';
 
 /** Wall-clock time `runtimeMs` from now, in the active locale — French 24-hour
  * "21h32", else a localised 12/24-hour time. Empty when the runtime is unknown. */

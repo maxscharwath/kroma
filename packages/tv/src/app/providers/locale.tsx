@@ -4,7 +4,7 @@
 import type { Locale, LumaClient } from '@luma/core';
 import { LocaleProvider as UiLocaleProvider } from '@luma/ui';
 import type { ReactNode } from 'react';
-import { useAuth } from '#tv/auth';
+import { useAuth } from '#tv/app/providers/auth';
 
 export function LocaleProvider({
   client,

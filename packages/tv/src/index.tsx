@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { TvApp, type TvAppProps } from '#tv/TvApp';
+import { TvApp, type TvAppProps } from '#tv/app/TvApp';
 
-export type { TvAppProps } from '#tv/TvApp';
-export { TvApp } from '#tv/TvApp';
-export { useFocusNav } from '#tv/useFocusNav';
+export type { TvAppProps } from '#tv/app/TvApp';
+export { TvApp } from '#tv/app/TvApp';
+export { useFocusNav } from '#tv/app/useFocusNav';
 
 /** Mount the shared TV experience into #root. Called by each platform shell. */
 export function mountTv(props: TvAppProps = {}): void {

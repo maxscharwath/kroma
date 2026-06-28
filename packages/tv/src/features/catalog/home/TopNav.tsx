@@ -1,9 +1,9 @@
 import { useT } from '@luma/ui';
 import { IconSearch } from '@tabler/icons-react';
-import { useAuth } from '#tv/auth';
-import { useConnection } from '#tv/connection';
-import { useNav } from '#tv/router';
-import { LumaMark, ProfileAvatar, useClock } from '#tv/ui';
+import { useAuth } from '#tv/app/providers/auth';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav } from '#tv/app/router';
+import { LumaMark, ProfileAvatar, useClock } from '#tv/shared/ui';
 
 export type NavKey = 'home' | 'films' | 'series' | 'mylist' | 'search';
 

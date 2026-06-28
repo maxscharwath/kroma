@@ -2,10 +2,10 @@ import { normalizeServerUrl as norm } from '@luma/core';
 import { useT } from '@luma/ui';
 import { IconChevronRight, IconPlus, IconServer2 } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useMemo } from 'react';
-import { useConnection } from '#tv/connection';
-import { useNav } from '#tv/router';
-import { AuthScreen, hostOf } from '#tv/ui';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav } from '#tv/app/router';
+import { AuthScreen, hostOf } from '#tv/shared/ui';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 interface Row {
   key: string;

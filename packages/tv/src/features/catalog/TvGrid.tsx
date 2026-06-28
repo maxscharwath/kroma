@@ -1,13 +1,13 @@
 import { posterColors, qualityBadge, qualityBadgeForVideo } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useMemo } from 'react';
-import { useConnection } from '#tv/connection';
-import { TvTopNav } from '#tv/home/TopNav';
-import { type GridCard, TvGrid as PosterGrid } from '#tv/home/TvGrid';
-import { useMyList } from '#tv/mylist';
-import { useClient, useNav, useParams } from '#tv/router';
-import { badgeClasses, TvArt } from '#tv/TvMedia';
-import { useFocusNav } from '#tv/useFocusNav';
+import { useConnection } from '#tv/app/providers/connection';
+import { TvTopNav } from '#tv/features/catalog/home/TopNav';
+import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
+import { useMyList } from '#tv/app/providers/mylist';
+import { useClient, useNav, useParams } from '#tv/app/router';
+import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
+import { useFocusNav } from '#tv/app/useFocusNav';
 
 /** Full-screen catalogue grid for one section (Films / Séries / Ma liste): a 44%
  * hero over the first title, then an incrementally-rendered 2:3 poster grid.

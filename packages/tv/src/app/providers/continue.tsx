@@ -8,8 +8,8 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { useAuth } from '#tv/auth';
-import { useConnection } from '#tv/connection';
+import { useAuth } from '#tv/app/providers/auth';
+import { useConnection } from '#tv/app/providers/connection';
 
 interface Continue {
   items: ContinueItem[];

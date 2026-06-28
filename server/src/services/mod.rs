@@ -5,6 +5,7 @@
 //! seeding, live playback/quick-connect session registries, persisted settings,
 //! and the activity feed.
 
+pub mod auth;
 pub mod scan;
 pub mod enrich;
 pub mod quickconnect;

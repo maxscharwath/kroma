@@ -6,7 +6,6 @@
 //! themselves. `ffprobe` is used only to read metadata.
 
 mod api;
-mod auth;
 mod config;
 mod db;
 mod domain;

@@ -152,7 +152,7 @@ pub fn record_play(
         "play|{}|{}|{started_at}|{}",
         user_id.unwrap_or("?"),
         item_id.unwrap_or("?"),
-        crate::auth::random_token()
+        crate::services::auth::random_token()
     ));
     conn.execute(
         "INSERT INTO play_history \

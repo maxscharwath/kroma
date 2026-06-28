@@ -11,7 +11,7 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::util::query;
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::db;
 use crate::infra::events::ServerEvent;
 use crate::model::Permission;
@@ -79,7 +79,7 @@ pub async fn create_library(
         return Err(lerr(super::user_locale(&user), StatusCode::BAD_REQUEST, "admin.nameRequired"));
     }
     let mut defs = settings::library_defs(&state.settings, &state.config);
-    let id = crate::services::scan::short_hash(&format!("lib|{name}|{}", crate::auth::random_token()));
+    let id = crate::services::scan::short_hash(&format!("lib|{name}|{}", crate::services::auth::random_token()));
     defs.push(LibraryDef {
         id: id.clone(),
         name,

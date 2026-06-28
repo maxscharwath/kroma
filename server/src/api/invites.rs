@@ -11,7 +11,8 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::util::query;
-use crate::auth::{self, AuthUser};
+use crate::api::extract::AuthUser;
+use crate::services::auth;
 use crate::db;
 use crate::i18n;
 use crate::model::{Permission, User};

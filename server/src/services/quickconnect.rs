@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::auth::{random_token, random_u32};
+use crate::services::auth::{random_token, random_u32};
 use crate::model::User;
 
 /// How long a pending code stays valid.

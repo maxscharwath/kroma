@@ -14,7 +14,7 @@ use axum::Json;
 use serde::Deserialize;
 
 use crate::api::util::query;
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::db;
 use crate::infra::events::ServerEvent;
 use crate::services::playback::{self, Ping};

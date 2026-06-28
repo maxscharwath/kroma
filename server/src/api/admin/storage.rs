@@ -9,7 +9,7 @@ use axum::Json;
 use serde_json::json;
 
 use crate::api::util::{blocking, query};
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::db;
 use crate::model::Permission;
 use crate::state::SharedState;

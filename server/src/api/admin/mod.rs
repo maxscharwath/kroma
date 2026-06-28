@@ -29,7 +29,7 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::util::query;
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::i18n;
 use crate::infra::events::ServerEvent;
 use crate::model::{Permission, User};

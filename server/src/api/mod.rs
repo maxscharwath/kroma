@@ -9,6 +9,7 @@ pub mod poster;
 pub mod ws;
 
 mod accounts;
+mod extract;
 mod images;
 mod invites;
 mod media;

@@ -17,7 +17,8 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::util::query;
-use crate::auth::{self, AuthUser};
+use crate::api::extract::AuthUser;
+use crate::services::auth;
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::state::SharedState;
@@ -29,14 +30,17 @@ fn is_valid_pin(pin: &str) -> bool {
 }
 
 /// In-memory brute-force guard for `/auth/pin/verify`, keyed by user id. After
-/// `PIN_MAX_FAILS` wrong tries we lock the account out for an exponentially
-/// growing window. Process-local (resets on restart) — fine for a single-binary
-/// NAS deployment, and the bearer token is still the real credential.
+/// `PIN_MAX_FAILS` wrong tries we lock the account out for a fixed cooldown
+/// window. Process-local (resets on restart) — fine for a single-binary NAS
+/// deployment, and the bearer token is still the real credential, so the PIN
+/// only gates the local profile switch-in UX.
 struct PinAttempt {
     fails: u32,
     locked_until: i64,
 }
 const PIN_MAX_FAILS: u32 = 5;
+/// Fixed lockout window applied once `PIN_MAX_FAILS` is reached.
+const PIN_COOLDOWN_SECS: i64 = 30;
 static PIN_ATTEMPTS: LazyLock<Mutex<HashMap<String, PinAttempt>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -59,11 +63,9 @@ fn pin_record_fail(uid: &str) -> i64 {
     let a = map.entry(uid.to_string()).or_insert(PinAttempt { fails: 0, locked_until: 0 });
     a.fails += 1;
     if a.fails >= PIN_MAX_FAILS {
-        // 15s, 30s, 60s, 120s, … capped at 10 minutes.
-        let steps = (a.fails - PIN_MAX_FAILS).min(6);
-        let backoff = (15_i64 << steps).min(600);
-        a.locked_until = now_secs() + backoff;
-        return backoff;
+        // Fixed cooldown after N consecutive wrong PINs (no escalating backoff).
+        a.locked_until = now_secs() + PIN_COOLDOWN_SECS;
+        return PIN_COOLDOWN_SECS;
     }
     0
 }
@@ -209,4 +211,27 @@ pub async fn delete_pin(
     }
     user.has_pin = false;
     Json(json!({ "user": user })).into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_cooldown_after_max_fails_then_reset() {
+        // Unique uid so the process-global attempt map can't collide with peers.
+        let uid = "test-pin-fixed-cooldown";
+        pin_reset(uid);
+        // Below the threshold: each fail is recorded but does not lock.
+        for _ in 0..PIN_MAX_FAILS - 1 {
+            assert_eq!(pin_record_fail(uid), 0);
+        }
+        // The PIN_MAX_FAILS-th consecutive fail locks for the fixed window.
+        assert_eq!(pin_record_fail(uid), PIN_COOLDOWN_SECS);
+        let rem = pin_lock_remaining(uid).expect("should be locked");
+        assert!(rem > 0 && rem <= PIN_COOLDOWN_SECS);
+        // A correct PIN (or PIN change) resets the record.
+        pin_reset(uid);
+        assert!(pin_lock_remaining(uid).is_none());
+    }
 }

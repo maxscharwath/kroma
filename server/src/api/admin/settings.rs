@@ -9,7 +9,7 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::infra::events::ServerEvent;
 use crate::model::Permission;
 use crate::services::settings;

@@ -1,6 +1,6 @@
 //! Accounts, sessions, profile avatar/language, and Quick Connect handlers.
 //!
-//! Auth is by opaque bearer token (see [`crate::auth`]). The catalogue/stream
+//! Auth is by opaque bearer token (see [`crate::services::auth`]). The catalogue/stream
 //! endpoints stay open (LAN trust model); only these per-user routes require a
 //! valid session via the [`AuthUser`] extractor.
 
@@ -14,7 +14,8 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::util::{blocking, query};
-use crate::auth::{self, AuthUser};
+use crate::api::extract::{bearer_from_headers, AuthUser};
+use crate::services::auth;
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::model::{Permission, User};
@@ -127,7 +128,7 @@ pub async fn login(
 
 /// `POST /api/auth/logout` → 204. No-op if the token is missing/unknown.
 pub async fn logout(State(state): State<SharedState>, headers: HeaderMap) -> Response {
-    if let Some(token) = auth::bearer_from_headers(&headers) {
+    if let Some(token) = bearer_from_headers(&headers) {
         let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
     }
     StatusCode::NO_CONTENT.into_response()

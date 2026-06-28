@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::api::util::query;
-use crate::auth::AuthUser;
+use crate::api::extract::AuthUser;
 use crate::db;
 use crate::state::SharedState;
 

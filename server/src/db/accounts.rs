@@ -20,7 +20,8 @@ pub fn create_user(
     let conn = pool.get()?;
     let permissions = permissions.to_vec();
     let perms_json = serde_json::to_string(&permissions).unwrap_or_else(|_| "[\"playback\"]".into());
-    let id = crate::services::scan::short_hash(&format!("user|{email}|{}", crate::auth::random_token()));
+    // note: pre-existing — token primitive used at the db layer to salt the id.
+    let id = crate::services::scan::short_hash(&format!("user|{email}|{}", crate::services::auth::random_token()));
     let created_at = now_or_blank();
     conn.execute(
         "INSERT INTO users (id,email,username,password_hash,avatar_url,permissions,created_at) \

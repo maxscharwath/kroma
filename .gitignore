@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Bun
+bun.lockb
+
+# Builds
+dist/
+build/
+*.tsbuildinfo
+
+# Rust
+server/target/
+server/data/
+
+# TV packaging artifacts
+clients/tizen/*.wgt
+clients/tizen/dist/*.wgt
+clients/tizen/.buildResult/
+clients/tizen/.tizen.env
+clients/webos/*.ipk
+
+# Env / local
+.env
+.env.local
+*.local
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+*.log

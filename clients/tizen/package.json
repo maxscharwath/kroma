@@ -1,0 +1,35 @@
+{
+  "name": "@luma/tizen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LUMA Samsung Tizen TV client — thin shell over @luma/tv.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "doctor": "make doctor",
+    "package": "make package",
+    "deploy": "make deploy",
+    "logs": "make logs"
+  },
+  "dependencies": {
+    "@luma/core": "workspace:*",
+    "@luma/tv": "workspace:*",
+    "@luma/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "lightningcss": "^1.27.0",
+    "tailwindcss": "^4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.7"
+  }
+}

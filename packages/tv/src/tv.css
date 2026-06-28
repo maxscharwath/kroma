@@ -1,0 +1,115 @@
+/* LUMA TV — Tailwind v4, themed with the LUMA design tokens (same mapping as the
+   web client). Built through the Lightning CSS transformer (see the shells'
+   vite.config) so the modern CSS Tailwind emits (cascade layers, color-mix, …) is
+   down-levelled to plain fallbacks for old TV webviews (webOS 5/6 ≈ Chromium 68).
+
+   We import the raw `--luma-*` token files by relative path rather than
+   `@luma/ui/styles.css`: that entry pulls a remote Google-Fonts `@import` which the
+   Lightning CSS transformer can't inline. The TV shells load the fonts via a
+   <link> in index.html instead. */
+@import '../../ui/src/styles/tokens/colors.css';
+@import '../../ui/src/styles/tokens/typography.css';
+@import '../../ui/src/styles/tokens/spacing.css';
+@import '../../ui/src/styles/tokens/effects.css';
+@import 'tailwindcss';
+
+/* Tailwind ignores node_modules; the TV components live in this workspace
+   package (symlinked), so scan them explicitly for utility class names. */
+@source './';
+
+@theme {
+  /* Colors → reference the LUMA tokens. */
+  --color-bg: var(--luma-bg);
+  --color-surface-1: var(--luma-surface-1);
+  --color-surface-2: var(--luma-surface-2);
+  --color-surface-3: var(--luma-surface-3);
+  --color-border: var(--luma-border);
+  --color-border-strong: var(--luma-border-strong);
+  --color-text: var(--luma-text);
+  --color-muted: var(--luma-text-muted);
+  --color-dim: var(--luma-text-dim);
+  --color-accent: var(--luma-accent);
+  --color-accent-hover: var(--luma-accent-hover);
+  --color-accent-bright: var(--luma-accent-bright);
+  --color-accent-soft: var(--luma-accent-soft);
+  --color-accent-ink: var(--luma-accent-ink);
+  --color-hdr: var(--luma-hdr);
+  --color-h265: var(--luma-h265);
+  --color-success: var(--luma-success);
+  --color-info: var(--luma-info);
+  --color-danger: var(--luma-danger);
+
+  /* Fonts (literal — Tailwind's --font-* namespace collides with LUMA tokens). */
+  --font-sans: 'Hanken Grotesk', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+
+  /* Radii (literal LUMA values; override Tailwind defaults). */
+  --radius-md: 10px;
+  --radius-lg: 13px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+
+  /* Layered shadows. */
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 20px 50px rgba(0, 0, 0, 0.55);
+  --shadow-hero: 0 20px 50px rgba(0, 0, 0, 0.6);
+
+  /* Easings. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--luma-bg);
+    color: var(--luma-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+
+  /* Amber focus ring on any remote-focusable element. The signature 10-foot
+     affordance; individual elements tune the scale with `focus:scale-*`. */
+  [data-focus] {
+    transition:
+      transform 0.2s var(--ease-out),
+      box-shadow 0.2s var(--ease-out),
+      background 0.2s var(--ease-out);
+  }
+  [data-focus]:focus {
+    outline: none;
+    box-shadow: var(--ring-focus), var(--glow-accent);
+  }
+}
+
+/* Hide scrollbars on TV scroll regions (no pointer; smooth focus scrolling). */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes tvp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slow ambient amber breathing (live scan/enrichment dot). */
+@keyframes luma-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

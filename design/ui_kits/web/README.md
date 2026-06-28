@@ -1,0 +1,2 @@
+# Web App UI kit
+Desktop LUMA: fixed sidebar nav, full-bleed hero with resume bar, horizontal rails of PosterCard. Hover lifts cards + amber ring. See `index.html`. Reference app: `/LUMA.dc.html` (platform = Web).

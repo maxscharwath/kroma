@@ -1,0 +1,15 @@
+{
+  "id": "app.luma.webos",
+  "version": "0.1.0",
+  "vendor": "LUMA",
+  "type": "web",
+  "main": "index.html",
+  "title": "LUMA",
+  "icon": "icon.png",
+  "largeIcon": "icon-large.png",
+  "bgColor": "#0A0A0C",
+  "iconColor": "#F4B642",
+  "disableBackHistoryAPI": true,
+  "supportTouchMode": "none",
+  "handlesRelaunch": true
+}

@@ -1,0 +1,1593 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#0A0A0C;}
+.scroller::-webkit-scrollbar{height:8px;}
+.scroller::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:99px;}
+.scroller::-webkit-scrollbar-track{background:transparent;}
+.vscroll::-webkit-scrollbar{width:9px;}
+.vscroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes panelIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+@keyframes popIn{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes drift{0%{transform:translate3d(0,0,0) scale(1.08)}50%{transform:translate3d(-2.5%,-1.8%,0) scale(1.15)}100%{transform:translate3d(0,0,0) scale(1.08)}}
+@keyframes breathe{0%,100%{opacity:.45}50%{opacity:.85}}
+@keyframes spotIn{from{opacity:0;transform:translateY(-14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 3px rgba(242,180,66,.9),0 0 16px rgba(242,180,66,.28),0 10px 24px rgba(0,0,0,.5)}50%{box-shadow:0 0 0 4px rgba(255,210,98,1),0 0 24px rgba(242,180,66,.5),0 10px 24px rgba(0,0,0,.5)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes riseIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:99px;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#F4B642;cursor:pointer;box-shadow:0 0 0 4px rgba(242,180,65,.2);transition:transform .15s cubic-bezier(.22,1,.36,1);}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25);}
+select{font-family:'Hanken Grotesk',sans-serif;}
+button{transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s ease, box-shadow .2s ease;}
+button:active{transform:scale(.95);}
+</style>
+</helmet>
+
+<div style="height:100vh;width:100vw;overflow:hidden;background:#0A0A0C;color:#F4F3F0;font-family:'Hanken Grotesk',sans-serif;position:relative;">
+
+<!-- ============ WEB ============ -->
+<sc-if value="{{ isWeb }}" hint-placeholder-val="{{ true }}">
+<div style="height:100vh;width:100%;position:relative;">
+
+  <!-- PROFILES -->
+  <sc-if value="{{ wProfiles }}" hint-placeholder-val="{{ true }}">
+  <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(120% 90% at 50% 0%, #15131C, #0A0A0C 70%);animation:fadeIn .5s ease;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:54px;">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#F4B642" stroke-width="2.4"/><circle cx="16" cy="16" r="4.5" fill="#F4B642"/></svg>
+      <span style="font:800 24px/1 'Bricolage Grotesque';letter-spacing:.16em;">LUMA</span>
+    </div>
+    <h1 style="font:600 40px/1 'Bricolage Grotesque';margin:0 0 48px;color:#F4F3F0;">Qui regarde&nbsp;?</h1>
+    <div style="display:flex;gap:34px;align-items:flex-start;">
+      <sc-for list="{{ profiles }}" as="p" hint-placeholder-count="5">
+        <div onClick="{{ p.onSelect }}" style="display:flex;flex-direction:column;align-items:center;gap:16px;cursor:pointer;width:150px;" style-hover="transform:translateY(-6px)">
+          <div style="width:138px;height:138px;border-radius:18px;background:{{ p.grad }};display:flex;align-items:center;justify-content:center;font:700 52px 'Bricolage Grotesque';color:rgba(255,255,255,.92);box-shadow:0 16px 40px rgba(0,0,0,.5);position:relative;transition:box-shadow .2s;" style-hover="box-shadow:0 0 0 4px #F4B642, 0 16px 40px rgba(0,0,0,.5)">
+            {{ p.initial }}
+            <sc-if value="{{ p.kid }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;bottom:8px;right:8px;background:rgba(10,10,12,.8);border-radius:99px;padding:3px 9px;font:700 10px 'Hanken Grotesk';letter-spacing:.08em;">KIDS</div></sc-if>
+          </div>
+          <span style="font:500 18px 'Hanken Grotesk';color:rgba(244,243,240,.78);">{{ p.name }}</span>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:16px;cursor:pointer;width:150px;" style-hover="transform:translateY(-6px)">
+        <div style="width:138px;height:138px;border-radius:18px;border:2px dashed rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <span style="font:500 18px 'Hanken Grotesk';color:rgba(244,243,240,.5);">Ajouter</span>
+      </div>
+    </div>
+    <button style="margin-top:54px;background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(244,243,240,.7);font:600 13px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;padding:11px 22px;border-radius:8px;cursor:pointer;">Gérer les profils</button>
+  </div>
+  </sc-if>
+
+  <!-- CHROME (sidebar + screens) -->
+  <sc-if value="{{ wChrome }}" hint-placeholder-val="{{ false }}">
+  <div style="height:100vh;display:flex;">
+    <!-- SIDEBAR -->
+    <div style="width:248px;flex:0 0 248px;height:100vh;background:#0C0C0E;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;padding:28px 18px;gap:6px;">
+      <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;padding:0 12px;margin-bottom:34px;cursor:pointer;">
+        <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#F4B642" stroke-width="2.4"/><circle cx="16" cy="16" r="4.5" fill="#F4B642"/></svg>
+        <span style="font:800 21px/1 'Bricolage Grotesque';letter-spacing:.16em;">LUMA</span>
+      </div>
+      <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navHome.bg }};color:{{ navHome.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Accueil
+      </div>
+      <div onClick="{{ goSearch }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navSearch.bg }};color:{{ navSearch.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Rechercher
+      </div>
+      <div onClick="{{ goFilms }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navFilms.bg }};color:{{ navFilms.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 4v16"/></svg>Films
+      </div>
+      <div onClick="{{ goSeries }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navSeries.bg }};color:{{ navSeries.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg>Séries
+      </div>
+      <div onClick="{{ goMyList }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navMyList.bg }};color:{{ navMyList.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3v18l6-4.5L18 21V3z"/></svg>Ma liste
+      </div>
+      <div onClick="{{ goRequests }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navRequests.bg }};color:{{ navRequests.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v11M8 10.5l4 4 4-4"/><path d="M5 20h14"/></svg>Demandes
+        <sc-if value="{{ reqHasActive }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;font:700 11px 'Hanken Grotesk';min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:#F4B642;color:#0A0A0C;display:flex;align-items:center;justify-content:center;">{{ reqActiveCount }}</span></sc-if>
+      </div>
+      <div style="flex:1;"></div>
+      <div onClick="{{ goSettings }}" style="display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:11px;cursor:pointer;font:600 15px 'Hanken Grotesk';background:{{ navSettings.bg }};color:{{ navSettings.fg }};">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2l-.3-2.5H8.7l-.3 2.5a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 4 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1c.6.5 1.3.9 2 1.2l.3 2.5h2.6l.3-2.5c.7-.3 1.4-.7 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2Z"/></svg>Réglages
+      </div>
+      <div onClick="{{ goProfiles }}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;margin-top:8px;border-radius:11px;cursor:pointer;" style-hover="background:rgba(255,255,255,.04)">
+        <div style="width:36px;height:36px;border-radius:9px;background:{{ profileGrad }};display:flex;align-items:center;justify-content:center;font:700 17px 'Bricolage Grotesque';">{{ profileInitial }}</div>
+        <div><div style="font:600 14px 'Hanken Grotesk';">{{ profileName }}</div><div style="font:500 11px 'Hanken Grotesk';color:rgba(244,243,240,.45);">Changer de profil</div></div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="vscroll" style="flex:1;height:100vh;overflow-y:auto;overflow-x:hidden;">
+
+      <!-- HOME -->
+      <sc-if value="{{ sHome }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;">
+        <!-- HERO -->
+        <div style="position:relative;height:74vh;min-height:540px;overflow:hidden;">
+          <div style="position:absolute;inset:-5%;background:{{ heroBd }};animation:drift 28s ease-in-out infinite;"></div>
+          <div style="position:absolute;inset:0;background:radial-gradient(58% 68% at 72% 32%, rgba(242,180,66,.20), transparent 62%);mix-blend-mode:screen;animation:breathe 10s ease-in-out infinite;"></div>
+          <div style="position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:overlay;background-image:radial-gradient(rgba(255,255,255,.6) .5px, transparent .6px);background-size:3px 3px;"></div>
+          <div style="position:absolute;inset:0;background:radial-gradient(130% 110% at 78% 25%, transparent 30%, #0A0A0C 82%);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,#0A0A0C 4%, transparent 58%);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 1%, transparent 32%);"></div>
+          <div style="position:absolute;left:56px;bottom:58px;max-width:600px;animation:fadeIn .6s ease;">
+            <div style="font:700 12px 'Hanken Grotesk';letter-spacing:.22em;color:#F4B642;margin-bottom:14px;">★ EN VEDETTE</div>
+            <h1 style="font:700 66px/.98 'Bricolage Grotesque';margin:0 0 18px;letter-spacing:-.02em;">{{ heroTitle }}</h1>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+              <span style="font:600 14px 'Hanken Grotesk';color:#F4B642;">{{ heroRating }}★</span>
+              <span style="color:rgba(244,243,240,.5);">·</span>
+              <span style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.75);">{{ heroMeta }}</span>
+              <sc-for list="{{ heroBadges }}" as="b" hint-placeholder-count="3">
+                <span style="font:700 11px 'Hanken Grotesk';letter-spacing:.04em;padding:4px 9px;border-radius:6px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span>
+              </sc-for>
+            </div>
+            <p style="font:400 16px/1.55 'Hanken Grotesk';color:rgba(244,243,240,.8);margin:0 0 20px;max-width:540px;">{{ heroSyn }}</p>
+            <div style="display:flex;align-items:center;gap:13px;margin:0 0 22px;max-width:400px;">
+              <div style="flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden;"><div style="height:100%;width:{{ heroProg }};background:linear-gradient(90deg,#F4B642,#FFD262);border-radius:99px;box-shadow:0 0 12px rgba(242,180,66,.5);"></div></div>
+              <span style="font:600 12px 'Hanken Grotesk';color:rgba(244,243,240,.62);white-space:nowrap;">{{ heroLeft }}</span>
+            </div>
+            <div style="display:flex;gap:14px;align-items:center;">
+              <button onClick="{{ heroPlay }}" style="display:flex;align-items:center;gap:10px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px 30px;border-radius:11px;cursor:pointer;box-shadow:0 6px 22px rgba(242,180,66,.32);" style-hover="background:#FFC862;box-shadow:0 8px 30px rgba(242,180,66,.5);transform:translateY(-1px)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>Reprendre
+              </button>
+              <button onClick="{{ heroInfo }}" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.1);backdrop-filter:blur(8px);color:#F4F3F0;border:1px solid rgba(255,255,255,.16);font:600 16px 'Hanken Grotesk';padding:14px 26px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(255,255,255,.16)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg>Plus d'infos
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- ROWS -->
+        <div style="margin-top:-30px;position:relative;padding-bottom:60px;">
+          <sc-for list="{{ rows }}" as="row" hint-placeholder-count="3">
+            <div style="margin-bottom:38px;">
+              <h2 style="font:700 22px 'Bricolage Grotesque';margin:0 0 16px;padding:0 56px;">{{ row.title }}</h2>
+              <div class="scroller" style="display:flex;gap:18px;overflow-x:auto;padding:20px 56px 24px;">
+                <sc-for list="{{ row.items }}" as="m" hint-placeholder-count="6">
+                  <div onClick="{{ m.onOpen }}" style="flex:0 0 auto;width:208px;cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+                    <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.45);transition:box-shadow .2s;" style-hover="box-shadow:0 0 0 2px #F4B642,0 14px 30px rgba(0,0,0,.5)">
+                      <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                      <div style="position:absolute;top:10px;right:10px;font:700 10px 'Hanken Grotesk';letter-spacing:.04em;padding:4px 7px;border-radius:5px;background:rgba(10,10,12,.6);backdrop-filter:blur(4px);color:#F4B642;">{{ m.topBadge }}</div>
+                      <div style="position:absolute;left:15px;right:15px;bottom:16px;">
+                        <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.62);margin-bottom:6px;">{{ m.g }}</div>
+                        <div style="font:700 22px/1.02 'Bricolage Grotesque';color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.55);">{{ m.t }}</div>
+                      </div>
+                      <sc-if value="{{ m.hasProg }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.22);"><div style="height:100%;width:{{ m.progPct }};background:#F4B642;"></div></div>
+                      </sc-if>
+                    </div>
+                    <div style="margin-top:11px;">
+                      <div style="font:600 14px 'Hanken Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.t }}</div>
+                      <div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin-top:2px;">{{ m.meta }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- DETAIL -->
+      <sc-if value="{{ sDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding-bottom:60px;">
+        <div style="position:relative;min-height:62vh;">
+          <div style="position:absolute;inset:0;background:{{ cur.bdGrad }};"></div>
+          <div style="position:absolute;inset:0;background:radial-gradient(130% 110% at 75% 20%, transparent 28%, #0A0A0C 80%);"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 2%, transparent 46%);"></div>
+          <div onClick="{{ goHome }}" style="position:absolute;top:26px;left:32px;z-index:3;width:42px;height:42px;border-radius:50%;background:rgba(10,10,12,.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="background:rgba(10,10,12,.8)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>
+          </div>
+          <div style="position:relative;display:flex;gap:40px;padding:90px 56px 36px;align-items:flex-end;">
+            <div style="flex:0 0 240px;aspect-ratio:2/3;border-radius:14px;background:{{ cur.poster }};box-shadow:0 20px 50px rgba(0,0,0,.6);position:relative;overflow:hidden;">
+              <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.7));"></div>
+              <div style="position:absolute;left:16px;right:16px;bottom:18px;"><div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:6px;">{{ cur.g }}</div><div style="font:700 24px/1 'Bricolage Grotesque';color:#fff;">{{ cur.t }}</div></div>
+            </div>
+            <div style="flex:1;max-width:680px;">
+              <div style="font:600 12px 'Hanken Grotesk';letter-spacing:.18em;color:#F4B642;margin-bottom:12px;">{{ cur.kindLabel }}</div>
+              <h1 style="font:700 56px/1 'Bricolage Grotesque';margin:0 0 16px;letter-spacing:-.02em;">{{ cur.t }}</h1>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+                <span style="font:700 14px 'Hanken Grotesk';color:#F4B642;">{{ cur.rt }}★</span>
+                <span style="color:rgba(244,243,240,.4);">·</span>
+                <span style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.72);">{{ cur.metaLong }}</span>
+                <sc-for list="{{ cur.badges }}" as="b" hint-placeholder-count="3"><span style="font:700 11px 'Hanken Grotesk';padding:4px 9px;border-radius:6px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for>
+              </div>
+              <p style="font:400 16px/1.6 'Hanken Grotesk';color:rgba(244,243,240,.82);margin:0 0 22px;">{{ cur.syn }}</p>
+              <div style="display:flex;gap:13px;align-items:center;margin-bottom:26px;flex-wrap:wrap;">
+                <sc-if value="{{ cur.owned }}" hint-placeholder-val="{{ true }}"><button onClick="{{ playCur }}" style="display:flex;align-items:center;gap:10px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px 30px;border-radius:10px;cursor:pointer;" style-hover="background:#FFC862"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>{{ cur.playLabel }}</button></sc-if>
+                <sc-if value="{{ cur.ctaRequest }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cur.onReq }}" style="display:flex;align-items:center;gap:10px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px 30px;border-radius:10px;cursor:pointer;" style-hover="background:#FFC862"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Demander ce titre</button></sc-if>
+                <sc-if value="{{ cur.ctaPending }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:9px;background:rgba(242,180,66,.12);border:1px solid rgba(242,180,66,.3);color:#F4B642;font:700 14px 'Hanken Grotesk';padding:14px 22px;border-radius:10px;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="1.8"><path d="M12 3v11M8 10.5l4 4 4-4"/><path d="M5 20h14"/></svg>{{ cur.pendLabel }}</div><button onClick="{{ goRequests }}" style="font:600 15px 'Hanken Grotesk';background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#F4F3F0;padding:14px 22px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(255,255,255,.16)">Voir dans Demandes</button></sc-if>
+                <sc-if value="{{ cur.inList }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cur.onToggleList }}" style="width:50px;height:50px;border-radius:10px;background:rgba(242,180,66,.16);border:1px solid rgba(242,180,66,.45);color:#F4B642;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(242,180,66,.26)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></button></sc-if>
+                <sc-if value="{{ cur.notInList }}" hint-placeholder-val="{{ true }}"><button onClick="{{ cur.onToggleList }}" style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#F4F3F0;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.16)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button></sc-if>
+                <button style="width:50px;height:50px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#F4F3F0;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.16)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 10v11M14 4l-1 6h6.5a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17 21H7"/></svg></button>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:44px;padding:18px 0;border-top:1px solid rgba(255,255,255,.08);">
+                <div><div style="font:600 11px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:7px;">Audio</div><div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.85);">{{ cur.auStr }}</div></div>
+                <div><div style="font:600 11px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:7px;">Sous-titres</div><div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.85);">{{ cur.suStr }}</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISTRIBUTION -->
+        <div style="padding:30px 56px 0;">
+          <h2 style="font:700 22px 'Bricolage Grotesque';margin:0 0 18px;">Distribution</h2>
+          <div class="scroller" style="display:flex;gap:22px;overflow-x:auto;padding:10px 4px 18px;">
+            <sc-for list="{{ cur.castSection }}" as="p" hint-placeholder-count="4">
+              <div onClick="{{ p.onOpen }}" style="flex:0 0 auto;width:112px;cursor:pointer;text-align:center;transition:transform .2s;" style-hover="transform:translateY(-4px)">
+                <div style="width:112px;height:112px;border-radius:50%;background:{{ p.grad }};display:flex;align-items:center;justify-content:center;font:700 36px 'Bricolage Grotesque';color:rgba(255,255,255,.92);box-shadow:0 8px 22px rgba(0,0,0,.45);margin-bottom:11px;position:relative;overflow:hidden;"><div style="position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 22%,rgba(255,255,255,.2),transparent 60%);"></div>{{ p.initials }}</div>
+                <div style="font:600 14px 'Hanken Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+                <div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ p.role }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- EPISODES -->
+        <sc-if value="{{ cur.isSeries }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:8px 56px 0;">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">
+            <h2 style="font:700 24px 'Bricolage Grotesque';margin:0;">Épisodes</h2>
+            <div style="position:relative;margin-left:8px;">
+              <button onClick="{{ toggleSeasonMenu }}" style="display:flex;align-items:center;gap:10px;font:600 15px 'Hanken Grotesk';background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#F4F3F0;padding:10px 18px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(255,255,255,.12)">{{ currentSeasonLabel }}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button>
+              <sc-if value="{{ seasonMenuOpen }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;top:calc(100% + 8px);left:0;z-index:30;background:rgba(24,24,28,.97);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:6px;min-width:240px;box-shadow:0 20px 50px rgba(0,0,0,.55);animation:popIn .16s ease;">
+                  <sc-for list="{{ seasonMenuItems }}" as="s" hint-placeholder-count="2"><div onClick="{{ s.onPick }}" style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 14px;border-radius:9px;cursor:pointer;background:{{ s.bg }};" style-hover="background:rgba(255,255,255,.07)"><div><div style="font:600 15px 'Hanken Grotesk';color:{{ s.fg }};">{{ s.label }}</div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.4);">{{ s.sub }}</div></div><sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></sc-if></div></sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+          <div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.45);margin-bottom:20px;">{{ seasonInfo }}</div>
+          <div style="display:flex;flex-direction:column;gap:14px;max-width:1000px;">
+            <sc-for list="{{ episodes }}" as="e" hint-placeholder-count="4">
+              <div onClick="{{ playCur }}" style="display:flex;gap:20px;padding:14px;border-radius:14px;cursor:pointer;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);align-items:center;" style-hover="background:rgba(255,255,255,.06)">
+                <div style="flex:0 0 200px;aspect-ratio:16/9;border-radius:10px;background:{{ e.thumb }};position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                  <div style="width:44px;height:44px;border-radius:50%;background:rgba(10,10,12,.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></div>
+                  <sc-if value="{{ e.hasProg }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25);"><div style="height:100%;width:{{ e.progPct }};background:#F4B642;"></div></div></sc-if>
+                </div>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;"><span style="font:700 17px 'Hanken Grotesk';">{{ e.n }}. {{ e.t }}</span><span style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ e.run }}</span><sc-if value="{{ e.statusLabel }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px 'Hanken Grotesk';letter-spacing:.04em;padding:3px 8px;border-radius:5px;background:rgba(242,180,66,.16);color:#F4B642;">{{ e.statusLabel }}</span></sc-if></div>
+                  <p style="font:400 14px/1.5 'Hanken Grotesk';color:rgba(244,243,240,.6);margin:0;">{{ e.syn }}</p>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- SIMILAR -->
+        <div style="margin-top:44px;">
+          <h2 style="font:700 22px 'Bricolage Grotesque';margin:0 0 16px;padding:0 56px;">Titres similaires</h2>
+          <div class="scroller" style="display:flex;gap:18px;overflow-x:auto;padding:6px 56px 14px;">
+            <sc-for list="{{ similar }}" as="m" hint-placeholder-count="6">
+              <div onClick="{{ m.onOpen }}" style="flex:0 0 auto;width:200px;cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+                <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.45);">
+                  <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                  <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SEARCH -->
+      <sc-if value="{{ sSearch }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 60px;">
+        <div style="display:flex;align-items:center;gap:14px;background:#141418;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px 22px;max-width:680px;margin-bottom:34px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.5)" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Films, séries, genres…" style="flex:1;background:transparent;border:none;outline:none;color:#F4F3F0;font:500 17px 'Hanken Grotesk';"/>
+          <button onClick="{{ openSpot }}" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(244,243,240,.6);font:700 12px 'Hanken Grotesk';padding:6px 11px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.12);color:#F4F3F0">⌘K Spotlight</button>
+        </div>
+        <sc-if value="{{ searchEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:40px 0;font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.5);">Aucun résultat. Essayez un autre titre ou un genre.</div>
+        </sc-if>
+
+        <sc-if value="{{ hasLib }}" hint-placeholder-val="{{ true }}">
+        <h2 style="font:700 18px 'Bricolage Grotesque';margin:0 0 20px;color:rgba(244,243,240,.7);">{{ searchLabel }}</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;margin-bottom:42px;">
+          <sc-for list="{{ searchLib }}" as="m" hint-placeholder-count="6">
+            <div onClick="{{ m.onOpen }}" style="cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+              <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.4);">
+                <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                <div style="position:absolute;top:10px;right:10px;font:700 10px 'Hanken Grotesk';padding:4px 7px;border-radius:5px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div>
+                <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ hasExt }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:10px;margin:0 0 6px;"><h2 style="font:700 18px 'Bricolage Grotesque';margin:0;color:rgba(244,243,240,.7);">À récupérer sur le réseau</h2><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.4)" stroke-width="1.7"><path d="M12 3v11M8 10.5l4 4 4-4"/><path d="M5 20h14"/></svg></div>
+        <p style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.42);margin:0 0 20px;">Pas encore dans votre médiathèque — demandez-les en un clic.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;">
+          <sc-for list="{{ searchExt }}" as="m" hint-placeholder-count="4">
+            <div>
+              <div onClick="{{ m.onOpen }}" style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.4);cursor:pointer;">
+                <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.1) 30%,rgba(0,0,0,.78));"></div>
+                <sc-if value="{{ m.isNone }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;top:10px;left:10px;font:700 9px 'Hanken Grotesk';letter-spacing:.06em;padding:4px 8px;border-radius:5px;background:rgba(10,10,12,.55);backdrop-filter:blur(4px);color:rgba(244,243,240,.75);">RÉSEAU</div></sc-if>
+                <sc-if value="{{ m.isPending }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:10px;left:10px;font:700 9px 'Hanken Grotesk';padding:4px 8px;border-radius:5px;color:{{ m.stC }};background:{{ m.stBg }};backdrop-filter:blur(4px);">{{ m.stLabel }} {{ m.stPct }}</div></sc-if>
+                <sc-if value="{{ m.isAvail }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:10px;left:10px;font:700 9px 'Hanken Grotesk';padding:4px 8px;border-radius:5px;color:#46D08D;background:rgba(70,208,141,.18);backdrop-filter:blur(4px);">✓ AJOUTÉ</div></sc-if>
+                <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+              </div>
+              <div style="margin-top:11px;">
+                <sc-if value="{{ m.isNone }}" hint-placeholder-val="{{ true }}"><button onClick="{{ m.onReq }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(242,180,66,.14);color:#F4B642;border:1px solid rgba(242,180,66,.35);font:700 13px 'Hanken Grotesk';padding:10px;border-radius:10px;cursor:pointer;" style-hover="background:rgba(242,180,66,.24)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Demander</button></sc-if>
+                <sc-if value="{{ m.isPending }}" hint-placeholder-val="{{ false }}"><div style="font:600 12px 'Hanken Grotesk';color:{{ m.stC }};text-align:center;padding:8px;">{{ m.stLabel }} {{ m.stPct }} {{ m.stEta }}</div></sc-if>
+                <sc-if value="{{ m.isAvail }}" hint-placeholder-val="{{ false }}"><button onClick="{{ m.onOpen }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#46D08D;color:#062012;border:none;font:700 13px 'Hanken Grotesk';padding:10px;border-radius:10px;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="#062012"><path d="M7 4v16l13-8z"/></svg>Lecture</button></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ sSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 80px;max-width:920px;">
+        <h1 style="font:700 38px 'Bricolage Grotesque';margin:0 0 6px;">Réglages</h1>
+        <p style="font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin:0 0 38px;">Profil · {{ profileName }}</p>
+
+        <div style="background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:28px 30px;margin-bottom:24px;">
+          <h2 style="font:700 19px 'Bricolage Grotesque';margin:0 0 22px;">Langues & lecture</h2>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div><div style="font:600 15px 'Hanken Grotesk';">Langue audio préférée</div><div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">Piste sélectionnée par défaut</div></div>
+            <select value="{{ prefAudio }}" onChange="{{ onPrefAudio }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;font-size:14px;cursor:pointer;"><option value="vf">Français (VF)</option><option value="vo">Version originale</option><option value="en">Anglais</option></select>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div><div style="font:600 15px 'Hanken Grotesk';">Langue des sous-titres préférée</div><div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">Activés automatiquement si disponibles</div></div>
+            <select value="{{ prefSub }}" onChange="{{ onPrefSub }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;font-size:14px;cursor:pointer;"><option value="off">Désactivés</option><option value="fr">Français</option><option value="en">Anglais</option><option value="es">Espagnol</option></select>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div><div style="font:600 15px 'Hanken Grotesk';">Toujours afficher les sous-titres</div></div>
+            <div onClick="{{ toggleAlways }}" style="width:52px;height:30px;border-radius:99px;background:{{ alwaysBg }};position:relative;cursor:pointer;transition:background .2s;"><div style="position:absolute;top:3px;left:{{ alwaysX }};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;"></div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+            <div><div style="font:600 15px 'Hanken Grotesk';">Sous-titres pour parties en langue étrangère</div><div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">Affichés uniquement quand l'audio diffère de votre langue</div></div>
+            <div onClick="{{ toggleForeign }}" style="width:52px;height:30px;border-radius:99px;background:{{ foreignBg }};position:relative;cursor:pointer;transition:background .2s;"><div style="position:absolute;top:3px;left:{{ foreignX }};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;"></div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;">
+            <div><div style="font:600 15px 'Hanken Grotesk';">Langue de l'interface</div></div>
+            <select value="{{ uiLang }}" onChange="{{ onUiLang }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:10px 14px;font-size:14px;cursor:pointer;"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option><option value="de">Deutsch</option></select>
+          </div>
+        </div>
+
+        <div style="background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:28px 30px;">
+          <h2 style="font:700 19px 'Bricolage Grotesque';margin:0 0 6px;">Apparence des sous-titres</h2>
+          <p style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);margin:0 0 22px;">Aperçu en direct ci-dessous</p>
+          <!-- preview -->
+          <div style="position:relative;aspect-ratio:21/9;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,#2A2440,#0E1226);margin-bottom:26px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:34px;">
+            <div style="position:absolute;inset:0;background:radial-gradient(80% 80% at 30% 30%, rgba(244,180,66,.18), transparent 60%);"></div>
+            <div style="position:relative;text-align:center;">
+              <span style="{{ subPreviewStyle }}">Vous voyez ce que je vois maintenant&nbsp;?</span>
+            </div>
+          </div>
+          <!-- controls -->
+          <div style="display:flex;flex-direction:column;gap:22px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font:600 15px 'Hanken Grotesk';">Taille</span>
+              <div style="display:flex;gap:6px;background:#1A1A20;padding:4px;border-radius:10px;">
+                <sc-for list="{{ sizeOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onPick }}" style="font:600 14px 'Hanken Grotesk';padding:8px 18px;border-radius:7px;border:none;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font:600 15px 'Hanken Grotesk';">Couleur du texte</span>
+              <div style="display:flex;gap:10px;">
+                <sc-for list="{{ colorOpts }}" as="o" hint-placeholder-count="5"><div onClick="{{ o.onPick }}" style="width:34px;height:34px;border-radius:50%;cursor:pointer;background:{{ o.val }};box-shadow:0 0 0 {{ o.ring }};"></div></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:30px;">
+              <span style="font:600 15px 'Hanken Grotesk';white-space:nowrap;">Opacité</span>
+              <div style="display:flex;align-items:center;gap:14px;flex:1;max-width:320px;"><input type="range" min="20" max="100" value="{{ subOpacity }}" onInput="{{ onOpacity }}" style="flex:1;background:linear-gradient(90deg,#F4B642,#F4B642);"/><span style="font:600 14px 'Hanken Grotesk';width:46px;text-align:right;color:rgba(244,243,240,.7);">{{ subOpacity }}%</span></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font:600 15px 'Hanken Grotesk';">Contour / fond</span>
+              <div style="display:flex;gap:6px;background:#1A1A20;padding:4px;border-radius:10px;">
+                <sc-for list="{{ edgeOpts }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.onPick }}" style="font:600 13px 'Hanken Grotesk';padding:8px 14px;border-radius:7px;border:none;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font:600 15px 'Hanken Grotesk';">Police</span>
+              <div style="display:flex;gap:6px;background:#1A1A20;padding:4px;border-radius:10px;">
+                <sc-for list="{{ fontOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onPick }}" style="font:600 14px 'Hanken Grotesk';padding:8px 16px;border-radius:7px;border:none;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- REQUESTS -->
+      <sc-if value="{{ sRequests }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 80px;max-width:1000px;">
+        <h1 style="font:700 38px 'Bricolage Grotesque';margin:0 0 6px;">Demandes & téléchargements</h1>
+        <p style="font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin:0 0 32px;">{{ reqSummary }}</p>
+        <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:44px;">
+          <sc-for list="{{ reqList }}" as="r" hint-placeholder-count="4">
+            <div style="display:flex;gap:18px;align-items:center;background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:16px;">
+              <div style="flex:0 0 60px;height:88px;border-radius:9px;background:{{ r.poster }};box-shadow:0 6px 18px rgba(0,0,0,.4);position:relative;overflow:hidden;"><div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05),rgba(0,0,0,.5));"></div></div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;flex-wrap:wrap;"><span style="font:700 18px 'Bricolage Grotesque';">{{ r.t }}</span><span style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ r.g }} · {{ r.yr }} · {{ r.q }}</span></div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:11px;flex-wrap:wrap;"><span style="font:700 11px 'Hanken Grotesk';padding:4px 10px;border-radius:6px;color:{{ r.statusC }};background:{{ r.statusBg }};">{{ r.statusLabel }}</span><span style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.4);">Demandé par {{ r.by }}</span></div>
+                <sc-if value="{{ r.isDl }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:12px;"><div style="flex:1;height:6px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;"><div style="height:100%;width:{{ r.progW }};background:linear-gradient(90deg,#F4B642,#FFD262);border-radius:99px;transition:width 1s linear;box-shadow:0 0 10px rgba(242,180,66,.5);"></div></div><span style="font:700 13px 'Hanken Grotesk';color:#F4B642;width:44px;text-align:right;font-variant-numeric:tabular-nums;">{{ r.progPct }}</span></div>
+                  <div style="display:flex;justify-content:space-between;margin-top:8px;"><span style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.55);">{{ r.etaLabel }}</span><span style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.45);">↓ {{ r.speedLabel }}</span></div>
+                </sc-if>
+                <sc-if value="{{ r.isSearch }}" hint-placeholder-val="{{ false }}"><div style="height:6px;border-radius:99px;background:linear-gradient(90deg,rgba(134,168,255,.08),rgba(134,168,255,.55),rgba(134,168,255,.08));background-size:200% 100%;animation:shimmer 1.4s linear infinite;"></div></sc-if>
+                <sc-if value="{{ r.isQueued }}" hint-placeholder-val="{{ false }}"><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.4);">En attente d'un créneau de téléchargement…</div></sc-if>
+              </div>
+              <sc-if value="{{ r.isAvail }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.onPlay }}" style="display:flex;align-items:center;gap:8px;background:#46D08D;color:#062012;border:none;font:700 14px 'Hanken Grotesk';padding:11px 18px;border-radius:10px;cursor:pointer;" style-hover="background:#5BE0A0"><svg width="16" height="16" viewBox="0 0 24 24" fill="#062012"><path d="M7 4v16l13-8z"/></svg>Lecture</button></sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(120deg,rgba(242,180,66,.1),rgba(242,180,66,.02));border:1px solid rgba(242,180,66,.22);border-radius:16px;padding:22px 24px;">
+          <div style="width:48px;height:48px;border-radius:12px;background:rgba(242,180,66,.16);display:flex;align-items:center;justify-content:center;flex:0 0 48px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+          <div style="flex:1;"><div style="font:700 17px 'Bricolage Grotesque';margin-bottom:3px;">Un titre vous manque ?</div><div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.6);">Cherchez-le — s'il n'est pas dans votre médiathèque, demandez-le et LUMA le récupère automatiquement.</div></div>
+          <button onClick="{{ goSearch }}" style="display:flex;align-items:center;gap:8px;background:#F4B642;color:#0A0A0C;border:none;font:700 14px 'Hanken Grotesk';padding:12px 20px;border-radius:10px;cursor:pointer;white-space:nowrap;" style-hover="background:#FFC862">Rechercher un titre</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- FILMS -->
+      <sc-if value="{{ sFilms }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 80px;">
+        <div style="display:flex;align-items:baseline;gap:14px;margin:0 0 22px;"><h1 style="font:700 38px 'Bricolage Grotesque';margin:0;">Films</h1><span style="font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ filmCount }} titres</span></div>
+        <div class="scroller" style="display:flex;gap:9px;overflow-x:auto;margin-bottom:28px;padding-bottom:4px;">
+          <sc-for list="{{ filmChips }}" as="c" hint-placeholder-count="6"><button onClick="{{ c.onPick }}" style="flex:0 0 auto;font:600 13px 'Hanken Grotesk';padding:9px 16px;border-radius:99px;border:none;cursor:pointer;background:{{ c.bg }};color:{{ c.fg }};">{{ c.label }}</button></sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;">
+          <sc-for list="{{ films }}" as="m" hint-placeholder-count="8">
+            <div onClick="{{ m.onOpen }}" style="cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+              <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.4);">
+                <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                <div style="position:absolute;top:10px;right:10px;font:700 10px 'Hanken Grotesk';padding:4px 7px;border-radius:5px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div>
+                <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SÉRIES -->
+      <sc-if value="{{ sSeries }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 80px;">
+        <div style="display:flex;align-items:baseline;gap:14px;margin:0 0 22px;"><h1 style="font:700 38px 'Bricolage Grotesque';margin:0;">Séries</h1><span style="font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ seriesCount }} titres</span></div>
+        <div class="scroller" style="display:flex;gap:9px;overflow-x:auto;margin-bottom:28px;padding-bottom:4px;">
+          <sc-for list="{{ seriesChips }}" as="c" hint-placeholder-count="4"><button onClick="{{ c.onPick }}" style="flex:0 0 auto;font:600 13px 'Hanken Grotesk';padding:9px 16px;border-radius:99px;border:none;cursor:pointer;background:{{ c.bg }};color:{{ c.fg }};">{{ c.label }}</button></sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;">
+          <sc-for list="{{ series }}" as="m" hint-placeholder-count="6">
+            <div onClick="{{ m.onOpen }}" style="cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+              <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.4);">
+                <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                <div style="position:absolute;top:10px;right:10px;font:700 10px 'Hanken Grotesk';padding:4px 7px;border-radius:5px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div>
+                <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- MA LISTE -->
+      <sc-if value="{{ sMyList }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:fadeIn .4s ease;padding:40px 56px 80px;">
+        <div style="display:flex;align-items:baseline;gap:14px;margin:0 0 26px;"><h1 style="font:700 38px 'Bricolage Grotesque';margin:0;">Ma liste</h1><span style="font:500 15px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ myListCount }} titres</span></div>
+        <sc-if value="{{ myListEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;text-align:center;">
+            <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;margin-bottom:20px;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.4)" stroke-width="1.6"><path d="M6 3v18l6-4.5L18 21V3z"/></svg></div>
+            <div style="font:700 20px 'Bricolage Grotesque';margin-bottom:8px;">Votre liste est vide</div>
+            <div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin-bottom:22px;max-width:340px;">Ajoutez des films et séries depuis leur fiche pour les retrouver ici.</div>
+            <button onClick="{{ goHome }}" style="font:700 14px 'Hanken Grotesk';background:#F4B642;color:#0A0A0C;border:none;padding:12px 22px;border-radius:10px;cursor:pointer;" style-hover="background:#FFC862">Parcourir la médiathèque</button>
+          </div>
+        </sc-if>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px;">
+          <sc-for list="{{ myListItems }}" as="m" hint-placeholder-count="3">
+            <div style="position:relative;">
+              <div onClick="{{ m.onOpen }}" style="cursor:pointer;transition:transform .2s;" style-hover="transform:translateY(-6px)">
+                <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:0 10px 28px rgba(0,0,0,.4);">
+                  <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                  <div style="position:absolute;left:14px;right:14px;bottom:15px;"><div style="font:700 10px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 20px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+                </div>
+              </div>
+              <button onClick="{{ m.onRemove }}" style="position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:rgba(10,10,12,.7);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.16);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(229,57,53,.85)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</sc-if>
+
+<!-- ============ FULLSCREEN PLAYER (Web + TV) ============ -->
+<sc-if value="{{ bigPlayer }}" hint-placeholder-val="{{ false }}">
+  <div onMouseMove="{{ playerMove }}" style="position:fixed;inset:0;background:#000;overflow:hidden;cursor:default;z-index:50;">
+    <div style="position:absolute;inset:0;background:{{ cur.bdGrad }};"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(120% 120% at 50% 45%, transparent 30%, rgba(0,0,0,.55));"></div>
+    <!-- subtitle live -->
+    <sc-if value="{{ subOn }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:0;right:0;bottom:{{ subBottom }};text-align:center;padding:0 8%;pointer-events:none;z-index:3;transition:bottom .3s cubic-bezier(.22,1,.36,1);"><span style="{{ subPreviewStyle }}">{{ subSample }}</span></div>
+    </sc-if>
+    <!-- center play -->
+    <sc-if value="{{ isWebPlayer }}" hint-placeholder-val="{{ true }}">
+    <div onClick="{{ togglePlay }}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:{{ controlsOp }};transition:opacity .35s;">
+      <div style="width:88px;height:88px;border-radius:50%;background:rgba(10,10,12,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;">
+        <sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}"><svg width="34" height="34" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></sc-if>
+        <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="36" height="36" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></sc-if>
+      </div>
+    </div>
+    </sc-if>
+    <!-- top bar -->
+    <div style="position:absolute;top:0;left:0;right:0;padding:26px 34px;background:linear-gradient(180deg,rgba(0,0,0,.65),transparent);display:flex;align-items:center;gap:18px;opacity:{{ controlsOp }};transition:opacity .35s;">
+      <div onClick="{{ goBackFromPlayer }}" style="width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg></div>
+      <div><div style="font:700 19px 'Bricolage Grotesque';">{{ cur.t }}</div><div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.6);">{{ playerSub }}</div></div>
+    </div>
+    <!-- Passer l'intro -->
+    <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ skipIntro }}" style="position:absolute;bottom:120px;right:34px;display:flex;align-items:center;gap:9px;background:rgba(20,20,24,.62);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.22);color:#fff;font:600 14px 'Hanken Grotesk';padding:12px 20px;border-radius:12px;cursor:pointer;opacity:{{ controlsOp }};transition:opacity .35s, background .2s;z-index:6;" style-hover="background:rgba(44,44,50,.85)">Passer l'intro<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9"><path d="m9 6 6 6-6 6"/></svg></button>
+    </sc-if>
+    <!-- bottom controls -->
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:0 34px 26px;background:linear-gradient(0deg,rgba(0,0,0,.82),transparent);opacity:{{ controlsOp }};transition:opacity .35s;">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+        <span style="font:600 13px 'Hanken Grotesk';color:rgba(244,243,240,.85);width:54px;font-variant-numeric:tabular-nums;">{{ tCur }}</span>
+        <div onClick="{{ seek }}" onMouseMove="{{ scrubMove }}" onMouseLeave="{{ scrubLeave }}" style="position:relative;flex:1;height:20px;display:flex;align-items:center;cursor:pointer;">
+          <sc-if value="{{ hoverActive }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;bottom:28px;left:{{ hoverX }};transform:translateX(-50%);pointer-events:none;z-index:5;display:flex;flex-direction:column;align-items:center;gap:7px;">
+              <div style="width:152px;height:86px;border-radius:11px;background:{{ hoverThumb }};box-shadow:0 12px 34px rgba(0,0,0,.65);border:1.5px solid rgba(255,255,255,.22);position:relative;overflow:hidden;"><div style="position:absolute;inset:0;background:radial-gradient(120% 120% at 50% 40%,transparent,rgba(0,0,0,.45));"></div></div>
+              <span style="font:600 12px 'Hanken Grotesk';color:#fff;background:rgba(0,0,0,.72);padding:3px 10px;border-radius:7px;font-variant-numeric:tabular-nums;">{{ hoverTime }}</span>
+            </div>
+          </sc-if>
+          <div style="position:relative;width:100%;height:5px;border-radius:99px;background:rgba(255,255,255,.18);box-shadow:{{ tvSeekRing }};">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:79%;background:rgba(255,255,255,.14);border-radius:99px;"></div>
+            <div style="position:absolute;left:0;top:0;bottom:0;width:{{ pct }};background:linear-gradient(90deg,#F4B642,#FFD262);border-radius:99px;box-shadow:0 0 12px rgba(242,180,66,.55);"></div>
+            <div style="position:absolute;left:{{ pct }};top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(242,180,66,.4),0 2px 6px rgba(0,0,0,.5);"></div>
+          </div>
+        </div>
+        <span style="font:600 13px 'Hanken Grotesk';color:rgba(244,243,240,.55);width:54px;text-align:right;font-variant-numeric:tabular-nums;">{{ tDur }}</span>
+      </div>
+      <sc-if value="{{ isWebPlayer }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onClick="{{ togglePlay }}" style="width:46px;height:46px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.1)">
+          <sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></sc-if>
+          <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></sc-if>
+        </button>
+        <button onClick="{{ back10 }}" style="width:44px;height:44px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.1)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M11 7 6 12l5 5M18 7l-5 5 5 5"/></svg></button>
+        <button onClick="{{ fwd10 }}" style="width:44px;height:44px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.1)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="m13 7 5 5-5 5M6 7l5 5-5 5"/></svg></button>
+        <button onClick="{{ toggleMute }}" style="width:44px;height:44px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.1)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="{{ volIcon }}"/></svg></button>
+        <div style="flex:1;"></div>
+        <button onClick="{{ openAV }}" style="display:flex;align-items:center;gap:8px;font:600 13px 'Hanken Grotesk';color:#0A0A0C;background:#F4B642;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;" style-hover="background:#FFC862"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="1.8"><path d="M3 5h18M3 12h18M3 19h12"/><circle cx="20" cy="19" r="1.6" fill="#0A0A0C"/></svg>Audio &amp; ST</button>
+        <sc-if value="{{ cur.isSeries }}" hint-placeholder-val="{{ false }}"><button style="display:flex;align-items:center;gap:7px;font:600 13px 'Hanken Grotesk';color:#fff;background:transparent;border:none;padding:10px 12px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(255,255,255,.1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M5 4v16l11-8z"/><path d="M19 5v14"/></svg>Suivant</button></sc-if>
+        <button style="width:44px;height:44px;border-radius:10px;background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:rgba(255,255,255,.1)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+      </sc-if>
+      <sc-if value="{{ isTvPlayer }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:center;gap:22px;padding-top:6px;">
+        <div style="width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;box-shadow:{{ tvpRingBack }};"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M11 7 6 12l5 5M18 7l-5 5 5 5"/></svg></div>
+        <div style="width:84px;height:84px;border-radius:50%;background:#F4B642;display:flex;align-items:center;justify-content:center;box-shadow:{{ tvpRingPlay }};"><sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}"><svg width="34" height="34" viewBox="0 0 24 24" fill="#0A0A0C"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></sc-if><sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="36" height="36" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg></sc-if></div>
+        <div style="width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;box-shadow:{{ tvpRingFwd }};"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="m13 7 5 5-5 5M6 7l5 5-5 5"/></svg></div>
+        <div style="display:flex;align-items:center;gap:11px;height:64px;padding:0 28px;border-radius:99px;background:rgba(255,255,255,.12);color:#fff;font:700 18px 'Hanken Grotesk';box-shadow:{{ tvpRingAv }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 5h18M3 12h18M3 19h12"/></svg>Audio &amp; ST</div>
+      </div>
+      <div style="text-align:center;font:600 14px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin-top:14px;">▲ Barre de progression · ◀ ▶ Naviguer · OK Valider · Retour quitter</div>
+      </sc-if>
+    </div>
+
+    <!-- AV PANEL -->
+    <sc-if value="{{ avOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeAV }}" style="position:absolute;inset:0;background:rgba(0,0,0,.35);"></div>
+    <div style="position:absolute;top:0;right:0;bottom:0;width:400px;background:rgba(16,16,20,.92);backdrop-filter:blur(24px);border-left:1px solid rgba(255,255,255,.1);padding:30px 28px;overflow-y:auto;animation:panelIn .3s ease;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+        <h2 style="font:700 22px 'Bricolage Grotesque';margin:0;">Audio &amp; Sous-titres</h2>
+        <div onClick="{{ closeAV }}" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;" style-hover="background:rgba(255,255,255,.16)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+      </div>
+      <div style="font:700 12px 'Hanken Grotesk';letter-spacing:.14em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:14px;">Pistes audio</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:34px;">
+        <sc-for list="{{ audioList }}" as="a" hint-placeholder-count="3">
+          <div onClick="{{ a.onPick }}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;cursor:pointer;background:{{ a.bg }};border:1px solid {{ a.bd }};box-shadow:{{ a.tvring }};">
+            <span style="font:700 12px 'Hanken Grotesk';min-width:36px;text-align:center;padding:5px 0;border-radius:6px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.85);">{{ a.code }}</span>
+            <div style="flex:1;"><div style="font:600 15px 'Hanken Grotesk';color:#F4F3F0;">{{ a.label }} <span style="font-size:12px;color:rgba(244,243,240,.5);">{{ a.tag }}</span></div></div>
+            <span style="font:700 10px 'Hanken Grotesk';letter-spacing:.04em;padding:3px 8px;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.7);">{{ a.ch }}</span>
+            <sc-if value="{{ a.active }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font:700 12px 'Hanken Grotesk';letter-spacing:.14em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:14px;">Sous-titres</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <sc-for list="{{ subList }}" as="s" hint-placeholder-count="5">
+          <div onClick="{{ s.onPick }}" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;cursor:pointer;background:{{ s.bg }};border:1px solid {{ s.bd }};box-shadow:{{ s.tvring }};">
+            <span style="font:700 12px 'Hanken Grotesk';min-width:36px;text-align:center;padding:5px 0;border-radius:6px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.85);">{{ s.code }}</span>
+            <div style="flex:1;"><div style="font:600 15px 'Hanken Grotesk';color:#F4F3F0;">{{ s.label }}</div></div>
+            <sc-if value="{{ s.tag }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px 'Hanken Grotesk';padding:3px 8px;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.7);">{{ s.tag }}</span></sc-if>
+            <sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<!-- ============ TV HOME (10-foot) ============ -->
+<sc-if value="{{ tvHome }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;background:#0A0A0C;overflow:hidden;display:flex;flex-direction:column;z-index:10;">
+  <div style="position:relative;flex:0 0 56%;">
+    <div style="position:absolute;inset:0;background:{{ tvHero.bd }};transition:background .4s ease;"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(90deg,#0A0A0C 5%,transparent 60%);"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 1%,transparent 48%);"></div>
+    <div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:36px 64px;">
+      <div style="display:flex;align-items:center;gap:13px;"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#F4B642" stroke-width="2.4"/><circle cx="16" cy="16" r="4.5" fill="#F4B642"/></svg><span style="font:800 26px 'Bricolage Grotesque';letter-spacing:.16em;">LUMA</span></div>
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(10,10,12,.45);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.08);border-radius:99px;padding:5px;">
+        <sc-for list="{{ tvNavItems }}" as="n" hint-placeholder-count="5"><div onClick="{{ n.onPick }}" style="display:flex;align-items:center;gap:7px;font:600 16px 'Hanken Grotesk';padding:9px 19px;border-radius:99px;cursor:pointer;background:{{ n.bg }};color:{{ n.fg }};box-shadow:{{ n.ring }};"><sc-if value="{{ n.search }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></sc-if>{{ n.label }}</div></sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:18px;">
+        <span style="font:600 17px 'Hanken Grotesk';color:rgba(244,243,240,.8);">{{ clock }}</span>
+        <div style="width:44px;height:44px;border-radius:11px;background:{{ profileGrad }};display:flex;align-items:center;justify-content:center;font:700 20px 'Bricolage Grotesque';">{{ profileInitial }}</div>
+      </div>
+    </div>
+    <div style="position:absolute;left:64px;bottom:36px;max-width:820px;">
+      <div style="font:700 14px 'Hanken Grotesk';letter-spacing:.24em;color:#F4B642;margin-bottom:16px;">★ EN VEDETTE</div>
+      <h1 style="font-family:'Bricolage Grotesque';font-weight:700;font-size:clamp(42px,7.6vh,82px);line-height:.96;margin:0 0 14px;letter-spacing:-.02em;">{{ tvHero.t }}</h1>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <span style="font:700 17px 'Hanken Grotesk';color:#F4B642;">{{ tvHero.rating }}★</span>
+        <span style="color:rgba(244,243,240,.4);">·</span>
+        <span style="font:500 17px 'Hanken Grotesk';color:rgba(244,243,240,.78);">{{ tvHero.meta }}</span>
+        <sc-for list="{{ tvHero.badges }}" as="b" hint-placeholder-count="3"><span style="font:700 13px 'Hanken Grotesk';padding:5px 11px;border-radius:7px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for>
+      </div>
+      <p style="font-family:'Hanken Grotesk';font-weight:400;font-size:clamp(15px,2.3vh,20px);line-height:1.5;color:rgba(244,243,240,.82);margin:0 0 22px;max-width:720px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">{{ tvHero.syn }}</p>
+      <div style="display:flex;gap:18px;align-items:center;">
+        <button onClick="{{ heroBigPlay }}" style="display:flex;align-items:center;gap:12px;background:#F4B642;color:#0A0A0C;border:none;font:700 20px 'Hanken Grotesk';padding:18px 40px;border-radius:13px;cursor:pointer;box-shadow:{{ heroB0Ring }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>Lecture</button>
+        <button onClick="{{ heroBigInfo }}" style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.12);color:#F4F3F0;border:1px solid rgba(255,255,255,.2);font:600 20px 'Hanken Grotesk';padding:18px 34px;border-radius:13px;cursor:pointer;box-shadow:{{ heroB1Ring }};">Plus d'infos</button>
+      </div>
+    </div>
+  </div>
+  <div ref="{{ tvRailsRef }}" class="vscroll" style="flex:1;overflow-y:auto;padding:8px 0 40px;">
+    <sc-for list="{{ tvRows }}" as="row" hint-placeholder-count="3">
+      <div style="margin-bottom:8px;">
+        <h2 style="font:700 28px 'Bricolage Grotesque';padding:0 64px;margin:18px 0 16px;">{{ row.title }}</h2>
+        <div class="scroller" style="display:flex;gap:24px;overflow-x:auto;padding:34px 64px 34px;">
+          <sc-for list="{{ row.items }}" as="m" hint-placeholder-count="5">
+            <div ref="{{ m.focRef }}" onClick="{{ m.play }}" style="flex:0 0 auto;width:330px;cursor:pointer;transition:transform .18s;transform:{{ m.sc }};">
+              <div style="position:relative;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:{{ m.bdThumb }};box-shadow:{{ m.shadow }};animation:{{ m.anim }};">
+                <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05) 40%,rgba(0,0,0,.75));"></div>
+                <div style="position:absolute;top:12px;right:12px;font:700 12px 'Hanken Grotesk';padding:5px 9px;border-radius:6px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div>
+                <div style="position:absolute;left:18px;right:18px;bottom:16px;"><div style="font:700 12px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.65);margin-bottom:5px;">{{ m.g }}</div><div style="font:700 24px/1.02 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div>
+                <sc-if value="{{ m.hasProg }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:0;height:6px;background:rgba(255,255,255,.25);"><div style="height:100%;width:{{ m.progPct }};background:#F4B642;"></div></div></sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:30px;padding:16px;background:linear-gradient(0deg,rgba(10,10,12,.8),transparent);pointer-events:none;">
+    <span style="font:600 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);">◀ ▶ Parcourir</span>
+    <span style="font:600 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);">▲ ▼ Changer de ligne</span>
+    <span style="font:600 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);"><span style="color:#F4B642;font-weight:700;">OK</span> Ouvrir la fiche</span>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ TV DETAIL (10-foot) ============ -->
+<sc-if value="{{ tvDetail }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;background:#0A0A0C;overflow:hidden;z-index:10;animation:fadeIn .3s ease;">
+  <div style="position:absolute;inset:0;background:{{ cur.bdGrad }};transition:background .4s ease;"></div>
+  <div style="position:absolute;inset:0;background:linear-gradient(90deg,#0A0A0C 12%,transparent 68%);"></div>
+  <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 4%,transparent 60%);"></div>
+  <div style="position:absolute;top:34px;left:64px;font:600 15px 'Hanken Grotesk';color:rgba(244,243,240,.6);">‹ Retour <span style="color:rgba(244,243,240,.35);">— touche Retour</span></div>
+  <div ref="{{ tvRailsRef }}" class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding:32vh 64px 60px;">
+    <div style="font:700 13px 'Hanken Grotesk';letter-spacing:.2em;color:#F4B642;margin-bottom:14px;">{{ cur.kindLabel }}</div>
+    <h1 style="font-family:'Bricolage Grotesque';font-weight:700;font-size:clamp(46px,8vh,88px);line-height:.95;margin:0 0 16px;letter-spacing:-.02em;">{{ cur.t }}</h1>
+    <div style="display:flex;align-items:center;gap:13px;margin-bottom:18px;flex-wrap:wrap;">
+      <span style="font:700 18px 'Hanken Grotesk';color:#F4B642;">{{ cur.rt }}★</span>
+      <span style="color:rgba(244,243,240,.4);">·</span>
+      <span style="font:500 18px 'Hanken Grotesk';color:rgba(244,243,240,.78);">{{ cur.metaLong }}</span>
+      <sc-for list="{{ cur.badges }}" as="b" hint-placeholder-count="3"><span style="font:700 13px 'Hanken Grotesk';padding:5px 11px;border-radius:7px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for>
+    </div>
+    <p style="font:400 20px/1.5 'Hanken Grotesk';color:rgba(244,243,240,.82);margin:0 0 26px;max-width:680px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">{{ cur.syn }}</p>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:8px;">
+      <button onClick="{{ playCur }}" style="display:flex;align-items:center;gap:12px;background:#F4B642;color:#0A0A0C;border:none;font:700 19px 'Hanken Grotesk';padding:17px 38px;border-radius:13px;cursor:pointer;box-shadow:{{ tvdPlayRing }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>{{ cur.playLabel }}</button>
+      <button onClick="{{ cur.onToggleList }}" style="display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.12);color:#F4F3F0;border:1px solid rgba(255,255,255,.2);font:600 19px 'Hanken Grotesk';padding:17px 30px;border-radius:13px;cursor:pointer;box-shadow:{{ tvdListRing }};"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>{{ tvdListLabel }}</button>
+    </div>
+    <sc-if value="{{ cur.isSeries }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:30px;display:flex;align-items:center;gap:18px;">
+        <span style="font:700 14px 'Hanken Grotesk';letter-spacing:.04em;color:rgba(244,243,240,.55);flex:0 0 auto;">SAISONS</span>
+        <div class="scroller" style="display:flex;gap:10px;overflow-x:auto;padding:6px 8px;">
+          <sc-for list="{{ tvSeasons }}" as="s" hint-placeholder-count="3"><div style="flex:0 0 auto;font:600 15px 'Hanken Grotesk';padding:9px 20px;border-radius:99px;background:{{ s.bg }};color:{{ s.fg }};box-shadow:{{ s.ring }};">{{ s.label }}</div></sc-for>
+        </div>
+      </div>
+    </sc-if>
+    <div style="margin-top:32px;">
+      <div style="font:700 15px 'Hanken Grotesk';letter-spacing:.04em;color:rgba(244,243,240,.55);margin-bottom:16px;">DISTRIBUTION</div>
+      <div class="scroller" style="display:flex;gap:24px;overflow-x:auto;padding:22px 6px 18px;">
+        <sc-for list="{{ tvCast }}" as="p" hint-placeholder-count="4">
+          <div ref="{{ p.focRef }}" onClick="{{ p.onOpen }}" style="flex:0 0 auto;width:120px;text-align:center;cursor:pointer;">
+            <div style="width:120px;height:120px;border-radius:50%;background:{{ p.grad }};display:flex;align-items:center;justify-content:center;font:700 40px 'Bricolage Grotesque';color:rgba(255,255,255,.92);margin-bottom:12px;box-shadow:{{ p.ring }};position:relative;overflow:hidden;"><div style="position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 22%,rgba(255,255,255,.2),transparent 60%);"></div>{{ p.initials }}</div>
+            <div style="font:600 16px 'Hanken Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+            <div style="font:500 14px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ p.role }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <sc-if value="{{ cur.isSeries }}" hint-placeholder-val="{{ false }}">
+      <div style="font:700 15px 'Hanken Grotesk';letter-spacing:.04em;color:rgba(244,243,240,.55);margin:34px 0 16px;">ÉPISODES</div>
+      <div class="scroller" style="display:flex;gap:18px;overflow-x:auto;padding:18px 6px 16px;">
+        <sc-for list="{{ tvEpisodes }}" as="e" hint-placeholder-count="4">
+          <div ref="{{ e.focRef }}" onClick="{{ playCur }}" style="flex:0 0 auto;width:260px;cursor:pointer;">
+            <div style="position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:{{ e.thumb }};box-shadow:{{ e.ring }};display:flex;align-items:center;justify-content:center;"><div style="width:46px;height:46px;border-radius:50%;background:rgba(10,10,12,.5);display:flex;align-items:center;justify-content:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></div></div>
+            <div style="margin-top:9px;font:600 15px 'Hanken Grotesk';">{{ e.n }}. {{ e.t }}</div>
+            <div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ e.run }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<!-- ============ TV SEARCH (clavier télécommande) ============ -->
+<sc-if value="{{ tvSearch }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;background:#0A0A0C;z-index:10;display:flex;flex-direction:column;padding:46px 64px;animation:fadeIn .3s ease;">
+  <div style="display:flex;align-items:center;gap:13px;margin-bottom:30px;"><svg width="30" height="30" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#F4B642" stroke-width="2.4"/><circle cx="16" cy="16" r="4.5" fill="#F4B642"/></svg><span style="font:800 24px 'Bricolage Grotesque';letter-spacing:.16em;">LUMA</span><span style="margin-left:auto;font:600 14px 'Hanken Grotesk';color:rgba(244,243,240,.45);">‹ Retour pour quitter</span></div>
+  <div style="display:flex;gap:54px;flex:1;min-height:0;">
+    <div style="flex:0 0 520px;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:0 22px;height:68px;margin-bottom:26px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.5)" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="font:600 24px 'Hanken Grotesk';color:#F4F3F0;">{{ tvsQuery }}</span><span style="width:2px;height:28px;background:#F4B642;animation:breathe 1.1s ease-in-out infinite;"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <sc-for list="{{ tvsRows }}" as="row" hint-placeholder-count="5">
+          <div style="display:flex;gap:12px;">
+            <sc-for list="{{ row.keys }}" as="k" hint-placeholder-count="6">
+              <div style="flex:1;height:62px;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px 'Hanken Grotesk';background:{{ k.bg }};color:{{ k.fg }};box-shadow:{{ k.ring }};">{{ k.label }}</div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div ref="{{ tvRailsRef }}" class="vscroll" style="flex:1;overflow-y:auto;padding:8px 14px 24px;">
+      <div style="font:700 15px 'Hanken Grotesk';letter-spacing:.04em;color:rgba(244,243,240,.55);margin-bottom:18px;">RÉSULTATS</div>
+      <sc-if value="{{ tvsHasRes }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:24px;">
+          <sc-for list="{{ tvsRes }}" as="m" hint-placeholder-count="8">
+            <div ref="{{ m.focRef }}" style="transform:{{ m.sc }};transition:transform .18s;">
+              <div style="position:relative;aspect-ratio:2/3;border-radius:13px;overflow:hidden;background:{{ m.poster }};box-shadow:{{ m.ring }};">
+                <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 35%,rgba(0,0,0,.72));"></div>
+                <div style="position:absolute;left:14px;right:14px;bottom:14px;font:700 18px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ tvsNoRes }}" hint-placeholder-val="{{ false }}"><div style="font:500 17px 'Hanken Grotesk';color:rgba(244,243,240,.4);padding-top:20px;">Tapez avec la télécommande pour rechercher un titre, un genre ou un acteur…</div></sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 28%,#161620,#070708);z-index:10;">
+  <div style="position:relative;width:392px;height:min(95vh,840px);background:#0A0A0C;border-radius:46px;border:10px solid #19191f;box-shadow:0 30px 80px rgba(0,0,0,.65);overflow:hidden;">
+    <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:128px;height:26px;background:#19191f;border-radius:0 0 16px 16px;z-index:45;"></div>
+
+    <!-- M HOME -->
+    <sc-if value="{{ mHome }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding-bottom:84px;animation:fadeIn .3s ease;">
+      <div style="position:relative;height:440px;">
+        <div style="position:absolute;inset:0;background:{{ heroBd }};"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 4%,transparent 64%);"></div>
+        <div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:42px 20px 0;">
+          <div style="display:flex;align-items:center;gap:8px;"><svg width="22" height="22" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="13" stroke="#F4B642" stroke-width="2.6"/><circle cx="16" cy="16" r="4.5" fill="#F4B642"/></svg><span style="font:800 18px 'Bricolage Grotesque';letter-spacing:.14em;">LUMA</span></div>
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div onClick="{{ goRequests }}" style="position:relative;width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4F3F0" stroke-width="1.7"><path d="M12 3v11M8 10.5l4 4 4-4"/><path d="M5 20h14"/></svg><sc-if value="{{ reqHasActive }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:#F4B642;color:#0A0A0C;font:700 9px 'Hanken Grotesk';display:flex;align-items:center;justify-content:center;">{{ reqActiveCount }}</span></sc-if></div>
+            <div style="width:34px;height:34px;border-radius:9px;background:{{ profileGrad }};display:flex;align-items:center;justify-content:center;font:700 16px 'Bricolage Grotesque';">{{ profileInitial }}</div>
+          </div>
+        </div>
+        <div style="position:absolute;left:20px;right:20px;bottom:18px;">
+          <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.2em;color:#F4B642;margin-bottom:8px;">★ EN VEDETTE</div>
+          <h1 style="font:700 38px/1 'Bricolage Grotesque';margin:0 0 10px;">{{ heroTitle }}</h1>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><sc-for list="{{ heroBadges }}" as="b" hint-placeholder-count="3"><span style="font:700 10px 'Hanken Grotesk';padding:3px 7px;border-radius:5px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for></div>
+          <button onClick="{{ heroPlay }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px;border-radius:12px;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>Lecture</button>
+        </div>
+      </div>
+      <div style="padding:18px 0 0;">
+        <sc-for list="{{ rows }}" as="row" hint-placeholder-count="3">
+          <div style="margin-bottom:24px;">
+            <h2 style="font:700 17px 'Bricolage Grotesque';margin:0 0 12px;padding:0 20px;">{{ row.title }}</h2>
+            <div class="scroller" style="display:flex;gap:12px;overflow-x:auto;padding:0 20px 6px;">
+              <sc-for list="{{ row.items }}" as="m" hint-placeholder-count="5">
+                <div onClick="{{ m.onOpen }}" style="flex:0 0 auto;width:128px;cursor:pointer;">
+                  <div style="position:relative;aspect-ratio:2/3;border-radius:11px;overflow:hidden;background:{{ m.poster }};box-shadow:0 6px 18px rgba(0,0,0,.4);">
+                    <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 40%,rgba(0,0,0,.74));"></div>
+                    <div style="position:absolute;top:7px;right:7px;font:700 8px 'Hanken Grotesk';padding:3px 5px;border-radius:4px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div>
+                    <div style="position:absolute;left:9px;right:9px;bottom:11px;font:700 14px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div>
+                    <sc-if value="{{ m.hasProg }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25);"><div style="height:100%;width:{{ m.progPct }};background:#F4B642;"></div></div></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- M DETAIL -->
+    <sc-if value="{{ mDetail }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;animation:fadeIn .3s ease;">
+      <div style="position:relative;height:300px;">
+        <div style="position:absolute;inset:0;background:{{ cur.bdGrad }};"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(0deg,#0A0A0C 3%,transparent 72%);"></div>
+        <div onClick="{{ goHome }}" style="position:absolute;top:44px;left:18px;width:38px;height:38px;border-radius:50%;background:rgba(10,10,12,.55);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div style="position:absolute;left:20px;right:20px;bottom:16px;"><div style="font:600 11px 'Hanken Grotesk';letter-spacing:.16em;color:#F4B642;margin-bottom:8px;">{{ cur.kindLabel }}</div><h1 style="font:700 32px/1 'Bricolage Grotesque';margin:0;">{{ cur.t }}</h1></div>
+      </div>
+      <div style="padding:16px 20px 30px;">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px;">
+          <span style="font:700 13px 'Hanken Grotesk';color:#F4B642;">{{ cur.rt }}★</span><span style="color:rgba(244,243,240,.4);">·</span><span style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.7);">{{ cur.metaLong }}</span>
+          <sc-for list="{{ cur.badges }}" as="b" hint-placeholder-count="3"><span style="font:700 10px 'Hanken Grotesk';padding:3px 7px;border-radius:5px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for>
+        </div>
+        <sc-if value="{{ cur.owned }}" hint-placeholder-val="{{ true }}"><button onClick="{{ playCur }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px;border-radius:12px;cursor:pointer;margin-bottom:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="#0A0A0C"><path d="M7 4v16l13-8z"/></svg>{{ cur.playLabel }}</button></sc-if>
+        <sc-if value="{{ cur.ctaRequest }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cur.onReq }}" style="width:100%;display:flex;align-items:center;justify-content:center;gap:9px;background:#F4B642;color:#0A0A0C;border:none;font:700 16px 'Hanken Grotesk';padding:14px;border-radius:12px;cursor:pointer;margin-bottom:18px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Demander ce titre</button></sc-if>
+        <sc-if value="{{ cur.ctaPending }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(242,180,66,.12);border:1px solid rgba(242,180,66,.3);color:#F4B642;font:700 13px 'Hanken Grotesk';padding:13px;border-radius:12px;margin-bottom:10px;text-align:center;">{{ cur.pendLabel }}</div><button onClick="{{ goRequests }}" style="width:100%;font:600 14px 'Hanken Grotesk';background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#F4F3F0;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:18px;">Voir dans Demandes</button></sc-if>
+        <p style="font:400 14px/1.55 'Hanken Grotesk';color:rgba(244,243,240,.8);margin:0 0 18px;">{{ cur.syn }}</p>
+        <div style="background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:14px 16px;margin-bottom:20px;display:flex;flex-direction:column;gap:12px;">
+          <div><div style="font:600 10px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:4px;">Audio</div><div style="font:500 14px 'Hanken Grotesk';">{{ cur.auStr }}</div></div>
+          <div><div style="font:600 10px 'Hanken Grotesk';letter-spacing:.1em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:4px;">Sous-titres</div><div style="font:500 14px 'Hanken Grotesk';">{{ cur.suStr }}</div></div>
+        </div>
+        <h2 style="font:700 16px 'Bricolage Grotesque';margin:0 0 12px;">Distribution</h2>
+        <div class="scroller" style="display:flex;gap:16px;overflow-x:auto;margin-bottom:22px;padding-bottom:6px;">
+          <sc-for list="{{ cur.castSection }}" as="p" hint-placeholder-count="4">
+            <div onClick="{{ p.onOpen }}" style="flex:0 0 auto;width:78px;text-align:center;cursor:pointer;">
+              <div style="width:78px;height:78px;border-radius:50%;background:{{ p.grad }};display:flex;align-items:center;justify-content:center;font:700 26px 'Bricolage Grotesque';color:rgba(255,255,255,.92);margin-bottom:8px;position:relative;overflow:hidden;"><div style="position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 22%,rgba(255,255,255,.2),transparent 60%);"></div>{{ p.initials }}</div>
+              <div style="font:600 12px 'Hanken Grotesk';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ p.name }}</div>
+              <div style="font:500 10px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ p.role }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ cur.isSeries }}" hint-placeholder-val="{{ false }}">
+        <h2 style="font:700 18px 'Bricolage Grotesque';margin:0 0 10px;">Épisodes</h2>
+        <div class="scroller" style="display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;padding-bottom:4px;"><sc-for list="{{ seasonTabs }}" as="s" hint-placeholder-count="2"><button onClick="{{ s.onPick }}" style="flex:0 0 auto;font:600 12px 'Hanken Grotesk';padding:7px 14px;border-radius:8px;border:1px solid {{ s.bd }};background:{{ s.bg }};color:{{ s.fg }};cursor:pointer;">{{ s.label }}</button></sc-for></div>
+        <div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.45);margin-bottom:14px;">{{ seasonInfo }}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px;">
+          <sc-for list="{{ episodes }}" as="e" hint-placeholder-count="3">
+            <div onClick="{{ playCur }}" style="display:flex;gap:12px;align-items:center;cursor:pointer;">
+              <div style="flex:0 0 110px;aspect-ratio:16/9;border-radius:9px;background:{{ e.thumb }};position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg><sc-if value="{{ e.hasProg }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.25);"><div style="height:100%;width:{{ e.progPct }};background:#F4B642;"></div></div></sc-if></div>
+              <div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="font:700 14px 'Hanken Grotesk';">{{ e.n }}. {{ e.t }}</span><sc-if value="{{ e.statusLabel }}" hint-placeholder-val="{{ false }}"><span style="font:700 9px 'Hanken Grotesk';padding:2px 6px;border-radius:4px;background:rgba(242,180,66,.16);color:#F4B642;">{{ e.statusLabel }}</span></sc-if></div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ e.run }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+        </sc-if>
+        <h2 style="font:700 17px 'Bricolage Grotesque';margin:0 0 12px;">Titres similaires</h2>
+        <div class="scroller" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;">
+          <sc-for list="{{ similar }}" as="m" hint-placeholder-count="4">
+            <div onClick="{{ m.onOpen }}" style="flex:0 0 auto;width:118px;cursor:pointer;"><div style="position:relative;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:{{ m.poster }};"><div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 40%,rgba(0,0,0,.74));"></div><div style="position:absolute;left:8px;right:8px;bottom:9px;font:700 13px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- M SEARCH -->
+    <sc-if value="{{ mSearch }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding:54px 20px 84px;animation:fadeIn .3s ease;">
+      <div style="display:flex;align-items:center;gap:11px;background:#141418;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:13px 16px;margin-bottom:22px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.5)" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Films, séries, genres…" style="flex:1;background:transparent;border:none;outline:none;color:#F4F3F0;font:500 15px 'Hanken Grotesk';"/>
+      </div>
+      <div style="font:700 13px 'Hanken Grotesk';color:rgba(244,243,240,.6);margin-bottom:16px;">{{ searchLabel }}</div>
+      <sc-if value="{{ hasLib }}" hint-placeholder-val="{{ true }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px;">
+        <sc-for list="{{ searchLib }}" as="m" hint-placeholder-count="6">
+          <div onClick="{{ m.onOpen }}" style="cursor:pointer;"><div style="position:relative;aspect-ratio:2/3;border-radius:11px;overflow:hidden;background:{{ m.poster }};box-shadow:0 6px 18px rgba(0,0,0,.4);"><div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 40%,rgba(0,0,0,.74));"></div><div style="position:absolute;top:8px;right:8px;font:700 9px 'Hanken Grotesk';padding:3px 6px;border-radius:5px;background:rgba(10,10,12,.6);color:#F4B642;">{{ m.topBadge }}</div><div style="position:absolute;left:10px;right:10px;bottom:11px;font:700 15px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div></div>
+        </sc-for>
+      </div>
+      </sc-if>
+      <sc-if value="{{ hasExt }}" hint-placeholder-val="{{ true }}">
+      <div style="font:700 13px 'Hanken Grotesk';color:rgba(244,243,240,.6);margin-bottom:4px;">À récupérer sur le réseau</div>
+      <div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.42);margin-bottom:14px;">Pas dans votre médiathèque — demandez-les.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <sc-for list="{{ searchExt }}" as="m" hint-placeholder-count="4">
+          <div>
+            <div onClick="{{ m.onOpen }}" style="position:relative;aspect-ratio:2/3;border-radius:11px;overflow:hidden;background:{{ m.poster }};box-shadow:0 6px 18px rgba(0,0,0,.4);cursor:pointer;">
+              <div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.1) 35%,rgba(0,0,0,.8));"></div>
+              <sc-if value="{{ m.isNone }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;top:8px;left:8px;font:700 8px 'Hanken Grotesk';padding:3px 6px;border-radius:4px;background:rgba(10,10,12,.55);color:rgba(244,243,240,.75);">RÉSEAU</div></sc-if>
+              <sc-if value="{{ m.isPending }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:8px;left:8px;font:700 8px 'Hanken Grotesk';padding:3px 6px;border-radius:4px;color:{{ m.stC }};background:{{ m.stBg }};">{{ m.stLabel }} {{ m.stPct }}</div></sc-if>
+              <sc-if value="{{ m.isAvail }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;top:8px;left:8px;font:700 8px 'Hanken Grotesk';padding:3px 6px;border-radius:4px;color:#46D08D;background:rgba(70,208,141,.18);">✓ AJOUTÉ</div></sc-if>
+              <div style="position:absolute;left:10px;right:10px;bottom:11px;font:700 15px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div>
+            </div>
+            <sc-if value="{{ m.isNone }}" hint-placeholder-val="{{ true }}"><button onClick="{{ m.onReq }}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(242,180,66,.14);color:#F4B642;border:1px solid rgba(242,180,66,.34);font:700 12px 'Hanken Grotesk';padding:8px;border-radius:9px;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Demander</button></sc-if>
+            <sc-if value="{{ m.isPending }}" hint-placeholder-val="{{ false }}"><div style="margin-top:8px;font:600 11px 'Hanken Grotesk';color:{{ m.stC }};text-align:center;">{{ m.stLabel }} {{ m.stPct }}</div></sc-if>
+            <sc-if value="{{ m.isAvail }}" hint-placeholder-val="{{ false }}"><button onClick="{{ m.onOpen }}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px;background:#46D08D;color:#062012;border:none;font:700 12px 'Hanken Grotesk';padding:8px;border-radius:9px;cursor:pointer;"><svg width="12" height="12" viewBox="0 0 24 24" fill="#062012"><path d="M7 4v16l13-8z"/></svg>Lecture</button></sc-if>
+          </div>
+        </sc-for>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- M SETTINGS -->
+    <sc-if value="{{ mSettings }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding:54px 20px 84px;animation:fadeIn .3s ease;">
+      <h1 style="font:700 28px 'Bricolage Grotesque';margin:0 0 4px;">Réglages</h1>
+      <p style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin:0 0 24px;">Profil · {{ profileName }}</p>
+      <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:12px;">Langues & lecture</div>
+      <div style="background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:6px 16px;margin-bottom:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.06);"><span style="font:600 14px 'Hanken Grotesk';">Audio préféré</span><select value="{{ prefAudio }}" onChange="{{ onPrefAudio }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px 10px;font-size:13px;"><option value="vf">Français (VF)</option><option value="vo">V.O.</option><option value="en">Anglais</option></select></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.06);"><span style="font:600 14px 'Hanken Grotesk';">Sous-titres préférés</span><select value="{{ prefSub }}" onChange="{{ onPrefSub }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px 10px;font-size:13px;"><option value="off">Désactivés</option><option value="fr">Français</option><option value="en">Anglais</option><option value="es">Espagnol</option></select></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid rgba(255,255,255,.06);"><span style="font:600 14px 'Hanken Grotesk';">Toujours afficher les ST</span><div onClick="{{ toggleAlways }}" style="width:48px;height:28px;border-radius:99px;background:{{ alwaysBg }};position:relative;cursor:pointer;"><div style="position:absolute;top:3px;left:{{ alwaysX }};width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;"></div></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;"><span style="font:600 14px 'Hanken Grotesk';">Langue de l'interface</span><select value="{{ uiLang }}" onChange="{{ onUiLang }}" style="background:#1E1E24;color:#F4F3F0;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:8px 10px;font-size:13px;"><option value="fr">Français</option><option value="en">English</option><option value="es">Español</option></select></div>
+      </div>
+      <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:12px;">Apparence des sous-titres</div>
+      <div style="position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#2A2440,#0E1226);margin-bottom:18px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:18px;"><span style="{{ subPreviewStyle }}">Vous voyez ce que je vois&nbsp;?</span></div>
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font:600 14px 'Hanken Grotesk';">Taille</span><div style="display:flex;gap:5px;background:#1A1A20;padding:4px;border-radius:9px;"><sc-for list="{{ sizeOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onPick }}" style="font:600 12px 'Hanken Grotesk';padding:7px 12px;border-radius:6px;border:none;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font:600 14px 'Hanken Grotesk';">Couleur</span><div style="display:flex;gap:9px;"><sc-for list="{{ colorOpts }}" as="o" hint-placeholder-count="5"><div onClick="{{ o.onPick }}" style="width:30px;height:30px;border-radius:50%;cursor:pointer;background:{{ o.val }};box-shadow:0 0 0 {{ o.ring }};"></div></sc-for></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font:600 14px 'Hanken Grotesk';">Contour</span><div style="display:flex;gap:5px;background:#1A1A20;padding:4px;border-radius:9px;"><sc-for list="{{ edgeOpts }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.onPick }}" style="font:600 11px 'Hanken Grotesk';padding:7px 9px;border-radius:6px;border:none;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for></div></div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- M REQUESTS -->
+    <sc-if value="{{ mRequests }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding:46px 18px 30px;animation:fadeIn .3s ease;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;"><div onClick="{{ goHome }}" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg></div><h1 style="font:700 24px 'Bricolage Grotesque';margin:0;">Demandes</h1></div>
+      <p style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin:0 0 22px;padding-left:48px;">{{ reqSummary }}</p>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
+        <sc-for list="{{ reqList }}" as="r" hint-placeholder-count="4">
+          <div style="display:flex;gap:13px;background:#121216;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px;">
+            <div style="flex:0 0 48px;height:70px;border-radius:8px;background:{{ r.poster }};"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="font:700 15px 'Bricolage Grotesque';margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ r.t }}</div>
+              <div style="margin-bottom:9px;"><span style="font:700 10px 'Hanken Grotesk';padding:3px 8px;border-radius:5px;color:{{ r.statusC }};background:{{ r.statusBg }};">{{ r.statusLabel }}</span></div>
+              <sc-if value="{{ r.isDl }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;"><div style="height:100%;width:{{ r.progW }};background:linear-gradient(90deg,#F4B642,#FFD262);border-radius:99px;transition:width 1s linear;"></div></div><span style="font:700 12px 'Hanken Grotesk';color:#F4B642;font-variant-numeric:tabular-nums;">{{ r.progPct }}</span></div>
+                <div style="font:500 11px 'Hanken Grotesk';color:rgba(244,243,240,.5);margin-top:6px;">{{ r.etaLabel }} · ↓ {{ r.speedLabel }}</div>
+              </sc-if>
+              <sc-if value="{{ r.isSearch }}" hint-placeholder-val="{{ false }}"><div style="height:5px;border-radius:99px;background:linear-gradient(90deg,rgba(134,168,255,.08),rgba(134,168,255,.55),rgba(134,168,255,.08));background-size:200% 100%;animation:shimmer 1.4s linear infinite;"></div></sc-if>
+              <sc-if value="{{ r.isAvail }}" hint-placeholder-val="{{ false }}"><button onClick="{{ r.onPlay }}" style="display:inline-flex;align-items:center;gap:6px;background:#46D08D;color:#062012;border:none;font:700 12px 'Hanken Grotesk';padding:7px 13px;border-radius:8px;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#062012"><path d="M7 4v16l13-8z"/></svg>Lecture</button></sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div onClick="{{ goSearch }}" style="display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,rgba(242,180,66,.1),rgba(242,180,66,.02));border:1px solid rgba(242,180,66,.22);border-radius:14px;padding:16px;cursor:pointer;">
+        <div style="width:42px;height:42px;border-radius:11px;background:rgba(242,180,66,.16);display:flex;align-items:center;justify-content:center;flex:0 0 42px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+        <div style="flex:1;"><div style="font:700 15px 'Bricolage Grotesque';margin-bottom:2px;">Un titre vous manque ?</div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.55);">Cherchez-le et demandez-le en un geste.</div></div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.5)" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- M MY LIST -->
+    <sc-if value="{{ mMyList }}" hint-placeholder-val="{{ false }}">
+    <div class="vscroll" style="position:absolute;inset:0;overflow-y:auto;padding:54px 18px 84px;animation:fadeIn .3s ease;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:20px;"><h1 style="font:700 26px 'Bricolage Grotesque';margin:0;">Ma liste</h1><span style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.45);">{{ myListCount }} titres</span></div>
+      <sc-if value="{{ myListEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 20px;text-align:center;">
+          <div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;margin-bottom:16px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.4)" stroke-width="1.6"><path d="M6 3v18l6-4.5L18 21V3z"/></svg></div>
+          <div style="font:700 18px 'Bricolage Grotesque';margin-bottom:7px;">Votre liste est vide</div>
+          <div style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);max-width:260px;">Ajoutez des titres depuis leur fiche pour les retrouver ici.</div>
+        </div>
+      </sc-if>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <sc-for list="{{ myListItems }}" as="m" hint-placeholder-count="2">
+          <div style="position:relative;">
+            <div onClick="{{ m.onOpen }}" style="cursor:pointer;"><div style="position:relative;aspect-ratio:2/3;border-radius:11px;overflow:hidden;background:{{ m.poster }};box-shadow:0 6px 18px rgba(0,0,0,.4);"><div style="position:absolute;inset:0;background:linear-gradient(170deg,rgba(0,0,0,.05) 40%,rgba(0,0,0,.74));"></div><div style="position:absolute;left:10px;right:10px;bottom:11px;font:700 15px/1.05 'Bricolage Grotesque';color:#fff;">{{ m.t }}</div></div></div>
+            <button onClick="{{ m.onRemove }}" style="position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(10,10,12,.7);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.16);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- M PLAYER -->
+    <sc-if value="{{ mobilePlayer }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ playerMove }}" style="position:absolute;inset:0;background:#000;overflow:hidden;">
+      <div style="position:absolute;inset:0;background:{{ cur.bdGrad }};"></div>
+      <div style="position:absolute;inset:0;background:radial-gradient(120% 120% at 50% 45%,transparent 25%,rgba(0,0,0,.6));"></div>
+      <sc-if value="{{ subOn }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:128px;text-align:center;padding:0 18px;pointer-events:none;z-index:3;"><span style="{{ subPreviewStyle }}">{{ subSample }}</span></div></sc-if>
+      <div style="position:absolute;top:0;left:0;right:0;padding:46px 18px 0;display:flex;align-items:center;gap:12px;opacity:{{ controlsOp }};transition:opacity .35s;">
+        <div onClick="{{ goBackFromPlayer }}" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg></div>
+        <div><div style="font:700 16px 'Bricolage Grotesque';">{{ cur.t }}</div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.6);">{{ playerSub }}</div></div>
+      </div>
+      <div onClick="{{ togglePlay }}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:{{ controlsOp }};transition:opacity .35s;"><div style="width:72px;height:72px;border-radius:50%;background:rgba(10,10,12,.45);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer;"><sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}"><svg width="28" height="28" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></sc-if><sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></sc-if></div></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:0 18px 26px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);opacity:{{ controlsOp }};transition:opacity .35s;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="font:600 11px 'Hanken Grotesk';color:rgba(244,243,240,.8);width:42px;">{{ tCur }}</span><div onClick="{{ seek }}" style="flex:1;height:16px;display:flex;align-items:center;cursor:pointer;"><div style="position:relative;width:100%;height:5px;border-radius:99px;background:rgba(255,255,255,.25);"><div style="position:absolute;left:0;top:0;bottom:0;width:{{ pct }};background:#F4B642;border-radius:99px;"></div><div style="position:absolute;left:{{ pct }};top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#F4B642;"></div></div></div><span style="font:600 11px 'Hanken Grotesk';color:rgba(244,243,240,.55);width:42px;text-align:right;">{{ tDur }}</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <button onClick="{{ back10 }}" style="background:transparent;border:none;color:#fff;cursor:pointer;display:flex;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M11 7 6 12l5 5M18 7l-5 5 5 5"/></svg></button>
+          <button onClick="{{ togglePlay }}" style="background:transparent;border:none;color:#fff;cursor:pointer;display:flex;"><sc-if value="{{ playing }}" hint-placeholder-val="{{ true }}"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></sc-if><sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}"><svg width="32" height="32" viewBox="0 0 24 24" fill="#fff"><path d="M7 4v16l13-8z"/></svg></sc-if></button>
+          <button onClick="{{ fwd10 }}" style="background:transparent;border:none;color:#fff;cursor:pointer;display:flex;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="m13 7 5 5-5 5M6 7l5 5-5 5"/></svg></button>
+          <button onClick="{{ openAV }}" style="display:flex;align-items:center;gap:6px;font:600 12px 'Hanken Grotesk';color:#0A0A0C;background:#F4B642;border:none;padding:9px 13px;border-radius:8px;cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="1.9"><path d="M3 5h18M3 12h18M3 19h12"/></svg>Audio &amp; ST</button>
+          <button style="background:transparent;border:none;color:#fff;cursor:pointer;display:flex;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        </div>
+      </div>
+      <sc-if value="{{ avOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeAV }}" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:20;"></div>
+      <div class="vscroll" style="position:absolute;left:0;right:0;bottom:0;max-height:74%;overflow-y:auto;background:rgba(18,18,22,.98);backdrop-filter:blur(22px);border-radius:24px 24px 0 0;padding:14px 20px 26px;z-index:21;animation:sheetUp .3s ease;">
+        <div style="width:40px;height:4px;border-radius:99px;background:rgba(255,255,255,.25);margin:0 auto 18px;"></div>
+        <h2 style="font:700 19px 'Bricolage Grotesque';margin:0 0 18px;">Audio &amp; Sous-titres</h2>
+        <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.13em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:11px;">Pistes audio</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:26px;">
+          <sc-for list="{{ audioList }}" as="a" hint-placeholder-count="3"><div onClick="{{ a.onPick }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;cursor:pointer;background:{{ a.bg }};border:1px solid {{ a.bd }};"><span style="font:700 11px 'Hanken Grotesk';min-width:32px;text-align:center;padding:4px 0;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.85);">{{ a.code }}</span><div style="flex:1;font:600 14px 'Hanken Grotesk';">{{ a.label }} <span style="font-size:11px;color:rgba(244,243,240,.5);">{{ a.tag }}</span></div><span style="font:700 9px 'Hanken Grotesk';padding:3px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.7);">{{ a.ch }}</span><sc-if value="{{ a.active }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></sc-if></div></sc-for>
+        </div>
+        <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.13em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:11px;">Sous-titres</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <sc-for list="{{ subList }}" as="s" hint-placeholder-count="5"><div onClick="{{ s.onPick }}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:11px;cursor:pointer;background:{{ s.bg }};border:1px solid {{ s.bd }};"><span style="font:700 11px 'Hanken Grotesk';min-width:30px;text-align:center;padding:4px 0;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.85);">{{ s.code }}</span><div style="flex:1;font:600 14px 'Hanken Grotesk';">{{ s.label }}</div><sc-if value="{{ s.tag }}" hint-placeholder-val="{{ false }}"><span style="font:700 9px 'Hanken Grotesk';padding:3px 7px;border-radius:5px;background:rgba(255,255,255,.08);color:rgba(244,243,240,.7);">{{ s.tag }}</span></sc-if><sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg></sc-if></div></sc-for>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- M TABS -->
+    <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:74px;background:rgba(12,12,14,.94);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-around;padding-bottom:8px;z-index:30;">
+      <div onClick="{{ goHome }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ mTabHome.c }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span style="font:600 10px 'Hanken Grotesk';">Accueil</span></div>
+      <div onClick="{{ goSearch }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ mTabSearch.c }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span style="font:600 10px 'Hanken Grotesk';">Recherche</span></div>
+      <div onClick="{{ goList }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ mTabList.c }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v18l6-4.5L18 21V3z"/></svg><span style="font:600 10px 'Hanken Grotesk';">Ma liste</span></div>
+      <div onClick="{{ goSettings }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:{{ mTabProfile.c }};"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg><span style="font:600 10px 'Hanken Grotesk';">Profil</span></div>
+    </div>
+    </sc-if>
+
+  </div>
+</div>
+</sc-if>
+
+<!-- SPOTLIGHT ⌘K -->
+<sc-if value="{{ spotOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSpot }}" style="position:fixed;inset:0;z-index:9998;background:rgba(6,6,8,.5);backdrop-filter:blur(10px);display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;">
+  <div onClick="{{ stop }}" style="width:min(660px,92vw);background:rgba(24,24,28,.82);backdrop-filter:blur(40px) saturate(1.5);border:1px solid rgba(255,255,255,.13);border-radius:22px;box-shadow:0 40px 120px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08);overflow:hidden;animation:spotIn .3s cubic-bezier(.22,1,.36,1);">
+    <div style="display:flex;align-items:center;gap:14px;padding:19px 24px;border-bottom:1px solid rgba(255,255,255,.08);">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(244,243,240,.55)" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input ref="{{ spotRef }}" value="{{ spotQuery }}" onInput="{{ onSpot }}" placeholder="Rechercher un film, une série, un genre…" style="flex:1;background:transparent;border:none;outline:none;color:#F4F3F0;font:500 19px 'Hanken Grotesk';"/>
+      <span style="font:700 11px 'Hanken Grotesk';color:rgba(244,243,240,.4);border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:3px 8px;">ESC</span>
+    </div>
+    <div class="vscroll" style="max-height:54vh;overflow-y:auto;padding:10px;">
+      <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(244,243,240,.4);padding:8px 12px 6px;">{{ spotHint }}</div>
+      <sc-for list="{{ spotResults }}" as="m" hint-placeholder-count="5">
+        <div onClick="{{ m.onOpen }}" style="display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:13px;cursor:pointer;transition:background .15s ease;" style-hover="background:rgba(255,255,255,.07)">
+          <div style="flex:0 0 44px;height:62px;border-radius:7px;background:{{ m.poster }};box-shadow:0 4px 12px rgba(0,0,0,.45);"></div>
+          <div style="flex:1;"><div style="font:600 16px 'Hanken Grotesk';">{{ m.t }}</div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.5);">{{ m.g }} · {{ m.yr }}</div></div>
+          <span style="font:700 10px 'Hanken Grotesk';padding:3px 8px;border-radius:5px;background:rgba(242,180,66,.16);color:#F4B642;">{{ m.topBadge }}</span>
+        </div>
+      </sc-for>
+      <sc-if value="{{ spotHasExt }}" hint-placeholder-val="{{ false }}">
+        <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.12em;text-transform:uppercase;color:rgba(244,243,240,.4);padding:16px 12px 6px;">À récupérer sur le réseau</div>
+        <sc-for list="{{ spotExt }}" as="m" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:14px;padding:9px 12px;border-radius:13px;">
+            <div onClick="{{ m.onOpen }}" style="flex:0 0 44px;height:62px;border-radius:7px;background:{{ m.poster }};box-shadow:0 4px 12px rgba(0,0,0,.45);cursor:pointer;"></div>
+            <div onClick="{{ m.onOpen }}" style="flex:1;cursor:pointer;"><div style="font:600 16px 'Hanken Grotesk';">{{ m.t }}</div><div style="font:500 12px 'Hanken Grotesk';color:rgba(244,243,240,.5);">{{ m.g }} · {{ m.yr }}</div></div>
+            <sc-if value="{{ m.isNone }}" hint-placeholder-val="{{ true }}"><button onClick="{{ m.onReq }}" style="display:flex;align-items:center;gap:6px;font:700 12px 'Hanken Grotesk';color:#F4B642;background:rgba(242,180,66,.14);border:1px solid rgba(242,180,66,.32);padding:7px 13px;border-radius:8px;cursor:pointer;" style-hover="background:rgba(242,180,66,.24)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#F4B642" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Demander</button></sc-if>
+            <sc-if value="{{ m.isPending }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px 'Hanken Grotesk';padding:4px 9px;border-radius:6px;color:{{ m.stC }};background:{{ m.stBg }};">{{ m.stLabel }} {{ m.stPct }}</span></sc-if>
+            <sc-if value="{{ m.isAvail }}" hint-placeholder-val="{{ false }}"><span style="font:700 10px 'Hanken Grotesk';padding:4px 9px;border-radius:6px;color:#46D08D;background:rgba(70,208,141,.16);">✓ Disponible</span></sc-if>
+          </div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- REQUEST CONFIRM MODAL -->
+<sc-if value="{{ reqModalOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ onCloseReq }}" style="position:fixed;inset:0;z-index:9997;background:rgba(6,6,8,.6);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div onClick="{{ stop }}" style="width:min(460px,94vw);background:rgba(22,22,26,.92);backdrop-filter:blur(40px);border:1px solid rgba(255,255,255,.12);border-radius:22px;box-shadow:0 40px 120px rgba(0,0,0,.7);overflow:hidden;animation:popIn .26s cubic-bezier(.22,1,.36,1);">
+    <div style="height:140px;background:{{ reqModal.bdGrad }};position:relative;"><div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(22,22,26,1),transparent 72%);"></div></div>
+    <div style="padding:0 26px 26px;margin-top:-34px;position:relative;">
+      <div style="font:700 11px 'Hanken Grotesk';letter-spacing:.18em;color:#F4B642;margin-bottom:8px;">DEMANDE DE TÉLÉCHARGEMENT</div>
+      <h2 style="font:700 26px 'Bricolage Grotesque';margin:0 0 9px;">{{ reqModal.t }}</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px;"><sc-for list="{{ reqModal.badges }}" as="b" hint-placeholder-count="2"><span style="font:700 10px 'Hanken Grotesk';padding:3px 8px;border-radius:5px;color:{{ b.c }};background:{{ b.bg }};">{{ b.label }}</span></sc-for><span style="font:500 13px 'Hanken Grotesk';color:rgba(244,243,240,.5);">{{ reqModal.yr }} · {{ reqModal.g }}</span></div>
+      <div style="font:600 11px 'Hanken Grotesk';letter-spacing:.08em;text-transform:uppercase;color:rgba(244,243,240,.45);margin-bottom:10px;">Qualité souhaitée</div>
+      <div style="display:flex;gap:8px;margin-bottom:24px;"><sc-for list="{{ qualityOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onPick }}" style="flex:1;font:600 14px 'Hanken Grotesk';padding:11px;border-radius:10px;border:1px solid rgba(255,255,255,.12);cursor:pointer;background:{{ o.bg }};color:{{ o.fg }};">{{ o.label }}</button></sc-for></div>
+      <div style="display:flex;gap:10px;">
+        <button onClick="{{ onCloseReq }}" style="font:600 15px 'Hanken Grotesk';padding:13px 22px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:transparent;color:#F4F3F0;cursor:pointer;">Annuler</button>
+        <button onClick="{{ onConfirmReq }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:9px;font:700 15px 'Hanken Grotesk';padding:13px;border-radius:11px;border:none;background:#F4B642;color:#0A0A0C;cursor:pointer;" style-hover="background:#FFC862"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0A0A0C" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Confirmer la demande</button>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- TOAST -->
+<sc-if value="{{ toastShown }}" hint-placeholder-val="{{ false }}">
+<div style="position:fixed;bottom:84px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:12px;background:rgba(28,28,32,.92);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.14);border-radius:13px;padding:14px 20px;box-shadow:0 18px 50px rgba(0,0,0,.6);animation:riseIn .3s cubic-bezier(.22,1,.36,1);max-width:90vw;">
+  <div style="width:26px;height:26px;border-radius:50%;background:rgba(70,208,141,.18);display:flex;align-items:center;justify-content:center;flex:0 0 26px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#46D08D" stroke-width="2.6"><path d="M20 6 9 17l-5-5"/></svg></div>
+  <span style="font:600 14px 'Hanken Grotesk';color:#F4F3F0;">{{ toast }}</span>
+</div>
+</sc-if>
+
+<!-- PLATFORM SWITCHER -->
+<div style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3px;padding:5px;background:rgba(18,18,22,.82);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.1);border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+  <button onClick="{{ platWeb }}" style="display:flex;align-items:center;gap:7px;font:600 13px 'Hanken Grotesk';padding:9px 18px;border-radius:999px;border:none;cursor:pointer;background:{{ pWeb.bg }};color:{{ pWeb.fg }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>Web</button>
+  <button onClick="{{ platTv }}" style="display:flex;align-items:center;gap:7px;font:600 13px 'Hanken Grotesk';padding:9px 18px;border-radius:999px;border:none;cursor:pointer;background:{{ pTv.bg }};color:{{ pTv.fg }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="m8 21 4-3 4 3"/></svg>TV</button>
+  <button onClick="{{ platMobile }}" style="display:flex;align-items:center;gap:7px;font:600 13px 'Hanken Grotesk';padding:9px 18px;border-radius:999px;border:none;cursor:pointer;background:{{ pMobile.bg }};color:{{ pMobile.fg }};"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Mobile</button>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  movies = [
+    {id:'sillage', t:'Sillage', yr:2024, k:'Film', g:'Thriller SF', run:'2h08', rt:'8.4', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN','ES'], pr:38, syn:"Une pilote d'essai découvre que chaque vol la projette quelques secondes dans le futur — jusqu'au jour où elle y voit sa propre disparition.", cast:['Adèle Roche','Marin Daoud','Iris Lindqvist'], pos:['#3A2E5C','#0E1430'], bd:['#241B3C','#0A0A0C']},
+    {id:'aurore', t:'La Dernière Aurore', yr:2023, k:'Film', g:'Drame', run:'1h54', rt:'7.9', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN'], syn:"Au crépuscule d'un village côtier, deux sœurs séparées par vingt ans de silence se retrouvent pour une dernière nuit.", cast:['Camille Berthier','Lou Vanhove','Sami Reza'], pos:['#5C3A2E','#2A140C'], bd:['#3A2014','#0A0A0C']},
+    {id:'neon', t:'Néon Capitale', yr:2025, k:'Série', g:'Action Polar', run:'Série · S2', rt:'8.1', q:['4K','HDR','H.265'], au:['FR','EN','JP'], su:['FR','EN','ES'], pr:0, syn:"Dans une métropole où la lumière ne s'éteint jamais, une inspectrice traque un réseau qui efface les identités.", cast:['Nina Okafor','Théo Lambert','Yuki Mori'], pos:['#0E3A4A','#0A1228'], bd:['#0C2C3A','#0A0A0C'], seasons:2},
+    {id:'prof', t:'Profondeurs', yr:2025, k:'Film', g:'Documentaire', run:'0h52', rt:'8.7', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN','DE'], syn:"Une plongée dans les abysses encore inexplorés, là où la vie réinvente ses propres règles.", cast:['Narration · É. Caron'], pos:['#0E4A45','#06221F'], bd:['#0A3A36','#0A0A0C']},
+    {id:'banquet', t:'Le Banquet des Ombres', yr:2022, k:'Film', g:'Horreur', run:'1h47', rt:'7.2', q:['4K','H.265'], au:['FR','EN'], su:['FR','EN'], syn:"Un dîner d'anniversaire dans un manoir isolé tourne au cauchemar quand les invités cessent un à un de projeter une ombre.", cast:['Hélène Drassov','Marc Téglas','Ava Lund'], pos:['#4A0E1A','#220810'], bd:['#3A0C16','#0A0A0C']},
+    {id:'marees', t:'Marées Hautes', yr:2024, k:'Série', g:'Romance', run:'Série · S1', rt:'7.6', q:['4K','HDR'], au:['FR'], su:['FR','EN'], syn:"Chaque été, la même plage. Chaque été, le même amour impossible — jusqu'à celui qui change tout.", cast:['Jeanne Aroya','Liam Brent'], pos:['#2E4A5C','#0C1A28'], bd:['#1C3A4A','#0A0A0C'], seasons:1},
+    {id:'orbite', t:'Orbite Basse', yr:2024, k:'Film', g:'Science-fiction', run:'2h21', rt:'8.0', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN','ES'], pr:71, syn:"L'équipage d'une station en fin de vie reçoit un dernier ordre : ne jamais redescendre.", cast:['Omar Sy-Lin','Petra Nowak','Dia Mensah'], pos:['#1A2E5C','#080C28'], bd:['#14224A','#0A0A0C']},
+    {id:'cendres', t:'Cendres & Or', yr:2021, k:'Film', g:'Western', run:'2h12', rt:'7.8', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN'], syn:"Un chercheur d'or repenti reprend la route quand le seul homme qui connaît son passé refait surface.", cast:['Russ Calder','Mae Quinn','Otto Vance'], pos:['#5C4A1A','#281C08'], bd:['#4A3A14','#0A0A0C']},
+    {id:'kyoto', t:'Kyoto, 3 h du matin', yr:2023, k:'Film', g:'Drame', run:'1h38', rt:'8.3', q:['4K','H.265'], au:['JP','FR'], su:['FR','EN','ES'], syn:"Deux inconnus partagent les dernières heures d'une nuit blanche dans une ville qui dort.", cast:['Aiko Tanaka','Léo Vidal'], pos:['#2E1A5C','#0E0828'], bd:['#221442','#0A0A0C']},
+    {id:'helix', t:'Le Protocole Helix', yr:2025, k:'Série', g:'Thriller', run:'Série · S3', rt:'8.5', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN','ES','DE'], pr:12, syn:"Un laboratoire promet de réécrire la mémoire. Une employée découvre que ses propres souvenirs ne lui appartiennent plus.", cast:['Sara Vey','Noé Tamir','Klara Berg'], pos:['#0E4A2E','#06220F'], bd:['#0A3A22','#0A0A0C'], seasons:3},
+    {id:'pixel', t:'Pixel Forêt', yr:2025, k:'Film', g:'Animation', run:'1h29', rt:'8.2', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN'], syn:"Un petit robot jardinier part réveiller une forêt endormie, un pixel à la fois.", cast:['Voix · L. Sorel'], pos:['#2E5C2A','#0C280A'], bd:['#1C4A1A','#0A0A0C']},
+    {id:'heure', t:"L'Heure Bleue", yr:2024, k:'Série', g:'Policier', run:'Série · S2', rt:'7.7', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN'], pr:55, syn:"Dans une station balnéaire hors saison, une commissaire insomniaque relie cinq disparitions à une seule heure de la journée.", cast:['Irène Macé','Bruno Falco'], pos:['#1A3A5C','#08182A'], bd:['#142C4A','#0A0A0C'], seasons:2},
+  ];
+
+  state = {
+    platform:'web', screen:'profiles', profile:null, title:'sillage', season:1,
+    playing:true, t:1380, dur:7680, panel:null, showControls:true,
+    audioTrack:'vf', subTrack:'fr', muted:false, speed:1, quality:'Auto · 4K',
+    subSize:'M', subColor:'#FFFFFF', subOpacity:100, subEdge:'shadow', subFont:'sans',
+    prefAudio:'vf', prefSub:'fr', alwaysSub:false, foreignSub:true, uiLang:'fr', search:'',
+    tvFocus:{r:0,c:0}, tvDetailFocus:{r:0,c:0}, tvSection:'accueil', tvsFocus:{r:0,c:0}, mobileTab:'home', myList:['kyoto','helix','orbite'], genreFilter:'all', seasonMenu:false, tvpCol:1, tvpAv:0, tvpZone:'bar',
+    spotOpen:false, spotQuery:'', hoverT:null, hoverX:0,
+    reqModal:null, reqQuality:'4K HDR', toast:null,
+    requests:[
+      {id:'q1', extId:'e1', t:'Le Pont de Verre', g:'Drame', yr:2025, q:'4K HDR', by:'Camille', status:'downloading', progress:64, etaSec:360, speed:18.4, pos:['#39395C','#0E1430']},
+      {id:'q2', extId:'e2', t:'Sables Noirs', g:'Thriller', yr:2024, q:'1080p', by:'Théo', status:'downloading', progress:27, etaSec:1140, speed:9.2, pos:['#4A2E2E','#180A0A']},
+      {id:'q3', extId:'e3', t:'Aurora 7', g:'Science-fiction', yr:2025, q:'4K · H.265', by:'Camille', status:'searching', progress:0, etaSec:0, speed:0, _t:0, pos:['#1A3A5C','#08182A']},
+      {id:'q4', extId:'e4', t:'La Saison des Pluies', g:'Romance', yr:2023, q:'1080p', by:'Sofia', status:'queued', progress:0, _t:0, pos:['#2E4A4A','#0A1A1A']},
+      {id:'q5', extId:'e5', t:'Mémoire Vive', g:'Documentaire', yr:2025, q:'4K HDR', by:'Léa', status:'available', progress:100, pos:['#3A2E5C','#0E0828']},
+    ],
+  };
+
+  audioTracks = [
+    {id:'vf', label:'Français', tag:'VF', code:'FR', ch:'5.1'},
+    {id:'vo', label:'Anglais', tag:'VO', code:'EN', ch:'Atmos'},
+    {id:'jp', label:'Japonais', tag:'VO', code:'JP', ch:'Stéréo'},
+  ];
+  subTracks = [
+    {id:'off', label:'Désactivés', code:'—'},
+    {id:'fr', label:'Français', code:'FR'},
+    {id:'frsm', label:'Français (malentendants)', code:'FR', tag:'SME'},
+    {id:'en', label:'Anglais', code:'EN'},
+    {id:'es', label:'Espagnol', code:'ES'},
+  ];
+
+  componentDidMount(){
+    this._iv = setInterval(()=>{
+      const s=this.state; const upd={};
+      if(s.playing && s.screen==='player'){ upd.t = Math.min(s.dur, s.t+1); }
+      if(s.requests && s.requests.some(r=>r.status!=='available')){
+        upd.requests = s.requests.map(r=>{
+          if(r.status==='queued'){ const t=(r._t||0)+1; return t>=2?{...r,status:'searching',_t:0}:{...r,_t:t}; }
+          if(r.status==='searching'){ const t=(r._t||0)+1; if(t>=3){ return {...r,status:'downloading',progress:0,etaSec:240+Math.floor(Math.random()*720),speed:+(7+Math.random()*15).toFixed(1)}; } return {...r,_t:t}; }
+          if(r.status==='downloading'){ if(r.etaSec<=1) return {...r,status:'available',progress:100,etaSec:0}; return {...r, progress:r.progress+(100-r.progress)/r.etaSec, etaSec:r.etaSec-1, speed:Math.max(2,+(r.speed+(Math.random()-0.5)*2.4).toFixed(1))}; }
+          return r;
+        });
+      }
+      if(Object.keys(upd).length) this.setState(upd);
+    }, 1000);
+    this._key = (e)=>{
+      if((e.metaKey||e.ctrlKey) && (e.key==='k'||e.key==='K')){ e.preventDefault(); this.setState(s=>({spotOpen:!s.spotOpen, spotQuery:''})); return; }
+      if(e.key==='Escape' && this.state.spotOpen){ this.setState({spotOpen:false}); return; }
+      this.tvNav(e);
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount(){ clearInterval(this._iv); if(this._ht) clearTimeout(this._ht); window.removeEventListener('keydown', this._key); }
+  componentDidUpdate(){ if(this.state.platform==='tv') this.tvScroll(); }
+  tvScroll(){ const el=this._focusEl; const rails=this._railsEl;
+    if(el){ const sc=el.parentElement; if(sc && sc.scrollWidth>sc.clientWidth+4){ const er=el.getBoundingClientRect(), sr=sc.getBoundingClientRect(); sc.scrollBy({left:(er.left+er.width/2)-(sr.left+sr.width/2), behavior:'smooth'}); }
+      if(rails && rails.scrollHeight>rails.clientHeight+4){ const er=el.getBoundingClientRect(), rr=rails.getBoundingClientRect(); rails.scrollBy({top:(er.top+er.height/2)-(rr.top+rr.height/2), behavior:'smooth'}); } }
+    else if(rails && this.state.screen==='home' && this.state.tvFocus.r===0){ rails.scrollTo({top:0, behavior:'smooth'}); } }
+  tvNav(e){
+    const S=this.state; if(S.platform!=='tv') return; if(S.spotOpen) return;
+    if(S.screen==='tvsearch'){
+      let r=S.tvsFocus.r, c=S.tvsFocus.c; const lens=this._tvsLens||[6];
+      if(e.key==='ArrowRight') c=Math.min((lens[r]||1)-1,c+1);
+      else if(e.key==='ArrowLeft') c=Math.max(0,c-1);
+      else if(e.key==='ArrowDown'){ r=Math.min(lens.length-1,r+1); c=Math.min((lens[r]||1)-1,c); }
+      else if(e.key==='ArrowUp'){ r=Math.max(0,r-1); c=Math.min((lens[r]||1)-1,c); }
+      else if(e.key==='Enter'){ this.tvsKey(r,c); e.preventDefault(); return; }
+      else if(e.key==='Escape'||e.key==='Backspace'){ this.setState({screen:'home', tvSection:'accueil'}); e.preventDefault(); return; }
+      else return;
+      e.preventDefault(); this.setState({tvsFocus:{r,c}}); return;
+    }
+    if(S.screen==='player'){
+      if(S.panel==='av'){
+        const n=this._tvAvCount||1;
+        if(e.key==='ArrowDown'){ this.setState(s=>({tvpAv:Math.min(n-1,(s.tvpAv||0)+1)})); }
+        else if(e.key==='ArrowUp'){ this.setState(s=>({tvpAv:Math.max(0,(s.tvpAv||0)-1)})); }
+        else if(e.key==='Enter'||e.key===' '){ const f=this._tvAvItems&&this._tvAvItems[S.tvpAv||0]; if(f) f(); }
+        else if(e.key==='Escape'||e.key==='Backspace'){ this.setState({panel:null}); }
+        else return; e.preventDefault(); return;
+      }
+      if(e.key==='Escape'||e.key==='Backspace'){
+        if(S.showControls){ if(this._tvHide) clearTimeout(this._tvHide); this.setState({showControls:false}); }
+        else { this.setState({screen:'detail'}); }
+        e.preventDefault(); return;
+      }
+      if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].includes(e.key)) return;
+      if(!S.showControls){ this.tvBump(); e.preventDefault(); return; }
+      this.tvBump();
+      if(S.tvpZone==='seek'){
+        if(e.key==='ArrowLeft'){ this.skip(-10); }
+        else if(e.key==='ArrowRight'){ this.skip(10); }
+        else if(e.key==='ArrowDown'){ this.setState({tvpZone:'bar'}); }
+        else if(e.key==='Enter'||e.key===' '){ this.togglePlay(); }
+        e.preventDefault(); return;
+      }
+      const bar=this._tvpBar||['back','play','fwd','av'];
+      if(e.key==='ArrowUp'){ this.setState({tvpZone:'seek'}); }
+      else if(e.key==='ArrowRight'){ this.setState(s=>({tvpCol:Math.min(bar.length-1,(s.tvpCol||0)+1)})); }
+      else if(e.key==='ArrowLeft'){ this.setState(s=>({tvpCol:Math.max(0,(s.tvpCol||0)-1)})); }
+      else if(e.key==='Enter'||e.key===' '){ this.tvpActivate(bar[Math.min(S.tvpCol||0,bar.length-1)]); }
+      e.preventDefault(); return;
+    }
+    if(S.screen==='detail'){
+      if(e.key==='Escape'||e.key==='Backspace'){ this.setState({screen:'home'}); e.preventDefault(); return; }
+      let r=S.tvDetailFocus.r, c=S.tvDetailFocus.c; const lens=this._tvdLens||[2];
+      if(e.key==='ArrowRight') c=Math.min((lens[r]||1)-1,c+1);
+      else if(e.key==='ArrowLeft') c=Math.max(0,c-1);
+      else if(e.key==='ArrowDown'){ r=Math.min(lens.length-1,r+1); c=Math.min((lens[r]||1)-1,c); }
+      else if(e.key==='ArrowUp'){ r=Math.max(0,r-1); c=Math.min((lens[r]||1)-1,c); }
+      else if(e.key==='Enter'){ this.tvdEnter(r,c); e.preventDefault(); return; }
+      else return;
+      e.preventDefault(); this.setState({tvDetailFocus:{r,c}}); return;
+    }
+    let r=S.tvFocus.r, c=S.tvFocus.c; const lens=this._tvLens||[2];
+    if(e.key==='ArrowRight') c=Math.min((lens[r]||1)-1,c+1);
+    else if(e.key==='ArrowLeft') c=Math.max(0,c-1);
+    else if(e.key==='ArrowDown'){ r=Math.min(lens.length-1,r+1); c=Math.min((lens[r]||1)-1,c); }
+    else if(e.key==='ArrowUp'){ r=Math.max(0,r-1); c=Math.min((lens[r]||1)-1,c); }
+    else if(e.key==='Enter'){ this.tvEnter(r,c); e.preventDefault(); return; }
+    else return;
+    e.preventDefault(); this.setState({tvFocus:{r,c}});
+  }
+  tvEnter(r,c){ if(r===0){ const n=(this._tvNav||[])[c]; if(n) this.tvNavPick(n); return; } if(r===1){ if(c===0) this.go('player','sillage'); else this.tvOpen('sillage'); return; } const ids=(this._tvRowIds||[])[r-2]||['sillage']; this.tvOpen(ids[c]||ids[0]); }
+  tvNavPick(n){ if(n.k==='search'){ this.setState({screen:'tvsearch', search:'', tvsFocus:{r:0,c:0}}); } else { this.setState({tvSection:n.k, tvFocus:{r:0,c:this._tvNav.findIndex(x=>x.k===n.k)}}); } }
+  tvsKey(r,c){ const rows=this._tvsKb||[]; if(r<rows.length){ const k=rows[r][c]; if(!k) return; if(k.t==='char') this.setState(s=>({search:s.search+k.v})); else if(k.t==='space') this.setState(s=>({search:s.search+' '})); else if(k.t==='del') this.setState(s=>({search:s.search.slice(0,-1)})); else if(k.t==='clear') this.setState({search:''}); } else { const id=(this._tvsResIds||[])[c]; if(id) this.tvOpen(id); } }
+  tvOpen(id){ this.setState({screen:'detail', title:id, tvDetailFocus:{r:0,c:0}}); }
+  tvdEnter(r,c){ const cm=this.byId(this.state.title); const model=this._tvdModel||['actions','cast']; const t=model[r]; if(t==='actions'){ if(c===0) this.go('player',cm.id); else this.toggleList(cm.id); } else if(t==='seasons'){ this.set('season', c+1); } else if(t==='cast'){ const cs=[this.dirs[cm.id]||'Inconnu', ...(cm.cast||[])]; this.searchPerson(cs[c]); } else { this.go('player',cm.id); } }
+  scrubMove(e){ const r=e.currentTarget.getBoundingClientRect(); const x=Math.min(r.width,Math.max(0,e.clientX-r.left)); this.setState({hoverT:Math.round(x/r.width*this.state.dur), hoverX:x}); }
+  closeSpot(){ this.setState({spotOpen:false}); }
+  openSpot(){ this.setState({spotOpen:true, spotQuery:''}); }
+  skipIntro(){ this.setState(s=>({t:Math.max(s.t,94)})); }
+  toggleList(id){ this.setState(s=>({ myList: (s.myList||[]).includes(id)? s.myList.filter(x=>x!==id) : [...(s.myList||[]), id] })); }
+  searchPerson(name){ if(!name) return; this.setState({screen:'search', search:name, spotOpen:false, platform:(this.state.platform==='tv'?'web':this.state.platform)}); }
+  _hue(s){ let h=0; for(let i=0;i<(s||'').length;i++) h=(h*31+s.charCodeAt(i))%360; return h; }
+  avatarGrad(name){ const h=this._hue(name); return 'linear-gradient(140deg, hsl('+h+' 46% 44%), hsl('+((h+38)%360)+' 52% 24%))'; }
+  initials(name){ return (name||'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+  personCard(name,role){ return {name, role, initials:this.initials(name), grad:this.avatarGrad(name), onOpen:()=>this.searchPerson(name)}; }
+  dirs={ sillage:'Léo Carvalho', aurore:'Maya Lindqvist', neon:'Junko Mori', prof:'É. Caron', banquet:'Viktor Hale', marees:'Camille Berthier', orbite:'Dia Mensah', cendres:'Russ Calder', kyoto:'Aiko Tanaka', helix:'Sara Vey', pixel:'L. Sorel', heure:'Bruno Falco', e1:'Inès Fabre', e2:'Bram Köhler', e3:'Eva Lindqvist', e4:'Lila Marchand', e5:'M. Aziz', e6:'Sigrid Holt', e7:'Tariq Belkadi', e8:'Maya Tan' };
+
+  extCatalog = [
+    {id:'e1', ext:true, t:'Le Pont de Verre', yr:2025, k:'Film', g:'Drame', run:'2h02', rt:'7.8', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN'], syn:"Deux architectes rivaux doivent reconstruire ensemble le pont qui a brisé leur amitié.", cast:['Inès Fabre','Karl Mendel'], pos:['#39395C','#0E1430'], bd:['#26264A','#0A0A0C']},
+    {id:'e2', ext:true, t:'Sables Noirs', yr:2024, k:'Film', g:'Thriller', run:'1h58', rt:'7.5', q:['4K','H.265'], au:['FR','EN'], su:['FR','EN','ES'], syn:"Sur une côte battue par les vents, une géologue exhume un secret que d'autres tueraient pour garder.", cast:['Nadia Sorel','Bram Köhler'], pos:['#4A2E2E','#180A0A'], bd:['#3A1E1E','#0A0A0C']},
+    {id:'e3', ext:true, t:'Aurora 7', yr:2025, k:'Film', g:'Science-fiction', run:'2h16', rt:'8.2', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN','ES'], syn:"Le dernier vaisseau d'évacuation découvre qu'une intelligence dort dans son réacteur.", cast:['Eva Lindqvist','Tom Arraya'], pos:['#1A3A5C','#08182A'], bd:['#142C4A','#0A0A0C']},
+    {id:'e4', ext:true, t:'La Saison des Pluies', yr:2023, k:'Film', g:'Romance', run:'1h44', rt:'7.3', q:['1080p','HDR'], au:['FR'], su:['FR','EN'], syn:"Le temps d'une mousson, deux étrangers s'aiment en sachant que tout finira aux beaux jours.", cast:['Lila Marchand','Owen Pratt'], pos:['#2E4A4A','#0A1A1A'], bd:['#1E3A3A','#0A0A0C']},
+    {id:'e5', ext:true, t:'Mémoire Vive', yr:2025, k:'Film', g:'Documentaire', run:'1h12', rt:'8.6', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN','DE'], syn:"Comment nos souvenirs se réécrivent — un voyage au cœur de la plasticité du cerveau.", cast:['Narration · M. Aziz'], pos:['#3A2E5C','#0E0828'], bd:['#2A1E4A','#0A0A0C']},
+    {id:'e6', ext:true, t:'Lumière du Nord', yr:2025, k:'Film', g:'Drame', run:'2h08', rt:'8.0', q:['4K','HDR'], au:['FR','EN'], su:['FR','EN'], syn:"Dans un village polaire, une médecin lutte contre la nuit qui ne finit pas.", cast:['Sigrid Holt','Yann Le Roy'], pos:['#2E3A5C','#0A1428'], bd:['#1E2A4A','#0A0A0C']},
+    {id:'e7', ext:true, t:'Le Gardien des Sables', yr:2024, k:'Film', g:'Aventure', run:'2h24', rt:'7.7', q:['4K','HDR','H.265'], au:['FR','EN'], su:['FR','EN','ES'], syn:"Un guide du désert escorte une caravane vers une cité que nul n'a jamais revue.", cast:['Tariq Belkadi','Rosa Vint'], pos:['#5C4A2E','#28180A'], bd:['#4A3A1E','#0A0A0C']},
+    {id:'e8', ext:true, t:'Fréquence Zéro', yr:2025, k:'Film', g:'Thriller SF', run:'1h51', rt:'7.9', q:['4K','H.265'], au:['FR','EN'], su:['FR','EN'], syn:"Une opératrice radio capte un signal qui prédit les disparitions avant qu'elles n'arrivent.", cast:['Maya Tan','Dirk Falsen'], pos:['#2E5C4A','#0A2818'], bd:['#1E4A3A','#0A0A0C']},
+  ];
+  etaFmt(s){ s=Math.max(0,Math.round(s)); if(s>=3600){const h=Math.floor(s/3600),m=Math.floor(s%3600/60); return h+' h '+String(m).padStart(2,'0');} if(s>=60) return Math.ceil(s/60)+' min'; return s+' s'; }
+  openReqModal(m){ this.setState({reqModal:m, reqQuality:(m.q&&m.q[0]==='4K'?'4K HDR':(m.q&&m.q[0])||'4K HDR')}); }
+  closeReqModal(){ this.setState({reqModal:null}); }
+  confirmRequest(){ const m=this.state.reqModal; if(!m) return; this.setState(s=>({ requests:[{id:'u'+Date.now(), extId:m.id, t:m.t, g:m.g, yr:m.yr, q:s.reqQuality, by:(s.profile?s.profile.name:'Camille'), status:'queued', progress:0, _t:0, pos:m.pos}, ...s.requests], reqModal:null, toast:'« '+m.t+' » demandé — recherche de sources en cours' })); if(this._toastT) clearTimeout(this._toastT); this._toastT=setTimeout(()=>this.setState({toast:null}), 4000); }
+  byId(id){ return this.movies.find(m=>m.id===id) || this.extCatalog.find(m=>m.id===id) || this.movies[0]; }
+  _hex(c){ c=(c||'#000').replace('#',''); if(c.length===3) c=c.split('').map(x=>x+x).join(''); return [parseInt(c.slice(0,2),16)||0,parseInt(c.slice(2,4),16)||0,parseInt(c.slice(4,6),16)||0]; }
+  _rgb(a){ return 'rgb('+a.map(x=>Math.max(0,Math.min(255,Math.round(x)))).join(',')+')'; }
+  tint(c,f){ return this._rgb(this._hex(c).map(x=>x+(255-x)*f)); }
+  shade(c,f){ return this._rgb(this._hex(c).map(x=>x*(1-f))); }
+  grad(a,ang){ const c1=a[0],c2=a[1]; ang=ang||150; return 'radial-gradient(115% 85% at 74% 10%, '+this.tint(c1,.45)+', transparent 54%),radial-gradient(120% 95% at 12% 108%, '+this.shade(c2,.55)+', transparent 62%),linear-gradient('+ang+'deg, '+c1+' 0%, '+c2+' 68%, '+this.shade(c2,.42)+' 100%)'; }
+  posterBg(m){ const a=m.pos||['#333','#111']; const c1=a[0],c2=a[1]; const g=(m.g||'').toLowerCase(); let lx='28%',ly='22%',light=this.tint(c1,.55);
+    if(/sf|science|fiction/.test(g)){ lx='72%'; ly='16%'; light=this.tint(c1,.7); }
+    else if(/horreur/.test(g)){ lx='50%'; ly='118%'; light=this.tint(c1,.5); }
+    else if(/thriller|polar|policier/.test(g)){ lx='78%'; ly='106%'; light=this.tint(c1,.45); }
+    else if(/western|aventure|guerre/.test(g)){ lx='50%'; ly='4%'; light=this.tint('#F2B441',.15); }
+    else if(/doc|animation|famille|comédie|comedie/.test(g)){ lx='30%'; ly='16%'; light=this.tint(c1,.75); }
+    return 'radial-gradient(85% 58% at '+lx+' '+ly+', '+light+', transparent 56%),radial-gradient(125% 80% at 82% 122%, '+this.shade(c2,.6)+', transparent 60%),radial-gradient(100% 70% at 12% 0%, '+this.tint(c1,.22)+', transparent 50%),linear-gradient(158deg, '+c1+' 0%, '+c2+' 64%, '+this.shade(c2,.45)+' 100%)';
+  }
+  bad(l){ const map={'4K':['#F4B642','rgba(242,180,66,.16)'],'HDR':['#C792EA','rgba(199,146,234,.16)'],'H.265':['#5FD3C4','rgba(95,211,196,.16)'],'Atmos':['#86A8FF','rgba(134,168,255,.16)']}; const c=map[l]||['#D8D8D8','rgba(255,255,255,.1)']; return {label:l,c:c[0],bg:c[1]}; }
+  langName(c){ return {FR:'Français',EN:'Anglais',ES:'Espagnol',DE:'Allemand',JP:'Japonais'}[c]||c; }
+  fmt(s){ s=Math.max(0,Math.floor(s)); const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0'); return h?h+':'+p(m)+':'+p(x):m+':'+p(x); }
+
+  tvpActivate(id){ if(id==='back') this.skip(-10); else if(id==='fwd') this.skip(10); else if(id==='play') this.togglePlay(); else if(id==='av') this.setState({panel:'av', tvpAv:0}); }
+  tvBump(){ if(this._tvHide) clearTimeout(this._tvHide); if(!this.state.showControls) this.setState({showControls:true}); this._tvHide=setTimeout(()=>{ const s=this.state; if(s.platform==='tv'&&s.screen==='player'&&s.playing&&!s.panel) this.setState({showControls:false}); }, 3500); }
+  go(screen, id){ const ns={screen}; if(id) ns.title=id; if(screen==='detail') ns.season=1; if(screen==='player'){ ns.playing=true; ns.showControls=true; ns.panel=null; ns.tvpCol=1; ns.tvpAv=0; ns.tvpZone='bar'; } this.setState(ns); if(screen==='player' && this.state.platform==='tv') this.tvBump(); }
+  pickProfile(p){ this.setState({profile:p, screen:'home'}); }
+  togglePlay(){ this.setState(s=>({playing:!s.playing})); }
+  seek(e){ const r=e.currentTarget.getBoundingClientRect(); const x=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width)); this.setState({t:Math.round(x*this.state.dur)}); }
+  skip(d){ this.setState(s=>({t:Math.min(s.dur,Math.max(0,s.t+d))})); }
+  set(k,v){ this.setState({[k]:v}); }
+  playerMove(){ this.setState({showControls:true}); if(this._ht) clearTimeout(this._ht); this._ht=setTimeout(()=>{ if(this.state.playing && !this.state.panel) this.setState({showControls:false}); }, 2800); }
+
+  seg(on){ return {bg: on?'#F4B642':'transparent', fg: on?'#0A0A0C':'rgba(244,243,240,.6)'}; }
+
+  renderVals(){
+    const S=this.state;
+    const isWeb=S.platform==='web', isTv=S.platform==='tv', isMobile=S.platform==='mobile';
+    const sc=S.screen;
+    const pname = S.profile ? S.profile.name : 'vous';
+    const featured = this.byId('sillage');
+    const mapCard = m => ({...m, poster:this.posterBg(m), topBadge:m.q[0], meta: m.yr+' · '+m.run, hasProg: m.pr>0, progPct:(m.pr||0)+'%', onOpen:()=>this.go('detail',m.id)});
+
+    // rows
+    const rowsCfg = [
+      {title:'Reprendre la lecture', ids:['sillage','orbite','helix','heure']},
+      {title:'Tendances cette semaine', ids:['neon','sillage','banquet','helix','orbite','aurore']},
+      {title:'Recommandé pour '+pname, ids:['kyoto','aurore','cendres','marees','prof','heure']},
+      {title:'Récemment ajoutés', ids:['pixel','prof','orbite','marees','neon','banquet']},
+      {title:'SF & Imaginaire', ids:['sillage','orbite','prof','neon','helix','pixel']},
+    ];
+    const rows = rowsCfg.map(r=>({title:r.title, items:r.ids.map(id=>mapCard(this.byId(id)))}));
+
+    // detail current
+    const cm = this.byId(S.title);
+    const isSeries = cm.k==='Série';
+    const seasonsN = cm.seasons||1;
+    const cur = {
+      ...cm, poster:this.posterBg(cm), bdGrad:this.grad(cm.bd,135),
+      kindLabel: isSeries ? 'Série · '+seasonsN+' saison'+(seasonsN>1?'s':'') : 'Film',
+      metaLong: cm.yr+' · '+cm.run+' · '+this.langName(cm.au[0]),
+      badges: cm.q.map(q=>this.bad(q)),
+      castStr: cm.cast.join(' · '),
+      auStr: cm.au.map(c=>this.langName(c)).join(', '),
+      suStr: cm.su.map(c=>this.langName(c)).join(', '),
+      isSeries, playLabel: (cm.pr>0?'Reprendre à '+this.fmt(S.t):'Lecture'),
+    };
+    const epTitles=['Signal perdu','Marée basse','Faille','Contre-jour','Le dernier câble','Aube blanche'];
+    const epPool=['Signal perdu','Marée basse','Faille','Contre-jour','Le dernier câble','Aube blanche','Point de rupture','Lumière noire','Écho','Dérive','Le seuil','Rémanence'];
+    const epSyns=["L'intrigue se resserre tandis qu'un nouvel indice fait basculer l'enquête.","Une révélation force chacun à choisir son camp.","Le passé refait surface au pire moment.","Une course contre la montre s'engage alors que tout vacille.","Les masques tombent un à un dans cette nuit décisive.","Tout converge vers un point de non-retour."];
+    const epCounts={1:6,2:8,3:7};
+    const seasN=S.season||1; const epCount=epCounts[seasN]||6;
+    const episodes = isSeries ? Array.from({length:epCount},(_,i)=>{ const ti=(i+(seasN-1)*3)%epPool.length; const watched=(seasN===1&&i===0); const inprog=(seasN===1&&i===1); return {n:i+1, t:epPool[ti], run:(42+((i+seasN)%4)*4)+' min', syn:epSyns[i%epSyns.length], pr:watched?100:inprog?42:0, hasProg:watched||inprog, progPct:watched?'100%':'42%', watched, inprog, notStarted:!watched&&!inprog, statusLabel:watched?'Vu':inprog?'En cours':'', thumb:this.grad(cm.bd,120)}; }) : [];
+    const seasonTabs = isSeries ? Array.from({length:seasonsN},(_,i)=>{const on=S.season===i+1; return {label:'Saison '+(i+1), bg:on?'#F4B642':'rgba(255,255,255,.06)', fg:on?'#0A0A0C':'rgba(244,243,240,.7)', bd:on?'#F4B642':'rgba(255,255,255,.12)', onPick:()=>this.set('season',i+1)};}) : [];
+    const similar = this.movies.filter(m=>m.id!==cm.id).slice(0,6).map(mapCard);
+
+    // player
+    const isTvAv = isTv && S.panel==='av';
+    const audioList = this.audioTracks.map((a,i)=>{const on=a.id===S.audioTrack; const tf=(isTvAv&&S.tvpAv===i); return {...a, active:on, bg:on?'rgba(242,180,66,.12)':'rgba(255,255,255,.04)', bd:on?'rgba(242,180,66,.4)':'rgba(255,255,255,.06)', tvring:tf?'0 0 0 3px #F4B642':'none', onPick:()=>this.set('audioTrack',a.id)};});
+    const subList = this.subTracks.map((s,j)=>{const on=s.id===S.subTrack; const tf=(isTvAv&&S.tvpAv===this.audioTracks.length+j); return {...s, active:on, bg:on?'rgba(242,180,66,.12)':'rgba(255,255,255,.04)', bd:on?'rgba(242,180,66,.4)':'rgba(255,255,255,.06)', tvring:tf?'0 0 0 3px #F4B642':'none', onPick:()=>this.set('subTrack',s.id)};});
+    this._tvAvItems=[...audioList.map(a=>a.onPick), ...subList.map(s=>s.onPick)]; this._tvAvCount=this._tvAvItems.length;
+    this._tvpBar=['back','play','fwd','av']; const _tvpCur=this._tvpBar[Math.min(S.tvpCol||0,this._tvpBar.length-1)]; const _tvpRing=(id)=>(isTv&&_tvpCur===id)?'0 0 0 4px #F4B642,0 6px 18px rgba(0,0,0,.5)':'0 6px 18px rgba(0,0,0,.4)';
+    const subOn = S.subTrack!=='off';
+    const subSample = ({fr:'Vous voyez ce que je vois maintenant\u00a0?', frsm:'[musique tendue]  Vous voyez ce que je vois\u00a0?', en:'Do you see what I see right now?', es:'\u00bfVes lo que veo ahora?'})[S.subTrack] || 'Vous voyez ce que je vois maintenant\u00a0?';
+    const speeds=[0.5,0.75,1,1.25,1.5,2];
+    const qualities=['Auto · 4K','4K HDR','1080p','720p'];
+
+    // subtitle preview style
+    const sizes={S:24,M:34,L:46};
+    const fonts={sans:"'Hanken Grotesk',sans-serif", serif:"Georgia,'Times New Roman',serif", mono:"ui-monospace,'SF Mono',monospace"};
+    const subPreviewStyle = {
+      display:'inline-block', fontFamily:fonts[S.subFont], fontWeight:600, lineHeight:1.3,
+      fontSize:sizes[S.subSize]+'px', color:S.subColor, opacity:S.subOpacity/100,
+      padding: S.subEdge==='box'?'.12em .5em':'0', borderRadius:'8px',
+      background: S.subEdge==='box'?'rgba(0,0,0,.78)':'transparent',
+      textShadow: S.subEdge==='shadow'?'0 2px 8px rgba(0,0,0,.95),0 0 2px rgba(0,0,0,.9)':'none',
+      WebkitTextStroke: S.subEdge==='outline'?'1.4px #000':'0',
+    };
+
+    const ctrlVisible = S.showControls || S.panel;
+
+    // Requests
+    const statusMap={queued:{label:"En file d'attente",c:'#B9B9C2',bg:'rgba(255,255,255,.08)'},searching:{label:'Recherche de sources…',c:'#86A8FF',bg:'rgba(134,168,255,.14)'},downloading:{label:'Téléchargement',c:'#F4B642',bg:'rgba(242,180,66,.14)'},available:{label:'Disponible',c:'#46D08D',bg:'rgba(70,208,141,.14)'}};
+    const reqList=(S.requests||[]).map(r=>{const st=statusMap[r.status]||statusMap.queued; return {...r, poster:this.posterBg(r), statusLabel:st.label, statusC:st.c, statusBg:st.bg, isDl:r.status==='downloading', isAvail:r.status==='available', isSearch:r.status==='searching', isQueued:r.status==='queued', progPct:Math.round(r.progress)+'%', progW:r.progress+'%', etaLabel:r.status==='downloading'?('disponible dans '+this.etaFmt(r.etaSec)):'', speedLabel:r.status==='downloading'?(r.speed.toFixed(1)+' Mo/s'):'', onPlay:()=>this.go('home')};});
+    const dlItems=(S.requests||[]).filter(r=>r.status==='downloading');
+    const reqActiveCount=(S.requests||[]).filter(r=>r.status!=='available').length;
+    const totalSpeed=dlItems.reduce((a,r)=>a+r.speed,0);
+    const reqSummary=dlItems.length?(dlItems.length+' téléchargement'+(dlItems.length>1?'s':'')+' en cours · '+totalSpeed.toFixed(0)+' Mo/s'):'Aucun téléchargement en cours';
+    const reqByExt={}; (S.requests||[]).forEach(r=>{ if(r.extId){ const ex=reqByExt[r.extId]; if(!ex || r.status==='available' || ex.status!=='available') reqByExt[r.extId]=r; } });
+    const extStatus=(id)=>{ const r=reqByExt[id]; if(!r) return {state:'none'}; if(r.status==='available') return {state:'available'}; if(r.status==='downloading') return {state:'downloading', pct:Math.round(r.progress)+'%', eta:this.etaFmt(r.etaSec)}; if(r.status==='searching') return {state:'searching'}; return {state:'queued'}; };
+    const reqStatusMeta={queued:{label:'En file',c:'#B9B9C2',bg:'rgba(255,255,255,.08)'}, searching:{label:'Recherche…',c:'#86A8FF',bg:'rgba(134,168,255,.14)'}, downloading:{label:'Téléchargement',c:'#F4B642',bg:'rgba(242,180,66,.14)'}, available:{label:'Disponible',c:'#46D08D',bg:'rgba(70,208,141,.14)'}};
+    const mapExt=m=>{ const st=extStatus(m.id); const meta=reqStatusMeta[st.state]; return {...m, poster:this.posterBg(m), topBadge:(m.q&&m.q[0])||'4K', meta:m.yr+' · '+m.g, ext:true, st:st.state, isNone:st.state==='none', isAvail:st.state==='available', isPending:st.state==='queued'||st.state==='searching'||st.state==='downloading', stLabel:meta?meta.label:'', stC:meta?meta.c:'#fff', stBg:meta?meta.bg:'transparent', stPct:st.pct||'', stEta:st.eta?('· '+st.eta):'', onReq:()=>this.openReqModal(m), onOpen:()=>this.go('detail',m.id) }; };
+    const sq=S.search.trim().toLowerCase();
+    const pmatch=(m,q)=>m.t.toLowerCase().includes(q)||m.g.toLowerCase().includes(q)||(m.cast||[]).join(' ').toLowerCase().includes(q)||(this.dirs[m.id]||'').toLowerCase().includes(q);
+    const libResults=(sq? this.movies.filter(m=>pmatch(m,sq)):this.movies).map(mapCard);
+    const extResults=(sq? this.extCatalog.filter(m=>pmatch(m,sq)):this.extCatalog.slice(0,8)).map(mapExt);
+    const spq=S.spotQuery.trim().toLowerCase();
+    const spotLib=(spq? this.movies.filter(m=>pmatch(m,spq)):this.movies.slice(0,5)).map(m=>({...m, poster:this.posterBg(m), topBadge:m.q[0], onOpen:()=>{ this.setState({spotOpen:false}); this.go('detail',m.id); }}));
+    const spotExt=(spq? this.extCatalog.filter(m=>pmatch(m,spq)):[]).map(m=>{ const x=mapExt(m); return {...x, onReq:()=>this.openReqModal(m), onOpen:()=>{ this.setState({spotOpen:false}); this.go('detail',m.id); }}; });
+    const curSt = cm.ext? extStatus(cm.id) : {state:'available'};
+    cur.isExt=!!cm.ext; cur.owned=!cm.ext || curSt.state==='available';
+    cur.ctaRequest = !!cm.ext && curSt.state==='none';
+    cur.ctaPending = !!cm.ext && (curSt.state==='queued'||curSt.state==='searching'||curSt.state==='downloading');
+    cur.pendLabel = curSt.state==='downloading'?('Téléchargement · '+curSt.pct+' · disponible dans '+curSt.eta):(curSt.state==='searching'?'Recherche de sources en cours…':(curSt.state==='queued'?'En file d\'attente — démarrage imminent':''));
+    cur.onReq=()=>this.openReqModal(cm);
+    cur.inList=(S.myList||[]).includes(cm.id); cur.notInList=!cur.inList; cur.onToggleList=()=>this.toggleList(cm.id);
+    cur.director=this.dirs[cm.id]||'Inconnu'; cur.castChips=(cm.cast||[]).map(name=>({name, onOpen:()=>this.searchPerson(name)})); cur.onDir=()=>this.searchPerson(this.dirs[cm.id]||'');
+    cur.castSection=[this.personCard(this.dirs[cm.id]||'Inconnu','Réalisation'), ...(cm.cast||[]).map(n=>this.personCard(n,'Interprète'))];
+    // collections
+    const _films=this.movies.filter(m=>m.k==='Film');
+    const _series=this.movies.filter(m=>m.k==='Série');
+    const _uniq=a=>a.filter((v,i)=>a.indexOf(v)===i);
+    const gf=S.genreFilter;
+    const filmsF=(gf==='all'?_films:_films.filter(m=>m.g===gf)).map(mapCard);
+    const seriesF=(gf==='all'?_series:_series.filter(m=>m.g===gf)).map(mapCard);
+    const chip=(g)=>({label:g==='all'?'Tous':g, bg:gf===g?'#F4B642':'rgba(255,255,255,.06)', fg:gf===g?'#0A0A0C':'rgba(244,243,240,.7)', onPick:()=>this.set('genreFilter',g)});
+    const filmChips=['all',..._uniq(_films.map(m=>m.g))].map(chip);
+    const seriesChips=['all',..._uniq(_series.map(m=>m.g))].map(chip);
+    const myListItems=(S.myList||[]).map(id=>this.byId(id)).map(m=>({...mapCard(m), onRemove:()=>this.toggleList(m.id)}));
+
+    // TV — sections + focusable top nav
+    const tvSec=S.tvSection||'accueil';
+    let tvSecRows;
+    if(tvSec==='films') tvSecRows=[{title:'Tous les films', ids:_films.map(m=>m.id)}];
+    else if(tvSec==='series') tvSecRows=[{title:'Toutes les séries', ids:_series.map(m=>m.id)}];
+    else if(tvSec==='mylist') tvSecRows=[{title:'Ma liste', ids:((S.myList&&S.myList.length)?S.myList:['kyoto'])}];
+    else tvSecRows=rowsCfg.slice(0,4);
+    this._tvRowIds = tvSecRows.map(r=>r.ids);
+    this._tvNav = [{k:'accueil',label:'Accueil'},{k:'films',label:'Films'},{k:'series',label:'Séries'},{k:'mylist',label:'Ma liste'},{k:'search',label:'Rechercher'}];
+    const tf = S.tvFocus||{r:0,c:0};
+    const tvNavItems=this._tvNav.map((n,i)=>({label:n.label, search:n.k==='search', bg:(n.k===tvSec)?'rgba(242,180,66,.16)':'transparent', fg:(n.k===tvSec)?'#F4B642':'rgba(244,243,240,.72)', ring:(tf.r===0&&tf.c===i)?'0 0 0 3px #F4B642':'none', onPick:()=>this.tvNavPick(n)}));
+    const tvRows = tvSecRows.map((r,ri)=>({title:r.title, ri, items:r.ids.map((id,ci)=>{const m=this.byId(id); const foc=(tf.r===ri+2&&tf.c===ci); return {...mapCard(m), bdThumb:this.grad(m.bd,120), sc:foc?'scale(1.06)':'scale(1)', shadow:foc?'none':'0 12px 30px rgba(0,0,0,.5)', anim:foc?'glowPulse 2.4s ease-in-out infinite':'none', focRef: foc?((el)=>{this._focusEl=el;}):null, play:()=>this.tvOpen(m.id)};})}));
+    this._tvLens=[this._tvNav.length, 2, ...tvRows.map(r=>r.items.length)];
+    let _pid='sillage'; if(tf.r>=2){ const _ids=this._tvRowIds[tf.r-2]; if(_ids) _pid=_ids[tf.c]||_ids[0]; }
+    const ph=this.byId(_pid);
+    const tvHero={ bd:this.grad(ph.bd,130), t:ph.t, rating:ph.rt, meta:ph.yr+' · '+ph.run+' · '+ph.g, badges:(ph.q||[]).map(q=>this.bad(q)), syn:ph.syn };
+    const tdf=S.tvDetailFocus||{r:0,c:0};
+    const tvdModel = cur.isSeries ? ['actions','seasons','cast','episodes'] : ['actions','cast'];
+    this._tvdModel = tvdModel;
+    const _rw=(t)=>tvdModel.indexOf(t);
+    const tvdPlayRing=(tdf.r===_rw('actions')&&tdf.c===0)?'0 0 0 4px rgba(242,180,66,.95)':'none';
+    const tvdListRing=(tdf.r===_rw('actions')&&tdf.c===1)?'0 0 0 4px rgba(242,180,66,.95)':'none';
+    const tvSeasons = cur.isSeries ? Array.from({length:seasonsN},(_,i)=>{ const foc=(tdf.r===_rw('seasons')&&tdf.c===i); const on=(S.season===i+1); return {label:'Saison '+(i+1), bg:on?'#F4B642':'rgba(255,255,255,.08)', fg:on?'#0A0A0C':'#F4F3F0', ring:foc?'0 0 0 3px #F4B642':'none' }; }) : [];
+    const tvCast=(cur.castSection||[]).map((p,i)=>{ const foc=(tdf.r===_rw('cast')&&tdf.c===i); return {...p, ring:foc?'0 0 0 4px #F4B642,0 8px 22px rgba(0,0,0,.45)':'0 8px 22px rgba(0,0,0,.45)', focRef:foc?((el)=>{this._focusEl=el;}):null }; });
+    const tvEpisodes=(cur.isSeries?episodes:[]).map((e,i)=>{ const foc=(tdf.r===_rw('episodes')&&tdf.c===i); return {...e, ring:foc?'0 0 0 4px #F4B642':'none', focRef:foc?((el)=>{this._focusEl=el;}):null }; });
+    this._tvdLens = tvdModel.map(t=> t==='actions'?2 : t==='seasons'?seasonsN : t==='cast'?(cur.castSection||[]).length : episodes.length);
+    const tvsKbRaw=[['A','B','C','D','E','F'],['G','H','I','J','K','L'],['M','N','O','P','Q','R'],['S','T','U','V','W','X'],['Y','Z','␣','⌫','✕']];
+    this._tvsKb=tvsKbRaw.map(row=>row.map(ch=>({label:ch, t:(ch==='␣'?'space':ch==='⌫'?'del':ch==='✕'?'clear':'char'), v:ch})));
+    const tsf=S.tvsFocus||{r:0,c:0};
+    const tvsRows=this._tvsKb.map((row,ri)=>({keys:row.map((k,ci)=>{const f=(tsf.r===ri&&tsf.c===ci); return {label:k.label, bg:f?'#F4B642':'rgba(255,255,255,.07)', fg:f?'#0A0A0C':'#F4F3F0', ring:f?'0 0 0 3px #F4B642':'none'};})}));
+    const tvsResArr=(libResults||[]).slice(0,12).map((m,i)=>{const f=(tsf.r===this._tvsKb.length&&tsf.c===i); return {...m, sc:f?'scale(1.06)':'scale(1)', ring:f?'0 0 0 4px #F4B642':'none', focRef:f?((el)=>{this._focusEl=el;}):null};});
+    this._tvsResIds=tvsResArr.map(m=>m.id);
+    this._tvsLens=[...this._tvsKb.map(r=>r.length), Math.max(1,tvsResArr.length)];
+
+    return {
+      isWeb, isTv, isMobile,
+      bigPlayer: (isWeb||isTv) && sc==='player',
+      tvHome: isTv && sc==='home', tvDetail: isTv && sc==='detail', tvSearch: isTv && sc==='tvsearch', tvRows, tvNavItems,
+      tvsRows, tvsRes:tvsResArr, tvsQuery:S.search, tvsHasRes:tvsResArr.length>0, tvsNoRes:tvsResArr.length===0,
+      tvHero, tvRailsRef:(el)=>{this._railsEl=el;},
+      tvdPlayRing, tvdListRing, tvEpisodes, tvCast, tvSeasons, tvdInList:(S.myList||[]).includes(cur.id), tvdListLabel:(S.myList||[]).includes(cur.id)?'Retirer de Ma liste':'Ajouter à Ma liste',
+      clock: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      heroB0Ring: (tf.r===1&&tf.c===0)?'0 0 0 4px rgba(242,180,66,.95)':'none',
+      heroB1Ring: (tf.r===1&&tf.c===1)?'0 0 0 4px rgba(242,180,66,.95)':'none',
+      heroBigPlay:()=>this.go('player','sillage'), heroBigInfo:()=>this.go('player','sillage'),
+      // mobile
+      mHome: isMobile && sc==='home', mDetail: isMobile && sc==='detail', mSearch: isMobile && sc==='search', mSettings: isMobile && sc==='settings',
+      mobilePlayer: isMobile && sc==='player', showTabs: isMobile && (sc==='home'||sc==='search'||sc==='settings'||sc==='mylist'),
+      mTabHome:{c: sc==='home'?'#F4B642':'rgba(244,243,240,.45)'},
+      mTabSearch:{c: sc==='search'?'#F4B642':'rgba(244,243,240,.45)'},
+      mTabList:{c: sc==='mylist'?'#F4B642':'rgba(244,243,240,.45)'},
+      mTabProfile:{c: sc==='settings'?'#F4B642':'rgba(244,243,240,.45)'},
+      goList:()=>this.setState({screen:'mylist'}),
+      wProfiles: isWeb && sc==='profiles',
+      wPlayer: isWeb && sc==='player',
+      wChrome: isWeb && ['home','detail','search','settings','requests','films','series','mylist'].includes(sc),
+      sHome: sc==='home', sDetail: sc==='detail', sSearch: sc==='search', sSettings: sc==='settings', sRequests: sc==='requests',
+      sFilms: sc==='films', sSeries: sc==='series', sMyList: sc==='mylist', mMyList: isMobile && sc==='mylist',
+      goFilms:()=>this.setState({screen:'films',genreFilter:'all'}), goSeries:()=>this.setState({screen:'series',genreFilter:'all'}), goMyList:()=>this.setState({screen:'mylist'}),
+      navFilms:{bg:sc==='films'?'rgba(242,180,66,.14)':'transparent', fg:sc==='films'?'#F4B642':'rgba(244,243,240,.6)'},
+      navSeries:{bg:sc==='series'?'rgba(242,180,66,.14)':'transparent', fg:sc==='series'?'#F4B642':'rgba(244,243,240,.6)'},
+      navMyList:{bg:sc==='mylist'?'rgba(242,180,66,.14)':'transparent', fg:sc==='mylist'?'#F4B642':'rgba(244,243,240,.6)'},
+      films:filmsF, series:seriesF, filmChips, seriesChips, filmCount:filmsF.length, seriesCount:seriesF.length,
+      myListItems, myListEmpty:myListItems.length===0, myListCount:myListItems.length,
+      mRequests: isMobile && sc==='requests', goRequests:()=>this.go('requests'),
+      navRequests:{bg: sc==='requests'?'rgba(242,180,66,.14)':'transparent', fg: sc==='requests'?'#F4B642':'rgba(244,243,240,.6)'},
+      reqList, reqSummary, reqActiveCount, reqHasActive:reqActiveCount>0, reqEmpty:(S.requests||[]).length===0,
+      reqModalOpen:!!S.reqModal, reqModal: S.reqModal? {...S.reqModal, poster:this.posterBg(S.reqModal), bdGrad:this.grad(S.reqModal.bd||S.reqModal.pos,135), badges:(S.reqModal.q||[]).map(qq=>this.bad(qq))} : {},
+      reqQuality:S.reqQuality, qualityOpts:['4K HDR','1080p','720p'].map(qq=>({label:qq, bg:S.reqQuality===qq?'#F4B642':'transparent', fg:S.reqQuality===qq?'#0A0A0C':'rgba(244,243,240,.7)', onPick:()=>this.set('reqQuality',qq)})),
+      onConfirmReq:()=>this.confirmRequest(), onCloseReq:()=>this.closeReqModal(),
+      toast:S.toast, toastShown:!!S.toast,
+
+      profiles: this.movies && [
+        {id:'camille',name:'Camille',initial:'C',grad:'linear-gradient(135deg,#F4B642,#E8743B)'},
+        {id:'theo',name:'Théo',initial:'T',grad:'linear-gradient(135deg,#3BC9DB,#3B82F6)'},
+        {id:'lea',name:'Léa',initial:'L',grad:'linear-gradient(135deg,#A855F7,#6366F1)'},
+        {id:'sofia',name:'Sofia',initial:'S',grad:'linear-gradient(135deg,#F472B6,#EC4899)'},
+        {id:'petits',name:'Les Petits',initial:'P',grad:'linear-gradient(135deg,#34D399,#10B981)',kid:true},
+      ].map(p=>({...p, onSelect:()=>this.pickProfile(p)})),
+
+      goHome:()=>this.go('home'), goSearch:()=>this.go('search'), goSettings:()=>this.go('settings'), goProfiles:()=>this.go('profiles'),
+      navHome:{bg:sc==='home'?'rgba(242,180,66,.14)':'transparent', fg:sc==='home'?'#F4B642':'rgba(244,243,240,.6)'},
+      navSearch:{bg:sc==='search'?'rgba(242,180,66,.14)':'transparent', fg:sc==='search'?'#F4B642':'rgba(244,243,240,.6)'},
+      navSettings:{bg:sc==='settings'?'rgba(242,180,66,.14)':'transparent', fg:sc==='settings'?'#F4B642':'rgba(244,243,240,.6)'},
+      profileName: S.profile?S.profile.name:'Camille',
+      profileGrad: S.profile?(({'camille':'linear-gradient(135deg,#F4B642,#E8743B)','theo':'linear-gradient(135deg,#3BC9DB,#3B82F6)','lea':'linear-gradient(135deg,#A855F7,#6366F1)','sofia':'linear-gradient(135deg,#F472B6,#EC4899)','petits':'linear-gradient(135deg,#34D399,#10B981)'})[S.profile.id]):'linear-gradient(135deg,#F4B642,#E8743B)',
+      profileInitial: S.profile?S.profile.name[0]:'C',
+
+      // hero
+      heroBd:this.grad(featured.bd,130), heroTitle:featured.t, heroRating:featured.rt,
+      heroMeta: featured.yr+' · '+featured.run+' · '+featured.g,
+      heroBadges: featured.q.map(q=>this.bad(q)), heroSyn:featured.syn,
+      heroProg:(featured.pr||0)+'%', heroLeft: 'il reste '+Math.floor(7680*(1-(featured.pr||0)/100)/3600)+'h'+String(Math.floor((7680*(1-(featured.pr||0)/100)%3600)/60)).padStart(2,'0'),
+      heroPlay:()=>this.go('player','sillage'), heroInfo:()=>this.go('detail','sillage'),
+      rows,
+
+      cur, seasonTabs, episodes, similar, playCur:()=>this.go('player',cm.id),
+      seasonMenuOpen:S.seasonMenu, currentSeasonLabel:'Saison '+(S.season||1), toggleSeasonMenu:()=>this.setState(s=>({seasonMenu:!s.seasonMenu})),
+      seasonMenuItems: Array.from({length:seasonsN},(_,i)=>{const ac=S.season===i+1; return {label:'Saison '+(i+1), sub:(epCounts[i+1]||6)+' épisodes', active:ac, bg:ac?'rgba(242,180,66,.12)':'transparent', fg:ac?'#F4B642':'#F4F3F0', onPick:()=>this.setState({season:i+1, seasonMenu:false})};}),
+      episodeCount: episodes.length, seasonInfo: (isSeries? 'Saison '+(S.season||1)+' · '+episodes.length+' épisodes' : ''),
+
+      // search
+      search:S.search, onSearch:(e)=>this.set('search',e.target.value),
+      searchLib:libResults, searchExt:extResults, hasLib:libResults.length>0, hasExt:extResults.length>0,
+      searchHasQuery:!!sq, searchEmpty: !!sq && libResults.length===0 && extResults.length===0,
+      searchLabel: sq? ('Dans votre médiathèque · '+libResults.length) : 'Parcourir la médiathèque',
+
+      // player vals
+      playing:S.playing, paused:!S.playing,
+      tCur:this.fmt(S.t), tDur:this.fmt(S.dur), pct:(S.t/S.dur*100)+'%',
+      controlsOp: ctrlVisible?1:0,
+      isTvPlayer: isTv && sc==='player', isWebPlayer: isWeb && sc==='player',
+      tvSeekRing: (isTv && S.tvpZone==='seek')?'0 0 0 7px rgba(242,180,66,.3)':'none', tvSeekZone:(isTv && S.tvpZone==='seek'),
+      tvpRingBack:_tvpRing('back'), tvpRingPlay:_tvpRing('play'), tvpRingFwd:_tvpRing('fwd'), tvpRingAv:_tvpRing('av'),
+      playerSub: isSeries? 'S'+S.season+' E1 · '+cm.g : cm.g+' · '+cm.yr,
+      goBackFromPlayer:()=>this.go(isSeries?'detail':'detail',cm.id),
+      back10:()=>this.skip(-10), fwd10:()=>this.skip(10),
+      toggleMute:()=>this.set('muted',!S.muted), volIcon: S.muted?'M23 9l-6 6M17 9l6 6':'M16 8a5 5 0 0 1 0 8',
+      cycleSpeed:()=>{const i=speeds.indexOf(S.speed); this.set('speed',speeds[(i+1)%speeds.length]);}, speedLabel:S.speed+'×',
+      cycleQuality:()=>{const i=qualities.indexOf(S.quality); this.set('quality',qualities[(i+1)%qualities.length]);}, quality:S.quality,
+      openAV:()=>this.set('panel','av'), closeAV:()=>this.set('panel',null), avOpen:S.panel==='av',
+      togglePlay:()=>this.togglePlay(), seek:(e)=>this.seek(e), playerMove:()=>this.playerMove(),
+      audioList, subList, subOn, subSample, subBottom: (isTv?((S.showControls||S.panel)?'340px':'56px'):(ctrlVisible?'150px':'84px')), subPreviewStyle,
+
+      // settings
+      prefAudio:S.prefAudio, onPrefAudio:(e)=>this.set('prefAudio',e.target.value),
+      prefSub:S.prefSub, onPrefSub:(e)=>this.set('prefSub',e.target.value),
+      uiLang:S.uiLang, onUiLang:(e)=>this.set('uiLang',e.target.value),
+      toggleAlways:()=>this.set('alwaysSub',!S.alwaysSub), alwaysBg:S.alwaysSub?'#F4B642':'rgba(255,255,255,.14)', alwaysX:S.alwaysSub?'25px':'3px',
+      toggleForeign:()=>this.set('foreignSub',!S.foreignSub), foreignBg:S.foreignSub?'#F4B642':'rgba(255,255,255,.14)', foreignX:S.foreignSub?'25px':'3px',
+      subOpacity:S.subOpacity, onOpacity:(e)=>this.set('subOpacity',+e.target.value),
+      sizeOpts:[['S','Petit'],['M','Moyen'],['L','Grand']].map(([v,l])=>{const on=S.subSize===v; return {label:l, bg:on?'#F4B642':'transparent', fg:on?'#0A0A0C':'rgba(244,243,240,.6)', onPick:()=>this.set('subSize',v)};}),
+      colorOpts:['#FFFFFF','#F2E29A','#9CE0FF','#FFC862','#FF8FA3'].map(v=>({val:v, ring:(S.subColor===v?'3px #F4B642':'1px rgba(255,255,255,.2)'), onPick:()=>this.set('subColor',v)})),
+      edgeOpts:[['shadow','Ombre'],['box','Boîte'],['outline','Contour'],['none','Aucun']].map(([v,l])=>{const on=S.subEdge===v; return {label:l, bg:on?'#F4B642':'transparent', fg:on?'#0A0A0C':'rgba(244,243,240,.6)', onPick:()=>this.set('subEdge',v)};}),
+      fontOpts:[['sans','Sans'],['serif','Serif'],['mono','Mono']].map(([v,l])=>{const on=S.subFont===v; return {label:l, bg:on?'#F4B642':'transparent', fg:on?'#0A0A0C':'rgba(244,243,240,.6)', onPick:()=>this.set('subFont',v)};}),
+
+      // spotlight + player polish
+      spotOpen:S.spotOpen, spotQuery:S.spotQuery,
+      onSpot:(e)=>this.set('spotQuery',e.target.value),
+      openSpot:()=>this.openSpot(), closeSpot:()=>this.closeSpot(),
+      spotRef:(el)=>{ if(el && document.activeElement!==el) el.focus(); },
+      spotResults: spotLib, spotExt:spotExt, spotHasExt:spotExt.length>0,
+      stop:(e)=>e.stopPropagation(),
+      spotHint: S.spotQuery.trim()? 'Dans votre médiathèque' : 'Suggestions',
+      hoverActive: S.hoverT!=null, hoverTime: S.hoverT!=null?this.fmt(S.hoverT):'', hoverX:S.hoverX+'px', hoverThumb:cur.bdGrad,
+      scrubMove:(e)=>this.scrubMove(e), scrubLeave:()=>this.set('hoverT',null),
+      showIntro: (S.t>3 && S.t<92), skipIntro:()=>this.skipIntro(),
+
+      // platform switcher
+      platWeb:()=>this.set('platform','web'),
+      platTv:()=>this.setState(st=>({platform:'tv', profile:st.profile||{id:'camille',name:'Camille'}, screen:(st.screen==='profiles'?'home':st.screen)})),
+      platMobile:()=>this.setState(st=>({platform:'mobile', profile:st.profile||{id:'camille',name:'Camille'}, screen:(st.screen==='profiles'?'home':st.screen)})),
+      pWeb:{bg:isWeb?'#F4B642':'transparent', fg:isWeb?'#0A0A0C':'rgba(244,243,240,.65)'},
+      pTv:{bg:isTv?'#F4B642':'transparent', fg:isTv?'#0A0A0C':'rgba(244,243,240,.65)'},
+      pMobile:{bg:isMobile?'#F4B642':'transparent', fg:isMobile?'#0A0A0C':'rgba(244,243,240,.65)'},
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "@luma/core",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LUMA shared core — API client, media types, HEVC capability detection, remote-control mapping, direct-play helpers.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

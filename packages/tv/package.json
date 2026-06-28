@@ -1,0 +1,29 @@
+{
+  "name": "@luma/tv",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "LUMA shared 10-foot TV experience — spatial remote navigation, home, player. Mounted by the Tizen and webOS shells.",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./tv.css": "./src/tv.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@luma/core": "workspace:*",
+    "@luma/ui": "workspace:*",
+    "qrcode-generator": "^2.0.4"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/qrcode-generator": "^1.0.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.6.3"
+  }
+}

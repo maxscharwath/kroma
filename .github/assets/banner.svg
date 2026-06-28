@@ -1,0 +1,38 @@
+<svg width="1280" height="420" viewBox="0 0 1280 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LUMA — self-hosted, direct-play, HEVC-first media streaming">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101014"/>
+      <stop offset="1" stop-color="#08080A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.36" r="0.55">
+      <stop offset="0" stop-color="#F4B642" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#F4B642" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#F4B642" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="420" rx="28" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1280" height="420" rx="28" fill="url(#glow)"/>
+  <rect x="0.75" y="0.75" width="1278.5" height="418.5" rx="27.25" fill="none" stroke="#F4B642" stroke-opacity="0.16" stroke-width="1.5"/>
+
+  <!-- aperture mark -->
+  <g transform="translate(594,92) scale(3.8333)">
+    <circle cx="12" cy="12" r="9" stroke="#F4B642" stroke-width="2.4"/>
+    <circle cx="12" cy="12" r="3.2" fill="#F4B642"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="640" y="264" text-anchor="middle"
+        font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="98" font-weight="800"
+        letter-spacing="15" fill="#F4F3F0">LUMA</text>
+
+  <!-- tagline -->
+  <text x="648" y="312" text-anchor="middle"
+        font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="25" font-weight="500"
+        letter-spacing="0.4" fill="#A6A5A2">Self-hosted · direct-play · HEVC-first media streaming</text>
+
+  <!-- platform overline -->
+  <text x="648" y="364" text-anchor="middle"
+        font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="700"
+        letter-spacing="6" fill="#F4B642">WEB · SAMSUNG TIZEN · LG webOS · SYNOLOGY NAS</text>
+</svg>

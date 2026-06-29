@@ -20,11 +20,16 @@ import type {
   HistoryStats,
   Invite,
   InviteCreated,
+  JobDetail,
+  JobLog,
+  JobsView,
   Library,
+  LlmAdminConfig,
   MediaItem,
   Metadata,
   MetricsSnapshot,
   Permission,
+  PersonResponse,
   PlaybackPing,
   PlaybackSession,
   ProgressEntry,
@@ -123,8 +128,16 @@ export class LumaClient {
   home(): Promise<Section[]> {
     return media.home(this.ctx);
   }
+  /** AI suggestions for a title's detail page; `null` while generating (poll). */
+  aiSuggest(id: string): Promise<Section | null> {
+    return media.aiSuggest(this.ctx, id);
+  }
   search(query: string, opts?: { libraryId?: string; limit?: number }): Promise<SearchResponse> {
     return media.search(this.ctx, query, opts);
+  }
+  /** Every movie + show one person (cast or crew) is credited in. */
+  personCredits(name: string, opts?: { libraryId?: string }): Promise<PersonResponse> {
+    return media.personCredits(this.ctx, name, opts);
   }
   scan(): Promise<ScanResult> {
     return media.scan(this.ctx);
@@ -164,6 +177,9 @@ export class LumaClient {
   }
   backdropFor(x: { metadata?: Metadata | null }): string | null {
     return media.backdropFor(this.ctx, x);
+  }
+  themeFor(x: { metadata?: Metadata | null }): string | null {
+    return media.themeFor(this.ctx, x);
   }
   subtitleUrl(id: string, index: number): string {
     return media.subtitleUrl(this.ctx, id, index);
@@ -322,5 +338,41 @@ export class LumaClient {
   }
   adminOverview(): Promise<AdminOverview> {
     return admin.adminOverview(this.ctx);
+  }
+
+  // ----- admin: background jobs / scheduler -----------------------------------
+
+  adminJobs(): Promise<JobsView> {
+    return admin.adminJobs(this.ctx);
+  }
+  adminJob(key: string): Promise<JobDetail> {
+    return admin.adminJob(this.ctx, key);
+  }
+  runJob(key: string): Promise<{ runId: string }> {
+    return admin.runJob(this.ctx, key);
+  }
+  cancelJob(key: string): Promise<{ cancelled: boolean }> {
+    return admin.cancelJob(this.ctx, key);
+  }
+  updateJob(key: string, patch: { schedule?: string | null; enabled?: boolean }): Promise<void> {
+    return admin.updateJob(this.ctx, key, patch);
+  }
+  jobRunLogs(runId: string): Promise<{ logs: JobLog[] }> {
+    return admin.jobRunLogs(this.ctx, runId);
+  }
+
+  // ----- admin: AI / LLM ------------------------------------------------------
+
+  adminLlm(): Promise<LlmAdminConfig> {
+    return admin.adminLlm(this.ctx);
+  }
+  saveLlm(body: admin.LlmSave): Promise<void> {
+    return admin.saveLlm(this.ctx, body);
+  }
+  llmModels(probe: admin.LlmProbe): Promise<{ models: string[]; error?: string }> {
+    return admin.llmModels(this.ctx, probe);
+  }
+  testLlm(probe: admin.LlmProbe): Promise<{ ok: boolean; message: string }> {
+    return admin.testLlm(this.ctx, probe);
   }
 }

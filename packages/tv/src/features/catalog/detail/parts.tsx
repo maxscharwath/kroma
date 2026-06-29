@@ -1,8 +1,8 @@
 import type { CastMember } from '@luma/core';
 import { useLocale, useT } from '@luma/ui';
-import { IconClock, IconPlus } from '@tabler/icons-react';
+import { IconClock, IconPlus, IconVolume, IconVolumeOff } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useClient } from '#tv/app/router';
+import { useClient, useNav } from '#tv/app/router';
 import { AVATAR_GRADS, initials } from '#tv/shared/ui';
 
 /** Wall-clock time `runtimeMs` from now, in the active locale — French 24-hour
@@ -32,10 +32,11 @@ export function EndsAtHint({ runtimeMs }: Readonly<{ runtimeMs?: number | null }
 
 /** "Distribution" — top-billed cast. Shows the real TMDB headshot when present,
  * else a per-position gradient with initials (varied by index so neighbours never
- * collide). Display-only (no person page yet), so the avatars are not focusable. */
+ * collide). Each face is focusable and opens that person's titles. */
 export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
   const t = useT();
   const client = useClient();
+  const nav = useNav();
   if (!cast || cast.length === 0) return null;
   return (
     <div className="mt-8">
@@ -44,19 +45,28 @@ export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
       </div>
       <div className="scrollbar-none flex gap-6 overflow-x-auto px-1.5 py-4.5">
         {cast.slice(0, 16).map((p, i) => (
-          <div key={`${p.name}-${p.character ?? ''}`} className="w-30 flex-none text-center">
+          <button
+            key={`${p.name}-${p.character ?? ''}`}
+            data-focus=""
+            type="button"
+            onClick={() => nav.go('person', { name: p.name })}
+            aria-label={t('person.viewWorks', { name: p.name })}
+            className="cast-face w-30 flex-none cursor-pointer bg-transparent p-0 text-center"
+          >
             <CastAvatar
               photo={client.resolveArt(p.profileUrl)}
               name={p.name}
               grad={CAST_GRADS[i % CAST_GRADS.length] as string}
             />
-            <div className="truncate font-sans text-[16px] font-semibold text-text">{p.name}</div>
+            <div className="cast-face__name truncate font-sans text-[16px] font-semibold text-text transition-colors">
+              {p.name}
+            </div>
             {p.character ? (
               <div className="truncate font-sans text-[14px] font-medium text-dim">
                 {p.character}
               </div>
             ) : null}
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -74,7 +84,7 @@ function CastAvatar({
   const showImg = Boolean(photo) && !failed;
   return (
     <div
-      className="relative mb-3 flex h-30 w-30 items-center justify-center overflow-hidden rounded-full font-display text-[40px] font-bold text-white/90 shadow-card"
+      className="cast-face__avatar relative mb-3 flex h-30 w-30 items-center justify-center overflow-hidden rounded-full font-display text-[40px] font-bold text-white/90 shadow-card"
       style={{ background: grad }}
     >
       <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_22%,rgba(255,255,255,0.2),transparent_60%)]" />
@@ -125,6 +135,27 @@ export function ListButton({
         <IconPlus size={20} stroke={2} />
       )}
       {inList ? t('content.inList') : t('content.addToList')}
+    </button>
+  );
+}
+
+/** Round mute toggle for the show's theme song (remote-focusable). */
+export function ThemeButton({
+  muted,
+  onToggle,
+}: Readonly<{ muted: boolean; onToggle: () => void }>) {
+  const t = useT();
+  const label = muted ? t('content.unmuteTheme') : t('content.muteTheme');
+  return (
+    <button
+      data-focus=""
+      type="button"
+      onClick={onToggle}
+      aria-label={label}
+      title={label}
+      className="inline-flex h-15 w-15 cursor-pointer items-center justify-center rounded-full border border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] text-text transition-transform focus:scale-[1.04]"
+    >
+      {muted ? <IconVolumeOff size={24} stroke={2} /> : <IconVolume size={24} stroke={2} />}
     </button>
   );
 }

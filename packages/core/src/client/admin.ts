@@ -5,6 +5,10 @@ import type {
   AdminOverview,
   AdminUsers,
   HistoryStats,
+  JobDetail,
+  JobLog,
+  JobsView,
+  LlmAdminConfig,
   MetricsSnapshot,
   Permission,
   PlaybackSession,
@@ -29,7 +33,11 @@ export function adminSessions(ctx: RequestContext): Promise<{ sessions: Playback
 
 /** Terminate a live playback session; the owning client stops and shows
  * `message` (empty → the client's localized default). */
-export async function terminateSession(ctx: RequestContext, id: string, message?: string): Promise<void> {
+export async function terminateSession(
+  ctx: RequestContext,
+  id: string,
+  message?: string,
+): Promise<void> {
   await ctx.json<void>(`/admin/sessions/${encodeURIComponent(id)}/stop`, {
     method: 'POST',
     headers: JSON_HEADERS,
@@ -105,4 +113,121 @@ export function playHistory(ctx: RequestContext, days = 28): Promise<HistoryStat
 /** Top-line counts for the users page. */
 export function adminOverview(ctx: RequestContext): Promise<AdminOverview> {
   return ctx.json<AdminOverview>('/admin/stats/overview');
+}
+
+// ----- background jobs / scheduler --------------------------------------------
+
+/** Every background job with its schedule, last run and next fire. */
+export function adminJobs(ctx: RequestContext): Promise<JobsView> {
+  return ctx.json<JobsView>('/admin/jobs');
+}
+
+/** One job plus its recent run history. */
+export function adminJob(ctx: RequestContext, key: string): Promise<JobDetail> {
+  return ctx.json<JobDetail>(`/admin/jobs/${encodeURIComponent(key)}`);
+}
+
+/** Trigger a job now (manual). Resolves with the new run id. */
+export function runJob(ctx: RequestContext, key: string): Promise<{ runId: string }> {
+  return ctx.json<{ runId: string }>(`/admin/jobs/${encodeURIComponent(key)}/run`, {
+    method: 'POST',
+  });
+}
+
+/** Request cancellation of a job's current run. */
+export function cancelJob(ctx: RequestContext, key: string): Promise<{ cancelled: boolean }> {
+  return ctx.json<{ cancelled: boolean }>(`/admin/jobs/${encodeURIComponent(key)}/cancel`, {
+    method: 'POST',
+  });
+}
+
+/** Update a job's cron schedule (`null` clears it) and/or enabled flag. */
+export async function updateJob(
+  ctx: RequestContext,
+  key: string,
+  patch: { schedule?: string | null; enabled?: boolean },
+): Promise<void> {
+  await ctx.json<void>(`/admin/jobs/${encodeURIComponent(key)}`, {
+    method: 'PATCH',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(patch),
+  });
+}
+
+/** The log lines of a specific run (chronological). */
+export function jobRunLogs(ctx: RequestContext, runId: string): Promise<{ logs: JobLog[] }> {
+  return ctx.json<{ logs: JobLog[] }>(`/admin/job-runs/${encodeURIComponent(runId)}/logs`);
+}
+
+// ----- AI / LLM configuration -------------------------------------------------
+
+/** Probe values (the in-progress form); blank fields fall back to the saved
+ *  provider identified by `id` (notably a masked API key). */
+export interface LlmProbe {
+  /** The provider being edited, so a blank key reuses that provider's stored one. */
+  id?: string;
+  provider?: string;
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+}
+
+/** Current LLM config: all providers + the default id (keys never returned). */
+export function adminLlm(ctx: RequestContext): Promise<LlmAdminConfig> {
+  return ctx.json<LlmAdminConfig>('/admin/llm');
+}
+
+/** A provider as sent on save — like the view but without `hasApiKey`, plus an
+ *  optional `apiKey` (blank/omitted keeps the stored secret). */
+export interface LlmProviderInput {
+  id: string;
+  name: string;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  apiKey?: string;
+  temperature: number;
+  maxTokens: number;
+  reasoning: boolean;
+}
+
+/** The full IA config to persist (PUT /admin/llm). The default is identified by
+ *  **index** — a not-yet-saved provider has no id yet (the server assigns one). */
+export interface LlmSave {
+  enabled: boolean;
+  defaultIndex: number;
+  providers: LlmProviderInput[];
+}
+
+/** Persist the provider list + default selection + enable flag. */
+export function saveLlm(ctx: RequestContext, body: LlmSave): Promise<void> {
+  return ctx.json<void>('/admin/llm', {
+    method: 'PUT',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+/** List the models an endpoint advertises (for the model picker). */
+export function llmModels(
+  ctx: RequestContext,
+  probe: LlmProbe,
+): Promise<{ models: string[]; error?: string }> {
+  return ctx.json('/admin/llm/models', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(probe),
+  });
+}
+
+/** Probe a connection (trivial completion). Always resolves with `{ ok, message }`. */
+export function testLlm(
+  ctx: RequestContext,
+  probe: LlmProbe,
+): Promise<{ ok: boolean; message: string }> {
+  return ctx.json('/admin/llm/test', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify(probe),
+  });
 }

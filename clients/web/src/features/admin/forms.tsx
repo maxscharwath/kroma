@@ -40,15 +40,19 @@ export function TextInput({
   onBlur,
   placeholder,
   className = '',
+  type = 'text',
 }: Readonly<{
   value: string;
   onChange?: (v: string) => void;
   onBlur?: () => void;
   placeholder?: string;
   className?: string;
+  /** Input type, e.g. `password` for secrets. Defaults to `text`. */
+  type?: string;
 }>) {
   return (
     <input
+      type={type}
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange?.(e.target.value)}
@@ -87,14 +91,19 @@ export function Modal({
   );
 }
 
-/** A labelled form field (uppercase caption + control). */
-export function Field({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
+/** A labelled form field (uppercase caption + control + optional hint below). */
+export function Field({
+  label,
+  hint,
+  children,
+}: Readonly<{ label: string; hint?: string; children: ReactNode }>) {
   return (
     <div className="mb-4">
-      <label className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.12em] text-dim">
+      <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.12em] text-dim">
         {label}
-      </label>
+      </span>
       {children}
+      {hint ? <p className="mt-1.5 text-[12px] leading-relaxed text-dim">{hint}</p> : null}
     </div>
   );
 }
@@ -120,7 +129,9 @@ export function ModalActions({
   destructive?: { label: string; onClick: () => void; disabled?: boolean; title?: string };
 }>) {
   return (
-    <div className={`mt-5 flex items-center gap-3 ${destructive ? 'justify-between' : 'justify-end'}`}>
+    <div
+      className={`mt-5 flex items-center gap-3 ${destructive ? 'justify-between' : 'justify-end'}`}
+    >
       {destructive ? (
         <button
           type="button"

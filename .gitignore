@@ -38,3 +38,6 @@ scripts/serve-nas.sh
 
 # Logs
 *.log
+
+# Local runtime data dir (single-port dev: DB, WAL/SHM, logs, image cache)
+/data/

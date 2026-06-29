@@ -6,6 +6,8 @@
 //! and the activity feed.
 
 pub mod auth;
+pub mod jobs;
+pub mod llm;
 pub mod scan;
 pub mod enrich;
 pub mod search;

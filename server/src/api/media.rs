@@ -7,12 +7,10 @@ use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
-use tracing::info;
 
 use crate::api::error::json_error;
 use crate::api::util::{blocking, query};
 use crate::db;
-use crate::infra::events::ServerEvent;
 use crate::state::SharedState;
 
 #[derive(Debug, Deserialize)]
@@ -89,41 +87,24 @@ pub async fn get_item(
     Ok(Json(item).into_response())
 }
 
-/// `POST /api/scan` → rescan all dirs, reseeding demo content if empty.
+/// `POST /api/scan` → trigger a full library rescan. Routed through the tracked
+/// `library.scan` job so it shares the job manager's single-flight guard (no
+/// concurrent walk racing a watch-triggered run on the same DB) and shows in the
+/// admin "Tâches" console; the walk + sync + phase-2 follow-ups live there.
 pub async fn rescan(State(state): State<SharedState>) -> Result<Response, Response> {
-    let defs = crate::services::settings::library_defs(&state.settings, &state.config);
-
-    state.events.publish(ServerEvent::ScanStarted);
-    crate::services::activity::scan_started(&state.activity);
-
-    // Phase 1 (fast): walk + stat only, diff-synced (preserves metadata + probed
-    // data via the mtime cache). Phase 2 probing is spawned afterwards.
-    let data = query(&state.db, move |pool| {
-        let mut data = crate::services::scan::scan_all(&defs);
-        if data.items.is_empty() {
-            info!("scan yielded no items; seeding demo content");
-            data = crate::services::demo::demo_data();
+    use crate::model::JobId;
+    use crate::services::jobs::TriggerError;
+    match state.jobs.trigger(state.clone(), JobId::LibraryScan, "manual") {
+        Ok(run_id) => Ok(Json(serde_json::json!({ "runId": run_id })).into_response()),
+        // A scan is already in progress (manual or watch-triggered) — report it
+        // rather than starting a second, racing pass.
+        Err(TriggerError::AlreadyRunning) => {
+            Err(json_error(StatusCode::CONFLICT, "a scan is already running"))
         }
-        db::sync_all(&pool, &data.libraries, &data.shows, &data.items, &data.mtimes)?;
-        Ok(data)
-    })
-    .await?;
-
-    let (libraries, shows, items) = (data.libraries.len(), data.shows.len(), data.items.len());
-    crate::services::activity::scan_completed(&state.activity, libraries, shows, items, crate::services::scan::now_iso8601());
-    // Tell live clients the catalog changed, then run phase-2 probing and
-    // re-resolve TMDB art in the background (both emit live updates).
-    state.events.publish(ServerEvent::ScanCompleted { items, shows, libraries });
-    state.events.publish(ServerEvent::LibraryUpdated);
-    crate::infra::probe::spawn_probe_pass(
-        state.db.clone(),
-        state.ffprobe_available,
-        state.events.clone(),
-        state.activity.clone(),
-    );
-    crate::services::search::spawn_reindex(state.clone());
-    crate::services::enrich::maybe_spawn(&state, &data.items, &data.shows);
-    Ok(Json(super::dto::ScanResult { scanned: items, libraries, shows }).into_response())
+        Err(TriggerError::Unknown) => {
+            Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, "scan job not registered"))
+        }
+    }
 }
 
 /// `GET /api/status` → live scan/enrichment snapshot.

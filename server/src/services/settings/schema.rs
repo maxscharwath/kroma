@@ -77,6 +77,7 @@ pub fn groups(
                     row("updateChannel", t("admin.updateChannel"), Some(t("admin.updateChannelHint")), "select", &["Stable", "Bêta"], g("updateChannel"), false),
                     row("anonStats", t("admin.anonStats"), Some(t("admin.anonStatsHint")), "toggle", &[], g("anonStats"), false),
                     row("showRecentHome", t("admin.showRecentHome"), None, "toggle", &[], g("showRecentHome"), false),
+                    row("themeSongs", t("admin.themeSongs"), Some(t("admin.themeSongsHint")), "toggle", &[], g("themeSongs"), true),
                 ],
             ),
             group(

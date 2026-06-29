@@ -25,6 +25,7 @@ import { TvQuickConnect } from '#tv/features/accounts/TvQuickConnect';
 import { TvGrid } from '#tv/features/catalog/TvGrid';
 import { TvHome } from '#tv/features/catalog/TvHome';
 import { TvMovieDetail } from '#tv/features/catalog/TvMovieDetail';
+import { TvPerson } from '#tv/features/catalog/TvPerson';
 import { TvSearch } from '#tv/features/catalog/TvSearch';
 import { TvShowDetail } from '#tv/features/catalog/TvShowDetail';
 import { TvPlayer } from '#tv/features/playback/TvPlayer';
@@ -102,6 +103,7 @@ const SCREENS: TvScreens = {
   home: TvHome,
   grid: TvGrid,
   search: TvSearch,
+  person: TvPerson,
   movie: TvMovieDetail,
   show: TvShowDetail,
   player: TvPlayer,
@@ -116,6 +118,7 @@ const APP_SCREENS = [
   'home',
   'grid',
   'search',
+  'person',
   'movie',
   'show',
   'player',

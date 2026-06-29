@@ -39,6 +39,26 @@ pub fn max_transcodes(settings: &Settings) -> usize {
     settings.get_i64("maxConcurrent", 4).clamp(1, 12) as usize
 }
 
+/// Whether Plex-style theme songs are enabled: enrichment downloads a show's
+/// theme and the detail page loops it. Opt-in (off by default).
+pub fn theme_songs_enabled(settings: &Settings) -> bool {
+    settings.get_bool("themeSongs", false)
+}
+
+/// The TMDB metadata language used when enriching the catalog (e.g. `fr-FR`) —
+/// the persisted `tmdbLanguage` setting, falling back to the env-configured
+/// `config.tmdb_language` (default `en-US`) when unset. The catalog stores ONE
+/// language for everyone, so this is the household's metadata language, not a
+/// per-user UI choice.
+pub fn metadata_language(settings: &Settings, config: &crate::config::Config) -> String {
+    let v = settings.get_str("tmdbLanguage", "");
+    if v.trim().is_empty() {
+        config.tmdb_language.clone()
+    } else {
+        v
+    }
+}
+
 // ----- library definitions (persisted, multi-folder) --------------------------
 
 /// A named, runtime-editable library spanning one or more scan folders. Persisted

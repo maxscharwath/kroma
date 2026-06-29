@@ -8,12 +8,16 @@
 //! server-status / live-sessions / metrics dashboard handlers and the shared
 //! capability guards live here.
 
+mod jobs;
 mod libraries;
+mod llm;
 mod settings;
 mod stats;
 mod storage;
 mod users;
 
+pub use jobs::{cancel_job, job_detail, list_jobs, run_job, run_logs, update_job};
+pub use llm::{get_llm, llm_models, save_llm, test_llm};
 pub use libraries::{create_library, delete_library, list_libraries, scan_library, update_library};
 pub use settings::{get_settings, put_settings};
 pub use stats::{history, overview, top_users};
@@ -146,3 +150,4 @@ pub async fn metrics(
     require_any_admin(&user)?;
     Ok(Json(state.metrics.snapshot()).into_response())
 }
+

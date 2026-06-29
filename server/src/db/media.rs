@@ -172,6 +172,37 @@ pub fn get_shows_by_ids(pool: &Pool, ids: &[String]) -> Result<Vec<Show>> {
     Ok(shows)
 }
 
+/// Ids of every movie + show crediting `name` in its cast OR key crew, matched
+/// case-insensitively over the metadata JSON. Returns `(movie_ids, show_ids)`;
+/// episodes are excluded (they inherit a show's credits). Powers `GET /api/people`
+/// — "everything this actor/director appears in or worked on".
+pub fn titles_by_person(pool: &Pool, name: &str) -> Result<(Vec<String>, Vec<String>)> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+    let conn = pool.get()?;
+    let movie_ids =
+        person_ids(&conn, "SELECT id FROM items WHERE kind != 'episode' AND metadata IS NOT NULL AND (", name)?;
+    let show_ids = person_ids(&conn, "SELECT id FROM shows WHERE metadata IS NOT NULL AND (", name)?;
+    Ok((movie_ids, show_ids))
+}
+
+/// Run the shared "credited as `name`" EXISTS predicate (cast OR crew) appended to
+/// a table-specific `prefix`, returning the matching ids.
+fn person_ids(conn: &rusqlite::Connection, prefix: &str, name: &str) -> Result<Vec<String>> {
+    let sql = format!(
+        "{prefix} \
+         EXISTS (SELECT 1 FROM json_each(metadata,'$.cast') c WHERE json_extract(c.value,'$.name') = ?1 COLLATE NOCASE) OR \
+         EXISTS (SELECT 1 FROM json_each(metadata,'$.crew') c WHERE json_extract(c.value,'$.name') = ?1 COLLATE NOCASE))"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let ids = stmt
+        .query_map(params![name], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(ids)
+}
+
 /// Cheap title lookup for show poster rendering.
 pub fn show_title(pool: &Pool, id: &str) -> Result<Option<String>> {
     let conn = pool.get()?;

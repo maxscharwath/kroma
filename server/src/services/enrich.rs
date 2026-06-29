@@ -20,6 +20,7 @@ use crate::infra::embed::{self, Embedder};
 use crate::infra::events::{Bus, ServerEvent};
 use crate::infra::image;
 use crate::infra::metadata::{self, Cache, Target};
+use crate::infra::theme;
 use crate::model::{Kind, MediaItem, Show};
 use crate::services::search::SearchEngine;
 use crate::state::SharedState;
@@ -82,8 +83,9 @@ pub fn maybe_spawn(state: &SharedState, items: &[MediaItem], shows: &[Show]) {
         state.db.clone(),
         state.metadata_cache.clone(),
         api_key,
-        state.config.tmdb_language.clone(),
+        crate::services::settings::metadata_language(&state.settings, &state.config),
         state.config.data_dir.clone(),
+        crate::services::settings::theme_songs_enabled(&state.settings),
         state.events.clone(),
         state.activity.clone(),
         embedder,
@@ -99,6 +101,7 @@ fn spawn(
     api_key: String,
     language: String,
     data_dir: PathBuf,
+    theme_songs: bool,
     bus: Bus,
     activity: Activity,
     embedder: Arc<dyn Embedder>,
@@ -143,6 +146,11 @@ fn spawn(
                     };
                     // Download + transcode poster/backdrop to local WebP.
                     let meta = image::localize(&data_dir, meta);
+                    // Download the show's theme song when the feature is on (TV
+                    // only; movies carry no tvdb_id, so it's a no-op for them).
+                    // Disabled → theme_url stays None, so a re-scan also clears
+                    // any theme cached while it was enabled.
+                    let meta = if theme_songs { theme::localize(&data_dir, meta) } else { meta };
                     // Embed the title from its (title, year, genres, cast,
                     // overview) for similar-to / themed / "For You" rows.
                     let doc = embed::build_doc(&job.title, job.year, &meta);

@@ -45,6 +45,9 @@ export interface TvRoutes {
   grid: { kind: 'films' | 'series' | 'mylist' };
   /** Search with an on-screen keyboard. */
   search: undefined;
+  /** Everything one cast/crew person is credited in (selected from a detail
+   * page's "Distribution" rail). */
+  person: { name: string };
   movie: { item: MediaItem };
   show: { show: Show };
   player: { item: MediaItem };

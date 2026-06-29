@@ -26,8 +26,9 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "server": "cd server && cargo run",
-    "server:watch": "cd server && cargo watch -x run",
+    "server": "cd server && cargo run --features semantic-embeddings",
+    "server:watch": "cd server && cargo watch -x 'run --features semantic-embeddings'",
+    "server:watch:lexical": "cd server && cargo watch -x run",
     "server:build": "cd server && cargo build --release"
   },
   "devDependencies": {

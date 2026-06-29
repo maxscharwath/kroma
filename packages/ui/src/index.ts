@@ -20,3 +20,5 @@ export type { LocaleProviderProps } from './locale';
 export { LocaleProvider } from './locale';
 export type { PlaybackHeartbeatParams } from './playback';
 export { usePlaybackHeartbeat } from './playback';
+export type { ThemeAudio } from './themeAudio';
+export { useThemeAudio } from './themeAudio';

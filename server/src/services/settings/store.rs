@@ -83,11 +83,24 @@ fn defaults() -> BTreeMap<String, Value> {
     // general
     m.insert("serverName".into(), json!("LUMA"));
     m.insert("uiLanguage".into(), json!("Français"));
+    // TMDB metadata language (e.g. "fr-FR"). Empty → fall back to the
+    // env-configured `LUMA_TMDB_LANGUAGE` (default "en-US"). One language for the
+    // whole catalog — the household's metadata language, not a per-user UI choice.
+    m.insert("tmdbLanguage".into(), json!(""));
     m.insert("timezone".into(), json!("Europe/Zurich (UTC+1)"));
     m.insert("autoUpdate".into(), json!(true));
     m.insert("updateChannel".into(), json!("Stable"));
+    // Library auto-scan on folder changes (the watcher). `watchAutoScan` is the
+    // master toggle; `watchIntervalSecs` is the periodic re-scan cadence (the only
+    // path that catches NAS/SMB edits, which emit no FS events) — `-1` = use the
+    // `LUMA_WATCH_INTERVAL` env or 300s default, `0` = FS events only.
+    m.insert("watchAutoScan".into(), json!(true));
+    m.insert("watchIntervalSecs".into(), json!(-1));
     m.insert("anonStats".into(), json!(false));
     m.insert("showRecentHome".into(), json!(true));
+    // Plex-style theme songs: loop a show's title theme under its detail page.
+    // Opt-in — off until the admin enables it (and a scan downloads the themes).
+    m.insert("themeSongs".into(), json!(false));
     m.insert("theme".into(), json!("Sombre (Luma)"));
     m.insert("dateFormat".into(), json!("JJ/MM/AAAA"));
     // network
@@ -108,6 +121,27 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("deleteAfter".into(), json!(true));
     // storage / cache
     m.insert("cacheLimit".into(), json!("80 Go"));
+    // jobs: scheduler timezone offset in minutes from UTC (cron `0 4 * * *`
+    // means 4am at this offset). 0 = UTC; e.g. 60 = UTC+1, -300 = UTC-5.
+    m.insert("jobsUtcOffset".into(), json!(0));
+    // AI / LLM: powers personalized auto-named home sections + per-user taste
+    // profiles (the `sections.personalize` job). Open-ended provider choice:
+    // openai = any OpenAI-compatible server (Ollama, llama.cpp, LM Studio, …);
+    // anthropic = Claude. Off until configured.
+    m.insert("llmEnabled".into(), json!(false));
+    m.insert("llmProvider".into(), json!("openai"));
+    m.insert("llmBaseUrl".into(), json!("")); // e.g. http://localhost:11434/v1 (Ollama)
+    m.insert("llmModel".into(), json!("")); // e.g. qwen2.5:1.5b-instruct, or claude-haiku-4-5
+    m.insert("llmApiKey".into(), json!(""));
+    // generation controls
+    m.insert("llmTemperature".into(), json!(0.7)); // OpenAI-compatible sampling temp
+    m.insert("llmMaxTokens".into(), json!(900)); // output cap per completion
+    m.insert("llmReasoning".into(), json!(false)); // Anthropic adaptive thinking (Claude 4.6+)
+    // multi-provider: the editable list of LLM providers + the id of the default
+    // one used for generation. Seeded (migrated) from the flat `llm*` keys above
+    // on first read when empty. See `settings::llm`.
+    m.insert("llmProviders".into(), json!([]));
+    m.insert("llmDefaultProvider".into(), json!(""));
     // libraries: persisted multi-folder definitions (seeded from env on first run).
     m.insert("libraries".into(), json!(null));
     m

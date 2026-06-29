@@ -1,13 +1,19 @@
 import { formatRuntime, posterColors, qualityBadgeForVideo, type ShowDetail } from '@luma/core';
-import { useLocale, useT } from '@luma/ui';
+import { useLocale, useT, useThemeAudio } from '@luma/ui';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
-import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
-import { CastRow, EndsAtHint, endsAtClock, ListButton } from '#tv/features/catalog/detail/parts';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useClient, useNav, useParams } from '#tv/app/router';
-import { PlayGlyph, TV_PLAY_BTN, TvArt } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
+import {
+  CastRow,
+  EndsAtHint,
+  endsAtClock,
+  ListButton,
+  ThemeButton,
+} from '#tv/features/catalog/detail/parts';
+import { PlayGlyph, TV_PLAY_BTN, TvArt } from '#tv/shared/TvMedia';
 
 export function TvShowDetail() {
   const nav = useNav();
@@ -44,6 +50,7 @@ export function TvShowDetail() {
 
   const meta = show.metadata;
   const backdrop = client.backdropFor(show) ?? client.showPosterFor(show);
+  const theme = useThemeAudio(client.themeFor(show));
 
   const activeSeason = useMemo(
     () => detail?.seasons.find((s) => s.number === season) ?? detail?.seasons[0] ?? null,
@@ -86,6 +93,7 @@ export function TvShowDetail() {
             : t('player.play')}
         </button>
         <ListButton inList={myList.has(show.id)} onToggle={() => myList.toggle(show.id)} />
+        {theme.active ? <ThemeButton muted={theme.muted} onToggle={theme.toggle} /> : null}
       </div>
       <EndsAtHint runtimeMs={firstEpisode?.durationMs} />
 

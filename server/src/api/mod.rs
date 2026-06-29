@@ -15,10 +15,13 @@ mod images;
 mod invites;
 mod media;
 mod metadata;
+mod people;
 mod pin;
 mod recommend;
 mod search;
 mod stream;
+mod suggest;
+mod themes;
 mod util;
 
 use axum::extract::DefaultBodyLimit;
@@ -39,6 +42,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/movies", get(media::list_movies))
         .route("/shows", get(media::list_shows))
         .route("/search", get(search::search))
+        .route("/people", get(people::person))
         .route("/shows/:id", get(media::get_show))
         .route("/shows/:id/poster", get(images::show_poster))
         .route("/shows/:id/metadata", get(metadata::show_metadata))
@@ -50,9 +54,11 @@ pub fn router(state: SharedState) -> Router {
         .route("/items/:id/card", get(images::item_card))
         .route("/items/:id/metadata", get(metadata::item_metadata))
         .route("/items/:id/similar", get(recommend::similar))
+        .route("/items/:id/ai-suggest", get(suggest::ai_suggest))
         .route("/themed", get(recommend::themed))
         .route("/items/:id/subtitles/:track", get(stream::subtitles))
         .route("/images/:name", get(images::image))
+        .route("/themes/:name", get(themes::theme))
         .route("/events", get(ws::events))
         .route("/status", get(media::status))
         .route("/logs", get(media::logs))
@@ -100,6 +106,9 @@ pub fn router(state: SharedState) -> Router {
         .route("/admin/sessions", get(admin::sessions))
         .route("/admin/sessions/:id/stop", post(admin::terminate_session))
         .route("/admin/metrics", get(admin::metrics))
+        .route("/admin/llm", get(admin::get_llm).put(admin::save_llm))
+        .route("/admin/llm/models", post(admin::llm_models))
+        .route("/admin/llm/test", post(admin::test_llm))
         .route("/admin/storage", get(admin::storage))
         .route("/admin/cache/clear", post(admin::clear_cache))
         .route("/admin/users", get(admin::list_users))
@@ -122,7 +131,16 @@ pub fn router(state: SharedState) -> Router {
         )
         .route("/admin/stats/top-users", get(admin::top_users))
         .route("/admin/stats/history", get(admin::history))
-        .route("/admin/stats/overview", get(admin::overview));
+        .route("/admin/stats/overview", get(admin::overview))
+        // --- background jobs / scheduler ---
+        .route("/admin/jobs", get(admin::list_jobs))
+        .route("/admin/job-runs/:run_id/logs", get(admin::run_logs))
+        .route(
+            "/admin/jobs/:key",
+            get(admin::job_detail).patch(admin::update_job),
+        )
+        .route("/admin/jobs/:key/run", post(admin::run_job))
+        .route("/admin/jobs/:key/cancel", post(admin::cancel_job));
 
     let mut app = Router::new().nest("/api", api);
 

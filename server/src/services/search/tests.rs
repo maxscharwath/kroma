@@ -15,11 +15,14 @@ fn meta(title: &str, overview: &str, genres: &[&str], cast: &[&str]) -> Metadata
         poster_url: None,
         backdrop_url: None,
         logo_url: None,
+        theme_url: None,
         cast: cast
             .iter()
             .map(|n| CastMember { name: n.to_string(), character: None, profile_url: None })
             .collect(),
+        crew: Vec::new(),
         keywords: Vec::new(),
+        tvdb_id: None,
         tmdb_url: String::new(),
     }
 }

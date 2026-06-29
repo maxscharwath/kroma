@@ -180,6 +180,38 @@ pub struct SettingsView {
     pub groups: Vec<SettingGroup>,
 }
 
+/// `GET /api/admin/llm` — the multi-provider LLM configuration for the IA admin
+/// page: the global enable flag, the id of the default provider used for
+/// generation, and every configured provider (API keys never returned).
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LlmAdminConfig {
+    pub enabled: bool,
+    /// Id of the provider used for generation (falls back to the first).
+    pub default_id: String,
+    pub providers: Vec<LlmProviderView>,
+}
+
+/// One configured provider as shown to the admin — the API key itself is never
+/// returned, only whether one is set (`has_api_key`).
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LlmProviderView {
+    pub id: String,
+    pub name: String,
+    /// `"openai"` (OpenAI-compatible / Ollama) | `"anthropic"` | `"openrouter"`.
+    pub provider: String,
+    pub base_url: String,
+    pub model: String,
+    pub has_api_key: bool,
+    pub temperature: f32,
+    pub max_tokens: i64,
+    /// Anthropic adaptive thinking (Claude 4.6+).
+    pub reasoning: bool,
+}
+
 /// One ranked result of `GET /api/search` — a `type`-tagged union so the client
 /// can switch on it (`movie`/`episode` carry a `MediaItem`, `show` a `Show`).
 #[derive(Serialize, TS)]
@@ -196,5 +228,16 @@ pub enum SearchHit {
 #[ts(export)]
 pub struct SearchResponse {
     pub query: String,
+    pub results: Vec<SearchHit>,
+}
+
+/// `GET /api/people?name=…` — every movie + show one person is credited in (cast
+/// or key crew), best-known work first. Reuses [`SearchHit`] so clients render the
+/// results with their existing card UI.
+#[derive(Serialize, TS)]
+#[ts(export)]
+pub struct PersonResponse {
+    /// The matched person's name (echoed; original casing from the request).
+    pub name: String,
     pub results: Vec<SearchHit>,
 }

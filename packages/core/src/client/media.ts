@@ -6,6 +6,7 @@ import type {
   Library,
   MediaItem,
   Metadata,
+  PersonResponse,
   ScanResult,
   SearchResponse,
   Section,
@@ -64,6 +65,14 @@ export function home(ctx: RequestContext): Promise<Section[]> {
   return ctx.json<Section[]>('/home');
 }
 
+/** AI-curated suggestions for one title's detail page ("Suggestions IA"), Bearer.
+ * Generated lazily by the LLM connector and cached server-side, so the first call
+ * for a title returns `null` (generating) — poll until a {@link Section} arrives
+ * (its `items` may be empty when the model found nothing worth showing). */
+export function aiSuggest(ctx: RequestContext, id: string): Promise<Section | null> {
+  return ctx.json<Section | null>(`/items/${encodeURIComponent(id)}/ai-suggest`);
+}
+
 /** Full-text catalogue search (movies, shows, episodes). Server-side
  * field-weighted, typo-tolerant ranking — well suited to imperfect voice
  * transcripts. `limit` caps results (the server clamps to 60). */
@@ -76,6 +85,19 @@ export function search(
   if (opts?.limit) params.set('limit', String(opts.limit));
   if (opts?.libraryId) params.set('library', opts.libraryId);
   return ctx.json<SearchResponse>(`/search?${params.toString()}`);
+}
+
+/** Every movie + show one person is credited in (cast or key crew). Server-side
+ * exact (case-insensitive) match over the catalogue metadata — distinct from the
+ * fuzzy {@link search} — ordered best-known work first. */
+export function personCredits(
+  ctx: RequestContext,
+  name: string,
+  opts?: { libraryId?: string },
+): Promise<PersonResponse> {
+  const params = new URLSearchParams({ name });
+  if (opts?.libraryId) params.set('library', opts.libraryId);
+  return ctx.json<PersonResponse>(`/people?${params.toString()}`);
 }
 
 export function scan(ctx: RequestContext): Promise<ScanResult> {
@@ -162,6 +184,12 @@ export function showPosterFor(ctx: RequestContext, x: Pick<Show, 'id' | 'metadat
 /** Cover/backdrop art for a movie or show, or `null` when none was resolved. */
 export function backdropFor(ctx: RequestContext, x: { metadata?: Metadata | null }): string | null {
   return resolveArt(ctx, x.metadata?.backdropUrl);
+}
+
+/** Plex-style theme song for a movie or show, or `null` when none was resolved.
+ * Only TV shows carry one (a cached `/api/themes/<tvdb>.mp3`); movies are null. */
+export function themeFor(ctx: RequestContext, x: { metadata?: Metadata | null }): string | null {
+  return resolveArt(ctx, x.metadata?.themeUrl);
 }
 
 /** WebVTT URL for the n-th embedded subtitle track of an item. The server

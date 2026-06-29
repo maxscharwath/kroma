@@ -1,10 +1,12 @@
 import { formatRuntime, qualityBadge, type Translate } from '@luma/core';
 import { useT } from '@luma/ui';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { AiSuggestRail } from '#web/features/catalog/AiSuggestRail';
 import {
   audioString,
   CastRail,
   DetailHero,
+  directorsOf,
   langName,
   qualityBadges,
   type SimilarItem,
@@ -16,14 +18,21 @@ import { lumaClient, type MovieView, toMovieView } from '#web/shared/lib/api';
 export const Route = createFileRoute('/movie/$id')({
   loader: async ({ params }) => {
     const c = lumaClient();
-    const [item, movies] = await Promise.all([c.item(params.id), c.movies()]);
+    // "Titres similaires" prefers the content-embedding neighbours (ranked by the
+    // embedder — semantic once MiniLM is enabled, genre-guarded server-side). Fall
+    // back to a plain genre-overlap when the title isn't embedded / too few match.
+    const [item, movies, embed] = await Promise.all([
+      c.item(params.id),
+      c.movies(),
+      c.similar(params.id).catch(() => []),
+    ]);
     const movie = toMovieView(c, item);
-    // "Titres similaires" — other films sharing a genre, else just other films.
     const genres = new Set(movie.metadata?.genres ?? []);
     const others = movies.filter((m) => m.id !== movie.id);
     const related = others.filter((m) => (m.metadata?.genres ?? []).some((g) => genres.has(g)));
-    const pool = (related.length >= 3 ? related : others).slice(0, 12);
-    const similar: SimilarItem[] = pool.map((m) => ({
+    const base =
+      embed.length >= 3 ? embed : (related.length >= 3 ? related : others).slice(0, 12);
+    const similar: SimilarItem[] = base.slice(0, 12).map((m) => ({
       id: m.id,
       title: m.title,
       // Empty string → the component fills the localized "Movie" fallback.
@@ -63,6 +72,7 @@ function MovieDetailPage() {
         rating={meta?.rating}
         meta={metaLong(t, movie)}
         badges={qualityBadges(movie.video)}
+        directors={directorsOf(meta)}
         tagline={meta?.tagline}
         overview={meta?.overview}
         audio={audioString(t, movie)}
@@ -77,6 +87,7 @@ function MovieDetailPage() {
         items={similar.map((s) => ({ ...s, genre: s.genre || t('content.film') }))}
         onOpen={(id) => navigate({ to: '/movie/$id', params: { id } })}
       />
+      <AiSuggestRail id={movie.id} />
     </main>
   );
 }

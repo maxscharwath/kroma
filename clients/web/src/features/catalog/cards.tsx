@@ -1,8 +1,8 @@
 import { metaLine, posterColors, qualityBadge, qualityBadgeForVideo } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useNavigate } from '@tanstack/react-router';
-import { Badge, Button, Poster, Rail } from '#web/shared/ui';
 import type { MovieView, ShowView } from '#web/shared/lib/api';
+import { Badge, Button, Poster, Rail } from '#web/shared/ui';
 
 type HeroBadge = '4K' | 'HDR' | 'H.265';
 
@@ -153,6 +153,25 @@ export function ShowGrid({ shows }: Readonly<{ shows: ShowView[] }>) {
       {shows.map((show) => (
         <ShowPoster key={show.id} show={show} />
       ))}
+    </div>
+  );
+}
+
+/** A movie or a show, tagged so a mixed list (e.g. one person's filmography)
+ * renders each tile with the right poster + navigation. */
+export type CatalogEntry = { kind: 'movie'; movie: MovieView } | { kind: 'show'; show: ShowView };
+
+/** A grid mixing movies and shows in the given order (server-ranked). */
+export function CatalogGrid({ entries }: Readonly<{ entries: CatalogEntry[] }>) {
+  return (
+    <div className={GRID}>
+      {entries.map((e) =>
+        e.kind === 'movie' ? (
+          <MoviePoster key={e.movie.id} item={e.movie} />
+        ) : (
+          <ShowPoster key={e.show.id} show={e.show} />
+        ),
+      )}
     </div>
   );
 }

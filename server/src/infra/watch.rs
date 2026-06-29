@@ -16,14 +16,13 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
 
 use notify::{RecursiveMode, Watcher};
+use tokio::runtime::Handle;
 use tracing::{info, warn};
 
-use crate::infra::events::ServerEvent;
 use crate::model::MediaItem;
+use crate::services::jobs::{Trigger, TriggerError};
+use crate::services::scan;
 use crate::state::SharedState;
-use crate::db;
-use crate::infra::probe;
-use crate::services::{activity, enrich, scan};
 
 const DEFAULT_INTERVAL_SECS: u64 = 300;
 const DEBOUNCE: Duration = Duration::from_secs(2);
@@ -34,42 +33,51 @@ pub fn spawn(state: SharedState, baseline: u64) {
     if state.config.media_dirs.is_empty() {
         return; // demo mode — nothing on disk to watch
     }
-    let interval = std::env::var("LUMA_WATCH_INTERVAL")
-        .ok()
-        .and_then(|s| s.trim().parse::<u64>().ok())
-        .unwrap_or(DEFAULT_INTERVAL_SECS);
+    // Captured from the (tokio) main thread so the watcher's std::thread can hand
+    // re-scans to the tracked job manager, which spawns work onto the runtime.
+    let handle = Handle::current();
 
     std::thread::spawn(move || {
         let (tx, rx) = mpsc::channel::<()>();
         let watcher = make_watcher(&state, tx); // kept alive for the thread's life
-        let poll = (interval > 0).then(|| Duration::from_secs(interval));
-        info!(
-            interval_secs = interval,
-            fs_events = watcher.is_some(),
-            "library watcher started"
-        );
+        info!(fs_events = watcher.is_some(), "library watcher started");
 
         let mut last = baseline;
         loop {
-            let from_event = match poll {
-                Some(d) => match rx.recv_timeout(d) {
-                    Ok(()) => true,
-                    Err(RecvTimeoutError::Timeout) => false, // periodic tick
-                    Err(RecvTimeoutError::Disconnected) => break,
-                },
-                None => match rx.recv() {
-                    Ok(()) => true,
-                    Err(_) => break,
-                },
+            // Re-read the cadence each iteration so an admin change takes effect
+            // without a restart. `0` → block on FS events only (no periodic tick).
+            let interval = watch_interval(&state);
+            let recv = if interval > 0 {
+                rx.recv_timeout(Duration::from_secs(interval))
+            } else {
+                rx.recv().map_err(|_| RecvTimeoutError::Disconnected)
+            };
+            let from_event = match recv {
+                Ok(()) => true,
+                Err(RecvTimeoutError::Timeout) => false, // periodic tick
+                Err(RecvTimeoutError::Disconnected) => break,
             };
             // Coalesce a burst of FS events into a single re-scan.
             if from_event {
                 while rx.recv_timeout(DEBOUNCE).is_ok() {}
             }
-            rescan_if_changed(&state, &mut last);
+            trigger_if_changed(&state, &handle, &mut last);
         }
         drop(watcher);
     });
+}
+
+/// The periodic re-scan cadence (seconds): the `watchIntervalSecs` setting, or —
+/// when it's `-1` (unset) — the `LUMA_WATCH_INTERVAL` env / 300s default. `0`
+/// disables the periodic tick (FS events still fire).
+fn watch_interval(state: &SharedState) -> u64 {
+    match state.settings.get_i64("watchIntervalSecs", -1) {
+        n if n >= 0 => n as u64,
+        _ => std::env::var("LUMA_WATCH_INTERVAL")
+            .ok()
+            .and_then(|s| s.trim().parse::<u64>().ok())
+            .unwrap_or(DEFAULT_INTERVAL_SECS),
+    }
 }
 
 fn make_watcher(state: &SharedState, tx: mpsc::Sender<()>) -> Option<notify::RecommendedWatcher> {
@@ -89,39 +97,48 @@ fn make_watcher(state: &SharedState, tx: mpsc::Sender<()>) -> Option<notify::Rec
     Some(watcher)
 }
 
-/// Re-scan (fast, phase-1). If the file set changed since `last`, persist the
-/// diff, notify clients, and kick off probing/enrichment of the new files.
-fn rescan_if_changed(state: &SharedState, last: &mut u64) {
+/// Cheap change-detection (fast phase-1 scan + signature compare); on an actual
+/// change, hand off to the **tracked** jobs that opted into [`Trigger::LibraryChange`]
+/// (i.e. `library.scan`) — so an auto-scan shows in the Tâches console with logs +
+/// progress, unified with manual scans, and the full sync / probe / enrich /
+/// reindex lives in one place. An idle library triggers nothing (no DB writes, no
+/// client churn).
+fn trigger_if_changed(state: &SharedState, handle: &Handle, last: &mut u64) {
+    if !state.settings.get_bool("watchAutoScan", true) {
+        return; // auto-scan disabled by the admin
+    }
     let defs = crate::services::settings::library_defs(&state.settings, &state.config);
     let data = scan::scan_all(&defs);
     let sig = signature(&data.items, &data.mtimes);
     if sig == *last {
-        return; // nothing changed — no DB writes, no client churn
+        return; // nothing changed
     }
-    *last = sig;
-    info!("watcher: filesystem change detected — re-syncing");
+    info!("watcher: filesystem change detected — triggering library-change jobs");
 
-    state.events.publish(ServerEvent::ScanStarted);
-    activity::scan_started(&state.activity);
-    if let Err(e) = db::sync_all(&state.db, &data.libraries, &data.shows, &data.items, &data.mtimes) {
-        warn!(error = %e, "watcher: library sync failed");
-        return;
+    // The job manager spawns blocking work, so run the trigger on the runtime.
+    // Only advance `last` once the change is actually owned by a run (or nothing
+    // opted in): if a scan is already in flight the trigger returns
+    // `AlreadyRunning`, and advancing would consume this change without syncing it
+    // (the running scan may predate the new file) — so we keep `last` and retry
+    // next tick instead of losing it.
+    let jobs = state.jobs.clone();
+    let st = state.clone();
+    let owned = handle.block_on(async move {
+        let mut started = false;
+        let mut busy = false;
+        for id in jobs.jobs_for_trigger(Trigger::LibraryChange) {
+            match jobs.trigger(st.clone(), id, "watch") {
+                Ok(_) => started = true,
+                Err(TriggerError::AlreadyRunning) => busy = true,
+                Err(TriggerError::Unknown) => {}
+            }
+        }
+        // Advance unless the sole outcome was "already running" (nothing started).
+        started || !busy
+    });
+    if owned {
+        *last = sig;
     }
-    let (libraries, shows, items) = (data.libraries.len(), data.shows.len(), data.items.len());
-    activity::scan_completed(&state.activity, libraries, shows, items, scan::now_iso8601());
-    state.events.publish(ServerEvent::ScanCompleted { items, shows, libraries });
-    state.events.publish(ServerEvent::LibraryUpdated);
-
-    // Probe only the new/changed files (sync marked them probed=0); enrichment is
-    // cache-deduped so existing titles are cheap.
-    probe::spawn_probe_pass(
-        state.db.clone(),
-        state.ffprobe_available,
-        state.events.clone(),
-        state.activity.clone(),
-    );
-    crate::services::search::spawn_reindex(state.clone());
-    enrich::maybe_spawn(state, &data.items, &data.shows);
 }
 
 /// Cheap change-detection signature: file count + Σsize + Σmtime across all files.

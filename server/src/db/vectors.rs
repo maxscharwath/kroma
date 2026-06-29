@@ -24,6 +24,16 @@ pub fn set_item_vector(pool: &Pool, id: &str, vec: &[f32]) -> Result<()> {
     Ok(())
 }
 
+/// Current stored embedding dimension per id. Lets an idempotent re-embed skip
+/// vectors already at the active embedder's dim (so switching embedders only
+/// touches what's stale, instead of re-encoding the whole library each run).
+pub fn vector_dims(pool: &Pool) -> Result<std::collections::HashMap<String, usize>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare("SELECT id, dim FROM item_vectors")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as usize)))?;
+    Ok(rows.filter_map(std::result::Result::ok).collect())
+}
+
 /// Drop vectors whose id is no longer a live item or show (call after a rescan;
 /// `item_vectors` has no FK because it spans both tables).
 pub fn prune_orphan_vectors(pool: &Pool) -> Result<usize> {
@@ -196,9 +206,30 @@ pub fn recommended_for(pool: &Pool, user_id: &str, n: usize) -> Result<Vec<Media
     Ok(items)
 }
 
-/// "More like this" as render-ready movies: [`similar`] + hydration.
+/// "More like this" as render-ready movies: [`similar`] + a genre-overlap guard
+/// (the lexical embedder is weakly discriminative item↔item) + hydration.
+/// Over-fetches generously since the guard prunes before the truncate to `n`.
 pub fn similar_items(pool: &Pool, id: &str, n: usize) -> Result<Vec<MediaItem>> {
-    let ranked = similar(pool, id, n + 8)?;
+    let raw = similar(pool, id, (n + 8).max(48))?;
+    let guarded = super::genre_guard(pool, id, raw.clone());
+    // The guard can prune below `n` with a weakly-discriminative embedder (few
+    // neighbours share a TMDB genre), which would shrink or empty the rail. Top up
+    // from the unguarded neighbours so it always fills when candidates exist.
+    let ranked = if guarded.len() >= n {
+        guarded
+    } else {
+        let mut out = guarded;
+        let have: std::collections::HashSet<String> = out.iter().map(|(id, _)| id.clone()).collect();
+        for cand in raw {
+            if out.len() >= n {
+                break;
+            }
+            if !have.contains(&cand.0) {
+                out.push(cand);
+            }
+        }
+        out
+    };
     let mut items = hydrate(pool, &ranked)?;
     items.truncate(n);
     Ok(items)

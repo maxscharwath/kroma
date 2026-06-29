@@ -9,19 +9,18 @@ import {
   type Translate,
   type VideoTrack,
 } from '@luma/core';
-import { useT } from '@luma/ui';
-import { IconChevronLeft, IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useT, useThemeAudio } from '@luma/ui';
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Button,
-  Poster,
-  Rail,
-} from '#web/shared/ui';
+  IconChevronLeft,
+  IconPlayerPlayFilled,
+  IconPlus,
+  IconVolume,
+  IconVolumeOff,
+} from '@tabler/icons-react';
+import { useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { imageUrl } from '#web/shared/lib/api';
+import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Poster, Rail } from '#web/shared/ui';
 
 export type QualityTone = '4K' | 'HDR' | 'H.265';
 
@@ -78,6 +77,8 @@ export interface DetailHeroProps {
   /** Terse meta line, e.g. "2024 · 2h08 · Français". */
   meta: string;
   badges: QualityTone[];
+  /** Director(s) / creator(s), shown as a "Réalisation" line. */
+  directors?: string[];
   tagline?: string | null;
   overview?: string | null;
   audio: string;
@@ -87,6 +88,17 @@ export interface DetailHeroProps {
   onPlay: () => void;
   /** Item whose codecs gate direct-play; the warning is computed client-side. */
   playable?: MediaItem | null;
+  /** Plex-style theme song to loop under the hero (TV shows only); `null` plays
+   * nothing and hides the mute toggle. */
+  themeUrl?: string | null;
+}
+
+/** Director/creator names from TMDB crew metadata, for the hero's "Réalisation"
+ * line (empty when crew isn't resolved yet). */
+export function directorsOf(meta?: { crew?: { name: string; job: string }[] } | null): string[] {
+  return (meta?.crew ?? [])
+    .filter((c) => c.job === 'Director' || c.job === 'Creator')
+    .map((c) => c.name);
 }
 
 /** Full-bleed cinematic detail hero shared by the movie and series fiches
@@ -98,6 +110,7 @@ export function DetailHero({
   rating,
   meta,
   badges,
+  directors,
   tagline,
   overview,
   audio,
@@ -106,10 +119,13 @@ export function DetailHero({
   onBack,
   onPlay,
   playable,
+  themeUrl,
 }: Readonly<DetailHeroProps>) {
   const t = useT();
+  const navigate = useNavigate();
   const [c1, c2] = posterColors(art.id);
   const heroBg = art.backdrop ? `url("${art.backdrop}")` : `linear-gradient(135deg, ${c1}, ${c2})`;
+  const theme = useThemeAudio(themeUrl);
 
   // Direct-play depends on the runtime's codecs (navigator/MediaSource), so it
   // must stay client-only — computing it during SSR would mismatch on hydration.
@@ -135,6 +151,23 @@ export function DetailHero({
       >
         <IconChevronLeft size={20} stroke={2} color="#fff" />
       </button>
+
+      {theme.active ? (
+        <button
+          type="button"
+          onClick={theme.toggle}
+          aria-label={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
+          title={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
+          className="absolute right-8 top-6.5 z-3 flex h-10.5 w-10.5 items-center justify-center rounded-full
+            border border-white/12 bg-[rgba(10,10,12,.5)] backdrop-blur-sm transition-colors hover:bg-[rgba(10,10,12,.8)]"
+        >
+          {theme.muted ? (
+            <IconVolumeOff size={19} stroke={2} color="#fff" />
+          ) : (
+            <IconVolume size={19} stroke={2} color="#fff" />
+          )}
+        </button>
+      ) : null}
 
       <div className="relative flex flex-wrap items-end gap-10 px-(--gutter-web) pb-9 pt-22.5">
         <div
@@ -171,6 +204,25 @@ export function DetailHero({
               </Badge>
             ))}
           </div>
+
+          {directors && directors.length > 0 ? (
+            <div className="mb-3 text-[13.5px] text-white/60">
+              <span className="font-semibold text-white/80">{t('content.directedBy')}</span>{' '}
+              {directors.map((d, i) => (
+                <span key={d}>
+                  {i > 0 ? ', ' : ''}
+                  <button
+                    type="button"
+                    onClick={() => navigate({ to: '/person/$name', params: { name: d } })}
+                    aria-label={t('person.viewWorks', { name: d })}
+                    className="cursor-pointer bg-transparent p-0 text-inherit underline-offset-2 transition-colors hover:text-accent hover:underline"
+                  >
+                    {d}
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {tagline ? <p className="mb-3 text-[14px] italic text-white/50">{tagline}</p> : null}
           {overview ? (
@@ -214,7 +266,7 @@ export interface SimilarItem {
 }
 
 /** First + last initials, e.g. "George MacKay" → "GM". */
-function initials(name: string): string {
+export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   const first = parts[0]?.[0] ?? '';
@@ -226,6 +278,7 @@ function initials(name: string): string {
  * the reference uses gradient initials, not photos). */
 export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
   const t = useT();
+  const navigate = useNavigate();
   if (cast.length === 0) return null;
   return (
     <section className="mt-10">
@@ -233,12 +286,18 @@ export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
         {t('content.cast')}
       </h2>
       <Rail gap={22} padded label={t('content.cast')}>
-        {cast.map((p, i) => {
+        {cast.map((p) => {
           const [g1, g2] = posterColors(p.name);
           const photo = imageUrl(p.profileUrl);
           return (
-            <div key={`${p.name}-${i}`} className="w-28 shrink-0 text-center">
-              <Avatar className="mb-2.75 h-28 w-28 rounded-full shadow-[0_8px_22px_rgba(0,0,0,.45)]">
+            <button
+              key={`${p.name}-${p.character ?? ''}`}
+              type="button"
+              onClick={() => navigate({ to: '/person/$name', params: { name: p.name } })}
+              aria-label={t('person.viewWorks', { name: p.name })}
+              className="group w-28 shrink-0 cursor-pointer bg-transparent p-0 text-center outline-none transition-transform duration-200 hover:scale-[1.06] focus-visible:scale-[1.06]"
+            >
+              <Avatar className="mb-2.75 h-28 w-28 rounded-full shadow-[0_8px_22px_rgba(0,0,0,.45)] ring-accent transition-shadow duration-200 group-hover:ring-4 group-focus-visible:ring-4">
                 {photo ? (
                   <AvatarImage
                     src={photo}
@@ -256,11 +315,13 @@ export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
                   <span className="relative">{initials(p.name)}</span>
                 </AvatarFallback>
               </Avatar>
-              <div className="truncate text-[14px] font-semibold">{p.name}</div>
+              <div className="truncate text-[14px] font-semibold transition-colors group-hover:text-accent group-focus-visible:text-accent">
+                {p.name}
+              </div>
               {p.character ? (
                 <div className="truncate text-[12px] font-medium text-white/45">{p.character}</div>
               ) : null}
-            </div>
+            </button>
           );
         })}
       </Rail>

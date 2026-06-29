@@ -46,7 +46,7 @@ server/src/
   domain/    media accounts playback library admin   entities + PURE rules (no I/O)
   db/        media accounts playback library admin   all SQL, one shared Pool
   infra/     probe transcode metadata image stream discovery watch metrics events
-  services/  scan enrich auth quickconnect playback settings …
+  services/  scan enrich auth quickconnect playback settings jobs(cron scheduler+registry) …
   api/       media accounts invites playback admin/*  + extract.rs + mod.rs (router)
 ```
 

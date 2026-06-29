@@ -17,9 +17,11 @@
 //! [`accessors`] (+ library defs), and the admin view-model [`schema`].
 
 mod accessors;
+mod llm;
 mod schema;
 mod store;
 
 pub use accessors::*;
+pub use llm::*;
 pub use schema::*;
 pub use store::*;

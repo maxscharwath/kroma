@@ -46,16 +46,27 @@ export function HomeSections() {
           <section key={section.id}>
             <h2 className={SECTION_TITLE}>{section.title}</h2>
             <Rail label={section.title}>
-              {section.items.map((item) => (
-                <Poster
-                  key={item.id}
-                  title={item.title}
-                  genre={item.metadata?.genres?.[0] ?? t('content.film')}
-                  colors={posterColors(item.id)}
-                  poster={client.posterFor(item)}
-                  onClick={() => navigate({ to: '/movie/$id', params: { id: item.id } })}
-                />
-              ))}
+              {section.items.map((entry) =>
+                entry.type === 'show' ? (
+                  <Poster
+                    key={entry.show.id}
+                    title={entry.show.title}
+                    genre={entry.show.metadata?.genres?.[0] ?? t('content.series')}
+                    colors={posterColors(entry.show.id)}
+                    poster={client.showPosterFor(entry.show)}
+                    onClick={() => navigate({ to: '/show/$id', params: { id: entry.show.id } })}
+                  />
+                ) : (
+                  <Poster
+                    key={entry.item.id}
+                    title={entry.item.title}
+                    genre={entry.item.metadata?.genres?.[0] ?? t('content.film')}
+                    colors={posterColors(entry.item.id)}
+                    poster={client.posterFor(entry.item)}
+                    onClick={() => navigate({ to: '/movie/$id', params: { id: entry.item.id } })}
+                  />
+                ),
+              )}
             </Rail>
           </section>
         );

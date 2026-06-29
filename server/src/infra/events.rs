@@ -64,6 +64,38 @@ pub enum ServerEvent {
     /// Server settings changed via the admin console.
     #[serde(rename = "settings.updated")]
     SettingsUpdated,
+    /// A background job run started.
+    #[serde(rename = "job.started")]
+    JobStarted {
+        key: String,
+        #[serde(rename = "runId")]
+        run_id: String,
+    },
+    /// A running job reported progress (`total == 0` → indeterminate).
+    #[serde(rename = "job.progress")]
+    JobProgress {
+        key: String,
+        #[serde(rename = "runId")]
+        run_id: String,
+        done: usize,
+        total: usize,
+    },
+    /// A running job appended a log line.
+    #[serde(rename = "job.log")]
+    JobLog {
+        #[serde(rename = "runId")]
+        run_id: String,
+        level: &'static str,
+        message: String,
+    },
+    /// A job run finished (`status`: success | failed | cancelled).
+    #[serde(rename = "job.finished")]
+    JobFinished {
+        key: String,
+        #[serde(rename = "runId")]
+        run_id: String,
+        status: String,
+    },
 }
 
 /// Cheap-to-clone handle to the broadcast channel.

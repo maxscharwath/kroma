@@ -96,6 +96,23 @@
   }
 }
 
+/* Cast faces: the whole card (avatar + text) zooms on focus, with a round ring
+   on the avatar only — never a square box around the card. Un-layered so it wins
+   over both the base `[data-focus]:focus` ring and the avatar's `shadow-card`. */
+.cast-face__avatar {
+  transition: box-shadow 0.2s var(--ease-out);
+}
+[data-focus].cast-face:focus {
+  box-shadow: none;
+  transform: scale(1.06);
+}
+[data-focus].cast-face:focus .cast-face__avatar {
+  box-shadow: var(--ring-focus), var(--glow-accent);
+}
+[data-focus].cast-face:focus .cast-face__name {
+  color: var(--luma-accent);
+}
+
 /* Hide scrollbars on TV scroll regions (no pointer; smooth focus scrolling). */
 @utility scrollbar-none {
   scrollbar-width: none;

@@ -9,7 +9,10 @@
 
 mod cache;
 mod context;
+pub mod curate;
+pub mod generate;
 mod phrases;
+pub mod taste;
 
 pub use cache::VectorCache;
 
@@ -32,6 +35,9 @@ const MIN_ITEMS: usize = 5;
 const MAX_SECTIONS: usize = 9;
 /// At most this many *themed* rows in one home (the bank has more than fit).
 const MAX_THEMED: usize = 4;
+/// At most this many *curated editorial* rows in one home (the job makes more;
+/// a daily-rotated window shows a fresh slice each day).
+const MAX_CURATED: usize = 3;
 /// Sentinel: no relevance floor (For You / trending / recently-added rows, which
 /// aren't gated on themed-query similarity).
 const NO_FLOOR: f32 = f32::NEG_INFINITY;
@@ -54,13 +60,45 @@ pub fn build_home(state: &SharedState, pool: &Pool, locale: &str, user_id: &str)
         out.push("for-you", i18n::t(locale, "content.forYou", &[]), None, ranked, NO_FLOOR);
     }
 
-    // 2) Because you watched <the last thing>.
+    // 2) Because you watched <the last thing>. Genre-guarded: the lexical embedder
+    //    is weakly discriminative item↔item (the catalog clusters in a narrow
+    //    cosine band, so a drama's "nearest" can be a horror film), and this row
+    //    makes a *specific* similarity claim about one seed — so require a shared
+    //    genre with it. (No-op when the seed has no genres, or with a discriminative
+    //    backend where the neighbours already share genres.)
     if let Some(last) = &ctx.last_played {
         if let Some(title) = last_title(pool, last) {
             let heading = i18n::t(locale, "content.becauseYouWatched", &[("title", &title)]);
-            let ranked = state.vectors.similar(last, FETCH);
+            let ranked = db::genre_guard(pool, last, state.vectors.similar(last, FETCH));
             out.push("because", heading, None, ranked, NO_FLOOR);
         }
+    }
+
+    // 2.5) Personalized, LLM-named rows authored by the nightly
+    //      `sections.personalize` job. The model only *names* each row; the items
+    //      come from the embedder resolving its vibe `query`, so they're always
+    //      real catalog titles. Floored like themed rows. Falls through to the
+    //      static bank below when the user has none yet (no LLM / too little
+    //      history).
+    for gs in generate::load(pool, user_id) {
+        if out.sections.len() >= MAX_SECTIONS {
+            break;
+        }
+        let query = state.embedder.embed(&gs.query);
+        let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
+        let reason = (!gs.reason.is_empty()).then_some(gs.reason);
+        out.push(&format!("ai:{}", gs.key), gs.title, reason, ranked, floor);
+    }
+
+    // 2.6) Editorial curated collections — global, same for everyone (director
+    //      spotlights + LLM-curated genre/list/franchise/mood rows from the
+    //      `sections.curate` job). Membership is explicit (resolved ids), so
+    //      NO_FLOOR; a daily-rotated window keeps the home feeling fresh.
+    for (key, title, reason, ids) in curated_rows(pool, locale) {
+        if out.sections.len() >= MAX_SECTIONS {
+            break;
+        }
+        out.push(&format!("curated:{key}"), title, reason, unscored(ids), NO_FLOOR);
     }
 
     // 3) Themed rows — eligible phrases, FLOORED: a phrase only becomes a row if
@@ -94,6 +132,35 @@ fn unscored(ids: Vec<String>) -> Vec<(String, f32)> {
     ids.into_iter().map(|id| (id, 0.0)).collect()
 }
 
+/// The curated rows to show this request: the top [`MAX_CURATED`] from the
+/// `curated_sections` table, on a daily-rotated offset, localized to `locale`.
+/// Each is `(key, title, reason, member_ids)`.
+fn curated_rows(pool: &Pool, locale: &str) -> Vec<(String, String, Option<String>, Vec<String>)> {
+    let all = db::get_curated(pool).unwrap_or_default();
+    if all.is_empty() {
+        return Vec::new();
+    }
+    // Rotate the window once per day (no per-request RNG → stable within a day).
+    let day = (crate::services::jobs::now_ms() / 86_400_000) as usize;
+    let offset = day % all.len();
+    let n = MAX_CURATED.min(all.len());
+    (0..n)
+        .map(|i| {
+            let row = &all[(offset + i) % all.len()];
+            let title = pick_locale(&row.title_fr, &row.title_en, locale).unwrap_or_else(|| row.key.clone());
+            let reason = pick_locale(&row.reason_fr, &row.reason_en, locale);
+            (row.key.clone(), title, reason, row.item_ids.clone())
+        })
+        .collect()
+}
+
+/// Pick the locale-appropriate string (en for `"en"`, else fr), falling back to
+/// whichever is present.
+fn pick_locale(fr: &Option<String>, en: &Option<String>, locale: &str) -> Option<String> {
+    let (first, second) = if locale == "en" { (en, fr) } else { (fr, en) };
+    first.clone().or_else(|| second.clone())
+}
+
 /// Accumulates sections while enforcing the caps, the quality gate, and the
 /// cross-row de-duplication (a title shows in at most one row).
 struct Builder<'a> {
@@ -120,12 +187,13 @@ impl Builder<'_> {
         if fresh.len() < MIN_ITEMS {
             return false;
         }
-        let items = match db::items_by_ids(self.pool, &fresh) {
+        // Resolve to movies *or* shows so a row can mix films and séries.
+        let items = match db::entities_by_ids(self.pool, &fresh) {
             Ok(v) if v.len() >= MIN_ITEMS => v,
             _ => return false,
         };
         for it in &items {
-            self.seen.insert(it.id.clone());
+            self.seen.insert(it.id().to_string());
         }
         self.sections.push(Section { id: id.to_string(), title, reason, items });
         true

@@ -2,6 +2,7 @@ import { formatRuntime, qualityBadge } from '@luma/core';
 import { useT } from '@luma/ui';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
 import { CastRow, EndsAtHint, ListButton } from '#tv/features/catalog/detail/parts';
+import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { PlayGlyph, TV_PLAY_BTN } from '#tv/shared/TvMedia';
@@ -47,6 +48,7 @@ export function TvMovieDetail() {
       </div>
       <EndsAtHint runtimeMs={item.durationMs} />
       <CastRow cast={item.metadata?.cast} />
+      <TvAiSuggestRow id={item.id} />
     </TvDetailScaffold>
   );
 }

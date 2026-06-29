@@ -17,7 +17,11 @@ export type ServerEvent =
   | { type: 'playback.updated'; count: number }
   | { type: 'playback.stopped'; count: number }
   | { type: 'playback.terminate'; sessionId: string; message: string }
-  | { type: 'settings.updated' };
+  | { type: 'settings.updated' }
+  | { type: 'job.started'; key: string; runId: string }
+  | { type: 'job.progress'; key: string; runId: string; done: number; total: number }
+  | { type: 'job.log'; runId: string; level: string; message: string }
+  | { type: 'job.finished'; key: string; runId: string; status: string };
 
 export interface LumaEventsOptions {
   onEvent?: (event: ServerEvent) => void;

@@ -9,5 +9,6 @@ pub mod accounts;
 pub mod playback;
 pub mod library;
 pub mod admin;
+pub mod jobs;
 pub mod naming;
 pub mod section;

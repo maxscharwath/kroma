@@ -109,3 +109,52 @@ pub fn now_iso8601() -> String {
         .format(&Rfc3339)
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
+
+/// Phase-1 rescan + DB sync, demo-seeding only in demo mode (no libraries
+/// configured). Pure work (no events / no background spawns) so both the `POST
+/// /api/scan` handler and the `library.scan` job can share it and add their own
+/// notifications. Blocking (walk + SQLite) — call from a blocking context.
+pub fn rescan_sync(state: &crate::state::SharedState) -> anyhow::Result<ScanData> {
+    let defs = crate::services::settings::library_defs(&state.settings, &state.config);
+    let mut data = scan_all(&defs);
+    // Seed demo content only when nothing is configured (true demo mode). A
+    // configured library that momentarily reads empty — NAS/SMB unmount, slow
+    // mount, permission glitch — must NOT be clobbered with demo movies.
+    if data.items.is_empty() && defs.is_empty() {
+        info!("no libraries configured and scan is empty; seeding demo content");
+        data = crate::services::demo::demo_data();
+    }
+    crate::db::sync_all(&state.db, &data.libraries, &data.shows, &data.items, &data.mtimes)?;
+    Ok(data)
+}
+
+/// Publish "scan started", run phase-1 [`rescan_sync`], then announce the
+/// catalog change with the resulting counts. Blocking; returns the synced data.
+/// Shared by `POST /api/scan` and the `library.scan` job — each wraps it with
+/// its own logging / response.
+pub fn scan_and_publish(state: &crate::state::SharedState) -> anyhow::Result<ScanData> {
+    use crate::infra::events::ServerEvent;
+    state.events.publish(ServerEvent::ScanStarted);
+    crate::services::activity::scan_started(&state.activity);
+
+    let data = rescan_sync(state)?;
+    let (libraries, shows, items) = (data.libraries.len(), data.shows.len(), data.items.len());
+    crate::services::activity::scan_completed(&state.activity, libraries, shows, items, now_iso8601());
+    state.events.publish(ServerEvent::ScanCompleted { items, shows, libraries });
+    state.events.publish(ServerEvent::LibraryUpdated);
+    Ok(data)
+}
+
+/// Kick the phase-2 background follow-ups after a scan — media probing, search
+/// reindex and TMDB enrichment (each reports its own progress in the activity
+/// feed). Shared by `POST /api/scan` and the `library.scan` job.
+pub fn spawn_follow_ups(state: &crate::state::SharedState, data: &ScanData) {
+    crate::infra::probe::spawn_probe_pass(
+        state.db.clone(),
+        state.ffprobe_available,
+        state.events.clone(),
+        state.activity.clone(),
+    );
+    crate::services::search::spawn_reindex(state.clone());
+    crate::services::enrich::maybe_spawn(state, &data.items, &data.shows);
+}

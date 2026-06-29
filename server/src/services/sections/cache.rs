@@ -42,6 +42,17 @@ impl VectorCache {
         self.snap.read().unwrap().clone()
     }
 
+    /// Cloned `(id, vector)` pairs for `ids` present in the snapshot (order
+    /// follows the snapshot, not `ids`). Powers per-user taste clustering.
+    pub fn vectors_for(&self, ids: &[String]) -> Vec<(String, Vec<f32>)> {
+        let want: HashSet<&str> = ids.iter().map(String::as_str).collect();
+        self.snapshot()
+            .iter()
+            .filter(|(id, _)| want.contains(id.as_str()))
+            .map(|(id, v)| (id.clone(), v.clone()))
+            .collect()
+    }
+
     /// Nearest `n` `(id, score)` to `query` by cosine (vectors are pre-normalized
     /// → dot), skipping `exclude` and any dimension-mismatched (stale) vector. The
     /// score lets the generator drop low-relevance rows (the noise floor).

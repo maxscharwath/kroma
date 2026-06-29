@@ -149,6 +149,10 @@ async fn main() -> anyhow::Result<()> {
     // admin dashboard charts.
     state.metrics.spawn_sampler(state.playback.clone());
 
+    // Start the background-job cron scheduler (cache cleanup, recommendations
+    // refresh, …). Manual + scheduled runs are tracked in the admin "Tâches" UI.
+    state.jobs.clone().spawn_scheduler(state.clone());
+
     // mDNS advertising is a runtime-toggleable setting (Réseau → Découverte locale).
     let local_discovery = state.settings.get_bool("localDiscovery", true);
 

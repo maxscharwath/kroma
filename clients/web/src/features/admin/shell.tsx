@@ -12,30 +12,25 @@ import {
 import { Logo, useT } from '@luma/ui';
 import {
   IconChevronRight,
+  IconClockBolt,
   IconDatabase,
   IconLibrary,
   IconSettings,
+  IconSparkles,
   IconTransform,
   IconWorld,
   type TablerIcon,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { formatUptime } from '#web/shared/lib/adminFormat';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
+export { HeaderAction, PageHeader } from '#web/features/admin/header';
 // Data hooks + capability helpers and the page header live in sibling modules;
 // re-exported here so call sites keep importing them from this shell module.
 export { Denied, isAnyAdmin, useAsyncAction, useCap, usePoll } from '#web/features/admin/hooks';
-export { HeaderAction, PageHeader } from '#web/features/admin/header';
 
 // ----- data + events context --------------------------------------------------
 
@@ -66,9 +61,16 @@ export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
     return () => clearInterval(iv);
   }, [loadServer, tick]);
 
-  // Live event stream → tick.
+  // Live event stream → tick. Skip the high-frequency per-line `job.log` and
+  // `job.progress` frames: bumping `tick` re-runs every admin `usePoll`, and a
+  // verbose job would otherwise storm the admin endpoints. The jobs page consumes
+  // those two on its own stream for smooth progress; start/finish still tick.
   useEffect(() => {
-    const ev = new LumaEvents(apiBase(), { onEvent: () => setTick((t) => t + 1) });
+    const ev = new LumaEvents(apiBase(), {
+      onEvent: (e) => {
+        if (e.type !== 'job.log' && e.type !== 'job.progress') setTick((t) => t + 1);
+      },
+    });
     ev.connect();
     return () => ev.close();
   }, []);
@@ -122,6 +124,8 @@ const NAV_REGLAGES: {
     cap: 'settings.manage',
     icon: IconTransform,
   },
+  { to: '/admin/ai', labelKey: 'admin.navAi', cap: 'settings.manage', icon: IconSparkles },
+  { to: '/admin/jobs', labelKey: 'admin.navJobs', cap: 'settings.manage', icon: IconClockBolt },
   { to: '/admin/storage', labelKey: 'admin.navStorage', cap: null, icon: IconDatabase },
 ];
 

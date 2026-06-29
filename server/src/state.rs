@@ -10,6 +10,7 @@ use crate::infra::embed::{self, Embedder};
 use crate::infra::events::Bus;
 use crate::infra::metadata;
 use crate::infra::metrics::Metrics;
+use crate::services::jobs::JobManager;
 use crate::services::playback::Registry;
 use crate::services::quickconnect::{self, QuickConnect};
 use crate::services::search::SearchEngine;
@@ -51,6 +52,9 @@ pub struct AppState {
     /// section generator without re-reading SQLite per request. Self-reloads when
     /// the vectors change (see [`crate::services::sections::VectorCache`]).
     pub vectors: Arc<VectorCache>,
+    /// Background job registry + cron scheduler (admin "Tâches" console). Built
+    /// at startup with the built-in jobs; the scheduler is spawned in `main`.
+    pub jobs: Arc<JobManager>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -58,6 +62,14 @@ pub type SharedState = Arc<AppState>;
 impl AppState {
     pub fn new(config: Config, ffprobe_available: bool, db: Pool, settings: Settings) -> SharedState {
         let transcode = transcode::Sessions::new(&config.data_dir);
+        // Build the job registry: register the built-ins, then overlay any
+        // persisted schedule overrides. The cron loop is spawned in `main`.
+        let mut jobs = JobManager::new();
+        crate::services::jobs::register_all(&mut jobs);
+        jobs.load_schedules(&db);
+        // Any run left `running` belongs to a previous process that died mid-job;
+        // mark it failed so it doesn't show as forever-running in the console.
+        let _ = crate::db::reconcile_running_runs(&db);
         Arc::new(AppState {
             config,
             ffprobe_available,
@@ -73,6 +85,7 @@ impl AppState {
             embedder: embed::default_embedder(),
             search: Arc::new(SearchEngine::new().expect("init search index")),
             vectors: Arc::new(VectorCache::new()),
+            jobs: Arc::new(jobs),
         })
     }
 }

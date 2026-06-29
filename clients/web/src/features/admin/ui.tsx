@@ -6,8 +6,10 @@ import type { ReactNode } from 'react';
 import { avatarGradient, initial } from '#web/shared/lib/adminFormat';
 import { imageUrl } from '#web/shared/lib/api';
 
-// Form + modal primitives live in `./forms`; re-exported so call sites keep
-// importing every admin primitive from `#web/features/admin/ui`.
+// Form + modal primitives live in `./forms`; reusable controls in `./controls`.
+// Both are re-exported so call sites import every admin primitive from
+// `#web/features/admin/ui`.
+export { Button, Disclosure, NumberField, SegmentedControl } from '#web/features/admin/controls';
 export { Field, Modal, ModalActions, Select, TextInput } from '#web/features/admin/forms';
 
 /** Chart/semantic colors from the design that aren't Tailwind tokens. */

@@ -19,13 +19,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as WatchIdRouteImport } from './routes/watch.$id'
 import { Route as ShowIdRouteImport } from './routes/show.$id'
+import { Route as PersonNameRouteImport } from './routes/person.$name'
 import { Route as MovieIdRouteImport } from './routes/movie.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTranscoderRouteImport } from './routes/admin.transcoder'
 import { Route as AdminStorageRouteImport } from './routes/admin.storage'
 import { Route as AdminNetworkRouteImport } from './routes/admin.network'
 import { Route as AdminLibrariesRouteImport } from './routes/admin.libraries'
+import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
 import { Route as AdminGeneralRouteImport } from './routes/admin.general'
+import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
 const SeriesRoute = SeriesRouteImport.update({
   id: '/series',
@@ -77,6 +80,11 @@ const ShowIdRoute = ShowIdRouteImport.update({
   path: '/show/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PersonNameRoute = PersonNameRouteImport.update({
+  id: '/person/$name',
+  path: '/person/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MovieIdRoute = MovieIdRouteImport.update({
   id: '/movie/$id',
   path: '/movie/$id',
@@ -107,9 +115,19 @@ const AdminLibrariesRoute = AdminLibrariesRouteImport.update({
   path: '/libraries',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminJobsRoute = AdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminGeneralRoute = AdminGeneralRouteImport.update({
   id: '/general',
   path: '/general',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiRoute = AdminAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => AdminRoute,
 } as any)
 
@@ -121,13 +139,16 @@ export interface FileRoutesByFullPath {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/series': typeof SeriesRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
   '/movie/$id': typeof MovieIdRoute
+  '/person/$name': typeof PersonNameRoute
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -139,13 +160,16 @@ export interface FileRoutesByTo {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/series': typeof SeriesRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
   '/movie/$id': typeof MovieIdRoute
+  '/person/$name': typeof PersonNameRoute
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin': typeof AdminIndexRoute
@@ -159,13 +183,16 @@ export interface FileRoutesById {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/series': typeof SeriesRoute
+  '/admin/ai': typeof AdminAiRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
   '/movie/$id': typeof MovieIdRoute
+  '/person/$name': typeof PersonNameRoute
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -180,13 +207,16 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/series'
+    | '/admin/ai'
     | '/admin/general'
+    | '/admin/jobs'
     | '/admin/libraries'
     | '/admin/network'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
     | '/movie/$id'
+    | '/person/$name'
     | '/show/$id'
     | '/watch/$id'
     | '/admin/'
@@ -198,13 +228,16 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/series'
+    | '/admin/ai'
     | '/admin/general'
+    | '/admin/jobs'
     | '/admin/libraries'
     | '/admin/network'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
     | '/movie/$id'
+    | '/person/$name'
     | '/show/$id'
     | '/watch/$id'
     | '/admin'
@@ -217,13 +250,16 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/series'
+    | '/admin/ai'
     | '/admin/general'
+    | '/admin/jobs'
     | '/admin/libraries'
     | '/admin/network'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
     | '/movie/$id'
+    | '/person/$name'
     | '/show/$id'
     | '/watch/$id'
     | '/admin/'
@@ -238,6 +274,7 @@ export interface RootRouteChildren {
   JoinRoute: typeof JoinRoute
   SeriesRoute: typeof SeriesRoute
   MovieIdRoute: typeof MovieIdRoute
+  PersonNameRoute: typeof PersonNameRoute
   ShowIdRoute: typeof ShowIdRoute
   WatchIdRoute: typeof WatchIdRoute
 }
@@ -314,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/person/$name': {
+      id: '/person/$name'
+      path: '/person/$name'
+      fullPath: '/person/$name'
+      preLoaderRoute: typeof PersonNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movie/$id': {
       id: '/movie/$id'
       path: '/movie/$id'
@@ -356,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLibrariesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/jobs': {
+      id: '/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AdminJobsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/general': {
       id: '/admin/general'
       path: '/general'
@@ -363,11 +414,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGeneralRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/ai': {
+      id: '/admin/ai'
+      path: '/ai'
+      fullPath: '/admin/ai'
+      preLoaderRoute: typeof AdminAiRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminAiRoute: typeof AdminAiRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
+  AdminJobsRoute: typeof AdminJobsRoute
   AdminLibrariesRoute: typeof AdminLibrariesRoute
   AdminNetworkRoute: typeof AdminNetworkRoute
   AdminStorageRoute: typeof AdminStorageRoute
@@ -377,7 +437,9 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAiRoute: AdminAiRoute,
   AdminGeneralRoute: AdminGeneralRoute,
+  AdminJobsRoute: AdminJobsRoute,
   AdminLibrariesRoute: AdminLibrariesRoute,
   AdminNetworkRoute: AdminNetworkRoute,
   AdminStorageRoute: AdminStorageRoute,
@@ -397,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   JoinRoute: JoinRoute,
   SeriesRoute: SeriesRoute,
   MovieIdRoute: MovieIdRoute,
+  PersonNameRoute: PersonNameRoute,
   ShowIdRoute: ShowIdRoute,
   WatchIdRoute: WatchIdRoute,
 }

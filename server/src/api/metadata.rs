@@ -75,7 +75,7 @@ async fn resolve_metadata(
     title: String,
     year: Option<u32>,
 ) -> Result<Response, Response> {
-    let language = state.config.tmdb_language.clone();
+    let language = crate::services::settings::metadata_language(&state.settings, &state.config);
     let result = blocking(move || {
         Ok(metadata::lookup(
             &state.metadata_cache,

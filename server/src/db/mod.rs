@@ -25,16 +25,22 @@ use crate::model::{
 };
 
 mod media;
+mod catalog_query;
 mod ingest;
 mod accounts;
 mod playback;
 mod library;
 mod admin;
+mod jobs;
+mod taste;
+mod curated;
+mod suggest;
 mod schema;
 mod vectors;
 mod home;
 
 pub use media::*;
+pub use catalog_query::*;
 pub use ingest::*;
 pub use vectors::*;
 pub use home::*;
@@ -42,6 +48,10 @@ pub use accounts::*;
 pub use playback::*;
 pub use library::*;
 pub use admin::*;
+pub use jobs::*;
+pub use taste::*;
+pub use curated::*;
+pub use suggest::*;
 pub use schema::init;
 pub(crate) use schema::{FILE_COLS, ITEM_COLS, PRAGMAS};
 

@@ -203,6 +203,9 @@ fn content_type_for(path: &Path) -> &'static str {
         "mov" => "video/quicktime",
         "avi" => "video/x-msvideo",
         "ts" => "video/mp2t",
+        "mp3" => "audio/mpeg",
+        "m4a" => "audio/mp4",
+        "ogg" | "oga" => "audio/ogg",
         _ => "application/octet-stream",
     }
 }

@@ -15,6 +15,7 @@ import {
   audioString,
   CastRail,
   DetailHero,
+  directorsOf,
   qualityBadges,
   type SimilarItem,
   SimilarRail,
@@ -44,6 +45,7 @@ export const Route = createFileRoute('/show/$id')({
       detail,
       poster: c.showPosterFor(show),
       backdrop: c.backdropFor(show),
+      themeUrl: c.themeFor(show),
       similar,
     };
   },
@@ -156,7 +158,7 @@ function SeasonSwitcher({
 
 function ShowDetailPage() {
   const t = useT();
-  const { detail, poster, backdrop, similar } = Route.useLoaderData();
+  const { detail, poster, backdrop, themeUrl, similar } = Route.useLoaderData();
   const navigate = useNavigate();
   const show = detail.show;
   const seasons = detail.seasons;
@@ -183,11 +185,13 @@ function ShowDetailPage() {
         rating={meta?.rating}
         meta={metaParts.join(' · ')}
         badges={qualityBadges(show.video)}
+        directors={directorsOf(meta)}
         tagline={meta?.tagline}
         overview={meta?.overview}
         audio={firstEpisode ? audioString(t, firstEpisode) : '—'}
         subtitles={firstEpisode ? subString(t, firstEpisode) : t('subtitle.none')}
         playable={firstEpisode}
+        themeUrl={themeUrl}
         onBack={() => navigate({ to: '/series' })}
         onPlay={() => firstEpisode && play(firstEpisode.id)}
       />

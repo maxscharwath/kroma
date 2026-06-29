@@ -226,3 +226,72 @@ pub async fn continue_watching(
         Err(resp) => resp,
     }
 }
+
+// ----- watched marker ---------------------------------------------------------
+
+/// `PUT /api/watched/:id` (Bearer) → 204. Marks the item watched and clears its
+/// resume position (drops it from "Continue watching").
+pub async fn mark_watched(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::mark_watched(&pool, &user.id, &item_id)).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `DELETE /api/watched/:id` (Bearer) → 204. Clears the watched flag.
+pub async fn unmark_watched(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::unmark_watched(&pool, &user.id, &item_id)).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `GET /api/watched` (Bearer) → `string[]` (item ids the user marked watched).
+pub async fn list_watched(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
+    match query(&state.db, move |pool| db::list_watched(&pool, &user.id)).await {
+        Ok(ids) => Json(ids).into_response(),
+        Err(resp) => resp,
+    }
+}
+
+// ----- my list ("Ma liste") ---------------------------------------------------
+
+/// `PUT /api/my-list/:id` (Bearer) → 204. Adds a title to the user's list.
+pub async fn add_to_list(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::add_to_list(&pool, &user.id, &item_id)).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `DELETE /api/my-list/:id` (Bearer) → 204. Removes a title from the user's list.
+pub async fn remove_from_list(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path(item_id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| db::remove_from_list(&pool, &user.id, &item_id)).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(resp) => resp,
+    }
+}
+
+/// `GET /api/my-list` (Bearer) → `string[]` (item ids in the user's list).
+pub async fn list_my_list(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
+    match query(&state.db, move |pool| db::list_my_list(&pool, &user.id)).await {
+        Ok(ids) => Json(ids).into_response(),
+        Err(resp) => resp,
+    }
+}

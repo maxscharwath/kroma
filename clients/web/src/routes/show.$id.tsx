@@ -22,6 +22,8 @@ import {
   subString,
 } from '#web/features/catalog/detail';
 import { lumaClient } from '#web/shared/lib/api';
+import { useMyList } from '#web/shared/lib/mylist';
+import { useWatched } from '#web/shared/lib/watched';
 
 export const Route = createFileRoute('/show/$id')({
   loader: async ({ params }) => {
@@ -160,6 +162,8 @@ function ShowDetailPage() {
   const t = useT();
   const { detail, poster, backdrop, themeUrl, similar } = Route.useLoaderData();
   const navigate = useNavigate();
+  const { isWatched, toggleWatched } = useWatched();
+  const { inList, toggle: toggleList } = useMyList();
   const show = detail.show;
   const seasons = detail.seasons;
   const meta = show.metadata;
@@ -192,6 +196,10 @@ function ShowDetailPage() {
         subtitles={firstEpisode ? subString(t, firstEpisode) : t('subtitle.none')}
         playable={firstEpisode}
         themeUrl={themeUrl}
+        watched={isWatched(show.id)}
+        onToggleWatched={() => toggleWatched(show.id)}
+        inList={inList(show.id)}
+        onToggleList={() => toggleList(show.id)}
         onBack={() => navigate({ to: '/series' })}
         onPlay={() => firstEpisode && play(firstEpisode.id)}
       />

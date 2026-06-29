@@ -38,6 +38,7 @@ mod suggest;
 mod schema;
 mod vectors;
 mod home;
+mod backup;
 
 pub use media::*;
 pub use catalog_query::*;
@@ -52,6 +53,7 @@ pub use jobs::*;
 pub use taste::*;
 pub use curated::*;
 pub use suggest::*;
+pub use backup::*;
 pub use schema::init;
 pub(crate) use schema::{FILE_COLS, ITEM_COLS, PRAGMAS};
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { MovieView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
+import { useWatched } from '#web/shared/lib/watched';
 
 export interface ResumeProgress {
   /** Saved position (seconds) to resume from, or null. */
@@ -25,6 +26,7 @@ export function useResumeProgress(
   position?: { seekTo: (absSec: number) => void; getPosition: () => number },
 ): ResumeProgress {
   const { client, user } = useAuth();
+  const { setWatched } = useWatched();
   const [resumeAt, setResumeAt] = useState<number | null>(null);
   const [showResume, setShowResume] = useState(false);
 
@@ -82,16 +84,19 @@ export function useResumeProgress(
     const pos = position ? position.getPosition() : v.currentTime;
     const durSec = item.durationMs ? item.durationMs / 1000 : v.duration;
     if (!Number.isFinite(durSec) || durSec <= 0 || pos < 5) return;
-    if (pos > durSec * 0.97) void client.deleteProgress(item.id);
+    // ~Finished → mark watched (clears the resume position server-side too, so it
+    // drops out of "Reprendre la lecture") and updates the shared watched set so
+    // cards re-badge immediately on the way back.
+    if (pos > durSec * 0.97) setWatched(item.id, true);
     else void client.saveProgress(item.id, pos * 1000, durSec * 1000);
-  }, [videoRef, client, user, item.id, item.durationMs, position]);
+  }, [videoRef, client, user, item.id, item.durationMs, position, setWatched]);
 
   useEffect(() => {
     if (!user) return;
     const v = videoRef.current;
     const interval = setInterval(saveProgress, 10000);
     const onUnload = () => saveProgress();
-    const onEnded = () => void client.deleteProgress(item.id);
+    const onEnded = () => setWatched(item.id, true);
     window.addEventListener('beforeunload', onUnload);
     v?.addEventListener('pause', saveProgress);
     v?.addEventListener('ended', onEnded);
@@ -102,7 +107,7 @@ export function useResumeProgress(
       v?.removeEventListener('ended', onEnded);
       saveProgress(); // final save when leaving the player
     };
-  }, [videoRef, user, saveProgress, client, item.id]);
+  }, [videoRef, user, saveProgress, setWatched, item.id]);
 
   return { resumeAt, showResume, setShowResume };
 }

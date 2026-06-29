@@ -5,6 +5,7 @@ import { useConnection } from '#tv/app/providers/connection';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { useMyList } from '#tv/app/providers/mylist';
+import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
@@ -19,6 +20,7 @@ export function TvGrid() {
   const t = useT();
   const nav = useNav();
   const myList = useMyList();
+  const watched = useWatched();
   const isFilms = kind === 'films';
   const isSeries = kind === 'series';
   useFocusNav({ onBack: nav.back, resetKey: kind });
@@ -30,6 +32,7 @@ export function TvGrid() {
       badge: qualityBadge(m),
       poster: client.posterFor(m),
       colors: posterColors(m.id),
+      watched: watched.has(m.id),
       onClick: () => nav.go('movie', { item: m }),
     });
     const showCard = (s: (typeof shows)[number]): GridCard => ({
@@ -38,6 +41,7 @@ export function TvGrid() {
       badge: qualityBadgeForVideo(s.video),
       poster: client.showPosterFor(s),
       colors: posterColors(s.id),
+      watched: watched.has(s.id),
       onClick: () => nav.go('show', { show: s }),
     });
     if (isFilms) return movies.map(movieCard);
@@ -46,7 +50,7 @@ export function TvGrid() {
       ...movies.filter((m) => myList.has(m.id)).map(movieCard),
       ...shows.filter((s) => myList.has(s.id)).map(showCard),
     ];
-  }, [isFilms, isSeries, movies, shows, client, nav, myList]);
+  }, [isFilms, isSeries, movies, shows, client, nav, myList, watched]);
 
   const heroMovie = isFilms ? movies[0] : isSeries ? undefined : movies.find((m) => myList.has(m.id));
   const heroShow = isSeries ? shows[0] : heroMovie ? undefined : shows.find((s) => myList.has(s.id));

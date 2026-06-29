@@ -7,6 +7,8 @@ export interface GridCard {
   badge: string | null;
   poster: string;
   colors: [string, string];
+  /** Whether the current user has marked this title watched. */
+  watched?: boolean;
   onClick: () => void;
 }
 
@@ -26,6 +28,7 @@ export function TvGrid({ cards }: Readonly<{ cards: GridCard[] }>) {
             badge={c.badge}
             poster={c.poster}
             colors={c.colors}
+            watched={c.watched}
             onClick={c.onClick}
           />
         ))}

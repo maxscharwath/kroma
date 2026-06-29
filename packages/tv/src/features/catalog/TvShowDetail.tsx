@@ -3,6 +3,7 @@ import { useLocale, useT, useThemeAudio } from '@luma/ui';
 import { IconClock } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useMyList } from '#tv/app/providers/mylist';
+import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { useFocusNav } from '#tv/app/useFocusNav';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
@@ -12,6 +13,7 @@ import {
   endsAtClock,
   ListButton,
   ThemeButton,
+  WatchedButton,
 } from '#tv/features/catalog/detail/parts';
 import { PlayGlyph, TV_PLAY_BTN, TvArt } from '#tv/shared/TvMedia';
 
@@ -25,6 +27,7 @@ export function TvShowDetail() {
   const [season, setSeason] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const myList = useMyList();
+  const watched = useWatched();
 
   useFocusNav({ onBack: nav.back, resetKey: detail });
 
@@ -93,6 +96,7 @@ export function TvShowDetail() {
             : t('player.play')}
         </button>
         <ListButton inList={myList.has(show.id)} onToggle={() => myList.toggle(show.id)} />
+        <WatchedButton watched={watched.has(show.id)} onToggle={() => watched.toggle(show.id)} />
         {theme.active ? <ThemeButton muted={theme.muted} onToggle={theme.toggle} /> : null}
       </div>
       <EndsAtHint runtimeMs={firstEpisode?.durationMs} />

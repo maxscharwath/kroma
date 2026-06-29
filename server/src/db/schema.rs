@@ -126,8 +126,27 @@ pub(crate) const SCHEMA: &str = "
         expires_at  INTEGER NOT NULL,
         used_at     TEXT
     );
+    -- `item_id` is a catalogue id: a movie item id OR a show id (shows live in
+    -- their own table, so this column is intentionally NOT an items FK — a show
+    -- can be marked watched as a whole).
+    CREATE TABLE IF NOT EXISTS watched (
+        user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id    TEXT NOT NULL,
+        watched_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+    );
+    -- Ma liste: user-bookmarked titles (movie item ids OR show ids; same
+    -- no-items-FK rationale as `watched`). Synced across web + TV.
+    CREATE TABLE IF NOT EXISTS my_list (
+        user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id  TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+    );
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
     CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_watched_user  ON watched(user_id);
+    CREATE INDEX IF NOT EXISTS idx_my_list_user  ON my_list(user_id, added_at DESC);
 
     CREATE TABLE IF NOT EXISTS settings (
         key        TEXT PRIMARY KEY,

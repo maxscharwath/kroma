@@ -11,7 +11,9 @@ import { useT } from '@luma/ui';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useContinue } from '#tv/app/providers/continue';
+import { useMyList } from '#tv/app/providers/mylist';
 import { useRecommend } from '#tv/app/providers/recommend';
+import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav } from '#tv/app/router';
 import { useFocusNav } from '#tv/app/useFocusNav';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
@@ -38,10 +40,16 @@ export function TvHome() {
   const { movies, shows } = useConnection();
   const { items: continueItems, refresh: refreshContinue } = useContinue();
   const { sections } = useRecommend();
+  const { has: isWatched, refresh: refreshWatched } = useWatched();
+  const { refresh: refreshMyList } = useMyList();
   const { go } = useNav();
   const client = useClient();
   const t = useT();
   useEffect(() => refreshContinue(), [refreshContinue]);
+  // Re-pull the watched + my-list sets on entry so a title finished in the player
+  // (auto-marked) or added on another device shows up the moment we land on Home.
+  useEffect(() => refreshWatched(), [refreshWatched]);
+  useEffect(() => refreshMyList(), [refreshMyList]);
   useFocusNav({});
 
   const onSelectMovie = useCallback((m: MediaItem) => go('movie', { item: m }), [go]);
@@ -66,6 +74,7 @@ export function TvHome() {
             badge={qualityBadgeForVideo(s.video)}
             backdrop={client.backdropFor(s) ?? client.showPosterFor(s)}
             colors={posterColors(s.id)}
+            watched={isWatched(s.id)}
             width={330}
             onClick={() => onSelectShow(s)}
           />
@@ -80,12 +89,13 @@ export function TvHome() {
           badge={qualityBadge(m)}
           backdrop={client.backdropFor(m) ?? client.posterFor(m)}
           colors={posterColors(m.id)}
+          watched={isWatched(m.id)}
           width={330}
           onClick={() => onSelectMovie(m)}
         />
       );
     },
-    [client, onSelectMovie, onSelectShow, t],
+    [client, onSelectMovie, onSelectShow, isWatched, t],
   );
 
   // One 16:9 rail per server section: empty list in → null out, so the home drops
@@ -159,6 +169,7 @@ export function TvHome() {
                 badge={qualityBadgeForVideo(s.video)}
                 backdrop={client.backdropFor(s) ?? client.showPosterFor(s)}
                 colors={posterColors(s.id)}
+                watched={isWatched(s.id)}
                 width={330}
                 onClick={() => onSelectShow(s)}
               />
@@ -166,7 +177,18 @@ export function TvHome() {
         }
       : null;
     return [continueRow, ...sectionRows, showRow].filter((r): r is Row => r !== null);
-  }, [shows, continueItems, sections, heroId, mediaRow, client, onPlay, onSelectShow, t]);
+  }, [
+    shows,
+    continueItems,
+    sections,
+    heroId,
+    mediaRow,
+    client,
+    onPlay,
+    onSelectShow,
+    isWatched,
+    t,
+  ]);
 
   const heroBackdrop = hero
     ? hero.type === 'show'

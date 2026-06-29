@@ -11,6 +11,7 @@ import {
 } from '@luma/core';
 import { Logo, useT } from '@luma/ui';
 import {
+  IconArchive,
   IconChevronRight,
   IconClockBolt,
   IconDatabase,
@@ -127,6 +128,7 @@ const NAV_REGLAGES: {
   { to: '/admin/ai', labelKey: 'admin.navAi', cap: 'settings.manage', icon: IconSparkles },
   { to: '/admin/jobs', labelKey: 'admin.navJobs', cap: 'settings.manage', icon: IconClockBolt },
   { to: '/admin/storage', labelKey: 'admin.navStorage', cap: null, icon: IconDatabase },
+  { to: '/admin/backup', labelKey: 'admin.navBackup', cap: 'settings.manage', icon: IconArchive },
 ];
 
 const linkCls =

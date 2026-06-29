@@ -11,6 +11,7 @@ import {
 } from '@luma/core';
 import { useT, useThemeAudio } from '@luma/ui';
 import {
+  IconCheck,
   IconChevronLeft,
   IconPlayerPlayFilled,
   IconPlus,
@@ -21,6 +22,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { imageUrl } from '#web/shared/lib/api';
 import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Poster, Rail } from '#web/shared/ui';
+import { HeroBackdrop } from '#web/features/catalog/HeroBackdrop';
 
 export type QualityTone = '4K' | 'HDR' | 'H.265';
 
@@ -86,6 +88,14 @@ export interface DetailHeroProps {
   playLabel?: string;
   onBack: () => void;
   onPlay: () => void;
+  /** Watched state for the title; omit (undefined) to hide the watched toggle. */
+  watched?: boolean;
+  /** Flip the watched flag. Required for the watched toggle to render. */
+  onToggleWatched?: () => void;
+  /** Whether the title is in "Ma liste" (drives the + / ✓ button). */
+  inList?: boolean;
+  /** Flip "Ma liste" membership. Required for the list button to be interactive. */
+  onToggleList?: () => void;
   /** Item whose codecs gate direct-play; the warning is computed client-side. */
   playable?: MediaItem | null;
   /** Plex-style theme song to loop under the hero (TV shows only); `null` plays
@@ -118,6 +128,10 @@ export function DetailHero({
   playLabel,
   onBack,
   onPlay,
+  watched,
+  onToggleWatched,
+  inList,
+  onToggleList,
   playable,
   themeUrl,
 }: Readonly<DetailHeroProps>) {
@@ -138,9 +152,7 @@ export function DetailHero({
 
   return (
     <div className="relative min-h-[62vh]">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: heroBg }} />
-      <div className="absolute inset-0 bg-[radial-gradient(130%_110%_at_75%_20%,transparent_28%,var(--luma-bg)_80%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(0deg,var(--luma-bg)_2%,transparent_46%)]" />
+      <HeroBackdrop bg={heroBg} />
 
       <button
         type="button"
@@ -182,11 +194,11 @@ export function DetailHero({
           />
         </div>
 
-        <div className="max-w-170 flex-1">
+        <div className="max-w-170 flex-1 [text-shadow:0_1px_3px_rgba(0,0,0,.5),0_2px_16px_rgba(0,0,0,.55)]">
           <div className="mb-3 text-[12px] font-semibold tracking-[.18em] text-accent">
             {overline}
           </div>
-          <h1 className="mb-4 font-display text-[56px] font-bold leading-none tracking-[-.02em]">
+          <h1 className="mb-4 font-display text-[56px] font-bold leading-none tracking-[-.02em] [text-shadow:0_0_2px_rgba(0,0,0,.55),0_2px_8px_rgba(0,0,0,.55),0_8px_30px_rgba(0,0,0,.6)]">
             {title}
           </h1>
 
@@ -233,15 +245,41 @@ export function DetailHero({
             <Button onClick={onPlay} icon={<PlayIcon />}>
               {playLabel ?? t('content.play')}
             </Button>
-            <button
-              type="button"
-              aria-label={t('content.addToList')}
-              title={t('content.myListSoon')}
-              className="flex h-12.5 w-12.5 items-center justify-center rounded-md border border-border-strong
-                bg-white/10 text-text transition-colors hover:bg-white/15"
-            >
-              <IconPlus size={20} stroke={2} />
-            </button>
+            {onToggleWatched ? (
+              <button
+                type="button"
+                onClick={onToggleWatched}
+                aria-pressed={watched ?? false}
+                aria-label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+                title={watched ? t('content.watched') : t('content.markWatched')}
+                className={`flex h-12.5 items-center gap-2 rounded-md border px-4 text-[14px] font-semibold transition-colors
+                  ${
+                    watched
+                      ? 'border-accent bg-accent text-black hover:bg-accent/90'
+                      : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
+                  }`}
+              >
+                <IconCheck size={19} stroke={2.4} />
+                {watched ? t('content.watched') : t('content.markWatched')}
+              </button>
+            ) : null}
+            {onToggleList ? (
+              <button
+                type="button"
+                onClick={onToggleList}
+                aria-pressed={inList ?? false}
+                aria-label={inList ? t('content.removeFromList') : t('content.addToList')}
+                title={inList ? t('content.inList') : t('content.addToList')}
+                className={`flex h-12.5 w-12.5 items-center justify-center rounded-md border transition-colors
+                  ${
+                    inList
+                      ? 'border-accent bg-accent-soft text-accent hover:bg-accent-soft/80'
+                      : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
+                  }`}
+              >
+                {inList ? <IconCheck size={20} stroke={2.4} /> : <IconPlus size={20} stroke={2} />}
+              </button>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-x-11 gap-y-4 border-t border-white/8 py-4.5">

@@ -25,7 +25,7 @@ mod themes;
 mod util;
 
 use axum::extract::DefaultBodyLimit;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::Router;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
@@ -98,6 +98,18 @@ pub fn router(state: SharedState) -> Router {
                 .put(playback::save_progress)
                 .delete(playback::delete_progress),
         )
+        // --- watched marker (explicit "seen" state, per user) ---
+        .route("/watched", get(playback::list_watched))
+        .route(
+            "/watched/:id",
+            put(playback::mark_watched).delete(playback::unmark_watched),
+        )
+        // --- "Ma liste" (user bookmarks, synced across web + TV) ---
+        .route("/my-list", get(playback::list_my_list))
+        .route(
+            "/my-list/:id",
+            put(playback::add_to_list).delete(playback::remove_from_list),
+        )
         // --- live playback sessions (admin dashboard "En cours de lecture") ---
         .route("/playback/ping", post(playback::ping))
         .route("/playback/stop", post(playback::stop))
@@ -129,6 +141,8 @@ pub fn router(state: SharedState) -> Router {
             "/admin/settings",
             get(admin::get_settings).put(admin::put_settings),
         )
+        .route("/admin/backup/export", get(admin::export_backup))
+        .route("/admin/backup/import", post(admin::import_backup))
         .route("/admin/stats/top-users", get(admin::top_users))
         .route("/admin/stats/history", get(admin::history))
         .route("/admin/stats/overview", get(admin::overview))

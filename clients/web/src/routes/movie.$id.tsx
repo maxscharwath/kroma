@@ -14,6 +14,8 @@ import {
   subString,
 } from '#web/features/catalog/detail';
 import { lumaClient, type MovieView, toMovieView } from '#web/shared/lib/api';
+import { useMyList } from '#web/shared/lib/mylist';
+import { useWatched } from '#web/shared/lib/watched';
 
 export const Route = createFileRoute('/movie/$id')({
   loader: async ({ params }) => {
@@ -60,6 +62,8 @@ function MovieDetailPage() {
   const t = useT();
   const { movie, similar } = Route.useLoaderData();
   const navigate = useNavigate();
+  const { isWatched, toggleWatched } = useWatched();
+  const { inList, toggle: toggleList } = useMyList();
   const meta = movie.metadata;
   const genres = meta?.genres ?? [];
 
@@ -78,6 +82,10 @@ function MovieDetailPage() {
         audio={audioString(t, movie)}
         subtitles={subString(t, movie)}
         playable={movie}
+        watched={isWatched(movie.id)}
+        onToggleWatched={() => toggleWatched(movie.id)}
+        inList={inList(movie.id)}
+        onToggleList={() => toggleList(movie.id)}
         onBack={() => navigate({ to: '/' })}
         onPlay={() => navigate({ to: '/watch/$id', params: { id: movie.id } })}
       />

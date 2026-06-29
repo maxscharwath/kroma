@@ -102,6 +102,33 @@ function CastAvatar({
   );
 }
 
+/** Check mark glyph (used by the my-list and watched toggles). */
+function CheckGlyph() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+/** Shared pill classes for the detail action toggles (active = amber). */
+const detailToggle = (active: boolean) =>
+  `inline-flex cursor-pointer items-center gap-2.75 rounded-[13px] border px-7.5 py-4 font-sans text-[19px] font-semibold transition-transform focus:scale-[1.04] ${
+    active
+      ? 'border-[rgba(242,180,66,0.45)] bg-accent-soft text-accent'
+      : 'border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] text-text'
+  }`;
+
 /** My-list toggle (visual; not yet persisted server-side). */
 export function ListButton({
   inList,
@@ -109,32 +136,30 @@ export function ListButton({
 }: Readonly<{ inList: boolean; onToggle: () => void }>) {
   const t = useT();
   return (
+    <button data-focus="" type="button" onClick={onToggle} className={detailToggle(inList)}>
+      {inList ? <CheckGlyph /> : <IconPlus size={20} stroke={2} />}
+      {inList ? t('content.inList') : t('content.addToList')}
+    </button>
+  );
+}
+
+/** Watched toggle — marks a title seen / unseen (persisted via the watched API). */
+export function WatchedButton({
+  watched,
+  onToggle,
+}: Readonly<{ watched: boolean; onToggle: () => void }>) {
+  const t = useT();
+  return (
     <button
       data-focus=""
       type="button"
       onClick={onToggle}
-      className={`inline-flex cursor-pointer items-center gap-2.75 rounded-[13px] border px-7.5 py-4 font-sans text-[19px] font-semibold transition-transform focus:scale-[1.04] ${
-        inList
-          ? 'border-[rgba(242,180,66,0.45)] bg-accent-soft text-accent'
-          : 'border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.12)] text-text'
-      }`}
+      aria-pressed={watched}
+      aria-label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+      className={detailToggle(watched)}
     >
-      {inList ? (
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          aria-hidden
-        >
-          <path d="M20 6 9 17l-5-5" />
-        </svg>
-      ) : (
-        <IconPlus size={20} stroke={2} />
-      )}
-      {inList ? t('content.inList') : t('content.addToList')}
+      <CheckGlyph />
+      {watched ? t('content.watched') : t('content.markWatched')}
     </button>
   );
 }

@@ -35,6 +35,8 @@ export interface RequestContext {
   readonly baseUrl: string;
   readonly fetchFn: typeof globalThis.fetch;
   json<T>(path: string, init?: RequestInit): Promise<T>;
+  /** Authed request returning the raw body as a `Blob` (file downloads). */
+  blob(path: string, init?: RequestInit): Promise<Blob>;
 }
 
 /** Authed `GET/POST/…` against `${baseUrl}/api${path}`, parsing the JSON body
@@ -56,11 +58,41 @@ export async function requestJson<T>(
     // Attach the error body (e.g. PIN verify's `{ error, retryAfter }`) so
     // callers can react without a second read.
     const body = await res.json().catch(() => undefined);
-    throw new LumaApiError(res.status, `${init?.method ?? 'GET'} ${path} failed (${res.status})`, body);
+    throw new LumaApiError(
+      res.status,
+      `${init?.method ?? 'GET'} ${path} failed (${res.status})`,
+      body,
+    );
   }
   // 204 No Content (progress writes) → nothing to parse.
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/** Like {@link requestJson} but returns the raw body as a `Blob` — for file
+ * downloads (e.g. the admin backup export). Throws {@link LumaApiError} on a
+ * non-2xx response, attaching the parsed JSON error body when present. */
+export async function requestBlob(
+  fetchFn: typeof globalThis.fetch,
+  baseUrl: string,
+  authToken: string | undefined,
+  locale: string | undefined,
+  path: string,
+  init?: RequestInit,
+): Promise<Blob> {
+  const headers = new Headers(init?.headers);
+  if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
+  if (locale) headers.set('Accept-Language', locale);
+  const res = await fetchFn(`${baseUrl}/api${path}`, { ...init, headers });
+  if (!res.ok) {
+    const body = await res.json().catch(() => undefined);
+    throw new LumaApiError(
+      res.status,
+      `${init?.method ?? 'GET'} ${path} failed (${res.status})`,
+      body,
+    );
+  }
+  return res.blob();
 }
 
 export function libraryQuery(libraryId?: string): string {

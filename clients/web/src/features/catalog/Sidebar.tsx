@@ -24,11 +24,11 @@ const NAV: { labelKey: MessageKey; to: string; icon: TablerIcon; exact?: boolean
   { labelKey: 'nav.home', to: '/', icon: IconHome, exact: true },
   { labelKey: 'nav.films', to: '/films', icon: IconMovie },
   { labelKey: 'nav.series', to: '/series', icon: IconDeviceTv },
+  { labelKey: 'nav.myList', to: '/mylist', icon: IconListDetails },
 ];
 
 const SOON: { labelKey: MessageKey; icon: TablerIcon }[] = [
   { labelKey: 'nav.search', icon: IconSearch },
-  { labelKey: 'nav.myList', icon: IconListDetails },
 ];
 
 export function Sidebar() {

@@ -15,6 +15,30 @@ export function PlayGlyph({ size = 22 }: Readonly<{ size?: number }>) {
   return <IconPlayerPlayFilled size={size} />;
 }
 
+/** A filled amber check badge, shown top-left of a tile the user has watched. */
+export function WatchedBadge({ size = 28 }: Readonly<{ size?: number }>) {
+  return (
+    <div
+      className="absolute left-3 top-3 z-1 flex items-center justify-center rounded-full bg-accent text-accent-ink shadow-card"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        width={size * 0.6}
+        height={size * 0.6}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+    </div>
+  );
+}
+
 /** Quality badge chip classes for a badge label (4K/H.265/HDR), or '' for none. */
 export function badgeClasses(badge: string | null): string {
   const base = 'rounded-[7px] px-2.75 py-1.25 font-sans text-[13px] font-bold tracking-[0.02em]';
@@ -75,6 +99,8 @@ export interface TvCardProps {
   backdrop: string | null;
   colors: [string, string];
   progress?: number | null;
+  /** Show the "watched" check badge (top-left). */
+  watched?: boolean;
   width?: number;
   onClick?: () => void;
 }
@@ -90,6 +116,7 @@ function TvCardImpl({
   backdrop,
   colors,
   progress = null,
+  watched = false,
   width = 328,
   onClick,
 }: Readonly<TvCardProps>) {
@@ -108,6 +135,7 @@ function TvCardImpl({
       <div className="relative aspect-video overflow-hidden rounded-xl bg-surface-1 shadow-card [contain-intrinsic-size:328px_185px] [content-visibility:auto]">
         <TvArt src={backdrop} colors={colors} position="50% 28%" />
         <div className="absolute inset-0 bg-linear-to-b from-[rgba(0,0,0,0.05)] from-40% to-[rgba(0,0,0,0.75)]" />
+        {watched ? <WatchedBadge /> : null}
         {badge ? (
           <div className="absolute right-3 top-3 rounded-md bg-[rgba(10,10,12,0.6)] px-2.25 py-1.25 font-sans text-[12px] font-bold text-accent">
             {badge}
@@ -141,6 +169,8 @@ export interface TvPosterProps {
   /** 2:3 poster art URL; falls back to the `colors` gradient. */
   poster: string | null;
   colors: [string, string];
+  /** Show the "watched" check badge (top-left). */
+  watched?: boolean;
   onClick?: () => void;
 }
 
@@ -149,7 +179,14 @@ export interface TvPosterProps {
  * uses `content-visibility:auto` so off-screen tiles in a 1000-item grid skip
  * layout + paint entirely while staying in the DOM for remote focus navigation.
  */
-function TvPosterImpl({ title, badge, poster, colors, onClick }: Readonly<TvPosterProps>) {
+function TvPosterImpl({
+  title,
+  badge,
+  poster,
+  colors,
+  watched = false,
+  onClick,
+}: Readonly<TvPosterProps>) {
   return (
     <button
       className="w-full cursor-pointer rounded-lg border-none bg-transparent p-0 transition-transform focus:scale-[1.05]"
@@ -160,6 +197,7 @@ function TvPosterImpl({ title, badge, poster, colors, onClick }: Readonly<TvPost
       <div className="relative aspect-2/3 overflow-hidden rounded-lg bg-surface-1 shadow-card [contain-intrinsic-size:200px_300px] [content-visibility:auto]">
         <TvArt src={poster} colors={colors} position="50% 50%" />
         <div className="absolute inset-0 bg-[linear-gradient(170deg,rgba(0,0,0,0.05)_35%,rgba(0,0,0,0.72))]" />
+        {watched ? <WatchedBadge size={26} /> : null}
         {badge ? (
           <div className="absolute right-2.5 top-2.5 rounded-[5px] bg-[rgba(10,10,12,0.6)] px-1.75 py-1 font-sans text-[10px] font-bold text-accent">
             {badge}

@@ -1,9 +1,10 @@
 import { formatRuntime, qualityBadge } from '@luma/core';
 import { useT } from '@luma/ui';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
-import { CastRow, EndsAtHint, ListButton } from '#tv/features/catalog/detail/parts';
+import { CastRow, EndsAtHint, ListButton, WatchedButton } from '#tv/features/catalog/detail/parts';
 import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
 import { useMyList } from '#tv/app/providers/mylist';
+import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { PlayGlyph, TV_PLAY_BTN } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
@@ -17,6 +18,7 @@ export function TvMovieDetail() {
   const client = useClient();
   const t = useT();
   const myList = useMyList();
+  const watched = useWatched();
   useFocusNav({ onBack: nav.back });
 
   const meta = item.metadata;
@@ -45,6 +47,7 @@ export function TvMovieDetail() {
           {t('player.play')}
         </button>
         <ListButton inList={myList.has(item.id)} onToggle={() => myList.toggle(item.id)} />
+        <WatchedButton watched={watched.has(item.id)} onToggle={() => watched.toggle(item.id)} />
       </div>
       <EndsAtHint runtimeMs={item.durationMs} />
       <CastRow cast={item.metadata?.cast} />

@@ -45,7 +45,9 @@ export function useResumeAndPersist(
     const d = v.duration;
     const pos = v.currentTime;
     if (!Number.isFinite(d) || d <= 0 || pos < 5) return;
-    if (pos > d * 0.97) void client.deleteProgress(item.id);
+    // ~Finished → mark watched (clears the resume position server-side too). The
+    // Home screen re-pulls the watched set on entry, so the check shows on return.
+    if (pos > d * 0.97) void client.markWatched(item.id);
     else void client.saveProgress(item.id, pos * 1000, d * 1000);
   }, [client, item]);
 
@@ -54,7 +56,7 @@ export function useResumeAndPersist(
     if (!client.hasAuth) return;
     const v = videoRef.current;
     const interval = setInterval(saveProgress, 10000);
-    const onEnded = () => void client.deleteProgress(item.id);
+    const onEnded = () => void client.markWatched(item.id);
     v?.addEventListener('pause', saveProgress);
     v?.addEventListener('ended', onEnded);
     return () => {

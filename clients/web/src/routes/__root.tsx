@@ -5,6 +5,8 @@ import { Intro } from '#web/features/catalog/Intro';
 import { Sidebar } from '#web/features/catalog/Sidebar';
 import { AuthProvider } from '#web/shared/lib/auth';
 import { LocaleProvider } from '#web/shared/lib/locale';
+import { MyListProvider } from '#web/shared/lib/mylist';
+import { WatchedProvider } from '#web/shared/lib/watched';
 import appCss from '#web/styles.css?url';
 
 export const Route = createRootRoute({
@@ -35,17 +37,21 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       </head>
       <body className="bg-bg text-text">
         <AuthProvider>
-          <LocaleProvider>
-            <AuthGate />
-            {isAdmin ? (
-              children
-            ) : (
-              <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)]">
-                <Sidebar />
-                {children}
-              </div>
-            )}
-          </LocaleProvider>
+          <WatchedProvider>
+            <MyListProvider>
+              <LocaleProvider>
+                <AuthGate />
+                {isAdmin ? (
+                  children
+                ) : (
+                  <div className="grid min-h-screen grid-cols-[248px_minmax(0,1fr)]">
+                    <Sidebar />
+                    {children}
+                  </div>
+                )}
+              </LocaleProvider>
+            </MyListProvider>
+          </WatchedProvider>
         </AuthProvider>
         {/* Brand intro overlay — sits above everything, plays once per session. */}
         <Intro />

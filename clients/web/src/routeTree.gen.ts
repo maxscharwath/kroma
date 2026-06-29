@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SeriesRouteImport } from './routes/series'
+import { Route as MylistRouteImport } from './routes/mylist'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as FilmsRouteImport } from './routes/films'
@@ -28,11 +29,17 @@ import { Route as AdminNetworkRouteImport } from './routes/admin.network'
 import { Route as AdminLibrariesRouteImport } from './routes/admin.libraries'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
 import { Route as AdminGeneralRouteImport } from './routes/admin.general'
+import { Route as AdminBackupRouteImport } from './routes/admin.backup'
 import { Route as AdminAiRouteImport } from './routes/admin.ai'
 
 const SeriesRoute = SeriesRouteImport.update({
   id: '/series',
   path: '/series',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MylistRoute = MylistRouteImport.update({
+  id: '/mylist',
+  path: '/mylist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinRoute = JoinRouteImport.update({
@@ -125,6 +132,11 @@ const AdminGeneralRoute = AdminGeneralRouteImport.update({
   path: '/general',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBackupRoute = AdminBackupRouteImport.update({
+  id: '/backup',
+  path: '/backup',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAiRoute = AdminAiRouteImport.update({
   id: '/ai',
   path: '/ai',
@@ -138,8 +150,10 @@ export interface FileRoutesByFullPath {
   '/films': typeof FilmsRoute
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
+  '/mylist': typeof MylistRoute
   '/series': typeof SeriesRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
@@ -159,8 +173,10 @@ export interface FileRoutesByTo {
   '/films': typeof FilmsRoute
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
+  '/mylist': typeof MylistRoute
   '/series': typeof SeriesRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
@@ -182,8 +198,10 @@ export interface FileRoutesById {
   '/films': typeof FilmsRoute
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
+  '/mylist': typeof MylistRoute
   '/series': typeof SeriesRoute
   '/admin/ai': typeof AdminAiRoute
+  '/admin/backup': typeof AdminBackupRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
@@ -206,8 +224,10 @@ export interface FileRouteTypes {
     | '/films'
     | '/invite'
     | '/join'
+    | '/mylist'
     | '/series'
     | '/admin/ai'
+    | '/admin/backup'
     | '/admin/general'
     | '/admin/jobs'
     | '/admin/libraries'
@@ -227,8 +247,10 @@ export interface FileRouteTypes {
     | '/films'
     | '/invite'
     | '/join'
+    | '/mylist'
     | '/series'
     | '/admin/ai'
+    | '/admin/backup'
     | '/admin/general'
     | '/admin/jobs'
     | '/admin/libraries'
@@ -249,8 +271,10 @@ export interface FileRouteTypes {
     | '/films'
     | '/invite'
     | '/join'
+    | '/mylist'
     | '/series'
     | '/admin/ai'
+    | '/admin/backup'
     | '/admin/general'
     | '/admin/jobs'
     | '/admin/libraries'
@@ -272,6 +296,7 @@ export interface RootRouteChildren {
   FilmsRoute: typeof FilmsRoute
   InviteRoute: typeof InviteRoute
   JoinRoute: typeof JoinRoute
+  MylistRoute: typeof MylistRoute
   SeriesRoute: typeof SeriesRoute
   MovieIdRoute: typeof MovieIdRoute
   PersonNameRoute: typeof PersonNameRoute
@@ -286,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/series'
       fullPath: '/series'
       preLoaderRoute: typeof SeriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mylist': {
+      id: '/mylist'
+      path: '/mylist'
+      fullPath: '/mylist'
+      preLoaderRoute: typeof MylistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join': {
@@ -414,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGeneralRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/backup': {
+      id: '/admin/backup'
+      path: '/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AdminBackupRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/ai': {
       id: '/admin/ai'
       path: '/ai'
@@ -426,6 +465,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAiRoute: typeof AdminAiRoute
+  AdminBackupRoute: typeof AdminBackupRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminLibrariesRoute: typeof AdminLibrariesRoute
@@ -438,6 +478,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAiRoute: AdminAiRoute,
+  AdminBackupRoute: AdminBackupRoute,
   AdminGeneralRoute: AdminGeneralRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminLibrariesRoute: AdminLibrariesRoute,
@@ -457,6 +498,7 @@ const rootRouteChildren: RootRouteChildren = {
   FilmsRoute: FilmsRoute,
   InviteRoute: InviteRoute,
   JoinRoute: JoinRoute,
+  MylistRoute: MylistRoute,
   SeriesRoute: SeriesRoute,
   MovieIdRoute: MovieIdRoute,
   PersonNameRoute: PersonNameRoute,

@@ -4,6 +4,7 @@ import {
   type LumaClientOptions,
   preconnect,
   type RequestContext,
+  requestBlob,
   requestJson,
 } from './client/base';
 import * as library from './client/library';
@@ -71,7 +72,12 @@ export class LumaClient {
     this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.authToken = options.authToken;
     this.locale = options.locale;
-    this.ctx = { baseUrl: this.baseUrl, fetchFn: this.fetchFn, json: this.json.bind(this) };
+    this.ctx = {
+      baseUrl: this.baseUrl,
+      fetchFn: this.fetchFn,
+      json: this.json.bind(this),
+      blob: this.blob.bind(this),
+    };
     // Warm the connection to the media server as early as possible.
     preconnect(this.baseUrl);
   }
@@ -94,6 +100,10 @@ export class LumaClient {
 
   private json<T>(path: string, init?: RequestInit): Promise<T> {
     return requestJson<T>(this.fetchFn, this.baseUrl, this.authToken, this.locale, path, init);
+  }
+
+  private blob(path: string, init?: RequestInit): Promise<Blob> {
+    return requestBlob(this.fetchFn, this.baseUrl, this.authToken, this.locale, path, init);
   }
 
   // ----- catalogue / media ----------------------------------------------------
@@ -267,6 +277,24 @@ export class LumaClient {
   deleteProgress(itemId: string): Promise<void> {
     return playback.deleteProgress(this.ctx, itemId);
   }
+  watched(): Promise<string[]> {
+    return playback.watched(this.ctx);
+  }
+  markWatched(itemId: string): Promise<void> {
+    return playback.markWatched(this.ctx, itemId);
+  }
+  unmarkWatched(itemId: string): Promise<void> {
+    return playback.unmarkWatched(this.ctx, itemId);
+  }
+  myList(): Promise<string[]> {
+    return playback.myList(this.ctx);
+  }
+  addToList(itemId: string): Promise<void> {
+    return playback.addToList(this.ctx, itemId);
+  }
+  removeFromList(itemId: string): Promise<void> {
+    return playback.removeFromList(this.ctx, itemId);
+  }
   pingPlayback(ping: PlaybackPing): Promise<void> {
     return playback.pingPlayback(this.ctx, ping);
   }
@@ -329,6 +357,14 @@ export class LumaClient {
   }
   updateSettings(patch: Record<string, unknown>): Promise<{ updated: string[] }> {
     return admin.updateSettings(this.ctx, patch);
+  }
+  /** Download a portable backup (accounts, settings, history…) as a JSON Blob. */
+  exportBackup(): Promise<Blob> {
+    return admin.exportBackup(this.ctx);
+  }
+  /** Restore a backup file, then trigger a re-scan. Returns per-table counts. */
+  importBackup(file: Blob): Promise<admin.BackupImportResult> {
+    return admin.importBackup(this.ctx, file);
   }
   topUsers(days = 7): Promise<{ users: TopUser[] }> {
     return admin.topUsers(this.ctx, days);

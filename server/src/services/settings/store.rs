@@ -28,6 +28,19 @@ impl Settings {
         }
     }
 
+    /// Reload the live map from the database, over the built-in defaults. Used
+    /// after a backup import writes the `settings` rows directly (bypassing
+    /// [`Self::set_patch`]), so the in-memory store reflects the restored config.
+    pub fn reload(&self, pool: &Pool) {
+        let mut map = defaults();
+        if let Ok(rows) = crate::db::settings_all(pool) {
+            for (k, v) in rows {
+                map.insert(k, v);
+            }
+        }
+        *self.inner.write().unwrap() = map;
+    }
+
     /// Raw value for `key`, falling back to the built-in default.
     pub fn get(&self, key: &str) -> Value {
         self.inner

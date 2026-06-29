@@ -2,6 +2,7 @@ import { metaLine, posterColors, qualityBadge, qualityBadgeForVideo } from '@lum
 import { useT } from '@luma/ui';
 import { useNavigate } from '@tanstack/react-router';
 import type { MovieView, ShowView } from '#web/shared/lib/api';
+import { useWatched } from '#web/shared/lib/watched';
 import { Badge, Button, Poster, Rail } from '#web/shared/ui';
 
 type HeroBadge = '4K' | 'HDR' | 'H.265';
@@ -80,6 +81,7 @@ export function Hero({ movie }: Readonly<{ movie: MovieView }>) {
 function MoviePoster({ item }: Readonly<{ item: MovieView }>) {
   const t = useT();
   const navigate = useNavigate();
+  const { isWatched, toggleWatched } = useWatched();
   return (
     <Poster
       title={item.title}
@@ -87,6 +89,8 @@ function MoviePoster({ item }: Readonly<{ item: MovieView }>) {
       badge={qualityBadge(item)}
       colors={posterColors(item.id)}
       poster={item.poster}
+      watched={isWatched(item.id)}
+      onToggleWatched={() => toggleWatched(item.id)}
       onClick={() => navigate({ to: '/movie/$id', params: { id: item.id } })}
     />
   );
@@ -95,6 +99,7 @@ function MoviePoster({ item }: Readonly<{ item: MovieView }>) {
 function ShowPoster({ show }: Readonly<{ show: ShowView }>) {
   const t = useT();
   const navigate = useNavigate();
+  const { isWatched, toggleWatched } = useWatched();
   return (
     <Poster
       title={show.title}
@@ -102,6 +107,8 @@ function ShowPoster({ show }: Readonly<{ show: ShowView }>) {
       badge={qualityBadgeForVideo(show.video)}
       colors={posterColors(show.id)}
       poster={show.poster}
+      watched={isWatched(show.id)}
+      onToggleWatched={() => toggleWatched(show.id)}
       onClick={() => navigate({ to: '/show/$id', params: { id: show.id } })}
     />
   );

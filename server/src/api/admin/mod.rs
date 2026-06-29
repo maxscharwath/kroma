@@ -8,6 +8,7 @@
 //! server-status / live-sessions / metrics dashboard handlers and the shared
 //! capability guards live here.
 
+mod backup;
 mod jobs;
 mod libraries;
 mod llm;
@@ -16,6 +17,7 @@ mod stats;
 mod storage;
 mod users;
 
+pub use backup::{export_backup, import_backup};
 pub use jobs::{cancel_job, job_detail, list_jobs, run_job, run_logs, update_job};
 pub use llm::{get_llm, llm_models, save_llm, test_llm};
 pub use libraries::{create_library, delete_library, list_libraries, scan_library, update_library};

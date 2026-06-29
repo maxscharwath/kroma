@@ -7,6 +7,7 @@ import { ContinueProvider } from '#tv/app/providers/continue';
 import { LocaleProvider } from '#tv/app/providers/locale';
 import { MyListProvider } from '#tv/app/providers/mylist';
 import { RecommendProvider } from '#tv/app/providers/recommend';
+import { WatchedProvider } from '#tv/app/providers/watched';
 import {
   type RouteName,
   TvClientProvider,
@@ -66,7 +67,9 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
                 <ContinueProvider>
                   <RecommendProvider>
                     <MyListProvider>
-                      <TvRouterGuard />
+                      <WatchedProvider>
+                        <TvRouterGuard />
+                      </WatchedProvider>
                     </MyListProvider>
                   </RecommendProvider>
                 </ContinueProvider>

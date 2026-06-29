@@ -1,9 +1,7 @@
-// "Ma liste" — a client-side set of item ids the user has bookmarked, scoped per
-// (server, user) in localStorage. There is no server feature for this yet; the
-// provider keeps the detail toggle and the Ma liste grid consistent across the
-// app (shared state, persisted across launches).
+// "Ma liste" — the user's bookmarked titles. Server-backed (synced with the web
+// client) via the my-list API, hydrated once into a set; toggles are optimistic
+// and revert if the server call fails. Mirrors the watched provider.
 
-import { normalizeServerUrl as norm } from '@luma/core';
 import {
   createContext,
   type ReactNode,
@@ -14,56 +12,68 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
-
-const storageKey = (serverUrl?: string, userId?: string) =>
-  serverUrl && userId ? `luma.mylist.${norm(serverUrl)}.${userId}` : null;
-
-function load(key: string | null): Set<string> {
-  if (!key) return new Set();
-  try {
-    const raw = localStorage.getItem(key);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function save(key: string, ids: Set<string>) {
-  try {
-    localStorage.setItem(key, JSON.stringify([...ids]));
-  } catch {
-    /* quota / disabled storage — non-fatal */
-  }
-}
+import { useConnection } from '#tv/app/providers/connection';
 
 interface MyList {
+  /** Whether a title (movie item id OR show id) is in the list. */
   has: (id: string) => boolean;
+  /** Flip a title's membership (optimistic + persisted). */
   toggle: (id: string) => void;
-  ids: Set<string>;
+  /** Re-fetch the list from the server (e.g. to pick up web-side changes). */
+  refresh: () => void;
 }
 
 const Ctx = createContext<MyList | null>(null);
 
 export function MyListProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { session } = useAuth();
-  const key = storageKey(session?.serverUrl, session?.user.id);
-  const [ids, setIds] = useState<Set<string>>(() => load(key));
+  const { user } = useAuth();
+  const { client } = useConnection();
+  const [ids, setIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  useEffect(() => setIds(load(key)), [key]);
+  const refresh = useCallback(() => {
+    if (!user || !client) {
+      setIds(new Set());
+      return;
+    }
+    client
+      .myList()
+      .then((list) => setIds(new Set(list)))
+      .catch(() => undefined);
+  }, [client, user]);
 
-  const toggle = useCallback(
-    (id: string) =>
+  useEffect(() => refresh(), [refresh]);
+
+  const setInList = useCallback(
+    (id: string, inList: boolean) => {
+      if (!client) return;
       setIds((prev) => {
+        if (prev.has(id) === inList) return prev;
         const next = new Set(prev);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        if (key) save(key, next);
+        if (inList) next.add(id);
+        else next.delete(id);
         return next;
-      }),
-    [key],
+      });
+      const call = inList ? client.addToList(id) : client.removeFromList(id);
+      call.catch(() => {
+        setIds((prev) => {
+          const next = new Set(prev);
+          if (inList) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      });
+    },
+    [client],
   );
 
-  const value = useMemo<MyList>(() => ({ has: (id) => ids.has(id), toggle, ids }), [ids, toggle]);
+  const value = useMemo<MyList>(
+    () => ({
+      has: (id) => ids.has(id),
+      toggle: (id) => setInList(id, !ids.has(id)),
+      refresh,
+    }),
+    [ids, setInList, refresh],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

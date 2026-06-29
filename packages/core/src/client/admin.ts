@@ -100,6 +100,31 @@ export function updateSettings(
   });
 }
 
+// ----- portable backup --------------------------------------------------------
+
+/** Per-table row counts written by an import, plus whether a re-scan was kicked. */
+export interface BackupImportResult {
+  imported: Record<string, number>;
+  rescanStarted: boolean;
+}
+
+/** Download a portable backup (accounts, settings, history, resume positions,
+ *  invites, cron overrides) as a JSON `Blob`. Requires `settings.manage`. The
+ *  file contains credentials (password hashes, API keys) — store it securely. */
+export function exportBackup(ctx: RequestContext): Promise<Blob> {
+  return ctx.blob('/admin/backup/export');
+}
+
+/** Restore a backup file (replaces accounts/settings/history by primary key),
+ *  then trigger a re-scan so the catalogue regenerates with matching item IDs. */
+export function importBackup(ctx: RequestContext, file: Blob): Promise<BackupImportResult> {
+  return ctx.json<BackupImportResult>('/admin/backup/import', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: file,
+  });
+}
+
 /** Per-user watch aggregates over the last `days` (default 7). */
 export function topUsers(ctx: RequestContext, days = 7): Promise<{ users: TopUser[] }> {
   return ctx.json<{ users: TopUser[] }>(`/admin/stats/top-users?days=${days}`);

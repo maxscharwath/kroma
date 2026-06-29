@@ -45,6 +45,37 @@ export async function deleteProgress(ctx: RequestContext, itemId: string): Promi
   await ctx.json<void>(`/progress/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
 }
 
+/** Item ids the user has marked (or finished) as watched. Clients hydrate this
+ * into a set once and badge cards from it. */
+export function watched(ctx: RequestContext): Promise<string[]> {
+  return ctx.json<string[]>('/watched');
+}
+
+/** Mark an item as watched (also clears its resume position). */
+export async function markWatched(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/watched/${encodeURIComponent(itemId)}`, { method: 'PUT' });
+}
+
+/** Clear an item's watched flag. */
+export async function unmarkWatched(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/watched/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+}
+
+/** Item/show ids in the user's "Ma liste" (newest first). Hydrated into a set. */
+export function myList(ctx: RequestContext): Promise<string[]> {
+  return ctx.json<string[]>('/my-list');
+}
+
+/** Add a title to the user's list. */
+export async function addToList(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/my-list/${encodeURIComponent(itemId)}`, { method: 'PUT' });
+}
+
+/** Remove a title from the user's list. */
+export async function removeFromList(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/my-list/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+}
+
 /** Report playback state so the admin dashboard can show a live session. */
 export async function pingPlayback(ctx: RequestContext, ping: PlaybackPing): Promise<void> {
   await ctx.json<void>('/playback/ping', {

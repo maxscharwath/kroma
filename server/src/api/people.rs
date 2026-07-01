@@ -16,6 +16,13 @@ use crate::api::util::query;
 use crate::db;
 use crate::model::{MediaItem, Metadata, Show};
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/people`.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/people", get(person))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PersonParams {

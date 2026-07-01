@@ -4,6 +4,15 @@
 
 use super::prelude::*;
 
+/// Manual-only: fetch posters/backdrops/metadata for items missing it.
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("metadata.enrich"),
+    category: Category::Library,
+    schedule: None,
+    triggers: &[],
+    run,
+};
+
 pub(super) fn run(ctx: &JobContext) -> Result<()> {
     let state = &ctx.state;
     if state.config.tmdb_api_key.is_none() {

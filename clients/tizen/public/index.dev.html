@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- LUMA on-device live-dev loader. `make dev-shell` swaps this in for the built
+     index.html inside an otherwise-untouched production wgt (a hand-stripped config
+     is rejected by retail firmware, so we reuse the real build). On launch it
+     redirects the webview to the Vite dev server on the developer's machine, giving
+     full HMR from a plain-http origin (so ws:// HMR isn't blocked). __HOST_IP__ /
+     __DEV_PORT__ are substituted by `make dev-shell`. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080, user-scalable=no" />
+    <title>LUMA Dev</title>
+    <script>
+      // replace() so the loader isn't left in history (Back on the TV won't return here).
+      location.replace('http://__HOST_IP__:__DEV_PORT__/');
+    </script>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0a0a0a; color: #888;
+        font: 500 28px/1.4 sans-serif; display: grid; place-items: center; }
+    </style>
+  </head>
+  <body>
+    Connecting to LUMA dev server at __HOST_IP__:__DEV_PORT__ …
+  </body>
+</html>

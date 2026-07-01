@@ -1,4 +1,5 @@
 import { activeCueText, type Cue, parseVtt } from '@luma/core';
+import { useT } from '@luma/ui';
 import { type CSSProperties, memo, useEffect, useRef, useState } from 'react';
 
 // 10-foot subtitle styling: large, white, heavy drop-shadow for legibility over
@@ -36,8 +37,14 @@ function TvSubtitlesImpl({
   activeIndex: number | null;
   raised: boolean;
 }>) {
+  const t = useT();
   const [cues, setCues] = useState<Cue[]>([]);
   const [text, setText] = useState('');
+  // A first-ever embedded track is extracted server-side (a whole-file demux);
+  // surface that wait instead of a blank screen. Delayed so a cached track (the
+  // common case) resolves without flashing the hint.
+  const [loading, setLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const pointer = useRef(0);
 
   const activeUrl =
@@ -49,9 +56,11 @@ function TvSubtitlesImpl({
     pointer.current = 0;
     if (!activeUrl) {
       setCues([]);
+      setLoading(false);
       return;
     }
     let cancelled = false;
+    setLoading(true);
     fetch(activeUrl)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
       .then((raw) => {
@@ -59,11 +68,24 @@ function TvSubtitlesImpl({
       })
       .catch(() => {
         if (!cancelled) setCues([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [activeUrl]);
+
+  // Reveal the "loading" hint only if the fetch outlasts a short grace period.
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false);
+      return;
+    }
+    const id = setTimeout(() => setShowLoading(true), 400);
+    return () => clearTimeout(id);
+  }, [loading]);
 
   // Re-anchor the moving cue pointer after a seek so captions match the new
   // position immediately (`activeCueText` binary-searches from a reset hint).
@@ -84,7 +106,19 @@ function TvSubtitlesImpl({
     setText(t);
   }, [cues, positionSec]);
 
-  if (!text) return null;
+  if (!text) {
+    if (!showLoading) return null;
+    return (
+      <div
+        className="pointer-events-none absolute inset-x-0 z-30 flex justify-center px-[8%] transition-[bottom] duration-300"
+        style={{ bottom: raised ? '24%' : '9%' }}
+      >
+        <span className="animate-pulse rounded-full bg-black/60 px-5 py-2 text-[26px] font-semibold text-white/85">
+          {t('player.subtitleLoading')}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div

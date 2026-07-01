@@ -1,4 +1,5 @@
 import { activeCueText, type Cue, parseVtt } from '@luma/core';
+import { useT } from '@luma/ui';
 import { memo, type RefObject, useEffect, useRef, useState } from 'react';
 import { type SubtitleStyle, subtitleCss } from '#web/features/playback/subtitleStyle';
 import type { SubtitleView } from '#web/shared/lib/api';
@@ -29,8 +30,14 @@ function SubtitleLayerImpl({
    * clock is relative to the remux anchor, so look up at `baseSec + currentTime`. */
   baseSec: number;
 }>) {
+  const t = useT();
   const [cues, setCues] = useState<Cue[]>([]);
   const [text, setText] = useState('');
+  // A first-ever embedded track is extracted server-side (a whole-file demux), which
+  // can take a moment; surface it instead of showing nothing. Delayed so an instant
+  // cache hit (or a downloaded track) never flashes the indicator.
+  const [loading, setLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState(false);
   const pointer = useRef(0);
 
   // The active track's WebVTT URL a primitive, used as the effect dependency
@@ -46,9 +53,11 @@ function SubtitleLayerImpl({
     pointer.current = 0;
     if (!activeUrl) {
       setCues([]);
+      setLoading(false);
       return;
     }
     let cancelled = false;
+    setLoading(true);
     fetch(activeUrl)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
       .then((raw) => {
@@ -56,11 +65,25 @@ function SubtitleLayerImpl({
       })
       .catch(() => {
         if (!cancelled) setCues([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [activeUrl]);
+
+  // Only reveal the "loading" hint if the fetch outlasts a short grace period, so a
+  // cached track (the common case) resolves silently.
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false);
+      return;
+    }
+    const id = setTimeout(() => setShowLoading(true), 400);
+    return () => clearTimeout(id);
+  }, [loading]);
 
   // Sync the active cue to the video clock.
   useEffect(() => {
@@ -99,7 +122,19 @@ function SubtitleLayerImpl({
     // listeners bind to the fresh element and use the new offset.
   }, [videoRef, cues, baseSec]);
 
-  if (!text) return null;
+  if (!text) {
+    if (!showLoading) return null;
+    return (
+      <div
+        className="pointer-events-none absolute inset-x-0 z-30 flex justify-center px-[8%] transition-[bottom] duration-300"
+        style={{ bottom: raised ? '15%' : '7%' }}
+      >
+        <span className="animate-pulse rounded-full bg-black/60 px-3 py-1 text-[13px] text-white/80 backdrop-blur-sm">
+          {t('player.subtitleLoading')}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div

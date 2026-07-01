@@ -9,6 +9,13 @@ use crate::api::error::json_error;
 use crate::infra::stream::stream_file;
 use crate::infra::theme::themes_dir;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/themes/:name`.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/themes/:name", get(theme))
+}
 
 /// `GET /api/themes/:name` → a locally-cached theme MP3, with `Range` support so
 /// `<audio>` can seek/loop. Content-addressed by TVDB id → cached for a week.

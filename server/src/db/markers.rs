@@ -21,6 +21,26 @@ fn kind_from_str(s: &str) -> Option<MarkerKind> {
     }
 }
 
+/// Item ids that have at least one stored marker. Bulk signal for the pipeline
+/// elements list.
+pub fn item_ids_with_markers(pool: &Pool) -> Result<std::collections::HashSet<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare("SELECT DISTINCT item_id FROM markers")?;
+    let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Whether an item has any stored marker (for the per-element treatments view;
+/// note a legitimately intro-less episode has none, so combine with the ledger).
+pub fn has_markers(pool: &Pool, item_id: &str) -> Result<bool> {
+    let conn = pool.get()?;
+    let n: i64 =
+        conn.query_row("SELECT COUNT(*) FROM markers WHERE item_id=?1", params![item_id], |r| {
+            r.get(0)
+        })?;
+    Ok(n > 0)
+}
+
 /// All markers for an item, ordered by start (intro before credits). Unknown
 /// kinds are skipped so a future kind can't break older clients.
 pub fn markers_for_item(conn: &Connection, item_id: &str) -> rusqlite::Result<Vec<Marker>> {

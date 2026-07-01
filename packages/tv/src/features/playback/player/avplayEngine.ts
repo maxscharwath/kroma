@@ -1,19 +1,18 @@
 // Native Samsung AVPlay backend. Plays the server's HLS master with hardware
-// decode (AC3/EAC3/DTS surround passthrough) and switches audio renditions in
-// place. Renders to a video plane behind the page, so the player shows an
-// `<object type="application/avplayer">` surface (transparent body) and the HTML
-// chrome + subtitle overlay sit on top.
+// decode (AC3/EAC3/DTS surround passthrough). Renders to a video plane behind the
+// page, so the player shows an `<object type="application/avplayer">` surface
+// (transparent body) and the HTML chrome + subtitle overlay sit on top.
 //
 // The remux is anchored at `baseSec` (server input `-ss`) so a resume/far-seek
 // over a network mount starts fast. The stream restarts at 0, so absolute
 // position is `baseSec + avplay time`; a nearby seek is a native `seekTo`, a far
-// one re-anchors (reopen the master at the new offset).
+// one re-anchors (reopen the master at the new offset). The stream carries only
+// the ONE audio track named in its URL, so switching language re-anchors too
+// (reopen at the current position with the new `audio` segment).
 
 import type { LumaClient, MediaItem } from '@luma/core';
 import {
   type AvplayApi,
-  type AvplayTrack,
-  audioAbsoluteIndex,
   type EngineListeners,
   getAvplay,
   type TvEngine,
@@ -41,7 +40,6 @@ export class AvplayEngine implements TvEngine {
   private readonly client: LumaClient;
   private readonly item: MediaItem;
   private readonly listeners: EngineListeners;
-  private audioStreams: AvplayTrack[] = [];
   private durSec: number;
   private baseSec: number;
   private elSec = 0;
@@ -71,7 +69,11 @@ export class AvplayEngine implements TvEngine {
 
   /** (Re)open the master at the current `baseSec` and prepare it. */
   private open(): void {
-    const url = this.client.hlsMasterUrl(this.item.id, false); // TV decodes natively → copy master
+    // Anchor the remux at `baseSec` (input `-ss`) and mux the selected audio (the
+    // `audio` path segment); AVPlay then plays from RELATIVE 0 and `position()`
+    // adds `baseSec` back. Omitting the anchor makes the server always start at
+    // t=0, so the picture stays at the beginning after every seek/resume.
+    const url = this.client.hlsMasterUrl(this.item.id, false, this.baseSec, this.rendition); // TV decodes natively → copy master
     try {
       this.api.open(url);
       this.api.setDisplayRect(0, 0, 1920, 1080);
@@ -109,33 +111,16 @@ export class AvplayEngine implements TvEngine {
     if (this.destroyed) return;
     this.elSec = 0;
     try {
-      this.audioStreams = this.api.getTotalTrackInfo().filter((t) => t.type === 'AUDIO');
-    } catch {
-      this.audioStreams = [];
-    }
-    try {
       const d = this.api.getDuration();
       if (d > 0) this.durSec = d / 1000;
     } catch {
       /* keep the catalogue runtime */
     }
     this.listeners.onDuration(this.durSec);
-    if (this.rendition > 0) this.applyRendition(this.rendition);
     this.listeners.onReady(); // the hook drives the FIRST playback start
     if (this.resumeOnPrepare) {
       this.resumeOnPrepare = false;
       this.play(); // a re-anchor resumes itself (the hook won't, already started)
-    }
-  }
-
-  /** Map the audio-relative rendition to AVPlay's absolute stream index. */
-  private applyRendition(rendition: number): void {
-    const abs = audioAbsoluteIndex(this.audioStreams, rendition);
-    if (abs == null) return;
-    try {
-      this.api.setSelectTrack('AUDIO', abs);
-    } catch {
-      /* track switch can fail in a transient state */
     }
   }
 
@@ -145,7 +130,7 @@ export class AvplayEngine implements TvEngine {
       if (document.visibilityState === 'hidden') this.api.suspend();
       else
         this.api.restore(
-          this.client.hlsMasterUrl(this.item.id, false),
+          this.client.hlsMasterUrl(this.item.id, false, this.baseSec, this.rendition),
           Math.round(this.elSec * 1000),
           'PLAYING',
         );
@@ -220,9 +205,13 @@ export class AvplayEngine implements TvEngine {
   }
 
   setAudioRendition(rendition: number): void {
+    if (rendition === this.rendition) return;
     this.rendition = rendition;
-    if (this.audioStreams.length === 0) return; // applied on prepare
-    this.applyRendition(rendition);
+    // The stream carries only the ONE audio track named in its URL (the server maps
+    // a single `0:a:<n>` per session), so a language switch reopens the master at
+    // the CURRENT position with the new track rather than an in-place native select.
+    // The remux is anchored, so it re-preps in ~1s and resumes where it left off.
+    this.reanchor(this.position());
   }
 
   destroy(): void {

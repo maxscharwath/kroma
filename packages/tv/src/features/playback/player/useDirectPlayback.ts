@@ -1,6 +1,7 @@
 import {
   type AudioTrack,
   audioTrackId,
+  audioTrackLabel,
   audioTracksOf,
   canDirectPlay,
   type DirectPlayVerdict,
@@ -14,7 +15,7 @@ import {
   resolveAudioRelativeIndex,
   selectEngine,
 } from '@luma/core';
-import { usePlaybackHeartbeat } from '@luma/ui';
+import { usePlaybackHeartbeat, useT } from '@luma/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AvplayEngine } from '#tv/features/playback/player/avplayEngine';
 import {
@@ -102,6 +103,7 @@ function renditionFor(item: MediaItem, audioIndex: number): number {
  * hls.js). State is mirrored into React; resume + progress are persisted.
  */
 export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const objectRef = useRef<HTMLObjectElement>(null);
   const engineRef = useRef<TvEngine | null>(null);
@@ -228,15 +230,24 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
     if (/web0?s|LG/i.test(ua)) return 'LG TV';
     return 'TV';
   };
+  // Video is always copied. AVPlay passes surround through (remux); only the
+  // hls.js AAC master (webOS / MSE without AC3) re-encodes audio (transcode).
+  let playbackMode: 'direct' | 'remux' | 'transcode' = 'direct';
+  if (!direct) playbackMode = !useAvplay && masterAac ? 'transcode' : 'remux';
   usePlaybackHeartbeat({
     client,
     enabled: client.hasAuth,
     itemId: item.id,
     durationMs: item.durationMs ?? null,
     getPosition,
-    getState: () => (playing ? 'playing' : 'paused'),
-    pingSignal: playing,
-    mode: direct ? 'direct' : 'transcode',
+    getState: () => {
+      if (!playing) return 'paused';
+      return waiting ? 'buffering' : 'playing';
+    },
+    getAudio: () => audioTrackLabel(t, audioTracks.find((a) => a.index === audioIndex)),
+    // Ping promptly on play/pause, buffering, and audio-track changes.
+    pingSignal: `${playing}|${waiting}|${audioIndex}`,
+    mode: playbackMode,
     player: 'LUMA TV',
     device: tvDevice(),
     eventsBaseUrl: client.baseUrl,

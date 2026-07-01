@@ -17,6 +17,16 @@ use crate::infra::events::ServerEvent;
 use crate::model::Permission;
 use crate::services::settings::{self, LibraryDef};
 use crate::state::SharedState;
+use axum::routing::{get, patch, post};
+use axum::Router;
+
+/// Admin library management. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/libraries", get(list_libraries).post(create_library))
+        .route("/libraries/:id", patch(update_library).delete(delete_library))
+        .route("/libraries/:id/scan", post(scan_library))
+}
 
 /// `GET /api/admin/libraries` → library cards (folders, size, item count).
 pub async fn list_libraries(
@@ -179,5 +189,5 @@ fn clean_folders(folders: Vec<String>) -> Vec<String> {
 /// follow-up pipeline (probe + search reindex + enrich), instead of spawning its
 /// own partial pass. A no-op when a scan is already running (it covers the edit).
 fn spawn_rescan(state: SharedState) {
-    let _ = state.jobs.trigger(state.clone(), crate::model::JobId::LibraryScan, "library-edit");
+    let _ = state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "library-edit");
 }

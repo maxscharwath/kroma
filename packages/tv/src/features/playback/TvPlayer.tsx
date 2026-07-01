@@ -1,19 +1,24 @@
-import { audioSupport, type MediaItem, metaLine } from '@luma/core';
+import { audioSupport, type MediaItem, playerSubtitle } from '@luma/core';
 import { useLocale, useT } from '@luma/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { endsAtClock } from '#tv/features/catalog/detail/parts';
 import { AvPanel } from '#tv/features/playback/player/AvPanel';
 import { ControlBar } from '#tv/features/playback/player/ControlBar';
-import { BackChevron } from '#tv/features/playback/player/icons';
+import { BackChevron, StopGlyph } from '#tv/features/playback/player/icons';
 import { SkipIntroButton, UpNextCard } from '#tv/features/playback/player/PlayerOverlays';
+import { FOCUS_RING } from '#tv/features/playback/player/playerStyles';
 import { useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
 import { usePlayerControls } from '#tv/features/playback/player/usePlayerControls';
+import { useStoryboard } from '#tv/features/playback/player/useStoryboard';
+import { useSubtitleGen } from '#tv/features/playback/player/useSubtitleGen';
 import { useSubtitleSelection } from '#tv/features/playback/player/useSubtitleSelection';
 import { TvSubtitles } from '#tv/features/playback/TvSubtitles';
 
 /** No credits marker → assume the last `CREDITS_TAIL`s are the credits. */
 const CREDITS_TAIL = 30;
+/** Scrub-preview thumbnail width (px); height follows the sheet's 16:9 tiles. */
+const PREVIEW_W = 256;
 /** Netflix-style fixed auto-advance countdown (s) once the credits zone opens. */
 const AUTO_NEXT = 12;
 
@@ -32,6 +37,14 @@ export function TvPlayer() {
 
   const playback = useDirectPlayback(client, item);
   const subs = useSubtitleSelection(client, item);
+  // Scrub-bar preview thumbnails (storyboard sprite sheet, generated server-side).
+  const storyboard = useStoryboard(client, item.id);
+  // On-device subtitle generation (Whisper transcribe / LLM translate): caps, the
+  // live progress poll, the generate-sheet form, and remote field handlers. A
+  // finished generation reloads the subtitle list (subs.reload).
+  const gen = useSubtitleGen(client, item, subs.rendered, subs.reload);
+  const genRows = useMemo(() => gen.pending.map((g) => g.id), [gen.pending]);
+  const canCreate = Boolean(gen.caps?.transcribe || gen.caps?.translate);
   const { cur, dur, bufEnd, playing, waiting, error, terminated, verdict, seekPreview } = playback;
 
   // "Up next" (series autoplay): the next episode + a one-shot advance guard.
@@ -51,7 +64,9 @@ export function TvPlayer() {
   const goNext = useCallback(() => {
     if (advancedRef.current || !next) return;
     advancedRef.current = true;
-    nav.replace('player', { item: next });
+    // swap, not replace: keep the history below so Back returns to the show/detail
+    // you launched from instead of dead-ending on this lone player.
+    nav.swap('player', { item: next });
   }, [next, nav]);
   const cancelUpNext = useCallback(() => setUpNextCancelled(true), []);
 
@@ -83,6 +98,8 @@ export function TvPlayer() {
     zone,
     avOpen,
     avFocus,
+    genOpen,
+    genFocus,
     barFocusName,
     skipFocused,
     upNextPlayFocus,
@@ -93,11 +110,16 @@ export function TvPlayer() {
     seek: playback.seek,
     nudge: playback.nudge,
     onExit: nav.back,
+    terminated: terminated != null,
     audioOptions,
     activeAudio: playback.audioIndex,
     pickAudio: playback.setAudio,
     subOptions: subs.options,
     pickSub: subs.pick,
+    genRows,
+    onCancelGen: gen.cancel,
+    canCreate,
+    genFields: gen.fields,
     hasNext: Boolean(next),
     onNext: goNext,
     canSkipIntro,
@@ -108,15 +130,15 @@ export function TvPlayer() {
   });
 
   const audio = useMemo(() => audioSupport(item), [item]);
-  const subtitle =
-    item.kind === 'episode' && item.showTitle
-      ? `${item.showTitle} · S${item.season}E${item.episode}`
-      : metaLine(item);
+  const subtitle = playerSubtitle(item);
 
   // While progressively seeking, the bar + time preview the pending position.
   const shown = seekPreview ?? cur;
   const pct = dur ? (shown / dur) * 100 : 0;
   const bufPct = dur ? (bufEnd / dur) * 100 : 0;
+  // Show the storyboard thumbnail whenever the progress bar is the active focus
+  // (the user is scrubbing); it tracks the previewed position.
+  const previewTile = controls && zone === 'progress' ? storyboard.tile(shown, PREVIEW_W) : null;
 
   // Fixed Netflix-style countdown once the credits zone opens. It only advances
   // at 0 (never on a raw position check) and is frozen during a scrub, so
@@ -145,11 +167,11 @@ export function TvPlayer() {
 
   const endsAt = dur ? endsAtClock(Math.max(0, dur - cur) * 1000, locale) : '';
   const fade = controls ? 'opacity-100' : 'pointer-events-none opacity-0';
-  // Warning pill text, by priority: admin stop → stream/codec load error →
-  // direct-play verdict → audio support. All resolved to the active locale here.
+  // Warning pill text, by priority: stream/codec load error → direct-play verdict
+  // → audio support. (An admin stop gets its own blocking overlay below, not the
+  // pill.) All resolved to the active locale here.
   let warn: string | null = null;
-  if (terminated != null) warn = terminated || t('player.stoppedDefault');
-  else if (error) warn = t(error);
+  if (error) warn = t(error);
   else if (verdict && !verdict.canDirectPlay) warn = t(verdict.messageKey, verdict.messageVars);
   else if (!audio.canPlay && audio.messageKey) warn = t(audio.messageKey, audio.messageVars);
 
@@ -240,6 +262,7 @@ export function TvPlayer() {
         showCountdown={showUpNext}
         ringProgress={countdown / AUTO_NEXT}
         markers={item.markers}
+        previewTile={previewTile}
         barFocusName={barFocusName}
       />
 
@@ -251,7 +274,35 @@ export function TvPlayer() {
           options={subs.options}
           active={subs.active}
           focus={avFocus}
+          pending={gen.pending}
+          canCreate={canCreate}
+          genOpen={genOpen}
+          genFocus={genFocus}
+          form={gen.form}
         />
+      ) : null}
+
+      {/* Admin stopped this stream: a blocking overlay that locks the transport
+          (usePlayerControls swallows every key) and exits on OK / Retour, so the
+          viewer can't silently resume an untracked stream. Mirrors the web modal. */}
+      {terminated != null ? (
+        <div className="absolute inset-0 z-80 flex flex-col items-center justify-center gap-6 bg-[rgba(0,0,0,0.92)] px-16 text-center backdrop-blur-sm">
+          <span className="text-[#E8536A]">
+            <StopGlyph size={64} />
+          </span>
+          <div className="font-display text-[30px] font-bold text-white">
+            {t('player.stoppedTitle')}
+          </div>
+          <p className="max-w-[42rem] font-sans text-[18px] leading-relaxed text-[rgba(244,243,240,0.72)]">
+            {terminated || t('player.stoppedDefault')}
+          </p>
+          <div
+            className={`mt-2 flex items-center gap-2 rounded-full bg-accent px-7 py-3 font-sans text-[16px] font-bold text-accent-ink ${FOCUS_RING}`}
+          >
+            <BackChevron />
+            {t('player.back')}
+          </div>
+        </div>
       ) : null}
     </div>
   );

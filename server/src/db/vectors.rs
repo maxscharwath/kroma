@@ -11,6 +11,8 @@
 
 use std::collections::HashSet;
 
+use rusqlite::OptionalExtension;
+
 use super::*;
 
 /// Insert/replace one title's embedding. `vec` MUST already be L2-normalized.
@@ -22,6 +24,40 @@ pub fn set_item_vector(pool: &Pool, id: &str, vec: &[f32]) -> Result<()> {
         params![id, vec.len() as i64, vec_to_blob(vec), now_or_blank()],
     )?;
     Ok(())
+}
+
+/// Ids that have a stored embedding. Bulk signal for the pipeline elements list.
+pub fn item_ids_with_vector(pool: &Pool) -> Result<HashSet<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare("SELECT id FROM item_vectors")?;
+    let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Whether a title has a stored embedding (for the per-element treatments view).
+pub fn has_vector(pool: &Pool, id: &str) -> Result<bool> {
+    let conn = pool.get()?;
+    let n: i64 =
+        conn.query_row("SELECT COUNT(*) FROM item_vectors WHERE id=?1", params![id], |r| r.get(0))?;
+    Ok(n > 0)
+}
+
+/// Delete one title's stored embedding, so a reprocess recomputes it.
+pub fn clear_item_vector(pool: &Pool, id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute("DELETE FROM item_vectors WHERE id=?1", params![id])?;
+    Ok(())
+}
+
+/// The stored embedding dimension for ONE id, or `None` if it has no vector yet.
+/// Single-row indexed lookup so the embed stage can skip a vector already at the
+/// active dim without loading the whole `item_vectors` table per subject.
+pub fn vector_dim(pool: &Pool, id: &str) -> Result<Option<usize>> {
+    let conn = pool.get()?;
+    let dim: Option<i64> = conn
+        .query_row("SELECT dim FROM item_vectors WHERE id=?1", params![id], |r| r.get(0))
+        .optional()?;
+    Ok(dim.map(|d| d as usize))
 }
 
 /// Current stored embedding dimension per id. Lets an idempotent re-embed skip

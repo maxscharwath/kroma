@@ -13,6 +13,7 @@ import {
   SimilarRail,
   subString,
 } from '#web/features/catalog/detail';
+import { TreatmentsPanel } from '#web/features/catalog/TreatmentsPanel';
 import { lumaClient, type MovieView, toMovieView } from '#web/shared/lib/api';
 import { useMyList } from '#web/shared/lib/mylist';
 import { useWatched } from '#web/shared/lib/watched';
@@ -89,6 +90,7 @@ function MovieDetailPage() {
         onBack={() => navigate({ to: '/' })}
         onPlay={() => navigate({ to: '/watch/$id', params: { id: movie.id } })}
       />
+      <TreatmentsPanel kind="item" id={movie.id} />
       <CastRail cast={meta?.cast ?? []} />
       <SimilarRail
         title={t('content.similarTitles')}

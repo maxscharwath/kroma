@@ -88,6 +88,35 @@ make deploy                          # build → sign → install → launch �
 After it's installed, iterate fast with `make redeploy` (re-uses the connection)
 and watch logs with `make logs`.
 
+### Live dev on the TV (hot reload)
+
+For UI/player work, skip the repackage loop entirely: install a one-time **dev
+shell** that redirects the TV to the Vite dev server on your machine, so it loads
+the live app and hot-reloads on every save.
+
+```bash
+cd clients/tizen && make dev-shell TV_IP=192.168.1.50   # install the shell once
+bun run dev:tizen:device                                # run from the repo root
+```
+
+`make dev-shell` builds a normal signed `.wgt` but swaps its `index.html` for a
+tiny loader that redirects to `http://<this-machine>:5174/`, then installs it
+(under the shipped app's id it replaces the shipped app while you develop).
+`dev:tizen:device` serves the app over the LAN with the letterbox frame off and
+`console.*` kept. Edit code → it reloads on the TV. The LUMA server must be running
+and reachable (`bun run server:watch`); the dev shell seeds its API address to this
+machine automatically. Re-run `make dev-shell` only if your LAN IP changes; run
+`make deploy` to restore the real app.
+
+> Why a redirect and not a hosted app? Retail firmware rejects a wgt whose content
+> is a remote URL (and gives no error you can read dlog/shell are locked down), so
+> we ship a valid local build that navigates to the dev server on launch.
+>
+> After the redirect the page origin is the dev server, so `webapis`/`tizen.*`
+> device calls (LAN discovery, preview, deep links) may be unavailable while in the
+> dev shell. The player and catalog UI don't need them; use `make deploy` to test
+> those integration paths.
+
 ## 5. Point the app at your media server
 
 On first launch the app shows a connection screen enter

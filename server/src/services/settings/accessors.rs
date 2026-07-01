@@ -41,6 +41,22 @@ pub fn max_transcodes(settings: &Settings) -> usize {
     settings.get_i64("maxConcurrent", 8).clamp(1, 32) as usize
 }
 
+/// Byte budget for the on-disk transcode (HLS segment) cache, from the
+/// `transcodeCacheLimit` setting. `0` = unlimited (any non-numeric label, e.g.
+/// "Illimité"). Labels use decimal "Go" (1 Go = 1e9 bytes), matching the image
+/// `cacheLimit`. Seeds the budget in [`crate::infra::hls::HlsEngine`].
+pub fn transcode_cache_limit_bytes(settings: &Settings) -> u64 {
+    let label = settings.get_str("transcodeCacheLimit", "20 Go");
+    // Take the leading numeric run INCLUDING a decimal point (e.g. "1.5 Go" -> 1.5,
+    // "20 Go" -> 20). Filtering the '.' out would concatenate "1.5" into "15" (a 10x
+    // error); a non-numeric label ("Illimité") parses to nothing => unlimited (0).
+    let num: String = label.trim().chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+    match num.parse::<f64>() {
+        Ok(gb) if gb > 0.0 => (gb * 1_000_000_000.0) as u64,
+        _ => 0,
+    }
+}
+
 /// Whether Plex-style theme songs are enabled: enrichment downloads a show's
 /// theme and the detail page loops it. Opt-in (off by default).
 pub fn theme_songs_enabled(settings: &Settings) -> bool {

@@ -22,11 +22,23 @@ use crate::services::auth;
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::state::SharedState;
+use axum::routing::{patch, post};
+use axum::Router;
 
-/// A short numeric PIN must be 4–6 digits. The entropy is intentionally low (a
+/// PIN verification and management (`/auth/pin/verify`, `/auth/me/pin`).
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/auth/pin/verify", post(verify_pin))
+        .route("/auth/me/pin", patch(set_pin).delete(delete_pin))
+}
+
+/// The PIN length every client keypad enforces (auto-submit on the last digit).
+const PIN_LEN: usize = 4;
+
+/// A short numeric PIN is exactly 4 digits. The entropy is intentionally low (a
 /// D-pad keypad), so `verify_pin` is rate-limited below.
 fn is_valid_pin(pin: &str) -> bool {
-    (4..=6).contains(&pin.len()) && pin.bytes().all(|b| b.is_ascii_digit())
+    pin.len() == PIN_LEN && pin.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// In-memory brute-force guard for `/auth/pin/verify`, keyed by user id. After

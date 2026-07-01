@@ -10,6 +10,8 @@ dist/
 build/
 *.tsbuildinfo
 .tanstack/
+# On-device TV live-dev staging (clients/tizen/.dev-shell)
+.dev-shell/
 
 # Rust
 server/target/

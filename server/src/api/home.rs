@@ -11,6 +11,13 @@ use crate::api::util::query;
 use crate::i18n::ReqLocale;
 use crate::services::sections;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/home`.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/home", get(home))
+}
 
 /// `GET /api/home` (Bearer) → `Section[]`. Personalized to the caller; titles are
 /// localized via `Accept-Language`.

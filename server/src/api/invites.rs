@@ -17,6 +17,15 @@ use crate::db;
 use crate::i18n;
 use crate::model::{Permission, User};
 use crate::state::SharedState;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// Invitation management (registration is invite-only after the owner account).
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/invites", post(create_invite).get(list_invites))
+        .route("/invites/:token", get(check_invite).delete(delete_invite))
+}
 
 /// Default invite lifetime, and the bounds accepted from clients.
 const INVITE_TTL_DAYS_DEFAULT: i64 = 7;

@@ -1,22 +1,91 @@
 import type { PlaybackSession } from '@luma/core';
 import { useT } from '@luma/ui';
-import {
-  IconPlayerPauseFilled,
-  IconPlayerPlayFilled,
-  IconPlayerStopFilled,
-} from '@tabler/icons-react';
+import { IconPlayerStopFilled } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Avatar, C, Card, Modal, ProgressBar } from '#web/features/admin/ui';
+import { useStoryboard } from '#web/features/playback/useStoryboard';
 import { formatMbps, posterGradient, timecode } from '#web/shared/lib/adminFormat';
+import { lumaClient } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
-export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onStop: () => void }>) {
+/** Width (px) of the Now Playing thumbnail. Height follows the 16:9 frame so a
+ * storyboard tile maps 1:1 its background geometry is computed for this width. */
+const THUMB_W = 132;
+
+/**
+ * The live session thumbnail: the current storyboard frame (mapped from
+ * `positionMs`) when the sheet is ready, else the item poster, else a
+ * title-seeded gradient.
+ */
+function NowPlayingThumb({ s }: Readonly<{ s: PlaybackSession }>) {
+  // Never kick/await lazy ffmpeg generation just to paint a 132px thumb: fetch
+  // once and only use the sheet if it already exists (else poster / gradient).
+  const story = useStoryboard(s.itemId, { generate: false });
+  const [posterFailed, setPosterFailed] = useState(false);
+  const frame = story.tile(s.positionMs / 1000, THUMB_W);
+  const poster = lumaClient().posterUrl(s.itemId);
+
+  return (
+    <div
+      className="relative aspect-video shrink-0 self-start overflow-hidden rounded-[9px] shadow-[0_8px_20px_rgba(0,0,0,.45)]"
+      style={{ width: THUMB_W, background: posterGradient(s.title) }}
+    >
+      {posterFailed ? null : (
+        <img
+          src={poster}
+          alt=""
+          onError={() => setPosterFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {frame ? (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: frame.backgroundImage,
+            backgroundPosition: frame.backgroundPosition,
+            backgroundSize: frame.backgroundSize,
+            backgroundRepeat: frame.backgroundRepeat,
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export function NowPlayingCard({
+  s,
+  avatarUrl,
+  onStop,
+}: Readonly<{ s: PlaybackSession; avatarUrl?: string | null; onStop: () => void }>) {
   const t = useT();
   const playing = s.state === 'playing';
   const pct = s.durationMs ? (s.positionMs / s.durationMs) * 100 : 0;
+  const buffering = s.state === 'buffering';
+  // `transcode` = the audio was re-encoded to AAC; `remux` = HLS repackage with
+  // both streams copied. Video is NEVER transcoded, so it always reads as direct.
   const transcode = s.mode === 'transcode';
+  const remux = s.mode === 'remux';
   const lan = s.network === 'LAN';
-  const stateColor = playing ? C.green : 'rgba(244,243,240,.5)';
+
+  let stateColor = 'rgba(244,243,240,.5)';
+  let stateLabel = t('admin.paused');
+  if (buffering) {
+    stateColor = C.accent;
+    stateLabel = t('admin.buffering');
+  } else if (playing) {
+    stateColor = C.green;
+    stateLabel = t('admin.playing');
+  }
+
+  // The playback-pipeline badge: direct copy · remux · audio-only transcode.
+  let pipe: { color: string; bg: string; label: string } = {
+    color: C.green,
+    bg: 'rgba(70,208,141,.14)',
+    label: t('admin.directPlay'),
+  };
+  if (transcode) pipe = { color: C.accent, bg: 'rgba(242,180,66,.14)', label: t('admin.audioTranscode') };
+  else if (remux) pipe = { color: C.blue, bg: 'rgba(92,141,246,.14)', label: t('admin.remux') };
   let sub = '';
   if (s.kind === 'episode' && s.season != null)
     sub = t('admin.episodeShort', { season: s.season, episode: s.episode ?? '' });
@@ -24,20 +93,7 @@ export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onS
 
   return (
     <Card className="flex gap-4.5 px-5 py-4.5">
-      <div
-        className="relative h-22 w-14.5 shrink-0 overflow-hidden rounded-[9px] shadow-[0_8px_20px_rgba(0,0,0,.45)]"
-        style={{ background: posterGradient(s.title) }}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-black/55">
-            {playing ? (
-              <IconPlayerPauseFilled size={11} color="#fff" />
-            ) : (
-              <IconPlayerPlayFilled size={11} color="#fff" />
-            )}
-          </span>
-        </div>
-      </div>
+      <NowPlayingThumb s={s} />
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-4.5">
@@ -51,10 +107,10 @@ export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onS
                 style={{ color: stateColor }}
               >
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${playing ? 'animate-[luma-breathe_2s_ease-in-out_infinite]' : ''}`}
+                  className={`h-1.5 w-1.5 rounded-full ${playing || buffering ? 'animate-[luma-breathe_2s_ease-in-out_infinite]' : ''}`}
                   style={{ background: stateColor }}
                 />
-                {playing ? t('admin.playing') : t('admin.paused')}
+                {stateLabel}
               </span>
             </div>
             <div className="mt-1 text-[12.5px] font-medium text-text/50">
@@ -68,7 +124,7 @@ export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onS
                 {s.player} · {s.device}
               </div>
             </div>
-            <Avatar name={s.username} size={38} radius={10} />
+            <Avatar name={s.username} avatarUrl={avatarUrl} size={38} radius={10} />
             <button
               type="button"
               onClick={onStop}
@@ -97,15 +153,13 @@ export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onS
           <Stat label={t('admin.statPlayback')}>
             <span
               className="inline-flex items-center gap-1.5 rounded-[7px] px-2.25 py-0.75 text-[13px] font-semibold"
-              style={{
-                color: transcode ? C.accent : C.green,
-                background: transcode ? 'rgba(242,180,66,.14)' : 'rgba(70,208,141,.14)',
-              }}
+              style={{ color: pipe.color, background: pipe.bg }}
             >
-              {transcode ? t('admin.transcoding') : t('admin.directPlay')}
+              {pipe.label}
             </span>
           </Stat>
           <Stat label={t('admin.statVideo')}>
+            {/* Video is always stream-copied it never gets a transcode badge. */}
             <span className="text-[13px] font-semibold" style={{ color: C.green }}>
               {s.videoLabel}
             </span>
@@ -115,7 +169,7 @@ export function NowPlayingCard({ s, onStop }: Readonly<{ s: PlaybackSession; onS
               className="text-[13px] font-semibold"
               style={{ color: transcode ? C.accent : C.green }}
             >
-              {s.audioLabel}
+              {transcode ? `${s.audioLabel} → AAC` : s.audioLabel}
             </span>
           </Stat>
           <Stat label={t('admin.statSubtitles')}>

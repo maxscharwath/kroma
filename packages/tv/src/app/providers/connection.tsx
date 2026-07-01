@@ -18,6 +18,10 @@ export interface Connection {
   /** Friendly name of the active server (host fallback). */
   activeServerName: string | null;
   error: string;
+  /** Whether the active server is currently reachable. Driven by a `/api/health`
+   * heartbeat (plus the event stream open/close); flips the nav-bar indicator and
+   * gates the auto-refetch on reconnect. Always `true` before a server is active. */
+  online: boolean;
   /** Client for the active server (null before any server is reached). */
   client: LumaClient | null;
   movies: MediaItem[];

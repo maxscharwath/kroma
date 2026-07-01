@@ -10,5 +10,6 @@ pub mod playback;
 pub mod library;
 pub mod admin;
 pub mod jobs;
+pub mod pipeline;
 pub mod naming;
 pub mod section;

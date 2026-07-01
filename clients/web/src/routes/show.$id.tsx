@@ -21,6 +21,7 @@ import {
   SimilarRail,
   subString,
 } from '#web/features/catalog/detail';
+import { TreatmentsPanel } from '#web/features/catalog/TreatmentsPanel';
 import { lumaClient } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
@@ -293,6 +294,7 @@ function ShowDetailPage() {
         onBack={() => navigate({ to: '/series' })}
         onPlay={() => playTarget && play(playTarget.id)}
       />
+      <TreatmentsPanel kind="show" id={show.id} />
 
       {current ? (
         <section className="mt-10">

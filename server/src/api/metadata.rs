@@ -12,6 +12,15 @@ use crate::db;
 use crate::infra::metadata::{self, Target};
 use crate::model::Kind;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// TMDB-enriched metadata for shows and items.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/shows/:id/metadata", get(show_metadata))
+        .route("/items/:id/metadata", get(item_metadata))
+}
 
 /// `GET /api/items/:id/metadata` → TMDB details + IDs for one item.
 ///

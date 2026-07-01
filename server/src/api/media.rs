@@ -13,6 +13,23 @@ use crate::api::extract::OptionalAuthUser;
 use crate::api::util::{blocking, query};
 use crate::db;
 use crate::state::SharedState;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// `/api` routes owned by this module: catalogue browsing, status and rescan.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/health", get(health))
+        .route("/libraries", get(list_libraries))
+        .route("/items", get(list_items))
+        .route("/movies", get(list_movies))
+        .route("/shows", get(list_shows))
+        .route("/shows/:id", get(get_show))
+        .route("/items/:id", get(get_item))
+        .route("/status", get(status))
+        .route("/logs", get(logs))
+        .route("/scan", post(rescan))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct LibraryQuery {
@@ -114,9 +131,8 @@ pub async fn get_item(
 /// concurrent walk racing a watch-triggered run on the same DB) and shows in the
 /// admin "Tâches" console; the walk + sync + phase-2 follow-ups live there.
 pub async fn rescan(State(state): State<SharedState>) -> Result<Response, Response> {
-    use crate::model::JobId;
-    use crate::services::jobs::TriggerError;
-    match state.jobs.trigger(state.clone(), JobId::LibraryScan, "manual") {
+    use crate::services::jobs::{JobKey, TriggerError};
+    match state.jobs.trigger(state.clone(), JobKey("library.scan"), "manual") {
         Ok(run_id) => Ok(Json(serde_json::json!({ "runId": run_id })).into_response()),
         // A scan is already in progress (manual or watch-triggered) report it
         // rather than starting a second, racing pass.

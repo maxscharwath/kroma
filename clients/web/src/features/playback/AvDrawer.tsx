@@ -1,11 +1,11 @@
-import type { AudioTrack, DownloadedSub, SubCapabilities, Translate } from '@luma/core';
-import { channelLabel } from '@luma/core';
+import type { AudioTrack, DownloadedSub, SubCapabilities, SubtitleGeneration, Translate } from '@luma/core';
+import { channelLabel, subtitleEtaTime, subtitleStageKey } from '@luma/core';
 import { useT } from '@luma/ui';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { langName } from '#web/features/catalog/detail';
-import { IconCheck, IconClose } from '#web/features/playback/icons';
+import { IconCheck, IconClose, IconSparkles, IconTrash } from '#web/features/playback/icons';
 import { SubtitleGenerate } from '#web/features/playback/SubtitleGenerate';
-import { SubtitleSearch } from '#web/features/playback/SubtitleSearch';
+import { useSubtitleGenerations } from '#web/features/playback/useSubtitleGenerations';
 import { lumaClient } from '#web/shared/lib/api';
 import {
   SUB_COLORS,
@@ -27,6 +27,7 @@ function Row({
   code,
   label,
   tag,
+  ai,
   active,
   disabled,
   onClick,
@@ -34,6 +35,8 @@ function Row({
   code: string;
   label: string;
   tag?: string;
+  /** Generated (Whisper/translate) track: show the "IA" badge. */
+  ai?: boolean;
   active: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -50,10 +53,13 @@ function Row({
         {code}
       </span>
       <span className="flex-1 text-[15px] font-semibold text-text">{label}</span>
-      {tag ? (
-        <span className="rounded bg-white/8 px-2 py-0.75 text-[10px] font-bold text-white/70">
-          {tag}
+      {ai ? (
+        <span className="flex items-center gap-1 rounded bg-[rgba(139,124,240,0.18)] px-1.5 py-0.75 text-[10px] font-bold text-[#c0b6f7]">
+          <IconSparkles size={11} />
+          IA
         </span>
+      ) : tag ? (
+        <span className="rounded bg-white/8 px-2 py-0.75 text-[10px] font-bold text-white/70">{tag}</span>
       ) : null}
       {active ? (
         <span className="text-accent">
@@ -61,6 +67,67 @@ function Row({
         </span>
       ) : null}
     </button>
+  );
+}
+
+/** A live generation row, in the violet "IA" treatment: language + target, the
+ * engine + stage + percent, a violet progress bar + ETA, and a trash control that
+ * cancels/discards it. */
+function GenRow({
+  gen,
+  t,
+  onCancel,
+}: Readonly<{ gen: SubtitleGeneration; t: Translate; onCancel: () => void }>) {
+  const pct = Math.round(gen.progress * 100);
+  const err = gen.status === 'error';
+  const engine = gen.mode === 'translate' ? t('player.subAiBadge') : 'Whisper';
+  return (
+    <div className="rounded-xl border border-[rgba(124,111,240,0.4)] bg-[rgba(124,111,240,0.06)] px-4 py-3">
+      <div className="flex items-center gap-3.5">
+        <span className="min-w-9 rounded-md bg-white/8 py-1.5 text-center text-[12px] font-bold text-white/85">
+          {(gen.lang ?? 'ST').toUpperCase().slice(0, 3)}
+        </span>
+        <span className="flex-1 text-[15px] font-semibold text-text">{gen.lang ?? ''}</span>
+        <span className="flex items-center gap-1 rounded bg-[rgba(139,124,240,0.18)] px-1.5 py-0.75 text-[10px] font-bold text-[#c0b6f7]">
+          <IconSparkles size={11} />
+          IA
+        </span>
+        <button
+          onClick={onCancel}
+          aria-label={t('player.subGenCancel')}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/40 hover:bg-red-500/15 hover:text-red-300"
+        >
+          <IconTrash size={16} />
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-between text-[11.5px]">
+        <span
+          className={`flex items-center gap-2 ${err ? 'text-red-300' : 'text-[#9a8ff0]'}`}
+          title={err ? (gen.error ?? undefined) : undefined}
+        >
+          {!err ? <span className="h-1.5 w-1.5 rounded-full bg-[#8b7ff0]" /> : null}
+          {err
+            ? (gen.error ?? t(subtitleStageKey(gen.stage)))
+            : `${engine} · ${t(subtitleStageKey(gen.stage))}`}
+        </span>
+        <span className="font-semibold text-[#b3a9f5]">{err ? '' : `${pct} %`}</span>
+      </div>
+      {!err ? (
+        <>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-[#7c6ff5] transition-[width] duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          {gen.etaSec != null ? (
+            <div className="mt-1.5 text-[11px] text-white/40">
+              {t('player.subEta', { time: subtitleEtaTime(gen.etaSec) })}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -117,6 +184,7 @@ export function AvDrawer({
   activeSub,
   onPickSub,
   onDownloaded,
+  onDeleteSub,
   subStyle,
   onStyleChange,
   onClose,
@@ -129,16 +197,17 @@ export function AvDrawer({
   onPickAudio: (index: number) => void;
   activeSub: number | null;
   onPickSub: (index: number | null) => void;
-  /** Called when an online subtitle is downloaded (so the parent merges it in). */
+  /** Called with each generated subtitle (so the parent merges it in). */
   onDownloaded: (sub: DownloadedSub) => void;
+  /** Delete a generated subtitle track by its id. */
+  onDeleteSub: (subId: string) => void;
   subStyle: SubtitleStyle;
   onStyleChange: (next: Partial<SubtitleStyle>) => void;
   onClose: () => void;
 }>) {
   const t = useT();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  // Which subtitle actions the server's providers enable (hide empty buttons).
+  const [genOpen, setGenOpen] = useState(false);
+  // Which generation actions this server build + config enable (hide empty UI).
   const [caps, setCaps] = useState<SubCapabilities | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -151,6 +220,41 @@ export function AvDrawer({
     };
   }, [item.id]);
   const canAi = Boolean(caps?.transcribe || caps?.translate);
+  // Guard the async completion work against a drawer unmount.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  // When a generation finishes, merge the freshly-cached list and auto-select
+  // ONLY the track that generation produced (matched by id) never blindly flip
+  // subtitles on to some other/last track.
+  const onGenerationComplete = useCallback(
+    (subId: string) => {
+      lumaClient()
+        .downloadedSubtitles(item.id)
+        .then((list) => {
+          if (!mountedRef.current) return;
+          list.forEach(onDownloaded);
+          const idx = list.findIndex((d) => d.id === subId);
+          if (idx >= 0) onPickSub(1000 + idx);
+        })
+        .catch(() => undefined);
+    },
+    [item.id, onDownloaded, onPickSub],
+  );
+  const { gens, cancel, refresh } = useSubtitleGenerations(item.id, true, onGenerationComplete);
+  // Kicking off a generation: merge the cached list and re-arm progress polling.
+  const onGenerationStarted = useCallback(() => {
+    lumaClient()
+      .downloadedSubtitles(item.id)
+      .then((list) => list.forEach(onDownloaded))
+      .catch(() => undefined);
+    refresh();
+  }, [item.id, onDownloaded, refresh]);
+  const pending = gens.filter((g) => g.status !== 'done');
   const edgeOptions = EDGES.map((e) => ({ v: e.v, label: t(e.labelKey) }));
   return (
     <>
@@ -204,50 +308,61 @@ export function AvDrawer({
           />
           {subs.map((s) => {
             const selectable = Boolean(s.url);
-            const tag = s.downloaded
-              ? t('player.subDownloaded')
+            const ai = Boolean(s.downloaded);
+            const tag = ai
+              ? undefined
               : selectable
                 ? s.codec.toUpperCase()
                 : `${s.codec.toUpperCase()} · ${t('player.pictureSub')}`;
-            return (
+            const row = (
               <Row
-                key={s.index}
                 code={(s.language ?? 'ST').toUpperCase().slice(0, 3)}
-                label={s.downloaded && s.label ? s.label : trackLang(t, s.language)}
+                label={ai && s.label ? s.label : trackLang(t, s.language)}
                 tag={tag}
+                ai={ai}
                 active={activeSub === s.index}
                 disabled={!selectable}
                 onClick={selectable ? () => onPickSub(s.index) : undefined}
               />
             );
+            return s.subId ? (
+              <div key={s.index} className="flex items-center gap-2">
+                <div className="flex-1">{row}</div>
+                <button
+                  onClick={() => onDeleteSub(s.subId as string)}
+                  aria-label={t('player.subGenDelete')}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/4 text-white/50 hover:bg-red-500/15 hover:text-red-300"
+                >
+                  <IconTrash size={16} />
+                </button>
+              </div>
+            ) : (
+              <div key={s.index}>{row}</div>
+            );
           })}
+          {pending.map((g) => (
+            <GenRow key={g.id} gen={g} t={t} onCancel={() => cancel(g.id)} />
+          ))}
         </div>
-        {/* ---- online subtitle search (only if an OpenSubtitles provider is set) ---- */}
-        {caps?.search ? (
-          <>
-            <button
-              onClick={() => setSearchOpen((v) => !v)}
-              className="mb-3 w-full rounded-xl border border-dashed border-white/15 px-4 py-3 text-[14px] font-semibold text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              {searchOpen ? t('player.subSearchClose') : t('player.subSearchOnline')}
-            </button>
-            {searchOpen ? <SubtitleSearch item={item} onDownloaded={onDownloaded} /> : null}
-          </>
-        ) : null}
-        {/* ---- AI generation (only if a Whisper/translate provider is set) ---- */}
+        {/* ---- create a missing subtitle on-device (Whisper / translate) ---- */}
         {canAi ? (
-          <>
+          genOpen ? (
+            <SubtitleGenerate
+              item={item}
+              subs={subs}
+              caps={caps}
+              onStarted={onGenerationStarted}
+              onClose={() => setGenOpen(false)}
+            />
+          ) : (
             <button
-              onClick={() => setAiOpen((v) => !v)}
-              className="mb-3 w-full rounded-xl border border-dashed border-accent/30 px-4 py-3 text-[14px] font-semibold text-accent/90 transition-colors hover:bg-accent/8"
+              onClick={() => setGenOpen(true)}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[rgba(124,111,240,0.45)] px-4 py-3 text-[14px] font-semibold text-[#b3a9f5] transition-colors hover:bg-[rgba(124,111,240,0.1)]"
             >
-              {aiOpen ? t('player.subAiClose') : t('player.subAiGenerate')}
+              <IconSparkles size={15} />
+              {t('player.subCreateMissing')}
             </button>
-            {aiOpen ? <SubtitleGenerate item={item} subs={subs} caps={caps} onDownloaded={onDownloaded} /> : null}
-          </>
-        ) : null}
-        {caps && !caps.search && !canAi ? (
-          <p className="mb-3 px-1 text-[12.5px] text-white/40">{t('player.subNoProviders')}</p>
+          )
         ) : null}
 
         {/* ---- subtitle appearance ---- */}

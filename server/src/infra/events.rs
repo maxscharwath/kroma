@@ -96,6 +96,13 @@ pub enum ServerEvent {
         run_id: String,
         status: String,
     },
+    /// Per-element pipeline health changed (a stage drained a batch). Throttled
+    /// and carries only the aggregate per-stage counts, so the admin Pipeline
+    /// dashboard updates live without polling the ledger.
+    #[serde(rename = "pipeline.stats")]
+    PipelineStats {
+        stages: Vec<crate::model::StageStat>,
+    },
 }
 
 /// Cheap-to-clone handle to the broadcast channel.

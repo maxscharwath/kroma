@@ -1,5 +1,6 @@
 import { dispatchRemoteKey, type RemoteKeyMap, resolveRemoteKey } from '@luma/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { GenField } from '#tv/features/playback/player/useSubtitleGen';
 import { useOverlayFocus } from '#tv/features/playback/player/useOverlayFocus';
 
 export type Zone = 'progress' | 'bar';
@@ -14,12 +15,23 @@ interface Args {
   /** Progressive (accelerating) seek in a direction for held direction keys. */
   nudge: (dir: -1 | 1) => void;
   onExit: () => void;
+  /** Admin stopped this stream: lock the transport (no resume/seek) and let any
+   * OK/Retour just exit the player, mirroring the web client's blocking modal. */
+  terminated?: boolean;
   /** Audio-track indices, in panel order. */
   audioOptions: number[];
   activeAudio: number;
   pickAudio: (index: number) => void;
   subOptions: (number | null)[];
   pickSub: (index: number | null) => void;
+  /** Ids of running generations shown as cancelable rows after the subtitles. */
+  genRows?: string[];
+  /** Cancel a running generation (OK on its row). */
+  onCancelGen?: (id: string) => void;
+  /** Whether the "create a missing subtitle" row + generate sheet are available. */
+  canCreate?: boolean;
+  /** The generate sheet's focusable controls (for the current mode). */
+  genFields?: GenField[];
   /** Series only: show a "next episode" control + handler. */
   hasNext?: boolean;
   onNext?: () => void;
@@ -32,9 +44,14 @@ interface Args {
   onUpNextCancel?: () => void;
 }
 
-/** One selectable row in the Audio & Subtitles panel audio rows first, then
- * subtitle rows so a single focus index walks both sections. */
-type AvRow = { kind: 'audio'; value: number } | { kind: 'sub'; value: number | null };
+/** One selectable row in the Audio & Subtitles panel: audio rows, then subtitle
+ * rows, then any running-generation (cancel) rows, then the "create" row a single
+ * focus index walks them all. */
+type AvRow =
+  | { kind: 'audio'; value: number }
+  | { kind: 'sub'; value: number | null }
+  | { kind: 'genCancel'; value: string }
+  | { kind: 'create' };
 
 export interface PlayerControls {
   controls: boolean;
@@ -42,6 +59,10 @@ export interface PlayerControls {
   barIndex: number;
   avOpen: boolean;
   avFocus: number;
+  /** The generate sheet is open (captures the remote). */
+  genOpen: boolean;
+  /** Focused control index within the generate sheet. */
+  genFocus: number;
   /** Is bottom-bar control `i` the focused one (and controls visible)? */
   barFocus: (i: number) => boolean;
   /** Is the named bottom-bar control focused (robust to the dynamic layout)? */
@@ -64,11 +85,16 @@ export function usePlayerControls({
   seek,
   nudge,
   onExit,
+  terminated = false,
   audioOptions,
   activeAudio,
   pickAudio,
   subOptions,
   pickSub,
+  genRows = [],
+  onCancelGen,
+  canCreate = false,
+  genFields = [],
   hasNext = false,
   onNext,
   canSkipIntro = false,
@@ -84,14 +110,19 @@ export function usePlayerControls({
     () => [
       ...audioOptions.map((value): AvRow => ({ kind: 'audio', value })),
       ...subOptions.map((value): AvRow => ({ kind: 'sub', value })),
+      ...genRows.map((value): AvRow => ({ kind: 'genCancel', value })),
+      ...(canCreate ? [{ kind: 'create' } as AvRow] : []),
     ],
-    [audioOptions, subOptions],
+    [audioOptions, subOptions, genRows, canCreate],
   );
   const [controls, setControls] = useState(true);
   const [zone, setZone] = useState<Zone>('bar');
   const [barIndex, setBarIndex] = useState(1); // start on Play
   const [avOpen, setAvOpen] = useState(false);
   const [avFocus, setAvFocus] = useState(0);
+  // Generate sheet (opened from the "create" row): owns the remote while open.
+  const [genOpen, setGenOpen] = useState(false);
+  const [genFocus, setGenFocus] = useState(0);
   // Interrupt-overlay focus (skip-intro button + up-next card), independent of
   // the auto-hiding control bar.
   const { skipFocused, setSkipFocused, cardFocused, setCardFocused, upNextFocus, setUpNextFocus } =
@@ -119,6 +150,7 @@ export function usePlayerControls({
     // Open focused on the active audio track (audio rows lead the list).
     const i = avRows.findIndex((r) => r.kind === 'audio' && r.value === activeAudio);
     setAvFocus(Math.max(0, i));
+    setGenOpen(false);
     setAvOpen(true);
   }, [avRows, activeAudio]);
 
@@ -146,11 +178,17 @@ export function usePlayerControls({
   );
 
   useEffect(() => {
-    // Pick the focused row in the open AV panel (audio rows lead, then subtitles).
+    // Pick the focused row in the open AV panel (audio, subtitle, cancel-a-running
+    // generation, or open the generate sheet).
     const pickRow = () => {
       const row = avRows[avFocus];
       if (row?.kind === 'audio') pickAudio(row.value);
       else if (row?.kind === 'sub') pickSub(row.value);
+      else if (row?.kind === 'genCancel') onCancelGen?.(row.value);
+      else if (row?.kind === 'create') {
+        setGenFocus(0);
+        setGenOpen(true);
+      }
     };
     // While the overlay is hidden, the first key only reveals it (no action).
     const move = (reveal: boolean, dir: -1 | 1) => {
@@ -173,6 +211,24 @@ export function usePlayerControls({
       PlayPause: pickRow,
       Back: () => setAvOpen(false),
       Stop: () => setAvOpen(false),
+    };
+
+    // Generate sheet: ▲▼ moves between controls, ◀▶ changes the focused control's
+    // value, OK confirms (the "start" control closes the sheet), Retour closes it.
+    const confirmGen = () => {
+      const field = genFields[genFocus];
+      field?.onEnter?.();
+      if (field?.closeOnEnter) setGenOpen(false);
+    };
+    const genMap: RemoteKeyMap = {
+      Up: () => setGenFocus((f) => Math.max(0, f - 1)),
+      Down: () => setGenFocus((f) => Math.min(Math.max(0, genFields.length - 1), f + 1)),
+      Left: () => genFields[genFocus]?.onLeft?.(),
+      Right: () => genFields[genFocus]?.onRight?.(),
+      Enter: confirmGen,
+      PlayPause: confirmGen,
+      Back: () => setGenOpen(false),
+      Stop: () => setGenOpen(false),
     };
 
     // Up-next card captures nav onto its two buttons; Down drops back to the bar.
@@ -202,8 +258,17 @@ export function usePlayerControls({
         return;
       }
 
+      // Admin stopped the stream: the transport is locked behind a blocking
+      // overlay. Swallow every key; OK / Retour just exit the player (so the
+      // viewer can't silently resume an untracked stream).
+      if (terminated) {
+        e.preventDefault();
+        if (key === 'Back' || key === 'Stop' || key === 'Enter' || key === 'PlayPause') onExit();
+        return;
+      }
+
       if (avOpen) {
-        dispatchRemoteKey(e, avMap);
+        dispatchRemoteKey(e, genOpen ? genMap : avMap);
         return;
       }
 
@@ -258,12 +323,17 @@ export function usePlayerControls({
     avOpen,
     avFocus,
     avRows,
+    genOpen,
+    genFocus,
+    genFields,
+    onCancelGen,
     bar,
     controls,
     zone,
     barIndex,
     playing,
     onExit,
+    terminated,
     poke,
     nudge,
     togglePlay,
@@ -289,6 +359,8 @@ export function usePlayerControls({
     barIndex,
     avOpen,
     avFocus,
+    genOpen,
+    genFocus,
     barFocus,
     barFocusName,
     skipFocused,

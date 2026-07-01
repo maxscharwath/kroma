@@ -7,12 +7,18 @@ import { useNav, useParams } from '#tv/app/router';
 import { artUrl, AuthScreen, Keypad, LockGlyph, ProfileAvatar } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
 
+/** PINs are a fixed 4 digits; the last digit auto-validates (no OK press). */
+const PIN_LENGTH = 4;
+
 /**
  * PIN entry. Three intents share one keypad:
  *  • `verify` unlock a remembered, PIN-protected profile from the picker. Uses
  *    that account's remembered token to call `pinVerify`, then activates it.
  *  • `set` set the active account's PIN (enter, then confirm).
  *  • `clear` remove the active account's PIN (enter the current one).
+ *
+ * The keypad has no OK button: entering the fourth digit submits automatically,
+ * so a completed PIN validates or is rejected the instant it is typed.
  */
 export function TvPin() {
   const nav = useNav();
@@ -74,10 +80,7 @@ export function TvPin() {
   const submit = async () => {
     if (busy || cooldown > 0) return;
     const pin = buffer;
-    if (pin.length < 4) {
-      fail('auth.pinInvalid');
-      return;
-    }
+    if (pin.length < PIN_LENGTH) return; // auto-submit only fires on a full PIN
     setError('');
     setBusy(true);
     try {
@@ -97,12 +100,14 @@ export function TvPin() {
           fail('pin.mismatch');
           return;
         }
-        await activeClient?.setPin(pin);
-        updateUser({ hasPin: true });
+        const res = await activeClient?.setPin(pin);
+        if (!res) return; // no client (offline) don't fake success
+        updateUser(res.user); // trust the server's returned user (hasPin: true)
         nav.back();
       } else {
-        await activeClient?.clearPin(pin);
-        updateUser({ hasPin: false });
+        const res = await activeClient?.clearPin(pin);
+        if (!res) return; // no client (offline) don't fake a disabled PIN
+        updateUser(res.user); // trust the server's returned user (hasPin: false)
         nav.back();
       }
     } catch (e) {
@@ -120,7 +125,22 @@ export function TvPin() {
     }
   };
 
-  const dots = Math.max(4, buffer.length);
+  // Auto-validate the instant the PIN is complete, so no OK press is needed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fire only when the buffer fills; `submit` reads fresh state via closure.
+  useEffect(() => {
+    if (buffer.length === PIN_LENGTH) void submit();
+  }, [buffer]);
+
+  const addDigit = (d: string) => {
+    if (busy || cooldown > 0) return;
+    setError('');
+    setBuffer((b) => (b.length < PIN_LENGTH ? b + d : b));
+  };
+
+  const removeDigit = () => {
+    if (busy || cooldown > 0) return;
+    setBuffer((b) => b.slice(0, -1));
+  };
 
   return (
     <AuthScreen>
@@ -143,9 +163,9 @@ export function TvPin() {
 
       <div
         key={shake}
-        className={`mt-8 flex gap-4.5 ${shake ? 'animate-[tv-shake_0.4s_ease]' : ''}`}
+        className={`mt-8 flex gap-4.5 ${shake ? 'animate-[tv-shake_0.4s_ease]' : ''} ${busy ? 'animate-pulse' : ''}`}
       >
-        {Array.from({ length: dots }).map((_, i) => (
+        {Array.from({ length: PIN_LENGTH }).map((_, i) => (
           <span
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length dot row
             key={i}
@@ -158,8 +178,14 @@ export function TvPin() {
         ))}
       </div>
 
-      <div className="flex h-6 items-center">
-        {error ? (
+      <div className="flex h-6 items-center gap-2">
+        {busy ? (
+          <>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.25)] border-t-accent" />
+            <span className="font-sans text-[14px] font-medium text-dim">{t('pin.verifying')}</span>
+          </>
+        ) : null}
+        {!busy && error ? (
           <span className="font-sans text-[14px] font-semibold text-danger">
             {error === 'auth.pinLocked' && cooldown > 0
               ? t('pin.lockedRetry', { seconds: cooldown })
@@ -169,11 +195,7 @@ export function TvPin() {
       </div>
 
       <div className="mt-2">
-        <Keypad
-          onDigit={(d) => cooldown === 0 && setBuffer((b) => (b.length < 6 ? b + d : b))}
-          onDelete={() => setBuffer((b) => b.slice(0, -1))}
-          onSubmit={() => void submit()}
-        />
+        <Keypad onDigit={addDigit} onDelete={removeDigit} />
       </div>
 
       <span className="mt-7 font-sans text-[14px] font-medium text-[rgba(244,243,240,0.38)]">

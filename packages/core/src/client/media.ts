@@ -15,8 +15,10 @@ import type {
 } from '../types';
 import { LumaApiError, libraryQuery, type RequestContext } from './base';
 
-export function health(ctx: RequestContext): Promise<Health> {
-  return ctx.json<Health>('/health');
+/** Server liveness + counts. Accepts an `init` (e.g. an `AbortSignal`) so a
+ * client-side heartbeat can bound the probe with a short timeout. */
+export function health(ctx: RequestContext, init?: RequestInit): Promise<Health> {
+  return ctx.json<Health>('/health', init);
 }
 
 export function libraries(ctx: RequestContext): Promise<Library[]> {
@@ -192,4 +194,40 @@ export function themeFor(ctx: RequestContext, x: { metadata?: Metadata | null })
  * extracts text subtitles on demand (`GET /api/items/:id/subtitles/:n.vtt`). */
 export function subtitleUrl(ctx: RequestContext, id: string, index: number): string {
   return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/subtitles/${index}.vtt`;
+}
+
+/** Scrub-bar preview "storyboard": one sprite sheet of evenly-spaced thumbnails
+ * plus the geometry needed to map a cursor time → a tile (YouTube-style hover
+ * preview). Generated once per file by the server and cached on disk. */
+export interface StoryboardManifest {
+  /** Sprite-sheet URL (server-relative, `?v=` cache-busts on source change). */
+  url: string;
+  /** Seconds of video between consecutive tiles. */
+  interval: number;
+  tileW: number;
+  tileH: number;
+  cols: number;
+  rows: number;
+  /** Number of real tiles (trailing grid cells may be blank padding). */
+  count: number;
+  /** Total media duration (s). */
+  duration: number;
+}
+
+/** Manifest endpoint for an item's storyboard. */
+export function storyboardUrl(ctx: RequestContext, id: string): string {
+  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/storyboard`;
+}
+
+/** Fetch the storyboard manifest. The server generates the sheet lazily, so this
+ * returns `'pending'` (HTTP 202) while it is being built the caller polls and
+ * `null` when the item has no usable file/duration (404). */
+export async function storyboard(
+  ctx: RequestContext,
+  id: string,
+): Promise<StoryboardManifest | 'pending' | null> {
+  const res = await ctx.fetchFn(storyboardUrl(ctx, id));
+  if (res.status === 202) return 'pending';
+  if (!res.ok) return null;
+  return (await res.json()) as StoryboardManifest;
 }

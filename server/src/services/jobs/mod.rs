@@ -4,17 +4,19 @@
 //!
 //! ## Authoring a job
 //!
-//! Each job is a handler file under [`builtins`] plus one row in its typed
-//! [`builtins::JOBS`] registry, keyed by a [`JobId`] variant (no magic strings):
+//! Each job is a self-contained handler file under [`builtins`] that owns both its
+//! handler and its [`Builtin`] descriptor (`SPEC`). The job's identity is its
+//! [`JobKey`] (a dotted key, declared right here in the `SPEC`); the roster in
+//! [`builtins`] just lists the `SPEC`s and rejects duplicate keys at compile time:
 //!
 //! ```ignore
 //! // builtins/cache_cleanup.rs
 //! use super::prelude::*;
+//! pub(super) const SPEC: Builtin = Builtin {
+//!     key: JobKey("cache.cleanup"), category: Category::Maintenance,
+//!     schedule: Some("0 4 * * *"), triggers: &[], run,
+//! };
 //! pub(super) fn run(ctx: &JobContext) -> Result<()> { /* … */ Ok(()) }
-//!
-//! // builtins.rs one row in JOBS:
-//! Builtin { id: JobId::CacheCleanup, category: Category::Maintenance,
-//!           schedule: Some("0 4 * * *"), triggers: &[], run: cache_cleanup::run },
 //! ```
 //!
 //! The handler receives a [`JobContext`] (`ctx.state` for the whole app,
@@ -47,8 +49,35 @@ use tracing::{info, warn};
 
 use crate::db;
 use crate::infra::events::ServerEvent;
-use crate::model::{Category, JobId};
 use crate::state::SharedState;
+
+/// A built-in job's identity: its stable dotted key (`"cache.cleanup"`), which is
+/// also the DB key, the `/api/admin/jobs/:key` URL segment and the i18n base
+/// (`jobs.{key}.name`). Each job declares its own in its `SPEC`
+/// ([`crate::services::jobs::builtins`]); uniqueness is enforced there at compile
+/// time. A thin newtype so it reads as a distinct type in signatures rather than a
+/// bare string, yet it `Borrow`s as `str` so a runtime request key (e.g. a URL
+/// segment) looks one up directly in the keyed maps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct JobKey(pub &'static str);
+
+impl JobKey {
+    pub fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+impl std::borrow::Borrow<str> for JobKey {
+    fn borrow(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for JobKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
 
 /// Recent runs kept per job in the detail view / DB prune.
 const RUNS_KEPT: usize = 50;
@@ -75,25 +104,16 @@ pub enum Trigger {
     LibraryChange,
     /// Run right after another job's run finishes (chaining). Built-in only, so
     /// authors are trusted not to form cycles.
-    AfterJob(JobId),
+    AfterJob(JobKey),
 }
 
 /// Why a [`JobManager::trigger`] failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TriggerError {
-    /// No job is registered under that id.
+    /// No job is registered under that key.
     Unknown,
-    /// The job is already running (one run per id at a time).
+    /// The job is already running (one run per key at a time).
     AlreadyRunning,
-}
-
-/// A registered job: its static metadata plus the handler (a plain `fn` pointer).
-#[derive(Clone, Copy)]
-struct Registered {
-    category: Category,
-    default_schedule: Option<&'static str>,
-    triggers: &'static [Trigger],
-    run: fn(&JobContext) -> Result<()>,
 }
 
 /// The effective, possibly user-overridden schedule + enabled flag for one job.
@@ -109,10 +129,12 @@ struct ScheduleState {
 /// [`crate::state::AppState`]) and shared behind an `Arc`.
 pub struct JobManager {
     /// Registration order, for stable listing.
-    order: Vec<JobId>,
-    jobs: HashMap<JobId, Registered>,
-    schedules: RwLock<HashMap<JobId, ScheduleState>>,
-    running: RwLock<HashMap<JobId, Arc<RunHandle>>>,
+    order: Vec<JobKey>,
+    /// The static descriptor per job, borrowed straight from the `'static` roster
+    /// (no per-field copy: the `Builtin` already holds everything we need).
+    jobs: HashMap<JobKey, &'static Builtin>,
+    schedules: RwLock<HashMap<JobKey, ScheduleState>>,
+    running: RwLock<HashMap<JobKey, Arc<RunHandle>>>,
     counter: AtomicU64,
 }
 
@@ -127,27 +149,25 @@ impl JobManager {
         }
     }
 
-    /// Register a job from its [`Builtin`] descriptor. Call during startup only
-    /// (before wrapping in `Arc`).
-    pub fn register(&mut self, b: &Builtin) {
+    /// Register a job from its `'static` [`Builtin`] descriptor. Call during
+    /// startup only (before wrapping in `Arc`).
+    pub fn register(&mut self, b: &'static Builtin) {
         self.schedules.write().unwrap().insert(
-            b.id,
+            b.key,
             ScheduleState {
                 schedule: b.schedule.map(str::to_string),
                 enabled: true,
                 customized: false,
             },
         );
-        self.order.push(b.id);
-        self.jobs.insert(
-            b.id,
-            Registered {
-                category: b.category,
-                default_schedule: b.schedule,
-                triggers: b.triggers,
-                run: b.run,
-            },
-        );
+        self.order.push(b.key);
+        self.jobs.insert(b.key, b);
+    }
+
+    /// The registered identity for a request/stored key string, or `None` if no
+    /// such job exists (stale rows / bad URLs are simply ignored).
+    pub fn resolve(&self, key: &str) -> Option<JobKey> {
+        self.jobs.get(key).map(|b| b.key)
     }
 
     /// Overlay persisted schedule overrides from the DB onto the defaults.
@@ -161,8 +181,9 @@ impl JobManager {
         };
         let mut map = self.schedules.write().unwrap();
         for (key, schedule, enabled) in rows {
-            // Ignore rows for jobs that no longer exist.
-            if let Some(st) = JobId::from_key(&key).and_then(|id| map.get_mut(&id)) {
+            // Ignore rows for jobs that no longer exist (`JobKey: Borrow<str>` lets
+            // the stored key index the map directly).
+            if let Some(st) = map.get_mut(key.as_str()) {
                 st.schedule = schedule;
                 st.enabled = enabled;
                 st.customized = true;
@@ -174,23 +195,23 @@ impl JobManager {
     pub fn trigger(
         self: &Arc<Self>,
         state: SharedState,
-        id: JobId,
+        job: JobKey,
         trigger: &'static str,
     ) -> std::result::Result<String, TriggerError> {
-        let registered = *self.jobs.get(&id).ok_or(TriggerError::Unknown)?;
-        let key = id.key();
+        let builtin = *self.jobs.get(&job).ok_or(TriggerError::Unknown)?;
+        let key = job.as_str();
 
-        // One run per id. Reserve the slot under the lock to avoid a race.
+        // One run per key. Reserve the slot under the lock to avoid a race.
         let started_ms = now_ms();
         let n = self.counter.fetch_add(1, Ordering::Relaxed);
         let run_id = format!("{}-{started_ms}-{n}", key.replace('.', "_"));
         let handle = Arc::new(RunHandle::new(run_id.clone(), key.to_string()));
         {
             let mut running = self.running.write().unwrap();
-            if running.contains_key(&id) {
+            if running.contains_key(&job) {
                 return Err(TriggerError::AlreadyRunning);
             }
-            running.insert(id, handle.clone());
+            running.insert(job, handle.clone());
         }
 
         // Announce immediately so the UI flips to "running" without waiting on
@@ -213,7 +234,7 @@ impl JobManager {
             info!(job = key, run = %run_id, trigger, "job started");
 
             let ctx = JobContext::new(state.clone(), handle.clone());
-            let result = catch_unwind(AssertUnwindSafe(|| (registered.run)(&ctx)));
+            let result = catch_unwind(AssertUnwindSafe(|| (builtin.run)(&ctx)));
 
             let finished_ms = now_ms();
             let (status, error): (&str, Option<String>) = match result {
@@ -222,6 +243,20 @@ impl JobManager {
                 Ok(Err(e)) => ("failed", Some(format!("{e:#}"))),
                 Err(panic) => ("failed", Some(panic_message(&panic))),
             };
+
+            // Mirror a terminal failure into the run's *own* log stream (not only
+            // the `error` column), so the Tâches log view always explains why a run
+            // ended badly even for a panic or an early `?` that logged nothing
+            // itself. Success/cancellation already log their own lines from inside
+            // the job body.
+            if let ("failed", Some(msg)) = (status, error.as_deref()) {
+                let _ = db::insert_job_log(&pool, &run_id, finished_ms, "error", msg);
+                state.events.publish(ServerEvent::JobLog {
+                    run_id: run_id.clone(),
+                    level: "error",
+                    message: msg.to_string(),
+                });
+            }
             // Finalize the run row, retrying a few times: if this write keeps
             // failing (e.g. SQLite busy under contention) the row stays `running`
             // with no terminal status, and `reconcile_running_runs` only sweeps at
@@ -243,7 +278,7 @@ impl JobManager {
                 warn!(job = key, run = %run_id, "gave up recording job finish; run may show as running until restart");
             }
             let _ = db::prune_job_runs(&pool, key, RUNS_KEPT); // cosmetic cleanup
-            manager.running.write().unwrap().remove(&id);
+            manager.running.write().unwrap().remove(&job);
 
             match status {
                 "failed" => warn!(job = key, run = %run_id, error = error.as_deref().unwrap_or(""), "job failed"),
@@ -256,7 +291,7 @@ impl JobManager {
             });
 
             // Chaining: fire any job that opted to run after this one.
-            for next in manager.jobs_for_trigger(Trigger::AfterJob(id)) {
+            for next in manager.jobs_for_trigger(Trigger::AfterJob(job)) {
                 let _ = manager.trigger(state.clone(), next, "chain");
             }
         });
@@ -265,8 +300,8 @@ impl JobManager {
     }
 
     /// Request cancellation of a job's current run. Returns false if not running.
-    pub fn cancel(&self, id: JobId) -> bool {
-        if let Some(handle) = self.running.read().unwrap().get(&id) {
+    pub fn cancel(&self, job: JobKey) -> bool {
+        if let Some(handle) = self.running.read().unwrap().get(&job) {
             handle.request_cancel();
             true
         } else {
@@ -279,12 +314,12 @@ impl JobManager {
     pub fn update_schedule(
         &self,
         pool: &db::Pool,
-        id: JobId,
+        job: JobKey,
         schedule: Option<Option<String>>,
         enabled: Option<bool>,
     ) -> Result<()> {
         let mut map = self.schedules.write().unwrap();
-        let st = map.get_mut(&id).ok_or_else(|| anyhow!("unknown job"))?;
+        let st = map.get_mut(&job).ok_or_else(|| anyhow!("unknown job"))?;
         if let Some(new_schedule) = schedule {
             if let Some(expr) = &new_schedule {
                 if !Cron::is_valid(expr) {
@@ -297,7 +332,7 @@ impl JobManager {
             st.enabled = en;
         }
         st.customized = true;
-        db::upsert_job_schedule(pool, id.key(), st.schedule.as_deref(), st.enabled)?;
+        db::upsert_job_schedule(pool, job.as_str(), st.schedule.as_deref(), st.enabled)?;
         Ok(())
     }
 
@@ -306,13 +341,13 @@ impl JobManager {
     /// so disabling a job in the console stops its watch/chain runs too, not only
     /// its scheduled ones (a manual "Run now" goes through `trigger` directly and
     /// is unaffected).
-    pub fn jobs_for_trigger(&self, t: Trigger) -> Vec<JobId> {
+    pub fn jobs_for_trigger(&self, t: Trigger) -> Vec<JobKey> {
         let schedules = self.schedules.read().unwrap();
         self.order
             .iter()
             .copied()
-            .filter(|id| self.jobs.get(id).is_some_and(|r| r.triggers.contains(&t)))
-            .filter(|id| schedules.get(id).map_or(true, |s| s.enabled))
+            .filter(|job| self.jobs.get(job).is_some_and(|b| b.triggers.contains(&t)))
+            .filter(|job| schedules.get(job).map_or(true, |s| s.enabled))
             .collect()
     }
 

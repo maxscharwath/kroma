@@ -2,6 +2,8 @@
 // and updates its UI in place no relaunch/refresh when the library changes
 // (scan finished, metadata/art resolved). Auto-reconnects with backoff.
 
+import type { StageStat } from './generated';
+
 export type ServerEvent =
   | { type: 'hello'; version: string }
   | { type: 'scan.started' }
@@ -21,7 +23,8 @@ export type ServerEvent =
   | { type: 'job.started'; key: string; runId: string }
   | { type: 'job.progress'; key: string; runId: string; done: number; total: number }
   | { type: 'job.log'; runId: string; level: string; message: string }
-  | { type: 'job.finished'; key: string; runId: string; status: string };
+  | { type: 'job.finished'; key: string; runId: string; status: string }
+  | { type: 'pipeline.stats'; stages: StageStat[] };
 
 export interface LumaEventsOptions {
   onEvent?: (event: ServerEvent) => void;

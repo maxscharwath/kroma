@@ -32,8 +32,10 @@ pub struct HlsEngine {
 }
 
 impl HlsEngine {
-    pub fn new(data_dir: &Path, max_concurrent: usize) -> Self {
-        HlsEngine { sessions: Arc::new(Sessions::new(data_dir, max_concurrent)) }
+    /// `max_concurrent` hard-caps live sessions; `cache_budget` is the on-disk
+    /// byte budget that trims idle / superseded sessions (0 = unlimited).
+    pub fn new(data_dir: &Path, max_concurrent: usize, cache_budget: u64) -> Self {
+        HlsEngine { sessions: Arc::new(Sessions::new(data_dir, max_concurrent, cache_budget)) }
     }
 
     pub fn spawn_reaper(&self) {
@@ -42,6 +44,11 @@ impl HlsEngine {
 
     pub fn cache_bytes(&self) -> u64 {
         self.sessions.bytes()
+    }
+
+    /// Retune the on-disk cache byte budget at runtime (0 = unlimited).
+    pub fn set_cache_budget(&self, bytes: u64) {
+        self.sessions.set_budget(bytes);
     }
 
     /// The media playlist for `item_id` in `copy`/`aac` mode, anchored at `anchor`

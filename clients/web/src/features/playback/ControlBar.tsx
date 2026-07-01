@@ -16,9 +16,13 @@ import {
   IconTracks,
   IconVolume,
 } from '#web/features/playback/icons';
+import type { Storyboard } from '#web/features/playback/useStoryboard';
 import type { VideoPlayback } from '#web/features/playback/useVideoPlayback';
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+/** Width (px) of the scrub-bar hover-preview thumbnail; height follows 16:9. */
+const PREVIEW_W = 168;
 
 /** Auto-hiding bottom control surface: scrub bar (with hover preview + buffered
  * track) and the transport / volume / speed / stats / tracks / PiP / fullscreen row. */
@@ -33,6 +37,7 @@ function IconNext() {
 
 export function ControlBar({
   pb,
+  storyboard,
   statsOpen,
   markers,
   onToggleStats,
@@ -40,6 +45,8 @@ export function ControlBar({
   onPlayNext,
 }: Readonly<{
   pb: VideoPlayback;
+  /** Scrub-bar hover-thumbnail sheet (YouTube-style preview). */
+  storyboard: Storyboard;
   statsOpen: boolean;
   /** Intro / credits segments to mark on the scrub track. */
   markers?: readonly Marker[];
@@ -54,6 +61,12 @@ export function ControlBar({
   const shown = scrubPreview ?? cur;
   const pct = dur ? (shown / dur) * 100 : 0;
   const bufPct = dur ? (bufEnd / dur) * 100 : 0;
+  // Thumbnail under the cursor; null until the sheet is ready (→ time label only).
+  const previewTile = hover ? storyboard.tile(hover.t, PREVIEW_W) : null;
+  // Keep the floating preview inside the bar instead of overflowing at the ends.
+  const previewLeft = hover
+    ? Math.max(PREVIEW_W / 2, Math.min(hover.w - PREVIEW_W / 2, hover.x))
+    : 0;
 
   return (
     <>
@@ -84,8 +97,14 @@ export function ControlBar({
           {hover ? (
             <div
               className="pointer-events-none absolute bottom-7 z-10 flex -translate-x-1/2 flex-col items-center gap-1.5"
-              style={{ left: hover.x }}
+              style={{ left: previewLeft }}
             >
+              {previewTile ? (
+                <div
+                  className="overflow-hidden rounded-lg border border-white/20 bg-black shadow-[0_8px_24px_rgba(0,0,0,.6)] ring-1 ring-black/40"
+                  style={previewTile as React.CSSProperties}
+                />
+              ) : null}
               <span className="rounded-md bg-black/75 px-2.5 py-1 text-[12px] font-semibold tabular-nums text-white">
                 {fmtTime(hover.t)}
               </span>

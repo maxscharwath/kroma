@@ -12,4 +12,5 @@ pub use crate::domain::playback::*;
 pub use crate::domain::library::*;
 pub use crate::domain::admin::*;
 pub use crate::domain::jobs::*;
+pub use crate::domain::pipeline::*;
 pub use crate::domain::section::*;

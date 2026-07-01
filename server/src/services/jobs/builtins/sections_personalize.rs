@@ -5,6 +5,15 @@
 
 use super::prelude::*;
 
+/// Nightly: name per-account taste clusters into personalized rows.
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("sections.personalize"),
+    category: Category::Recommendations,
+    schedule: Some("30 5 * * *"),
+    triggers: &[],
+    run,
+};
+
 /// How many taste clusters (→ ~that many named sections) per user.
 const PERSONALIZE_CLUSTERS: usize = 4;
 

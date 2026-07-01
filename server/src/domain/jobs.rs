@@ -5,74 +5,12 @@
 //! Timestamps are epoch **milliseconds**. `name`/`description` are i18n keys the
 //! clients resolve against the shared catalogs.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use ts_rs::TS;
 
-/// Typed identity of a built-in job the single source of truth for "what jobs
-/// exist". Used everywhere instead of magic strings (so references are
-/// compiler-checked + autocompleted), and exported to the clients so the UI keys
-/// its job actions to this union rather than free strings. Serializes as the
-/// stable dotted key (`"library.scan"`), which is also the DB key, the URL
-/// segment, and the i18n base (`jobs.{key}.name` / `.desc`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub enum JobId {
-    #[serde(rename = "cache.cleanup")]
-    CacheCleanup,
-    #[serde(rename = "recommendations.refresh")]
-    RecommendationsRefresh,
-    #[serde(rename = "recommendations.reembed")]
-    RecommendationsReembed,
-    #[serde(rename = "sections.personalize")]
-    SectionsPersonalize,
-    #[serde(rename = "sections.curate")]
-    SectionsCurate,
-    #[serde(rename = "library.scan")]
-    LibraryScan,
-    #[serde(rename = "metadata.enrich")]
-    MetadataEnrich,
-    #[serde(rename = "search.reindex")]
-    SearchReindex,
-    #[serde(rename = "markers.detect")]
-    MarkersDetect,
-}
-
-impl JobId {
-    /// Every variant, in admin-listing order. Adding a job? add it here too.
-    pub const ALL: [JobId; 9] = [
-        JobId::CacheCleanup,
-        JobId::RecommendationsRefresh,
-        JobId::RecommendationsReembed,
-        JobId::SectionsPersonalize,
-        JobId::SectionsCurate,
-        JobId::LibraryScan,
-        JobId::MetadataEnrich,
-        JobId::SearchReindex,
-        JobId::MarkersDetect,
-    ];
-
-    /// The stable string key (DB / URL / i18n base). Must match the `serde`
-    /// rename above guarded by a test.
-    pub const fn key(self) -> &'static str {
-        match self {
-            JobId::CacheCleanup => "cache.cleanup",
-            JobId::RecommendationsRefresh => "recommendations.refresh",
-            JobId::RecommendationsReembed => "recommendations.reembed",
-            JobId::SectionsPersonalize => "sections.personalize",
-            JobId::SectionsCurate => "sections.curate",
-            JobId::LibraryScan => "library.scan",
-            JobId::MetadataEnrich => "metadata.enrich",
-            JobId::SearchReindex => "search.reindex",
-            JobId::MarkersDetect => "markers.detect",
-        }
-    }
-
-    /// Parse a stored/requested key back into a typed id (`None` if it names a job
-    /// that no longer exists stale DB rows are simply ignored).
-    pub fn from_key(key: &str) -> Option<JobId> {
-        JobId::ALL.into_iter().find(|id| id.key() == key)
-    }
-}
+// A job's identity is its dotted key, declared per-job in its `SPEC` and modelled
+// as `crate::services::jobs::JobKey` (a pure internal type, not a wire type). On
+// the wire the admin API speaks that key as a plain string (see [`JobInfo::key`]).
 
 /// UI grouping bucket for a job. Serializes lowercase (`"maintenance"`), which the
 /// clients turn into the `jobs.cat.{category}` i18n key.
@@ -83,6 +21,10 @@ pub enum Category {
     Maintenance,
     Library,
     Recommendations,
+    /// Per-element processing pipeline stages (probe, metadata, storyboard,
+    /// markers, embed). Surfaced in the dedicated admin Pipeline dashboard rather
+    /// than the general Tâches list. See [`crate::services::pipeline`].
+    Pipeline,
 }
 
 /// One recorded execution of a job.
@@ -121,7 +63,10 @@ pub struct JobLog {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct JobInfo {
-    pub key: JobId,
+    /// Stable dotted key (`"library.scan"`) this job's identity on the wire: the
+    /// DB key, the `/api/admin/jobs/:key` URL segment, and the i18n base
+    /// (`jobs.{key}.name` / `.desc`). Declared in the job's `SPEC`.
+    pub key: String,
     /// i18n key for the display name (`jobs.{key}.name`).
     pub name: String,
     /// i18n key for the description (`jobs.{key}.desc`).
@@ -160,17 +105,6 @@ pub struct JobDetail {
     pub runs: Vec<JobRun>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::JobId;
-
-    /// The `serde` rename (wire/DB/ts-rs format) and [`JobId::key`] must agree,
-    /// and every key must round-trip through [`JobId::from_key`].
-    #[test]
-    fn jobid_serde_matches_key() {
-        for id in JobId::ALL {
-            assert_eq!(serde_json::to_string(&id).unwrap(), format!("\"{}\"", id.key()));
-            assert_eq!(JobId::from_key(id.key()), Some(id));
-        }
-    }
-}
+// Job keys are declared per-job in their `SPEC` and guarded for uniqueness at
+// compile time in `crate::services::jobs::builtins`; there is no key table to test
+// here anymore.

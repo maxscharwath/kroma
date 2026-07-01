@@ -11,6 +11,16 @@ use crate::api::util::query;
 use crate::api::extract::AuthUser;
 use crate::db;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// Analytics. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/stats/top-users", get(top_users))
+        .route("/stats/history", get(history))
+        .route("/stats/overview", get(overview))
+}
 
 fn now_unix() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp()

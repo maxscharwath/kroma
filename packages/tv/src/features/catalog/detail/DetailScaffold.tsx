@@ -1,6 +1,6 @@
 import { posterColors } from '@luma/core';
-import { useT } from '@luma/ui';
 import type { ReactNode } from 'react';
+import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 
 const VEIL =
@@ -34,7 +34,6 @@ export function TvDetailScaffold({
   overview: string | null | undefined;
   children: ReactNode;
 }>) {
-  const t = useT();
   return (
     <div className="fixed inset-0 overflow-hidden bg-bg">
       <TvArt src={backdrop} colors={posterColors(id)} position="50% 18%" />
@@ -68,13 +67,11 @@ export function TvDetailScaffold({
         {children}
       </div>
 
-      {/* Back is the remote key (wired via useFocusNav onBack), so this is a
-          non-focusable hint. It's a self-contained chip with its own scrim so it
-          never collides with the title when the page is scrolled under it. */}
-      <div className="absolute left-16 top-8 z-10 inline-flex items-center gap-2 rounded-full bg-[rgba(10,10,12,0.55)] px-4 py-2 font-sans text-[14px] font-semibold text-[rgba(244,243,240,0.75)] backdrop-blur-md">
-        {t('content.detailBack')}
-        <span className="text-[rgba(244,243,240,0.4)]">{t('content.detailBackHint')}</span>
-      </div>
+      {/* Persistent nav (brand + section pills) for quick jumps. Rendered after the
+          content so the first action (Lecture) stays the initial focus. It replaces
+          the old standalone "Retour" chip Back is the remote key, and the other
+          browse screens carry no such hint. */}
+      <TvTopNav />
     </div>
   );
 }

@@ -19,9 +19,13 @@ export interface PlaybackHeartbeatParams {
   durationMs: number | null;
   /** Absolute current position in seconds (offset-aware on the web seamless stream). */
   getPosition: () => number;
-  /** The current transport state. */
-  getState: () => 'playing' | 'paused';
-  mode: 'direct' | 'transcode';
+  /** The current transport state (`buffering` = playing but stalled/rebuffering). */
+  getState: () => 'playing' | 'paused' | 'buffering';
+  /** Label of the audio track the viewer has selected (omit → keep server default). */
+  getAudio?: () => string | undefined;
+  /** Label of the selected subtitle track, or an "off" label (omit → unchanged). */
+  getSubtitle?: () => string | undefined;
+  mode: 'direct' | 'remux' | 'transcode';
   player: string;
   device: string;
   /** Base URL for the live-events stream (web: apiBase(); TV: client.baseUrl). */
@@ -66,6 +70,8 @@ export function usePlaybackHeartbeat(params: PlaybackHeartbeatParams): void {
         mode: p.mode,
         player: p.player,
         device: p.device,
+        audio: p.getAudio?.(),
+        subtitle: p.getSubtitle?.(),
       })
       .catch((e: unknown) => {
         // 410 Gone → an admin terminated this session (WS fallback).

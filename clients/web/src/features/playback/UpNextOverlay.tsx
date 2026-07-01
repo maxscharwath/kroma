@@ -1,4 +1,4 @@
-import type { MediaItem } from '@luma/core';
+import { episodeTag, type MediaItem } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useState } from 'react';
 import { lumaClient } from '#web/shared/lib/api';
@@ -59,7 +59,7 @@ export function UpNextOverlay({
   const c = lumaClient();
   const [imgOk, setImgOk] = useState(true);
   const thumb = c.backdropFor(next) ?? c.posterFor(next);
-  const tag = next.season != null && next.episode != null ? `S${next.season}E${next.episode}` : '';
+  const tag = episodeTag(next);
   const title = next.episodeTitle ?? next.title;
 
   return (

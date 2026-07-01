@@ -1,4 +1,11 @@
-import { audioSupport, formatTimecode as fmtTime, type MediaItem, metaLine } from '@luma/core';
+import {
+  audioSupport,
+  audioTrackLabel,
+  formatTimecode as fmtTime,
+  langName,
+  type MediaItem,
+  playerSubtitle,
+} from '@luma/core';
 import { useT } from '@luma/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AvDrawer } from '#web/features/playback/AvDrawer';
@@ -11,6 +18,7 @@ import { SubtitleLayer } from '#web/features/playback/SubtitleLayer';
 import { useSubtitleStyle } from '#web/features/playback/subtitleStyle';
 import { UpNextOverlay } from '#web/features/playback/UpNextOverlay';
 import { usePlaybackSession } from '#web/features/playback/usePlaybackSession';
+import { useStoryboard } from '#web/features/playback/useStoryboard';
 import { usePlayerHotkeys } from '#web/features/playback/usePlayerHotkeys';
 import { useResumeProgress } from '#web/features/playback/useResumeProgress';
 import { useUpNext } from '#web/features/playback/useUpNext';
@@ -36,6 +44,8 @@ export function Player({
 }>) {
   const t = useT();
   const pb = useVideoPlayback(item);
+  // Scrub-bar hover thumbnails (YouTube-style). Generated/cached server-side.
+  const storyboard = useStoryboard(item.id);
   const {
     videoRef,
     containerRef,
@@ -54,24 +64,9 @@ export function Player({
     [pb.seekTo, pb.getPosition],
   );
   const { resumeAt, showResume, setShowResume } = useResumeProgress(videoRef, item, position);
-  // Admin can remotely stop this playback → show a message and close.
+  // Admin can remotely stop this playback → show a simple confirm whose only
+  // action is to close the player and go back (no auto-close: the user dismisses).
   const [terminated, setTerminated] = useState<string | null>(null);
-  // Heartbeat this playback to the server for the admin dashboard's live sessions.
-  usePlaybackSession({
-    item,
-    getPosition: pb.getPosition,
-    playing: pb.playing,
-    mode: pb.useHls ? 'transcode' : 'direct',
-    onTerminated: (message) => {
-      try {
-        videoRef.current?.pause();
-      } catch {
-        /* ignore */
-      }
-      setTerminated(message?.trim() || t('player.stoppedDefault'));
-      window.setTimeout(onClose, 6000);
-    },
-  });
 
   const [controls, setControls] = useState(true);
   const [avOpen, setAvOpen] = useState(false);
@@ -97,14 +92,30 @@ export function Player({
       cancelled = true;
     };
   }, [item.id]);
+  // Merge only. Auto-selecting the produced track (when a generation finishes)
+  // is the drawer's job, so a background translate can't force subtitles on.
   const onDownloaded = useCallback((sub: DownloadedSub) => {
-    setDownloaded((prev) => {
-      if (prev.some((p) => p.id === sub.id)) return prev;
-      const next = [...prev, sub];
-      queueMicrotask(() => setActiveSub(1000 + next.length - 1)); // auto-enable it
-      return next;
-    });
+    setDownloaded((prev) => (prev.some((p) => p.id === sub.id) ? prev : [...prev, sub]));
   }, []);
+  const onDeleteSub = useCallback(
+    (subId: string) => {
+      // Generated tracks are positional (1000 + index in `downloaded`), so the
+      // splice shifts every track after the deleted one down by one. Capture the
+      // deleted slot before filtering, then fix up the active selection.
+      const di = downloaded.findIndex((p) => p.id === subId);
+      setDownloaded((prev) => prev.filter((p) => p.id !== subId));
+      if (di >= 0) {
+        setActiveSub((cur) => {
+          if (cur == null || cur < 1000) return cur;
+          if (cur === 1000 + di) return null; // the deleted track was active
+          if (cur > 1000 + di) return cur - 1; // it shifted down one slot
+          return cur;
+        });
+      }
+      void lumaClient().deleteSubtitle(item.id, subId).catch(() => undefined);
+    },
+    [item.id, downloaded],
+  );
   const allSubs = useMemo<SubtitleView[]>(() => {
     const dl: SubtitleView[] = downloaded.map((d, i) => ({
       index: 1000 + i,
@@ -113,19 +124,47 @@ export function Player({
       url: lumaClient().resolveArt(d.url) ?? d.url,
       downloaded: true,
       label: d.label,
+      subId: d.id,
+      provider: d.provider,
     }));
     return [...item.subs, ...dl];
   }, [item.subs, downloaded]);
 
   // Stable identity so the subtitle layer doesn't re-run effects on every timeupdate.
   const renderedSubs = useMemo(() => allSubs.filter((s) => s.url), [allSubs]);
-  const subtitle =
-    item.kind === 'episode' && item.showTitle
-      ? `${item.showTitle} · ${item.title}`
-      : metaLine(item);
+  const subtitle = playerSubtitle(item);
 
   // SubtitleLayer owns rendering; we only track which subtitle is active.
   const pickSub = useCallback((index: number | null) => setActiveSub(index), []);
+
+  // Heartbeat this playback to the server for the admin dashboard's live sessions.
+  // We report the viewer's actual audio/subtitle choice and a `buffering` state.
+  // Video is always copied; only the AAC master re-encodes audio (transcode). HLS
+  // without the AAC master is a pure remux (both streams copied).
+  let playbackMode: 'direct' | 'remux' | 'transcode' = 'direct';
+  if (pb.useHls) playbackMode = pb.aac ? 'transcode' : 'remux';
+  const activeSubTrack = activeSub == null ? null : allSubs.find((s) => s.index === activeSub);
+  const subtitleLabel =
+    activeSub == null
+      ? t('player.subtitlesOff')
+      : activeSubTrack?.label || langName(t, activeSubTrack?.language) || t('player.langUnknown');
+  usePlaybackSession({
+    item,
+    getPosition: pb.getPosition,
+    playing: pb.playing,
+    waiting: pb.waiting,
+    mode: playbackMode,
+    audioLabel: audioTrackLabel(t, pb.audioTracks.find((a) => a.index === pb.audioIndex)),
+    subtitleLabel,
+    onTerminated: (message) => {
+      try {
+        videoRef.current?.pause();
+      } catch {
+        /* ignore */
+      }
+      setTerminated(message?.trim() || t('player.stoppedDefault'));
+    },
+  });
 
   // Deep-link: `#stats` opens stats-for-nerds, `#av` opens the audio/subtitle panel.
   useEffect(() => {
@@ -166,6 +205,7 @@ export function Player({
     setStatsOpen,
     onClose,
     poke,
+    locked: terminated != null,
   });
 
   // ----- skip intro -----------------------------------------------------------
@@ -223,32 +263,22 @@ export function Player({
         </div>
       ) : null}
 
-      {/* Admin stopped this stream → blocking message, then auto-close. */}
+      {/* Admin stopped this stream → a simple confirm: one button that closes the
+          player and returns to the previous page. */}
       {terminated ? (
         <div className="absolute inset-0 z-70 flex flex-col items-center justify-center gap-5 bg-black/85 px-8 text-center backdrop-blur-sm">
           <span className="text-[#E8536A]">
             <IconStopped size={52} />
           </span>
-          <div className="font-display text-[24px] font-bold text-white">
-            {t('player.stoppedTitle')}
-          </div>
-          <p className="max-w-115 text-[15px] text-white/70">{terminated}</p>
+          <p className="max-w-115 text-[15px] text-white/80">{terminated}</p>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-white/10 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-white/20"
+            className="rounded-md bg-accent px-6 py-2.5 text-[14px] font-semibold text-accent-ink hover:bg-accent-hover"
           >
             {t('player.back')}
           </button>
         </div>
-      ) : null}
-
-      {/* Audio codec the browser can't decode. If the video itself direct-plays we
-          switch to the HLS audio-transcode (stereo AAC) and just note it. */}
-      {!audio.canPlay && audioWarn && pb.useHls ? (
-        <Toast variant="info" onDismiss={() => setAudioWarn(false)}>
-          {t('player.audioReencodedToast', { codec: item.audio?.codec?.toUpperCase() ?? '' })}
-        </Toast>
       ) : null}
 
       {/* Video also undecodable here → no recovery, so warn (Safari/TV needed). */}
@@ -336,6 +366,7 @@ export function Player({
       >
         <ControlBar
           pb={pb}
+          storyboard={storyboard}
           statsOpen={statsOpen}
           markers={item.markers}
           onToggleStats={() => setStatsOpen((s) => !s)}
@@ -354,6 +385,7 @@ export function Player({
           activeSub={activeSub}
           onPickSub={pickSub}
           onDownloaded={onDownloaded}
+          onDeleteSub={onDeleteSub}
           subStyle={subStyle}
           onStyleChange={setSubStyle}
           onClose={() => setAvOpen(false)}

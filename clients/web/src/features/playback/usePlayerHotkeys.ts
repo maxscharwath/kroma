@@ -22,6 +22,9 @@ export function usePlayerHotkeys(
     setStatsOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onClose: () => void;
     poke: () => void;
+    /** Admin stopped the stream: swallow every transport key so the viewer can't
+     * silently resume an untracked stream; only Escape (close) is honored. */
+    locked?: boolean;
   }>,
 ): void {
   const {
@@ -41,11 +44,18 @@ export function usePlayerHotkeys(
     setStatsOpen,
     onClose,
     poke,
+    locked = false,
   } = o;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
+      // Stream terminated by an admin: lock the transport, only Escape exits.
+      if (locked) {
+        e.preventDefault();
+        if (e.key === 'Escape') onClose();
+        return;
+      }
       switch (e.key) {
         case ' ':
         case 'k':
@@ -114,5 +124,6 @@ export function usePlayerHotkeys(
     poke,
     seekTo,
     dur,
+    locked,
   ]);
 }

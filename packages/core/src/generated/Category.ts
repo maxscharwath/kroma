@@ -4,4 +4,4 @@
  * UI grouping bucket for a job. Serializes lowercase (`"maintenance"`), which the
  * clients turn into the `jobs.cat.{category}` i18n key.
  */
-export type Category = "maintenance" | "library" | "recommendations";
+export type Category = "maintenance" | "library" | "recommendations" | "pipeline";

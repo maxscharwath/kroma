@@ -34,6 +34,9 @@ mod playback;
 mod library;
 mod admin;
 mod jobs;
+// Kept namespaced (`db::pipeline::…`) rather than glob-exported: its `counts`
+// would clash with `media::counts`, and the call sites read clearer scoped.
+pub mod pipeline;
 mod taste;
 mod curated;
 mod suggest;

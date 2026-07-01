@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { gradFor, initials } from '#tv/shared/ui';
 
@@ -60,7 +61,9 @@ export function TvPerson() {
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-bg animate-[tv-fade-in_0.3s_ease]">
-      <header className="flex items-center gap-6 px-16 pb-6 pt-12">
+      {/* Header sits below the persistent nav bar (pt clears it); Back is the
+          remote key, so no separate hint. */}
+      <header className="flex items-center gap-6 px-16 pb-6 pt-28">
         <PersonAvatar photo={photo} name={name} />
         <div className="min-w-0">
           {roles.length ? (
@@ -75,9 +78,6 @@ export function TvPerson() {
             {t('person.titleCount', { count: cards.length })}
           </div>
         </div>
-        <span className="ml-auto self-start font-sans text-[14px] font-semibold text-dim">
-          {t('search.backHint')}
-        </span>
       </header>
 
       {cards.length ? (
@@ -89,6 +89,9 @@ export function TvPerson() {
           </p>
         </div>
       )}
+
+      {/* Persistent nav last in DOM so a poster keeps the initial focus. */}
+      <TvTopNav />
     </div>
   );
 }

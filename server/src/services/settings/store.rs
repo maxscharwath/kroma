@@ -137,6 +137,10 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("deleteAfter".into(), json!(true));
     // storage / cache
     m.insert("cacheLimit".into(), json!("80 Go"));
+    // Byte budget for the on-disk transcode (HLS segment) cache. Regenerable, so
+    // kept small: idle / superseded sessions are evicted oldest-first once over
+    // this; an actively-playing session is never interrupted (see infra::hls).
+    m.insert("transcodeCacheLimit".into(), json!("20 Go"));
     // jobs: scheduler timezone offset in minutes from UTC (cron `0 4 * * *`
     // means 4am at this offset). 0 = UTC; e.g. 60 = UTC+1, -300 = UTC-5.
     m.insert("jobsUtcOffset".into(), json!(0));
@@ -158,11 +162,6 @@ fn defaults() -> BTreeMap<String, Value> {
     // on first read when empty. See `settings::llm`.
     m.insert("llmProviders".into(), json!([]));
     m.insert("llmDefaultProvider".into(), json!(""));
-    // Subtitle providers (OpenSubtitles + AI Whisper/translate) + the default id.
-    // MUST be listed here: `set_patch` only persists keys present in `defaults`,
-    // so omitting these makes every subtitle-provider save a silent no-op.
-    m.insert("subtitleProviders".into(), json!([]));
-    m.insert("subtitleDefaultProvider".into(), json!(""));
     // libraries: persisted multi-folder definitions (seeded from env on first run).
     m.insert("libraries".into(), json!(null));
     m

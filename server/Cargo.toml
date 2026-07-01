@@ -11,6 +11,12 @@ name = "luma-server"
 path = "src/main.rs"
 
 [features]
+# On-device Whisper subtitle transcription ships by default: it is the only
+# transcription backend (there is no cloud/whisper.cpp path) and the Synology
+# package already builds with it. Turning it off compiles a stub and the player's
+# "transcribe" capability reports false.
+default = ["whisper-local"]
+
 # Multilingual semantic embeddings (infra::embed::candle). OFF by default; the
 # default build uses the dependency-free lexical embedder (good for keyword-able
 # genre rows). Turn this on for the *aesthetic* themed rows lexical can't reach
@@ -41,6 +47,31 @@ whisper-local = [
     "dep:candle-nn",
     "dep:candle-transformers",
     "dep:tokenizers",
+]
+
+# GPU-accelerated Whisper for local dev builds (NOT the musl single binary, which
+# has no GPU). `whisper-metal` = Apple-Silicon GPU via Metal a huge speedup over
+# the pure-Rust CPU gemm; `whisper-cuda` = NVIDIA. The engine selects the device at
+# runtime and falls back to CPU if the GPU is unavailable, so these only widen what
+# the build CAN use. `whisper-accelerate` keeps the CPU device but routes matmuls
+# through Apple's vecLib BLAS (a smaller speedup, for Intel Macs / no-GPU).
+whisper-metal = [
+    "whisper-local",
+    "candle-core/metal",
+    "candle-nn/metal",
+    "candle-transformers/metal",
+]
+whisper-cuda = [
+    "whisper-local",
+    "candle-core/cuda",
+    "candle-nn/cuda",
+    "candle-transformers/cuda",
+]
+whisper-accelerate = [
+    "whisper-local",
+    "candle-core/accelerate",
+    "candle-nn/accelerate",
+    "candle-transformers/accelerate",
 ]
 
 [dependencies]
@@ -138,6 +169,18 @@ tantivy = { version = "0.22", default-features = false, features = ["lz4-compres
 uuid = "=1.11.0"
 jobserver = "=0.1.32"
 rusty-chromaprint = "0.3.0"
+
+# Apple-Silicon dev builds light up the Metal GPU for candle (Whisper transcription
+# + semantic embeddings) AUTOMATICALLY, with no `--features whisper-metal` flag so a
+# plain `cargo run` already uses the GPU instead of the slow pure-Rust CPU path. This
+# is gated on the *target* OS, so the `x86_64-unknown-linux-musl` Synology build (a
+# Linux target, GPU-less) never pulls Metal in and stays a portable CPU single binary.
+# These only add the `metal` feature to deps already declared optional above; they are
+# inert until `whisper-local` / `semantic-embeddings` actually pulls candle in.
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-core = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
+candle-nn = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
+candle-transformers = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
 
 # Keep the dependency graph lean and 1.81-friendly.
 [profile.release]

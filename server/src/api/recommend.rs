@@ -12,6 +12,16 @@ use crate::api::util::query;
 use crate::db;
 use crate::model::MediaItem;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// Similar-items, themed rows and the personalized "For You" feed.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/items/:id/similar", get(similar))
+        .route("/themed", get(themed))
+        .route("/for-you", get(for_you))
+}
 
 /// Titles per row.
 const ROW_LEN: usize = 30;

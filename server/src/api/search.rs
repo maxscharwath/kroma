@@ -16,6 +16,13 @@ use crate::api::util::query;
 use crate::db;
 use crate::services::search::{Hit, HitKind};
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/search`.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/search", get(search))
+}
 
 const DEFAULT_LIMIT: usize = 30;
 const MAX_LIMIT: usize = 60;

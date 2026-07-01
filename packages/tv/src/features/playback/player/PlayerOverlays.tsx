@@ -1,4 +1,4 @@
-import { type LumaClient, type MediaItem, posterColors } from '@luma/core';
+import { episodeTag, type LumaClient, type MediaItem, posterColors } from '@luma/core';
 import { useT } from '@luma/ui';
 import { ForwardGlyph, PlayGlyph } from '#tv/features/playback/player/icons';
 import { CTRL_OFF, CTRL_ON, FOCUS_RING, PILL } from '#tv/features/playback/player/playerStyles';
@@ -78,7 +78,7 @@ export function UpNextCard({
         </div>
         <div className="min-w-0">
           <div className="font-sans text-[15px] font-semibold text-[rgba(244,243,240,0.6)]">
-            S{next.season ?? ''}E{next.episode ?? ''}
+            {episodeTag(next)}
           </div>
           <div className="line-clamp-2 font-display text-[22px] font-bold text-white">
             {next.episodeTitle ?? next.title}

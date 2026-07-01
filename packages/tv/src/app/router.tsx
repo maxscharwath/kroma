@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -77,6 +78,10 @@ export interface TvNav {
   /** Replace the whole stack with a single screen (no history). Used by guards
    * (connect / profiles / home) so there's nothing to "go back" to. */
   replace: <K extends RouteName>(...args: GoArgs<K>) => void;
+  /** Replace just the *current* screen, keeping the history below it. For "up next"
+   * autoplay swap the finished item's player for the next one's, so Back still
+   * returns to where playback was launched (the show/detail), not a stale player. */
+  swap: <K extends RouteName>(...args: GoArgs<K>) => void;
   /** Jump straight back to the root. */
   home: () => void;
 }
@@ -84,6 +89,27 @@ export interface TvNav {
 const PROFILES = { name: 'profiles', params: undefined } as TvRoute;
 const HOME = { name: 'home', params: undefined } as TvRoute;
 const NavCtx = createContext<TvNav | null>(null);
+
+// Dev-only: the router is in-memory (no address bar), so a Vite HMR full-reload
+// would drop you back on the start screen. Persist the stack to sessionStorage (the
+// same trick TvApp uses for the intro flag) so on-device live-dev keeps your screen
+// across reloads. Route params are plain API JSON (MediaItem/Show), so they survive
+// a JSON round-trip with no refetch; and auth is hydrated synchronously on mount, so
+// the guard doesn't bounce a restored deep route. Compiled out of production builds
+// via IS_DEV; cast to read import.meta.env without vite/client types (as server.ts).
+const IS_DEV = (import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV === true;
+const DEV_NAV_KEY = 'luma:dev-nav';
+
+function loadDevStack(): TvRoute[] | null {
+  if (!IS_DEV) return null;
+  try {
+    const saved = sessionStorage.getItem(DEV_NAV_KEY);
+    const parsed = saved ? (JSON.parse(saved) as TvRoute[]) : null;
+    return parsed?.length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The route → component registry (the "route tree"), declared once and handed to
@@ -105,17 +131,35 @@ export function TvNavProvider({
   // Start on the profile picker the signed-out home. Adding a server happens
   // inside the Add-profile wizard, never as the launch screen. The guard advances
   // to `home` once a session resolves.
-  const [stack, setStack] = useState<TvRoute[]>([PROFILES]);
+  const [stack, setStack] = useState<TvRoute[]>(() => loadDevStack() ?? [PROFILES]);
+
+  // Dev-only: mirror the live stack into sessionStorage so an HMR reload restores it.
+  useEffect(() => {
+    if (!IS_DEV) return;
+    try {
+      sessionStorage.setItem(DEV_NAV_KEY, JSON.stringify(stack));
+    } catch {
+      /* ignore quota/availability */
+    }
+  }, [stack]);
 
   const go = useCallback(<K extends RouteName>(...[name, params]: GoArgs<K>) => {
     setStack((s) => [...s, make(name, params)]);
   }, []);
+  // Pop one screen. A no-op at depth 1 is correct by invariant: the bottom of the
+  // stack is always a root (home / profiles), since go / reset / replace / swap all
+  // preserve it so there is genuinely nowhere to go back to. (This is exactly why
+  // "up next" uses swap, not replace: replacing the whole stack would strand you on
+  // a lone player with no way back.)
   const back = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const reset = useCallback(<K extends RouteName>(...[name, params]: GoArgs<K>) => {
     setStack(name === 'home' ? [HOME] : [HOME, make(name, params)]);
   }, []);
   const replace = useCallback(<K extends RouteName>(...[name, params]: GoArgs<K>) => {
     setStack([make(name, params)]);
+  }, []);
+  const swap = useCallback(<K extends RouteName>(...[name, params]: GoArgs<K>) => {
+    setStack((s) => [...s.slice(0, -1), make(name, params)]);
   }, []);
   const home = useCallback(() => setStack([HOME]), []);
 
@@ -128,9 +172,10 @@ export function TvNavProvider({
       back,
       reset,
       replace,
+      swap,
       home,
     }),
-    [stack, go, back, reset, replace, home],
+    [stack, go, back, reset, replace, swap, home],
   );
   return (
     <NavCtx.Provider value={value}>

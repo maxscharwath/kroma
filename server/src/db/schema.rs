@@ -289,6 +289,37 @@ pub(crate) const SCHEMA: &str = "
         segments    TEXT NOT NULL,
         updated_at  INTEGER NOT NULL
     );
+
+    -- Per-element processing ledger (see services::pipeline). One row per
+    -- (stage, subject): the unit of work a pipeline stage does for one file /
+    -- item / show / season. `input_sig` is a cheap signature of the subject's
+    -- inputs (mtime, size, version, mode) so a re-run skips work whose inputs
+    -- are unchanged (`status='done'` + same sig) and re-queues work whose inputs
+    -- changed. This is what makes the heavy jobs incremental and resumable, and
+    -- what the admin Pipeline dashboard reads to show per-stage health + failures.
+    CREATE TABLE IF NOT EXISTS pipeline_tasks (
+        stage        TEXT NOT NULL,
+        subject_kind TEXT NOT NULL,
+        subject_id   TEXT NOT NULL,
+        status       TEXT NOT NULL,
+        input_sig    TEXT,
+        attempts     INTEGER NOT NULL DEFAULT 0,
+        priority     INTEGER NOT NULL DEFAULT 0,
+        error        TEXT,
+        enqueued_at  INTEGER NOT NULL,
+        updated_at   INTEGER NOT NULL,
+        started_at   INTEGER,
+        finished_at  INTEGER,
+        duration_ms  INTEGER,
+        PRIMARY KEY (stage, subject_kind, subject_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_pipeline_ready
+        ON pipeline_tasks(stage, status, priority DESC, enqueued_at);
+    -- Seek by (stage, subject_id) for the show/item roll-up (`worst_status`): the
+    -- PK is (stage, subject_kind, subject_id), so subject_id can't be sought
+    -- without this composite index.
+    CREATE INDEX IF NOT EXISTS idx_pipeline_subject
+        ON pipeline_tasks(stage, subject_id);
 ";
 
 /// Explicit column list for file SELECTs keeps [`super::row_to_file`] index-stable.

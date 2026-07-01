@@ -10,6 +10,7 @@ pub mod backup;
 pub mod jobs;
 pub mod llm;
 pub mod markers;
+pub mod pipeline;
 pub mod scan;
 pub mod enrich;
 pub mod search;

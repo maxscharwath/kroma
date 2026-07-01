@@ -13,6 +13,8 @@ import {
   IconPlayerPlayFilled as TbPlay,
   IconPlayerStopFilled as TbStop,
   IconListDetails as TbTracks,
+  IconSparkles as TbSparkles,
+  IconTrash as TbTrash,
   IconVolume as TbVolume,
   IconVolumeOff as TbVolumeOff,
   IconX as TbX,
@@ -42,4 +44,6 @@ export const IconTracks = ({ size = 18 }: Readonly<P>) => <TbTracks size={size} 
 export const IconStats = ({ size = 22 }: Readonly<P>) => <TbChartBar size={size} stroke={1.8} />;
 export const IconCheck = ({ size = 18 }: Readonly<P>) => <TbCheck size={size} stroke={1.8} />;
 export const IconClose = ({ size = 18 }: Readonly<P>) => <TbX size={size} stroke={1.8} />;
+export const IconTrash = ({ size = 16 }: Readonly<P>) => <TbTrash size={size} stroke={1.8} />;
+export const IconSparkles = ({ size = 14 }: Readonly<P>) => <TbSparkles size={size} stroke={1.8} />;
 export const IconStopped = ({ size = 52 }: Readonly<P>) => <TbStop size={size} />;

@@ -13,6 +13,7 @@ import {
 } from '@luma/core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Connection } from '#tv/app/providers/connection';
+import { useServerHealth } from '#tv/app/useServerHealth';
 import { type DeepLink, onDeepLink, publishPreview, readDeepLink } from '#tv/shared/preview';
 import { initialServers } from '#tv/shared/server';
 
@@ -158,6 +159,11 @@ export function useCatalogue(platform: string): Catalogue {
     if (client && signedIn) void fetchCatalogue(client);
   }, [client, signedIn, fetchCatalogue]);
 
+  // Heartbeat: detect when the server drops and auto-refetch when it returns.
+  const { online, recheck } = useServerHealth(client, signedIn, () => {
+    if (client) void fetchCatalogue(client, true);
+  });
+
   // Live sync: hold the event stream open and refetch when the catalog changes.
   // A leading+trailing throttle coalesces bursts into at most one refetch/window.
   // Only while signed in the picker keeps the stream (and /api/status) closed.
@@ -179,11 +185,17 @@ export function useCatalogue(platform: string): Catalogue {
       }
     };
     const events = new LumaEvents(client.baseUrl, {
-      onOpen: () =>
+      // The stream open/close is the fastest signal that the server just came
+      // back or dropped; nudge the heartbeat to confirm reachability at once
+      // rather than waiting for its next tick.
+      onClose: () => recheck(),
+      onOpen: () => {
+        recheck();
         void client
           .status()
           .then(setActivity)
-          .catch(() => undefined),
+          .catch(() => undefined);
+      },
       onEvent: (e) => {
         switch (e.type) {
           case 'scan.started':
@@ -232,7 +244,7 @@ export function useCatalogue(platform: string): Catalogue {
       clearTimeout(trailing);
       events.close();
     };
-  }, [client, signedIn, fetchCatalogue]);
+  }, [client, signedIn, fetchCatalogue, recheck]);
 
   // Smart Hub preview (Samsung TV): keep the home-screen carousel in sync.
   useEffect(() => {
@@ -251,6 +263,7 @@ export function useCatalogue(platform: string): Catalogue {
       activeServerUrl,
       activeServerName: serverLabel(servers, activeServerUrl),
       error,
+      online,
       client,
       movies,
       shows,
@@ -270,6 +283,7 @@ export function useCatalogue(platform: string): Catalogue {
       servers,
       activeServerUrl,
       error,
+      online,
       client,
       movies,
       shows,

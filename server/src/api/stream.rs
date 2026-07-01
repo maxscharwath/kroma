@@ -13,8 +13,22 @@ use crate::api::error::json_error;
 use crate::api::util::query;
 use crate::db;
 use crate::infra::stream::stream_or_demo_error;
+use crate::infra::subtitles;
 use crate::model::MediaItem;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// Direct-play streaming, HLS remux, storyboard previews and subtitle tracks.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/items/:id/stream", get(stream_item))
+        .route("/items/:id/hls/:mode/:anchor/:audio/index.m3u8", get(hls_master))
+        .route("/items/:id/hls/:mode/:anchor/:audio/:file", get(hls_file))
+        .route("/items/:id/storyboard", get(storyboard))
+        .route("/items/:id/storyboard.img", get(storyboard_image))
+        .route("/items/:id/subtitles/:track", get(subtitles))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct StreamQuery {
@@ -131,6 +145,51 @@ fn playlist_response(body: String) -> Response {
         .unwrap()
 }
 
+// ----- Storyboard (scrub-bar hover thumbnails) --------------------------------
+
+/// `GET /api/items/:id/storyboard` → the sprite-sheet manifest (JSON) the player
+/// needs to map a cursor time → a tile. Returns 202 `{"status":"pending"}` while
+/// the sheet is being generated (the client polls), or 404 when the item has no
+/// file / unknown duration. The sheet itself is served by [`storyboard_image`].
+pub async fn storyboard(State(state): State<SharedState>, Path(id): Path<String>) -> Response {
+    let Some(item) = load_item(&state, id).await else {
+        return json_error(StatusCode::NOT_FOUND, "item not found");
+    };
+    use crate::infra::storyboard::Status;
+    match state.storyboard.get(&item).await {
+        Status::Ready(m) => json_no_store(StatusCode::OK, serde_json::to_vec(&m).unwrap_or_default()),
+        Status::Pending => json_no_store(StatusCode::ACCEPTED, br#"{"status":"pending"}"#.to_vec()),
+        Status::Unavailable => json_error(StatusCode::NOT_FOUND, "storyboard unavailable"),
+    }
+}
+
+/// `GET /api/items/:id/storyboard.img` → the cached sprite sheet (WebP or JPEG;
+/// the content type is set from whichever was produced). Immutable (the manifest's
+/// `?v=<key>` cache-busts when the source file changes); 404 until generated.
+pub async fn storyboard_image(State(state): State<SharedState>, Path(id): Path<String>) -> Response {
+    let Some(item) = load_item(&state, id).await else {
+        return json_error(StatusCode::NOT_FOUND, "item not found");
+    };
+    match state.storyboard.sheet(&item).await {
+        Some((bytes, content_type)) => Response::builder()
+            .header(header::CONTENT_TYPE, content_type)
+            .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
+            .body(Body::from(bytes))
+            .unwrap(),
+        None => json_error(StatusCode::NOT_FOUND, "storyboard not generated"),
+    }
+}
+
+/// A `no-store` JSON response with an explicit status (manifest / pending marker).
+fn json_no_store(status: StatusCode, body: Vec<u8>) -> Response {
+    Response::builder()
+        .status(status)
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::CACHE_CONTROL, "no-store")
+        .body(Body::from(body))
+        .unwrap()
+}
+
 // ----- Subtitles --------------------------------------------------------------
 
 /// `GET /api/items/:id/subtitles/:track` → extract an embedded **text** subtitle
@@ -146,32 +205,56 @@ pub async fn subtitles(
         Err(_) => return json_error(StatusCode::BAD_REQUEST, "invalid subtitle index"),
     };
 
-    let abs = match query(&state.db, move |pool| db::get_item(&pool, &id)).await {
-        Ok(Some(item)) => item.abs_path,
+    let item = match query(&state.db, move |pool| db::get_item(&pool, &id)).await {
+        Ok(Some(item)) => item,
         Ok(None) => return json_error(StatusCode::NOT_FOUND, "item not found"),
         Err(resp) => return resp,
     };
-    let Some(abs) = abs else {
+    let Some(abs) = item.abs_path.clone() else {
         return json_error(StatusCode::NOT_FOUND, "no media file for item");
     };
 
     // Disk cache: extracting a text subtitle reads the WHOLE file (cues are
     // interleaved throughout), which is slow over a network mount - so do it ONCE
     // per (file, mtime, track) and serve the cached WebVTT instantly thereafter.
-    let cache = subs_cache_path(&state.config.data_dir, &abs, index);
+    // Normally the pipeline `subtitles` stage has already warmed this; this endpoint
+    // is the fallback for a track it has not reached yet.
+    // Computing the cache key stats the file (mtime); on a slow mount that sync call
+    // would block the tokio worker, so do it on the blocking pool.
+    let data_dir = state.config.data_dir.clone();
+    let cache = {
+        let (abs, data_dir) = (abs.clone(), data_dir.clone());
+        match tokio::task::spawn_blocking(move || subtitles::cache_path(&data_dir, &abs, index)).await {
+            Ok(p) => p,
+            Err(_) => return json_error(StatusCode::INTERNAL_SERVER_ERROR, "subtitle cache error"),
+        }
+    };
     if let Ok(bytes) = tokio::fs::read(&cache).await {
         return vtt_response(bytes);
     }
-    match extract_webvtt(&abs, index).await {
-        Some(bytes) => {
-            if let Some(dir) = cache.parent() {
-                let _ = tokio::fs::create_dir_all(dir).await;
-                let _ = tokio::fs::write(&cache, &bytes).await;
-            }
-            vtt_response(bytes)
-        }
-        None => json_error(StatusCode::NOT_FOUND, "subtitle unavailable (image-based or missing)"),
+    // Cache miss: demux the file ONCE and warm EVERY text track (so a later
+    // language switch is instant too), then serve the one that was requested.
+    let subs = item.subtitles.clone();
+    let (abs2, data_dir2) = (abs.clone(), data_dir.clone());
+    let _ = tokio::task::spawn_blocking(move || {
+        let pending = subtitles::pending_text_tracks(&data_dir2, &abs2, &subs);
+        subtitles::extract_batch_blocking(&abs2, &pending)
+    })
+    .await;
+    if let Ok(bytes) = tokio::fs::read(&cache).await {
+        return vtt_response(bytes);
     }
+    // Fallback: `item.subtitles` metadata can be empty/stale, so the batch pass may
+    // not have covered THIS index. Extract just the requested track codec-agnostically
+    // (the old behavior), cache it, and serve it; only 404 if that yields nothing too.
+    if let Some(bytes) = extract_webvtt(&abs, index).await {
+        if let Some(dir) = cache.parent() {
+            let _ = tokio::fs::create_dir_all(dir).await;
+        }
+        let _ = tokio::fs::write(&cache, &bytes).await;
+        return vtt_response(bytes);
+    }
+    json_error(StatusCode::NOT_FOUND, "subtitle unavailable (image-based or missing)")
 }
 
 fn vtt_response(bytes: Vec<u8>) -> Response {
@@ -182,34 +265,13 @@ fn vtt_response(bytes: Vec<u8>) -> Response {
         .unwrap()
 }
 
-/// `<data>/subs/<hash>.vtt`, keyed by file path + mtime + track index so a
-/// replaced file re-extracts and each track caches independently.
-fn subs_cache_path(data_dir: &std::path::Path, abs: &str, index: usize) -> std::path::PathBuf {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    abs.hash(&mut h);
-    index.hash(&mut h);
-    let mtime = std::fs::metadata(abs)
-        .ok()
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    mtime.hash(&mut h);
-    data_dir.join("subs").join(format!("{:016x}.vtt", h.finish()))
-}
-
-/// Max wall-clock for a single subtitle extraction. Extracting a text track reads
-/// the WHOLE file (cues are interleaved), which on a multi-GB film over a network
-/// mount - especially while HLS remuxes compete for it - can take a minute or two.
-/// Generous so it completes (and caches); a truly stalled mount is still killed.
-const SUBTITLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(150);
-
 /// Run ffmpeg to transcode subtitle stream `index` to WebVTT (text subs only),
-/// bounded by [`SUBTITLE_TIMEOUT`]. Uses `tokio::process` directly (no
+/// bounded by [`subtitles::TIMEOUT`]. Uses `tokio::process` directly (no
 /// `spawn_blocking`) with `-nostdin` + `Stdio::null()` stdin so ffmpeg can never
-/// block waiting on the terminal; `kill_on_drop` reaps the child on timeout.
-async fn extract_webvtt(path: &str, index: usize) -> Option<Vec<u8>> {
+/// block waiting on the terminal; `kill_on_drop` reaps the child on timeout. This
+/// single-track variant backs subtitle *translation* (the source track for the LLM
+/// pass); playback extraction goes through [`subtitles::extract_batch_blocking`].
+pub(crate) async fn extract_webvtt(path: &str, index: usize) -> Option<Vec<u8>> {
     let child = tokio::process::Command::new("ffmpeg")
         .args(["-v", "error", "-nostdin", "-i"])
         .arg(path)
@@ -222,7 +284,7 @@ async fn extract_webvtt(path: &str, index: usize) -> Option<Vec<u8>> {
         .ok()?;
 
     // On timeout the future is dropped, which (via kill_on_drop) kills ffmpeg.
-    let out = tokio::time::timeout(SUBTITLE_TIMEOUT, child.wait_with_output())
+    let out = tokio::time::timeout(subtitles::TIMEOUT, child.wait_with_output())
         .await
         .ok()?
         .ok()?;

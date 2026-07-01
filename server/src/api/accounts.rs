@@ -21,6 +21,27 @@ use crate::i18n::{self, ReqLocale};
 use crate::model::{Permission, User};
 use crate::services::quickconnect::PollState;
 use crate::state::SharedState;
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// Auth, sessions, profiles, Quick Connect and the user roster. PIN routes live
+/// in [`super::pin`]; invitations in [`super::invites`].
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/auth/register", post(register))
+        .route("/auth/login", post(login))
+        .route("/auth/logout", post(logout))
+        .route("/auth/me", get(me).patch(update_me))
+        .route("/auth/quickconnect/initiate", post(quick_initiate))
+        .route("/auth/quickconnect/authorize", post(quick_authorize))
+        .route("/auth/quickconnect/poll", get(quick_poll))
+        .route("/users", get(list_users))
+        .route(
+            "/users/avatar",
+            post(upload_avatar).layer(DefaultBodyLimit::max(MAX_AVATAR_BYTES)),
+        )
+}
 
 /// Max avatar upload size (raw image bytes).
 pub const MAX_AVATAR_BYTES: usize = 8 * 1024 * 1024;

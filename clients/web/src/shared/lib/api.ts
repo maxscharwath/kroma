@@ -63,10 +63,14 @@ export interface SubtitleView {
   /** Text-based subs (subrip/ass/mov_text) can be served as WebVTT; image subs
    * (PGS/VobSub) cannot `url` is null then. */
   url: string | null;
-  /** True for a subtitle fetched from an online provider (vs embedded). */
+  /** True for a generated subtitle (Whisper/translate), vs embedded. */
   downloaded?: boolean;
-  /** Display label for a downloaded sub (the provider release name). */
+  /** Display label for a generated sub. */
   label?: string;
+  /** The generated subtitle's id (for deletion); absent for embedded tracks. */
+  subId?: string;
+  /** Provider tag of a generated sub (`whisper`/`translate`), for the "IA" badge. */
+  provider?: string;
 }
 
 /** A movie/episode with art + stream + subtitle URLs pre-resolved to absolute LUMA URLs. */

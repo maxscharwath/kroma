@@ -19,6 +19,19 @@ use crate::infra::events::ServerEvent;
 use crate::model::Permission;
 use crate::services::backup::ImportError;
 use crate::state::SharedState;
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// Backup export / import. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/backup/export", get(export_backup))
+        .route(
+            "/backup/import",
+            post(import_backup).layer(DefaultBodyLimit::max(MAX_BACKUP_BYTES)),
+        )
+}
 
 /// Max accepted import body. The whole `.luma` is buffered in memory; backups are
 /// normally KB–MB, but lift the small axum default (2 MiB) so a large library
@@ -120,7 +133,7 @@ pub async fn import_backup(
     state.settings.reload(&state.db);
     state.events.publish(ServerEvent::SettingsUpdated);
     let rescan_started = !matches!(
-        state.jobs.trigger(state.clone(), crate::model::JobId::LibraryScan, "backup-import"),
+        state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "backup-import"),
         Err(crate::services::jobs::TriggerError::Unknown)
     );
 

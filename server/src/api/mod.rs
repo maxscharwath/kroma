@@ -1,4 +1,6 @@
-//! API surface: route table and JSON helpers.
+//! API surface: composes each feature module's `routes()` into the `/api`
+//! router, then layers CORS, tracing and the SPA fallback. Individual routes
+//! live next to their handlers in the submodules, not here.
 
 pub mod admin;
 pub mod card;
@@ -25,8 +27,6 @@ mod suggest;
 mod themes;
 mod util;
 
-use axum::extract::DefaultBodyLimit;
-use axum::routing::{get, post, put};
 use axum::Router;
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
@@ -36,140 +36,28 @@ use crate::state::SharedState;
 
 /// Build the application router with all `/api` routes plus CORS and tracing.
 pub fn router(state: SharedState) -> Router {
+    // Each feature module owns its routes via a `routes()` function, so adding a
+    // route means editing the module that handles it, not this table. Modules are
+    // flat-merged (their paths span prefixes like `/items` and `/shows`); the
+    // admin subtree gets its own `/admin` prefix via `nest`.
     let api = Router::new()
-        .route("/health", get(media::health))
-        .route("/libraries", get(media::list_libraries))
-        .route("/items", get(media::list_items))
-        .route("/movies", get(media::list_movies))
-        .route("/shows", get(media::list_shows))
-        .route("/search", get(search::search))
-        .route("/people", get(people::person))
-        .route("/shows/:id", get(media::get_show))
-        .route("/shows/:id/up-next", get(playback::up_next))
-        .route("/items/:id/next", get(playback::next_episode))
-        .route("/shows/:id/poster", get(images::show_poster))
-        .route("/shows/:id/metadata", get(metadata::show_metadata))
-        .route("/items/:id", get(media::get_item))
-        .route("/items/:id/stream", get(stream::stream_item))
-        .route("/items/:id/hls/:mode/:anchor/:audio/index.m3u8", get(stream::hls_master))
-        .route("/items/:id/hls/:mode/:anchor/:audio/:file", get(stream::hls_file))
-        .route("/items/:id/poster", get(images::item_poster))
-        .route("/items/:id/card", get(images::item_card))
-        .route("/items/:id/metadata", get(metadata::item_metadata))
-        .route("/items/:id/similar", get(recommend::similar))
-        .route("/items/:id/ai-suggest", get(suggest::ai_suggest))
-        .route("/themed", get(recommend::themed))
-        .route("/items/:id/subtitles/search", get(online_subs::search))
-        .route("/items/:id/subtitles/download", post(online_subs::download))
-        .route("/items/:id/subtitles/generate", post(online_subs::generate))
-        .route("/items/:id/subtitles/capabilities", get(online_subs::capabilities))
-        .route("/items/:id/subtitles/downloaded", get(online_subs::list))
-        .route("/items/:id/subtitles/dl/:dl", get(online_subs::file))
-        .route("/items/:id/subtitles/:track", get(stream::subtitles))
-        .route("/images/:name", get(images::image))
-        .route("/themes/:name", get(themes::theme))
-        .route("/events", get(ws::events))
-        .route("/status", get(media::status))
-        .route("/logs", get(media::logs))
-        .route("/scan", post(media::rescan))
-        // --- accounts / sessions / profiles ---
-        .route("/auth/register", post(accounts::register))
-        .route("/auth/login", post(accounts::login))
-        .route("/auth/logout", post(accounts::logout))
-        .route("/auth/me", get(accounts::me).patch(accounts::update_me))
-        .route("/auth/pin/verify", post(pin::verify_pin))
-        .route(
-            "/auth/me/pin",
-            axum::routing::patch(pin::set_pin).delete(pin::delete_pin),
-        )
-        .route("/auth/quickconnect/initiate", post(accounts::quick_initiate))
-        .route("/auth/quickconnect/authorize", post(accounts::quick_authorize))
-        .route("/auth/quickconnect/poll", get(accounts::quick_poll))
-        .route("/users", get(accounts::list_users))
-        .route(
-            "/users/avatar",
-            post(accounts::upload_avatar).layer(DefaultBodyLimit::max(accounts::MAX_AVATAR_BYTES)),
-        )
-        // --- invitations (registration is invite-only after the owner) ---
-        .route("/invites", post(invites::create_invite).get(invites::list_invites))
-        .route(
-            "/invites/:token",
-            get(invites::check_invite).delete(invites::delete_invite),
-        )
-        // --- playback progress / resume ---
-        .route("/progress", get(playback::list_progress))
-        .route("/continue", get(playback::continue_watching))
-        .route("/home", get(home::home))
-        .route("/for-you", get(recommend::for_you))
-        .route(
-            "/progress/:id",
-            get(playback::get_progress)
-                .put(playback::save_progress)
-                .delete(playback::delete_progress),
-        )
-        // --- watched marker (explicit "seen" state, per user) ---
-        .route("/watched", get(playback::list_watched))
-        .route(
-            "/watched/:id",
-            put(playback::mark_watched).delete(playback::unmark_watched),
-        )
-        // --- "Ma liste" (user bookmarks, synced across web + TV) ---
-        .route("/my-list", get(playback::list_my_list))
-        .route(
-            "/my-list/:id",
-            put(playback::add_to_list).delete(playback::remove_from_list),
-        )
-        // --- live playback sessions (admin dashboard "En cours de lecture") ---
-        .route("/playback/ping", post(playback::ping))
-        .route("/playback/stop", post(playback::stop))
-        // --- admin console ---
-        .route("/admin/server", get(admin::server_info))
-        .route("/admin/sessions", get(admin::sessions))
-        .route("/admin/sessions/:id/stop", post(admin::terminate_session))
-        .route("/admin/metrics", get(admin::metrics))
-        .route("/admin/llm", get(admin::get_llm).put(admin::save_llm))
-        .route("/admin/llm/models", post(admin::llm_models))
-        .route("/admin/llm/test", post(admin::test_llm))
-        .route("/admin/subtitles", get(admin::get_subtitles).put(admin::save_subtitles))
-        .route("/admin/subtitles/test", post(admin::test_subtitles))
-        .route("/admin/storage", get(admin::storage))
-        .route("/admin/cache/clear", post(admin::clear_cache))
-        .route("/admin/cache/reset-metadata", post(admin::reset_metadata))
-        .route("/admin/users", get(admin::list_users))
-        .route(
-            "/admin/users/:id",
-            axum::routing::patch(admin::update_user).delete(admin::delete_user),
-        )
-        .route(
-            "/admin/libraries",
-            get(admin::list_libraries).post(admin::create_library),
-        )
-        .route(
-            "/admin/libraries/:id",
-            axum::routing::patch(admin::update_library).delete(admin::delete_library),
-        )
-        .route("/admin/libraries/:id/scan", post(admin::scan_library))
-        .route(
-            "/admin/settings",
-            get(admin::get_settings).put(admin::put_settings),
-        )
-        .route("/admin/backup/export", get(admin::export_backup))
-        .route(
-            "/admin/backup/import",
-            post(admin::import_backup).layer(DefaultBodyLimit::max(admin::MAX_BACKUP_BYTES)),
-        )
-        .route("/admin/stats/top-users", get(admin::top_users))
-        .route("/admin/stats/history", get(admin::history))
-        .route("/admin/stats/overview", get(admin::overview))
-        // --- background jobs / scheduler ---
-        .route("/admin/jobs", get(admin::list_jobs))
-        .route("/admin/job-runs/:run_id/logs", get(admin::run_logs))
-        .route(
-            "/admin/jobs/:key",
-            get(admin::job_detail).patch(admin::update_job),
-        )
-        .route("/admin/jobs/:key/run", post(admin::run_job))
-        .route("/admin/jobs/:key/cancel", post(admin::cancel_job));
+        .merge(media::routes())
+        .merge(search::routes())
+        .merge(people::routes())
+        .merge(metadata::routes())
+        .merge(images::routes())
+        .merge(stream::routes())
+        .merge(recommend::routes())
+        .merge(suggest::routes())
+        .merge(online_subs::routes())
+        .merge(themes::routes())
+        .merge(home::routes())
+        .merge(ws::routes())
+        .merge(playback::routes())
+        .merge(accounts::routes())
+        .merge(pin::routes())
+        .merge(invites::routes())
+        .nest("/admin", admin::routes());
 
     let mut app = Router::new().nest("/api", api);
 

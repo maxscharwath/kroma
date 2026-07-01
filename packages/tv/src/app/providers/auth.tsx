@@ -178,14 +178,20 @@ export function AuthProvider({
     setSession(null);
   }, [client, session]);
 
-  const updateUser = useCallback((patch: Partial<User>) => {
-    setSession((s) => {
-      if (!s) return s;
-      const next: StoredSession = { ...s, user: { ...s.user, ...patch } };
+  const updateUser = useCallback(
+    (patch: Partial<User>) => {
+      if (!session) return;
+      const next: StoredSession = { ...session, user: { ...session.user, ...patch } };
+      // `saveSession` rewrites BOTH the active session and this profile's entry in
+      // the remembered-accounts store, so re-reading it keeps the picker's lock
+      // state (hasPin) in sync. Without refreshing `accounts`, disabling a PIN
+      // left the profile still showing its lock and re-prompting on switch-in.
       saveSession(next);
-      return next;
-    });
-  }, []);
+      setSession(next);
+      setAccounts(loadAccounts());
+    },
+    [session],
+  );
 
   const isUnlocked = useCallback(
     (account: Pick<StoredSession, 'serverUrl' | 'user'>) => unlocked.current.has(keyOf(account)),

@@ -91,42 +91,15 @@ pub fn spawn_probe_pass(pool: Pool, ffprobe_present: bool, bus: Bus, activity: A
                     Some(j) => j,
                     None => break,
                 };
-
-                // Whether this is the item's first probe → emit ItemUpdated so
-                // the client shows the codec badge appear.
-                let first_for_item = db::item_has_probed_file(&pool, &job.item_id)
-                    .map(|has| !has)
-                    .unwrap_or(true);
-
-                let result = probe_file(Path::new(&job.abs_path), ffprobe_present);
-                match db::set_file_probe(
-                    &pool,
-                    &job.file_id,
-                    result.duration_ms,
-                    result.video.as_ref(),
-                    result.audio.as_ref(),
-                    &result.audio_tracks,
-                    &result.subtitles,
-                ) {
-                    Ok(()) => {
-                        // Intro/credits markers from embedded chapters (title-based,
-                        // free since we already probed). The fingerprint job fills
-                        // the gaps for files without chapters.
-                        for (kind, start, end) in
-                            super::markers_from_chapters(&result.chapters, result.duration_ms)
-                        {
-                            let _ = db::set_marker(&pool, &job.item_id, kind, start, end, "chapters");
-                        }
-                        if first_for_item {
-                            bus.publish(ServerEvent::ItemUpdated { id: job.item_id.clone() });
-                        }
-                        let n = done.fetch_add(1, Ordering::Relaxed) + 1;
-                        activity::probe_progress(&activity, n);
-                        if n % 25 == 0 {
-                            bus.publish(ServerEvent::ProbeProgress { done: n, total });
-                        }
-                    }
-                    Err(e) => warn!(file = %job.file_id, error = %e, "failed to store probe result"),
+                if let Err(e) =
+                    probe_one(&pool, ffprobe_present, &bus, &job.file_id, &job.abs_path, &job.item_id)
+                {
+                    warn!(file = %job.file_id, error = %e, "failed to store probe result");
+                }
+                let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+                activity::probe_progress(&activity, n);
+                if n % 25 == 0 {
+                    bus.publish(ServerEvent::ProbeProgress { done: n, total });
                 }
             }));
         }
@@ -140,6 +113,41 @@ pub fn spawn_probe_pass(pool: Pool, ffprobe_present: bool, bus: Bus, activity: A
         bus.publish(ServerEvent::ProbeCompleted { total });
         bus.publish(ServerEvent::LibraryUpdated);
     });
+}
+
+/// Probe one file and persist it: run ffprobe, store the stream columns (+
+/// `probed=1`), derive intro/credits markers from any embedded chapters, and emit
+/// `ItemUpdated` when this is the item's first probed file. Shared by the
+/// background probe pass and the `pipeline.probe` stage.
+pub fn probe_one(
+    pool: &Pool,
+    ffprobe: bool,
+    bus: &Bus,
+    file_id: &str,
+    abs_path: &str,
+    item_id: &str,
+) -> anyhow::Result<()> {
+    // Whether this is the item's first probe → emit ItemUpdated so the client
+    // shows the codec badge appear.
+    let first_for_item = db::item_has_probed_file(pool, item_id).map(|has| !has).unwrap_or(true);
+    let result = probe_file(Path::new(abs_path), ffprobe);
+    db::set_file_probe(
+        pool,
+        file_id,
+        result.duration_ms,
+        result.video.as_ref(),
+        result.audio.as_ref(),
+        &result.audio_tracks,
+        &result.subtitles,
+    )?;
+    // Intro/credits markers from embedded chapters (free since we already probed).
+    for (kind, start, end) in super::markers_from_chapters(&result.chapters, result.duration_ms) {
+        let _ = db::set_marker(pool, item_id, kind, start, end, "chapters");
+    }
+    if first_for_item {
+        bus.publish(ServerEvent::ItemUpdated { id: item_id.to_string() });
+    }
+    Ok(())
 }
 
 /// Run ffprobe and parse its JSON. Returns `None` (→ extension-guess fallback)

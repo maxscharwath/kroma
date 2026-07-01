@@ -89,6 +89,24 @@ pub fn default_provider(settings: &Settings) -> Option<LlmProvider> {
         .or_else(|| providers.into_iter().next())
 }
 
+/// The configured providers in failover order: the default first, then the rest
+/// in their stored order. Shared by the LLM client's failover chain
+/// ([`crate::infra::llm::from_settings`]) and by subtitle translation, so a primary
+/// that is out of credits / rate-limited / down degrades to the next provider
+/// (e.g. cloud OpenRouter to a local Ollama) everywhere, not just in some features.
+pub fn ordered_providers(settings: &Settings) -> Vec<LlmProvider> {
+    let all = llm_providers(settings);
+    let default_id = default_provider(settings).map(|p| p.id);
+    let mut out = Vec::with_capacity(all.len());
+    if let Some(did) = &default_id {
+        if let Some(def) = all.iter().find(|p| &p.id == did) {
+            out.push(def.clone());
+        }
+    }
+    out.extend(all.into_iter().filter(|p| Some(&p.id) != default_id.as_ref()));
+    out
+}
+
 /// Persist the full provider set + the global enable flag + default id.
 ///
 /// **Secret-merge**: any incoming provider with a blank `api_key` keeps the key

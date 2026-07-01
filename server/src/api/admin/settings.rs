@@ -14,6 +14,13 @@ use crate::infra::events::ServerEvent;
 use crate::model::Permission;
 use crate::services::settings;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// Admin settings. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/settings", get(get_settings).put(put_settings))
+}
 
 #[derive(Debug, Deserialize)]
 pub struct SettingsQuery {
@@ -42,6 +49,11 @@ pub async fn put_settings(
 ) -> Result<Response, Response> {
     super::require(&user, Permission::SettingsManage)?;
     let written = state.settings.set_patch(&state.db, patch);
+    // The HLS engine caches its disk budget; refresh it so a new
+    // `transcodeCacheLimit` takes effect live (next reaper sweep) without a restart.
+    if written.iter().any(|k| k == "transcodeCacheLimit") {
+        state.hls.set_cache_budget(settings::transcode_cache_limit_bytes(&state.settings));
+    }
     state.events.publish(ServerEvent::SettingsUpdated);
     Ok(Json(json!({ "updated": written })).into_response())
 }

@@ -7,6 +7,15 @@
 
 use super::prelude::*;
 
+/// Nightly: build editorial collections (director rows + LLM-curated rows).
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("sections.curate"),
+    category: Category::Recommendations,
+    schedule: Some("0 6 * * *"),
+    triggers: &[],
+    run,
+};
+
 /// How many catalog titles to hand the model when curating editorial collections
 /// (highest-rated/most-recent first), bounding the prompt's token budget. Only
 /// used by the catalog-in-prompt fallback the tool-driven path queries instead.

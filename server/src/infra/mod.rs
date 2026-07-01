@@ -11,6 +11,8 @@ pub mod embed;
 pub mod llm;
 pub mod whisper;
 pub mod image;
+pub mod storyboard;
+pub mod subtitles;
 pub mod theme;
 pub mod stream;
 pub mod discovery;

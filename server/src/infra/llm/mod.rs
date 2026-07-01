@@ -85,7 +85,7 @@ pub fn from_settings(settings: &Settings) -> Arc<dyn LlmClient> {
     if !settings.get_bool("llmEnabled", false) {
         return Arc::new(Disabled);
     }
-    let clients: Vec<Arc<dyn LlmClient>> = ordered_providers(settings)
+    let clients: Vec<Arc<dyn LlmClient>> = crate::services::settings::ordered_providers(settings)
         .iter()
         .filter_map(|p| {
             http::HttpLlm::from_config(&p.provider, p.base_url.trim(), p.model.trim(), p.api_key.trim(), p.temperature, p.reasoning)
@@ -97,22 +97,6 @@ pub fn from_settings(settings: &Settings) -> Arc<dyn LlmClient> {
         1 => clients.into_iter().next().expect("one client"),
         _ => Arc::new(Failover { clients }),
     }
-}
-
-/// The configured providers in failover order: the default first, then the rest
-/// in their stored order.
-fn ordered_providers(settings: &Settings) -> Vec<crate::services::settings::LlmProvider> {
-    use crate::services::settings;
-    let all = settings::llm_providers(settings);
-    let default_id = settings::default_provider(settings).map(|p| p.id);
-    let mut out = Vec::with_capacity(all.len());
-    if let Some(did) = &default_id {
-        if let Some(def) = all.iter().find(|p| &p.id == did) {
-            out.push(def.clone());
-        }
-    }
-    out.extend(all.into_iter().filter(|p| Some(&p.id) != default_id.as_ref()));
-    out
 }
 
 /// Tries each configured provider in order (default first), falling through to

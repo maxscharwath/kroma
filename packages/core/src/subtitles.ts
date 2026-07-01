@@ -84,3 +84,28 @@ export function activeCueText(
   }
   return { text: '', index: Math.max(0, lo - 1) };
 }
+
+import type { MessageKey } from './i18n';
+
+/** Message key for a generation `stage` (see the server's GenRegistry stages). */
+export function subtitleStageKey(stage: string): MessageKey {
+  switch (stage) {
+    case 'model':
+      return 'player.subStageModel';
+    case 'extract':
+      return 'player.subStageExtract';
+    case 'transcribe':
+      return 'player.subStageTranscribe';
+    case 'translate':
+      return 'player.subStageTranslate';
+    case 'error':
+      return 'player.subStageError';
+    default:
+      return 'player.subStageQueued';
+  }
+}
+
+/** Human, compact remaining time for a generation ETA ("1 min" / "20 s"). */
+export function subtitleEtaTime(sec: number): string {
+  return sec >= 60 ? `${Math.round(sec / 60)} min` : `${Math.max(1, Math.round(sec))} s`;
+}

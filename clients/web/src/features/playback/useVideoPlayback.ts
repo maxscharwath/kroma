@@ -86,7 +86,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       cancelled = true;
     };
   }, [client, user, item.id, item.durationMs]);
-  const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
+  const [hover, setHover] = useState<{ x: number; t: number; w: number } | null>(null);
   const [scrubbing, setScrubbing] = useState(false);
   // While dragging the scrub bar, the previewed absolute position (s): the thumb
   // follows it but we only COMMIT the seek on release.
@@ -292,7 +292,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       if (!bar || !dur) return;
       const rect = bar.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      setHover({ x: pct * rect.width, t: pct * dur });
+      setHover({ x: pct * rect.width, t: pct * dur, w: rect.width });
       if (scrubbing) setScrubPreview(pct * dur);
     },
     [dur, scrubbing],

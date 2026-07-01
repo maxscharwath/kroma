@@ -4,6 +4,15 @@
 
 use super::prelude::*;
 
+/// Manual + debounced library-watch: rescan the media folders for changes.
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("library.scan"),
+    category: Category::Library,
+    schedule: None,
+    triggers: &[Trigger::LibraryChange],
+    run,
+};
+
 pub(super) fn run(ctx: &JobContext) -> Result<()> {
     let state = &ctx.state;
     ctx.info("scanning libraries (walk + sync)…");

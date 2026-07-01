@@ -1,7 +1,7 @@
 //! Background job: populate intro/credits markers. Per season it **always tries
 //! both** sources and reconciles them:
-//!   * **chapters** — embedded chapter titles (cheap ffprobe).
-//!   * **fingerprint** — decode each episode's start/end audio, align the season
+//!   * **chapters** - embedded chapter titles (cheap ffprobe).
+//!   * **fingerprint** - decode each episode's start/end audio, align the season
 //!     pairwise (`rusty-chromaprint`), keep the shared intro / credits run.
 //! Embedded chapters win when present (human-authored); fingerprint fills the gaps
 //! and cross-checks. The heavy decode runs on a bounded thread pool for speed.
@@ -44,56 +44,23 @@ struct EpData {
     end_fp: Option<WindowFp>,
 }
 
-pub fn run(ctx: &JobContext) -> Result<()> {
+/// Detect intro/credits markers for ONE season the unit of work of the pipeline
+/// `markers` stage (see [`crate::services::pipeline`]). Reads the
+/// `introDetection` setting on each call (a no-op when off), fingerprints the
+/// season on a bounded internal pool that yields to live playback, and writes any
+/// markers found. Returns how many markers were written.
+pub fn detect_season(ctx: &JobContext, season: &Season) -> Result<usize> {
     let mode = ctx.state.settings.get_str("introDetection", "chapters");
     if mode == "off" {
-        ctx.info("introDetection = 'off' — nothing to do");
-        return Ok(());
+        return Ok(0);
     }
     let fingerprinting = mode == "fingerprint";
     let ffprobe = ctx.state.ffprobe_available;
-    // Few workers, and never more than a quarter of the cores — fingerprinting
+    // Few workers, and never more than a quarter of the cores fingerprinting
     // must stay out of live playback's way.
     let workers = (thread::available_parallelism().map(|n| n.get()).unwrap_or(4) / 4)
         .clamp(1, MAX_WORKERS);
-    let pool = &ctx.state.db;
-    let shows = db::list_shows(pool, None)?;
-    let total: usize = shows.iter().map(|s| s.episode_count as usize).sum();
-    ctx.info(format!(
-        "{} pass over {} show(s) / {total} episode(s), {workers} workers",
-        if fingerprinting { "chapter + fingerprint" } else { "chapter" },
-        shows.len()
-    ));
-
-    let mut done = 0usize;
-    let mut written = 0usize;
-    let show_count = shows.len();
-    for (idx, show) in shows.iter().enumerate() {
-        if ctx.cancelled() {
-            ctx.info("cancelled");
-            break;
-        }
-        let Some(detail) = db::get_show(pool, &show.id)? else {
-            continue;
-        };
-        ctx.info(format!(
-            "[{}/{}] {} — {} season(s), {} episode(s)",
-            idx + 1,
-            show_count,
-            show.title,
-            detail.seasons.len(),
-            show.episode_count
-        ));
-        for season in &detail.seasons {
-            if ctx.cancelled() {
-                break;
-            }
-            written +=
-                process_season(ctx, pool, season, fingerprinting, ffprobe, workers, &mut done, total)?;
-        }
-    }
-    ctx.info(format!("done — wrote {written} marker(s) across {show_count} show(s)"));
-    Ok(())
+    process_season(ctx, &ctx.state.db, season, fingerprinting, ffprobe, workers)
 }
 
 fn process_season(
@@ -103,8 +70,6 @@ fn process_season(
     fingerprinting: bool,
     ffprobe: bool,
     workers: usize,
-    done: &mut usize,
-    total: usize,
 ) -> Result<usize> {
     let eps: Vec<&MediaItem> = season
         .episodes
@@ -112,20 +77,16 @@ fn process_season(
         .filter(|e| e.abs_path.is_some() && e.duration_ms.unwrap_or(0) > 0)
         .collect();
     if eps.is_empty() {
-        *done += season.episodes.len();
-        ctx.progress(*done, total);
         return Ok(0);
     }
     let do_fp = fingerprinting && eps.len() >= 2;
     if do_fp {
-        ctx.info(format!("  S{} — fingerprinting {} episode(s)…", season.number, eps.len()));
+        ctx.info(format!("S{}: fingerprinting {} episode(s)", season.number, eps.len()));
     }
 
     // Parallel decode: chapters (always) + audio fingerprints (when fingerprinting).
     let data = parallel_decode(&eps, do_fp, ffprobe, workers, ctx);
     if ctx.cancelled() {
-        *done += season.episodes.len();
-        ctx.progress(*done, total);
         return Ok(0);
     }
 
@@ -141,8 +102,6 @@ fn process_season(
             }
         }
     }
-    *done += season.episodes.len();
-    ctx.progress(*done, total);
     Ok(written)
 }
 
@@ -190,12 +149,12 @@ fn wait_while_idle(ctx: &JobContext, paused: &AtomicBool) {
         }
         if ctx.state.playback.list().is_empty() {
             if paused.swap(false, Ordering::Relaxed) {
-                ctx.info("  ▶ playback ended — resuming");
+                ctx.info("  ▶ playback ended - resuming");
             }
             return;
         }
         if !paused.swap(true, Ordering::Relaxed) {
-            ctx.info("  ⏸ playback active — pausing (playback has priority)");
+            ctx.info("  ⏸ playback active - pausing (playback has priority)");
         }
         thread::sleep(Duration::from_secs(PAUSE_POLL_S));
     }
@@ -215,7 +174,7 @@ fn decode_one(
     let (start_fp, end_fp) = if do_fp {
         let dur_s = e.duration_ms.unwrap() as f64 / 1000.0;
         let start = fingerprint::fingerprint_window(path, INTRO_WINDOW_S, false, dur_s).ok();
-        // Re-check between the two heavy decodes — a stream may have just started.
+        // Re-check between the two heavy decodes - a stream may have just started.
         wait_while_idle(ctx, paused);
         let end = fingerprint::fingerprint_window(path, CREDITS_WINDOW_S, true, dur_s).ok();
         (start, end)

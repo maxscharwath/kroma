@@ -83,18 +83,6 @@ export interface AvplayApi {
 
 type AvplayGlobal = { webapis?: { avplay?: AvplayApi } };
 
-/** Map an audio-relative rendition index to AVPlay's absolute stream index.
- *
- * `getTotalTrackInfo()` lists the AUDIO streams in container order, so the
- * rendition position picks the matching stream; that stream's `.index` is the
- * ABSOLUTE index `setSelectTrack` expects (audio/video/text are interleaved, so
- * the absolute index need not equal the audio-relative one). This indirection is
- * what keeps a reordered track list selecting the right language on the native
- * path. Returns `null` when the rendition is out of range. */
-export function audioAbsoluteIndex(audioStreams: AvplayTrack[], rendition: number): number | null {
-  return audioStreams[rendition]?.index ?? null;
-}
-
 /** The native AVPlay API when running on a Tizen device, else `null`. */
 export function getAvplay(): AvplayApi | null {
   const w = globalThis as unknown as AvplayGlobal;

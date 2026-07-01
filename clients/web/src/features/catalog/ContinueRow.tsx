@@ -2,7 +2,7 @@
 // this is per-user so it loads client-side once a session is hydrated, then
 // renders resumable items with a progress bar straight to the player.
 
-import { type ContinueItem, posterColors } from '@luma/core';
+import { type ContinueItem, episodeTag, posterColors } from '@luma/core';
 import { useT } from '@luma/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -45,7 +45,7 @@ export function ContinueRow() {
           const pct = dur > 0 ? Math.min(100, Math.round((positionMs / dur) * 100)) : 0;
           const label =
             item.kind === 'episode' && item.showTitle
-              ? `${item.showTitle} · S${item.season}E${item.episode}`
+              ? `${item.showTitle} · ${episodeTag(item)}`
               : t('content.film');
           return (
             <Poster

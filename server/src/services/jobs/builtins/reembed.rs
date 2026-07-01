@@ -6,6 +6,15 @@
 
 use super::prelude::*;
 
+/// Manual-only: recompute content embeddings (heavy; run on demand).
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("recommendations.reembed"),
+    category: Category::Recommendations,
+    schedule: None,
+    triggers: &[],
+    run,
+};
+
 pub(super) fn run(ctx: &JobContext) -> Result<()> {
     use crate::infra::embed::build_doc;
     use crate::infra::events::ServerEvent;

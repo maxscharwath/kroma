@@ -1,14 +1,15 @@
 // The D-pad numeric keypad for the PIN screen.
 
-/** A D-pad numeric keypad for the PIN screen: 1–9, then ⌫ / 0 / OK. */
+/**
+ * A D-pad numeric keypad for the PIN screen: 1-9, then 0 / ⌫. There is no OK
+ * button, the PIN validates automatically once the last digit is entered.
+ */
 export function Keypad({
   onDigit,
   onDelete,
-  onSubmit,
 }: Readonly<{
   onDigit: (d: string) => void;
   onDelete: () => void;
-  onSubmit: () => void;
 }>) {
   const cell =
     'flex h-18 w-22 cursor-pointer items-center justify-center rounded-2xl bg-[rgba(255,255,255,0.06)] font-sans text-[28px] font-bold text-text transition-transform focus:scale-[1.08] focus:bg-[rgba(244,182,66,0.18)] focus:text-accent';
@@ -28,19 +29,13 @@ export function Keypad({
         </div>
       ))}
       <div className="flex gap-3.25">
-        <button data-focus="" type="button" className={`${cell} text-[22px]`} onClick={onDelete}>
-          ⌫
-        </button>
+        {/* Spacer keeps 0 under the centre column now that OK is gone. */}
+        <span aria-hidden className="h-18 w-22" />
         <button data-focus="" type="button" className={cell} onClick={() => onDigit('0')}>
           0
         </button>
-        <button
-          data-focus=""
-          type="button"
-          className="flex h-18 w-22 cursor-pointer items-center justify-center rounded-2xl bg-accent font-sans text-[18px] font-bold text-accent-ink transition-transform focus:scale-[1.08]"
-          onClick={onSubmit}
-        >
-          OK
+        <button data-focus="" type="button" className={`${cell} text-[22px]`} onClick={onDelete}>
+          ⌫
         </button>
       </div>
     </div>

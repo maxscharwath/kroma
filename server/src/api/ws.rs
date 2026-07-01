@@ -9,6 +9,13 @@ use tokio::sync::broadcast::error::RecvError;
 
 use crate::infra::events::ServerEvent;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/events` (WebSocket upgrade for the live event bus).
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/events", get(events))
+}
 
 pub async fn events(State(state): State<SharedState>, ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(move |socket| pump(socket, state))

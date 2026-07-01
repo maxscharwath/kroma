@@ -17,6 +17,13 @@ use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::model::Section;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// `GET /api/items/:id/ai-suggest`.
+pub fn routes() -> Router<SharedState> {
+    Router::new().route("/items/:id/ai-suggest", get(ai_suggest))
+}
 
 /// Seeds currently generating de-dupes concurrent requests for the same item
 /// while the LLM runs (the client polls every few seconds).

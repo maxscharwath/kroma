@@ -7,11 +7,14 @@ import type {
   HistoryStats,
   JobDetail,
   JobLog,
+  ElementProcessing,
   JobsView,
+  PipelineElements,
   LlmAdminConfig,
-  SubtitleProvidersConfig,
   MetricsSnapshot,
   Permission,
+  PipelineTaskView,
+  PipelineView,
   PlaybackSession,
   ServerInfo,
   SettingsView,
@@ -221,6 +224,127 @@ export function jobRunLogs(ctx: RequestContext, runId: string): Promise<{ logs: 
   return ctx.json<{ logs: JobLog[] }>(`/admin/job-runs/${encodeURIComponent(runId)}/logs`);
 }
 
+// ----- per-element processing pipeline ----------------------------------------
+
+/** Per-stage health counts (probe/metadata/storyboard/markers/…). */
+export function adminPipeline(ctx: RequestContext): Promise<PipelineView> {
+  return ctx.json<PipelineView>('/admin/pipeline');
+}
+
+/** A stage's failed tasks (newest first) for the drill-down. */
+export function pipelineFailed(
+  ctx: RequestContext,
+  stage: string,
+): Promise<{ tasks: PipelineTaskView[] }> {
+  return ctx.json<{ tasks: PipelineTaskView[] }>(
+    `/admin/pipeline/${encodeURIComponent(stage)}/failed`,
+  );
+}
+
+/** Trigger a stage's drain now. */
+export function runPipelineStage(ctx: RequestContext, stage: string): Promise<{ runId: string }> {
+  return ctx.json<{ runId: string }>(`/admin/pipeline/${encodeURIComponent(stage)}/run`, {
+    method: 'POST',
+  });
+}
+
+/** Cancel a stage's running drain. */
+export function cancelPipelineStage(
+  ctx: RequestContext,
+  stage: string,
+): Promise<{ cancelled: boolean }> {
+  return ctx.json<{ cancelled: boolean }>(`/admin/pipeline/${encodeURIComponent(stage)}/cancel`, {
+    method: 'POST',
+  });
+}
+
+/** Reset all of a stage's failed tasks to pending. */
+export function retryPipelineStage(
+  ctx: RequestContext,
+  stage: string,
+): Promise<{ requeued: number }> {
+  return ctx.json<{ requeued: number }>(`/admin/pipeline/${encodeURIComponent(stage)}/retry`, {
+    method: 'POST',
+  });
+}
+
+/** Force a full re-run of a stage (every non-running task back to pending). */
+export function reprocessPipelineStage(
+  ctx: RequestContext,
+  stage: string,
+): Promise<{ requeued: number }> {
+  return ctx.json<{ requeued: number }>(`/admin/pipeline/${encodeURIComponent(stage)}/reprocess`, {
+    method: 'POST',
+  });
+}
+
+/** Reset one failed task to pending. */
+export function retryPipelineTask(
+  ctx: RequestContext,
+  stage: string,
+  subjectId: string,
+): Promise<{ requeued: number }> {
+  return ctx.json<{ requeued: number }>(`/admin/pipeline/${encodeURIComponent(stage)}/task/retry`, {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ subjectId }),
+  });
+}
+
+/** The catalog as a filtered, paginated list of elements with per-treatment
+ *  status + full-catalog counts (the element-centric pipeline dashboard). */
+export function pipelineElements(
+  ctx: RequestContext,
+  params: { status?: string; kind?: string; q?: string; page?: number; limit?: number } = {},
+): Promise<PipelineElements> {
+  const p = new URLSearchParams();
+  if (params.status) p.set('status', params.status);
+  if (params.kind) p.set('kind', params.kind);
+  if (params.q) p.set('q', params.q);
+  if (params.page != null) p.set('page', String(params.page));
+  if (params.limit != null) p.set('limit', String(params.limit));
+  const qs = p.toString();
+  return ctx.json<PipelineElements>(`/admin/pipeline/elements${qs ? `?${qs}` : ''}`);
+}
+
+/** Re-run one stage for one element (the drawer's per-treatment retry). */
+export async function retryElementStage(
+  ctx: RequestContext,
+  kind: 'item' | 'show',
+  id: string,
+  stage: string,
+): Promise<void> {
+  await ctx.json<void>('/admin/pipeline/element/retry', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ kind, id, stage }),
+  });
+}
+
+/** The treatments applied to one movie/episode and their status. */
+export function itemProcessing(ctx: RequestContext, id: string): Promise<ElementProcessing> {
+  return ctx.json<ElementProcessing>(`/admin/pipeline/item/${encodeURIComponent(id)}`);
+}
+
+/** The treatments applied to a whole series (aggregated across episodes). */
+export function showProcessing(ctx: RequestContext, id: string): Promise<ElementProcessing> {
+  return ctx.json<ElementProcessing>(`/admin/pipeline/show/${encodeURIComponent(id)}`);
+}
+
+/** Force one element (a movie/episode `item`, or a whole `show`) through every
+ *  pipeline stage now: clears its artifacts, requeues its tasks, kicks the stages. */
+export function reprocessSubject(
+  ctx: RequestContext,
+  kind: 'item' | 'show',
+  id: string,
+): Promise<{ subjects: number; stages: string[] }> {
+  return ctx.json<{ subjects: number; stages: string[] }>('/admin/pipeline/subject/reprocess', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ kind, id }),
+  });
+}
+
 // ----- AI / LLM configuration -------------------------------------------------
 
 /** Probe values (the in-progress form); blank fields fall back to the saved
@@ -294,40 +418,3 @@ export function testLlm(
   });
 }
 
-// ----- Subtitle providers (mirrors the LLM provider admin) --------------------
-
-/** Current subtitle-provider config: providers + default id (secrets masked). */
-export function adminSubtitles(ctx: RequestContext): Promise<SubtitleProvidersConfig> {
-  return ctx.json<SubtitleProvidersConfig>('/admin/subtitles');
-}
-
-/** A provider as sent on save; blank `apiKey`/`password` keep the stored secrets. */
-export interface SubtitleProviderInput {
-  id: string;
-  name: string;
-  /** `opensubtitles` | `whisper` | `whisperLocal` | `translate`. */
-  kind: string;
-  baseUrl: string;
-  model: string;
-  username: string;
-  apiKey?: string;
-  password?: string;
-}
-
-/** Full subtitle-provider config to persist. Default identified by **index**. */
-export interface SubtitleSave {
-  defaultIndex: number;
-  providers: SubtitleProviderInput[];
-}
-
-export function saveSubtitles(ctx: RequestContext, body: SubtitleSave): Promise<void> {
-  return ctx.json<void>('/admin/subtitles', { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(body) });
-}
-
-/** Probe a provider (trivial search). Always resolves `{ ok, message }`. */
-export function testSubtitles(
-  ctx: RequestContext,
-  probe: { id?: string; apiKey?: string },
-): Promise<{ ok: boolean; message: string }> {
-  return ctx.json('/admin/subtitles/test', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(probe) });
-}

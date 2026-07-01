@@ -2,9 +2,11 @@
 //! downloaded track; merged into the item's subtitle list so they show in the
 //! player next to embedded tracks.
 
+use rusqlite::OptionalExtension;
+
 use super::*;
 
-/// A cached online subtitle. `path` is an absolute WebVTT file under the data dir.
+/// A cached generated subtitle. `path` is an absolute WebVTT file under the data dir.
 #[derive(Debug, Clone)]
 pub struct DownloadedSub {
     pub id: String,
@@ -52,4 +54,17 @@ pub fn insert_downloaded_sub(pool: &Pool, sub: &DownloadedSub) -> Result<()> {
         params![sub.id, sub.item_id, sub.language, sub.label, sub.provider, sub.path],
     )?;
     Ok(())
+}
+
+/// Delete a downloaded subtitle record by id, returning its file path (if any) so
+/// the caller can remove the cached WebVTT from disk.
+pub fn delete_downloaded_sub(pool: &Pool, id: &str) -> Result<Option<String>> {
+    let conn = pool.get()?;
+    let path: Option<String> = conn
+        .query_row("SELECT path FROM downloaded_subtitles WHERE id = ?1", params![id], |r| r.get(0))
+        .optional()?;
+    if path.is_some() {
+        conn.execute("DELETE FROM downloaded_subtitles WHERE id = ?1", params![id])?;
+    }
+    Ok(path)
 }

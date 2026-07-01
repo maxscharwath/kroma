@@ -5,16 +5,10 @@ import { useMemo } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
+import { useServersHealth } from '#tv/app/useServersHealth';
+import { StatusDot } from '#tv/features/accounts/ServerStatus';
 import { artUrl, AuthScreen, hostOf, LumaMark, ProfileAvatar } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
-
-// Small palette for the per-server colour dot on each profile tile.
-const SERVER_DOTS = ['#F4B642', '#3BC9DB', '#A855F7', '#46D08D', '#F472B6', '#86A8FF'];
-function serverColor(url: string): string {
-  let h = 0;
-  for (let i = 0; i < url.length; i += 1) h = (h * 31 + url.charCodeAt(i)) >>> 0;
-  return SERVER_DOTS[h % SERVER_DOTS.length] as string;
-}
 
 interface Tile {
   key: string;
@@ -46,9 +40,21 @@ export function TvProfiles() {
     }));
   }, [accounts, servers, activeServerName]);
 
+  // Probe each distinct server behind the remembered profiles so a tile can show
+  // whether its server is reachable BEFORE you pick it (public /api/health, no
+  // auth needed while signed out).
+  const serverUrls = useMemo(
+    () => Array.from(new Set(accounts.map((a) => norm(a.serverUrl ?? '')).filter(Boolean))),
+    [accounts],
+  );
+  const health = useServersHealth(serverUrls);
+
   useFocusNav({ onBack: nav.back, resetKey: tiles.length });
 
-  const onSelect = (a: StoredSession) => {
+  const onSelect = (a: StoredSession, offline: boolean) => {
+    // Signing in would only fail (catalogue fetch, progress sync) against a
+    // server that isn't answering don't let the profile "connect" into a dead end.
+    if (offline) return;
     const locked = a.user.hasPin && !isUnlocked(a);
     if (locked) nav.go('pin', { intent: 'verify', account: a });
     else activate(a);
@@ -69,37 +75,47 @@ export function TvProfiles() {
       {/* No own scroll/clip the page (AuthScreen) scrolls, so focus zoom + the
           amber ring/glow are never cropped. Gutters keep edge tiles' rings clear. */}
       <div className="flex w-full max-w-[1100px] flex-wrap content-start items-start justify-center gap-x-7 gap-y-9 px-6 py-4">
-        {tiles.map(({ key, account, serverName }) => (
-          <div key={key} className="flex w-[150px] flex-col items-center gap-3">
-            <button
-              data-focus=""
-              type="button"
-              onClick={() => onSelect(account)}
-              className="relative cursor-pointer rounded-3xl border-none bg-transparent p-0 outline-none transition-transform focus:scale-[1.07]"
-            >
-              <ProfileAvatar
-                name={account.user.username}
-                seed={account.user.id}
-                size={146}
-                radius={24}
-                src={artUrl(norm(account.serverUrl), account.user.avatarUrl)}
-                locked={account.user.hasPin}
-              />
-            </button>
-            <div className="flex flex-col items-center gap-1.25">
-              <span className="font-sans text-[18px] font-medium text-[rgba(244,243,240,0.82)]">
-                {account.user.username}
-              </span>
-              <span className="inline-flex items-center gap-1.5 font-sans text-[12px] font-semibold text-[rgba(244,243,240,0.42)]">
+        {tiles.map(({ key, account, serverName }) => {
+          const up = health[norm(account.serverUrl ?? '')];
+          const offline = up === false;
+          return (
+            <div key={key} className="flex w-[150px] flex-col items-center gap-3">
+              <button
+                data-focus=""
+                type="button"
+                onClick={() => onSelect(account, offline)}
+                aria-disabled={offline}
+                className={`relative rounded-3xl border-none bg-transparent p-0 outline-none transition-transform focus:scale-[1.07] ${
+                  offline ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <div className={offline ? 'opacity-40 grayscale' : ''}>
+                  <ProfileAvatar
+                    name={account.user.username}
+                    seed={account.user.id}
+                    size={146}
+                    radius={24}
+                    src={artUrl(norm(account.serverUrl), account.user.avatarUrl)}
+                    locked={account.user.hasPin}
+                  />
+                </div>
+              </button>
+              <div className="flex flex-col items-center gap-1.25">
+                <span className="font-sans text-[18px] font-medium text-[rgba(244,243,240,0.82)]">
+                  {account.user.username}
+                </span>
                 <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: serverColor(norm(account.serverUrl)) }}
-                />
-                {serverName}
-              </span>
+                  className={`inline-flex items-center gap-1.5 font-sans text-[12px] font-semibold ${
+                    offline ? 'text-danger' : 'text-[rgba(244,243,240,0.42)]'
+                  }`}
+                >
+                  <StatusDot online={up} />
+                  {offline ? t('connection.offline') : serverName}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <div className="flex w-[150px] flex-col items-center gap-3">
           <button

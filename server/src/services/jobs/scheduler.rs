@@ -9,8 +9,7 @@ use std::time::Duration as StdDuration;
 use time::OffsetDateTime;
 use tracing::info;
 
-use super::{now_local, Cron, JobManager, TriggerError};
-use crate::model::JobId;
+use super::{now_local, Cron, JobKey, JobManager, TriggerError};
 use crate::state::SharedState;
 
 /// How often the scheduler wakes to fire due jobs. Any cron time that falls in
@@ -33,11 +32,11 @@ impl JobManager {
                 ticker.tick().await;
                 let now = now_local(&state);
                 let due = self.due_jobs(last, now);
-                for id in due {
-                    match self.trigger(state.clone(), id, "schedule") {
+                for job in due {
+                    match self.trigger(state.clone(), job, "schedule") {
                         Ok(_) => {}
                         Err(TriggerError::AlreadyRunning) => {
-                            info!(job = id.key(), "skipped scheduled run; previous run still active")
+                            info!(job = job.as_str(), "skipped scheduled run; previous run still active")
                         }
                         Err(TriggerError::Unknown) => {}
                     }
@@ -51,15 +50,15 @@ impl JobManager {
     /// to `now` is included here and excluded from the next window (which starts
     /// strictly after `last == now` via [`Cron::next_after`]), so a boundary job
     /// fires exactly once.
-    fn due_jobs(&self, last: OffsetDateTime, now: OffsetDateTime) -> Vec<JobId> {
+    fn due_jobs(&self, last: OffsetDateTime, now: OffsetDateTime) -> Vec<JobKey> {
         let map = self.schedules.read().unwrap();
         map.iter()
             .filter(|(_, st)| st.enabled)
-            .filter_map(|(id, st)| {
+            .filter_map(|(job, st)| {
                 let expr = st.schedule.as_deref()?;
                 let cron = Cron::parse(expr).ok()?;
                 match cron.next_after(last) {
-                    Some(fire) if fire <= now => Some(*id),
+                    Some(fire) if fire <= now => Some(*job),
                     _ => None,
                 }
             })
@@ -69,25 +68,30 @@ impl JobManager {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{Builtin, JobManager};
-    use crate::model::{Category, JobId};
+    use super::super::{Builtin, JobKey, JobManager};
+    use crate::model::Category;
     use time::macros::datetime;
     use time::OffsetDateTime;
 
-    /// A manager with one job ([`JobId::CacheCleanup`]) registered on `schedule`.
+    const CACHE_CLEANUP: JobKey = JobKey("cache.cleanup");
+
+    /// A manager with one job ([`CACHE_CLEANUP`]) registered on `schedule`.
+    /// `register` wants a `'static` descriptor, so leak one (the test process is
+    /// short-lived).
     fn with_job(schedule: Option<&'static str>) -> JobManager {
         let mut jm = JobManager::new();
-        jm.register(&Builtin {
-            id: JobId::CacheCleanup,
+        let builtin: &'static Builtin = Box::leak(Box::new(Builtin {
+            key: CACHE_CLEANUP,
             category: Category::Maintenance,
             schedule,
             triggers: &[],
             run: |_| Ok(()),
-        });
+        }));
+        jm.register(builtin);
         jm
     }
 
-    fn due(jm: &JobManager, last: OffsetDateTime, now: OffsetDateTime) -> Vec<JobId> {
+    fn due(jm: &JobManager, last: OffsetDateTime, now: OffsetDateTime) -> Vec<JobKey> {
         jm.due_jobs(last, now)
     }
 
@@ -95,7 +99,7 @@ mod tests {
     fn fires_once_across_the_boundary() {
         let jm = with_job(Some("0 4 * * *"));
         // 04:00 falls in (03:59:50, 04:00:10] → fires.
-        assert_eq!(due(&jm, datetime!(2026-06-29 03:59:50 UTC), datetime!(2026-06-29 04:00:10 UTC)), [JobId::CacheCleanup]);
+        assert_eq!(due(&jm, datetime!(2026-06-29 03:59:50 UTC), datetime!(2026-06-29 04:00:10 UTC)), [CACHE_CLEANUP]);
         // The immediately-following window must NOT re-fire it.
         assert!(due(&jm, datetime!(2026-06-29 04:00:10 UTC), datetime!(2026-06-29 04:00:40 UTC)).is_empty());
     }
@@ -104,7 +108,7 @@ mod tests {
     fn fire_exactly_at_now_is_included_once() {
         let jm = with_job(Some("0 4 * * *"));
         // A window ENDING exactly at the fire time includes it…
-        assert_eq!(due(&jm, datetime!(2026-06-29 03:59:50 UTC), datetime!(2026-06-29 04:00:00 UTC)), [JobId::CacheCleanup]);
+        assert_eq!(due(&jm, datetime!(2026-06-29 03:59:50 UTC), datetime!(2026-06-29 04:00:00 UTC)), [CACHE_CLEANUP]);
         // …and the next window STARTING at it excludes it (no double-fire).
         assert!(due(&jm, datetime!(2026-06-29 04:00:00 UTC), datetime!(2026-06-29 04:00:10 UTC)).is_empty());
     }
@@ -117,7 +121,7 @@ mod tests {
 
         // Disabled job → never due even inside its window.
         let jm = with_job(Some("0 4 * * *"));
-        jm.schedules.write().unwrap().get_mut(&JobId::CacheCleanup).unwrap().enabled = false;
+        jm.schedules.write().unwrap().get_mut("cache.cleanup").unwrap().enabled = false;
         assert!(due(&jm, datetime!(2026-06-29 03:59:50 UTC), datetime!(2026-06-29 04:00:10 UTC)).is_empty());
     }
 }

@@ -15,9 +15,21 @@ use serde_json::json;
 use crate::api::error::json_error;
 use crate::api::extract::AuthUser;
 use crate::api::util::blocking;
-use crate::model::{JobId, JobsView, Permission};
+use crate::model::{JobsView, Permission};
 use crate::services::jobs::{Cron, TriggerError};
 use crate::state::SharedState;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// Background-job scheduler controls. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/jobs", get(list_jobs))
+        .route("/job-runs/:run_id/logs", get(run_logs))
+        .route("/jobs/:key", get(job_detail).patch(update_job))
+        .route("/jobs/:key/run", post(run_job))
+        .route("/jobs/:key/cancel", post(cancel_job))
+}
 
 /// Max log lines returned for one run.
 const LOG_LIMIT: usize = 500;
@@ -42,7 +54,7 @@ pub async fn job_detail(
     super::require_any_admin(&user)?;
     let st = state.clone();
     let detail = blocking(move || {
-        Ok(JobId::from_key(&key).and_then(|id| st.jobs.detail(&st, id)))
+        Ok(st.jobs.resolve(&key).and_then(|job| st.jobs.detail(&st, job)))
     })
     .await?;
     match detail {
@@ -59,8 +71,8 @@ pub async fn run_job(
     AxPath(key): AxPath<String>,
 ) -> Result<Response, Response> {
     super::require(&user, Permission::SettingsManage)?;
-    let id = JobId::from_key(&key).ok_or_else(|| json_error(StatusCode::NOT_FOUND, "job not found"))?;
-    match state.jobs.trigger(state.clone(), id, "manual") {
+    let job = state.jobs.resolve(&key).ok_or_else(|| json_error(StatusCode::NOT_FOUND, "job not found"))?;
+    match state.jobs.trigger(state.clone(), job, "manual") {
         Ok(run_id) => Ok(Json(json!({ "runId": run_id })).into_response()),
         Err(TriggerError::Unknown) => Err(json_error(StatusCode::NOT_FOUND, "job not found")),
         Err(TriggerError::AlreadyRunning) => {
@@ -76,7 +88,7 @@ pub async fn cancel_job(
     AxPath(key): AxPath<String>,
 ) -> Result<Response, Response> {
     super::require(&user, Permission::SettingsManage)?;
-    let cancelled = JobId::from_key(&key).is_some_and(|id| state.jobs.cancel(id));
+    let cancelled = state.jobs.resolve(&key).is_some_and(|job| state.jobs.cancel(job));
     Ok(Json(json!({ "cancelled": cancelled })).into_response())
 }
 
@@ -104,10 +116,10 @@ pub async fn update_job(
             return Err(json_error(StatusCode::BAD_REQUEST, "invalid cron expression"));
         }
     }
-    let id = JobId::from_key(&key).ok_or_else(|| json_error(StatusCode::NOT_FOUND, "job not found"))?;
+    let job = state.jobs.resolve(&key).ok_or_else(|| json_error(StatusCode::NOT_FOUND, "job not found"))?;
     let st = state.clone();
     let (schedule, enabled) = (body.schedule, body.enabled);
-    blocking(move || st.jobs.update_schedule(&st.db, id, schedule, enabled)).await?;
+    blocking(move || st.jobs.update_schedule(&st.db, job, schedule, enabled)).await?;
     Ok(Json(json!({ "ok": true })).into_response())
 }
 

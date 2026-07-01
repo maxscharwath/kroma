@@ -60,8 +60,10 @@ export interface VideoPlayback {
   scrubToClientX: (clientX: number) => void;
   /** Commit the previewed scrub position (actually seeks). */
   commitScrub: () => void;
-  hover: { x: number; t: number } | null;
-  setHover: (h: { x: number; t: number } | null) => void;
+  /** Cursor position on the scrub bar: `x` px from the bar's left, `t` the time
+   * there (s), `w` the bar's pixel width (so a hover preview can clamp to it). */
+  hover: { x: number; t: number; w: number } | null;
+  setHover: (h: { x: number; t: number; w: number } | null) => void;
   togglePlay: () => void;
   skip: (delta: number) => void;
   /** Seek to an absolute position in seconds. */

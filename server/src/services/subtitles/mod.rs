@@ -1,101 +1,178 @@
-//! Online subtitle search + download, provider-agnostic. A search returns
-//! [`RemoteSub`] hits; a download fetches the chosen file, converts it to WebVTT,
-//! caches it under `<data>/subs/downloaded/`, and records it in the DB so it shows
-//! in the item's subtitle list. Only OpenSubtitles is wired today; the shape lets
-//! more providers slot in later.
+//! On-device subtitle generation. Two server-side engines, both producing WebVTT
+//! that is cached under `<data>/subs/downloaded/` and recorded in the DB so it
+//! shows in the item's subtitle list next to embedded tracks:
+//! - **transcribe**: in-process Whisper (candle, [`crate::infra::whisper`]) turns
+//!   the audio into timestamped text. Model size is picked by [`Quality`].
+//! - **translate**: the app's default LLM ([`translate`]) rewrites an existing
+//!   text track into another language.
+//!
+//! Both are long-running + blocking (ffmpeg + model) and report progress through a
+//! [`progress::Handle`] so the player can show a live bar + ETA and cancel.
 
-mod opensubtitles;
 mod translate;
-mod whisper;
 
-use std::hash::{Hash, Hasher};
+pub mod progress;
+
 use std::path::Path;
 
-use serde::Serialize;
-
 use crate::db::{self, DownloadedSub, Pool};
-use crate::services::settings::{Settings, SubtitleProvider};
+use crate::services::settings::Settings;
 
-/// A provider search hit (before download). `id` is provider-specific (the file
-/// id to download). `downloads` is the provider's popularity count, for sorting.
-#[derive(Debug, Clone, Serialize)]
-pub struct RemoteSub {
-    pub id: String,
-    pub provider: String,
-    pub language: String,
-    pub label: String,
-    pub downloads: u32,
+pub use progress::{GenRegistry, Handle};
+
+/// What to generate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GenMode {
+    /// Whisper speech-to-text from an audio track.
+    Transcribe,
+    /// LLM translation of an existing subtitle track.
+    Translate,
 }
 
-/// Provider credentials, read from settings by the caller so this layer stays
-/// independent of the settings store.
-#[derive(Debug, Clone, Default)]
-pub struct Creds {
-    pub os_api_key: String,
-    pub os_username: String,
-    pub os_password: String,
+impl GenMode {
+    pub fn parse(s: &str) -> GenMode {
+        match s {
+            "translate" => GenMode::Translate,
+            _ => GenMode::Transcribe,
+        }
+    }
+
+    /// The `provider` tag stored on the resulting track (drives the client's "IA"
+    /// badge and the AI-track classification).
+    fn provider(self) -> &'static str {
+        match self {
+            GenMode::Transcribe => "whisper",
+            GenMode::Translate => "translate",
+        }
+    }
 }
 
-/// Search configured providers for `title` (optional `year`), restricted to
-/// `langs` (e.g. `["fr","en"]`). Blocking (shells out via curl) - call off-thread.
-pub fn search(creds: &Creds, title: &str, year: Option<i64>, langs: &[String]) -> Vec<RemoteSub> {
-    opensubtitles::search(&creds.os_api_key, title, year, langs)
+/// Whisper model tier (the player's Rapide / Équilibré / Précis selector). Maps to
+/// a multilingual candle model auto-downloaded on first use.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Quality {
+    Fast,
+    Balanced,
+    Accurate,
 }
 
-/// Download `remote_id` from `provider`, convert to WebVTT, cache it under
-/// `<data_dir>/subs/downloaded/`, and record it for `item_id`. Returns the new
-/// record (or `None` on any failure). Blocking - call off-thread.
-pub fn download(
-    creds: &Creds,
+impl Quality {
+    pub fn parse(s: &str) -> Quality {
+        match s {
+            "fast" => Quality::Fast,
+            "accurate" => Quality::Accurate,
+            _ => Quality::Balanced,
+        }
+    }
+
+    /// HuggingFace repo id for this tier (multilingual variants so spoken-language
+    /// forcing works for non-English content).
+    fn model(self) -> &'static str {
+        match self {
+            Quality::Fast => "openai/whisper-tiny",
+            Quality::Balanced => "openai/whisper-base",
+            Quality::Accurate => "openai/whisper-small",
+        }
+    }
+}
+
+/// A generation request, resolved server-side (the client never uploads audio or
+/// subtitle text; for `Translate` the endpoint reads/extracts `source_vtt`).
+pub struct GenSpec {
+    pub mode: GenMode,
+    /// Target language label, e.g. "Français".
+    pub target_lang: String,
+    /// Transcribe only: the spoken language to force (name or code); `None` =
+    /// auto-detect.
+    pub spoken_lang: Option<String>,
+    /// Transcribe only: model tier.
+    pub quality: Quality,
+    /// Transcribe only: audio-relative track index.
+    pub audio_track: u32,
+    /// Translate only: the source track's WebVTT text.
+    pub source_vtt: Option<String>,
+}
+
+/// Run a generation to completion, caching + recording the WebVTT. Reports stage +
+/// progress through `handle` and bails early when cancelled. `Ok(record)` on
+/// success; `Err(reason)` carries *why* it failed (no LLM provider, an LLM/Whisper
+/// error, an empty result, a write/DB error) so the caller can show it instead of a
+/// blank "generation failed". Blocking - call off the async runtime.
+pub fn generate(
+    settings: &Settings,
     data_dir: &Path,
     pool: &Pool,
     item_id: &str,
-    provider: &str,
-    remote_id: &str,
-    language: Option<&str>,
-    label: &str,
-) -> Option<DownloadedSub> {
-    let raw = match provider {
-        "opensubtitles" => opensubtitles::download(&creds.os_api_key, &creds.os_username, &creds.os_password, remote_id)?,
-        _ => return None,
+    input: &Path,
+    spec: &GenSpec,
+    handle: &Handle,
+) -> std::result::Result<DownloadedSub, String> {
+    let vtt = match spec.mode {
+        GenMode::Transcribe => {
+            let code = spec.spoken_lang.as_deref().and_then(lang_to_code);
+            let cancel = handle.cancel_flag();
+            crate::infra::whisper::transcribe(
+                data_dir,
+                spec.quality.model(),
+                input,
+                spec.audio_track,
+                code,
+                &|stage| handle.stage(stage),
+                &|done, total| handle.progress(done, total),
+                &cancel,
+            )
+            .ok_or_else(|| {
+                "transcription produced no text (wrong audio track, or the Whisper model failed to load; see server logs)".to_string()
+            })?
+        }
+        GenMode::Translate => {
+            handle.stage("translate");
+            let src = spec
+                .source_vtt
+                .as_deref()
+                .ok_or_else(|| "no source subtitle track to translate from".to_string())?;
+            translate::translate_vtt(settings, src, &spec.target_lang, handle)?
+        }
     };
-    let vtt = to_vtt(&raw);
     if vtt.len() < 16 {
-        return None; // empty / not a subtitle
+        return Err("the generated subtitle came out empty".to_string());
     }
 
-    let id = stable_id(item_id, provider, remote_id);
+    let provider = spec.mode.provider();
+    let id = stable_id(item_id, provider, &spec.target_lang);
     let dir = data_dir.join("subs").join("downloaded");
-    std::fs::create_dir_all(&dir).ok()?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create the subtitle cache dir: {e}"))?;
     let path = dir.join(format!("{id}.vtt"));
-    std::fs::write(&path, vtt.as_bytes()).ok()?;
+    std::fs::write(&path, vtt.as_bytes()).map_err(|e| format!("could not write the subtitle file: {e}"))?;
 
     let sub = DownloadedSub {
         id,
         item_id: item_id.to_string(),
-        language: language.map(str::to_string),
-        label: label.to_string(),
+        // Store the ISO code, or `None` for an unrecognized language - never the raw
+        // display label (e.g. "Français"), which is not a valid language code.
+        language: lang_to_code(&spec.target_lang).map(str::to_string),
+        label: spec.target_lang.clone(),
         provider: provider.to_string(),
         path: path.to_string_lossy().into_owned(),
     };
-    db::insert_downloaded_sub(pool, &sub).ok()?;
-    Some(sub)
+    db::insert_downloaded_sub(pool, &sub).map_err(|e| format!("could not record the subtitle in the database: {e}"))?;
+    Ok(sub)
 }
 
-/// Deterministic id for a (item, provider, remote) triple so re-downloading the
-/// same track replaces rather than duplicates.
-fn stable_id(item_id: &str, provider: &str, remote_id: &str) -> String {
+/// Deterministic id for a (item, provider, target) triple so re-generating the same
+/// language replaces rather than duplicates.
+fn stable_id(item_id: &str, provider: &str, target_lang: &str) -> String {
+    use std::hash::{Hash, Hasher};
     let mut h = std::collections::hash_map::DefaultHasher::new();
     item_id.hash(&mut h);
     provider.hash(&mut h);
-    remote_id.hash(&mut h);
+    target_lang.to_lowercase().hash(&mut h);
     format!("dl{:016x}", h.finish())
 }
 
-/// Normalize a downloaded subtitle to WebVTT. Most downloads are SRT (the only
-/// difference that matters for the parser is `,` → `.` in timestamps and the
-/// `WEBVTT` header); a file that already starts with `WEBVTT` is passed through.
-fn to_vtt(raw: &str) -> String {
+/// Normalize text to WebVTT (SRT timestamps `,`→`.` + header); a body already
+/// starting with `WEBVTT` is passed through. Used for source tracks fed to translate.
+pub fn to_vtt(raw: &str) -> String {
     let text = raw.trim_start_matches('\u{feff}');
     if text.trim_start().starts_with("WEBVTT") {
         return text.to_string();
@@ -113,74 +190,31 @@ fn to_vtt(raw: &str) -> String {
     out
 }
 
-/// Generate a subtitle with an AI provider and cache + record it like a download:
-/// transcribe the audio (`whisper` / `whisperLocal`) or translate `source_vtt`
-/// into `target_lang` (`translate`). `audio_track` is the audio-relative index to
-/// transcribe. Blocking (ffmpeg / network / CPU) - call off-thread.
-pub fn generate(
-    settings: &Settings,
-    provider: &SubtitleProvider,
-    data_dir: &Path,
-    pool: &Pool,
-    item_id: &str,
-    input: &Path,
-    audio_track: u32,
-    target_lang: &str,
-    source_vtt: Option<&str>,
-) -> Option<DownloadedSub> {
-    let scratch = data_dir.join("subs").join("tmp").join(format!("{item_id}-{}", provider.id));
-    let _ = std::fs::remove_dir_all(&scratch);
-    std::fs::create_dir_all(&scratch).ok()?;
-    let vtt = match provider.kind.as_str() {
-        "whisper" => {
-            whisper::transcribe_cloud(&provider.api_key, &provider.base_url, &provider.model, input, audio_track, &scratch)
-        }
-        "whisperLocal" => {
-            // Prefer the in-process candle engine (model = a HF repo id / candle
-            // dir); fall back to an external whisper.cpp binary (base_url = binary,
-            // model = GGUF path) when the feature is off or the model isn't candle.
-            crate::infra::whisper::transcribe(data_dir, &provider.model, input, audio_track, Some(target_lang))
-                .or_else(|| whisper::transcribe_local(&provider.base_url, &provider.model, input, audio_track, &scratch))
-        }
-        "translate" => source_vtt.and_then(|s| translate::translate_vtt(settings, s, target_lang)),
-        _ => None,
+/// Map a spoken-language name or code to an ISO 639-1 code for Whisper. Accepts the
+/// French + English names the UI offers, or an already-2-letter code. `None` when
+/// unrecognized (Whisper then auto-detects).
+fn lang_to_code(input: &str) -> Option<&'static str> {
+    let s = input.trim().to_lowercase();
+    let code = match s.as_str() {
+        "fr" | "french" | "français" | "francais" => "fr",
+        "en" | "english" | "anglais" => "en",
+        "es" | "spanish" | "espagnol" | "español" | "espanol" => "es",
+        "de" | "german" | "allemand" | "deutsch" => "de",
+        "it" | "italian" | "italien" | "italiano" => "it",
+        "pt" | "portuguese" | "portugais" | "português" | "portugues" => "pt",
+        "nl" | "dutch" | "néerlandais" | "neerlandais" => "nl",
+        "ja" | "japanese" | "japonais" => "ja",
+        "ko" | "korean" | "coréen" | "coreen" => "ko",
+        "zh" | "chinese" | "chinois" => "zh",
+        "ru" | "russian" | "russe" => "ru",
+        "ar" | "arabic" | "arabe" => "ar",
+        "hi" | "hindi" => "hi",
+        "pl" | "polish" | "polonais" => "pl",
+        "tr" | "turkish" | "turc" => "tr",
+        "sv" | "swedish" | "suédois" | "suedois" => "sv",
+        _ => return None,
     };
-    let _ = std::fs::remove_dir_all(&scratch);
-    let vtt = vtt?;
-    if vtt.len() < 16 {
-        return None;
-    }
-
-    let id = stable_id(item_id, &provider.kind, target_lang);
-    let dir = data_dir.join("subs").join("downloaded");
-    std::fs::create_dir_all(&dir).ok()?;
-    let path = dir.join(format!("{id}.vtt"));
-    std::fs::write(&path, vtt.as_bytes()).ok()?;
-
-    let name = if provider.name.trim().is_empty() { kind_label(&provider.kind).to_string() } else { provider.name.clone() };
-    let sub = DownloadedSub {
-        id,
-        item_id: item_id.to_string(),
-        language: Some(target_lang.to_string()),
-        label: format!("{name} · {target_lang}"),
-        provider: provider.kind.clone(),
-        path: path.to_string_lossy().into_owned(),
-    };
-    db::insert_downloaded_sub(pool, &sub).ok()?;
-    Some(sub)
-}
-
-/// Whether a provider kind generates (vs searches a database).
-pub fn is_ai_kind(kind: &str) -> bool {
-    matches!(kind, "whisper" | "whisperLocal" | "translate")
-}
-
-fn kind_label(kind: &str) -> &'static str {
-    match kind {
-        "whisper" | "whisperLocal" => "AI transcription",
-        "translate" => "AI translation",
-        _ => "Subtitle",
-    }
+    Some(code)
 }
 
 #[cfg(test)]
@@ -203,8 +237,16 @@ mod tests {
     }
 
     #[test]
-    fn stable_id_is_deterministic() {
-        assert_eq!(stable_id("a", "opensubtitles", "1"), stable_id("a", "opensubtitles", "1"));
-        assert_ne!(stable_id("a", "opensubtitles", "1"), stable_id("a", "opensubtitles", "2"));
+    fn stable_id_is_deterministic_and_case_insensitive() {
+        assert_eq!(stable_id("a", "whisper", "French"), stable_id("a", "whisper", "french"));
+        assert_ne!(stable_id("a", "whisper", "French"), stable_id("a", "whisper", "English"));
+    }
+
+    #[test]
+    fn lang_codes() {
+        assert_eq!(lang_to_code("Français"), Some("fr"));
+        assert_eq!(lang_to_code("english"), Some("en"));
+        assert_eq!(lang_to_code("es"), Some("es"));
+        assert_eq!(lang_to_code("Klingon"), None);
     }
 }

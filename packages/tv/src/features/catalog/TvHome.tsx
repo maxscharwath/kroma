@@ -1,4 +1,5 @@
 import {
+  episodeTag,
   formatRuntime,
   type MediaItem,
   posterColors,
@@ -124,7 +125,7 @@ export function TvHome() {
             const pct = dur > 0 ? Math.min(100, Math.round((positionMs / dur) * 100)) : 0;
             const genre =
               item.kind === 'episode' && item.showTitle
-                ? `${item.showTitle} · S${item.season}E${item.episode}`
+                ? `${item.showTitle} · ${episodeTag(item)}`
                 : t('content.film');
             return (
               <TvCard

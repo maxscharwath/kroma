@@ -1,6 +1,6 @@
 import type { MetricsSnapshot, PlaybackSession, TopUser } from '@luma/core';
 import { useT } from '@luma/ui';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { HistoryBars, MetricsChart } from '#web/features/admin/charts';
 import {
   NowPlayingCard,
@@ -24,9 +24,16 @@ export function DashboardScreen() {
   const { data: metrics } = usePoll(() => client.adminMetrics(), 2000, [client]);
   const { data: top } = usePoll(() => client.topUsers(7), 30000, [client, tick]);
   const { data: history } = usePoll(() => client.playHistory(28), 60000, [client, tick]);
+  const { data: users } = usePoll(() => client.users(), 60000, [client, tick]);
 
   const [stopTarget, setStopTarget] = useState<PlaybackSession | null>(null);
   const sessions = sessionsData?.sessions ?? [];
+  // Map each streaming user to their uploaded avatar (sessions carry only a name).
+  const avatarByUser = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const u of users ?? []) m.set(u.id, u.avatarUrl);
+    return m;
+  }, [users]);
 
   return (
     <>
@@ -40,7 +47,12 @@ export function DashboardScreen() {
         ) : (
           <div className="flex flex-col gap-3.5">
             {sessions.map((s) => (
-              <NowPlayingCard key={s.id} s={s} onStop={() => setStopTarget(s)} />
+              <NowPlayingCard
+                key={s.id}
+                s={s}
+                avatarUrl={s.userId ? avatarByUser.get(s.userId) : null}
+                onStop={() => setStopTarget(s)}
+              />
             ))}
           </div>
         )}

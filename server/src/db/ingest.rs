@@ -84,6 +84,83 @@ pub fn unprobed_files(pool: &Pool) -> Result<Vec<(String, String, String)>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
+/// Item ids that are fully probed (≥1 file, none unprobed). Bulk signal for the
+/// pipeline elements list.
+pub fn probed_item_ids(pool: &Pool) -> Result<std::collections::HashSet<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT item_id FROM files GROUP BY item_id \
+         HAVING SUM(CASE WHEN probed=0 THEN 1 ELSE 0 END)=0",
+    )?;
+    let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Whether every file of an item is probed (and it has at least one). Used by the
+/// per-element treatments view to show the "probe" status.
+pub fn item_probed(pool: &Pool, item_id: &str) -> Result<bool> {
+    let conn = pool.get()?;
+    let (total, unprobed): (i64, i64) = conn.query_row(
+        "SELECT COUNT(*), SUM(CASE WHEN probed=0 THEN 1 ELSE 0 END) FROM files WHERE item_id=?1",
+        params![item_id],
+        |r| Ok((r.get(0)?, r.get::<_, Option<i64>>(1)?.unwrap_or(0))),
+    )?;
+    Ok(total > 0 && unprobed == 0)
+}
+
+/// File ids backing one item, for per-element probe enqueue (reprocess).
+pub fn file_ids_for_item(pool: &Pool, item_id: &str) -> Result<Vec<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare("SELECT id FROM files WHERE item_id=?1")?;
+    let rows = stmt.query_map(params![item_id], |r| r.get::<_, String>(0))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// Reset one item's files to unprobed, so a reprocess re-probes that element.
+pub fn unprobe_item_files(pool: &Pool, item_id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute("UPDATE files SET probed=0 WHERE item_id=?1", params![item_id])?;
+    Ok(())
+}
+
+/// Clear one movie/video item's TMDB metadata, so a reprocess re-enriches it.
+pub fn clear_item_metadata(pool: &Pool, id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute("UPDATE items SET metadata=NULL WHERE id=?1", params![id])?;
+    Ok(())
+}
+
+/// Clear one show's TMDB metadata, so a reprocess re-enriches it.
+pub fn clear_show_metadata(pool: &Pool, id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute("UPDATE shows SET metadata=NULL WHERE id=?1", params![id])?;
+    Ok(())
+}
+
+/// Every file's `(id, "mtime:size")`, for the `pipeline.probe` stage's
+/// incremental enumeration: a changed file gets a new signature and is re-probed.
+pub fn all_file_sigs(pool: &Pool) -> Result<Vec<(String, String)>> {
+    let conn = pool.get()?;
+    let mut stmt =
+        conn.prepare("SELECT id, COALESCE(mtime,0) || ':' || COALESCE(size,0) FROM files")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+/// `(abs_path, item_id, probed)` for one file the `pipeline.probe` stage's
+/// per-subject lookup. `None` if the file row is gone.
+pub fn probe_target(pool: &Pool, file_id: &str) -> Result<Option<(String, String, bool)>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare("SELECT abs_path, item_id, probed FROM files WHERE id=?1")?;
+    let mut rows = stmt.query_map(params![file_id], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)? != 0))
+    })?;
+    match rows.next() {
+        Some(r) => Ok(Some(r?)),
+        None => Ok(None),
+    }
+}
+
 /// Whether a given item already has at least one probed file (used to decide
 /// whether a probe is the *first* one for an item → emit an ItemUpdated).
 pub fn item_has_probed_file(pool: &Pool, item_id: &str) -> Result<bool> {

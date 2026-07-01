@@ -1,7 +1,6 @@
 //! In-process Whisper transcription (no external whisper.cpp binary). The heavy
 //! candle inference lives in [`engine`], behind the `whisper-local` feature; the
-//! default build compiles a stub so the `whisperLocal` provider transparently
-//! falls back to the external binary.
+//! default build compiles a stub that returns `None`.
 //!
 //! The model (`config.json` + `model.safetensors` + `tokenizer.json`) is either a
 //! local directory or a HuggingFace repo id (e.g. `openai/whisper-base`), which is
@@ -11,17 +10,40 @@
 mod engine;
 
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Transcribe audio track `track` of `input` to WebVTT using the model at
-/// `model_spec` (a local dir or a HF repo id). `lang` optionally forces the
-/// spoken language (else auto-detected). `None` on failure / feature off.
+/// `model_spec` (a local dir or a HF repo id). `lang` optionally forces the spoken
+/// language (ISO 639-1, else auto-detected). `on_stage` is called with the coarse
+/// phase (`model` → `extract` → `transcribe`); `on_progress(done, total)` reports
+/// the per-window decode progress; `cancel` is polled to abort. `None` on failure /
+/// cancellation / feature off.
+#[allow(clippy::too_many_arguments)]
 #[allow(unused_variables)]
-pub fn transcribe(data_dir: &Path, model_spec: &str, input: &Path, track: u32, lang: Option<&str>) -> Option<String> {
+pub fn transcribe(
+    data_dir: &Path,
+    model_spec: &str,
+    input: &Path,
+    track: u32,
+    lang: Option<&str>,
+    on_stage: &dyn Fn(&str),
+    on_progress: &dyn Fn(usize, usize),
+    cancel: &AtomicBool,
+) -> Option<String> {
     #[cfg(feature = "whisper-local")]
     {
+        on_stage("model");
         let dir = resolve_model(data_dir, model_spec)?;
+        if cancel.load(Ordering::Relaxed) {
+            return None;
+        }
+        on_stage("extract");
         let pcm = extract_pcm(input, track)?;
-        engine::transcribe(&dir, &pcm, lang)
+        if cancel.load(Ordering::Relaxed) {
+            return None;
+        }
+        on_stage("transcribe");
+        engine::transcribe(&dir, &pcm, lang, on_progress, cancel)
     }
     #[cfg(not(feature = "whisper-local"))]
     {

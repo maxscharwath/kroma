@@ -12,8 +12,15 @@ interface Params {
   /** Absolute current position in seconds (offset-aware). */
   getPosition: () => number;
   playing: boolean;
-  /** `direct` (range-stream) or `transcode` (HLS audio re-encode). */
-  mode: 'direct' | 'transcode';
+  /** True while the element is stalled/rebuffering reported as `buffering`. */
+  waiting: boolean;
+  /** Label of the selected audio track (viewer's choice, shown on the dashboard). */
+  audioLabel?: string;
+  /** Label of the selected subtitle track, or the "off" label when none. */
+  subtitleLabel?: string;
+  /** `direct` (range copy) · `remux` (HLS, streams copied) · `transcode`
+   * (HLS, audio re-encoded to AAC). Video is never transcoded. */
+  mode: 'direct' | 'remux' | 'transcode';
   /** Called when an admin terminates this session. `message` may be empty. */
   onTerminated?: (message: string) => void;
 }
@@ -44,13 +51,20 @@ export function usePlaybackSession(params: Params): void {
     itemId: params.item.id,
     durationMs: params.item.durationMs ?? null,
     getPosition: params.getPosition,
-    getState: () => (params.playing ? 'playing' : 'paused'),
+    getState: () => {
+      if (!params.playing) return 'paused';
+      return params.waiting ? 'buffering' : 'playing';
+    },
+    getAudio: () => params.audioLabel,
+    getSubtitle: () => params.subtitleLabel,
     mode: params.mode,
     player: ua.player,
     device: ua.device,
     eventsBaseUrl: apiBase(),
     idPrefix: 'web',
-    pingSignal: params.playing,
+    // Ping promptly on any of these (not just the 10s beat) so buffering + a
+    // track switch surface on the dashboard near-instantly.
+    pingSignal: `${params.playing}|${params.waiting}|${params.audioLabel ?? ''}|${params.subtitleLabel ?? ''}`,
     onTerminated: (message) => params.onTerminated?.(message),
   });
 }

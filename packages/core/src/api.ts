@@ -18,7 +18,9 @@ import type {
   AdminUsers,
   AuthResult,
   ContinueItem,
+  ElementProcessing,
   Health,
+  PipelineElements,
   HistoryStats,
   Invite,
   InviteCreated,
@@ -32,6 +34,8 @@ import type {
   MetricsSnapshot,
   Permission,
   PersonResponse,
+  PipelineTaskView,
+  PipelineView,
   PlaybackPing,
   PlaybackSession,
   ProgressEntry,
@@ -53,7 +57,16 @@ import type {
 
 export type { LumaClientOptions } from './client/base';
 export { apiErrorText, LumaApiError } from './client/base';
-export type { DownloadedSub, RemoteSub, SubCapabilities } from './client/subtitles';
+export { GEN_LANGS, GEN_QUALITIES } from './client/subtitles';
+export type {
+  DownloadedSub,
+  GenerateReq,
+  GenMode,
+  GenQuality,
+  SubCapabilities,
+  SubtitleGeneration,
+} from './client/subtitles';
+export type { StoryboardManifest } from './client/media';
 
 /** Thin typed client over the LUMA server REST API. Shared by every client shell.
  *
@@ -111,8 +124,8 @@ export class LumaClient {
 
   // ----- catalogue / media ----------------------------------------------------
 
-  health(): Promise<Health> {
-    return media.health(this.ctx);
+  health(init?: RequestInit): Promise<Health> {
+    return media.health(this.ctx, init);
   }
   libraries(): Promise<Library[]> {
     return media.libraries(this.ctx);
@@ -194,14 +207,13 @@ export class LumaClient {
   subtitleUrl(id: string, index: number): string {
     return media.subtitleUrl(this.ctx, id, index);
   }
-  searchSubtitles(id: string, langs: string[] = []): Promise<subtitlesClient.RemoteSub[]> {
-    return subtitlesClient.searchSubtitles(this.ctx, id, langs);
+  /** Storyboard manifest endpoint URL (scrub-bar hover-preview sheet). */
+  storyboardUrl(id: string): string {
+    return media.storyboardUrl(this.ctx, id);
   }
-  downloadSubtitle(
-    id: string,
-    hit: { provider: string; remoteId: string; language: string | null; label: string },
-  ): Promise<subtitlesClient.DownloadedSub> {
-    return subtitlesClient.downloadSubtitle(this.ctx, id, hit);
+  /** Fetch the storyboard manifest (`'pending'` while generating, `null` if none). */
+  storyboard(id: string): Promise<media.StoryboardManifest | 'pending' | null> {
+    return media.storyboard(this.ctx, id);
   }
   downloadedSubtitles(id: string): Promise<subtitlesClient.DownloadedSub[]> {
     return subtitlesClient.downloadedSubtitles(this.ctx, id);
@@ -209,20 +221,21 @@ export class LumaClient {
   subtitleCapabilities(id: string): Promise<subtitlesClient.SubCapabilities> {
     return subtitlesClient.subtitleCapabilities(this.ctx, id);
   }
-  generateSubtitle(
-    id: string,
-    req: { providerId?: string; lang: string; sourceVtt?: string; audioTrack?: number },
-  ): Promise<subtitlesClient.DownloadedSub> {
+  /** Start a Whisper transcription / LLM translation; returns a `genId` to poll. */
+  generateSubtitle(id: string, req: subtitlesClient.GenerateReq): Promise<{ genId: string }> {
     return subtitlesClient.generateSubtitle(this.ctx, id, req);
   }
-  adminSubtitles(): Promise<import('./types').SubtitleProvidersConfig> {
-    return admin.adminSubtitles(this.ctx);
+  /** Live + recently-finished generations for an item. */
+  subtitleGenerations(id: string): Promise<subtitlesClient.SubtitleGeneration[]> {
+    return subtitlesClient.subtitleGenerations(this.ctx, id);
   }
-  saveSubtitleProviders(body: admin.SubtitleSave): Promise<void> {
-    return admin.saveSubtitles(this.ctx, body);
+  /** Cancel a running generation. */
+  cancelGeneration(id: string, genId: string): Promise<void> {
+    return subtitlesClient.cancelGeneration(this.ctx, id, genId);
   }
-  testSubtitleProvider(probe: { id?: string; apiKey?: string }): Promise<{ ok: boolean; message: string }> {
-    return admin.testSubtitles(this.ctx, probe);
+  /** Delete a generated subtitle track. */
+  deleteSubtitle(id: string, dlId: string): Promise<void> {
+    return subtitlesClient.deleteSubtitle(this.ctx, id, dlId);
   }
 
   // ----- accounts / sessions / invites / quick connect ------------------------
@@ -436,6 +449,51 @@ export class LumaClient {
   }
   jobRunLogs(runId: string): Promise<{ logs: JobLog[] }> {
     return admin.jobRunLogs(this.ctx, runId);
+  }
+
+  // ----- admin: per-element pipeline ------------------------------------------
+
+  adminPipeline(): Promise<PipelineView> {
+    return admin.adminPipeline(this.ctx);
+  }
+  pipelineFailed(stage: string): Promise<{ tasks: PipelineTaskView[] }> {
+    return admin.pipelineFailed(this.ctx, stage);
+  }
+  runPipelineStage(stage: string): Promise<{ runId: string }> {
+    return admin.runPipelineStage(this.ctx, stage);
+  }
+  cancelPipelineStage(stage: string): Promise<{ cancelled: boolean }> {
+    return admin.cancelPipelineStage(this.ctx, stage);
+  }
+  retryPipelineStage(stage: string): Promise<{ requeued: number }> {
+    return admin.retryPipelineStage(this.ctx, stage);
+  }
+  reprocessPipelineStage(stage: string): Promise<{ requeued: number }> {
+    return admin.reprocessPipelineStage(this.ctx, stage);
+  }
+  retryPipelineTask(stage: string, subjectId: string): Promise<{ requeued: number }> {
+    return admin.retryPipelineTask(this.ctx, stage, subjectId);
+  }
+  reprocessSubject(kind: 'item' | 'show', id: string): Promise<{ subjects: number; stages: string[] }> {
+    return admin.reprocessSubject(this.ctx, kind, id);
+  }
+  itemProcessing(id: string): Promise<ElementProcessing> {
+    return admin.itemProcessing(this.ctx, id);
+  }
+  pipelineElements(params?: {
+    status?: string;
+    kind?: string;
+    q?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PipelineElements> {
+    return admin.pipelineElements(this.ctx, params);
+  }
+  retryElementStage(kind: 'item' | 'show', id: string, stage: string): Promise<void> {
+    return admin.retryElementStage(this.ctx, kind, id, stage);
+  }
+  showProcessing(id: string): Promise<ElementProcessing> {
+    return admin.showProcessing(this.ctx, id);
   }
 
   // ----- admin: AI / LLM ------------------------------------------------------

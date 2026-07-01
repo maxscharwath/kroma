@@ -4,6 +4,8 @@ import { IconChevronRight, IconPlus, IconServer2 } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
+import { useServersHealth } from '#tv/app/useServersHealth';
+import { StatusDot } from '#tv/features/accounts/ServerStatus';
 import { AuthScreen, hostOf } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
 
@@ -13,6 +15,8 @@ interface Row {
   iconAccent?: boolean;
   title: string;
   sub: string;
+  /** Server origin for the live status dot, or undefined for the manual row. */
+  url?: string;
   onSelect: () => void;
 }
 
@@ -60,6 +64,7 @@ export function TvAddProfile() {
         icon: <IconServer2 size={24} stroke={1.7} />,
         title: saved?.name || (hostOf(url) ?? url),
         sub: saved ? addrOf(url) : `${addrOf(url)} · ${t('addProfile.new')}`,
+        url,
         onSelect: () => pick(url, saved?.name),
       });
     }
@@ -69,6 +74,7 @@ export function TvAddProfile() {
         icon: <IconServer2 size={24} stroke={1.7} />,
         title: s.name || (hostOf(s.url) ?? s.url),
         sub: addrOf(s.url),
+        url: s.url,
         onSelect: () => pick(s.url, s.name),
       });
     }
@@ -83,6 +89,10 @@ export function TvAddProfile() {
     return out;
     // biome-ignore lint/correctness/useExhaustiveDependencies: pick/nav are stable enough here.
   }, [discovered, servers, t]);
+
+  // Probe each listed server so a row shows whether it actually answers (a saved
+  // server can be offline; a freshly discovered one is reachable but confirmed here).
+  const health = useServersHealth(rows.map((r) => r.url).filter((u): u is string => !!u));
 
   return (
     <AuthScreen>
@@ -128,6 +138,7 @@ export function TvAddProfile() {
                   {r.sub}
                 </span>
               </span>
+              {r.url ? <StatusDot online={health[r.url]} /> : null}
               <IconChevronRight size={22} className="flex-none text-dim" />
             </button>
           ))}

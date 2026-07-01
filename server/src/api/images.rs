@@ -12,6 +12,17 @@ use crate::api::poster::render_poster;
 use crate::api::util::{blocking, query};
 use crate::db;
 use crate::state::SharedState;
+use axum::routing::get;
+use axum::Router;
+
+/// Poster / card rendering plus static image serving.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/shows/:id/poster", get(show_poster))
+        .route("/items/:id/poster", get(item_poster))
+        .route("/items/:id/card", get(item_card))
+        .route("/images/:name", get(image))
+}
 
 /// `GET /api/shows/:id/poster` → inline SVG placeholder.
 pub async fn show_poster(

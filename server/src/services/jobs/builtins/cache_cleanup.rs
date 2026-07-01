@@ -1,6 +1,7 @@
-//! `cache.cleanup` report the on-demand HLS segment cache size (a self-trimming
-//! on-disk LRU bounded by its own byte budget no manual wipe needed), then
-//! enforce the `cacheLimit` budget on the poster/backdrop image cache (never
+//! `cache.cleanup` report the on-demand HLS segment cache size (trimmed live by
+//! infra::hls against the `transcodeCacheLimit` byte budget - idle / superseded
+//! sessions evicted oldest-first, live ones untouched - so no manual wipe here),
+//! then enforce the `cacheLimit` budget on the poster/backdrop image cache (never
 //! auto-wiped expensive to refetch so it grows unbounded without this; trimmed
 //! oldest-first when over the limit).
 
@@ -9,13 +10,24 @@ use std::path::Path;
 
 use super::prelude::*;
 
+/// Nightly maintenance: report the HLS cache footprint + trim the image cache.
+pub(super) const SPEC: Builtin = Builtin {
+    key: JobKey("cache.cleanup"),
+    category: Category::Maintenance,
+    schedule: Some("0 4 * * *"),
+    triggers: &[],
+    run,
+};
+
 pub(super) fn run(ctx: &JobContext) -> Result<()> {
     let data_dir = &ctx.state.config.data_dir;
 
-    // 1) The HLS segment cache trims itself (in-process LRU, see infra::hls); we
-    // just report its current footprint. Every segment is regenerable, so there
-    // is nothing to protect or wipe here.
-    ctx.info(format!("HLS segment cache: {} (self-trimming LRU)", human_bytes(ctx.state.hls.cache_bytes())));
+    // 1) The HLS segment cache trims itself live against its byte budget (see
+    // infra::hls); we just report its current footprint. Every segment is
+    // regenerable, so there is nothing to protect or wipe here.
+    let budget = crate::services::settings::transcode_cache_limit_bytes(&ctx.state.settings);
+    let limit = if budget == 0 { "unlimited".to_string() } else { human_bytes(budget) };
+    ctx.info(format!("HLS segment cache: {} / {limit} budget", human_bytes(ctx.state.hls.cache_bytes())));
 
     // 2) Enforce the image-cache budget (`cacheLimit`).
     enforce_image_limit(ctx, &data_dir.join("images"));

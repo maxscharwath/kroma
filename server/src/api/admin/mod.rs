@@ -12,26 +12,18 @@ mod backup;
 mod jobs;
 mod libraries;
 mod llm;
-mod subtitles;
+mod pipeline;
 mod settings;
 mod stats;
 mod storage;
 mod users;
 
-pub use backup::{export_backup, import_backup, MAX_BACKUP_BYTES};
-pub use jobs::{cancel_job, job_detail, list_jobs, run_job, run_logs, update_job};
-pub use llm::{get_llm, llm_models, save_llm, test_llm};
-pub use subtitles::{get_subtitles, save_subtitles, test_subtitles};
-pub use libraries::{create_library, delete_library, list_libraries, scan_library, update_library};
-pub use settings::{get_settings, put_settings};
-pub use stats::{history, overview, top_users};
-pub use storage::{clear_cache, reset_metadata, storage};
-pub use users::{delete_user, list_users, update_user};
-
 use axum::extract::{Path as AxPath, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
 use axum::Json;
+use axum::Router;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -42,6 +34,27 @@ use crate::i18n;
 use crate::infra::events::ServerEvent;
 use crate::model::{Permission, User};
 use crate::state::SharedState;
+
+/// Compose the admin subtree. Nested under `/api/admin` by [`crate::api::router`],
+/// so every path here is relative to that prefix. Each managed noun owns its
+/// routes in its submodule; the dashboard handlers (status / sessions / metrics)
+/// live in this file.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/server", get(server_info))
+        .route("/sessions", get(sessions))
+        .route("/sessions/:id/stop", post(terminate_session))
+        .route("/metrics", get(metrics))
+        .merge(users::routes())
+        .merge(libraries::routes())
+        .merge(settings::routes())
+        .merge(storage::routes())
+        .merge(stats::routes())
+        .merge(jobs::routes())
+        .merge(llm::routes())
+        .merge(pipeline::routes())
+        .merge(backup::routes())
+}
 
 // ----- guards -----------------------------------------------------------------
 

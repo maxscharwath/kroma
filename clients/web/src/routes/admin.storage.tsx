@@ -77,7 +77,13 @@ function StoragePage() {
       </Section>
 
       <Section title={t('admin.cacheContent')}>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard
+            label={t('admin.transcodeCacheSize')}
+            value={formatBytes(cache?.transcodeBytes ?? 0)}
+            unit={t('admin.transcodeCacheBudget', { limit: cache?.transcodeLimit ?? '20 Go' })}
+            color={C.accent}
+          />
           <StatCard
             label={t('admin.cachedImages')}
             value={(cache?.imagesCount ?? 0).toLocaleString()}
@@ -119,6 +125,17 @@ function StoragePage() {
                 value={data?.cache.limit ?? '80 Go'}
                 options={['40 Go', '80 Go', '120 Go', '256 Go', t('opt.unlimited')]}
                 onChange={(v) => client.updateSettings({ cacheLimit: v }).then(reload)}
+              />
+            }
+          />
+          <MaintRow
+            title={t('admin.transcodeCacheLimit')}
+            desc={t('admin.transcodeCacheLimitDesc')}
+            right={
+              <Select
+                value={data?.cache.transcodeLimit ?? '20 Go'}
+                options={['10 Go', '20 Go', '50 Go', '100 Go', t('opt.unlimited')]}
+                onChange={(v) => client.updateSettings({ transcodeCacheLimit: v }).then(reload)}
               />
             }
           />

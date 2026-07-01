@@ -1,16 +1,20 @@
-//! The built-in jobs shipped with LUMA one handler file per job in this
-//! directory, wired into the typed [`JOBS`] registry below.
+//! The built-in jobs shipped with LUMA one self-contained handler file per job
+//! in this directory, gathered into the ordered [`JOBS`] roster below.
 //!
-//! A job's identity is a [`JobId`] (not a string), so every reference is
-//! compiler-checked + autocompleted and the set is exported to the clients. The
-//! handler is a plain `fn` in its own file; this registry is the single typed
-//! list of what ships. Adding a job: drop a handler file, add its `mod` line +
-//! one [`JOBS`] row + a [`JobId`] variant the compiler enforces all three line
-//! up.
+//! Each handler file owns its whole [`Builtin`] descriptor next to its `run` (its
+//! `pub(super) const SPEC` the [`JobKey`] that identifies it, plus schedule,
+//! category, triggers + handler), so everything about a job lives with the code
+//! that drives it rather than in a central table. This file just declares the
+//! modules and lists their `SPEC`s in admin-listing order.
+//!
+//! Because each key is declared per-job in its own file, two could collide so the
+//! [`NO_DUPLICATE_KEYS`] block below rejects a duplicate **at compile time**.
+//! Adding a job: drop a handler file (with its `SPEC`) and add its `mod` line +
+//! one roster entry.
 
-use crate::model::{Category, JobId};
+use crate::model::Category;
 
-use super::{JobContext, JobManager, Trigger};
+use super::{JobContext, JobKey, JobManager, Trigger};
 
 mod cache_cleanup;
 mod library_scan;
@@ -21,10 +25,14 @@ mod search_reindex;
 mod sections_curate;
 mod sections_personalize;
 
-/// A built-in job descriptor: typed identity + metadata + handler. The handler
-/// lives in the per-job file; this is the registry entry.
+/// A built-in job descriptor: identity ([`JobKey`]) + metadata + handler.
+/// Constructed as a `const SPEC` in the handler's own file; this is just the
+/// registry entry type.
 pub struct Builtin {
-    pub id: JobId,
+    /// This job's identity the stable dotted key that is also the DB key,
+    /// `/api/admin/jobs/:key` URL segment and i18n base (`jobs.{key}.name`). Unique
+    /// across the roster (enforced by [`NO_DUPLICATE_KEYS`]).
+    pub key: JobKey,
     pub category: Category,
     /// Default cron schedule (user-overridable), or `None` for manual-only.
     pub schedule: Option<&'static str>,
@@ -33,87 +41,78 @@ pub struct Builtin {
     pub run: fn(&JobContext) -> anyhow::Result<()>,
 }
 
-/// Every built-in job, in admin-listing order.
-static JOBS: &[Builtin] = &[
-    Builtin {
-        id: JobId::CacheCleanup,
-        category: Category::Maintenance,
-        schedule: Some("0 4 * * *"),
-        triggers: &[],
-        run: cache_cleanup::run,
-    },
-    Builtin {
-        id: JobId::RecommendationsRefresh,
-        category: Category::Recommendations,
-        schedule: Some("0 5 * * *"),
-        triggers: &[],
-        run: reco_refresh::run,
-    },
-    Builtin {
-        id: JobId::RecommendationsReembed,
-        category: Category::Recommendations,
-        schedule: None,
-        triggers: &[],
-        run: reembed::run,
-    },
-    Builtin {
-        id: JobId::SectionsPersonalize,
-        category: Category::Recommendations,
-        schedule: Some("30 5 * * *"),
-        triggers: &[],
-        run: sections_personalize::run,
-    },
-    Builtin {
-        id: JobId::SectionsCurate,
-        category: Category::Recommendations,
-        schedule: Some("0 6 * * *"),
-        triggers: &[],
-        run: sections_curate::run,
-    },
-    Builtin {
-        id: JobId::LibraryScan,
-        category: Category::Library,
-        schedule: None,
-        triggers: &[Trigger::LibraryChange],
-        run: library_scan::run,
-    },
-    Builtin {
-        id: JobId::MetadataEnrich,
-        category: Category::Library,
-        schedule: None,
-        triggers: &[],
-        run: metadata_enrich::run,
-    },
-    Builtin {
-        id: JobId::SearchReindex,
-        category: Category::Library,
-        schedule: None,
-        triggers: &[],
-        run: search_reindex::run,
-    },
-    Builtin {
-        id: JobId::MarkersDetect,
-        category: Category::Library,
-        // Nightly + manual only: fingerprinting decodes every episode's audio, so
-        // it must not fire on every library change.
-        schedule: Some("0 3 * * *"),
-        triggers: &[],
-        run: crate::services::markers::job::run,
-    },
+/// Every built-in job, in admin-listing order. Each entry's metadata lives next
+/// to its handler (the module's `SPEC`); this is the roster of what ships. A
+/// `const` (not a `static`) so the compile-time guards below can read it.
+const JOBS: &[Builtin] = &[
+    cache_cleanup::SPEC,
+    reco_refresh::SPEC,
+    reembed::SPEC,
+    sections_personalize::SPEC,
+    sections_curate::SPEC,
+    library_scan::SPEC,
+    metadata_enrich::SPEC,
+    search_reindex::SPEC,
+    // Per-element pipeline stages: each drains its `pipeline_tasks` queue via the
+    // shared dispatcher. Marker detection + storyboard pre-generation used to be
+    // whole-library jobs that reprocessed everything on each run; the pipeline
+    // makes them incremental, resumable and per-item observable.
+    crate::services::pipeline::stages::probe::SPEC,
+    crate::services::pipeline::stages::metadata::SPEC,
+    crate::services::pipeline::stages::storyboard::SPEC,
+    crate::services::pipeline::stages::subtitles::SPEC,
+    crate::services::pipeline::stages::markers::SPEC,
+    crate::services::pipeline::stages::embed::SPEC,
 ];
 
-/// Register every built-in job on the manager (registration order = listing
-/// order). Called once at startup.
+/// Compile-time guard: a job's key is its identity it indexes the DB, the URL and
+/// i18n, and keys the live run maps so two jobs sharing one would silently
+/// collide. Since each is declared per-job in its own scattered `SPEC`, we reject a
+/// duplicate here as a hard build error rather than a runtime surprise.
+const NO_DUPLICATE_KEYS: () = {
+    let mut i = 0;
+    while i < JOBS.len() {
+        let mut j = i + 1;
+        while j < JOBS.len() {
+            assert!(!str_eq(JOBS[i].key.0, JOBS[j].key.0), "duplicate job key in the JOBS roster");
+            j += 1;
+        }
+        i += 1;
+    }
+};
+
+/// `const`-evaluable string equality (there is no `==` for `&str` in const yet).
+const fn str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut i = 0;
+    while i < a.len() {
+        if a[i] != b[i] {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+/// Register every built-in job on the manager (roster order = listing order).
+/// Called once at startup.
 pub fn register_all(m: &mut JobManager) {
+    // Force the compile-time duplicate-key/id check to be evaluated.
+    let () = NO_DUPLICATE_KEYS;
     for b in JOBS {
         m.register(b);
     }
 }
 
-/// Shared imports for the per-job handler files `use super::prelude::*;`.
+/// Shared imports for the per-job handler files `use super::prelude::*;`, so each
+/// can declare its `SPEC` and `run` tersely.
 pub(crate) mod prelude {
-    pub(crate) use super::snippet;
-    pub(crate) use crate::services::jobs::JobContext;
+    pub(crate) use super::{snippet, Builtin};
+    pub(crate) use crate::model::Category;
+    pub(crate) use crate::services::jobs::{JobContext, JobKey, Trigger};
     pub use anyhow::Result;
 }
 
@@ -132,16 +131,22 @@ pub(crate) fn snippet(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::JOBS;
-    use crate::model::JobId;
+    use std::collections::HashSet;
 
-    /// Every `JobId` variant has exactly one registry row, and ids are unique
-    /// so the typed registry and the id enum can't drift apart.
+    /// Keys are unique (also a compile-time guard, see [`super::NO_DUPLICATE_KEYS`])
+    /// and shaped like the dotted `group.action` the DB / URL / i18n expect. A
+    /// runtime test too so a regression names the offender instead of only failing
+    /// the build.
     #[test]
-    fn registry_covers_every_jobid() {
-        assert_eq!(JOBS.len(), JobId::ALL.len(), "JOBS rows vs JobId variants");
-        for id in JobId::ALL {
-            let rows = JOBS.iter().filter(|b| b.id == id).count();
-            assert_eq!(rows, 1, "JobId::{id:?} must have exactly one JOBS row, found {rows}");
+    fn job_keys_are_unique_and_well_formed() {
+        let mut seen = HashSet::new();
+        for b in JOBS {
+            let key = b.key.0;
+            assert!(seen.insert(key), "duplicate job key {key:?}");
+            assert!(
+                key.split('.').count() == 2 && key.chars().all(|c| c.is_ascii_lowercase() || c == '.'),
+                "job key {key:?} must be lowercase `group.action`",
+            );
         }
     }
 }

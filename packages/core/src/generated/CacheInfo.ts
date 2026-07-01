@@ -13,6 +13,10 @@ bytes: number, limit: string,
  */
 transcodeBytes: number, 
 /**
+ * Byte budget for the transcode cache (the `transcodeCacheLimit` label).
+ */
+transcodeLimit: string, 
+/**
  * On-disk size of the downloaded poster/backdrop/logo cache.
  */
 imagesBytes: number, 

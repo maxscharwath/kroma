@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsgo --noEmit && vite build",
+    "build:fast": "vite build",
     "preview": "vite preview",
     "typecheck": "tsgo --noEmit",
     "doctor": "make doctor",

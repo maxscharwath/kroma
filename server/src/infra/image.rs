@@ -270,11 +270,18 @@ fn transcode(remote_url: &str, out: &Path) -> bool {
     finalize(&out_tmp, out).is_some()
 }
 
-/// Encode `src` → WebP at `out`. Prefers `cwebp` (canonical, present on most
-/// systems incl. the Docker image); falls back to ffmpeg's libwebp encoder.
+/// Encode `src` → WebP at `out` at the default poster quality.
 fn encode_webp(src: &Path, out: &Path) -> bool {
+    encode_webp_quality(src, out, WEBP_QUALITY)
+}
+
+/// Encode `src` → WebP at `out` at an explicit quality (0–100). Prefers `cwebp`
+/// (canonical, present on most systems incl. the Docker image); falls back to
+/// ffmpeg's libwebp encoder. Shared with the storyboard sheet, which wants a
+/// lower quality than posters.
+pub(crate) fn encode_webp_quality(src: &Path, out: &Path, quality: &str) -> bool {
     let cwebp = Command::new("cwebp")
-        .args(["-quiet", "-q", WEBP_QUALITY, "-m", WEBP_EFFORT])
+        .args(["-quiet", "-q", quality, "-m", WEBP_EFFORT])
         .arg(src)
         .arg("-o")
         .arg(out)
@@ -292,7 +299,7 @@ fn encode_webp(src: &Path, out: &Path) -> bool {
             "-c:v",
             "libwebp",
             "-quality",
-            WEBP_QUALITY,
+            quality,
             "-compression_level",
             WEBP_EFFORT,
         ])

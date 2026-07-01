@@ -36,6 +36,12 @@ struct Job {
     title: String,
     year: Option<u32>,
     is_show: bool,
+    /// The TMDB id we already have on file (`Some` once a title is enriched).
+    /// When set, the worker skips the (costly, rate-limited) title re-lookup: a
+    /// movie is simply done, and a show jumps straight to the still-incremental
+    /// per-season episode/cast pass so newly-added seasons are filled without
+    /// re-fetching the whole show. `None` means a full first-time enrichment.
+    resolved_tmdb: Option<u64>,
 }
 
 /// The shared, cloneable bundle a worker needs to resolve one title. Cloning is
@@ -85,26 +91,39 @@ pub struct EnrichSummary {
 }
 
 /// Episodes inherit their show's metadata; enrich movies/loose videos + shows.
+///
+/// Incremental by default: an already-enriched movie/video is dropped entirely,
+/// and an already-enriched show is still enqueued (carrying its known TMDB id)
+/// so its per-season episode pass runs, but without re-resolving the show. So a
+/// re-run only does genuinely missing work: a full catalog re-fetch is an
+/// explicit reset (`db::reset_all_metadata`), not the steady-state cost.
 fn build_jobs(items: &[MediaItem], shows: &[Show]) -> Vec<Job> {
     let mut jobs: Vec<Job> = Vec::new();
     for i in items {
-        if matches!(i.kind, Kind::Movie | Kind::Video) {
+        if matches!(i.kind, Kind::Movie | Kind::Video) && i.metadata.is_none() {
             jobs.push(Job {
                 id: i.id.clone(),
                 target: Target::Movie,
                 title: i.title.clone(),
                 year: i.year,
                 is_show: false,
+                resolved_tmdb: None,
             });
         }
     }
     for s in shows {
+        // Always enqueue shows even when already enriched: a show that resolved
+        // last week may have gained a season this week, and `enrich_episodes`
+        // (itself incremental) fills only the new stills/cast. `resolved_tmdb`
+        // lets the worker skip the show-level re-lookup for those.
+        let resolved_tmdb = s.metadata.as_ref().map(|m| m.tmdb_id).filter(|&id| id != 0);
         jobs.push(Job {
             id: s.id.clone(),
             target: Target::Tv,
             title: s.title.clone(),
             year: s.year,
             is_show: true,
+            resolved_tmdb,
         });
     }
     jobs
@@ -244,6 +263,19 @@ fn enrich_episodes(
 /// (scan path) it also drives the global enrich indicator; tracked runs pass
 /// `None` and report progress through the job console instead.
 fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option<&Activity>, job: Job) {
+    // Already enriched: don't re-resolve the title (TMDB is rate-limited). A show
+    // still runs its incremental per-season pass to fill any newly-added
+    // episodes' stills/cast; a movie has no sub-work and is simply counted done.
+    if let Some(tmdb_id) = job.resolved_tmdb {
+        if job.is_show {
+            enrich_episodes(
+                &eng.pool, &eng.api_key, &eng.language, &eng.data_dir, &eng.bus, &job.id, tmdb_id,
+            );
+        }
+        counters.resolved.fetch_add(1, Ordering::Relaxed);
+        bump(eng, counters, total, activity);
+        return;
+    }
     let Some(meta) =
         metadata::lookup(&eng.cache, &eng.api_key, &eng.language, job.target, &job.title, job.year)
     else {
@@ -342,6 +374,49 @@ fn spawn(eng: Engine, activity: Activity, search: Arc<SearchEngine>, jobs: Vec<J
             Err(e) => warn!(error = %e, "search reindex after enrichment failed"),
         }
     });
+}
+
+/// Enrich ONE title (movie/video or show) the unit of work of the
+/// `pipeline.metadata` stage. Idempotent: an already-enriched movie is a no-op,
+/// an already-enriched show only runs its incremental per-season episode pass, and
+/// a TMDB *miss* returns `Ok` (the ledger records it done, so it is not retried
+/// every run). Returns `Err` only on a real write failure.
+pub fn enrich_one(state: &SharedState, id: &str, is_show: bool) -> anyhow::Result<()> {
+    let Some(api_key) = state.config.tmdb_api_key.clone() else {
+        return Ok(());
+    };
+    let job = if is_show {
+        let Some(show) = db::get_show(&state.db, id)?.map(|d| d.show) else {
+            return Ok(());
+        };
+        Job {
+            id: show.id.clone(),
+            target: Target::Tv,
+            title: show.title.clone(),
+            year: show.year,
+            is_show: true,
+            resolved_tmdb: show.metadata.as_ref().map(|m| m.tmdb_id).filter(|&i| i != 0),
+        }
+    } else {
+        let Some(item) = db::get_item(&state.db, id)? else {
+            return Ok(());
+        };
+        Job {
+            id: item.id.clone(),
+            target: Target::Movie,
+            title: item.title.clone(),
+            year: item.year,
+            is_show: false,
+            resolved_tmdb: item.metadata.as_ref().map(|m| m.tmdb_id).filter(|&i| i != 0),
+        }
+    };
+    let eng = engine_for(state, api_key);
+    let counters = Counters::default();
+    process_job(&eng, &counters, 1, None, job);
+    if counters.failed.load(Ordering::Relaxed) > 0 {
+        anyhow::bail!("failed to store metadata for {id}");
+    }
+    Ok(())
 }
 
 /// Re-enrich the catalog synchronously (blocking the caller) so a job can track

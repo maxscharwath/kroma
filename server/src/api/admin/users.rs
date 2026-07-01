@@ -14,6 +14,15 @@ use crate::db;
 use crate::infra::events::ServerEvent;
 use crate::model::Permission;
 use crate::state::SharedState;
+use axum::routing::{get, patch};
+use axum::Router;
+
+/// Admin user management. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/users", get(list_users))
+        .route("/users/:id", patch(update_user).delete(delete_user))
+}
 
 /// `GET /api/admin/users` → full member list (the "Membres & partage" table).
 pub async fn list_users(

@@ -6,7 +6,9 @@
 // mount a resume/far-seek starts fast (ffmpeg seeks IN the file). The element
 // restarts at 0, so absolute position is `baseSec + element time`. Seeking inside
 // the BUFFERED range is an instant native seek; outside it we re-anchor (reload
-// the master at the new offset) rather than stall at the production edge.
+// the master at the new offset) rather than stall at the production edge. The
+// stream carries only the ONE audio track named in its URL, so switching language
+// re-anchors too (reload at the current position with the new `audio` segment).
 
 import { attachDirectPlay, type LumaClient, type MediaItem } from '@luma/core';
 import type { EngineListeners, TvEngine } from '#tv/features/playback/player/engine';
@@ -93,7 +95,16 @@ export class HtmlEngine implements TvEngine {
 
   private attachMaster(): void {
     const v = this.v;
-    const url = this.opts.client.hlsMasterUrl(this.opts.item.id, this.opts.masterAac);
+    // The remux is anchored at `baseSec` (server input `-ss`) and the chosen audio
+    // is MUXED in by the `audio` path segment, so the URL must carry both - hls.js
+    // then plays from RELATIVE 0 and `position()` adds `baseSec` back. Omitting the
+    // anchor makes the server always start at t=0 (the picture ignores every seek).
+    const url = this.opts.client.hlsMasterUrl(
+      this.opts.item.id,
+      this.opts.masterAac,
+      this.baseSec,
+      this.rendition,
+    );
     void import('hls.js').then(({ default: Hls }) => {
       if (this.destroyed) return;
       if (!Hls.isSupported()) {
@@ -103,15 +114,6 @@ export class HtmlEngine implements TvEngine {
       }
       const hls = new Hls({ enableWorker: true, lowLatencyMode: false, startPosition: 0 });
       this.hls = hls;
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (this.rendition > 0) {
-          try {
-            hls.audioTrack = this.rendition;
-          } catch {
-            /* manifest race the default rendition is already correct */
-          }
-        }
-      });
       hls.loadSource(url);
       hls.attachMedia(v);
     });
@@ -173,13 +175,13 @@ export class HtmlEngine implements TvEngine {
   }
 
   setAudioRendition(rendition: number): void {
+    if (rendition === this.rendition || this.opts.direct) return;
     this.rendition = rendition;
-    if (!this.hls) return;
-    try {
-      this.hls.audioTrack = rendition;
-    } catch {
-      /* manifest not parsed yet the default rendition is already correct */
-    }
+    // The chosen audio is muxed into the stream by the URL (the server maps one
+    // `0:a:<n>` per session, no alternate renditions), so a language switch reloads
+    // the master at the CURRENT position with the new track. The remux is anchored,
+    // so it restarts in ~1s and the picture resumes exactly where it left off.
+    this.reanchor(this.position());
   }
 
   destroy(): void {

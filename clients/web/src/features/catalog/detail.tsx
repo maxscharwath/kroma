@@ -19,7 +19,7 @@ import {
   IconVolumeOff,
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { imageUrl } from '#web/shared/lib/api';
 import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Poster, Rail } from '#web/shared/ui';
 import { HeroBackdrop } from '#web/features/catalog/HeroBackdrop';
@@ -101,6 +101,8 @@ export interface DetailHeroProps {
   /** Plex-style theme song to loop under the hero (TV shows only); `null` plays
    * nothing and hides the mute toggle. */
   themeUrl?: string | null;
+  /** Optional trailing action in the button row (e.g. an admin "Reprocess"). */
+  adminAction?: ReactNode;
 }
 
 /** Director/creator names from TMDB crew metadata, for the hero's "Réalisation"
@@ -134,6 +136,7 @@ export function DetailHero({
   onToggleList,
   playable,
   themeUrl,
+  adminAction,
 }: Readonly<DetailHeroProps>) {
   const t = useT();
   const navigate = useNavigate();
@@ -280,6 +283,7 @@ export function DetailHero({
                 {inList ? <IconCheck size={20} stroke={2.4} /> : <IconPlus size={20} stroke={2} />}
               </button>
             ) : null}
+            {adminAction}
           </div>
 
           <div className="flex flex-wrap gap-x-11 gap-y-4 border-t border-white/8 py-4.5">

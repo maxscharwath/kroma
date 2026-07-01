@@ -48,7 +48,9 @@ export function JobsPage() {
     return () => ev.close();
   }, [reload]);
 
-  const jobs = data?.jobs ?? [];
+  // Pipeline stages live in their own "Pipeline" console, not the general task
+  // list, so filter them out here.
+  const jobs = (data?.jobs ?? []).filter((j) => j.category !== 'pipeline');
   const categories = [...new Set(jobs.map((j) => j.category))];
 
   return (

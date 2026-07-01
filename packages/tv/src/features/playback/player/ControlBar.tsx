@@ -16,6 +16,7 @@ import {
   PILL,
 } from '#tv/features/playback/player/playerStyles';
 import type { Zone } from '#tv/features/playback/player/usePlayerControls';
+import type { StoryboardTile } from '#tv/features/playback/player/useStoryboard';
 
 /** Skip-to-next-episode glyph (⏭). */
 function NextGlyph() {
@@ -71,6 +72,8 @@ interface ControlBarProps {
   ringProgress: number;
   /** Intro / credits segments to mark on the scrub track. */
   markers?: readonly Marker[];
+  /** Storyboard thumbnail at the scrub position (null until the sheet is ready). */
+  previewTile?: StoryboardTile | null;
   barFocusName: (name: string) => boolean;
 }
 
@@ -90,6 +93,7 @@ export function ControlBar({
   showCountdown,
   ringProgress,
   markers,
+  previewTile,
   barFocusName,
 }: ControlBarProps) {
   const t = useT();
@@ -112,6 +116,12 @@ export function ControlBar({
               : 'h-1.5'
           }`}
         >
+          {previewTile ? (
+            <div
+              className="pointer-events-none absolute bottom-full z-10 mb-4 -translate-x-1/2 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.2)] bg-black shadow-[0_12px_34px_rgba(0,0,0,0.65)] ring-1 ring-black/40"
+              style={{ left: `${pct}%`, ...previewTile }}
+            />
+          ) : null}
           <div
             className="absolute inset-y-0 left-0 rounded-full bg-[rgba(255,255,255,0.14)]"
             style={{ width: `${bufPct}%` }}

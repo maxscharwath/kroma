@@ -17,6 +17,16 @@ use crate::api::extract::AuthUser;
 use crate::model::Permission;
 use crate::services::settings::{self, LlmProvider, Settings};
 use crate::state::SharedState;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// LLM provider config + connectivity tests. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/llm", get(get_llm).put(save_llm))
+        .route("/llm/models", post(llm_models))
+        .route("/llm/test", post(test_llm))
+}
 
 /// `GET /api/admin/llm` → the configured providers + default id (keys never
 /// returned, only `hasApiKey` per provider).

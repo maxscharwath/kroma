@@ -13,6 +13,16 @@ use crate::api::extract::AuthUser;
 use crate::db;
 use crate::model::Permission;
 use crate::state::SharedState;
+use axum::routing::{get, post};
+use axum::Router;
+
+/// Storage usage + cache maintenance. Paths are relative to the `/api/admin` nest.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/storage", get(storage))
+        .route("/cache/clear", post(clear_cache))
+        .route("/cache/reset-metadata", post(reset_metadata))
+}
 
 /// `GET /api/admin/storage` → volumes, totals, and cache usage.
 pub async fn storage(
@@ -46,6 +56,7 @@ pub async fn storage(
             dir: state.config.data_dir.join("hls").to_string_lossy().into_owned(),
             bytes: transcode_bytes + images_bytes,
             limit: state.settings.get_str("cacheLimit", "80 Go"),
+            transcode_limit: state.settings.get_str("transcodeCacheLimit", "20 Go"),
             transcode_bytes,
             images_bytes,
             images_count,
@@ -67,9 +78,11 @@ pub async fn clear_cache(
     let freed = blocking(move || {
         let transcode = data_dir.join("hls");
         let images = data_dir.join("images");
-        let freed = dir_size(&transcode) + dir_size(&images);
+        let storyboards = data_dir.join("storyboards");
+        let freed = dir_size(&transcode) + dir_size(&images) + dir_size(&storyboards);
         clear_dir(&transcode);
         clear_dir(&images);
+        clear_dir(&storyboards);
         Ok(freed)
     })
     .await?;

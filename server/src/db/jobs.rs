@@ -113,10 +113,30 @@ pub fn last_job_run(pool: &Pool, key: &str) -> Result<Option<JobRun>> {
 /// (with a NULL `finished_at`/duration) forever. Returns how many were fixed.
 pub fn reconcile_running_runs(pool: &Pool) -> Result<usize> {
     let conn = pool.get()?;
+    let now = crate::services::jobs::now_ms();
+    // Collect the stranded ids first so we can leave an explanatory line in each
+    // run's *own* log otherwise the Tâches view shows a run that just stops
+    // mid-stream with no reason. This is not a job error: a restart (in dev,
+    // cargo-watch rebuilds; in prod, an upgrade/crash) killed it mid-run.
+    let ids: Vec<String> = {
+        let mut stmt = conn.prepare("SELECT id FROM job_runs WHERE status='running'")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    for id in &ids {
+        let _ = conn.execute(
+            "INSERT INTO job_logs (run_id, ts, level, message) VALUES (?1, ?2, 'error', ?3)",
+            params![
+                id,
+                now,
+                "run interrupted by a server restart before it could finish (not a job error); trigger it again to build the remaining work"
+            ],
+        );
+    }
     let n = conn.execute(
         "UPDATE job_runs SET status='failed', finished_at=?1, \
          error='interrupted by server restart' WHERE status='running'",
-        params![crate::services::jobs::now_ms()],
+        params![now],
     )?;
     Ok(n)
 }

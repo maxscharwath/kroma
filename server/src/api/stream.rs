@@ -83,6 +83,15 @@ pub async fn hls_master(
     let Some(abs) = item.abs_path.clone() else {
         return json_error(StatusCode::NOT_FOUND, "no media file for item");
     };
+    // Offline mount / moved file: fail in one stat instead of spawning ffmpeg
+    // and polling ~20s for a playlist that will never appear (a hung 500).
+    let abs_check = abs.clone();
+    let exists = tokio::task::spawn_blocking(move || std::path::Path::new(&abs_check).exists())
+        .await
+        .unwrap_or(false);
+    if !exists {
+        return json_error(StatusCode::NOT_FOUND, "media file unavailable (mount offline?)");
+    }
     match state.hls.master(&item.id, &abs, audio, aac, anchor).await {
         // `X-Hls-Start` is the REAL start (keyframe at-or-before the requested
         // anchor) - the client reads it for `baseSec` so the clock/subtitles stay

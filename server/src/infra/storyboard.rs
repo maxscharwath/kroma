@@ -16,9 +16,10 @@
 //! read of every byte). Seeking reads only the ~240 sampled GOPs, turning a
 //! whole-file read into (tiles / workers) fast seeks.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
@@ -49,6 +50,11 @@ const VERSION: u32 = 3;
 /// (and the NAS quiet) when several items are opened at once. Each item also fans
 /// its tiles out over its own worker pool ([`tile_workers`]).
 const MAX_CONCURRENT: usize = 2;
+/// After a failed generation, don't retry the same key for this long. The player
+/// polls the manifest every few seconds, and without a cooldown a persistent
+/// failure (offline mount, unreadable file) re-spawned ffmpeg on EVERY poll an
+/// endless churn of doomed processes.
+const FAIL_COOLDOWN: Duration = Duration::from_secs(120);
 
 /// What the player needs to map a cursor time → a tile in the sheet.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,10 +104,12 @@ impl Plan {
     }
 }
 
-/// Sprite-sheet engine: a cache dir + in-flight dedup + a concurrency gate.
+/// Sprite-sheet engine: a cache dir + in-flight dedup + a concurrency gate +
+/// a recent-failure cooldown.
 pub struct Storyboard {
     dir: PathBuf,
     inflight: Arc<Mutex<HashSet<String>>>,
+    failed: Arc<Mutex<HashMap<String, Instant>>>,
     sem: Arc<Semaphore>,
 }
 
@@ -110,6 +118,7 @@ impl Storyboard {
         Self {
             dir: data_dir.join("storyboards"),
             inflight: Arc::new(Mutex::new(HashSet::new())),
+            failed: Arc::new(Mutex::new(HashMap::new())),
             sem: Arc::new(Semaphore::new(MAX_CONCURRENT)),
         }
     }
@@ -170,14 +179,28 @@ impl Storyboard {
             return Status::Unavailable;
         };
         // `key` derivation does a blocking `fs::metadata`; run it off the async
-        // worker so a stalled mount can't wedge the runtime.
+        // worker so a stalled mount can't wedge the runtime. The same stat also
+        // answers "does the source even exist" an offline mount must not spawn
+        // a doomed ffmpeg (let alone one per poll).
         let abs_key = abs.clone();
-        let Ok(key) = tokio::task::spawn_blocking(move || Self::key(&abs_key)).await else {
+        let Ok((key, exists)) =
+            tokio::task::spawn_blocking(move || (Self::key(&abs_key), Path::new(&abs_key).exists())).await
+        else {
             return Status::Unavailable;
         };
         if let Ok(bytes) = tokio::fs::read(self.dir.join(format!("{key}.json"))).await {
             if let Ok(m) = serde_json::from_slice::<Manifest>(&bytes) {
                 return Status::Ready(m);
+            }
+        }
+        if !exists {
+            return Status::Unavailable;
+        }
+        // Recently failed (unreadable/corrupt file, dying mount): don't retry on
+        // every poll; the cooldown expiring or a source change (new key) retries.
+        if let Some(at) = self.failed.lock().unwrap().get(&key) {
+            if at.elapsed() < FAIL_COOLDOWN {
+                return Status::Unavailable;
             }
         }
 
@@ -187,6 +210,7 @@ impl Storyboard {
         }
         let dir = self.dir.clone();
         let inflight = self.inflight.clone();
+        let failed = self.failed.clone();
         let sem = self.sem.clone();
         let item_id = item.id.clone();
         let log_id = item.id.clone();
@@ -196,8 +220,14 @@ impl Storyboard {
             let res = tokio::task::spawn_blocking(move || render::generate(&abs, &dir, &key2, &item_id, dur_s, &|| false))
                 .await
                 .unwrap_or_else(|e| Err(format!("generation task crashed: {e}")));
-            if let Err(reason) = res {
-                warn!(item = %log_id, "storyboard generation failed: {reason}");
+            match res {
+                Err(reason) => {
+                    warn!(item = %log_id, "storyboard generation failed: {reason}");
+                    failed.lock().unwrap().insert(key.clone(), Instant::now());
+                }
+                Ok(()) => {
+                    failed.lock().unwrap().remove(&key);
+                }
             }
             inflight.lock().unwrap().remove(&key);
         });

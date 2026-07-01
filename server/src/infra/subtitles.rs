@@ -53,6 +53,10 @@ pub fn extract_pending_locked(
     subs: &[SubtitleTrack],
     cancel: &dyn Fn() -> bool,
 ) -> Result<(), String> {
+    // Offline mount / moved file: one stat instead of an ffmpeg spawn per caller.
+    if !Path::new(abs).exists() {
+        return Err("media file unavailable (mount offline?)".to_string());
+    }
     let lock = file_lock(abs);
     let _guard = lock.lock().map_err(|_| "subtitle extraction lock poisoned".to_string())?;
     let pending = pending_text_tracks(data_dir, abs, subs);

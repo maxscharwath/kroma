@@ -165,7 +165,14 @@ fn process_batch(
     let paused = AtomicBool::new(false);
     let slots: Vec<Mutex<Option<db::pipeline::TaskResult>>> =
         (0..batch.len()).map(|_| Mutex::new(None)).collect();
-    let workers = stage.concurrency.max(1).min(batch.len().max(1));
+    // Hardware clamp on top of the per-stage setting: a stage tuned on a dev
+    // machine (metadata: 8, probe: 4) must not oversubscribe a 2-core NAS.
+    let cores = thread::available_parallelism().map(std::num::NonZeroUsize::get).unwrap_or(4);
+    let workers = stage
+        .concurrency
+        .min(cores * 2)
+        .max(1)
+        .min(batch.len().max(1));
     thread::scope(|scope| {
         for _ in 0..workers {
             scope.spawn(|| loop {

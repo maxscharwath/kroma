@@ -50,6 +50,14 @@ pub(super) fn use_hwaccel(abs: &str, dur_s: f64) -> bool {
 /// if it is clearly faster. `-hwaccel auto` itself falls back to software per
 /// stream, so choosing it is always safe; this only decides whether it is faster.
 fn probe_hwaccel(abs: &str, dur_s: f64) -> bool {
+    // No GPU device node = `-hwaccel auto` can only ever fall back to software,
+    // so the head-to-head (4 extra full keyframe decodes, ~10s on a weak NAS)
+    // would be pure startup waste. Typical GPU-less Synology boxes land here.
+    #[cfg(target_os = "linux")]
+    if !Path::new("/dev/dri").exists() {
+        info!("storyboard decode path: software (no /dev/dri)");
+        return false;
+    }
     let t = (dur_s * 0.5) as u32;
     let seq = TMP_SEQ.fetch_add(1, Ordering::Relaxed);
     let probe = std::env::temp_dir().join(format!("sb-probe-{}-{seq}.png", std::process::id()));
@@ -130,7 +138,9 @@ fn extract_one(abs: &str, t_secs: u32, out: &Path, hwaccel: bool, cancel: Cancel
         "scale={TILE_W}:{TILE_H}:force_original_aspect_ratio=increase,crop={TILE_W}:{TILE_H}"
     );
     let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-v", "error", "-nostdin"]);
+    // `-threads 2` (input option): tile workers already run one process per core,
+    // so per-process decoder thread pools only multiply into oversubscription.
+    cmd.args(["-v", "error", "-nostdin", "-threads", "2"]);
     if hwaccel {
         // Input option: must precede `-i`. `nokey` + hwaccel can be incompatible on
         // some devices, so let the decoder emit every frame and just take the first.

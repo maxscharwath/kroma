@@ -90,7 +90,9 @@ axum = { version = "0.7", features = ["macros", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+# compression-gzip/br: transparent response compression for the JSON API and SPA
+# assets (both backends are pure Rust, so the musl single binary keeps linking).
+tower-http = { version = "0.5", features = ["cors", "trace", "fs", "compression-gzip", "compression-br"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
@@ -182,9 +184,19 @@ candle-core = { version = "0.8", optional = true, default-features = false, feat
 candle-nn = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
 candle-transformers = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
 
+# musl's malloc serializes heavily under threads (tokio + rayon + candle tensors
+# + tantivy all allocate hot); mimalloc is a small C allocator that cross-compiles
+# cleanly to x86_64-musl and removes that contention. Linux-only: macOS dev builds
+# keep the (fine) system allocator. See the #[global_allocator] in main.rs.
+[target.'cfg(target_os = "linux")'.dependencies]
+mimalloc = { version = "0.1", default-features = false }
+
 # Keep the dependency graph lean and 1.81-friendly.
 [profile.release]
-opt-level = "z"
+# Speed over size: the Synology target has a weak CPU and the hot paths are
+# CPU-bound (candle gemm, tantivy BM25, sha2, tiny-skia, JPEG encode). The
+# binary grows a few MiB versus "z", which the .spk budget absorbs fine.
+opt-level = 3
 lto = true
 codegen-units = 1
 strip = true

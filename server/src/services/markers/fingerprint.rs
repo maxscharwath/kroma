@@ -39,7 +39,9 @@ pub fn fingerprint_window(
     let cfg = config();
     let sr = cfg.sample_rate();
     let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-v", "error", "-nostdin"]);
+    // Audio-only decode is single-stream work; cap the decoder pool so marker
+    // jobs never fan out threads across every core.
+    cmd.args(["-v", "error", "-nostdin", "-threads", "1"]);
     if from_end {
         cmd.arg("-sseof").arg(format!("-{secs}"));
     }

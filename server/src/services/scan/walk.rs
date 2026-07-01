@@ -49,7 +49,7 @@ pub(super) fn scan_root(
     let walk = WalkDirGeneric::<((), FileMeta)>::new(root)
         .follow_links(true)
         .skip_hidden(false)
-        .parallelism(Parallelism::RayonNewPool(WALK_THREADS))
+        .parallelism(Parallelism::RayonNewPool(walk_threads()))
         .process_read_dir(|_depth, _path, _state, children| {
             children.retain(|res| match res {
                 Ok(e) => !(e.file_type().is_dir() && is_pruned_dir(&e.file_name)),
@@ -219,9 +219,18 @@ pub(super) fn scan_root(
 /// Per-file metadata carried through the parallel jwalk: (size, mtime-secs).
 type FileMeta = Option<(u64, i64)>;
 
-/// Concurrency for the directory walk. SMB metadata ops are latency-bound (not
-/// CPU), so we use many more threads than cores to overlap the round-trips.
-const WALK_THREADS: usize = 64;
+/// Concurrency for the directory walk. Metadata ops are latency-bound (not CPU),
+/// so more threads than cores overlap the round-trips but a NAS serving its
+/// own local disks gains nothing past a handful, and 64 idle-blocked threads
+/// still cost stacks + scheduler churn on a 2-4 core box. `LUMA_WALK_THREADS`
+/// overrides for genuinely remote mounts.
+fn walk_threads() -> usize {
+    if let Some(n) = std::env::var("LUMA_WALK_THREADS").ok().and_then(|s| s.parse().ok()) {
+        return n;
+    }
+    let cores = std::thread::available_parallelism().map(std::num::NonZeroUsize::get).unwrap_or(4);
+    (cores * 4).clamp(8, 32)
+}
 
 /// Directories pruned from the walk: Synology metadata (`@eaDir`) and hidden.
 fn is_pruned_dir(name: &std::ffi::OsStr) -> bool {

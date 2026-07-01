@@ -16,7 +16,7 @@ pub const STAGE: Stage = Stage {
     short: "probe",
     key: "pipeline.probe",
     subject_kind: "file",
-    concurrency: 10,
+    concurrency: 4,
     pause_for_playback: false,
     enumerate,
     process,

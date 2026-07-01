@@ -149,7 +149,7 @@ fn ffmpeg_rendition(src: &Path, out: &Path, vf: &str, extra: &[&str]) -> Option<
     }
     let tmp = unique_tmp(out);
     let ok = Command::new("ffmpeg")
-        .args(["-y", "-loglevel", "error", "-i"])
+        .args(["-y", "-loglevel", "error", "-threads", "1", "-i"])
         .arg(src)
         .args(["-vf", vf, "-frames:v", "1"])
         .args(extra)
@@ -291,7 +291,7 @@ pub(crate) fn encode_webp_quality(src: &Path, out: &Path, quality: &str) -> bool
     }
 
     let ffmpeg = Command::new("ffmpeg")
-        .args(["-y", "-loglevel", "error", "-i"])
+        .args(["-y", "-loglevel", "error", "-threads", "1", "-i"])
         .arg(src)
         .args([
             "-frames:v",

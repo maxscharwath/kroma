@@ -117,7 +117,9 @@ pub fn extract_batch_blocking_cancellable(
         .collect();
 
     let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-v", "error", "-nostdin", "-y", "-i"]).arg(abs);
+    // Text-subtitle decode is trivial; the cost is the demux read. One thread
+    // keeps this from competing with a live remux for cores.
+    cmd.args(["-v", "error", "-nostdin", "-threads", "1", "-y", "-i"]).arg(abs);
     for ((sidx, _), tmp) in tracks.iter().zip(&tmps) {
         cmd.arg("-map").arg(format!("0:s:{sidx}")).args(["-f", "webvtt"]).arg(tmp);
     }

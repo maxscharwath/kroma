@@ -393,7 +393,10 @@ async fn keyframe_before(input: &Path, anchor: f64) -> f64 {
 /// Language switch = the client reloads with a different `audio` (a fresh session).
 fn spawn_stream(input: &Path, dir: &Path, audio: u32, aac: bool, start_secs: f64, burst: bool) -> std::io::Result<Child> {
     let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-v", "error", "-nostdin"]);
+    // Remux never decodes video (`-c:v copy`); at most it decodes ONE audio
+    // stream for the aac fallback. `-threads 1` stops ffmpeg from standing up a
+    // per-core decoder pool it can't use, keeping a session ~free CPU-wise.
+    cmd.args(["-v", "error", "-nostdin", "-threads", "1"]);
     if start_secs > 0.5 {
         // `-noaccurate_seek` is CRITICAL for A/V sync: the default accurate seek
         // backs the video up to a keyframe but decodes-and-DISCARDS audio up to

@@ -17,9 +17,17 @@ use crate::services::activity::{self, Shared as Activity};
 use super::parse::build_result;
 use super::ProbeResult;
 
-/// Max concurrent ffprobe processes in the phase-2 background pass. Tuned to
-/// saturate an SMB mount without thrashing it.
-const PROBE_WORKERS: usize = 10;
+/// Max concurrent ffprobe processes in the phase-2 background pass: half the
+/// cores, clamped to 2..4. Each ffprobe is a real process doing header reads +
+/// a few frame decodes; ten at once starved interactive work on a 4-core NAS.
+/// `LUMA_PROBE_WORKERS` overrides (e.g. bump it on a big box / remote mount).
+fn probe_workers() -> usize {
+    if let Some(n) = std::env::var("LUMA_PROBE_WORKERS").ok().and_then(|s| s.parse().ok()) {
+        return n;
+    }
+    let cores = std::thread::available_parallelism().map(std::num::NonZeroUsize::get).unwrap_or(4);
+    (cores / 2).clamp(2, 4)
+}
 
 /// Detect whether `ffprobe` is callable. Done once at startup.
 pub fn ffprobe_available() -> bool {
@@ -78,7 +86,7 @@ pub fn spawn_probe_pass(pool: Pool, ffprobe_present: bool, bus: Bus, activity: A
     let done = Arc::new(AtomicUsize::new(0));
 
     thread::spawn(move || {
-        let worker_count = PROBE_WORKERS.min(total.max(1));
+        let worker_count = probe_workers().min(total.max(1));
         let mut handles = Vec::with_capacity(worker_count);
         for _ in 0..worker_count {
             let pool = pool.clone();

@@ -25,6 +25,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use crate::config::Config;
 use crate::state::AppState;
 
+// On the Linux/musl single binary, musl's malloc is a global-lock design that
+// collapses under our thread mix (tokio workers + rayon walks + candle tensors);
+// mimalloc removes that contention. macOS dev keeps the system allocator.
+#[cfg(target_os = "linux")]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 /// Process start time, for the admin "Disponibilité" / uptime readout.
 static PROCESS_START: OnceLock<Instant> = OnceLock::new();
 

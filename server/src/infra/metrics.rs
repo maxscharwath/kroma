@@ -19,10 +19,11 @@ use ts_rs::TS;
 use crate::services::playback::Registry;
 use crate::process_started;
 
-/// Sampling cadence. Matches the dashboard's live feel; well above sysinfo's
-/// minimum CPU refresh interval.
-const SAMPLE_INTERVAL: Duration = Duration::from_millis(1500);
-/// Ring-buffer length (≈ 3 min at 1.5s/sample, covering the design's 2m window).
+/// Sampling cadence. 3s still reads as live on the dashboard while halving the
+/// permanent background procfs churn versus the original 1.5s (this loop runs
+/// forever, viewer or not, so it must be near-free on a weak NAS).
+const SAMPLE_INTERVAL: Duration = Duration::from_millis(3000);
+/// Ring-buffer length (≈ 6 min at 3s/sample; the dashboard shows the tail).
 const HISTORY: usize = 120;
 
 /// Time-series history (oldest → newest). Percentages are 0..100.
@@ -213,8 +214,28 @@ pub struct DiskInfo {
     pub available_bytes: u64,
 }
 
-/// Read all mounted volumes (deduped by mount point), largest first.
+/// Read all mounted volumes (deduped by mount point), largest first. Enumerating
+/// + statfs'ing every mount is comparatively expensive on a NAS with many
+/// volumes, and usage moves slowly, so results are cached for a short window
+/// (the storage page and dashboard poll this endpoint repeatedly).
 pub fn read_disks() -> Vec<DiskInfo> {
+    use std::sync::OnceLock;
+    use std::time::Instant;
+    static CACHE: OnceLock<RwLock<Option<(Instant, Vec<DiskInfo>)>>> = OnceLock::new();
+    const TTL: Duration = Duration::from_secs(15);
+
+    let cache = CACHE.get_or_init(|| RwLock::new(None));
+    if let Some((at, disks)) = cache.read().unwrap().as_ref() {
+        if at.elapsed() < TTL {
+            return disks.clone();
+        }
+    }
+    let fresh = read_disks_uncached();
+    *cache.write().unwrap() = Some((Instant::now(), fresh.clone()));
+    fresh
+}
+
+fn read_disks_uncached() -> Vec<DiskInfo> {
     let disks = Disks::new_with_refreshed_list();
     let mut seen = std::collections::HashSet::new();
     let mut out: Vec<DiskInfo> = Vec::new();

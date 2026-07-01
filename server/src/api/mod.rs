@@ -28,6 +28,8 @@ mod themes;
 mod util;
 
 use axum::Router;
+use tower_http::compression::predicate::{NotForContentType, Predicate};
+use tower_http::compression::{CompressionLayer, DefaultPredicate};
 use tower_http::cors::CorsLayer;
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
@@ -70,7 +72,19 @@ pub fn router(state: SharedState) -> Router {
         app = app.fallback_service(ServeDir::new(web_dir).fallback(ServeFile::new(shell)));
     }
 
+    // Compress JSON + SPA assets on the fly (big win for catalog payloads on the
+    // LAN). Media bytes are exempt: video/audio streams and HLS segments are
+    // already-compressed formats where gzip only burns the NAS CPU, and the image
+    // endpoints serve WebP/JPEG (the default predicate already skips image/*).
+    let compression = CompressionLayer::new().compress_when(
+        DefaultPredicate::new()
+            .and(NotForContentType::new("video/"))
+            .and(NotForContentType::new("audio/"))
+            .and(NotForContentType::new("application/vnd.apple.mpegurl")),
+    );
+
     app.layer(CorsLayer::permissive())
+        .layer(compression)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

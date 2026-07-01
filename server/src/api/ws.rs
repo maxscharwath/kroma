@@ -45,9 +45,9 @@ async fn pump(mut socket: WebSocket, state: SharedState) {
     loop {
         tokio::select! {
             event = rx.recv() => match event {
-                Ok(event) => {
-                    let Ok(json) = serde_json::to_string(&event) else { continue };
-                    if socket.send(Message::Text(json)).await.is_err() {
+                // Already serialized at publish time; per-subscriber cost is a copy.
+                Ok(json) => {
+                    if socket.send(Message::Text(json.to_string())).await.is_err() {
                         break; // client gone
                     }
                 }

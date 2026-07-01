@@ -67,9 +67,17 @@ pub fn router(state: SharedState) -> Router {
     // Static assets are served from disk; any unmatched route falls back to the
     // SPA shell so client-side routing (e.g. /films, /movie/:id) works on refresh.
     // Skipped in dev (no LUMA_WEB_DIR) where the web runs on its own Vite server.
+    // `precompressed_*` serves the `.br`/`.gz` siblings the web build emits
+    // (scripts/precompress.mjs), so static bytes cost the NAS zero compression
+    // CPU; assets without a sibling fall through to the live CompressionLayer.
     if let Some(web_dir) = state.config.web_dir.clone() {
         let shell = web_dir.join("_shell.html");
-        app = app.fallback_service(ServeDir::new(web_dir).fallback(ServeFile::new(shell)));
+        app = app.fallback_service(
+            ServeDir::new(web_dir)
+                .precompressed_br()
+                .precompressed_gzip()
+                .fallback(ServeFile::new(shell).precompressed_br().precompressed_gzip()),
+        );
     }
 
     // Compress JSON + SPA assets on the fly (big win for catalog payloads on the
@@ -85,6 +93,48 @@ pub fn router(state: SharedState) -> Router {
 
     app.layer(CorsLayer::permissive())
         .layer(compression)
+        .layer(axum::middleware::from_fn(spa_cache_headers))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+/// Cache policy for the SPA files: Vite content-hashes every built asset, so
+/// hashed files are immutable (cache for a year) while the shell and any
+/// unhashed file revalidate (`no-cache` = cached but conditionally refetched).
+/// Without this the TV re-downloads the whole bundle on every app launch.
+/// `/api/*` responses are left untouched.
+async fn spa_cache_headers(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    use axum::http::{header, HeaderValue};
+
+    let path = req.uri().path().to_string();
+    let mut res = next.run(req).await;
+    if path.starts_with("/api/") || res.headers().contains_key(header::CACHE_CONTROL) {
+        return res;
+    }
+    let policy = if is_hashed_asset(&path) {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    };
+    res.headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static(policy));
+    res
+}
+
+/// Whether a request path looks like a Vite content-hashed asset
+/// (`Poster-BKMFTghM.js`, `assets/index-DXQwrN_7.css`): a `-<hash>` stem
+/// suffix of 8+ [A-Za-z0-9_] chars and a non-HTML extension.
+fn is_hashed_asset(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or("");
+    if name.ends_with(".html") {
+        return false;
+    }
+    let Some((stem, _ext)) = name.rsplit_once('.') else {
+        return false;
+    };
+    stem.rsplit_once('-')
+        .is_some_and(|(_, h)| h.len() >= 8 && h.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
 }

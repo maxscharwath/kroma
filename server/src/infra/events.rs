@@ -105,10 +105,13 @@ pub enum ServerEvent {
     },
 }
 
-/// Cheap-to-clone handle to the broadcast channel.
+/// Cheap-to-clone handle to the broadcast channel. The channel carries the
+/// event pre-serialized as JSON (`Arc<str>`): one `serde_json::to_string` at
+/// publish time instead of one per subscriber per message, and a zero-cost
+/// no-op (not even serialization) while nobody is connected.
 #[derive(Clone)]
 pub struct Bus {
-    tx: broadcast::Sender<ServerEvent>,
+    tx: broadcast::Sender<std::sync::Arc<str>>,
 }
 
 impl Bus {
@@ -120,10 +123,15 @@ impl Bus {
 
     /// Fan an event out to all subscribers. No-op when there are none.
     pub fn publish(&self, event: ServerEvent) {
-        let _ = self.tx.send(event);
+        if self.tx.receiver_count() == 0 {
+            return;
+        }
+        if let Ok(json) = serde_json::to_string(&event) {
+            let _ = self.tx.send(json.into());
+        }
     }
 
-    pub fn subscribe(&self) -> broadcast::Receiver<ServerEvent> {
+    pub fn subscribe(&self) -> broadcast::Receiver<std::sync::Arc<str>> {
         self.tx.subscribe()
     }
 }

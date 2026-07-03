@@ -27,7 +27,10 @@ export function installStage(): void {
   const inTauri = '__TAURI_INTERNALS__' in globalThis || '__TAURI__' in globalThis;
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const mpvBehind = inTauri && /Linux/i.test(ua) && !/Android/i.test(ua);
-  const bg = mpvBehind ? 'transparent' : '#000';
+  // The 1920x1080 canvas still scales to fit any window, but instead of black
+  // letterbox bars the surround uses the app background so a non-16:9 desktop window
+  // reads as one seamless surface (not a boxed-in TV). Transparent when mpv is behind.
+  const bg = mpvBehind ? 'transparent' : 'var(--luma-bg, #0a0a0c)';
   const style = document.createElement('style');
   style.textContent = `
     html, body { height: 100%; margin: 0; overflow: hidden; background: ${bg}; }

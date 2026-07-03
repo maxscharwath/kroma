@@ -103,11 +103,12 @@ jobs:
           # Steam Deck / Linux .AppImage. Ubuntu 22.04 = oldest base with WebKitGTK
           # 4.1 (Tauri v2's floor), keeping the AppImage's glibc low enough for SteamOS.
           - os: ubuntu-22.04
-            label: 'Steam Deck (.AppImage)'
-            bundles: appimage
-            artifact: luma-desktop-appimage
+            label: 'Linux (.AppImage + .deb)'
+            bundles: appimage,deb
+            artifact: luma-desktop-linux
             files: |
               clients/desktop/src-tauri/target/release/bundle/appimage/*.AppImage
+              clients/desktop/src-tauri/target/release/bundle/deb/*.deb
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -142,11 +143,41 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # beforeBuildCommand builds the @luma/tv frontend to dist, then Tauri bundles
-      # the shell + frontend into the platform installer(s). The bundles are UNSIGNED
-      # (no certs in CI): macOS shows a Gatekeeper prompt, Windows a SmartScreen one.
+      # Windows Authenticode: import the PFX + inject its thumbprint so `tauri build`
+      # signs the .exe/.msi. No-ops (unsigned) when the secret is unset.
+      - name: Windows code-signing setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE) { Write-Host 'No WINDOWS_CERTIFICATE secret; building unsigned.'; exit 0 }
+          $pfx = "$env:RUNNER_TEMP\cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $pass = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pass
+          $conf = 'clients/desktop/src-tauri/tauri.conf.json'
+          $json = Get-Content $conf -Raw | ConvertFrom-Json
+          if (-not $json.bundle.PSObject.Properties['windows']) { $json.bundle | Add-Member windows (@{}) }
+          $json.bundle.windows | Add-Member certificateThumbprint $cert.Thumbprint -Force
+          $json | ConvertTo-Json -Depth 30 | Set-Content $conf
+          Write-Host "Signing with thumbprint $($cert.Thumbprint)"
+
+      # beforeBuildCommand builds the @luma/tv frontend to dist, then Tauri bundles the
+      # shell + frontend into the platform installer(s). Signing is driven by repo
+      # secrets: on macOS Tauri imports APPLE_CERTIFICATE + notarizes with APPLE_ID/etc;
+      # on Windows the step above injects the cert. With NO secrets set the bundles are
+      # unsigned (macOS shows a Gatekeeper prompt, Windows a SmartScreen one).
       - name: Build installer(s)
         working-directory: clients/desktop
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: bun run tauri build --bundles ${{ matrix.bundles }}
 
       - name: Upload artifact

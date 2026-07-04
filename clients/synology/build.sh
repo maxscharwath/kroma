@@ -50,7 +50,13 @@ say() { printf '\033[1;33m▶ %s\033[0m\n' "$*"; }
 # AppleDouble ._* + com.apple.* attrs); GNU tar on Linux/CI doesn't know it, so
 # only add it when the local tar accepts it. (`COPYFILE_DISABLE` below is a no-op
 # off macOS.)
-TAR_CLEAN=(--no-xattrs --no-acls)
+# Force POSIX ustar (header magic "ustar\0" + version "00"). DSM's Package Center
+# tar accepts ustar but rejects GNU tar's DEFAULT "gnu" format (magic "ustar  \0"),
+# which is exactly why a Linux/CI-built .spk ("POSIX tar archive (GNU)") failed to
+# install while a macOS-built one ("POSIX tar archive") worked. Both GNU tar and
+# bsdtar honor --format=ustar, so this makes the output identical + installable
+# regardless of the build host.
+TAR_CLEAN=(--format=ustar --no-xattrs --no-acls)
 if tar --no-mac-metadata --help >/dev/null 2>&1; then
   TAR_CLEAN+=(--no-mac-metadata)
 fi

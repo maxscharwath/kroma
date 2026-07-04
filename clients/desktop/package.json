@@ -21,6 +21,9 @@
     "@luma/core": "workspace:*",
     "@luma/tv": "workspace:*",
     "@luma/ui": "workspace:*",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-process": "^2",
+    "@tauri-apps/plugin-updater": "^2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

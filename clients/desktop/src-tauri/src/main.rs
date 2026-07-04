@@ -46,6 +46,12 @@ fn main() {
             ]);
     }
 
+    // Self-update (all desktop OSes): checks the GitHub Release, verifies the
+    // signature against the pinned pubkey, installs, relaunches (driven from JS).
+    builder = builder
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build());
+
     builder
         .setup(|_app| {
             // Deck: launch the mpv binary behind the transparent UI.

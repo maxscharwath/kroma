@@ -2,6 +2,7 @@ import '@luma/tv/tv.css';
 import { mountTv } from '@luma/tv';
 import { startGamepadBridge } from './gamepad';
 import { installStage } from './stage';
+import { startUpdater } from './updater';
 
 // Fixed 1920x1080 stage ONLY on a fixed-screen shell (the Steam Deck / a fullscreen
 // Chromium kiosk - both Linux): there the 10-foot canvas is scaled to fill the panel.
@@ -27,3 +28,6 @@ if (fixedScreen) {
 startGamepadBridge();
 
 mountTv({ platform: 'Desktop' });
+
+// Keep the app current from GitHub Releases (no-op in a browser dev run).
+startUpdater();

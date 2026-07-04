@@ -3,5 +3,11 @@
   "identifier": "default",
   "description": "LUMA Steam Deck: window control + event listening for the mpv bridge.",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:default", "core:window:default"]
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "updater:default",
+    "process:default"
+  ]
 }

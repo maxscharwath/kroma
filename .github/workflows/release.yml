@@ -55,6 +55,14 @@ jobs:
       - name: Build .spk
         run: clients/synology/build.sh "${{ steps.ver.outputs.version }}"
 
+      # The musl cross-build runs as root in Docker and writes root-owned files
+      # into the cache (cargo registry), so actions/cache's tar save fails (exit 2)
+      # and the cache never persists. Hand ownership back to the runner so the next
+      # build restores it and is fast.
+      - name: Fix cache permissions
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" clients/synology/.cache || true
+
       - name: Upload .spk artifact
         uses: actions/upload-artifact@v4
         with:

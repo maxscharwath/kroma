@@ -1,5 +1,6 @@
 import {
   formatRuntime,
+  hasPermission,
   type MediaItem,
   posterColors,
   qualityBadgeForVideo,
@@ -8,7 +9,7 @@ import {
   type UpNext,
 } from '@luma/core';
 import { useT } from '@luma/ui';
-import { IconCheck, IconPlayerPlayFilled } from '@tabler/icons-react';
+import { IconCheck, IconPlayerPlayFilled, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import {
@@ -298,9 +299,27 @@ function ShowDetailPage() {
 
       {current ? (
         <section className="mt-10">
-          <h2 className="mb-4 px-(--gutter-web) font-display text-[24px] font-bold tracking-[-.02em]">
-            {t('content.episodes')}
-          </h2>
+          <div className="mb-4 flex items-center justify-between gap-3 px-(--gutter-web)">
+            <h2 className="font-display text-[24px] font-bold tracking-[-.02em]">
+              {t('content.episodes')}
+            </h2>
+            {meta?.tmdbId && user && hasPermission(user, 'requests.create') ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({
+                    to: '/discover/$type/$tmdbId',
+                    params: { type: 'tv', tmdbId: String(meta.tmdbId) },
+                  })
+                }
+                title={t('discover.requestSeasonsHint')}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-[12.5px] font-bold text-accent transition-colors hover:bg-accent/20"
+              >
+                <IconPlus size={14} stroke={2.6} />
+                {t('discover.requestSeasons')}
+              </button>
+            ) : null}
+          </div>
           {seasons.length > 1 ? (
             <div className="mb-2">
               <SeasonSwitcher seasons={seasons} current={current.number} onPick={setSeason} />

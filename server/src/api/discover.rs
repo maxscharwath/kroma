@@ -1,0 +1,238 @@
+//! `/api/discover/*` TMDB discovery for the request flow: search titles the
+//! library may not have, trending for the empty state, and a title detail
+//! (with the season list for the picker). Every result is flagged against the
+//! local catalog + open requests so cards render Play / chip / Demander
+//! directly. Gated on `requests.create`.
+
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum::{Json, Router};
+use rusqlite::Connection;
+use serde::Deserialize;
+
+use crate::api::error::{json_error, lerr};
+use crate::api::extract::AuthUser;
+use crate::api::util::blocking;
+use crate::db;
+use crate::i18n;
+use crate::infra::metadata::discover;
+use crate::model::{
+    DiscoverDetail, DiscoverEntry, DiscoverResponse, DiscoverSeason, Permission, RequestKind, User,
+};
+use crate::services::settings;
+use crate::state::SharedState;
+
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/discover/search", get(search))
+        .route("/discover/trending", get(trending))
+        .route("/discover/:kind/:tmdb_id", get(detail))
+}
+
+fn locale(user: &User) -> &'static str {
+    user.language.as_deref().and_then(i18n::normalize).unwrap_or(i18n::DEFAULT_LOCALE)
+}
+
+fn require(user: &User, perm: Permission) -> Result<(), Response> {
+    if user.can(perm) {
+        Ok(())
+    } else {
+        Err(lerr(locale(user), StatusCode::FORBIDDEN, "error.permissionDenied"))
+    }
+}
+
+/// TMDB works zero-config via the built-in key, so absence means the operator
+/// explicitly blanked it: surface that rather than a silent empty page.
+fn require_tmdb(state: &SharedState, user: &User) -> Result<String, Response> {
+    state
+        .config
+        .tmdb_api_key
+        .clone()
+        .ok_or_else(|| lerr(locale(user), StatusCode::SERVICE_UNAVAILABLE, "error.tmdbUnavailable"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SearchParams {
+    #[serde(default)]
+    q: String,
+    /// `movie` | `tv` | `all` (default).
+    #[serde(rename = "type", default)]
+    kind: Option<String>,
+    #[serde(default)]
+    page: Option<u32>,
+}
+
+/// `GET /api/discover/search?q=&type=&page=`
+pub async fn search(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Query(params): Query<SearchParams>,
+) -> Result<Response, Response> {
+    require(&user, Permission::RequestsCreate)?;
+    let key = require_tmdb(&state, &user)?;
+    let lang = settings::metadata_language(&state.settings, &state.config);
+    let query = params.q.trim().to_string();
+    if query.is_empty() {
+        return Ok(Json(DiscoverResponse { results: Vec::new(), page: 1, total_pages: 1 }).into_response());
+    }
+    let scope = match params.kind.as_deref() {
+        Some("movie") => discover::DiscoverScope::Movies,
+        Some("tv") | Some("show") => discover::DiscoverScope::Shows,
+        _ => discover::DiscoverScope::All,
+    };
+    let page = params.page.unwrap_or(1);
+    let out = blocking(move || {
+        let found = discover::search(&key, &lang, scope, &query, page)
+            .map_err(|()| anyhow::anyhow!("TMDB search failed"))?;
+        let conn = state.db.get()?;
+        Ok(DiscoverResponse {
+            results: flag_hits(&conn, found.hits)?,
+            page: found.page,
+            total_pages: found.total_pages,
+        })
+    })
+    .await?;
+    Ok(Json(out).into_response())
+}
+
+/// `GET /api/discover/trending` this week's movies + shows.
+pub async fn trending(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+) -> Result<Response, Response> {
+    require(&user, Permission::RequestsCreate)?;
+    let key = require_tmdb(&state, &user)?;
+    let lang = settings::metadata_language(&state.settings, &state.config);
+    let out = blocking(move || {
+        let found =
+            discover::trending(&key, &lang).map_err(|()| anyhow::anyhow!("TMDB trending failed"))?;
+        let conn = state.db.get()?;
+        Ok(DiscoverResponse {
+            results: flag_hits(&conn, found.hits)?,
+            page: found.page,
+            total_pages: found.total_pages,
+        })
+    })
+    .await?;
+    Ok(Json(out).into_response())
+}
+
+/// `GET /api/discover/{movie|tv}/:tmdbId` detail + seasons + availability.
+pub async fn detail(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Path((kind, tmdb_id)): Path<(String, u64)>,
+) -> Result<Response, Response> {
+    require(&user, Permission::RequestsCreate)?;
+    let key = require_tmdb(&state, &user)?;
+    let loc = locale(&user);
+    let kind = match kind.as_str() {
+        "movie" => RequestKind::Movie,
+        "tv" | "show" => RequestKind::Show,
+        _ => return Err(json_error(StatusCode::NOT_FOUND, "unknown media type")),
+    };
+    let lang = settings::metadata_language(&state.settings, &state.config);
+    let out = blocking(move || {
+        let detail = discover::detail(&key, &lang, kind, tmdb_id)
+            .map_err(|()| anyhow::anyhow!("TMDB detail failed"))?;
+        let conn = state.db.get()?;
+        detail.map(|d| flag_detail(&conn, d)).transpose()
+    })
+    .await?;
+    match out {
+        Some(d) => Ok(Json(d).into_response()),
+        None => Err(lerr(loc, StatusCode::NOT_FOUND, "error.itemNotFound")),
+    }
+}
+
+// ----- catalog / request flagging ----------------------------------------------
+
+fn local_id_for(conn: &Connection, kind: RequestKind, tmdb_id: u64) -> anyhow::Result<Option<String>> {
+    Ok(match kind {
+        RequestKind::Movie => db::movie_item_by_tmdb(conn, tmdb_id)?,
+        RequestKind::Show => db::show_by_tmdb(conn, tmdb_id)?,
+    })
+}
+
+fn flag_hits(conn: &Connection, hits: Vec<discover::DiscoverHit>) -> anyhow::Result<Vec<DiscoverEntry>> {
+    hits.into_iter()
+        .map(|h| {
+            let local_id = local_id_for(conn, h.kind, h.tmdb_id)?;
+            let request = db::latest_request_for(conn, h.kind, h.tmdb_id)?;
+            Ok(DiscoverEntry {
+                kind: h.kind,
+                tmdb_id: h.tmdb_id,
+                title: h.title,
+                year: h.year,
+                poster_url: h.poster_url,
+                backdrop_url: h.backdrop_url,
+                overview: h.overview,
+                rating: h.rating,
+                in_library: local_id.is_some(),
+                local_id,
+                request_id: request.as_ref().map(|(id, _)| id.clone()),
+                request_status: request.map(|(_, s)| s),
+            })
+        })
+        .collect()
+}
+
+fn flag_detail(conn: &Connection, d: discover::DiscoverRawDetail) -> anyhow::Result<DiscoverDetail> {
+    let local_id = local_id_for(conn, d.kind, d.tmdb_id)?;
+    let request = db::latest_request_for(conn, d.kind, d.tmdb_id)?;
+
+    // Season flags: available = every listed episode is on disk; requested =
+    // covered by the newest open request (None = whole show).
+    let mut seasons: Vec<DiscoverSeason> = Vec::with_capacity(d.seasons.len());
+    if d.kind == RequestKind::Show && !d.seasons.is_empty() {
+        let present = match &local_id {
+            Some(show_id) => db::episodes_present(conn, show_id)?,
+            None => Vec::new(),
+        };
+        let mut per_season: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+        for (s, _e) in present {
+            *per_season.entry(s).or_default() += 1;
+        }
+        let open_request = db::find_open_request(conn, RequestKind::Show, d.tmdb_id)?;
+        let requested_seasons: Option<Vec<u32>> = open_request.as_ref().map(|r| {
+            r.seasons.clone().unwrap_or_else(|| d.seasons.iter().map(|s| s.season).collect())
+        });
+        for s in &d.seasons {
+            let have = per_season.get(&s.season).copied().unwrap_or(0);
+            seasons.push(DiscoverSeason {
+                season: s.season,
+                name: s.name.clone(),
+                episode_count: s.episode_count,
+                air_date: s.air_date.clone(),
+                available: s.episode_count > 0 && have >= s.episode_count,
+                requested: requested_seasons
+                    .as_ref()
+                    .is_some_and(|list| list.contains(&s.season)),
+            });
+        }
+    }
+
+    Ok(DiscoverDetail {
+        kind: d.kind,
+        tmdb_id: d.tmdb_id,
+        title: d.title,
+        year: d.year,
+        poster_url: d.poster_url,
+        backdrop_url: d.backdrop_url,
+        overview: d.overview,
+        tagline: d.tagline,
+        genres: d.genres,
+        rating: d.rating,
+        runtime_min: d.runtime_min,
+        seasons,
+        cast: d.cast,
+        crew: d.crew,
+        similar: flag_hits(conn, d.similar)?,
+        in_library: local_id.is_some(),
+        local_id,
+        request_id: request.as_ref().map(|(id, _)| id.clone()),
+        request_status: request.map(|(_, s)| s),
+    })
+}

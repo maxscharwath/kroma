@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SeriesRouteImport } from './routes/series'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as RequestsRouteImport } from './routes/requests'
 import { Route as MylistRouteImport } from './routes/mylist'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as InviteRouteImport } from './routes/invite'
@@ -25,18 +27,34 @@ import { Route as MovieIdRouteImport } from './routes/movie.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTranscoderRouteImport } from './routes/admin.transcoder'
 import { Route as AdminStorageRouteImport } from './routes/admin.storage'
+import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminRemoteRouteImport } from './routes/admin.remote'
 import { Route as AdminPipelineRouteImport } from './routes/admin.pipeline'
 import { Route as AdminNetworkRouteImport } from './routes/admin.network'
+import { Route as AdminNamingRouteImport } from './routes/admin.naming'
 import { Route as AdminLibrariesRouteImport } from './routes/admin.libraries'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
+import { Route as AdminIndexersRouteImport } from './routes/admin.indexers'
 import { Route as AdminGeneralRouteImport } from './routes/admin.general'
+import { Route as AdminDownloadsRouteImport } from './routes/admin.downloads'
 import { Route as AdminBackupRouteImport } from './routes/admin.backup'
 import { Route as AdminAiRouteImport } from './routes/admin.ai'
+import { Route as AdminAcquisitionRouteImport } from './routes/admin.acquisition'
+import { Route as DiscoverTypeTmdbIdRouteImport } from './routes/discover.$type.$tmdbId'
 
 const SeriesRoute = SeriesRouteImport.update({
   id: '/series',
   path: '/series',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsRoute = RequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MylistRoute = MylistRouteImport.update({
@@ -114,6 +132,11 @@ const AdminStorageRoute = AdminStorageRouteImport.update({
   path: '/storage',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRequestsRoute = AdminRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRemoteRoute = AdminRemoteRouteImport.update({
   id: '/remote',
   path: '/remote',
@@ -129,6 +152,11 @@ const AdminNetworkRoute = AdminNetworkRouteImport.update({
   path: '/network',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminNamingRoute = AdminNamingRouteImport.update({
+  id: '/naming',
+  path: '/naming',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLibrariesRoute = AdminLibrariesRouteImport.update({
   id: '/libraries',
   path: '/libraries',
@@ -139,9 +167,19 @@ const AdminJobsRoute = AdminJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminIndexersRoute = AdminIndexersRouteImport.update({
+  id: '/indexers',
+  path: '/indexers',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminGeneralRoute = AdminGeneralRouteImport.update({
   id: '/general',
   path: '/general',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDownloadsRoute = AdminDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminBackupRoute = AdminBackupRouteImport.update({
@@ -154,6 +192,16 @@ const AdminAiRoute = AdminAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAcquisitionRoute = AdminAcquisitionRouteImport.update({
+  id: '/acquisition',
+  path: '/acquisition',
+  getParentRoute: () => AdminRoute,
+} as any)
+const DiscoverTypeTmdbIdRoute = DiscoverTypeTmdbIdRouteImport.update({
+  id: '/discover/$type/$tmdbId',
+  path: '/discover/$type/$tmdbId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -163,15 +211,22 @@ export interface FileRoutesByFullPath {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/mylist': typeof MylistRoute
+  '/requests': typeof RequestsRoute
+  '/search': typeof SearchRoute
   '/series': typeof SeriesRoute
+  '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
+  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
+  '/admin/naming': typeof AdminNamingRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/pipeline': typeof AdminPipelineRoute
   '/admin/remote': typeof AdminRemoteRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
@@ -180,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/discover/$type/$tmdbId': typeof DiscoverTypeTmdbIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -188,15 +244,22 @@ export interface FileRoutesByTo {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/mylist': typeof MylistRoute
+  '/requests': typeof RequestsRoute
+  '/search': typeof SearchRoute
   '/series': typeof SeriesRoute
+  '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
+  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
+  '/admin/naming': typeof AdminNamingRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/pipeline': typeof AdminPipelineRoute
   '/admin/remote': typeof AdminRemoteRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
@@ -205,6 +268,7 @@ export interface FileRoutesByTo {
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin': typeof AdminIndexRoute
+  '/discover/$type/$tmdbId': typeof DiscoverTypeTmdbIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,15 +279,22 @@ export interface FileRoutesById {
   '/invite': typeof InviteRoute
   '/join': typeof JoinRoute
   '/mylist': typeof MylistRoute
+  '/requests': typeof RequestsRoute
+  '/search': typeof SearchRoute
   '/series': typeof SeriesRoute
+  '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
+  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
+  '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/libraries': typeof AdminLibrariesRoute
+  '/admin/naming': typeof AdminNamingRoute
   '/admin/network': typeof AdminNetworkRoute
   '/admin/pipeline': typeof AdminPipelineRoute
   '/admin/remote': typeof AdminRemoteRoute
+  '/admin/requests': typeof AdminRequestsRoute
   '/admin/storage': typeof AdminStorageRoute
   '/admin/transcoder': typeof AdminTranscoderRoute
   '/admin/users': typeof AdminUsersRoute
@@ -232,6 +303,7 @@ export interface FileRoutesById {
   '/show/$id': typeof ShowIdRoute
   '/watch/$id': typeof WatchIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/discover/$type/$tmdbId': typeof DiscoverTypeTmdbIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -243,15 +315,22 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/mylist'
+    | '/requests'
+    | '/search'
     | '/series'
+    | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
+    | '/admin/downloads'
     | '/admin/general'
+    | '/admin/indexers'
     | '/admin/jobs'
     | '/admin/libraries'
+    | '/admin/naming'
     | '/admin/network'
     | '/admin/pipeline'
     | '/admin/remote'
+    | '/admin/requests'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
@@ -260,6 +339,7 @@ export interface FileRouteTypes {
     | '/show/$id'
     | '/watch/$id'
     | '/admin/'
+    | '/discover/$type/$tmdbId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -268,15 +348,22 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/mylist'
+    | '/requests'
+    | '/search'
     | '/series'
+    | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
+    | '/admin/downloads'
     | '/admin/general'
+    | '/admin/indexers'
     | '/admin/jobs'
     | '/admin/libraries'
+    | '/admin/naming'
     | '/admin/network'
     | '/admin/pipeline'
     | '/admin/remote'
+    | '/admin/requests'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
@@ -285,6 +372,7 @@ export interface FileRouteTypes {
     | '/show/$id'
     | '/watch/$id'
     | '/admin'
+    | '/discover/$type/$tmdbId'
   id:
     | '__root__'
     | '/'
@@ -294,15 +382,22 @@ export interface FileRouteTypes {
     | '/invite'
     | '/join'
     | '/mylist'
+    | '/requests'
+    | '/search'
     | '/series'
+    | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
+    | '/admin/downloads'
     | '/admin/general'
+    | '/admin/indexers'
     | '/admin/jobs'
     | '/admin/libraries'
+    | '/admin/naming'
     | '/admin/network'
     | '/admin/pipeline'
     | '/admin/remote'
+    | '/admin/requests'
     | '/admin/storage'
     | '/admin/transcoder'
     | '/admin/users'
@@ -311,6 +406,7 @@ export interface FileRouteTypes {
     | '/show/$id'
     | '/watch/$id'
     | '/admin/'
+    | '/discover/$type/$tmdbId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -321,11 +417,14 @@ export interface RootRouteChildren {
   InviteRoute: typeof InviteRoute
   JoinRoute: typeof JoinRoute
   MylistRoute: typeof MylistRoute
+  RequestsRoute: typeof RequestsRoute
+  SearchRoute: typeof SearchRoute
   SeriesRoute: typeof SeriesRoute
   MovieIdRoute: typeof MovieIdRoute
   PersonNameRoute: typeof PersonNameRoute
   ShowIdRoute: typeof ShowIdRoute
   WatchIdRoute: typeof WatchIdRoute
+  DiscoverTypeTmdbIdRoute: typeof DiscoverTypeTmdbIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -335,6 +434,20 @@ declare module '@tanstack/react-router' {
       path: '/series'
       fullPath: '/series'
       preLoaderRoute: typeof SeriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests': {
+      id: '/requests'
+      path: '/requests'
+      fullPath: '/requests'
+      preLoaderRoute: typeof RequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mylist': {
@@ -442,6 +555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStorageRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/requests': {
+      id: '/admin/requests'
+      path: '/requests'
+      fullPath: '/admin/requests'
+      preLoaderRoute: typeof AdminRequestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/remote': {
       id: '/admin/remote'
       path: '/remote'
@@ -463,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminNetworkRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/naming': {
+      id: '/admin/naming'
+      path: '/naming'
+      fullPath: '/admin/naming'
+      preLoaderRoute: typeof AdminNamingRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/libraries': {
       id: '/admin/libraries'
       path: '/libraries'
@@ -477,11 +604,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminJobsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/indexers': {
+      id: '/admin/indexers'
+      path: '/indexers'
+      fullPath: '/admin/indexers'
+      preLoaderRoute: typeof AdminIndexersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/general': {
       id: '/admin/general'
       path: '/general'
       fullPath: '/admin/general'
       preLoaderRoute: typeof AdminGeneralRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/downloads': {
+      id: '/admin/downloads'
+      path: '/downloads'
+      fullPath: '/admin/downloads'
+      preLoaderRoute: typeof AdminDownloadsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/backup': {
@@ -498,18 +639,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAiRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/acquisition': {
+      id: '/admin/acquisition'
+      path: '/acquisition'
+      fullPath: '/admin/acquisition'
+      preLoaderRoute: typeof AdminAcquisitionRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/discover/$type/$tmdbId': {
+      id: '/discover/$type/$tmdbId'
+      path: '/discover/$type/$tmdbId'
+      fullPath: '/discover/$type/$tmdbId'
+      preLoaderRoute: typeof DiscoverTypeTmdbIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminAcquisitionRoute: typeof AdminAcquisitionRoute
   AdminAiRoute: typeof AdminAiRoute
   AdminBackupRoute: typeof AdminBackupRoute
+  AdminDownloadsRoute: typeof AdminDownloadsRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
+  AdminIndexersRoute: typeof AdminIndexersRoute
   AdminJobsRoute: typeof AdminJobsRoute
   AdminLibrariesRoute: typeof AdminLibrariesRoute
+  AdminNamingRoute: typeof AdminNamingRoute
   AdminNetworkRoute: typeof AdminNetworkRoute
   AdminPipelineRoute: typeof AdminPipelineRoute
   AdminRemoteRoute: typeof AdminRemoteRoute
+  AdminRequestsRoute: typeof AdminRequestsRoute
   AdminStorageRoute: typeof AdminStorageRoute
   AdminTranscoderRoute: typeof AdminTranscoderRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -517,14 +677,19 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAcquisitionRoute: AdminAcquisitionRoute,
   AdminAiRoute: AdminAiRoute,
   AdminBackupRoute: AdminBackupRoute,
+  AdminDownloadsRoute: AdminDownloadsRoute,
   AdminGeneralRoute: AdminGeneralRoute,
+  AdminIndexersRoute: AdminIndexersRoute,
   AdminJobsRoute: AdminJobsRoute,
   AdminLibrariesRoute: AdminLibrariesRoute,
+  AdminNamingRoute: AdminNamingRoute,
   AdminNetworkRoute: AdminNetworkRoute,
   AdminPipelineRoute: AdminPipelineRoute,
   AdminRemoteRoute: AdminRemoteRoute,
+  AdminRequestsRoute: AdminRequestsRoute,
   AdminStorageRoute: AdminStorageRoute,
   AdminTranscoderRoute: AdminTranscoderRoute,
   AdminUsersRoute: AdminUsersRoute,
@@ -541,11 +706,14 @@ const rootRouteChildren: RootRouteChildren = {
   InviteRoute: InviteRoute,
   JoinRoute: JoinRoute,
   MylistRoute: MylistRoute,
+  RequestsRoute: RequestsRoute,
+  SearchRoute: SearchRoute,
   SeriesRoute: SeriesRoute,
   MovieIdRoute: MovieIdRoute,
   PersonNameRoute: PersonNameRoute,
   ShowIdRoute: ShowIdRoute,
   WatchIdRoute: WatchIdRoute,
+  DiscoverTypeTmdbIdRoute: DiscoverTypeTmdbIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

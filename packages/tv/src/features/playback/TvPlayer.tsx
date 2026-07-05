@@ -5,11 +5,11 @@ import { useClient, useNav, useParams } from '#tv/app/router';
 import { endsAtClock } from '#tv/features/catalog/detail/parts';
 import { AvPanel } from '#tv/features/playback/player/AvPanel';
 import { ControlBar } from '#tv/features/playback/player/ControlBar';
-import { useNowPlaying } from '#tv/features/playback/player/useNowPlaying';
 import { BackChevron, StopGlyph } from '#tv/features/playback/player/icons';
 import { SkipIntroButton, UpNextCard } from '#tv/features/playback/player/PlayerOverlays';
 import { FOCUS_RING } from '#tv/features/playback/player/playerStyles';
 import { useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
+import { useNowPlaying } from '#tv/features/playback/player/useNowPlaying';
 import { usePlayerControls } from '#tv/features/playback/player/usePlayerControls';
 import { useStoryboard } from '#tv/features/playback/player/useStoryboard';
 import { useSubtitleGen } from '#tv/features/playback/player/useSubtitleGen';
@@ -204,13 +204,13 @@ export function TvPlayer() {
     if (playback.endedNonce > 0 && next && !upNextCancelled) goNext();
   }, [playback.endedNonce, next, upNextCancelled, goNext]);
 
-  // Native video surfaces (mpv / AVPlay) render a video plane BEHIND the page, so the
-  // page must be see-through down to the window. This class forces the html/body/#root
-  // chain transparent - but ONLY once the engine is READY (a fresh frame is up): while
-  // loading, the page stays opaque so the previous video's last frame (still in the
-  // native plane) is hidden until the new one is ready. Stays revealed while paused.
+  // Native video surfaces (mpv / ExoPlayer / AVPlay) render a video plane BEHIND the
+  // page, so the page must be see-through down to the window. This class forces the
+  // html/body/#root chain transparent - but ONLY once the engine is READY (a fresh
+  // frame is up): while loading, the page stays opaque so the previous video's last
+  // frame (still in the native plane) is hidden until the new one is ready.
   useEffect(() => {
-    const native = playback.surface === 'mpv' || playback.surface === 'avplay';
+    const native = playback.surface !== 'video';
     if (!native || !playback.ready || typeof document === 'undefined') return;
     const el = document.documentElement;
     el.classList.add('luma-native-surface');
@@ -249,9 +249,10 @@ export function TvPlayer() {
           className="h-full w-full"
           aria-label={item.title}
         />
-      ) : playback.surface === 'mpv' ? (
+      ) : playback.surface === 'mpv' || playback.surface === 'exo' ? (
         // Native mpv (Steam Deck) renders to its OWN window behind the transparent
-        // Tauri UI window - so there is no in-page media element; the page is
+        // Tauri UI window; ExoPlayer (Android TV) to a SurfaceView behind the
+        // transparent WebView - so there is no in-page media element; the page is
         // transparent here and the HTML chrome + subtitles sit on top.
         <div className="h-full w-full" aria-label={item.title} />
       ) : (

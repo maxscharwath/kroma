@@ -10,15 +10,16 @@
 //  - remux    : force the server HLS master through `<video>` + hls.js (works for
 //               anything the server can remux, incl. MKV; video is stream-copied).
 //  - mpv      : force the native mpv engine (VA-API on the Linux/Deck shell).
+//  - exo      : force the native media3/ExoPlayer engine (Android TV shell).
 
 import type { MessageKey } from '@luma/core';
-import { getTauri } from '#tv/features/playback/player/engine';
+import { exoAvailable, getTauri } from '#tv/features/playback/player/engine';
 
-export type EnginePref = 'auto' | 'avplay' | 'webview' | 'remux' | 'mpv';
+export type EnginePref = 'auto' | 'avplay' | 'webview' | 'remux' | 'mpv' | 'exo';
 
 const KEY = 'luma:engine';
 
-const ALL: readonly EnginePref[] = ['auto', 'avplay', 'webview', 'remux', 'mpv'];
+const ALL: readonly EnginePref[] = ['auto', 'avplay', 'webview', 'remux', 'mpv', 'exo'];
 
 /** The saved engine preference for this device, or `auto`. */
 export function getEnginePref(): EnginePref {
@@ -47,6 +48,7 @@ export function setEnginePref(p: EnginePref): void {
  * desktop shell. A single-entry list (unknown/other) hides the row. */
 export function availableEngines(): EnginePref[] {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  if (exoAvailable()) return ['auto', 'exo', 'remux'];
   if (/tizen/i.test(ua)) return ['auto', 'avplay', 'remux'];
   if (/web0?s/i.test(ua)) return ['auto', 'webview', 'remux'];
   const list: EnginePref[] = ['auto', 'webview', 'remux'];
@@ -66,4 +68,5 @@ export const ENGINE_LABEL_KEY: Record<EnginePref, MessageKey> = {
   webview: 'playbackEngine.webview',
   remux: 'playbackEngine.remux',
   mpv: 'playbackEngine.mpv',
+  exo: 'playbackEngine.exo',
 };

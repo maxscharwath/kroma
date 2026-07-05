@@ -1,16 +1,16 @@
 {
-  "name": "@luma/webos",
+  "name": "@luma/androidtv",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "LUMA LG webOS TV client thin shell over @luma/tv.",
+  "description": "LUMA Android TV client WebView shell over @luma/tv + native media3/ExoPlayer engine.",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo --noEmit && vite build && vite build --config vite.config.legacy.ts && bun run check:legacy",
-    "check:legacy": "bun ../tv-build/check-legacy.ts",
+    "build": "tsgo --noEmit && vite build && bun run sync:android",
+    "sync:android": "rm -rf android/app/src/main/assets/luma && mkdir -p android/app/src/main/assets/luma && cp -R dist/. android/app/src/main/assets/luma/",
     "preview": "vite preview",
     "typecheck": "tsgo --noEmit",
-    "package": "echo 'Run: bun run build:webos, then: ares-package clients/webos/dist'"
+    "package": "echo 'Run: bun run build:androidtv, then: cd clients/androidtv/android && ./gradlew assembleRelease'"
   },
   "dependencies": {
     "@luma/core": "workspace:*",

@@ -4,8 +4,8 @@ import {
   audioTrackId,
   avplayDirectPlayable,
   canDirectPlay,
-  masterNeedsAac,
   MSE_CAPS,
+  masterNeedsAac,
   NATIVE_TV_CAPS,
   type PlayEnv,
   resolveAudioRelativeIndex,
@@ -106,7 +106,9 @@ describe('resolveAudioRelativeIndex', () => {
   });
 
   it('returns 0 for an empty track list', () => {
-    expect(resolveAudioRelativeIndex([], { index: 0, language: null, title: null, channels: null })).toBe(0);
+    expect(
+      resolveAudioRelativeIndex([], { index: 0, language: null, title: null, channels: null }),
+    ).toBe(0);
   });
 });
 
@@ -220,6 +222,23 @@ describe('selectEngine', () => {
     expect(selectEngine(item, DESKTOP)).toEqual({ kind: 'desktop-mpv', aacMaster: false });
   });
 
+  it('legacy webOS (nativeHls): the master is handed to the native pipeline, stream-copied', () => {
+    const item = makeItem({
+      container: 'mkv',
+      videoCodec: 'hevc',
+      audio: [
+        track({ index: 0, codec: 'eac3', language: 'en', channels: 6, default: true }),
+        track({ index: 1, codec: 'eac3', language: 'fr', channels: 6 }),
+      ],
+    });
+    // Old engines (Chromium < 99) can't decode HEVC via MSE; the TV pipeline plays
+    // the HLS master natively and decodes surround itself - no AAC transcode.
+    expect(selectEngine(item, { ...WEBOS, nativeHls: true })).toEqual({
+      kind: 'webos',
+      aacMaster: false,
+    });
+  });
+
   it('always routes the Steam Deck to desktop-mpv (even a plain mp4)', () => {
     const item = makeItem({
       container: 'mp4',
@@ -227,6 +246,18 @@ describe('selectEngine', () => {
       audio: [track({ index: 0, codec: 'aac', channels: 2, default: true })],
     });
     expect(selectEngine(item, DESKTOP)).toEqual({ kind: 'desktop-mpv', aacMaster: false });
+  });
+
+  it('always routes Android TV to android-exo (native decode, stream-copy master)', () => {
+    const item = makeItem({
+      container: 'mkv',
+      videoCodec: 'hevc',
+      audio: [track({ index: 0, codec: 'eac3', channels: 6, default: true })],
+    });
+    expect(selectEngine(item, { platform: 'androidtv', safari: false })).toEqual({
+      kind: 'android-exo',
+      aacMaster: false,
+    });
   });
 
   it('direct-plays a plain mp4 on webOS, but always reports tizen-avplay on Tizen', () => {

@@ -23,7 +23,7 @@ export interface EngineListeners {
 
 /** The uniform surface the hook + UI talk to, regardless of backend. */
 export interface TvEngine {
-  readonly kind: 'video' | 'avplay' | 'mpv';
+  readonly kind: 'video' | 'avplay' | 'mpv' | 'exo';
   play(): void;
   pause(): void;
   isPaused(): boolean;
@@ -107,10 +107,7 @@ export function avplayAvailable(): boolean {
 export interface TauriBridge {
   core: { invoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> };
   event: {
-    listen(
-      event: string,
-      cb: (e: { payload: unknown }) => void,
-    ): Promise<() => void>;
+    listen(event: string, cb: (e: { payload: unknown }) => void): Promise<() => void>;
   };
 }
 
@@ -131,6 +128,35 @@ export function mpvAvailable(): boolean {
   if (/Linux/i.test(ua) && !/Android/i.test(ua)) return true; // Deck: mpv binary
   // macOS: the in-process libmpv engine flags itself in Rust `setup` once it's up.
   return '__LUMA_MPV__' in globalThis;
+}
+
+// ----- Android TV ExoPlayer bridge --------------------------------------------
+// The @luma/androidtv shell hosts the app in a WebView with a native media3 /
+// ExoPlayer instance rendering to a SurfaceView BEHIND it (the same "video plane
+// behind the page" model as AVPlay/mpv). The Kotlin side injects this object via
+// addJavascriptInterface, and pushes events by calling the global
+// `__lumaExoEvent(payload)` the engine installs. Inert in a plain browser.
+
+/** The command surface the Android shell injects as `__LUMA_ANDROID__`. */
+export interface ExoShellBridge {
+  /** Load a URL (replaces the current item). `master` hints HLS vs progressive. */
+  load(url: string, startSec: number, master: boolean): void;
+  /** JSON command: `{op: 'play'|'pause'|'seek'|'audio'|'stop', value?: number}`. */
+  command(json: string): void;
+}
+
+/** The injected ExoPlayer bridge when running inside the Android TV shell, else null. */
+export function getExo(): ExoShellBridge | null {
+  const w = globalThis as unknown as { __LUMA_ANDROID__?: Partial<ExoShellBridge> };
+  const b = w.__LUMA_ANDROID__;
+  return typeof b?.load === 'function' && typeof b?.command === 'function'
+    ? (b as ExoShellBridge)
+    : null;
+}
+
+/** Whether to drive playback through the native ExoPlayer bridge. */
+export function exoAvailable(): boolean {
+  return getExo() != null;
 }
 
 /**

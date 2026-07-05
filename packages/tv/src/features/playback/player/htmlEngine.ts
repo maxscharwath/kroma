@@ -27,6 +27,11 @@ export interface HtmlOptions {
   direct: boolean;
   /** When using the master, request the AAC renditions (MSE can't decode AC3). */
   masterAac: boolean;
+  /** Force the platform's NATIVE HLS pipeline (`<video src=master>`), bypassing
+   * MSE/hls.js. Legacy webOS engines (Chromium < 99) cannot decode HEVC through
+   * MSE, but the TV's media pipeline plays HLS (surround included) natively -
+   * the same path Safari takes via its canPlayType probe below. */
+  forceNativeHls?: boolean;
   /** Audio-relative rendition to select once the manifest parses. */
   initialRendition: number;
   durationSec: number;
@@ -129,7 +134,8 @@ export class HtmlEngine implements TvEngine {
     // (AC3 / E-AC3) with full surround, which hls.js + MSE cannot - so on macOS the
     // master is stream-copied (5.1 preserved) and played natively, instead of the
     // server transcoding audio to stereo AAC. Everything else uses hls.js over MSE.
-    const useNative = v.canPlayType('application/vnd.apple.mpegurl') !== '';
+    const useNative =
+      this.opts.forceNativeHls === true || v.canPlayType('application/vnd.apple.mpegurl') !== '';
     // The stream really starts at the keyframe AT-OR-BEFORE the anchor; correct
     // `baseSec` from X-Hls-Start so the clock + subtitle cues don't drift a GOP.
     void resolveMasterStart(url, this.baseSec).then((realStart) => {

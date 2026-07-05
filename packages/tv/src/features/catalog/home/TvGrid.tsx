@@ -21,17 +21,21 @@ export function TvGrid({ cards }: Readonly<{ cards: GridCard[] }>) {
   const [count, sentinel] = useGrowingCount(cards.length, GRID_STEP);
   return (
     <div className="scrollbar-none min-h-0 flex-1 overflow-y-auto px-16 pt-7 pb-18">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(188px,1fr))] gap-x-6 gap-y-8">
+      {/* flex-wrap, NOT CSS grid: the fixed 1920px stage makes the column math
+          static (1792px content = 8 x 203px + 7 x 24px gaps), and flex survives
+          the legacy webOS tier (Chromium 53) where grid does not exist. */}
+      <div className="flex flex-wrap gap-x-6 gap-y-8">
         {cards.slice(0, count).map((c) => (
-          <TvPoster
-            key={c.id}
-            title={c.title}
-            poster={c.poster}
-            colors={c.colors}
-            watched={c.watched}
-            progress={c.progress}
-            onClick={c.onClick}
-          />
+          <div key={c.id} className="w-[203px]">
+            <TvPoster
+              title={c.title}
+              poster={c.poster}
+              colors={c.colors}
+              watched={c.watched}
+              progress={c.progress}
+              onClick={c.onClick}
+            />
+          </div>
         ))}
       </div>
       {count < cards.length ? <div ref={sentinel} className="h-12 w-full" /> : null}

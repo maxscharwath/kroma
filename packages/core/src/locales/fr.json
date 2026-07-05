@@ -95,6 +95,7 @@
   "playbackEngine.webview": "Lecture directe",
   "playbackEngine.remux": "Remux serveur",
   "playbackEngine.mpv": "mpv (natif)",
+  "playbackEngine.exo": "ExoPlayer (natif)",
   "player.subtitles": "Sous-titres",
   "player.subtitlesOff": "Désactivés",
   "player.noAudioTracks": "Aucune piste audio détectée.",
@@ -564,7 +565,6 @@
   "admin.resetMetadataConfirm": "Effacer toutes les métadonnées TMDB ? Les affiches et descriptions disparaîtront jusqu'au prochain enrichissement.",
   "admin.resetMetadataBtn": "Réinitialiser",
   "admin.resetting": "Réinitialisation…",
-
   "admin.backupTitle": "Sauvegarde et migration",
   "admin.backupSub": "Déplacez votre serveur vers une autre machine : exportez vos données, puis importez-les là-bas.",
   "admin.backupExport": "Exporter",

@@ -130,16 +130,20 @@ export function TvSearch() {
               {t('search.hint')}
             </span>
           </div>
+          {/* flex-wrap, NOT CSS grid (legacy webOS tier has no grid). The results
+              pane is a fixed 1180px (1792 content - 520 keyboard - 52 gap - 40
+              px-5), so 4 columns = (1180 - 3 x 24px gaps) / 4 = 277px each. */}
           {hits.length ? (
-            <div className="grid grid-cols-4 gap-6">
+            <div className="flex flex-wrap gap-6">
               {hits.map((h) => (
-                <TvPoster
-                  key={h.id}
-                  title={h.title}
-                  poster={h.poster}
-                  colors={h.colors}
-                  onClick={h.onOpen}
-                />
+                <div key={h.id} className="w-[277px]">
+                  <TvPoster
+                    title={h.title}
+                    poster={h.poster}
+                    colors={h.colors}
+                    onClick={h.onOpen}
+                  />
+                </div>
               ))}
             </div>
           ) : (

@@ -1,0 +1,6 @@
+dist/
+android/app/src/main/assets/luma/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

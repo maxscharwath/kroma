@@ -18,7 +18,6 @@
   "common.photo": "Photo",
   "common.detection": "Detection: {source}",
   "common.detecting": "Detecting…",
-
   "nav.home": "Home",
   "nav.films": "Movies",
   "nav.series": "Series",
@@ -32,7 +31,6 @@
   "connection.reconnecting": "Reconnecting…",
   "connection.offline": "Offline",
   "nav.changeProfile": "Switch profile",
-
   "auth.whoWatching": "Who's watching?",
   "auth.logout": "Sign out",
   "auth.loginEmail": "Sign in with email",
@@ -58,7 +56,6 @@
   "auth.joinLuma": "Join LUMA",
   "auth.inviteInvalidTitle": "Invalid invitation",
   "auth.inviteInvalidDesc": "This invitation link has expired, has already been used, or doesn't exist.",
-
   "connect.title": "Connect a device",
   "connect.connected": "Device connected",
   "connect.invalidCode": "Invalid or expired code",
@@ -81,7 +78,6 @@
   "connect.scanQr": "Scan this QR with your phone",
   "connect.orInAppPrefix": "or in the LUMA app → ",
   "connect.orInAppSuffix": ", enter:",
-
   "player.play": "Play",
   "player.playEpisode": "Play S{season}E{episode}",
   "player.resumeEpisode": "Resume S{season}E{episode}",
@@ -99,6 +95,7 @@
   "playbackEngine.webview": "Direct play",
   "playbackEngine.remux": "Server remux",
   "playbackEngine.mpv": "mpv (native)",
+  "playbackEngine.exo": "ExoPlayer (native)",
   "player.subtitles": "Subtitles",
   "player.subtitlesOff": "Off",
   "player.noAudioTracks": "No audio track detected.",
@@ -181,12 +178,10 @@
   "player.noSubtitles": "No text subtitles available",
   "player.activityScanning": "Scanning the library…",
   "player.activityArtwork": "Artwork {done}/{total}",
-
   "subtitle.shadow": "Shadow",
   "subtitle.outline": "Outline",
   "subtitle.background": "Background",
   "subtitle.none": "None",
-
   "stats.title": "Stats for nerds",
   "stats.video": "Video",
   "stats.audio": "Audio",
@@ -211,7 +206,6 @@
   "stats.anchor": "Anchor (-ss)",
   "stats.seekable": "Seekable",
   "stats.ranges": "Buffer ranges",
-
   "lang.fr": "French",
   "lang.en": "English",
   "lang.es": "Spanish",
@@ -223,7 +217,6 @@
   "lang.zh": "Chinese",
   "lang.ru": "Russian",
   "lang.pt": "Portuguese",
-
   "content.film": "Movie",
   "content.featured": "★ Featured",
   "content.play": "Play",
@@ -292,7 +285,6 @@
   "content.hintPlay": "Play",
   "profiles.add": "Add",
   "profiles.chooseHint": "◀ ▶ Choose · OK Select",
-
   "admin.serverIdentity": "Server identity",
   "admin.serverIdentityDesc": "How your server appears on your devices",
   "admin.serverName": "Server name",
@@ -369,7 +361,6 @@
   "admin.tempFolders": "Temporary folders",
   "admin.transcodeDir": "Transcode folder",
   "admin.deleteAfter": "Delete files after playback",
-
   "opt.stable": "Stable",
   "opt.beta": "Beta",
   "opt.darkLuma": "Dark (Luma)",
@@ -382,7 +373,6 @@
   "opt.autoF": "Automatic",
   "opt.preferSpeed": "Prefer speed",
   "opt.preferQuality": "Prefer quality",
-
   "error.internal": "Internal error",
   "error.showNotFound": "Show not found",
   "error.itemNotFound": "Item not found",
@@ -398,16 +388,13 @@
   "error.imageTooLarge": "Image too large (max 8 MB)",
   "error.userNotFound": "User not found",
   "error.libraryNotFound": "Library not found",
-
   "auth.registerInvalid": "A valid email, username and password (≥ 4 characters) are required",
   "auth.inviteOnly": "Registration is invite-only",
   "auth.inviteInvalid": "Invalid or expired invitation",
-
   "admin.cantDeleteSelf": "You can't delete your own account",
   "admin.cantDeleteLastOwner": "Can't delete the last owner",
   "admin.cantRemoveLastOwner": "Can't remove the last owner",
   "admin.nameRequired": "Name required",
-
   "admin.badge": "ADMIN",
   "admin.groupManagement": "Management",
   "admin.groupSettings": "Settings",
@@ -426,7 +413,6 @@
   "admin.accessDenied": "Access denied",
   "admin.sectionDenied": "You don't have permission to access this section.",
   "admin.noAdminAccess": "You don't have access to server administration.",
-
   "admin.pageGeneral": "General",
   "admin.pageGeneralSub": "Server identity, preferences and appearance.",
   "admin.pageNetwork": "Network",
@@ -435,7 +421,6 @@
   "admin.pageTranscoderSub": "Hardware acceleration and conversion quality.",
   "admin.saved": "Saved ✓",
   "admin.prefSaved": "preference saved",
-
   "admin.dashboardSuffix": " Dashboard",
   "admin.nowPlaying": "Now playing",
   "admin.noPlayback": "Nothing playing right now.",
@@ -473,7 +458,6 @@
   "admin.play": "play",
   "admin.films": "Movies",
   "admin.tv": "TV",
-
   "admin.usersTitle": "Users",
   "admin.usersSub": "Manage access and the sharing of your libraries.",
   "admin.statUsers": "Users",
@@ -517,7 +501,6 @@
   "admin.expiresOn": "Expires on {date}",
   "admin.revoke": "Revoke",
   "admin.noUsersPermission": "You don't have permission to manage users.",
-
   "admin.librariesTitle": "Libraries",
   "admin.librariesSub": "Your media collections and their scans.",
   "admin.addLibrary": "Add a library",
@@ -551,7 +534,6 @@
   "admin.confirmDeleteLibrary": "Delete the library \"{name}\"?",
   "admin.manageLibrary": "Manage \"{name}\"",
   "admin.autoScan": "Automatic scan",
-
   "admin.storageTitle": "Storage",
   "admin.storageSub": "Volumes, cache and disk maintenance.",
   "admin.totalCapacity": "Total capacity",
@@ -583,7 +565,6 @@
   "admin.resetMetadataConfirm": "Clear all TMDB metadata? Posters and descriptions will disappear until the next enrichment.",
   "admin.resetMetadataBtn": "Reset",
   "admin.resetting": "Resetting…",
-
   "admin.backupTitle": "Backup & migration",
   "admin.backupSub": "Move your server to another machine: export your data, then import it there.",
   "admin.backupExport": "Export",

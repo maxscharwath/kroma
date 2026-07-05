@@ -21,10 +21,12 @@ import { AvplayEngine } from '#tv/features/playback/player/avplayEngine';
 import {
   avplayAvailable,
   type EngineListeners,
+  exoAvailable,
   getTauri,
   mpvAvailable,
   type TvEngine,
 } from '#tv/features/playback/player/engine';
+import { ExoEngine } from '#tv/features/playback/player/exoEngine';
 import { HtmlEngine } from '#tv/features/playback/player/htmlEngine';
 import { MpvEngine } from '#tv/features/playback/player/mpvEngine';
 import { useResumeAndPersist } from '#tv/features/playback/player/useResumeAndPersist';
@@ -35,8 +37,8 @@ export interface Playback {
   videoRef: React.RefObject<HTMLVideoElement>;
   /** The AVPlay `<object>` surface (native Tizen engine). */
   objectRef: React.RefObject<HTMLObjectElement>;
-  /** Which surface to render. `mpv` renders nothing in-page (native window behind). */
-  surface: 'video' | 'avplay' | 'mpv';
+  /** Which surface to render. `mpv`/`exo` render nothing in-page (native plane behind). */
+  surface: 'video' | 'avplay' | 'mpv' | 'exo';
   verdict: DirectPlayVerdict | null;
   /** Codec/stream load failure, as an i18n key translated at the render site. */
   error: MessageKey | null;
@@ -84,6 +86,7 @@ export interface Playback {
  * @luma/desktop shell is a Tauri app whose native mpv bridge is detectable). */
 function detectTvEnv(): PlayEnv {
   if (mpvAvailable()) return { platform: 'desktop', safari: false }; // Linux shell -> mpv
+  if (exoAvailable()) return { platform: 'androidtv', safari: false }; // Android TV shell -> ExoPlayer
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   // Tauri on macOS = WKWebView (Safari engine: native HEVC + AC3/EAC3), so treat it
   // as Safari web - caps + engine selection then match the in-page <video> we use
@@ -91,11 +94,19 @@ function detectTvEnv(): PlayEnv {
   if (getTauri() != null && /Mac|Macintosh/i.test(ua)) return { platform: 'web', safari: true };
   const webos =
     /web0?s/i.test(ua) || typeof (globalThis as Record<string, unknown>).webOS !== 'undefined';
-  return { platform: webos ? 'webos' : 'tizen', safari: false };
+  const chromeMajor = Number(/Chrome\/(\d+)/i.exec(ua)?.[1]);
+  return {
+    platform: webos ? 'webos' : 'tizen',
+    safari: false,
+    // Legacy webOS engines (Chromium < 99, pre-2024 models) cannot decode HEVC
+    // through MSE/hls.js; their native media pipeline plays the HLS master
+    // directly instead (same shape as Safari's native-HLS path).
+    nativeHls: webos && Number.isFinite(chromeMajor) && chromeMajor < 99,
+  };
 }
 
 /** The concrete backend to build for this item. */
-type Engine = 'mpv' | 'avplay' | 'video-direct' | 'video-remux';
+type Engine = 'mpv' | 'exo' | 'avplay' | 'video-direct' | 'video-remux';
 
 /** Resolve the backend from the user's engine preference, falling back to the
  * automatic decision. `auto` on Tizen keeps AVPlay (hardware surround), but the user
@@ -109,9 +120,11 @@ function resolveEngine(pref: EnginePref, env: PlayEnv, autoDirect: boolean): Eng
   if (pref === 'webview') return 'video-direct';
   if (pref === 'remux') return 'video-remux';
   if (pref === 'mpv' && mpvAvailable()) return 'mpv';
+  if (pref === 'exo' && exoAvailable()) return 'exo';
   // auto:
   if (tizenNative) return 'avplay';
   if (env.platform === 'desktop' && mpvAvailable()) return 'mpv';
+  if (env.platform === 'androidtv' && exoAvailable()) return 'exo';
   return autoDirect ? 'video-direct' : 'video-remux';
 }
 
@@ -202,12 +215,22 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
   // would spin forever, so fall back to the server remux which repackages it.
   if (eng === 'video-direct' && !webviewCanDirectPlay(item)) eng = 'video-remux';
   const useMpv = eng === 'mpv';
+  const useExo = eng === 'exo';
   const useAvplay = eng === 'avplay';
   const avplayDirect = useAvplay && avplayDirectPlayable(item);
+  // ExoPlayer demuxes (at least) the same container set AVPlay does, so the same
+  // gate decides whether it opens the ORIGINAL file (zero server work).
+  const exoDirect = useExo && avplayDirectPlayable(item);
   const direct = eng === 'video-direct';
-  // mpv / AVPlay render to their own plane behind the transparent UI, so neither
-  // uses an in-page media element.
-  const surface: 'video' | 'avplay' | 'mpv' = useMpv ? 'mpv' : useAvplay ? 'avplay' : 'video';
+  // mpv / ExoPlayer / AVPlay render to their own plane behind the transparent UI,
+  // so none of them uses an in-page media element.
+  const surface: 'video' | 'avplay' | 'mpv' | 'exo' = useMpv
+    ? 'mpv'
+    : useExo
+      ? 'exo'
+      : useAvplay
+        ? 'avplay'
+        : 'video';
   // Env-aware: Safari's native HLS decodes AC3/E-AC3 so its master is stream-copied
   // (5.1 kept); Chromium/webOS MSE can't, so `selectEngine` marks those AAC.
   const masterAac = decision.aacMaster;
@@ -313,6 +336,18 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
         direct: true,
         listeners,
       });
+    } else if (useExo) {
+      // Native ExoPlayer opens the original file directly (hardware decode); an
+      // internal direct→master fallback covers the rare file it cannot open.
+      engine = new ExoEngine({
+        client,
+        item,
+        durationSec,
+        initialRendition: renditionFor(item, audioIndexRef.current),
+        startSec,
+        direct: exoDirect,
+        listeners,
+      });
     } else if (useAvplay) {
       engine = new AvplayEngine({
         client,
@@ -332,6 +367,7 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
         item,
         direct,
         masterAac,
+        forceNativeHls: env.nativeHls,
         initialRendition: renditionFor(item, audioIndexRef.current),
         durationSec,
         startSec,
@@ -348,6 +384,8 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
     client,
     item,
     useMpv,
+    useExo,
+    exoDirect,
     useAvplay,
     avplayDirect,
     direct,
@@ -362,19 +400,25 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
     engineRef.current?.setAudioRendition(renditionFor(item, audioIndex));
   }, [item, audioIndex]);
 
-  // Safety net + diagnostic: a `<video>`/HLS load that never signals ready (blocked
-  // http media, macOS ATS, an undecodable codec) would otherwise spin forever.
-  // After a grace period, log the element's exact state and surface the failure.
+  // Safety net + diagnostic: a load that never signals ready would otherwise spin
+  // forever. `<video>`: blocked http media, macOS ATS, an undecodable codec. mpv:
+  // a socket that stops responding mid-session (hard startup failures already fail
+  // fast via mpv://error + the engine's status probe). AVPlay reports its own
+  // prepare errors. After a grace period, log what we know and surface the failure.
   useEffect(() => {
-    if (surface !== 'video' || ready || error) return;
+    if (surface === 'avplay' || ready || error) return;
     const id = window.setTimeout(() => {
-      const v = videoRef.current;
-      const e = v?.error;
-      console.error(
-        `[LUMA] stream did not load in 15s: networkState=${v?.networkState} ` +
-          `readyState=${v?.readyState} errorCode=${e?.code ?? '-'} ${e?.message ?? ''} ` +
-          `src=${v?.currentSrc || v?.src || '(none)'}`,
-      );
+      if (surface === 'mpv' || surface === 'exo') {
+        console.error(`[LUMA] ${surface} engine did not signal ready in 15s`);
+      } else {
+        const v = videoRef.current;
+        const e = v?.error;
+        console.error(
+          `[LUMA] stream did not load in 15s: networkState=${v?.networkState} ` +
+            `readyState=${v?.readyState} errorCode=${e?.code ?? '-'} ${e?.message ?? ''} ` +
+            `src=${v?.currentSrc || v?.src || '(none)'}`,
+        );
+      }
       setError(failKey);
     }, 15000);
     return () => window.clearTimeout(id);
@@ -394,6 +438,7 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
   // Heartbeat the session for the admin dashboard + react to a remote termination.
   const tvDevice = (): string => {
     if (useMpv) return 'Desktop';
+    if (useExo) return 'Android TV';
     const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
     if (/Tizen/i.test(ua)) return 'Samsung TV';
     if (/web0?s|LG/i.test(ua)) return 'LG TV';
@@ -405,6 +450,7 @@ export function useDirectPlayback(client: LumaClient, item: MediaItem): Playback
   let playbackMode: 'direct' | 'remux' | 'transcode' = 'direct';
   if (useMpv)
     playbackMode = 'direct'; // mpv opens the original file (master only on fallback)
+  else if (useExo) playbackMode = exoDirect ? 'direct' : 'remux';
   else if (useAvplay) playbackMode = avplayDirect ? 'direct' : 'remux';
   else if (!direct) playbackMode = masterAac ? 'transcode' : 'remux';
   usePlaybackHeartbeat({

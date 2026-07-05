@@ -3,7 +3,7 @@
 
 import type { MessageKey, TVars } from '../i18n';
 import type { AudioTrack, MediaItem } from '../types';
-import { type AudioCapabilities, type PlaybackCapabilities, capabilities } from './capabilities';
+import { type AudioCapabilities, capabilities, type PlaybackCapabilities } from './capabilities';
 
 export interface DirectPlayVerdict {
   /** True when the client can directly decode this item's video codec. */
@@ -291,16 +291,27 @@ export const NATIVE_TV_CAPS: PlaybackCapabilities = {
 
 // ----- engine selection ------------------------------------------------------
 
-export type PlayerEngineKind = 'direct' | 'web-mse' | 'tizen-avplay' | 'webos' | 'desktop-mpv';
+export type PlayerEngineKind =
+  | 'direct'
+  | 'web-mse'
+  | 'tizen-avplay'
+  | 'webos'
+  | 'desktop-mpv'
+  | 'android-exo';
 
 export interface PlayEnv {
-  platform: 'web' | 'tizen' | 'webos' | 'desktop';
+  platform: 'web' | 'tizen' | 'webos' | 'desktop' | 'androidtv';
   safari: boolean;
   /** Runtime-probed capabilities of a bare `<video>` element (canPlayType /
    * MediaSource), when the caller has a DOM to probe. Widens direct-play beyond
    * the static engine tables: e.g. Chrome 107+ with HEVC hardware decode
    * direct-plays an HEVC MP4 instead of paying the server remux. */
   runtimeCaps?: PlaybackCapabilities;
+  /** Prefer the platform's NATIVE HLS pipeline over MSE/hls.js for the master.
+   * Legacy webOS engines (Chromium < 99, pre-2024 models) cannot decode HEVC
+   * through MSE, but the TV's own media pipeline plays the HLS master natively,
+   * surround audio included - so the master is stream-copied, not AAC. */
+  nativeHls?: boolean;
 }
 
 export interface EngineDecision {
@@ -362,23 +373,33 @@ export function avplayDirectPlayable(item: MediaItem): boolean {
  *    native seeking, in-place audio-track switching via `aid`), so the server
  *    only sends bytes. Like AVPlay the engine keeps a direct→master fallback for
  *    the rare file mpv cannot demux, so the master (when used) is stream-copy.
+ *  - androidtv: `android-exo` always. The shell's media3/ExoPlayer bridge plays
+ *    the ORIGINAL file directly (hardware HEVC + platform surround decode,
+ *    in-place audio switching) with a direct→master fallback, so the master
+ *    (when used) is stream-copy - the same shape as AVPlay/mpv.
  */
 export function selectEngine(item: MediaItem, env: PlayEnv): EngineDecision {
   if (env.platform === 'desktop') {
     return { kind: 'desktop-mpv', aacMaster: false };
+  }
+  if (env.platform === 'androidtv') {
+    return { kind: 'android-exo', aacMaster: false };
   }
   if (env.platform === 'tizen') {
     return { kind: 'tizen-avplay', aacMaster: false };
   }
   if (env.platform === 'webos') {
     if (plainCompatibleMp4(item, NATIVE_TV_CAPS)) return { kind: 'direct', aacMaster: false };
-    return { kind: 'webos', aacMaster: true };
+    // Legacy engines hand the master to the TV's native pipeline, which decodes
+    // surround itself (stream-copy); the MSE/hls.js path cannot decode AC3/EAC3.
+    return { kind: 'webos', aacMaster: !env.nativeHls };
   }
   const caps = env.safari ? SAFARI_CAPS : MSE_CAPS;
   // Direct-play eligibility follows what THIS runtime actually decodes (probed
   // via canPlayType/MediaSource) rather than a codec allowlist: modern Chromium
   // hardware-decodes HEVC in a bare `<video>` where available, and the player's
   // direct→master error fallback covers an over-optimistic probe.
-  if (plainCompatibleMp4(item, env.runtimeCaps ?? caps)) return { kind: 'direct', aacMaster: false };
+  if (plainCompatibleMp4(item, env.runtimeCaps ?? caps))
+    return { kind: 'direct', aacMaster: false };
   return { kind: 'web-mse', aacMaster: masterNeedsAac(item, caps) };
 }

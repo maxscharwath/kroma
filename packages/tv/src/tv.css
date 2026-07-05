@@ -1,7 +1,11 @@
 /* LUMA TV Tailwind v4, themed with the LUMA design tokens (same mapping as the
    web client). Built through the Lightning CSS transformer (see the shells'
-   vite.config) so the modern CSS Tailwind emits (cascade layers, color-mix, …) is
-   down-levelled to plain fallbacks for old TV webviews (webOS 5/6 ≈ Chromium 68).
+   vite.config), which down-levels color-mix()/oklch() to plain fallbacks - but
+   NOT cascade layers, so the modern bundles floor at Chrome 99 (Tizen 8 /
+   webOS 24). Older webOS engines (Chromium 53-94) are served by the separate
+   legacy bundle instead (clients/webos/vite.config.legacy.ts), which flattens
+   @layer and shims flex-gap / aspect-ratio / scale at build time. Keep this file
+   inside what that pipeline handles: flex (never grid), no `/opacity` modifiers.
 
    We import the raw `--luma-*` token files by relative path rather than
    `@luma/ui/styles.css`: that entry pulls a remote Google-Fonts `@import` which the

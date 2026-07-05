@@ -47,6 +47,11 @@ packages. For something you can put on a device, use **Build & Release**
 artifacts or a tagged release. Artifacts expire (90 days by default; CI ones
 after 7); releases stay forever.
 
+Also: the **`desktop-latest`** release you may find on the Releases page is the
+rolling **desktop auto-update channel** (macOS/Windows/Linux installers + the
+`latest.json` the installed apps poll). It never contains TV packages get
+those from a Build & Release run or a `vX.Y.Z` release.
+
 Install the **server** first (Synology `.spk`, Docker image
 `ghcr.io/<owner>/luma`, or `cargo` see [server/README.md](server/README.md));
 every client asks for the server address on first launch and remembers it.
@@ -95,15 +100,24 @@ right one at launch. One-time **Developer Mode** on the TV:
 3. In the app, switch **Dev Mode Status ON** (the TV restarts), then switch
    **Key Server ON**.
 
-Then, from a computer on the same network:
+Then, from a computer on the same network - end to end, starting from a
+prebuilt Actions artifact:
 
 ```bash
-npm install -g @webos-tools/cli        # provides the ares-* tools
+# 1. Get the .ipk (from a Build & Release run, or download it from a release)
+gh run download -n luma-webos-ipk      # -> app.luma.webos_<version>_all.ipk
 
-ares-setup-device                      # add the TV: its IP, port 9922; the
-                                       # passphrase is shown in the Dev Mode app
-ares-install app.luma.webos_0.1.0_all.ipk -d <device-name>
-ares-launch app.luma.webos -d <device-name>
+# 2. Get the webOS CLI (once)
+bun add -g @webos-tools/cli            # or: npm install -g @webos-tools/cli
+
+# 3. Register the TV: IP + the passphrase shown in the Developer Mode app
+ares-setup-device -a tv -i "host=192.168.1.50" -i "port=9922" \
+  -i "username=prisoner" -i "passphrase=ABC123"
+# (or run `ares-setup-device` with no flags for the interactive wizard)
+
+# 4. Install + launch
+ares-install app.luma.webos_*_all.ipk -d tv
+ares-launch app.luma.webos -d tv
 ```
 
 Notes:

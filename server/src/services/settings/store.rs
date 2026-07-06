@@ -165,6 +165,9 @@ fn defaults() -> BTreeMap<String, Value> {
     // matched as whole tokens against release names.
     m.insert("acqEnabled".into(), json!(false));
     m.insert("acqAutoApprove".into(), json!(false));
+    // Remove the torrent + its downloaded data once imported into the library
+    // (frees the download folder + stops seeding; the library copy survives).
+    m.insert("acqDeleteAfterImport".into(), json!(false));
     m.insert("acqResolution".into(), json!("1080p"));
     m.insert("acqPreferHevc".into(), json!(true));
     m.insert("acqMinSeeders".into(), json!(2));

@@ -18,4 +18,8 @@ localId: string | null,
 /**
  * The open request covering this title, when one exists.
  */
-requestId: string | null, requestStatus: RequestStatus | null, };
+requestId: string | null, requestStatus: RequestStatus | null, 
+/**
+ * Live download progress (0..1) while downloading/importing.
+ */
+requestProgress: number | null, };

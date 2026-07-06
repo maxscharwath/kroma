@@ -69,6 +69,10 @@ fn finalize_import(state: &SharedState, row: &DownloadRow) {
             tracing::debug!(id = %row.id, error = %format!("{e:#}"), "could not pin item tmdbId");
         }
     }
+    // Optionally free the download folder + stop seeding now that it's imported.
+    if state.settings.get_bool("acqDeleteAfterImport", false) {
+        state.downloads.drop_data(state, row);
+    }
 }
 
 /// Import every `completed` download. Failures land on the row's `error`

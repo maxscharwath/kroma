@@ -66,7 +66,11 @@ export function DiscoverCard({ entry, width = 208 }: Readonly<{ entry: DiscoverE
             {owned ? (
               <RequestStatusChip status="available" size="card" />
             ) : entry.requestStatus ? (
-              <RequestStatusChip status={entry.requestStatus} size="card" />
+              <RequestStatusChip
+                status={entry.requestStatus}
+                size="card"
+                progress={entry.requestProgress}
+              />
             ) : null}
           </div>
 

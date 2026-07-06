@@ -416,6 +416,29 @@ impl DownloadManager {
         Ok(row)
     }
 
+    /// Remove the torrent from the engine + delete its downloaded data, but KEEP
+    /// the ledger row (status stays `imported`). Used by the "delete after import"
+    /// option to free the download folder + stop seeding once the file is safely
+    /// in the library (the hardlink/copy there survives). Best-effort.
+    pub fn drop_data(&self, state: &SharedState, row: &DownloadRow) {
+        if row.client_ref.is_empty() {
+            return;
+        }
+        let client = state.db.get().ok().and_then(|c| db::get_download_client(&c, &row.client_id).ok().flatten());
+        if let Some(client) = client {
+            if let Ok(engine) = self.engine_for(&client) {
+                if let Err(e) = engine.remove(&row.client_ref, true) {
+                    tracing::warn!(id = %row.id, error = %format!("{e:#}"), "delete-after-import: engine remove failed");
+                    return;
+                }
+                // The engine no longer tracks it; blank the ref so pause/resume
+                // and the monitor don't try to poll a gone torrent.
+                let _ = db::set_download_ref(&state.db, &row.id, "");
+                tracing::info!(release = %row.release_title, "deleted torrent + data after import");
+            }
+        }
+    }
+
     /// Pause/resume/remove one download by row id, mirroring engine + ledger.
     /// A row with an empty `client_ref` is still being added in the background
     /// (slow magnet/`.torrent` resolve); we skip the engine call and just move

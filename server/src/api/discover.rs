@@ -158,10 +158,15 @@ fn local_id_for(conn: &Connection, kind: RequestKind, tmdb_id: u64) -> anyhow::R
 }
 
 fn flag_hits(conn: &Connection, hits: Vec<discover::DiscoverHit>) -> anyhow::Result<Vec<DiscoverEntry>> {
+    // One pass over the download ledger (not per-hit), so cards can show the
+    // live downloading/importing phase + progress.
+    let active: std::collections::HashMap<String, db::ActiveDownload> =
+        db::requests_with_active_downloads(conn)?.into_iter().map(|a| (a.request_id.clone(), a)).collect();
     hits.into_iter()
         .map(|h| {
             let local_id = local_id_for(conn, h.kind, h.tmdb_id)?;
             let request = db::latest_request_for(conn, h.kind, h.tmdb_id)?;
+            let (status, progress) = overlay_active(&active, request.as_ref());
             Ok(DiscoverEntry {
                 kind: h.kind,
                 tmdb_id: h.tmdb_id,
@@ -174,10 +179,33 @@ fn flag_hits(conn: &Connection, hits: Vec<discover::DiscoverHit>) -> anyhow::Res
                 in_library: local_id.is_some(),
                 local_id,
                 request_id: request.as_ref().map(|(id, _)| id.clone()),
-                request_status: request.map(|(_, s)| s),
+                request_status: status,
+                request_progress: progress,
             })
         })
         .collect()
+}
+
+/// Overlay the live download phase + progress onto a request's stored status.
+fn overlay_active(
+    active: &std::collections::HashMap<String, db::ActiveDownload>,
+    request: Option<&(String, RequestStatus)>,
+) -> (Option<RequestStatus>, Option<f64>) {
+    let mut status = request.map(|(_, s)| *s);
+    let mut progress = None;
+    if let Some((rid, _)) = request {
+        if let Some(a) = active.get(rid) {
+            if matches!(status, Some(RequestStatus::Approved | RequestStatus::PartiallyAvailable)) {
+                status = Some(if a.importing {
+                    RequestStatus::Importing
+                } else {
+                    RequestStatus::Downloading
+                });
+                progress = Some(a.progress);
+            }
+        }
+    }
+    (status, progress)
 }
 
 fn flag_detail(conn: &Connection, d: discover::DiscoverRawDetail) -> anyhow::Result<DiscoverDetail> {
@@ -186,24 +214,9 @@ fn flag_detail(conn: &Connection, d: discover::DiscoverRawDetail) -> anyhow::Res
 
     // Overlay the live acquisition phase + progress from the download ledger, so
     // the detail page shows "Téléchargement 45%" the same way the queue does.
-    let (mut request_status, mut request_progress) = (request.as_ref().map(|(_, s)| *s), None);
-    if let Some((rid, _)) = &request {
-        if let Some(active) =
-            db::requests_with_active_downloads(conn)?.into_iter().find(|a| &a.request_id == rid)
-        {
-            if matches!(
-                request_status,
-                Some(RequestStatus::Approved | RequestStatus::PartiallyAvailable)
-            ) {
-                request_status = Some(if active.importing {
-                    RequestStatus::Importing
-                } else {
-                    RequestStatus::Downloading
-                });
-                request_progress = Some(active.progress);
-            }
-        }
-    }
+    let active: std::collections::HashMap<String, db::ActiveDownload> =
+        db::requests_with_active_downloads(conn)?.into_iter().map(|a| (a.request_id.clone(), a)).collect();
+    let (request_status, request_progress) = overlay_active(&active, request.as_ref());
 
     // Season flags: available = every listed episode is on disk; requested =
     // covered by the newest open request (None = whole show).

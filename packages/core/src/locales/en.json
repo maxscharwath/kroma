@@ -786,6 +786,8 @@
   "admin.acqEnabledHint": "Without this, only manual downloads (interactive search) work.",
   "admin.acqAutoApprove": "Auto-approve every request",
   "admin.acqAutoApproveHint": "Otherwise only accounts with the requests.auto capability skip the approval queue.",
+  "admin.acqDeleteAfterImport": "Delete after import",
+  "admin.acqDeleteAfterImportHint": "Remove the torrent and its data once imported into the library (frees the download folder and stops seeding; the library copy is kept).",
   "admin.acqQuality": "Quality profile",
   "admin.acqQualityDesc": "How the decision engine scores releases. HEVC-first: that is LUMA's philosophy.",
   "admin.acqResolution": "Preferred resolution",

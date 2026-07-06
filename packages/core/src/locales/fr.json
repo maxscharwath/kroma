@@ -786,6 +786,8 @@
   "admin.acqEnabledHint": "Sans ce réglage, seuls les téléchargements manuels (recherche interactive) fonctionnent.",
   "admin.acqAutoApprove": "Approuver automatiquement toutes les demandes",
   "admin.acqAutoApproveHint": "Sinon, seuls les comptes avec la capacité requests.auto sautent la file d'approbation.",
+  "admin.acqDeleteAfterImport": "Supprimer après import",
+  "admin.acqDeleteAfterImportHint": "Retirer le torrent et ses données une fois le fichier importé dans la bibliothèque (libère le dossier de téléchargement et arrête le partage ; la copie en bibliothèque est conservée).",
   "admin.acqQuality": "Profil de qualité",
   "admin.acqQualityDesc": "Comment le moteur de décision note les releases. HEVC d'abord : c'est la philosophie de LUMA.",
   "admin.acqResolution": "Résolution préférée",

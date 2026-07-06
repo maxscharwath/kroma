@@ -169,6 +169,9 @@ pub struct DiscoverEntry {
     /// The open request covering this title, when one exists.
     pub request_id: Option<String>,
     pub request_status: Option<RequestStatus>,
+    /// Live download progress (0..1) while downloading/importing.
+    #[serde(default)]
+    pub request_progress: Option<f64>,
 }
 
 /// `GET /api/discover/search` / `GET /api/discover/trending`.

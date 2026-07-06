@@ -1,11 +1,12 @@
 import { LumaApiError, LumaClient, type MessageKey } from '@luma/core';
 import { useT } from '@luma/ui';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
+import { useEnv } from '#tv/app/providers/env';
 import { useNav, useParams } from '#tv/app/router';
-import { artUrl, AuthScreen, Keypad, LockGlyph, ProfileAvatar } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { AuthScreen, artUrl, Keypad, LockGlyph, ProfileAvatar } from '#tv/shared/ui';
 
 /** PINs are a fixed 4 digits; the last digit auto-validates (no OK press). */
 const PIN_LENGTH = 4;
@@ -141,6 +142,28 @@ export function TvPin() {
     if (busy || cooldown > 0) return;
     setBuffer((b) => b.slice(0, -1));
   };
+
+  // Desktop: type the PIN with the number-row / numpad (Delete edits). Digits and
+  // Delete aren't remote keys, so they don't collide with useFocusNav's arrows /
+  // Back; on a TV (on-screen keypad) this listener never attaches. A ref carries
+  // the lock so the listener stays stable (no re-subscribe per keystroke).
+  const { physicalKeyboard } = useEnv();
+  const locked = useRef(false);
+  locked.current = busy || cooldown > 0;
+  useEffect(() => {
+    if (!physicalKeyboard) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (locked.current) return;
+      if (/^[0-9]$/.test(e.key)) {
+        setError('');
+        setBuffer((b) => (b.length < PIN_LENGTH ? b + e.key : b));
+      } else if (e.key === 'Delete') {
+        setBuffer((b) => b.slice(0, -1));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [physicalKeyboard]);
 
   return (
     <AuthScreen>

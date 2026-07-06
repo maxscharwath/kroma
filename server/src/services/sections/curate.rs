@@ -15,9 +15,15 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 
 use crate::db::CuratedRow;
+use crate::i18n;
 use crate::model::{Kind, MediaItem, Show};
 
 use super::generate::slug;
+
+/// Build a `locale -> value` map over every [`i18n::SUPPORTED_LOCALES`] entry.
+fn per_locale(mut f: impl FnMut(&str) -> String) -> HashMap<String, String> {
+    i18n::SUPPORTED_LOCALES.iter().map(|&l| (l.to_string(), f(l))).collect()
+}
 
 /// Minimum members for a collection to be worth keeping.
 pub const MIN_ITEMS: usize = 5;
@@ -95,10 +101,10 @@ pub fn director_collections(catalog: &[CatalogEntry]) -> Vec<CuratedRow> {
                 rank: 0,
                 source: "director".to_string(),
                 item_ids: films.iter().map(|e| e.id.clone()).collect(),
-                title_fr: Some(name.to_string()),
-                title_en: Some(name.to_string()),
-                reason_fr: Some(format!("Réalisé par {name}")),
-                reason_en: Some(format!("Directed by {name}")),
+                // The director's name is language-invariant; the reason is
+                // localized per supported language via the shared i18n catalog.
+                titles: per_locale(|_| name.to_string()),
+                reasons: per_locale(|l| i18n::t(l, "content.directedBy", &[("name", name)])),
             }
         })
         .collect()
@@ -115,21 +121,42 @@ pub fn prune_for_prompt(catalog: &[CatalogEntry], max: usize) -> Vec<&CatalogEnt
     refs
 }
 
+/// JSON shape fragment for one collection, with `title`/`reason` as objects keyed
+/// by every supported language code (e.g. `"title":{"en":string,"fr":string}`).
+fn collection_shape() -> String {
+    let fields = i18n::SUPPORTED_LOCALES
+        .iter()
+        .map(|l| format!("\"{l}\":string"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("{{\"title\":{{{fields}}},\"reason\":{{{fields}}},\"members\":[string]}}")
+}
+
+/// The language rule shared by both curate prompts.
+fn language_rule() -> String {
+    let codes = i18n::SUPPORTED_LOCALES.join(", ");
+    format!(
+        "- \"title\" and \"reason\" are objects keyed by language code ({codes}) \
+         provide EVERY listed language. Title < 5 words; reason is one short clause."
+    )
+}
+
 /// Build the (system, user) prompt asking the model to curate editorial
 /// collections **from the supplied library titles only**.
 pub fn build_curate_prompt(catalog: &[&CatalogEntry]) -> (String, String) {
+    let shape = collection_shape();
+    let lang_rule = language_rule();
     let system = format!(
         "You are the editorial curator of a personal film & TV library. From the catalog \
          below you assemble compelling themed collections a cinephile would browse.\n\
          Reply with STRICT JSON only no prose, no markdown, no code fences an array shaped:\n\
-         [{{\"titleFr\":string,\"titleEn\":string,\"reasonFr\":string,\"reasonEn\":string,\"members\":[string]}}]\n\
+         [{shape}]\n\
          Rules:\n\
          - Curate a VARIED mix: genre showcases (\"Best Horror\"), acclaimed/Top-list style \
          (\"Modern Classics\", \"IMDb Top\"), franchises & sagas, a decade/era, and a mood.\n\
          - \"members\" MUST be titles copied EXACTLY from the catalog below never invent titles. \
          8-30 members each; only include a collection if it has at least {MIN_ITEMS} real members.\n\
-         - \"titleFr\"/\"reasonFr\" in French, \"titleEn\"/\"reasonEn\" in English. Title < 5 words; \
-         reason is one short clause.\n\
+         {lang_rule}\n\
          - Return between 6 and {MAX_LLM} distinct collections."
     );
 
@@ -149,6 +176,8 @@ pub fn build_curate_prompt(catalog: &[&CatalogEntry]) -> (String, String) {
 /// shape as [`build_curate_prompt`] except `members` are catalog **ids** the
 /// tools returned (resolved by [`resolve_members_by_id`]), so resolution is exact.
 pub fn tool_curate_prompt() -> (String, String) {
+    let shape = collection_shape();
+    let lang_rule = language_rule();
     let system = format!(
         "You are the editorial curator of a personal film & TV library. You have tools to \
          explore it: list_genres, list_people, find_titles (filter by genre / director / actor / \
@@ -158,7 +187,7 @@ pub fn tool_curate_prompt() -> (String, String) {
          Plan: call list_genres and list_people to see what's available, then call find_titles to \
          gather the members for each collection idea.\n\
          When done, reply with STRICT JSON only no prose, no markdown, no code fences an array:\n\
-         [{{\"titleFr\":string,\"titleEn\":string,\"reasonFr\":string,\"reasonEn\":string,\"members\":[string]}}]\n\
+         [{shape}]\n\
          Rules:\n\
          - \"members\" MUST be catalog **ids** returned by the tools (each title's \"id\" field) \
          never titles, never invented ids.\n\
@@ -166,8 +195,7 @@ pub fn tool_curate_prompt() -> (String, String) {
          (\"Modern Classics\"), a director or actor spotlight, a franchise/saga, a decade/era, and \
          a mood. {MIN_ITEMS}-30 members each; only keep a collection with at least {MIN_ITEMS} real \
          members.\n\
-         - \"titleFr\"/\"reasonFr\" in French, \"titleEn\"/\"reasonEn\" in English. Title < 5 words; \
-         reason is one short clause.\n\
+         {lang_rule}\n\
          - Return between 6 and {MAX_LLM} distinct collections."
     );
     let user = String::from(
@@ -177,17 +205,15 @@ pub fn tool_curate_prompt() -> (String, String) {
     (system, user)
 }
 
-/// One editorial collection as the model returned it (titles, pre-resolution).
+/// One editorial collection as the model returned it (pre-resolution). `title`
+/// and `reason` are locale-keyed objects (`{"en":…,"fr":…}`) over the supported
+/// languages the model was asked to fill.
 #[derive(Debug, Deserialize)]
 pub struct CuratedSpec {
     #[serde(default)]
-    pub title_fr: String,
+    pub title: HashMap<String, String>,
     #[serde(default)]
-    pub title_en: String,
-    #[serde(default)]
-    pub reason_fr: String,
-    #[serde(default)]
-    pub reason_en: String,
+    pub reason: HashMap<String, String>,
     #[serde(default)]
     pub members: Vec<String>,
 }
@@ -195,31 +221,8 @@ pub struct CuratedSpec {
 /// Parse a model reply (tolerant of fences/prose) into curated specs.
 pub fn parse_curate(text: &str) -> anyhow::Result<Vec<CuratedSpec>> {
     let json = extract_json_array(text).ok_or_else(|| anyhow::anyhow!("no JSON array in reply"))?;
-    // camelCase keys from the prompt → snake_case fields.
-    let raw: Vec<serde_json::Value> = serde_json::from_str(json)?;
-    let specs = raw
-        .into_iter()
-        .filter_map(|v| serde_json::from_value::<CuratedSpec>(rename_keys(v)).ok())
-        .take(MAX_LLM)
-        .collect();
+    let specs = serde_json::from_str::<Vec<CuratedSpec>>(json)?.into_iter().take(MAX_LLM).collect();
     Ok(specs)
-}
-
-/// Map an LLM spec object's camelCase keys to our field names.
-fn rename_keys(v: serde_json::Value) -> serde_json::Value {
-    let serde_json::Value::Object(map) = v else { return v };
-    let mut out = serde_json::Map::new();
-    for (k, val) in map {
-        let key = match k.as_str() {
-            "titleFr" => "title_fr",
-            "titleEn" => "title_en",
-            "reasonFr" => "reason_fr",
-            "reasonEn" => "reason_en",
-            other => other,
-        };
-        out.insert(key.to_string(), val);
-    }
-    serde_json::Value::Object(out)
 }
 
 /// Resolve each spec's member **titles** to real catalog ids (normalized match)
@@ -275,12 +278,21 @@ fn resolve(specs: &[CuratedSpec], mut resolve_one: impl FnMut(&str) -> Option<St
 }
 
 /// Assemble one row from a spec and its (already ≥ [`MIN_ITEMS`]) resolved member
-/// ids: pick a slug key from the English (else French) title and reject empty or
-/// duplicate keys. Shared by both resolvers.
+/// ids: slug the key from the English (else any) title, reject empty/duplicate
+/// keys, and keep the non-empty localized title/reason maps. Shared by both
+/// resolvers.
 fn build_row(spec: &CuratedSpec, member_ids: Vec<String>, seen_keys: &mut HashSet<String>) -> Option<CuratedRow> {
-    let title = if !spec.title_en.is_empty() { &spec.title_en } else { &spec.title_fr };
-    let key = slug(title);
+    let title_for_slug = spec
+        .title
+        .get("en")
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| spec.title.values().find(|s| !s.trim().is_empty()))?;
+    let key = slug(title_for_slug);
     if key.is_empty() || !seen_keys.insert(key.clone()) {
+        return None;
+    }
+    let titles = clean_map(&spec.title);
+    if titles.is_empty() {
         return None;
     }
     Some(CuratedRow {
@@ -288,16 +300,17 @@ fn build_row(spec: &CuratedSpec, member_ids: Vec<String>, seen_keys: &mut HashSe
         rank: 0,
         source: "llm".to_string(),
         item_ids: member_ids,
-        title_fr: non_empty(&spec.title_fr),
-        title_en: non_empty(&spec.title_en),
-        reason_fr: non_empty(&spec.reason_fr),
-        reason_en: non_empty(&spec.reason_en),
+        titles,
+        reasons: clean_map(&spec.reason),
     })
 }
 
-fn non_empty(s: &str) -> Option<String> {
-    let t = s.trim();
-    (!t.is_empty()).then(|| t.to_string())
+/// Trim and drop empty-string entries from a locale -> string map.
+fn clean_map(m: &HashMap<String, String>) -> HashMap<String, String> {
+    m.iter()
+        .filter(|(_, v)| !v.trim().is_empty())
+        .map(|(k, v)| (k.clone(), v.trim().to_string()))
+        .collect()
 }
 
 /// Normalize a title for matching: drop a trailing `(year)` the model may have
@@ -351,7 +364,8 @@ mod tests {
             .collect();
         let rows = director_collections(&cat);
         assert_eq!(rows.len(), 1); // only Villeneuve clears MIN_ITEMS
-        assert_eq!(rows[0].title_en.as_deref(), Some("Denis Villeneuve"));
+        assert_eq!(rows[0].titles.get("en").map(String::as_str), Some("Denis Villeneuve"));
+        assert_eq!(rows[0].titles.get("fr").map(String::as_str), Some("Denis Villeneuve"));
         assert_eq!(rows[0].item_ids.len(), 6);
         assert_eq!(rows[0].item_ids[0], "m5"); // highest-rated first
     }
@@ -359,11 +373,11 @@ mod tests {
     #[test]
     fn parse_and_resolve_matches_titles() {
         let reply = r#"Here:```json
-        [{"titleFr":"Horreur","titleEn":"Best Horror","reasonFr":"r","reasonEn":"scary",
+        [{"title":{"fr":"Horreur","en":"Best Horror"},"reason":{"fr":"r","en":"scary"},
           "members":["The Shining","Hereditary","Made Up Film","The Mask","It","Alien"]}]```"#;
         let specs = parse_curate(reply).unwrap();
         assert_eq!(specs.len(), 1);
-        assert_eq!(specs[0].title_en, "Best Horror");
+        assert_eq!(specs[0].title.get("en").map(String::as_str), Some("Best Horror"));
         let cat = vec![
             entry("a", "The Shining", 8.0, ""),
             entry("b", "Hereditary", 7.0, ""),
@@ -380,7 +394,7 @@ mod tests {
 
     #[test]
     fn collection_below_min_is_dropped() {
-        let specs = parse_curate(r#"[{"titleEn":"Tiny","members":["A","B"]}]"#).unwrap();
+        let specs = parse_curate(r#"[{"title":{"en":"Tiny"},"members":["A","B"]}]"#).unwrap();
         let cat = vec![entry("a", "A", 1.0, ""), entry("b", "B", 1.0, "")];
         let (rows, dropped) = resolve_members(&specs, &cat);
         assert!(rows.is_empty());
@@ -391,7 +405,7 @@ mod tests {
     fn resolve_by_id_matches_catalog_ids() {
         // Tool-driven path: members are catalog ids; unknown ids are dropped.
         let specs =
-            parse_curate(r#"[{"titleEn":"Nolan","titleFr":"Nolan","members":["a","b","c","zzz","d","e"]}]"#)
+            parse_curate(r#"[{"title":{"en":"Nolan","fr":"Nolan"},"members":["a","b","c","zzz","d","e"]}]"#)
                 .unwrap();
         let cat: Vec<CatalogEntry> = ["a", "b", "c", "d", "e"].iter().map(|id| entry(id, id, 5.0, "")).collect();
         let (rows, dropped) = resolve_members_by_id(&specs, &cat);

@@ -10,6 +10,7 @@ use serde::Deserialize;
 use crate::api::extract::AuthUser;
 use crate::api::util::query;
 use crate::db;
+use crate::i18n::ReqLocale;
 use crate::model::MediaItem;
 use crate::state::SharedState;
 use axum::routing::get;
@@ -28,16 +29,36 @@ const ROW_LEN: usize = 30;
 
 /// `GET /api/for-you` (Bearer) → `MediaItem[]` content-based picks from the
 /// caller's watch history. Empty until they've watched something embeddable.
-pub async fn for_you(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
-    match query(&state.db, move |pool| db::recommended_for(&pool, &user.id, ROW_LEN)).await {
+pub async fn for_you(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    ReqLocale(locale): ReqLocale,
+) -> Response {
+    match query(&state.db, move |pool| {
+        let mut items = db::recommended_for(&pool, &user.id, ROW_LEN)?;
+        db::localize::overlay_items(&pool, &mut items, locale)?;
+        Ok(items)
+    })
+    .await
+    {
         Ok(items) => Json(items).into_response(),
         Err(resp) => resp,
     }
 }
 
 /// `GET /api/items/:id/similar` → `MediaItem[]` "more like this" for a title.
-pub async fn similar(State(state): State<SharedState>, Path(id): Path<String>) -> Response {
-    match query(&state.db, move |pool| db::similar_items(&pool, &id, ROW_LEN)).await {
+pub async fn similar(
+    State(state): State<SharedState>,
+    ReqLocale(locale): ReqLocale,
+    Path(id): Path<String>,
+) -> Response {
+    match query(&state.db, move |pool| {
+        let mut items = db::similar_items(&pool, &id, ROW_LEN)?;
+        db::localize::overlay_items(&pool, &mut items, locale)?;
+        Ok(items)
+    })
+    .await
+    {
         Ok(items) => Json(items).into_response(),
         Err(resp) => resp,
     }
@@ -54,6 +75,7 @@ pub struct ThemedParams {
 /// titles. Public. Empty `q` → empty row (no implicit "everything").
 pub async fn themed(
     State(state): State<SharedState>,
+    ReqLocale(locale): ReqLocale,
     Query(params): Query<ThemedParams>,
 ) -> Response {
     let q = params.q.trim().to_string();
@@ -64,7 +86,9 @@ pub async fn themed(
     let embedder = state.embedder.clone();
     match query(&state.db, move |pool| {
         let vec = embedder.embed(&q);
-        db::themed_items(&pool, &vec, ROW_LEN, embedder.relevance_floor())
+        let mut items = db::themed_items(&pool, &vec, ROW_LEN, embedder.relevance_floor())?;
+        db::localize::overlay_items(&pool, &mut items, locale)?;
+        Ok(items)
     })
     .await
     {

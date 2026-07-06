@@ -3,10 +3,13 @@
 //! would enjoy, returning resolved member ids. The API caches the result
 //! (`db::item_suggestions`); this is just the generation logic.
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use serde::Deserialize;
 
 use crate::db::TitleFull;
+use crate::i18n;
 use crate::infra::llm::ToolBox;
 use crate::services::llm::CatalogTools;
 use crate::state::SharedState;
@@ -17,10 +20,10 @@ const MAX_TOOL_STEPS: usize = 12;
 /// Minimum members for a suggestion section to be worth showing.
 const MIN_MEMBERS: usize = 4;
 
-/// A generated suggestion: a bilingual one-line reason + resolved member ids.
+/// A generated suggestion: a localized one-line reason per language + resolved
+/// member ids.
 pub struct Suggestion {
-    pub reason_fr: Option<String>,
-    pub reason_en: Option<String>,
+    pub reasons: HashMap<String, String>,
     pub ids: Vec<String>,
 }
 
@@ -62,23 +65,34 @@ pub fn suggest_for(state: &SharedState, seed_id: &str, max_tokens: u32) -> Resul
     if ids.len() < MIN_MEMBERS {
         return Ok(None);
     }
-    Ok(Some(Suggestion { reason_fr: non_empty(spec.reason_fr), reason_en: non_empty(spec.reason_en), ids }))
+    let reasons = spec
+        .reason
+        .into_iter()
+        .filter(|(_, v)| !v.trim().is_empty())
+        .map(|(k, v)| (k, v.trim().to_string()))
+        .collect();
+    Ok(Some(Suggestion { reasons, ids }))
 }
 
 /// (system, user) prompt: describe the seed, ask for library titles a fan would
 /// enjoy, members returned as catalog ids from the tools.
 fn build_prompt(s: &TitleFull) -> (String, String) {
-    let system = "You are the resident film & TV concierge of a personal library. Given one title the viewer \
+    let reason_fields =
+        i18n::SUPPORTED_LOCALES.iter().map(|l| format!("\"{l}\":string")).collect::<Vec<_>>().join(",");
+    let codes = i18n::SUPPORTED_LOCALES.join(", ");
+    let system = format!(
+        "You are the resident film & TV concierge of a personal library. Given one title the viewer \
          is looking at, suggest OTHER titles from this library a fan of it would enjoy same director \
          or cast, kindred genre, era or mood. You have tools: list_genres, list_people, find_titles \
          (filter by genre / director / actor / year / rating) and get_title. Use find_titles to gather \
          candidates (try the seed's director, its lead actors, and its genres).\n\
          When done, reply with STRICT JSON only no prose, no markdown, no fences:\n\
-         {\"reasonFr\":string,\"reasonEn\":string,\"members\":[string]}\n\
+         {{\"reason\":{{{reason_fields}}},\"members\":[string]}}\n\
          - \"members\": 8-15 catalog **ids** returned by the tools (each title's \"id\" field), \
          excluding the seed; never invent ids.\n\
-         - \"reasonFr\"/\"reasonEn\": ONE short clause on what ties them to the seed (French / English)."
-        .to_string();
+         - \"reason\" is an object keyed by language code ({codes}) provide every listed language, \
+         ONE short clause each on what ties them to the seed."
+    );
     let directors = s.directors.join(", ");
     let cast = s.cast.iter().take(5).cloned().collect::<Vec<_>>().join(", ");
     let genres = s.genres.join(", ");
@@ -98,12 +112,12 @@ fn build_prompt(s: &TitleFull) -> (String, String) {
     (system, user)
 }
 
-/// One suggestion object as the model returned it (camelCase keys).
+/// One suggestion object as the model returned it. `reason` is a locale-keyed
+/// object (`{"en":…,"fr":…}`) over the supported languages.
 #[derive(Deserialize, Default)]
-#[serde(rename_all = "camelCase", default)]
+#[serde(default)]
 struct Spec {
-    reason_fr: String,
-    reason_en: String,
+    reason: HashMap<String, String>,
     members: Vec<String>,
 }
 
@@ -115,9 +129,4 @@ fn parse(text: &str) -> Option<Spec> {
         return None;
     }
     serde_json::from_str(&text[start..=end]).ok()
-}
-
-fn non_empty(s: String) -> Option<String> {
-    let t = s.trim();
-    (!t.is_empty()).then(|| t.to_string())
 }

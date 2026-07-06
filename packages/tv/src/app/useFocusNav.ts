@@ -1,5 +1,6 @@
 import { dispatchRemoteKey, registerTvMediaKeys } from '@luma/core';
 import { useEffect } from 'react';
+import { useEnv } from '#tv/app/providers/env';
 
 // Don't let one physical OK carry past the screen it opened. The press that
 // navigates here (card → detail) would otherwise also fire the control the new
@@ -34,7 +35,8 @@ function moveFocus(dir: 'Up' | 'Down' | 'Left' | 'Right') {
 
   const active = document.activeElement as HTMLElement | null;
   const activeFocusable = active && active.dataset.focus !== undefined;
-  const current = (activeFocusable && els.find((f) => f.el === active)) ||
+  const current =
+    (activeFocusable && els.find((f) => f.el === active)) ||
     (activeFocusable && active ? { el: active, rect: active.getBoundingClientRect() } : els[0]!);
   const r = current.rect;
   const cx = r.left + r.width / 2;
@@ -99,6 +101,7 @@ export interface FocusNavHandlers {
  * carrying a `data-focus` attribute (e.g. `<PosterCard focusable />`).
  */
 export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers) {
+  const { pointer } = useEnv();
   useEffect(() => {
     registerTvMediaKeys();
     // Arm the OK guard before the keydown listener attaches, so the press that
@@ -128,7 +131,12 @@ export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers)
       dispatchRemoteKey(
         e,
         {
-          Back: () => onBack?.(),
+          Back: (ev) => {
+            // In a real text field a physical Backspace edits the value (native);
+            // only Escape / a remote Back button leaves the screen.
+            if (inText && ev.key === 'Backspace') return false;
+            return onBack?.();
+          },
           Play: media,
           Pause: media,
           PlayPause: media,
@@ -151,6 +159,27 @@ export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers)
     };
 
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onBack, onPlayPause, resetKey]);
+
+    // Desktop mouse / webOS magic remote: let the amber focus ring follow the
+    // cursor, so a pointer drives the same `[data-focus]:focus` affordance the
+    // remote does (no visual/design change, `preventScroll` keeps hover from
+    // yanking rails the way remote nav intentionally does). Clicks already work
+    // natively everything focusable is a real button / role="button".
+    const onPointerOver = pointer
+      ? (e: PointerEvent) => {
+          const active = document.activeElement;
+          // Never yank focus out of a field the user may be typing into (mouse
+          // jitter over the on-screen keyboard mustn't blur a half-typed query).
+          if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) return;
+          const el = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-focus]');
+          if (el && el !== active) el.focus({ preventScroll: true });
+        }
+      : null;
+    if (onPointerOver) window.addEventListener('pointerover', onPointerOver);
+
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (onPointerOver) window.removeEventListener('pointerover', onPointerOver);
+    };
+  }, [onBack, onPlayPause, resetKey, pointer]);
 }

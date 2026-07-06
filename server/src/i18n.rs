@@ -18,17 +18,35 @@ use crate::state::SharedState;
 /// Default locale (matches the TS `DEFAULT_LOCALE`).
 pub const DEFAULT_LOCALE: &str = "fr";
 
-const FR_JSON: &str = include_str!("../../packages/core/src/locales/fr.json");
-const EN_JSON: &str = include_str!("../../packages/core/src/locales/en.json");
+/// Every locale this server ships a catalog for the single source of truth for
+/// "which languages we support". Adding a language means adding its code here
+/// plus a matching entry in [`CATALOGS`] (and its client catalog). This const
+/// drives i18n resolution, TMDB translation fetch, and LLM section-title
+/// generation (which fans a title/reason out to every code listed here).
+pub const SUPPORTED_LOCALES: &[&str] = &["en", "fr"];
 
-/// Lazily-parsed catalog for a locale (falls back to French for unknown codes).
+/// Raw JSON catalog bytes per supported locale, `include_str!`'d at compile time.
+/// Kept in lock-step with [`SUPPORTED_LOCALES`]; [`DEFAULT_LOCALE`] must appear.
+const CATALOGS: &[(&str, &str)] = &[
+    ("en", include_str!("../../packages/core/src/locales/en.json")),
+    ("fr", include_str!("../../packages/core/src/locales/fr.json")),
+];
+
+/// All parsed catalogs, keyed by locale code (parsed once, on first use).
+fn catalogs() -> &'static HashMap<&'static str, HashMap<String, String>> {
+    static ALL: OnceLock<HashMap<&'static str, HashMap<String, String>>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        CATALOGS
+            .iter()
+            .map(|(code, json)| (*code, serde_json::from_str(json).expect("locale catalog")))
+            .collect()
+    })
+}
+
+/// Parsed catalog for a locale (falls back to [`DEFAULT_LOCALE`] for unknown codes).
 fn catalog(locale: &str) -> &'static HashMap<String, String> {
-    static FR: OnceLock<HashMap<String, String>> = OnceLock::new();
-    static EN: OnceLock<HashMap<String, String>> = OnceLock::new();
-    match locale {
-        "en" => EN.get_or_init(|| serde_json::from_str(EN_JSON).expect("en.json catalog")),
-        _ => FR.get_or_init(|| serde_json::from_str(FR_JSON).expect("fr.json catalog")),
-    }
+    let all = catalogs();
+    all.get(locale).or_else(|| all.get(DEFAULT_LOCALE)).expect("default locale catalog")
 }
 
 /// Map a BCP-47 tag, an `Accept-Language` header, or one of the server's display
@@ -47,11 +65,7 @@ pub fn normalize(tag: &str) -> Option<&'static str> {
         .unwrap_or("")
         .trim()
         .to_ascii_lowercase();
-    match base.as_str() {
-        "fr" => Some("fr"),
-        "en" => Some("en"),
-        _ => None,
-    }
+    SUPPORTED_LOCALES.iter().copied().find(|&l| l == base)
 }
 
 /// Replace `{name}` tokens in `template` from `vars`. Unknown tokens are kept.

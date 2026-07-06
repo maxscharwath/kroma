@@ -14,6 +14,7 @@ use serde::Deserialize;
 use crate::api::dto::{SearchHit, SearchResponse};
 use crate::api::util::query;
 use crate::db;
+use crate::i18n::ReqLocale;
 use crate::services::search::{Hit, HitKind};
 use crate::state::SharedState;
 use axum::routing::get;
@@ -40,6 +41,7 @@ pub struct SearchParams {
 /// `GET /api/search?q=&limit=&library=` → ranked [`SearchResponse`].
 pub async fn search(
     State(state): State<SharedState>,
+    ReqLocale(locale): ReqLocale,
     Query(p): Query<SearchParams>,
 ) -> Result<Response, Response> {
     let q = p.q.unwrap_or_default().trim().to_string();
@@ -53,7 +55,7 @@ pub async fn search(
     let engine = state.search.clone();
     let resp = query(&state.db, move |pool| {
         let hits = engine.search(&q, limit);
-        let results = hydrate(&pool, hits, library.as_deref())?;
+        let results = hydrate(&pool, hits, library.as_deref(), locale)?;
         Ok(SearchResponse { query: q, results })
     })
     .await?;
@@ -61,17 +63,22 @@ pub async fn search(
 }
 
 /// Load full DTOs for the ranked hits and rebuild the list in score order,
-/// optionally filtering to a single library.
-fn hydrate(pool: &db::Pool, hits: Vec<Hit>, library: Option<&str>) -> anyhow::Result<Vec<SearchHit>> {
+/// optionally filtering to a single library. Overlays the request locale onto the
+/// hydrated items/shows before wrapping them into `SearchHit`s.
+fn hydrate(pool: &db::Pool, hits: Vec<Hit>, library: Option<&str>, locale: &str) -> anyhow::Result<Vec<SearchHit>> {
     let item_ids: Vec<String> =
         hits.iter().filter(|h| h.kind != HitKind::Show).map(|h| h.id.clone()).collect();
     let show_ids: Vec<String> =
         hits.iter().filter(|h| h.kind == HitKind::Show).map(|h| h.id.clone()).collect();
 
+    let mut item_vec = db::get_items_by_ids(pool, &item_ids)?;
+    db::localize::overlay_items(pool, &mut item_vec, locale)?;
     let mut items: HashMap<String, _> =
-        db::get_items_by_ids(pool, &item_ids)?.into_iter().map(|i| (i.id.clone(), i)).collect();
+        item_vec.into_iter().map(|i| (i.id.clone(), i)).collect();
+    let mut show_vec = db::get_shows_by_ids(pool, &show_ids)?;
+    db::localize::overlay_shows(pool, &mut show_vec, locale)?;
     let mut shows: HashMap<String, _> =
-        db::get_shows_by_ids(pool, &show_ids)?.into_iter().map(|s| (s.id.clone(), s)).collect();
+        show_vec.into_iter().map(|s| (s.id.clone(), s)).collect();
 
     let in_library = |lib: &str| library.is_none_or(|want| lib == want);
 

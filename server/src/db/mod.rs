@@ -43,6 +43,12 @@ mod requests;
 mod taste;
 mod curated;
 mod suggest;
+// Namespaced (`db::translations::…` / `db::metadata_core::…`) rather than
+// glob-exported: the generic language cache the whole app writes into, kept
+// scoped so `put`/`resolve_*`/`get_core` read clearly at the call sites.
+pub mod translations;
+pub mod metadata_core;
+pub mod localize;
 mod schema;
 mod vectors;
 mod home;

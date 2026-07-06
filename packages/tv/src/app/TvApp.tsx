@@ -4,6 +4,7 @@ import { type RedirectRule, resolveRedirect } from '#tv/app/guard';
 import { AuthProvider, useAuth } from '#tv/app/providers/auth';
 import { ConnectionProvider, useConnection } from '#tv/app/providers/connection';
 import { ContinueProvider } from '#tv/app/providers/continue';
+import { EnvProvider, type TvEnvOverrides } from '#tv/app/providers/env';
 import { LocaleProvider } from '#tv/app/providers/locale';
 import { MyListProvider } from '#tv/app/providers/mylist';
 import { RecommendProvider } from '#tv/app/providers/recommend';
@@ -34,6 +35,9 @@ import { TvPlayer } from '#tv/features/playback/TvPlayer';
 export interface TvAppProps {
   /** Platform label shown in diagnostics, e.g. "Tizen" / "webOS". */
   platform?: string;
+  /** Override input-capability detection (pointer / physical keyboard) when the
+   * platform label alone is wrong e.g. a Steam Deck is 'Desktop' but gamepad-driven. */
+  capabilities?: TvEnvOverrides;
 }
 
 // The brand intro plays once per launch. sessionStorage survives Vite HMR (so dev
@@ -47,13 +51,13 @@ const introAlreadySeen = (() => {
   }
 })();
 
-export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
+export function TvApp({ platform = 'TV', capabilities }: Readonly<TvAppProps>) {
   const { connection, client, activeServerUrl, setActiveServer, setSignedIn } =
     useCatalogue(platform);
   const [introDone, setIntroDone] = useState(introAlreadySeen);
 
   return (
-    <>
+    <EnvProvider platform={platform} overrides={capabilities}>
       <TvNavProvider screens={SCREENS}>
         <ConnectionProvider value={connection}>
           <TvClientProvider client={client}>
@@ -91,7 +95,7 @@ export function TvApp({ platform = 'TV' }: Readonly<TvAppProps>) {
           }}
         />
       )}
-    </>
+    </EnvProvider>
   );
 }
 

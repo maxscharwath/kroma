@@ -300,14 +300,16 @@ pub fn stamp_wanted_searched(pool: &Pool, ids: &[String], now_ms: i64) -> Result
     update_wanted_chunked(pool, ids, "last_search_at = ?1, updated_at = ?1", &[&now_ms])
 }
 
-// ----- availability lookups (expression-indexed) ---------------------------------
+// ----- availability lookups (metadata_core.tmdb_id, indexed) ---------------------
 
 /// The library movie item carrying this TMDB id, if any. `video` items count:
-/// enrichment resolves both against TMDB's movie namespace.
+/// enrichment resolves both against TMDB's movie namespace. Seeks the real
+/// `metadata_core.tmdb_id` column, joined back to `items` so a stale core row for
+/// a since-deleted item never matches.
 pub fn movie_item_by_tmdb(conn: &Connection, tmdb_id: u64) -> rusqlite::Result<Option<String>> {
     conn.query_row(
-        "SELECT id FROM items WHERE kind IN ('movie', 'video') \
-         AND json_extract(metadata, '$.tmdbId') = ?1 LIMIT 1",
+        "SELECT c.subject_id FROM metadata_core c JOIN items i ON i.id = c.subject_id \
+         WHERE c.subject_kind = 'item' AND c.tmdb_id = ?1 AND i.kind IN ('movie', 'video') LIMIT 1",
         params![tmdb_id as i64],
         |r| r.get(0),
     )
@@ -317,7 +319,8 @@ pub fn movie_item_by_tmdb(conn: &Connection, tmdb_id: u64) -> rusqlite::Result<O
 /// The library show carrying this TMDB id, if any.
 pub fn show_by_tmdb(conn: &Connection, tmdb_id: u64) -> rusqlite::Result<Option<String>> {
     conn.query_row(
-        "SELECT id FROM shows WHERE json_extract(metadata, '$.tmdbId') = ?1 LIMIT 1",
+        "SELECT c.subject_id FROM metadata_core c JOIN shows s ON s.id = c.subject_id \
+         WHERE c.subject_kind = 'show' AND c.tmdb_id = ?1 LIMIT 1",
         params![tmdb_id as i64],
         |r| r.get(0),
     )
@@ -358,9 +361,16 @@ mod tests {
 
     fn insert_movie_item(conn: &Connection, id: &str, tmdb: u64) {
         conn.execute(
-            "INSERT INTO items (id, kind, title, container, library, metadata, added_at) \
-             VALUES (?1, 'movie', 'T', 'mkv', 'lib1', ?2, 'now')",
-            params![id, format!("{{\"provider\":\"tmdb\",\"tmdbId\":{tmdb},\"tmdbUrl\":\"u\"}}")],
+            "INSERT INTO items (id, kind, title, container, library, added_at) \
+             VALUES (?1, 'movie', 'T', 'mkv', 'lib1', 'now')",
+            params![id],
+        )
+        .unwrap();
+        // Availability now seeks metadata_core.tmdb_id (a real indexed column).
+        conn.execute(
+            "INSERT INTO metadata_core (subject_kind, subject_id, tmdb_id, updated_at) \
+             VALUES ('item', ?1, ?2, 0)",
+            params![id, tmdb as i64],
         )
         .unwrap();
     }
@@ -387,7 +397,7 @@ mod tests {
         insert_movie_item(&conn, "m1", 603);
         assert_eq!(movie_item_by_tmdb(&conn, 603).unwrap().as_deref(), Some("m1"));
         assert_eq!(movie_item_by_tmdb(&conn, 604).unwrap(), None);
-        // Items without metadata never match (json_extract on NULL is NULL).
+        // Items without a metadata_core row never match (no tmdb_id to seek).
         conn.execute(
             "INSERT INTO items (id, kind, title, container, library, added_at) \
              VALUES ('m2','movie','U','mkv','lib1','now')",

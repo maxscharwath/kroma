@@ -281,6 +281,7 @@
   "content.similarTitles": "Similar titles",
   "content.aiSuggestions": "AI suggestions",
   "content.aiSuggestionsLoading": "Preparing AI suggestions…",
+  "content.directedBy": "Directed by {name}",
   "content.similarShows": "Similar series",
   "content.hdr4k": "In 4K · HDR",
   "content.continueWatching": "Continue watching",

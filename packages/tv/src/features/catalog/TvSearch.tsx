@@ -7,7 +7,7 @@ import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav } from '#tv/app/router';
 import { useFocusNav } from '#tv/app/useFocusNav';
 import { TvPoster } from '#tv/shared/TvMedia';
-import { LumaMark, OnScreenKeyboard, TvBackButton } from '#tv/shared/ui';
+import { LumaMark, OnScreenKeyboard, TvBackButton, TvTextEntry } from '#tv/shared/ui';
 
 interface Hit {
   id: string;
@@ -113,10 +113,14 @@ export function TvSearch() {
         <div className="flex w-[520px] flex-none flex-col">
           <div className="mb-6.5 flex h-17 items-center gap-3.5 rounded-2xl border border-border-strong bg-[rgba(255,255,255,0.05)] px-5.5">
             <IconSearch size={24} stroke={1.8} color="rgba(244,243,240,0.5)" />
-            <span className="flex-1 truncate font-sans text-[24px] font-semibold text-text">
-              {query}
-            </span>
-            <span className="h-7 w-0.5 bg-accent animate-[tv-breathe_1.1s_ease-in-out_infinite]" />
+            <TvTextEntry
+              value={query}
+              onChange={setQuery}
+              ariaLabel={t('nav.search')}
+              inputMode="search"
+              textClassName="min-w-0 flex-1 truncate font-sans text-[24px] font-semibold text-text"
+              cursorClassName="h-7 w-0.5 bg-accent animate-[tv-breathe_1.1s_ease-in-out_infinite]"
+            />
           </div>
           <OnScreenKeyboard value={query} onChange={setQuery} onClose={nav.back} layout="search" />
         </div>

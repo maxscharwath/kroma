@@ -68,7 +68,7 @@ pub async fn ai_suggest(
     match result {
         Ok(Some((row, items))) => {
             let title = i18n::t(locale, "content.aiSuggestions", &[]);
-            let reason = pick_locale(&row.reason_fr, &row.reason_en, locale);
+            let reason = pick_lang(&row.reasons, locale);
             Json(Some(Section { id: "ai:suggest".to_string(), title, reason, items })).into_response()
         }
         // Cache miss → start background generation (once), tell the client to wait.
@@ -126,12 +126,12 @@ fn generate(state: &SharedState, id: &str) {
     match crate::services::llm::suggest_for(state, id, max_tokens) {
         Ok(Some(s)) => {
             cooldowns().lock().unwrap().remove(id);
-            let _ = db::set_suggestion(&state.db, id, &s.ids, s.reason_fr.as_deref(), s.reason_en.as_deref());
+            let _ = db::set_suggestion(&state.db, id, &s.ids, &s.reasons);
         }
         // Tried, nothing usable → cache empty (terminal; stops the client polling).
         Ok(None) => {
             cooldowns().lock().unwrap().remove(id);
-            let _ = db::set_suggestion(&state.db, id, &[], None, None);
+            let _ = db::set_suggestion(&state.db, id, &[], &HashMap::new());
         }
         // Hard LLM failure → don't cache (so a later view retries), but record the
         // time so polls back off to one attempt per RETRY_COOLDOWN.
@@ -142,9 +142,8 @@ fn generate(state: &SharedState, id: &str) {
     }
 }
 
-/// Pick the locale-appropriate string (en for `"en"`, else fr), falling back to
-/// whichever is present.
-fn pick_locale(fr: &Option<String>, en: &Option<String>, locale: &str) -> Option<String> {
-    let (first, second) = if locale == "en" { (en, fr) } else { (fr, en) };
-    first.clone().or_else(|| second.clone())
+/// Pick a locale's reason from a `locale -> string` map, falling back requested
+/// -> `en` -> any available.
+fn pick_lang(map: &HashMap<String, String>, locale: &str) -> Option<String> {
+    map.get(locale).or_else(|| map.get("en")).or_else(|| map.values().next()).cloned()
 }

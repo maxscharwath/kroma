@@ -3,8 +3,8 @@ import { IconWorldSearch } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
-import { AuthScreen, LumaMark, OnScreenKeyboard } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { AuthScreen, LumaMark, OnScreenKeyboard, TvTextEntry } from '#tv/shared/ui';
 
 /**
  * Add a (distant) server by address, via an on-screen URL keyboard. Reached on
@@ -57,12 +57,17 @@ export function TvConnect() {
 
         <div className="mb-5 flex items-center gap-3 rounded-[13px] border border-border-strong bg-[#0F0F13] px-5 py-4">
           <IconWorldSearch size={20} className="flex-none text-dim" stroke={1.7} />
-          <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans text-[20px] font-semibold text-text">
-            {value || (
-              <span className="text-[rgba(244,243,240,0.3)]">{t('connect.serverPlaceholder')}</span>
-            )}
-            <span className="ml-px inline-block h-5.5 w-0.5 translate-y-1 bg-accent animate-[tv-blink_1s_step-end_infinite]" />
-          </span>
+          <TvTextEntry
+            value={value}
+            onChange={setValue}
+            onSubmit={submit}
+            placeholder={t('connect.serverPlaceholder')}
+            ariaLabel={t('connect.addServerTitle')}
+            inputMode="url"
+            textClassName="min-w-0 flex-1 overflow-hidden whitespace-nowrap font-sans text-[20px] font-semibold text-text"
+            placeholderClassName="text-[rgba(244,243,240,0.3)]"
+            cursorClassName="ml-px inline-block h-5.5 w-0.5 translate-y-1 bg-accent animate-[tv-blink_1s_step-end_infinite]"
+          />
           <button
             data-focus=""
             type="button"

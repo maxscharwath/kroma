@@ -21,6 +21,9 @@ use tantivy::schema::{Field, Schema, Value};
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
 use tracing::{info, warn};
 
+use std::collections::HashMap;
+
+use crate::db::translations::TransData;
 use crate::db::{self, Pool};
 use crate::model::{Kind, MediaItem, Metadata, Show};
 use crate::state::SharedState;
@@ -61,13 +64,20 @@ impl SearchEngine {
     /// Build an empty engine. Searches return nothing until the first rebuild.
     pub fn new() -> Result<Self> {
         let (schema, fields) = schema::build();
-        let active = build_active(schema.clone(), &fields, &[], &[], &[])?;
+        let empty = HashMap::new();
+        let active =
+            build_active(schema.clone(), &fields, &[], &[], &[], &empty, &empty, &empty)?;
         Ok(Self { schema, fields, active: RwLock::new(Arc::new(active)) })
     }
 
     /// Replace the index with a fresh one built from the given catalogue.
+    /// Rebuild the index from explicit catalog slices (no translations). Used by
+    /// the search unit tests; production reindexing goes through [`Self::reindex_from_db`].
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn rebuild(&self, movies: &[MediaItem], shows: &[Show], episodes: &[MediaItem]) -> Result<()> {
-        let active = build_active(self.schema.clone(), &self.fields, movies, shows, episodes)?;
+        let empty = HashMap::new();
+        let active =
+            build_active(self.schema.clone(), &self.fields, movies, shows, episodes, &empty, &empty, &empty)?;
         *self.active.write().unwrap() = Arc::new(active);
         Ok(())
     }
@@ -77,7 +87,17 @@ impl SearchEngine {
         let (items, shows) = db::index_snapshot(pool)?;
         let (episodes, movies): (Vec<MediaItem>, Vec<MediaItem>) =
             items.into_iter().partition(|i| matches!(i.kind, Kind::Episode));
-        self.rebuild(&movies, &shows, &episodes)
+        // Pull every stored language so the index matches a query in any of them
+        // (the "queryable by the indexer" half of the language cache).
+        let tr_movies = db::translations::all_for_kind(pool, db::metadata_core::ITEM).unwrap_or_default();
+        let tr_eps = db::translations::all_for_kind(pool, "episode").unwrap_or_default();
+        let tr_shows = db::translations::all_for_kind(pool, db::metadata_core::SHOW).unwrap_or_default();
+        let active = build_active(
+            self.schema.clone(), &self.fields, &movies, &shows, &episodes, &tr_movies, &tr_eps,
+            &tr_shows,
+        )?;
+        *self.active.write().unwrap() = Arc::new(active);
+        Ok(())
     }
 
     /// Top-`limit` hits for `raw`, best first. Empty for a blank query.
@@ -110,23 +130,27 @@ impl SearchEngine {
 }
 
 /// Build a fresh index, add every document, commit, and open a reader.
+#[allow(clippy::too_many_arguments)]
 fn build_active(
     schema: Schema,
     fields: &Fields,
     movies: &[MediaItem],
     shows: &[Show],
     episodes: &[MediaItem],
+    tr_movies: &HashMap<String, Vec<TransData>>,
+    tr_eps: &HashMap<String, Vec<TransData>>,
+    tr_shows: &HashMap<String, Vec<TransData>>,
 ) -> Result<Active> {
     let index = schema::new_index(schema);
     let mut writer: IndexWriter = index.writer_with_num_threads(1, 15_000_000)?;
     for m in movies {
-        add_item(&mut writer, fields, m, "movie");
+        add_item(&mut writer, fields, m, "movie", tr_movies.get(&m.id));
     }
     for e in episodes {
-        add_item(&mut writer, fields, e, "episode");
+        add_item(&mut writer, fields, e, "episode", tr_eps.get(&e.id));
     }
     for s in shows {
-        add_show(&mut writer, fields, s);
+        add_show(&mut writer, fields, s, tr_shows.get(&s.id));
     }
     writer.commit()?;
     let reader = index
@@ -137,7 +161,7 @@ fn build_active(
     Ok(Active { reader, _index: index })
 }
 
-fn add_item(writer: &mut IndexWriter, f: &Fields, item: &MediaItem, kind: &str) {
+fn add_item(writer: &mut IndexWriter, f: &Fields, item: &MediaItem, kind: &str, tr: Option<&Vec<TransData>>) {
     let mut doc = TantivyDocument::new();
     doc.add_text(f.id, &item.id);
     doc.add_text(f.kind, kind);
@@ -149,16 +173,39 @@ fn add_item(writer: &mut IndexWriter, f: &Fields, item: &MediaItem, kind: &str) 
         doc.add_text(f.show_title, st);
     }
     add_meta(&mut doc, f, &item.title, item.metadata.as_ref());
+    add_translations(&mut doc, f, &item.title, tr);
     let _ = writer.add_document(doc);
 }
 
-fn add_show(writer: &mut IndexWriter, f: &Fields, show: &Show) {
+fn add_show(writer: &mut IndexWriter, f: &Fields, show: &Show, tr: Option<&Vec<TransData>>) {
     let mut doc = TantivyDocument::new();
     doc.add_text(f.id, &show.id);
     doc.add_text(f.kind, "show");
     doc.add_text(f.title, &show.title);
     add_meta(&mut doc, f, &show.title, show.metadata.as_ref());
+    add_translations(&mut doc, f, &show.title, tr);
     let _ = writer.add_document(doc);
+}
+
+/// Index every stored language's title/overview/genres so a search matches the
+/// user's language regardless of the household enrichment language. Titles that
+/// differ from the filename title go into `alt_title`; multi-valued fields let us
+/// add one set per language to the same document.
+fn add_translations(doc: &mut TantivyDocument, f: &Fields, file_title: &str, tr: Option<&Vec<TransData>>) {
+    let Some(list) = tr else { return };
+    for t in list {
+        if let Some(title) = &t.title {
+            if !title.eq_ignore_ascii_case(file_title) {
+                doc.add_text(f.alt_title, title);
+            }
+        }
+        if let Some(o) = &t.overview {
+            doc.add_text(f.overview, o);
+        }
+        for g in &t.genres {
+            doc.add_text(f.genres, g);
+        }
+    }
 }
 
 /// Index the searchable parts of TMDB metadata: a differing localized title,

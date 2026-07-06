@@ -14,6 +14,7 @@ use serde::Deserialize;
 use crate::api::dto::{PersonResponse, SearchHit};
 use crate::api::util::query;
 use crate::db;
+use crate::i18n::ReqLocale;
 use crate::model::{MediaItem, Metadata, Show};
 use crate::state::SharedState;
 use axum::routing::get;
@@ -35,6 +36,7 @@ pub struct PersonParams {
 /// `GET /api/people?name=&library=` → [`PersonResponse`].
 pub async fn person(
     State(state): State<SharedState>,
+    ReqLocale(locale): ReqLocale,
     Query(p): Query<PersonParams>,
 ) -> Result<Response, Response> {
     let name = p.name.unwrap_or_default().trim().to_string();
@@ -46,8 +48,10 @@ pub async fn person(
 
     let resp = query(&state.db, move |pool| {
         let (movie_ids, show_ids) = db::titles_by_person(&pool, &name)?;
-        let movies = db::get_items_by_ids(&pool, &movie_ids)?;
-        let shows = db::get_shows_by_ids(&pool, &show_ids)?;
+        let mut movies = db::get_items_by_ids(&pool, &movie_ids)?;
+        let mut shows = db::get_shows_by_ids(&pool, &show_ids)?;
+        db::localize::overlay_items(&pool, &mut movies, locale)?;
+        db::localize::overlay_shows(&pool, &mut shows, locale)?;
         let results = collect(movies, shows, library.as_deref());
         Ok(PersonResponse { name, results })
     })

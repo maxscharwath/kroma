@@ -69,7 +69,21 @@ pub fn curl_available() -> bool {
         .unwrap_or(false)
 }
 
-/// Resolve metadata for `title`/`year`, caching the result (hit or miss).
+/// Cache key for one resolved detail, keyed by (target, language, year, title).
+/// Shared by [`lookup`] and [`lookup_all`] so a manual single-language lookup can
+/// reuse a language an enrichment pass already fetched.
+fn detail_key(target: Target, language: &str, title: &str, year: Option<u32>) -> String {
+    format!(
+        "{}|{}|{}|{}",
+        target.detail_path(),
+        language,
+        year.unwrap_or(0),
+        title.to_lowercase()
+    )
+}
+
+/// Resolve metadata for `title`/`year` in one language, caching the result (hit
+/// or miss).
 pub fn lookup(
     cache: &Cache,
     api_key: &str,
@@ -78,13 +92,7 @@ pub fn lookup(
     title: &str,
     year: Option<u32>,
 ) -> Option<Metadata> {
-    let key = format!(
-        "{}|{}|{}|{}",
-        target.detail_path(),
-        language,
-        year.unwrap_or(0),
-        title.to_lowercase()
-    );
+    let key = detail_key(target, language, title, year);
     if let Some(cached) = cache.get(&key) {
         return cached;
     }
@@ -105,6 +113,54 @@ pub fn lookup(
     }
 }
 
+/// The same title resolved in several languages one [`Metadata`] per language
+/// that fetched. Invariant fields (ids, art, people) are identical across
+/// entries; only the localized text (title/overview/tagline/genres/characters)
+/// differs. Keyed by the language code passed in (base codes, e.g. `"en"`).
+pub struct Resolved {
+    pub by_lang: std::collections::HashMap<String, Metadata>,
+}
+
+/// Resolve `title`/`year` in every language in `langs` for the multi-language
+/// enrichment path. The TMDB id is resolved once (a single search in
+/// `search_lang`, typically the household language whose filenames we scanned),
+/// then details are fetched once per language against that id. A language whose
+/// detail fetch fails transiently is simply omitted (the caller falls back);
+/// `None` means the title did not resolve at all.
+pub fn lookup_all(
+    cache: &Cache,
+    api_key: &str,
+    search_lang: &str,
+    langs: &[&str],
+    target: Target,
+    title: &str,
+    year: Option<u32>,
+) -> Option<Resolved> {
+    let id = match search_id(api_key, search_lang, target, title, year) {
+        Ok(Some(id)) => id,
+        // No match, or a transient search failure treat both as "no result this
+        // run" (a transient blip is retried on the next enrichment pass).
+        _ => return None,
+    };
+    let mut by_lang = std::collections::HashMap::new();
+    for &lang in langs {
+        let key = detail_key(target, lang, title, year);
+        let meta = match cache.get(&key) {
+            Some(Some(m)) => m,
+            Some(None) => continue, // cached miss for this language
+            None => match fetch_details(api_key, lang, target, id) {
+                Ok(m) => {
+                    cache.put(key, Some(m.clone()));
+                    m
+                }
+                Err(()) => continue, // transient; skip this language, keep others
+            },
+        };
+        by_lang.insert(lang.to_string(), meta);
+    }
+    (!by_lang.is_empty()).then_some(Resolved { by_lang })
+}
+
 /// Search TMDB for the best match, then fetch its details + external IDs.
 ///
 /// `Ok(Some)` = resolved, `Ok(None)` = searched fine but no match (cacheable),
@@ -118,6 +174,20 @@ fn fetch(
     title: &str,
     year: Option<u32>,
 ) -> Result<Option<Metadata>, ()> {
+    match search_id(api_key, language, target, title, year)? {
+        Some(id) => Ok(Some(fetch_details(api_key, language, target, id)?)),
+        None => Ok(None),
+    }
+}
+
+/// Search half: resolve `title`/`year` to a TMDB id. `Ok(None)` = no match.
+fn search_id(
+    api_key: &str,
+    language: &str,
+    target: Target,
+    title: &str,
+    year: Option<u32>,
+) -> Result<Option<u64>, ()> {
     let mut search_params = vec![
         ("language", language.to_string()),
         ("query", title.to_string()),
@@ -128,11 +198,17 @@ fn fetch(
     }
     let search: SearchResp =
         curl_json(&format!("{API}/{}", target.search_path()), api_key, &search_params)?;
-    let Some(hit) = search.results.first() else {
-        return Ok(None);
-    };
-    let id = hit.id;
+    Ok(search.results.first().map(|hit| hit.id))
+}
 
+/// Detail half: fetch + map one resolved TMDB `id` into a [`Metadata`] in
+/// `language` (title/overview/genres/cast characters come back localized).
+fn fetch_details(
+    api_key: &str,
+    language: &str,
+    target: Target,
+    id: u64,
+) -> Result<Metadata, ()> {
     // Base language code (e.g. "fr" from "fr-FR") for picking a localized logo.
     let lang2 = language.split('-').next().unwrap_or("en");
     let detail_params = vec![
@@ -170,7 +246,7 @@ fn fetch(
         .collect();
     let crew = map_crew(raw_crew, d.created_by);
 
-    Ok(Some(Metadata {
+    Ok(Metadata {
         provider: "tmdb",
         tmdb_id: d.id,
         imdb_id,
@@ -195,7 +271,7 @@ fn fetch(
         theme_url: None,
         tvdb_id,
         tmdb_url: format!("https://www.themoviedb.org/{}/{id}", target.web_kind()),
-    }))
+    })
 }
 
 /// Per-episode artwork + text resolved from a TMDB season fetch. `still_url` is
@@ -255,6 +331,25 @@ pub fn season_episodes(api_key: &str, language: &str, tv_id: u64, season: u32) -
         })
         .collect();
     SeasonData { episodes, cast }
+}
+
+/// Fetch one season in several languages, keyed by language code. Each language
+/// is an independent TMDB call (localized episode titles/overviews + character
+/// names); languages that return nothing are omitted. Reuses [`season_episodes`],
+/// so a transient failure yields empty data for that language, never an error.
+pub fn season_episodes_multi(
+    api_key: &str,
+    langs: &[&str],
+    tv_id: u64,
+    season: u32,
+) -> std::collections::HashMap<String, SeasonData> {
+    langs
+        .iter()
+        .filter_map(|&lang| {
+            let data = season_episodes(api_key, lang, tv_id, season);
+            (!data.episodes.is_empty() || !data.cast.is_empty()).then(|| (lang.to_string(), data))
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]

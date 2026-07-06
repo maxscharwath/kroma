@@ -132,7 +132,13 @@ pub fn build_home(state: &SharedState, pool: &Pool, locale: &str, user_id: &str)
         out.push("recent", i18n::t(locale, "content.recentlyAdded", &[]), None, recent, NO_FLOOR);
     }
 
-    out.sections
+    // Overlay every row's items into the request locale (title/overview/genres).
+    // Best-effort a translation-cache miss leaves the household-language blob.
+    let mut sections = out.sections;
+    for s in &mut sections {
+        let _ = db::localize::overlay_section_items(pool, &mut s.items, locale);
+    }
+    sections
 }
 
 /// Wrap SQL-sourced ids (trending / recently-added) as `(id, score)` so they flow
@@ -156,18 +162,17 @@ fn curated_rows(pool: &Pool, locale: &str) -> Vec<(String, String, Option<String
     (0..n)
         .map(|i| {
             let row = &all[(offset + i) % all.len()];
-            let title = pick_locale(&row.title_fr, &row.title_en, locale).unwrap_or_else(|| row.key.clone());
-            let reason = pick_locale(&row.reason_fr, &row.reason_en, locale);
+            let title = pick_lang(&row.titles, locale).unwrap_or_else(|| row.key.clone());
+            let reason = pick_lang(&row.reasons, locale);
             (row.key.clone(), title, reason, row.item_ids.clone())
         })
         .collect()
 }
 
-/// Pick the locale-appropriate string (en for `"en"`, else fr), falling back to
-/// whichever is present.
-fn pick_locale(fr: &Option<String>, en: &Option<String>, locale: &str) -> Option<String> {
-    let (first, second) = if locale == "en" { (en, fr) } else { (fr, en) };
-    first.clone().or_else(|| second.clone())
+/// Pick a locale's string from a `locale -> string` map, falling back requested
+/// -> `en` -> any available.
+fn pick_lang(map: &std::collections::HashMap<String, String>, locale: &str) -> Option<String> {
+    map.get(locale).or_else(|| map.get("en")).or_else(|| map.values().next()).cloned()
 }
 
 /// Accumulates sections while enforcing the caps, the quality gate, and the

@@ -13,4 +13,5 @@ export { TvBackButton } from '#tv/shared/ui/BackButton';
 export { LumaMark, useClock } from '#tv/shared/ui/brand';
 export { OnScreenKeyboard } from '#tv/shared/ui/keyboard';
 export { Keypad } from '#tv/shared/ui/keypad';
+export { TvTextEntry } from '#tv/shared/ui/textentry';
 export { artUrl, hostOf } from '#tv/shared/ui/util';

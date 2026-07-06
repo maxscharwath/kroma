@@ -208,11 +208,13 @@ fn enrich_episodes(
     pool: &Pool,
     api_key: &str,
     language: &str,
+    langs: &[&str],
     data_dir: &Path,
     bus: &Bus,
     show_id: &str,
     tv_id: u64,
 ) {
+    use db::translations::{self, TransData};
     let Ok(Some(detail)) = db::get_show(pool, show_id) else { return };
     let have_cast = db::seasons_with_cast(pool, show_id).unwrap_or_default();
     for season in &detail.seasons {
@@ -225,14 +227,19 @@ fn enrich_episodes(
         if missing.is_empty() && !needs_cast {
             continue;
         }
-        let data: metadata::SeasonData =
-            metadata::season_episodes(api_key, language, tv_id, season.number);
+        // One TMDB call per language: localized episode text + character names.
+        let per_lang = metadata::season_episodes_multi(api_key, langs, tv_id, season.number);
+        if per_lang.is_empty() {
+            continue;
+        }
+        let primary_key = primary_lang(&per_lang, language);
+        let data = &per_lang[&primary_key];
 
-        // Per-episode stills.
+        // Per-episode stills (legacy blob) from the primary language, as before.
         if !missing.is_empty() && !data.episodes.is_empty() {
             let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
                 data.episodes.iter().map(|a| (a.episode, a)).collect();
-            for ep in missing {
+            for ep in &missing {
                 let Some(num) = ep.episode else { continue };
                 let Some(art) = by_num.get(&num) else { continue };
                 if art.still_url.is_none() && art.overview.is_none() {
@@ -246,13 +253,39 @@ fn enrich_episodes(
             }
         }
 
-        // Season cast localize the profile photos (reusing the Metadata cache),
-        // then store keyed by (show, season).
+        // Per-language episode text (title + overview) into the translation cache,
+        // for every episode of the season (the still stays invariant on the blob).
+        for (lang, sdata) in &per_lang {
+            let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
+                sdata.episodes.iter().map(|a| (a.episode, a)).collect();
+            for ep in &season.episodes {
+                let Some(num) = ep.episode else { continue };
+                let Some(art) = by_num.get(&num) else { continue };
+                let td = TransData { title: art.name.clone(), overview: art.overview.clone(), ..Default::default() };
+                if !td.is_empty() {
+                    let _ = translations::put(pool, "episode", &ep.id, lang, translations::TMDB, &td);
+                }
+            }
+        }
+
+        // Season cast: localize the primary-language photos (legacy season_meta
+        // blob), then store per-language character names in the translation cache
+        // aligned by index to that stored cast (TMDB keeps cast order across langs).
         if needs_cast && !data.cast.is_empty() {
             let carrier =
                 image::localize(data_dir, Metadata { cast: data.cast.clone(), ..blank_metadata() });
             if let Err(e) = db::set_season_cast(pool, show_id, season.number, &carrier.cast) {
                 warn!(show = %show_id, season = season.number, error = %e, "failed to store season cast");
+            }
+            let sc_id = format!("{show_id}:{}", season.number);
+            for (lang, sdata) in &per_lang {
+                if sdata.cast.is_empty() {
+                    continue;
+                }
+                let characters: Vec<Option<String>> =
+                    sdata.cast.iter().map(|c| c.character.clone()).collect();
+                let td = TransData { characters, ..Default::default() };
+                let _ = translations::put(pool, "season_cast", &sc_id, lang, translations::TMDB, &td);
             }
         }
     }
@@ -266,24 +299,38 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
     // Already enriched: don't re-resolve the title (TMDB is rate-limited). A show
     // still runs its incremental per-season pass to fill any newly-added
     // episodes' stills/cast; a movie has no sub-work and is simply counted done.
+    // Base codes we resolve + store a language row for (single source of truth).
+    let langs: Vec<&str> = crate::i18n::SUPPORTED_LOCALES.to_vec();
     if let Some(tmdb_id) = job.resolved_tmdb {
         if job.is_show {
             enrich_episodes(
-                &eng.pool, &eng.api_key, &eng.language, &eng.data_dir, &eng.bus, &job.id, tmdb_id,
+                &eng.pool, &eng.api_key, &eng.language, &langs, &eng.data_dir, &eng.bus, &job.id,
+                tmdb_id,
             );
         }
         counters.resolved.fetch_add(1, Ordering::Relaxed);
         bump(eng, counters, total, activity);
         return;
     }
-    let Some(meta) =
-        metadata::lookup(&eng.cache, &eng.api_key, &eng.language, job.target, &job.title, job.year)
-    else {
+    // Resolve the title once, then fetch its details in every supported language.
+    let Some(resolved) = metadata::lookup_all(
+        &eng.cache, &eng.api_key, &eng.language, &langs, job.target, &job.title, job.year,
+    ) else {
         counters.missed.fetch_add(1, Ordering::Relaxed);
         bump(eng, counters, total, activity);
         return;
     };
-    // Download + transcode poster/backdrop to local WebP.
+    // The primary language backs the legacy `metadata` blob, the embedding, and
+    // the localized art we keep as invariant household base code, else English,
+    // else any. `by_lang` is non-empty by construction.
+    let primary_key = primary_lang(&resolved.by_lang, &eng.language);
+    let Some(meta) = resolved.by_lang.get(&primary_key).cloned() else {
+        counters.missed.fetch_add(1, Ordering::Relaxed);
+        bump(eng, counters, total, activity);
+        return;
+    };
+    // Download + transcode poster/backdrop (+ cast photos) to local WebP invariant,
+    // so done once on the primary and shared by every language row.
     let meta = image::localize(&eng.data_dir, meta);
     // Download the show's theme song when the feature is on (TV only; movies
     // carry no tvdb_id, so it's a no-op for them). Disabled → theme_url stays
@@ -300,16 +347,23 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
     };
     match write {
         Ok(()) => {
+            // Dual-write the language-agnostic cache: the invariant core once, plus
+            // a translation row per supported language (title/overview/genres/
+            // characters). Best-effort a failure here must not drop the blob/art.
+            let kind = if job.is_show { db::metadata_core::SHOW } else { db::metadata_core::ITEM };
+            if let Err(e) = db::store_localized(&eng.pool, kind, &job.id, &meta, &resolved.by_lang) {
+                warn!(id = %job.id, error = %e, "failed to store localized metadata cache");
+            }
             // Best-effort: a vector failure must not drop the art.
             if let Err(e) = db::set_item_vector(&eng.pool, &job.id, &vector) {
                 warn!(id = %job.id, error = %e, "failed to store embedding");
             }
-            // Per-episode stills (+ episode title/overview) for shows, once the
-            // show itself has resolved. Best-effort.
+            // Per-episode stills (+ per-language episode title/overview) for shows,
+            // once the show itself has resolved. Best-effort.
             if job.is_show && meta.tmdb_id != 0 {
                 enrich_episodes(
-                    &eng.pool, &eng.api_key, &eng.language, &eng.data_dir, &eng.bus, &job.id,
-                    meta.tmdb_id,
+                    &eng.pool, &eng.api_key, &eng.language, &langs, &eng.data_dir, &eng.bus,
+                    &job.id, meta.tmdb_id,
                 );
             }
             counters.resolved.fetch_add(1, Ordering::Relaxed);
@@ -325,6 +379,20 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
         }
     }
     bump(eng, counters, total, activity);
+}
+
+/// Pick the primary language key from a per-language map: the household base code
+/// (e.g. `"fr"` from `"fr-FR"`) if present, else English, else any. The map is
+/// assumed non-empty (the caller guarantees at least one fetched language).
+fn primary_lang<T>(map: &std::collections::HashMap<String, T>, household: &str) -> String {
+    let base = household.split(['-', '_']).next().unwrap_or("en");
+    if map.contains_key(base) {
+        base.to_string()
+    } else if map.contains_key("en") {
+        "en".to_string()
+    } else {
+        map.keys().next().cloned().unwrap_or_default()
+    }
 }
 
 /// Advance the processed counter and, on the scan path, feed the global enrich

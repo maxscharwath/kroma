@@ -1,6 +1,7 @@
 // Accounts, sessions, invitations, profile/PIN and Quick Connect device pairing.
 
 import type {
+  AuthConfig,
   AuthResult,
   Invite,
   InviteCreated,
@@ -90,7 +91,15 @@ export function updateLanguage(ctx: RequestContext, language: string | null): Pr
   });
 }
 
-/** Public profile list for the "Qui regarde ?" picker (no emails). */
+/** Public login-gate config read before any credential: whether the profile
+ * roster is public and whether any account exists yet. Lets the client decide
+ * between the picker, a plain email/password form, and first-run registration. */
+export function authConfig(ctx: RequestContext): Promise<AuthConfig> {
+  return ctx.json<AuthConfig>('/auth/config');
+}
+
+/** Public profile list for the "Qui regarde ?" picker (no emails). Empty when
+ * the `publicUserList` setting is off (see {@link authConfig}). */
 export function users(ctx: RequestContext): Promise<PublicUser[]> {
   return ctx.json<PublicUser[]>('/users');
 }

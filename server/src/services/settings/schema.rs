@@ -79,6 +79,7 @@ pub fn groups(
                 vec![
                     row("watchAutoScan", t("admin.watchAutoScan"), Some(t("admin.watchAutoScanHint")), "toggle", &[], g("watchAutoScan"), true),
                     row("showRecentHome", t("admin.showRecentHome"), None, "toggle", &[], g("showRecentHome"), true),
+                    row("publicUserList", t("admin.publicUserList"), Some(t("admin.publicUserListHint")), "toggle", &[], g("publicUserList"), true),
                     row("themeSongs", t("admin.themeSongs"), Some(t("admin.themeSongsHint")), "toggle", &[], g("themeSongs"), true),
                     row("introDetection", t("admin.introDetection"), Some(t("admin.introDetectionHint")), "select", &["off", "chapters", "fingerprint"], g("introDetection"), true),
                 ],

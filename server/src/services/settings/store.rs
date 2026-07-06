@@ -111,6 +111,12 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("watchIntervalSecs".into(), json!(-1));
     m.insert("anonStats".into(), json!(false));
     m.insert("showRecentHome".into(), json!(true));
+    // Security: expose the account roster on the login screen (the "Qui regarde ?"
+    // profile picker). Off by default so knowing the server URL does not reveal
+    // who has an account; when off, `GET /api/users` returns an empty list and
+    // clients fall back to a plain email/password sign-in. Read by the accounts
+    // API (`list_users` / `auth_config`).
+    m.insert("publicUserList".into(), json!(false));
     // Plex-style theme songs: loop a show's title theme under its detail page.
     // Opt-in off until the admin enables it (and a scan downloads the themes).
     m.insert("themeSongs".into(), json!(false));

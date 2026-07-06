@@ -13,7 +13,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 
-use crate::api::util::query;
+use crate::api::util::{client_ip, query};
 use crate::api::extract::AuthUser;
 use crate::db;
 use crate::infra::events::ServerEvent;
@@ -178,29 +178,6 @@ pub async fn stop(
     let count = state.playback.list().len();
     state.events.publish(ServerEvent::PlaybackStopped { count });
     StatusCode::NO_CONTENT.into_response()
-}
-
-/// Best client IP. Cloudflare sets `CF-Connecting-IP` to the true client and
-/// overwrites it at the edge, so it can't be spoofed by a client prefilling the
-/// header the way the first `X-Forwarded-For` hop can. Preferred when present;
-/// falls back to the first `X-Forwarded-For` hop (other reverse proxies, e.g. the
-/// Synology one), then the direct socket peer.
-fn client_ip(headers: &HeaderMap, addr: &SocketAddr) -> String {
-    if let Some(cf) = headers.get("cf-connecting-ip").and_then(|v| v.to_str().ok()) {
-        let cf = cf.trim();
-        if !cf.is_empty() {
-            return cf.to_string();
-        }
-    }
-    if let Some(xff) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        if let Some(first) = xff.split(',').next() {
-            let first = first.trim();
-            if !first.is_empty() {
-                return first.to_string();
-            }
-        }
-    }
-    addr.ip().to_string()
 }
 
 // ----- progress / resume ------------------------------------------------------

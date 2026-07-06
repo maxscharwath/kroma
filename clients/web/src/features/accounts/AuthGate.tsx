@@ -6,6 +6,7 @@
 // are created with email + username + password + an optional uploaded avatar.
 
 import type { PublicUser } from '@luma/core';
+import { apiErrorText, LumaApiError } from '@luma/core';
 import { Logo, useT } from '@luma/ui';
 import { IconLock } from '@tabler/icons-react';
 import { useLocation } from '@tanstack/react-router';
@@ -58,19 +59,37 @@ function GateBody() {
   const { client, accounts, login, register, activate, forget } = useAuth();
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
   const [mode, setMode] = useState<Mode>({ kind: 'pick' });
+  // Whether the profile picker is available (the `publicUserList` setting). When
+  // off there is no roster to return to, so sign-in becomes the root screen.
+  const [canPick, setCanPick] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the existing profiles for the picker (public, no token needed).
+  // Read the public login-gate config, then decide what to show:
+  //  - no accounts yet        → first-run owner registration
+  //  - roster hidden          → plain email/password sign-in (no picker)
+  //  - roster public          → load the profiles for the picker
   useEffect(() => {
     let cancelled = false;
     client
-      .users()
-      .then((u) => {
+      .authConfig()
+      .then((cfg) => {
         if (cancelled) return;
-        setProfiles(u);
-        // Fresh install (no accounts yet) → go straight to registration.
-        if (u.length === 0) setMode({ kind: 'register' });
+        setCanPick(cfg.publicUserList);
+        if (!cfg.hasAccounts) {
+          setMode({ kind: 'register' });
+          return;
+        }
+        if (!cfg.publicUserList) {
+          setMode({ kind: 'login', user: null });
+          return;
+        }
+        client
+          .users()
+          .then((u) => {
+            if (!cancelled) setProfiles(u);
+          })
+          .catch(() => undefined);
       })
       .catch(() => undefined);
     return () => {
@@ -92,7 +111,12 @@ function GateBody() {
     try {
       await login(identifier, password);
     } catch (e) {
-      fail(e, t('auth.loginFailed'));
+      // 429 → brute-force lockout: surface the server's localized cooldown text.
+      if (e instanceof LumaApiError && e.status === 429) {
+        setError(apiErrorText(e, t('auth.loginLocked')));
+      } else {
+        fail(e, t('auth.loginFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -125,6 +149,7 @@ function GateBody() {
         profile={mode.user}
         busy={busy}
         error={error}
+        canGoBack={canPick}
         onBack={() => {
           setError(null);
           setMode({ kind: 'pick' });

@@ -15,12 +15,16 @@ export function LoginForm({
   profile,
   busy,
   error,
+  canGoBack = true,
   onBack,
   onSubmit,
 }: Readonly<{
   profile: PublicUser | null;
   busy: boolean;
   error: string | null;
+  /** Hide the back link when sign-in is the root screen (roster hidden, no
+   * picker to return to). Defaults to shown. */
+  canGoBack?: boolean;
   onBack: () => void;
   onSubmit: (identifier: string, password: string) => void;
 }>) {
@@ -78,13 +82,15 @@ export function LoginForm({
       >
         {busy ? t('auth.loggingIn') : t('auth.login')}
       </button>
-      <button
-        type="button"
-        onClick={onBack}
-        className="text-[14px] font-medium text-muted hover:text-text"
-      >
-        ← {t('common.back')}
-      </button>
+      {canGoBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-[14px] font-medium text-muted hover:text-text"
+        >
+          ← {t('common.back')}
+        </button>
+      ) : null}
     </form>
   );
 }

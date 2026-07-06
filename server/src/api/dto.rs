@@ -34,6 +34,20 @@ pub struct AuthResult {
     pub user: User,
 }
 
+/// `GET /api/auth/config` the public login-gate configuration, read before any
+/// credential so the client knows what to render.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AuthConfig {
+    /// Whether the account roster is public (the "Qui regarde ?" profile picker).
+    /// Off by default: hiding it means knowing the URL no longer lists accounts.
+    pub public_user_list: bool,
+    /// Whether any account exists yet. `false` → the first-run owner registration
+    /// flow; `true` → sign in.
+    pub has_accounts: bool,
+}
+
 /// `POST /api/invites` result the invite plus a ready-to-share join URL.
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]

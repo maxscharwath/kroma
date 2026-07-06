@@ -10,6 +10,7 @@ pub mod auth;
 pub mod backup;
 pub mod jobs;
 pub mod llm;
+pub mod loginguard;
 pub mod markers;
 pub mod organize;
 pub mod pipeline;

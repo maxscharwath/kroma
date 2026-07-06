@@ -25,16 +25,20 @@ export function DashboardScreen() {
   const { data: metrics } = usePoll(() => client.adminMetrics(), 5000, [client]);
   const { data: top } = usePoll(() => client.topUsers(7), 30000, [client, tick]);
   const { data: history } = usePoll(() => client.playHistory(28), 60000, [client, tick]);
-  const { data: users } = usePoll(() => client.users(), 60000, [client, tick]);
+  // Avatars for the now-playing cards come from the authenticated admin roster,
+  // not the public `/users` picker list (which the `publicUserList` setting can
+  // hide). Needs `users.manage`; without it the map stays empty (cards fall back
+  // to name-based avatars), which is harmless.
+  const { data: usersData } = usePoll(() => client.adminUsers(), 60000, [client, tick]);
 
   const [stopTarget, setStopTarget] = useState<PlaybackSession | null>(null);
   const sessions = sessionsData?.sessions ?? [];
   // Map each streaming user to their uploaded avatar (sessions carry only a name).
   const avatarByUser = useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const u of users ?? []) m.set(u.id, u.avatarUrl);
+    for (const u of usersData?.users ?? []) m.set(u.id, u.avatarUrl ?? null);
     return m;
-  }, [users]);
+  }, [usersData]);
 
   return (
     <>

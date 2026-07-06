@@ -6,6 +6,7 @@ export type { AdminUser } from './AdminUser';
 export type { AdminUsers } from './AdminUsers';
 export type { AnalyzeBody } from './AnalyzeBody';
 export type { AudioTrack } from './AudioTrack';
+export type { AuthConfig } from './AuthConfig';
 export type { AuthResult } from './AuthResult';
 export type { CacheInfo } from './CacheInfo';
 export type { CastMember } from './CastMember';

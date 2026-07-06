@@ -21,6 +21,7 @@ import type {
   AdminLibrary,
   AdminOverview,
   AdminUsers,
+  AuthConfig,
   AuthResult,
   ClientTestResult,
   ContinueItem,
@@ -334,6 +335,9 @@ export class LumaClient {
   }
   users(): Promise<PublicUser[]> {
     return accounts.users(this.ctx);
+  }
+  authConfig(): Promise<AuthConfig> {
+    return accounts.authConfig(this.ctx);
   }
   pinVerify(pin: string): Promise<void> {
     return accounts.pinVerify(this.ctx, pin);

@@ -14,7 +14,7 @@ android {
         targetSdk = 35
         // CI stamps the release version: -PlumaVersion=1.2.3 -PlumaVersionCode=<n>.
         versionCode = (findProperty("lumaVersionCode") as String?)?.toInt() ?: 1
-        versionName = (findProperty("lumaVersion") as String?) ?: "0.1.0"
+        versionName = (findProperty("lumaVersion") as String?) ?: "0.1.3"
     }
 
     // Optional release signing, driven by env (CI secrets). Absent env = the

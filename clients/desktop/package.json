@@ -1,6 +1,6 @@
 {
   "name": "@luma/desktop",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "LUMA native desktop client: Tauri shell over @luma/tv with native mpv playback + gamepad input. Steam Deck is the primary target.",

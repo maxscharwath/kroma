@@ -1,6 +1,6 @@
 {
   "name": "@luma/webos",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "description": "LUMA LG webOS TV client thin shell over @luma/tv.",

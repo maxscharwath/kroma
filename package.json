@@ -1,6 +1,6 @@
 {
   "name": "luma",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "private": true,
   "description": "LUMA self-hosted, multi-platform video streaming (Rust server + web / Tizen / webOS clients). Direct-play HEVC everywhere.",
   "workspaces": [

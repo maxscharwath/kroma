@@ -22,13 +22,15 @@ set -euo pipefail
 _CARGO_TOML="$(cd "$(dirname "$0")/../.." && pwd)/server/Cargo.toml"
 CARGO_VERSION="$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$_CARGO_TOML" | head -1)"
 VERSION="${1:-${CARGO_VERSION:-0.1.0}}"
-# DSM refuses a Manual Install whose version isn't strictly newer than the one
-# installed (same version => error, forcing a delete + reinstall that wipes the
-# package's var: config, DB, cache, downloaded Whisper model). So stamp a
-# monotonically increasing build number into INFO's `version=X.Y.Z-BUILD`:
-# minutes since 2020-01-01 UTC, always increasing and within a 32-bit int. This
-# makes every rebuild a valid in-place upgrade (which preserves var). Override
-# with BUILD=... if you need a specific number.
+# INFO's version is `X.Y.Z-BUILD`. IMPORTANT: DSM's Manual-Install *upgrade* check
+# compares only the X.Y.Z upstream version - the `-BUILD` suffix is build metadata,
+# NOT an ordering component. So two builds that share X.Y.Z (e.g. two 0.1.2-* spks)
+# read as "the same version already installed" and DSM refuses the in-place upgrade
+# ("not valid"), forcing a delete + reinstall that wipes var (config, DB, cache,
+# Whisper model). => To ship a user-updatable release you MUST bump X.Y.Z in
+# server/Cargo.toml; the build number below only keeps each CI artifact unique and
+# time-ordered. BUILD = minutes since 2020-01-01 UTC (always increasing, 32-bit).
+# Override with BUILD=... if you need a specific number.
 BUILD="${BUILD:-$(( ( $(date -u +%s) - 1577836800 ) / 60 ))}"
 ARCH="x86_64"
 TARGET="x86_64-unknown-linux-musl"

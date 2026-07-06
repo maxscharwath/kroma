@@ -1,6 +1,6 @@
 {
   "name": "@luma/core",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "type": "module",
   "description": "LUMA shared core API client, media types, HEVC capability detection, remote-control mapping, direct-play helpers.",
   "exports": {

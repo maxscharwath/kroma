@@ -50,8 +50,19 @@ pub fn sample(tpl: &NamingTemplates) -> SampleNames {
     let movie = NameContext {
         title: "The Matrix".into(),
         year: Some(1999),
-        resolution: Some("1080p".into()),
+        resolution: Some("2160p".into()),
+        codec: Some("x265".into()),
         source: Some("Bluray".into()),
+        release_group: Some("EVOLVE".into()),
+        edition: Some("IMAX".into()),
+        imdb_id: Some("tt0133093".into()),
+        tmdb_id: Some(603),
+        dynamic_range: Some("DV".into()),
+        video_bit_depth: Some(10),
+        audio_codec: Some("TrueHD".into()),
+        audio_channels: Some("5.1".into()),
+        audio_languages: vec!["EN".into(), "FR".into()],
+        subtitle_languages: vec!["FR".into()],
         ..Default::default()
     };
     let episode = NameContext {
@@ -61,7 +72,12 @@ pub fn sample(tpl: &NamingTemplates) -> SampleNames {
         episode: Some(2),
         episode_title: Some("Cat's in the Bag...".into()),
         resolution: Some("1080p".into()),
+        codec: Some("x264".into()),
         source: Some("WEBDL".into()),
+        release_group: Some("NTb".into()),
+        audio_codec: Some("EAC3".into()),
+        audio_channels: Some("5.1".into()),
+        audio_languages: vec!["EN".into()],
         ..Default::default()
     };
     SampleNames {
@@ -164,27 +180,16 @@ fn expected_rel(
 ) -> Option<(PathBuf, String)> {
     let abs = current_abs(file)?;
     let ext = abs.extension()?.to_str()?.to_string();
-    // Quality: resolution/codec from the probe, source from the current name.
-    let width = file.video.as_ref().and_then(|v| v.width).map(|w| w as i64);
-    let resolution = naming::resolution_from_width(width);
-    let codec = naming::codec_label(file.video.as_ref().map(|v| v.codec.as_str()));
-    let source = {
-        let name = abs.file_stem()?.to_str()?;
-        let (_, _, s) = naming::quality_from_parsed(&luma_release::parse_release_name(name));
-        s
-    };
+    let parsed = luma_release::parse_release_name(abs.file_stem()?.to_str()?);
+    // The quality + MediaInfo fields shared by movies and episodes: resolution/
+    // codec/streams from the probe, source/group/proper from the current name.
+    let base = quality_ctx(file, &parsed);
+    let (imdb_id, tmdb_id) = item_ids(item);
 
     match item.kind {
         Kind::Movie | Kind::Video => {
             let title = movie_title(item);
-            let ctx = NameContext {
-                title: title.clone(),
-                year: item.year,
-                resolution,
-                codec,
-                source,
-                ..Default::default()
-            };
+            let ctx = NameContext { title: title.clone(), year: item.year, imdb_id, tmdb_id, ..base };
             Some((tpl.movie_rel_path(&ctx, &ext), title))
         }
         Kind::Episode => {
@@ -203,12 +208,45 @@ fn expected_rel(
                 season: Some(season),
                 episode: Some(episode),
                 episode_title: item.episode_title.clone(),
-                resolution,
-                codec,
-                source,
+                imdb_id,
+                tmdb_id,
+                ..base
             };
             Some((tpl.episode_rel_path(&ctx, &ext), format!("{show_title} S{season:02}E{episode:02}")))
         }
+    }
+}
+
+/// Quality + MediaInfo naming context from a probed file, minus the
+/// title/year/season/ids the caller fills per kind.
+fn quality_ctx(file: &MediaFile, parsed: &luma_release::ParsedRelease) -> NameContext {
+    let width = file.video.as_ref().and_then(|v| v.width).map(|w| w as i64);
+    let (_, _, source) = naming::quality_from_parsed(parsed);
+    let hdr = file.video.as_ref().is_some_and(|v| v.hdr);
+    let rep_audio = file.audio.as_ref().or_else(|| file.audio_tracks.first());
+    NameContext {
+        resolution: naming::resolution_from_width(width),
+        codec: naming::codec_label(file.video.as_ref().map(|v| v.codec.as_str())),
+        source,
+        proper: parsed.proper,
+        repack: parsed.repack,
+        release_group: parsed.group.clone(),
+        edition: file.edition.clone(),
+        dynamic_range: naming::dynamic_range(hdr || parsed.hdr, parsed.dolby_vision),
+        video_bit_depth: file.video.as_ref().and_then(|v| v.bit_depth),
+        audio_codec: naming::audio_codec_label(rep_audio.map(|a| a.codec.as_str())),
+        audio_channels: naming::audio_channels_label(rep_audio.and_then(|a| a.channels)),
+        audio_languages: naming::lang_list(file.audio_tracks.iter().filter_map(|a| a.language.as_deref())),
+        subtitle_languages: naming::lang_list(file.subtitles.iter().filter_map(|s| s.language.as_deref())),
+        ..Default::default()
+    }
+}
+
+/// IMDb + TMDB ids from the item's TMDB metadata, for `{ImdbId}` / `{TmdbId}`.
+fn item_ids(item: &MediaItem) -> (Option<String>, Option<u64>) {
+    match item.metadata.as_ref() {
+        Some(m) => (m.imdb_id.clone(), Some(m.tmdb_id)),
+        None => (None, None),
     }
 }
 

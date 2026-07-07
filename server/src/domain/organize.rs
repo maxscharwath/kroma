@@ -4,7 +4,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// The five naming templates (Sonarr/Radarr-style token strings).
+/// The five naming templates (Sonarr/Radarr-style token strings) plus the
+/// global case transform applied to every rendered filename.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -14,6 +15,8 @@ pub struct NamingTemplatesView {
     pub series_folder: String,
     pub season_folder: String,
     pub episode_file: String,
+    /// `default` | `upper` | `lower`.
+    pub case: String,
 }
 
 /// `GET /api/admin/organize/naming` current templates + a rendered sample.

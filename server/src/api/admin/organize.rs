@@ -17,7 +17,10 @@ use crate::api::util::blocking;
 use crate::model::{
     NamingTemplatesView, NamingView, OrganizePlan, OrganizeResult, Permission, SampleBody, User,
 };
-use crate::services::organize::{self, naming::NamingTemplates};
+use crate::services::organize::{
+    self,
+    naming::{Casing, NamingTemplates},
+};
 use crate::state::SharedState;
 
 pub fn routes() -> Router<SharedState> {
@@ -43,6 +46,7 @@ fn view_of(tpl: &NamingTemplates) -> NamingTemplatesView {
         series_folder: tpl.series_folder.clone(),
         season_folder: tpl.season_folder.clone(),
         episode_file: tpl.episode_file.clone(),
+        case: tpl.case.as_key().to_string(),
     }
 }
 
@@ -53,6 +57,7 @@ fn templates_of(body: &NamingTemplatesView) -> NamingTemplates {
         series_folder: body.series_folder.clone(),
         season_folder: body.season_folder.clone(),
         episode_file: body.episode_file.clone(),
+        case: crate::services::organize::naming::Casing::from_key(&body.case),
     }
 }
 
@@ -90,6 +95,7 @@ pub async fn save_naming(
     patch.insert("namingSeriesFolder".into(), json!(body.series_folder.trim()));
     patch.insert("namingSeasonFolder".into(), json!(body.season_folder.trim()));
     patch.insert("namingEpisodeFile".into(), json!(body.episode_file.trim()));
+    patch.insert("namingCase".into(), json!(Casing::from_key(&body.case).as_key()));
     state.settings.set_patch(&state.db, patch);
     Ok(Json(json!({ "ok": true })).into_response())
 }

@@ -3,11 +3,22 @@
 // signature. All logic (lazy-generation polling, fast+slow backoff, visibility
 // re-check, tile math) lives in `@luma/ui`.
 
+import { loadSession } from '@luma/core';
 import { useStoryboard as useSharedStoryboard } from '@luma/ui';
+import { useMemo } from 'react';
 import { lumaClient } from '#web/shared/lib/api';
 
 export type { Storyboard, StoryboardTile } from '@luma/ui';
 
 export function useStoryboard(itemId: string, opts?: { generate?: boolean }) {
-  return useSharedStoryboard(lumaClient(), itemId, opts);
+  // `lumaClient()` mints a fresh LumaClient on every call, and the Player
+  // re-renders constantly during playback. The shared hook keys its polling
+  // effect on `client`, so an unstable reference would tear the effect down and
+  // re-`poll()` on every render, cancelling the 1.5s/15s backoff timer and
+  // hammering the storyboard endpoint while the sheet is still `pending`. Keep a
+  // single client for the component's life, re-created only if the session token
+  // changes.
+  const token = loadSession()?.token;
+  const client = useMemo(() => lumaClient(), [token]);
+  return useSharedStoryboard(client, itemId, opts);
 }

@@ -3,13 +3,16 @@
 
 import { apiErrorText, type NamingTemplatesView, type OrganizePlan } from '@luma/core';
 import { useT } from '@luma/ui';
-import { IconArrowRight, IconLoader2, IconWand } from '@tabler/icons-react';
+import { IconArrowRight, IconBraces, IconLoader2, IconWand } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { NamingTokenModal } from '#web/features/admin/namingTokens';
 import { Denied, PageHeader, useCap } from '#web/features/admin/shell';
 import { Card, Modal, ModalActions, Section } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
 
-const FIELDS: { key: keyof NamingTemplatesView; labelKey: string }[] = [
+type FieldKey = Exclude<keyof NamingTemplatesView, 'case'>;
+
+const FIELDS: { key: FieldKey; labelKey: string }[] = [
   { key: 'movieFolder', labelKey: 'naming.movieFolder' },
   { key: 'movieFile', labelKey: 'naming.movieFile' },
   { key: 'seriesFolder', labelKey: 'naming.seriesFolder' },
@@ -17,16 +20,10 @@ const FIELDS: { key: keyof NamingTemplatesView; labelKey: string }[] = [
   { key: 'episodeFile', labelKey: 'naming.episodeFile' },
 ];
 
-const TOKENS = [
-  '{Title}',
-  '{Year}',
-  '{season:00}',
-  '{episode:00}',
-  '{Episode Title}',
-  '{Quality Full}',
-  '{Resolution}',
-  '{Codec}',
-  '{Source}',
+const CASES: { value: string; labelKey: string }[] = [
+  { value: 'default', labelKey: 'naming.caseDefault' },
+  { value: 'upper', labelKey: 'naming.caseUpper' },
+  { value: 'lower', labelKey: 'naming.caseLower' },
 ];
 
 export function NamingPage() {
@@ -38,6 +35,7 @@ export function NamingPage() {
   const [sample, setSample] = useState<{ movie: string; episode: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [openField, setOpenField] = useState<FieldKey | null>(null);
 
   useEffect(() => {
     client
@@ -55,7 +53,10 @@ export function NamingPage() {
     (next: NamingTemplatesView) => {
       clearTimeout(debounce.current);
       debounce.current = setTimeout(() => {
-        client.namingSample(next).then(setSample).catch(() => undefined);
+        client
+          .namingSample(next)
+          .then(setSample)
+          .catch(() => undefined);
       }, 250);
     },
     [client],
@@ -70,6 +71,8 @@ export function NamingPage() {
       return next;
     });
   };
+  // Keep the modal editing the live template value.
+  const setField = (key: FieldKey) => (value: string) => set(key, value);
 
   const save = () => {
     if (!tpl) return;
@@ -90,17 +93,6 @@ export function NamingPage() {
       <PageHeader title={t('admin.namingTitle')} subtitle={t('admin.namingSub')} />
 
       <Card className="mt-4 p-6">
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {TOKENS.map((tok) => (
-            <code
-              key={tok}
-              className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11.5px] font-semibold text-white/70"
-            >
-              {tok}
-            </code>
-          ))}
-        </div>
-
         {tpl ? (
           <div className="flex flex-col gap-4">
             {FIELDS.map((f) => (
@@ -108,13 +100,41 @@ export function NamingPage() {
                 <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.12em] text-dim">
                   {t(f.labelKey as Parameters<typeof t>[0])}
                 </span>
-                <input
-                  value={tpl[f.key]}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className="w-full rounded-[9px] border border-border-strong bg-[#0F0F13] px-3.5 py-2.5 font-mono text-[13px] text-text outline-none focus:border-accent/60"
-                />
+                <div className="flex gap-2">
+                  <input
+                    value={tpl[f.key]}
+                    onChange={(e) => set(f.key, e.target.value)}
+                    className="w-full rounded-[9px] border border-border-strong bg-[#0F0F13] px-3.5 py-2.5 font-mono text-[13px] text-text outline-none focus:border-accent/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpenField(f.key)}
+                    title={t('naming.tokensTitle')}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-[9px] border border-white/12 bg-[#1A1A20] px-3 text-[13px] font-semibold text-white/80 hover:bg-[#222229]"
+                  >
+                    <IconBraces size={15} stroke={2} />
+                    {t('naming.tokens')}
+                  </button>
+                </div>
               </label>
             ))}
+
+            <label className="block max-w-xs">
+              <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-[.12em] text-dim">
+                {t('naming.caseLabel')}
+              </span>
+              <select
+                value={tpl.case}
+                onChange={(e) => set('case', e.target.value)}
+                className="w-full rounded-[9px] border border-border-strong bg-[#0F0F13] px-3.5 py-2.5 text-[13px] font-semibold text-text outline-none focus:border-accent/60"
+              >
+                {CASES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {t(c.labelKey as Parameters<typeof t>[0])}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         ) : (
           <div className="py-6 text-center text-dim">…</div>
@@ -140,11 +160,23 @@ export function NamingPage() {
             {saving ? <IconLoader2 size={15} stroke={2.4} className="animate-spin" /> : null}
             {t('common.save')}
           </button>
-          {saved ? <span className="text-[13px] font-semibold text-[#46D08D]">{t('common.saved')}</span> : null}
+          {saved ? (
+            <span className="text-[13px] font-semibold text-[#46D08D]">{t('common.saved')}</span>
+          ) : null}
         </div>
       </Card>
 
       <RenameSection />
+
+      {tpl && openField ? (
+        <NamingTokenModal
+          fieldKey={openField}
+          fieldLabel={t(FIELDS.find((f) => f.key === openField)?.labelKey as Parameters<typeof t>[0])}
+          value={tpl[openField]}
+          onChange={setField(openField)}
+          onClose={() => setOpenField(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -198,7 +230,11 @@ function RenameSection() {
           disabled={busy}
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/12 bg-[#1A1A20] px-3.5 py-2 text-[13px] font-semibold text-white/80 hover:bg-[#222229] disabled:opacity-60"
         >
-          {busy ? <IconLoader2 size={14} stroke={2.4} className="animate-spin" /> : <IconWand size={14} stroke={2} />}
+          {busy ? (
+            <IconLoader2 size={14} stroke={2.4} className="animate-spin" />
+          ) : (
+            <IconWand size={14} stroke={2} />
+          )}
           {t('naming.preview2')}
         </button>
       }

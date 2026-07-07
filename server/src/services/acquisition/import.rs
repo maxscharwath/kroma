@@ -20,6 +20,8 @@ struct ImportMeta {
     kind: RequestKind,
     title: String,
     year: Option<u32>,
+    /// The download's known TMDB id (0 when unknown), for `{TmdbId}`.
+    tmdb_id: Option<u64>,
 }
 
 #[derive(Debug, Default)]
@@ -164,18 +166,12 @@ fn import_one(state: &SharedState, row: &DownloadRow) -> Result<Vec<String>> {
     Ok(written)
 }
 
-/// Naming context for a movie: quality parsed from the file name.
+/// Naming context for a movie: quality/group/proper parsed from the file name
+/// (the streams are not probed yet, so MediaInfo tokens fill in at scan time).
 fn movie_ctx(meta: &ImportMeta, src: &Path) -> naming::NameContext {
-    let (resolution, codec, source) =
-        naming::quality_from_parsed(&luma_release::parse_release_name(stem_of(src)));
-    naming::NameContext {
-        title: meta.title.clone(),
-        year: meta.year,
-        resolution,
-        codec,
-        source,
-        ..Default::default()
-    }
+    let parsed = luma_release::parse_release_name(stem_of(src));
+    let ctx = base_ctx(meta, &parsed);
+    naming::NameContext { title: meta.title.clone(), year: meta.year, ..ctx }
 }
 
 /// Naming context for one episode.
@@ -185,16 +181,30 @@ fn episode_ctx(
     episode: u32,
     parsed: &luma_release::ParsedRelease,
 ) -> naming::NameContext {
-    let (resolution, codec, source) = naming::quality_from_parsed(parsed);
+    let ctx = base_ctx(meta, parsed);
     naming::NameContext {
         title: meta.title.clone(),
         year: meta.year,
         season: Some(season),
         episode: Some(episode),
-        episode_title: None,
+        ..ctx
+    }
+}
+
+/// The quality/group/edition/dynamic-range/id fields common to both, from the
+/// parsed release name + the resolved metadata.
+fn base_ctx(meta: &ImportMeta, parsed: &luma_release::ParsedRelease) -> naming::NameContext {
+    let (resolution, codec, source) = naming::quality_from_parsed(parsed);
+    naming::NameContext {
         resolution,
         codec,
         source,
+        proper: parsed.proper,
+        repack: parsed.repack,
+        release_group: parsed.group.clone(),
+        dynamic_range: naming::dynamic_range(parsed.hdr, parsed.dolby_vision),
+        tmdb_id: meta.tmdb_id,
+        ..Default::default()
     }
 }
 
@@ -207,22 +217,23 @@ fn ext_of(path: &Path) -> &str {
 /// add), then the parsed release name (bare magnet, no metadata).
 fn resolve_meta(state: &SharedState, row: &DownloadRow) -> Result<ImportMeta> {
     let kind = if row.kind == "movie" { RequestKind::Movie } else { RequestKind::Show };
+    let tmdb_id = (row.tmdb_id != 0).then_some(row.tmdb_id);
 
     if let Some(rid) = row.request_id.as_deref() {
         let conn = state.db.get()?;
         if let Some(req) = db::get_request(&conn, rid)? {
-            return Ok(ImportMeta { kind: req.kind, title: req.title, year: req.year });
+            return Ok(ImportMeta { kind: req.kind, title: req.title, year: req.year, tmdb_id });
         }
     }
     if let Some(title) = row.title.as_deref().filter(|t| !t.trim().is_empty()) {
-        return Ok(ImportMeta { kind, title: title.to_string(), year: row.year });
+        return Ok(ImportMeta { kind, title: title.to_string(), year: row.year, tmdb_id });
     }
     // Last resort: derive from the release name (bare magnet with no metadata).
     let parsed = luma_release::parse_release_name(&row.release_title);
     if parsed.title.trim().is_empty() {
         bail!("could not determine a title to import under (no request, no metadata, unparseable name)");
     }
-    Ok(ImportMeta { kind, title: parsed.title, year: parsed.year })
+    Ok(ImportMeta { kind, title: parsed.title, year: parsed.year, tmdb_id })
 }
 
 fn stem_of(path: &Path) -> &str {

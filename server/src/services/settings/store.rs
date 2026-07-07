@@ -117,6 +117,12 @@ fn defaults() -> BTreeMap<String, Value> {
     // clients fall back to a plain email/password sign-in. Read by the accounts
     // API (`list_users` / `auth_config`).
     m.insert("publicUserList".into(), json!(false));
+    // Require a valid session for the whole API. On (default) every `/api` route
+    // needs auth except the sign-in surface (auth config/login/register/quick
+    // connect) and media routes, which accept a short-lived `?t=` media token
+    // instead of a bearer header. Off restores the legacy open LAN-trust model.
+    // Read by the auth gate (`crate::api::authgate`).
+    m.insert("requireAuth".into(), json!(true));
     // Plex-style theme songs: loop a show's title theme under its detail page.
     // Opt-in off until the admin enables it (and a scan downloads the themes).
     m.insert("themeSongs".into(), json!(false));
@@ -205,14 +211,14 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("acqSeriesLibrary".into(), json!("Auto"));
     // File naming templates (Sonarr/Radarr-style tokens), used by import and
     // the library rename tool. See services::organize::naming for the tokens.
-    m.insert("namingMovieFolder".into(), json!("{Title} ({Year})"));
-    m.insert("namingMovieFile".into(), json!("{Title} ({Year}) {Quality Full}"));
-    m.insert("namingSeriesFolder".into(), json!("{Title} ({Year})"));
-    m.insert("namingSeasonFolder".into(), json!("Season {season:00}"));
-    m.insert(
-        "namingEpisodeFile".into(),
-        json!("{Title} - S{season:00}E{episode:00} - {Episode Title} {Quality Full}"),
-    );
+    use crate::services::organize::naming as n;
+    m.insert("namingMovieFolder".into(), json!(n::DEFAULT_MOVIE_FOLDER));
+    m.insert("namingMovieFile".into(), json!(n::DEFAULT_MOVIE_FILE));
+    m.insert("namingSeriesFolder".into(), json!(n::DEFAULT_SERIES_FOLDER));
+    m.insert("namingSeasonFolder".into(), json!(n::DEFAULT_SEASON_FOLDER));
+    m.insert("namingEpisodeFile".into(), json!(n::DEFAULT_EPISODE_FILE));
+    // Global case transform for rendered filenames: default | upper | lower | pascal.
+    m.insert("namingCase".into(), json!("default"));
     // AI / LLM: powers personalized auto-named home sections + per-user taste
     // profiles (the `sections.personalize` job). Open-ended provider choice:
     // openai = any OpenAI-compatible server (Ollama, llama.cpp, LM Studio, …);

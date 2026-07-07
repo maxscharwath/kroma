@@ -2,20 +2,20 @@ import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { type CatalogEntry, CatalogGrid } from '#web/features/catalog/cards';
-import { lumaClient, toMovieView, toShowView } from '#web/shared/lib/api';
+import { authedLoad, toMovieView, toShowView } from '#web/shared/lib/api';
 import { useMyList } from '#web/shared/lib/mylist';
 
 export const Route = createFileRoute('/mylist')({
-  // The catalogue is public/SSR; the per-user list is hydrated client-side, so we
-  // load everything here and filter by the user's ids in the component.
-  loader: async () => {
-    const c = lumaClient();
-    const [movies, shows] = await Promise.all([c.movies(), c.shows()]);
-    return {
-      movies: movies.map((m) => toMovieView(c, m)),
-      shows: shows.map((s) => toShowView(c, s)),
-    };
-  },
+  // The per-user list is hydrated client-side, so we load the whole catalogue
+  // here and filter by the user's ids in the component.
+  loader: () =>
+    authedLoad({ movies: [], shows: [] }, async (c) => {
+      const [movies, shows] = await Promise.all([c.movies(), c.shows()]);
+      return {
+        movies: movies.map((m) => toMovieView(c, m)),
+        shows: shows.map((s) => toShowView(c, s)),
+      };
+    }),
   component: MyListPage,
 });
 

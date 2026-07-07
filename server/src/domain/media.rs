@@ -164,6 +164,41 @@ pub struct MediaItem {
     pub markers: Vec<Marker>,
 }
 
+impl MediaItem {
+    /// Reduce a fully-hydrated item to the fields a list/grid view needs. The
+    /// representative `video`/`audio` badge fields (mirrored from the default
+    /// file during hydration) stay, but the per-file arrays, per-track
+    /// subtitle/audio lists and episode markers are detail/watch-page data and
+    /// are dropped, and the metadata is slimmed to a card subset. This is a wire
+    /// weight optimization for the big `/api/movies` list (see
+    /// [`Metadata::slim_for_card`]) the arrays stay present but serialize empty
+    /// (`markers`/`defaultFileId` drop out via their existing skip attrs), so the
+    /// wire shape and the generated TS types are unchanged and clients that map
+    /// over e.g. `subtitles` keep working.
+    pub fn slim_for_list(&mut self) {
+        self.files = Vec::new();
+        self.audio_tracks = Vec::new();
+        self.subtitles = Vec::new();
+        self.markers = Vec::new();
+        self.default_file_id = None;
+        if let Some(m) = self.metadata.as_mut() {
+            m.slim_for_card();
+        }
+    }
+}
+
+impl Show {
+    /// Slim a show's metadata for the list endpoint, mirroring
+    /// [`MediaItem::slim_for_list`]. Shows carry no per-file data, so this only
+    /// strips the detail-only metadata (cast/crew/long text), keeping art,
+    /// `genres`, `rating` and `overview` for the grid + hero.
+    pub fn slim_for_list(&mut self) {
+        if let Some(m) = self.metadata.as_mut() {
+            m.slim_for_card();
+        }
+    }
+}
+
 /// What a [`Marker`] segment is. Serialized lowercase (`"intro"` / `"credits"`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[ts(export)]

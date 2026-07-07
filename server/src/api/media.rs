@@ -81,6 +81,12 @@ pub async fn list_movies(
     let items = query(&state.db, move |pool| {
         let mut items = db::list_movies(&pool, q.library.as_deref())?;
         db::localize::overlay_items(&pool, &mut items, locale)?;
+        // Ship a lightweight card payload: the grid/hero only need art, badges,
+        // rating, genres and the synopsis, not the full cast/crew/files. Detail
+        // pages refetch the complete item via `/api/items/:id`.
+        for item in &mut items {
+            item.slim_for_list();
+        }
         Ok(items)
     })
     .await?;
@@ -105,6 +111,11 @@ pub async fn list_shows(
             }
         }
         db::localize::overlay_shows(&pool, &mut shows, locale)?;
+        // Slim to a card payload (drop detail-only cast/crew); show cards need
+        // only art, genres, rating and progress. Detail via `/api/shows/:id`.
+        for show in &mut shows {
+            show.slim_for_list();
+        }
         Ok(shows)
     })
     .await?;

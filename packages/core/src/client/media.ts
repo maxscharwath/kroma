@@ -12,7 +12,7 @@ import type {
   Show,
   ShowDetail,
 } from '../types';
-import { LumaApiError, libraryQuery, type RequestContext } from './base';
+import { libraryQuery, type RequestContext, withToken } from './base';
 
 /** Server liveness + counts. Accepts an `init` (e.g. an `AbortSignal`) so a
  * client-side heartbeat can bound the probe with a short timeout. */
@@ -115,16 +115,15 @@ export function logsUrl(ctx: RequestContext, tail = 200): string {
   return `${ctx.baseUrl}/api/logs?tail=${tail}`;
 }
 
-/** Fetch the last `tail` lines of the server log as plain text. */
-export async function logs(ctx: RequestContext, tail = 200): Promise<string> {
-  const res = await ctx.fetchFn(logsUrl(ctx, tail));
-  if (!res.ok) throw new LumaApiError(res.status, `GET /logs failed (${res.status})`);
-  return res.text();
+/** Fetch the last `tail` lines of the server log as plain text (authed). */
+export function logs(ctx: RequestContext, tail = 200): Promise<string> {
+  return ctx.text(`/logs?tail=${tail}`);
 }
 
-/** Direct-play stream URL for a `<video>` src. Range requests are served by the server. */
+/** Direct-play stream URL for a `<video>` src. Range requests are served by the
+ * server. Carries the media `?t=` token so it authenticates without a header. */
 export function streamUrl(ctx: RequestContext, id: string): string {
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/stream`;
+  return withToken(`${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/stream`, ctx.mediaToken());
 }
 
 /** HLS *master* playlist for one continuous remux: the video once plus EVERY
@@ -147,24 +146,28 @@ export function hlsMasterUrl(ctx: RequestContext, id: string, aac = false, start
   // client adds it back via the X-Hls-Start header.
   const anchor = Math.max(0, Math.round(startSec));
   const a = Math.max(0, Math.round(audio));
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/hls/${aac ? 'aac' : 'copy'}/${anchor}/${a}/index.m3u8`;
+  const url = `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/hls/${aac ? 'aac' : 'copy'}/${anchor}/${a}/index.m3u8`;
+  return withToken(url, ctx.mediaToken());
 }
 
 /** Generated SVG poster URL for a movie/episode. */
 export function posterUrl(ctx: RequestContext, id: string): string {
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/poster`;
+  return withToken(`${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/poster`, ctx.mediaToken());
 }
 
 /** Generated SVG poster URL for a show. */
 export function showPosterUrl(ctx: RequestContext, id: string): string {
-  return `${ctx.baseUrl}/api/shows/${encodeURIComponent(id)}/poster`;
+  return withToken(`${ctx.baseUrl}/api/shows/${encodeURIComponent(id)}/poster`, ctx.mediaToken());
 }
 
 /** Resolve a metadata image URL against the server origin. Cached WebP art is
- * stored as a relative path (`/api/images/…`); TMDB fallbacks are absolute. */
+ * stored as a relative path (`/api/images/…`) served by us, so it gets the media
+ * `?t=` token; absolute TMDB fallbacks are fetched directly and left untouched. */
 export function resolveArt(ctx: RequestContext, url?: string | null): string | null {
   if (!url) return null;
-  return /^https?:\/\//.test(url) ? url : `${ctx.baseUrl}${url}`;
+  // Inline (base64 avatar) and absolute (TMDB) URLs are used as-is, no token.
+  if (url.startsWith('data:') || /^https?:\/\//.test(url)) return url;
+  return withToken(`${ctx.baseUrl}${url}`, ctx.mediaToken());
 }
 
 /** Best poster for a movie/episode: real cached TMDB art if resolved, else the
@@ -192,7 +195,7 @@ export function themeFor(ctx: RequestContext, x: { metadata?: Metadata | null })
 /** WebVTT URL for the n-th embedded subtitle track of an item. The server
  * extracts text subtitles on demand (`GET /api/items/:id/subtitles/:n.vtt`). */
 export function subtitleUrl(ctx: RequestContext, id: string, index: number): string {
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/subtitles/${index}.vtt`;
+  return withToken(`${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/subtitles/${index}.vtt`, ctx.mediaToken());
 }
 
 /** Scrub-bar preview "storyboard": one sprite sheet of evenly-spaced thumbnails
@@ -213,9 +216,10 @@ export interface StoryboardManifest {
   duration: number;
 }
 
-/** Manifest endpoint for an item's storyboard. */
+/** Manifest endpoint for an item's storyboard (authenticated via `?t=`, so the
+ * raw fetch below and the sprite it points at both pass the auth gate). */
 export function storyboardUrl(ctx: RequestContext, id: string): string {
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/storyboard`;
+  return withToken(`${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/storyboard`, ctx.mediaToken());
 }
 
 /** Fetch the storyboard manifest. The server generates the sheet lazily, so this

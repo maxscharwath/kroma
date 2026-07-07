@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { RequestContext } from './base';
 import { hlsMasterUrl } from './media';
 
-// `hlsMasterUrl` only reads `ctx.baseUrl`, so a minimal stub suffices.
-const ctx = { baseUrl: 'http://luma.test' } as unknown as RequestContext;
+// `hlsMasterUrl` reads `ctx.baseUrl` and `ctx.mediaToken()`, so the stub provides
+// both (no token → the URL carries no `?t=`).
+const ctx = {
+  baseUrl: 'http://luma.test',
+  mediaToken: () => undefined,
+} as unknown as RequestContext;
 
 describe('hlsMasterUrl', () => {
   it('emits the copy program at anchor 0, audio 0', () => {

@@ -76,74 +76,20 @@ async fn main() -> anyhow::Result<()> {
     // Persisted settings (incl. the editable library definitions, seeded from
     // LUMA_MEDIA_DIRS on first run).
     let settings = services::settings::Settings::load(&db);
-    let library_defs = services::settings::library_defs(&settings, &config);
-    let has_folders = library_defs.iter().any(|d| !d.folders.is_empty());
-
-    // Phase 1 (fast): walk + stat only, no ffprobe. The library becomes
-    // browsable in seconds; codecs/duration/HDR fill in during phase 2 below.
-    let mut data = services::scan::scan_all(&library_defs);
-
-    // An empty scan is ambiguous. With *no* media dirs configured it's a fresh
-    // install → seed demo content. But if dirs are configured and still produced
-    // nothing, it's almost certainly a transient mount outage (NAS down). Syncing
-    // an empty scan would make `sync_all` treat every real library as "vanished"
-    // and cascade-delete it along with all the expensive probed metadata, so in
-    // that case we keep the existing index instead of overwriting it the
-    // watcher re-syncs automatically once the mount returns.
-    let mount_outage = data.items.is_empty() && has_folders;
-    if data.items.is_empty() && !has_folders {
-        info!("no media dirs configured; seeding built-in demo content");
-        data = services::demo::demo_data();
-    }
-
-    if mount_outage {
-        warn!(
-            media_dirs = config.media_dirs.len(),
-            "configured media dirs produced no items; keeping the existing index (mount offline?) and skipping sync"
-        );
-    } else {
-        db::sync_all(&db, &data.libraries, &data.shows, &data.items, &data.mtimes)
-            .context("failed to persist library")?;
-        info!(
-            libraries = data.libraries.len(),
-            shows = data.shows.len(),
-            items = data.items.len(),
-            "library index ready (phase 1)"
-        );
-    }
 
     let addr = config.socket_addr();
     let state = AppState::new(config, ffprobe_available, db, settings);
-    services::activity::scan_completed(
-        &state.activity,
-        data.libraries.len(),
-        data.shows.len(),
-        data.items.len(),
-        services::scan::now_iso8601(),
-    );
 
-    // Phase 2 (background): ffprobe every unprobed file, emitting live events as
-    // codecs land. Spawned before serving so it overlaps request handling.
-    infra::probe::spawn_probe_pass(
-        state.db.clone(),
-        state.ffprobe_available,
-        state.events.clone(),
-        state.activity.clone(),
-    );
+    // Refresh the library index in the background. The catalog already lives in
+    // SQLite from the previous run and every read path serves from the DB, so we
+    // must NOT block the listener on a fresh phase-1 scan: that scan is a
+    // recursive `stat` walk of every media root, which on a NAS mount takes tens
+    // of seconds (dominated by filesystem latency, not CPU). See
+    // `spawn_startup_scan`: the walk + sync run off-thread and the usual phase-2
+    // follow-ups fire when it lands.
+    spawn_startup_scan(state.clone());
 
-    // Build the keyword search index from the freshly-synced catalogue (titles
-    // are searchable immediately; enrichment triggers a second rebuild once
-    // cast/overview/genres land). Off-thread so it never delays serving.
-    services::search::spawn_reindex(state.clone());
-
-    // Resolve TMDB art for the freshly-scanned catalog in the background.
-    services::enrich::maybe_spawn(&state, &data.items, &data.shows);
-
-    // Watch the library for changes (periodic re-scan + filesystem events) so new
-    // files appear without a manual rescan. Baseline = the startup scan we just
-    // applied, so it stays quiet until something actually changes.
-    infra::watch::spawn(state.clone(), infra::watch::signature(&data.items, &data.mtimes));
-
+    // Background maintenance loops (independent of the library scan).
     // Reap idle HLS remux sessions (ffmpeg children + temp dirs).
     state.hls.spawn_reaper();
 
@@ -160,30 +106,37 @@ async fn main() -> anyhow::Result<()> {
     // refresh, …). Manual + scheduled runs are tracked in the admin "Tâches" UI.
     state.jobs.clone().spawn_scheduler(state.clone());
 
-    // Acquisition stack: bring the WireGuard bridge up first (when configured)
-    // so the embedded engine's SOCKS5 URL points at a live proxy, then seed
-    // the embedded engine's client row (compiled-in builds only; INSERT OR
-    // IGNORE keeps admin edits), start the engine (fastresume restores
-    // in-flight torrents) and the downloads monitor.
-    state.vpn.apply(&state).await;
-    if luma_torrents::RQBIT_COMPILED {
-        let _ = db::insert_download_client(
-            &state.db,
-            &db::DownloadClientRow {
-                id: db::EMBEDDED_CLIENT_ID.to_string(),
-                kind: "rqbit".into(),
-                name: "Moteur intégré".into(),
-                url: String::new(),
-                username: String::new(),
-                password: String::new(),
-                enabled: true,
-                priority: 100,
-                created_at: services::jobs::now_ms(),
-            },
-        );
-        state.downloads.start_rqbit(&state).await;
+    // Acquisition stack, off the critical path: bringing the WireGuard bridge up
+    // and restoring in-flight torrents (fastresume) can each take a few seconds,
+    // and neither is needed to serve requests, so spawn them rather than await
+    // inline. Ordering inside the task is preserved: VPN first (so the embedded
+    // engine's SOCKS5 URL points at a live proxy), then seed the embedded
+    // engine's client row (compiled-in builds only; INSERT OR IGNORE keeps admin
+    // edits), start the engine and the downloads monitor.
+    {
+        let state = state.clone();
+        tokio::spawn(async move {
+            state.vpn.apply(&state).await;
+            if luma_torrents::RQBIT_COMPILED {
+                let _ = db::insert_download_client(
+                    &state.db,
+                    &db::DownloadClientRow {
+                        id: db::EMBEDDED_CLIENT_ID.to_string(),
+                        kind: "rqbit".into(),
+                        name: "Moteur intégré".into(),
+                        url: String::new(),
+                        username: String::new(),
+                        password: String::new(),
+                        enabled: true,
+                        priority: 100,
+                        created_at: services::jobs::now_ms(),
+                    },
+                );
+                state.downloads.start_rqbit(&state).await;
+            }
+            state.downloads.spawn_monitor(state.clone());
+        });
     }
-    state.downloads.spawn_monitor(state.clone());
 
     // Managed Cloudflare Tunnel connector: bring the tunnel up at boot if the admin
     // enabled it with a token (installs with their own tunnel leave it off), and
@@ -227,6 +180,74 @@ async fn main() -> anyhow::Result<()> {
     .context("server error")?;
 
     Ok(())
+}
+
+/// Refresh the on-disk library index in the background, then fire the phase-2
+/// follow-ups (probe, search reindex, TMDB enrichment, filesystem watch).
+///
+/// Split out of `main` so the listener can bind and serve the already-persisted
+/// catalog immediately. The blocking half (a recursive `stat` walk of every
+/// media root plus the SQLite sync) runs on a blocking thread; the follow-ups,
+/// which themselves spawn, run back on the async runtime once the sync lands.
+fn spawn_startup_scan(state: crate::state::SharedState) {
+    tokio::spawn(async move {
+        let scan_state = state.clone();
+        let data = match tokio::task::spawn_blocking(move || startup_scan_sync(&scan_state)).await {
+            Ok(data) => data,
+            Err(e) => {
+                warn!(error = %e, "startup scan task failed");
+                return;
+            }
+        };
+
+        services::activity::scan_completed(
+            &state.activity,
+            data.libraries.len(),
+            data.shows.len(),
+            data.items.len(),
+            services::scan::now_iso8601(),
+        );
+
+        // Phase 2 (probe, search reindex, TMDB enrichment) the same shared fan-out
+        // that `POST /api/scan` and the `library.scan` job use.
+        services::scan::spawn_follow_ups(&state, &data);
+
+        // Watch the library for changes (periodic re-scan + filesystem events).
+        // Baseline = the scan we just applied, so it stays quiet until something
+        // actually changes.
+        infra::watch::spawn(state.clone(), infra::watch::signature(&data.items, &data.mtimes));
+
+        // Nudge any client that connected during the scan to refresh now that the
+        // fresh index has landed.
+        state
+            .events
+            .publish(crate::infra::events::ServerEvent::LibraryUpdated);
+    });
+}
+
+/// Blocking half of the startup scan: the shared phase-1 walk + guarded SQLite
+/// sync ([`services::scan::rescan_sync`], which owns the demo-seed and
+/// mount-outage guards). Returns the scanned [`services::scan::ScanData`] (empty
+/// on a mount outage / sync error, so the watcher baseline stays 0 and recovery
+/// re-syncs once the mount returns).
+fn startup_scan_sync(state: &crate::state::SharedState) -> services::scan::ScanData {
+    let started = Instant::now();
+    match services::scan::rescan_sync(state) {
+        Ok(data) => {
+            info!(
+                libraries = data.libraries.len(),
+                shows = data.shows.len(),
+                items = data.items.len(),
+                elapsed_ms = started.elapsed().as_millis() as u64,
+                "library index ready (phase 1)"
+            );
+            data
+        }
+        Err(e) => {
+            warn!(error = %format!("{e:#}"), "startup library sync failed; keeping the existing index");
+            services::scan::ScanData::default()
+        }
+    }
 }
 
 /// Initialise tracing. Honours `RUST_LOG`, defaulting to info-level for our

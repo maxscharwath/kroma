@@ -1,14 +1,14 @@
 import { useT } from '@luma/ui';
 import { createFileRoute } from '@tanstack/react-router';
 import { MovieGrid } from '#web/features/catalog/cards';
-import { lumaClient, toMovieView } from '#web/shared/lib/api';
+import { authedLoad, toMovieView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/films')({
-  loader: async () => {
-    const c = lumaClient();
-    const movies = await c.movies();
-    return { movies: movies.map((m) => toMovieView(c, m)) };
-  },
+  loader: () =>
+    authedLoad({ movies: [] }, async (c) => {
+      const movies = await c.movies();
+      return { movies: movies.map((m) => toMovieView(c, m)) };
+    }),
   component: FilmsPage,
 });
 

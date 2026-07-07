@@ -1,21 +1,24 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Player } from '#web/features/playback/Player';
-import { lumaClient, toMovieView } from '#web/shared/lib/api';
+import { authedLoad, toMovieView } from '#web/shared/lib/api';
 
 export const Route = createFileRoute('/watch/$id')({
-  loader: async ({ params }) => {
-    const c = lumaClient();
-    // The next episode (for the Netflix-style "up next" autoplay) is sequence-based
-    // and public, so it loads alongside the item.
-    const [item, next] = await Promise.all([c.item(params.id), c.nextEpisode(params.id)]);
-    return { item: toMovieView(c, item), next };
-  },
+  loader: ({ params }) =>
+    authedLoad(null, async (c) => {
+      // The next episode (for the "up next" autoplay) is sequence-based, so it
+      // loads alongside the item.
+      const [item, next] = await Promise.all([c.item(params.id), c.nextEpisode(params.id)]);
+      return { item: toMovieView(c, item), next };
+    }),
   component: WatchPage,
 });
 
 function WatchPage() {
-  const { item, next } = Route.useLoaderData();
+  const data = Route.useLoaderData();
   const navigate = useNavigate();
+  // Signed out (data null): the login overlay covers this route render nothing.
+  if (!data) return null;
+  const { item, next } = data;
   return (
     <Player
       key={item.id}

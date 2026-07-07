@@ -116,13 +116,25 @@ pub fn now_iso8601() -> String {
 /// notifications. Blocking (walk + SQLite) call from a blocking context.
 pub fn rescan_sync(state: &crate::state::SharedState) -> anyhow::Result<ScanData> {
     let defs = crate::services::settings::library_defs(&state.settings, &state.config);
+    let has_folders = defs.iter().any(|d| !d.folders.is_empty());
     let mut data = scan_all(&defs);
-    // Seed demo content only when nothing is configured (true demo mode). A
-    // configured library that momentarily reads empty NAS/SMB unmount, slow
-    // mount, permission glitch must NOT be clobbered with demo movies.
-    if data.items.is_empty() && defs.is_empty() {
+    // Seed demo content only in true demo mode (no folders configured at all).
+    if data.items.is_empty() && !has_folders {
         info!("no libraries configured and scan is empty; seeding demo content");
         data = crate::services::demo::demo_data();
+    }
+    // Mount-outage guard: folders ARE configured but the scan read nothing (NAS/SMB
+    // unmount, slow mount, permission glitch). Syncing an empty scan would make
+    // `sync_all` cascade-delete every real library and its expensive probed
+    // metadata, so keep the existing index instead and let the watcher re-sync
+    // once the mount returns. This guard lives here (not just at boot) so the
+    // watcher, `POST /api/scan` and the `library.scan` job are all protected.
+    if data.items.is_empty() && has_folders {
+        warn!(
+            media_dirs = state.config.media_dirs.len(),
+            "configured media dirs produced no items; keeping the existing index (mount offline?) and skipping sync"
+        );
+        return Ok(data);
     }
     crate::db::sync_all(&state.db, &data.libraries, &data.shows, &data.items, &data.mtimes)?;
     Ok(data)

@@ -11,6 +11,7 @@ import {
   clearSession,
   forgetAccount,
   type LumaClient,
+  LumaApiError,
   loadAccounts,
   loadSession,
   type StoredSession,
@@ -47,9 +48,13 @@ export function useAuthSession(client: LumaClient | null): AuthSession {
   const [accounts, setAccounts] = useState<StoredSession[]>([]);
   const [ready, setReady] = useState(false);
 
-  // Keep the bearer token in sync across client / session changes.
+  // Keep the bearer token in sync across client / session changes, and mint a
+  // media token (for the `?t=` on image/stream/subtitle/WS URLs that can't send a
+  // bearer header) whenever we're signed in. `setAuthToken(undefined)` on sign-out
+  // drops the media token too.
   useEffect(() => {
     client?.setAuthToken(session?.token);
+    if (session?.token) void client?.ensureMediaToken();
   }, [client, session]);
 
   // Hydrate the active session + accounts now. Then refresh the signed-in account
@@ -72,7 +77,15 @@ export function useAuthSession(client: LumaClient | null): AuthSession {
         setSession((cur) => (cur && cur.user.id === user.id ? { ...cur, user } : cur));
         saveSession({ token: s.token, user });
       })
-      .catch(() => undefined);
+      .catch((e) => {
+        // Session revoked / expired server-side (401): sign out so the login gate
+        // shows, instead of a blank auth-gated catalogue. Other errors (offline)
+        // keep the session so a transient outage doesn't log the user out.
+        if (cancelled || !(e instanceof LumaApiError) || e.status !== 401) return;
+        client.setAuthToken(undefined);
+        clearSession();
+        setSession(null);
+      });
     return () => {
       cancelled = true;
     };

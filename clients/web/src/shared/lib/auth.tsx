@@ -7,11 +7,13 @@
 
 import { LumaClient, type StoredSession, type User } from '@luma/core';
 import { useAuthSession } from '@luma/ui';
+import { useRouter } from '@tanstack/react-router';
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
 } from 'react';
 import { apiBase } from '#web/shared/lib/api';
@@ -53,10 +55,24 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const client = useMemo(() => new LumaClient({ baseUrl: apiBase() }), []);
   // Web is SSR-rendered, so hydrate the session in an effect (not synchronously).
   const auth = useAuthSession(client);
+  const router = useRouter();
+
+  // Re-run route loaders whenever the signed-in identity changes. Since the API
+  // is auth-gated, a loader that ran while signed out got 401s; invalidating on
+  // sign-in (and switch) re-fetches the catalogue with the new bearer, and the
+  // root `beforeLoad` mints the media token first so poster/stream URLs resolve.
+  const uid = auth.user?.id;
+  useEffect(() => {
+    if (auth.ready) void router.invalidate();
+  }, [uid, auth.ready, router]);
 
   const login = useCallback(
     async (email: string, password: string) => {
       auth.apply(await client.login(email, password));
+      // Mint the media token before this resolves (the gate stays busy until it
+      // does), so the catalogue that renders on sign-in already has a `?t=` for
+      // its posters instead of firing a burst of 401s.
+      await client.ensureMediaToken();
     },
     [client, auth],
   );

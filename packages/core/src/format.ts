@@ -9,8 +9,12 @@ import type { AudioTrack, MediaItem, VideoTrack } from './types';
  * (TMDB fallback) URLs and non-image URLs pass through untouched. */
 export function sizedImageUrl(url: string | null | undefined, displayWidth: number): string | null {
   if (!url) return null;
-  if (!url.includes('/api/images/') || url.includes('?')) return url;
-  return `${url}?w=${Math.max(1, Math.round(displayWidth * 2))}`;
+  // Only our cached art takes a `?w=`; remote (TMDB) URLs pass through. Note the
+  // URL may already carry a `?t=` media token, so append with the right separator
+  // (and never double a width that is already present).
+  if (!url.includes('/api/images/') || /[?&]w=/.test(url)) return url;
+  const w = Math.max(1, Math.round(displayWidth * 2));
+  return `${url}${url.includes('?') ? '&' : '?'}w=${w}`;
 }
 
 /** Deterministic two-stop key-art gradient derived from an item id. */

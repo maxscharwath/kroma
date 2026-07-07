@@ -7,6 +7,7 @@
 
 pub mod acquisition;
 pub mod auth;
+pub mod media_token;
 pub mod backup;
 pub mod jobs;
 pub mod llm;

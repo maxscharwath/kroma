@@ -20,8 +20,9 @@ pub const SESSION_TTL_SECS: i64 = 90 * 24 * 3600;
 
 // ----- HMAC / PBKDF2 ----------------------------------------------------------
 
-/// HMAC-SHA256 (RFC 2104) over `msg` keyed by `key`.
-fn hmac_sha256(key: &[u8], msg: &[u8]) -> [u8; 32] {
+/// HMAC-SHA256 (RFC 2104) over `msg` keyed by `key`. `pub(crate)` so the media
+/// token module ([`super::media_token`]) can sign/verify with the same primitive.
+pub(crate) fn hmac_sha256(key: &[u8], msg: &[u8]) -> [u8; 32] {
     let mut k = [0u8; SHA256_BLOCK];
     if key.len() > SHA256_BLOCK {
         let mut h = Sha256::new();
@@ -199,4 +200,5 @@ mod tests {
         assert_eq!(a.len(), 64);
         assert_ne!(a, b);
     }
+
 }

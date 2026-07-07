@@ -36,6 +36,47 @@ pub struct StreamQuery {
     pub file: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct HlsQuery {
+    /// Media token, forwarded onto the playlist's child segment/init URIs so the
+    /// player carries it past the auth gate (it can't send a bearer header).
+    #[serde(default)]
+    pub t: Option<String>,
+}
+
+/// Append `?t=<token>` (or `&t=`) to every child URI in an HLS media playlist:
+/// the segment lines and the `#EXT-X-MAP` init URI. The player fetches these
+/// without an `Authorization` header and resolves them relative to the playlist,
+/// which drops the playlist's own query so the token has to be baked into each
+/// child URI for it to pass the auth gate.
+fn stamp_playlist_token(body: &str, token: &str) -> String {
+    let mut out = String::with_capacity(body.len() + body.lines().count() * 24);
+    for line in body.lines() {
+        if let Some(rest) = line.strip_prefix("#EXT-X-MAP:URI=\"") {
+            if let Some(qpos) = rest.find('"') {
+                out.push_str("#EXT-X-MAP:URI=\"");
+                out.push_str(&append_token(&rest[..qpos], token));
+                out.push_str(&rest[qpos..]); // closing quote + any trailing attrs
+                out.push('\n');
+                continue;
+            }
+        }
+        if line.is_empty() || line.starts_with('#') {
+            out.push_str(line);
+        } else {
+            out.push_str(&append_token(line, token)); // a segment URI line
+        }
+        out.push('\n');
+    }
+    out
+}
+
+/// Append `t=<token>` as a query param (media tokens are URL-safe, so no encoding).
+fn append_token(uri: &str, token: &str) -> String {
+    let sep = if uri.contains('?') { '&' } else { '?' };
+    format!("{uri}{sep}t={token}")
+}
+
 /// `GET /api/items/:id/stream` (optional `?file=<fileId>`) → range-streamed
 /// original file. Without `?file`, the item's default/best file is served.
 pub async fn stream_item(
@@ -73,6 +114,7 @@ fn pick_file_path(item: &MediaItem, file_id: Option<&str>) -> Option<String> {
 pub async fn hls_master(
     State(state): State<SharedState>,
     Path((id, mode, anchor, audio)): Path<(String, String, u64, u32)>,
+    Query(q): Query<HlsQuery>,
 ) -> Response {
     let Some(aac) = parse_mode(&mode) else {
         return json_error(StatusCode::BAD_REQUEST, "bad mode");
@@ -97,6 +139,14 @@ pub async fn hls_master(
         // anchor) - the client reads it for `baseSec` so the clock/subtitles stay
         // aligned with the A/V (which `-noaccurate_seek` starts at that keyframe).
         Some((body, start)) => {
+            // The player loads the child segment/init URIs WITHOUT an
+            // Authorization header and resolves them relative to this playlist,
+            // dropping its `?t=`. So stamp the token onto each child URI here (the
+            // auth gate accepts a media token on `/hls/…` segment routes).
+            let body = match q.t.as_deref() {
+                Some(tok) if !tok.is_empty() => stamp_playlist_token(&body, tok),
+                _ => body,
+            };
             let mut resp = playlist_response(body);
             if let Ok(v) = header::HeaderValue::from_str(&format!("{start:.3}")) {
                 resp.headers_mut().insert("X-Hls-Start", v);
@@ -317,4 +367,21 @@ mod tests {
         assert_eq!(parse_mode("bogus"), None);
     }
 
+    #[test]
+    fn stamp_playlist_appends_token_to_child_uris() {
+        let pl = "#EXTM3U\n\
+                  #EXT-X-VERSION:7\n\
+                  #EXT-X-MAP:URI=\"init.mp4\"\n\
+                  #EXTINF:6.0,\n\
+                  seg_00000.m4s\n\
+                  #EXTINF:6.0,\n\
+                  seg_00001.m4s\n";
+        let out = stamp_playlist_token(pl, "uid.123.abc");
+        assert!(out.contains("#EXT-X-MAP:URI=\"init.mp4?t=uid.123.abc\""));
+        assert!(out.contains("seg_00000.m4s?t=uid.123.abc"));
+        assert!(out.contains("seg_00001.m4s?t=uid.123.abc"));
+        // Tag lines (starting with #) are untouched apart from the MAP URI.
+        assert!(out.contains("#EXTINF:6.0,\n"));
+        assert!(out.contains("#EXT-X-VERSION:7\n"));
+    }
 }

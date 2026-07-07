@@ -2,7 +2,9 @@
 // and updates its UI in place no relaunch/refresh when the library changes
 // (scan finished, metadata/art resolved). Auto-reconnects with backoff.
 
+import { withToken } from './client/base';
 import type { StageStat } from './generated';
+import { loadMediaToken } from './session';
 
 export type ServerEvent =
   | { type: 'hello'; version: string }
@@ -48,6 +50,10 @@ export interface LumaEventsOptions {
   WebSocketImpl?: typeof WebSocket;
   /** Max reconnect backoff (ms). Default 15000. */
   maxBackoffMs?: number;
+  /** Current media token supplier. A browser can't set an `Authorization` header
+   * on a WebSocket, so when the auth gate is on the token rides in the `?t=`
+   * query. Read at each (re)connect so a refreshed token is picked up. */
+  token?: () => string | undefined;
 }
 
 /** Reconnecting client for the LUMA server's event stream. */
@@ -70,9 +76,14 @@ export class LumaEvents {
     const WS = this.opts.WebSocketImpl ?? globalThis.WebSocket;
     if (!WS) return;
 
+    // Append the media token at connect time (not construction) so reconnects
+    // pick up a token refreshed since the socket was created. Falls back to the
+    // persisted token so every call site authenticates without extra wiring.
+    const url = withToken(this.url, this.opts.token?.() ?? loadMediaToken()?.token);
+
     let ws: WebSocket;
     try {
-      ws = new WS(this.url);
+      ws = new WS(url);
     } catch {
       this.scheduleReconnect();
       return;

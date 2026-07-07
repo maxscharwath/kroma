@@ -48,6 +48,20 @@ export interface RequestContext {
   json<T>(path: string, init?: RequestInit): Promise<T>;
   /** Authed request returning the raw body as a `Blob` (file downloads). */
   blob(path: string, init?: RequestInit): Promise<Blob>;
+  /** Authed request returning the raw body as text (e.g. the server log tail). */
+  text(path: string, init?: RequestInit): Promise<string>;
+  /** The current short-lived media token, for the `?t=` on image/stream/subtitle
+   * URLs that can't send a bearer header. `undefined` when signed out or the auth
+   * gate is disabled. */
+  mediaToken(): string | undefined;
+}
+
+/** Append the media token as a `?t=` (or `&t=`) query param, so a URL loaded by
+ * an `<img>`/`<video>`/`<track>` tag (which can't send an `Authorization`
+ * header) still authenticates. No-op when there is no token. */
+export function withToken(url: string, token: string | undefined): string {
+  if (!token) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}t=${encodeURIComponent(token)}`;
 }
 
 /** Authed `GET/POST/…` against `${baseUrl}/api${path}`, parsing the JSON body
@@ -104,6 +118,27 @@ export async function requestBlob(
     );
   }
   return res.blob();
+}
+
+/** Like {@link requestJson} but returns the raw body as text (e.g. the server
+ * log tail, which is `text/plain`). Sends the bearer so it works behind the
+ * auth gate. Throws {@link LumaApiError} on a non-2xx response. */
+export async function requestText(
+  fetchFn: typeof globalThis.fetch,
+  baseUrl: string,
+  authToken: string | undefined,
+  locale: string | undefined,
+  path: string,
+  init?: RequestInit,
+): Promise<string> {
+  const headers = new Headers(init?.headers);
+  if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
+  if (locale) headers.set('Accept-Language', locale);
+  const res = await fetchFn(`${baseUrl}/api${path}`, { ...init, headers });
+  if (!res.ok) {
+    throw new LumaApiError(res.status, `${init?.method ?? 'GET'} ${path} failed (${res.status})`);
+  }
+  return res.text();
 }
 
 export function libraryQuery(libraryId?: string): string {

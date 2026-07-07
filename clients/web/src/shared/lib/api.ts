@@ -5,7 +5,16 @@
 // there's nothing to configure. Dev: the web (vite :3000) and API (:4040) are
 // separate origins, so a build-time `VITE_LUMA_SERVER` points at the API.
 // `window.__LUMA_API__` (if injected) still wins, for embedding flexibility.
-import { isTextSubtitle, loadSession, LumaClient, type MediaItem, type Show } from '@luma/core';
+import {
+  isTextSubtitle,
+  loadMediaToken,
+  loadSession,
+  LumaApiError,
+  LumaClient,
+  type MediaItem,
+  type Show,
+  withToken,
+} from '@luma/core';
 
 declare global {
   interface Window {
@@ -40,6 +49,26 @@ export function apiBase(): string {
   return (env ?? DEFAULT_BASE).replace(/\/+$/, '');
 }
 
+/** Wrap a route loader so it is safe to run against the auth-gated API:
+ *  - signed out → resolve to `fallback` without fetching (the login overlay
+ *    shows over the route; the AuthProvider invalidates the router on sign-in so
+ *    the real data loads then);
+ *  - signed in  → mint the media token first (so poster/stream URLs carry `?t=`),
+ *    run the body, and on a 401 (an invalid/expired session) fall back rather
+ *    than throwing, which would crash the whole app to an error screen.
+ * `redirect`s and any non-401 error propagate unchanged. */
+export async function authedLoad<T>(fallback: T, run: (c: LumaClient) => Promise<T>): Promise<T> {
+  const c = lumaClient();
+  if (!loadSession()?.token) return fallback;
+  try {
+    await c.ensureMediaToken();
+    return await run(c);
+  } catch (e) {
+    if (e instanceof LumaApiError && e.status === 401) return fallback;
+    throw e;
+  }
+}
+
 export function lumaClient(): LumaClient {
   // Carry the active session token (if any) so route loaders which now run on
   // the client (SPA, no SSR) get per-user personalised catalogue DTOs, e.g. the
@@ -52,7 +81,11 @@ export function lumaClient(): LumaClient {
  * URL) against the LUMA origin. Works on both server and client. */
 export function imageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
-  return /^https?:\/\//.test(url) ? url : `${apiBase()}${url}`;
+  // Inline avatars (base64) and absolute (TMDB) URLs are used as-is, no LUMA auth.
+  if (url.startsWith('data:') || /^https?:\/\//.test(url)) return url;
+  // Our own cached art (`/api/images/…`) is behind the auth gate but loaded by
+  // an <img> tag, so it authenticates via the short-lived `?t=` media token.
+  return withToken(`${apiBase()}${url}`, loadMediaToken()?.token);
 }
 
 /** A subtitle track with its on-demand WebVTT URL (text subs only). */

@@ -78,6 +78,11 @@ pub struct AppState {
     /// Managed WireGuard-to-SOCKS5 bridge (wireproxy) for torrent traffic,
     /// the Proton VPN path. See [`crate::services::vpn`].
     pub vpn: Arc<Vpn>,
+    /// HMAC secret signing short-lived, media-scoped access tokens (the `?t=`
+    /// param on image/stream/subtitle/WebSocket URLs, which can't carry a bearer
+    /// header). Persisted at `<data>/.media_secret`. See [`crate::services::media_token`]
+    /// and the auth gate in [`crate::api::authgate`].
+    pub media_secret: Arc<Vec<u8>>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -90,6 +95,7 @@ impl AppState {
             crate::services::settings::transcode_cache_limit_bytes(&settings),
         );
         let storyboard = Storyboard::new(&config.data_dir);
+        let media_secret = Arc::new(crate::services::media_token::load_or_create_media_secret(&config.data_dir));
         // Built before the struct literal moves `config`: the connector locates a
         // server-provided `cloudflared` relative to the data dir.
         let remote = RemoteAccess::new(config.data_dir.clone());
@@ -133,6 +139,7 @@ impl AppState {
             remote,
             downloads,
             vpn,
+            media_secret,
         })
     }
 }

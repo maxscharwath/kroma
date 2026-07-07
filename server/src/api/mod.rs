@@ -11,6 +11,7 @@ pub mod poster;
 pub mod ws;
 
 mod accounts;
+mod authgate;
 mod discover;
 mod extract;
 mod home;
@@ -95,11 +96,19 @@ pub fn router(state: SharedState) -> Router {
             .and(NotForContentType::new("application/vnd.apple.mpegurl")),
     );
 
-    app.layer(CorsLayer::permissive())
-        .layer(compression)
-        .layer(axum::middleware::from_fn(spa_cache_headers))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+    // Auth gate (added first → innermost, so it runs just before the handler,
+    // after CORS has already answered any preflight). Guards every `/api` route
+    // except the public sign-in surface + media routes. No-op when `requireAuth`
+    // is off. See [`authgate`].
+    app.layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        authgate::require_auth,
+    ))
+    .layer(CorsLayer::permissive())
+    .layer(compression)
+    .layer(axum::middleware::from_fn(spa_cache_headers))
+    .layer(TraceLayer::new_for_http())
+    .with_state(state)
 }
 
 /// Cache policy for the SPA files: Vite content-hashes every built asset, so

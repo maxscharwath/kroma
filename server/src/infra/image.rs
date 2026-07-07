@@ -20,6 +20,46 @@ static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
 /// Public route prefix served by `GET /api/images/:name`.
 pub const PUBLIC_PREFIX: &str = "/api/images/";
 
+/// Resolve a stored avatar reference to a base64 `data:` URI, so it can ride
+/// INLINE in the user JSON / "who's watching" roster. Avatars are shown before
+/// sign-in and persisted in the client's localStorage, so they must not depend on
+/// the media auth token (which would 401 them pre-login and expire them). Small
+/// enough (a downscaled profile tile) that inlining is cheap.
+///
+/// `data:` values pass through; a cached-art path (`/api/images/<hash>.webp`) is
+/// downscaled to a small rendition and inlined; anything else returns `None`.
+pub fn avatar_data_uri(data_dir: &Path, avatar_url: &str) -> Option<String> {
+    if avatar_url.starts_with("data:") {
+        return Some(avatar_url.to_string());
+    }
+    let name = avatar_url.strip_prefix(PUBLIC_PREFIX)?;
+    // Reuse the poster sizing path: a 160px rendition is ample for a profile tile
+    // and keeps the base64 small; fall back to the original if sizing is
+    // unavailable (no cwebp/ffmpeg).
+    let (path, ct) =
+        sized_rendition(data_dir, name, 160).unwrap_or_else(|| (images_dir(data_dir).join(name), "image/webp"));
+    let bytes = std::fs::read(&path).ok()?;
+    Some(format!("data:{ct};base64,{}", b64_encode_std(&bytes)))
+}
+
+/// Standard (padded) base64 for a `data:` URI. Hand-rolled to keep the build lean
+/// (the project already hand-rolls its codecs).
+fn b64_encode_std(data: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b1 = chunk[0];
+        let b2 = chunk.get(1).copied().unwrap_or(0);
+        let b3 = chunk.get(2).copied().unwrap_or(0);
+        let n = ((b1 as u32) << 16) | ((b2 as u32) << 8) | (b3 as u32);
+        out.push(ALPHABET[((n >> 18) & 63) as usize] as char);
+        out.push(ALPHABET[((n >> 12) & 63) as usize] as char);
+        out.push(if chunk.len() > 1 { ALPHABET[((n >> 6) & 63) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 2 { ALPHABET[(n & 63) as usize] as char } else { '=' });
+    }
+    out
+}
+
 /// WebP quality (0–100) and effort. 80/6 keeps posters crisp at a fraction of
 /// the JPEG size.
 const WEBP_QUALITY: &str = "80";

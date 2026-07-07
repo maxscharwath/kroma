@@ -95,6 +95,26 @@ pub struct CrewMember {
     pub profile_url: Option<String>,
 }
 
+impl Metadata {
+    /// Strip the heavy, detail-page-only fields so list/grid endpoints ship a
+    /// lightweight card payload. `cast` alone dominates the `/api/movies` JSON
+    /// (top-billed people, characters and profile URLs, per title); `crew` and
+    /// the long-text/id fields add more. None of these are rendered by a poster
+    /// grid, the home hero, or a rail we keep exactly what those need: art,
+    /// `rating`, `genres`, `overview` (hero synopsis) and the TMDB ids. The
+    /// wire *shape* is unchanged (skipped-when-empty fields simply drop out), so
+    /// clients and the generated TS types need no update; the full set is still
+    /// served by the per-title detail endpoints.
+    pub fn slim_for_card(&mut self) {
+        self.cast = Vec::new();
+        self.crew = Vec::new();
+        self.tagline = None;
+        self.imdb_id = None;
+        self.release_date = None;
+        self.theme_url = None;
+    }
+}
+
 fn default_provider() -> &'static str {
     "tmdb"
 }

@@ -40,6 +40,7 @@ pub fn routes() -> Router<SharedState> {
         .route("/auth/quickconnect/initiate", post(quick_initiate))
         .route("/auth/quickconnect/authorize", post(quick_authorize))
         .route("/auth/quickconnect/poll", get(quick_poll))
+        .route("/auth/media-token", get(media_token))
         .route("/users", get(list_users))
         .route(
             "/users/avatar",
@@ -211,9 +212,40 @@ pub async fn auth_config(State(state): State<SharedState>) -> Response {
     .into_response()
 }
 
+/// Rewrite an avatar reference to an inline base64 `data:` URI so the roster /
+/// session carry it without a token-gated `/api/images` fetch shown pre-login,
+/// persisted in the client's localStorage, and never aged out by the media token.
+/// File I/O runs on the blocking pool; the original reference is kept on failure.
+async fn inline_avatar(state: &SharedState, avatar: Option<String>) -> Option<String> {
+    let a = avatar?;
+    let dd = state.config.data_dir.clone();
+    let a2 = a.clone();
+    tokio::task::spawn_blocking(move || crate::infra::image::avatar_data_uri(&dd, &a2))
+        .await
+        .ok()
+        .flatten()
+        .or(Some(a))
+}
+
 /// `GET /api/auth/me` (Bearer) → `{ user }`.
-pub async fn me(AuthUser(user): AuthUser) -> Response {
+pub async fn me(State(state): State<SharedState>, AuthUser(mut user): AuthUser) -> Response {
+    user.avatar_url = inline_avatar(&state, user.avatar_url).await;
     Json(json!({ "user": user })).into_response()
+}
+
+/// `GET /api/auth/media-token` (Bearer) → `{ token, expiresInSec }`.
+///
+/// Mints the media-scoped access token the client appends as `?t=` to image /
+/// video / subtitle / WebSocket URLs (which can't carry a bearer header). It only
+/// unlocks media routes in the auth gate never the JSON/admin surface so exposing
+/// it in an `<img>`/`<video>` URL can't compromise the account. The client
+/// re-mints it before expiry.
+pub async fn media_token(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
+    // AuthUser gates this to a valid session; the token binds to that user id so a
+    // media request can be attributed back (stateless recovery, see the auth gate).
+    let ttl = crate::services::media_token::MEDIA_TOKEN_TTL_SECS;
+    let token = crate::services::media_token::mint_media_token(&state.media_secret, &user.id, ttl);
+    Json(json!({ "token": token, "expiresInSec": ttl })).into_response()
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,11 +270,12 @@ pub async fn update_me(
         return resp;
     }
     user.language = language.map(str::to_string);
+    user.avatar_url = inline_avatar(&state, user.avatar_url).await;
     Json(json!({ "user": user })).into_response()
 }
 
 /// Mint a session token for `user` and return `{ token, user }`.
-async fn issue_session(state: SharedState, user: User) -> Response {
+async fn issue_session(state: SharedState, mut user: User) -> Response {
     let token = auth::random_token();
     let expires_at = time::OffsetDateTime::now_utc().unix_timestamp() + auth::SESSION_TTL_SECS;
     let token_db = token.clone();
@@ -258,6 +291,10 @@ async fn issue_session(state: SharedState, user: User) -> Response {
         Ok(())
     })
     .await;
+    // Bake the avatar into the returned user as an inline `data:` URI so it is
+    // saved into the client's session (localStorage) and shows in the profile
+    // picker even before the next sign-in, without a token-gated image fetch.
+    user.avatar_url = inline_avatar(&state, user.avatar_url).await;
     Json(super::dto::AuthResult { token, user }).into_response()
 }
 
@@ -275,7 +312,14 @@ pub async fn list_users(State(state): State<SharedState>) -> Response {
         return Json(Vec::<PublicUser>::new()).into_response();
     }
     match query(&state.db, move |pool| db::list_users(&pool)).await {
-        Ok(users) => Json(users).into_response(),
+        Ok(mut users) => {
+            // Inline each avatar as a `data:` URI so the pre-login picker renders
+            // them without a media token (see [`inline_avatar`]).
+            for u in &mut users {
+                u.avatar_url = inline_avatar(&state, u.avatar_url.take()).await;
+            }
+            Json(users).into_response()
+        }
         Err(resp) => resp,
     }
 }
@@ -308,7 +352,10 @@ pub async fn upload_avatar(
     if let Err(resp) = query(&state.db, move |pool| db::set_user_avatar(&pool, &uid, Some(&url_db))).await {
         return resp;
     }
-    Json(json!({ "avatarUrl": url })).into_response()
+    // Return the avatar inline (base64) so the client stores + shows it without a
+    // token-gated fetch; the DB keeps the `/api/images` path, re-inlined on serve.
+    let avatar_url = inline_avatar(&state, Some(url)).await;
+    Json(json!({ "avatarUrl": avatar_url })).into_response()
 }
 
 // ----- quick connect ----------------------------------------------------------

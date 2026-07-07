@@ -141,6 +141,11 @@ export function useCatalogue(platform: string): Catalogue {
   const fetchCatalogue = useCallback(async (c: LumaClient, quiet = false) => {
     if (!quiet) setStatus('connecting');
     try {
+      // Mint/refresh the media token first so poster/backdrop/stream/subtitle URLs
+      // (built by the client's URL helpers) carry a valid `?t=` for the auth gate.
+      // The TV uses its own auth provider, not @luma/ui's useAuthSession, so this
+      // is the TV's mint point. No-op when a fresh token is already cached.
+      await c.ensureMediaToken();
       const [mvs, shs] = await Promise.all([c.movies(), c.shows()]);
       setMovies(mvs);
       setShows(shs);

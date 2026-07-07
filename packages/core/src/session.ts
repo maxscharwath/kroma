@@ -18,6 +18,7 @@ const ACCOUNTS_KEY = 'luma.accounts'; // remembered sessions on this device
 const SERVERS_KEY = 'luma.servers'; // saved LUMA servers (TV multi-server)
 const LEGACY_SERVER_KEY = 'luma.serverUrl'; // pre-multi-server single URL
 const LOCALE_KEY = 'luma.locale'; // device-level UI locale override
+const MEDIA_TOKEN_KEY = 'luma.mediaToken'; // short-lived media (`?t=`) token
 
 export interface StoredSession {
   token: string;
@@ -214,6 +215,36 @@ export function migrateStorage(): void {
   }
   try {
     s.removeItem(LEGACY_SERVER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ----- media token ------------------------------------------------------------
+
+/** A cached media-scoped access token (the `?t=` on image/stream/subtitle/WS
+ * URLs, which can't carry a bearer header) and its absolute expiry (unix ms). */
+export interface StoredMediaToken {
+  token: string;
+  /** Expiry as unix milliseconds (so it can be compared to `Date.now()`). */
+  expMs: number;
+}
+
+/** The persisted media token, or null when absent/expired. Persisting it means a
+ * page reload has a valid `?t=` synchronously available for the first paint of
+ * posters, rather than every image 401-ing until a fresh one is minted. */
+export function loadMediaToken(): StoredMediaToken | null {
+  const t = readJson<StoredMediaToken | null>(MEDIA_TOKEN_KEY, null);
+  return t?.token && typeof t.expMs === 'number' && t.expMs > Date.now() ? t : null;
+}
+
+export function saveMediaToken(token: StoredMediaToken): void {
+  writeJson(MEDIA_TOKEN_KEY, token);
+}
+
+export function clearMediaToken(): void {
+  try {
+    storage()?.removeItem(MEDIA_TOKEN_KEY);
   } catch {
     /* ignore */
   }

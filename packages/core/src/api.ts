@@ -7,7 +7,9 @@ import {
   type RequestContext,
   requestBlob,
   requestJson,
+  requestText,
 } from './client/base';
+import { clearMediaToken, loadMediaToken, saveMediaToken } from './session';
 import * as discovery from './client/discovery';
 import type { DiscoverType } from './client/discovery';
 import * as library from './client/library';
@@ -95,7 +97,7 @@ export type {
   RemoteConnectorStatus,
 } from './client/admin';
 export type { LumaClientOptions } from './client/base';
-export { apiErrorText, LumaApiError } from './client/base';
+export { apiErrorText, LumaApiError, withToken } from './client/base';
 export type { DiscoverType } from './client/discovery';
 export type { StoryboardManifest } from './client/media';
 export type {
@@ -119,6 +121,11 @@ export class LumaClient {
   private readonly fetchFn: typeof globalThis.fetch;
   private authToken?: string;
   private locale?: string;
+  /** Cached short-lived media token (the `?t=` on image/stream/subtitle/WS URLs)
+   * and its absolute expiry (unix ms); `inFlight` dedupes a concurrent mint. */
+  private mediaTokenValue?: string;
+  private mediaTokenExpMs?: number;
+  private mediaTokenInFlight?: Promise<string | undefined>;
   /** The request plumbing handed to every domain function. `json` is bound so it
    * always reads the current auth token / locale set on this instance. */
   private readonly ctx: RequestContext;
@@ -128,19 +135,87 @@ export class LumaClient {
     this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.authToken = options.authToken;
     this.locale = options.locale;
+    // Seed the media token from storage so the very first paint of posters after
+    // a reload has a valid `?t=` synchronously (no 401 flash before a re-mint).
+    const stored = loadMediaToken();
+    if (stored) {
+      this.mediaTokenValue = stored.token;
+      this.mediaTokenExpMs = stored.expMs;
+    }
     this.ctx = {
       baseUrl: this.baseUrl,
       fetchFn: this.fetchFn,
       json: this.json.bind(this),
       blob: this.blob.bind(this),
+      text: this.text.bind(this),
+      mediaToken: () => this.currentMediaToken(),
     };
     // Warm the connection to the media server as early as possible.
     preconnect(this.baseUrl);
   }
 
-  /** Set (or clear, with `undefined`) the bearer token sent on every request. */
+  /** Set (or clear, with `undefined`) the bearer token sent on every request.
+   * Signing out clears the media token; switching to a DIFFERENT user drops the
+   * cached one so the next {@link ensureMediaToken} re-mints for the new identity
+   * (else posters/streams would carry the previous user's `?t=`). The initial
+   * `undefined -> token` on boot/sign-in keeps any token seeded from storage
+   * (warm-boot fast path). */
   setAuthToken(token?: string): void {
+    const prev = this.authToken;
     this.authToken = token;
+    if (!token) {
+      this.mediaTokenValue = undefined;
+      this.mediaTokenExpMs = undefined;
+      this.mediaTokenInFlight = undefined;
+      clearMediaToken();
+    } else if (prev && prev !== token) {
+      this.mediaTokenValue = undefined;
+      this.mediaTokenExpMs = undefined;
+      this.mediaTokenInFlight = undefined;
+      clearMediaToken();
+    }
+  }
+
+  /** The current media token if still valid, else `undefined`. Read synchronously
+   * by the media URL builders. */
+  private currentMediaToken(): string | undefined {
+    if (this.mediaTokenValue && this.mediaTokenExpMs && this.mediaTokenExpMs > Date.now()) {
+      return this.mediaTokenValue;
+    }
+    return undefined;
+  }
+
+  /** Ensure a fresh media token is cached (minting one if missing / near expiry),
+   * so `<img>`/`<video>`/`<track>`/WebSocket URLs authenticate. Call after
+   * sign-in and on app boot, before rendering media. Dedupes concurrent mints and
+   * never throws (returns `undefined` when signed out or the mint fails). */
+  async ensureMediaToken(): Promise<string | undefined> {
+    // Refresh a few minutes early so a long playback session never straddles the
+    // expiry boundary mid-stream.
+    const skewMs = 5 * 60 * 1000;
+    if (this.mediaTokenValue && this.mediaTokenExpMs && this.mediaTokenExpMs - skewMs > Date.now()) {
+      return this.mediaTokenValue;
+    }
+    const forToken = this.authToken;
+    if (!forToken) return undefined;
+    if (this.mediaTokenInFlight) return this.mediaTokenInFlight;
+    this.mediaTokenInFlight = (async () => {
+      try {
+        const res = await this.json<{ token: string; expiresInSec: number }>('/auth/media-token');
+        // Bail if the session changed (sign-out / profile switch) while minting,
+        // so we don't resurrect a media token for a session that's now gone.
+        if (this.authToken !== forToken) return undefined;
+        this.mediaTokenValue = res.token;
+        this.mediaTokenExpMs = Date.now() + res.expiresInSec * 1000;
+        saveMediaToken({ token: res.token, expMs: this.mediaTokenExpMs });
+        return res.token;
+      } catch {
+        return undefined;
+      } finally {
+        this.mediaTokenInFlight = undefined;
+      }
+    })();
+    return this.mediaTokenInFlight;
   }
 
   /** Set (or clear) the active UI locale sent as `Accept-Language`, so the
@@ -160,6 +235,10 @@ export class LumaClient {
 
   private blob(path: string, init?: RequestInit): Promise<Blob> {
     return requestBlob(this.fetchFn, this.baseUrl, this.authToken, this.locale, path, init);
+  }
+
+  private text(path: string, init?: RequestInit): Promise<string> {
+    return requestText(this.fetchFn, this.baseUrl, this.authToken, this.locale, path, init);
   }
 
   // ----- catalogue / media ----------------------------------------------------

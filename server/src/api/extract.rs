@@ -27,6 +27,11 @@ impl FromRequestParts<SharedState> for AuthUser {
         parts: &mut Parts,
         state: &SharedState,
     ) -> Result<Self, Self::Rejection> {
+        // Fast path: the auth gate already resolved this request's session and
+        // stashed the user, so skip the (duplicate) DB lookup.
+        if let Some(user) = parts.extensions.get::<User>() {
+            return Ok(AuthUser(user.clone()));
+        }
         let token = bearer_from_headers(&parts.headers)
             .ok_or_else(|| json_error(StatusCode::UNAUTHORIZED, "missing bearer token"))?;
         let pool = state.db.clone();
@@ -52,6 +57,10 @@ impl FromRequestParts<SharedState> for OptionalAuthUser {
         parts: &mut Parts,
         state: &SharedState,
     ) -> Result<Self, Self::Rejection> {
+        // Fast path: reuse the user the auth gate already resolved for this request.
+        if let Some(user) = parts.extensions.get::<User>() {
+            return Ok(OptionalAuthUser(Some(user.clone())));
+        }
         let Some(token) = bearer_from_headers(&parts.headers) else {
             return Ok(OptionalAuthUser(None));
         };

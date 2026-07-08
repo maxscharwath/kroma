@@ -40,19 +40,40 @@ Only adapts/packages an app for a device → `clients/`.
 
 ## Server (Rust) layered, domain as the column
 
+The server is a **cargo workspace**. The layers are crates, so the "inward-only"
+dependency rule is enforced by the compiler (an illegal `use` won't resolve),
+not by convention or a CI grep. The binary is a thin HTTP shell over the engine:
+
 ```
-server/src/
-  main.rs · config.rs · state.rs        composition root
-  domain/    media accounts playback library admin   entities + PURE rules (no I/O)
-  db/        media accounts playback library admin   all SQL, one shared Pool
-  infra/     probe transcode metadata image stream discovery watch metrics events
-  services/  scan enrich auth quickconnect playback settings jobs(cron scheduler+registry) …
-  api/       media accounts invites playback admin/*  + extract.rs + mod.rs (router)
+server/
+  src/                 luma-server BINARY — main.rs + api/ (router + handlers), 8k LOC
+  crates/
+    luma-engine/       infra + services + state + i18n + model  (the business logic, 20k LOC)
+    luma-db/           all SQL, one shared Pool                 (persistence, 7k LOC)
+    luma-domain/       entities + PURE rules (serde only, no I/O)
+    luma-config/       env-parsed Config
+    luma-i18n/         translate + CLDR plurals (Rust port of @luma/core i18n)
+    luma-primitives/         timestamps · short hashes · random tokens (below db)
+    luma-whisper/   Whisper transcription (candle)   ── heavy/optional dep graphs,
+    luma-vector/        content embeddings (candle)      ── isolated behind features so
+    luma-mdns/    mDNS advertising                 ── editing the server doesn't
+    luma-http/ luma-scene/ luma-torznab/ luma-torrent/   the acquisition stack
 ```
 
-**Dependency rule (inward only):** `api → services → {db, infra} → domain`.
+**Dependency graph (acyclic, compiler-enforced):**
 
-- `domain/` may use std/serde only **never** axum/rusqlite/reqwest/process. (CI-guarded.)
+```
+luma-server(bin) → luma-engine → { luma-db, luma-whisper, luma-vector, luma-mdns,
+                                    luma-http, luma-scene, luma-torznab, luma-torrent }
+       luma-db → luma-domain, luma-primitives        everything → luma-domain / luma-config
+```
+
+- **`luma-domain`** depends only on serde **never** axum/rusqlite/reqwest/process.
+  Purity is compiler-enforced, so no CI grep is needed.
+- The layer modules keep their historical paths (`crate::db`, `crate::services`,
+  `crate::model`, …) via crate aliases, so call sites were untouched by the split.
+- Heavy or optional dependencies (candle, mdns) live in leaf crates behind the
+  `whisper-*` / `semantic-embeddings` features, forwarded binary → engine → leaf.
 - `services/` may use db/infra/domain; never api. `api/` translates HTTP↔services, holds no business logic.
 - `main.rs` + `state.rs` are the only composition points.
 - **Cross-cutting joins** are owned by the consuming domain (e.g. `continue_watching` in `db/playback.rs`, admin history in `db/admin.rs`). One Pool; "a domain owns its tables" is a convention, not a wall.
@@ -86,7 +107,8 @@ lockfiles, `*.gen.ts`, irreducible adapters (ffmpeg flag-builders).
 | 2 | Server layering (`infra/` + `services/` + `api/` column + `extract.rs`) | pending |
 | 3 | Monorepo move (`packages/tv→apps/tv`, `clients/web→apps/web`, `server→apps/server`) | pending |
 | 4 | Frontend feature slices (TV then web) | pending |
-| 5 | Hardening (`api.ts` per-domain sub-clients; optional `luma-domain` crate) | pending |
+| 5 | Hardening (`api.ts` per-domain sub-clients) | pending |
+| 6 | Server workspace split — 14 crates (1 bin + 13 libs), binary is a thin `api` shell over `luma-engine`; layers compiler-enforced | ✓ done |
 
 Each phase is independently shippable and verified (`cargo test` · `bun run typecheck`/`build` ·
 for Phase 3, a full `.spk` build that serves the SPA).

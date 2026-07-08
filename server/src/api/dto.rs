@@ -1,9 +1,9 @@
 //! Typed response DTOs for endpoints whose JSON was previously assembled ad-hoc
 //! with `serde_json::json!`. Modeling them as structs (a) makes the wire contract
-//! a single source of truth shared with the TS clients via `#[derive(TS)]`, and
-//! (b) removes a whole class of bug a mistyped JSON key that silently breaks a
-//! client. `#[serde(rename_all = "camelCase")]` maps the snake_case Rust fields to
-//! the camelCase the clients expect.
+//! a single source of truth (the TS clients mirror it via the zod schemas in
+//! packages/core), and (b) removes a whole class of bug a mistyped JSON key that
+//! silently breaks a client. `#[serde(rename_all = "camelCase")]` maps the
+//! snake_case Rust fields to the camelCase the clients expect.
 
 use serde::Serialize;
 

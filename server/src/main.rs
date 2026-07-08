@@ -5,18 +5,15 @@
 //! files to clients. It never transcodes: clients decode HEVC/H.265/AV1
 //! themselves. `ffprobe` is used only to read metadata.
 
+// The HTTP router + handlers. Everything below the router — infra adapters,
+// services, app state, the i18n extractor and the wire-model barrel — lives in
+// the luma-engine crate, aliased here so `crate::{infra,services,state,i18n,model}`
+// call sites in api/ keep resolving. Lower layers (config/db/domain) are their
+// own crates, likewise aliased.
 mod api;
-mod config;
-mod db;
-mod domain;
-mod i18n;
-mod infra;
-mod model;
-mod services;
-mod state;
-
-use std::sync::OnceLock;
-use std::time::Instant;
+use luma_config as config;
+use luma_db as db;
+use luma_engine::{i18n, infra, model, services, state};
 
 use anyhow::Context;
 use tracing::{info, warn};
@@ -32,17 +29,10 @@ use crate::state::AppState;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-/// Process start time, for the admin "Disponibilité" / uptime readout.
-static PROCESS_START: OnceLock<Instant> = OnceLock::new();
-
-/// When this process started (monotonic). Seeded on first call.
-pub fn process_started() -> Instant {
-    *PROCESS_START.get_or_init(Instant::now)
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    process_started();
+    // Seed the uptime clock (now owned by luma-engine).
+    luma_engine::process_started();
     let config = Config::from_env();
     // Keep the appender guard alive for the whole process so buffered log lines
     // are flushed to disk.
@@ -166,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
     // IGNORE keeps admin edits), start the engine (fastresume restores
     // in-flight torrents) and the downloads monitor.
     state.vpn.apply(&state).await;
-    if luma_torrents::RQBIT_COMPILED {
+    if luma_torrent::RQBIT_COMPILED {
         let _ = db::insert_download_client(
             &state.db,
             &db::DownloadClientRow {

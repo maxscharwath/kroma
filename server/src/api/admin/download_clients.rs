@@ -51,7 +51,7 @@ pub async fn list(
     let view = query(&state.db, |pool| {
         let conn = pool.get()?;
         let clients = db::list_download_clients(&conn)?.iter().map(view_of).collect();
-        Ok(DownloadClientsView { clients, rqbit_compiled: luma_torrents::RQBIT_COMPILED })
+        Ok(DownloadClientsView { clients, rqbit_compiled: luma_torrent::RQBIT_COMPILED })
     })
     .await?;
     Ok(Json(view).into_response())

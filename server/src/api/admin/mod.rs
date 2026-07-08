@@ -117,7 +117,7 @@ pub async fn server_info(
         name: crate::services::settings::server_name(&state.settings),
         hostname,
         version: env!("CARGO_PKG_VERSION"),
-        uptime_sec: crate::process_started().elapsed().as_secs(),
+        uptime_sec: luma_engine::process_started().elapsed().as_secs(),
         online: true,
         sessions: state.playback.list().len(),
     })

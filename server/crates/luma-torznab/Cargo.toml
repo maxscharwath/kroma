@@ -1,13 +1,13 @@
 [package]
 name = "luma-torznab"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.86"
+edition.workspace = true
+rust-version.workspace = true
 description = "Torznab (Jackett / Prowlarr) indexer client for the LUMA acquisition stack"
-license = "MIT"
+license.workspace = true
 
 [dependencies]
-luma-fetch = { path = "../luma-fetch" }
+luma-http = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 quick-xml = { workspace = true }

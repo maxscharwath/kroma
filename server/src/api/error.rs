@@ -1,14 +1,12 @@
 //! Uniform JSON error responses.
 
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::Json;
-use serde_json::json;
+use axum::response::Response;
 
 /// Build a JSON error response: `{ "error": "<message>" }` with the given status.
-pub fn json_error(status: StatusCode, message: &str) -> Response {
-    (status, Json(json!({ "error": message }))).into_response()
-}
+/// Defined in luma-engine (shared with `infra::stream`); re-exported here so the
+/// `crate::api::error::json_error` call sites are unchanged.
+pub use luma_engine::json_error;
 
 /// Localised JSON error: resolves message `key` in `locale` against the shared
 /// catalogs (`packages/core/src/locales`).

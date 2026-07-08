@@ -1,10 +1,10 @@
 [package]
 name = "luma-server"
 version = "0.1.3"
-edition = "2021"
-rust-version = "1.86"
+edition.workspace = true
+rust-version.workspace = true
 description = "LUMA a self-hosted, direct-play media streaming server"
-license = "MIT"
+license.workspace = true
 
 [[bin]]
 name = "luma-server"
@@ -12,11 +12,19 @@ path = "src/main.rs"
 
 # The server is the root package of a Cargo workspace (the Rust mirror of the
 # bun workspaces on the TS side). Self-contained domains live as crates under
-# crates/ so they build + test in isolation (`cargo test -p luma-release`),
+# crates/ so they build + test in isolation (`cargo test -p luma-scene`),
 # while everything still links into this one binary. All existing entry points
 # (`cargo build` from server/, CI, the Synology docker build) are unchanged.
 [workspace]
 members = ["crates/*"]
+
+# Shared package metadata. Every member (and the root package above) inherits
+# these via `edition.workspace = true` etc. Versions stay per-crate: the libs
+# under crates/ are versioned independently of the server binary.
+[workspace.package]
+edition = "2021"
+rust-version = "1.86"
+license = "MIT"
 
 # Single source of truth for versions shared across workspace members. The root
 # package keeps its own [dependencies] table as-is; members opt in via
@@ -27,203 +35,146 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 quick-xml = "0.37"
-
-[features]
-# On-device Whisper subtitle transcription ships by default: it is the only
-# transcription backend (there is no cloud/whisper.cpp path) and the Synology
-# package already builds with it. Turning it off compiles a stub and the player's
-# "transcribe" capability reports false.
-default = ["whisper-local", "torrent-rqbit"]
-
-# Embedded BitTorrent engine (librqbit inside the luma-torrents crate) for the
-# acquisition stack. ON by default: it is what makes downloads work with zero
-# extra software. Turning it off drops the librqbit graph entirely; the
-# "rqbit" download-client kind then reports "not compiled" and external
-# Transmission / qBittorrent connectors (plain curl) remain the only engines.
-torrent-rqbit = ["luma-torrents/rqbit"]
-
-# Multilingual semantic embeddings (infra::embed::candle). OFF by default; the
-# default build uses the dependency-free lexical embedder (good for keyword-able
-# genre rows). Turn this on for the *aesthetic* themed rows lexical can't reach
-# ("mind-bending", "neon night drive") and proper cross-language matching.
-#
-# Needs rustc >= 1.85 (the candle graph pulls toml_parser → edition2024); the repo
-# builds on a newer pinned stable (see rust-toolchain.toml). At runtime, point
-# LUMA_EMBED_MODEL_DIR at a
-# BERT-arch sentence model we use `paraphrase-multilingual-MiniLM-L12-v2`
-# (~470 MB, default ./models/ml-minilm): an English-only model collapses on a
-# French catalog (see infra/embed/candle.rs). Then re-embed (POST /api/scan) to
-# rewrite the 256-d lexical vectors as 384-d semantic ones. Keep candle on its
-# pure-Rust `gemm` backend (no mkl/accelerate/cuda) for the musl single binary.
-semantic-embeddings = [
-    "dep:candle-core",
-    "dep:candle-nn",
-    "dep:candle-transformers",
-    "dep:tokenizers",
-]
-
-# In-process Whisper transcription (infra::whisper) for the `whisperLocal` /
-# `whisperCandle` subtitle provider NO external whisper.cpp binary, fully
-# self-contained. Reuses the candle stack (CPU pure-Rust gemm, so the musl single
-# binary still links). OFF by default (build size/time, like semantic-embeddings).
-# The model (safetensors + config + tokenizer) is a local dir, or a HF repo id
-# (e.g. `openai/whisper-base`) auto-downloaded into <data>/whisper/ on first use.
-whisper-local = [
-    "dep:candle-core",
-    "dep:candle-nn",
-    "dep:candle-transformers",
-    "dep:tokenizers",
-]
-
-# GPU-accelerated Whisper for local dev builds (NOT the musl single binary, which
-# has no GPU). `whisper-metal` = Apple-Silicon GPU via Metal a huge speedup over
-# the pure-Rust CPU gemm; `whisper-cuda` = NVIDIA. The engine selects the device at
-# runtime and falls back to CPU if the GPU is unavailable, so these only widen what
-# the build CAN use. `whisper-accelerate` keeps the CPU device but routes matmuls
-# through Apple's vecLib BLAS (a smaller speedup, for Intel Macs / no-GPU).
-whisper-metal = [
-    "whisper-local",
-    "candle-core/metal",
-    "candle-nn/metal",
-    "candle-transformers/metal",
-]
-whisper-cuda = [
-    "whisper-local",
-    "candle-core/cuda",
-    "candle-nn/cuda",
-    "candle-transformers/cuda",
-]
-whisper-accelerate = [
-    "whisper-local",
-    "candle-core/accelerate",
-    "candle-nn/accelerate",
-    "candle-transformers/accelerate",
-]
-
-[dependencies]
-# --- Acquisition stack: the workspace crates under crates/ ---
-# luma-fetch (curl transport), luma-release (release-name parsing + scoring),
-# luma-torznab (Jackett/Prowlarr indexer search), luma-torrents (DownloadClient
-# trait + engines; the embedded librqbit engine hides behind `torrent-rqbit`).
-luma-fetch = { path = "crates/luma-fetch" }
-luma-release = { path = "crates/luma-release" }
-luma-torznab = { path = "crates/luma-torznab" }
-luma-torrents = { path = "crates/luma-torrents" }
-
-# --- Optional: semantic embeddings (feature `semantic-embeddings`) ---
-# CPU-only, pure-Rust backends so the musl single-binary keeps linking.
-candle-core = { version = "0.8", optional = true, default-features = false }
-candle-nn = { version = "0.8", optional = true, default-features = false }
-candle-transformers = { version = "0.8", optional = true, default-features = false }
+# Candle ML stack + tokenizer, shared by luma-whisper (whisper) and luma-vector
+# (semantic). CPU-only pure-Rust by default (default-features off) so the musl
+# single binary keeps linking; the macos target block in each crate adds `metal`.
+candle-core = { version = "0.8", default-features = false }
+candle-nn = { version = "0.8", default-features = false }
+candle-transformers = { version = "0.8", default-features = false }
 # `onig` (Oniguruma, C) is enabled: tokenizers 0.20's regex pre-tokenizer
-# references it unconditionally. C-on-musl is fine the Synology build already
-# cross-compiles bundled SQLite + zstd C (see the rusqlite/tantivy notes below).
-# default-features stays off to drop the heavier `progressbar`/`http` extras.
-tokenizers = { version = "0.20", optional = true, default-features = false, features = ["onig"] }
-
+# references it unconditionally. C-on-musl is fine. default-features off drops the
+# heavier progressbar/http extras.
+tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
+# mDNS / DNS-SD advertising (luma-mdns). Pure Rust.
+mdns-sd = "0.11"
+# Shared by luma-primitives (and the binary). `time` stays pinned: >= 0.3.37 needs the
+# edition2024 cargo feature.
+time = { version = "=0.3.36", features = ["formatting", "macros"] }
+sha2 = "0.10"
+hex = "0.4"
+# Embedded SQLite compiled from source. Shared by luma-db + the binary.
+rusqlite = { version = "0.31", features = ["bundled"] }
+# HTTP / async runtime, shared by luma-engine (i18n extractor, stream, services)
+# and the binary (router + handlers).
 axum = { version = "0.7", features = ["macros", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = "0.4"
-# compression-gzip/br: transparent response compression for the JSON API and SPA
-# assets (both backends are pure Rust, so the musl single binary keeps linking).
 tower-http = { version = "0.5", features = ["cors", "trace", "fs", "compression-gzip", "compression-br"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-anyhow = "1"
 walkdir = "2"
-# Parallel directory walk hides per-readdir/per-stat network latency over SMB
-# (a serial walkdir of ~1000 folders is minutes; jwalk on a big pool is seconds).
 jwalk = "0.8"
-sha2 = "0.10"
-hex = "0.4"
-# Pinned: time >= 0.3.37 requires the edition2024 cargo feature (not in rustc 1.81).
-time = { version = "=0.3.36", features = ["formatting", "macros"] }
-
-# Encrypted backup archives (services/backup). The portable backup is a ZIP
-# (backup.json + assets/ avatars); an optional password wraps the ZIP bytes in a
-# ChaCha20-Poly1305 envelope (key from the project's own PBKDF2, nonce from
-# /dev/urandom so no rand/getrandom feature). `zip` is store-only and `aead`
-# uses alloc, both with default-features off to dodge the `=0.3.36` time pin and
-# the aes/zstd/getrandom extras.
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
-
-# Embedded SQLite. `bundled` compiles SQLite from source (no system libsqlite3
-# needed). We hand-roll a tiny WAL connection pool (see db.rs) rather than pull
-# r2d2_sqlite, which drags in uuid → rand → edition2024 (unbuildable on 1.81).
-rusqlite = { version = "0.31", features = ["bundled"] }
-
-# mDNS / DNS-SD advertising so LAN clients can auto-discover the server
-# (resolves `luma.local` + advertises `_luma._tcp`). Pure Rust.
-mdns-sd = "0.11"
-
-# Filesystem change notifications (instant re-scan when the server is local to the
-# media; on network mounts we fall back to a periodic re-scan see watch.rs).
 notify = "6"
-
-# System metrics (CPU / RAM / disks) for the admin dashboard. Cross-platform
-# (Linux NAS + macOS dev), libc-based, MSRV-friendly for rustc 1.81.
 sysinfo = "0.30"
-
-# Smart Hub preview "cards": composite a landscape backdrop + LUMA logo + title +
-# badge into a JPEG, fully in-process (no resvg/font-system deps, 1.81-safe).
-# tiny-skia = raster/gradients/shapes, fontdue = glyph rasterization,
-# jpeg-encoder = output. The backdrop is pre-scaled to PNG by ffmpeg and decoded
-# by tiny-skia natively. See api/card.rs.
+# In-process JPEG "card" compositing (tiny-skia raster + fontdue glyphs), shared
+# by luma-engine (storyboard/image) and the binary (api/card.rs).
 tiny-skia = "0.11"
 fontdue = "0.9"
 jpeg-encoder = "0.6"
-
-# Generates the TypeScript wire types in packages/core/src/generated from the
-# `#[derive(TS)]` model/DTO structs (single source of truth; see
-# scripts/gen-types.sh). `serde-compat` makes it honor our serde rename/rename_all.
-# Effectively build-time only: the `TS` impls are unused at runtime and dropped by
-# release LTO+strip. Builds cleanly on the pinned rustc 1.81 (only 3 added crates).
-
-# Full-text search engine behind `GET /api/search` (services/search). Lucene-style
-# BM25 + per-term fuzzy matching → typo-tolerant, which matters for the TV's
-# Web-Speech voice queries ("avengrs" → "Avengers"). The index is in-RAM
-# (`RamDirectory`), rebuilt from SQLite the source of truth on scan/enrich, so
-# there are no on-disk index files to migrate or corrupt.
-#
-# `default-features = false` drops tantivy's `mmap` feature (we never touch disk),
-# removing the tempfile → getrandom 0.4 (edition2024) chain. `lz4-compression` is
-# pure-Rust store compression. zstd-sys (C, non-optional via tantivy-sstable) still
-# builds fine: the Synology musl build already cross-compiles bundled SQLite's C.
-# Verified to compile on the pinned rustc 1.81.
+# In-RAM full-text search (services/search). default-features off drops mmap.
 tantivy = { version = "0.22", default-features = false, features = ["lz4-compression"] }
-
-# Transitive pins for the tantivy graph the same edition2024-on-1.81 hazard the
-# `time` pin above (and the rusqlite comment) guard against. tantivy → uuid ≥1.12
-# and cc/zstd-sys → jobserver ≥0.1.33 both require the edition2024 cargo feature,
-# unbuildable on rustc 1.81. Hold them at their last 2021-edition release. Declared
-# here (though unused directly) so the lockfile pins the whole graph to them.
+rusty-chromaprint = "0.3.0"
+# Transitive edition2024-on-1.81 pins (see the binary's note); declared so the
+# lockfile holds the whole graph at the last 2021-edition release.
 uuid = "=1.11.0"
 jobserver = "=0.1.32"
-rusty-chromaprint = "0.3.0"
-
-# Apple-Silicon dev builds light up the Metal GPU for candle (Whisper transcription
-# + semantic embeddings) AUTOMATICALLY, with no `--features whisper-metal` flag so a
-# plain `cargo run` already uses the GPU instead of the slow pure-Rust CPU path. This
-# is gated on the *target* OS, so the `x86_64-unknown-linux-musl` Synology build (a
-# Linux target, GPU-less) never pulls Metal in and stays a portable CPU single binary.
-# These only add the `metal` feature to deps already declared optional above; they are
-# inert until `whisper-local` / `semantic-embeddings` actually pulls candle in.
-[target.'cfg(target_os = "macos")'.dependencies]
-candle-core = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
-candle-nn = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
-candle-transformers = { version = "0.8", optional = true, default-features = false, features = ["metal"] }
-
-# musl's malloc serializes heavily under threads (tokio + rayon + candle tensors
-# + tantivy all allocate hot); mimalloc is a small C allocator that cross-compiles
-# cleanly to x86_64-musl and removes that contention. Linux-only: macOS dev builds
-# keep the (fine) system allocator. See the #[global_allocator] in main.rs.
-[target.'cfg(target_os = "linux")'.dependencies]
+# musl allocator (Linux only; see the binary's #[global_allocator]).
 mimalloc = { version = "0.1", default-features = false }
+# In-workspace crates, referenced by path so a member bumping its own version
+# doesn't force a churn here.
+luma-config = { path = "crates/luma-config" }
+luma-primitives = { path = "crates/luma-primitives" }
+luma-domain = { path = "crates/luma-domain" }
+luma-i18n = { path = "crates/luma-i18n" }
+luma-db = { path = "crates/luma-db" }
+luma-http = { path = "crates/luma-http" }
+luma-scene = { path = "crates/luma-scene" }
+luma-torznab = { path = "crates/luma-torznab" }
+luma-torrent = { path = "crates/luma-torrent" }
+luma-whisper = { path = "crates/luma-whisper" }
+luma-vector = { path = "crates/luma-vector" }
+luma-mdns = { path = "crates/luma-mdns" }
+luma-engine = { path = "crates/luma-engine" }
+
+[features]
+# Feature knobs are unchanged for callers (`cargo build`, CI, the Synology .spk),
+# but the code they toggle now lives in luma-engine and its leaf crates, so each
+# just forwards to `luma-engine/<feature>`. Cargo unifies features globally, so
+# flipping these enables the right candle/librqbit graph wherever it's used.
+default = ["whisper-local", "torrent-rqbit"]
+
+# Embedded BitTorrent engine (librqbit). ON by default. Off drops the librqbit
+# graph; the "rqbit" client kind reports "not compiled" and Transmission /
+# qBittorrent (plain curl) remain.
+torrent-rqbit = ["luma-engine/torrent-rqbit"]
+
+# Multilingual semantic embeddings (MiniLM via candle). OFF by default (the
+# dependency-free lexical embedder is the default). See luma-vector.
+semantic-embeddings = ["luma-engine/semantic-embeddings"]
+
+# In-process Whisper transcription (candle, no external whisper.cpp). ON by
+# default. Off compiles a stub and the "transcribe" capability reports false.
+whisper-local = ["luma-engine/whisper-local"]
+
+# GPU-accelerated Whisper for local dev builds (never the musl single binary).
+# metal = Apple-Silicon, cuda = NVIDIA, accelerate = Apple vecLib BLAS. The engine
+# picks the device at runtime and falls back to CPU. See luma-whisper.
+whisper-metal = ["luma-engine/whisper-metal"]
+whisper-cuda = ["luma-engine/whisper-cuda"]
+whisper-accelerate = ["luma-engine/whisper-accelerate"]
+
+[dependencies]
+# The binary is now a thin HTTP shell: the router + handlers (src/api) over the
+# business logic in luma-engine. It pulls only what api/main touch directly.
+luma-engine = { workspace = true }
+# Aliased in main.rs so api's `crate::config` / `crate::db` keep resolving; the
+# `crate::model` wire types come through `luma-engine`.
+luma-config = { workspace = true }
+luma-db = { workspace = true }
+
+axum = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+anyhow = { workspace = true }
+# api handlers touch rusqlite params directly on the shared Pool.
+rusqlite = { workspace = true }
+# Used directly by api handlers: time (timestamp formatting), hex, zip (backup
+# download), walkdir + sysinfo (storage/stats endpoints), and the acquisition
+# view types from luma-torrent / luma-scene.
+time = { workspace = true }
+hex = { workspace = true }
+zip = { workspace = true }
+walkdir = { workspace = true }
+sysinfo = { workspace = true }
+luma-torrent = { workspace = true }
+luma-scene = { workspace = true }
+
+# Smart Hub preview "cards" (api/card.rs): composite a backdrop + logo + title
+# into a JPEG in-process. tiny-skia raster, fontdue glyphs, jpeg-encoder output.
+tiny-skia = { workspace = true }
+fontdue = { workspace = true }
+jpeg-encoder = { workspace = true }
+
+# Transitive edition2024-on-1.81 pins for the tantivy graph (pulled in by
+# luma-engine): hold uuid/jobserver at their last 2021-edition release. Declared
+# here (unused directly) so the lockfile pins the whole graph.
+uuid = { workspace = true }
+jobserver = { workspace = true }
+
+# musl's malloc serializes under our thread mix (tokio + rayon + candle + tantivy);
+# mimalloc removes that contention. Linux-only; macOS dev keeps the system
+# allocator. See the #[global_allocator] in main.rs.
+[target.'cfg(target_os = "linux")'.dependencies]
+mimalloc = { workspace = true }
 
 # Keep the dependency graph lean and 1.81-friendly.
 [profile.release]

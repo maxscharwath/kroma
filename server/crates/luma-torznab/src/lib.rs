@@ -2,7 +2,7 @@
 //! Prowlarr, which is how LUMA searches torrent indexers without knowing any
 //! tracker's private dialect. One [`IndexerEndpoint`] per configured indexer;
 //! [`search`] normalizes the RSS answer into [`Release`]s for the decision
-//! engine (`luma-release`), and [`caps`] doubles as the test-connection call.
+//! engine (`luma-scene`), and [`caps`] doubles as the test-connection call.
 //!
 //! The public surface is stable from day one; the transport + XML parsing land
 //! with the indexer milestone.
@@ -73,7 +73,7 @@ mod xml;
 const MAX_TIME_SECS: u32 = 40;
 
 fn fetch_xml(endpoint: &IndexerEndpoint, params: &[(&str, String)]) -> anyhow::Result<Vec<u8>> {
-    let mut req = luma_fetch::Fetch::new().max_time(MAX_TIME_SECS);
+    let mut req = luma_http::Fetch::new().max_time(MAX_TIME_SECS);
     if !endpoint.api_key.is_empty() {
         req = req.query("apikey", endpoint.api_key.clone());
     }

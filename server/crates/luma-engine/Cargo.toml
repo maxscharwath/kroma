@@ -1,0 +1,56 @@
+[package]
+name = "luma-engine"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "LUMA business logic: infra adapters + services + app state (everything the HTTP layer drives)"
+license.workspace = true
+
+[features]
+# Forwarded from the binary; each flips a leaf crate's feature. Cargo unifies
+# features globally so enabling here lights up the graph wherever it's used.
+torrent-rqbit = ["luma-torrent/rqbit"]
+semantic-embeddings = ["luma-vector/semantic"]
+whisper-local = ["luma-whisper/local"]
+whisper-metal = ["luma-whisper/metal"]
+whisper-cuda = ["luma-whisper/cuda"]
+whisper-accelerate = ["luma-whisper/accelerate"]
+
+[dependencies]
+# Lower layers (aliased inside lib.rs as crate::{db,config,domain}).
+luma-domain = { workspace = true }
+luma-db = { workspace = true }
+luma-config = { workspace = true }
+luma-primitives = { workspace = true }
+luma-i18n = { workspace = true }
+# Acquisition stack used by services.
+luma-http = { workspace = true }
+luma-scene = { workspace = true }
+luma-torznab = { workspace = true }
+luma-torrent = { workspace = true }
+# Heavy/optional adapters (aliased in infra/mod.rs as crate::infra::{whisper,embed,discovery}).
+luma-whisper = { workspace = true }
+luma-vector = { workspace = true }
+luma-mdns = { workspace = true }
+
+axum = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+time = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+walkdir = { workspace = true }
+jwalk = { workspace = true }
+chacha20poly1305 = { workspace = true }
+zip = { workspace = true }
+notify = { workspace = true }
+sysinfo = { workspace = true }
+tiny-skia = { workspace = true }
+fontdue = { workspace = true }
+jpeg-encoder = { workspace = true }
+tantivy = { workspace = true }
+rusty-chromaprint = { workspace = true }

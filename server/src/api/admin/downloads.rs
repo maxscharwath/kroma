@@ -148,7 +148,7 @@ pub async fn analyze(
         let entries = state.downloads.list_files(&state, &magnet)?;
         let files: Vec<(String, u64)> =
             entries.iter().map(|e| (e.path.clone(), e.size_bytes)).collect();
-        let content = luma_release::classify(&files);
+        let content = luma_scene::classify(&files);
         anyhow::Ok((entries, content))
     })
     .await

@@ -2516,7 +2516,73 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "luma-fetch"
+name = "luma-config"
+version = "0.1.0"
+dependencies = [
+ "tracing",
+]
+
+[[package]]
+name = "luma-db"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "luma-domain",
+ "luma-primitives",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "time",
+]
+
+[[package]]
+name = "luma-domain"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "luma-engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chacha20poly1305",
+ "fontdue",
+ "hex",
+ "jpeg-encoder",
+ "jwalk",
+ "luma-config",
+ "luma-db",
+ "luma-domain",
+ "luma-http",
+ "luma-i18n",
+ "luma-mdns",
+ "luma-primitives",
+ "luma-scene",
+ "luma-torrent",
+ "luma-torznab",
+ "luma-vector",
+ "luma-whisper",
+ "notify",
+ "rusty-chromaprint",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sysinfo",
+ "tantivy",
+ "time",
+ "tiny-skia",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "walkdir",
+ "zip 2.4.2",
+]
+
+[[package]]
+name = "luma-http"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2525,7 +2591,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "luma-release"
+name = "luma-i18n"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "luma-mdns"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "mdns-sd",
+ "tracing",
+]
+
+[[package]]
+name = "luma-primitives"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "sha2",
+ "time",
+]
+
+[[package]]
+name = "luma-scene"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2537,34 +2628,23 @@ version = "0.1.3"
 dependencies = [
  "anyhow",
  "axum",
- "candle-core",
- "candle-nn",
- "candle-transformers",
- "chacha20poly1305",
  "fontdue",
  "hex",
  "jobserver",
  "jpeg-encoder",
- "jwalk",
- "luma-fetch",
- "luma-release",
- "luma-torrents",
- "luma-torznab",
- "mdns-sd",
+ "luma-config",
+ "luma-db",
+ "luma-engine",
+ "luma-scene",
+ "luma-torrent",
  "mimalloc",
- "notify",
  "rusqlite",
- "rusty-chromaprint",
  "serde",
  "serde_json",
- "sha2",
  "sysinfo",
- "tantivy",
  "time",
  "tiny-skia",
- "tokenizers",
  "tokio",
- "tokio-util",
  "tower 0.4.13",
  "tower-http 0.5.2",
  "tracing",
@@ -2576,12 +2656,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "luma-torrents"
+name = "luma-torrent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "librqbit",
- "luma-fetch",
+ "luma-http",
  "serde",
  "serde_json",
  "sha1",
@@ -2594,9 +2674,37 @@ name = "luma-torznab"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "luma-fetch",
+ "luma-http",
  "quick-xml",
  "serde",
+]
+
+[[package]]
+name = "luma-vector"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "luma-domain",
+ "serde",
+ "serde_json",
+ "tokenizers",
+ "tracing",
+]
+
+[[package]]
+name = "luma-whisper"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "serde_json",
+ "tokenizers",
+ "tracing",
 ]
 
 [[package]]

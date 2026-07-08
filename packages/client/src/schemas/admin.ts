@@ -14,11 +14,11 @@ export const AdminUser = z.object({
   id: UserId,
   email: z.string(),
   username: z.string(),
-  avatarUrl: z.string().nullable(),
+  avatarUrl: z.string().nullish(),
   permissions: z.array(Permission),
   role: z.string(),
   createdAt: z.string(),
-  lastSeen: z.string().nullable(),
+  lastSeen: z.string().nullish(),
   online: z.boolean(),
 });
 export type AdminUser = z.infer<typeof AdminUser>;
@@ -61,7 +61,7 @@ export type AdminLibrary = z.infer<typeof AdminLibrary>;
 export const SettingRow = z.object({
   key: z.string(),
   label: z.string(),
-  desc: z.string().nullable(),
+  desc: z.string().nullish(),
   kind: z.string(),
   options: z.array(z.string()),
   value: z.unknown(),
@@ -72,7 +72,7 @@ export type SettingRow = z.infer<typeof SettingRow>;
 /** A titled group of rows. */
 export const SettingGroup = z.object({
   title: z.string(),
-  desc: z.string().nullable(),
+  desc: z.string().nullish(),
   rows: z.array(SettingRow),
 });
 export type SettingGroup = z.infer<typeof SettingGroup>;
@@ -202,7 +202,7 @@ export type TopUser = z.infer<typeof TopUser>;
  * opaque session id; `userId`/`itemId` carry branded ids. */
 export const PlaybackSession = z.object({
   id: z.string(),
-  userId: UserId.nullable(),
+  userId: UserId.nullish(),
   username: z.string(),
   itemId: ItemId,
   title: z.string(),
@@ -232,7 +232,7 @@ export type PlaybackSession = z.infer<typeof PlaybackSession>;
 export const Invite = z.object({
   token: z.string(),
   permissions: z.array(Permission),
-  createdBy: z.string().nullable(),
+  createdBy: z.string().nullish(),
   createdAt: z.string(),
   expiresAt: z.number(),
   used: z.boolean(),

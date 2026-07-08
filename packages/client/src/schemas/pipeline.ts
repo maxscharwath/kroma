@@ -114,7 +114,7 @@ export const ElementRow = z.object({
   seasonCount: z.number().nullable(),
   treatments: z.array(Treatment),
   overall: z.string(),
-  epStats: EpStats.nullable(),
+  epStats: EpStats.nullish(),
 });
 export type ElementRow = z.infer<typeof ElementRow>;
 

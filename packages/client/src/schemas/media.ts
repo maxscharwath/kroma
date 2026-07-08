@@ -87,7 +87,7 @@ export type Marker = z.infer<typeof Marker>;
 /** One top-billed cast member. */
 export const CastMember = z.object({
   name: z.string(),
-  character: z.string().nullable(),
+  character: z.string().nullish(),
   profileUrl: z.string().nullish(),
 });
 export type CastMember = z.infer<typeof CastMember>;
@@ -105,16 +105,16 @@ export type CrewMember = z.infer<typeof CrewMember>;
 export const Metadata = z.object({
   provider: z.string(),
   tmdbId: z.number(),
-  imdbId: z.string().nullable(),
+  imdbId: z.string().nullish(),
   title: z.string().nullable(),
-  tagline: z.string().nullable(),
+  tagline: z.string().nullish(),
   overview: z.string().nullable(),
-  releaseDate: z.string().nullable(),
+  releaseDate: z.string().nullish(),
   genres: z.array(z.string()),
-  rating: z.number().nullable(),
-  posterUrl: z.string().nullable(),
-  backdropUrl: z.string().nullable(),
-  logoUrl: z.string().nullable(),
+  rating: z.number().nullish(),
+  posterUrl: z.string().nullish(),
+  backdropUrl: z.string().nullish(),
+  logoUrl: z.string().nullish(),
   themeUrl: z.string().nullish(),
   cast: z.array(CastMember).nullish(),
   crew: z.array(CrewMember).nullish(),
@@ -229,7 +229,7 @@ export type SectionItem = z.infer<typeof SectionItem>;
 export const Section = z.object({
   id: z.string(),
   title: z.string(),
-  reason: z.string().nullable(),
+  reason: z.string().nullish(),
   items: z.array(SectionItem),
 });
 export type Section = z.infer<typeof Section>;
@@ -238,7 +238,7 @@ export type Section = z.infer<typeof Section>;
 export const Treatment = z.object({
   key: z.string(),
   status: z.string(),
-  error: z.string().nullable(),
+  error: z.string().nullish(),
 });
 export type Treatment = z.infer<typeof Treatment>;
 

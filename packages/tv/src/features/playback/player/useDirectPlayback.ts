@@ -34,9 +34,9 @@ import { useSeekGesture } from '#tv/features/playback/player/useSeekGesture';
 
 export interface Playback {
   /** The HTML `<video>` surface (HTML engine). Null while the AVPlay surface is used. */
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   /** The AVPlay `<object>` surface (native Tizen engine). */
-  objectRef: React.RefObject<HTMLObjectElement>;
+  objectRef: React.RefObject<HTMLObjectElement | null>;
   /** Which surface to render. `mpv`/`exo` render nothing in-page (native plane behind). */
   surface: 'video' | 'avplay' | 'mpv' | 'exo';
   verdict: DirectPlayVerdict | null;

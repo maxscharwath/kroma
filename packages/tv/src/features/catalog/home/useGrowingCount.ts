@@ -5,7 +5,10 @@ import { type RefObject, useEffect, useRef, useState } from 'react';
  * DOM bounded while the user is near the top of a long grid, then fills in as they
  * scroll so a 1000-item library never mounts all at once.
  */
-export function useGrowingCount(total: number, step: number): [number, RefObject<HTMLDivElement>] {
+export function useGrowingCount(
+  total: number,
+  step: number,
+): [number, RefObject<HTMLDivElement | null>] {
   const [count, setCount] = useState(() => Math.min(step, total));
   const sentinel = useRef<HTMLDivElement>(null);
 

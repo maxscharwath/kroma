@@ -20,9 +20,10 @@ import {
   type StoredSession,
   saveSession,
   setSessionToken,
+  sharedTokenExchange,
   type User,
 } from '@luma/core';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /** Outcome of an {@link AuthSession.activate}. `needsPin` asks the UI to collect
  * the profile PIN and call `activate` again with it; `retryAfter` (seconds) is
@@ -75,16 +76,14 @@ export function useAuthSession(client: LumaClient | null): AuthSession {
   );
 
   // Silent-refresh handler: on a 401, re-exchange the active access token (no
-  // PIN) for a new session. Deduped so concurrent 401s share one exchange.
-  const refreshing = useRef<Promise<string | undefined> | null>(null);
+  // PIN) for a new session. Coalesced app-wide via `sharedTokenExchange` so
+  // concurrent 401s (and the boot exchange / data layer) share one exchange.
   useEffect(() => {
     if (!client) return;
     client.setRefreshHandler(() => {
-      if (refreshing.current) return refreshing.current;
       const active = loadSession();
       if (!active) return Promise.resolve(undefined);
-      const p = client
-        .exchangeToken(active.accessToken)
+      return sharedTokenExchange(() => client.exchangeToken(active.accessToken))
         .then((res) => {
           setSessionToken(res.token);
           client.setAuthToken(res.token);
@@ -102,12 +101,7 @@ export function useAuthSession(client: LumaClient | null): AuthSession {
           clearSession();
           setSession(null);
           return undefined;
-        })
-        .finally(() => {
-          refreshing.current = null;
         });
-      refreshing.current = p;
-      return p;
     });
     return () => client.setRefreshHandler(undefined);
   }, [client]);
@@ -124,8 +118,7 @@ export function useAuthSession(client: LumaClient | null): AuthSession {
       return;
     }
     let cancelled = false;
-    client
-      .exchangeToken(active.accessToken)
+    sharedTokenExchange(() => client.exchangeToken(active.accessToken))
       .then((res) => {
         if (cancelled) return;
         adopt(active, res.token, res.user);

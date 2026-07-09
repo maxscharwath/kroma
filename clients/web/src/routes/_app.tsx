@@ -7,9 +7,17 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 import { GateLoading } from '#web/features/accounts/auth-gate';
 import { Sidebar } from '#web/features/catalog/sidebar';
+import { ensureSession, isAuthed } from '#web/shared/lib/api';
 import { useRequireAuth } from '#web/shared/lib/require-auth';
 
 export const Route = createFileRoute('/_app')({
+  // Runs before any child loader (beforeLoad resolves top-down ahead of loaders):
+  // exchange the stored access token for a session bearer up front so the
+  // catalogue prefetch is authorised on its first try. Without this the loaders
+  // race the boot exchange and 401-then-retry every request on each reload.
+  beforeLoad: async () => {
+    if (isAuthed()) await ensureSession();
+  },
   component: AppLayout,
 });
 

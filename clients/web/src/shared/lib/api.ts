@@ -13,6 +13,7 @@ import {
   type Show,
   sessionToken,
   setSessionToken,
+  sharedTokenExchange,
 } from '@luma/core';
 
 declare global {
@@ -55,17 +56,15 @@ export function isAuthed(): boolean {
   return loadSession() != null;
 }
 
-// Silent refresh shared by every ad-hoc `lumaClient()`: on a 401 they exchange
-// the stored access token for a fresh in-memory session token. Deduped so a burst
-// of 401s (a page full of cards) triggers a single exchange.
-let refreshInFlight: Promise<string | undefined> | null = null;
-function refreshSession(): Promise<string | undefined> {
-  if (refreshInFlight) return refreshInFlight;
+// Exchange the stored access token for a fresh in-memory session bearer. Shared
+// app-wide via `sharedTokenExchange`, so a reload's boot exchange (auth provider),
+// this refresh, and any concurrent 401s coalesce into ONE POST /auth/token.
+function exchangeStoredSession(): Promise<string | undefined> {
   const active = loadSession();
   if (!active) return Promise.resolve(undefined);
-  const c = new LumaClient({ baseUrl: apiBase() });
-  refreshInFlight = c
-    .exchangeToken(active.accessToken)
+  return sharedTokenExchange(() =>
+    new LumaClient({ baseUrl: apiBase() }).exchangeToken(active.accessToken),
+  )
     .then((res) => {
       setSessionToken(res.token);
       return res.token as string | undefined;
@@ -73,11 +72,23 @@ function refreshSession(): Promise<string | undefined> {
     .catch(() => {
       setSessionToken(undefined);
       return undefined;
-    })
-    .finally(() => {
-      refreshInFlight = null;
     });
-  return refreshInFlight;
+}
+
+// Silent refresh shared by every ad-hoc `lumaClient()`: on a 401 they exchange
+// the stored access token for a fresh bearer.
+function refreshSession(): Promise<string | undefined> {
+  return exchangeStoredSession();
+}
+
+/** Ensure an in-memory session bearer exists, running the boot token exchange if
+ * it hasn't happened yet. Route loaders `await` this so their first authed
+ * request carries a bearer instead of racing the boot exchange and 401-then-
+ * retrying on every reload. A no-op once a bearer is in memory or when signed
+ * out (no stored session to exchange). */
+export function ensureSession(): Promise<void> {
+  if (sessionToken()) return Promise.resolve();
+  return exchangeStoredSession().then(() => undefined);
 }
 
 export function lumaClient(): LumaClient {

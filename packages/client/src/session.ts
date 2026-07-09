@@ -47,6 +47,37 @@ export function setSessionToken(token: string | undefined): void {
   memorySessionToken = token;
 }
 
+// ----- shared boot / refresh token exchange -----------------------------------
+// A reload starts from only the persisted access token the in-memory bearer is
+// gone. Several parts of the app then each want to exchange it: the auth provider
+// (to hydrate the user), the data layer (to authorise its first request), and any
+// 401 mid-session. Left uncoordinated these fire several concurrent
+// POST /auth/token calls (and the data layer's requests 401 before the exchange
+// lands). This coalesces overlapping exchanges into ONE in-flight request every
+// caller awaits, so a reload does a single token exchange.
+
+/** The shape returned by a session-token exchange (`LumaClient.exchangeToken`). */
+export interface TokenExchange<U = unknown> {
+  token: string;
+  user: U;
+}
+
+let inflightExchange: Promise<TokenExchange> | null = null;
+
+/** Run `exchange` unless one is already in flight, in which case share it. Only
+ * for the no-PIN boot/refresh exchange (a PIN-gated switch-in is a distinct user
+ * action and must not coalesce with the ambient boot exchange). */
+export function sharedTokenExchange<U>(
+  exchange: () => Promise<TokenExchange<U>>,
+): Promise<TokenExchange<U>> {
+  if (inflightExchange) return inflightExchange as Promise<TokenExchange<U>>;
+  const p = exchange().finally(() => {
+    if (inflightExchange === p) inflightExchange = null;
+  });
+  inflightExchange = p as Promise<TokenExchange>;
+  return p;
+}
+
 /** A LUMA server the TV remembers, so it can hold profiles from several at once
  * and order the picker by most-recently-used. */
 export interface SavedServer {

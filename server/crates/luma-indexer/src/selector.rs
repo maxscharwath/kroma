@@ -90,39 +90,42 @@ fn normalize_ws(s: &str) -> String {
 fn strip_contains(sel: &str) -> (String, Vec<String>) {
     let mut clean = String::new();
     let mut terms = Vec::new();
-    let bytes: Vec<char> = sel.chars().collect();
-    let mut i = 0;
-    while i < bytes.len() {
-        if sel[i..].starts_with(":contains(") {
-            i += ":contains(".len();
-            // Read the balanced parenthesized argument.
-            let mut depth = 1;
-            let mut arg = String::new();
-            while i < bytes.len() && depth > 0 {
-                match bytes[i] {
-                    '(' => {
-                        depth += 1;
-                        arg.push('(');
-                    }
-                    ')' => {
-                        depth -= 1;
-                        if depth > 0 {
-                            arg.push(')');
-                        }
-                    }
-                    c => arg.push(c),
+    // Byte-offset based (via `find` + `char_indices`) so non-ASCII text inside a
+    // selector — e.g. `tr:contains("Téléchargé")` on FR/DE trackers — never
+    // desyncs a char index against a `&str` byte slice (which would panic on a
+    // non-char-boundary or corrupt the cleaned selector).
+    let mut rest = sel;
+    while let Some(pos) = rest.find(":contains(") {
+        clean.push_str(&rest[..pos]);
+        rest = &rest[pos + ":contains(".len()..];
+        // Read the balanced parenthesized argument.
+        let mut depth = 1i32;
+        let mut arg = String::new();
+        let mut end = rest.len();
+        for (k, c) in rest.char_indices() {
+            match c {
+                '(' => {
+                    depth += 1;
+                    arg.push('(');
                 }
-                i += 1;
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = k + c.len_utf8();
+                        break;
+                    }
+                    arg.push(')');
+                }
+                other => arg.push(other),
             }
-            let term = arg.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
-            if !term.is_empty() {
-                terms.push(term);
-            }
-        } else {
-            clean.push(bytes[i]);
-            i += 1;
         }
+        let term = arg.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
+        if !term.is_empty() {
+            terms.push(term);
+        }
+        rest = &rest[end..];
     }
+    clean.push_str(rest);
     (clean, terms)
 }
 
@@ -205,5 +208,14 @@ mod tests {
         let rows = select_all(root, "tr.torrent:contains(\"Cool\")");
         assert_eq!(rows.len(), 1);
         assert!(element_text(rows[0]).contains("Cool Movie"));
+    }
+
+    #[test]
+    fn strip_contains_is_utf8_safe() {
+        // Non-ASCII text inside :contains, and NOT the final token, must not
+        // panic or corrupt the cleaned selector (byte vs char index).
+        let (clean, terms) = strip_contains("tr:contains(\"Téléchargé\") td.name");
+        assert_eq!(clean, "tr td.name");
+        assert_eq!(terms, vec!["Téléchargé".to_string()]);
     }
 }

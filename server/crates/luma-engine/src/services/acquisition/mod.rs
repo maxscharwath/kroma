@@ -7,7 +7,7 @@ pub mod import;
 pub mod search;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use luma_scene::{Profile, Res};
 use luma_torznab::{Caps, IndexerEndpoint};
@@ -85,8 +85,14 @@ pub fn indexer_caps(state: &SharedState, row: &IndexerRow) -> anyhow::Result<Cap
 /// Drop a cached capability entry (config changed / manual test forces a
 /// fresh probe).
 pub fn invalidate_caps(indexer_id: &str) {
+    let prefix = format!("{indexer_id}|");
     if let Some(map) = CAPS_CACHE.lock().unwrap().as_mut() {
-        map.retain(|k, _| !k.starts_with(&format!("{indexer_id}|")));
+        map.retain(|k, _| !k.starts_with(&prefix));
+    }
+    // Drop any cached built-in session too (config may have changed / a test
+    // wants a fresh login probe).
+    if let Some(map) = SESSION_CACHE.lock().unwrap().as_mut() {
+        map.retain(|k, _| !k.starts_with(&prefix));
     }
 }
 
@@ -100,9 +106,42 @@ pub fn definition_store(state: &SharedState) -> luma_indexer::store::DefinitionS
     luma_indexer::store::DefinitionStore::new(&state.config.data_dir)
 }
 
+/// Process-wide cache of built-in [`luma_indexer::Session`]s, keyed so a config
+/// change (url / settings / VPN / FlareSolverr) yields a fresh session. Reusing
+/// one session across a search sweep is what makes `requestDelay` throttling and
+/// the login cookie jar actually persist between the dozens of back-to-back
+/// requests a sweep fires (a fresh session per call would never wait and would
+/// re-login every time → rate-limit bans).
+static SESSION_CACHE: Mutex<Option<HashMap<String, Arc<luma_indexer::Session>>>> = Mutex::new(None);
+
+fn session_key(state: &SharedState, row: &IndexerRow) -> String {
+    // `settings` is the stored JSON, so it changes when credentials/toggles do;
+    // the VPN/FlareSolverr flags are global settings, folded in so a change there
+    // also rotates the key.
+    let vpn = state.settings.get_bool("acqIndexersUseVpn", false);
+    let fs = state.settings.get_str("acqFlaresolverrUrl", "");
+    format!("{}|{}|{}|{vpn}|{fs}", row.id, row.url, row.settings)
+}
+
+/// Get (or build + cache) the shared session for a `builtin` indexer row.
+pub fn builtin_session(state: &SharedState, row: &IndexerRow) -> anyhow::Result<Arc<luma_indexer::Session>> {
+    let key = session_key(state, row);
+    if let Some(s) = SESSION_CACHE.lock().unwrap().as_ref().and_then(|m| m.get(&key)).cloned() {
+        return Ok(s);
+    }
+    let session = Arc::new(build_builtin_session(state, row)?);
+    SESSION_CACHE
+        .lock()
+        .unwrap()
+        .get_or_insert_with(HashMap::new)
+        .insert(key, session.clone());
+    Ok(session)
+}
+
 /// Build a live [`luma_indexer::Session`] for a `builtin` indexer row: load its
 /// definition, seed the config from the stored settings JSON + chosen base
-/// link, and wire optional VPN / FlareSolverr transport.
+/// link, and wire optional VPN / FlareSolverr transport. Prefer
+/// [`builtin_session`] (cached) on hot paths.
 pub fn build_builtin_session(state: &SharedState, row: &IndexerRow) -> anyhow::Result<luma_indexer::Session> {
     let def_id = row
         .definition_id
@@ -185,14 +224,16 @@ pub fn search_indexer(
     query: &luma_torznab::Query,
 ) -> anyhow::Result<Vec<luma_torznab::Release>> {
     if row.kind == KIND_BUILTIN {
-        let session = build_builtin_session(state, row)?;
+        let session = builtin_session(state, row)?;
         let outcome = session.search(&to_indexer_query(query), &row.categories);
-        let note_ok = outcome.errors.is_empty();
+        // Healthy if we got releases (a partial per-path error alongside real
+        // results must not flag the indexer as broken) or the sweep was clean.
+        let note_ok = !outcome.releases.is_empty() || outcome.errors.is_empty();
         let _ = crate::db::note_indexer_result(
             &state.db,
             &row.id,
             note_ok,
-            outcome.errors.first().map(String::as_str),
+            if note_ok { None } else { outcome.errors.first().map(String::as_str) },
             now_ms(),
         );
         // Surface an all-error, no-result sweep as an error (so it reads as a
@@ -221,7 +262,7 @@ pub fn resolve_builtin_download(
     if magnet_or_url.starts_with("magnet:") {
         return Ok(magnet_or_url.to_string());
     }
-    let session = build_builtin_session(state, row)?;
+    let session = builtin_session(state, row)?;
     let release = luma_indexer::Release {
         title: title.to_string(),
         magnet: magnet_or_url.starts_with("magnet:").then(|| magnet_or_url.to_string()),

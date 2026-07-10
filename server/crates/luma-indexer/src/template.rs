@@ -456,7 +456,11 @@ fn call_function(name: &str, args: &[Value]) -> Value {
         "eq" => Value::Bool(values_eq(args.first(), args.get(1))),
         "ne" => Value::Bool(!values_eq(args.first(), args.get(1))),
         "lt" | "le" | "gt" | "ge" => Value::Bool(compare(name, args.first(), args.get(1))),
-        "printf" => Value::Str(sprintf(&s(0), &args[1..])),
+        "printf" => {
+            // Guard the slice: `{{ printf }}` with no args must not panic.
+            let rest = if args.len() > 1 { &args[1..] } else { &[][..] };
+            Value::Str(sprintf(&s(0), rest))
+        }
         _ => Value::Nil,
     }
 }
@@ -515,13 +519,16 @@ fn sprintf(format: &str, args: &[Value]) -> String {
             Some('s') | Some('v') => out.push_str(&arg),
             Some('d') => {
                 let n: i64 = arg.parse().unwrap_or(0);
-                // Honor a `%0Nd` zero-pad width.
-                let width: usize = spec[1..spec.len() - 1]
-                    .trim_start_matches('0')
-                    .parse()
-                    .unwrap_or(0);
-                if spec.contains('0') && width > 0 {
+                // Flags/width between '%' and 'd', e.g. "%04d" -> flags_width "04".
+                let flags_width = &spec[1..spec.len() - 1];
+                // Zero-pad only with an explicit leading '0' FLAG ("%04d"), not
+                // merely because the width digits contain a 0 ("%10d").
+                let zero_pad = flags_width.starts_with('0');
+                let width: usize = flags_width.trim_start_matches('0').parse().unwrap_or(0);
+                if zero_pad && width > 0 {
                     out.push_str(&format!("{n:0width$}"));
+                } else if width > 0 {
+                    out.push_str(&format!("{n:width$}"));
                 } else {
                     out.push_str(&n.to_string());
                 }
@@ -595,6 +602,16 @@ mod tests {
         let mut c = ctx();
         c.result.insert("_id".into(), "42".into());
         assert_eq!(render("/torrent/{{ .Result._id }}", &c), "/torrent/42");
+    }
+
+    #[test]
+    fn printf_padding_and_empty_args() {
+        // Explicit zero-pad flag vs a width that merely contains a 0 digit.
+        assert_eq!(render("{{ printf \"%04d\" 5 }}", &Context::default()), "0005");
+        assert_eq!(render("{{ printf \"%10d\" 5 }}", &Context::default()), "         5");
+        assert_eq!(render("{{ printf \"%s-x\" \"a\" }}", &Context::default()), "a-x");
+        // Must not panic with no args.
+        assert_eq!(render("{{ printf }}", &Context::default()), "");
     }
 
     #[test]

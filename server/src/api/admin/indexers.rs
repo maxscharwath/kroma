@@ -299,7 +299,7 @@ pub async fn test(
         let caps = crate::services::acquisition::any_indexer_caps(&state, &row);
         let reachable = if row.kind == KIND_BUILTIN {
             // Verify the session (drives a login for private trackers).
-            crate::services::acquisition::build_builtin_session(&state, &row)
+            crate::services::acquisition::builtin_session(&state, &row)
                 .and_then(|s| s.test())
                 .map(|_| ())
         } else {

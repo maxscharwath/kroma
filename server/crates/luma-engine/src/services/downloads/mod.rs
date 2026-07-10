@@ -380,7 +380,7 @@ impl DownloadManager {
         // resolve those (via proxied peers).
         let prefetched: Option<Vec<u8>> =
             if client.kind == "rqbit" && row.magnet_or_url.starts_with("http") {
-                match fetch_torrent_file(&row.magnet_or_url) {
+                match fetch_torrent_for(state, &row) {
                     Ok(bytes) => {
                         tracing::info!(id = %row.id, bytes = bytes.len(), "fetched .torrent directly (bypassing VPN)");
                         Some(bytes)
@@ -696,6 +696,26 @@ fn kbps_setting(state: &SharedState, key: &str) -> Option<u32> {
 /// Fetch a `.torrent` file from the indexer DIRECTLY (no VPN proxy), so a LAN
 /// indexer (Jackett/Prowlarr) stays reachable and the fetch can't hang behind
 /// the tunnel. Only the torrent's peer traffic should go through the VPN.
+/// Fetch a `.torrent`'s bytes for a grab, using the source indexer's
+/// authenticated [`luma_indexer::Session`] (login cookies applied) when the grab
+/// came from a built-in Cardigann indexer — private trackers cookie-gate the
+/// download, and a bare fetch would get the HTML login page. Falls back to a
+/// direct fetch for Torznab / manual grabs.
+fn fetch_torrent_for(state: &SharedState, row: &db::DownloadRow) -> Result<Vec<u8>> {
+    if let Some(indexer_id) = &row.indexer_id {
+        let conn = state.db.get()?;
+        let indexer = db::get_indexer(&conn, indexer_id)?;
+        drop(conn);
+        if let Some(ix) = indexer {
+            if ix.kind == crate::services::acquisition::KIND_BUILTIN {
+                let session = crate::services::acquisition::builtin_session(state, &ix)?;
+                return session.fetch_torrent(&row.magnet_or_url);
+            }
+        }
+    }
+    fetch_torrent_file(&row.magnet_or_url)
+}
+
 fn fetch_torrent_file(url: &str) -> Result<Vec<u8>> {
     let resp = luma_http::Fetch::new().max_time(30).get(url)?.ensure_ok()?;
     if resp.body.is_empty() {

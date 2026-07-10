@@ -55,6 +55,9 @@ pub fn tracker_ids_for(def: &Definition, wanted: &[u32]) -> Vec<String> {
             out.push(m.id.clone());
         }
     }
+    // Several Newznab sub-buckets can map to the same tracker id; `dedup` only
+    // drops CONSECUTIVE repeats, so sort first to avoid `cat=1,1`.
+    out.sort();
     out.dedup();
     out
 }

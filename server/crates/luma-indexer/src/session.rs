@@ -44,7 +44,9 @@ pub struct Session {
 
 #[derive(Default)]
 struct SessionState {
-    last_request: Option<Instant>,
+    /// Earliest instant the next request may start (reserved slot for the
+    /// requestDelay rate limit; see [`Session::throttle`]).
+    next_allowed: Option<Instant>,
     cookie_header: Option<String>,
     logged_in: bool,
 }
@@ -133,21 +135,30 @@ impl Session {
             Some(d) if d > 0.0 => Duration::from_secs_f64(d),
             _ => return,
         };
-        let mut st = self.state.lock().unwrap();
-        if let Some(last) = st.last_request {
-            let elapsed = last.elapsed();
-            if elapsed < delay {
-                std::thread::sleep(delay - elapsed);
-            }
+        // Reserve this caller's slot (spaced by `delay`) under the lock, then
+        // release it and sleep — never hold the Mutex across the sleep, so a
+        // shared session doesn't block unrelated calls. Reserving distinct slots
+        // also keeps concurrent callers correctly spaced instead of firing
+        // together.
+        let now = Instant::now();
+        let start_at = {
+            let mut st = self.state.lock().unwrap();
+            let base = st.next_allowed.map(|na| na.max(now)).unwrap_or(now);
+            st.next_allowed = Some(base + delay);
+            base
+        };
+        if start_at > now {
+            std::thread::sleep(start_at - now);
         }
-        st.last_request = Some(Instant::now());
     }
 
     /// GET a URL and return the body text (routed through FlareSolverr when
     /// configured).
     fn get_text(&self, url: &str, query: &[(String, String)]) -> Result<String> {
         if self.flaresolverr.is_some() {
-            return self.flaresolverr_get(url);
+            // FlareSolverr GETs a single URL: fold the query params in (they were
+            // previously dropped, so searches came back unfiltered).
+            return self.flaresolverr_fetch("request.get", &append_query(url, query), None);
         }
         self.throttle();
         let mut f = self.base_fetch();
@@ -159,6 +170,11 @@ impl Session {
     }
 
     fn post_form_text(&self, url: &str, fields: &[(String, String)]) -> Result<String> {
+        if self.flaresolverr.is_some() {
+            // Cloudflare-fronted POST searches / form logins must also go through
+            // FlareSolverr, else they get the challenge page back.
+            return self.flaresolverr_fetch("request.post", url, Some(form_encode(fields)));
+        }
         self.throttle();
         let refs: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
         let resp = self.base_fetch().post_form(url, &refs).with_context(|| format!("POST {url}"))?;
@@ -179,10 +195,12 @@ impl Session {
 
     // ----- FlareSolverr -----------------------------------------------------------
 
-    fn flaresolverr_get(&self, url: &str) -> Result<String> {
+    /// Drive one request through FlareSolverr's `/v1` endpoint (`request.get` or
+    /// `request.post` with url-encoded `post_data`) and return the solved HTML.
+    fn flaresolverr_fetch(&self, cmd: &str, url: &str, post_data: Option<String>) -> Result<String> {
         let base = self.flaresolverr.as_ref().unwrap().trim_end_matches('/');
         self.throttle();
-        let body = flaresolverr_body("request.get", url);
+        let body = flaresolverr_body(cmd, url, post_data);
         let resp: serde_json::Value = self
             .base_fetch()
             .post_json(&format!("{base}/v1"), &body)?
@@ -345,6 +363,8 @@ impl Session {
                     continue;
                 }
             };
+            // Preprocessing filters run on the raw body before parsing.
+            let body = engine::preprocess(&self.def, &self.cfg, &body);
             let parsed = match req.response_kind.as_str() {
                 "json" => engine::parse_json(&self.def, &self.cfg, &body),
                 "xml" => engine::parse_xml(&self.def, &self.cfg, &body),
@@ -416,7 +436,7 @@ impl Session {
                         if !hash.is_empty() {
                             return Ok(DownloadTarget::Magnet(format!(
                                 "magnet:?xt=urn:btih:{hash}&dn={}",
-                                urlencode(&release.title)
+                                crate::filters::url_encode(&release.title)
                             )));
                         }
                     }
@@ -485,20 +505,31 @@ fn set_field(fields: &mut Vec<(String, String)>, name: &str, value: String) {
     }
 }
 
-/// The FlareSolverr `/v1` request body.
-fn flaresolverr_body(cmd: &str, url: &str) -> serde_json::Value {
-    serde_json::json!({ "cmd": cmd, "url": url, "maxTimeout": 60000 })
+/// The FlareSolverr `/v1` request body (`postData` set only for `request.post`).
+fn flaresolverr_body(cmd: &str, url: &str, post_data: Option<String>) -> serde_json::Value {
+    let mut body = serde_json::json!({ "cmd": cmd, "url": url, "maxTimeout": 60000 });
+    if let Some(pd) = post_data {
+        body["postData"] = serde_json::Value::String(pd);
+    }
+    body
 }
 
-fn urlencode(s: &str) -> String {
-    let mut out = String::new();
-    for &b in s.as_bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
-            _ => out.push_str(&format!("%{b:02X}")),
-        }
+/// Append url-encoded query params to a URL (respecting an existing `?`).
+fn append_query(url: &str, query: &[(String, String)]) -> String {
+    if query.is_empty() {
+        return url.to_string();
     }
-    out
+    let sep = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{sep}{}", form_encode(query))
+}
+
+/// `k=v&k=v` url-encoded form body.
+fn form_encode(fields: &[(String, String)]) -> String {
+    fields
+        .iter()
+        .map(|(k, v)| format!("{}={}", crate::filters::url_encode(k), crate::filters::url_encode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
 }
 
 #[cfg(test)]
@@ -539,10 +570,21 @@ mod tests {
 
     #[test]
     fn flaresolverr_request_shape() {
-        let body = flaresolverr_body("request.get", "https://x.to/s?q=a");
+        let body = flaresolverr_body("request.get", "https://x.to/s?q=a", None);
         assert_eq!(body["cmd"], "request.get");
         assert_eq!(body["url"], "https://x.to/s?q=a");
         assert_eq!(body["maxTimeout"], 60000);
+        assert!(body.get("postData").is_none());
+        let post = flaresolverr_body("request.post", "https://x.to/login", Some("u=a&p=b".into()));
+        assert_eq!(post["postData"], "u=a&p=b");
+    }
+
+    #[test]
+    fn append_query_and_form_encode() {
+        let q = vec![("q".to_string(), "the matrix".to_string()), ("cat".to_string(), "1,2".to_string())];
+        assert_eq!(append_query("https://x/a", &q), "https://x/a?q=the%20matrix&cat=1%2C2");
+        assert_eq!(append_query("https://x/a?p=1", &q), "https://x/a?p=1&q=the%20matrix&cat=1%2C2");
+        assert_eq!(append_query("https://x/a", &[]), "https://x/a");
     }
 
     #[test]

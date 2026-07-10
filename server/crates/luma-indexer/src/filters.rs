@@ -190,7 +190,9 @@ fn url_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn url_encode(s: &str) -> String {
+/// Percent-encode (RFC 3986 unreserved). `pub(crate)` so the session layer's
+/// form/query encoding shares one implementation.
+pub(crate) fn url_encode(s: &str) -> String {
     let mut out = String::new();
     for &b in s.as_bytes() {
         match b {

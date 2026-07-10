@@ -168,7 +168,13 @@ pub fn score_release(
         score,
         breakdown,
         rejected,
-        grabbable: release.magnet.is_some() || release.link.is_some(),
+        // A details URL is grabbable too: built-in indexers resolve the actual
+        // magnet/.torrent from the details page (the definition's `download`
+        // block) at grab time. Torznab releases always carry magnet/link, so
+        // this only widens grabbability for the built-in download-block case.
+        grabbable: release.magnet.is_some()
+            || release.link.is_some()
+            || release.details_url.is_some(),
         details_url: release.details_url.clone(),
     }
 }

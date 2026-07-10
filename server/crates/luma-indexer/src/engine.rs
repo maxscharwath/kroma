@@ -130,6 +130,17 @@ pub fn join_url(base: &str, path: &str) -> String {
     format!("{base}/{p}")
 }
 
+/// Apply the definition's `search.preprocessingfilters` to a raw response body
+/// before it is parsed (e.g. strip a JSONP wrapper / leading junk). No-op when
+/// none are declared.
+pub fn preprocess(def: &Definition, cfg: &IndexerConfig, body: &str) -> String {
+    if def.search.preprocessingfilters.is_empty() {
+        return body.to_string();
+    }
+    let ctx = base_context(def, cfg);
+    filters::apply(body, &def.search.preprocessingfilters, &ctx)
+}
+
 // ----- HTML result parsing --------------------------------------------------------
 
 /// Does this definition select with XPath (rather than CSS)? Checked on the

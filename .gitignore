@@ -16,6 +16,8 @@ build/
 # Rust
 server/target/
 server/data/
+# ts-rs generated TypeScript bindings (regenerated from #[derive(TS)], not committed)
+server/bindings/
 
 # Desktop: downloaded luma-mpv sidecar (clients/desktop/scripts/fetch-mpv.sh)
 clients/desktop/src-tauri/bin/

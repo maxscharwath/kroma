@@ -90,6 +90,12 @@ pub struct AppState {
     /// runs against (jobs are `Fn(SharedState)`, and the `Arc` is otherwise lost
     /// through the blanket `Arc<T>: HostCtx` deref).
     me: std::sync::Weak<AppState>,
+    /// Typed service registry for dependency injection into relocated modules:
+    /// each module resolves its own engine / bridge by type through the `HostCtx`
+    /// seam (`get_service`), so the binary wires nothing per module. Holds the same
+    /// `Arc`s as the concrete fields above, keyed by `TypeId`.
+    pub(crate) services:
+        std::collections::HashMap<std::any::TypeId, std::sync::Arc<dyn std::any::Any + Send + Sync>>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -116,6 +122,16 @@ impl AppState {
         let remote = RemoteAccess::new(config.data_dir.clone());
         let downloads = DownloadManager::new(&config.data_dir);
         let vpn = Vpn::new(config.data_dir.clone());
+        // Register each service under its concrete type so a relocated module can
+        // dependency-inject it through the `HostCtx` seam (`get_service`), without
+        // the seam ever naming a module type. Same `Arc`s as the fields below.
+        let mut services: std::collections::HashMap<
+            std::any::TypeId,
+            std::sync::Arc<dyn std::any::Any + Send + Sync>,
+        > = std::collections::HashMap::new();
+        services.insert(std::any::TypeId::of::<RemoteAccess>(), remote.clone());
+        services.insert(std::any::TypeId::of::<DownloadManager>(), downloads.clone());
+        services.insert(std::any::TypeId::of::<Vpn>(), vpn.clone());
         // Load any runtime-installed WASM modules from disk (best-effort).
         let wasm = Arc::new(RwLock::new(WasmHost::load_all(&config.data_dir.join("modules"))));
         // Seed the process-wide ffmpeg concurrency budget from the setting so the
@@ -161,6 +177,7 @@ impl AppState {
             vpn,
             wasm,
             me: weak.clone(),
+            services,
         })
     }
 }

@@ -10,10 +10,10 @@ pub type Version = String;
 /// pair. `kind` is the interface ("download-client", "indexer-engine"); `id` is
 /// the concrete implementation ("rqbit", "transmission", "builtin").
 ///
-/// The host dispatches on these today through hand-written `match`es (e.g.
-/// `luma_torrent::client_for`). Recording them in the registry makes the set
-/// introspectable now, and is the natural home for the dispatch table itself
-/// later.
+/// The host dispatches on these today through hand-written `match`es (e.g. the
+/// `DownloadClientRegistry` in `luma_torrent`). Recording them in the registry
+/// makes the set introspectable now, and is the natural home for the dispatch
+/// table itself later.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Capability {
     pub kind: String,

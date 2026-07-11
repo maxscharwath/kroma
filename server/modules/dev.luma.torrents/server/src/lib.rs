@@ -250,18 +250,6 @@ pub fn builtin_download_clients() -> DownloadClientRegistry {
     reg
 }
 
-/// Resolve a client definition to its engine through a one-shot built-in
-/// registry. Kept for callers that don't hold a long-lived registry; the
-/// DownloadManager owns a cached [`DownloadClientRegistry`] and calls `build`
-/// directly. Mirrors the LLM `provider_for`.
-pub fn client_for(
-    def: &ClientDef,
-    rqbit: Option<std::sync::Arc<RqbitEngine>>,
-    state_dir: &std::path::Path,
-) -> anyhow::Result<Box<dyn DownloadClient>> {
-    builtin_download_clients().build(def, &DownloadClientCtx { rqbit, state_dir })
-}
-
 /// Best-effort info-hash extraction from a magnet URI (`xt=urn:btih:HEX`). Public
 /// so the external engine crates (qBittorrent) can reuse it.
 pub fn magnet_info_hash(uri: &str) -> Option<String> {

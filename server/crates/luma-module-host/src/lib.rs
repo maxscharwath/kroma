@@ -9,7 +9,9 @@
 //! so `Router<SharedState>` handlers and generic `Router<S: HostCtx>` module
 //! handlers both work, and a module crate depends only on this leaf.
 
+use std::any::{Any, TypeId};
 use std::path::Path;
+use std::sync::Arc;
 
 use axum::async_trait;
 use axum::extract::FromRequestParts;
@@ -143,6 +145,51 @@ pub trait HostCtx: Send + Sync + 'static {
     /// Whether the module with id `id` is currently enabled (a relocated module's
     /// resident loop idles when its own module is toggled off).
     fn module_enabled(&self, id: &str) -> bool;
+
+    /// Resolve a host-registered service by its type, so a relocated module can
+    /// reach its own engine / bridge without the seam ever naming a module type
+    /// (dependency injection). Prefer the typed [`service`] helper. `None` when no
+    /// service of that type is registered.
+    fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>>;
+}
+
+/// Resolve a typed host service (dependency injection). The host registers its
+/// concrete services (the download manager, the VPN bridge, ...) under their
+/// `TypeId`; a module crate looks its own up by type. `None` when unregistered.
+pub fn service<S: HostCtx + ?Sized, T: Any + Send + Sync>(host: &S) -> Option<Arc<T>> {
+    host.get_service(TypeId::of::<T>())?.downcast::<T>().ok()
+}
+
+/// The backend contract a module crate implements to own its full server-side
+/// vertical: the admin routes it serves (behind the host's enabled-gate) and its
+/// enable/disable lifecycle. Generic over the host state `S` so the crate depends
+/// only on this seam, never on the app; the binary instantiates it at
+/// `S = SharedState`. Anything the module needs from the app (its engine, bridge,
+/// DB, settings) comes through `host`, so the binary wires nothing per module.
+#[async_trait]
+pub trait ServerModule<S>: Send + Sync
+where
+    S: HostCtx + Clone + Send + Sync + 'static,
+{
+    /// The module id (matches its `module.json` and frontend package).
+    fn id(&self) -> &'static str;
+
+    /// Routes served under `/api/admin`, or `None` for a lifecycle-only module
+    /// (e.g. a download engine). Mounted behind the module's enabled-gate by the
+    /// host, so they 404 while it is disabled.
+    fn admin_routes(&self, _host: &S) -> Option<axum::Router<S>> {
+        None
+    }
+
+    /// Bring the module's live services up: called when it is enabled at runtime
+    /// AND at boot for an already-enabled module. Awaited (not detached), so a slow
+    /// start completes before a following disable can race it. Default: nothing.
+    async fn on_enable(&self, _host: &S) {}
+
+    /// Tear the module's live services down: called when it is disabled at runtime
+    /// AND at boot for a disabled module, so nothing is left running. Awaited.
+    /// Default: nothing.
+    async fn on_disable(&self, _host: &S) {}
 }
 
 /// The router state is `Arc<AppState>` (= `SharedState`), but the orphan rule
@@ -187,6 +234,9 @@ impl<T: HostCtx + ?Sized> HostCtx for std::sync::Arc<T> {
     }
     fn module_enabled(&self, id: &str) -> bool {
         (**self).module_enabled(id)
+    }
+    fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
+        (**self).get_service(type_id)
     }
 }
 

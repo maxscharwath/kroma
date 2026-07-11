@@ -109,4 +109,11 @@ impl HostCtx for AppState {
     fn module_enabled(&self, id: &str) -> bool {
         crate::modules::module_enabled(&self.settings, id)
     }
+
+    fn get_service(
+        &self,
+        type_id: std::any::TypeId,
+    ) -> Option<std::sync::Arc<dyn std::any::Any + Send + Sync>> {
+        self.services.get(&type_id).cloned()
+    }
 }

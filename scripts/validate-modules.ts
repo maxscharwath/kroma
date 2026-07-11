@@ -19,6 +19,17 @@ type Json = Record<string, unknown>;
  *  uses - type, required, properties, additionalProperties, pattern, minLength,
  *  enum, items. */
 function validate(node: Json, value: unknown, path: string, errors: string[]): void {
+  // `oneOf`: the value must validate against exactly one alternative (we only
+  // need "at least one" for our permissive subset, e.g. dependsOn = object|array).
+  if (Array.isArray(node.oneOf)) {
+    const ok = (node.oneOf as Json[]).some((sub) => {
+      const subErrors: string[] = [];
+      validate(sub, value, path, subErrors);
+      return subErrors.length === 0;
+    });
+    if (!ok) errors.push(`${path}: does not match any of the allowed forms`);
+    return;
+  }
   const type = node.type as string | undefined;
   if (type === 'object') {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {

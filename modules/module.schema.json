@@ -16,12 +16,12 @@
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+" },
     "description": { "type": "string" },
     "dependsOn": {
-      "type": "array",
-      "description": "Hard dependencies: each is a bare id, an 'id@range' string, or { id, version } with a semver range. Enforced on the backend."
+      "description": "Hard dependencies as a package.json-style map { \"<id>\": \"<semver range>\" } (a bare \"*\" means any version). A legacy array of ids / 'id@range' strings / { id, version } objects is also accepted. Enforced on the backend.",
+      "oneOf": [{ "type": "object" }, { "type": "array" }]
     },
     "optionalDependsOn": {
-      "type": "array",
-      "description": "Soft dependencies (same shape as dependsOn): ordered first when present, but not required."
+      "description": "Soft dependencies (same shape as dependsOn): version-checked and ordered first when present, but not required.",
+      "oneOf": [{ "type": "object" }, { "type": "array" }]
     },
     "requires": {
       "type": "array",

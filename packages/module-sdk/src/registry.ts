@@ -6,11 +6,24 @@
 
 import type { HostBase, LumaHost } from './host';
 import type { LumaModule, NavItem, RouteDef, SettingsPanel } from './module';
-import type { Dependency, ModuleManifest } from './types';
+import type { Dependencies, ModuleManifest } from './types';
 
-/** The module id of a dependency (a bare id, an "id@range" string, or an object). */
-function depId(dep: Dependency): string {
-  return typeof dep === 'string' ? (dep.split('@')[0] ?? dep) : dep.id;
+/** Normalize either dependency form (a package.json-style `{ id: range }` map,
+ *  or a legacy array of ids / `"id@range"` strings / `{ id, version }` objects)
+ *  to a flat `{ id, version? }[]`. A `"*"` range is treated as no constraint.
+ *  Version ranges are enforced on the backend; the frontend uses only the id for
+ *  setup ordering, but the admin UI shows the range. */
+export function depEntries(deps?: Dependencies): { id: string; version?: string }[] {
+  if (!deps) return [];
+  if (Array.isArray(deps)) {
+    return deps.map((d) =>
+      typeof d === 'string' ? { id: d.split('@')[0] ?? d, version: d.split('@')[1] } : d,
+    );
+  }
+  return Object.entries(deps).map(([id, range]) => ({
+    id,
+    version: range && range !== '*' ? range : undefined,
+  }));
 }
 
 /** A route with the id of the module that registered it. */
@@ -74,15 +87,13 @@ export class ModuleRegistry {
     const mods = [...this.modules.values()];
     const edgesOf = (m: LumaModule): string[] => {
       const ids: string[] = [];
-      for (const dep of m.dependsOn ?? []) {
-        const id = depId(dep);
+      for (const { id } of depEntries(m.dependsOn)) {
         if (!this.modules.has(id)) {
           throw new Error(`module "${m.id}" depends on "${id}", which is not registered`);
         }
         ids.push(id);
       }
-      for (const dep of m.optionalDependsOn ?? []) {
-        const id = depId(dep);
+      for (const { id } of depEntries(m.optionalDependsOn)) {
         if (this.modules.has(id)) ids.push(id);
       }
       return ids;

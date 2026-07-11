@@ -57,9 +57,11 @@ pub struct FeRemote {
 }
 
 /// A dependency on another module: its `id` and an optional semver range the
-/// depended module's version must satisfy (e.g. `^1.0`). Deserializes leniently
-/// from a bare `"id"` string, an `"id@range"` string, or an object
-/// `{ id, version }`, so old manifests keep working.
+/// depended module's version must satisfy (e.g. `^1.0`). In a manifest the whole
+/// collection is written as a package.json-style `{ id: range }` map (see
+/// [`dep_map`]); a single entry also deserializes leniently from a bare `"id"`
+/// string, an `"id@range"` string, or an object `{ id, version }`, so older
+/// array-form manifests keep working.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
@@ -96,6 +98,69 @@ impl<'de> Deserialize<'de> for Dependency {
     }
 }
 
+/// (De)serialize a `dependsOn` / `optionalDependsOn` collection as a
+/// package.json-style map `{ "<id>": "<range>" }`, where a bare `"*"` (or empty)
+/// range means "any version". The legacy array form (a list of bare ids,
+/// `"id@range"` strings, or `{ id, version }` objects) is still accepted on the
+/// way in, so older manifests and third-party `.tar` modules keep loading.
+mod dep_map {
+    use std::fmt;
+
+    use serde::de::{MapAccess, SeqAccess, Visitor};
+    use serde::ser::SerializeMap;
+    use serde::{Deserializer, Serializer};
+
+    use super::Dependency;
+
+    pub fn serialize<S: Serializer>(deps: &[Dependency], serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(deps.len()))?;
+        for dep in deps {
+            map.serialize_entry(&dep.id, dep.version.as_deref().unwrap_or("*"))?;
+        }
+        map.end()
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Vec<Dependency>, D::Error> {
+        struct DepsVisitor;
+
+        impl<'de> Visitor<'de> for DepsVisitor {
+            type Value = Vec<Dependency>;
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str("a { id: range } map or a list of dependencies")
+            }
+
+            // Package.json-style map: each key is a module id, each value a range.
+            fn visit_map<M: MapAccess<'de>>(self, mut access: M) -> Result<Self::Value, M::Error> {
+                let mut out = Vec::new();
+                while let Some((id, range)) = access.next_entry::<String, String>()? {
+                    out.push(Dependency { id, version: normalize_range(range) });
+                }
+                Ok(out)
+            }
+
+            // Legacy array: each item is a bare id, an "id@range", or { id, version }.
+            fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Self::Value, A::Error> {
+                let mut out = Vec::new();
+                while let Some(dep) = access.next_element::<Dependency>()? {
+                    out.push(dep);
+                }
+                Ok(out)
+            }
+        }
+
+        deserializer.deserialize_any(DepsVisitor)
+    }
+
+    /// A blank or `"*"` range means "no constraint" (stored as `None`).
+    fn normalize_range(range: String) -> Option<String> {
+        let trimmed = range.trim();
+        (!trimmed.is_empty() && trimmed != "*").then(|| trimmed.to_string())
+    }
+}
+
 /// A dependency on a CAPABILITY rather than a specific module: satisfied by any
 /// module whose `provides` matches `kind` (and `id` when given).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,14 +189,15 @@ pub struct ModuleManifest {
     /// One-line description.
     #[serde(default)]
     pub description: String,
-    /// Hard dependencies on other modules (with optional version ranges).
-    /// Resolution fails if any are absent or version-incompatible; init order is
-    /// a topological sort over these edges.
-    #[serde(default)]
+    /// Hard dependencies on other modules, written as a package.json-style
+    /// `{ id: range }` map. Resolution fails if any are absent or version-
+    /// incompatible; init order is a topological sort over these edges.
+    #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
     pub depends_on: Vec<Dependency>,
-    /// Soft dependencies: if a listed module is present it is initialized first
-    /// (and version-checked), but the module still loads when it is absent.
-    #[serde(default)]
+    /// Soft dependencies (same shape): if a listed module is present it is
+    /// initialized first (and version-checked), but the module still loads when
+    /// it is absent.
+    #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
     pub optional_depends_on: Vec<Dependency>,
     /// Capability dependencies: each is satisfied by any module providing it.
     #[serde(default)]
@@ -178,5 +244,52 @@ impl ModuleManifest {
     pub fn needs(mut self, module_id: impl Into<String>) -> Self {
         self.depends_on.push(Dependency::new(module_id));
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn depends_on_reads_the_package_json_style_map() {
+        let m: ModuleManifest = serde_json::from_str(
+            r#"{ "id": "a", "name": "A", "version": "1.0.0",
+                 "dependsOn": { "dev.luma.torrents": "^0.1.0", "dev.luma.lib": "*" } }"#,
+        )
+        .unwrap();
+        assert_eq!(m.depends_on.len(), 2);
+        assert_eq!(m.depends_on[0], Dependency { id: "dev.luma.torrents".into(), version: Some("^0.1.0".into()) });
+        // A "*" range normalizes to "no constraint".
+        assert_eq!(m.depends_on[1], Dependency::new("dev.luma.lib"));
+    }
+
+    #[test]
+    fn depends_on_still_reads_the_legacy_array_forms() {
+        let m: ModuleManifest = serde_json::from_str(
+            r#"{ "id": "a", "name": "A", "version": "1.0.0",
+                 "dependsOn": ["bare", "with@^1.2", { "id": "obj", "version": ">=2" }] }"#,
+        )
+        .unwrap();
+        assert_eq!(m.depends_on[0], Dependency::new("bare"));
+        assert_eq!(m.depends_on[1], Dependency { id: "with".into(), version: Some("^1.2".into()) });
+        assert_eq!(m.depends_on[2], Dependency { id: "obj".into(), version: Some(">=2".into()) });
+    }
+
+    #[test]
+    fn serializes_as_a_map_and_omits_empty_collections() {
+        let mut m = ModuleManifest::new("a", "A", "1.0.0");
+        m.depends_on.push(Dependency { id: "lib".into(), version: Some("^1".into()) });
+        m.depends_on.push(Dependency::new("plain"));
+        let json = serde_json::to_value(&m).unwrap();
+        assert_eq!(json["dependsOn"]["lib"], "^1");
+        // No declared range serializes back as the wildcard.
+        assert_eq!(json["dependsOn"]["plain"], "*");
+        // Empty optionalDependsOn is skipped entirely (not written as {} or []).
+        assert!(json.get("optionalDependsOn").is_none());
+
+        // And the map round-trips back to the same in-memory shape.
+        let back: ModuleManifest = serde_json::from_value(json).unwrap();
+        assert_eq!(back.depends_on, m.depends_on);
     }
 }

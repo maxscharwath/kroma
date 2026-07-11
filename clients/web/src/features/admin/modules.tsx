@@ -2,7 +2,7 @@
 // icon, capabilities, an enable toggle and its config, backed by
 // GET/POST/PUT /api/admin/modules.
 
-import { type Dependency, moduleIconUrl } from '@luma/module-sdk';
+import { depEntries, moduleIconUrl } from '@luma/module-sdk';
 import { adminApi, type AdminModule } from '#web/features/admin/module-api';
 import { ModuleConfigForm } from '#web/features/admin/module-config-form';
 import { Denied, useCap, usePoll } from '#web/features/admin/shell';
@@ -108,14 +108,6 @@ function ModuleSettings({
   );
 }
 
-function depParts(d: Dependency): { id: string; version?: string } {
-  if (typeof d === 'string') {
-    const [id, version] = d.split('@');
-    return { id: id ?? d, version };
-  }
-  return { id: d.id, version: d.version };
-}
-
 type DepState = 'ok' | 'missing' | 'disabled' | 'optional';
 
 function DepChip({ label, state }: Readonly<{ label: string; state: DepState }>) {
@@ -144,8 +136,8 @@ function DepChip({ label, state }: Readonly<{ label: string; state: DepState }>)
 function ModuleDeps({ module, all }: Readonly<{ module: AdminModule; all: AdminModule[] }>) {
   const byId = new Map(all.map((m) => [m.id, m]));
   const deps = [
-    ...(module.dependsOn ?? []).map((d) => ({ ...depParts(d), optional: false })),
-    ...(module.optionalDependsOn ?? []).map((d) => ({ ...depParts(d), optional: true })),
+    ...depEntries(module.dependsOn).map((d) => ({ ...d, optional: false })),
+    ...depEntries(module.optionalDependsOn).map((d) => ({ ...d, optional: true })),
   ];
   const reqs = module.requires ?? [];
   if (deps.length === 0 && reqs.length === 0) return null;

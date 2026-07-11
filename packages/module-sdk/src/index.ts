@@ -5,7 +5,9 @@ export type {
   Capability,
   CapabilityReq,
   ConfigField,
+  Dependencies,
   Dependency,
+  DependencyMap,
   FeRemote,
   ModuleManifest,
 } from './types';
@@ -21,5 +23,5 @@ export type {
   RouteDef,
   SettingsPanel,
 } from './module';
-export { ModuleRegistry } from './registry';
+export { depEntries, ModuleRegistry } from './registry';
 export type { ModuleNav, ModulePanel, ModuleRoute, ModuleStatus } from './registry';

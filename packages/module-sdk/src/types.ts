@@ -9,10 +9,19 @@ export interface Capability {
   id: string;
 }
 
-/** A dependency on another module: a bare id, an `"id@range"` string, or an
- *  object with a semver range. Version ranges are enforced on the backend; the
- *  frontend registry uses only the id for setup ordering. */
+/** One entry in the legacy array dependency form: a bare id, an `"id@range"`
+ *  string, or an object with a semver range. */
 export type Dependency = string | { id: string; version?: string };
+
+/** The package.json-style dependency form: a map of module id to semver range
+ *  (a bare `"*"` means any version). This is what the backend now serializes;
+ *  the array form is still accepted for older manifests. Version ranges are
+ *  enforced on the backend; the frontend registry uses only the id for setup
+ *  ordering. */
+export type DependencyMap = Record<string, string>;
+
+/** Either dependency form a manifest may carry. */
+export type Dependencies = DependencyMap | Dependency[];
 
 /** A capability dependency: satisfied by any module whose `provides` matches. */
 export interface CapabilityReq {

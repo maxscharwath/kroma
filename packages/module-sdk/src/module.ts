@@ -5,7 +5,7 @@
 
 import type { ComponentType } from 'react';
 import type { LumaHost } from './host';
-import type { Dependency } from './types';
+import type { Dependencies } from './types';
 
 /** A nav entry a module contributes to the host's navigation. */
 export interface NavItem {
@@ -43,11 +43,12 @@ export interface LumaModule<Exports = unknown> {
   /** Stable id, shared with the backend crate's module manifest. */
   id: string;
   version: string;
-  /** Modules that must be present + set up before this one (version ranges are
-   *  enforced on the backend; the frontend uses the id for setup ordering). */
-  dependsOn?: Dependency[];
-  /** Soft dependencies: set up first when present, but not required. */
-  optionalDependsOn?: Dependency[];
+  /** Modules that must be present + set up before this one, as a package.json-
+   *  style `{ id: range }` map (a legacy array is also accepted). Version ranges
+   *  are enforced on the backend; the frontend uses the id for setup ordering. */
+  dependsOn?: Dependencies;
+  /** Soft dependencies (same shape): set up first when present, but not required. */
+  optionalDependsOn?: Dependencies;
   routes?: RouteDef[];
   navItems?: NavItem[];
   settingsPanels?: SettingsPanel[];

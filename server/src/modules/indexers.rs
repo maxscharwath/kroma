@@ -13,7 +13,7 @@ pub struct IndexersModule;
 
 impl ServerModule for IndexersModule {
     fn id(&self) -> &'static str {
-        // Matches server/modules/indexer/module.json.
+        // Matches server/modules/dev.luma.indexer/module.json.
         "dev.luma.indexer"
     }
 

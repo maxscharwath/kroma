@@ -2,7 +2,7 @@
 // Build a runtime-installable module bundle: compile the WASM backend, build the
 // Module Federation frontend, and assemble a `.tar` the admin Store uploads.
 //
-//   bun run modules:wasm [wasm-modules/<dir>]   (default: wasm-modules/hello-wasm)
+//   bun run modules:wasm [wasm-modules/<dir>]   (default: wasm-modules/dev.luma.hellowasm)
 //
 // Output: dist/wasm-modules/<id>.tar  (module.json + module.wasm + icon.svg + fe/)
 
@@ -11,7 +11,7 @@ import { cpSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync,
 import { join } from 'node:path';
 
 const root = join(import.meta.dir, '..');
-const moduleDir = join(root, process.argv[2] ?? 'wasm-modules/hello-wasm');
+const moduleDir = join(root, process.argv[2] ?? 'wasm-modules/dev.luma.hellowasm');
 const manifest = JSON.parse(readFileSync(join(moduleDir, 'module.json'), 'utf8')) as { id: string };
 const { id } = manifest;
 console.log(`building module bundle: ${id}`);

@@ -13,7 +13,7 @@ pub struct RemoteModule;
 
 impl ServerModule for RemoteModule {
     fn id(&self) -> &'static str {
-        // Matches server/modules/remote/module.json.
+        // Matches server/modules/dev.luma.remote/module.json.
         "dev.luma.remote"
     }
 

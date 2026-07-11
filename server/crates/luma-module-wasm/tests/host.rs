@@ -8,7 +8,7 @@ use luma_module_wasm::{HttpReq, WasmHost, WasmModule};
 
 fn hello_wasm() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.push("../../../wasm-modules/hello-wasm/server/target/wasm32-unknown-unknown/release/luma_module_hello_wasm.wasm");
+    p.push("../../../wasm-modules/dev.luma.hellowasm/server/target/wasm32-unknown-unknown/release/luma_module_hello_wasm.wasm");
     p
 }
 

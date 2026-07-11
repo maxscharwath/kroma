@@ -35,7 +35,7 @@ output is committed -- re-run `modules:gen` after editing and commit the result.
 
 ## 2. Hand-written crate module
 
-Look at `server/modules/torrents/` (backend + frontend) as the template. Each
+Look at `server/modules/dev.luma.torrents/` (backend + frontend) as the template. Each
 crate exports one `pub const MODULE` built from its `module.json` + `icon.svg`:
 
 ```rust
@@ -50,7 +50,7 @@ module that also owns admin routes + start/stop lifecycle implements
 
 ## 3. WASM runtime module (install with no rebuild)
 
-Look at `wasm-modules/hello-wasm/`: a `server/` extism guest (exports
+Look at `wasm-modules/dev.luma.hellowasm/`: a `server/` extism guest (exports
 `handle_http`, proxied at `/api/plugin/<id>/*`), a `ui/` Module Federation remote
 (the page), `module.json` (with `feRemote`), and `icon.svg`.
 

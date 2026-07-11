@@ -85,16 +85,16 @@ fn build() -> ModuleRegistry {
     // Acquisition is a settings-view module (no dedicated routes), so it has a
     // manifest but no ServerModule behavior.
     manifests.register(Box::new(EmbeddedModule::new(
-        include_str!("../../modules/acquisition/module.json"),
-        include_bytes!("../../modules/acquisition/icon.svg"),
+        include_str!("../../modules/dev.luma.acquisition/module.json"),
+        include_bytes!("../../modules/dev.luma.acquisition/icon.svg"),
     )));
     // Download-engine sub-modules: backend-only (no page/icon), they toggle a
     // download-client factory kind on the Downloads registry.
     manifests.register(Box::new(EmbeddedModule::iconless(include_str!(
-        "../../modules/engine.transmission/module.json"
+        "../../modules/dev.luma.engine.transmission/module.json"
     ))));
     manifests.register(Box::new(EmbeddedModule::iconless(include_str!(
-        "../../modules/engine.qbittorrent/module.json"
+        "../../modules/dev.luma.engine.qbittorrent/module.json"
     ))));
     luma_modules_generated::register_all(&mut manifests);
 

@@ -263,7 +263,7 @@
         "react-dom": ">=18",
       },
     },
-    "server/modules/acquisition/ui": {
+    "server/modules/dev.luma.acquisition/ui": {
       "name": "@luma/module-acquisition",
       "version": "0.1.0",
       "dependencies": {
@@ -292,7 +292,7 @@
         "react": ">=18",
       },
     },
-    "server/modules/indexer/ui": {
+    "server/modules/dev.luma.indexer/ui": {
       "name": "@luma/module-indexer",
       "version": "0.1.3",
       "dependencies": {
@@ -310,7 +310,7 @@
         "react": ">=18",
       },
     },
-    "server/modules/remote/ui": {
+    "server/modules/dev.luma.remote/ui": {
       "name": "@luma/module-remote",
       "version": "0.1.0",
       "dependencies": {
@@ -328,7 +328,7 @@
         "react": ">=18",
       },
     },
-    "server/modules/torrents/ui": {
+    "server/modules/dev.luma.torrents/ui": {
       "name": "@luma/module-torrents",
       "version": "0.1.3",
       "dependencies": {
@@ -348,7 +348,7 @@
         "react": ">=18",
       },
     },
-    "server/modules/vpn/ui": {
+    "server/modules/dev.luma.vpn/ui": {
       "name": "@luma/module-vpn",
       "version": "0.1.0",
       "dependencies": {
@@ -366,7 +366,7 @@
         "react": ">=18",
       },
     },
-    "wasm-modules/hello-wasm/ui": {
+    "wasm-modules/dev.luma.hellowasm/ui": {
       "name": "@luma/module-hellowasm-fe",
       "dependencies": {
         "react": "^19.2.0",
@@ -536,21 +536,21 @@
 
     "@luma/desktop": ["@luma/desktop@workspace:clients/desktop"],
 
-    "@luma/module-acquisition": ["@luma/module-acquisition@workspace:server/modules/acquisition/ui"],
+    "@luma/module-acquisition": ["@luma/module-acquisition@workspace:server/modules/dev.luma.acquisition/ui"],
 
     "@luma/module-dev-luma-hello": ["@luma/module-dev-luma-hello@workspace:server/modules/dev.luma.hello/ui"],
 
-    "@luma/module-hellowasm-fe": ["@luma/module-hellowasm-fe@workspace:wasm-modules/hello-wasm/ui"],
+    "@luma/module-hellowasm-fe": ["@luma/module-hellowasm-fe@workspace:wasm-modules/dev.luma.hellowasm/ui"],
 
-    "@luma/module-indexer": ["@luma/module-indexer@workspace:server/modules/indexer/ui"],
+    "@luma/module-indexer": ["@luma/module-indexer@workspace:server/modules/dev.luma.indexer/ui"],
 
-    "@luma/module-remote": ["@luma/module-remote@workspace:server/modules/remote/ui"],
+    "@luma/module-remote": ["@luma/module-remote@workspace:server/modules/dev.luma.remote/ui"],
 
     "@luma/module-sdk": ["@luma/module-sdk@workspace:packages/module-sdk"],
 
-    "@luma/module-torrents": ["@luma/module-torrents@workspace:server/modules/torrents/ui"],
+    "@luma/module-torrents": ["@luma/module-torrents@workspace:server/modules/dev.luma.torrents/ui"],
 
-    "@luma/module-vpn": ["@luma/module-vpn@workspace:server/modules/vpn/ui"],
+    "@luma/module-vpn": ["@luma/module-vpn@workspace:server/modules/dev.luma.vpn/ui"],
 
     "@luma/modules-generated": ["@luma/modules-generated@workspace:packages/modules-generated"],
 

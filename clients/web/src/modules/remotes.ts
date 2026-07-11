@@ -60,6 +60,24 @@ function mfName(id: string): string {
 // loads with no page reload. `loadedRemotes` tracks which are already registered.
 let mfReady: Promise<typeof import('@module-federation/runtime')> | null = null;
 const loadedRemotes = new Set<string>();
+const injectedStyles = new Set<string>();
+
+/** Load a runtime module's self-contained stylesheet. Its FE build emits a fixed
+ *  `style.css` (Tailwind + LUMA design) next to its remoteEntry, so - unlike a
+ *  compile-time module whose classes are in the host build - a runtime `.tar`
+ *  module carries its own CSS. Best-effort: a module that ships none just 404s
+ *  the link (removed silently to avoid console noise). */
+function injectRemoteStyles(entry: string): void {
+  const href = entry.replace(/remoteEntry\.js(\?.*)?$/, 'style.css');
+  if (injectedStyles.has(href)) return;
+  injectedStyles.add(href);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  link.dataset.lumaModuleStyles = '';
+  link.onerror = () => link.remove();
+  document.head.appendChild(link);
+}
 
 function ensureMf(): Promise<typeof import('@module-federation/runtime')> {
   if (!mfReady) {
@@ -116,6 +134,9 @@ export async function loadRuntimeRemotes(registry: ModuleRegistry): Promise<stri
     return [];
   }
   mf.registerRemotes(fresh.map((s) => ({ name: s.name, entry: s.entry, type: 'module' as const })));
+  // Each runtime remote ships its own stylesheet next to remoteEntry; load it so
+  // the module renders with the full LUMA design regardless of host classes.
+  fresh.forEach((s) => injectRemoteStyles(s.entry));
 
   const added: string[] = [];
   await Promise.all(

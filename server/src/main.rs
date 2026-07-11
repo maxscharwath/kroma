@@ -23,6 +23,23 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use crate::config::Config;
 use crate::state::AppState;
 
+/// Resolve the dev.luma.torrents download manager from the host service
+/// registry. It was a direct `AppState` field until the acquisition vertical
+/// moved into the module crate; the download admin routes (and the grab path)
+/// now look it up by type through the `HostCtx` seam, exactly like every other
+/// module service. Kept as an extension method so the many `state.downloads`
+/// call sites read the same after the move.
+pub(crate) trait DownloadsExt {
+    fn downloads(&self) -> std::sync::Arc<luma_torrent::DownloadManager>;
+}
+
+impl DownloadsExt for luma_engine::state::SharedState {
+    fn downloads(&self) -> std::sync::Arc<luma_torrent::DownloadManager> {
+        luma_module_host::service::<luma_torrent::DownloadManager>(&**self)
+            .expect("download manager registered")
+    }
+}
+
 // On the Linux/musl single binary, musl's malloc is a global-lock design that
 // collapses under our thread mix (tokio workers + rayon walks + candle tensors);
 // mimalloc removes that contention. macOS dev keeps the system allocator.
@@ -124,7 +141,22 @@ async fn main() -> anyhow::Result<()> {
         std::sync::Arc::new(luma_indexer::IndexerTorrentFetch);
     let (tid, val) = luma_module_host::port_service(torrent_fetch);
     module_services.insert(tid, val);
-    let state = AppState::new(config, ffprobe_available, db, settings, module_services);
+    // The download manager (dev.luma.torrents) is now a module service like the
+    // rest: the composition root constructs it and injects it by type, so the
+    // core (luma-engine) never names the torrent engine. The acquisition services
+    // and the download admin routes resolve it through the HostCtx registry.
+    let downloads = luma_torrent::DownloadManager::new(&config.data_dir);
+    module_services.insert(std::any::TypeId::of::<luma_torrent::DownloadManager>(), downloads);
+    // `luma_torrent::JOBS` are the acquisition jobs (search / import / match),
+    // registered alongside the core built-ins so the core roster names no module.
+    let state = AppState::new(
+        config,
+        ffprobe_available,
+        db,
+        settings,
+        module_services,
+        luma_torrent::JOBS,
+    );
     services::activity::scan_completed(
         &state.activity,
         data.libraries.len(),

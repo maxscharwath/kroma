@@ -9,9 +9,9 @@ use anyhow::{anyhow, Result};
 use luma_scene::{Candidate, Target};
 use luma_torznab::{Query, Release};
 
-use crate::db::{self, IndexerRow, WantedRow};
-use crate::model::{InteractiveSearchView, RequestKind, ScoreLineView, ScoredReleaseView};
-use crate::state::SharedState;
+use luma_db::{self as db, IndexerRow, WantedRow};
+use luma_engine::model::{InteractiveSearchView, RequestKind, ScoreLineView, ScoredReleaseView};
+use luma_engine::state::SharedState;
 
 /// A release remembered from the last interactive search of a request, so a
 /// manual grab can hand its magnet/.torrent link to the download manager
@@ -195,7 +195,7 @@ pub fn interactive_search(state: &SharedState, request_id: &str) -> Result<Inter
     // A pending request has no ledger yet: search as if it were approved, so a
     // moderator can look before green-lighting.
     if wanted.is_empty() {
-        crate::services::requests::preview_wanted(state, &req, &mut wanted)?;
+        luma_engine::services::requests::preview_wanted(state, &req, &mut wanted)?;
     }
     // An interactive search is an explicit admin action: search the request's
     // FULL content regardless of ledger status, so a request that's already
@@ -256,7 +256,7 @@ pub fn grab_cached(
     request_id: &str,
     guid: &str,
     indexer_id: &str,
-) -> Result<crate::db::DownloadRow> {
+) -> Result<db::DownloadRow> {
     // The search cache is in-memory, so a server restart (common in dev with
     // cargo-watch) or a direct grab with no prior search would miss it. On a
     // miss, re-run the interactive search to repopulate, then look up again.
@@ -299,17 +299,17 @@ pub fn grab_cached(
     drop(conn);
     let needs_approval = matches!(
         req.status,
-        crate::model::RequestStatus::Pending | crate::model::RequestStatus::Failed
+        luma_engine::model::RequestStatus::Pending | luma_engine::model::RequestStatus::Failed
     );
     if needs_approval {
-        crate::services::requests::approve_request(state, request_id, None)?;
+        luma_engine::services::requests::approve_request(state, request_id, None)?;
     }
     let conn = state.db.get()?;
     let req = db::get_request(&conn, request_id)?.ok_or_else(|| anyhow!("request not found"))?;
     let wanted = db::wanted_for_request(&conn, request_id)?;
     drop(conn);
     let wanted_ids = wanted_ids_for(&wanted, &cached.view);
-    let spec = luma_torrent::GrabSpec::from_release(
+    let spec = crate::GrabSpec::from_release(
         &cached.view,
         &magnet_or_url,
         cached.tmdb_id,
@@ -318,17 +318,17 @@ pub fn grab_cached(
         Some(request_id.to_string()),
         wanted_ids,
     );
-    state.downloads.grab(state, spec)
+    super::downloads(state).grab(state, spec)
 }
 
 /// Free-text manual search across every enabled indexer: parse each result for
 /// quality/episode hints and sort best-first, but do NOT accept/reject (there
 /// is no specific target). The admin picks and grabs via the add endpoint.
-pub fn manual_search(state: &SharedState, query: &str) -> Result<crate::model::ManualSearchView> {
-    use crate::model::ManualReleaseView;
+pub fn manual_search(state: &SharedState, query: &str) -> Result<luma_engine::model::ManualSearchView> {
+    use luma_engine::model::ManualReleaseView;
     let q = query.trim();
     if q.is_empty() {
-        return Ok(crate::model::ManualSearchView { releases: Vec::new(), indexer_errors: Vec::new() });
+        return Ok(luma_engine::model::ManualSearchView { releases: Vec::new(), indexer_errors: Vec::new() });
     }
     let conn = state.db.get()?;
     let indexers = db::enabled_indexers(&conn)?;
@@ -387,7 +387,7 @@ pub fn manual_search(state: &SharedState, query: &str) -> Result<crate::model::M
     releases.truncate(150);
     errors.sort();
     errors.dedup();
-    Ok(crate::model::ManualSearchView { releases, indexer_errors: errors })
+    Ok(luma_engine::model::ManualSearchView { releases, indexer_errors: errors })
 }
 
 /// The wanted rows a grab of this release covers (flip to `grabbed`).

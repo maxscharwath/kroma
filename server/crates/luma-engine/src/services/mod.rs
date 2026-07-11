@@ -5,14 +5,12 @@
 //! seeding, live playback/quick-connect session registries, persisted settings,
 //! and the activity feed.
 
-pub mod acquisition;
 pub mod auth;
 pub mod backup;
 pub mod jobs;
 pub mod llm;
 pub mod loginguard;
 pub mod markers;
-pub mod organize;
 pub mod pipeline;
 pub mod scan;
 pub mod enrich;

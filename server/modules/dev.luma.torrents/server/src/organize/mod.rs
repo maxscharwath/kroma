@@ -11,12 +11,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use crate::db;
-use crate::model::{
+use luma_db as db;
+use luma_engine::model::{
     Kind, MediaFile, MediaItem, OrganizeMove, OrganizePlan, OrganizeResult, SampleNames, Show,
 };
-use crate::services::settings::library_defs;
-use crate::state::SharedState;
+use luma_engine::services::settings::library_defs;
+use luma_engine::state::SharedState;
 
 use naming::{NameContext, NamingTemplates};
 
@@ -165,7 +165,7 @@ pub fn apply(state: &SharedState, log: &dyn Fn(String)) -> Result<OrganizeResult
         }
     }
     if result.moved > 0 {
-        let _ = state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "organize");
+        let _ = state.jobs.trigger(state.clone(), luma_engine::services::jobs::JobKey("library.scan"), "organize");
     }
     Ok(result)
 }

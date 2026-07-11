@@ -5,15 +5,24 @@
 
 pub mod auto;
 pub mod import;
+pub mod jobs;
 pub mod search;
 
 use luma_scene::{Profile, Res};
 
-use crate::db::IndexerRow;
-use crate::services::jobs::now_ms;
-use crate::state::SharedState;
+use luma_db::IndexerRow;
+use luma_engine::services::jobs::now_ms;
+use luma_engine::state::SharedState;
 
 const GB: u64 = 1_073_741_824;
+
+/// Resolve the module's download manager from the host service registry. It was
+/// a direct `AppState` field until acquisition moved out of the core crate; now
+/// every acquisition path that needs it looks it up by type through `HostCtx`.
+fn downloads(state: &SharedState) -> std::sync::Arc<crate::DownloadManager> {
+    luma_module_host::service::<crate::DownloadManager>(&**state)
+        .expect("download manager registered")
+}
 
 /// Build the decision engine's profile from the admin settings.
 pub fn profile_from_settings(state: &SharedState) -> Profile {
@@ -99,7 +108,7 @@ pub fn search_indexer(
         // Healthy if we got releases (a partial per-path error alongside real
         // results must not flag the indexer as broken) or the sweep was clean.
         let note_ok = !outcome.releases.is_empty() || outcome.errors.is_empty();
-        let _ = crate::db::note_indexer_result(
+        let _ = luma_db::note_indexer_result(
             &state.db,
             &row.id,
             note_ok,

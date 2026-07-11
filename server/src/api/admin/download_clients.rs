@@ -14,6 +14,7 @@ use crate::api::error::{json_error, lerr};
 use crate::api::extract::AuthUser;
 use crate::api::util::{blocking, query};
 use crate::db::{self, DownloadClientRow, EMBEDDED_CLIENT_ID};
+use crate::DownloadsExt;
 use crate::model::{
     ClientTestResult, DownloadClientView, DownloadClientsView, Permission, SaveDownloadClientBody,
 };
@@ -130,8 +131,8 @@ pub async fn update(
     if body.enabled.is_some() && id == crate::db::EMBEDDED_CLIENT_ID {
         let enabled = body.enabled.unwrap();
         if enabled {
-            state.downloads.start_rqbit(&state).await;
-            let downloads = state.downloads.clone();
+            state.downloads().start_rqbit(&state).await;
+            let downloads = state.downloads().clone();
             let state2 = state.clone();
             blocking(move || {
                 downloads.resume_after_enable(&state2);
@@ -139,7 +140,7 @@ pub async fn update(
             })
             .await?;
         } else {
-            let downloads = state.downloads.clone();
+            let downloads = state.downloads().clone();
             let state2 = state.clone();
             blocking(move || {
                 downloads.disable_embedded(&state2);
@@ -192,7 +193,7 @@ pub async fn test(
             return Ok(None);
         };
         drop(conn);
-        let outcome = state.downloads.engine_for(&row).and_then(|engine| engine.test());
+        let outcome = state.downloads().engine_for(&row).and_then(|engine| engine.test());
         Ok(Some(match outcome {
             Ok(version) => ClientTestResult { ok: true, version: Some(version), error: None },
             Err(e) => ClientTestResult { ok: false, version: None, error: Some(format!("{e:#}")) },

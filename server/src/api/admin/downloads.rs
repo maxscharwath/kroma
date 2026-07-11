@@ -14,6 +14,7 @@ use crate::api::error::{json_error, lerr};
 use crate::api::extract::AuthUser;
 use crate::api::util::{blocking, query};
 use crate::db;
+use crate::DownloadsExt;
 use crate::model::{
     AnalyzeBody, DownloadView, DownloadsView, ManualAddBody, ManualSearchBody, ManualSearchView,
     Permission, TorrentAnalysis, TorrentFileView, User,
@@ -54,7 +55,7 @@ pub async fn list(
     AuthUser(user): AuthUser,
 ) -> Result<Response, Response> {
     require_downloads(&user)?;
-    let vpn = state.downloads.vpn_status();
+    let vpn = state.downloads().vpn_status();
     let view = query(&state.db, move |pool| {
         let conn = pool.get()?;
         let rows = db::list_downloads(&conn, HISTORY_LIMIT)?;
@@ -120,7 +121,7 @@ pub async fn manual_search(
     require_downloads(&user)?;
     let view: ManualSearchView =
         match tokio::task::spawn_blocking(move || {
-            crate::services::acquisition::search::manual_search(&state, &body.query)
+            luma_torrent::acquisition::search::manual_search(&state, &body.query)
         })
         .await
         {
@@ -145,7 +146,7 @@ pub async fn analyze(
         return Err(json_error(StatusCode::BAD_REQUEST, "a magnet or .torrent URL is required"));
     }
     let analysis = match tokio::task::spawn_blocking(move || {
-        let entries = state.downloads.list_files(&state, &magnet)?;
+        let entries = state.downloads().list_files(&state, &magnet)?;
         let files: Vec<(String, u64)> =
             entries.iter().map(|e| (e.path.clone(), e.size_bytes)).collect();
         let content = luma_scene::classify(&files);
@@ -210,12 +211,12 @@ pub async fn manual_add(
         ..Default::default()
     };
     let grab_state = state.clone();
-    let result = blocking(move || Ok(grab_state.downloads.grab(&grab_state, spec))).await?;
+    let result = blocking(move || Ok(grab_state.downloads().grab(&grab_state, spec))).await?;
     match result {
         Ok(row) => {
             let id = row.id.clone();
             // Slow engine add runs in the background so the request returns now.
-            tokio::task::spawn_blocking(move || state.downloads.activate(&state, &row));
+            tokio::task::spawn_blocking(move || state.downloads().activate(&state, &row));
             Ok(Json(json!({ "id": id })).into_response())
         }
         Err(e) => Err(json_error(StatusCode::BAD_REQUEST, &format!("{e:#}"))),
@@ -255,7 +256,7 @@ pub async fn pause(
     AuthUser(user): AuthUser,
     AxPath(id): AxPath<String>,
 ) -> Result<Response, Response> {
-    let downloads = state.downloads.clone();
+    let downloads = state.downloads().clone();
     act(state.clone(), user, id, move |st, id| downloads.pause(st, id)).await
 }
 
@@ -265,7 +266,7 @@ pub async fn resume(
     AuthUser(user): AuthUser,
     AxPath(id): AxPath<String>,
 ) -> Result<Response, Response> {
-    let downloads = state.downloads.clone();
+    let downloads = state.downloads().clone();
     act(state.clone(), user, id, move |st, id| downloads.resume(st, id)).await
 }
 
@@ -275,7 +276,7 @@ pub async fn reannounce(
     AuthUser(user): AuthUser,
     AxPath(id): AxPath<String>,
 ) -> Result<Response, Response> {
-    let downloads = state.downloads.clone();
+    let downloads = state.downloads().clone();
     act(state.clone(), user, id, move |st, id| downloads.reannounce(st, id)).await
 }
 
@@ -293,7 +294,7 @@ pub async fn pause_all(
     AuthUser(user): AuthUser,
 ) -> Result<Response, Response> {
     require_downloads(&user)?;
-    bulk_response(blocking(move || Ok(state.downloads.pause_all(&state))).await?)
+    bulk_response(blocking(move || Ok(state.downloads().pause_all(&state))).await?)
 }
 
 /// `POST /api/admin/downloads/resume-all`
@@ -302,7 +303,7 @@ pub async fn resume_all(
     AuthUser(user): AuthUser,
 ) -> Result<Response, Response> {
     require_downloads(&user)?;
-    bulk_response(blocking(move || Ok(state.downloads.resume_all(&state))).await?)
+    bulk_response(blocking(move || Ok(state.downloads().resume_all(&state))).await?)
 }
 
 /// `POST /api/admin/downloads/reannounce` force a tracker re-announce ("ask more
@@ -312,7 +313,7 @@ pub async fn reannounce_all(
     AuthUser(user): AuthUser,
 ) -> Result<Response, Response> {
     require_downloads(&user)?;
-    bulk_response(blocking(move || Ok(state.downloads.reannounce_all(&state))).await?)
+    bulk_response(blocking(move || Ok(state.downloads().reannounce_all(&state))).await?)
 }
 
 /// `POST /api/admin/downloads/:id/retry` re-attempt a failed step. A `completed`
@@ -336,7 +337,7 @@ pub async fn retry(
         // Import failed earlier (or re-run to re-fulfill): re-import in the
         // background (a big copy, so don't block the request).
         tokio::task::spawn_blocking(move || {
-            if let Err(e) = crate::services::acquisition::import::import_single(&state, &id) {
+            if let Err(e) = luma_torrent::acquisition::import::import_single(&state, &id) {
                 tracing::warn!(id = %id, error = %format!("{e:#}"), "retry import failed");
             }
         });
@@ -344,14 +345,14 @@ pub async fn retry(
     }
     // Otherwise re-download: reset the row + re-add the torrent in the background.
     let reset_state = state.clone();
-    let row = match blocking(move || Ok(reset_state.downloads.retry(&reset_state, &id))).await? {
+    let row = match blocking(move || Ok(reset_state.downloads().retry(&reset_state, &id))).await? {
         Ok(row) => row,
         Err(e) if format!("{e:#}").contains("not found") => {
             return Err(json_error(StatusCode::NOT_FOUND, "download not found"))
         }
         Err(e) => return Err(json_error(StatusCode::BAD_REQUEST, &format!("{e:#}"))),
     };
-    tokio::task::spawn_blocking(move || state.downloads.activate(&state, &row));
+    tokio::task::spawn_blocking(move || state.downloads().activate(&state, &row));
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
@@ -368,6 +369,6 @@ pub async fn remove(
     AxPath(id): AxPath<String>,
     AxQuery(params): AxQuery<RemoveParams>,
 ) -> Result<Response, Response> {
-    let downloads = state.downloads.clone();
+    let downloads = state.downloads().clone();
     act(state.clone(), user, id, move |st, id| downloads.remove(st, id, params.delete_data)).await
 }

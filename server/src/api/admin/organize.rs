@@ -17,7 +17,7 @@ use crate::api::util::blocking;
 use crate::model::{
     NamingTemplatesView, NamingView, OrganizePlan, OrganizeResult, Permission, SampleBody, User,
 };
-use crate::services::organize::{
+use luma_torrent::organize::{
     self,
     naming::{Casing, NamingTemplates},
 };
@@ -57,7 +57,7 @@ fn templates_of(body: &NamingTemplatesView) -> NamingTemplates {
         series_folder: body.series_folder.clone(),
         season_folder: body.season_folder.clone(),
         episode_file: body.episode_file.clone(),
-        case: crate::services::organize::naming::Casing::from_key(&body.case),
+        case: luma_torrent::organize::naming::Casing::from_key(&body.case),
     }
 }
 

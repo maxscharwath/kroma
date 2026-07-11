@@ -8,7 +8,6 @@ use luma_module_wasm::WasmHost;
 use crate::services::activity;
 use crate::config::Config;
 use crate::db::Pool;
-use luma_torrent::DownloadManager;
 use crate::infra::embed::{self, Embedder};
 use crate::infra::events::Bus;
 use crate::infra::metadata;
@@ -67,11 +66,6 @@ pub struct AppState {
     /// In-flight on-device subtitle generations (Whisper / translate), tracked so
     /// the player can poll live progress + ETA and cancel.
     pub subtitle_gen: Arc<GenRegistry>,
-    /// The dev.luma.torrents module's download manager (embedded torrent engine
-    /// lifecycle, grabs ledger, kill-switch gate, monitor). Accessed directly by
-    /// the acquisition services + the download admin routes; the VPN bridge and
-    /// Remote connector are module services resolved through the registry instead.
-    pub downloads: Arc<DownloadManager>,
     /// Runtime-loaded (WASM) modules installed under `<data>/modules`. Behind an
     /// `RwLock` so the admin store can install / uninstall them live. Their
     /// manifests are merged into `GET /api/modules` and their HTTP is proxied at
@@ -111,6 +105,10 @@ impl AppState {
             std::any::TypeId,
             std::sync::Arc<dyn std::any::Any + Send + Sync>,
         >,
+        // Background jobs contributed by module crates (e.g. the acquisition
+        // jobs from the downloads module), registered alongside the built-ins
+        // so the core roster names no module.
+        module_jobs: &'static [crate::services::jobs::Builtin],
     ) -> SharedState {
         let hls = hls::HlsEngine::new(
             &config.data_dir,
@@ -118,20 +116,12 @@ impl AppState {
             crate::services::settings::transcode_cache_limit_bytes(&settings),
         );
         let storyboard = Storyboard::new(&config.data_dir);
-        // Built before the struct literal moves `config`: the connector locates a
-        // server-provided `cloudflared` relative to the data dir.
-        let downloads = DownloadManager::new(&config.data_dir);
-        // The download manager is a direct AppState field, so it is constructed +
-        // registered here. Every OTHER module service + peer port (the VPN bridge,
+        // Every module service + peer port (the download manager, the VPN bridge,
         // the Remote connector, the VpnProxy / TorrentFetch ports) is built by the
         // binary (the composition root) and passed in via `module_services`, so the
-        // core never names those module types.
-        let mut services: std::collections::HashMap<
-            std::any::TypeId,
-            std::sync::Arc<dyn std::any::Any + Send + Sync>,
-        > = std::collections::HashMap::new();
-        services.insert(std::any::TypeId::of::<DownloadManager>(), downloads.clone());
-        services.extend(module_services);
+        // core never names those module types. Modules resolve their own engine by
+        // type through the `HostCtx` seam.
+        let services = module_services;
         // Load any runtime-installed WASM modules from disk (best-effort).
         let wasm = Arc::new(RwLock::new(WasmHost::load_all(&config.data_dir.join("modules"))));
         // Seed the process-wide ffmpeg concurrency budget from the setting so the
@@ -141,6 +131,11 @@ impl AppState {
         // persisted schedule overrides. The cron loop is spawned in `main`.
         let mut jobs = JobManager::new();
         crate::services::jobs::register_all(&mut jobs);
+        // Overlay the module-contributed jobs (e.g. acquisition) so the core
+        // roster stays module-free while their handlers still run.
+        for b in module_jobs {
+            jobs.register(b);
+        }
         jobs.load_schedules(&db);
         // Restore the persisted global pipeline-pause so a box rebooted while held
         // stays held until an admin resumes (visible in the Pipeline console).
@@ -172,7 +167,6 @@ impl AppState {
             vectors: Arc::new(VectorCache::new()),
             jobs: Arc::new(jobs),
             subtitle_gen: Arc::new(GenRegistry::default()),
-            downloads,
             wasm,
             me: weak.clone(),
             services,

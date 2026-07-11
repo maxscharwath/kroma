@@ -1,5 +1,5 @@
 //! Import: move completed downloads into the library with the configured
-//! Sonarr/Radarr-style naming (see services::organize::naming), so the regular
+//! Sonarr/Radarr-style naming (see crate::organize::naming), so the regular
 //! scan/enrich/pipeline takes over. Hardlink first (the torrent keeps seeding
 //! from its download folder for free), copy across filesystems.
 
@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::db::{self, DownloadRow};
-use crate::model::RequestKind;
-use crate::services::jobs::now_ms;
-use crate::services::organize::naming;
-use crate::services::settings::{library_defs, LibraryDef};
-use crate::state::SharedState;
+use luma_db::{self as db, DownloadRow};
+use luma_engine::model::RequestKind;
+use luma_engine::services::jobs::now_ms;
+use crate::organize::naming;
+use luma_engine::services::settings::{library_defs, LibraryDef};
+use luma_engine::state::SharedState;
 
 /// The facts import needs about a title, from the request, the download row, or
 /// (last resort) the parsed release name.
@@ -47,7 +47,7 @@ pub fn import_single(state: &SharedState, id: &str) -> Result<()> {
         Ok(paths) => {
             db::mark_download_imported(&state.db, &row.id, &paths, now_ms())?;
             finalize_import(state, &row);
-            let _ = state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "acquisition-import");
+            let _ = state.jobs.trigger(state.clone(), luma_engine::services::jobs::JobKey("library.scan"), "acquisition-import");
             Ok(())
         }
         Err(e) => {
@@ -62,7 +62,7 @@ pub fn import_single(state: &SharedState, id: &str) -> Result<()> {
 /// metadata resolve and the discover UI recognizes it (no request/library dupe).
 fn finalize_import(state: &SharedState, row: &DownloadRow) {
     if let Some(req_id) = row.request_id.as_deref() {
-        if let Err(e) = crate::services::requests::on_download_imported(state, req_id) {
+        if let Err(e) = luma_engine::services::requests::on_download_imported(state, req_id) {
             tracing::warn!(request = %req_id, error = %format!("{e:#}"), "post-import request update failed");
         }
     }
@@ -73,7 +73,7 @@ fn finalize_import(state: &SharedState, row: &DownloadRow) {
     }
     // Optionally free the download folder + stop seeding now that it's imported.
     if state.settings.get_bool("acqDeleteAfterImport", false) {
-        state.downloads.drop_data(state, row);
+        super::downloads(state).drop_data(state, row);
     }
 }
 
@@ -101,7 +101,7 @@ pub fn import_pass(state: &SharedState, log: &dyn Fn(String)) -> Result<ImportSu
         }
     }
     if summary.imported > 0 {
-        let _ = state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "acquisition-import");
+        let _ = state.jobs.trigger(state.clone(), luma_engine::services::jobs::JobKey("library.scan"), "acquisition-import");
     }
     Ok(summary)
 }
@@ -251,7 +251,7 @@ fn pin_item_tmdb(state: &SharedState, row: &DownloadRow) -> Result<()> {
         return Ok(());
     }
     let def = target_library_def(state, meta.kind)?;
-    let logical = crate::services::scan::movie_logical_id(&def.id, &meta.title, meta.year);
+    let logical = luma_engine::services::scan::movie_logical_id(&def.id, &meta.title, meta.year);
     db::set_tmdb_hint(&state.db, &logical, row.tmdb_id)
 }
 
@@ -309,7 +309,7 @@ fn video_files(root: &Path) -> Result<Vec<PathBuf>> {
         let ext_ok = path
             .extension()
             .and_then(|e| e.to_str())
-            .map(|e| crate::services::scan::walk::VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+            .map(|e| luma_engine::services::scan::walk::VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
             .unwrap_or(false);
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_ascii_lowercase();
         if ext_ok && !name.contains("sample") {

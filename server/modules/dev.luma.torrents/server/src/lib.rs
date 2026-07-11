@@ -17,8 +17,13 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "rqbit")]
 mod announce;
+// The acquisition + organize verticals, moved out of the core luma-engine crate
+// so the core depends on ZERO module crates. They orchestrate the app state
+// (luma-engine) over the scene/indexer/torznab engines this module already deps.
+pub mod acquisition;
 pub mod downloads;
 pub mod module;
+pub mod organize;
 pub mod proxycheck;
 #[cfg(feature = "rqbit")]
 mod rqbit;
@@ -34,6 +39,15 @@ pub use downloads::{active_proxy_url, DownloadManager, GrabSpec, LABEL};
 
 /// Whether the embedded engine is compiled into this build.
 pub const RQBIT_COMPILED: bool = cfg!(feature = "rqbit");
+
+/// The acquisition background jobs this module contributes to the app's job
+/// registry (search / import / match). The binary passes this to
+/// `AppState::new` so the core registers them without naming the module.
+pub const JOBS: &[luma_engine::services::jobs::Builtin] = &[
+    acquisition::jobs::import::SPEC,
+    acquisition::jobs::search::SPEC,
+    acquisition::jobs::match_::SPEC,
+];
 
 /// This module's id, shared with `module.json` and the frontend package. The one
 /// place callers (route gate, job guards, monitor, lifecycle) name the module.

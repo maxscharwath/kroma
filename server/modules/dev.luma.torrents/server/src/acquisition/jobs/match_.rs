@@ -4,9 +4,11 @@
 //! cron: the tmdbId a request matches on is written by ENRICHMENT, which lags
 //! the scan itself, so the cron catches titles that resolved in between.
 
-use super::prelude::*;
+use anyhow::Result;
+use luma_engine::model::Category;
+use luma_engine::services::jobs::{Builtin, JobContext, JobKey, Trigger};
 
-pub(super) const SPEC: Builtin = Builtin {
+pub const SPEC: Builtin = Builtin {
     key: JobKey("acquisition.match"),
     category: Category::Acquisition,
     schedule: Some("30 5 * * *"),
@@ -14,11 +16,11 @@ pub(super) const SPEC: Builtin = Builtin {
     run,
 };
 
-pub(super) fn run(ctx: &JobContext) -> Result<()> {
+pub fn run(ctx: &JobContext) -> Result<()> {
     if super::downloads_disabled(ctx) {
         return Ok(());
     }
-    let summary = crate::services::requests::availability_pass(&ctx.state)?;
+    let summary = luma_engine::services::requests::availability_pass(&ctx.state)?;
     if summary.checked == 0 {
         ctx.info("no open requests to match");
     } else {

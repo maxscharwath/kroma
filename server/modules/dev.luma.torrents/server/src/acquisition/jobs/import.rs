@@ -3,9 +3,11 @@
 //! monitor on completion; the hourly cron catches anything it missed (e.g. an
 //! import that failed on a transient filesystem error).
 
-use super::prelude::*;
+use anyhow::Result;
+use luma_engine::model::Category;
+use luma_engine::services::jobs::{Builtin, JobContext, JobKey};
 
-pub(super) const SPEC: Builtin = Builtin {
+pub const SPEC: Builtin = Builtin {
     key: JobKey("acquisition.import"),
     category: Category::Acquisition,
     schedule: Some("10 * * * *"),
@@ -13,11 +15,11 @@ pub(super) const SPEC: Builtin = Builtin {
     run,
 };
 
-pub(super) fn run(ctx: &JobContext) -> Result<()> {
+pub fn run(ctx: &JobContext) -> Result<()> {
     if super::downloads_disabled(ctx) {
         return Ok(());
     }
-    let summary = crate::services::acquisition::import::import_pass(&ctx.state, &|line| ctx.info(line))?;
+    let summary = crate::acquisition::import::import_pass(&ctx.state, &|line| ctx.info(line))?;
     if summary.imported == 0 && summary.failed == 0 {
         ctx.info("nothing to import");
     } else {

@@ -8,9 +8,9 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 
-use crate::db;
-use crate::services::requests::today_ymd;
-use crate::state::SharedState;
+use luma_db as db;
+use luma_engine::services::requests::today_ymd;
+use luma_engine::state::SharedState;
 
 use super::search::{score_release, targets_for_wanted, wanted_ids_by};
 
@@ -33,7 +33,7 @@ pub fn auto_search_pass(state: &SharedState, log: &dyn Fn(String), cancelled: &d
         log("automatic acquisition is disabled (acqEnabled)".into());
         return Ok(summary);
     }
-    if !state.downloads.gate_open() {
+    if !super::downloads(state).gate_open() {
         log("VPN kill switch is closed; skipping the search pass".into());
         return Ok(summary);
     }
@@ -115,7 +115,7 @@ pub fn auto_search_pass(state: &SharedState, log: &dyn Fn(String), cancelled: &d
                     "grabbing \"{}\" (score {score}) for \"{}\"",
                     candidate.view.title, req.title
                 ));
-                let spec = luma_torrent::GrabSpec::from_release(
+                let spec = crate::GrabSpec::from_release(
                     &candidate.view,
                     &candidate.magnet_or_url,
                     candidate.tmdb_id,
@@ -124,10 +124,10 @@ pub fn auto_search_pass(state: &SharedState, log: &dyn Fn(String), cancelled: &d
                     Some(request_id.clone()),
                     target_rows.clone(),
                 );
-                match state.downloads.grab(state, spec) {
+                match super::downloads(state).grab(state, spec) {
                     Ok(row) => {
                         // Background job: fine to add synchronously here.
-                        state.downloads.activate(state, &row);
+                        super::downloads(state).activate(state, &row);
                         summary.grabbed += 1;
                         covered.extend(target_rows);
                     }
@@ -140,7 +140,7 @@ pub fn auto_search_pass(state: &SharedState, log: &dyn Fn(String), cancelled: &d
     // Stamp every due row so the next pass rotates to the least recently
     // searched, grabbed or not.
     let stamp: Vec<String> = due.iter().map(|w| w.id.clone()).collect();
-    db::stamp_wanted_searched(&state.db, &stamp, crate::services::jobs::now_ms())?;
+    db::stamp_wanted_searched(&state.db, &stamp, luma_engine::services::jobs::now_ms())?;
     Ok(summary)
 }
 

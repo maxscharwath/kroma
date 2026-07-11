@@ -3,9 +3,11 @@
 //! searched first) and grab the best accepted release per target. Fired by
 //! the cron and immediately after a request is approved.
 
-use super::prelude::*;
+use anyhow::Result;
+use luma_engine::model::Category;
+use luma_engine::services::jobs::{Builtin, JobContext, JobKey};
 
-pub(super) const SPEC: Builtin = Builtin {
+pub const SPEC: Builtin = Builtin {
     key: JobKey("acquisition.search"),
     category: Category::Acquisition,
     schedule: Some("*/30 * * * *"),
@@ -13,11 +15,11 @@ pub(super) const SPEC: Builtin = Builtin {
     run,
 };
 
-pub(super) fn run(ctx: &JobContext) -> Result<()> {
+pub fn run(ctx: &JobContext) -> Result<()> {
     if super::downloads_disabled(ctx) {
         return Ok(());
     }
-    let summary = crate::services::acquisition::auto::auto_search_pass(
+    let summary = crate::acquisition::auto::auto_search_pass(
         &ctx.state,
         &|line| ctx.info(line),
         &|| ctx.cancelled(),

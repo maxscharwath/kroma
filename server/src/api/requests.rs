@@ -16,6 +16,7 @@ use crate::api::extract::AuthUser;
 use crate::api::util::{blocking, query};
 use crate::db;
 use crate::i18n;
+use crate::DownloadsExt;
 use crate::model::{
     CreateRequestBody, MediaRequest, Permission, RequestCounts, RequestStatus, RequestsView, User,
 };
@@ -211,7 +212,7 @@ pub async fn interactive_search(
 ) -> Result<Response, Response> {
     require(&user, Permission::RequestsManage)?;
     let view =
-        service(move || crate::services::acquisition::search::interactive_search(&state, &id)).await?;
+        service(move || luma_torrent::acquisition::search::interactive_search(&state, &id)).await?;
     Ok(Json(view).into_response())
 }
 
@@ -230,10 +231,10 @@ pub async fn grab(
     let enqueue_state = state.clone();
     let (rid, guid, indexer_id) = (id.clone(), body.guid.clone(), body.indexer_id.clone());
     let row = service(move || {
-        crate::services::acquisition::search::grab_cached(&enqueue_state, &rid, &guid, &indexer_id)
+        luma_torrent::acquisition::search::grab_cached(&enqueue_state, &rid, &guid, &indexer_id)
     })
     .await?;
-    tokio::task::spawn_blocking(move || state.downloads.activate(&state, &row));
+    tokio::task::spawn_blocking(move || state.downloads().activate(&state, &row));
     Ok(Json(json!({ "ok": true, "id": id })).into_response())
 }
 

@@ -9,7 +9,8 @@ license.workspace = true
 [features]
 # Forwarded from the binary; each flips a leaf crate's feature. Cargo unifies
 # features globally so enabling here lights up the graph wherever it's used.
-torrent-rqbit = ["luma-torrent/rqbit"]
+# (The embedded-torrent feature is forwarded by the binary straight to the
+# downloads module crate now, since the core no longer names it.)
 semantic-embeddings = ["luma-vector/semantic"]
 whisper-local = ["luma-whisper/local"]
 whisper-metal = ["luma-whisper/metal"]
@@ -28,12 +29,7 @@ luma-module-sdk = { workspace = true }
 luma-module-host = { workspace = true }
 luma-module-wasm = { workspace = true }
 luma-modules-generated = { workspace = true }
-# Acquisition stack used by services.
 luma-http = { workspace = true }
-luma-scene = { workspace = true }
-luma-torznab = { workspace = true }
-luma-indexer = { workspace = true }
-luma-torrent = { workspace = true }
 # Relocated module backends: the app depends on them (one-way, no cycle - they
 # name only the HostCtx seam), constructs their services, and injects them.
 # Heavy/optional adapters (aliased in infra/mod.rs as crate::infra::{whisper,embed,discovery}).

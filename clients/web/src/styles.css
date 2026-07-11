@@ -6,6 +6,14 @@
 @import "@luma/ui/styles.css";
 @import "tailwindcss";
 
+/* Tailwind v4 auto-detects sources rooted at this app, so it misses class names
+   in packages/modules that live OUTSIDE clients/web: the admin UI kit and every
+   module's ui/ (which contribute full admin pages). Source them explicitly, or
+   their unique utilities (e.g. a module page's grid template) never get emitted
+   and the layout breaks. */
+@source "../../../packages/admin-kit/src/**/*.{ts,tsx}";
+@source "../../../server/modules/*/ui/src/**/*.{ts,tsx}";
+
 @theme {
   /* Colors → reference the LUMA tokens (no namespace collision). */
   --color-bg: var(--luma-bg);

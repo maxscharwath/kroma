@@ -9,6 +9,7 @@ import {
   type Permission,
   type ServerInfo,
 } from '@luma/core';
+import { AdminKitProvider } from '@luma/admin-kit';
 import { Logo, useT } from '@luma/ui';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
@@ -20,7 +21,6 @@ import {
   IconClockBolt,
   IconCloud,
   IconDatabase,
-  IconDownload,
   IconFileText,
   IconInbox,
   IconLayoutDashboard,
@@ -39,7 +39,7 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { usePoll } from '#web/features/admin/hooks';
 import type { ModuleNav } from '@luma/module-sdk';
 import { useModuleNavAll } from '#web/modules/ModuleHostProvider';
@@ -62,8 +62,12 @@ interface AdminCtx {
 const AdminContext = createContext<AdminCtx | null>(null);
 
 export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { client } = useAuth();
+  const { client, user } = useAuth();
   const queryClient = useQueryClient();
+  // The admin UI kit (@luma/admin-kit) reads the authed client / user / API
+  // origin from this context, so both built-in and module admin pages share one
+  // data + capability surface without importing app internals.
+  const kit = useMemo(() => ({ client, user, apiBase: apiBase() }), [client, user]);
   // Server info (uptime etc.) as a plain admin poll it refetches on the 15s tick
   // and whenever the event stream below invalidates the `['admin']` namespace.
   const { data: serverInfo } = usePoll(['admin', 'server'], () => client.adminServer(), 15000);
@@ -95,7 +99,11 @@ export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
     };
   }, [queryClient]);
 
-  return <AdminContext.Provider value={{ serverInfo }}>{children}</AdminContext.Provider>;
+  return (
+    <AdminKitProvider value={kit}>
+      <AdminContext.Provider value={{ serverInfo }}>{children}</AdminContext.Provider>
+    </AdminKitProvider>
+  );
 }
 
 export function useAdmin(): AdminCtx {
@@ -182,7 +190,6 @@ const NAV_GROUPS: { labelKey: MessageKey; section: string; items: NavItem[] }[] 
       },
       { to: '/admin/modules', labelKey: 'admin.navModules', cap: 'settings.manage', icon: IconApps },
       { to: '/admin/store', labelKey: 'admin.navStore', cap: 'settings.manage', icon: IconBuildingStore },
-      { to: '/admin/downloads', labelKey: 'admin.navDownloads', cap: null, icon: IconDownload },
       { to: '/admin/vpn', labelKey: 'admin.navVpn', cap: 'settings.manage', icon: IconShieldLock },
     ],
   },

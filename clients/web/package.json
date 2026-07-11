@@ -12,6 +12,7 @@
     "typecheck": "tsr generate && tsgo --noEmit"
   },
   "dependencies": {
+    "@luma/admin-kit": "workspace:*",
     "@luma/core": "workspace:*",
     "@luma/module-indexer": "workspace:*",
     "@luma/module-sdk": "workspace:*",

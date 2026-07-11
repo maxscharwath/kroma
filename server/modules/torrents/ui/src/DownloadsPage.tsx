@@ -3,6 +3,18 @@
 // status banner, aggregate stat cards and the download-clients section.
 
 import { type DownloadView, LumaEvents } from '@luma/core';
+import {
+  EmptyState,
+  formatBytes,
+  Modal,
+  ModalActions,
+  PageHeader,
+  StatCard,
+  TableSkeleton,
+  useAdminKit,
+  useCap,
+  usePoll,
+} from '@luma/admin-kit';
 import { useT } from '@luma/ui';
 import {
   IconDownload,
@@ -13,19 +25,16 @@ import {
   IconUsersPlus,
 } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { DownloadClientsSection } from '#web/features/admin/download-clients';
-import { DownloadRowView, type LiveDl } from '#web/features/admin/download-row';
-import { ManualGrabModal } from '#web/features/admin/manual-grab';
-import { PageHeader, useCap, usePoll } from '#web/features/admin/shell';
-import { Modal, ModalActions, StatCard } from '#web/features/admin/ui';
-import { formatBytes } from '#web/shared/lib/adminFormat';
-import { apiBase } from '#web/shared/lib/api';
-import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, TableSkeleton } from '#web/shared/ui';
+import { DownloadClientsSection } from './download-clients';
+import { DownloadRowView, type LiveDl } from './download-row';
+import { ManualGrabModal } from './manual-grab';
 
-export function DownloadsPage() {
+/** The Downloads module page (`/admin/m/downloads`): the live download queue,
+ *  VPN status banner, aggregate stats, and the download-clients section. Default
+ *  export so the module runtime can `React.lazy` it into its own chunk. */
+export default function DownloadsPage() {
   const t = useT();
-  const { client } = useAuth();
+  const { client, apiBase } = useAdminKit();
   const canSettings = useCap('settings.manage');
   const canQueue = useCap('requests.manage') || canSettings;
 
@@ -47,7 +56,7 @@ export function DownloadsPage() {
   }, [reload]);
 
   useEffect(() => {
-    const ev = new LumaEvents(apiBase(), {
+    const ev = new LumaEvents(apiBase, {
       onEvent: (e) => {
         if (e.type === 'download.progress') {
           setLive((s) => ({
@@ -72,7 +81,7 @@ export function DownloadsPage() {
     });
     ev.connect();
     return () => ev.close();
-  }, [throttledReload]);
+  }, [throttledReload, apiBase]);
 
   const act = (fn: () => Promise<unknown>) => {
     setBusy(true);

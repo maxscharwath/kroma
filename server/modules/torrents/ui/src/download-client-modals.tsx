@@ -3,11 +3,17 @@
 // the Acquisition settings page.
 
 import { apiErrorText, type DownloadClientView, type SaveDownloadClientBody } from '@luma/core';
+import {
+  Field,
+  Modal,
+  ModalActions,
+  SegmentedControl,
+  TextInput,
+  useAdminKit,
+  useAsyncAction,
+} from '@luma/admin-kit';
 import { useT } from '@luma/ui';
 import { useState } from 'react';
-import { useAsyncAction } from '#web/features/admin/shell';
-import { Field, Modal, ModalActions, SegmentedControl, TextInput } from '#web/features/admin/ui';
-import { useAuth } from '#web/shared/lib/auth';
 
 type ExternalKind = 'transmission' | 'qbittorrent';
 
@@ -22,7 +28,7 @@ export function DownloadClientModal({
   onSaved: () => void;
 }>) {
   const t = useT();
-  const { client: api } = useAuth();
+  const { client: api } = useAdminKit();
   const { busy, error, run } = useAsyncAction();
   const [kind, setKind] = useState<ExternalKind>(
     client?.kind === 'qbittorrent' ? 'qbittorrent' : 'transmission',

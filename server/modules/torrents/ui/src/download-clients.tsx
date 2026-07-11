@@ -3,20 +3,26 @@
 // connection test and the add/edit modal.
 
 import { apiErrorText, type ClientTestResult, type DownloadClientView } from '@luma/core';
+import {
+  Card,
+  EmptyState,
+  Pill,
+  Section,
+  TableSkeleton,
+  Toggle,
+  useAdminKit,
+  usePoll,
+} from '@luma/admin-kit';
 import { useT } from '@luma/ui';
 import { IconCpu, IconLoader2, IconPencil, IconPlus, IconServer } from '@tabler/icons-react';
 import { useState } from 'react';
-import { DownloadClientModal } from '#web/features/admin/download-client-modals';
-import { usePoll } from '#web/features/admin/shell';
-import { Card, Pill, Section, Toggle } from '#web/features/admin/ui';
-import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, TableSkeleton } from '#web/shared/ui';
+import { DownloadClientModal } from './download-client-modals';
 
 type TestState = { busy?: boolean; result?: ClientTestResult; error?: string };
 
 export function DownloadClientsSection() {
   const t = useT();
-  const { client: api } = useAuth();
+  const { client: api } = useAdminKit();
   const [modal, setModal] = useState<{ open: boolean; client: DownloadClientView | null }>({
     open: false,
     client: null,

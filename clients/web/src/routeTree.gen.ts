@@ -30,7 +30,6 @@ import { Route as AdminLibrariesRouteImport } from './routes/admin.libraries'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
 import { Route as AdminIndexersRouteImport } from './routes/admin.indexers'
 import { Route as AdminGeneralRouteImport } from './routes/admin.general'
-import { Route as AdminDownloadsRouteImport } from './routes/admin.downloads'
 import { Route as AdminBackupRouteImport } from './routes/admin.backup'
 import { Route as AdminAiRouteImport } from './routes/admin.ai'
 import { Route as AdminAcquisitionRouteImport } from './routes/admin.acquisition'
@@ -155,11 +154,6 @@ const AdminGeneralRoute = AdminGeneralRouteImport.update({
   path: '/general',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminDownloadsRoute = AdminDownloadsRouteImport.update({
-  id: '/downloads',
-  path: '/downloads',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminBackupRoute = AdminBackupRouteImport.update({
   id: '/backup',
   path: '/backup',
@@ -272,7 +266,6 @@ export interface FileRoutesByFullPath {
   '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
-  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -312,7 +305,6 @@ export interface FileRoutesByTo {
   '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
-  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -356,7 +348,6 @@ export interface FileRoutesById {
   '/admin/acquisition': typeof AdminAcquisitionRoute
   '/admin/ai': typeof AdminAiRoute
   '/admin/backup': typeof AdminBackupRoute
-  '/admin/downloads': typeof AdminDownloadsRoute
   '/admin/general': typeof AdminGeneralRoute
   '/admin/indexers': typeof AdminIndexersRoute
   '/admin/jobs': typeof AdminJobsRoute
@@ -401,7 +392,6 @@ export interface FileRouteTypes {
     | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
-    | '/admin/downloads'
     | '/admin/general'
     | '/admin/indexers'
     | '/admin/jobs'
@@ -441,7 +431,6 @@ export interface FileRouteTypes {
     | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
-    | '/admin/downloads'
     | '/admin/general'
     | '/admin/indexers'
     | '/admin/jobs'
@@ -484,7 +473,6 @@ export interface FileRouteTypes {
     | '/admin/acquisition'
     | '/admin/ai'
     | '/admin/backup'
-    | '/admin/downloads'
     | '/admin/general'
     | '/admin/indexers'
     | '/admin/jobs'
@@ -668,13 +656,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGeneralRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/downloads': {
-      id: '/admin/downloads'
-      path: '/downloads'
-      fullPath: '/admin/downloads'
-      preLoaderRoute: typeof AdminDownloadsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/backup': {
       id: '/admin/backup'
       path: '/backup'
@@ -855,7 +836,6 @@ interface AdminRouteChildren {
   AdminAcquisitionRoute: typeof AdminAcquisitionRoute
   AdminAiRoute: typeof AdminAiRoute
   AdminBackupRoute: typeof AdminBackupRoute
-  AdminDownloadsRoute: typeof AdminDownloadsRoute
   AdminGeneralRoute: typeof AdminGeneralRoute
   AdminIndexersRoute: typeof AdminIndexersRoute
   AdminJobsRoute: typeof AdminJobsRoute
@@ -879,7 +859,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAcquisitionRoute: AdminAcquisitionRoute,
   AdminAiRoute: AdminAiRoute,
   AdminBackupRoute: AdminBackupRoute,
-  AdminDownloadsRoute: AdminDownloadsRoute,
   AdminGeneralRoute: AdminGeneralRoute,
   AdminIndexersRoute: AdminIndexersRoute,
   AdminJobsRoute: AdminJobsRoute,

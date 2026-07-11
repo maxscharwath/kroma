@@ -9,13 +9,19 @@ import {
   type TorrentAnalysis,
   type TorrentFileView,
 } from '@luma/core';
+import {
+  Field,
+  formatBytes,
+  Modal,
+  ModalActions,
+  SegmentedControl,
+  TextInput,
+  useAdminKit,
+  useAsyncAction,
+} from '@luma/admin-kit';
 import { useT } from '@luma/ui';
 import { IconDownload, IconLoader2, IconSearch, IconWand } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useAsyncAction } from '#web/features/admin/shell';
-import { Field, Modal, ModalActions, SegmentedControl, TextInput } from '#web/features/admin/ui';
-import { formatBytes } from '#web/shared/lib/adminFormat';
-import { useAuth } from '#web/shared/lib/auth';
 
 type Kind = 'movie' | 'episode' | 'season';
 
@@ -32,7 +38,7 @@ export function ManualGrabModal({
   onAdded,
 }: Readonly<{ onClose: () => void; onAdded: () => void }>) {
   const t = useT();
-  const { client } = useAuth();
+  const { client } = useAdminKit();
   const { busy, error, run } = useAsyncAction();
 
   // Search sub-panel

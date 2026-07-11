@@ -4,10 +4,11 @@ import en from '../../locales/en.json';
 import fr from '../../locales/fr.json';
 import manifest from '../../module.json';
 
-// The torrents module (frontend half). Its id, version and dependencies come
+// The Downloads module (frontend half). Its id, version and dependencies come
 // from the shared module.json this also feeds the backend crate, so the two
-// halves cannot drift. Only the frontend-only bits (nav icon, route, panel)
-// live here.
+// halves cannot drift. It contributes the full "Downloads" admin page (the live
+// queue + download-clients section) into the Acquisition sidebar group; disabling
+// the module removes the page and 404s its backend routes together.
 export const torrentsModule: LumaModule = {
   id: manifest.id,
   version: manifest.version,
@@ -15,12 +16,11 @@ export const torrentsModule: LumaModule = {
   locales: { en, fr },
   navItems: [
     {
-      to: '/admin/m/torrents',
-      label: 'nav.title',
+      to: '/admin/m/downloads',
+      label: 'nav.downloads',
       icon: 'download',
       section: 'acquisition',
-      requires: 'library.manage',
     },
   ],
-  routes: [{ path: 'torrents', component: lazy(() => import('./TorrentsPanel')) }],
+  routes: [{ path: 'downloads', component: lazy(() => import('./DownloadsPage')) }],
 };

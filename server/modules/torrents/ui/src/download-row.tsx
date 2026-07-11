@@ -20,8 +20,7 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { ProgressBar } from '#web/features/admin/ui';
-import { formatBytes } from '#web/shared/lib/adminFormat';
+import { formatBytes, ProgressBar } from '@luma/admin-kit';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
 export interface LiveDl {

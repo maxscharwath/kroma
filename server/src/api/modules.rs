@@ -36,7 +36,7 @@ struct ListedModule {
 /// The modules running on this server, in dependency order, each tagged with its
 /// admin enabled state.
 async fn list(State(state): State<SharedState>) -> impl IntoResponse {
-    let mods: Vec<ListedModule> = crate::modules::manifests(&state)
+    let mods: Vec<ListedModule> = luma_module_kernel::manifests(&state)
         .into_iter()
         .map(|m| {
             let enabled = luma_engine::modules::module_enabled(&state.settings, &m.id);
@@ -49,7 +49,7 @@ async fn list(State(state): State<SharedState>) -> impl IntoResponse {
 /// `GET /api/modules/:id/icon` -> the module's packaged `icon.svg` / `icon.png`
 /// (compile-time or runtime-loaded).
 async fn icon(State(state): State<SharedState>, Path(id): Path<String>) -> impl IntoResponse {
-    match crate::modules::icon(&state, &id) {
+    match luma_module_kernel::icon(&state, &id) {
         Some((content_type, bytes)) => (
             [
                 (header::CONTENT_TYPE, content_type),

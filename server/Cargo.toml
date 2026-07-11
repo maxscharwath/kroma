@@ -119,6 +119,9 @@ luma-i18n = { path = "crates/luma-i18n" }
 luma-db = { path = "crates/luma-db" }
 luma-http = { path = "crates/luma-http" }
 luma-module-host = { path = "crates/luma-module-host" }
+# The server-side module kernel: the compile-time composition root (registers
+# every module's manifest + collects their ServerModule behaviors).
+luma-module-kernel = { path = "crates/luma-module-kernel" }
 luma-contracts = { path = "crates/luma-contracts" }
 luma-scene = { path = "modules/dev.luma.scene/server" }
 luma-torznab = { path = "modules/dev.luma.torznab/server" }
@@ -202,8 +205,10 @@ walkdir = { workspace = true }
 sysinfo = { workspace = true }
 luma-torrent = { workspace = true }
 luma-scene = { workspace = true }
-# The single module registry lives here (server/src/modules): it registers every
-# compile-time module's `MODULE` const, so the server depends on each directly.
+# The module kernel (composition root): registers every compile-time module's
+# `MODULE` const, collects their ServerModules, and drives the enable/disable +
+# admin-mount lifecycle. Formerly server/src/modules; now its own crate.
+luma-module-kernel = { workspace = true }
 luma-indexer = { workspace = true }
 luma-torznab = { workspace = true }
 luma-whisper = { workspace = true }

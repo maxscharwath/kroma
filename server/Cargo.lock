@@ -3429,6 +3429,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "luma-module-kernel"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "luma-engine",
+ "luma-indexer",
+ "luma-mdns",
+ "luma-module-host",
+ "luma-module-sdk",
+ "luma-modules-generated",
+ "luma-qbittorrent",
+ "luma-remote",
+ "luma-scene",
+ "luma-torrent",
+ "luma-torznab",
+ "luma-transmission",
+ "luma-vector",
+ "luma-vpn",
+ "luma-whisper",
+ "tracing",
+]
+
+[[package]]
 name = "luma-module-sdk"
 version = "0.1.0"
 dependencies = [
@@ -3519,6 +3542,7 @@ dependencies = [
  "luma-indexer",
  "luma-mdns",
  "luma-module-host",
+ "luma-module-kernel",
  "luma-module-sdk",
  "luma-module-wasm",
  "luma-modules-generated",

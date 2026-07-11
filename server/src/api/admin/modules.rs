@@ -45,7 +45,7 @@ async fn list_modules(
     super::require(&user, Permission::SettingsManage)?;
     let removable_ids: std::collections::HashSet<String> =
         state.wasm.read().map(|h| h.manifests().into_iter().map(|m| m.id).collect()).unwrap_or_default();
-    let mods: Vec<AdminModule> = crate::modules::manifests(&state)
+    let mods: Vec<AdminModule> = luma_module_kernel::manifests(&state)
         .into_iter()
         .map(|m| {
             let enabled = luma_engine::modules::module_enabled(&state.settings, &m.id);
@@ -83,7 +83,7 @@ async fn set_enabled(
     luma_engine::modules::set_module_enabled(&state.settings, &state.db, &id, body.enabled);
     // Drive the backend module's lifecycle so the toggle actually starts/stops
     // its live services (e.g. the torrent engine), not just its listing flag.
-    if let Some(module) = crate::modules::find_server(&id) {
+    if let Some(module) = luma_module_kernel::find_server(&id) {
         let host: std::sync::Arc<dyn luma_module_host::HostCtx> = state.clone();
         if body.enabled {
             module.on_enable(host).await;
@@ -105,7 +105,7 @@ async fn set_config(
     // Allow-list against the manifest's declared config keys, so a client can only
     // write fields the module actually defines (a typo or stale key is dropped
     // rather than polluting the stored config).
-    let allowed: std::collections::HashSet<String> = crate::modules::manifests(&state)
+    let allowed: std::collections::HashSet<String> = luma_module_kernel::manifests(&state)
         .into_iter()
         .find(|m| m.id == id)
         .map(|m| m.config.into_iter().map(|f| f.key).collect())

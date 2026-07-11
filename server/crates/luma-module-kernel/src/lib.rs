@@ -27,7 +27,7 @@ use axum::Router;
 use luma_module_host::{HostCtx, ServerModule};
 use luma_module_sdk::{EmbeddedModule, ModuleManifest, Registry};
 
-use crate::state::SharedState;
+use luma_engine::state::SharedState;
 
 /// The compile-time module set: manifests (+ dependency graph) paired with the
 /// backend behaviors the ones that have them provide (`ServerModule`s collected
@@ -57,16 +57,16 @@ fn build() -> ModuleRegistry {
     // Acquisition is a settings-view module (no dedicated routes), so it has a
     // manifest but no ServerModule behavior.
     manifests.register(Box::new(EmbeddedModule::new(
-        include_str!("../../modules/dev.luma.acquisition/module.json"),
-        include_bytes!("../../modules/dev.luma.acquisition/icon.svg"),
+        include_str!("../../../modules/dev.luma.acquisition/module.json"),
+        include_bytes!("../../../modules/dev.luma.acquisition/icon.svg"),
     )));
     // Download-engine sub-modules: backend-only (no page/icon), they toggle a
     // download-client factory kind on the Downloads registry.
     manifests.register(Box::new(EmbeddedModule::iconless(include_str!(
-        "../../modules/dev.luma.engine.transmission/module.json"
+        "../../../modules/dev.luma.engine.transmission/module.json"
     ))));
     manifests.register(Box::new(EmbeddedModule::iconless(include_str!(
-        "../../modules/dev.luma.engine.qbittorrent/module.json"
+        "../../../modules/dev.luma.engine.qbittorrent/module.json"
     ))));
     luma_modules_generated::register_all(&mut manifests);
 

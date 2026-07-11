@@ -11,7 +11,6 @@
 // call sites in api/ keep resolving. Lower layers (config/db/domain) are their
 // own crates, likewise aliased.
 mod api;
-mod modules;
 use luma_config as config;
 use luma_db as db;
 use luma_engine::{i18n, infra, model, services, state};
@@ -209,7 +208,7 @@ async fn main() -> anyhow::Result<()> {
     // down. Each module seeds/starts/monitors its OWN resources in on_enable, so
     // this shell names no module and touches no module-specific data (onion
     // boundary); a module's enabled state is also durable across a restart.
-    modules::apply_enabled_states(&state).await;
+    luma_module_kernel::apply_enabled_states(&state).await;
 
     // mDNS advertising is a runtime-toggleable setting (Réseau → Découverte locale).
     let local_discovery = state.settings.get_bool("localDiscovery", true);

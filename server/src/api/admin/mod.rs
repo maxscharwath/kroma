@@ -46,7 +46,7 @@ pub fn routes(state: SharedState) -> Router<SharedState> {
     // mounted behind its enabled-gate (404 when the module is disabled), so a
     // disabled module's whole admin surface disappears. The Downloads / VPN /
     // Indexers / Remote routers are modules now, so they are no longer merged
-    // here -- they come in via `crate::modules::mount_admin` below.
+    // here -- they come in via `luma_module_kernel::mount_admin` below.
     let mut router = Router::new()
         .route("/server", get(server_info))
         .route("/sessions", get(sessions))
@@ -63,7 +63,7 @@ pub fn routes(state: SharedState) -> Router<SharedState> {
         .merge(store::routes())
         .merge(pipeline::routes())
         .merge(backup::routes());
-    router = router.merge(crate::modules::mount_admin(state.clone()));
+    router = router.merge(luma_module_kernel::mount_admin(state.clone()));
     router
 }
 

@@ -33,7 +33,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use luma_domain::Permission;
-use luma_module_host::{AuthUser, HostCtx};
+use luma_module_host::{async_trait, service, AuthUser, HostCtx, ServerModule};
 
 mod provision;
 
@@ -357,4 +357,37 @@ async fn binary_version(bin: &str) -> Option<String> {
     }
     let text = String::from_utf8_lossy(&out.stdout);
     text.lines().next().map(|l| l.trim().to_string()).filter(|l| !l.is_empty())
+}
+
+/// This module's id (matches its `module.json`).
+pub const MODULE_ID: &str = "dev.luma.remote";
+
+/// The Remote-access sub-module: serves the connector's admin routes and, on
+/// enable, brings the managed tunnel up (if configured) and supervises it. It
+/// resolves its own [`RemoteAccess`] through the host's service registry.
+pub struct RemoteModule;
+
+#[async_trait]
+impl<S: HostCtx + Clone + Send + Sync + 'static> ServerModule<S> for RemoteModule {
+    fn id(&self) -> &'static str {
+        MODULE_ID
+    }
+
+    fn admin_routes(&self, host: &S) -> Option<Router<S>> {
+        let remote = service::<RemoteAccess>(host)?;
+        Some(routes::<S>(remote))
+    }
+
+    async fn on_enable(&self, host: Arc<dyn HostCtx>) {
+        // Bring the tunnel up from the stored config (a no-op when off) and keep
+        // it alive via the watchdog.
+        if let Some(remote) = service::<RemoteAccess>(host.as_ref()) {
+            remote.spawn_boot(host);
+        }
+    }
+}
+
+/// This module's backend behavior, for the host's generic module roster.
+pub fn server_module<S: HostCtx + Clone + Send + Sync + 'static>() -> Box<dyn ServerModule<S>> {
+    Box::new(RemoteModule)
 }

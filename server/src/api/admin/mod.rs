@@ -24,7 +24,6 @@ mod stats;
 mod storage;
 mod store;
 mod users;
-pub(crate) mod vpn;
 
 use axum::extract::{Path as AxPath, State};
 use axum::http::StatusCode;

@@ -255,9 +255,45 @@ mod tests {
 pub const KIND: &str = "transmission";
 
 /// Register the Transmission factory into a download-client registry (called by
-/// the engine module's ServerModule on enable, and at boot).
+/// the engine module's ServerModule on enable).
 pub fn register(reg: &mut luma_torrent::DownloadClientRegistry) {
     reg.register(KIND, |def, _ctx| {
         Ok(Box::new(Transmission::new(def)) as Box<dyn DownloadClient>)
     });
+}
+
+/// This module's id (matches its `module.json`).
+pub const MODULE_ID: &str = "dev.luma.engine.transmission";
+
+/// The Transmission engine sub-module: a lifecycle-only [`ServerModule`] that
+/// registers / unregisters its download-client kind on the Downloads module's
+/// shared registry as it is enabled / disabled. It reaches the `DownloadManager`
+/// through the host's service registry, so the binary wires nothing.
+pub struct TransmissionModule;
+
+#[luma_module_host::async_trait]
+impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
+    luma_module_host::ServerModule<S> for TransmissionModule
+{
+    fn id(&self) -> &'static str {
+        MODULE_ID
+    }
+
+    async fn on_enable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
+        if let Some(dm) = luma_module_host::service::<luma_downloads::DownloadManager>(host.as_ref()) {
+            dm.register_engine(register);
+        }
+    }
+
+    async fn on_disable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
+        if let Some(dm) = luma_module_host::service::<luma_downloads::DownloadManager>(host.as_ref()) {
+            dm.unregister_engine(KIND);
+        }
+    }
+}
+
+/// This module's backend behavior, for the host's generic module roster.
+pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
+) -> Box<dyn luma_module_host::ServerModule<S>> {
+    Box::new(TransmissionModule)
 }

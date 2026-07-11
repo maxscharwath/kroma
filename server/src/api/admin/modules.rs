@@ -84,10 +84,11 @@ async fn set_enabled(
     // Drive the backend module's lifecycle so the toggle actually starts/stops
     // its live services (e.g. the torrent engine), not just its listing flag.
     if let Some(module) = crate::modules::find_server(&id) {
+        let host: std::sync::Arc<dyn luma_module_host::HostCtx> = state.clone();
         if body.enabled {
-            module.on_enable(&state);
+            module.on_enable(host).await;
         } else {
-            module.on_disable(&state);
+            module.on_disable(host).await;
         }
     }
     Ok(Json(json!({ "id": id, "enabled": body.enabled })).into_response())

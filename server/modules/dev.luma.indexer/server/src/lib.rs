@@ -47,6 +47,32 @@ pub use session::{DownloadTarget, SearchOutcome, Session};
 pub use definition::Definition;
 pub use module::MODULE;
 
+/// This module's id (matches its `module.json`).
+pub const MODULE_ID: &str = "dev.luma.indexer";
+
+/// The Indexers sub-module: exposes the native-engine admin routes over the
+/// HostCtx seam. Lifecycle-free (disabling it just gates its routes off).
+pub struct IndexersModule;
+
+#[luma_module_host::async_trait]
+impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
+    luma_module_host::ServerModule<S> for IndexersModule
+{
+    fn id(&self) -> &'static str {
+        MODULE_ID
+    }
+
+    fn admin_routes(&self, _host: &S) -> Option<axum::Router<S>> {
+        Some(routes::routes::<S>())
+    }
+}
+
+/// This module's backend behavior, for the host's generic module roster.
+pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
+) -> Box<dyn luma_module_host::ServerModule<S>> {
+    Box::new(IndexersModule)
+}
+
 /// A configured built-in indexer: the chosen base link plus the admin-entered
 /// settings (`.Config.<name>` resolves against this, falling back to the
 /// definition's setting defaults).

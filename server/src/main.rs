@@ -151,16 +151,9 @@ async fn main() -> anyhow::Result<()> {
     // refresh, …). Manual + scheduled runs are tracked in the admin "Tâches" UI.
     state.jobs.clone().spawn_scheduler(state.clone());
 
-    // Acquisition stack: bring the WireGuard bridge up first (when configured)
-    // so the embedded engine's SOCKS5 URL points at a live proxy, then seed
-    // the embedded engine's client row (compiled-in builds only; INSERT OR
-    // IGNORE keeps admin edits), start the engine (fastresume restores
-    // in-flight torrents) and the downloads monitor.
-    state.vpn.apply(&state).await;
-    // Register the external download sub-engines (their kinds are then buildable);
-    // the engine modules add/remove them at runtime via the same register fns.
-    state.downloads.register_engine(luma_transmission::register);
-    state.downloads.register_engine(luma_qbittorrent::register);
+    // Seed the embedded engine's client row (compiled-in builds only; INSERT OR
+    // IGNORE keeps admin edits) so it exists when the Downloads module is
+    // (re)enabled and its engine starts.
     if luma_torrent::RQBIT_COMPILED {
         let _ = db::insert_download_client(
             &state.db,
@@ -176,14 +169,18 @@ async fn main() -> anyhow::Result<()> {
                 created_at: services::jobs::now_ms(),
             },
         );
-        state.downloads.start_rqbit(&state).await;
     }
+    // Bring every ENABLED module's live services up in dependency order (the VPN
+    // bridge before the engine that tunnels through it; the download engines; the
+    // remote tunnel), and leave disabled ones down. This generic driver replaces
+    // the old hardcoded per-module boot: the binary is not aware of which modules
+    // exist, and a module's enabled state is durable across a restart.
+    modules::apply_enabled_states(&state).await;
+    // The downloads monitor (the reaper that reconciles rows) always runs,
+    // independent of module toggles.
     state.downloads.spawn_monitor(state.clone());
-
-    // Managed Cloudflare Tunnel connector: bring the tunnel up at boot if the admin
-    // enabled it with a token (installs with their own tunnel leave it off), and
-    // keep it alive via a watchdog. No-op otherwise.
-    state.remote.clone().spawn_boot(state.clone());
+    // The managed Cloudflare Tunnel connector is brought up (if the admin enabled
+    // it) by the Remote module's on_enable, via apply_enabled_states above.
 
     // mDNS advertising is a runtime-toggleable setting (Réseau → Découverte locale).
     let local_discovery = state.settings.get_bool("localDiscovery", true);

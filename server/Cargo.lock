@@ -3487,7 +3487,9 @@ name = "luma-qbittorrent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "luma-downloads",
  "luma-http",
+ "luma-module-host",
  "luma-torrent",
  "serde_json",
 ]
@@ -3597,7 +3599,9 @@ name = "luma-transmission"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "luma-downloads",
  "luma-http",
+ "luma-module-host",
  "luma-torrent",
  "serde_json",
 ]
@@ -3622,8 +3626,12 @@ dependencies = [
 name = "luma-vpn"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "luma-domain",
+ "luma-downloads",
  "luma-module-host",
  "luma-module-sdk",
+ "serde_json",
  "tokio",
  "tracing",
 ]

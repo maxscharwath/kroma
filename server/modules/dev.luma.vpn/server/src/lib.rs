@@ -11,14 +11,16 @@
 //! tunnel. Works identically for Mullvad or any other WireGuard provider.
 
 mod provision;
+pub mod routes;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use axum::Router;
 use tokio::process::Child;
 
-use luma_module_host::HostCtx;
+use luma_module_host::{async_trait, service, HostCtx, ServerModule};
 
 /// This module's registry entry (manifest + packaged icon, embedded at compile
 /// time from the shared module folder).
@@ -152,4 +154,41 @@ fn spawn_child(bin: &std::path::Path, conf: &std::path::Path) -> Result<Child, S
         .stderr(std::process::Stdio::null())
         .spawn()
         .map_err(|e| format!("spawn wireproxy: {e}"))
+}
+
+/// This module's id (matches its `module.json`).
+pub const MODULE_ID: &str = "dev.luma.vpn";
+
+/// The VPN sub-module: serves the bridge's admin routes and, on enable, brings
+/// the WireGuard-to-SOCKS5 bridge up (from the stored config); on disable, tears
+/// it down so nothing is left tunnelling. It resolves its own [`Vpn`] through the
+/// host's service registry.
+pub struct VpnModule;
+
+#[async_trait]
+impl<S: HostCtx + Clone + Send + Sync + 'static> ServerModule<S> for VpnModule {
+    fn id(&self) -> &'static str {
+        MODULE_ID
+    }
+
+    fn admin_routes(&self, _host: &S) -> Option<Router<S>> {
+        Some(routes::routes::<S>())
+    }
+
+    async fn on_enable(&self, host: Arc<dyn HostCtx>) {
+        if let Some(vpn) = service::<Vpn>(host.as_ref()) {
+            vpn.apply(host.as_ref()).await;
+        }
+    }
+
+    async fn on_disable(&self, host: Arc<dyn HostCtx>) {
+        if let Some(vpn) = service::<Vpn>(host.as_ref()) {
+            vpn.stop().await;
+        }
+    }
+}
+
+/// This module's backend behavior, for the host's generic module roster.
+pub fn server_module<S: HostCtx + Clone + Send + Sync + 'static>() -> Box<dyn ServerModule<S>> {
+    Box::new(VpnModule)
 }

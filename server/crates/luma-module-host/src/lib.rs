@@ -13,7 +13,7 @@ use std::any::{Any, TypeId};
 use std::path::Path;
 use std::sync::Arc;
 
-use axum::async_trait;
+pub use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
@@ -156,7 +156,9 @@ pub trait HostCtx: Send + Sync + 'static {
 /// Resolve a typed host service (dependency injection). The host registers its
 /// concrete services (the download manager, the VPN bridge, ...) under their
 /// `TypeId`; a module crate looks its own up by type. `None` when unregistered.
-pub fn service<S: HostCtx + ?Sized, T: Any + Send + Sync>(host: &S) -> Option<Arc<T>> {
+/// Takes `&dyn HostCtx` so a route (with `&S`) and a lifecycle hook (with
+/// `Arc<dyn HostCtx>`) both call it uniformly.
+pub fn service<T: Any + Send + Sync>(host: &dyn HostCtx) -> Option<Arc<T>> {
     host.get_service(TypeId::of::<T>())?.downcast::<T>().ok()
 }
 
@@ -183,13 +185,15 @@ where
 
     /// Bring the module's live services up: called when it is enabled at runtime
     /// AND at boot for an already-enabled module. Awaited (not detached), so a slow
-    /// start completes before a following disable can race it. Default: nothing.
-    async fn on_enable(&self, _host: &S) {}
+    /// start completes before a following disable can race it. Takes an owned
+    /// `Arc<dyn HostCtx>` so the module can hand a long-lived handle to a spawned
+    /// watchdog / supervisor. Default: nothing.
+    async fn on_enable(&self, _host: Arc<dyn HostCtx>) {}
 
     /// Tear the module's live services down: called when it is disabled at runtime
     /// AND at boot for a disabled module, so nothing is left running. Awaited.
     /// Default: nothing.
-    async fn on_disable(&self, _host: &S) {}
+    async fn on_disable(&self, _host: Arc<dyn HostCtx>) {}
 }
 
 /// The router state is `Arc<AppState>` (= `SharedState`), but the orphan rule

@@ -1,71 +1,47 @@
 //! The module registry: the single server-side composition point for every
 //! module, of every tier.
 //!
-//! A module has up to three facets, unified here:
+//! A module has up to three facets:
 //!  - its **manifest** (id / capabilities / icon / dependency graph) -- the
 //!    portable `luma_module_sdk::Module`, which every compile-time module exports
 //!    as a `MODULE` const;
-//!  - optionally its **backend behavior** ([`ServerModule`]): the admin routes it
-//!    serves (behind an enabled-gate) and its start/stop lifecycle;
+//!  - optionally its **backend behavior** ([`luma_module_host::ServerModule`]):
+//!    the admin routes it serves (behind an enabled-gate) and its async
+//!    enable/disable lifecycle. This now lives in each module's OWN crate; the
+//!    binary only lists the modules (the composition root) and drives them
+//!    generically, so the core is not aware of any specific module;
 //!  - or it is **runtime-loaded** (a WASM module in the [`WasmHost`]).
 //!
-//! [`build`] declares the compile-time modules and their behaviors together (so a
-//! module is one entry, not two structs joined by an id string), asserts every
-//! behavior has a manifest, and the public functions merge in the WASM tier. The
-//! whole server reads modules through this one API; per-module enabled/config
-//! state lives in `luma_engine::modules` (the settings blob).
+//! [`build`] declares the compile-time modules, asserts every behavior has a
+//! manifest, and the public functions merge in the WASM tier. The whole server
+//! reads modules through this one API; per-module enabled/config state lives in
+//! `luma_engine::modules` (the settings blob).
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
 use axum::middleware::{from_fn_with_state, Next};
 use axum::response::IntoResponse;
 use axum::Router;
+use luma_module_host::{HostCtx, ServerModule};
 use luma_module_sdk::{EmbeddedModule, ModuleManifest, Registry};
 
 use crate::state::SharedState;
 
 mod downloads;
-mod engines;
-mod indexers;
-mod remote;
-mod vpn;
-
-/// The backend contract a module implements to own its server-side vertical.
-pub trait ServerModule: Send + Sync {
-    /// The module id, shared with its `module.json` and frontend package.
-    fn id(&self) -> &'static str;
-
-    /// Routes this module serves under `/api/admin`, or `None` for a
-    /// lifecycle-only module (e.g. a download engine) that has no admin surface.
-    /// Mounted behind the module's enabled-gate by [`mount_admin`], so they
-    /// return 404 while it is disabled. Receives the app state so a relocated
-    /// module (whose routes live in its own crate, generic over `HostCtx`) can
-    /// inject its service as an `Extension`.
-    fn admin_routes(&self, _state: &SharedState) -> Option<Router<SharedState>> {
-        None
-    }
-
-    /// Bring the module's live services up (called when it is enabled at runtime,
-    /// e.g. start an engine). Default: nothing to start.
-    fn on_enable(&self, _state: &SharedState) {}
-
-    /// Tear the module's live services down (called when it is disabled), so a
-    /// disabled module leaves nothing running. Default: nothing to stop.
-    fn on_disable(&self, _state: &SharedState) {}
-}
 
 /// The compile-time module set: manifests (+ dependency graph) paired with the
-/// backend behaviors the ones that have them provide.
+/// backend behaviors the ones that have them provide (`ServerModule`s collected
+/// from each module's crate).
 struct ModuleRegistry {
     manifests: Registry,
-    servers: Vec<Box<dyn ServerModule>>,
+    servers: Vec<Box<dyn ServerModule<SharedState>>>,
 }
 
-/// Build (once) the compile-time registry. Declaring the manifest set and the
-/// behavior set side by side keeps a module one entry, and the assertion catches
-/// a behavior whose id drifts from any manifest.
+/// Build (once) the compile-time registry: register every module's manifest, then
+/// collect the `ServerModule` each crate exports. The assertion catches a behavior
+/// whose id drifts from any manifest.
 fn build() -> ModuleRegistry {
     let mut manifests = Registry::new();
     // Every compile-time module exports a `MODULE` const (an `EmbeddedModule`
@@ -78,8 +54,6 @@ fn build() -> ModuleRegistry {
     manifests.register(Box::new(luma_whisper::MODULE));
     manifests.register(Box::new(luma_vector::MODULE));
     manifests.register(Box::new(luma_mdns::MODULE));
-    // Modules whose backend behavior lives in the host (no dedicated crate) are
-    // embedded straight from their packaged module.json + icon.
     manifests.register(Box::new(luma_vpn::MODULE));
     manifests.register(Box::new(luma_remote::MODULE));
     // Acquisition is a settings-view module (no dedicated routes), so it has a
@@ -98,14 +72,17 @@ fn build() -> ModuleRegistry {
     ))));
     luma_modules_generated::register_all(&mut manifests);
 
-    // The modules that also own backend routes + lifecycle.
-    let servers: Vec<Box<dyn ServerModule>> = vec![
+    // The backend behavior of each module, collected from its crate. The binary
+    // names no module type here beyond calling its `server_module()` constructor
+    // (the composition root); `DownloadsModule` is the one still in-tree, since its
+    // admin routes have not been relocated to `luma-downloads` yet.
+    let servers: Vec<Box<dyn ServerModule<SharedState>>> = vec![
         Box::new(downloads::DownloadsModule),
-        Box::new(vpn::VpnModule),
-        Box::new(indexers::IndexersModule),
-        Box::new(remote::RemoteModule),
-        Box::new(engines::TransmissionEngine),
-        Box::new(engines::QbittorrentEngine),
+        luma_vpn::server_module(),
+        luma_indexer::server_module(),
+        luma_remote::server_module(),
+        luma_transmission::server_module(),
+        luma_qbittorrent::server_module(),
     ];
 
     let ids: Vec<String> = manifests.manifests().into_iter().map(|m| m.id).collect();
@@ -124,21 +101,28 @@ fn registry() -> &'static ModuleRegistry {
     REGISTRY.get_or_init(build)
 }
 
+/// Compile-time module ids in dependency (initialization) order, or registration
+/// order (logged) if the graph fails to resolve.
+fn resolved_order() -> Vec<String> {
+    let reg = &registry().manifests;
+    match reg.resolve() {
+        Ok(order) => order,
+        Err(err) => {
+            tracing::error!(%err, "module graph did not resolve; using registration order");
+            reg.manifests().into_iter().map(|m| m.id).collect()
+        }
+    }
+}
+
 /// Compile-time module manifests in dependency (initialization) order. Falls back
 /// to registration order (logged) if the graph fails to resolve, so a broken
 /// dependency can never take the listing endpoint down.
 fn compiled_manifests() -> Vec<ModuleManifest> {
-    let reg = &registry().manifests;
-    match reg.resolve() {
-        Ok(order) => {
-            let all = reg.manifests();
-            order.iter().filter_map(|id| all.iter().find(|m| &m.id == id).cloned()).collect()
-        }
-        Err(err) => {
-            tracing::error!(%err, "module graph did not resolve; serving registration order");
-            reg.manifests()
-        }
-    }
+    let all = registry().manifests.manifests();
+    resolved_order()
+        .iter()
+        .filter_map(|id| all.iter().find(|m| &m.id == id).cloned())
+        .collect()
 }
 
 /// Every module's manifest for the listing endpoints: compile-time (dependency
@@ -163,8 +147,29 @@ pub fn icon(state: &SharedState, id: &str) -> Option<(&'static str, Vec<u8>)> {
 
 /// The backend behavior for a module id, if it has any (for the enable/disable
 /// lifecycle driven by the admin toggle).
-pub fn find_server(id: &str) -> Option<&'static dyn ServerModule> {
+pub fn find_server(id: &str) -> Option<&'static dyn ServerModule<SharedState>> {
     registry().servers.iter().find(|m| m.id() == id).map(|m| m.as_ref())
+}
+
+/// At boot, bring every enabled module's live services up (and make sure disabled
+/// ones are down), in dependency order, awaiting each so ordering holds (the VPN
+/// bridge starts before the engine that tunnels through it). This is the generic
+/// mirror of the per-toggle `on_enable`/`on_disable` the admin console runs, so a
+/// module's enabled state is durable across a restart instead of the binary
+/// hardcoding which module to start.
+pub async fn apply_enabled_states(state: &SharedState) {
+    let order = resolved_order();
+    let host: Arc<dyn HostCtx> = state.clone();
+    let mut servers: Vec<&dyn ServerModule<SharedState>> =
+        registry().servers.iter().map(|m| m.as_ref()).collect();
+    servers.sort_by_key(|m| order.iter().position(|id| id == m.id()).unwrap_or(usize::MAX));
+    for module in servers {
+        if luma_engine::modules::module_enabled(&state.settings, module.id()) {
+            module.on_enable(host.clone()).await;
+        } else {
+            module.on_disable(host.clone()).await;
+        }
+    }
 }
 
 /// The admin routers of every backend module, each behind its enabled-gate,
@@ -172,8 +177,8 @@ pub fn find_server(id: &str) -> Option<&'static dyn ServerModule> {
 pub fn mount_admin(state: SharedState) -> Router<SharedState> {
     let mut router = Router::new();
     for module in &registry().servers {
-        // Lifecycle-only modules (engines) contribute no routes; skip them so we
-        // never wrap an empty router in a route_layer (which axum rejects).
+        // Lifecycle-only modules (the engines) contribute no routes; skip them so
+        // we never wrap an empty router in a route_layer (which axum rejects).
         if let Some(routes) = module.admin_routes(&state) {
             router = router.merge(module_scope(state.clone(), module.id(), routes));
         }

@@ -60,6 +60,9 @@ export function useModuleHost(revision = 0): LumaHost | null {
   // registry's `has`/`setupDone`), and is what runs a newly-enabled module's
   // setup()/exports() without a page reload.
   const authed = auth.user != null;
+  // `revision` is read only in the dep array on purpose: refresh() bumps it after
+  // an install / uninstall / live-enable to re-run the modules' setup()/exports().
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run key; revision re-wires modules after install/uninstall/enable
   useEffect(() => {
     if (!authed) return;
     let alive = true;

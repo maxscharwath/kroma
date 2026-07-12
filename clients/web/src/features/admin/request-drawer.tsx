@@ -68,7 +68,10 @@ export function RequestDrawer({
     error: string | null;
   }>({ busy: false, view: null, error: null });
 
-  // Reset the deny form + search results whenever another request opens.
+  // Reset the deny form + search results whenever another request opens. `req?.id`
+  // is read only in the dep array on purpose: it keys the reset to the open
+  // request, so removing it would stop the form clearing between requests.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run key; req?.id gates the reset to each opened request
   useEffect(() => {
     setDenying(false);
     setNote('');

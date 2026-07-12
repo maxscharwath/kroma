@@ -16,7 +16,7 @@ export function frontmatter(md: string): Manifest | null {
 
 /** A fenced code block's contents by language (```lang ... ```), or null. */
 export function fenced(md: string, lang: string): string | null {
-  const m = md.match(new RegExp('```' + lang + '\\r?\\n([\\s\\S]*?)\\r?\\n```'));
+  const m = md.match(new RegExp(`\`\`\`${lang}\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\``));
   return m ? m[1] : null;
 }
 

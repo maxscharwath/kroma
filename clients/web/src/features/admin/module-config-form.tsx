@@ -4,7 +4,7 @@
 // stringified values the old text-only form sent).
 
 import type { ConfigField } from '@luma/module-sdk';
-import { useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
 import { Toggle } from '#web/features/admin/ui';
 
@@ -78,38 +78,52 @@ function Field({
   value,
   onChange,
 }: Readonly<{ field: ConfigField; value: ConfigValue | undefined; onChange: (v: ConfigValue) => void }>) {
+  const id = useId();
   const inputCls = 'w-40 rounded border border-border bg-transparent px-2 py-1 text-text';
+
+  let control: ReactNode;
+  if (field.type === 'bool') {
+    control = <Toggle on={value === true} onChange={onChange} />;
+  } else if (field.type === 'select') {
+    control = (
+      <select
+        id={id}
+        className={inputCls}
+        value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {(field.options ?? []).map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    );
+  } else if (field.type === 'number') {
+    control = (
+      <input
+        id={id}
+        type="number"
+        className={inputCls}
+        value={typeof value === 'number' ? value : ''}
+        onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+      />
+    );
+  } else {
+    control = (
+      <input
+        id={id}
+        className={inputCls}
+        value={String(value ?? '')}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
   return (
-    <label className="flex items-center justify-between gap-2 text-xs">
+    <label htmlFor={id} className="flex items-center justify-between gap-2 text-xs">
       <span className="text-muted">{field.label}</span>
-      {field.type === 'bool' ? (
-        <Toggle on={value === true} onChange={onChange} />
-      ) : field.type === 'select' ? (
-        <select
-          className={inputCls}
-          value={String(value ?? '')}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {(field.options ?? []).map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      ) : field.type === 'number' ? (
-        <input
-          type="number"
-          className={inputCls}
-          value={typeof value === 'number' ? value : ''}
-          onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
-        />
-      ) : (
-        <input
-          className={inputCls}
-          value={String(value ?? '')}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
+      {control}
     </label>
   );
 }

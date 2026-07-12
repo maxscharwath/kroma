@@ -122,6 +122,13 @@ function ModuleSettings({
 
 type DepState = 'ok' | 'missing' | 'disabled' | 'optional';
 
+/** Colour/state for a dependency chip: absent deps are `optional`/`missing`, an
+ *  installed dep is `ok` when enabled and `disabled` otherwise. */
+function depState(target: AdminModule | undefined, optional: boolean): DepState {
+  if (!target) return optional ? 'optional' : 'missing';
+  return target.enabled ? 'ok' : 'disabled';
+}
+
 function DepChip({ label, state }: Readonly<{ label: string; state: DepState }>) {
   const cls: Record<DepState, string> = {
     ok: 'text-success',
@@ -158,14 +165,7 @@ function ModuleDeps({ module, all }: Readonly<{ module: AdminModule; all: AdminM
       <span className="text-[10px] font-bold uppercase tracking-wide text-dim">Dependencies</span>
       <div className="flex flex-wrap gap-1.5">
         {deps.map((d) => {
-          const target = byId.get(d.id);
-          const state: DepState = !target
-            ? d.optional
-              ? 'optional'
-              : 'missing'
-            : target.enabled
-              ? 'ok'
-              : 'disabled';
+          const state = depState(byId.get(d.id), d.optional);
           return (
             <DepChip key={d.id} label={d.version ? `${d.id}@${d.version}` : d.id} state={state} />
           );

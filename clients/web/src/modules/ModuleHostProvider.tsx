@@ -74,6 +74,9 @@ export function ModuleHostProvider({ children }: Readonly<{ children: ReactNode 
   // Read the registry's contributions once the host is ready, and again whenever
   // `revision` bumps (a runtime install/uninstall). The arrays hold stable lazy
   // component refs, so panels don't retry into a Suspense loop under the compiler.
+  // `revision` is read only in the dep array on purpose: a runtime install /
+  // uninstall bumps it to force re-reading the registry contributions.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional re-run key; revision re-snapshots contributions after an install/uninstall
   const contrib = useMemo<{ nav: ModuleNav[]; routes: ModuleRoute[]; panels: ModulePanel[] }>(() => {
     if (!host) return { nav: [], routes: [], panels: [] };
     try {
@@ -87,7 +90,6 @@ export function ModuleHostProvider({ children }: Readonly<{ children: ReactNode 
       // usable contributions; keep them empty rather than crash the whole app.
       return { nav: [], routes: [], panels: [] };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host, revision]);
 
   const refresh = useCallback(async () => {

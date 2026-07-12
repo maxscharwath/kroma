@@ -88,9 +88,11 @@ export function SearchResults({ state }: Readonly<{ state: DiscoverSearchState }
     <div className="mt-7">
       {state.local.length > 0 ? (
         <Section title={t('discover.sectionLibrary')} count={state.local.length}>
-          {state.local.map((hit, i) => (
-            <LocalHit key={`${hit.type}-${i}`} hit={hit} />
-          ))}
+          {state.local.map((hit) => {
+            // Stable, unique key from the hit's own id (show vs item/episode).
+            const id = hit.type === 'show' ? hit.show.id : hit.item.id;
+            return <LocalHit key={`${hit.type}-${id}`} hit={hit} />;
+          })}
         </Section>
       ) : null}
       {state.canDiscover && state.discover.length > 0 ? (

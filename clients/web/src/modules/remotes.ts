@@ -136,7 +136,9 @@ export async function loadRuntimeRemotes(registry: ModuleRegistry): Promise<stri
   mf.registerRemotes(fresh.map((s) => ({ name: s.name, entry: s.entry, type: 'module' as const })));
   // Each runtime remote ships its own stylesheet next to remoteEntry; load it so
   // the module renders with the full LUMA design regardless of host classes.
-  fresh.forEach((s) => injectRemoteStyles(s.entry));
+  fresh.forEach((s) => {
+    injectRemoteStyles(s.entry);
+  });
 
   const added: string[] = [];
   await Promise.all(

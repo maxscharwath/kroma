@@ -65,7 +65,10 @@ function validate(node: Json, value: unknown, path: string, errors: string[]): v
     // A permissive array (no `items` schema, e.g. the mixed-form dependsOn) skips
     // per-item validation.
     const items = node.items as Json | undefined;
-    if (items) value.forEach((item, i) => validate(items, item, `${path}[${i}]`, errors));
+    if (items)
+      value.forEach((item, i) => {
+        validate(items, item, `${path}[${i}]`, errors);
+      });
   } else if (type === 'string') {
     if (typeof value !== 'string') {
       errors.push(`${path}: expected string`);

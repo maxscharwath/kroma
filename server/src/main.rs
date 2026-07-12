@@ -39,6 +39,22 @@ impl DownloadsExt for luma_engine::state::SharedState {
     }
 }
 
+/// Composition-root adapter: wraps the vector module's embedder into the engine's
+/// [`luma_engine::ports::Embedder`] port, so `AppState` holds the capability
+/// without the core naming the concrete embedder crate.
+struct EmbedderPort(std::sync::Arc<dyn luma_vector::Embedder>);
+impl luma_engine::ports::Embedder for EmbedderPort {
+    fn dim(&self) -> usize {
+        self.0.dim()
+    }
+    fn embed(&self, text: &str) -> Vec<f32> {
+        self.0.embed(text)
+    }
+    fn relevance_floor(&self) -> f32 {
+        self.0.relevance_floor()
+    }
+}
+
 // On the Linux/musl single binary, musl's malloc is a global-lock design that
 // collapses under our thread mix (tokio workers + rayon walks + candle tensors);
 // mimalloc removes that contention. macOS dev keeps the system allocator.
@@ -163,6 +179,8 @@ async fn main() -> anyhow::Result<()> {
         ffprobe_available,
         db,
         settings,
+        std::sync::Arc::new(EmbedderPort(luma_vector::default_embedder()))
+            as std::sync::Arc<dyn luma_engine::ports::Embedder>,
         module_services,
         luma_torrent::JOBS,
     );
@@ -235,7 +253,7 @@ async fn main() -> anyhow::Result<()> {
     // settings. Best-effort: held alive until the process exits; failure (no
     // multicast, etc.) is non-fatal.
     let _mdns = if local_discovery {
-        match infra::discovery::advertise(addr.port(), "LUMA") {
+        match luma_mdns::advertise(addr.port(), "LUMA") {
             Ok(daemon) => Some(daemon),
             Err(e) => {
                 warn!(error = %e, "mDNS advertising unavailable; clients must use an explicit address");

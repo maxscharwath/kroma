@@ -16,7 +16,7 @@ use tracing::{info, warn};
 
 use crate::services::activity::{self, Shared as Activity};
 use crate::db::{self, Pool};
-use crate::infra::embed::{self, Embedder};
+use crate::ports::Embedder;
 use crate::infra::events::{Bus, ServerEvent};
 use crate::infra::image;
 use crate::infra::metadata::{self, Cache, Target};
@@ -338,7 +338,7 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
     let meta = if eng.theme_songs { theme::localize(&eng.data_dir, meta) } else { meta };
     // Embed the title from its (title, year, genres, cast, overview) for
     // similar-to / themed / "For You" rows.
-    let doc = embed::build_doc(&job.title, job.year, &meta);
+    let doc = luma_domain::build_doc(&job.title, job.year, &meta);
     let vector = eng.embedder.embed(&doc);
     let write = if job.is_show {
         db::set_show_metadata(&eng.pool, &job.id, &meta)

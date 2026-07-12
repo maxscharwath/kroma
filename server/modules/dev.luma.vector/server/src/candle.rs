@@ -167,7 +167,7 @@ mod tests {
             let (title, year, meta_json) = row.unwrap();
             let Some(mj) = meta_json else { continue };
             let Ok(meta) = serde_json::from_str::<luma_domain::metadata::Metadata>(&mj) else { continue };
-            let doc = crate::build_doc(&title, year.map(|y| y as u32), &meta);
+            let doc = luma_domain::build_doc(&title, year.map(|y| y as u32), &meta);
             lib.push((title, e.embed(&doc)));
         }
         eprintln!("\nMiniLM-embedded {} titles from the live library\n", lib.len());

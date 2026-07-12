@@ -149,19 +149,21 @@ default = ["whisper-local", "torrent-rqbit"]
 torrent-rqbit = ["luma-torrent/rqbit"]
 
 # Multilingual semantic embeddings (MiniLM via candle). OFF by default (the
-# dependency-free lexical embedder is the default). See luma-vector.
-semantic-embeddings = ["luma-engine/semantic-embeddings"]
+# dependency-free lexical embedder is the default). Forwarded straight to the
+# vector module crate now that the engine names it only through a port.
+semantic-embeddings = ["luma-vector/semantic"]
 
 # In-process Whisper transcription (candle, no external whisper.cpp). ON by
 # default. Off compiles a stub and the "transcribe" capability reports false.
-whisper-local = ["luma-engine/whisper-local"]
+# Forwarded straight to the whisper module crate (the engine drives it via a port).
+whisper-local = ["luma-whisper/local"]
 
 # GPU-accelerated Whisper for local dev builds (never the musl single binary).
 # metal = Apple-Silicon, cuda = NVIDIA, accelerate = Apple vecLib BLAS. The engine
 # picks the device at runtime and falls back to CPU. See luma-whisper.
-whisper-metal = ["luma-engine/whisper-metal"]
-whisper-cuda = ["luma-engine/whisper-cuda"]
-whisper-accelerate = ["luma-engine/whisper-accelerate"]
+whisper-metal = ["luma-whisper/metal"]
+whisper-cuda = ["luma-whisper/cuda"]
+whisper-accelerate = ["luma-whisper/accelerate"]
 
 [dependencies]
 # The binary is now a thin HTTP shell: the router + handlers (src/api) over the

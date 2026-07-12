@@ -27,6 +27,7 @@ pub mod i18n;
 pub mod infra;
 pub mod model;
 pub mod modules;
+pub mod ports;
 pub mod services;
 pub mod state;
 

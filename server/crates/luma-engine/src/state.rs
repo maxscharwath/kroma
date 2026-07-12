@@ -8,7 +8,7 @@ use luma_module_wasm::WasmHost;
 use crate::services::activity;
 use crate::config::Config;
 use crate::db::Pool;
-use crate::infra::embed::{self, Embedder};
+use crate::ports::Embedder;
 use crate::infra::events::Bus;
 use crate::infra::metadata;
 use crate::infra::metrics::Metrics;
@@ -101,6 +101,10 @@ impl AppState {
         ffprobe_available: bool,
         db: Pool,
         settings: Settings,
+        // The content embedder, wrapped by the composition root (the binary) from
+        // the vector module's backend into the engine port, so the core names no
+        // concrete embedder crate. A `NoopEmbedder` stands in when absent.
+        embedder: Arc<dyn Embedder>,
         module_services: std::collections::HashMap<
             std::any::TypeId,
             std::sync::Arc<dyn std::any::Any + Send + Sync>,
@@ -162,7 +166,7 @@ impl AppState {
             quickconnect: quickconnect::new(),
             playback: Registry::new(),
             metrics: Metrics::new(),
-            embedder: embed::default_embedder(),
+            embedder,
             search: Arc::new(SearchEngine::new().expect("init search index")),
             vectors: Arc::new(VectorCache::new()),
             jobs: Arc::new(jobs),

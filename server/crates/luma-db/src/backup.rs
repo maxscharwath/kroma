@@ -66,14 +66,31 @@ pub struct BackupDoc {
     pub assets: BTreeMap<String, String>,
 }
 
-/// Dump every portable table to a [`BackupDoc`].
+/// Dump every portable table to a [`BackupDoc`]. Tables owned by a module
+/// (`indexers` / `download_clients`) only exist once that module's migrations
+/// have run, so a table that is absent (module never installed / disabled before
+/// its schema was created) is skipped rather than erroring.
 pub fn export_portable(pool: &Pool) -> Result<BackupDoc> {
     let conn = pool.get()?;
     let mut tables = BTreeMap::new();
     for &t in TABLES {
+        if !table_exists(&conn, t)? {
+            continue;
+        }
         tables.insert(t.to_string(), dump_query(&conn, &format!("SELECT * FROM {t}"))?);
     }
     Ok(BackupDoc { version: VERSION, exported_at: now_or_blank(), tables, assets: BTreeMap::new() })
+}
+
+/// Whether `name` is a table in the current database (module-owned tables may not
+/// be, see [`export_portable`]).
+fn table_exists(conn: &Connection, name: &str) -> Result<bool> {
+    let n: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
+        [name],
+        |r| r.get(0),
+    )?;
+    Ok(n > 0)
 }
 
 /// Restore a [`BackupDoc`] into the database, replacing rows by primary key.
@@ -102,12 +119,19 @@ fn restore_all(conn: &mut rusqlite::Connection, doc: &BackupDoc, reset: bool) ->
     let tx = conn.transaction()?;
     if reset {
         for &t in TABLES {
-            tx.execute(&format!("DELETE FROM {t}"), [])?;
+            if table_exists(&tx, t)? {
+                tx.execute(&format!("DELETE FROM {t}"), [])?;
+            }
         }
     }
     let mut summary = Vec::new();
     for &t in TABLES {
         if let Some(rows) = doc.tables.get(t) {
+            // Skip a table the target lacks (a module present in the source but
+            // absent here); its config simply isn't restored.
+            if !table_exists(&tx, t)? {
+                continue;
+            }
             let n = restore_rows(&tx, t, rows).with_context(|| format!("restoring {t}"))?;
             summary.push((t.to_string(), n));
         }

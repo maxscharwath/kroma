@@ -263,3 +263,22 @@ pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'stati
 ) -> Box<dyn luma_module_host::ServerModule<S>> {
     Box::new(QbittorrentModule)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cookie_jars_are_stable_and_distinct() {
+        let a = ClientDef {
+            kind: "qbittorrent".into(),
+            url: "http://a:8080".into(),
+            username: "u".into(),
+            password: String::new(),
+        };
+        let b = ClientDef { url: "http://b:8080".into(), ..a.clone() };
+        let dir = std::path::Path::new("/tmp");
+        assert_eq!(cookie_jar_path(dir, &a), cookie_jar_path(dir, &a));
+        assert_ne!(cookie_jar_path(dir, &a), cookie_jar_path(dir, &b));
+    }
+}

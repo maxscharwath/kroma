@@ -204,6 +204,8 @@ fn episode_metadata(art: &metadata::EpisodeArt) -> Metadata {
 /// resolved (one TMDB call per season). Best-effort never blocks the show art.
 /// Seasons whose episodes already have a backdrop AND whose cast is stored are
 /// skipped, so re-scans don't refetch.
+// Threads the enrichment context; a struct would just move the noise.
+#[allow(clippy::too_many_arguments)]
 fn enrich_episodes(
     pool: &Pool,
     api_key: &str,
@@ -401,7 +403,7 @@ fn bump(eng: &Engine, counters: &Counters, total: usize, activity: Option<&Activ
     let done = counters.processed.fetch_add(1, Ordering::Relaxed) + 1;
     if let Some(activity) = activity {
         activity::enrich_progress(activity, done);
-        if done % 25 == 0 {
+        if done.is_multiple_of(25) {
             eng.bus.publish(ServerEvent::EnrichProgress { done, total });
         }
     }

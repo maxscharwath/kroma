@@ -146,7 +146,7 @@ async fn build_builtin_row<S: HostCtx + Clone>(
 
     let state2 = state.clone();
     let def_id2 = def_id.clone();
-    let def = blocking(move || definition_store(&state2).load(&def_id2).map_err(anyhow::Error::from))
+    let def = blocking(move || definition_store(&state2).load(&def_id2))
         .await
         .map_err(|_| {
             json_error(StatusCode::BAD_REQUEST, "unknown definition (sync the catalog first)")
@@ -386,7 +386,7 @@ pub async fn definition_detail<S: HostCtx + Clone>(
     state.require(&user, Permission::SettingsManage)?;
     let host = state.clone();
     let detail = blocking(move || {
-        definition_store(&host).load(&def_id).map_err(anyhow::Error::from).map(|def| {
+        definition_store(&host).load(&def_id).map(|def| {
             IndexerDefinitionDetailView {
                 id: def.id.clone(),
                 name: def.name.clone(),

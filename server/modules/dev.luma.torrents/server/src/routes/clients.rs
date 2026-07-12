@@ -130,25 +130,26 @@ pub async fn update(
     // Toggling the embedded engine fully starts/stops its BitTorrent session, so
     // "disabled" means zero traffic (no download, no seed, no DHT), not just a
     // gate on new grabs.
-    if body.enabled.is_some() && id == EMBEDDED_CLIENT_ID {
-        let enabled = body.enabled.unwrap();
-        if enabled {
-            dm(&state).start_rqbit(&state).await;
-            let downloads = dm(&state);
-            let state2 = state.clone();
-            blocking(move || {
-                downloads.resume_after_enable(&state2);
-                Ok(())
-            })
-            .await?;
-        } else {
-            let downloads = dm(&state);
-            let state2 = state.clone();
-            blocking(move || {
-                downloads.disable_embedded(&state2);
-                Ok(())
-            })
-            .await?;
+    if let Some(enabled) = body.enabled {
+        if id == EMBEDDED_CLIENT_ID {
+            if enabled {
+                dm(&state).start_rqbit(&state).await;
+                let downloads = dm(&state);
+                let state2 = state.clone();
+                blocking(move || {
+                    downloads.resume_after_enable(&state2);
+                    Ok(())
+                })
+                .await?;
+            } else {
+                let downloads = dm(&state);
+                let state2 = state.clone();
+                blocking(move || {
+                    downloads.disable_embedded(&state2);
+                    Ok(())
+                })
+                .await?;
+            }
         }
     }
     let id3 = id.clone();

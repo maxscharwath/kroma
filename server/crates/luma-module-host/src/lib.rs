@@ -9,6 +9,11 @@
 //! so `Router<SharedState>` handlers and generic `Router<S: HostCtx>` module
 //! handlers both work, and a module crate depends only on this leaf.
 
+// The axum `Response` is intentionally the Err type of request guards so handlers
+// short-circuit with `?`; boxing every guard for `result_large_err` would churn
+// dozens of signatures for no real gain on these error paths.
+#![allow(clippy::result_large_err)]
+
 use std::any::{Any, TypeId};
 use std::path::Path;
 use std::sync::Arc;

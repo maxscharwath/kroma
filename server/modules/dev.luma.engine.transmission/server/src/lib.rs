@@ -222,35 +222,6 @@ fn base64(input: &[u8]) -> String {
     out
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn base64_matches_reference() {
-        assert_eq!(base64(b""), "");
-        assert_eq!(base64(b"a"), "YQ==");
-        assert_eq!(base64(b"ab"), "YWI=");
-        assert_eq!(base64(b"abc"), "YWJj");
-        assert_eq!(base64(b"user:pass"), "dXNlcjpwYXNz");
-    }
-
-    #[test]
-    fn url_normalization_appends_rpc_path() {
-        let def = |url: &str| ClientDef {
-            kind: "transmission".into(),
-            url: url.into(),
-            username: String::new(),
-            password: String::new(),
-        };
-        assert_eq!(Transmission::new(&def("http://nas:9091")).url, "http://nas:9091/transmission/rpc");
-        assert_eq!(
-            Transmission::new(&def("http://nas:9091/transmission/rpc")).url,
-            "http://nas:9091/transmission/rpc"
-        );
-    }
-}
-
 /// The download-client registry kind this engine provides.
 pub const KIND: &str = "transmission";
 
@@ -301,4 +272,33 @@ impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
 pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
 ) -> Box<dyn luma_module_host::ServerModule<S>> {
     Box::new(TransmissionModule)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base64_matches_reference() {
+        assert_eq!(base64(b""), "");
+        assert_eq!(base64(b"a"), "YQ==");
+        assert_eq!(base64(b"ab"), "YWI=");
+        assert_eq!(base64(b"abc"), "YWJj");
+        assert_eq!(base64(b"user:pass"), "dXNlcjpwYXNz");
+    }
+
+    #[test]
+    fn url_normalization_appends_rpc_path() {
+        let def = |url: &str| ClientDef {
+            kind: "transmission".into(),
+            url: url.into(),
+            username: String::new(),
+            password: String::new(),
+        };
+        assert_eq!(Transmission::new(&def("http://nas:9091")).url, "http://nas:9091/transmission/rpc");
+        assert_eq!(
+            Transmission::new(&def("http://nas:9091/transmission/rpc")).url,
+            "http://nas:9091/transmission/rpc"
+        );
+    }
 }

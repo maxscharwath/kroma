@@ -11,6 +11,10 @@
 //! own ledger, so user-paused torrents and foreign torrents in a shared
 //! external client are never touched.
 
+// The axum `Response` is intentionally the Err type of request guards so handlers
+// short-circuit with `?`; boxing every guard for `result_large_err` would churn
+// dozens of signatures for no real gain on these error paths.
+#![allow(clippy::result_large_err)]
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};

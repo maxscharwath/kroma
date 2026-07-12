@@ -182,26 +182,6 @@ fn fmt_ts(s: f64) -> String {
     format!("{h:02}:{m:02}:{sec:06.3}")
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Confirms the selected device (Metal/CUDA when built for it) actually runs
-    /// the ops the greedy decoder relies on matmul, argmax, and a host readback.
-    /// Run with `cargo test --features whisper-metal -- --ignored gpu_ops`.
-    #[test]
-    #[ignore]
-    fn gpu_ops_run_on_selected_device() {
-        let d = best_device();
-        let a = Tensor::randn(0f32, 1f32, (2, 4), &d).unwrap();
-        let b = Tensor::randn(0f32, 1f32, (4, 3), &d).unwrap();
-        let c = a.matmul(&b).unwrap();
-        let _ = c.argmax(1).unwrap().to_vec1::<u32>().unwrap();
-        println!("whisper device ok: is_metal={} is_cuda={}", d.is_metal(), d.is_cuda());
-        assert!(d.is_metal() || d.is_cuda(), "expected a GPU device under whisper-metal/cuda");
-    }
-}
-
 /// Slaney (librosa-compatible) mel filterbank for Whisper: sr=16000, n_fft=400.
 /// Flattened `n_mels * (n_fft/2 + 1)`, matching `audio::pcm_to_mel`'s expectation.
 fn mel_filters(n_mels: usize) -> Vec<f32> {
@@ -230,4 +210,24 @@ fn mel_filters(n_mels: usize) -> Vec<f32> {
         }
     }
     weights
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Confirms the selected device (Metal/CUDA when built for it) actually runs
+    /// the ops the greedy decoder relies on matmul, argmax, and a host readback.
+    /// Run with `cargo test --features whisper-metal -- --ignored gpu_ops`.
+    #[test]
+    #[ignore]
+    fn gpu_ops_run_on_selected_device() {
+        let d = best_device();
+        let a = Tensor::randn(0f32, 1f32, (2, 4), &d).unwrap();
+        let b = Tensor::randn(0f32, 1f32, (4, 3), &d).unwrap();
+        let c = a.matmul(&b).unwrap();
+        let _ = c.argmax(1).unwrap().to_vec1::<u32>().unwrap();
+        println!("whisper device ok: is_metal={} is_cuda={}", d.is_metal(), d.is_cuda());
+        assert!(d.is_metal() || d.is_cuda(), "expected a GPU device under whisper-metal/cuda");
+    }
 }

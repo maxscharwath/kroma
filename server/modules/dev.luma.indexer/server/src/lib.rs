@@ -96,7 +96,7 @@ impl luma_contracts::TorrentFetchPort for IndexerTorrentFetch {
     ) -> Option<anyhow::Result<Vec<u8>>> {
         let conn = match host.db().get() {
             Ok(conn) => conn,
-            Err(e) => return Some(Err(e.into())),
+            Err(e) => return Some(Err(e)),
         };
         let row = match crate::db::get_indexer(&conn, indexer_id) {
             Ok(Some(row)) => row,

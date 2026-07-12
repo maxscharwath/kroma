@@ -5,6 +5,11 @@
 //! files to clients. It never transcodes: clients decode HEVC/H.265/AV1
 //! themselves. `ffprobe` is used only to read metadata.
 
+// The axum `Response` is intentionally the Err type of request guards so handlers
+// short-circuit with `?`; boxing every guard for `result_large_err` would churn
+// dozens of signatures for no real gain on these error paths.
+#![allow(clippy::result_large_err)]
+
 // The HTTP router + handlers. Everything below the router (infra adapters,
 // services, app state, the i18n extractor and the wire-model barrel) lives in
 // the luma-engine crate, aliased here so `crate::{infra,services,state,i18n,model}`

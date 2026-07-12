@@ -446,7 +446,7 @@ impl DownloadManager {
         // resolve those (via proxied peers).
         let prefetched: Option<Vec<u8>> =
             if client.kind == "rqbit" && row.magnet_or_url.starts_with("http") {
-                match fetch_torrent_for(host, &row) {
+                match fetch_torrent_for(host, row) {
                     Ok(bytes) => {
                         tracing::info!(id = %row.id, bytes = bytes.len(), "fetched .torrent directly (bypassing VPN)");
                         Some(bytes)

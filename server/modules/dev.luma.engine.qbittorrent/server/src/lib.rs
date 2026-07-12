@@ -74,7 +74,7 @@ impl QBittorrent {
 
     fn torrents_info(&self, params: &[(&str, &str)]) -> Result<Vec<Value>> {
         let resp = self.get("/api/v2/torrents/info", params)?;
-        Ok(resp.json::<Vec<Value>>()?)
+        resp.json::<Vec<Value>>()
     }
 }
 
@@ -152,7 +152,7 @@ impl DownloadClient for QBittorrent {
         let qstate = t.get("state").and_then(Value::as_str).unwrap_or("");
         let files: Vec<String> = self
             .get("/api/v2/torrents/files", &[("hash", client_ref)])
-            .and_then(|r| Ok(r.json::<Vec<Value>>()?))
+            .and_then(|r| r.json::<Vec<Value>>())
             .map(|fs| {
                 fs.iter()
                     .filter_map(|f| f.get("name").and_then(Value::as_str))

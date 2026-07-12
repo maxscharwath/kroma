@@ -98,6 +98,8 @@ pub struct GenSpec {
 /// success; `Err(reason)` carries *why* it failed (no LLM provider, an LLM/Whisper
 /// error, an empty result, a write/DB error) so the caller can show it instead of a
 /// blank "generation failed". Blocking - call off the async runtime.
+// Threads the whole generation context (settings, IO, spec, ports); a struct would just move the noise.
+#[allow(clippy::too_many_arguments)]
 pub fn generate(
     settings: &Settings,
     data_dir: &Path,

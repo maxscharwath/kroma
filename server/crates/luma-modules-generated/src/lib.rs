@@ -22,7 +22,6 @@ pub fn register_all(reg: &mut Registry) {
     reg.register(Box::new(luma_transmission::MODULE));
     reg.register(Box::new(luma_qbittorrent::MODULE));
     reg.register(Box::new(luma_acquisition::MODULE));
-    reg.register(Box::new(luma_module_dev_luma_hello::MODULE));
 }
 
 /// The backend behavior of each module that ships one. Concrete over the app's

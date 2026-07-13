@@ -191,7 +191,7 @@ mod tests {
         let order = registry().manifests.resolve().expect("built-in module graph resolves");
         assert!(order.contains(&"dev.luma.torrents".to_string()));
         assert!(order.contains(&"dev.luma.indexer".to_string()));
-        assert!(order.contains(&"dev.luma.hello".to_string()));
+        assert!(order.contains(&"dev.luma.acquisition".to_string()));
     }
 
     #[test]

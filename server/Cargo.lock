@@ -3401,14 +3401,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "luma-module-dev-luma-hello"
-version = "0.1.0"
-dependencies = [
- "luma-module-sdk",
- "serde_json",
-]
-
-[[package]]
 name = "luma-module-host"
 version = "0.1.0"
 dependencies = [
@@ -3479,7 +3471,6 @@ dependencies = [
  "luma-engine",
  "luma-indexer",
  "luma-mdns",
- "luma-module-dev-luma-hello",
  "luma-module-host",
  "luma-module-manifest",
  "luma-qbittorrent",

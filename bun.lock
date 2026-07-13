@@ -219,7 +219,6 @@
       "name": "@luma/modules-generated",
       "version": "0.0.0",
       "dependencies": {
-        "@luma/module-dev-luma-hello": "workspace:*",
         "@luma/module-sdk": "workspace:*",
       },
       "devDependencies": {
@@ -269,20 +268,6 @@
     },
     "server/modules/dev.luma.acquisition/ui": {
       "name": "@luma/module-acquisition",
-      "version": "0.1.0",
-      "dependencies": {
-        "@luma/module-sdk": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/react": "^19",
-        "typescript": "^5.6.3",
-      },
-      "peerDependencies": {
-        "react": ">=18",
-      },
-    },
-    "server/modules/dev.luma.hello/ui": {
-      "name": "@luma/module-dev-luma-hello",
       "version": "0.1.0",
       "dependencies": {
         "@luma/module-sdk": "workspace:*",
@@ -528,8 +513,6 @@
     "@luma/desktop": ["@luma/desktop@workspace:clients/desktop"],
 
     "@luma/module-acquisition": ["@luma/module-acquisition@workspace:server/modules/dev.luma.acquisition/ui"],
-
-    "@luma/module-dev-luma-hello": ["@luma/module-dev-luma-hello@workspace:server/modules/dev.luma.hello/ui"],
 
     "@luma/module-hellowasm-fe": ["@luma/module-hellowasm-fe@workspace:wasm-modules/dev.luma.hellowasm/ui"],
 

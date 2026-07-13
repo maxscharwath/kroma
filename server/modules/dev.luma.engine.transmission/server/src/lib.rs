@@ -236,10 +236,11 @@ pub fn register(reg: &mut luma_module_sdk::ports::DownloadClientRegistry) {
 /// This module's id (matches its `module.json`).
 pub const MODULE_ID: &str = "dev.luma.engine.transmission";
 
-/// This module's registry entry (manifest embedded at compile time; backend-only,
-/// so no packaged icon).
-pub const MODULE: luma_module_sdk::EmbeddedModule =
-    luma_module_sdk::EmbeddedModule::iconless(include_str!("../../module.json"));
+/// This module's registry entry (manifest + packaged icon embedded at compile time).
+pub const MODULE: luma_module_sdk::EmbeddedModule = luma_module_sdk::EmbeddedModule::new(
+    include_str!("../../module.json"),
+    include_bytes!("../../icon.svg"),
+);
 
 /// The Transmission engine sub-module: a lifecycle-only [`ServerModule`] that
 /// registers / unregisters its download-client kind on the Downloads module's

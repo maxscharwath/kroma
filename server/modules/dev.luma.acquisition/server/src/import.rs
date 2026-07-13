@@ -1,5 +1,5 @@
 //! Import: move completed downloads into the library with the configured
-//! Sonarr/Radarr-style naming (see luma_torrent::organize::naming), so the
+//! Sonarr/Radarr-style naming (see luma_module_sdk::ports::naming), so the
 //! regular scan/enrich/pipeline takes over. Hardlink first (the torrent keeps
 //! seeding from its download folder for free), copy across filesystems.
 
@@ -12,7 +12,7 @@ use luma_module_sdk::engine::services::jobs::now_ms;
 use luma_module_sdk::engine::services::settings::{library_defs, LibraryDef};
 use luma_module_sdk::engine::state::SharedState;
 use luma_torrent::db::{self, DownloadRow};
-use luma_torrent::organize::naming;
+use luma_module_sdk::ports::naming;
 
 /// The facts import needs about a title, from the request, the download row, or
 /// (last resort) the parsed release name.

@@ -4,7 +4,10 @@
 //! path, so renaming to a cleaner (still-parseable) name preserves watched
 //! state / progress / my-list.
 
-pub mod naming;
+// The naming engine now lives in the SDK (luma_module_sdk::ports::naming), shared
+// with acquisition's import; re-exported here so this crate's own callers keep
+// using crate::organize::naming.
+pub use luma_module_sdk::ports::naming;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

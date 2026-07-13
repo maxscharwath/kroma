@@ -17,6 +17,7 @@ pub use torznab::*;
 // The indexer data + native-search contract (shared row + IndexerDbPort /
 // IndexerSearchPort), so downloads / acquisition don't depend on the indexer crate.
 pub mod indexer;
+pub mod naming;
 pub use indexer::*;
 
 /// The VPN module's local SOCKS5 bridge, for modules that route traffic through it

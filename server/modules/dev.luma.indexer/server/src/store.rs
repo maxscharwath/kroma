@@ -59,11 +59,6 @@ impl DefinitionStore {
         DefinitionStore { dir: data_dir.join("indexer-defs"), source: DEFAULT_SOURCE.to_string() }
     }
 
-    pub fn with_source(mut self, source: impl Into<String>) -> Self {
-        self.source = source.into();
-        self
-    }
-
     pub fn dir(&self) -> &Path {
         &self.dir
     }

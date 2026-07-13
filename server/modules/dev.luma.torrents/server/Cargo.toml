@@ -34,7 +34,6 @@ rusqlite = { workspace = true }
 luma-engine = { workspace = true }
 luma-scene = { workspace = true }
 luma-indexer = { workspace = true }
-walkdir = { workspace = true }
 sha1 = "0.10"
 anyhow = { workspace = true }
 serde = { workspace = true }

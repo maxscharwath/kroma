@@ -31,32 +31,6 @@ pub struct ImportSummary {
     pub failed: usize,
 }
 
-/// Re-run the import for a single completed download (the "retry import"
-/// button, e.g. after a library volume that was offline comes back). Updates
-/// the row + chains a scan on success, mirroring [`import_pass`].
-pub fn import_single(state: &SharedState, id: &str) -> Result<()> {
-    let conn = state.db.get()?;
-    let row = db::get_download(&conn, id)?.ok_or_else(|| anyhow!("download not found"))?;
-    drop(conn);
-    // `completed` = import pending/failed; `imported` = re-run to re-fulfill the
-    // request / re-pin the id (idempotent - place() skips existing files).
-    if !matches!(row.status.as_str(), "completed" | "imported") {
-        bail!("this download hasn't finished yet");
-    }
-    match import_one(state, &row) {
-        Ok(paths) => {
-            db::mark_download_imported(&state.db, &row.id, &paths, now_ms())?;
-            finalize_import(state, &row);
-            let _ = state.jobs.trigger(state.clone(), luma_engine::services::jobs::JobKey("library.scan"), "acquisition-import");
-            Ok(())
-        }
-        Err(e) => {
-            db::set_download_status(&state.db, &row.id, "completed", Some(&format!("import: {e:#}")))?;
-            Err(e)
-        }
-    }
-}
-
 /// After a successful import: fulfill the linked request directly (no fragile
 /// tmdbId round-trip) and pin the known tmdbId onto the item so its poster +
 /// metadata resolve and the discover UI recognizes it (no request/library dupe).

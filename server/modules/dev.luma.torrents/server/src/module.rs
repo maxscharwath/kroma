@@ -5,4 +5,4 @@ use luma_module_sdk::EmbeddedModule;
 
 /// Registered into the server's module registry (see `build_registry`).
 pub const MODULE: EmbeddedModule =
-    EmbeddedModule::new(include_str!("../../module.json"), include_bytes!("../../icon.svg"));
+    luma_module_sdk::embedded_module!();

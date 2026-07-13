@@ -7,6 +7,8 @@ description = "Low-level module manifest/registry/embedded types (below luma-eng
 license.workspace = true
 
 [dependencies]
+# The embedded_module!() proc-macro, re-exported for the below-facade modules.
+luma-module-macros = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 # Semver range checks for versioned module dependencies (dependsOn version reqs).

@@ -13,6 +13,11 @@
 // Registry / capability + config types. Re-exported at the crate root.
 pub use luma_module_manifest::*;
 
+/// `embedded_module!()` builds a module's `MODULE` const by discovering its
+/// `module.json` + `icon.<ext>` at compile time. Write
+/// `pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();`.
+pub use luma_module_macros::embedded_module;
+
 /// Host contract: the `ServerModule` trait, `HostCtx`, `service` / `resolve_port`
 /// helpers, and the `async_trait` re-export module impls need.
 pub mod host {

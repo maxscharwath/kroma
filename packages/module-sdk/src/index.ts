@@ -36,6 +36,8 @@ export { useT } from '@luma/ui';
 export type { EventBus, EventKey } from './bus';
 export { createEventBus } from './bus';
 export type { LumaEvents, ModuleApiRegistry } from './contracts';
+export type { DefineModuleOptions, ModuleManifestInput, ModulePage } from './define';
+export { defineModule, pageHref } from './define';
 export type { HostApi, HostAuth, HostBase, HostI18n, HostNav, LumaHost } from './host';
 export { moduleIconUrl } from './icon';
 export type {

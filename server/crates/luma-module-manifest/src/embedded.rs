@@ -44,6 +44,17 @@ impl EmbeddedModule {
         }
     }
 
+    /// A module with an embedded icon of an explicit content type. Used by the
+    /// `embedded_module!()` macro, which discovers the icon file at compile time
+    /// and passes the MIME derived from its extension.
+    pub const fn with_icon(
+        manifest_json: &'static str,
+        icon_bytes: &'static [u8],
+        content_type: &'static str,
+    ) -> Self {
+        Self { manifest_json, icon: Some(EmbeddedIcon { content_type, bytes: icon_bytes }) }
+    }
+
     /// A module with no packaged icon.
     pub const fn iconless(manifest_json: &'static str) -> Self {
         Self { manifest_json, icon: None }

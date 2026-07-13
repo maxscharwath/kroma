@@ -52,7 +52,7 @@ export function ModulesAdminPage() {
     }
     // Re-snapshot the whole module host, not just this page: refreshes the
     // ['modules'] query behind `disabledIds`, so the sidebar nav, the
-    // /admin/m/<id> route and any contributed panels reflect the toggle live -
+    // /admin/<id> route and any contributed panels reflect the toggle live -
     // no page reload. (This also refetches the admin list, so `reload()` is
     // covered.)
     await refreshModules();
@@ -242,8 +242,24 @@ function DepChip({ label, state }: Readonly<{ label: string; state: DepState }>)
   );
 }
 
-/** A module's dependency status: hard + optional deps and capability
- *  requirements, each colored by whether it is satisfied in the installed set. */
+/** Modules that depend on `module`: a hard/optional `dependsOn` on its id, or a
+ *  capability `requires` this module's `provides` satisfies. The reverse edges of
+ *  the dependency graph, so a provider (e.g. Downloads) shows who needs it. */
+function dependents(module: AdminModule, all: AdminModule[]): AdminModule[] {
+  const provides = module.provides ?? [];
+  return all.filter((other) => {
+    if (other.id === module.id) return false;
+    const deps = [...depEntries(other.dependsOn), ...depEntries(other.optionalDependsOn)];
+    if (deps.some((d) => d.id === module.id)) return true;
+    return (other.requires ?? []).some((r) =>
+      provides.some((c) => c.kind === r.kind && (!r.id || c.id === r.id)),
+    );
+  });
+}
+
+/** A module's dependency status, both directions: its hard + optional deps and
+ *  capability requirements (each colored by whether it is satisfied), plus the
+ *  modules that in turn depend on it. */
 function ModuleDeps({ module, all }: Readonly<{ module: AdminModule; all: AdminModule[] }>) {
   const byId = new Map(all.map((m) => [m.id, m]));
   const deps = [
@@ -251,32 +267,53 @@ function ModuleDeps({ module, all }: Readonly<{ module: AdminModule; all: AdminM
     ...depEntries(module.optionalDependsOn).map((d) => ({ ...d, optional: true })),
   ];
   const reqs = module.requires ?? [];
-  if (deps.length === 0 && reqs.length === 0) return null;
+  const requiredBy = dependents(module, all);
+  if (deps.length === 0 && reqs.length === 0 && requiredBy.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase tracking-wide text-dim">Dependencies</span>
-      <div className="flex flex-wrap gap-1.5">
-        {deps.map((d) => {
-          const state = depState(byId.get(d.id), d.optional);
-          return (
-            <DepChip key={d.id} label={d.version ? `${d.id}@${d.version}` : d.id} state={state} />
-          );
-        })}
-        {reqs.map((r) => {
-          const provided = all.some(
-            (m) =>
-              m.enabled &&
-              (m.provides ?? []).some((c) => c.kind === r.kind && (!r.id || c.id === r.id)),
-          );
-          return (
-            <DepChip
-              key={`cap:${r.kind}:${r.id ?? ''}`}
-              label={r.id ? `${r.kind}:${r.id}` : r.kind}
-              state={provided ? 'ok' : 'missing'}
-            />
-          );
-        })}
-      </div>
+    <div className="mt-2 flex flex-col gap-1.5">
+      {(deps.length > 0 || reqs.length > 0) && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-dim">Depends on</span>
+          <div className="flex flex-wrap gap-1.5">
+            {deps.map((d) => {
+              const state = depState(byId.get(d.id), d.optional);
+              return (
+                <DepChip
+                  key={d.id}
+                  label={d.version ? `${d.id}@${d.version}` : d.id}
+                  state={state}
+                />
+              );
+            })}
+            {reqs.map((r) => {
+              const provided = all.some(
+                (m) =>
+                  m.enabled &&
+                  (m.provides ?? []).some((c) => c.kind === r.kind && (!r.id || c.id === r.id)),
+              );
+              return (
+                <DepChip
+                  key={`cap:${r.kind}:${r.id ?? ''}`}
+                  label={r.id ? `${r.kind}:${r.id}` : r.kind}
+                  state={provided ? 'ok' : 'missing'}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {requiredBy.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-dim">
+            Required by
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {requiredBy.map((d) => (
+              <DepChip key={d.id} label={d.name} state={d.enabled ? 'ok' : 'disabled'} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

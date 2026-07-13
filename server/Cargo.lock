@@ -3426,9 +3426,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "luma-module-macros"
+version = "0.1.0"
+
+[[package]]
 name = "luma-module-manifest"
 version = "0.1.0"
 dependencies = [
+ "luma-module-macros",
  "semver",
  "serde",
  "serde_json",
@@ -3444,6 +3449,7 @@ dependencies = [
  "luma-engine",
  "luma-http",
  "luma-module-host",
+ "luma-module-macros",
  "luma-module-manifest",
  "luma-primitives",
  "luma-scene",

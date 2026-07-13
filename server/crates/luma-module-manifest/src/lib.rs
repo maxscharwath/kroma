@@ -33,6 +33,11 @@ mod manifest;
 mod registry;
 
 pub use embedded::EmbeddedModule;
+/// `embedded_module!()` builds a module's `MODULE` const from its `module.json`
+/// + `icon.<ext>`. Re-exported here (as well as from `luma_module_sdk`) so the
+/// capability-provider modules that sit below the SDK facade (e.g. scene) can
+/// use it without depending on the facade.
+pub use luma_module_macros::embedded_module;
 pub use event::ModuleEvent;
 pub use manifest::{
     Capability, CapabilityReq, ConfigField, Dependency, FeRemote, ModuleManifest, Version,

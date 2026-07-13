@@ -29,7 +29,7 @@ import { DownloadClientsSection } from './download-clients';
 import { DownloadRowView, type LiveDl } from './download-row';
 import { ManualGrabModal } from './manual-grab';
 
-/** The Downloads module page (`/admin/m/downloads`): the live download queue,
+/** The Downloads module page (`/admin/downloads`): the live download queue,
  *  VPN status banner, aggregate stats, and the download-clients section. Default
  *  export so the module runtime can `React.lazy` it into its own chunk. */
 export default function DownloadsPage() {

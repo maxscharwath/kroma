@@ -24,10 +24,8 @@ use luma_module_sdk::host::{async_trait, service, HostCtx, ServerModule};
 
 /// This module's registry entry (manifest + packaged icon, embedded at compile
 /// time from the shared module folder).
-pub const MODULE: luma_module_sdk::EmbeddedModule = luma_module_sdk::EmbeddedModule::new(
-    include_str!("../../module.json"),
-    include_bytes!("../../icon.svg"),
-);
+use luma_module_sdk::EmbeddedModule;
+pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();
 
 pub struct Vpn {
     data_dir: PathBuf,

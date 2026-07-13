@@ -40,11 +40,12 @@ of its `.module.md` source). `id`s and derived crate names must be unique, and
 ## 2. Hand-written crate module
 
 Look at `server/modules/dev.luma.torrents/` (backend + frontend) as the template. Each
-crate exports one `pub const MODULE` built from its `module.json` + `icon.svg`:
+crate exports one `pub const MODULE`; `embedded_module!()` finds the module's
+`module.json` + `icon.<ext>` (or none) at compile time, so it is one line:
 
 ```rust
-pub const MODULE: EmbeddedModule =
-    EmbeddedModule::new(include_str!("../../module.json"), include_bytes!("../../icon.svg"));
+use luma_module_sdk::EmbeddedModule;
+pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();
 ```
 
 Register the backend by adding the module to `modules/roster.yaml` (its `id` +
@@ -86,15 +87,38 @@ A module folder is:
 
 ## Pages + sections
 
-A module page is a `route` + a `navItem`. Its `section` places its link in a
-named nav group: **admin** groups `management | media | acquisition | system |
-maintenance` (or `admin` for the generic "Module pages" group), or `library` for
-the main sidebar. `icon` is a name (e.g. `download`, `antenna`; see
-`clients/web/src/modules/module-icons.ts`), `requires` gates it by capability.
+Build the frontend module with `defineModule(manifest, { locales, pages })`: it
+takes `id` / `version` / `dependsOn` from the manifest, so you never restate
+them. Each `pages[]` entry is one screen -- a `path` + `component`, plus an
+optional `nav` when it should appear in a sidebar. The nav URL is **derived**
+from the page's `section` + `path` (`section` in an admin group -> `/admin/<path>`,
+otherwise `/<path>`), so the route and its link can never drift and there is no
+`m/` segment to write.
+
+`section` places the link in a named nav group: **admin** groups `management |
+media | acquisition | system | maintenance` (or `admin` for the generic "Module
+pages" group), or `library` for the main sidebar. `icon` is a name (e.g.
+`download`, `antenna`; see `clients/web/src/modules/module-icons.ts`), `requires`
+gates it by capability.
 
 ```ts
-navItems: [{ to: '/admin/m/torrents', label: 'nav.title', icon: 'download',
-             section: 'acquisition', requires: 'library.manage' }]
+import { defineModule } from '@luma/module-sdk';
+import { lazy } from 'react';
+import manifest from '../../module.json';
+
+export const torrentsModule = defineModule(manifest, {
+  locales: import.meta.glob<Record<string, string>>('../../locales/*.json', {
+    eager: true,
+    import: 'default',
+  }),
+  pages: [
+    {
+      path: 'downloads', // -> /admin/downloads (section is an admin group)
+      component: lazy(() => import('./DownloadsPage')),
+      nav: { label: 'nav.title', icon: 'download', section: 'acquisition', requires: 'library.manage' },
+    },
+  ],
+});
 ```
 
 ## i18n

@@ -39,10 +39,8 @@ mod provision;
 
 /// This module's registry entry (manifest + packaged icon, embedded at compile
 /// time from the shared module folder).
-pub const MODULE: luma_module_sdk::EmbeddedModule = luma_module_sdk::EmbeddedModule::new(
-    include_str!("../../module.json"),
-    include_bytes!("../../icon.svg"),
-);
+use luma_module_sdk::EmbeddedModule;
+pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();
 
 /// How many recent connector log lines we keep for the admin panel.
 const LOG_CAP: usize = 200;

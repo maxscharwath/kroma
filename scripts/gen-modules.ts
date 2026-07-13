@@ -35,17 +35,15 @@ function write(path: string, content: string): void {
   writeFileSync(path, content);
 }
 
-/** The generated `MODULE` const: an `EmbeddedModule` built from the packaged
- *  `module.json` (+ `icon.svg`), which owns the whole `Module` impl. Any author
- *  `rust` block is appended after it. */
-function genModule(hasIcon: boolean): string {
-  const ctor = hasIcon
-    ? 'EmbeddedModule::new(include_str!("../../module.json"), include_bytes!("../../icon.svg"))'
-    : 'EmbeddedModule::iconless(include_str!("../../module.json"))';
+/** The generated `MODULE` const: `embedded_module!()` discovers the packaged
+ *  `module.json` (+ `icon.<ext>`, or none) at compile time, so this is one line
+ *  regardless of whether the module ships an icon. Any author `rust` block is
+ *  appended after it. */
+function genModule(): string {
   return `use luma_module_sdk::EmbeddedModule;
 
 /// This module's registry entry (manifest + packaged icon embedded at compile time).
-pub const MODULE: EmbeddedModule = ${ctor};`;
+pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();`;
 }
 
 const rustHeader = (file: string) =>
@@ -144,7 +142,7 @@ luma-module-sdk = { workspace = true }
 serde_json = { workspace = true }
 `,
   );
-  let lib = `${rustHeader(file)}\n${genModule(!!svg)}\n`;
+  let lib = `${rustHeader(file)}\n${genModule()}\n`;
   if (rustExtra) lib += `\n${rustExtra.trim()}\n`;
   write(join(dir, 'server', 'src', 'lib.rs'), lib);
   if (sql) {

@@ -9,6 +9,8 @@ license.workspace = true
 [dependencies]
 # Manifest layer (below engine): EmbeddedModule / Registry / ModuleManifest.
 luma-module-manifest = { workspace = true }
+# The embedded_module!() proc-macro, re-exported so modules write one line.
+luma-module-macros = { workspace = true }
 # Host contract: ServerModule, HostCtx, service/port resolution, async_trait.
 luma-module-host = { workspace = true }
 # The application surface modules build against.

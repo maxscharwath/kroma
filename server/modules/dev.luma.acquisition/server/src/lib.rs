@@ -44,10 +44,8 @@ pub const JOBS: &[luma_module_sdk::engine::services::jobs::Builtin] =
 pub const MODULE_ID: &str = "dev.luma.acquisition";
 
 /// This module's registry entry (manifest + packaged icon embedded at compile time).
-pub const MODULE: luma_module_sdk::EmbeddedModule = luma_module_sdk::EmbeddedModule::new(
-    include_str!("../../module.json"),
-    include_bytes!("../../icon.svg"),
-);
+use luma_module_sdk::EmbeddedModule;
+pub const MODULE: EmbeddedModule = luma_module_sdk::embedded_module!();
 
 /// Resolve the Downloads module's grab surface (grab / gate / activate / drop /
 /// list-files) from the host port registry. Acquisition reaches it only through

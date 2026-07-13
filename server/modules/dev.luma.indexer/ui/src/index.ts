@@ -1,7 +1,5 @@
-import type { LumaModule } from '@luma/module-sdk';
+import { defineModule } from '@luma/module-sdk';
 import { lazy } from 'react';
-import en from '../../locales/en.json';
-import fr from '../../locales/fr.json';
 import manifest from '../../module.json';
 
 // The Indexers module (frontend half). id / version / dependsOn come from the
@@ -9,19 +7,21 @@ import manifest from '../../module.json';
 // Indexers admin page into the Acquisition sidebar group; the paired
 // IndexersModule ServerModule gates the /api/admin/indexers routes, so disabling
 // the module removes the page and its routes together.
-export const indexerModule: LumaModule = {
-  id: manifest.id,
-  version: manifest.version,
-  dependsOn: manifest.dependsOn,
-  locales: { en, fr },
-  navItems: [
+export const indexerModule = defineModule(manifest, {
+  locales: import.meta.glob<Record<string, string>>('../../locales/*.json', {
+    eager: true,
+    import: 'default',
+  }),
+  pages: [
     {
-      to: '/admin/m/indexers',
-      label: 'nav.indexers',
-      icon: 'antenna',
-      section: 'acquisition',
-      requires: 'settings.manage',
+      path: 'indexers',
+      component: lazy(() => import('./IndexersPage')),
+      nav: {
+        label: 'nav.indexers',
+        icon: 'antenna',
+        section: 'acquisition',
+        requires: 'settings.manage',
+      },
     },
   ],
-  routes: [{ path: 'indexers', component: lazy(() => import('./IndexersPage')) }],
-};
+});

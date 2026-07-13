@@ -109,6 +109,7 @@ mimalloc = { version = "0.1", default-features = false }
 # Low manifest layer (below engine): manifest/registry/embedded types that
 # engine, kernel and wasm build on. Modules never depend on this directly.
 luma-module-manifest = { path = "crates/luma-module-manifest" }
+luma-module-macros = { path = "crates/luma-module-macros" }
 # The module SDK facade (ABOVE engine): the single crate every module depends on.
 # Re-exports the manifest layer + the engine/host/domain/http surface modules use.
 luma-module-sdk = { path = "crates/luma-module-sdk" }

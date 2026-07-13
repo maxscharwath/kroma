@@ -14,9 +14,15 @@ export function frontmatter(md: string): Manifest | null {
   return m ? (Bun.YAML.parse(m[1]) as Manifest) : null;
 }
 
-/** A fenced code block's contents by language (```lang ... ```), or null. */
+/** A fenced code block's contents by language (```lang ... ```), or null. Both
+ *  fences are anchored to the start of a line (the `m` flag) and `lang` is
+ *  regex-escaped, so a `locale.en` request matches only a literal ```locale.en
+ *  fence (not ```localeXen), and a nested triple-backtick indented inside the
+ *  block does not truncate it. */
 export function fenced(md: string, lang: string): string | null {
-  const m = md.match(new RegExp(`\`\`\`${lang}\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\``));
+  const escaped = lang.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^\`\`\`${escaped}[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\`[ \\t]*$`, 'm');
+  const m = md.match(re);
   return m ? m[1] : null;
 }
 

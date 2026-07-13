@@ -51,7 +51,8 @@ function validate(node: Json, value: unknown, path: string, errors: string[]): v
     // same non-string ranges the Rust loader (next_entry::<String, String>) does.
     if (node.additionalProperties && typeof node.additionalProperties === 'object') {
       for (const [key, val] of Object.entries(obj)) {
-        if (!(key in props)) validate(node.additionalProperties as Json, val, `${path}.${key}`, errors);
+        if (!(key in props))
+          validate(node.additionalProperties as Json, val, `${path}.${key}`, errors);
       }
     }
     for (const [key, sub] of Object.entries(props)) {
@@ -80,6 +81,12 @@ function validate(node: Json, value: unknown, path: string, errors: string[]): v
     if (typeof node.pattern === 'string' && !new RegExp(node.pattern).test(value)) {
       errors.push(`${path}: "${value}" does not match ${node.pattern}`);
     }
+  } else if (type === 'boolean') {
+    if (typeof value !== 'boolean') errors.push(`${path}: expected boolean`);
+  } else if (type === 'number' || type === 'integer') {
+    if (typeof value !== 'number' || Number.isNaN(value)) errors.push(`${path}: expected number`);
+    else if (type === 'integer' && !Number.isInteger(value))
+      errors.push(`${path}: expected integer`);
   }
   if (Array.isArray(node.enum) && !node.enum.includes(value)) {
     errors.push(`${path}: ${JSON.stringify(value)} not one of ${JSON.stringify(node.enum)}`);
@@ -88,14 +95,20 @@ function validate(node: Json, value: unknown, path: string, errors: string[]): v
 
 const errors: string[] = [];
 
-/** List a directory, returning [] (not throwing) when it doesn't exist. */
+/** List a directory (sorted for stable output), returning [] when absent. */
 function optionalReaddir(dir: string): string[] {
   try {
-    return readdirSync(dir);
+    return readdirSync(dir).sort();
   } catch {
     return [];
   }
 }
+
+// Manifest ids seen among the compiled (server/modules) + runtime (wasm-modules)
+// sets: an id present in BOTH is a real collision (a runtime WASM module would
+// shadow a built-in and share its enabled flag). Single-file sources are their
+// own generated mirror, so they are checked at codegen time, not here.
+const compiledWasmIds: { id: string; label: string }[] = [];
 
 /** Read + parse + schema-check one `module.json`, skipping absent dirs. */
 function validateManifestFile(manifestPath: string, label: string): void {
@@ -112,6 +125,8 @@ function validateManifestFile(manifestPath: string, label: string): void {
     return;
   }
   validate(schema, value, label, errors);
+  const id = (value as Json)?.id;
+  if (typeof id === 'string') compiledWasmIds.push({ id, label });
 }
 
 // 1) Compiled-in module manifests + 2) runtime (WASM) module manifests.
@@ -133,6 +148,17 @@ for (const file of optionalReaddir(srcDir).filter((f) => f.endsWith('.module.md'
     continue;
   }
   validate(schema, fm, `modules/${file}`, errors);
+}
+
+// Report any id that appears in more than one of the compiled/WASM manifests.
+const byId = new Map<string, string[]>();
+for (const { id, label } of compiledWasmIds) {
+  const labels = byId.get(id) ?? [];
+  labels.push(label);
+  byId.set(id, labels);
+}
+for (const [id, labels] of byId) {
+  if (labels.length > 1) errors.push(`duplicate module id "${id}" in: ${labels.join(', ')}`);
 }
 
 if (errors.length) {

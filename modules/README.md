@@ -23,6 +23,7 @@ bun run modules:new dev.luma.notes     # scaffold modules/notes.module.md
 # edit the file: YAML frontmatter (manifest) + a ```tsx page (+ optional ```svg / ```rust / ```sql)
 bun run modules:gen                     # expand it into server/modules/<id>/ + register it
 bun run modules:validate                # schema-check every manifest
+bun run modules:check                   # CI gate: manifests valid + generated output in sync
 ```
 
 One `.module.md` holds the manifest (frontmatter) and its fenced blocks:
@@ -31,7 +32,10 @@ One `.module.md` holds the manifest (frontmatter) and its fenced blocks:
 you; do not redefine it), `` ```sql `` (migrations). `modules:gen` writes the
 generated crate + package and updates the aggregator rosters, so nothing is
 hand-wired. See `modules/hello.module.md` for a complete example. Generated
-output is committed -- re-run `modules:gen` after editing and commit the result.
+output is committed -- re-run `modules:gen` after editing and commit the result;
+`modules:check` fails if it drifts (e.g. a generated file was hand-edited instead
+of its `.module.md` source). `id`s and derived crate names must be unique, and
+`version` must be semver -- `modules:gen` errors early otherwise.
 
 ## 2. Hand-written crate module
 

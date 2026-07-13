@@ -73,7 +73,7 @@ mod xml;
 const MAX_TIME_SECS: u32 = 40;
 
 fn fetch_xml(endpoint: &IndexerEndpoint, params: &[(&str, String)]) -> anyhow::Result<Vec<u8>> {
-    let mut req = luma_http::Fetch::new().max_time(MAX_TIME_SECS);
+    let mut req = luma_module_sdk::http::Fetch::new().max_time(MAX_TIME_SECS);
     if !endpoint.api_key.is_empty() {
         req = req.query("apikey", endpoint.api_key.clone());
     }

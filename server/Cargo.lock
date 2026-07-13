@@ -3539,10 +3539,7 @@ name = "luma-remote"
 version = "0.1.0"
 dependencies = [
  "axum",
- "luma-domain",
- "luma-module-host",
  "luma-module-sdk",
- "luma-primitives",
  "serde",
  "serde_json",
  "tokio",
@@ -3633,7 +3630,6 @@ name = "luma-torznab"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "luma-http",
  "luma-module-sdk",
  "quick-xml",
  "serde",
@@ -3660,7 +3656,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
- "luma-domain",
  "luma-module-sdk",
  "serde",
  "serde_json",

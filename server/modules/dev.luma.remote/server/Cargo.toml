@@ -7,10 +7,7 @@ description = "LUMA Remote access module (backend): the managed Cloudflare Tunne
 license.workspace = true
 
 [dependencies]
-luma-module-host = { workspace = true }
 luma-module-sdk = { workspace = true }
-luma-primitives = { workspace = true }
-luma-domain = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

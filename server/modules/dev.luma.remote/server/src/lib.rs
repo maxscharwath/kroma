@@ -32,8 +32,8 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::json;
 
-use luma_domain::Permission;
-use luma_module_host::{async_trait, service, AuthUser, HostCtx, ServerModule};
+use luma_module_sdk::domain::Permission;
+use luma_module_sdk::host::{async_trait, service, AuthUser, HostCtx, ServerModule};
 
 mod provision;
 
@@ -181,7 +181,7 @@ impl RemoteAccess {
                 Ok(child) => {
                     g.child = Some(child);
                     g.running = true;
-                    g.since = Some(luma_primitives::now_iso8601());
+                    g.since = Some(luma_module_sdk::primitives::now_iso8601());
                     info!("remote access: cloudflared connector started");
                 }
                 Err(e) => {

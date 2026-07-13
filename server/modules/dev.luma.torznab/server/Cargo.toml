@@ -9,7 +9,6 @@ license.workspace = true
 [dependencies]
 luma-module-sdk = { workspace = true }
 serde_json = { workspace = true }
-luma-http = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 quick-xml = { workspace = true }

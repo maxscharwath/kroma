@@ -13,7 +13,6 @@ semantic = ["dep:candle-core", "dep:candle-nn", "dep:candle-transformers", "dep:
 
 [dependencies]
 luma-module-sdk = { workspace = true }
-luma-domain = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,0 +1,21 @@
+[package]
+name = "luma-module-supervisor"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "The core side of the out-of-process module system: spawn + supervise each installed module binary, reverse-proxy its HTTP, and serve the /api/_host/* callback API modules use for settings / events / jobs."
+license.workspace = true
+
+[dependencies]
+# The host contract the callback endpoints resolve against (any HostCtx state).
+luma-module-host = { workspace = true }
+luma-module-manifest = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+# Async client for reverse-proxying requests to module processes on localhost.
+reqwest = { version = "0.12", default-features = false, features = ["stream"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+rand = "0.8"

@@ -112,6 +112,8 @@ luma-module-manifest = { path = "crates/luma-module-manifest" }
 luma-module-macros = { path = "crates/luma-module-macros" }
 # The out-of-process module runtime (each module binary's serve() entrypoint).
 luma-module-runtime = { path = "crates/luma-module-runtime" }
+# The core side: spawn/supervise module processes + reverse-proxy + callback API.
+luma-module-supervisor = { path = "crates/luma-module-supervisor" }
 # The module SDK facade (ABOVE engine): the single crate every module depends on.
 # Re-exports the manifest layer + the engine/host/domain/http surface modules use.
 luma-module-sdk = { path = "crates/luma-module-sdk" }

@@ -3474,6 +3474,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "luma-module-supervisor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "luma-module-host",
+ "luma-module-manifest",
+ "rand 0.8.6",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "luma-module-wasm"
 version = "0.1.0"
 dependencies = [

@@ -24,7 +24,7 @@ pub mod search;
 
 pub use dtos::*;
 
-use luma_scene::{Profile, Res};
+use luma_module_sdk::scene::{Profile, Res};
 
 use luma_module_sdk::engine::services::jobs::now_ms;
 use luma_module_sdk::engine::state::SharedState;

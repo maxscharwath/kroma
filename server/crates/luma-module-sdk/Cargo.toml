@@ -19,3 +19,7 @@ luma-domain = { workspace = true }
 luma-http = { workspace = true }
 luma-db = { workspace = true }
 luma-primitives = { workspace = true }
+# Pure capability-provider modules the facade re-exports (they sit below it, on
+# the manifest layer) so consumer modules reach them via luma_module_sdk::<name>
+# instead of a direct cross-module dependency.
+luma-scene = { workspace = true }

@@ -7,6 +7,8 @@ description = "Release-name parsing and the acquisition decision engine (pure, z
 license.workspace = true
 
 [dependencies]
-luma-module-sdk = { workspace = true }
+# Pure parser/scorer: only needs the low manifest layer for its MODULE const, so
+# the SDK facade can re-export it (luma_module_sdk::scene) to consumer modules.
+luma-module-manifest = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use luma_module_sdk::db as db;
+use luma_module_sdk::db;
 use luma_module_sdk::engine::model::{Kind, MediaFile, MediaItem, Show};
 
 use crate::dtos::{OrganizeMove, OrganizePlan, OrganizeResult, SampleNames};
@@ -180,7 +180,7 @@ fn expected_rel(
 ) -> Option<(PathBuf, String)> {
     let abs = current_abs(file)?;
     let ext = abs.extension()?.to_str()?.to_string();
-    let parsed = luma_scene::parse_release_name(abs.file_stem()?.to_str()?);
+    let parsed = luma_module_sdk::scene::parse_release_name(abs.file_stem()?.to_str()?);
     // The quality + MediaInfo fields shared by movies and episodes: resolution/
     // codec/streams from the probe, source/group/proper from the current name.
     let base = quality_ctx(file, &parsed);
@@ -219,7 +219,7 @@ fn expected_rel(
 
 /// Quality + MediaInfo naming context from a probed file, minus the
 /// title/year/season/ids the caller fills per kind.
-fn quality_ctx(file: &MediaFile, parsed: &luma_scene::ParsedRelease) -> NameContext {
+fn quality_ctx(file: &MediaFile, parsed: &luma_module_sdk::scene::ParsedRelease) -> NameContext {
     let width = file.video.as_ref().and_then(|v| v.width).map(|w| w as i64);
     let (_, _, source) = naming::quality_from_parsed(parsed);
     let hdr = file.video.as_ref().is_some_and(|v| v.hdr);

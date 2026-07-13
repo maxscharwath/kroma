@@ -3287,7 +3287,6 @@ dependencies = [
  "axum",
  "luma-indexer",
  "luma-module-sdk",
- "luma-scene",
  "luma-torrent",
  "luma-torznab",
  "serde",
@@ -3467,6 +3466,7 @@ dependencies = [
  "luma-module-host",
  "luma-module-manifest",
  "luma-primitives",
+ "luma-scene",
 ]
 
 [[package]]
@@ -3539,7 +3539,7 @@ dependencies = [
 name = "luma-scene"
 version = "0.1.0"
 dependencies = [
- "luma-module-sdk",
+ "luma-module-manifest",
  "serde",
  "serde_json",
 ]
@@ -3598,7 +3598,6 @@ dependencies = [
  "librqbit",
  "luma-indexer",
  "luma-module-sdk",
- "luma-scene",
  "rusqlite",
  "serde",
  "serde_json",

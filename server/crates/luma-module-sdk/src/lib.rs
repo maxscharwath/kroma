@@ -49,3 +49,10 @@ pub mod db {
 pub mod primitives {
     pub use luma_primitives::*;
 }
+
+/// The scene module's pure release-name parser / scorer (`parse_release_name`,
+/// `ParsedRelease`, `score`, `classify`, ...). Re-exported so consumer modules
+/// use `luma_module_sdk::scene::*` instead of depending on luma-scene directly.
+pub mod scene {
+    pub use luma_scene::*;
+}

@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
-use luma_scene::{Candidate, Target};
+use luma_module_sdk::scene::{Candidate, Target};
 use luma_torznab::{Query, Release};
 
 use crate::dtos::{
@@ -168,16 +168,16 @@ pub fn score_release(
     release: &Release,
     indexer: &IndexerRow,
     st: &SearchTarget,
-    profile: &luma_scene::Profile,
+    profile: &luma_module_sdk::scene::Profile,
 ) -> ScoredReleaseView {
-    let parsed = luma_scene::parse_release_name(&release.title);
+    let parsed = luma_module_sdk::scene::parse_release_name(&release.title);
     let candidate = Candidate {
         size_bytes: release.size_bytes,
         seeders: release.seeders,
         indexer_priority: indexer.priority,
     };
     let (score, breakdown, rejected) =
-        match luma_scene::score(&parsed, &candidate, &st.target, profile, &release.title) {
+        match luma_module_sdk::scene::score(&parsed, &candidate, &st.target, profile, &release.title) {
             Ok(s) => (
                 Some(s.score),
                 s.breakdown
@@ -389,7 +389,7 @@ pub fn manual_search(state: &SharedState, query: &str) -> Result<ManualSearchVie
                     if !seen.insert((indexer.id.clone(), r.guid.clone())) {
                         continue;
                     }
-                    let p = luma_scene::parse_release_name(&r.title);
+                    let p = luma_module_sdk::scene::parse_release_name(&r.title);
                     releases.push(ManualReleaseView {
                         title: r.title.clone(),
                         guid: r.guid.clone(),

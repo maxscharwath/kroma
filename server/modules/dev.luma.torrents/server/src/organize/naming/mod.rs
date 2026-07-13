@@ -252,9 +252,9 @@ fn cleanup(s: &str) -> String {
 /// Quality strings (resolution, codec, source) from a parsed release name, in
 /// the spellings Sonarr/Radarr use (`1080p`, `x265`, `Bluray`).
 pub fn quality_from_parsed(
-    parsed: &luma_scene::ParsedRelease,
+    parsed: &luma_module_sdk::scene::ParsedRelease,
 ) -> (Option<String>, Option<String>, Option<String>) {
-    use luma_scene::{Codec, Res, Source};
+    use luma_module_sdk::scene::{Codec, Res, Source};
     let res = parsed.resolution.map(|r| match r {
         Res::R720 => "720p",
         Res::R1080 => "1080p",

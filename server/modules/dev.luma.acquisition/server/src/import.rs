@@ -105,7 +105,7 @@ fn import_one(state: &SharedState, row: &DownloadRow) -> Result<Vec<String>> {
         }
         "episode" => {
             let src = largest(&videos);
-            let parsed = luma_scene::parse_release_name(stem_of(src));
+            let parsed = luma_module_sdk::scene::parse_release_name(stem_of(src));
             let episode = row
                 .episodes
                 .as_ref()
@@ -121,7 +121,7 @@ fn import_one(state: &SharedState, row: &DownloadRow) -> Result<Vec<String>> {
         "season" => {
             let season = row.season.unwrap_or(1);
             for src in &videos {
-                let parsed = luma_scene::parse_release_name(stem_of(src));
+                let parsed = luma_module_sdk::scene::parse_release_name(stem_of(src));
                 let Some(episode) = parsed.episode else {
                     tracing::debug!(file = %src.display(), "season pack: no episode marker, skipped");
                     continue;
@@ -143,7 +143,7 @@ fn import_one(state: &SharedState, row: &DownloadRow) -> Result<Vec<String>> {
 /// Naming context for a movie: quality/group/proper parsed from the file name
 /// (the streams are not probed yet, so MediaInfo tokens fill in at scan time).
 fn movie_ctx(meta: &ImportMeta, src: &Path) -> naming::NameContext {
-    let parsed = luma_scene::parse_release_name(stem_of(src));
+    let parsed = luma_module_sdk::scene::parse_release_name(stem_of(src));
     let ctx = base_ctx(meta, &parsed);
     naming::NameContext { title: meta.title.clone(), year: meta.year, ..ctx }
 }
@@ -153,7 +153,7 @@ fn episode_ctx(
     meta: &ImportMeta,
     season: u32,
     episode: u32,
-    parsed: &luma_scene::ParsedRelease,
+    parsed: &luma_module_sdk::scene::ParsedRelease,
 ) -> naming::NameContext {
     let ctx = base_ctx(meta, parsed);
     naming::NameContext {
@@ -167,7 +167,7 @@ fn episode_ctx(
 
 /// The quality/group/edition/dynamic-range/id fields common to both, from the
 /// parsed release name + the resolved metadata.
-fn base_ctx(meta: &ImportMeta, parsed: &luma_scene::ParsedRelease) -> naming::NameContext {
+fn base_ctx(meta: &ImportMeta, parsed: &luma_module_sdk::scene::ParsedRelease) -> naming::NameContext {
     let (resolution, codec, source) = naming::quality_from_parsed(parsed);
     naming::NameContext {
         resolution,
@@ -203,7 +203,7 @@ fn resolve_meta(state: &SharedState, row: &DownloadRow) -> Result<ImportMeta> {
         return Ok(ImportMeta { kind, title: title.to_string(), year: row.year, tmdb_id });
     }
     // Last resort: derive from the release name (bare magnet with no metadata).
-    let parsed = luma_scene::parse_release_name(&row.release_title);
+    let parsed = luma_module_sdk::scene::parse_release_name(&row.release_title);
     if parsed.title.trim().is_empty() {
         bail!("could not determine a title to import under (no request, no metadata, unparseable name)");
     }

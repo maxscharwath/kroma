@@ -3440,6 +3440,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "luma-module-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "luma-db",
+ "luma-domain",
+ "luma-http",
+ "luma-module-host",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "luma-module-sdk"
 version = "0.1.0"
 dependencies = [
@@ -3513,7 +3530,9 @@ dependencies = [
 name = "luma-remote"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "luma-module-runtime",
  "luma-module-sdk",
  "serde",
  "serde_json",

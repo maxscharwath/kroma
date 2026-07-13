@@ -14,12 +14,12 @@ use anyhow::{anyhow, bail, Result};
 use crate::{AddTorrentReq, ClientDef, DownloadClient, RqbitConfig, RqbitEngine};
 
 use crate::db::{self, DownloadClientRow, DownloadRow};
-use luma_domain::RequestStatus;
+use luma_module_sdk::domain::RequestStatus;
 
 use crate::VpnStatusView;
-use luma_module_host::{Event, HostCtx};
+use luma_module_sdk::host::{Event, HostCtx};
 use serde_json::json;
-use luma_primitives::now_ms;
+use luma_module_sdk::primitives::now_ms;
 
 /// The LUMA category/label applied inside external clients.
 pub const LABEL: &str = "luma";
@@ -362,10 +362,10 @@ impl DownloadManager {
             .ok_or_else(|| anyhow!("no enabled download client"))?;
         drop(conn);
 
-        let id = luma_primitives::short_hash(&format!(
+        let id = luma_module_sdk::primitives::short_hash(&format!(
             "download|{}|{}",
             spec.release_title,
-            luma_primitives::random_token()
+            luma_module_sdk::primitives::random_token()
         ));
         // The embedded engine downloads into a per-grab folder we choose, so
         // the importer knows exactly where the data is. External engines use
@@ -723,7 +723,7 @@ pub struct GrabSpec {
 pub fn active_proxy_url(host: &dyn HostCtx) -> Option<String> {
     // Route torrent traffic through the VPN module's bridge whenever it provides
     // one, resolved by port so downloads never depends on the VPN crate.
-    luma_module_host::resolve_port::<dyn luma_contracts::VpnProxyPort>(host)
+    luma_module_sdk::host::resolve_port::<dyn luma_module_sdk::ports::VpnProxyPort>(host)
         .and_then(|p| p.proxy_url(host))
 }
 
@@ -746,7 +746,7 @@ fn fetch_torrent_for(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8
         // Cardigann indexer, so fall through to a plain fetch. Downloads never
         // names the indexer crate.
         if let Some(port) =
-            luma_module_host::resolve_port::<dyn luma_contracts::TorrentFetchPort>(host)
+            luma_module_sdk::host::resolve_port::<dyn luma_module_sdk::ports::TorrentFetchPort>(host)
         {
             if let Some(result) = port.fetch_torrent(host, indexer_id, &row.magnet_or_url) {
                 return result;
@@ -757,7 +757,7 @@ fn fetch_torrent_for(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8
 }
 
 fn fetch_torrent_file(url: &str) -> Result<Vec<u8>> {
-    let resp = luma_http::Fetch::new().max_time(30).get(url)?.ensure_ok()?;
+    let resp = luma_module_sdk::http::Fetch::new().max_time(30).get(url)?.ensure_ok()?;
     if resp.body.is_empty() {
         bail!("indexer returned an empty response");
     }

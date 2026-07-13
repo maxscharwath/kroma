@@ -8,8 +8,8 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 
-use luma_engine::services::requests::today_ymd;
-use luma_engine::state::SharedState;
+use luma_module_sdk::engine::services::requests::today_ymd;
+use luma_module_sdk::engine::state::SharedState;
 use luma_torrent::db;
 
 use crate::search::{score_release, targets_for_wanted, wanted_ids_by};
@@ -140,7 +140,7 @@ pub fn auto_search_pass(state: &SharedState, log: &dyn Fn(String), cancelled: &d
     // Stamp every due row so the next pass rotates to the least recently
     // searched, grabbed or not.
     let stamp: Vec<String> = due.iter().map(|w| w.id.clone()).collect();
-    db::stamp_wanted_searched(&state.db, &stamp, luma_engine::services::jobs::now_ms())?;
+    db::stamp_wanted_searched(&state.db, &stamp, luma_module_sdk::engine::services::jobs::now_ms())?;
     Ok(summary)
 }
 

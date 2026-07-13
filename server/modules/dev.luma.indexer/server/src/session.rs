@@ -114,8 +114,8 @@ impl Session {
         engine::join_url(&self.rendered_base(), &self.render(path))
     }
 
-    fn base_fetch(&self) -> luma_http::Fetch {
-        let mut f = luma_http::Fetch::new()
+    fn base_fetch(&self) -> luma_module_sdk::http::Fetch {
+        let mut f = luma_module_sdk::http::Fetch::new()
             .max_time(MAX_TIME_SECS)
             .cookie_jar(&self.cookie_jar)
             .header("User-Agent", USER_AGENT);

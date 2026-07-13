@@ -5,8 +5,8 @@
 //! the scan itself, so the cron catches titles that resolved in between.
 
 use anyhow::Result;
-use luma_engine::model::Category;
-use luma_engine::services::jobs::{Builtin, JobContext, JobKey, Trigger};
+use luma_module_sdk::engine::model::Category;
+use luma_module_sdk::engine::services::jobs::{Builtin, JobContext, JobKey, Trigger};
 
 pub const SPEC: Builtin = Builtin {
     key: JobKey("acquisition.match"),
@@ -20,7 +20,7 @@ pub fn run(ctx: &JobContext) -> Result<()> {
     if super::acquisition_disabled(ctx) {
         return Ok(());
     }
-    let summary = luma_engine::services::requests::availability_pass(&ctx.state)?;
+    let summary = luma_module_sdk::engine::services::requests::availability_pass(&ctx.state)?;
     if summary.checked == 0 {
         ctx.info("no open requests to match");
     } else {

@@ -80,7 +80,7 @@ impl DefinitionStore {
 
         // 1) Download the tarball (curl, so the VPN proxy applies if set).
         let tarball = tmp.join("defs.tar.gz");
-        let bytes = luma_http::Fetch::new()
+        let bytes = luma_module_sdk::http::Fetch::new()
             .max_time(120)
             .get(&self.source)
             .context("download definitions")?

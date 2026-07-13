@@ -58,9 +58,9 @@ pub const MODULE_ID: &str = "dev.luma.indexer";
 /// HostCtx seam. Lifecycle-free (disabling it just gates its routes off).
 pub struct IndexersModule;
 
-#[luma_module_host::async_trait]
-impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
-    luma_module_host::ServerModule<S> for IndexersModule
+#[luma_module_sdk::host::async_trait]
+impl<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>
+    luma_module_sdk::host::ServerModule<S> for IndexersModule
 {
     fn id(&self) -> &'static str {
         MODULE_ID
@@ -76,21 +76,21 @@ impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
 }
 
 /// This module's backend behavior, for the host's generic module roster.
-pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
-) -> Box<dyn luma_module_host::ServerModule<S>> {
+pub fn server_module<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>(
+) -> Box<dyn luma_module_sdk::host::ServerModule<S>> {
     Box::new(IndexersModule)
 }
 
-/// The [`TorrentFetchPort`](luma_contracts::TorrentFetchPort) impl: fetch a
+/// The [`TorrentFetchPort`](luma_module_sdk::ports::TorrentFetchPort) impl: fetch a
 /// `.torrent` through a built-in Cardigann indexer's authenticated session. The
 /// composition root registers it so the downloads module can grab private-tracker
 /// files without depending on this crate.
 pub struct IndexerTorrentFetch;
 
-impl luma_contracts::TorrentFetchPort for IndexerTorrentFetch {
+impl luma_module_sdk::ports::TorrentFetchPort for IndexerTorrentFetch {
     fn fetch_torrent(
         &self,
-        host: &dyn luma_module_host::HostCtx,
+        host: &dyn luma_module_sdk::host::HostCtx,
         indexer_id: &str,
         url: &str,
     ) -> Option<anyhow::Result<Vec<u8>>> {

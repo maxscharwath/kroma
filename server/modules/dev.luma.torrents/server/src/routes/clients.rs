@@ -13,12 +13,12 @@ use axum::{Json, Router};
 use serde_json::json;
 
 use crate::db::{self, DownloadClientRow, EMBEDDED_CLIENT_ID};
-use luma_domain::Permission;
+use luma_module_sdk::domain::Permission;
 
 use crate::{ClientTestResult, DownloadClientView, DownloadClientsView, SaveDownloadClientBody};
-use luma_engine::state::SharedState;
-use luma_module_host::{blocking, json_error, query, service, AuthUser, HostCtx};
-use luma_primitives::{now_ms, random_token, short_hash};
+use luma_module_sdk::engine::state::SharedState;
+use luma_module_sdk::host::{blocking, json_error, query, service, AuthUser, HostCtx};
+use luma_module_sdk::primitives::{now_ms, random_token, short_hash};
 
 use crate::DownloadManager;
 

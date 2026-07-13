@@ -15,7 +15,7 @@ use rusqlite::{params, Connection, Row};
 
 // The core persistence surface (catalog, requests, settings, acq tmdb hints, ...)
 // stays in luma-db; re-exported so `crate::db::get_request` etc. keep resolving.
-pub use luma_db::*;
+pub use luma_module_sdk::db::*;
 // The `indexers` table + queries moved into the Indexers module crate; the
 // acquisition + queue paths reach them through this same facade.
 pub use luma_indexer::db::{

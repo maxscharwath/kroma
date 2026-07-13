@@ -25,7 +25,7 @@
 
 use std::path::PathBuf;
 
-use luma_engine::services::settings::Settings;
+use luma_module_sdk::engine::services::settings::Settings;
 
 mod tokens;
 

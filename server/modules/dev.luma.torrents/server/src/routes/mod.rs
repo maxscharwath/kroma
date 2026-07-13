@@ -17,7 +17,7 @@ mod queue;
 
 use axum::Router;
 
-use luma_engine::state::SharedState;
+use luma_module_sdk::engine::state::SharedState;
 
 /// The Downloads module's full admin router: engines, queue and organize merged.
 /// Mounted behind the module's enabled-gate by the host, so the whole surface

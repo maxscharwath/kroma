@@ -36,13 +36,13 @@ fn short_ip(body: String) -> Option<String> {
 /// Probe `check_url` through `proxy` (`socks5://[user:pass@]host:port` or
 /// `host:port`) and directly.
 pub fn check(proxy: &str, check_url: &str) -> VpnCheck {
-    let proxied = luma_http::Fetch::new()
+    let proxied = luma_module_sdk::http::Fetch::new()
         .max_time(12)
         .socks5(proxy.trim().trim_start_matches("socks5://"))
         .get(check_url)
         .and_then(|r| r.ensure_ok())
         .map(|r| r.text());
-    let direct = luma_http::Fetch::new()
+    let direct = luma_module_sdk::http::Fetch::new()
         .max_time(12)
         .get(check_url)
         .and_then(|r| r.ensure_ok())

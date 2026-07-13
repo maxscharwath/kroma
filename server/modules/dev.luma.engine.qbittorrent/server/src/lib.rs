@@ -28,8 +28,8 @@ impl QBittorrent {
         }
     }
 
-    fn fetch(&self) -> luma_http::Fetch {
-        luma_http::Fetch::new().max_time(60).cookie_jar(&self.jar)
+    fn fetch(&self) -> luma_module_sdk::http::Fetch {
+        luma_module_sdk::http::Fetch::new().max_time(60).cookie_jar(&self.jar)
     }
 
     fn login(&self) -> Result<()> {
@@ -45,7 +45,7 @@ impl QBittorrent {
     }
 
     /// GET returning the body, re-logging-in once on 403 (expired SID).
-    fn get(&self, path: &str, params: &[(&str, &str)]) -> Result<luma_http::Response> {
+    fn get(&self, path: &str, params: &[(&str, &str)]) -> Result<luma_module_sdk::http::Response> {
         let url = format!("{}{path}", self.base);
         let build = || {
             let mut f = self.fetch();
@@ -62,7 +62,7 @@ impl QBittorrent {
         resp.ensure_ok()
     }
 
-    fn post(&self, path: &str, fields: &[(&str, &str)]) -> Result<luma_http::Response> {
+    fn post(&self, path: &str, fields: &[(&str, &str)]) -> Result<luma_module_sdk::http::Response> {
         let url = format!("{}{path}", self.base);
         let resp = self.fetch().post_form(&url, fields)?;
         if resp.status == 403 {
@@ -237,30 +237,30 @@ pub const MODULE: luma_module_sdk::EmbeddedModule =
 /// through the host's service registry, so the binary wires nothing.
 pub struct QbittorrentModule;
 
-#[luma_module_host::async_trait]
-impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
-    luma_module_host::ServerModule<S> for QbittorrentModule
+#[luma_module_sdk::host::async_trait]
+impl<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>
+    luma_module_sdk::host::ServerModule<S> for QbittorrentModule
 {
     fn id(&self) -> &'static str {
         MODULE_ID
     }
 
-    async fn on_enable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
-        if let Some(dm) = luma_module_host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
+    async fn on_enable(&self, host: std::sync::Arc<dyn luma_module_sdk::host::HostCtx>) {
+        if let Some(dm) = luma_module_sdk::host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
             dm.register_engine(register);
         }
     }
 
-    async fn on_disable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
-        if let Some(dm) = luma_module_host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
+    async fn on_disable(&self, host: std::sync::Arc<dyn luma_module_sdk::host::HostCtx>) {
+        if let Some(dm) = luma_module_sdk::host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
             dm.unregister_engine(KIND);
         }
     }
 }
 
 /// This module's backend behavior, for the host's generic module roster.
-pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
-) -> Box<dyn luma_module_host::ServerModule<S>> {
+pub fn server_module<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>(
+) -> Box<dyn luma_module_sdk::host::ServerModule<S>> {
     Box::new(QbittorrentModule)
 }
 

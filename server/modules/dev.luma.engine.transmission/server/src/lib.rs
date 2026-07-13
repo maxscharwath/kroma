@@ -47,8 +47,8 @@ impl Transmission {
         }
     }
 
-    fn fetch(&self) -> luma_http::Fetch {
-        let mut f = luma_http::Fetch::new().max_time(60);
+    fn fetch(&self) -> luma_module_sdk::http::Fetch {
+        let mut f = luma_module_sdk::http::Fetch::new().max_time(60);
         let sid = self.session_id.lock().unwrap().clone();
         if !sid.is_empty() {
             f = f.header(SESSION_HEADER, sid);
@@ -247,30 +247,30 @@ pub const MODULE: luma_module_sdk::EmbeddedModule =
 /// through the host's service registry, so the binary wires nothing.
 pub struct TransmissionModule;
 
-#[luma_module_host::async_trait]
-impl<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>
-    luma_module_host::ServerModule<S> for TransmissionModule
+#[luma_module_sdk::host::async_trait]
+impl<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>
+    luma_module_sdk::host::ServerModule<S> for TransmissionModule
 {
     fn id(&self) -> &'static str {
         MODULE_ID
     }
 
-    async fn on_enable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
-        if let Some(dm) = luma_module_host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
+    async fn on_enable(&self, host: std::sync::Arc<dyn luma_module_sdk::host::HostCtx>) {
+        if let Some(dm) = luma_module_sdk::host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
             dm.register_engine(register);
         }
     }
 
-    async fn on_disable(&self, host: std::sync::Arc<dyn luma_module_host::HostCtx>) {
-        if let Some(dm) = luma_module_host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
+    async fn on_disable(&self, host: std::sync::Arc<dyn luma_module_sdk::host::HostCtx>) {
+        if let Some(dm) = luma_module_sdk::host::service::<luma_torrent::DownloadManager>(host.as_ref()) {
             dm.unregister_engine(KIND);
         }
     }
 }
 
 /// This module's backend behavior, for the host's generic module roster.
-pub fn server_module<S: luma_module_host::HostCtx + Clone + Send + Sync + 'static>(
-) -> Box<dyn luma_module_host::ServerModule<S>> {
+pub fn server_module<S: luma_module_sdk::host::HostCtx + Clone + Send + Sync + 'static>(
+) -> Box<dyn luma_module_sdk::host::ServerModule<S>> {
     Box::new(TransmissionModule)
 }
 

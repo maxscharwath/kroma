@@ -11,9 +11,9 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde_json::json;
 
-use luma_domain::{Permission, User};
-use luma_engine::state::SharedState;
-use luma_module_host::{blocking, json_error, AuthUser, HostCtx};
+use luma_module_sdk::domain::{Permission, User};
+use luma_module_sdk::engine::state::SharedState;
+use luma_module_sdk::host::{blocking, json_error, AuthUser, HostCtx};
 
 use crate::dtos::{
     AnalyzeBody, ManualAddBody, ManualSearchBody, ManualSearchView, TorrentAnalysis, TorrentFileView,

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use axum::Router;
 use tokio::process::Child;
 
-use luma_module_host::{async_trait, service, HostCtx, ServerModule};
+use luma_module_sdk::host::{async_trait, service, HostCtx, ServerModule};
 
 /// This module's registry entry (manifest + packaged icon, embedded at compile
 /// time from the shared module folder).
@@ -161,13 +161,13 @@ pub fn wg_configured(host: &dyn HostCtx) -> bool {
     !host.setting_str("vpnWgConfig", "").trim().is_empty()
 }
 
-/// The [`VpnProxyPort`](luma_contracts::VpnProxyPort) impl: the local SOCKS5 URL
+/// The [`VpnProxyPort`](luma_module_sdk::ports::VpnProxyPort) impl: the local SOCKS5 URL
 /// this module's bridge exposes, derived from settings. The composition root
 /// registers it so downloads / indexers route through the bridge without ever
 /// depending on this crate.
 pub struct VpnProxy;
 
-impl luma_contracts::VpnProxyPort for VpnProxy {
+impl luma_module_sdk::ports::VpnProxyPort for VpnProxy {
     fn proxy_url(&self, host: &dyn HostCtx) -> Option<String> {
         wg_configured(host).then(|| {
             let port = host.setting_i64("vpnLocalPort", 25345).clamp(1, 65535);

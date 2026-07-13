@@ -12,8 +12,8 @@ use luma_torznab::{Query, Release};
 use crate::dtos::{
     InteractiveSearchView, ManualReleaseView, ManualSearchView, ScoreLineView, ScoredReleaseView,
 };
-use luma_engine::model::RequestKind;
-use luma_engine::state::SharedState;
+use luma_module_sdk::engine::model::RequestKind;
+use luma_module_sdk::engine::state::SharedState;
 use luma_torrent::db::{self, IndexerRow, WantedRow};
 
 /// A release remembered from the last interactive search of a request, so a
@@ -230,7 +230,7 @@ pub fn interactive_search(state: &SharedState, request_id: &str) -> Result<Inter
     // A pending request has no ledger yet: search as if it were approved, so a
     // moderator can look before green-lighting.
     if wanted.is_empty() {
-        luma_engine::services::requests::preview_wanted(state, &req, &mut wanted)?;
+        luma_module_sdk::engine::services::requests::preview_wanted(state, &req, &mut wanted)?;
     }
     // An interactive search is an explicit admin action: search the request's
     // FULL content regardless of ledger status, so a request that's already
@@ -334,10 +334,10 @@ pub fn grab_cached(
     drop(conn);
     let needs_approval = matches!(
         req.status,
-        luma_engine::model::RequestStatus::Pending | luma_engine::model::RequestStatus::Failed
+        luma_module_sdk::engine::model::RequestStatus::Pending | luma_module_sdk::engine::model::RequestStatus::Failed
     );
     if needs_approval {
-        luma_engine::services::requests::approve_request(state, request_id, None)?;
+        luma_module_sdk::engine::services::requests::approve_request(state, request_id, None)?;
     }
     let conn = state.db.get()?;
     let req = db::get_request(&conn, request_id)?.ok_or_else(|| anyhow!("request not found"))?;

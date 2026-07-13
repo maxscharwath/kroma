@@ -9,9 +9,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::db;
-use luma_module_host::{Event, HostCtx};
+use luma_module_sdk::host::{Event, HostCtx};
 use serde_json::json;
-use luma_primitives::now_ms;
+use luma_module_sdk::primitives::now_ms;
 
 use super::DownloadManager;
 

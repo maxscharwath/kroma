@@ -50,7 +50,7 @@ fn announce_once(base: &str, info_hash: &[u8; 20], socks: Option<&str>) -> Vec<S
     let sep = if base.contains('?') { '&' } else { '?' };
     let url = format!("{base}{sep}{q}");
 
-    let mut fetch = luma_http::Fetch::new().max_time(20);
+    let mut fetch = luma_module_sdk::http::Fetch::new().max_time(20);
     if let Some(proxy) = socks {
         fetch = fetch.socks5(proxy.to_string());
     }

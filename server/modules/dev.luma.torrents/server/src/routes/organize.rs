@@ -12,11 +12,11 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde_json::{json, Value};
 
-use luma_domain::{Permission, User};
-use luma_engine::state::SharedState;
+use luma_module_sdk::domain::{Permission, User};
+use luma_module_sdk::engine::state::SharedState;
 
 use crate::dtos::{NamingTemplatesView, NamingView, OrganizePlan, OrganizeResult, SampleBody};
-use luma_module_host::{blocking, json_error, AuthUser, HostCtx};
+use luma_module_sdk::host::{blocking, json_error, AuthUser, HostCtx};
 
 use crate::organize::{
     self,

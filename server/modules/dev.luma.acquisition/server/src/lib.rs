@@ -26,8 +26,8 @@ pub use dtos::*;
 
 use luma_scene::{Profile, Res};
 
-use luma_engine::services::jobs::now_ms;
-use luma_engine::state::SharedState;
+use luma_module_sdk::engine::services::jobs::now_ms;
+use luma_module_sdk::engine::state::SharedState;
 use luma_torrent::db::IndexerRow;
 
 const GB: u64 = 1_073_741_824;
@@ -35,7 +35,7 @@ const GB: u64 = 1_073_741_824;
 /// The acquisition background jobs this module contributes to the app's job
 /// registry (search / import / match). The binary passes this to
 /// `AppState::new` so the core registers them without naming the module.
-pub const JOBS: &[luma_engine::services::jobs::Builtin] =
+pub const JOBS: &[luma_module_sdk::engine::services::jobs::Builtin] =
     &[jobs::import::SPEC, jobs::search::SPEC, jobs::match_::SPEC];
 
 /// This module's id, shared with `module.json` and the frontend package. The one
@@ -52,7 +52,7 @@ pub const MODULE: luma_module_sdk::EmbeddedModule = luma_module_sdk::EmbeddedMod
 /// registry. Acquisition reaches the engine only by type through `HostCtx`, so
 /// it never holds a concrete `AppState` field for it.
 pub(crate) fn downloads(state: &SharedState) -> std::sync::Arc<luma_torrent::DownloadManager> {
-    luma_module_host::service::<luma_torrent::DownloadManager>(&**state)
+    luma_module_sdk::host::service::<luma_torrent::DownloadManager>(&**state)
         .expect("download manager registered")
 }
 
@@ -197,21 +197,21 @@ pub fn resolve_builtin_download(
 /// `AppState` (settings / config / DB), so it is a `ServerModule<SharedState>`.
 pub struct AcquisitionModule;
 
-#[luma_module_host::async_trait]
-impl luma_module_host::ServerModule<luma_engine::state::SharedState> for AcquisitionModule {
+#[luma_module_sdk::host::async_trait]
+impl luma_module_sdk::host::ServerModule<luma_module_sdk::engine::state::SharedState> for AcquisitionModule {
     fn id(&self) -> &'static str {
         MODULE_ID
     }
 
     fn admin_routes(
         &self,
-        _host: &luma_engine::state::SharedState,
-    ) -> Option<axum::Router<luma_engine::state::SharedState>> {
+        _host: &luma_module_sdk::engine::state::SharedState,
+    ) -> Option<axum::Router<luma_module_sdk::engine::state::SharedState>> {
         Some(routes::routes())
     }
 }
 
 /// This module's backend behavior, for the host's generic module roster.
-pub fn server_module() -> Box<dyn luma_module_host::ServerModule<luma_engine::state::SharedState>> {
+pub fn server_module() -> Box<dyn luma_module_sdk::host::ServerModule<luma_module_sdk::engine::state::SharedState>> {
     Box::new(AcquisitionModule)
 }

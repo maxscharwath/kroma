@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::db::IndexerRow;
-use luma_module_host::HostCtx;
-use luma_primitives::now_ms;
+use luma_module_sdk::host::HostCtx;
+use luma_module_sdk::primitives::now_ms;
 use luma_torznab::{Caps, IndexerEndpoint};
 
 use crate::store::DefinitionStore;
@@ -103,7 +103,7 @@ pub fn builtin_session(host: &dyn HostCtx, row: &IndexerRow) -> anyhow::Result<A
 /// opt-in first so the WireGuard config isn't read on the common (off) path.
 fn vpn_proxy_url(host: &dyn HostCtx) -> Option<String> {
     if host.setting_bool("acqIndexersUseVpn", false) {
-        luma_module_host::resolve_port::<dyn luma_contracts::VpnProxyPort>(host)
+        luma_module_sdk::host::resolve_port::<dyn luma_module_sdk::ports::VpnProxyPort>(host)
             .and_then(|p| p.proxy_url(host))
     } else {
         None

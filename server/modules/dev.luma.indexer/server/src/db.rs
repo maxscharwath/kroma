@@ -10,7 +10,7 @@
 use anyhow::Result;
 use rusqlite::{params, Connection, Row};
 
-use luma_db::Pool;
+use luma_module_sdk::db::Pool;
 
 /// The `indexers` table schema, applied after the core schema at DB init.
 /// `IF NOT EXISTS` DDL only, so it runs harmlessly on every boot. Copied verbatim

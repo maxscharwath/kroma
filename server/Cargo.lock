@@ -3285,10 +3285,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "luma-domain",
- "luma-engine",
  "luma-indexer",
- "luma-module-host",
  "luma-module-sdk",
  "luma-scene",
  "luma-torrent",
@@ -3393,13 +3390,7 @@ dependencies = [
  "chrono",
  "indexmap 2.14.0",
  "libxml",
- "luma-contracts",
- "luma-db",
- "luma-domain",
- "luma-http",
- "luma-module-host",
  "luma-module-sdk",
- "luma-primitives",
  "luma-torznab",
  "quick-xml",
  "regex",
@@ -3527,8 +3518,6 @@ name = "luma-qbittorrent"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "luma-http",
- "luma-module-host",
  "luma-module-sdk",
  "luma-torrent",
  "serde_json",
@@ -3607,15 +3596,8 @@ dependencies = [
  "anyhow",
  "axum",
  "librqbit",
- "luma-contracts",
- "luma-db",
- "luma-domain",
- "luma-engine",
- "luma-http",
  "luma-indexer",
- "luma-module-host",
  "luma-module-sdk",
- "luma-primitives",
  "luma-scene",
  "rusqlite",
  "serde",
@@ -3641,8 +3623,6 @@ name = "luma-transmission"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "luma-http",
- "luma-module-host",
  "luma-module-sdk",
  "luma-torrent",
  "serde_json",
@@ -3668,9 +3648,6 @@ name = "luma-vpn"
 version = "0.1.0"
 dependencies = [
  "axum",
- "luma-contracts",
- "luma-domain",
- "luma-module-host",
  "luma-module-sdk",
  "luma-torrent",
  "serde",

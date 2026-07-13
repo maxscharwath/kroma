@@ -8,8 +8,8 @@ pub mod import;
 pub mod match_;
 pub mod search;
 
-use luma_engine::services::jobs::JobContext;
-use luma_module_host::HostCtx;
+use luma_module_sdk::engine::services::jobs::JobContext;
+use luma_module_sdk::host::HostCtx;
 
 /// The acquisition jobs belong to the Acquisition module: they grab + import
 /// torrents. When that module is disabled these jobs no-op (a disabled module

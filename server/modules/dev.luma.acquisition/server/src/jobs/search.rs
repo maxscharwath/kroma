@@ -4,8 +4,8 @@
 //! the cron and immediately after a request is approved.
 
 use anyhow::Result;
-use luma_engine::model::Category;
-use luma_engine::services::jobs::{Builtin, JobContext, JobKey};
+use luma_module_sdk::engine::model::Category;
+use luma_module_sdk::engine::services::jobs::{Builtin, JobContext, JobKey};
 
 pub const SPEC: Builtin = Builtin {
     key: JobKey("acquisition.search"),

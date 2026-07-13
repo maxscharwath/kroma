@@ -12,18 +12,12 @@ license.workspace = true
 rqbit = ["dep:librqbit", "dep:tokio"]
 
 [dependencies]
-luma-http = { workspace = true }
 luma-module-sdk = { workspace = true }
 # The download manager + monitor (formerly the luma-downloads crate) live here now,
 # so the module owns its whole backend and nothing download-related sits in crates/.
-luma-module-host = { workspace = true }
-luma-contracts = { workspace = true }
 # The admin routes (queue / clients / organize) moved into this crate need the
 # axum router + extractors, exactly like the vpn / indexer module crates.
 axum = { workspace = true }
-luma-db = { workspace = true }
-luma-domain = { workspace = true }
-luma-primitives = { workspace = true }
 # The module owns its `downloads` / `download_clients` tables now (schema + typed
 # queries), so it talks to SQLite directly through the pool luma-db hands out.
 rusqlite = { workspace = true }
@@ -31,7 +25,6 @@ rusqlite = { workspace = true }
 # orchestrates the app (luma-engine) and parses release names via luma-scene. The
 # db facade re-exports the indexers table from luma-indexer for the queue view.
 # The acquisition vertical is its own crate (luma-acquisition), which deps THIS one.
-luma-engine = { workspace = true }
 luma-scene = { workspace = true }
 luma-indexer = { workspace = true }
 sha1 = "0.10"

@@ -7,10 +7,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Result};
 
-use luma_engine::model::RequestKind;
-use luma_engine::services::jobs::now_ms;
-use luma_engine::services::settings::{library_defs, LibraryDef};
-use luma_engine::state::SharedState;
+use luma_module_sdk::engine::model::RequestKind;
+use luma_module_sdk::engine::services::jobs::now_ms;
+use luma_module_sdk::engine::services::settings::{library_defs, LibraryDef};
+use luma_module_sdk::engine::state::SharedState;
 use luma_torrent::db::{self, DownloadRow};
 use luma_torrent::organize::naming;
 
@@ -36,7 +36,7 @@ pub struct ImportSummary {
 /// metadata resolve and the discover UI recognizes it (no request/library dupe).
 fn finalize_import(state: &SharedState, row: &DownloadRow) {
     if let Some(req_id) = row.request_id.as_deref() {
-        if let Err(e) = luma_engine::services::requests::on_download_imported(state, req_id) {
+        if let Err(e) = luma_module_sdk::engine::services::requests::on_download_imported(state, req_id) {
             tracing::warn!(request = %req_id, error = %format!("{e:#}"), "post-import request update failed");
         }
     }
@@ -75,7 +75,7 @@ pub fn import_pass(state: &SharedState, log: &dyn Fn(String)) -> Result<ImportSu
         }
     }
     if summary.imported > 0 {
-        let _ = state.jobs.trigger(state.clone(), luma_engine::services::jobs::JobKey("library.scan"), "acquisition-import");
+        let _ = state.jobs.trigger(state.clone(), luma_module_sdk::engine::services::jobs::JobKey("library.scan"), "acquisition-import");
     }
     Ok(summary)
 }
@@ -225,7 +225,7 @@ fn pin_item_tmdb(state: &SharedState, row: &DownloadRow) -> Result<()> {
         return Ok(());
     }
     let def = target_library_def(state, meta.kind)?;
-    let logical = luma_engine::services::scan::movie_logical_id(&def.id, &meta.title, meta.year);
+    let logical = luma_module_sdk::engine::services::scan::movie_logical_id(&def.id, &meta.title, meta.year);
     db::set_tmdb_hint(&state.db, &logical, row.tmdb_id)
 }
 
@@ -283,7 +283,7 @@ fn video_files(root: &Path) -> Result<Vec<PathBuf>> {
         let ext_ok = path
             .extension()
             .and_then(|e| e.to_str())
-            .map(|e| luma_engine::services::scan::walk::VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+            .map(|e| luma_module_sdk::engine::services::scan::walk::VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
             .unwrap_or(false);
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_ascii_lowercase();
         if ext_ok && !name.contains("sample") {

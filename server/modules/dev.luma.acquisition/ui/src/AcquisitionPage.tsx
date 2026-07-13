@@ -3,7 +3,7 @@
 // `/api/admin/settings?view=acquisition` endpoint. Default export so the module
 // runtime can React.lazy it into its own chunk.
 
-import { SettingsView } from '@luma/admin-kit';
+import { SettingsView } from '@luma/module-sdk';
 
 export default function AcquisitionPage() {
   return (

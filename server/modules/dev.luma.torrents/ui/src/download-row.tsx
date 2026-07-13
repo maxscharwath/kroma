@@ -3,8 +3,8 @@
 // (⋮) menu with the row's state-dependent actions (pause/resume, ask more
 // peers, retry, tracker link, remove).
 
-import type { DownloadView, MessageKey } from '@luma/core';
-import { useT } from '@luma/ui';
+import type { DownloadView, MessageKey } from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   IconDotsVertical,
@@ -20,7 +20,7 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { formatBytes, ProgressBar } from '@luma/admin-kit';
+import { formatBytes, ProgressBar } from '@luma/module-sdk';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
 export interface LiveDl {

@@ -2,7 +2,7 @@
 // engine (embedded / Transmission / qBittorrent) with enable toggle, live
 // connection test and the add/edit modal.
 
-import { apiErrorText, type ClientTestResult, type DownloadClientView } from '@luma/core';
+import { apiErrorText, type ClientTestResult, type DownloadClientView } from '@luma/module-sdk';
 import {
   AddEngineModal,
   Card,
@@ -14,8 +14,8 @@ import {
   useAdminKit,
   useEnabledEngines,
   usePoll,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconCpu, IconLoader2, IconPencil, IconPlus, IconServer } from '@tabler/icons-react';
 import { useState } from 'react';
 import { DownloadClientModal } from './download-client-modals';

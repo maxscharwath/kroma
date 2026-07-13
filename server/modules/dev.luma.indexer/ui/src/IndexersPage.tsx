@@ -8,7 +8,7 @@ import {
   type IndexerTestResult,
   type IndexerView,
   type MessageKey,
-} from '@luma/core';
+} from '@luma/module-sdk';
 import {
   AddEngineModal,
   Card,
@@ -23,8 +23,8 @@ import {
   useCap,
   useEnabledEngines,
   usePoll,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconAntenna, IconLoader2, IconPencil } from '@tabler/icons-react';
 import { useState } from 'react';
 import {

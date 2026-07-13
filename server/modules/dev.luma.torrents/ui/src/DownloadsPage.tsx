@@ -2,7 +2,7 @@
 // page-scoped download.progress stream, slow poll as the safety net), a VPN
 // status banner, aggregate stat cards and the download-clients section.
 
-import { type DownloadView, LumaEvents } from '@luma/core';
+import { type DownloadView, LumaEventStream } from '@luma/module-sdk';
 import {
   EmptyState,
   formatBytes,
@@ -14,8 +14,8 @@ import {
   useAdminKit,
   useCap,
   usePoll,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import {
   IconDownload,
   IconPlayerPause,
@@ -56,7 +56,7 @@ export default function DownloadsPage() {
   }, [reload]);
 
   useEffect(() => {
-    const ev = new LumaEvents(apiBase, {
+    const ev = new LumaEventStream(apiBase, {
       onEvent: (e) => {
         if (e.type === 'download.progress') {
           setLive((s) => ({

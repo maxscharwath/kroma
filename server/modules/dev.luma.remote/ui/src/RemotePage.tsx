@@ -5,7 +5,7 @@
 //
 // One control drives the connector: the enable toggle (auto-saved). The server
 // reconciles the running connector to match it, so disabling always stops it.
-import type { RemoteAccessView } from '@luma/core';
+import type { RemoteAccessView } from '@luma/module-sdk';
 import {
   Button,
   C,
@@ -19,8 +19,8 @@ import {
   Toggle,
   useAdminKit,
   useCap,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconCloud, IconDeviceFloppy, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 

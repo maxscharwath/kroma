@@ -4,7 +4,7 @@
 // routing is WireGuard-only (any provider). Default export so the module runtime
 // can React.lazy it into its own chunk.
 
-import { apiErrorText, type VpnTestResult } from '@luma/core';
+import { apiErrorText, type VpnTestResult } from '@luma/module-sdk';
 import {
   Card,
   Denied,
@@ -17,8 +17,8 @@ import {
   useAsyncAction,
   useCap,
   usePoll,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconLoader2, IconShield, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
 import { useState } from 'react';
 

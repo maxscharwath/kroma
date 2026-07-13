@@ -10,6 +10,11 @@
     "typecheck": "tsgo --noEmit",
     "build": "tsgo --noEmit"
   },
+  "dependencies": {
+    "@luma/admin-kit": "workspace:*",
+    "@luma/core": "workspace:*",
+    "@luma/ui": "workspace:*"
+  },
   "peerDependencies": {
     "react": ">=18"
   },

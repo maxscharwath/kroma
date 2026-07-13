@@ -11,7 +11,6 @@
     "build": "tsgo --noEmit"
   },
   "dependencies": {
-    "@luma/admin-kit": "workspace:*",
     "@luma/module-sdk": "workspace:*"
   },
   "peerDependencies": {

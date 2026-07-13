@@ -9,7 +9,7 @@ import {
   type IndexerDefinitionView,
   type IndexerView,
   type SaveIndexerBody,
-} from '@luma/core';
+} from '@luma/module-sdk';
 import {
   Field,
   Modal,
@@ -19,8 +19,8 @@ import {
   Toggle,
   useAdminKit,
   useAsyncAction,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconLoader2, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 

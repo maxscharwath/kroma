@@ -8,7 +8,7 @@ import {
   type ManualReleaseView,
   type TorrentAnalysis,
   type TorrentFileView,
-} from '@luma/core';
+} from '@luma/module-sdk';
 import {
   Field,
   formatBytes,
@@ -18,8 +18,8 @@ import {
   TextInput,
   useAdminKit,
   useAsyncAction,
-} from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+} from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { IconDownload, IconLoader2, IconSearch, IconWand } from '@tabler/icons-react';
 import { useState } from 'react';
 

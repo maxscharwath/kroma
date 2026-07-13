@@ -4,9 +4,9 @@
 // AddEngineModal, driven by the enabled download-client engines. The embedded
 // engine has no form (configured from the Acquisition settings page).
 
-import { apiErrorText, type DownloadClientView, type SaveDownloadClientBody } from '@luma/core';
-import { Field, Modal, ModalActions, TextInput, useAdminKit, useAsyncAction } from '@luma/admin-kit';
-import { useT } from '@luma/ui';
+import { apiErrorText, type DownloadClientView, type SaveDownloadClientBody } from '@luma/module-sdk';
+import { Field, Modal, ModalActions, TextInput, useAdminKit, useAsyncAction } from '@luma/module-sdk';
+import { useT } from '@luma/module-sdk';
 import { useState } from 'react';
 
 export function DownloadClientModal({

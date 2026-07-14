@@ -255,6 +255,11 @@ pub struct ModuleManifest {
     /// compiled-in modules (mounted directly) and port-only modules.
     #[serde(default, rename = "adminPrefixes", skip_serializing_if = "Vec::is_empty")]
     pub admin_prefixes: Vec<String>,
+    /// A library module: its `.lmod` ships no native binary (its code is co-linked
+    /// into the processes that need it), so the supervisor registers it but spawns
+    /// no process (e.g. the release-name parser). Purely informational for the UI.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub library: bool,
 }
 
 impl ModuleManifest {
@@ -274,6 +279,7 @@ impl ModuleManifest {
             config: Vec::new(),
             fe_remote: None,
             admin_prefixes: Vec::new(),
+            library: false,
         }
     }
 

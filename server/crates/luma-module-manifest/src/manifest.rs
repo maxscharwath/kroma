@@ -249,6 +249,12 @@ pub struct ModuleManifest {
     /// The module's frontend remote, when it ships one (runtime-loaded modules).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fe_remote: Option<FeRemote>,
+    /// First path segments of the admin routes this module owns (e.g. `["vpn"]`
+    /// for `/api/admin/vpn/*`). For out-of-process modules, the core reverse-
+    /// proxies `/api/admin/<prefix>/*` to the module's sidecar. Empty for
+    /// compiled-in modules (mounted directly) and port-only modules.
+    #[serde(default, rename = "adminPrefixes", skip_serializing_if = "Vec::is_empty")]
+    pub admin_prefixes: Vec<String>,
 }
 
 impl ModuleManifest {
@@ -267,6 +273,7 @@ impl ModuleManifest {
             permissions: Vec::new(),
             config: Vec::new(),
             fe_remote: None,
+            admin_prefixes: Vec::new(),
         }
     }
 

@@ -84,6 +84,25 @@ impl Supervisor {
         &self.cfg.host_token
     }
 
+    /// The local port of the running module that owns the admin-route first
+    /// segment `seg` (from its manifest's `adminPrefixes`), for reverse-proxying
+    /// `/api/admin/<seg>/*` to its sidecar. `None` if no installed+running module
+    /// claims it.
+    pub fn admin_route_port(&self, seg: &str) -> Option<u16> {
+        for m in self.installed_manifests() {
+            let owns = m
+                .get("adminPrefixes")
+                .and_then(Value::as_array)
+                .is_some_and(|a| a.iter().any(|p| p.as_str() == Some(seg)));
+            if owns {
+                if let Some(id) = m.get("id").and_then(Value::as_str) {
+                    return self.port_of(id);
+                }
+            }
+        }
+        None
+    }
+
     /// Spawn a module process (idempotent: a no-op if already running). Picks a
     /// free localhost port, launches `<id>/module` with the runtime env, and
     /// tracks the child. Errors if the binary is missing.

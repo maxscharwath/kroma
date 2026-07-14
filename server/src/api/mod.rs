@@ -24,7 +24,7 @@ mod pin;
 mod recommend;
 mod requests;
 mod search;
-mod online_subs;
+pub mod online_subs;
 mod passkeys;
 mod plugin;
 mod stream;

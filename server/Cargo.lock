@@ -3710,12 +3710,16 @@ name = "luma-whisper"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "candle-core",
  "candle-nn",
  "candle-transformers",
+ "luma-module-runtime",
  "luma-module-sdk",
+ "serde",
  "serde_json",
  "tokenizers",
+ "tokio",
  "tracing",
 ]
 

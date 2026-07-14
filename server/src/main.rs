@@ -291,6 +291,20 @@ async fn main() -> anyhow::Result<()> {
     let (tid, val) = luma_module_host::port_service(dc_db);
     module_services.insert(tid, val);
     module_services.insert(std::any::TypeId::of::<luma_torrent::DownloadManager>(), downloads);
+    // Whisper transcription runs out-of-process (the dev.luma.whisper .lmod);
+    // register the client proxy so the subtitles endpoint resolves it by type. It
+    // carries the DB pool (the progress/cancel side-channel) + a resolver to the
+    // sidecar's port.
+    let whisper_client = {
+        let sup = supervisor.clone();
+        let tok = host_token.clone();
+        let resolve: luma_port_bridge::Resolver = std::sync::Arc::new(move || {
+            sup.port_of("dev.luma.whisper").map(|p| (format!("http://127.0.0.1:{p}"), tok.clone()))
+        });
+        std::sync::Arc::new(api::online_subs::WhisperClient::new(resolve, db.clone()))
+    };
+    module_services
+        .insert(std::any::TypeId::of::<api::online_subs::WhisperClient>(), whisper_client);
     // The embedder runs out-of-process (the dev.luma.vector .lmod); resolve it as a
     // client proxy to its sidecar. Absent sidecar => empty vectors (recommendations
     // quietly no-op), same as the former NoopEmbedder fallback.

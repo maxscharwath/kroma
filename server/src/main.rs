@@ -47,16 +47,52 @@ impl DownloadsExt for luma_engine::state::SharedState {
 /// Composition-root adapter: wraps the vector module's embedder into the engine's
 /// [`luma_engine::ports::Embedder`] port, so `AppState` holds the capability
 /// without the core naming the concrete embedder crate.
-struct EmbedderPort(std::sync::Arc<dyn luma_vector::Embedder>);
-impl luma_engine::ports::Embedder for EmbedderPort {
+/// Talks to the Vector module's `.lmod` sidecar (dev.luma.vector) over the port
+/// bridge instead of embedding in-process, so the heavy MiniLM/candle model runs
+/// out of the core. `embed_batch` keeps the catalog-wide reembed to one round-trip
+/// per chunk. When the sidecar is absent every call degrades to empty vectors
+/// (like `NoopEmbedder`), so recommendations quietly no-op rather than break.
+struct EmbedderClient {
+    resolve: luma_port_bridge::Resolver,
+}
+impl EmbedderClient {
+    fn post<B: serde::Serialize, T: serde::de::DeserializeOwned + Default>(&self, path: &str, body: &B) -> T {
+        let Some((base, token)) = (self.resolve)() else {
+            return T::default();
+        };
+        luma_http::Fetch::new()
+            .header("authorization", format!("Bearer {token}"))
+            .post_json(&format!("{base}/_port/embedder/{path}"), &serde_json::to_value(body).unwrap_or_default())
+            .and_then(|r| r.ensure_ok())
+            .and_then(|r| r.json::<T>())
+            .unwrap_or_default()
+    }
+    fn meta(&self) -> serde_json::Value {
+        let Some((base, token)) = (self.resolve)() else {
+            return serde_json::Value::Null;
+        };
+        luma_http::Fetch::new()
+            .header("authorization", format!("Bearer {token}"))
+            .get_json::<serde_json::Value>(&format!("{base}/_port/embedder/meta"))
+            .unwrap_or(serde_json::Value::Null)
+    }
+}
+impl luma_engine::ports::Embedder for EmbedderClient {
     fn dim(&self) -> usize {
-        self.0.dim()
+        self.meta().get("dim").and_then(serde_json::Value::as_u64).unwrap_or(0) as usize
     }
     fn embed(&self, text: &str) -> Vec<f32> {
-        self.0.embed(text)
+        self.post("embed", &serde_json::json!({ "text": text }))
+    }
+    fn embed_batch(&self, texts: &[String]) -> Vec<Vec<f32>> {
+        self.post("embed_batch", &serde_json::json!({ "texts": texts }))
     }
     fn relevance_floor(&self) -> f32 {
-        self.0.relevance_floor()
+        self.meta()
+            .get("relevance_floor")
+            .and_then(serde_json::Value::as_f64)
+            .map(|f| f as f32)
+            .unwrap_or(1.0)
     }
 }
 
@@ -255,6 +291,17 @@ async fn main() -> anyhow::Result<()> {
     let (tid, val) = luma_module_host::port_service(dc_db);
     module_services.insert(tid, val);
     module_services.insert(std::any::TypeId::of::<luma_torrent::DownloadManager>(), downloads);
+    // The embedder runs out-of-process (the dev.luma.vector .lmod); resolve it as a
+    // client proxy to its sidecar. Absent sidecar => empty vectors (recommendations
+    // quietly no-op), same as the former NoopEmbedder fallback.
+    let embedder: std::sync::Arc<dyn luma_engine::ports::Embedder> = {
+        let sup = supervisor.clone();
+        let tok = host_token.clone();
+        let resolve: luma_port_bridge::Resolver = std::sync::Arc::new(move || {
+            sup.port_of("dev.luma.vector").map(|p| (format!("http://127.0.0.1:{p}"), tok.clone()))
+        });
+        std::sync::Arc::new(EmbedderClient { resolve })
+    };
     // `luma_acquisition::JOBS` are the acquisition jobs (search / import / match),
     // registered alongside the core built-ins so the core roster names no module.
     let state = AppState::new(
@@ -262,8 +309,7 @@ async fn main() -> anyhow::Result<()> {
         ffprobe_available,
         db,
         settings,
-        std::sync::Arc::new(EmbedderPort(luma_vector::default_embedder()))
-            as std::sync::Arc<dyn luma_engine::ports::Embedder>,
+        embedder,
         module_services,
         luma_acquisition::JOBS,
     );

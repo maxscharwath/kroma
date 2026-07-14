@@ -223,6 +223,8 @@ luma-acquisition = { workspace = true }
 luma-module-kernel = { workspace = true }
 # Named only to register its stateless TorznabPort engine at the composition root.
 luma-port-bridge = { workspace = true }
+# The core reaches the out-of-process embedder (dev.luma.vector .lmod) over HTTP.
+luma-http = { workspace = true }
 luma-whisper = { workspace = true }
 luma-vector = { workspace = true }
 # The admin modules endpoint names ModuleManifest for its flattened response.

@@ -12,6 +12,7 @@ pub mod ws;
 
 mod accounts;
 mod discover;
+mod downloads_overlay;
 mod extract;
 mod home;
 mod images;

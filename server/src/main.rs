@@ -267,6 +267,12 @@ async fn main() -> anyhow::Result<()> {
         std::sync::Arc::new(luma_port_bridge::IndexerSearchClient::new(local_resolver("dev.luma.indexer")));
     let (tid, val) = luma_module_host::port_service(idx_search);
     module_services.insert(tid, val);
+    // Acquisition (dev.luma.acquisition): its interactive-search + grab surface,
+    // consumed by the core's /api/requests/:id/search + /grab endpoints.
+    let acq_search: std::sync::Arc<dyn luma_module_sdk::ports::AcquisitionSearchPort> =
+        std::sync::Arc::new(luma_port_bridge::AcquisitionSearchClient::new(local_resolver("dev.luma.acquisition")));
+    let (tid, val) = luma_module_host::port_service(acq_search);
+    module_services.insert(tid, val);
     // The download manager (dev.luma.torrents) is now a module service like the
     // rest: the composition root constructs it and injects it by type, so the
     // core (luma-engine) never names the torrent engine. The acquisition services

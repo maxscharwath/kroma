@@ -43,7 +43,8 @@ async fn main() -> anyhow::Result<()> {
             luma_acquisition::start_cron(Arc::new(host.clone()) as Arc<dyn HostCtx>);
         },
         vec![luma_acquisition::server_module::<RemoteHost>()],
-        axum::Router::new(),
+        // Provider routes for the core's /api/requests/:id/search + /grab endpoints.
+        luma_acquisition::acqsearch_routes::<RemoteHost>(),
     )
     .await
 }

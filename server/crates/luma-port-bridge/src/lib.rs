@@ -20,8 +20,9 @@ use anyhow::anyhow;
 pub type Resolver = Arc<dyn Fn() -> Option<(String, String)> + Send + Sync>;
 
 /// Serialize `body`, POST it to `base/path` with the bearer token, and
-/// deserialize the `Result<T, String>` envelope the provider returns.
-fn call<B: serde::Serialize, T: serde::de::DeserializeOwned>(
+/// deserialize the `Result<T, String>` envelope the provider returns. `pub` so
+/// composition-root adapters (the acquisition-search client) reuse it.
+pub fn call<B: serde::Serialize, T: serde::de::DeserializeOwned>(
     resolve: &Resolver,
     path: &str,
     body: &B,
@@ -53,10 +54,12 @@ pub fn call_raw<B: serde::Serialize, T: serde::de::DeserializeOwned>(
     Ok(resp.json()?)
 }
 
+pub mod acquisition;
 pub mod download;
 pub mod indexer;
 pub mod torznab;
 pub mod vpn;
+pub use acquisition::AcquisitionSearchClient;
 pub use download::{download_routes, DownloadDbClient, DownloadGrabClient};
 pub use indexer::{
     indexer_routes, IndexerDbClient, IndexerSearchClient, TorrentFetchClient,

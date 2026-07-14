@@ -24,6 +24,28 @@ pub use download::*;
 // The Sonarr/Radarr-style naming engine, shared by torrents (organize) + acquisition.
 pub mod naming;
 
+/// The acquisition module's interactive-search + manual-grab surface, consumed by
+/// the core's `/api/requests/:id/search` + `/grab` endpoints so those keep a
+/// stable URL while the logic runs in the acquisition sidecar. The scored-releases
+/// view crosses the wire as opaque JSON (the core just forwards it); `grab` returns
+/// the enqueued download id and backgrounds the slow engine add provider-side.
+pub trait AcquisitionSearchPort: Send + Sync {
+    /// Live interactive search for one request; the scored-releases view as JSON.
+    fn interactive_search(
+        &self,
+        host: &dyn HostCtx,
+        request_id: &str,
+    ) -> anyhow::Result<serde_json::Value>;
+    /// Grab one release from the last interactive search; returns the download id.
+    fn grab(
+        &self,
+        host: &dyn HostCtx,
+        request_id: &str,
+        guid: &str,
+        indexer_id: &str,
+    ) -> anyhow::Result<String>;
+}
+
 /// The VPN module's local SOCKS5 bridge, for modules that route traffic through it
 /// (downloads always; indexers when opted in). `None` when no bridge is configured
 /// or the VPN module is absent.

@@ -22,8 +22,10 @@ pub mod import;
 pub mod jobs;
 pub mod routes;
 pub mod search;
+mod serve;
 
 pub use dtos::*;
+pub use serve::acqsearch_routes;
 
 use std::sync::Arc;
 use std::time::Duration;

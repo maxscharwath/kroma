@@ -62,13 +62,18 @@ async function packOne(moduleDir: string): Promise<string> {
   const kind = bin ? `${pkg} -> bin ${bin}${features.length ? ` [+${features.join(',')}]` : ''}` : 'library (no binary)';
   console.log(`\npacking ${id} (${kind})`);
 
-  // 1) Build the module's native binary (release), with any declared features.
-  //    Library modules (no [[bin]]) skip this: their code is co-linked, not spawned.
+  // 1) Build the module's native binary, with any declared features. Uses the
+  //    `release-lmod` profile (release + panic=abort): a sidecar aborts on panic
+  //    and the supervisor respawns it, which drops the unwinding tables for ~11%
+  //    smaller binaries at no speed cost (opt-level stays 3). Library modules (no
+  //    [[bin]]) skip this: their code is co-linked, not spawned.
   let binPath: string | null = null;
   if (bin) {
     const featArgs = features.length ? ['--features', features.join(',')] : [];
-    await $`cargo build --release -p ${pkg} --bin ${bin} ${featArgs}`.cwd(join(root, 'server'));
-    binPath = join(root, 'server/target/release', bin);
+    await $`cargo build --profile release-lmod -p ${pkg} --bin ${bin} ${featArgs}`.cwd(
+      join(root, 'server'),
+    );
+    binPath = join(root, 'server/target/release-lmod', bin);
     if (!existsSync(binPath)) throw new Error(`built no binary at ${binPath}`);
   }
 

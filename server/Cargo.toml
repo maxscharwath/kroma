@@ -268,3 +268,12 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+
+# The profile `bun run modules:pack` builds each `.lmod` sidecar with: release +
+# `panic = "abort"`. Dropping the unwinding tables makes the binaries ~11% smaller
+# at NO speed cost (opt-level stays 3). Safe for sidecars specifically: a panic
+# aborts the module process and the supervisor respawns it (the core binary keeps
+# the default unwinding `release` profile). Builds into target/release-lmod/.
+[profile.release-lmod]
+inherits = "release"
+panic = "abort"

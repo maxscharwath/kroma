@@ -44,6 +44,9 @@ pub struct SupervisorConfig {
     pub db_path: PathBuf,
     /// The data dir handed to modules.
     pub data_dir: PathBuf,
+    /// Ids that are compiled into this server (the roster). Installing a `.lmod`
+    /// that reuses one is rejected, since it would collide with the in-core copy.
+    pub reserved_ids: Vec<String>,
 }
 
 pub struct Supervisor {
@@ -72,6 +75,30 @@ impl Supervisor {
             .filter_map(|e| std::fs::read_to_string(e.path().join("module.json")).ok())
             .filter_map(|s| serde_json::from_str(&s).ok())
             .collect()
+    }
+
+    /// The ids of every installed module (one dir per id under `<data>/modules`).
+    /// These are the runtime-installed `.lmod` modules, which (unlike compile-time
+    /// ones) can be uninstalled.
+    pub fn installed_ids(&self) -> Vec<String> {
+        self.installed_manifests()
+            .into_iter()
+            .filter_map(|m| m.get("id").and_then(Value::as_str).map(str::to_string))
+            .collect()
+    }
+
+    /// A runtime-installed module's packaged icon bytes (svg preferred, then png),
+    /// for the listing endpoints. `None` when the module isn't installed or ships
+    /// no icon.
+    pub fn icon(&self, id: &str) -> Option<(&'static str, Vec<u8>)> {
+        let dir = self.dir(id);
+        if let Ok(bytes) = std::fs::read(dir.join("icon.svg")) {
+            return Some(("image/svg+xml", bytes));
+        }
+        if let Ok(bytes) = std::fs::read(dir.join("icon.png")) {
+            return Some(("image/png", bytes));
+        }
+        None
     }
 
     /// The local port a running module listens on, if any.
@@ -167,6 +194,11 @@ impl Supervisor {
                 .ok_or_else(|| anyhow::anyhow!("module.json has no id"))?
                 .to_string();
             validate_id(&id)?;
+            if self.cfg.reserved_ids.iter().any(|r| r == &id) {
+                anyhow::bail!(
+                    "'{id}' is built into this server and can't be installed as a module (this build compiles it in)"
+                );
+            }
             // Swap the install dir atomically-ish: stop the old, replace, spawn.
             self.stop(&id);
             let dest = self.dir(&id);

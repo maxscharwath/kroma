@@ -3428,7 +3428,9 @@ dependencies = [
  "luma-engine",
  "luma-module-host",
  "luma-module-manifest",
+ "luma-module-supervisor",
  "luma-modules-generated",
+ "serde_json",
  "tracing",
 ]
 

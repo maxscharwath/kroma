@@ -207,6 +207,9 @@ async fn main() -> anyhow::Result<()> {
             host_token: host_token.clone(),
             db_path: config.db_path(),
             data_dir: config.data_dir.clone(),
+            // Modules compiled into this binary can't be shadowed by an installed
+            // `.lmod` of the same id (they'd collide), so the store rejects them.
+            reserved_ids: luma_module_kernel::compiled_ids(),
         });
 
     // Build the module services + peer ports the composition root owns, so the
@@ -217,6 +220,13 @@ async fn main() -> anyhow::Result<()> {
         std::any::TypeId,
         std::sync::Arc<dyn std::any::Any + Send + Sync>,
     > = std::collections::HashMap::new();
+    // The supervisor is a service too, so the module registry (luma-module-kernel)
+    // can list runtime-installed `.lmod` modules + resolve their icons without the
+    // kernel holding a router Extension.
+    module_services.insert(
+        std::any::TypeId::of::<luma_module_supervisor::Supervisor>(),
+        supervisor.clone() as std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    );
     let remote = luma_remote::RemoteAccess::new(config.data_dir.clone());
     module_services.insert(std::any::TypeId::of::<luma_remote::RemoteAccess>(), remote);
     // VPN runs out-of-process (the dev.luma.vpn .lmod); resolve VpnProxyPort as a

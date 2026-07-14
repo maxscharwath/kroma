@@ -90,24 +90,51 @@ fn compiled_manifests() -> Vec<ModuleManifest> {
         .collect()
 }
 
-/// Every module's manifest for the listing endpoints: compile-time (dependency
-/// ordered) plus the runtime-loaded (WASM) ones. Used by `/api/modules` and the
-/// admin list -- the one merge point across tiers.
+/// The ids of the compile-time roster (modules built into this server binary).
+/// These can't be installed as a `.lmod` (an installed copy would collide with
+/// the in-core one), so the store rejects uploads that reuse a built-in id.
+pub fn compiled_ids() -> Vec<String> {
+    registry().manifests.manifests().into_iter().map(|m| m.id).collect()
+}
+
+/// Resolve the module supervisor from the host service registry (registered by
+/// the composition root). `None` in contexts without it (e.g. a unit test state).
+fn supervisor(state: &SharedState) -> Option<Arc<luma_module_supervisor::Supervisor>> {
+    luma_module_host::service::<luma_module_supervisor::Supervisor>(state)
+}
+
+/// The ids of the runtime-installed `.lmod` modules (from the supervisor). These
+/// are the ones the admin can uninstall; compile-time modules can't.
+pub fn installed_ids(state: &SharedState) -> Vec<String> {
+    supervisor(state).map(|s| s.installed_ids()).unwrap_or_default()
+}
+
+/// Every module's manifest for the listing endpoints: the compile-time roster
+/// (dependency ordered) plus the runtime-installed `.lmod` modules (from the
+/// supervisor), de-duped by id so a built-in shadows an installed copy of the
+/// same id. Used by `/api/modules` and the admin list -- the one merge point.
 pub fn manifests(state: &SharedState) -> Vec<ModuleManifest> {
     let mut all = compiled_manifests();
-    if let Ok(host) = state.wasm.read() {
-        all.extend(host.manifests());
+    if let Some(sup) = supervisor(state) {
+        let have: std::collections::HashSet<String> = all.iter().map(|m| m.id.clone()).collect();
+        for v in sup.installed_manifests() {
+            match serde_json::from_value::<ModuleManifest>(v) {
+                Ok(m) if !have.contains(&m.id) => all.push(m),
+                Ok(_) => {}
+                Err(e) => tracing::warn!(error = %e, "installed module has an invalid module.json"),
+            }
+        }
     }
     all
 }
 
-/// A module's packaged icon bytes (compile-time first, then WASM), for
-/// `GET /api/modules/<id>/icon`. Owned bytes so both tiers share one shape.
+/// A module's packaged icon bytes (compile-time first, then a runtime-installed
+/// `.lmod`'s icon file), for `GET /api/modules/<id>/icon`.
 pub fn icon(state: &SharedState, id: &str) -> Option<(&'static str, Vec<u8>)> {
     if let Some(ic) = registry().manifests.icon_of(id) {
         return Some((ic.content_type, ic.bytes.to_vec()));
     }
-    state.wasm.read().ok().and_then(|host| host.icon(id)).map(|i| (i.content_type, i.bytes))
+    supervisor(state).and_then(|s| s.icon(id))
 }
 
 /// The backend behavior for a module id, if it has any (for the enable/disable

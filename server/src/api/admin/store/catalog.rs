@@ -44,6 +44,11 @@ pub struct CatalogModule {
     pub description: String,
     pub min_server: Option<String>,
     pub library: bool,
+    /// The module's icon inlined by the catalog generator as a `data:image/...`
+    /// URI, shown by the Store BEFORE the module is downloaded. Only data URIs
+    /// are accepted (a remote URL from a third-party catalog stays out of the
+    /// admin page).
+    pub icon: Option<String>,
     /// Hard dependencies as `(module id, optional semver range)`.
     pub depends_on: Vec<(String, Option<String>)>,
     pub artifacts: Vec<Artifact>,
@@ -116,6 +121,13 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
                 .collect()
         })
         .unwrap_or_default();
+    // Icon safety: only an inline data image (and a sane size) may reach the
+    // admin page's <img>; anything else from a third-party catalog is dropped.
+    let icon = m
+        .get("icon")
+        .and_then(Value::as_str)
+        .filter(|s| s.starts_with("data:image/") && s.len() <= 128 * 1024)
+        .map(str::to_string);
     Some(CatalogModule {
         id,
         name: str_of("name"),
@@ -123,6 +135,7 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         description: str_of("description"),
         min_server: m.get("minServer").and_then(Value::as_str).map(str::to_string),
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
+        icon,
         depends_on,
         artifacts,
     })
@@ -191,6 +204,7 @@ pub fn enriched(state: &SharedState, modules: &[CatalogModule], registry_url: &s
                 "version": m.version,
                 "description": m.description,
                 "library": m.library,
+                "icon": m.icon,
                 "minServer": m.min_server,
                 "dependsOn": m.depends_on.iter()
                     .map(|(dep, range)| json!({ "id": dep, "version": range }))

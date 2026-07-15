@@ -71,6 +71,10 @@ interface Entry {
   minServer?: string;
   library?: boolean;
   dependsOn?: Record<string, string> | unknown[];
+  /** The module's packaged icon inlined as a `data:image/...` URI, so the
+   *  Store shows it BEFORE the module is downloaded (single-file catalog: no
+   *  extra assets to host). Icons are small (svg, a few KB). */
+  icon?: string;
   artifacts: Artifact[];
   // Schema-1 compatibility mirror of artifacts[0].
   file: string;
@@ -89,6 +93,21 @@ function toTar(bytes: Buffer): Uint8Array {
     return Bun.gunzipSync(bytes);
   }
   return bytes;
+}
+
+/** The bundle's icon as a data URI (svg preferred, then png), or undefined.
+ *  Capped so one oversized icon can't bloat the whole catalog. */
+function iconDataUri(tar: Uint8Array): string | undefined {
+  const MAX = 64 * 1024;
+  const svg = tarRead(tar, 'icon.svg');
+  if (svg && svg.length <= MAX) {
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+  }
+  const png = tarRead(tar, 'icon.png');
+  if (png && png.length <= MAX) {
+    return `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
+  }
+  return undefined;
 }
 
 /** Read one file out of a (ustar) tar buffer. Headers are 512-byte blocks:
@@ -115,7 +134,8 @@ const entries = new Map<string, Entry>();
 for (const file of lmods.sort()) {
   const path = join(modulesDir, file);
   const bytes = readFileSync(path);
-  const manifestBytes = tarRead(toTar(bytes), 'module.json');
+  const tar = toTar(bytes);
+  const manifestBytes = tarRead(tar, 'module.json');
   if (!manifestBytes) {
     console.warn(`  ! ${file}: no module.json inside, skipped`);
     continue;
@@ -141,6 +161,7 @@ for (const file of lmods.sort()) {
   const existing = entries.get(manifest.id);
   if (existing) {
     existing.artifacts.push(artifact);
+    existing.icon ??= iconDataUri(tar);
   } else {
     entries.set(manifest.id, {
       id: manifest.id,
@@ -150,6 +171,7 @@ for (const file of lmods.sort()) {
       minServer: manifest.minServer,
       library: manifest.library,
       dependsOn: manifest.dependsOn,
+      icon: iconDataUri(tar),
       artifacts: [artifact],
       file: artifact.file,
       url: artifact.url,

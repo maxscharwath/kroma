@@ -18,6 +18,9 @@ export interface RegistryModule {
   version: string;
   description?: string;
   library?: boolean;
+  /** Packaged icon inlined as a data URI by the catalog generator, so it shows
+   *  before the module is downloaded. */
+  icon?: string | null;
   minServer?: string | null;
   /** Download URL of the artifact matching the server's platform, if any. */
   url?: string | null;
@@ -73,9 +76,25 @@ function StoreCard({
   onInstall,
 }: Readonly<{ m: RegistryModule; busy: boolean; onInstall: (id: string) => void }>) {
   return (
-    <Card className="flex items-start justify-between gap-3 p-4">
-      <div className="min-w-0">
-        <div className="font-semibold text-text">{m.name}</div>
+    <Card className="flex items-start gap-3 p-4">
+      {m.icon ? (
+        <img src={m.icon} alt="" className="mt-0.5 h-9 w-9 shrink-0 rounded-lg" />
+      ) : (
+        <div className="mt-0.5 h-9 w-9 shrink-0 rounded-lg bg-white/5" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-semibold text-text">{m.name}</span>
+          <button
+            type="button"
+            disabled={busy || !m.compatible}
+            title={m.compatible ? undefined : (m.reason ?? undefined)}
+            onClick={() => onInstall(m.id)}
+            className="shrink-0 rounded bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50"
+          >
+            Install
+          </button>
+        </div>
         <div className="text-[11px] text-dim">
           {m.id} · v{m.version}
           {m.size ? <> · {(m.size / 1024) | 0} KB</> : null}
@@ -85,15 +104,6 @@ function StoreCard({
           <p className="mt-1 text-xs font-semibold text-danger">{m.reason}</p>
         )}
       </div>
-      <button
-        type="button"
-        disabled={busy || !m.compatible}
-        title={m.compatible ? undefined : (m.reason ?? undefined)}
-        onClick={() => onInstall(m.id)}
-        className="shrink-0 rounded bg-accent-soft px-3 py-1.5 text-xs font-semibold text-accent disabled:opacity-50"
-      >
-        Install
-      </button>
     </Card>
   );
 }

@@ -131,14 +131,29 @@ export function ModulesAdminPage() {
 
   return (
     <div className="flex flex-col gap-6 p-5">
-      <div>
-        <h1 className="text-2xl font-bold text-text">Modules</h1>
-        <p className="text-sm text-muted">
-          Install, update, enable, disable and configure the modules on this server. Add one with no
-          rebuild from the registry below (dependencies and checksums are handled for you), or
-          upload a module file (.lmod) directly: its backend runs as a supervised native process and
-          its page as a Module Federation remote.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-text">Modules</h1>
+          <p className="text-sm text-muted">
+            Install modules from the registry (dependencies and checksums handled for you), or
+            upload a .lmod file.
+          </p>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".lmod,.tar"
+          className="hidden"
+          onChange={(e) => void onPick(e.target.files?.[0])}
+        />
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          className="shrink-0 rounded border border-border px-3 py-1.5 text-xs font-semibold text-muted hover:text-text disabled:opacity-50"
+        >
+          {busy ? 'Working...' : 'Upload .lmod'}
+        </button>
       </div>
 
       {(error || notice) && (
@@ -154,32 +169,6 @@ export function ModulesAdminPage() {
         onInstall={(id) => void installFromRegistry(id)}
         onReload={() => void reloadCatalog()}
       />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Install a module</h2>
-        <Card className="flex flex-col gap-3 p-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".lmod,.tar"
-            className="hidden"
-            onChange={(e) => void onPick(e.target.files?.[0])}
-          />
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => fileRef.current?.click()}
-              className="rounded bg-accent-soft px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50"
-            >
-              {busy ? 'Working...' : 'Upload module (.lmod)'}
-            </button>
-            <p className="text-xs text-muted">
-              Pack one with <code className="text-dim">bun run modules:pack</code>.
-            </p>
-          </div>
-        </Card>
-      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-dim">

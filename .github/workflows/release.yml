@@ -85,25 +85,32 @@ jobs:
   # target into one published index. x86_64 musl is fully static, so the one
   # build covers the Synology .spk, the Docker image and any x86_64 Linux host.
   #
-  # The native binaries are built INSIDE the same musl cross-toolchain image the
-  # Synology .spk build uses (messense/rust-musl-cross), which is proven to link
-  # the heavy sidecars (candle in whisper/vector, librqbit in torrents) for musl
-  # a plain host `musl-gcc` lacks the C/C++ sysroot they need. The build plan is
-  # derived from each module's Cargo.toml, then run in the container; the .lmod
-  # staging + zstd packing (and each module's vite frontend) run on the host.
+  # Per-target build strategy:
+  #  - linux musl: built INSIDE the same musl cross-toolchain image the Synology
+  #    .spk build uses (messense/rust-musl-cross), which is proven to link the
+  #    heavy sidecars (candle in whisper/vector, librqbit in torrents) for musl
+  #    a plain host `musl-gcc` lacks the C/C++ sysroot they need. The build plan
+  #    is derived from each module's Cargo.toml, then run in the container; the
+  #    .lmod staging + zstd packing (and each vite frontend) run on the host.
+  #  - macOS arm64 (dev servers): built natively on a macos runner, no container
+  #    (modules:pack compiles + packs in one step).
   modules:
     name: Modules (.lmod ${{ matrix.target }})
     needs: version
     if: ${{ github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","modules"]'), github.event.inputs.targets) }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     strategy:
       matrix:
-        # Add an entry (triple + its rust-musl-cross image) to publish more
-        # platforms; the catalog picks up whatever targets appear.
+        # Add an entry to publish more platforms (image = cross container, blank
+        # = native build); the catalog picks up whatever targets appear.
         include:
           - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
             image: messense/rust-musl-cross:x86_64-musl
+          - target: aarch64-apple-darwin
+            runner: macos-14
+            image: ''
     env:
       LMOD_TARGET: ${{ matrix.target }}
     steps:
@@ -116,18 +123,24 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Cache the cross-build's cargo registry + server/target (both mounted into
-      # the container below) so a re-run doesn't rebuild candle from scratch.
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        if: matrix.image == ''
+        with:
+          targets: ${{ matrix.target }}
+
+      # Cache the cargo registry + server/target (mounted into the container on
+      # the cross legs) so a re-run doesn't rebuild candle from scratch.
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: server
           key: lmod-${{ matrix.target }}
 
-      # Cross-compile every sidecar binary in the proven musl toolchain image.
-      # Mirrors clients/synology/build.sh: server/ -> /home/rust/src (WORKDIR),
-      # packages/ -> /home/rust/packages (luma-i18n `include_str!`s the shared
-      # locale catalogs from outside server/), cargo registry cached.
-      - name: Cross-compile sidecar binaries (musl)
+      # Cross legs: compile every sidecar binary in the proven musl toolchain
+      # image. Mirrors clients/synology/build.sh: server/ -> /home/rust/src
+      # (WORKDIR), packages/ -> /home/rust/packages (luma-i18n `include_str!`s
+      # the shared locale catalogs from outside server/), cargo registry cached.
+      - name: Cross-compile sidecar binaries (container)
+        if: matrix.image != ''
         run: |
           set -euo pipefail
           bun run scripts/lmod-build-plan.ts > /tmp/lmod-build.sh
@@ -141,12 +154,13 @@ jobs:
             "${{ matrix.image }}" \
             bash -euo pipefail /tmp/lmod-build.sh
 
-      # Stage + zstd-pack each prebuilt binary (and build its vite frontend) into
-      # dist/modules/<id>-<target>.lmod (+ a .sha256 sidecar each). LMOD_SKIP_BUILD
-      # reuses the binaries the container just produced.
+      # Stage + zstd-pack each binary (and build its vite frontend) into
+      # dist/modules/<id>-<target>.lmod (+ a .sha256 sidecar each). On cross
+      # legs LMOD_SKIP_BUILD reuses the binaries the container just produced;
+      # native legs compile with the host toolchain inside modules:pack.
       - name: Pack all modules
         env:
-          LMOD_SKIP_BUILD: '1'
+          LMOD_SKIP_BUILD: ${{ matrix.image != '' && '1' || '0' }}
         run: bun run modules:pack
 
       - name: Upload .lmod artifacts (+ checksums)

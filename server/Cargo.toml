@@ -44,13 +44,13 @@ async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-quick-xml = "0.37"
+quick-xml = "0.41"
 # Cardigann indexer engine (luma-indexer): YAML definitions, HTML scraping with
 # CSS selectors, regex-driven field filters, and flexible date parsing. XPath
 # support (libxml, C) is feature-gated on the crate so the default musl build
 # stays pure-Rust.
 serde_yaml = "0.9"
-scraper = "0.20"
+scraper = "0.27"
 regex = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 libxml = "0.3"
@@ -68,7 +68,7 @@ candle-transformers = { version = "0.8", default-features = false }
 # heavier progressbar/http extras.
 tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
 # mDNS / DNS-SD advertising (luma-mdns). Pure Rust.
-mdns-sd = "0.11"
+mdns-sd = "0.20"
 # Shared by luma-primitives (and the binary). Unpinned now that the toolchain is
 # 1.96 (edition2024 is stable since 1.85, which >= 0.3.37 needs).
 time = { version = "0.3", features = ["formatting", "macros"] }
@@ -89,8 +89,8 @@ walkdir = "2"
 jwalk = "0.8"
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
-notify = "6"
-sysinfo = "0.30"
+notify = "8"
+sysinfo = "0.39"
 # In-process JPEG "card" compositing (tiny-skia raster + fontdue glyphs), shared
 # by luma-engine (storyboard/image) and the binary (api/card.rs).
 tiny-skia = "0.11"

@@ -97,7 +97,7 @@ tiny-skia = "0.11"
 fontdue = "0.9"
 jpeg-encoder = "0.6"
 # In-RAM full-text search (services/search). default-features off drops mmap.
-tantivy = { version = "0.22", default-features = false, features = ["lz4-compression"] }
+tantivy = { version = "0.26", default-features = false, features = ["lz4-compression"] }
 rusty-chromaprint = "0.3.0"
 # uuid is no longer pinned down: webauthn-rs (passkeys) needs uuid >= 1.19.
 uuid = "1.19"

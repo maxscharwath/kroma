@@ -60,13 +60,13 @@ indexmap = { version = "2", features = ["serde"] }
 # Candle ML stack + tokenizer, shared by luma-whisper (whisper) and luma-vector
 # (semantic). CPU-only pure-Rust by default (default-features off) so the musl
 # single binary keeps linking; the macos target block in each crate adds `metal`.
-candle-core = { version = "0.8", default-features = false }
-candle-nn = { version = "0.8", default-features = false }
-candle-transformers = { version = "0.8", default-features = false }
+candle-core = { version = "0.11", default-features = false }
+candle-nn = { version = "0.11", default-features = false }
+candle-transformers = { version = "0.11", default-features = false }
 # `onig` (Oniguruma, C) is enabled: tokenizers 0.20's regex pre-tokenizer
 # references it unconditionally. C-on-musl is fine. default-features off drops the
 # heavier progressbar/http extras.
-tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 # mDNS / DNS-SD advertising (luma-mdns). Pure Rust.
 mdns-sd = "0.20"
 # Shared by luma-primitives (and the binary). Unpinned now that the toolchain is

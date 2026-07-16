@@ -265,7 +265,12 @@ fn build_wanted_rows_from<S: HostCtx>(
             year: req.year,
             season: None,
             episode: None,
-            air_date: None,
+            // The soonest availability date (digital > theatrical > release) gates
+            // an unreleased movie out of search until it is out, then the search
+            // pass auto-grabs it (wanted_searchable: air_date NULL or <= today).
+            // A movie already out / with no TMDB date has a past / NULL date and
+            // stays immediately searchable.
+            air_date: detail.available_date.clone(),
             status: "wanted".into(),
             last_search_at: None,
         }),
@@ -416,7 +421,8 @@ pub fn refresh_pass<S: HostCtx>(state: &S) -> Result<usize> {
 }
 
 /// Refresh one request: one TMDB detail fetch, then additive ledger merge + air
-/// signals. A movie skips the ledger merge (nothing to extend).
+/// signals. A show additively extends its episode ledger; a movie has nothing to
+/// extend but backfills its wanted row's air (release) date once TMDB knows it.
 fn refresh_one<S: HostCtx>(state: &S, req: &MediaRequest) -> Result<()> {
     let key = tmdb_key(state)?;
     let lang = language(state);
@@ -426,6 +432,18 @@ fn refresh_one<S: HostCtx>(state: &S, req: &MediaRequest) -> Result<()> {
 
     if req.kind == RequestKind::Show {
         refresh_wanted(state, req, &detail)?;
+    } else if let Some(avail) = detail.available_date.as_deref() {
+        // Movie: backfill the wanted row's air date once TMDB publishes it, so a
+        // movie requested before its release date was known still gets gated out
+        // of search until release, then auto-grabbed. set_wanted_air_date writes
+        // only rows whose air_date IS NULL, so a known date is never overwritten
+        // (and a grabbed/available row is left untouched by the search gate).
+        let conn = state.db().get()?;
+        let rows = db::wanted_for_request(&conn, &req.id)?;
+        drop(conn);
+        for w in rows.iter().filter(|w| w.air_date.is_none()) {
+            db::set_wanted_air_date(state.db(), &w.id, avail, now_ms())?;
+        }
     }
 
     // Airing signals: show = its next episode's date; movie = its soonest

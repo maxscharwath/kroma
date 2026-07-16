@@ -676,4 +676,41 @@ mod tests {
         assert_eq!(due[0].id, "w-undated");
         assert_eq!(due[0].last_search_at, Some(3000));
     }
+
+    #[test]
+    fn wanted_searchable_gates_unreleased_movies() {
+        // Phase 4: a movie's wanted row carries its release date as air_date
+        // (season/episode NULL). An unreleased movie is monitored (excluded from
+        // search) until its date passes; a released / dateless one is searchable.
+        let p = pool();
+        insert_request(&p, &new_req("m1", RequestKind::Movie, 603, None), 1000).unwrap();
+        let mk = |id: &str, air: Option<&str>| WantedRow {
+            id: id.into(),
+            request_id: "m1".into(),
+            kind: "movie".into(),
+            tmdb_id: 603,
+            imdb_id: None,
+            title: "M".into(),
+            year: None,
+            season: None,
+            episode: None,
+            air_date: air.map(str::to_string),
+            status: "wanted".into(),
+            last_search_at: None,
+        };
+        // One request can only hold its own rows; use three requests so each
+        // movie row is independent.
+        insert_request(&p, &new_req("m2", RequestKind::Movie, 604, None), 1000).unwrap();
+        insert_request(&p, &new_req("m3", RequestKind::Movie, 605, None), 1000).unwrap();
+        replace_wanted(&p, "m1", &[mk("m-future", Some("2999-01-01"))], 1000).unwrap();
+        replace_wanted(&p, "m2", &[WantedRow { request_id: "m2".into(), ..mk("m-out", Some("2020-01-01")) }], 1000).unwrap();
+        replace_wanted(&p, "m3", &[WantedRow { request_id: "m3".into(), ..mk("m-nodate", None) }], 1000).unwrap();
+
+        let conn = p.get().unwrap();
+        let due = wanted_searchable(&conn, "2026-07-05", 10).unwrap();
+        let mut ids: Vec<&str> = due.iter().map(|w| w.id.as_str()).collect();
+        ids.sort_unstable();
+        // The unreleased movie is held back; the out / undated ones are searchable.
+        assert_eq!(ids, vec!["m-nodate", "m-out"]);
+    }
 }

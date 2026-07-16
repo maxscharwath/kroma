@@ -1,12 +1,16 @@
-//! Self-managed tracker announce to recover the peers the embedded engine
-//! throws away. librqbit 8.x's HTTP tracker client only parses the IPv4
-//! `peers` key and ignores `peers6` (IPv6), so an IPv6-only swarm looks empty
-//! to it. We announce ourselves (through the same VPN proxy the engine dials
-//! from), parse BOTH `peers` and `peers6`, and feed the result to librqbit as
-//! `initial_peers` - which it CAN connect to over IPv6.
+//! Self-managed tracker announce that feeds the embedded engine peers it can't
+//! get for itself behind the VPN. librqbit dials trackers through reqwest, whose
+//! SOCKS support can't traverse the WireGuard-to-SOCKS bridge (it fails
+//! "host unreachable"), so with a proxy configured the engine's OWN tracker
+//! announce yields nothing - fatal for a private, IPv6-only swarm (no DHT
+//! fallback). We announce ourselves over the bridge with `curl`
+//! (`--socks5-hostname`, which DOES traverse it), parse BOTH `peers` and
+//! `peers6`, and hand librqbit the result as `initial_peers` - which it can then
+//! connect to (over IPv6 too). Used both as the one-shot seed at add time and by
+//! the periodic re-seed of stalled torrents (see `DownloadManager::reseed_stalled`).
 //!
 //! Best-effort throughout: any parse/network failure yields an empty list and
-//! the engine falls back to its own (IPv4-only) discovery.
+//! the engine falls back to its own discovery.
 
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 

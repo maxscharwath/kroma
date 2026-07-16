@@ -48,10 +48,14 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-# Pinned to 8.x: 9.0 (beta) moves socks_proxy_url/peer_opts into a new
-# ConnectionOptions shape. default-features off drops native-tls (openssl) and
-# the built-in HTTP API; rust-tls keeps the musl single binary linking.
-librqbit = { version = "8", optional = true, default-features = false, features = ["rust-tls"] }
+# Pinned to an exact 9.x release: 9.x's HTTP tracker client honors the tracker's
+# `peers6` (IPv4-only in 8.x), which is REQUIRED for IPv6-only private swarms
+# (private = no DHT, so the tracker is the only peer source). 9.x moved the socks
+# proxy into `connect: ConnectionOptions{proxy_url}` and the listen port into
+# `listen: ListenerOptions`. default-features off drops native-tls (openssl) and
+# the HTTP API; rust-tls keeps the musl single binary linking. Exact-pinned (not
+# a range) because this is an -rc: a new rc could shift the API under us.
+librqbit = { version = "=9.0.0-rc.0", optional = true, default-features = false, features = ["rust-tls"] }
 # The async admin routes + downloads monitor need spawn_blocking + timers
 # unconditionally (independent of the embedded engine); the `rqbit` feature layers
 # on the multi-thread runtime the librqbit session drives.

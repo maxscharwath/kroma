@@ -170,6 +170,59 @@ impl DownloadManager {
         self.rqbit.read().unwrap().clone()
     }
 
+    /// Re-seed embedded torrents that librqbit's own tracker announce can't feed
+    /// while behind the VPN. librqbit dials trackers via reqwest, whose SOCKS
+    /// support can't traverse the WireGuard-to-SOCKS bridge (it fails
+    /// "host unreachable"), so with a proxy configured its ongoing announce
+    /// yields nothing and a torrent whose swarm it hasn't otherwise discovered
+    /// sits at 0 peers - the exact case of a private, IPv6-only tracker (no DHT
+    /// fallback). We announce ourselves THROUGH the bridge (curl, which does
+    /// traverse it), parse peers (incl. IPv6), and inject them. Only runs with a
+    /// proxy set (direct connections don't have the problem) and only for
+    /// torrents the engine sees no peers for at all (`peers_seen == 0`), so a
+    /// healthy or connecting torrent is never disturbed. Blocking (curl +
+    /// engine); the monitor calls it on its own thread, serialized with its
+    /// status polls so the brief remove/re-add window is never mis-read.
+    pub fn reseed_stalled(&self, host: &dyn HostCtx) {
+        // No proxy => librqbit's own (direct) announce works; nothing to do.
+        let Some(proxy) = active_proxy_url(host) else { return };
+        let Some(engine) = self.rqbit() else { return };
+        let client = engine.client();
+        let session_dir = self.state_dir.join("session");
+        let rows = match host.db().get().and_then(|c| Ok(db::active_downloads(&c)?)) {
+            Ok(rows) => rows,
+            Err(_) => return,
+        };
+        for row in rows {
+            if row.client_id != db::EMBEDDED_CLIENT_ID || row.client_ref.is_empty() {
+                continue;
+            }
+            let Ok(Some(status)) = client.status(&row.client_ref) else { continue };
+            // Leave torrents that already know peers (healthy/connecting) or are done.
+            if status.peers_seen > 0 || status.progress >= 1.0 {
+                continue;
+            }
+            // librqbit persists each torrent as `<info_hash>.torrent`, and
+            // client_ref IS the info-hash hex.
+            let path = session_dir.join(format!("{}.torrent", row.client_ref));
+            let Ok(bytes) = std::fs::read(&path) else { continue };
+            let peers = crate::announce::tracker_peers(&bytes, Some(&proxy));
+            if peers.is_empty() {
+                continue;
+            }
+            match engine.reseed(&row.client_ref, bytes, row.save_path.as_deref(), &peers) {
+                Ok(()) => tracing::info!(
+                    id = %row.id,
+                    peers = peers.len(),
+                    "re-seeded a stalled torrent with peers from our proxied tracker announce"
+                ),
+                Err(e) => {
+                    tracing::warn!(id = %row.id, error = %format!("{e:#}"), "torrent re-seed failed")
+                }
+            }
+        }
+    }
+
     /// Fetch a torrent's file list (metadata only, no download) via the
     /// preferred engine, so the admin can analyze + select before grabbing.
     pub fn list_files(&self, host: &dyn HostCtx, magnet_or_url: &str) -> Result<Vec<crate::TorrentFileEntry>> {

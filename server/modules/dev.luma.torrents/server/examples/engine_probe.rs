@@ -8,7 +8,10 @@
 use std::time::Duration;
 
 use librqbit::limits::LimitsConfig;
-use librqbit::{AddTorrent, AddTorrentOptions, Session, SessionOptions, SessionPersistenceConfig};
+use librqbit::{
+    AddTorrent, AddTorrentOptions, ConnectionOptions, DhtSessionConfig, ListenerMode,
+    ListenerOptions, Session, SessionOptions, SessionPersistenceConfig,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -32,36 +35,41 @@ async fn main() -> anyhow::Result<()> {
     let opts = SessionOptions {
         persistence: Some(SessionPersistenceConfig::Json { folder: Some(session_dir) }),
         fastresume: true,
-        socks_proxy_url: socks.clone(),
-        listen_port_range: None,
+        connect: Some(ConnectionOptions { proxy_url: socks.clone(), ..Default::default() }),
+        listen: Some(ListenerOptions {
+            mode: ListenerMode::TcpOnly,
+            listen_addr: (std::net::Ipv6Addr::UNSPECIFIED, 0).into(),
+            enable_upnp_port_forwarding: false,
+            ..Default::default()
+        }),
         ratelimits: LimitsConfig { download_bps: None, upload_bps: None },
-        disable_dht_persistence: true,
-        enable_upnp_port_forwarding: false,
+        dht: Some(DhtSessionConfig { bootstrap_addrs: None, port: None, persistence: None }),
         ..Default::default()
     };
     println!("starting session (socks={socks:?})");
     let session = Session::new_with_opts(download_dir, opts).await?;
 
     let bytes = std::fs::read(&torrent)?;
+    // Mirror the real engine's add-time seed: announce over the bridge (curl)
+    // and hand librqbit the peers as initial_peers.
+    let seed = socks.as_deref().map(|s| luma_torrent::announce_peers(&bytes, Some(s)));
+    if let Some(p) = &seed {
+        println!("add-time seed: {} peers ({} v6)", p.len(), p.iter().filter(|a| a.is_ipv6()).count());
+    }
     let added = session
         .add_torrent(
-            AddTorrent::from_bytes(bytes),
-            Some(AddTorrentOptions { overwrite: true, ..Default::default() }),
+            AddTorrent::from_bytes(bytes.clone()),
+            Some(AddTorrentOptions {
+                overwrite: true,
+                initial_peers: seed.clone().filter(|p| !p.is_empty()),
+                ..Default::default()
+            }),
         )
         .await?;
     let handle = added.into_handle().expect("torrent handle");
     println!("added: {} ({})", handle.name().unwrap_or_default(), handle.info_hash().as_string());
 
-    if std::env::var("REANNOUNCE_TEST").is_ok() {
-        // Same cycle RqbitClient::reannounce runs: pause -> unpause must
-        // rebuild the live task and re-announce.
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        session.pause(&handle).await?;
-        session.unpause(&handle).await?;
-        println!("reannounce cycle (pause->unpause) OK");
-    }
-
-    for tick in 1..=24 {
+    for tick in 1..=30 {
         tokio::time::sleep(Duration::from_secs(5)).await;
         let stats = handle.stats();
         let (live, seen, queued, dead, speed) = stats

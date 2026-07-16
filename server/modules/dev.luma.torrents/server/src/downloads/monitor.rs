@@ -18,6 +18,11 @@ use super::DownloadManager;
 const ACTIVE_TICK: Duration = Duration::from_secs(5);
 const IDLE_TICK: Duration = Duration::from_secs(30);
 const VPN_CHECK_EVERY: Duration = Duration::from_secs(60);
+/// How often to re-seed peer-starved embedded torrents from our own proxied
+/// tracker announce (see `DownloadManager::reseed_stalled`). Slow: each pass
+/// removes+re-adds the stalled torrents, so it must give injected peers time to
+/// connect before trying again.
+const RESEED_EVERY: Duration = Duration::from_secs(120);
 
 fn human_bytes(n: u64) -> String {
     const U: [&str; 4] = ["B", "KB", "MB", "GB"];
@@ -35,6 +40,9 @@ impl DownloadManager {
         let manager = self.clone();
         tokio::spawn(async move {
             let mut last_vpn_check = std::time::Instant::now() - VPN_CHECK_EVERY;
+            // Start the reseed clock at "now" (not in the past): give the
+            // add-time peer seed + librqbit a full interval before intervening.
+            let mut last_reseed = std::time::Instant::now();
             loop {
                 // When the Downloads module is disabled its engine is torn down;
                 // idle the monitor entirely (no polling, no VPN probe) until it is
@@ -55,12 +63,21 @@ impl DownloadManager {
                         manager.start_rqbit(&*host).await;
                     }
                 }
+                let reseed_due = last_reseed.elapsed() >= RESEED_EVERY;
+                if reseed_due {
+                    last_reseed = std::time::Instant::now();
+                }
                 let had_active = tokio::task::spawn_blocking({
                     let manager = manager.clone();
                     let host = host.clone();
                     move || {
                         if vpn_due {
                             let _ = manager.vpn_check(&*host);
+                        }
+                        // Same thread as tick(): the remove/re-add window a
+                        // reseed opens is never observed by a concurrent poll.
+                        if reseed_due {
+                            manager.reseed_stalled(&*host);
                         }
                         manager.tick(&*host)
                     }

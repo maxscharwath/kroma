@@ -12,7 +12,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use librqbit::api::TorrentIdOrHash;
 use librqbit::limits::LimitsConfig;
 use librqbit::{
-    AddTorrent, AddTorrentOptions, AddTorrentResponse, ManagedTorrent, Session, SessionOptions,
+    AddTorrent, AddTorrentOptions, AddTorrentResponse, ConnectionOptions, DhtSessionConfig,
+    ListenerMode, ListenerOptions, ManagedTorrent, Session, SessionOptions,
     SessionPersistenceConfig,
 };
 
@@ -57,19 +58,33 @@ impl RqbitEngine {
                 folder: Some(cfg.session_dir.clone()),
             }),
             fastresume: true,
-            socks_proxy_url: cfg.socks_proxy_url.clone(),
-            listen_port_range: cfg.listen_port.filter(|&p| p > 0).map(|p| p..p.saturating_add(1)),
+            // 9.x moved the SOCKS proxy under `connect`. Peer traffic dials
+            // through it when set (the VPN seal); `None` = direct.
+            connect: Some(ConnectionOptions {
+                proxy_url: cfg.socks_proxy_url.clone(),
+                ..Default::default()
+            }),
+            // 9.x moved the fixed listen port + UPnP under `listen`. Keep it
+            // TCP-only (the default): uTP is UDP and can't traverse a TCP
+            // SOCKS5 tunnel, so a VPN session must stay TCP-only regardless.
+            // `listen_port` 0/None = OS-assigned.
+            listen: Some(ListenerOptions {
+                mode: ListenerMode::TcpOnly,
+                listen_addr: (std::net::Ipv6Addr::UNSPECIFIED, cfg.listen_port.unwrap_or(0)).into(),
+                // A NAS behind the user's control: no surprise router reconfig.
+                enable_upnp_port_forwarding: false,
+                ..Default::default()
+            }),
             ratelimits: LimitsConfig {
                 download_bps: cfg.download_bps.and_then(std::num::NonZeroU32::new),
                 upload_bps: cfg.upload_bps.and_then(std::num::NonZeroU32::new),
             },
-            // Don't persist the DHT port: on a restart (e.g. a VPN config
-            // change) a fixed persisted port collides with the session still
-            // shutting down ("address already in use"). An ephemeral DHT port
-            // each start avoids that; DHT just re-bootstraps (a few seconds).
-            disable_dht_persistence: true,
-            // A NAS behind the user's control: no surprise router reconfig.
-            enable_upnp_port_forwarding: false,
+            // DHT on, but ephemeral port + NO persistence: on a restart (e.g. a
+            // VPN config change) a fixed persisted port collides with the
+            // session still shutting down ("address already in use"). An
+            // ephemeral port re-bootstraps in a few seconds. (Private torrents
+            // disable DHT per-torrent regardless, so this only helps public ones.)
+            dht: Some(DhtSessionConfig { bootstrap_addrs: None, port: None, persistence: None }),
             ..Default::default()
         };
         let session = Session::new_with_opts(cfg.download_dir.clone(), opts)
@@ -98,6 +113,41 @@ impl RqbitEngine {
         let id = TorrentIdOrHash::parse(client_ref)
             .map_err(|e| anyhow!("bad torrent ref {client_ref:?}: {e:#}"))?;
         self.session.get(id).ok_or_else(|| anyhow!("torrent {client_ref} not in session"))
+    }
+
+    /// Re-seed a stalled torrent with a fresh peer set (from our own proxied
+    /// tracker announce). librqbit has no public API to push peers into a live
+    /// torrent, and `initial_peers` is only honored on the FIRST add, so this
+    /// removes the torrent (KEEPING its data on disk) and re-adds it seeded with
+    /// the peers. Fastresume makes the re-add near-instant (the bitfield is
+    /// trusted, not re-hashed). Callers must serialize this against status polls
+    /// (the monitor runs both on its one thread) so the brief remove window is
+    /// never observed as "torrent disappeared".
+    pub fn reseed(
+        &self,
+        client_ref: &str,
+        torrent_bytes: Vec<u8>,
+        output_folder: Option<&str>,
+        peers: &[std::net::SocketAddr],
+    ) -> Result<()> {
+        let id = TorrentIdOrHash::parse(client_ref)
+            .map_err(|e| anyhow!("bad torrent ref {client_ref:?}: {e:#}"))?;
+        let output_folder = output_folder.map(str::to_string);
+        let peers = peers.to_vec();
+        self.handle.block_on(async {
+            // Keep the files (delete_files = false); we re-add against them.
+            self.session.delete(id, false).await.ok();
+            let opts = AddTorrentOptions {
+                output_folder,
+                overwrite: true,
+                initial_peers: Some(peers),
+                ..Default::default()
+            };
+            self.session
+                .add_torrent(AddTorrent::from_bytes(torrent_bytes), Some(opts))
+                .await
+                .map(|_| ())
+        })
     }
 }
 
@@ -135,7 +185,7 @@ fn status_of(handle: &ManagedTorrentHandle) -> TorrentStatus {
     let (peers, peers_seen) = stats
         .live
         .as_ref()
-        .map(|l| (l.snapshot.peer_stats.live as u32, l.snapshot.peer_stats.seen as u32))
+        .map(|l| (l.snapshot.peer_stats.live, l.snapshot.peer_stats.seen))
         .unwrap_or((0, 0));
     let metadata = handle.metadata.load();
     let files = metadata
@@ -172,20 +222,22 @@ impl DownloadClient for RqbitClient {
     }
 
     fn test(&self) -> Result<String> {
-        Ok(format!("librqbit {} (embedded)", "8"))
+        Ok(format!("librqbit {} (embedded)", "9"))
     }
 
     fn add(&self, req: &AddTorrentReq) -> Result<String> {
         let engine = &self.engine;
-        // Recover peers librqbit 8.x drops: it ignores the tracker's `peers6`
-        // (IPv6), so an IPv6-only swarm looks empty. When we have the `.torrent`
-        // bytes, announce ourselves (through the same VPN proxy) and seed the
-        // session with the peers as `initial_peers` - which it CAN dial.
+        // Seed the swarm ourselves: behind the VPN, librqbit's reqwest tracker
+        // client can't traverse the SOCKS bridge, so its own announce finds
+        // nothing. When we have the `.torrent` bytes, announce over the bridge
+        // ourselves (curl) and hand the session the peers (incl. IPv6) as
+        // `initial_peers`. The periodic reseed keeps this fresh; this is the
+        // head start at add time. See `announce.rs` / `reseed_stalled`.
         let initial_peers = req.torrent_bytes.map(|bytes| {
             let peers = crate::announce::tracker_peers(bytes, engine.socks_proxy.as_deref());
             if !peers.is_empty() {
                 let v6 = peers.iter().filter(|p| p.is_ipv6()).count();
-                tracing::info!(total = peers.len(), ipv6 = v6, "seeded torrent with tracker peers (incl. IPv6 the engine ignores)");
+                tracing::info!(total = peers.len(), ipv6 = v6, "seeded torrent with peers from our proxied tracker announce");
             }
             peers
         });
@@ -250,10 +302,11 @@ impl DownloadClient for RqbitClient {
             }
         };
         let mut out = Vec::new();
-        for (index, file) in info.iter_file_details()?.enumerate() {
+        // 9.x: iter_file_details() and to_pathbuf() return plain values (no Result).
+        for (index, file) in info.iter_file_details().enumerate() {
             out.push(crate::TorrentFileEntry {
                 index,
-                path: file.filename.to_pathbuf()?.to_string_lossy().into_owned(),
+                path: file.filename.to_pathbuf().to_string_lossy().into_owned(),
                 size_bytes: file.len,
             });
         }

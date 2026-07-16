@@ -38,6 +38,10 @@ mod rqbit;
 pub use dtos::*;
 pub use module::MODULE;
 pub use rqbit::{RqbitConfig, RqbitEngine};
+// Our proxied tracker announce (peers incl. IPv6), re-exported for the
+// `engine_probe` diagnostic example.
+#[cfg(feature = "rqbit")]
+pub use announce::tracker_peers as announce_peers;
 // The `downloads` ledger table moved into this crate; the app's request/discover
 // overlay reads its live-grab roll-up, so re-export those two at the crate root
 // (the binary names `luma_torrent::requests_with_active_downloads`).

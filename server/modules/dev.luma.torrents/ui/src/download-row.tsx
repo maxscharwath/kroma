@@ -77,6 +77,14 @@ export function DownloadRowView({
   const navigate = useNavigate();
   const status = live?.state && dl.status !== 'imported' ? live.state : dl.status;
   const progress = live?.progress ?? dl.progress;
+  // Prefer the live WS event when present, else the polled row (so speed + peers
+  // still show when the WebSocket can't reach the client, e.g. through a tunnel).
+  const stat = live ?? {
+    downBps: dl.downBps,
+    upBps: dl.upBps,
+    peers: dl.peers,
+    peersSeen: dl.peersSeen,
+  };
   const color = STATUS_COLOR[status] ?? 'rgba(244,243,240,.55)';
   const active = status === 'downloading' || status === 'queued';
   const pausable = active;
@@ -162,20 +170,20 @@ export function DownloadRowView({
       </div>
 
       <div className="text-[11.5px] font-semibold tabular-nums text-white/55 max-md:hidden">
-        {live && active ? (
+        {active ? (
           <>
-            <div className="text-[#46D08D]">{formatBytes(live.downBps)}/s</div>
+            <div className="text-[#46D08D]">{formatBytes(stat.downBps)}/s</div>
             <div className="flex items-center gap-1.5 text-white/35">
-              <span>{formatBytes(live.upBps)}/s</span>
+              <span>{formatBytes(stat.upBps)}/s</span>
               <span
-                className={`flex items-center gap-0.5 ${live.peers > 0 ? 'text-[#86A8FF]' : 'text-[#F4B642]'}`}
+                className={`flex items-center gap-0.5 ${stat.peers > 0 ? 'text-[#86A8FF]' : 'text-[#F4B642]'}`}
                 title={t('downloads.peersDetail', {
-                  live: String(live.peers),
-                  seen: String(live.peersSeen),
+                  live: String(stat.peers),
+                  seen: String(stat.peersSeen),
                 })}
               >
                 <IconUsers size={11} stroke={2} />
-                {live.peersSeen > live.peers ? `${live.peers}/${live.peersSeen}` : live.peers}
+                {stat.peersSeen > stat.peers ? `${stat.peers}/${stat.peersSeen}` : stat.peers}
               </span>
             </div>
           </>

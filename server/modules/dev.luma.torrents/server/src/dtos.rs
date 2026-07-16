@@ -78,6 +78,14 @@ pub struct DownloadView {
     /// `failed` | `removed` | `paused`.
     pub status: String,
     pub progress: f64,
+    /// Live engine stats for an active download (0 when not live/known). Polled
+    /// into the DTO so the panel shows speed + peers even when the live event
+    /// stream (WebSocket) can't reach the client - e.g. through a tunnel that
+    /// doesn't upgrade WebSockets.
+    pub down_bps: u64,
+    pub up_bps: u64,
+    pub peers: u32,
+    pub peers_seen: u32,
     pub size_bytes: Option<u64>,
     pub score: Option<i32>,
     pub error: Option<String>,

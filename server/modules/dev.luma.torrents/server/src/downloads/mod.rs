@@ -170,6 +170,33 @@ impl DownloadManager {
         self.rqbit.read().unwrap().clone()
     }
 
+    /// Live engine stats (down/up bps, connected/seen peers) per active download
+    /// id, queried straight from the engine. The queue endpoint folds these into
+    /// its polled response so the panel shows speed + peers without the live
+    /// WebSocket event stream (which a tunnel may not carry). Blocking; call off
+    /// the runtime.
+    pub fn live_stats(&self, host: &dyn HostCtx) -> std::collections::HashMap<String, (u64, u64, u32, u32)> {
+        let mut out = std::collections::HashMap::new();
+        let Ok(rows) = host.db().get().and_then(|c| Ok(db::active_downloads(&c)?)) else {
+            return out;
+        };
+        for row in rows {
+            if row.client_ref.is_empty() {
+                continue;
+            }
+            let client = match host.db().get().and_then(|c| Ok(db::get_download_client(&c, &row.client_id)?)) {
+                Ok(Some(c)) => c,
+                _ => continue,
+            };
+            if let Ok(engine) = self.engine_for(&client) {
+                if let Ok(Some(s)) = engine.status(&row.client_ref) {
+                    out.insert(row.id, (s.down_bps, s.up_bps, s.peers, s.peers_seen));
+                }
+            }
+        }
+        out
+    }
+
     /// Re-seed embedded torrents that librqbit's own tracker announce can't feed
     /// while behind the VPN. librqbit dials trackers via reqwest, whose SOCKS
     /// support can't traverse the WireGuard-to-SOCKS bridge (it fails
@@ -781,11 +808,33 @@ fn kbps_setting(host: &dyn HostCtx, key: &str) -> Option<u32> {
 /// download, so a bare fetch would get the HTML login page); Torznab / manual
 /// grabs fall back to a plain fetch.
 fn fetch_torrent_for(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8>> {
+    // Retry transient transport failures. Trackers behind Cloudflare
+    // intermittently drop the TLS connection (`curl (35) SSL_ERROR_ZERO_RETURN`,
+    // reset, timeout); a fresh attempt almost always succeeds. Content errors
+    // (not a .torrent, empty) are NOT retried - they won't change on a retry.
+    let mut last = None;
+    for attempt in 0..3u64 {
+        if attempt > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(600 * attempt));
+        }
+        match fetch_torrent_once(host, row) {
+            Ok(bytes) => return Ok(bytes),
+            Err(e) if is_transient_fetch(&e) => {
+                tracing::warn!(id = %row.id, attempt = attempt + 1, error = %format!("{e:#}"), "torrent fetch transient failure; retrying");
+                last = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| anyhow!("torrent fetch failed")))
+}
+
+/// One `.torrent` fetch attempt: through the source indexer's authenticated
+/// Cardigann session if it is a built-in indexer, else a plain fetch.
+fn fetch_torrent_once(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8>> {
     if let Some(indexer_id) = &row.indexer_id {
-        // Ask the indexer module (via its port) to fetch through the source
-        // indexer's authenticated session; `None` means it is not a built-in
-        // Cardigann indexer, so fall through to a plain fetch. Downloads never
-        // names the indexer crate.
+        // `None` means it is not a built-in Cardigann indexer, so fall through to
+        // a plain fetch. Downloads never names the indexer crate.
         if let Some(port) =
             luma_module_sdk::host::resolve_port::<dyn luma_module_sdk::ports::TorrentFetchPort>(host)
         {
@@ -795,6 +844,18 @@ fn fetch_torrent_for(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8
         }
     }
     fetch_torrent_file(&row.magnet_or_url)
+}
+
+/// A transport-level failure worth retrying (vs a content error that won't
+/// change): any `curl` transport error - SSL, connection reset/refused, empty
+/// reply, timeout - surfaces as "curl exit N".
+fn is_transient_fetch(err: &anyhow::Error) -> bool {
+    let msg = format!("{err:#}");
+    msg.contains("curl exit")
+        || msg.contains("SSL")
+        || msg.contains("timed out")
+        || msg.contains("Connection reset")
+        || msg.contains("empty response")
 }
 
 fn fetch_torrent_file(url: &str) -> Result<Vec<u8>> {

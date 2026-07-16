@@ -100,12 +100,10 @@ export default function DownloadsPage() {
   const doneRows = downloads.filter(
     (d) => !['queued', 'downloading', 'seeding', 'paused'].includes(d.status),
   );
-  const totalDown = Object.entries(live)
-    .filter(([id]) => activeRows.some((d) => d.id === id))
-    .reduce((sum, [, l]) => sum + l.downBps, 0);
-  const totalUp = Object.entries(live)
-    .filter(([id]) => activeRows.some((d) => d.id === id))
-    .reduce((sum, [, l]) => sum + l.upBps, 0);
+  // Aggregate from the live WS event when present, else the polled row, so the
+  // totals are right even without the WebSocket (e.g. through a tunnel).
+  const totalDown = activeRows.reduce((sum, d) => sum + (live[d.id]?.downBps ?? d.downBps), 0);
+  const totalUp = activeRows.reduce((sum, d) => sum + (live[d.id]?.upBps ?? d.upBps), 0);
   const vpn = data?.vpn ?? null;
 
   if (!canQueue) return null;

@@ -56,6 +56,14 @@ pub async fn list<S: HostCtx + Clone + Send + Sync + 'static>(
 ) -> Result<Response, Response> {
     require_downloads(&state, &user)?;
     let vpn = dm(&state).vpn_status();
+    // Live speed/peers per active download, polled straight from the engine so
+    // the panel shows them even when the live WebSocket can't reach the client
+    // (blocking: engine stats run off the runtime).
+    let live = {
+        let mgr = dm(&state);
+        let host = state.clone();
+        tokio::task::spawn_blocking(move || mgr.live_stats(&host)).await.unwrap_or_default()
+    };
     // Indexer display names come from the indexer module via its port, resolved
     // here (before the blocking closure, which can't borrow the host).
     let indexers: std::collections::HashMap<String, String> =
@@ -78,6 +86,7 @@ pub async fn list<S: HostCtx + Clone + Send + Sync + 'static>(
                 let title = req.as_ref().map(|r| r.title.clone()).unwrap_or_else(|| d.release_title.clone());
                 let poster_url = req.as_ref().and_then(|r| r.poster_url.clone());
                 let indexer_name = d.indexer_id.as_deref().and_then(|id| indexers.get(id).cloned());
+                let stats = live.get(&d.id).copied().unwrap_or((0, 0, 0, 0));
                 // Link to the LUMA fiche once the title is in the library.
                 let local_id = req.as_ref().and_then(|r| {
                     if d.kind == "movie" {
@@ -98,6 +107,10 @@ pub async fn list<S: HostCtx + Clone + Send + Sync + 'static>(
                     episodes: d.episodes,
                     status: d.status,
                     progress: d.progress,
+                    down_bps: stats.0,
+                    up_bps: stats.1,
+                    peers: stats.2,
+                    peers_seen: stats.3,
                     size_bytes: d.size_bytes,
                     score: d.score,
                     error: d.error,

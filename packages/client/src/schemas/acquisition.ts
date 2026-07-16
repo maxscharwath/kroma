@@ -95,6 +95,12 @@ export const DownloadView = z.object({
   episodes: z.array(z.number()).nullable(),
   status: z.string(),
   progress: z.number(),
+  // Live engine stats (0 when not active/known), polled into the response so the
+  // panel shows speed + peers even without the live WebSocket event stream.
+  downBps: z.number(),
+  upBps: z.number(),
+  peers: z.number(),
+  peersSeen: z.number(),
   sizeBytes: z.number().nullable(),
   score: z.number().nullable(),
   error: z.string().nullable(),

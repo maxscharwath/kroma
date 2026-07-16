@@ -183,33 +183,40 @@ impl<S: HostCtx + Clone + Send + Sync + 'static> luma_module_sdk::host::ServerMo
 /// in-core the same passes run via [`JOBS`], so running both would double every
 /// pass. Spawn once per process; each tick idles while the module is disabled.
 pub fn start_cron(host: Arc<dyn HostCtx>) {
-    spawn_pass_loop(host.clone(), Duration::from_secs(30 * 60), "search", run_search);
-    spawn_pass_loop(host.clone(), Duration::from_secs(60 * 60), "import", run_import);
-    spawn_pass_loop(host, Duration::from_secs(6 * 60 * 60), "match", run_match);
+    // (initial delay, period). Import runs SOON after start and often: the
+    // cross-sidecar completion trigger can't reach us and the sidecar restarts
+    // on every update, so a long sleep-first interval meant completed downloads
+    // were never imported (stuck "Importing"). A short interval catches them
+    // within minutes regardless. Search/match stay on their heavier cadence.
+    let m = Duration::from_secs(60);
+    spawn_pass_loop(host.clone(), 30 * m, 30 * m, "search", run_search);
+    spawn_pass_loop(host.clone(), Duration::from_secs(30), 5 * m, "import", run_import);
+    spawn_pass_loop(host, 6 * 60 * m, 6 * 60 * m, "match", run_match);
 }
 
-/// Spawn a resident timer that runs `pass` every `period`, skipping while the
-/// module is disabled. The pass is blocking (DB + network), so it runs on the
-/// blocking pool; failures are logged, never fatal to the loop.
+/// Spawn a resident timer that runs `pass` after `initial`, then every `period`,
+/// skipping while the module is disabled. The pass is blocking (DB + network),
+/// so it runs on the blocking pool; failures are logged, never fatal to the loop.
 fn spawn_pass_loop(
     host: Arc<dyn HostCtx>,
+    initial: Duration,
     period: Duration,
     name: &'static str,
     pass: fn(&Arc<dyn HostCtx>) -> anyhow::Result<()>,
 ) {
     tokio::spawn(async move {
+        tokio::time::sleep(initial).await;
         loop {
-            tokio::time::sleep(period).await;
-            if !host.module_enabled(MODULE_ID) {
-                continue;
+            if host.module_enabled(MODULE_ID) {
+                let h = host.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    if let Err(e) = pass(&h) {
+                        tracing::warn!(target: "acquisition", job = name, error = %format!("{e:#}"), "pass failed");
+                    }
+                })
+                .await;
             }
-            let h = host.clone();
-            let _ = tokio::task::spawn_blocking(move || {
-                if let Err(e) = pass(&h) {
-                    tracing::warn!(target: "acquisition", job = name, error = %format!("{e:#}"), "pass failed");
-                }
-            })
-            .await;
+            tokio::time::sleep(period).await;
         }
     });
 }

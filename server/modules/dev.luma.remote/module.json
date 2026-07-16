@@ -1,7 +1,7 @@
 {
   "id": "dev.luma.remote",
   "name": "Remote access",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minServer": "0.1.4",
   "adminPrefixes": ["remote"],
   "provides": [{ "kind": "remote-access", "id": "cloudflared" }],

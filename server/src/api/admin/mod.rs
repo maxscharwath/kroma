@@ -18,7 +18,7 @@ mod pipeline;
 mod settings;
 mod stats;
 mod storage;
-mod store;
+pub mod store;
 mod users;
 
 use std::sync::Arc;

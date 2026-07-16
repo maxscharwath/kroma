@@ -10,7 +10,7 @@
 //! any other registry (a third-party repo's releases, GitHub Pages, a NAS).
 
 mod catalog;
-mod install;
+pub mod install;
 
 use std::sync::Arc;
 

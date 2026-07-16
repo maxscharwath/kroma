@@ -17,6 +17,57 @@ use crate::state::SharedState;
 /// This server's version, checked against each entry's `minServer`.
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Update every runtime-installed module to the newest COMPATIBLE catalog
+/// version. Called at boot (opt-out via the `moduleAutoUpdate` setting) so a
+/// server `.spk` update alone keeps the modules current instead of leaving the
+/// admin to update each one by hand. Best-effort: a catalog-fetch or per-module
+/// install failure is logged and skipped. `install_with_deps` stops the old
+/// process, swaps the files, and respawns, so a running module updates in place.
+/// Returns `(id, from, to)` for each module actually updated.
+pub async fn auto_update(state: &SharedState, sup: &Supervisor) -> Vec<(String, String, String)> {
+    let mut updated = Vec::new();
+    let modules = match catalog::fetch(sup, &catalog::registry_url(state)).await {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::warn!(error = %format!("{e:#}"), "module auto-update: catalog fetch failed");
+            return updated;
+        }
+    };
+    let by_id: HashMap<&str, &CatalogModule> =
+        modules.iter().map(|m| (m.id.as_str(), m)).collect();
+    for manifest in sup.installed_manifests() {
+        let (Some(id), Some(cur)) = (
+            manifest.get("id").and_then(Value::as_str),
+            manifest.get("version").and_then(Value::as_str),
+        ) else {
+            continue;
+        };
+        let Some(entry) = by_id.get(id) else { continue };
+        if !luma_module_manifest::is_newer(&entry.version, cur) {
+            continue;
+        }
+        if !luma_module_manifest::server_satisfies(entry.min_server.as_deref(), SERVER_VERSION) {
+            tracing::info!(
+                module = id,
+                requires = entry.min_server.as_deref().unwrap_or("?"),
+                "module update needs a newer server; skipped (update the server first)"
+            );
+            continue;
+        }
+        let to = entry.version.clone();
+        match install_with_deps(state, sup, id).await {
+            Ok(_) => {
+                tracing::info!(module = id, from = cur, to = %to, "auto-updated module");
+                updated.push((id.to_string(), cur.to_string(), to));
+            }
+            Err(e) => {
+                tracing::warn!(module = id, error = %format!("{e:#}"), "module auto-update failed")
+            }
+        }
+    }
+    updated
+}
+
 /// Resolve, download and install `root_id` plus any missing hard dependencies,
 /// dependencies first. Returns the report the Store UI shows: everything that
 /// was actually installed, deps included.

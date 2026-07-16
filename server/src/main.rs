@@ -368,6 +368,22 @@ async fn main() -> anyhow::Result<()> {
     // to advertise the server over `_luma._tcp` / `luma.local`.)
     supervisor.spawn_enabled(&*state);
 
+    // Auto-update installed modules to the newest compatible catalog version, in
+    // the background so it never delays boot (each update stops + respawns its
+    // module in place). Opt-out via `moduleAutoUpdate`. This is what keeps the
+    // modules current after a server `.spk` update, instead of leaving each one
+    // to be updated by hand in Admin -> Modules.
+    if state.settings.get_bool("moduleAutoUpdate", true) {
+        let state = state.clone();
+        let supervisor = supervisor.clone();
+        tokio::spawn(async move {
+            let updated = api::admin::store::install::auto_update(&state, &supervisor).await;
+            if !updated.is_empty() {
+                info!(count = updated.len(), "module auto-update: modules brought current");
+            }
+        });
+    }
+
     // `into_make_service_with_connect_info` so handlers can read the client's
     // socket address (LAN/WAN classification for playback sessions).
     axum::serve(

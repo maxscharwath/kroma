@@ -155,6 +155,9 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("theme".into(), json!("Sombre (Luma)"));
     m.insert("dateFormat".into(), json!("JJ/MM/AAAA"));
     // network
+    // Auto-update installed .lmod modules to the newest compatible catalog
+    // version at boot, so a server update keeps the modules current on its own.
+    m.insert("moduleAutoUpdate".into(), json!(true));
     m.insert("remoteAccess".into(), json!(false));
     m.insert("remoteUrl".into(), json!(""));
     // Managed Cloudflare Tunnel connector (optional, off by default). When enabled

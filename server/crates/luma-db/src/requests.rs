@@ -5,7 +5,7 @@
 use rusqlite::OptionalExtension;
 
 use super::*;
-use luma_domain::{EpisodeRef, MediaRequest, RequestKind, RequestStatus};
+use luma_domain::{CalendarEntry, EpisodeRef, MediaRequest, RequestKind, RequestStatus};
 
 /// Columns of the request list SELECT (requester username joined in). `r.episodes`
 /// and the Phase 2 airing columns trail the original set so existing positional
@@ -348,6 +348,45 @@ pub fn wanted_for_request(conn: &Connection, request_id: &str) -> rusqlite::Resu
         "SELECT {WANTED_COLS} FROM wanted WHERE request_id = ?1 ORDER BY season, episode"
     ))?;
     let rows = stmt.query_map(params![request_id], row_to_wanted)?;
+    rows.collect()
+}
+
+/// Upcoming "coming soon" calendar entries: future-dated wanted rows (a movie's
+/// availability date or a show episode's air date) not yet on disk, joined with
+/// their request's display fields, ascending by date. `requester` limits to one
+/// user's requests (the user-facing page); `None` spans every request (a manager
+/// view). Bounded by `limit`.
+pub fn upcoming_calendar(
+    conn: &Connection,
+    today: &str,
+    requester: Option<&str>,
+    limit: usize,
+) -> rusqlite::Result<Vec<CalendarEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT w.request_id, w.tmdb_id, r.kind, w.title, w.year, r.poster_url, \
+                w.season, w.episode, w.air_date, w.status \
+         FROM wanted w JOIN requests r ON r.id = w.request_id \
+         WHERE w.air_date IS NOT NULL AND w.air_date > ?1 \
+           AND w.status IN ('wanted', 'grabbed') \
+           AND r.status NOT IN ('denied', 'failed') \
+           AND (?2 IS NULL OR r.requested_by = ?2) \
+         ORDER BY w.air_date ASC, r.title ASC LIMIT ?3",
+    )?;
+    let rows = stmt.query_map(params![today, requester, limit as i64], |r| {
+        let kind: String = r.get(2)?;
+        Ok(CalendarEntry {
+            request_id: r.get(0)?,
+            tmdb_id: r.get::<_, i64>(1)? as u64,
+            kind: RequestKind::parse(&kind).unwrap_or(RequestKind::Movie),
+            title: r.get(3)?,
+            year: r.get(4)?,
+            poster_url: r.get(5)?,
+            season: r.get(6)?,
+            episode: r.get(7)?,
+            air_date: r.get(8)?,
+            status: r.get(9)?,
+        })
+    })?;
     rows.collect()
 }
 

@@ -34,6 +34,9 @@ export interface TitleSeason {
   episodesAvailable: number;
   available: boolean;
   requested: boolean;
+  /** TMDB season air date (YYYY-MM-DD), for a "coming soon" hint on a season
+   * that has not aired yet. `null` for owned-only / undated seasons. */
+  airDate: string | null;
   /** Owned, playable episodes (empty for a not-owned season). */
   episodes: MediaItem[];
   cast: CastMember[];
@@ -224,6 +227,7 @@ export function buildTitleView(
       episodesAvailable: s.episodesAvailable,
       available: s.available,
       requested: s.requested,
+      airDate: s.airDate,
       episodes: [],
       cast: [],
     })),
@@ -254,6 +258,7 @@ function mergeSeasons(owned: Season[], discover: DiscoverDetail | null): TitleSe
       episodesAvailable: s.episodes.length,
       available: true,
       requested: false,
+      airDate: null,
       episodes: s.episodes,
       cast: s.cast ?? [],
     }));
@@ -271,6 +276,7 @@ function mergeSeasons(owned: Season[], discover: DiscoverDetail | null): TitleSe
         episodesAvailable: ds?.episodesAvailable ?? own?.episodes.length ?? 0,
         available: ds ? ds.available : true,
         requested: ds?.requested ?? false,
+        airDate: ds?.airDate ?? null,
         episodes: own?.episodes ?? [],
         cast: own?.cast ?? [],
       };

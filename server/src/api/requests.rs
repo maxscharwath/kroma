@@ -24,6 +24,7 @@ use crate::state::SharedState;
 pub fn routes() -> Router<SharedState> {
     Router::new()
         .route("/requests", get(list).post(create))
+        .route("/requests/calendar", get(calendar))
         .route("/requests/{id}", axum::routing::delete(remove))
         .route("/requests/{id}/approve", post(approve))
         .route("/requests/{id}/deny", post(deny))
@@ -132,6 +133,28 @@ fn overlay_active_downloads(
         }
     }
     Ok(())
+}
+
+/// `GET /api/requests/calendar` the "coming soon" feed: future-dated wanted rows
+/// (a movie's availability date + a show episode's air date) not yet on disk,
+/// ascending by date. Own requests, or everyone's for a `requests.manage` holder
+/// (unless `?mine=true` forces own-only, like `GET /requests`).
+pub async fn calendar(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Query(params): Query<ListParams>,
+) -> Result<Response, Response> {
+    require(&user, Permission::RequestsCreate)?;
+    let all = user.can(Permission::RequestsManage) && !params.mine.unwrap_or(false);
+    let uid = user.id.clone();
+    let today = crate::services::requests::today_ymd();
+    let entries = query(&state.db, move |pool| {
+        let conn = pool.get()?;
+        let scope = if all { None } else { Some(uid.as_str()) };
+        Ok(db::upcoming_calendar(&conn, &today, scope, 300)?)
+    })
+    .await?;
+    Ok(Json(entries).into_response())
 }
 
 /// `POST /api/requests` submit (duplicate-merging; auto-approve capability
@@ -282,4 +305,14 @@ pub async fn deny(
     })
     .await?;
     Ok(Json(req).into_response())
+}
+
+#[cfg(test)]
+mod route_tests {
+    /// `/requests/calendar` (static) must coexist with `/requests/{id}` (param):
+    /// building the router panics on a real matchit conflict, so this is enough.
+    #[test]
+    fn router_builds_without_conflict() {
+        let _r = super::routes();
+    }
 }

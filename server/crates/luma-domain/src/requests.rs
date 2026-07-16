@@ -154,6 +154,30 @@ pub struct RequestsView {
     pub counts: RequestCounts,
 }
 
+/// One upcoming release on the "coming soon" calendar: a future-dated wanted row
+/// (a movie's availability date, or a show episode's air date) not yet on disk,
+/// joined with its request's display fields. Emitted ascending by `air_date`.
+/// `GET /api/requests/calendar` returns `Vec<CalendarEntry>`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarEntry {
+    pub request_id: String,
+    pub tmdb_id: u64,
+    /// The parent request's kind (`movie` / `show`).
+    pub kind: RequestKind,
+    pub title: String,
+    pub year: Option<u32>,
+    pub poster_url: Option<String>,
+    /// Present for a show episode; `None` for a movie.
+    pub season: Option<u32>,
+    pub episode: Option<u32>,
+    /// `YYYY-MM-DD`, always in the future relative to the query day.
+    pub air_date: String,
+    /// The wanted row's status (`wanted` / `grabbed`): a grabbed-but-unaired
+    /// episode is already secured, shown differently on the calendar.
+    pub status: String,
+}
+
 /// `POST /api/requests` body.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

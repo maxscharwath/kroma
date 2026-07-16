@@ -2,7 +2,7 @@
 // or requested seasons disabled with their chip), a "toutes les saisons"
 // master, and the request action.
 
-import { useT } from '@luma/ui';
+import { useLocale, useT } from '@luma/ui';
 import { IconCheck, IconLoader2, IconX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
@@ -114,7 +114,14 @@ function SeasonRow({
   onToggle,
 }: Readonly<{ s: TitleSeason; checked: boolean; onToggle: () => void }>) {
   const t = useT();
+  const locale = useLocale();
   const locked = s.available || s.requested;
+  // "Available on <date>" when the season is announced but has not aired yet.
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming =
+    s.airDate && s.airDate > today
+      ? new Date(`${s.airDate}T00:00:00`).toLocaleDateString(locale)
+      : null;
   return (
     <button
       type="button"
@@ -136,6 +143,11 @@ function SeasonRow({
         <span className="block text-[12px] font-medium text-white/45">
           {t('discover.episodesN', { n: String(s.episodeCount) })}
         </span>
+        {upcoming ? (
+          <span className="mt-0.5 block text-[11.5px] font-semibold text-accent">
+            {t('requests.availableDate', { date: upcoming })}
+          </span>
+        ) : null}
       </span>
     </button>
   );

@@ -78,6 +78,26 @@ export const RequestsView = z.object({
 });
 export type RequestsView = z.infer<typeof RequestsView>;
 
+/** One upcoming release on the "coming soon" calendar: a future-dated wanted row
+ * (a movie's availability date, or a show episode's air date) with its request's
+ * display fields. `airDate` is YYYY-MM-DD and always in the future; `season`/
+ * `episode` are set for a show episode, null for a movie. `GET
+ * /api/requests/calendar` returns `CalendarEntry[]`, ascending by `airDate`. */
+export const CalendarEntry = z.object({
+  requestId: RequestId,
+  tmdbId: z.number(),
+  kind: RequestKind,
+  title: z.string(),
+  year: z.number().nullable(),
+  posterUrl: z.string().nullable(),
+  season: z.number().nullable(),
+  episode: z.number().nullable(),
+  airDate: z.string(),
+  /** `wanted` / `grabbed` a grabbed-but-unaired episode is already secured. */
+  status: z.string(),
+});
+export type CalendarEntry = z.infer<typeof CalendarEntry>;
+
 /** `POST /api/requests` body. */
 export const CreateRequestBody = z.object({
   kind: RequestKind,

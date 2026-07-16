@@ -1,8 +1,10 @@
+import buildInfo from 'virtual:build-info';
 import { hasPermission, type MessageKey } from '@luma/core';
 import { useT } from '@luma/ui';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
+  IconCalendarClock,
   IconDeviceDesktop,
   IconDeviceTv,
   IconHome,
@@ -22,7 +24,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
-import buildInfo from 'virtual:build-info';
 import { CapabilityChip } from '#web/features/accounts/capability-chip';
 import { UserAvatar } from '#web/features/accounts/user-avatar';
 import { useModuleNav } from '#web/modules/ModuleHostProvider';
@@ -77,6 +78,7 @@ function SidebarBody() {
           </Link>
         ))}
         <RequestsLink />
+        <ComingSoonLink />
         <ModuleNavLinks />
       </nav>
       {/* Footer block: invite / device / admin / account / device prefs */}
@@ -166,6 +168,19 @@ function RequestsLink() {
     <Link to="/requests" className={itemCls}>
       <IconInbox size={18} />
       {t('nav.requests')}
+    </Link>
+  );
+}
+
+/** "Bientôt disponible" the coming-soon calendar, same gate as requests. */
+function ComingSoonLink() {
+  const t = useT();
+  const { user } = useAuth();
+  if (!user || !hasPermission(user, 'requests.create')) return null;
+  return (
+    <Link to="/coming-soon" className={itemCls}>
+      <IconCalendarClock size={18} />
+      {t('nav.comingSoon')}
     </Link>
   );
 }

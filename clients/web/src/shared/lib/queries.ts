@@ -150,6 +150,13 @@ export const userQueries = {
       queryFn: () => lumaClient().listRequests({ mine: true }),
     }),
 
+  /** The "coming soon" calendar: own upcoming, not-yet-available releases. */
+  calendar: () =>
+    queryOptions({
+      queryKey: ['requests', 'calendar'] as const,
+      queryFn: () => lumaClient().getCalendar({ mine: true }),
+    }),
+
   /** The account's signed-in devices (for the /account security section). */
   sessions: () =>
     queryOptions({ queryKey: ['sessions'] as const, queryFn: () => lumaClient().listSessions() }),

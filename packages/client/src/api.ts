@@ -25,6 +25,7 @@ import type {
   AdminUsers,
   AuthConfig,
   AuthResult,
+  CalendarEntry,
   ClientTestResult,
   ContinueItem,
   CreateRequestBody,
@@ -541,6 +542,9 @@ export class LumaClient {
   }
   listRequests(opts?: { mine?: boolean }): Promise<RequestsView> {
     return requests.listRequests(this.ctx, opts);
+  }
+  getCalendar(opts?: { mine?: boolean }): Promise<CalendarEntry[]> {
+    return requests.getCalendar(this.ctx, opts);
   }
   createRequest(body: CreateRequestBody): Promise<MediaRequest> {
     return requests.createRequest(this.ctx, body);

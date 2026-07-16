@@ -3,6 +3,7 @@
 // `requests.manage`.
 
 import type {
+  CalendarEntry,
   CreateRequestBody,
   GrabBody,
   InteractiveSearchView,
@@ -21,6 +22,17 @@ export function listRequests(
 ): Promise<RequestsView> {
   const qs = opts?.mine ? '?mine=true' : '';
   return ctx.json<RequestsView>(`/requests${qs}`);
+}
+
+/** The "coming soon" calendar: upcoming, not-yet-available releases (a movie's
+ * availability date + a show episode's air date), ascending by date. `mine: true`
+ * forces own-only (the user-facing page); a manager otherwise sees everyone's. */
+export function getCalendar(
+  ctx: RequestContext,
+  opts?: { mine?: boolean },
+): Promise<CalendarEntry[]> {
+  const qs = opts?.mine ? '?mine=true' : '';
+  return ctx.json<CalendarEntry[]>(`/requests/calendar${qs}`);
 }
 
 /** Submit a request. A second ask for the same title merges into the open one

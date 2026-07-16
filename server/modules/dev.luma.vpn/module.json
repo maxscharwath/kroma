@@ -1,7 +1,7 @@
 {
   "id": "dev.luma.vpn",
   "name": "VPN",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minServer": "0.1.4",
   "provides": [{ "kind": "vpn", "id": "wireguard" }],
   "adminPrefixes": ["vpn"],

@@ -163,7 +163,10 @@ pub struct RequestsView {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CalendarEntry {
-    pub request_id: String,
+    /// The parent request, or `None` for a library-scan "missing" row (a series
+    /// in the library with aired episodes not on disk, that was never requested).
+    /// The client turns such a row into a request when the user asks to watch it.
+    pub request_id: Option<String>,
     pub tmdb_id: u64,
     /// The parent request's kind (`movie` / `show`).
     pub kind: RequestKind,

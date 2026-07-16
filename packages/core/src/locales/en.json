@@ -937,6 +937,8 @@
   "jobs.recommendations.reembed.desc": "Re-encodes every title with the active embedding model from the metadata already in the database (after switching models, e.g. enabling MiniLM). No TMDB calls.",
   "jobs.library.scan.name": "Library scan",
   "jobs.library.scan.desc": "Rescans folders, syncs the database, then kicks probing and enrichment.",
+  "jobs.library.missing.name": "Missing episodes scan",
+  "jobs.library.missing.desc": "Compares each library show to TMDB and lists aired episodes that are not on disk (the Missing view).",
   "jobs.metadata.enrich.name": "TMDB enrichment",
   "jobs.metadata.enrich.desc": "Re-imports posters, overviews and metadata from TMDB for the whole catalog.",
   "jobs.search.reindex.name": "Search reindex",

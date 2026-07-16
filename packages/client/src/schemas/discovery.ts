@@ -84,7 +84,9 @@ export type RequestsView = z.infer<typeof RequestsView>;
  * /api/requests/missing`, aired/released but not on disk, `airDate` possibly
  * null). `season`/`episode` are set for a show episode, null for a movie. */
 export const CalendarEntry = z.object({
-  requestId: RequestId,
+  /** The parent request, or null for a library-scan "missing" row (a library
+   * series with aired episodes not on disk that was never requested). */
+  requestId: RequestId.nullable(),
   tmdbId: z.number(),
   kind: RequestKind,
   title: z.string(),

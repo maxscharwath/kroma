@@ -937,6 +937,8 @@
   "jobs.recommendations.reembed.desc": "Ré-encode chaque fiche avec le modèle d'embedding actif, depuis les métadonnées déjà en base (après un changement de modèle, ex. activation de MiniLM). Sans appel TMDB.",
   "jobs.library.scan.name": "Analyse de la bibliothèque",
   "jobs.library.scan.desc": "Réanalyse les dossiers, synchronise la base, puis lance le probing et l'enrichissement.",
+  "jobs.library.missing.name": "Analyse des épisodes manquants",
+  "jobs.library.missing.desc": "Compare chaque série de la bibliothèque à TMDB et liste les épisodes diffusés absents du disque (vue Manquants).",
   "jobs.metadata.enrich.name": "Enrichissement TMDB",
   "jobs.metadata.enrich.desc": "Réimporte affiches, résumés et métadonnées depuis TMDB pour tout le catalogue.",
   "jobs.search.reindex.name": "Réindexation de la recherche",

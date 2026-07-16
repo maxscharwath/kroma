@@ -176,7 +176,13 @@ pub async fn missing(
     let entries = query(&state.db, move |pool| {
         let conn = pool.get()?;
         let scope = if all { None } else { Some(uid.as_str()) };
-        Ok(db::missing_items(&conn, &today, scope, 500)?)
+        let mut entries = db::missing_items(&conn, &today, scope, 500)?;
+        // Library-scan gaps: shows in the library with aired episodes not on disk
+        // that were never requested (the `library.missing` job fills these). They
+        // are library-wide, not request-scoped, and the query already excludes any
+        // show that already has a live request (so no duplicate line).
+        entries.extend(db::library_gaps_list(&conn, 500)?);
+        Ok(entries)
     })
     .await?;
     Ok(Json(entries).into_response())

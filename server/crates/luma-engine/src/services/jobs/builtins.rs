@@ -17,6 +17,7 @@ use crate::model::Category;
 use super::{JobContext, JobKey, JobManager, Trigger};
 
 mod cache_cleanup;
+mod library_missing;
 mod library_scan;
 mod metadata_enrich;
 mod reco_refresh;
@@ -51,6 +52,7 @@ const JOBS: &[Builtin] = &[
     sections_personalize::SPEC,
     sections_curate::SPEC,
     library_scan::SPEC,
+    library_missing::SPEC,
     metadata_enrich::SPEC,
     search_reindex::SPEC,
     // The acquisition jobs (search / import / match) moved out to the

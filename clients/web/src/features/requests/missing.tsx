@@ -14,7 +14,8 @@ import { userQueries } from '#web/shared/lib/queries';
 import { EmptyState, PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
 
 interface MissingGroup {
-  requestId: string;
+  /** The parent request, or null for a library-scan gap (never requested). */
+  requestId: string | null;
   tmdbId: number;
   kind: CalendarEntry['kind'];
   title: string;
@@ -23,12 +24,14 @@ interface MissingGroup {
   items: CalendarEntry[];
 }
 
-/** Fold the flat, title-sorted entries into one group per request. */
+/** Fold the flat, title-sorted entries into one group per title (keyed by the
+ * request, or the tmdb id for a library-scan gap that has no request yet). */
 function groupByTitle(entries: CalendarEntry[]): MissingGroup[] {
-  const byId = new Map<string, MissingGroup>();
+  const byKey = new Map<string, MissingGroup>();
   const order: string[] = [];
   for (const e of entries) {
-    let g = byId.get(e.requestId);
+    const key = e.requestId ?? `tmdb:${e.tmdbId}`;
+    let g = byKey.get(key);
     if (!g) {
       g = {
         requestId: e.requestId,
@@ -39,12 +42,12 @@ function groupByTitle(entries: CalendarEntry[]): MissingGroup[] {
         posterUrl: e.posterUrl,
         items: [],
       };
-      byId.set(e.requestId, g);
-      order.push(e.requestId);
+      byKey.set(key, g);
+      order.push(key);
     }
     g.items.push(e);
   }
-  return order.map((id) => byId.get(id) as MissingGroup);
+  return order.map((key) => byKey.get(key) as MissingGroup);
 }
 
 export function MissingPage() {
@@ -116,7 +119,7 @@ export function MissingPage() {
       <div className="mt-6 flex flex-col gap-2.5">
         {groups.map((g) => (
           <MissingCard
-            key={g.requestId}
+            key={g.requestId ?? `tmdb:${g.tmdbId}`}
             group={g}
             canManage={canManage}
             onSearched={invalidate}
@@ -150,16 +153,34 @@ function MissingCard({
   const [c1, c2] = posterColors(String(group.tmdbId));
   const poster = sizedImageUrl(group.posterUrl, 92);
 
+  const episodes = group.items.filter((i) => i.season != null && i.episode != null);
+
   const search = () => {
     setBusy(true);
-    client
-      .autoSearchRequest(group.requestId)
+    // A requested title: sweep + grab the best now. A library-scan gap has no
+    // request yet, so create one for its missing episodes (the pipeline then
+    // searches/grabs/imports), then force the grab if we can manage.
+    const run = group.requestId
+      ? client.autoSearchRequest(group.requestId)
+      : client
+          .createRequest({
+            kind: 'show',
+            tmdbId: group.tmdbId,
+            seasons: null,
+            episodes: episodes.map((e) => ({
+              season: e.season as number,
+              episode: e.episode as number,
+            })),
+          })
+          .then((req) => (canManage ? client.autoSearchRequest(req.id) : undefined));
+    run
       .then(() => onSearched())
       .catch(() => undefined)
       .finally(() => setBusy(false));
   };
 
-  const episodes = group.items.filter((i) => i.season != null && i.episode != null);
+  // A gap (no request) is actionable by any requester; a request needs manage.
+  const showButton = group.requestId ? canManage : true;
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface-1 p-3.5">
@@ -195,7 +216,7 @@ function MissingCard({
           ) : null}
         </div>
       </button>
-      {canManage ? (
+      {showButton ? (
         <button
           type="button"
           disabled={busy}

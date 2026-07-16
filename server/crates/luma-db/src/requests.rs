@@ -375,7 +375,7 @@ pub fn upcoming_calendar(
     let rows = stmt.query_map(params![today, requester, limit as i64], |r| {
         let kind: String = r.get(2)?;
         Ok(CalendarEntry {
-            request_id: r.get(0)?,
+            request_id: Some(r.get(0)?),
             tmdb_id: r.get::<_, i64>(1)? as u64,
             kind: RequestKind::parse(&kind).unwrap_or(RequestKind::Movie),
             title: r.get(3)?,
@@ -414,7 +414,7 @@ pub fn missing_items(
     let rows = stmt.query_map(params![today, requester, limit as i64], |r| {
         let kind: String = r.get(2)?;
         Ok(CalendarEntry {
-            request_id: r.get(0)?,
+            request_id: Some(r.get(0)?),
             tmdb_id: r.get::<_, i64>(1)? as u64,
             kind: RequestKind::parse(&kind).unwrap_or(RequestKind::Movie),
             title: r.get(3)?,
@@ -424,6 +424,79 @@ pub fn missing_items(
             episode: r.get(7)?,
             air_date: r.get(8)?,
             status: r.get(9)?,
+        })
+    })?;
+    rows.collect()
+}
+
+/// Replace the library-scan "gaps" for one show (Sonarr-style missing episodes:
+/// aired TMDB episodes not on disk), computed by the `library.missing` job. One
+/// transaction: clear the show's rows then insert the current set (empty = the
+/// show is complete, so its rows are simply cleared). `rows` = (season, episode,
+/// air_date). Title + poster are denormalized for the missing view.
+pub fn replace_show_gaps(
+    pool: &Pool,
+    show_id: &str,
+    tmdb_id: u64,
+    title: &str,
+    poster_url: Option<&str>,
+    rows: &[(u32, u32, Option<String>)],
+    now_ms: i64,
+) -> Result<()> {
+    let mut conn = pool.get()?;
+    let tx = conn.transaction()?;
+    tx.execute("DELETE FROM library_gaps WHERE show_id = ?1", params![show_id])?;
+    {
+        let mut stmt = tx.prepare(
+            "INSERT INTO library_gaps (show_id, tmdb_id, title, poster_url, season, episode, air_date, detected_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        )?;
+        for (season, episode, air_date) in rows {
+            stmt.execute(params![
+                show_id,
+                tmdb_id as i64,
+                title,
+                poster_url,
+                season,
+                episode,
+                air_date,
+                now_ms
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// The library-scan "missing" rows (aired episodes of library shows not on disk),
+/// as [`CalendarEntry`] with `request_id = None` (they are not requests yet). The
+/// missing view unions these with [`missing_items`]; the client turns a
+/// no-request row into a request when the user asks to watch it. Excludes shows
+/// that already have an open request for the same tmdb id (that request's ledger
+/// already tracks them, avoiding a duplicate line). Sorted by title.
+pub fn library_gaps_list(conn: &Connection, limit: usize) -> rusqlite::Result<Vec<CalendarEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT g.tmdb_id, g.title, g.poster_url, g.season, g.episode, g.air_date \
+         FROM library_gaps g \
+         WHERE NOT EXISTS ( \
+             SELECT 1 FROM requests r \
+             WHERE r.tmdb_id = g.tmdb_id AND r.kind = 'show' \
+               AND r.status NOT IN ('denied', 'failed') \
+         ) \
+         ORDER BY g.title ASC, g.season ASC, g.episode ASC LIMIT ?1",
+    )?;
+    let rows = stmt.query_map(params![limit as i64], |r| {
+        Ok(CalendarEntry {
+            request_id: None,
+            tmdb_id: r.get::<_, i64>(0)? as u64,
+            kind: RequestKind::Show,
+            title: r.get(1)?,
+            year: None,
+            poster_url: r.get(2)?,
+            season: r.get(3)?,
+            episode: r.get(4)?,
+            air_date: r.get(5)?,
+            status: "missing".into(),
         })
     })?;
     rows.collect()

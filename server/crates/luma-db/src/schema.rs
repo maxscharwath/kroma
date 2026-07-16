@@ -189,6 +189,21 @@ pub(crate) const SCHEMA: &str = "
         casts   TEXT NOT NULL,
         PRIMARY KEY (show_id, season)
     );
+    -- Library missing-episode scan (Sonarr-style): aired TMDB episodes of a
+    -- library show that are NOT on disk, recomputed by the library.missing job. Title +
+    -- poster are denormalized so the Wanted/Missing view lists them without a join
+    -- back through the JSON metadata. Cleared + rewritten per show each scan.
+    CREATE TABLE IF NOT EXISTS library_gaps (
+        show_id     TEXT NOT NULL REFERENCES shows(id) ON DELETE CASCADE,
+        tmdb_id     INTEGER NOT NULL,
+        title       TEXT NOT NULL,
+        poster_url  TEXT,
+        season      INTEGER NOT NULL,
+        episode     INTEGER NOT NULL,
+        air_date    TEXT,
+        detected_at INTEGER NOT NULL,
+        PRIMARY KEY (show_id, season, episode)
+    );
     -- Ma liste: user-bookmarked titles (movie item ids OR show ids; same
     -- no-items-FK rationale as `watched`). Synced across web + TV.
     CREATE TABLE IF NOT EXISTS my_list (

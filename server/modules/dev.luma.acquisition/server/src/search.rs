@@ -13,6 +13,7 @@ use crate::dtos::{
     InteractiveSearchView, ManualReleaseView, ManualSearchView, ScoreLineView, ScoredReleaseView,
 };
 use luma_module_sdk::engine::model::RequestKind;
+use luma_module_sdk::engine::services::requests::today_ymd;
 use luma_module_sdk::ports::IndexerRow;
 use luma_module_sdk::db::{self, WantedRow};
 
@@ -94,16 +95,23 @@ pub struct SearchTarget {
     pub episodes: Option<Vec<u32>>,
 }
 
-/// Derive the searchable targets from a request's wanted ledger. Shows group
-/// into one season-pack target per season with open episodes; when only a few
-/// episodes are missing overall, per-episode targets are added too (a pack is
-/// overkill for a 1-2 episode gap and often does not exist for airing seasons).
-pub fn targets_for_wanted(kind: RequestKind, wanted: &[WantedRow]) -> Vec<SearchTarget> {
+/// Build the search targets for a request. `today` (YYYY-MM-DD) decides, per
+/// season, whether it is COMPLETE (every episode has aired) or AIRING (an episode
+/// is still to come). An AIRING season searches each AIRED-but-open episode on
+/// its own (SxxExx), since a full season pack does not exist mid-airing so a pack
+/// query is wasteful. A COMPLETE season searches the season pack FIRST (one
+/// efficient release), then the aired episodes individually as a fallback the
+/// auto pass skips once the pack grab covers them (`covered` set), so a season
+/// with no pack still fills in per episode instead of stalling. Unaired episodes
+/// (air_date in the future) are never searched.
+pub fn targets_for_wanted(kind: RequestKind, wanted: &[WantedRow], today: &str) -> Vec<SearchTarget> {
     let open: Vec<&WantedRow> = wanted.iter().filter(|w| w.status == "wanted").collect();
+    // A row with no air date is treated as aired (older ledgers, specials).
+    let aired = |w: &WantedRow| w.air_date.as_deref().is_none_or(|d| d <= today);
     let mut out: Vec<SearchTarget> = Vec::new();
     match kind {
         RequestKind::Movie => {
-            if let Some(w) = open.first() {
+            if let Some(w) = open.iter().copied().find(|w| aired(w)) {
                 out.push(SearchTarget {
                     query: Query::Movie {
                         tmdb_id: Some(w.tmdb_id),
@@ -123,39 +131,46 @@ pub fn targets_for_wanted(kind: RequestKind, wanted: &[WantedRow]) -> Vec<Search
             seasons.sort_unstable();
             seasons.dedup();
             for season in seasons {
-                let eps: Vec<u32> = open
-                    .iter()
-                    .filter(|w| w.season == Some(season))
-                    .filter_map(|w| w.episode)
-                    .collect();
-                let sample = open.iter().find(|w| w.season == Some(season)).expect("season has rows");
-                out.push(SearchTarget {
-                    query: Query::Season {
+                let rows: Vec<&WantedRow> =
+                    open.iter().copied().filter(|w| w.season == Some(season)).collect();
+                let aired_eps: Vec<u32> =
+                    rows.iter().copied().filter(|w| aired(w)).filter_map(|w| w.episode).collect();
+                if aired_eps.is_empty() {
+                    continue; // nothing has aired for this season yet
+                }
+                let has_future =
+                    rows.iter().any(|w| w.air_date.as_deref().is_some_and(|d| d > today));
+                let sample = rows[0];
+                let episode_target = |episode: u32| SearchTarget {
+                    query: Query::Episode {
                         tmdb_id: Some(sample.tmdb_id),
                         title: sample.title.clone(),
                         season,
+                        episode,
                     },
-                    target: Target::Season { season, episodes: eps.len() as u32 },
-                    kind: "season",
+                    target: Target::Episode { season, episode },
+                    kind: "episode",
                     season: Some(season),
-                    episodes: Some(eps),
-                });
-            }
-            if open.len() <= 3 {
-                for w in &open {
-                    let (Some(season), Some(episode)) = (w.season, w.episode) else { continue };
+                    episodes: Some(vec![episode]),
+                };
+                if !has_future {
+                    // Complete season: the pack (covers everything) comes first.
                     out.push(SearchTarget {
-                        query: Query::Episode {
-                            tmdb_id: Some(w.tmdb_id),
-                            title: w.title.clone(),
+                        query: Query::Season {
+                            tmdb_id: Some(sample.tmdb_id),
+                            title: sample.title.clone(),
                             season,
-                            episode,
                         },
-                        target: Target::Episode { season, episode },
-                        kind: "episode",
+                        target: Target::Season { season, episodes: aired_eps.len() as u32 },
+                        kind: "season",
                         season: Some(season),
-                        episodes: Some(vec![episode]),
+                        episodes: Some(aired_eps.clone()),
                     });
+                }
+                // Per-episode targets: the only search for an airing season, or the
+                // fallback after a complete season's pack (skipped once covered).
+                for ep in aired_eps {
+                    out.push(episode_target(ep));
                 }
             }
         }
@@ -243,7 +258,7 @@ pub fn interactive_search<S: luma_module_sdk::host::HostCtx>(state: &S, request_
     }
 
     let profile = crate::profile_from_settings(state);
-    let targets = targets_for_wanted(req.kind, &search_wanted);
+    let targets = targets_for_wanted(req.kind, &search_wanted, &today_ymd());
     if targets.is_empty() {
         return Ok(InteractiveSearchView { releases: Vec::new(), indexer_errors: Vec::new() });
     }
@@ -448,5 +463,60 @@ pub fn wanted_ids_by(
             })
             .map(|w| w.id.clone())
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod target_tests {
+    use super::*;
+
+    fn ep(season: u32, episode: u32, air_date: Option<&str>) -> WantedRow {
+        WantedRow {
+            id: format!("s{season}e{episode}"),
+            request_id: "r1".into(),
+            kind: "episode".into(),
+            tmdb_id: 42,
+            imdb_id: None,
+            title: "Show".into(),
+            year: Some(2026),
+            season: Some(season),
+            episode: Some(episode),
+            air_date: air_date.map(str::to_string),
+            status: "wanted".into(),
+            last_search_at: None,
+        }
+    }
+
+    #[test]
+    fn airing_season_searches_aired_episodes_per_episode_only() {
+        // Ep1-2 aired, ep3 airs in the future: airing season -> per-episode for
+        // the two aired ones, NO season pack, and never the unaired episode.
+        let rows = vec![
+            ep(1, 1, Some("2026-07-01")),
+            ep(1, 2, Some("2026-07-08")),
+            ep(1, 3, Some("2026-07-22")),
+        ];
+        let t = targets_for_wanted(RequestKind::Show, &rows, "2026-07-16");
+        assert_eq!(t.len(), 2, "two aired episodes, no pack, no future ep");
+        assert!(t.iter().all(|x| x.kind == "episode"));
+        assert_eq!(t.iter().filter_map(|x| x.episodes.as_ref()?.first()).copied().collect::<Vec<_>>(), vec![1, 2]);
+    }
+
+    #[test]
+    fn complete_season_searches_pack_first_then_episode_fallback() {
+        // All aired: complete season -> pack first, then per-episode fallback.
+        let rows = vec![ep(2, 1, Some("2025-01-01")), ep(2, 2, Some("2025-01-08"))];
+        let t = targets_for_wanted(RequestKind::Show, &rows, "2026-07-16");
+        assert_eq!(t.len(), 3);
+        assert_eq!(t[0].kind, "season");
+        assert!(t[1..].iter().all(|x| x.kind == "episode"));
+    }
+
+    #[test]
+    fn no_air_date_is_treated_as_aired_complete() {
+        let rows = vec![ep(1, 1, None), ep(1, 2, None)];
+        let t = targets_for_wanted(RequestKind::Show, &rows, "2026-07-16");
+        assert_eq!(t[0].kind, "season"); // no future -> complete -> pack + fallback
+        assert_eq!(t.len(), 3);
     }
 }

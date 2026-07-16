@@ -69,7 +69,7 @@ pub fn auto_search_pass<S: luma_module_sdk::host::HostCtx>(state: &S, log: &dyn 
         drop(conn);
 
         summary.requests += 1;
-        let targets = targets_for_wanted(req.kind, &wanted);
+        let targets = targets_for_wanted(req.kind, &wanted, &today_ymd());
         // Rows a pack grab already covered this pass (skip episode targets).
         let mut covered: HashSet<String> = HashSet::new();
         for st in &targets {

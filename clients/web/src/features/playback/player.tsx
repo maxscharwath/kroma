@@ -19,6 +19,7 @@ import { SubtitleLayer } from '#web/features/playback/subtitle-layer';
 import { useSubtitleStyle } from '#web/features/playback/subtitle-style';
 import { preferredSubIndex } from '#web/features/playback/track-prefs';
 import { UpNextOverlay } from '#web/features/playback/up-next-overlay';
+import { useAudioBoost } from '#web/features/playback/use-audio-boost';
 import { usePlaybackSession } from '#web/features/playback/use-playback-session';
 import { usePlayerHotkeys } from '#web/features/playback/use-player-hotkeys';
 import { useResumeProgress } from '#web/features/playback/use-resume-progress';
@@ -91,6 +92,24 @@ export function Player({
   }, [user, item.subs]);
 
   const audio = audioSupport(item);
+
+  // Client-side volume boost (Web Audio gain + limiter). Keyed like the <video>
+  // element so the graph re-attaches when a re-anchor / audio switch remounts it.
+  const {
+    boost,
+    setBoost,
+    supported: boostSupported,
+  } = useAudioBoost(videoRef, `${pb.anchor}:${pb.audioIndex}`);
+  // One-shot boost suggestion when the server's loudness analysis flagged the
+  // mix (quiet dialogue / very wide dynamics) and no boost is active. Dismissal
+  // lasts for this playback only.
+  const [boostSuggestDismissed, setBoostSuggestDismissed] = useState(false);
+  const audioVerdict = item.audioAnalysis?.verdict;
+  const boostSuggested =
+    boostSupported &&
+    boost === 'off' &&
+    !boostSuggestDismissed &&
+    (audioVerdict === 'quietDialog' || audioVerdict === 'highDynamics');
 
   // Online-downloaded subtitles, merged with the embedded tracks. Fetched on open
   // and after each download. They get high indices (1000+) so they never collide
@@ -255,12 +274,16 @@ export function Player({
           OR the audio language changes, so hls.js always does a clean fresh attach
           (a re-attach on a reused element is flaky and the chosen audio is muxed
           per-stream). */}
+      {/* `crossOrigin`: stream routes are public + CORS-permissive, and a
+          CORS-clean source is required for the Web Audio volume boost (a
+          tainted direct-play element would output silence through the graph). */}
       {/* biome-ignore lint/a11y/useMediaCaption: subtitle tracks are attached at runtime by the player's subtitle system */}
       <video
         key={`${pb.anchor}:${pb.audioIndex}`}
         ref={videoRef}
         autoPlay
         playsInline
+        crossOrigin="anonymous"
         className="h-full w-full bg-black object-contain"
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
@@ -326,6 +349,34 @@ export function Player({
           }
         >
           ⏵ {t('player.resumeAt', { time: fmtTime(resumeAt) })}
+        </Toast>
+      ) : null}
+
+      {/* Loudness-analysis boost suggestion. Yields to the resume toast (same
+          slot); it reappears once resume is dismissed. */}
+      {boostSuggested && !(showResume && resumeAt != null) && !terminated ? (
+        <Toast
+          variant="info"
+          onDismiss={() => setBoostSuggestDismissed(true)}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setBoost('med');
+                setBoostSuggestDismissed(true);
+              }}
+              className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-white/20"
+            >
+              {t('player.boostSuggestAction')}
+            </button>
+          }
+        >
+          ♪{' '}
+          {t(
+            audioVerdict === 'quietDialog'
+              ? 'player.boostSuggestQuietDialog'
+              : 'player.boostSuggestHighDynamics',
+          )}
         </Toast>
       ) : null}
 
@@ -403,6 +454,9 @@ export function Player({
           audioTracks={pb.audioTracks}
           audioIndex={pb.audioIndex}
           onPickAudio={pb.setAudio}
+          boost={boost}
+          onBoost={setBoost}
+          boostSupported={boostSupported}
           activeSub={activeSub}
           onPickSub={pickSub}
           onDownloaded={onDownloaded}

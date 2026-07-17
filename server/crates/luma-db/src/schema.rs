@@ -114,6 +114,22 @@ pub(crate) const SCHEMA: &str = "
         PRIMARY KEY (item_id, kind)
     );
 
+    -- EBU R128 loudness analysis per (file, audio track), written by the
+    -- pipeline.loudness stage. Raw measured values (LUFS/LU/dBTP) are kept so
+    -- playback-side remediation can reuse them; verdict is the derived flag
+    -- ('ok' | 'highDynamics' | 'quietDialog').
+    CREATE TABLE IF NOT EXISTS audio_analysis (
+        file_id     TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+        track_index INTEGER NOT NULL,
+        lufs_i      REAL NOT NULL,
+        lra         REAL NOT NULL,
+        true_peak   REAL NOT NULL,
+        dialog_lufs REAL,
+        verdict     TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        PRIMARY KEY (file_id, track_index)
+    );
+
     -- Subtitles fetched from an online provider (OpenSubtitles, …), converted to
     -- WebVTT and cached under <data>/subs/downloaded/. Merged into the item's
     -- subtitle list so they appear in the player alongside embedded tracks.
@@ -641,6 +657,18 @@ fn migrate(conn: &Connection) {
         "ALTER TABLE requests ADD COLUMN air_status TEXT",
         "ALTER TABLE requests ADD COLUMN next_air_date TEXT",
         "ALTER TABLE requests ADD COLUMN last_refresh_at INTEGER",
+        // ----- loudness analysis (pipeline.loudness stage) -------------------------
+        // Idempotent for DBs created before the table existed.
+        "CREATE TABLE IF NOT EXISTS audio_analysis (\
+            file_id     TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,\
+            track_index INTEGER NOT NULL,\
+            lufs_i      REAL NOT NULL,\
+            lra         REAL NOT NULL,\
+            true_peak   REAL NOT NULL,\
+            dialog_lufs REAL,\
+            verdict     TEXT NOT NULL,\
+            updated_at  TEXT NOT NULL,\
+            PRIMARY KEY (file_id, track_index))",
     ] {
         let _ = conn.execute(sql, []);
     }

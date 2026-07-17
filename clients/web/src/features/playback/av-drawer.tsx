@@ -18,6 +18,7 @@ import {
   type SubtitleStyle,
   subtitleCss,
 } from '#web/features/playback/subtitle-style';
+import type { BoostLevel } from '#web/features/playback/use-audio-boost';
 import { useSubtitleGenerations } from '#web/features/playback/use-subtitle-generations';
 import type { MovieView, SubtitleView } from '#web/shared/lib/api';
 import { lumaClient } from '#web/shared/lib/api';
@@ -193,6 +194,9 @@ export function AvDrawer({
   audioTracks,
   audioIndex,
   onPickAudio,
+  boost,
+  onBoost,
+  boostSupported,
   activeSub,
   onPickSub,
   onDownloaded,
@@ -207,6 +211,10 @@ export function AvDrawer({
   audioTracks: AudioTrack[];
   audioIndex: number;
   onPickAudio: (index: number) => void;
+  /** Client-side volume boost level (Web Audio; hidden when unsupported). */
+  boost: BoostLevel;
+  onBoost: (b: BoostLevel) => void;
+  boostSupported: boolean;
   activeSub: number | null;
   onPickSub: (index: number | null) => void;
   /** Called with each generated subtitle (so the parent merges it in). */
@@ -311,6 +319,28 @@ export function AvDrawer({
             <div className="text-[13px] text-white/45">{t('player.noAudioTracks')}</div>
           )}
         </div>
+
+        {/* ---- client-side volume boost (gain + limiter, all playback modes) ---- */}
+        {boostSupported ? (
+          <>
+            <div className={SECTION}>{t('player.volumeBoost')}</div>
+            <div className="mb-2 flex">
+              <Segmented<BoostLevel>
+                value={boost}
+                options={[
+                  { v: 'off', label: t('player.volumeBoostOff') },
+                  { v: 'low', label: '+50 %' },
+                  { v: 'med', label: '+100 %' },
+                  { v: 'high', label: '+200 %' },
+                ]}
+                onChange={onBoost}
+              />
+            </div>
+            <p className="mb-8 text-[12px] leading-relaxed text-white/40">
+              {t('player.volumeBoostHint')}
+            </p>
+          </>
+        ) : null}
 
         <div className={SECTION}>{t('player.subtitles')}</div>
         <div className="mb-3 flex flex-col gap-2">

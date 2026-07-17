@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type BadgeTone = '4K' | 'HDR' | 'H.265' | 'success' | 'info' | 'neutral';
+export type BadgeTone = '4K' | 'HDR' | 'H.265' | 'success' | 'info' | 'neutral' | 'warning';
 
 const TONES: Record<BadgeTone, string> = {
   '4K': 'text-accent bg-accent-soft',
@@ -9,6 +9,7 @@ const TONES: Record<BadgeTone, string> = {
   success: 'text-success bg-[rgba(70,208,141,.16)]',
   info: 'text-info bg-[rgba(134,168,255,.16)]',
   neutral: 'text-text/85 bg-white/8',
+  warning: 'text-[#F0B95E] bg-[rgba(240,185,94,.14)]',
 };
 
 export interface BadgeProps {

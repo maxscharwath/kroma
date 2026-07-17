@@ -12,6 +12,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { AiSuggestRail } from '#web/features/catalog/ai-suggest-rail';
 import {
+  audioFlagLabel,
   audioString,
   CastRail,
   DetailHero,
@@ -143,6 +144,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
         rating={view.rating}
         meta={metaLine(t, view)}
         badges={view.video ? qualityBadges(view.video) : []}
+        audioFlag={owned ? audioFlagLabel(t, view.playable) : null}
         directors={view.directors}
         tagline={view.tagline}
         overview={view.overview}

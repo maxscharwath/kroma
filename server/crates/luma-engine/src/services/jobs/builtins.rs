@@ -64,6 +64,7 @@ const JOBS: &[Builtin] = &[
     // whole-library jobs that reprocessed everything on each run; the pipeline
     // makes them incremental, resumable and per-item observable.
     crate::services::pipeline::stages::probe::SPEC,
+    crate::services::pipeline::stages::loudness::SPEC,
     crate::services::pipeline::stages::metadata::SPEC,
     crate::services::pipeline::stages::storyboard::SPEC,
     crate::services::pipeline::stages::subtitles::SPEC,

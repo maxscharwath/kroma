@@ -56,6 +56,42 @@ pub struct SubtitleTrack {
     pub codec: String,
 }
 
+/// Outcome of the EBU R128 loudness analysis of an audio track.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AudioVerdict {
+    /// Comfortable mix nothing to flag.
+    Ok,
+    /// Loudness range so wide the viewer rides the volume control (quiet
+    /// dialogue vs loud effects).
+    HighDynamics,
+    /// The centre (dialogue) channel sits far below the full mix: dialogue is
+    /// buried even at a normal listening level.
+    QuietDialog,
+}
+
+/// EBU R128 loudness measurement of an item's default audio track, produced by
+/// the `pipeline.loudness` stage. Raw measured values are kept alongside the
+/// verdict so playback-side remediation (loudnorm two-pass, client boost) can
+/// use them directly.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioAnalysis {
+    /// Integrated loudness of the full mix (LUFS).
+    #[serde(rename = "lufsI")]
+    pub lufs_i: f64,
+    /// Loudness range (LU). > ~15 is the classic "quiet dialogue, loud
+    /// explosions" mix.
+    pub lra: f64,
+    /// True peak (dBTP).
+    #[serde(rename = "truePeak")]
+    pub true_peak: f64,
+    /// Integrated loudness of the centre channel alone (LUFS), measured for
+    /// 5.1+ tracks only that's where dialogue lives.
+    #[serde(rename = "dialogLufs", default, skip_serializing_if = "Option::is_none")]
+    pub dialog_lufs: Option<f64>,
+    pub verdict: AudioVerdict,
+}
+
 /// One physical file backing a logical [`MediaItem`]. A single item can have
 /// several of these (Director's Cut + Theatrical, 1080p + 4K, …); they all share
 /// the same logical item id but each maps to a distinct file on disk.
@@ -155,6 +191,11 @@ pub struct MediaItem {
     /// from chapters or the audio-fingerprint job.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<Marker>,
+    /// Loudness analysis of the representative file's default audio track.
+    /// `None` until the `pipeline.loudness` stage has measured it. Drives the
+    /// "high dynamics" badge and the player's volume-boost suggestion.
+    #[serde(rename = "audioAnalysis", default, skip_serializing_if = "Option::is_none")]
+    pub audio_analysis: Option<AudioAnalysis>,
 }
 
 /// What a [`Marker`] segment is. Serialized lowercase (`"intro"` / `"credits"`).

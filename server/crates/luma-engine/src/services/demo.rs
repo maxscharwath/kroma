@@ -122,7 +122,7 @@ fn movie(
         subtitles, library: library.into(),
         show_id: None, show_title: None, season: None, episode: None, episode_end: None,
         episode_title: None, rel_path: None, added_at: added_at.into(), metadata: None, abs_path: None,
-        files: Vec::new(), default_file_id: None, markers: Vec::new(),
+        files: Vec::new(), default_file_id: None, markers: Vec::new(), audio_analysis: None,
     })
 }
 
@@ -140,7 +140,7 @@ fn episode(
         library: library.into(), show_id: Some(show.into()), show_title: Some(show_title.into()),
         season: Some(season), episode: Some(episode), episode_end: None,
         episode_title: Some(episode_title.into()), rel_path: None, added_at: added_at.into(),
-        metadata: None, abs_path: None, files: Vec::new(), default_file_id: None, markers: Vec::new(),
+        metadata: None, abs_path: None, files: Vec::new(), default_file_id: None, markers: Vec::new(), audio_analysis: None,
     })
 }
 

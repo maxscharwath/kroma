@@ -38,6 +38,7 @@ mod admin;
 mod jobs;
 // Kept namespaced (`db::pipeline::…`) rather than glob-exported: its `counts`
 // would clash with `media::counts`, and the call sites read clearer scoped.
+pub mod audio_analysis;
 pub mod pipeline;
 mod requests;
 mod taste;
@@ -58,6 +59,7 @@ pub use media::*;
 pub use catalog_query::*;
 pub use ingest::*;
 pub use markers::*;
+pub use audio_analysis::*;
 pub use downloaded_subs::*;
 pub use downloads::*;
 pub use vectors::*;
@@ -247,6 +249,9 @@ pub(crate) fn attach_files(conn: &Connection, item: &mut MediaItem) -> rusqlite:
     if item.kind == Kind::Episode {
         item.markers = markers::markers_for_item(conn, &item.id)?;
     }
+    if let Some(fid) = item.default_file_id.clone() {
+        item.audio_analysis = audio_analysis::audio_analysis_for_file(conn, &fid)?;
+    }
     Ok(())
 }
 
@@ -293,6 +298,16 @@ pub(crate) fn attach_files_batch(conn: &Connection, items: &mut [MediaItem]) -> 
         apply_files(item, files);
         if item.kind == Kind::Episode {
             item.markers = markers_by_item.remove(&item.id).unwrap_or_default();
+        }
+    }
+
+    // Loudness analysis of each item's representative file, batched like files.
+    let rep_ids: Vec<&str> =
+        items.iter().filter_map(|i| i.default_file_id.as_deref()).collect();
+    let mut analysis_by_file = audio_analysis::audio_analysis_for_files(conn, &rep_ids)?;
+    for item in items.iter_mut() {
+        if let Some(fid) = item.default_file_id.as_deref() {
+            item.audio_analysis = analysis_by_file.remove(fid);
         }
     }
     Ok(())
@@ -394,6 +409,7 @@ pub(crate) fn row_to_item(r: &Row) -> rusqlite::Result<MediaItem> {
         files: Vec::new(),
         default_file_id: None,
         markers: Vec::new(),
+        audio_analysis: None,
     })
 }
 

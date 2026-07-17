@@ -48,6 +48,22 @@ export function audioString(t: Translate, item: Pick<MediaItem, 'audio'>): strin
   return [langName(t, a.language), tech].filter(Boolean).join(' · ') || '-';
 }
 
+/** Warning-pill label for a problematic loudness verdict, or null when the mix
+ * is fine / not analyzed yet (server `pipeline.loudness` stage). */
+export function audioFlagLabel(
+  t: Translate,
+  item: Pick<MediaItem, 'audioAnalysis'> | null | undefined,
+): string | null {
+  switch (item?.audioAnalysis?.verdict) {
+    case 'highDynamics':
+      return t('content.audioHighDynamics');
+    case 'quietDialog':
+      return t('content.audioQuietDialog');
+    default:
+      return null;
+  }
+}
+
 /** Distinct subtitle languages, or "Aucun". */
 export function subString(t: Translate, item: Pick<MediaItem, 'subtitles'>): string {
   const langs = [...new Set(item.subtitles.map((s) => langName(t, s.language)).filter(Boolean))];
@@ -79,6 +95,8 @@ export interface DetailHeroProps {
   /** Terse meta line, e.g. "2024 · 2h08 · Français". */
   meta: string;
   badges: QualityTone[];
+  /** Loudness warning pill ("Dialogues faibles", …); null/omitted hides it. */
+  audioFlag?: string | null;
   /** Director(s) / creator(s), shown as a "Réalisation" line. */
   directors?: string[];
   tagline?: string | null;
@@ -118,6 +136,7 @@ export function DetailHero({
   rating,
   meta,
   badges,
+  audioFlag,
   directors,
   tagline,
   overview,
@@ -217,6 +236,7 @@ export function DetailHero({
                 {b}
               </Badge>
             ))}
+            {audioFlag ? <Badge tone="warning">{audioFlag}</Badge> : null}
           </div>
 
           {directors && directors.length > 0 ? (

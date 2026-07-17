@@ -143,6 +143,7 @@ pub(super) fn scan_root(
                     files: Vec::new(),
                     default_file_id: None,
                     markers: Vec::new(),
+                    audio_analysis: None,
                 });
                 mtimes.insert(file.id.clone(), mtime);
                 item.files.push(file);
@@ -207,6 +208,7 @@ pub(super) fn scan_root(
                     files: Vec::new(),
                     default_file_id: None,
                     markers: Vec::new(),
+                    audio_analysis: None,
                 });
                 mtimes.insert(file.id.clone(), mtime);
                 item.files.push(file);

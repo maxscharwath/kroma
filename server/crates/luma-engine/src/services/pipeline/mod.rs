@@ -26,6 +26,11 @@ pub mod stages;
 pub const STAGE_KEYS: &[(&str, &str, &str)] = &[
     // (short, full job key, subject_kind) in DAG order.
     (stages::probe::STAGE.short, stages::probe::STAGE.key, stages::probe::STAGE.subject_kind),
+    (
+        stages::loudness::STAGE.short,
+        stages::loudness::STAGE.key,
+        stages::loudness::STAGE.subject_kind,
+    ),
     (stages::metadata::STAGE.short, stages::metadata::STAGE.key, stages::metadata::STAGE.subject_kind),
     (
         stages::storyboard::STAGE.short,

@@ -10,6 +10,7 @@
 //! per-subject code).
 
 pub mod embed;
+pub mod loudness;
 pub mod markers;
 pub mod metadata;
 pub mod probe;

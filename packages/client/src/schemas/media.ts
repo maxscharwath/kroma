@@ -52,6 +52,25 @@ export const AudioTrack = z.object({
 });
 export type AudioTrack = z.infer<typeof AudioTrack>;
 
+/** Outcome of the EBU R128 loudness analysis of an audio track. */
+export const AudioVerdict = z.enum(['ok', 'highDynamics', 'quietDialog']);
+
+/** EBU R128 loudness measurement of an item's default audio track, produced by
+ * the server's `pipeline.loudness` stage. Raw values are kept alongside the
+ * verdict so remediation (volume boost, loudnorm) can use them directly. */
+export const AudioAnalysis = z.object({
+  /** Integrated loudness of the full mix (LUFS). */
+  lufsI: z.number(),
+  /** Loudness range (LU); > ~15 = quiet dialogue vs loud effects. */
+  lra: z.number(),
+  /** True peak (dBTP). */
+  truePeak: z.number(),
+  /** Integrated loudness of the centre (dialogue) channel alone (5.1+ only). */
+  dialogLufs: z.number().nullish(),
+  verdict: AudioVerdict,
+});
+export type AudioAnalysis = z.infer<typeof AudioAnalysis>;
+
 /** A subtitle track. */
 export const SubtitleTrack = z.object({
   language: z.string().nullable(),
@@ -148,6 +167,7 @@ export const MediaItem = z.object({
   files: z.array(MediaFile),
   defaultFileId: z.string().nullish(),
   markers: z.array(Marker).nullish(),
+  audioAnalysis: AudioAnalysis.nullish(),
 });
 export type MediaItem = z.infer<typeof MediaItem>;
 
@@ -265,5 +285,6 @@ export const ServerInfo = z.object({
 export type ServerInfo = z.infer<typeof ServerInfo>;
 export type Category = z.infer<typeof Category>;
 export type LibraryKind = z.infer<typeof LibraryKind>;
+export type AudioVerdict = z.infer<typeof AudioVerdict>;
 export type MarkerKind = z.infer<typeof MarkerKind>;
 export type MediaKind = z.infer<typeof MediaKind>;

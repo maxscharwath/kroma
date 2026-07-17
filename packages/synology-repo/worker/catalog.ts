@@ -154,9 +154,10 @@ function jsonResponse(body: string, maxAge: number): Response {
 }
 
 /** `kroma-0.1.25-3439372-x86_64.spk` -> `0.1.25-3439372` (fallback when a
- * release predates the .info.json sidecars). */
+ * release predates the .info.json sidecars). Prefix-agnostic so pre-rebrand
+ * `luma-*.spk` releases still parse their version. */
 export function versionFromSpkName(name: string): string {
-  const m = /^kroma-(.+)-x86_64\.spk$/.exec(name);
+  const m = /^[a-z]+-(.+)-[a-z0-9_]+\.spk$/.exec(name);
   return m?.[1] ?? name.replace(/\.spk$/, '');
 }
 

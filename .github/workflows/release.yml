@@ -567,10 +567,11 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Nightly: stamp the -nightly.YYYYMMDD version so the installers carry it
-      # (stable tags rely on the committed tauri.conf.json version).
-      - name: Stamp nightly version
-        if: needs.version.outputs.channel == 'nightly'
+      # Stamp the release version into the installers so a desktop build always
+      # matches the release (stable tag = X.Y.Z, nightly = X.Y.Z-nightly.DATE).
+      # Skipped only for a bare build-only dispatch (channel none).
+      - name: Stamp release version
+        if: needs.version.outputs.channel != 'none'
         shell: bash
         env:
           VER: ${{ needs.version.outputs.version }}

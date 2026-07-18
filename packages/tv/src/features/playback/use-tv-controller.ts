@@ -1,5 +1,5 @@
 import { type KromaClient, type MediaItem, qualityBadgeForVideo } from '@kroma/core';
-import { type PlayerController, useT } from '@kroma/ui';
+import { type PlayerController, useAudioFilter, useT } from '@kroma/ui';
 import { useCallback, useMemo, useRef } from 'react';
 import { availableEngines, ENGINE_LABEL_KEY, type EnginePref } from '#tv/app/enginePref';
 import { type Playback, useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
@@ -25,6 +25,13 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
   const t = useT();
   const pb = useDirectPlayback(client, item);
   const subs = useTvSubtitles(client, item);
+
+  // Audio normalizer (§7). The Web Audio compressor taps the in-page <video>, so
+  // it works on the HTML engine (legacy webOS, the macOS desktop webview, a
+  // desktop browser) but NOT the native planes (AVPlay / mpv / ExoPlayer decode +
+  // output audio themselves, with nothing to route into a graph) - so it is only
+  // advertised as supported while a `video` surface is up.
+  const filter = useAudioFilter(pb.videoRef, `${item.id}:${pb.surface}`);
 
   const scrubPreview = useCallback(
     (abs: number | null) => {
@@ -98,9 +105,9 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     engines,
     engineId: pb.enginePref,
     setEngine: (id: string) => pb.setEngine(id as EnginePref),
-    audioFilter: 'off',
-    setAudioFilter: () => undefined,
-    audioFilterSupported: false,
+    audioFilter: filter.mode,
+    setAudioFilter: filter.setMode,
+    audioFilterSupported: filter.supported && pb.surface === 'video',
     pipActive: false,
     togglePip: () => undefined,
     fullscreen: false,

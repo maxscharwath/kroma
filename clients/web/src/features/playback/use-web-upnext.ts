@@ -23,16 +23,20 @@ function toCard(item: MediaItem): UpNextItem {
  */
 export function useWebUpNext(item: MediaItem, next?: MediaItem | null): UpNextData {
   const [similar, setSimilar] = useState<MediaItem[]>([]);
+  // Recommend against the SHOW when watching an episode (episodes carry no
+  // embedding of their own, so similar(episodeId) would be empty); a movie
+  // recommends against itself.
+  const recoId = item.showId ?? item.id;
   useEffect(() => {
     let cancelled = false;
     kromaClient()
-      .similar(item.id)
+      .similar(recoId)
       .then((list) => !cancelled && setSimilar(list))
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [item.id]);
+  }, [recoId]);
 
   return useMemo(
     () => ({

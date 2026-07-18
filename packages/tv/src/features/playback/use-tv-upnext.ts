@@ -29,16 +29,19 @@ export function useTvUpNext(
   next: MediaItem | null,
 ): TvUpNext {
   const [similar, setSimilar] = useState<MediaItem[]>([]);
+  // Recommend against the SHOW for an episode (episodes carry no embedding of
+  // their own); a movie recommends against itself.
+  const recoId = item.showId ?? item.id;
   useEffect(() => {
     let cancelled = false;
     client
-      .similar(item.id)
+      .similar(recoId)
       .then((list) => !cancelled && setSimilar(list))
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [client, item.id]);
+  }, [client, recoId]);
 
   return useMemo(() => {
     const recos = similar.slice(0, 18);

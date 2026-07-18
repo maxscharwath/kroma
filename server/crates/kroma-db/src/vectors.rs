@@ -259,6 +259,25 @@ pub fn similar_items(pool: &Pool, id: &str, n: usize) -> Result<Vec<MediaItem>> 
     };
     let mut items = hydrate(pool, &ranked)?;
     items.truncate(n);
+    // Embeddings can be sparse or absent (a fresh library before the embed stage
+    // runs, an un-embedded title, or - for a series - an episode id, which carries
+    // no vector of its own), which would leave the player's "up next" rail nearly
+    // empty. Top up with recently-added titles, excluding the seed + what we
+    // already have, so the rail always fills when the library has content.
+    if items.len() < n {
+        let mut have: std::collections::HashSet<String> =
+            items.iter().map(|i| i.id.clone()).collect();
+        have.insert(id.to_string());
+        let recent = super::recently_added_ids(pool, n * 3)?;
+        let extra_ids: Vec<&str> =
+            recent.iter().filter(|r| !have.contains(r.as_str())).map(String::as_str).collect();
+        for it in super::items_by_ids(pool, &extra_ids)? {
+            if items.len() >= n {
+                break;
+            }
+            items.push(it);
+        }
+    }
     Ok(items)
 }
 
@@ -401,5 +420,24 @@ mod tests {
         let themed = themed_items(&p, &[1.0, 0.0], 5, 0.5).unwrap();
         let ids: Vec<&str> = themed.iter().map(|i| i.id.as_str()).collect();
         assert!(ids.contains(&"a") && ids.contains(&"b") && !ids.contains(&"c"));
+    }
+
+    #[test]
+    fn similar_items_fills_from_recent_when_no_embedding() {
+        let p = seeded();
+        // 'z' is a movie with NO vector (un-embedded, like a fresh library or an
+        // episode id): similar() is empty, so the rail must fall back to
+        // recently-added titles rather than returning nothing.
+        p.get()
+            .unwrap()
+            .execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at,metadata) \
+                 VALUES ('z','movie','Z','mkv','lib','z','{\"tmdbId\":1,\"tmdbUrl\":\"x\",\"genres\":[\"SciFi\"]}')",
+                [],
+            )
+            .unwrap();
+        let sim = similar_items(&p, "z", 3).unwrap();
+        assert_eq!(sim.len(), 3); // filled from a/b/c
+        assert!(!sim.iter().any(|i| i.id == "z")); // never recommends the seed itself
     }
 }

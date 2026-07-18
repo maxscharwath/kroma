@@ -65,6 +65,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: JS/TS coverage (vitest -> coverage/lcov.info)
+        # Tests are hard-gated in ci.yml; here we only need the lcov (vitest
+        # writes it even if a test fails), so a failure must not abort the scan.
+        continue-on-error: true
         run: bun run test:coverage
 
       # --- Rust coverage (best-effort; never blocks the scan) -----------------

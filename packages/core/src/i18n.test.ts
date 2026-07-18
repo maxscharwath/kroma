@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type Catalogs,
   createTranslator,
@@ -47,10 +47,21 @@ describe('detectLocale', () => {
     expect(detectLocale('fr-CH')).toBe('fr');
   });
 
-  it('falls back to the default locale when nothing resolves', () => {
-    // Node env has no browser navigator.languages of a supported locale.
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('falls back to the default locale when navigator has no supported locale', () => {
+    // Bun provides a navigator.language that varies by machine/CI, so stub it
+    // out to make the fallback deterministic.
+    vi.stubGlobal('navigator', undefined);
     expect(detectLocale('xx')).toBe('fr');
     expect(detectLocale(null)).toBe('fr');
+  });
+
+  it('uses navigator languages when no explicit preference resolves', () => {
+    vi.stubGlobal('navigator', { languages: ['de', 'en-US'] });
+    expect(detectLocale(null)).toBe('en'); // de unsupported, en-US -> en
+    vi.stubGlobal('navigator', { language: 'fr-CH' });
+    expect(detectLocale('xx')).toBe('fr');
   });
 });
 

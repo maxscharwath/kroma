@@ -137,8 +137,11 @@ describe('ModuleRegistry.start', () => {
     const r = new ModuleRegistry();
     r.register(mod('a', { exports: () => ({ answer: 42 }) }));
     const host = await r.start(baseHost);
-    expect(host.getModuleApi('a')).toEqual({ answer: 42 });
-    expect(host.getModuleApi('missing')).toBeUndefined();
+    // The registry is empty by design, so `getModuleApi`'s key is `never`; call
+    // it through a string-keyed view to exercise it with runtime ids.
+    const getModuleApi = host.getModuleApi as (id: string) => unknown;
+    expect(getModuleApi('a')).toEqual({ answer: 42 });
+    expect(getModuleApi('missing')).toBeUndefined();
   });
 
   it('awaits an async setup', async () => {
@@ -184,7 +187,7 @@ describe('ModuleRegistry route/nav/panel collection', () => {
     r.register(mod('b', { routes: [{ path: 'dup', component: comp as never }] }));
     const routes = r.routes();
     expect(routes).toHaveLength(1);
-    expect(routes[0].moduleId).toBe('a');
+    expect(routes[0]!.moduleId).toBe('a');
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('collides'));
     warn.mockRestore();
   });

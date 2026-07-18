@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { KromaClient } from './api';
 import { KromaApiError } from './client/base';
+import { ItemId } from './schemas/ids';
 
 // A recording fetch: captures every request (url + method + body + headers) and
 // returns a configurable response. The default response is a 200 with `{}` so a
@@ -201,7 +202,7 @@ describe('posterBlob', () => {
   it('fetches an absolute (TMDB) poster directly, no /api prefix or auth', async () => {
     const { client, calls } = makeClient(undefined, { authToken: 'tok' });
     const blob = await client.posterBlob({
-      id: 'i1',
+      id: ItemId.of('i1'),
       // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
       metadata: { posterUrl: 'https://image.tmdb.org/p.jpg' } as any,
     });
@@ -215,14 +216,17 @@ describe('posterBlob', () => {
     const { client } = makeClient(() => ({ ok: false, status: 404 }), { authToken: 'tok' });
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
-      client.posterBlob({ id: 'i1', metadata: { posterUrl: 'https://img/x.jpg' } as any }),
+      client.posterBlob({
+        id: ItemId.of('i1'),
+        metadata: { posterUrl: 'https://img/x.jpg' } as any,
+      }),
     ).rejects.toThrow('poster 404');
   });
 
   it('strips a single /api prefix from a cached-art path and refetches it', async () => {
     const { client, calls } = makeClient();
     await client.posterBlob({
-      id: 'i1',
+      id: ItemId.of('i1'),
       // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
       metadata: { posterUrl: '/api/images/p.webp' } as any,
     });
@@ -231,7 +235,7 @@ describe('posterBlob', () => {
 
   it('falls back to the generated poster endpoint when no posterUrl (encoding the id)', async () => {
     const { client, calls } = makeClient();
-    await client.posterBlob({ id: 'a b', metadata: null });
+    await client.posterBlob({ id: ItemId.of('a b'), metadata: null });
     expect(calls[0]?.url).toBe('http://kroma.test/api/items/a%20b/poster');
   });
 });

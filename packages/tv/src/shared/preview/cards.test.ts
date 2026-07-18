@@ -5,7 +5,9 @@ import { buildPreviewData } from './cards';
 // buildPreviewData reads only `client.baseUrl`.
 const client = { baseUrl: 'http://kroma.test' } as unknown as KromaClient;
 
-function mov(o: Partial<MediaItem>): MediaItem {
+function mov(
+  o: Partial<Omit<MediaItem, 'id' | 'showId'>> & { id?: string; showId?: string },
+): MediaItem {
   return {
     id: 'i1',
     title: 'Movie',

@@ -47,7 +47,7 @@ describe('createEventBus', () => {
   it('uses a snapshot: a handler that unsubscribes another still lets that one fire this round', () => {
     const bus = loose(createEventBus());
     const second = vi.fn();
-    let off2 = () => undefined;
+    let off2: () => void = () => undefined;
     bus.on('evt', () => off2()); // first handler removes the second mid-dispatch
     off2 = bus.on('evt', second);
     bus.emit('evt', 1);

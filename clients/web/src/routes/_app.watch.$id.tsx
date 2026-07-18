@@ -29,6 +29,7 @@ function WatchPage() {
       item={item}
       next={next}
       onPlayNext={next ? () => navigate({ to: '/watch/$id', params: { id: next.id } }) : undefined}
+      onPlayItem={(id) => navigate({ to: '/watch/$id', params: { id } })}
       onClose={() => navigate({ to: '/' })}
     />
   );

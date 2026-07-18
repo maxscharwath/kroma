@@ -20,6 +20,11 @@
 /* Tailwind ignores node_modules; the TV components live in this workspace
    package (symlinked), so scan them explicitly for utility class names. */
 @source './';
+/* The shared unified player (packages/ui/src/player) is styled with Tailwind
+   too, so scan it here for the TV bundle (Tailwind does not follow the symlink
+   automatically). Keep it flex-only + no `/opacity` modifiers for the legacy
+   webOS tier (see check-legacy). */
+@source '../../ui/src/player/**/*.{ts,tsx}';
 
 /* TV-only focus depth shadow. The design's focus state is a CLEAN solid amber
    ring + a dark drop shadow for lift NOT an amber glow/bloom so the ring

@@ -24,6 +24,7 @@ export type { LocaleProviderProps } from './locale';
 export { LocaleProvider } from './locale';
 export type { PlaybackHeartbeatParams } from './playback';
 export { usePlaybackHeartbeat } from './playback';
+export * from './player';
 export type { Storyboard, StoryboardTile } from './storyboard';
 export { useStoryboard } from './storyboard';
 export type { SubtitleGenerationsOptions, SubtitleGenerationsResult } from './subtitleGenerations';

@@ -269,6 +269,7 @@
       "version": "0.1.3",
       "dependencies": {
         "@kroma/core": "workspace:*",
+        "@tabler/icons-react": "^3.44.0",
       },
       "devDependencies": {
         "@types/react": "^19",

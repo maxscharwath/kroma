@@ -398,4 +398,155 @@ mod tests {
         let back = stored.downcast::<Arc<dyn Greeter>>().expect("stored value downcasts back");
         assert_eq!((*back).hi(), "hi");
     }
+
+    // ----- test double: a HostCtx that only serves the service registry ----------
+
+    struct MockHost {
+        svc: Option<(TypeId, Arc<dyn Any + Send + Sync>)>,
+    }
+    impl HostCtx for MockHost {
+        fn db(&self) -> &Pool {
+            unimplemented!("db is not exercised by these tests")
+        }
+        fn data_dir(&self) -> &Path {
+            Path::new("/tmp")
+        }
+        fn require(&self, _user: &User, _perm: Permission) -> Result<(), Response> {
+            Ok(())
+        }
+        fn require_any_admin(&self, _user: &User) -> Result<(), Response> {
+            Ok(())
+        }
+        fn lerr(&self, _user: &User, _status: StatusCode, _key: &str) -> Response {
+            unimplemented!()
+        }
+        fn setting_str(&self, _key: &str, default: &str) -> String {
+            default.to_string()
+        }
+        fn setting_bool(&self, _key: &str, default: bool) -> bool {
+            default
+        }
+        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
+            default
+        }
+        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
+        fn publish(&self, _event: Event) {}
+        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
+        fn module_enabled(&self, _id: &str) -> bool {
+            true
+        }
+        fn library_folders(&self) -> Vec<LibraryFolders> {
+            Vec::new()
+        }
+        fn tmdb_api_key(&self) -> Option<String> {
+            None
+        }
+        fn metadata_language(&self) -> String {
+            "en".into()
+        }
+        fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
+            self.svc.as_ref().filter(|(t, _)| *t == type_id).map(|(_, v)| v.clone())
+        }
+    }
+
+    #[test]
+    fn resolve_port_finds_a_registered_port_and_misses_otherwise() {
+        trait Greeter: Send + Sync {
+            fn hi(&self) -> &'static str;
+        }
+        struct G;
+        impl Greeter for G {
+            fn hi(&self) -> &'static str {
+                "hi"
+            }
+        }
+        let port: Arc<dyn Greeter> = Arc::new(G);
+        let host = MockHost { svc: Some(port_service(port)) };
+        let resolved = resolve_port::<dyn Greeter>(&host).expect("port resolves");
+        assert_eq!(resolved.hi(), "hi");
+
+        // Nothing registered -> None.
+        let empty = MockHost { svc: None };
+        assert!(resolve_port::<dyn Greeter>(&empty).is_none());
+    }
+
+    #[test]
+    fn service_resolves_a_concrete_type() {
+        struct Manager(u32);
+        let host = MockHost {
+            svc: Some((TypeId::of::<Manager>(), Arc::new(Manager(42)) as Arc<dyn Any + Send + Sync>)),
+        };
+        let got = service::<Manager>(&host).expect("service resolves");
+        assert_eq!(got.0, 42);
+
+        // A different type is not registered.
+        struct Other;
+        assert!(service::<Other>(&host).is_none());
+    }
+
+    #[test]
+    fn json_error_carries_the_status() {
+        let resp = json_error(StatusCode::NOT_FOUND, "gone");
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+        let resp = json_error(StatusCode::FORBIDDEN, "no");
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[test]
+    fn event_new_keeps_topic_and_payload() {
+        let ev = Event::new("download.progress", serde_json::json!({ "pct": 42 }));
+        assert_eq!(ev.topic, "download.progress");
+        assert_eq!(ev.payload["pct"], 42);
+    }
+
+    #[test]
+    fn bearer_from_headers_extracts_case_insensitively_and_trims() {
+        use axum::http::{header::AUTHORIZATION, HeaderMap, HeaderValue};
+
+        let mut h = HeaderMap::new();
+        h.insert(AUTHORIZATION, HeaderValue::from_static("Bearer abc123"));
+        assert_eq!(bearer_from_headers(&h).as_deref(), Some("abc123"));
+
+        // Lowercase scheme + surrounding whitespace on the token.
+        let mut h = HeaderMap::new();
+        h.insert(AUTHORIZATION, HeaderValue::from_static("bearer   tok  "));
+        assert_eq!(bearer_from_headers(&h).as_deref(), Some("tok"));
+
+        // No header at all.
+        assert!(bearer_from_headers(&HeaderMap::new()).is_none());
+
+        // Wrong scheme.
+        let mut h = HeaderMap::new();
+        h.insert(AUTHORIZATION, HeaderValue::from_static("Basic Zm9v"));
+        assert!(bearer_from_headers(&h).is_none());
+
+        // Empty token after the scheme.
+        let mut h = HeaderMap::new();
+        h.insert(AUTHORIZATION, HeaderValue::from_static("Bearer    "));
+        assert!(bearer_from_headers(&h).is_none());
+    }
+
+    #[tokio::test]
+    async fn blocking_returns_value_and_maps_failure_to_500() {
+        let ok: Result<i32, Response> = blocking(|| Ok(21 * 2)).await;
+        assert_eq!(ok.unwrap(), 42);
+
+        let err = blocking::<i32, _>(|| Err(anyhow::anyhow!("db down"))).await;
+        assert_eq!(err.unwrap_err().status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn query_hands_the_closure_its_own_pool() {
+        let path = std::env::temp_dir().join(format!("kroma-host-query-{}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = kroma_db::init(&path).expect("init db");
+        let n: Result<i64, Response> = query(&pool, |p| {
+            let conn = p.get()?;
+            let v: i64 = conn.query_row("SELECT 1 + 1", [], |r| r.get(0))?;
+            Ok(v)
+        })
+        .await;
+        assert_eq!(n.unwrap(), 2);
+        let _ = std::fs::remove_file(&path);
+    }
 }

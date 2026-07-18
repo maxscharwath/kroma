@@ -495,4 +495,101 @@ search:
         assert_eq!(p.published_at.as_deref(), Some("d"));
         assert_eq!(p.details_url.as_deref(), Some("u"));
     }
+
+    // ----- IndexerSearchPort::resolve_download magnet fast-path -------------------
+
+    /// A `HostCtx` whose methods are never invoked: the magnet fast-path in
+    /// `resolve_download` returns before touching the host.
+    #[derive(Clone)]
+    struct MockHost;
+    impl kroma_module_sdk::host::HostCtx for MockHost {
+        fn db(&self) -> &kroma_module_sdk::db::Pool {
+            unimplemented!("db is not touched by the magnet fast-path")
+        }
+        fn data_dir(&self) -> &std::path::Path {
+            std::path::Path::new("/tmp")
+        }
+        fn require(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+            _perm: kroma_module_sdk::domain::Permission,
+        ) -> Result<(), axum::response::Response> {
+            Ok(())
+        }
+        fn require_any_admin(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+        ) -> Result<(), axum::response::Response> {
+            Ok(())
+        }
+        fn lerr(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+            _status: axum::http::StatusCode,
+            _key: &str,
+        ) -> axum::response::Response {
+            unimplemented!()
+        }
+        fn setting_str(&self, _key: &str, default: &str) -> String {
+            default.to_string()
+        }
+        fn setting_bool(&self, _key: &str, default: bool) -> bool {
+            default
+        }
+        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
+            default
+        }
+        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
+        fn publish(&self, _event: kroma_module_sdk::host::Event) {}
+        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
+        fn module_enabled(&self, _id: &str) -> bool {
+            true
+        }
+        fn library_folders(&self) -> Vec<kroma_module_sdk::host::LibraryFolders> {
+            Vec::new()
+        }
+        fn tmdb_api_key(&self) -> Option<String> {
+            None
+        }
+        fn metadata_language(&self) -> String {
+            "en".into()
+        }
+        fn get_service(
+            &self,
+            _type_id: std::any::TypeId,
+        ) -> Option<std::sync::Arc<dyn std::any::Any + Send + Sync>> {
+            None
+        }
+    }
+
+    fn port_row() -> kroma_module_sdk::ports::IndexerRow {
+        kroma_module_sdk::ports::IndexerRow {
+            id: "a".into(),
+            name: "N".into(),
+            url: "http://x".into(),
+            api_key: String::new(),
+            categories: vec![2000],
+            enabled: true,
+            priority: 0,
+            kind: admin::KIND_BUILTIN.into(),
+            definition_id: Some("def".into()),
+            settings: "{}".into(),
+            last_ok_at: None,
+            last_error: None,
+            created_at: 0,
+        }
+    }
+
+    #[test]
+    fn resolve_download_short_circuits_on_magnet_without_touching_host() {
+        use kroma_module_sdk::ports::{DownloadTarget, IndexerSearchPort};
+        let magnet = "magnet:?xt=urn:btih:deadbeef";
+        let out = IndexerSearch
+            .resolve_download(&MockHost, &port_row(), "Some Title", None, magnet)
+            .expect("magnet resolves without a session");
+        match out {
+            DownloadTarget::Magnet(m) => assert_eq!(m, magnet),
+            other => panic!("expected a magnet target, got {other:?}"),
+        }
+    }
 }

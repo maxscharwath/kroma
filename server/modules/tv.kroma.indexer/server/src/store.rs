@@ -278,4 +278,152 @@ links:
         assert_eq!(meta.kind, "public");
         assert_eq!(meta.links, vec!["https://example.org/"]);
     }
+
+    // ----- filesystem-backed store behavior --------------------------------------
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// A unique, freshly-created temp directory for one test.
+    fn tmpdir(tag: &str) -> PathBuf {
+        static SEQ: AtomicU32 = AtomicU32::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir()
+            .join(format!("kroma-store-test-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A minimal but fully-parseable Cardigann definition body.
+    fn valid_definition(id: &str) -> String {
+        format!(
+            r#"
+id: {id}
+name: My Tracker
+caps:
+  modes:
+    search: [q]
+search:
+  rows:
+    selector: "tr"
+"#
+        )
+    }
+
+    #[test]
+    fn dir_is_under_the_data_dir() {
+        let data = tmpdir("dir");
+        let store = DefinitionStore::new(&data);
+        assert_eq!(store.dir(), data.join("indexer-defs"));
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn is_populated_reflects_presence_of_yaml_files() {
+        let data = tmpdir("pop");
+        let store = DefinitionStore::new(&data);
+        // Cache dir does not exist yet.
+        assert!(!store.is_populated());
+
+        std::fs::create_dir_all(store.dir()).unwrap();
+        // Empty dir: still not populated.
+        assert!(!store.is_populated());
+        // A non-yaml file does not count.
+        std::fs::write(store.dir().join("readme.txt"), b"hi").unwrap();
+        assert!(!store.is_populated());
+        // A yaml file does.
+        std::fs::write(store.dir().join("t.yml"), b"name: T").unwrap();
+        assert!(store.is_populated());
+
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn list_returns_empty_when_unsynced() {
+        let data = tmpdir("unsynced");
+        let store = DefinitionStore::new(&data);
+        // The cache dir does not exist: list is Ok(empty), not an error.
+        assert!(store.list().unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn list_sorts_by_name_keys_on_stem_and_skips_non_yaml() {
+        let data = tmpdir("list");
+        let store = DefinitionStore::new(&data);
+        std::fs::create_dir_all(store.dir()).unwrap();
+        std::fs::write(store.dir().join("zebra.yml"), b"id: zebra\nname: Zebra").unwrap();
+        std::fs::write(store.dir().join("apple.yml"), b"id: apple\nname: apple").unwrap();
+        // Internal id differs from the file stem: the stem must win.
+        std::fs::write(store.dir().join("darkpeers-api.yml"), b"id: darkpeers\nname: Dark").unwrap();
+        // Non-yaml files are ignored.
+        std::fs::write(store.dir().join("notes.txt"), b"skip me").unwrap();
+
+        let metas = store.list().unwrap();
+        assert_eq!(metas.len(), 3);
+        // Case-insensitive name sort: apple, Dark, Zebra.
+        assert_eq!(metas[0].name, "apple");
+        assert_eq!(metas[1].name, "Dark");
+        assert_eq!(metas[2].name, "Zebra");
+        // The Dark entry is keyed on its file stem, not its internal id.
+        assert_eq!(metas[1].id, "darkpeers-api");
+
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn load_parses_a_cached_definition() {
+        let data = tmpdir("load");
+        let store = DefinitionStore::new(&data);
+        std::fs::create_dir_all(store.dir()).unwrap();
+        std::fs::write(store.dir().join("mytracker.yml"), valid_definition("t").as_bytes()).unwrap();
+
+        let def = store.load("mytracker").expect("loads and parses");
+        // The parsed id comes from the file body, not the file name.
+        assert_eq!(def.id, "t");
+        assert_eq!(def.name, "My Tracker");
+
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn load_missing_definition_errors_with_a_hint() {
+        let data = tmpdir("load-miss");
+        let store = DefinitionStore::new(&data);
+        std::fs::create_dir_all(store.dir()).unwrap();
+        let err = store.load("ghost").unwrap_err();
+        assert!(format!("{err:#}").contains("not found"), "unexpected error: {err:#}");
+        let _ = std::fs::remove_dir_all(&data);
+    }
+
+    #[test]
+    fn find_definitions_root_prefers_nested_then_falls_back() {
+        // Nested: <tmp>/Indexers-master/definitions.
+        let nested = tmpdir("root-nested");
+        let want = nested.join("Indexers-master").join("definitions");
+        std::fs::create_dir_all(&want).unwrap();
+        assert_eq!(find_definitions_root(&nested).as_deref(), Some(want.as_path()));
+        let _ = std::fs::remove_dir_all(&nested);
+
+        // Direct: <tmp>/definitions itself.
+        let direct = tmpdir("root-direct");
+        let want = direct.join("definitions");
+        std::fs::create_dir_all(&want).unwrap();
+        assert_eq!(find_definitions_root(&direct).as_deref(), Some(want.as_path()));
+        let _ = std::fs::remove_dir_all(&direct);
+
+        // None: an empty tree has no definitions dir.
+        let empty = tmpdir("root-none");
+        assert!(find_definitions_root(&empty).is_none());
+        let _ = std::fs::remove_dir_all(&empty);
+    }
+
+    #[test]
+    fn version_dir_none_when_no_versioned_subdir() {
+        let dir = tmpdir("ver-none");
+        std::fs::create_dir_all(dir.join("stable")).unwrap();
+        std::fs::create_dir_all(dir.join("vX")).unwrap(); // not a number after 'v'
+        assert!(pick_version_dir(&dir).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

@@ -1168,4 +1168,204 @@ mod tests {
             available_date: avail.map(str::to_string),
         }
     }
+
+    #[test]
+    fn deny_request_marks_denied_and_publishes() {
+        let host = TestHost::new();
+        insert_req(&host, "r1", RequestKind::Movie, 603, RequestStatus::Approved);
+        let denied = deny_request(&host, "r1", "mod", Some("nope")).unwrap();
+        assert_eq!(denied.status, RequestStatus::Denied);
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::Denied);
+        assert!(host.publishes() >= 1);
+    }
+
+    #[test]
+    fn deny_request_unknown_request_errors() {
+        let host = TestHost::new();
+        assert!(deny_request(&host, "ghost", "mod", None).is_err());
+    }
+
+    #[test]
+    fn approve_request_on_denied_bails_without_network() {
+        let host = TestHost::new();
+        insert_req(&host, "r1", RequestKind::Movie, 603, RequestStatus::Denied);
+        // A denied request refuses re-approval before any TMDB call happens.
+        let err = approve_request(&host, "r1", Some("mod")).unwrap_err();
+        assert!(err.to_string().contains("denied"), "unexpected error: {err}");
+        // Untouched.
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::Denied);
+    }
+
+    #[test]
+    fn approve_request_unknown_request_errors() {
+        let host = TestHost::new();
+        assert!(approve_request(&host, "ghost", None).is_err());
+    }
+
+    #[test]
+    fn merge_show_request_widens_pending_seasons_without_materializing() {
+        let host = TestHost::new();
+        // A Pending show request (no wanted ledger) can widen its season set with
+        // no TMDB call, because materialize_wanted only runs once green-lit.
+        db::insert_request(
+            host.db(),
+            &db::NewRequest {
+                id: "r1".into(),
+                kind: RequestKind::Show,
+                tmdb_id: 100,
+                title: "T".into(),
+                year: None,
+                poster_url: None,
+                seasons: Some(vec![1]),
+                episodes: None,
+                status: RequestStatus::Pending,
+                requested_by: None,
+            },
+            now_ms(),
+        )
+        .unwrap();
+        let conn = host.db().get().unwrap();
+        let existing = db::get_request(&conn, "r1").unwrap().unwrap();
+        drop(conn);
+
+        merge_show_request(&host, &existing, Some(vec![2]), None).unwrap();
+
+        let conn = host.db().get().unwrap();
+        let updated = db::get_request(&conn, "r1").unwrap().unwrap();
+        assert_eq!(updated.seasons, Some(vec![1, 2]));
+        assert!(host.publishes() >= 1, "a widened request publishes an update");
+    }
+
+    #[test]
+    fn merge_show_request_no_change_does_not_publish() {
+        let host = TestHost::new();
+        // Merging a subset already covered widens nothing, so nothing is published.
+        db::insert_request(
+            host.db(),
+            &db::NewRequest {
+                id: "r1".into(),
+                kind: RequestKind::Show,
+                tmdb_id: 100,
+                title: "T".into(),
+                year: None,
+                poster_url: None,
+                seasons: Some(vec![1, 2]),
+                episodes: None,
+                status: RequestStatus::Pending,
+                requested_by: None,
+            },
+            now_ms(),
+        )
+        .unwrap();
+        let conn = host.db().get().unwrap();
+        let existing = db::get_request(&conn, "r1").unwrap().unwrap();
+        drop(conn);
+
+        merge_show_request(&host, &existing, Some(vec![1]), None).unwrap();
+        assert_eq!(host.publishes(), 0);
+    }
+
+    #[test]
+    fn refresh_wanted_noop_on_empty_ledger() {
+        let host = TestHost::new();
+        // A request with no wanted rows is never seeded by refresh (only extended),
+        // so this returns Ok before any TMDB season fetch.
+        let request = req(RequestKind::Show, RequestStatus::Approved);
+        let detail = raw_detail(None, None);
+        refresh_wanted(&host, &request, &detail).unwrap();
+        let conn = host.db().get().unwrap();
+        assert!(db::wanted_for_request(&conn, &request.id).unwrap().is_empty());
+    }
+
+    #[test]
+    fn refresh_pass_skips_all_terminal_and_settled_requests() {
+        let host = TestHost::new();
+        // Denied + failed are terminal; an available movie can't change either.
+        insert_req(&host, "r1", RequestKind::Movie, 1, RequestStatus::Denied);
+        insert_req(&host, "r2", RequestKind::Show, 2, RequestStatus::Failed);
+        insert_req(&host, "r3", RequestKind::Movie, 3, RequestStatus::Available);
+        // Nothing needs a refresh, so no TMDB call is made and the count is zero.
+        assert_eq!(refresh_pass(&host).unwrap(), 0);
+    }
+
+    #[test]
+    fn match_one_unknown_request_is_none() {
+        let host = TestHost::new();
+        assert_eq!(match_one(&host, "ghost").unwrap(), None);
+    }
+
+    #[test]
+    fn match_show_never_regresses_a_fully_available_request() {
+        let host = TestHost::new();
+        // Only e1 is on disk now, but the request is already Available (e.g. a
+        // temporary unmount dropped e2): the matcher must not downgrade it.
+        seed_show(&host, "s1", 1396, &[(1, 1)]);
+        insert_req(&host, "r1", RequestKind::Show, 1396, RequestStatus::Available);
+        db::replace_wanted(
+            host.db(),
+            "r1",
+            &[
+                wanted("w1", "r1", Some(1), Some(1), Some("2020-01-01"), "available"),
+                wanted("w2", "r1", Some(1), Some(2), Some("2020-01-02"), "available"),
+            ],
+            now_ms(),
+        )
+        .unwrap();
+        assert_eq!(match_one(&host, "r1").unwrap(), Some(RequestStatus::Available));
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::Available);
+    }
+
+    #[test]
+    fn match_show_no_verdict_when_aired_but_none_present() {
+        let host = TestHost::new();
+        // The show is in the library but has none of the aired episodes on disk yet.
+        seed_show(&host, "s1", 1396, &[]);
+        insert_req(&host, "r1", RequestKind::Show, 1396, RequestStatus::Approved);
+        db::replace_wanted(
+            host.db(),
+            "r1",
+            &[
+                wanted("w1", "r1", Some(1), Some(1), Some("2020-01-01"), "wanted"),
+                wanted("w2", "r1", Some(1), Some(2), Some("2020-01-02"), "wanted"),
+            ],
+            now_ms(),
+        )
+        .unwrap();
+        assert_eq!(match_one(&host, "r1").unwrap(), None);
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::Approved);
+    }
+
+    #[test]
+    fn on_download_imported_show_partial_when_some_still_wanted() {
+        let host = TestHost::new();
+        insert_req(&host, "r1", RequestKind::Show, 1396, RequestStatus::Approved);
+        db::replace_wanted(
+            host.db(),
+            "r1",
+            &[
+                wanted("w1", "r1", Some(1), Some(1), Some("2020-01-01"), "grabbed"),
+                wanted("w2", "r1", Some(1), Some(2), Some("2020-01-02"), "wanted"),
+            ],
+            now_ms(),
+        )
+        .unwrap();
+        on_download_imported(&host, "r1").unwrap();
+        // The grabbed row is now available, but one row is still merely wanted.
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::PartiallyAvailable);
+        let conn = host.db().get().unwrap();
+        let rows = db::wanted_for_request(&conn, "r1").unwrap();
+        assert_eq!(rows.iter().filter(|w| w.status == "available").count(), 1);
+    }
+
+    #[test]
+    fn on_download_imported_no_grabbed_rows_is_noop() {
+        let host = TestHost::new();
+        insert_req(&host, "r1", RequestKind::Movie, 603, RequestStatus::Approved);
+        // No grabbed rows: nothing becomes available, status is left as-is.
+        db::replace_wanted(host.db(), "r1", &[wanted("w1", "r1", None, None, None, "wanted")], now_ms())
+            .unwrap();
+        on_download_imported(&host, "r1").unwrap();
+        assert_eq!(status_of_req(&host, "r1"), RequestStatus::Approved);
+        assert_eq!(host.publishes(), 0);
+    }
 }

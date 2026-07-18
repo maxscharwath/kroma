@@ -149,3 +149,200 @@ fn parse_dir_list(raw: &str) -> Vec<PathBuf> {
         .map(PathBuf::from)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    // ----- pure helpers ----------------------------------------------------------
+
+    #[test]
+    fn parse_dir_list_splits_and_trims() {
+        assert_eq!(
+            parse_dir_list("/a:/b:/c"),
+            vec![PathBuf::from("/a"), PathBuf::from("/b"), PathBuf::from("/c")]
+        );
+        // Semicolons and commas are also separators (NAS wizard invites them).
+        assert_eq!(
+            parse_dir_list("/a ; /b , /c"),
+            vec![PathBuf::from("/a"), PathBuf::from("/b"), PathBuf::from("/c")]
+        );
+    }
+
+    #[test]
+    fn parse_dir_list_drops_empty_and_whitespace_entries() {
+        assert!(parse_dir_list("").is_empty());
+        assert!(parse_dir_list("   ").is_empty());
+        assert!(parse_dir_list(":::").is_empty());
+        assert_eq!(parse_dir_list(":/only:").into_iter().count(), 1);
+        assert_eq!(parse_dir_list(":/only:"), vec![PathBuf::from("/only")]);
+    }
+
+    fn cfg_with(host: &str, port: u16, data_dir: &str) -> Config {
+        Config {
+            host: host.into(),
+            port,
+            media_dirs: Vec::new(),
+            movies_dirs: Vec::new(),
+            series_dirs: Vec::new(),
+            data_dir: PathBuf::from(data_dir),
+            tmdb_api_key: None,
+            tmdb_language: "en-US".into(),
+            tmdb_enrich: true,
+            web_url: None,
+            web_dir: None,
+        }
+    }
+
+    #[test]
+    fn socket_addr_parses_ipv4_ipv6_and_falls_back() {
+        assert_eq!(
+            cfg_with("127.0.0.1", 8080, "./data").socket_addr(),
+            "127.0.0.1:8080".parse().unwrap()
+        );
+        assert_eq!(cfg_with("::1", 4040, "./data").socket_addr(), "[::1]:4040".parse().unwrap());
+        // A non-IP host binds 0.0.0.0 on the configured port instead of panicking.
+        assert_eq!(
+            cfg_with("not-an-ip", 1234, "./data").socket_addr(),
+            "0.0.0.0:1234".parse().unwrap()
+        );
+    }
+
+    #[test]
+    fn db_and_logs_paths_hang_off_the_data_dir() {
+        let c = cfg_with("0.0.0.0", 4040, "/var/lib/kroma");
+        assert_eq!(c.db_path(), PathBuf::from("/var/lib/kroma/kroma.db"));
+        assert_eq!(c.logs_dir(), PathBuf::from("/var/lib/kroma/logs"));
+    }
+
+    // ----- from_env (serialized: mutates process env) ----------------------------
+
+    const KEYS: &[&str] = &[
+        "KROMA_HOST",
+        "KROMA_PORT",
+        "KROMA_MEDIA_DIRS",
+        "KROMA_MOVIES_DIRS",
+        "KROMA_SERIES_DIRS",
+        "KROMA_DATA_DIR",
+        "KROMA_TMDB_API_KEY",
+        "KROMA_TMDB_LANGUAGE",
+        "KROMA_TMDB_ENRICH",
+        "KROMA_WEB_URL",
+        "KROMA_WEB_DIR",
+    ];
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Take the env lock, recovering from a prior panicked holder so one failing
+    /// assertion doesn't cascade into "poisoned" failures for the rest.
+    fn env_guard() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn clear_env() {
+        for k in KEYS {
+            env::remove_var(k);
+        }
+    }
+
+    #[test]
+    fn from_env_uses_defaults_when_unset() {
+        let _g = env_guard();
+        clear_env();
+
+        let c = Config::from_env();
+        assert_eq!(c.host, "0.0.0.0");
+        assert_eq!(c.port, 4040);
+        assert!(c.media_dirs.is_empty());
+        assert!(c.movies_dirs.is_empty());
+        assert!(c.series_dirs.is_empty());
+        assert_eq!(c.data_dir, PathBuf::from("./data"));
+        // No explicit key: falls back to the built-in TMDB key so metadata works.
+        assert_eq!(c.tmdb_api_key.as_deref(), Some(BUILTIN_TMDB_API_KEY));
+        assert_eq!(c.tmdb_language, "en-US");
+        assert!(c.tmdb_enrich);
+        assert!(c.web_url.is_none());
+        assert!(c.web_dir.is_none());
+
+        clear_env();
+    }
+
+    #[test]
+    fn from_env_reads_and_normalizes_every_var() {
+        let _g = env_guard();
+        clear_env();
+
+        // A web dir counts only when it holds `_shell.html`.
+        let web = std::env::temp_dir().join(format!("kroma-webdir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&web);
+        std::fs::create_dir_all(&web).unwrap();
+        std::fs::write(web.join("_shell.html"), b"<html></html>").unwrap();
+
+        env::set_var("KROMA_HOST", "127.0.0.1");
+        env::set_var("KROMA_PORT", "9999");
+        env::set_var("KROMA_MEDIA_DIRS", "/a:/b");
+        env::set_var("KROMA_MOVIES_DIRS", "/movies");
+        env::set_var("KROMA_SERIES_DIRS", "/tv;/tv2");
+        env::set_var("KROMA_DATA_DIR", "/data/root");
+        env::set_var("KROMA_TMDB_API_KEY", "  mykey  ");
+        env::set_var("KROMA_TMDB_LANGUAGE", "fr-FR");
+        env::set_var("KROMA_TMDB_ENRICH", "0");
+        env::set_var("KROMA_WEB_URL", "https://kroma.example/");
+        env::set_var("KROMA_WEB_DIR", web.to_str().unwrap());
+
+        let c = Config::from_env();
+        assert_eq!(c.host, "127.0.0.1");
+        assert_eq!(c.port, 9999);
+        assert_eq!(c.media_dirs, vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+        assert_eq!(c.movies_dirs, vec![PathBuf::from("/movies")]);
+        assert_eq!(c.series_dirs, vec![PathBuf::from("/tv"), PathBuf::from("/tv2")]);
+        assert_eq!(c.data_dir, PathBuf::from("/data/root"));
+        // Explicit key wins over the built-in and is trimmed.
+        assert_eq!(c.tmdb_api_key.as_deref(), Some("mykey"));
+        assert_eq!(c.tmdb_language, "fr-FR");
+        assert!(!c.tmdb_enrich);
+        // Trailing slash trimmed.
+        assert_eq!(c.web_url.as_deref(), Some("https://kroma.example"));
+        assert_eq!(c.web_dir, Some(web.clone()));
+
+        clear_env();
+        let _ = std::fs::remove_dir_all(&web);
+    }
+
+    #[test]
+    fn from_env_edge_cases_for_port_key_enrich_and_webdir() {
+        let _g = env_guard();
+        clear_env();
+
+        // A non-numeric port falls back to the default.
+        env::set_var("KROMA_PORT", "not-a-port");
+        // An explicit-but-empty key falls back to the built-in.
+        env::set_var("KROMA_TMDB_API_KEY", "   ");
+        // Any other enrich spelling than the off-words stays enabled.
+        env::set_var("KROMA_TMDB_ENRICH", "yes-please");
+        // A web dir without `_shell.html` is rejected.
+        let bad = std::env::temp_dir().join(format!("kroma-webdir-bad-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&bad);
+        std::fs::create_dir_all(&bad).unwrap();
+        env::set_var("KROMA_WEB_DIR", bad.to_str().unwrap());
+
+        let c = Config::from_env();
+        assert_eq!(c.port, 4040);
+        assert_eq!(c.tmdb_api_key.as_deref(), Some(BUILTIN_TMDB_API_KEY));
+        assert!(c.tmdb_enrich);
+        assert!(c.web_dir.is_none());
+
+        // Each of the recognized off-words disables enrichment.
+        for off in ["0", "false", "no", "off"] {
+            env::set_var("KROMA_TMDB_ENRICH", off);
+            assert!(!Config::from_env().tmdb_enrich, "{off} should disable enrich");
+        }
+        // A blank web URL collapses to None.
+        env::set_var("KROMA_WEB_URL", "");
+        assert!(Config::from_env().web_url.is_none());
+
+        clear_env();
+        let _ = std::fs::remove_dir_all(&bad);
+    }
+}

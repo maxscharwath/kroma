@@ -1,0 +1,113 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  availableEngines,
+  ENGINE_LABEL_KEY,
+  type EnginePref,
+  getEnginePref,
+  setEnginePref,
+} from './enginePref';
+
+/** A Map-backed localStorage stand-in. */
+function fakeStorage(initial: Record<string, string> = {}) {
+  const m = new Map(Object.entries(initial));
+  return {
+    getItem: (k: string) => m.get(k) ?? null,
+    setItem: (k: string, v: string) => void m.set(k, v),
+    _map: m,
+  };
+}
+
+const tauri = { core: { invoke: () => undefined }, event: { listen: () => undefined } };
+const exo = { load: () => undefined, command: () => undefined };
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('getEnginePref / setEnginePref', () => {
+  it('defaults to auto when nothing is stored', () => {
+    vi.stubGlobal('localStorage', fakeStorage());
+    expect(getEnginePref()).toBe('auto');
+  });
+
+  it('returns a stored valid preference', () => {
+    vi.stubGlobal('localStorage', fakeStorage({ 'kroma:engine': 'avplay' }));
+    expect(getEnginePref()).toBe('avplay');
+  });
+
+  it('ignores an unknown stored value', () => {
+    vi.stubGlobal('localStorage', fakeStorage({ 'kroma:engine': 'bogus' }));
+    expect(getEnginePref()).toBe('auto');
+  });
+
+  it('persists the preference', () => {
+    const store = fakeStorage();
+    vi.stubGlobal('localStorage', store);
+    setEnginePref('remux');
+    expect(store._map.get('kroma:engine')).toBe('remux');
+  });
+
+  it('swallows storage errors on read and write', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    });
+    expect(getEnginePref()).toBe('auto');
+    expect(() => setEnginePref('mpv')).not.toThrow();
+  });
+});
+
+describe('availableEngines', () => {
+  it('offers exo + remux on the Android TV shell', () => {
+    vi.stubGlobal('__KROMA_ANDROID__', exo);
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 12)' });
+    expect(availableEngines()).toEqual(['auto', 'exo', 'remux']);
+  });
+
+  it('offers avplay + remux on Tizen', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (SMART-TV; Tizen 6.0)' });
+    expect(availableEngines()).toEqual(['auto', 'avplay', 'remux']);
+  });
+
+  it('offers webview + remux on webOS', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Web0S; LG)' });
+    expect(availableEngines()).toEqual(['auto', 'webview', 'remux']);
+  });
+
+  it('falls back to webview + remux on an unknown platform', () => {
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Macintosh)' });
+    expect(availableEngines()).toEqual(['auto', 'webview', 'remux']);
+  });
+
+  it('inserts mpv on a Linux Tauri desktop shell', () => {
+    vi.stubGlobal('__TAURI__', tauri);
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Tauri' });
+    expect(availableEngines()).toEqual(['auto', 'mpv', 'webview', 'remux']);
+  });
+
+  it('inserts mpv on a macOS Tauri shell that flagged libmpv', () => {
+    vi.stubGlobal('__TAURI__', tauri);
+    vi.stubGlobal('__KROMA_MPV__', true);
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X) Tauri' });
+    expect(availableEngines()).toEqual(['auto', 'mpv', 'webview', 'remux']);
+  });
+
+  it('does NOT insert mpv on a Tauri Android shell', () => {
+    vi.stubGlobal('__TAURI__', tauri);
+    vi.stubGlobal('navigator', { userAgent: 'Mozilla/5.0 (Linux; Android 12) Tauri' });
+    expect(availableEngines()).toEqual(['auto', 'webview', 'remux']);
+  });
+});
+
+describe('ENGINE_LABEL_KEY', () => {
+  it('maps every engine to its i18n label key', () => {
+    const engines: EnginePref[] = ['auto', 'avplay', 'webview', 'remux', 'mpv', 'exo'];
+    for (const e of engines) {
+      expect(ENGINE_LABEL_KEY[e]).toBe(`playbackEngine.${e}`);
+    }
+  });
+});

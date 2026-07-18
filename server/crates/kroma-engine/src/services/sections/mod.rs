@@ -331,4 +331,91 @@ mod tests {
         let pool = test_pool();
         assert!(curated_rows(&pool, "en").is_empty());
     }
+
+    fn seed_movies(pool: &Pool, ids: &[&str]) {
+        let conn = pool.get().unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+            [],
+        )
+        .unwrap();
+        for id in ids {
+            // Test-controlled literal ids, so inline them.
+            conn.execute(
+                &format!("INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('{id}','movie','Title {id}','mkv','lib','t')"),
+                [],
+            )
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn builder_push_adds_section_when_enough_fresh_items() {
+        let pool = test_pool();
+        seed_movies(&pool, &["a", "b", "c", "d", "e"]);
+        let mut b = Builder { pool: &pool, sections: Vec::new(), seen: HashSet::new() };
+        let ranked: Vec<(String, f32)> =
+            ["a", "b", "c", "d", "e"].iter().map(|i| (i.to_string(), 1.0)).collect();
+        assert!(b.push("row1", "Row".into(), None, ranked, NO_FLOOR));
+        assert_eq!(b.sections.len(), 1);
+        assert_eq!(b.sections[0].items.len(), 5);
+        // Every resolved id is now marked seen (cross-row de-duplication).
+        assert!(b.seen.contains("a") && b.seen.contains("e"));
+    }
+
+    #[test]
+    fn builder_push_rejects_thin_row() {
+        let pool = test_pool();
+        seed_movies(&pool, &["a", "b"]);
+        let mut b = Builder { pool: &pool, sections: Vec::new(), seen: HashSet::new() };
+        let ranked: Vec<(String, f32)> = ["a", "b"].iter().map(|i| (i.to_string(), 1.0)).collect();
+        // Fewer than MIN_ITEMS survivors -> no section.
+        assert!(!b.push("row1", "Row".into(), None, ranked, NO_FLOOR));
+        assert!(b.sections.is_empty());
+    }
+
+    #[test]
+    fn builder_push_applies_floor_and_seen_filters() {
+        let pool = test_pool();
+        seed_movies(&pool, &["a", "b", "c", "d", "e", "f", "g"]);
+        let mut b = Builder { pool: &pool, sections: Vec::new(), seen: HashSet::new() };
+        b.seen.insert("a".to_string()); // already shown in an earlier row
+        let ranked = vec![
+            ("a".to_string(), 1.0), // seen -> dropped
+            ("b".to_string(), 0.1), // below the 0.5 floor -> dropped
+            ("c".to_string(), 0.9),
+            ("d".to_string(), 0.9),
+            ("e".to_string(), 0.9),
+            ("f".to_string(), 0.9),
+            ("g".to_string(), 0.9),
+        ];
+        // Five survive (c..g), so the row is produced without a or b.
+        assert!(b.push("row1", "Row".into(), None, ranked, 0.5));
+        let ids: Vec<&str> = b.sections[0].items.iter().map(|i| i.id()).collect();
+        assert_eq!(ids.len(), 5);
+        assert!(!ids.contains(&"a") && !ids.contains(&"b"));
+    }
+
+    #[test]
+    fn builder_push_rejects_once_at_max_sections() {
+        let pool = test_pool();
+        seed_movies(&pool, &["a", "b", "c", "d", "e"]);
+        let dummy = || Section { id: "x".into(), title: "x".into(), reason: None, items: Vec::new() };
+        let mut b = Builder {
+            pool: &pool,
+            sections: (0..MAX_SECTIONS).map(|_| dummy()).collect(),
+            seen: HashSet::new(),
+        };
+        let ranked: Vec<(String, f32)> =
+            ["a", "b", "c", "d", "e"].iter().map(|i| (i.to_string(), 1.0)).collect();
+        assert!(!b.push("row1", "Row".into(), None, ranked, NO_FLOOR));
+    }
+
+    #[test]
+    fn last_title_returns_title_or_none() {
+        let pool = test_pool();
+        seed_movies(&pool, &["a"]);
+        assert_eq!(last_title(&pool, "a").as_deref(), Some("Title a"));
+        assert!(last_title(&pool, "ghost").is_none());
+    }
 }

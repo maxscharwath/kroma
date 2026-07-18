@@ -650,4 +650,76 @@ mod tests {
         assert_eq!(saved.1.as_deref(), Some("0 4 * * *"));
         assert!(!saved.2); // disabled
     }
+
+    // A minimal built-in used to exercise the `'static Builtin` registration path
+    // (the roster in `builtins` supplies the real ones at startup).
+    fn noop_run(_ctx: &JobContext) -> anyhow::Result<()> {
+        Ok(())
+    }
+    static TEST_BUILTIN: Builtin = Builtin {
+        key: JobKey("test.job"),
+        category: Category::Maintenance,
+        schedule: Some("0 4 * * *"),
+        triggers: &[Trigger::LibraryChange],
+        run: noop_run,
+    };
+
+    #[test]
+    fn register_builtin_is_resolvable_and_lists_for_its_trigger() {
+        let mut m = JobManager::new();
+        m.register(&TEST_BUILTIN);
+        // The built-in resolve path (checked before the remote map).
+        assert_eq!(m.resolve("test.job"), Some(JobKey("test.job")));
+        // Enabled + opted into LibraryChange, so it lists for that trigger only.
+        assert_eq!(m.jobs_for_trigger(Trigger::LibraryChange), vec![JobKey("test.job")]);
+        assert!(m.jobs_for_trigger(Trigger::AfterJob(JobKey("other.job"))).is_empty());
+    }
+
+    #[test]
+    fn load_schedules_overlays_overrides_and_ignores_unknown() {
+        let pool = test_pool();
+        let mut m = JobManager::new();
+        m.register(&TEST_BUILTIN);
+        // Persisted override disables the job; a row for a job that no longer exists
+        // is silently ignored.
+        db::upsert_job_schedule(&pool, "test.job", Some("0 6 * * *"), false).unwrap();
+        db::upsert_job_schedule(&pool, "ghost.job", Some("0 1 * * *"), true).unwrap();
+        m.load_schedules(&pool);
+        // Now disabled, so it drops out of its trigger list (watch/chain runs stop too).
+        assert!(m.jobs_for_trigger(Trigger::LibraryChange).is_empty());
+    }
+
+    #[test]
+    fn update_schedule_clears_builtin_to_manual_only() {
+        let pool = test_pool();
+        let mut m = JobManager::new();
+        m.register(&TEST_BUILTIN);
+        // Some(None) clears the schedule (manual-only) on a built-in job.
+        m.update_schedule(&pool, JobKey("test.job"), Some(None), None).unwrap();
+        let rows = db::list_job_schedules(&pool).unwrap();
+        let saved = rows.iter().find(|(k, ..)| k.as_str() == "test.job").expect("row persisted");
+        assert!(saved.1.is_none(), "schedule cleared");
+        assert!(saved.2, "still enabled");
+    }
+
+    #[test]
+    fn finalize_run_records_terminal_status() {
+        let pool = test_pool();
+        db::insert_job_run(&pool, "run-x", "test.job", "manual", 1_000).unwrap();
+        assert!(finalize_run(&pool, "run-x", "test.job", "success", 2_000, None));
+        let runs = db::list_job_runs(&pool, "test.job", 10).unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].status, "success");
+        assert_eq!(runs[0].finished_at, Some(2_000));
+    }
+
+    #[test]
+    fn finalize_run_records_failure_message() {
+        let pool = test_pool();
+        db::insert_job_run(&pool, "run-y", "test.job", "manual", 1_000).unwrap();
+        assert!(finalize_run(&pool, "run-y", "test.job", "failed", 3_000, Some("boom")));
+        let runs = db::list_job_runs(&pool, "test.job", 10).unwrap();
+        assert_eq!(runs[0].status, "failed");
+        assert_eq!(runs[0].error.as_deref(), Some("boom"));
+    }
 }

@@ -309,6 +309,27 @@ mod tests {
         assert_eq!(pending(&pool, "markers"), 0);
     }
 
+    #[test]
+    fn stage_markers_item_episode_queues_its_season_key() {
+        let pool = test_pool();
+        seed_library(&pool);
+        let conn = pool.get().unwrap();
+        conn.execute(
+            "INSERT INTO shows (id,library,title,added_at) VALUES ('sh1','lib1','S','now')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+             VALUES ('ep1','episode','E','mkv','lib1','sh1',3,4,'now')",
+            [],
+        )
+        .unwrap();
+        // An episode with a show + season resolves exactly one `show#season` key.
+        stage_markers(&pool, "item", "ep1", 1_000).unwrap();
+        assert_eq!(pending(&pool, "markers"), 1);
+    }
+
     fn seed_library(pool: &db::Pool) {
         pool.get()
             .unwrap()
@@ -337,6 +358,38 @@ mod tests {
         assert_eq!(pending(&pool, "probe"), 2);
         // An item with no files queues nothing.
         stage_probe(&pool, "item", "ghost", 1_000).unwrap();
+        assert_eq!(pending(&pool, "probe"), 2);
+    }
+
+    #[test]
+    fn stage_probe_show_fans_out_to_every_episode_file() {
+        let pool = test_pool();
+        seed_library(&pool);
+        let conn = pool.get().unwrap();
+        conn.execute(
+            "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib1','Show','now')",
+            [],
+        )
+        .unwrap();
+        for (id, season, ep) in [("e1", 1, 1), ("e2", 1, 2)] {
+            conn.execute(
+                &format!(
+                    "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+                     VALUES ('{id}','episode','E','mkv','lib1','s1',{season},{ep},'now')"
+                ),
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                &format!("INSERT INTO files (id,item_id,abs_path) VALUES ('{id}f','{id}','/a/{id}.mkv')"),
+                [],
+            )
+            .unwrap();
+        }
+        drop(conn);
+
+        // A show-level probe fans out to each episode's files (one task per file).
+        stage_probe(&pool, "show", "s1", 1_000).unwrap();
         assert_eq!(pending(&pool, "probe"), 2);
     }
 

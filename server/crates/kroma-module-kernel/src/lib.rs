@@ -245,4 +245,23 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn find_server_is_none_for_an_unknown_id() {
+        assert!(find_server("tv.kroma.does-not-exist").is_none());
+        // Every compiled backend (none, in the base build) must be findable.
+        for id in backend_ids() {
+            assert!(find_server(&id).is_some(), "backend {id:?} not findable");
+        }
+    }
+
+    #[test]
+    fn module_migrations_match_the_compiled_backends() {
+        // Each migration string is non-empty and there is at most one per backend.
+        let migs = module_migrations();
+        assert!(migs.iter().all(|s| !s.is_empty()));
+        assert!(migs.len() <= backend_ids().len());
+        // compiled_manifests is dependency-ordered and never longer than the roster.
+        assert_eq!(compiled_manifests().len(), registry().manifests.manifests().len());
+    }
 }

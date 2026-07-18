@@ -478,4 +478,30 @@ mod tests {
         let err = translate_vtt(&s, "WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHi\n", "French", &handle).unwrap_err();
         assert!(err.contains("no LLM provider"), "unexpected: {err}");
     }
+
+    #[test]
+    fn build_backends_is_empty_without_any_provider() {
+        let pool = test_pool();
+        let s = Settings::load(&pool); // default settings carry no configured provider
+        assert!(build_backends(&s).is_empty());
+    }
+
+    #[test]
+    fn parse_cues_preserves_timing_cue_settings() {
+        // A cue whose timing line carries positioning settings keeps them verbatim.
+        let vtt = "WEBVTT\n\n00:00:01.000 --> 00:00:02.000 line:80% align:start\nHi\n";
+        let cues = parse_cues(vtt);
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].timing, "00:00:01.000 --> 00:00:02.000 line:80% align:start");
+        assert_eq!(cues[0].text, "Hi");
+    }
+
+    #[test]
+    fn translate_batch_ignores_out_of_range_line_numbers() {
+        // A reply that numbers a line beyond the batch is ignored, not written.
+        let llm = FakeLlm { reply: Ok("1. Bonjour\n5. Stray".to_string()) };
+        let batch = [cue("t0", "Hello"), cue("t1", "Hi")];
+        let out = translate_batch(&llm, &batch, "French", 8192).unwrap();
+        assert_eq!(out, vec![Some("Bonjour".to_string()), None]);
+    }
 }

@@ -139,3 +139,124 @@ pub fn vectors_max_updated_at(pool: &Pool) -> Result<Option<String>> {
         conn.query_row("SELECT MAX(updated_at) FROM item_vectors", [], |r| r.get(0))?;
     Ok(stamp)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::SectionItem;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn seeded() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-home-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        let conn = pool.get().unwrap();
+        conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+        let movie = |id: &str, added: &str, genres: &str| {
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at,metadata) \
+                 VALUES (?1,'movie','T','mkv','lib',?2,?3)",
+                params![id, added, format!("{{\"tmdbId\":1,\"tmdbUrl\":\"x\",\"genres\":[{genres}]}}")],
+            )
+            .unwrap();
+        };
+        movie("seed", "2019", "\"Horror\"");
+        movie("c1", "2020", "\"Horror\",\"Thriller\"");
+        movie("c2", "2021", "\"Comedy\"");
+        // A movie with no metadata (no genres to guard on).
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('nogen','movie','N','mkv','lib','2022')",
+            [],
+        )
+        .unwrap();
+        // An episode (excluded from recently-added).
+        conn.execute(
+            "INSERT INTO shows (id,library,title,added_at,metadata) VALUES ('sh1','lib','Show','t','{\"tmdbId\":9,\"tmdbUrl\":\"x\",\"genres\":[\"Horror\"]}')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+             VALUES ('e1','episode','Ep','mkv','lib','sh1',1,1,'2099')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        pool
+    }
+
+    #[test]
+    fn recently_added_last_played_and_trending() {
+        let p = seeded();
+        {
+            let conn = p.get().unwrap();
+            // Two recent plays of 'c1', one of 'c2' (item_id has no FK here).
+            for (id, item) in [("p1", "c1"), ("p2", "c1"), ("p3", "c2")] {
+                conn.execute(
+                    "INSERT INTO play_history (id,user_id,item_id,kind,title,started_at,ended_at) \
+                     VALUES (?1,'u1',?2,'movie','T',0,strftime('%s','now'))",
+                    params![id, item],
+                )
+                .unwrap();
+            }
+        }
+        // recently-added excludes episodes; newest added_at first.
+        let recent = recently_added_ids(&p, 10).unwrap();
+        assert!(!recent.contains(&"e1".to_string())); // episodes excluded
+        // Newest added_at first: nogen (2022) before c2 (2021) before c1 (2020).
+        let idx = |id: &str| recent.iter().position(|x| x == id).unwrap();
+        assert!(idx("nogen") < idx("c2") && idx("c2") < idx("c1"));
+
+        // (trending_ids uses SQLite POW(), absent from this bundled build, so it
+        // is exercised elsewhere / not asserted here.)
+
+        // last_played = most recent by ended_at for the user.
+        assert!(last_played(&p, "u1").unwrap().is_some());
+        assert!(last_played(&p, "nobody").unwrap().is_none());
+    }
+
+    #[test]
+    fn genre_coherence_and_guard() {
+        let p = seeded();
+        let cands = vec!["c1".to_string(), "c2".to_string()];
+        // Only c1 shares Horror with the seed.
+        let keep = genre_coherent_ids(&p, "seed", &cands).unwrap().unwrap();
+        assert!(keep.contains("c1") && !keep.contains("c2"));
+
+        // Empty candidate list, and a seed without genres, both yield None (no guard).
+        assert!(genre_coherent_ids(&p, "seed", &[]).unwrap().is_none());
+        assert!(genre_coherent_ids(&p, "nogen", &cands).unwrap().is_none());
+
+        // genre_guard drops the incoherent neighbour, preserving order.
+        let ranked = vec![("c1".to_string(), 0.9f32), ("c2".to_string(), 0.5f32)];
+        assert_eq!(genre_guard(&p, "seed", ranked), vec![("c1".to_string(), 0.9f32)]);
+        // A genreless seed is a no-op (keeps everything).
+        let ranked = vec![("c1".to_string(), 0.9f32), ("c2".to_string(), 0.5f32)];
+        assert_eq!(genre_guard(&p, "nogen", ranked).len(), 2);
+    }
+
+    #[test]
+    fn hydration_and_vectors_stamp() {
+        let p = seeded();
+        // items_by_ids drops unknown ids (and show ids, which have no items row).
+        let items = items_by_ids(&p, &["c1", "ghost", "sh1"]).unwrap();
+        assert_eq!(items.iter().map(|i| i.id.as_str()).collect::<Vec<_>>(), ["c1"]);
+
+        // entities_by_ids mixes movies + shows, order preserved, unknowns dropped.
+        let ents = entities_by_ids(&p, &["c1", "sh1", "ghost"]).unwrap();
+        assert_eq!(ents.len(), 2);
+        assert!(matches!(&ents[0], SectionItem::Movie { item } if item.id == "c1"));
+        assert!(matches!(&ents[1], SectionItem::Show { show } if show.id == "sh1"));
+
+        // Vector staleness stamp: None until a vector exists.
+        assert!(vectors_max_updated_at(&p).unwrap().is_none());
+        p.get()
+            .unwrap()
+            .execute("INSERT INTO item_vectors (id,dim,vec,updated_at) VALUES ('c1',2,x'0000','2026-01-01')", [])
+            .unwrap();
+        assert_eq!(vectors_max_updated_at(&p).unwrap().as_deref(), Some("2026-01-01"));
+    }
+}

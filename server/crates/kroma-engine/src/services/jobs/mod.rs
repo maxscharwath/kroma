@@ -488,7 +488,10 @@ fn classify_result(
         Ok(Ok(())) if handle.is_cancelled() => ("cancelled", None),
         Ok(Ok(())) => ("success", None),
         Ok(Err(e)) => ("failed", Some(format!("{e:#}"))),
-        Err(panic) => ("failed", Some(panic_message(&panic))),
+        // `panic.as_ref()` yields the inner `dyn Any` (the &str/String payload);
+        // `&panic` would unsize the Box itself, so the downcast (and message)
+        // would always be lost.
+        Err(panic) => ("failed", Some(panic_message(panic.as_ref()))),
     }
 }
 
@@ -539,5 +542,112 @@ fn panic_message(panic: &(dyn std::any::Any + Send)) -> String {
         format!("panicked: {s}")
     } else {
         "panicked".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_pool() -> db::Pool {
+        static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-jobs-test-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        db::init(&path).unwrap()
+    }
+
+    #[test]
+    fn job_key_reads_as_str_and_displays() {
+        let k = JobKey("cache.cleanup");
+        assert_eq!(k.as_str(), "cache.cleanup");
+        assert_eq!(k.to_string(), "cache.cleanup");
+        // Borrow<str> lets a bare &str index a keyed map.
+        let mut map = std::collections::HashMap::new();
+        map.insert(k, 7);
+        assert_eq!(map.get("cache.cleanup"), Some(&7));
+    }
+
+    #[test]
+    fn panic_message_downcasts_str_string_or_falls_back() {
+        let s: Box<dyn std::any::Any + Send> = Box::new("boom");
+        assert_eq!(panic_message(s.as_ref()), "panicked: boom");
+        let owned: Box<dyn std::any::Any + Send> = Box::new(String::from("kaboom"));
+        assert_eq!(panic_message(owned.as_ref()), "panicked: kaboom");
+        let other: Box<dyn std::any::Any + Send> = Box::new(42u32);
+        assert_eq!(panic_message(other.as_ref()), "panicked");
+    }
+
+    #[test]
+    fn classify_result_maps_every_outcome() {
+        let handle = RunHandle::new("run-1".into(), "job".into());
+
+        // Success.
+        let ok: std::thread::Result<anyhow::Result<()>> = Ok(Ok(()));
+        assert_eq!(classify_result(ok, &handle), ("success", None));
+
+        // A returned error becomes "failed" with its message.
+        let errd: std::thread::Result<anyhow::Result<()>> = Ok(Err(anyhow::anyhow!("nope")));
+        let (status, msg) = classify_result(errd, &handle);
+        assert_eq!(status, "failed");
+        assert_eq!(msg.as_deref(), Some("nope"));
+
+        // A caught panic payload becomes "failed" with a panic message.
+        let payload: Box<dyn std::any::Any + Send> = Box::new("splat");
+        let panicked: std::thread::Result<anyhow::Result<()>> = Err(payload);
+        assert_eq!(classify_result(panicked, &handle), ("failed", Some("panicked: splat".to_string())));
+
+        // A clean Ok after a cancel request records "cancelled".
+        handle.request_cancel();
+        let ok2: std::thread::Result<anyhow::Result<()>> = Ok(Ok(()));
+        assert_eq!(classify_result(ok2, &handle), ("cancelled", None));
+    }
+
+    #[test]
+    fn manager_starts_empty_and_pause_toggles() {
+        let m = JobManager::new();
+        assert_eq!(m.running_count(), 0);
+        assert!(!m.pipeline_paused());
+        m.set_pipeline_paused(true);
+        assert!(m.pipeline_paused());
+        m.set_pipeline_paused(false);
+        assert!(!m.pipeline_paused());
+        // Cancelling an unknown / not-running job is a no-op false.
+        assert!(!m.cancel(JobKey("nothing.here")));
+        // No built-ins registered -> no trigger jobs.
+        assert!(m.jobs_for_trigger(Trigger::LibraryChange).is_empty());
+    }
+
+    #[test]
+    fn register_remote_is_resolvable() {
+        let m = JobManager::new();
+        let run: RemoteRun = Arc::new(|_ctx: &JobContext| Ok(()));
+        m.register_remote("mod.job", Category::Maintenance, Some("0 4 * * *".into()), run);
+        assert_eq!(m.resolve("mod.job"), Some(JobKey("mod.job")));
+        assert_eq!(m.resolve("absent.job"), None);
+    }
+
+    #[test]
+    fn update_schedule_validates_and_persists() {
+        let pool = test_pool();
+        let m = JobManager::new();
+        // Unknown job cannot be scheduled.
+        assert!(m.update_schedule(&pool, JobKey("ghost.job"), None, None).is_err());
+
+        // Seed a schedule slot via a remote registration, then reject bad cron.
+        let run: RemoteRun = Arc::new(|_ctx: &JobContext| Ok(()));
+        m.register_remote("mod.job", Category::Maintenance, None, run);
+        assert!(m
+            .update_schedule(&pool, JobKey("mod.job"), Some(Some("not a valid cron".into())), None)
+            .is_err());
+
+        // A valid cron + enabled flag persists without error.
+        m.update_schedule(&pool, JobKey("mod.job"), Some(Some("0 4 * * *".into())), Some(false))
+            .unwrap();
+        let rows = db::list_job_schedules(&pool).unwrap();
+        let saved =
+            rows.iter().find(|(k, ..)| k.as_str() == "mod.job").expect("schedule row persisted");
+        assert_eq!(saved.1.as_deref(), Some("0 4 * * *"));
+        assert!(!saved.2); // disabled
     }
 }

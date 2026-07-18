@@ -71,3 +71,54 @@ const BANK: &[Phrase] = &[
     // --- weekend ---
     Phrase { key: "adventure", title_key: "content.themeAdventure", query: "epic adventure fantasy quest", months: None, when: When::Weekend },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::context::{Context, PartOfDay};
+    use time::Weekday;
+
+    fn ctx(month: u8, weekday: Weekday, part: PartOfDay) -> Context {
+        Context { month, weekday, part_of_day: part, last_played: None, watched: Vec::new() }
+    }
+
+    #[test]
+    fn phrase_eligible_respects_month_and_when_gates() {
+        // Christmas: December only, always-on within the month.
+        let christmas = &BANK[0];
+        assert_eq!(christmas.key, "christmas");
+        assert!(christmas.eligible(&ctx(12, Weekday::Monday, PartOfDay::Morning)));
+        assert!(!christmas.eligible(&ctx(6, Weekday::Monday, PartOfDay::Morning)));
+
+        // Evening-gated phrase needs an evening/late-night daypart.
+        let evening = BANK.iter().find(|p| p.when == When::Evening).unwrap();
+        assert!(evening.eligible(&ctx(3, Weekday::Monday, PartOfDay::Evening)));
+        assert!(!evening.eligible(&ctx(3, Weekday::Monday, PartOfDay::Morning)));
+
+        // Weekend-gated phrase needs Sat/Sun.
+        let weekend = BANK.iter().find(|p| p.when == When::Weekend).unwrap();
+        assert!(weekend.eligible(&ctx(3, Weekday::Saturday, PartOfDay::Morning)));
+        assert!(!weekend.eligible(&ctx(3, Weekday::Wednesday, PartOfDay::Morning)));
+    }
+
+    #[test]
+    fn eligible_returns_in_season_and_evergreen_only() {
+        // December weekday afternoon.
+        let keys: Vec<&str> =
+            eligible(&ctx(12, Weekday::Wednesday, PartOfDay::Afternoon)).iter().map(|p| p.key).collect();
+        assert!(keys.contains(&"christmas")); // in season
+        assert!(keys.contains(&"action")); // always-on evergreen
+        assert!(!keys.contains(&"halloween")); // October only
+        assert!(!keys.contains(&"adventure")); // weekend only
+        assert!(!keys.contains(&"mind-bending")); // evening only
+
+        // Saturday summer evening.
+        let keys: Vec<&str> =
+            eligible(&ctx(7, Weekday::Saturday, PartOfDay::Evening)).iter().map(|p| p.key).collect();
+        assert!(keys.contains(&"summer")); // months 6-8
+        assert!(keys.contains(&"adventure")); // weekend
+        assert!(keys.contains(&"thriller")); // evening
+        assert!(!keys.contains(&"christmas")); // December only
+        assert!(!keys.contains(&"cozy-autumn")); // Sep-Nov only
+    }
+}

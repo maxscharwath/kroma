@@ -98,3 +98,68 @@ pub fn set_curated(pool: &Pool, rows: &[CuratedRow]) -> Result<()> {
     tx.commit()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-cur-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
+    #[test]
+    fn set_get_roundtrip_ordering_and_dedup() {
+        let p = pool();
+        let rows = vec![
+            CuratedRow {
+                key: "spielberg".into(),
+                rank: 0,
+                source: "director".into(),
+                item_ids: vec!["m1".into(), "m2".into()],
+                titles: map(&[("fr", "Spielberg"), ("en", "Spielberg")]),
+                reasons: map(&[("fr", "le maitre")]),
+            },
+            CuratedRow {
+                key: "horror".into(),
+                rank: 1,
+                source: "llm".into(),
+                item_ids: vec![],
+                titles: map(&[("en", "Best Horror")]),
+                reasons: HashMap::new(),
+            },
+            // Duplicate key: skipped (kept the first).
+            CuratedRow { key: "spielberg".into(), rank: 2, source: "llm".into(), ..Default::default() },
+        ];
+        set_curated(&p, &rows).unwrap();
+
+        let got = get_curated(&p).unwrap();
+        assert_eq!(got.len(), 2, "duplicate key dropped");
+        // Ordered by rank ascending.
+        assert_eq!(got[0].key, "spielberg");
+        assert_eq!(got[0].source, "director");
+        assert_eq!(got[0].item_ids, vec!["m1".to_string(), "m2".to_string()]);
+        assert_eq!(got[0].titles.get("fr").map(String::as_str), Some("Spielberg"));
+        assert_eq!(got[0].titles.get("en").map(String::as_str), Some("Spielberg"));
+        assert_eq!(got[0].reasons.get("fr").map(String::as_str), Some("le maitre"));
+        assert!(got[0].reasons.get("en").is_none());
+        assert_eq!(got[1].key, "horror");
+
+        // Replace-all: a fresh set supersedes the previous one entirely.
+        set_curated(&p, &[CuratedRow { key: "solo".into(), rank: 0, source: "llm".into(), ..Default::default() }])
+            .unwrap();
+        let got = get_curated(&p).unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].key, "solo");
+    }
+}

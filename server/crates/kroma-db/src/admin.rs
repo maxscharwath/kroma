@@ -246,3 +246,119 @@ pub fn metadata_counts(pool: &Pool) -> Result<(i64, i64, i64)> {
     let vectors: i64 = conn.query_row("SELECT COUNT(*) FROM item_vectors", [], |r| r.get(0))?;
     Ok((items, shows, vectors))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::Permission;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-admin-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    #[test]
+    fn settings_upsert_and_readback() {
+        let p = pool();
+        assert!(settings_all(&p).unwrap().is_empty());
+        settings_set(&p, "serverName", &serde_json::json!("My KROMA")).unwrap();
+        settings_set(&p, "maxConcurrent", &serde_json::json!(3)).unwrap();
+        // Upsert overwrites the same key in place.
+        settings_set(&p, "serverName", &serde_json::json!("Renamed")).unwrap();
+        let all: std::collections::HashMap<String, serde_json::Value> =
+            settings_all(&p).unwrap().into_iter().collect();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all["serverName"], serde_json::json!("Renamed"));
+        assert_eq!(all["maxConcurrent"], serde_json::json!(3));
+    }
+
+    #[test]
+    fn admin_users_roles_and_mutations() {
+        let p = pool();
+        let owner = crate::create_user(&p, "o@b.c", "owner", "h", &Permission::all()).unwrap();
+        let member = crate::create_user(&p, "m@b.c", "member", "h", &[Permission::Playback]).unwrap();
+
+        let admins = admin_users(&p).unwrap();
+        assert_eq!(admins.len(), 2);
+        let owner_row = admins.iter().find(|u| u.id == owner.id).unwrap();
+        let member_row = admins.iter().find(|u| u.id == member.id).unwrap();
+        assert_eq!(owner_row.role, "Propriétaire");
+        assert_eq!(member_row.role, "Membre");
+        assert!(!owner_row.online);
+        assert!(owner_row.last_seen.is_none());
+
+        // get_user, permission + username updates, last-seen stamp.
+        assert_eq!(get_user(&p, &member.id).unwrap().unwrap().username, "member");
+        assert!(get_user(&p, "missing").unwrap().is_none());
+        update_user_permissions(&p, &member.id, &[Permission::Playback, Permission::RequestsCreate]).unwrap();
+        assert!(get_user(&p, &member.id).unwrap().unwrap().can(Permission::RequestsCreate));
+        set_user_username(&p, &member.id, "renamed").unwrap();
+        assert_eq!(get_user(&p, &member.id).unwrap().unwrap().username, "renamed");
+        touch_last_seen(&p, &member.id).unwrap();
+        let after = admin_users(&p).unwrap();
+        assert!(after.iter().find(|u| u.id == member.id).unwrap().last_seen.is_some());
+
+        // Delete drops the account.
+        delete_user(&p, &member.id).unwrap();
+        assert_eq!(admin_users(&p).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn play_history_aggregates() {
+        let p = pool();
+        record_play(&p, Some("u1"), Some("alice"), Some("m1"), "movie", "Dune", Some("lib"), 0, 100, 60_000).unwrap();
+        record_play(&p, Some("u1"), Some("alice"), Some("m2"), "episode", "Ep", Some("lib"), 0, 200, 30_000).unwrap();
+        record_play(&p, Some("u2"), Some("bob"), Some("m1"), "movie", "Dune", Some("lib"), 0, 150, 10_000).unwrap();
+
+        let top = top_users(&p, 0, 10).unwrap();
+        assert_eq!(top.len(), 2);
+        // alice watched 90s total > bob's 10s, so she ranks first.
+        assert_eq!(top[0].username, "alice");
+        assert_eq!(top[0].plays, 2);
+        assert_eq!(top[0].watched_ms, 90_000);
+        assert_eq!(top[0].films_ms, 60_000);
+        assert_eq!(top[0].tv_ms, 30_000);
+
+        // The `since` gate excludes older rows.
+        assert!(top_users(&p, 1000, 10).unwrap().is_empty());
+        assert_eq!(history_since(&p, 0).unwrap().len(), 3);
+        assert!(history_since(&p, 1000).unwrap().is_empty());
+    }
+
+    #[test]
+    fn library_and_metadata_stats() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at,metadata) \
+                 VALUES ('m1','movie','Dune','mkv','lib','t','{\"tmdbId\":1}')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m2','movie','U','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute("INSERT INTO files (id,item_id,abs_path,size) VALUES ('f1','m1','/a',1500)", []).unwrap();
+            conn.execute("INSERT INTO files (id,item_id,abs_path,size) VALUES ('f2','m1','/b',500)", []).unwrap();
+            conn.execute("INSERT INTO shows (id,library,title,added_at,metadata) VALUES ('s1','lib','S','t','{\"tmdbId\":2}')", []).unwrap();
+            conn.execute("INSERT INTO item_vectors (id,dim,vec,updated_at) VALUES ('m1',2,x'0000','t')", []).unwrap();
+        }
+        let stats = library_stats(&p).unwrap();
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].id, "lib");
+        assert_eq!(stats[0].item_count, 2);
+        assert_eq!(stats[0].total_bytes, 2000);
+        assert_eq!(total_media_bytes(&p).unwrap(), 2000);
+        // 1 enriched movie, 1 enriched show, 1 embedding.
+        assert_eq!(metadata_counts(&p).unwrap(), (1, 1, 1));
+    }
+}

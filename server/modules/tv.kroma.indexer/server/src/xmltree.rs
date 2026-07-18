@@ -371,4 +371,55 @@ mod tests {
         // Plain attribute-name match regardless of tag.
         assert_eq!(select_first(row, "[name=size]").unwrap().attr("value"), Some("2314321864"));
     }
+
+    #[test]
+    fn descendant_vs_child_combinator() {
+        let doc = parse(RSS);
+        // Descendant: items found several levels down.
+        assert_eq!(select_all(&doc, "channel item").len(), 2);
+        // Child: item is not a direct child of rss, so nothing matches.
+        assert!(select_all(&doc, "rss > item").is_empty());
+        // Direct child of channel does match.
+        assert_eq!(select_all(&doc, "channel > item").len(), 2);
+    }
+
+    #[test]
+    fn contains_selector_filters_by_text() {
+        let doc = parse(RSS);
+        let hit = select_all(&doc, "item:contains(Obsession)");
+        assert_eq!(hit.len(), 1);
+        assert_eq!(select_first(hit[0], "guid").unwrap().text(), "abc123");
+        // A term present in no item.
+        assert!(select_all(&doc, "item:contains(Nope)").is_empty());
+    }
+
+    #[test]
+    fn attribute_presence_and_empty_selector() {
+        let doc = parse(RSS);
+        // [value] presence: the two torznab:attr elements carry a value attribute.
+        assert_eq!(select_all(&doc, "[value]").len(), 2);
+        // An empty selector selects nothing.
+        assert!(select_all(&doc, "").is_empty());
+        // Unknown tag -> no match.
+        assert!(select_first(&doc, "nonexistent").is_none());
+    }
+
+    #[test]
+    fn text_flattening_and_cdata() {
+        let xml = r#"<root><a>  hello   world  </a><b><![CDATA[raw & data]]></b></root>"#;
+        let doc = parse(xml);
+        // Whitespace collapsed.
+        assert_eq!(select_first(&doc, "a").unwrap().text(), "hello world");
+        // CDATA carried through literally.
+        assert_eq!(select_first(&doc, "b").unwrap().text(), "raw & data");
+    }
+
+    #[test]
+    fn unclosed_elements_collapse_into_tree() {
+        // Missing </item> and </channel>: the parser still yields the elements.
+        let xml = r#"<rss><channel><item><title>X 1080p</title>"#;
+        let doc = parse(xml);
+        let item = select_first(&doc, "item").unwrap();
+        assert_eq!(select_first(item, "title").unwrap().text(), "X 1080p");
+    }
 }

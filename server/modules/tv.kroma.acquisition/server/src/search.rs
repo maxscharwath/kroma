@@ -541,4 +541,57 @@ mod target_tests {
         assert_eq!(t[0].kind, "season"); // no future -> complete -> pack + fallback
         assert_eq!(t.len(), 3);
     }
+
+    fn movie_row(year: Option<u32>, air_date: Option<&str>) -> WantedRow {
+        WantedRow {
+            id: "m1".into(),
+            request_id: "r1".into(),
+            kind: "movie".into(),
+            tmdb_id: 7,
+            imdb_id: Some("tt1".into()),
+            title: "Film".into(),
+            year,
+            season: None,
+            episode: None,
+            air_date: air_date.map(str::to_string),
+            status: "wanted".into(),
+            last_search_at: None,
+        }
+    }
+
+    #[test]
+    fn movie_target_built_for_aired_movie() {
+        let rows = vec![movie_row(Some(2020), None)];
+        let t = targets_for_wanted(RequestKind::Movie, &rows, "2026-07-16");
+        assert_eq!(t.len(), 1);
+        assert_eq!(t[0].kind, "movie");
+        assert!(matches!(t[0].target, Target::Movie { year: Some(2020) }));
+    }
+
+    #[test]
+    fn future_movie_is_not_searched() {
+        let rows = vec![movie_row(Some(2030), Some("2030-01-01"))];
+        let t = targets_for_wanted(RequestKind::Movie, &rows, "2026-07-16");
+        assert!(t.is_empty());
+    }
+
+    #[test]
+    fn wanted_ids_by_movie_season_episode() {
+        let rows = vec![
+            movie_row(None, None),
+            ep(1, 1, None),
+            ep(1, 2, None),
+        ];
+        // Movie coverage picks the movie row only.
+        assert_eq!(wanted_ids_by(&rows, "movie", None, None), vec!["m1".to_string()]);
+        // Season coverage picks every row of that season.
+        assert_eq!(
+            wanted_ids_by(&rows, "season", Some(1), None),
+            vec!["s1e1".to_string(), "s1e2".to_string()]
+        );
+        // Episode coverage intersects season + the episode list.
+        assert_eq!(wanted_ids_by(&rows, "episode", Some(1), Some(&[2])), vec!["s1e2".to_string()]);
+        // No matching episode -> empty.
+        assert!(wanted_ids_by(&rows, "episode", Some(1), Some(&[9])).is_empty());
+    }
 }

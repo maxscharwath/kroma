@@ -323,3 +323,24 @@ fn emit_stats(stage: &Stage, ctx: &JobContext) {
         ctx.state.events.publish(ServerEvent::PipelineStats { stages: vec![stat] });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fmt_dur_scales_units() {
+        assert_eq!(fmt_dur(Duration::from_millis(820)), "820 ms");
+        assert_eq!(fmt_dur(Duration::from_millis(999)), "999 ms");
+        assert_eq!(fmt_dur(Duration::from_millis(4300)), "4.3 s");
+        assert_eq!(fmt_dur(Duration::from_secs(59)), "59.0 s");
+        assert_eq!(fmt_dur(Duration::from_secs(125)), "2 min 05 s");
+        assert_eq!(fmt_dur(Duration::from_secs(3600 + 7 * 60)), "1 h 07 min");
+    }
+
+    #[test]
+    fn hold_reason_depends_on_source() {
+        assert_eq!(hold_reason(true), "paused (pipeline held by admin)");
+        assert_eq!(hold_reason(false), "playback active, pausing (playback has priority)");
+    }
+}

@@ -68,3 +68,61 @@ pub fn delete_downloaded_sub(pool: &Pool, id: &str) -> Result<Option<String>> {
     }
     Ok(path)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool_with_item() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-dsub-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        let conn = pool.get().unwrap();
+        conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','T','mkv','lib','t')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        pool
+    }
+
+    fn sub(id: &str) -> DownloadedSub {
+        DownloadedSub {
+            id: id.into(),
+            item_id: "m1".into(),
+            language: Some("fr".into()),
+            label: "Francais (Whisper)".into(),
+            provider: "whisper".into(),
+            path: format!("/data/subs/{id}.vtt"),
+        }
+    }
+
+    #[test]
+    fn insert_list_get_and_delete() {
+        let p = pool_with_item();
+        insert_downloaded_sub(&p, &sub("s1")).unwrap();
+        insert_downloaded_sub(&p, &sub("s2")).unwrap();
+
+        let conn = p.get().unwrap();
+        let subs = downloaded_subs_for_item(&conn, "m1").unwrap();
+        assert_eq!(subs.len(), 2);
+        assert_eq!(subs[0].language.as_deref(), Some("fr"));
+        assert_eq!(subs[0].provider, "whisper");
+        let one = downloaded_sub(&conn, "s1").unwrap().unwrap();
+        assert_eq!(one.path, "/data/subs/s1.vtt");
+        assert!(downloaded_sub(&conn, "missing").unwrap().is_none());
+        drop(conn);
+
+        // Delete returns the path for on-disk cleanup, then the row is gone.
+        assert_eq!(delete_downloaded_sub(&p, "s1").unwrap().as_deref(), Some("/data/subs/s1.vtt"));
+        assert!(delete_downloaded_sub(&p, "s1").unwrap().is_none()); // already gone
+        let conn = p.get().unwrap();
+        assert_eq!(downloaded_subs_for_item(&conn, "m1").unwrap().len(), 1);
+    }
+}

@@ -193,3 +193,73 @@ pub fn parse_year(name: &str) -> Option<u32> {
     let idx = find_year_index(&s)?;
     s[idx..idx + 4].parse::<u32>().ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clean_title_strips_release_run() {
+        assert_eq!(clean_title("The.Matrix.1999.1080p.BluRay.x264-GRP"), "The Matrix");
+        assert_eq!(clean_title("Movie FRENCH 1080p x264"), "Movie");
+        assert_eq!(clean_title("Just A Clean Title"), "Just A Clean Title");
+    }
+
+    #[test]
+    fn clean_title_paren_year_is_authoritative() {
+        assert_eq!(clean_title("Blade Runner 2049 (2017) 2160p"), "Blade Runner 2049");
+        assert_eq!(clean_title("Uncut Gems (2019) WEBDL-1080p"), "Uncut Gems");
+    }
+
+    #[test]
+    fn clean_episode_title_strips_junk_but_keeps_numbers() {
+        assert_eq!(clean_episode_title("The Dundies 1080p x265"), "The Dundies");
+        assert_eq!(clean_episode_title("Episode 50"), "Episode 50");
+        assert_eq!(clean_episode_title(""), "");
+        assert_eq!(clean_episode_title("1080p BluRay"), "");
+    }
+
+    #[test]
+    fn parse_year_prefers_parenthesized() {
+        assert_eq!(parse_year("Blade Runner 2049 (2017)"), Some(2017));
+        assert_eq!(parse_year("The Matrix 1999"), Some(1999));
+        assert_eq!(parse_year("No Year Here"), None);
+        // Out of the plausible 1900..=2099 range.
+        assert_eq!(parse_year("(1850)"), None);
+        assert_eq!(parse_year("2049"), Some(2049));
+    }
+
+    #[test]
+    fn find_year_index_needs_word_boundaries() {
+        assert_eq!(find_year_index("The Matrix 1999"), Some(11));
+        // Embedded in a larger token is not a year.
+        assert_eq!(find_year_index("abc1999def"), None);
+        assert_eq!(find_year_index("no digits here"), None);
+    }
+
+    #[test]
+    fn paren_year_detects_and_bounds() {
+        assert_eq!(paren_year("Movie (2001)"), Some((6, 2001)));
+        // Five digits inside the parens: not a (YYYY) form.
+        assert_eq!(paren_year("Movie (12345)"), None);
+        assert_eq!(paren_year("Movie 2001"), None);
+    }
+
+    #[test]
+    fn resolution_and_token_head_helpers() {
+        assert!(is_resolution("1080p"));
+        assert!(is_resolution("720i"));
+        assert!(!is_resolution("p"));
+        assert!(!is_resolution("bluray"));
+        assert_eq!(token_head("BluRay-1080p"), "bluray");
+        assert!(is_hard_word("x265"));
+        assert!(is_hard_word("2160p"));
+        assert!(is_soft_word("FRENCH"));
+        assert!(!is_soft_word("Matrix"));
+    }
+
+    #[test]
+    fn leading_year_recovers_the_title() {
+        assert_eq!(clean_title("2018 - LaserGame - Indian Forest"), "LaserGame - Indian Forest");
+    }
+}

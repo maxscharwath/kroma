@@ -134,3 +134,82 @@ pub fn loudness_target(pool: &Pool, file_id: &str) -> Result<Option<(String, Str
         None => Ok(None),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool_with_file() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-loud-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        let conn = pool.get().unwrap();
+        conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','T','mkv','lib','t')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO files (id,item_id,abs_path,container,probed,mtime,size,audio_tracks) \
+             VALUES ('f1','m1','/media/m1.mkv','mkv',1,100,2000,'[{\"index\":0,\"codec\":\"eac3\"}]')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        pool
+    }
+
+    fn analysis(verdict: AudioVerdict) -> AudioAnalysis {
+        AudioAnalysis { lufs_i: -18.0, lra: 12.5, true_peak: -1.2, dialog_lufs: Some(-24.0), verdict }
+    }
+
+    #[test]
+    fn set_get_and_upsert_analysis() {
+        let p = pool_with_file();
+        set_audio_analysis(&p, "f1", 0, &analysis(AudioVerdict::HighDynamics)).unwrap();
+        let conn = p.get().unwrap();
+        let got = audio_analysis_for_file(&conn, "f1").unwrap().unwrap();
+        assert_eq!(got.lufs_i, -18.0);
+        assert_eq!(got.lra, 12.5);
+        assert_eq!(got.dialog_lufs, Some(-24.0));
+        assert_eq!(got.verdict, AudioVerdict::HighDynamics);
+        assert!(audio_analysis_for_file(&conn, "ghost").unwrap().is_none());
+        drop(conn);
+
+        // Upsert the same (file, track) replaces the verdict.
+        set_audio_analysis(&p, "f1", 0, &analysis(AudioVerdict::Ok)).unwrap();
+        let conn = p.get().unwrap();
+        assert_eq!(audio_analysis_for_file(&conn, "f1").unwrap().unwrap().verdict, AudioVerdict::Ok);
+    }
+
+    #[test]
+    fn lowest_track_wins_and_batch_lookup() {
+        let p = pool_with_file();
+        set_audio_analysis(&p, "f1", 1, &analysis(AudioVerdict::QuietDialog)).unwrap();
+        set_audio_analysis(&p, "f1", 0, &analysis(AudioVerdict::Ok)).unwrap();
+        let conn = p.get().unwrap();
+        // The default (lowest index) track's analysis is the representative one.
+        assert_eq!(audio_analysis_for_file(&conn, "f1").unwrap().unwrap().verdict, AudioVerdict::Ok);
+        let batch = audio_analysis_for_files(&conn, &["f1", "ghost"]).unwrap();
+        assert_eq!(batch.len(), 1);
+        assert_eq!(batch["f1"].verdict, AudioVerdict::Ok);
+    }
+
+    #[test]
+    fn enumeration_and_target_lookups() {
+        let p = pool_with_file();
+        let sigs: std::collections::HashMap<String, String> =
+            analyzable_file_sigs(&p).unwrap().into_iter().collect();
+        assert_eq!(sigs.get("f1").map(String::as_str), Some("100:2000"));
+
+        let (abs, tracks) = loudness_target(&p, "f1").unwrap().unwrap();
+        assert_eq!(abs, "/media/m1.mkv");
+        assert!(tracks.contains("eac3"));
+        assert!(loudness_target(&p, "ghost").unwrap().is_none());
+    }
+}

@@ -237,3 +237,118 @@ pub fn failed_tasks(pool: &Pool, stage: &str, limit: usize) -> Result<Vec<Pipeli
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-pq-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn task(conn: &Connection, stage: &str, id: &str, status: &str, error: Option<&str>, finished: Option<i64>) {
+        conn.execute(
+            "INSERT INTO pipeline_tasks (stage,subject_kind,subject_id,status,error,attempts,enqueued_at,updated_at,finished_at) \
+             VALUES (?1,'file',?2,?3,?4,1,0,0,?5)",
+            params![stage, id, status, error, finished],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn stage_stat_statuses_and_worst() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            task(&conn, "st", "f1", "done", None, Some(100));
+            task(&conn, "st", "f2", "pending", None, None);
+            task(&conn, "st", "f3", "failed", Some("boom"), Some(500));
+            task(&conn, "st", "f4", "running", None, None);
+        }
+        let stat = stage_stat(&p, "st", "the-key", "file").unwrap();
+        assert_eq!((stat.pending, stat.running, stat.done, stat.failed, stat.blocked), (1, 1, 1, 1, 0));
+        assert_eq!(stat.key, "the-key");
+
+        let map = stage_statuses(&p, "st").unwrap();
+        assert_eq!(map["f3"], ("failed".to_string(), Some("boom".to_string())));
+        assert_eq!(map["f1"].0, "done");
+
+        assert_eq!(task_status(&p, "st", "f3").unwrap().as_deref(), Some("failed"));
+        assert!(task_status(&p, "st", "ghost").unwrap().is_none());
+
+        // worst_status ranks failed > running > pending > done.
+        assert_eq!(worst_status(&p, "st", &["f1".into(), "f2".into(), "f3".into()]).unwrap().as_deref(), Some("failed"));
+        assert_eq!(worst_status(&p, "st", &["f1".into()]).unwrap().as_deref(), Some("done"));
+        assert!(worst_status(&p, "st", &[]).unwrap().is_none());
+        assert!(worst_status(&p, "st", &["ghost".into()]).unwrap().is_none());
+    }
+
+    #[test]
+    fn failed_tasks_newest_first() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            task(&conn, "st", "old", "failed", Some("e1"), Some(100));
+            task(&conn, "st", "new", "failed", Some("e2"), Some(900));
+            task(&conn, "st", "ok", "done", None, Some(500));
+        }
+        let failed = failed_tasks(&p, "st", 10).unwrap();
+        // Only failed rows, newest finished_at first.
+        assert_eq!(failed.len(), 2);
+        assert_eq!(failed[0].subject_id, "new");
+        assert_eq!(failed[0].title, "new"); // title defaults to the raw id
+        assert_eq!(failed[0].error.as_deref(), Some("e2"));
+        assert_eq!(failed[1].subject_id, "old");
+    }
+
+    #[test]
+    fn raw_rows_and_title_lookups() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,year,container,library,added_at,metadata) \
+                 VALUES ('m1','movie','Dune',2021,'mkv','lib','t','{\"posterUrl\":\"/p.webp\",\"genres\":[\"Horror\",\"Thriller\"]}')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m2','movie','Bare','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at,metadata) VALUES ('s1','lib','Show','t','{\"posterUrl\":\"/s.webp\",\"genres\":[\"Drama\"]}')",
+                [],
+            )
+            .unwrap();
+        }
+        let items = raw_items(&p).unwrap();
+        let m1 = items.iter().find(|i| i.id == "m1").unwrap();
+        assert!(m1.has_meta);
+        assert_eq!(m1.poster.as_deref(), Some("/p.webp"));
+        assert_eq!(m1.genre.as_deref(), Some("Horror"));
+        assert_eq!(m1.year, Some(2021));
+        let m2 = items.iter().find(|i| i.id == "m2").unwrap();
+        assert!(!m2.has_meta);
+        assert!(m2.poster.is_none());
+
+        let shows = raw_shows(&p).unwrap();
+        assert_eq!(shows.len(), 1);
+        assert!(shows[0].has_meta);
+        assert_eq!(shows[0].genre.as_deref(), Some("Drama"));
+
+        let titles = item_titles(&p, &["m1".into(), "ghost".into()]).unwrap();
+        assert_eq!(titles.get("m1").map(String::as_str), Some("Dune"));
+        assert_eq!(titles.len(), 1);
+        assert_eq!(show_titles(&p, &["s1".into()]).unwrap().get("s1").map(String::as_str), Some("Show"));
+        assert!(item_titles(&p, &[]).unwrap().is_empty());
+    }
+}

@@ -150,3 +150,101 @@ pub fn delete_core(conn: &Connection, kind: &str, id: &str) -> Result<()> {
     )?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::{CastMember, CrewMember};
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-core-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn sample_core() -> MetaCore {
+        MetaCore {
+            tmdb_id: Some(603),
+            imdb_id: Some("tt0133093".into()),
+            tvdb_id: Some(42),
+            release_date: Some("1999-03-31".into()),
+            rating: Some(8.7),
+            poster_url: Some("/api/images/p.webp".into()),
+            backdrop_url: Some("/api/images/b.webp".into()),
+            logo_url: None,
+            cast: vec![CastMember {
+                name: "Keanu".into(),
+                character: Some("Neo".into()),
+                profile_url: Some("/api/images/k.webp".into()),
+            }],
+            crew: vec![CrewMember { name: "Wachowski".into(), job: "Director".into(), profile_url: None }],
+        }
+    }
+
+    #[test]
+    fn set_get_upsert_and_strip_character() {
+        let p = pool();
+        set_core(&p, ITEM, "m1", &sample_core()).unwrap();
+        let got = get_core(&p, ITEM, "m1").unwrap().unwrap();
+        assert_eq!(got.tmdb_id, Some(603));
+        assert_eq!(got.imdb_id.as_deref(), Some("tt0133093"));
+        assert_eq!(got.tvdb_id, Some(42));
+        assert_eq!(got.rating, Some(8.7));
+        assert_eq!(got.poster_url.as_deref(), Some("/api/images/p.webp"));
+        // People are kept, but their (localized) character is stripped from core.
+        assert_eq!(got.cast.len(), 1);
+        assert_eq!(got.cast[0].name, "Keanu");
+        assert!(got.cast[0].character.is_none());
+        assert_eq!(got.cast[0].profile_url.as_deref(), Some("/api/images/k.webp"));
+        assert_eq!(got.crew.len(), 1);
+        assert_eq!(got.crew[0].job, "Director");
+
+        // Upsert overwrites in place.
+        let mut updated = sample_core();
+        updated.tmdb_id = Some(999);
+        updated.rating = None;
+        set_core(&p, ITEM, "m1", &updated).unwrap();
+        let got = get_core(&p, ITEM, "m1").unwrap().unwrap();
+        assert_eq!(got.tmdb_id, Some(999));
+        assert!(got.rating.is_none());
+
+        assert!(get_core(&p, ITEM, "missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn kinds_are_independent() {
+        let p = pool();
+        let mut show = sample_core();
+        show.tmdb_id = Some(1396);
+        set_core(&p, ITEM, "x", &sample_core()).unwrap();
+        set_core(&p, SHOW, "x", &show).unwrap();
+        // Same id, different kind: no collision.
+        assert_eq!(get_core(&p, ITEM, "x").unwrap().unwrap().tmdb_id, Some(603));
+        assert_eq!(get_core(&p, SHOW, "x").unwrap().unwrap().tmdb_id, Some(1396));
+    }
+
+    #[test]
+    fn get_cores_batch_and_delete() {
+        let p = pool();
+        set_core(&p, ITEM, "m1", &sample_core()).unwrap();
+        let mut second = sample_core();
+        second.tmdb_id = Some(500);
+        set_core(&p, ITEM, "m2", &second).unwrap();
+
+        let conn = p.get().unwrap();
+        let cores = get_cores(&conn, ITEM, &["m1", "m2", "ghost"]).unwrap();
+        assert_eq!(cores.len(), 2);
+        assert_eq!(cores["m1"].tmdb_id, Some(603));
+        assert_eq!(cores["m2"].tmdb_id, Some(500));
+
+        delete_core(&conn, ITEM, "m1").unwrap();
+        assert!(get_core(&p, ITEM, "m1").unwrap().is_none());
+        assert!(get_core(&p, ITEM, "m2").unwrap().is_some());
+        // Deleting a missing row is a no-op (no error).
+        delete_core(&conn, ITEM, "m1").unwrap();
+    }
+}

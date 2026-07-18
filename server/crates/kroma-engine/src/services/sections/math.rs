@@ -17,3 +17,35 @@ pub(super) fn normalize(v: &mut [f32]) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dot_is_sum_of_products() {
+        assert_eq!(dot(&[1.0, 2.0, 3.0], &[4.0, 5.0, 6.0]), 32.0);
+        assert_eq!(dot(&[], &[]), 0.0);
+        // Orthogonal unit vectors -> 0 similarity.
+        assert_eq!(dot(&[1.0, 0.0], &[0.0, 1.0]), 0.0);
+    }
+
+    #[test]
+    fn normalize_scales_to_unit_length() {
+        let mut v = [3.0f32, 4.0];
+        normalize(&mut v);
+        let len = (v[0] * v[0] + v[1] * v[1]).sqrt();
+        assert!((len - 1.0).abs() < 1e-6, "expected unit length, got {len}");
+        assert!((v[0] - 0.6).abs() < 1e-6);
+        assert!((v[1] - 0.8).abs() < 1e-6);
+        // A normalized vector dotted with itself is ~1 (cosine of 0deg).
+        assert!((dot(&v, &v) - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn normalize_zero_vector_is_noop() {
+        let mut z = [0.0f32, 0.0, 0.0];
+        normalize(&mut z);
+        assert_eq!(z, [0.0, 0.0, 0.0]);
+    }
+}

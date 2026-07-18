@@ -324,3 +324,168 @@ fn matches_filter(el: &ElementRow, f: &Filter, q: &str) -> bool {
         other => el.overall == other,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn raw_item(kind: &str) -> RawItem {
+        RawItem {
+            id: "id1".into(),
+            kind: kind.into(),
+            title: "Some Title".into(),
+            year: Some(2020),
+            duration_ms: Some(6_000_000),
+            show_id: None,
+            show_title: None,
+            season: None,
+            episode: None,
+            episode_title: None,
+            has_meta: false,
+            poster: None,
+            genre: None,
+        }
+    }
+
+    fn row(kind: &str, overall: &str) -> ElementRow {
+        ElementRow {
+            id: "id1".into(),
+            kind: kind.into(),
+            title: "The Matrix".into(),
+            poster: None,
+            year: None,
+            genre: None,
+            duration_ms: None,
+            season_count: None,
+            treatments: Vec::new(),
+            overall: overall.into(),
+            ep_stats: None,
+        }
+    }
+
+    #[test]
+    fn resolve_status_ledger_wins_then_artifacts() {
+        // A present ledger state always wins over artifact flags.
+        assert_eq!(resolve_status(Some("failed"), true, true), "failed");
+        assert_eq!(resolve_status(Some("running"), false, false), "running");
+        assert_eq!(resolve_status(Some("pending"), true, false), "pending");
+        // Any other ledger value (e.g. "done") reads done.
+        assert_eq!(resolve_status(Some("done"), false, false), "done");
+        // No ledger: artifact_done OR assume_done => done, else pending.
+        assert_eq!(resolve_status(None, true, false), "done");
+        assert_eq!(resolve_status(None, false, true), "done");
+        assert_eq!(resolve_status(None, false, false), "pending");
+    }
+
+    #[test]
+    fn status_of_surfaces_error_only_when_failed() {
+        let failed = ("failed".to_string(), Some("boom".to_string()));
+        assert_eq!(status_of(Some(&failed), false, false), ("failed", Some("boom".to_string())));
+        // A running ledger with a stale error message does not leak the error.
+        let running = ("running".to_string(), Some("stale".to_string()));
+        assert_eq!(status_of(Some(&running), false, false), ("running", None));
+        // No ledger, artifact present -> done, no error.
+        assert_eq!(status_of(None, true, false), ("done", None));
+    }
+
+    #[test]
+    fn overall_of_precedence_failed_running_pending_ok() {
+        let mk = |s: &str| tr("x", s, None);
+        assert_eq!(overall_of(&[mk("done"), mk("done")]), "ok");
+        assert_eq!(overall_of(&[mk("done"), mk("pending")]), "pending");
+        assert_eq!(overall_of(&[mk("missing"), mk("done")]), "pending");
+        assert_eq!(overall_of(&[mk("pending"), mk("running")]), "running");
+        assert_eq!(overall_of(&[mk("running"), mk("failed")]), "failed");
+        assert_eq!(overall_of(&[]), "ok");
+    }
+
+    #[test]
+    fn element_title_movie_is_plain_title() {
+        assert_eq!(element_title(&raw_item("film")), "Some Title");
+    }
+
+    #[test]
+    fn element_title_episode_composes_show_code_and_name() {
+        let mut ep = raw_item("episode");
+        ep.show_title = Some("Breaking Bad".into());
+        ep.season = Some(2);
+        ep.episode = Some(5);
+        ep.episode_title = Some("Breakage".into());
+        assert_eq!(element_title(&ep), "Breaking Bad - S02E05 « Breakage »");
+
+        // No episode title -> just "show - code".
+        ep.episode_title = None;
+        assert_eq!(element_title(&ep), "Breaking Bad - S02E05");
+
+        // Missing season/episode -> just the show.
+        ep.season = None;
+        ep.episode = None;
+        assert_eq!(element_title(&ep), "Breaking Bad");
+
+        // No show + no code -> falls back to the raw title.
+        ep.show_title = None;
+        assert_eq!(element_title(&ep), "Some Title");
+    }
+
+    #[test]
+    fn group_episodes_by_show_keys_on_show_id() {
+        let mut a = raw_item("episode");
+        a.id = "a".into();
+        a.show_id = Some("show1".into());
+        let mut b = raw_item("episode");
+        b.id = "b".into();
+        b.show_id = Some("show1".into());
+        let mut movie = raw_item("film");
+        movie.id = "m".into();
+        // An episode with no show_id is dropped.
+        let mut orphan = raw_item("episode");
+        orphan.id = "o".into();
+        orphan.show_id = None;
+
+        let items = vec![a, b, movie, orphan];
+        let grouped = group_episodes_by_show(&items);
+        assert_eq!(grouped.len(), 1);
+        assert_eq!(grouped.get("show1").map(|v| v.len()), Some(2));
+    }
+
+    #[test]
+    fn tally_counts_rolls_up_status_and_kind() {
+        let all = vec![
+            row("film", "ok"),
+            row("film", "failed"),
+            row("series", "pending"),
+            row("episode", "running"),
+        ];
+        let c = tally_counts(&all);
+        assert_eq!(c.total, 4);
+        assert_eq!((c.ok, c.failed, c.pending, c.running), (1, 1, 1, 1));
+        assert_eq!((c.film, c.series, c.episode), (2, 1, 1));
+    }
+
+    #[test]
+    fn matches_filter_query_kind_and_status() {
+        let f = |status: &str, kind: &str, query: &str| Filter {
+            status: status.into(),
+            kind: kind.into(),
+            query: query.into(),
+            page: 0,
+            limit: 50,
+        };
+        let el = row("film", "failed"); // title "The Matrix"
+
+        // Query is a case-insensitive substring of the title (already lowercased by caller).
+        assert!(matches_filter(&el, &f("all", "all", ""), ""));
+        assert!(matches_filter(&el, &f("all", "all", "matrix"), "matrix"));
+        assert!(!matches_filter(&el, &f("all", "all", "inception"), "inception"));
+
+        // Kind filter.
+        assert!(!matches_filter(&el, &f("all", "series", ""), ""));
+        assert!(matches_filter(&el, &f("all", "film", ""), ""));
+
+        // Status filter: exact match, plus "attention" = anything not ok.
+        assert!(matches_filter(&el, &f("failed", "all", ""), ""));
+        assert!(!matches_filter(&el, &f("ok", "all", ""), ""));
+        assert!(matches_filter(&el, &f("attention", "all", ""), ""));
+        assert!(!matches_filter(&row("film", "ok"), &f("attention", "all", ""), ""));
+    }
+}

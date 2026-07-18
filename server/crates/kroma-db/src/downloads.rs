@@ -29,3 +29,37 @@ pub fn tmdb_hint(conn: &Connection, logical_id: &str) -> rusqlite::Result<Option
     })
     .optional()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-dl-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    #[test]
+    fn tmdb_hint_upsert_and_lookup() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            assert!(tmdb_hint(&conn, "logical-1").unwrap().is_none());
+        }
+        set_tmdb_hint(&p, "logical-1", 603).unwrap();
+        {
+            let conn = p.get().unwrap();
+            assert_eq!(tmdb_hint(&conn, "logical-1").unwrap(), Some(603));
+        }
+        // Upsert replaces the pinned id in place.
+        set_tmdb_hint(&p, "logical-1", 604).unwrap();
+        let conn = p.get().unwrap();
+        assert_eq!(tmdb_hint(&conn, "logical-1").unwrap(), Some(604));
+        assert!(tmdb_hint(&conn, "unknown").unwrap().is_none());
+    }
+}

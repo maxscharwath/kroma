@@ -327,3 +327,252 @@ fn query_items(pool: &Pool, base: &str, library: Option<&str>, tail: &str) -> Re
     attach_files_batch(&conn, &mut items)?;
     Ok(items)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::{CastMember, Kind};
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-media-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn seed_movie(conn: &Connection, id: &str, title: &str, library: &str) {
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,added_at) \
+             VALUES (?1,'movie',?2,'mkv',?3,'t')",
+            params![id, title, library],
+        )
+        .unwrap();
+    }
+
+    /// A probed file for an item (drives the representative video/container).
+    fn seed_probed_file(conn: &Connection, id: &str, item_id: &str, abs: &str, v_width: i64) {
+        conn.execute(
+            "INSERT INTO files (id,item_id,abs_path,rel_path,container,probed,duration_ms,v_codec,v_width,v_height) \
+             VALUES (?1,?2,?3,?4,'mkv',1,7200000,'hevc',?5,2160)",
+            params![id, item_id, abs, format!("{item_id}.mkv"), v_width],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn counts_reflects_seeded_rows() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+        }
+        assert_eq!(counts(&p).unwrap(), (1, 1, 1));
+    }
+
+    #[test]
+    fn list_movies_and_items_ordering_and_episode_split() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib2','L2','movies','/y','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_movie(&conn, "m2", "Arrival", "lib");
+            seed_movie(&conn, "mo", "Other", "lib2");
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+                 VALUES ('e1','episode','Ep','mkv','lib','s1',1,1,'t')",
+                [],
+            )
+            .unwrap();
+        }
+        // Movies exclude episodes; ordered by title COLLATE NOCASE.
+        let movies = list_movies(&p, None).unwrap();
+        assert_eq!(movies.iter().map(|i| i.id.as_str()).collect::<Vec<_>>(), ["m2", "m1", "mo"]);
+        assert!(movies.iter().all(|i| i.kind != Kind::Episode));
+
+        // Library filter narrows the set.
+        let lib_movies = list_movies(&p, Some("lib")).unwrap();
+        assert_eq!(lib_movies.iter().map(|i| i.id.as_str()).collect::<Vec<_>>(), ["m2", "m1"]);
+
+        // list_items includes episodes.
+        let items = list_items(&p, None).unwrap();
+        assert!(items.iter().any(|i| i.id == "e1"));
+        assert_eq!(items.len(), 4);
+    }
+
+    #[test]
+    fn get_item_hydrates_representative_file() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_probed_file(&conn, "f1", "m1", "/media/dune.mkv", 3840);
+        }
+        let item = get_item(&p, "m1").unwrap().unwrap();
+        assert_eq!(item.default_file_id.as_deref(), Some("f1"));
+        assert_eq!(item.abs_path.as_deref(), Some("/media/dune.mkv"));
+        assert_eq!(item.container, "mkv");
+        assert_eq!(item.duration_ms, Some(7_200_000));
+        let video = item.video.expect("probed file yields a video stream");
+        assert_eq!(video.codec, "hevc");
+        assert_eq!(video.width, Some(3840));
+        assert_eq!(item.files.len(), 1);
+
+        assert!(get_item(&p, "missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn list_shows_counts_and_representative_video() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','shows','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO shows (id,library,title,year,added_at) VALUES ('s1','lib','Severance',2022,'t')",
+                [],
+            )
+            .unwrap();
+            for (id, s, e) in [("e1", 1, 1), ("e2", 1, 2), ("e3", 2, 1)] {
+                conn.execute(
+                    "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+                     VALUES (?1,'episode','Ep','mkv','lib','s1',?2,?3,'t')",
+                    params![id, s, e],
+                )
+                .unwrap();
+            }
+            // A probed 1080p file on one episode supplies the show's rep video.
+            seed_probed_file(&conn, "f-e1", "e1", "/media/e1.mkv", 1920);
+        }
+        let shows = list_shows(&p, None).unwrap();
+        assert_eq!(shows.len(), 1);
+        let s = &shows[0];
+        assert_eq!(s.season_count, 2);
+        assert_eq!(s.episode_count, 3);
+        assert_eq!(s.video.as_ref().map(|v| v.width), Some(Some(1920)));
+        // Library scoping.
+        assert_eq!(list_shows(&p, Some("lib")).unwrap().len(), 1);
+        assert!(list_shows(&p, Some("nope")).unwrap().is_empty());
+    }
+
+    #[test]
+    fn get_show_groups_seasons_and_attaches_cast() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','shows','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+            for (id, s, e) in [("e1", 1, 1), ("e2", 1, 2), ("e3", 2, 1)] {
+                conn.execute(
+                    "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,added_at) \
+                     VALUES (?1,'episode','Ep','mkv','lib','s1',?2,?3,'t')",
+                    params![id, s, e],
+                )
+                .unwrap();
+            }
+        }
+        crate::set_season_cast(
+            &p,
+            "s1",
+            1,
+            &[CastMember { name: "Adam".into(), character: Some("Mark".into()), profile_url: None }],
+        )
+        .unwrap();
+
+        let detail = get_show(&p, "s1").unwrap().unwrap();
+        assert_eq!(detail.show.season_count, 2);
+        assert_eq!(detail.show.episode_count, 3);
+        assert_eq!(detail.seasons.len(), 2);
+        // Seasons sorted ascending; season 1 has two episodes, its cast attached.
+        assert_eq!(detail.seasons[0].number, 1);
+        assert_eq!(detail.seasons[0].episodes.len(), 2);
+        assert_eq!(detail.seasons[0].cast.len(), 1);
+        assert_eq!(detail.seasons[0].cast[0].name, "Adam");
+        assert_eq!(detail.seasons[1].number, 2);
+        assert_eq!(detail.seasons[1].episodes.len(), 1);
+        assert!(detail.seasons[1].cast.is_empty());
+
+        assert!(get_show(&p, "missing").unwrap().is_none());
+        assert_eq!(show_title(&p, "s1").unwrap().as_deref(), Some("Show"));
+        assert!(show_title(&p, "missing").unwrap().is_none());
+    }
+
+    #[test]
+    fn by_ids_and_index_snapshot() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_movie(&conn, "m2", "Arrival", "lib");
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+        }
+        // Empty id lists short-circuit.
+        assert!(get_items_by_ids(&p, &[]).unwrap().is_empty());
+        assert!(get_shows_by_ids(&p, &[]).unwrap().is_empty());
+
+        let items = get_items_by_ids(&p, &["m2".into(), "m1".into(), "ghost".into()]).unwrap();
+        let mut ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
+        ids.sort();
+        assert_eq!(ids, ["m1", "m2"]);
+
+        let shows = get_shows_by_ids(&p, &["s1".into()]).unwrap();
+        assert_eq!(shows.len(), 1);
+        assert_eq!(shows[0].id, "s1");
+
+        let (items, shows) = index_snapshot(&p).unwrap();
+        assert_eq!(items.len(), 2);
+        assert_eq!(shows.len(), 1);
+    }
+}

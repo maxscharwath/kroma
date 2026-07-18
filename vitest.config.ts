@@ -7,12 +7,11 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: [
-      'packages/client/src/**/*.test.ts',
-      'packages/core/src/**/*.test.ts',
-      'packages/tv/src/**/*.test.ts',
-      'clients/web/src/**/*.test.ts',
-    ],
+    include: ['packages/*/src/**/*.test.ts', 'clients/web/src/**/*.test.ts'],
+    // Inline zod so Vite resolves it (via the `import` condition -> built
+    // index.js) instead of Bun externalizing it and matching zod's `@zod/source`
+    // condition -> raw TS source, whose `z` export is undefined under the runner.
+    server: { deps: { inline: ['zod'] } },
     coverage: {
       // istanbul (source-instrumented) works under Bun's runtime; the v8
       // provider needs node:inspector coverage APIs Bun doesn't implement.

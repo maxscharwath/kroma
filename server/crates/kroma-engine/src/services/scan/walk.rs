@@ -295,3 +295,51 @@ fn has_video_extension(path: &Path) -> bool {
         .map(|e| VIDEO_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn has_video_extension_matches_known_containers_case_insensitively() {
+        assert!(has_video_extension(Path::new("/movies/Film.mkv")));
+        assert!(has_video_extension(Path::new("/movies/Film.MP4"))); // case-insensitive
+        assert!(has_video_extension(Path::new("clip.MOV")));
+        assert!(has_video_extension(Path::new("a.ts")));
+        // Non-video and edge cases.
+        assert!(!has_video_extension(Path::new("/movies/poster.jpg")));
+        assert!(!has_video_extension(Path::new("/movies/subs.srt")));
+        assert!(!has_video_extension(Path::new("/movies/noext")));
+        assert!(!has_video_extension(Path::new("/movies/.hidden")));
+    }
+
+    #[test]
+    fn is_pruned_dir_skips_synology_and_hidden() {
+        assert!(is_pruned_dir(OsStr::new("@eaDir")));
+        assert!(is_pruned_dir(OsStr::new(".git")));
+        assert!(is_pruned_dir(OsStr::new(".DS_Store")));
+        assert!(!is_pruned_dir(OsStr::new("Season 1")));
+        assert!(!is_pruned_dir(OsStr::new("Movies")));
+    }
+
+    #[test]
+    fn walk_threads_default_range_and_env_override() {
+        // Default (no env): clamped into [8, 32].
+        std::env::remove_var("KROMA_WALK_THREADS");
+        let n = walk_threads();
+        assert!((8..=32).contains(&n), "default {n} out of clamp range");
+
+        // Explicit override is honored verbatim (not re-clamped).
+        std::env::set_var("KROMA_WALK_THREADS", "3");
+        assert_eq!(walk_threads(), 3);
+        std::env::set_var("KROMA_WALK_THREADS", "100");
+        assert_eq!(walk_threads(), 100);
+
+        // A non-numeric value falls back to the computed default.
+        std::env::set_var("KROMA_WALK_THREADS", "not-a-number");
+        assert!((8..=32).contains(&walk_threads()));
+
+        std::env::remove_var("KROMA_WALK_THREADS");
+    }
+}

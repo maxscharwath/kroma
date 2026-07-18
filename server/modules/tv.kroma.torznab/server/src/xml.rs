@@ -343,4 +343,51 @@ mod tests {
         assert!(caps.search_tmdb && caps.search_imdb);
         assert!(!caps.tv_search_tmdb);
     }
+
+    #[test]
+    fn empty_and_titleless_items_are_dropped() {
+        let xml = r#"<rss><channel>
+          <item><guid>x</guid></item>
+          <item><title>Kept 1080p</title><guid>y</guid></item>
+        </channel></rss>"#;
+        let items = parse_items(xml.as_bytes()).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].title, "Kept 1080p");
+    }
+
+    #[test]
+    fn attr_size_fills_when_no_size_element() {
+        let xml = r#"<rss xmlns:torznab="http://torznab.com/"><channel><item>
+          <title>Rel 720p</title><guid>g</guid>
+          <torznab:attr name="size" value="12345" />
+        </item></channel></rss>"#;
+        let items = parse_items(xml.as_bytes()).unwrap();
+        assert_eq!(items[0].size_bytes, Some(12345));
+    }
+
+    #[test]
+    fn peers_without_seeders_saturates_to_zero() {
+        let xml = r#"<rss xmlns:torznab="http://torznab.com/"><channel><item>
+          <title>Rel 1080p</title><guid>g</guid>
+          <torznab:attr name="peers" value="5" />
+        </item></channel></rss>"#;
+        let items = parse_items(xml.as_bytes()).unwrap();
+        // No seeders attr: leechers = peers - 0 = 5.
+        assert_eq!(items[0].leechers, Some(5));
+        assert_eq!(items[0].seeders, None);
+    }
+
+    #[test]
+    fn caps_error_document_is_err() {
+        let xml = r#"<caps><error code="200" description="nope" /></caps>"#;
+        assert!(parse_caps(xml.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn caps_without_search_flags_defaults_false() {
+        let xml = r#"<caps><server title="X" /></caps>"#;
+        let caps = parse_caps(xml.as_bytes()).unwrap();
+        assert_eq!(caps.server_title.as_deref(), Some("X"));
+        assert!(!caps.search_tmdb && !caps.search_imdb && !caps.tv_search_tmdb);
+    }
 }

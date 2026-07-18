@@ -684,4 +684,77 @@ mod tests {
         assert_eq!(render("a {{- \"b\" }}", &ctx()), "ab");
         assert_eq!(render("{{ \"a\" -}} b", &ctx()), "ab");
     }
+
+    #[test]
+    fn replace_not_and_or() {
+        // Cardigann funcs are input-first: replace <input> <old> <new>.
+        assert_eq!(render(r#"{{ replace "hello" "l" "L" }}"#, &Context::default()), "heLLo");
+        // not inverts truthiness of a bool config.
+        assert_eq!(render("{{ if not .Config.freeleech }}Y{{ else }}N{{ end }}", &ctx()), "Y");
+        // or returns the first truthy arg (fallback for a missing field).
+        assert_eq!(render(r#"{{ or .Config.missing "fb" }}"#, &Context::default()), "fb");
+        // and returns the first falsy arg.
+        assert_eq!(render(r#"{{ and "a" "" }}"#, &Context::default()), "");
+    }
+
+    #[test]
+    fn comparisons_numeric_and_lexicographic() {
+        let d = Context::default();
+        // Both parse as numbers -> numeric comparison.
+        assert_eq!(render(r#"{{ if lt "5" "10" }}Y{{ else }}N{{ end }}"#, &d), "Y");
+        assert_eq!(render(r#"{{ if gt "10" "5" }}Y{{ else }}N{{ end }}"#, &d), "Y");
+        assert_eq!(render(r#"{{ if le "5" "5" }}Y{{ else }}N{{ end }}"#, &d), "Y");
+        assert_eq!(render(r#"{{ if ge "5" "6" }}Y{{ else }}N{{ end }}"#, &d), "N");
+        // Non-numeric -> lexicographic comparison.
+        assert_eq!(render(r#"{{ if lt "apple" "banana" }}Y{{ else }}N{{ end }}"#, &d), "Y");
+        assert_eq!(render(r#"{{ if ne "a" "b" }}Y{{ else }}N{{ end }}"#, &d), "Y");
+    }
+
+    #[test]
+    fn printf_conversions_and_unknown_spec() {
+        let d = Context::default();
+        assert_eq!(render(r#"{{ printf "%v/%s/%d" "a" "b" "7" }}"#, &d), "a/b/7");
+        // Unknown verb prints its spec verbatim.
+        assert_eq!(render(r#"{{ printf "%q" "x" }}"#, &d), "%q");
+        // Width without a zero-pad flag pads with spaces.
+        assert_eq!(render(r#"{{ printf "%3d" "7" }}"#, &d), "  7");
+    }
+
+    #[test]
+    fn range_over_non_list_and_bare_ident() {
+        // Ranging a scalar iterates nothing (only lists iterate).
+        assert_eq!(render("a{{ range .Keywords }}x{{ end }}b", &ctx()), "ab");
+        // A bare word that is not a function renders as itself.
+        assert_eq!(render("{{ foo }}", &Context::default()), "foo");
+        // A bare number likewise.
+        assert_eq!(render("{{ 42 }}", &Context::default()), "42");
+    }
+
+    #[test]
+    fn malformed_templates_degrade_to_literal() {
+        // Missing {{ end }} -> parse error -> literal source returned.
+        let t = "{{ if .Keywords }}open";
+        assert_eq!(render(t, &ctx()), t);
+        // Unterminated action -> literal.
+        assert_eq!(render("a {{ b", &ctx()), "a {{ b");
+    }
+
+    #[test]
+    fn with_keyword_behaves_like_if() {
+        assert_eq!(render("{{ with .Keywords }}Y{{ else }}N{{ end }}", &ctx()), "Y");
+        assert_eq!(
+            render("{{ with .Config.missing }}Y{{ else }}N{{ end }}", &Context::default()),
+            "N"
+        );
+    }
+
+    #[test]
+    fn list_interpolation_and_join_on_scalar() {
+        // A list interpolates space-joined.
+        assert_eq!(render("{{ .Categories }}", &ctx()), "1 3");
+        // join on a scalar just renders the scalar.
+        assert_eq!(render(r#"{{ join .Keywords "," }}"#, &ctx()), "the matrix 1999");
+        // An invalid regex in re_replace leaves the input untouched.
+        assert_eq!(render(r#"{{ re_replace .Keywords "[" "x" }}"#, &ctx()), "the matrix 1999");
+    }
 }

@@ -584,4 +584,24 @@ mod tests {
         assert_eq!(join_url("https://x.to/", "https://cdn/z"), "https://cdn/z");
         assert_eq!(join_url("https://x.to/", "magnet:?xt=1"), "magnet:?xt=1");
     }
+
+    #[test]
+    fn size_parsing_units_and_edge_cases() {
+        assert_eq!(parse_size("1 TB"), Some(1_099_511_627_776));
+        assert_eq!(parse_size("512 MiB"), Some(536_870_912));
+        // Bare single-letter unit.
+        assert_eq!(parse_size("3G"), Some(3_221_225_472));
+        assert_eq!(parse_size("0"), Some(0));
+        // Unknown unit and a value with no leading number are rejected.
+        assert_eq!(parse_size("1.5 XB"), None);
+        assert_eq!(parse_size("abc"), None);
+    }
+
+    #[test]
+    fn int_parsing_strips_non_digits() {
+        assert_eq!(parse_int("1,234"), Some(1234));
+        assert_eq!(parse_int("12 seeders"), Some(12));
+        assert_eq!(parse_int("none"), None);
+        assert_eq!(parse_int(""), None);
+    }
 }

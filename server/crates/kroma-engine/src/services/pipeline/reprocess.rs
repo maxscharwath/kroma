@@ -261,3 +261,51 @@ fn reprocess_show(
         "pipeline.embed",
     ])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_pool() -> db::Pool {
+        static SEQ: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-reproc-test-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        db::init(&path).unwrap()
+    }
+
+    /// Pending count for a stage after enqueue.
+    fn pending(pool: &db::Pool, stage: &str) -> i64 {
+        db::pipeline::counts(pool, stage).unwrap().0
+    }
+
+    #[test]
+    fn stage_embed_queues_one_high_priority_item() {
+        let pool = test_pool();
+        // Clearing a vector for a non-existent id is a safe no-op; the enqueue is
+        // the observable effect.
+        stage_embed(&pool, "item-a", 1_000).unwrap();
+        stage_embed(&pool, "item-b", 1_000).unwrap();
+        assert_eq!(pending(&pool, "embed"), 2);
+        // Re-enqueuing the same subject stays a single pending task (upsert).
+        stage_embed(&pool, "item-a", 2_000).unwrap();
+        assert_eq!(pending(&pool, "embed"), 2);
+    }
+
+    #[test]
+    fn stage_metadata_queues_item_and_show() {
+        let pool = test_pool();
+        stage_metadata(&pool, "item", "movie-1", 1_000).unwrap();
+        stage_metadata(&pool, "show", "show-1", 1_000).unwrap();
+        assert_eq!(pending(&pool, "metadata"), 2);
+    }
+
+    #[test]
+    fn stage_markers_noop_when_element_absent() {
+        let pool = test_pool();
+        // No show/item rows exist, so no season keys resolve and nothing is queued.
+        stage_markers(&pool, "show", "ghost-show", 1_000).unwrap();
+        stage_markers(&pool, "item", "ghost-item", 1_000).unwrap();
+        assert_eq!(pending(&pool, "markers"), 0);
+    }
+}

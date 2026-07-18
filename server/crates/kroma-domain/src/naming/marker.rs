@@ -136,3 +136,70 @@ pub(super) fn is_season_folder(name: &str) -> bool {
         || l.starts_with("saison")
         || (l.starts_with('s') && l.len() <= 4 && l[1..].bytes().all(|c| c.is_ascii_digit()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sxxeyy_basic() {
+        let m = find_marker("Show.S01E02").unwrap();
+        assert_eq!((m.season, m.episode, m.episode_end), (1, 2, None));
+        // The reported span exactly covers the marker text.
+        assert_eq!(&"Show.S01E02"[m.start..m.end], "S01E02");
+    }
+
+    #[test]
+    fn multi_episode_dash_concatenated_and_bare() {
+        let dash = find_marker("Show.S01E02-E03").unwrap();
+        assert_eq!((dash.season, dash.episode, dash.episode_end), (1, 2, Some(3)));
+        // "S01E02E03" (no separator) still yields the second episode.
+        let cat = find_marker("Show.S01E02E03").unwrap();
+        assert_eq!(cat.episode_end, Some(3));
+        // "S01E02-03": a bare trailing number after the dash.
+        let bare = find_marker("Show.S01E02-03").unwrap();
+        assert_eq!(bare.episode_end, Some(3));
+    }
+
+    #[test]
+    fn nxnn_form() {
+        let m = find_marker("Firefly 1x02 The Train Job").unwrap();
+        assert_eq!((m.season, m.episode, m.episode_end), (1, 2, None));
+    }
+
+    #[test]
+    fn resolution_is_not_a_marker() {
+        // 1920x1080: season 1920 is out of the NxNN bound, so no marker.
+        assert!(find_marker("Heat 1995 1920x1080").is_none());
+    }
+
+    #[test]
+    fn implausible_season_rejected() {
+        // s200e01: season 200 > 100 fails the plausibility guard.
+        assert!(find_marker("Thing.S200E01").is_none());
+    }
+
+    #[test]
+    fn no_marker_returns_none() {
+        assert!(find_marker("The Matrix 1999").is_none());
+    }
+
+    #[test]
+    fn nxnn_rejected_after_alphanumeric() {
+        // The digit run must sit at a boundary; "abc1x02" is part of a token.
+        assert!(find_marker("abc1x02").is_none());
+    }
+
+    #[test]
+    fn season_folder_recognition() {
+        assert!(is_season_folder("Season 01"));
+        assert!(is_season_folder("season 1"));
+        assert!(is_season_folder("Saison 2"));
+        assert!(is_season_folder("Specials"));
+        assert!(is_season_folder("S01"));
+        assert!(is_season_folder("s3"));
+        assert!(!is_season_folder("The Office"));
+        // Too long for the bare-S form.
+        assert!(!is_season_folder("s2000"));
+    }
+}

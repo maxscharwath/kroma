@@ -187,3 +187,107 @@ fn load(
     }
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-trans-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn td(title: &str) -> TransData {
+        TransData { title: Some(title.into()), ..Default::default() }
+    }
+
+    #[test]
+    fn is_empty_reports_payload_presence() {
+        assert!(TransData::default().is_empty());
+        assert!(!td("x").is_empty());
+        assert!(!TransData { genres: vec!["Drama".into()], ..Default::default() }.is_empty());
+        assert!(!TransData { reason: Some("because".into()), ..Default::default() }.is_empty());
+    }
+
+    #[test]
+    fn resolve_one_fallback_chain() {
+        let p = pool();
+        put(&p, "show", "s1", "en", TMDB, &TransData {
+            title: Some("Severance".into()),
+            overview: Some("work you".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        put(&p, "show", "s1", "fr", TMDB, &td("Severance VF")).unwrap();
+
+        // Requested language wins.
+        assert_eq!(resolve_one(&p, "show", "s1", "fr").unwrap().unwrap().title.as_deref(), Some("Severance VF"));
+        // Unknown language falls back to en.
+        assert_eq!(resolve_one(&p, "show", "s1", "de").unwrap().unwrap().title.as_deref(), Some("Severance"));
+
+        // A subject with only a non-en language falls back to "any".
+        put(&p, "show", "s2", "ja", TMDB, &td("only ja")).unwrap();
+        assert_eq!(resolve_one(&p, "show", "s2", "de").unwrap().unwrap().title.as_deref(), Some("only ja"));
+
+        // Nothing stored at all -> None.
+        assert!(resolve_one(&p, "show", "missing", "fr").unwrap().is_none());
+    }
+
+    #[test]
+    fn upsert_replaces_and_languages_listed() {
+        let p = pool();
+        put(&p, "item", "m1", "fr", TMDB, &td("old")).unwrap();
+        put(&p, "item", "m1", "fr", MANUAL, &td("new")).unwrap();
+        assert_eq!(resolve_one(&p, "item", "m1", "fr").unwrap().unwrap().title.as_deref(), Some("new"));
+
+        put(&p, "item", "m1", "en", TMDB, &td("en title")).unwrap();
+        let mut langs = languages_for(&p, "item", "m1").unwrap();
+        langs.sort();
+        assert_eq!(langs, vec!["en".to_string(), "fr".to_string()]);
+    }
+
+    #[test]
+    fn resolve_many_all_for_kind_and_load_all() {
+        let p = pool();
+        put(&p, "show", "s1", "en", TMDB, &td("A en")).unwrap();
+        put(&p, "show", "s1", "fr", TMDB, &td("A fr")).unwrap();
+        put(&p, "show", "s2", "ja", TMDB, &td("B ja")).unwrap();
+        // A different kind must not leak into the show queries.
+        put(&p, "item", "s1", "en", TMDB, &td("other kind")).unwrap();
+
+        let conn = p.get().unwrap();
+        let many = resolve_many(&conn, "show", &["s1", "s2", "ghost"], "fr").unwrap();
+        assert_eq!(many.len(), 2);
+        assert_eq!(many["s1"].title.as_deref(), Some("A fr")); // requested fr
+        assert_eq!(many["s2"].title.as_deref(), Some("B ja")); // fallback to any
+        drop(conn);
+
+        let all = all_for_kind(&p, "show").unwrap();
+        assert_eq!(all["s1"].len(), 2);
+        assert_eq!(all["s2"].len(), 1);
+        assert!(!all.contains_key("ghost"));
+
+        let loaded = load_all(&p, "show", &["s1"]).unwrap();
+        let by_lang = &loaded["s1"];
+        assert_eq!(by_lang.len(), 2);
+        assert_eq!(by_lang["en"].title.as_deref(), Some("A en"));
+        assert_eq!(by_lang["fr"].title.as_deref(), Some("A fr"));
+    }
+
+    #[test]
+    fn delete_all_removes_every_language() {
+        let p = pool();
+        put(&p, "show", "s1", "en", TMDB, &td("A")).unwrap();
+        put(&p, "show", "s1", "fr", TMDB, &td("B")).unwrap();
+        let conn = p.get().unwrap();
+        delete_all(&conn, "show", "s1").unwrap();
+        drop(conn);
+        assert!(resolve_one(&p, "show", "s1", "fr").unwrap().is_none());
+        assert!(languages_for(&p, "show", "s1").unwrap().is_empty());
+    }
+}

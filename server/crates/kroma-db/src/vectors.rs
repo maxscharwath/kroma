@@ -273,3 +273,133 @@ pub fn themed_items(pool: &Pool, query: &[f32], n: usize, floor: f32) -> Result<
     items.truncate(n);
     Ok(items)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    /// Seed three movies a/b/c (with genres for the guard) + their unit vectors.
+    /// a=[1,0], b=[0.8,0.6], c=[0,1]: a is nearest b, orthogonal to c.
+    fn seeded() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-vec-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        {
+            let conn = pool.get().unwrap();
+            conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')", []).unwrap();
+            let mk = |id: &str, genre: &str| {
+                conn.execute(
+                    "INSERT INTO items (id,kind,title,container,library,added_at,metadata) \
+                     VALUES (?1,'movie','T','mkv','lib','t',?2)",
+                    params![id, format!("{{\"tmdbId\":1,\"tmdbUrl\":\"x\",\"genres\":[\"{genre}\"]}}")],
+                )
+                .unwrap();
+            };
+            mk("a", "Horror");
+            mk("b", "Horror");
+            mk("c", "Comedy");
+        }
+        set_item_vector(&pool, "a", &[1.0, 0.0]).unwrap();
+        set_item_vector(&pool, "b", &[0.8, 0.6]).unwrap();
+        set_item_vector(&pool, "c", &[0.0, 1.0]).unwrap();
+        pool
+    }
+
+    #[test]
+    fn store_query_and_dims() {
+        let p = seeded();
+        assert!(has_vector(&p, "a").unwrap());
+        assert!(!has_vector(&p, "ghost").unwrap());
+        assert_eq!(item_ids_with_vector(&p).unwrap().len(), 3);
+        assert_eq!(vector_dim(&p, "a").unwrap(), Some(2));
+        assert!(vector_dim(&p, "ghost").unwrap().is_none());
+        assert_eq!(vector_dims(&p).unwrap().len(), 3);
+
+        // Blob roundtrip is bit-exact.
+        let loaded: std::collections::HashMap<String, Vec<f32>> = load_vectors(&p).unwrap().into_iter().collect();
+        assert_eq!(loaded["b"], vec![0.8, 0.6]);
+
+        // Upsert overwrites in place (dim can change).
+        set_item_vector(&p, "a", &[0.0, 0.0, 1.0]).unwrap();
+        assert_eq!(vector_dim(&p, "a").unwrap(), Some(3));
+
+        clear_item_vector(&p, "a").unwrap();
+        assert!(!has_vector(&p, "a").unwrap());
+    }
+
+    #[test]
+    fn similar_ranks_nearest_and_excludes_self() {
+        let p = seeded();
+        let near = similar(&p, "a", 10).unwrap();
+        // a's nearest is b (dot 0.8), then c (dot 0.0); a itself excluded.
+        assert_eq!(near.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(), ["b", "c"]);
+        assert!(near[0].1 > near[1].1);
+        // A seed without a stored vector yields nothing.
+        assert!(similar(&p, "ghost", 10).unwrap().is_empty());
+
+        // Themed query nearest [1,0] is a, then b.
+        let themed_hits = themed(&p, &[1.0, 0.0], 2).unwrap();
+        assert_eq!(themed_hits[0].0, "a");
+    }
+
+    #[test]
+    fn for_you_uses_watch_centroid_and_excludes_watched() {
+        let p = seeded();
+        // No history yet -> empty.
+        assert!(for_you(&p, "u1", 10).unwrap().is_empty());
+        assert!(recent_watched_ids(&p, "u1").unwrap().is_empty());
+
+        p.get()
+            .unwrap()
+            .execute(
+                "INSERT INTO play_history (id,user_id,item_id,kind,title,started_at,ended_at) \
+                 VALUES ('h1','u1','a','movie','T',0,100)",
+                [],
+            )
+            .unwrap();
+        assert_eq!(recent_watched_ids(&p, "u1").unwrap(), vec!["a".to_string()]);
+        let recs = for_you(&p, "u1", 10).unwrap();
+        let ids: Vec<&str> = recs.iter().map(|(id, _)| id.as_str()).collect();
+        // Centroid is 'a'; nearest unwatched is b then c, and 'a' is excluded.
+        assert_eq!(ids, ["b", "c"]);
+    }
+
+    #[test]
+    fn prune_orphans_drops_vectors_without_a_title() {
+        let p = seeded();
+        // Add a vector for an id that is neither an item nor a show.
+        set_item_vector(&p, "orphan", &[1.0, 1.0]).unwrap();
+        assert_eq!(prune_orphan_vectors(&p).unwrap(), 1);
+        assert!(!has_vector(&p, "orphan").unwrap());
+        assert!(has_vector(&p, "a").unwrap());
+    }
+
+    #[test]
+    fn render_ready_rows_hydrate() {
+        let p = seeded();
+        // similar_items tops up past the genre guard so the rail fills.
+        let sim = similar_items(&p, "a", 2).unwrap();
+        assert_eq!(sim.len(), 2);
+        assert_eq!(sim[0].id, "b"); // nearest + shares Horror
+
+        p.get()
+            .unwrap()
+            .execute(
+                "INSERT INTO play_history (id,user_id,item_id,kind,title,started_at,ended_at) \
+                 VALUES ('h1','u1','a','movie','T',0,100)",
+                [],
+            )
+            .unwrap();
+        let recs = recommended_for(&p, "u1", 2).unwrap();
+        assert!(recs.iter().any(|i| i.id == "b"));
+
+        // Themed row keeps only above-floor matches, then hydrates.
+        let themed = themed_items(&p, &[1.0, 0.0], 5, 0.5).unwrap();
+        let ids: Vec<&str> = themed.iter().map(|i| i.id.as_str()).collect();
+        assert!(ids.contains(&"a") && ids.contains(&"b") && !ids.contains(&"c"));
+    }
+}

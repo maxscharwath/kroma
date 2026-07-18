@@ -113,3 +113,63 @@ pub fn passkey_exists(pool: &Pool, id: &str) -> Result<bool> {
         .optional()?;
     Ok(found.is_some())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::Permission;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool_with_users() -> (Pool, String, String) {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-pk-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        let a = crate::create_user(&pool, "a@b.c", "alice", "h", &[Permission::Playback]).unwrap();
+        let b = crate::create_user(&pool, "b@b.c", "bob", "h", &[Permission::Playback]).unwrap();
+        (pool, a.id, b.id)
+    }
+
+    #[test]
+    fn insert_list_credentials_and_ids() {
+        let (p, alice, bob) = pool_with_users();
+        insert_passkey(&p, "cred-a1", &alice, "Alice iPhone", "{\"blob\":1}").unwrap();
+        insert_passkey(&p, "cred-a2", &alice, "Alice Yubikey", "{\"blob\":2}").unwrap();
+        insert_passkey(&p, "cred-b1", &bob, "Bob laptop", "{\"blob\":3}").unwrap();
+
+        let alice_keys = list_passkeys(&p, &alice).unwrap();
+        assert_eq!(alice_keys.len(), 2);
+        assert!(alice_keys.iter().all(|k| k.last_used.is_none()));
+
+        assert_eq!(passkey_credentials(&p, &alice).unwrap().len(), 2);
+        let mut ids = passkey_user_ids(&p).unwrap();
+        ids.sort();
+        let mut want = vec![alice.clone(), bob.clone()];
+        want.sort();
+        assert_eq!(ids, want);
+        assert!(passkey_exists(&p, "cred-a1").unwrap());
+        assert!(!passkey_exists(&p, "nope").unwrap());
+    }
+
+    #[test]
+    fn touch_updates_and_delete_is_scoped() {
+        let (p, alice, bob) = pool_with_users();
+        insert_passkey(&p, "cred-a1", &alice, "Alice iPhone", "{\"blob\":1}").unwrap();
+
+        // Touch stamps last_used and can rotate the credential blob.
+        touch_passkey(&p, "cred-a1", Some("{\"blob\":9}")).unwrap();
+        assert!(list_passkeys(&p, &alice).unwrap()[0].last_used.is_some());
+        assert_eq!(passkey_credentials(&p, &alice).unwrap(), vec!["{\"blob\":9}".to_string()]);
+        // Touch without a blob keeps the credential.
+        touch_passkey(&p, "cred-a1", None).unwrap();
+        assert_eq!(passkey_credentials(&p, &alice).unwrap(), vec!["{\"blob\":9}".to_string()]);
+
+        // Bob can't delete Alice's passkey (scoped to user_id).
+        assert!(!delete_passkey(&p, &bob, "cred-a1").unwrap());
+        assert!(delete_passkey(&p, &alice, "cred-a1").unwrap());
+        assert!(list_passkeys(&p, &alice).unwrap().is_empty());
+        assert!(passkey_user_ids(&p).unwrap().is_empty());
+    }
+}

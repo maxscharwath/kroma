@@ -51,3 +51,28 @@ impl Context {
         matches!(self.part_of_day, PartOfDay::Evening | PartOfDay::LateNight)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ctx(weekday: Weekday, part: PartOfDay) -> Context {
+        Context { month: 1, weekday, part_of_day: part, last_played: None, watched: Vec::new() }
+    }
+
+    #[test]
+    fn is_weekend_only_saturday_and_sunday() {
+        assert!(ctx(Weekday::Saturday, PartOfDay::Morning).is_weekend());
+        assert!(ctx(Weekday::Sunday, PartOfDay::Morning).is_weekend());
+        assert!(!ctx(Weekday::Monday, PartOfDay::Morning).is_weekend());
+        assert!(!ctx(Weekday::Friday, PartOfDay::Morning).is_weekend());
+    }
+
+    #[test]
+    fn is_evening_covers_evening_and_late_night() {
+        assert!(ctx(Weekday::Monday, PartOfDay::Evening).is_evening());
+        assert!(ctx(Weekday::Monday, PartOfDay::LateNight).is_evening());
+        assert!(!ctx(Weekday::Monday, PartOfDay::Morning).is_evening());
+        assert!(!ctx(Weekday::Monday, PartOfDay::Afternoon).is_evening());
+    }
+}

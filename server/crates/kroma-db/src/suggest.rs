@@ -72,3 +72,50 @@ pub fn set_suggestion(pool: &Pool, item_id: &str, ids: &[String], reasons: &Hash
     tx.commit()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-sug-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    #[test]
+    fn set_get_and_terminal_marker() {
+        let p = pool();
+        assert!(get_suggestion(&p, "m1").unwrap().is_none());
+
+        let mut reasons = HashMap::new();
+        reasons.insert("fr".to_string(), "parce que".to_string());
+        reasons.insert("en".to_string(), "  ".to_string()); // blank: skipped
+        set_suggestion(&p, "m1", &["a".into(), "b".into()], &reasons).unwrap();
+
+        let row = get_suggestion(&p, "m1").unwrap().unwrap();
+        assert_eq!(row.item_ids, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(row.reasons.get("fr").map(String::as_str), Some("parce que"));
+        assert!(row.reasons.get("en").is_none(), "blank reason not stored");
+
+        // Regeneration replaces the reasons wholesale.
+        let mut reasons2 = HashMap::new();
+        reasons2.insert("en".to_string(), "now english".to_string());
+        set_suggestion(&p, "m1", &["c".into()], &reasons2).unwrap();
+        let row = get_suggestion(&p, "m1").unwrap().unwrap();
+        assert_eq!(row.item_ids, vec!["c".to_string()]);
+        assert!(row.reasons.get("fr").is_none(), "old fr reason superseded");
+        assert_eq!(row.reasons.get("en").map(String::as_str), Some("now english"));
+
+        // Empty item_ids is a valid terminal "nothing found" marker (Some, not None).
+        set_suggestion(&p, "m1", &[], &HashMap::new()).unwrap();
+        let row = get_suggestion(&p, "m1").unwrap().unwrap();
+        assert!(row.item_ids.is_empty());
+        assert!(row.reasons.is_empty());
+    }
+}

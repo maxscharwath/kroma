@@ -652,3 +652,316 @@ fn library_kind_str(k: &LibraryKind) -> &'static str {
         LibraryKind::Mixed => "mixed",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::{Kind, MediaFile, MediaItem, VideoStream};
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-ingest-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn video() -> VideoStream {
+        VideoStream { codec: "hevc".into(), width: Some(3840), height: Some(2160), hdr: false, bit_depth: Some(10) }
+    }
+
+    fn lib(id: &str) -> Library {
+        Library { id: id.into(), name: "L".into(), kind: LibraryKind::Movies, path: "/x".into(), item_count: 0 }
+    }
+
+    fn file(id: &str, abs: &str, probed: bool) -> MediaFile {
+        MediaFile {
+            id: id.into(),
+            rel_path: Some(format!("{id}.mkv")),
+            container: "mkv".into(),
+            duration_ms: if probed { Some(7_200_000) } else { None },
+            video: if probed { Some(video()) } else { None },
+            audio: None,
+            audio_tracks: Vec::new(),
+            subtitles: Vec::new(),
+            size: Some(1000),
+            edition: None,
+            probed,
+            abs_path: Some(abs.into()),
+        }
+    }
+
+    fn movie(id: &str, title: &str, library: &str, files: Vec<MediaFile>) -> MediaItem {
+        MediaItem {
+            id: id.into(),
+            title: title.into(),
+            kind: Kind::Movie,
+            year: Some(2021),
+            duration_ms: None,
+            container: String::new(),
+            video: None,
+            audio: None,
+            audio_tracks: Vec::new(),
+            subtitles: Vec::new(),
+            library: library.into(),
+            show_id: None,
+            show_title: None,
+            season: None,
+            episode: None,
+            episode_end: None,
+            episode_title: None,
+            rel_path: None,
+            added_at: "t".into(),
+            metadata: None,
+            abs_path: None,
+            files,
+            default_file_id: None,
+            markers: Vec::new(),
+            audio_analysis: None,
+        }
+    }
+
+    fn mtimes_of(items: &[MediaItem], mtime: i64) -> HashMap<String, Option<i64>> {
+        items
+            .iter()
+            .flat_map(|i| i.files.iter())
+            .map(|f| (f.id.clone(), Some(mtime)))
+            .collect()
+    }
+
+    fn meta(tmdb: u64, title: &str) -> Metadata {
+        Metadata {
+            provider: "tmdb",
+            tmdb_id: tmdb,
+            imdb_id: Some("tt1".into()),
+            title: Some(title.into()),
+            tagline: None,
+            overview: Some("an overview".into()),
+            release_date: Some("2021-01-01".into()),
+            genres: vec!["Science Fiction".into()],
+            rating: Some(8.0),
+            poster_url: Some("/api/images/p.webp".into()),
+            backdrop_url: None,
+            logo_url: None,
+            theme_url: None,
+            cast: vec![CastMember { name: "Timothee".into(), character: Some("Paul".into()), profile_url: None }],
+            crew: vec![],
+            keywords: vec![],
+            tvdb_id: None,
+            tmdb_url: "https://tmdb/1".into(),
+        }
+    }
+
+    #[test]
+    fn sync_all_creates_updates_and_prunes() {
+        let p = pool();
+        let items = vec![
+            movie("m1", "Dune", "lib", vec![file("f1", "/media/m1.mkv", false)]),
+            movie("m2", "Arrival", "lib", vec![file("f2", "/media/m2.mkv", false)]),
+        ];
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 100)).unwrap();
+        assert_eq!(crate::counts(&p).unwrap(), (1, 2, 0));
+        let got = crate::get_item(&p, "m1").unwrap().unwrap();
+        assert_eq!(got.files.len(), 1);
+        assert_eq!(got.container, "mkv"); // seeded from the file until a probe recomputes
+
+        // Unprobed files are enumerated for the phase-2 probe.
+        let mut unprobed = unprobed_files(&p).unwrap();
+        unprobed.sort();
+        assert_eq!(unprobed.len(), 2);
+        assert!(unprobed.iter().any(|(id, abs, item)| id == "f1" && abs == "/media/m1.mkv" && item == "m1"));
+
+        // Re-scan dropping m2: it (and its file) are pruned; m1 stays.
+        let items = vec![movie("m1", "Dune", "lib", vec![file("f1", "/media/m1.mkv", false)])];
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 100)).unwrap();
+        assert_eq!(crate::counts(&p).unwrap(), (1, 1, 0));
+        assert!(crate::get_item(&p, "m2").unwrap().is_none());
+    }
+
+    #[test]
+    fn sync_preserves_metadata_and_probe_across_rescans() {
+        let p = pool();
+        let items = vec![movie("m1", "Dune", "lib", vec![file("f1", "/media/m1.mkv", false)])];
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 100)).unwrap();
+
+        // Probe the file + attach TMDB metadata.
+        set_file_probe(&p, "f1", Some(7_200_000), Some(&video()), None, &[], &[]).unwrap();
+        set_item_metadata(&p, "m1", &meta(603, "Dune")).unwrap();
+        assert!(item_has_probed_file(&p, "m1").unwrap());
+
+        // A re-scan with UNCHANGED size+mtime keeps the probe and the metadata.
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 100)).unwrap();
+        assert!(item_probed(&p, "m1").unwrap(), "unchanged file keeps probed=1");
+        let got = crate::get_item(&p, "m1").unwrap().unwrap();
+        assert_eq!(got.metadata.as_ref().map(|m| m.tmdb_id), Some(603));
+
+        // A CHANGED mtime resets the probe (the file must be re-probed).
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 999)).unwrap();
+        assert!(!item_probed(&p, "m1").unwrap(), "changed file resets probed=0");
+        // ...but the metadata survives the reset.
+        assert!(crate::get_item(&p, "m1").unwrap().unwrap().metadata.is_some());
+    }
+
+    #[test]
+    fn sync_preprobed_file_stores_streams_directly() {
+        let p = pool();
+        let items = vec![movie("m1", "Demo", "lib", vec![file("f1", "demo://m1", true)])];
+        sync_all(&p, &[lib("lib")], &[], &items, &mtimes_of(&items, 100)).unwrap();
+        // A pre-probed (demo) file never enters the phase-2 pass.
+        assert!(item_has_probed_file(&p, "m1").unwrap());
+        assert!(unprobed_files(&p).unwrap().is_empty());
+        let got = crate::get_item(&p, "m1").unwrap().unwrap();
+        assert_eq!(got.video.map(|v| v.codec), Some("hevc".to_string()));
+        // demo:// paths are not streamable, so abs_path stays cleared.
+        assert!(got.abs_path.is_none());
+    }
+
+    #[test]
+    fn probe_helpers_over_seeded_files() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            for id in ["m1", "m2"] {
+                conn.execute(
+                    "INSERT INTO items (id,kind,title,container,library,added_at) VALUES (?1,'movie','T','mkv','lib','t')",
+                    params![id],
+                )
+                .unwrap();
+            }
+            // m1: one probed + one unprobed (not fully probed).
+            conn.execute(
+                "INSERT INTO files (id,item_id,abs_path,container,probed,mtime,size) VALUES ('f1','m1','/a',' ',1,100,2000)",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO files (id,item_id,abs_path,container,probed) VALUES ('f2','m1','/b','',0)",
+                [],
+            )
+            .unwrap();
+            // m2: a single probed file (fully probed).
+            conn.execute(
+                "INSERT INTO files (id,item_id,abs_path,container,probed) VALUES ('f3','m2','/c','',1)",
+                [],
+            )
+            .unwrap();
+        }
+
+        assert!(!item_probed(&p, "m1").unwrap()); // has an unprobed file
+        assert!(item_probed(&p, "m2").unwrap());
+        assert!(!item_probed(&p, "missing").unwrap()); // no files at all
+
+        let fully = probed_item_ids(&p).unwrap();
+        assert!(fully.contains("m2") && !fully.contains("m1"));
+
+        let mut ids = file_ids_for_item(&p, "m1").unwrap();
+        ids.sort();
+        assert_eq!(ids, vec!["f1".to_string(), "f2".to_string()]);
+
+        // probe_target + all_file_sigs read one file's identity/signature.
+        assert_eq!(probe_target(&p, "f1").unwrap(), Some(("/a".to_string(), "m1".to_string(), true)));
+        assert!(probe_target(&p, "gone").unwrap().is_none());
+        let sigs: HashMap<String, String> = all_file_sigs(&p).unwrap().into_iter().collect();
+        assert_eq!(sigs.get("f1").map(String::as_str), Some("100:2000"));
+        assert_eq!(sigs.get("f3").map(String::as_str), Some("0:0")); // null mtime/size
+
+        // Reset m1's files to unprobed.
+        unprobe_item_files(&p, "m1").unwrap();
+        assert!(!item_has_probed_file(&p, "m1").unwrap());
+    }
+
+    #[test]
+    fn metadata_write_localized_and_reset() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','Dune','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+        }
+        set_item_metadata(&p, "m1", &meta(603, "Dune")).unwrap();
+        set_show_metadata(&p, "s1", &meta(1396, "Show")).unwrap();
+
+        // Language-agnostic dual-write: core + one fr translation.
+        let mut by_lang = HashMap::new();
+        by_lang.insert("fr".to_string(), meta(603, "Dune VF"));
+        store_localized(&p, crate::metadata_core::ITEM, "m1", &meta(603, "Dune"), &by_lang).unwrap();
+        let core = crate::metadata_core::get_core(&p, "item", "m1").unwrap().unwrap();
+        assert_eq!(core.tmdb_id, Some(603));
+        // Character names are stripped from the invariant core (they live per-lang).
+        assert_eq!(core.cast.len(), 1);
+        assert!(core.cast[0].character.is_none());
+        let fr = crate::translations::resolve_one(&p, "item", "m1", "fr").unwrap().unwrap();
+        assert_eq!(fr.title.as_deref(), Some("Dune VF"));
+        assert_eq!(fr.characters, vec![Some("Paul".to_string())]);
+
+        // Reset wipes item/show metadata blobs + the core/tmdb translations.
+        let (items_cleared, shows_cleared) = reset_all_metadata(&p).unwrap();
+        assert_eq!((items_cleared, shows_cleared), (1, 1));
+        assert!(crate::get_item(&p, "m1").unwrap().unwrap().metadata.is_none());
+        assert!(crate::metadata_core::get_core(&p, "item", "m1").unwrap().is_none());
+        assert!(crate::translations::resolve_one(&p, "item", "m1", "fr").unwrap().is_none());
+    }
+
+    #[test]
+    fn season_cast_and_clear_metadata() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','shows','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','Dune','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Show','t')",
+                [],
+            )
+            .unwrap();
+        }
+        assert!(seasons_with_cast(&p, "s1").unwrap().is_empty());
+        let cast = vec![CastMember { name: "Adam".into(), character: Some("Mark".into()), profile_url: None }];
+        set_season_cast(&p, "s1", 1, &cast).unwrap();
+        set_season_cast(&p, "s1", 2, &cast).unwrap();
+        set_season_cast(&p, "s1", 1, &cast).unwrap(); // idempotent upsert
+        let mut seasons: Vec<u32> = seasons_with_cast(&p, "s1").unwrap().into_iter().collect();
+        seasons.sort_unstable();
+        assert_eq!(seasons, vec![1, 2]);
+        let casts = season_casts(&p, "s1").unwrap();
+        assert_eq!(casts.len(), 2);
+        assert_eq!(casts[&1][0].name, "Adam");
+
+        // clear_* null out the metadata blob for a reprocess.
+        set_item_metadata(&p, "m1", &meta(603, "Dune")).unwrap();
+        set_show_metadata(&p, "s1", &meta(1396, "Show")).unwrap();
+        clear_item_metadata(&p, "m1").unwrap();
+        clear_show_metadata(&p, "s1").unwrap();
+        assert!(crate::get_item(&p, "m1").unwrap().unwrap().metadata.is_none());
+        assert!(crate::get_show(&p, "s1").unwrap().unwrap().show.metadata.is_none());
+    }
+}

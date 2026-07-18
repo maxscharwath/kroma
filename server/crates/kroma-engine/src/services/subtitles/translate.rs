@@ -320,3 +320,111 @@ fn snippet(text: &str) -> String {
         one_line
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cue(timing: &str, text: &str) -> Cue {
+        Cue { timing: timing.to_string(), text: text.to_string() }
+    }
+
+    /// An LLM client that returns a fixed reply (or a fixed error).
+    struct FakeLlm {
+        reply: std::result::Result<String, ()>,
+    }
+    impl LlmClient for FakeLlm {
+        fn available(&self) -> bool {
+            true
+        }
+        fn complete(&self, _system: &str, _user: &str, _max_tokens: u32) -> anyhow::Result<String> {
+            match &self.reply {
+                Ok(s) => Ok(s.clone()),
+                Err(()) => anyhow::bail!("provider down"),
+            }
+        }
+        fn describe(&self) -> String {
+            "fake".to_string()
+        }
+    }
+
+    #[test]
+    fn parse_cues_extracts_timing_and_joined_text() {
+        let vtt = "WEBVTT\n\n\
+                   00:00:01.000 --> 00:00:03.000\nHello there\nsecond line\n\n\
+                   00:00:04.000 --> 00:00:06.000\nBye\n";
+        let cues = parse_cues(vtt);
+        assert_eq!(cues.len(), 2);
+        assert_eq!(cues[0].timing, "00:00:01.000 --> 00:00:03.000");
+        assert_eq!(cues[0].text, "Hello there\nsecond line");
+        assert_eq!(cues[1].text, "Bye");
+    }
+
+    #[test]
+    fn parse_cues_empty_when_no_timing() {
+        assert!(parse_cues("WEBVTT\n\njust some header text\n").is_empty());
+        assert!(parse_cues("").is_empty());
+    }
+
+    #[test]
+    fn translate_batch_parses_numbered_reply() {
+        let llm = FakeLlm { reply: Ok("1. Bonjour\n2. Salut".to_string()) };
+        let batch = [cue("t0", "Hello"), cue("t1", "Hi")];
+        let out = translate_batch(&llm, &batch, "French", 8192).unwrap();
+        assert_eq!(out, vec![Some("Bonjour".to_string()), Some("Salut".to_string())]);
+    }
+
+    #[test]
+    fn translate_batch_keeps_gap_as_none_when_mostly_parsed() {
+        // Only line 1 comes back; that is >= half of a 2-line batch, so it is
+        // accepted with the missing line left as a None gap (caller keeps original).
+        let llm = FakeLlm { reply: Ok("1. Bonjour".to_string()) };
+        let batch = [cue("t0", "Hello"), cue("t1", "Hi")];
+        let out = translate_batch(&llm, &batch, "French", 8192).unwrap();
+        assert_eq!(out, vec![Some("Bonjour".to_string()), None]);
+    }
+
+    #[test]
+    fn translate_batch_errors_when_reply_unparseable() {
+        // Only 1 of 4 lines parses -> below the half threshold -> Err.
+        let llm = FakeLlm { reply: Ok("1. Bonjour\ngarbage without numbers".to_string()) };
+        let batch = [cue("t0", "a"), cue("t1", "b"), cue("t2", "c"), cue("t3", "d")];
+        let err = translate_batch(&llm, &batch, "French", 8192).unwrap_err();
+        assert!(err.contains("numbered format"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn translate_batch_propagates_llm_error() {
+        let llm = FakeLlm { reply: Err(()) };
+        let batch = [cue("t0", "Hello")];
+        let err = translate_batch(&llm, &batch, "French", 8192).unwrap_err();
+        assert!(err.contains("LLM request failed"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn reassemble_vtt_falls_back_to_original_on_gap_or_missing_batch() {
+        let cues0 = vec![cue("00:00:01.000 --> 00:00:02.000", "Hello"), cue("00:00:02.000 --> 00:00:03.000", "World")];
+        let cues1 = vec![cue("00:00:03.000 --> 00:00:04.000", "Original")];
+        let chunks: Vec<&[Cue]> = vec![&cues0, &cues1];
+        let results = vec![
+            // First batch: line 0 translated, line 1 is a None gap -> keep "World".
+            Mutex::new(Some(vec![Some("Bonjour".to_string()), None])),
+            // Second batch never translated (None) -> keep "Original".
+            Mutex::new(None),
+        ];
+        let out = reassemble_vtt(&chunks, &results);
+        assert!(out.starts_with("WEBVTT\n\n"));
+        assert!(out.contains("00:00:01.000 --> 00:00:02.000\nBonjour\n\n"));
+        assert!(out.contains("00:00:02.000 --> 00:00:03.000\nWorld\n\n"));
+        assert!(out.contains("00:00:03.000 --> 00:00:04.000\nOriginal\n\n"));
+    }
+
+    #[test]
+    fn snippet_collapses_whitespace_and_caps_length() {
+        assert_eq!(snippet("  hello\n\tworld  "), "hello world");
+        let long = "x ".repeat(200);
+        let s = snippet(&long);
+        assert!(s.chars().count() <= 161); // 160 chars + the ellipsis
+        assert!(s.ends_with('…'));
+    }
+}

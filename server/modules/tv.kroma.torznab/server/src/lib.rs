@@ -192,6 +192,52 @@ mod tests {
         assert_eq!(a.len(), 1);
         assert!(a[0].contains(&("q", "Breaking Bad S03".to_string())));
     }
+
+    #[test]
+    fn movie_without_ids_only_text_attempt() {
+        // Caps advertise id search, but the query carries no ids: text only.
+        let caps = Caps { search_tmdb: true, search_imdb: true, ..Caps::default() };
+        let q = Query::Movie { tmdb_id: None, imdb_id: None, title: "Heat".into(), year: None };
+        let a = attempts(&q, &caps);
+        assert_eq!(a.len(), 1);
+        assert!(a[0].contains(&("t", "search".to_string())));
+        assert!(a[0].contains(&("q", "Heat".to_string())));
+    }
+
+    #[test]
+    fn movie_text_attempt_includes_year_when_present() {
+        let q = Query::Movie { tmdb_id: None, imdb_id: None, title: "Dune".into(), year: Some(2021) };
+        let a = attempts(&q, &Caps::default());
+        assert_eq!(a.len(), 1);
+        assert!(a[0].contains(&("q", "Dune 2021".to_string())));
+    }
+
+    #[test]
+    fn season_with_tmdb_yields_pack_then_text() {
+        let caps = Caps { tv_search_tmdb: true, ..Caps::default() };
+        let q = Query::Season { tmdb_id: Some(1396), title: "Breaking Bad".into(), season: 1 };
+        let a = attempts(&q, &caps);
+        assert_eq!(a.len(), 2);
+        assert!(a[0].contains(&("t", "tvsearch".to_string())));
+        assert!(a[0].contains(&("season", "1".to_string())));
+        assert!(a[1].contains(&("q", "Breaking Bad S01".to_string())));
+    }
+
+    #[test]
+    fn movie_tmdb_only_when_imdb_cap_absent() {
+        // tmdb cap on, imdb cap off: only the tmdb id attempt precedes the text.
+        let caps = Caps { search_tmdb: true, search_imdb: false, ..Caps::default() };
+        let q = Query::Movie {
+            tmdb_id: Some(603),
+            imdb_id: Some("tt0133093".into()),
+            title: "The Matrix".into(),
+            year: None,
+        };
+        let a = attempts(&q, &caps);
+        assert_eq!(a.len(), 2);
+        assert!(a[0].contains(&("tmdbid", "603".to_string())));
+        assert!(a[1].contains(&("t", "search".to_string())));
+    }
 }
 
 pub mod module;

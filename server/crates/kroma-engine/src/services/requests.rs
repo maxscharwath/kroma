@@ -721,4 +721,140 @@ mod tests {
             Some(vec![ep(1, 2), ep(2, 1)])
         );
     }
+
+    #[test]
+    fn is_whole_show_only_when_both_unset() {
+        assert!(is_whole_show(&None, &None));
+        assert!(!is_whole_show(&Some(vec![1]), &None));
+        assert!(!is_whole_show(&None, &Some(vec![ep(1, 1)])));
+        assert!(!is_whole_show(&Some(vec![1]), &Some(vec![ep(1, 1)])));
+    }
+
+    #[test]
+    fn is_ended_recognizes_terminal_states() {
+        assert!(is_ended(Some("Ended")));
+        assert!(is_ended(Some("Canceled")));
+        assert!(!is_ended(Some("Returning Series")));
+        assert!(!is_ended(Some("In Production")));
+        assert!(!is_ended(None));
+    }
+
+    fn req(kind: RequestKind, status: RequestStatus) -> MediaRequest {
+        MediaRequest {
+            id: "r1".into(),
+            kind,
+            tmdb_id: 42,
+            title: "Title".into(),
+            year: Some(2020),
+            poster_url: None,
+            seasons: None,
+            episodes: None,
+            status,
+            requested_by: None,
+            requested_by_name: None,
+            reviewed_by: None,
+            note: None,
+            created_at: 0,
+            updated_at: 0,
+            progress: None,
+            air_status: None,
+            next_air_date: None,
+            last_refresh_at: None,
+        }
+    }
+
+    #[test]
+    fn needs_refresh_skips_terminal_and_throttles() {
+        let now = 1_000_000_000_000i64;
+        // Terminal requests never refresh.
+        assert!(!needs_refresh(&req(RequestKind::Movie, RequestStatus::Denied), now));
+        assert!(!needs_refresh(&req(RequestKind::Show, RequestStatus::Failed), now));
+        // Throttled: a very recent refresh blocks another one.
+        let mut recent = req(RequestKind::Movie, RequestStatus::Approved);
+        recent.last_refresh_at = Some(now - 1000);
+        assert!(!needs_refresh(&recent, now));
+        // Past the throttle window it refreshes again.
+        let mut old = req(RequestKind::Movie, RequestStatus::Approved);
+        old.last_refresh_at = Some(now - REFRESH_MIN_INTERVAL_MS - 1);
+        assert!(needs_refresh(&old, now));
+    }
+
+    #[test]
+    fn needs_refresh_movie_and_show_rules() {
+        let now = 1_000_000_000_000i64;
+        // A released movie already in the library will not change.
+        assert!(!needs_refresh(&req(RequestKind::Movie, RequestStatus::Available), now));
+        // Any other movie state refreshes.
+        assert!(needs_refresh(&req(RequestKind::Movie, RequestStatus::Approved), now));
+        // An ended show is skipped; an ongoing / unknown one refreshes.
+        let mut ended = req(RequestKind::Show, RequestStatus::Approved);
+        ended.air_status = Some("Ended".into());
+        assert!(!needs_refresh(&ended, now));
+        let mut ongoing = req(RequestKind::Show, RequestStatus::Approved);
+        ongoing.air_status = Some("Returning Series".into());
+        assert!(needs_refresh(&ongoing, now));
+        assert!(needs_refresh(&req(RequestKind::Show, RequestStatus::Approved), now));
+    }
+
+    fn wr(season: u32, episode: u32, air: Option<&str>, status: &str) -> db::WantedRow {
+        db::WantedRow {
+            id: format!("s{season}e{episode}"),
+            request_id: "r1".into(),
+            kind: "episode".into(),
+            tmdb_id: 42,
+            imdb_id: None,
+            title: "Title".into(),
+            year: Some(2020),
+            season: Some(season),
+            episode: Some(episode),
+            air_date: air.map(str::to_string),
+            status: status.into(),
+            last_search_at: None,
+        }
+    }
+
+    #[test]
+    fn tally_wanted_counts_aired_present_and_newly_available() {
+        use std::collections::HashSet;
+        let today = "2026-07-18";
+        let wanted = vec![
+            wr(1, 1, None, "wanted"),               // aired (null date), present -> newly available
+            wr(1, 2, Some("2030-01-01"), "wanted"), // future -> not aired, ignored
+            wr(1, 3, Some("2020-01-01"), "available"), // aired + present, already available
+            wr(1, 4, None, "wanted"),               // aired but not present
+        ];
+        let present: HashSet<(u32, u32)> = [(1, 1), (1, 3)].into_iter().collect();
+        let (aired, have, newly) = tally_wanted(&wanted, &present, today);
+        assert_eq!(aired, 3); // e1, e3, e4 (e2 unaired)
+        assert_eq!(have, 2); // e1, e3
+        assert_eq!(newly, vec!["s1e1".to_string()]); // e3 already available, not re-flagged
+    }
+
+    #[test]
+    fn tally_wanted_skips_rows_without_season_or_episode() {
+        use std::collections::HashSet;
+        let mut movie_row = wr(1, 1, None, "wanted");
+        movie_row.season = None;
+        movie_row.episode = None;
+        let present: HashSet<(u32, u32)> = HashSet::new();
+        let (aired, have, newly) = tally_wanted(&[movie_row], &present, "2026-07-18");
+        assert_eq!((aired, have, newly.len()), (0, 0, 0));
+    }
+
+    #[test]
+    fn today_ymd_is_well_formed() {
+        let today = today_ymd();
+        assert_eq!(today.len(), 10);
+        let bytes = today.as_bytes();
+        assert_eq!(bytes[4], b'-');
+        assert_eq!(bytes[7], b'-');
+        // The three components parse as numbers in range.
+        let parts: Vec<&str> = today.split('-').collect();
+        assert_eq!(parts.len(), 3);
+        let (y, m, d): (i32, u8, u8) =
+            (parts[0].parse().unwrap(), parts[1].parse().unwrap(), parts[2].parse().unwrap());
+        assert!(y >= 2020);
+        assert!((1..=12).contains(&m));
+        assert!((1..=31).contains(&d));
+    }
 }

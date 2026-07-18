@@ -126,3 +126,71 @@ pub fn set_marker(
     )?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    fn pool_with_item() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-mark-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = crate::init(&path).unwrap();
+        let conn = pool.get().unwrap();
+        conn.execute("INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','shows','/x','t')", []).unwrap();
+        conn.execute(
+            "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('e1','episode','Ep','mkv','lib','t')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        pool
+    }
+
+    #[test]
+    fn set_read_and_order_markers() {
+        let p = pool_with_item();
+        assert!(!has_markers(&p, "e1").unwrap());
+        assert!(item_ids_with_markers(&p).unwrap().is_empty());
+
+        // Insert credits then intro; reads come back ordered by start.
+        set_marker(&p, "e1", MarkerKind::Credits, 60_000, 65_000, "chapters").unwrap();
+        set_marker(&p, "e1", MarkerKind::Intro, 0, 5_000, "chapters").unwrap();
+
+        assert!(has_markers(&p, "e1").unwrap());
+        assert!(item_ids_with_markers(&p).unwrap().contains("e1"));
+
+        let conn = p.get().unwrap();
+        let markers = markers_for_item(&conn, "e1").unwrap();
+        assert_eq!(markers.len(), 2);
+        assert_eq!(markers[0].kind, MarkerKind::Intro);
+        assert_eq!(markers[0].start_ms, 0);
+        assert_eq!(markers[0].end_ms, 5_000);
+        assert_eq!(markers[1].kind, MarkerKind::Credits);
+
+        let batch = markers_for_items(&conn, &["e1", "ghost"]).unwrap();
+        assert_eq!(batch["e1"].len(), 2);
+        assert!(!batch.contains_key("ghost"));
+    }
+
+    #[test]
+    fn provenance_precedence() {
+        let p = pool_with_item();
+        // fingerprint (rank 2) sets the intro.
+        set_marker(&p, "e1", MarkerKind::Intro, 0, 5_000, "fingerprint").unwrap();
+        // chapters (rank 1) must NOT clobber the higher-ranked fingerprint marker.
+        set_marker(&p, "e1", MarkerKind::Intro, 999, 1_000, "chapters").unwrap();
+        let conn = p.get().unwrap();
+        assert_eq!(markers_for_item(&conn, "e1").unwrap()[0].end_ms, 5_000);
+        drop(conn);
+
+        // manual (rank 3) overrides fingerprint.
+        set_marker(&p, "e1", MarkerKind::Intro, 100, 200, "manual").unwrap();
+        let conn = p.get().unwrap();
+        let m = &markers_for_item(&conn, "e1").unwrap()[0];
+        assert_eq!((m.start_ms, m.end_ms), (100, 200));
+    }
+}

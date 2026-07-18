@@ -513,3 +513,235 @@ pub fn delete_access_token(pool: &Pool, token: &str) -> Result<()> {
     conn.execute("DELETE FROM access_tokens WHERE token = ?1", params![token])?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kroma_domain::Permission;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static SEQ: AtomicU32 = AtomicU32::new(0);
+
+    /// Far-future expiry (unix seconds) so tokens/invites count as live.
+    const FUTURE: i64 = 9_999_999_999;
+
+    fn pool() -> Pool {
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!("kroma-acct-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        crate::init(&path).unwrap()
+    }
+
+    fn mk_user(pool: &Pool, email: &str, username: &str) -> User {
+        create_user(pool, email, username, "hash", &[Permission::Playback]).unwrap()
+    }
+
+    #[test]
+    fn create_user_count_and_lookups() {
+        let p = pool();
+        assert_eq!(user_count(&p).unwrap(), 0);
+        let u = create_user(&p, "Alice@Example.com", "alice", "pw-hash", &[Permission::Playback, Permission::UsersManage])
+            .unwrap();
+        assert_eq!(user_count(&p).unwrap(), 1);
+        assert!(!u.id.is_empty());
+        assert_eq!(u.permissions, vec![Permission::Playback, Permission::UsersManage]);
+        assert!(!u.has_pin);
+
+        // Email lookup is case-insensitive and returns the stored hash.
+        let (found, hash) = find_user_by_email(&p, "alice@example.com").unwrap().unwrap();
+        assert_eq!(found.id, u.id);
+        assert_eq!(hash, "pw-hash");
+        assert!(find_user_by_email(&p, "nobody@x.com").unwrap().is_none());
+
+        // Login accepts email (case-insensitive) OR username.
+        assert_eq!(find_user_by_login(&p, "ALICE@example.com").unwrap().unwrap().0.id, u.id);
+        assert_eq!(find_user_by_login(&p, "alice").unwrap().unwrap().0.id, u.id);
+        assert!(find_user_by_login(&p, "ghost").unwrap().is_none());
+
+        // Fetch by id + list.
+        assert_eq!(user_by_id(&p, &u.id).unwrap().unwrap().username, "alice");
+        assert!(user_by_id(&p, "missing").unwrap().is_none());
+        let list = list_users(&p).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].username, "alice");
+        assert!(!list[0].has_pin);
+    }
+
+    #[test]
+    fn username_taken_checks_username_and_email() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        assert!(username_taken(&p, "alice", None).unwrap());
+        // The email column also guards (shadowing another account's email login).
+        assert!(username_taken(&p, "a@b.c", None).unwrap());
+        assert!(!username_taken(&p, "bob", None).unwrap());
+        // Excluding the owner's own id frees their own username.
+        assert!(!username_taken(&p, "alice", Some(&u.id)).unwrap());
+        assert!(username_taken(&p, "alice", Some("other-id")).unwrap());
+    }
+
+    #[test]
+    fn avatar_get_set_and_urls() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        assert!(avatar_urls(&p).unwrap().is_empty());
+        set_user_avatar(&p, &u.id, Some("/api/images/av.webp")).unwrap();
+        assert_eq!(avatar_urls(&p).unwrap(), vec!["/api/images/av.webp".to_string()]);
+        assert_eq!(user_by_id(&p, &u.id).unwrap().unwrap().avatar_url.as_deref(), Some("/api/images/av.webp"));
+        // Clearing removes it from the non-null set.
+        set_user_avatar(&p, &u.id, None).unwrap();
+        assert!(avatar_urls(&p).unwrap().is_empty());
+    }
+
+    #[test]
+    fn language_preferences_round_trip() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        set_user_language(&p, &u.id, Some("fr")).unwrap();
+        set_user_audio_language(&p, &u.id, Some("ja")).unwrap();
+        set_user_subtitle_language(&p, &u.id, Some("off")).unwrap();
+        let got = user_by_id(&p, &u.id).unwrap().unwrap();
+        assert_eq!(got.language.as_deref(), Some("fr"));
+        assert_eq!(got.audio_language.as_deref(), Some("ja"));
+        assert_eq!(got.subtitle_language.as_deref(), Some("off"));
+        // Clearing a preference resets it to NULL.
+        set_user_language(&p, &u.id, None).unwrap();
+        assert!(user_by_id(&p, &u.id).unwrap().unwrap().language.is_none());
+    }
+
+    #[test]
+    fn password_and_email_updates() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        assert_eq!(user_password_hash(&p, &u.id).unwrap().as_deref(), Some("hash"));
+        assert!(user_password_hash(&p, "missing").unwrap().is_none());
+        set_user_password(&p, &u.id, "new-hash").unwrap();
+        assert_eq!(user_password_hash(&p, &u.id).unwrap().as_deref(), Some("new-hash"));
+
+        set_user_email(&p, &u.id, "new@b.c").unwrap();
+        assert!(find_user_by_email(&p, "new@b.c").unwrap().is_some());
+        assert!(find_user_by_email(&p, "a@b.c").unwrap().is_none());
+    }
+
+    #[test]
+    fn pin_hash_set_clear_and_has_pin_flag() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        assert!(user_pin_hash(&p, &u.id).unwrap().is_none());
+        assert!(!user_by_id(&p, &u.id).unwrap().unwrap().has_pin);
+
+        set_user_pin(&p, &u.id, Some("pin-hash")).unwrap();
+        assert_eq!(user_pin_hash(&p, &u.id).unwrap().as_deref(), Some("pin-hash"));
+        assert!(user_by_id(&p, &u.id).unwrap().unwrap().has_pin);
+        // The public list also reflects the PIN state.
+        assert!(list_users(&p).unwrap()[0].has_pin);
+
+        set_user_pin(&p, &u.id, None).unwrap();
+        assert!(user_pin_hash(&p, &u.id).unwrap().is_none());
+        assert!(!user_by_id(&p, &u.id).unwrap().unwrap().has_pin);
+    }
+
+    #[test]
+    fn invites_create_list_consume_and_delete() {
+        let p = pool();
+        let owner = mk_user(&p, "o@b.c", "owner");
+        create_invite(&p, "inv1", &[Permission::Playback, Permission::RequestsCreate], &owner.id, FUTURE).unwrap();
+
+        let got = get_invite(&p, "inv1").unwrap().unwrap();
+        assert_eq!(got.token, "inv1");
+        assert_eq!(got.permissions, vec![Permission::Playback, Permission::RequestsCreate]);
+        assert!(!got.used);
+        assert_eq!(list_invites(&p).unwrap().len(), 1);
+
+        // Consuming a live invite yields its permissions and flips it to used.
+        let perms = consume_invite(&p, "inv1").unwrap().unwrap();
+        assert_eq!(perms, vec![Permission::Playback, Permission::RequestsCreate]);
+        assert!(get_invite(&p, "inv1").unwrap().unwrap().used);
+        // A used invite is no longer consumable nor listed.
+        assert!(consume_invite(&p, "inv1").unwrap().is_none());
+        assert!(list_invites(&p).unwrap().is_empty());
+
+        // Expired invites can't be consumed and aren't listed.
+        create_invite(&p, "old", &[Permission::Playback], &owner.id, 1).unwrap();
+        assert!(consume_invite(&p, "old").unwrap().is_none());
+        assert!(list_invites(&p).unwrap().is_empty());
+        assert!(consume_invite(&p, "unknown").unwrap().is_none());
+
+        // Delete drops the row.
+        create_invite(&p, "inv2", &[Permission::Playback], &owner.id, FUTURE).unwrap();
+        delete_invite(&p, "inv2").unwrap();
+        assert!(get_invite(&p, "inv2").unwrap().is_none());
+    }
+
+    #[test]
+    fn sessions_resolve_and_expire() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        create_session(&p, "sess-tok", &u.id, FUTURE, Some("acc-tok")).unwrap();
+        assert_eq!(session_user(&p, "sess-tok").unwrap().unwrap().id, u.id);
+        // The device id is short_hash of the minting access token.
+        assert_eq!(
+            session_device_id(&p, "sess-tok").unwrap(),
+            Some(kroma_primitives::short_hash("acc-tok"))
+        );
+
+        // Expired sessions resolve to nobody.
+        create_session(&p, "old-sess", &u.id, 1, None).unwrap();
+        assert!(session_user(&p, "old-sess").unwrap().is_none());
+        // A session with no parent token has no device id.
+        assert!(session_device_id(&p, "old-sess").unwrap().is_none());
+
+        delete_session(&p, "sess-tok").unwrap();
+        assert!(session_user(&p, "sess-tok").unwrap().is_none());
+    }
+
+    #[test]
+    fn access_tokens_lifecycle_and_pin_verified() {
+        let p = pool();
+        let u = mk_user(&p, "a@b.c", "alice");
+        create_access_token(&p, "at1", &u.id, FUTURE, false, Some("Firefox")).unwrap();
+
+        let (user, pin_verified) = access_token_user(&p, "at1").unwrap().unwrap();
+        assert_eq!(user.id, u.id);
+        assert!(!pin_verified);
+
+        // Flip pin_verified on; reset clears it for every device.
+        set_access_pin_verified(&p, "at1", true).unwrap();
+        assert!(access_token_user(&p, "at1").unwrap().unwrap().1);
+        reset_access_pin_verified(&p, &u.id).unwrap();
+        assert!(!access_token_user(&p, "at1").unwrap().unwrap().1);
+
+        // Listing exposes a non-secret id + user agent.
+        let rows = list_access_tokens(&p, &u.id).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, kroma_primitives::short_hash("at1"));
+        assert_eq!(rows[0].user_agent.as_deref(), Some("Firefox"));
+
+        // Expired tokens neither resolve nor list.
+        create_access_token(&p, "old-at", &u.id, 1, false, None).unwrap();
+        assert!(access_token_user(&p, "old-at").unwrap().is_none());
+        assert_eq!(list_access_tokens(&p, &u.id).unwrap().len(), 1);
+
+        delete_access_token(&p, "at1").unwrap();
+        assert!(access_token_user(&p, "at1").unwrap().is_none());
+    }
+
+    #[test]
+    fn delete_access_token_by_id_scopes_to_owner_and_drops_sessions() {
+        let p = pool();
+        let alice = mk_user(&p, "a@b.c", "alice");
+        let bob = mk_user(&p, "b@b.c", "bob");
+        create_access_token(&p, "at-alice", &alice.id, FUTURE, true, None).unwrap();
+        create_session(&p, "sess-alice", &alice.id, FUTURE, Some("at-alice")).unwrap();
+
+        let id = kroma_primitives::short_hash("at-alice");
+        // Bob can't revoke Alice's device (scoped to user_id).
+        assert!(!delete_access_token_by_id(&p, &bob.id, &id).unwrap());
+        // Alice revokes it: token gone and its session signed out.
+        assert!(delete_access_token_by_id(&p, &alice.id, &id).unwrap());
+        assert!(access_token_user(&p, "at-alice").unwrap().is_none());
+        assert!(session_user(&p, "sess-alice").unwrap().is_none());
+        // Unknown id is a clean false.
+        assert!(!delete_access_token_by_id(&p, &alice.id, "deadbeef").unwrap());
+    }
+}

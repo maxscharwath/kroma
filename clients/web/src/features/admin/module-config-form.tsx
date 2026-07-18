@@ -22,7 +22,8 @@ function initial(field: ConfigField, stored: unknown): ConfigValue {
       return Number.isFinite(n) ? n : 0;
     }
     default:
-      return raw == null ? '' : String(raw);
+      if (raw == null) return '';
+      return typeof raw === 'object' ? JSON.stringify(raw) : String(raw);
   }
 }
 

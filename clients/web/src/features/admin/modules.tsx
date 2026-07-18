@@ -70,7 +70,7 @@ export function ModulesAdminPage() {
       const report = await installFromStore(id);
       setNotice(installSummary(report));
       await refreshModules();
-      await reloadCatalog();
+      reloadCatalog();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -121,7 +121,7 @@ export function ModulesAdminPage() {
     try {
       await adminApi(`/store/${encodeURIComponent(id)}`, { method: 'DELETE' });
       await refreshModules();
-      await reloadCatalog();
+      reloadCatalog();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -167,7 +167,7 @@ export function ModulesAdminPage() {
         installedIds={installedIds}
         busy={busy}
         onInstall={(id) => void installFromRegistry(id)}
-        onReload={() => void reloadCatalog()}
+        onReload={() => reloadCatalog()}
       />
 
       <section className="flex flex-col gap-3">

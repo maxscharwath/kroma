@@ -216,7 +216,6 @@ fn enrich_episodes(
     show_id: &str,
     tv_id: u64,
 ) {
-    use db::translations::{self, TransData};
     let Ok(Some(detail)) = db::get_show(pool, show_id) else { return };
     let have_cast = db::seasons_with_cast(pool, show_id).unwrap_or_default();
     for season in &detail.seasons {
@@ -238,58 +237,95 @@ fn enrich_episodes(
         let data = &per_lang[&primary_key];
 
         // Per-episode stills (legacy blob) from the primary language, as before.
-        if !missing.is_empty() && !data.episodes.is_empty() {
-            let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
-                data.episodes.iter().map(|a| (a.episode, a)).collect();
-            for ep in &missing {
-                let Some(num) = ep.episode else { continue };
-                let Some(art) = by_num.get(&num) else { continue };
-                if art.still_url.is_none() && art.overview.is_none() {
-                    continue;
-                }
-                let meta = image::localize(data_dir, episode_metadata(art));
-                match db::set_item_metadata(pool, &ep.id, &meta) {
-                    Ok(()) => bus.publish(ServerEvent::ItemUpdated { id: ep.id.clone() }),
-                    Err(e) => warn!(id = %ep.id, error = %e, "failed to store episode metadata"),
-                }
-            }
-        }
+        store_episode_stills(pool, data_dir, bus, &missing, data);
+        // Per-language episode text (title + overview) into the translation cache.
+        store_episode_translations(pool, &per_lang, &season.episodes);
+        // Season cast (legacy blob) + per-language character names.
+        store_season_cast(pool, data_dir, show_id, season.number, needs_cast, &per_lang, data);
+    }
+}
 
-        // Per-language episode text (title + overview) into the translation cache,
-        // for every episode of the season (the still stays invariant on the blob).
-        for (lang, sdata) in &per_lang {
-            let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
-                sdata.episodes.iter().map(|a| (a.episode, a)).collect();
-            for ep in &season.episodes {
-                let Some(num) = ep.episode else { continue };
-                let Some(art) = by_num.get(&num) else { continue };
-                let td = TransData { title: art.name.clone(), overview: art.overview.clone(), ..Default::default() };
-                if !td.is_empty() {
-                    let _ = translations::put(pool, "episode", &ep.id, lang, translations::TMDB, &td);
-                }
-            }
+/// Store per-episode stills (legacy blob) from the primary language for the
+/// episodes still missing a backdrop, publishing an update for each write.
+fn store_episode_stills(
+    pool: &Pool,
+    data_dir: &Path,
+    bus: &Bus,
+    missing: &[&MediaItem],
+    data: &metadata::SeasonData,
+) {
+    if missing.is_empty() || data.episodes.is_empty() {
+        return;
+    }
+    let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
+        data.episodes.iter().map(|a| (a.episode, a)).collect();
+    for ep in missing {
+        let Some(num) = ep.episode else { continue };
+        let Some(art) = by_num.get(&num) else { continue };
+        if art.still_url.is_none() && art.overview.is_none() {
+            continue;
         }
+        let meta = image::localize(data_dir, episode_metadata(art));
+        match db::set_item_metadata(pool, &ep.id, &meta) {
+            Ok(()) => bus.publish(ServerEvent::ItemUpdated { id: ep.id.clone() }),
+            Err(e) => warn!(id = %ep.id, error = %e, "failed to store episode metadata"),
+        }
+    }
+}
 
-        // Season cast: localize the primary-language photos (legacy season_meta
-        // blob), then store per-language character names in the translation cache
-        // aligned by index to that stored cast (TMDB keeps cast order across langs).
-        if needs_cast && !data.cast.is_empty() {
-            let carrier =
-                image::localize(data_dir, Metadata { cast: data.cast.clone(), ..blank_metadata() });
-            if let Err(e) = db::set_season_cast(pool, show_id, season.number, &carrier.cast) {
-                warn!(show = %show_id, season = season.number, error = %e, "failed to store season cast");
-            }
-            let sc_id = format!("{show_id}:{}", season.number);
-            for (lang, sdata) in &per_lang {
-                if sdata.cast.is_empty() {
-                    continue;
-                }
-                let characters: Vec<Option<String>> =
-                    sdata.cast.iter().map(|c| c.character.clone()).collect();
-                let td = TransData { characters, ..Default::default() };
-                let _ = translations::put(pool, "season_cast", &sc_id, lang, translations::TMDB, &td);
+/// Store per-language episode text (title + overview) into the translation cache,
+/// for every episode of the season (the still stays invariant on the blob).
+fn store_episode_translations(
+    pool: &Pool,
+    per_lang: &std::collections::HashMap<String, metadata::SeasonData>,
+    episodes: &[MediaItem],
+) {
+    use db::translations::{self, TransData};
+    for (lang, sdata) in per_lang {
+        let by_num: std::collections::HashMap<u32, &metadata::EpisodeArt> =
+            sdata.episodes.iter().map(|a| (a.episode, a)).collect();
+        for ep in episodes {
+            let Some(num) = ep.episode else { continue };
+            let Some(art) = by_num.get(&num) else { continue };
+            let td = TransData { title: art.name.clone(), overview: art.overview.clone(), ..Default::default() };
+            if !td.is_empty() {
+                let _ = translations::put(pool, "episode", &ep.id, lang, translations::TMDB, &td);
             }
         }
+    }
+}
+
+/// Season cast: localize the primary-language photos (legacy season_meta blob),
+/// then store per-language character names in the translation cache aligned by
+/// index to that stored cast (TMDB keeps cast order across languages).
+#[allow(clippy::too_many_arguments)]
+fn store_season_cast(
+    pool: &Pool,
+    data_dir: &Path,
+    show_id: &str,
+    season_number: u32,
+    needs_cast: bool,
+    per_lang: &std::collections::HashMap<String, metadata::SeasonData>,
+    data: &metadata::SeasonData,
+) {
+    use db::translations::{self, TransData};
+    if !needs_cast || data.cast.is_empty() {
+        return;
+    }
+    let carrier =
+        image::localize(data_dir, Metadata { cast: data.cast.clone(), ..blank_metadata() });
+    if let Err(e) = db::set_season_cast(pool, show_id, season_number, &carrier.cast) {
+        warn!(show = %show_id, season = season_number, error = %e, "failed to store season cast");
+    }
+    let sc_id = format!("{show_id}:{season_number}");
+    for (lang, sdata) in per_lang {
+        if sdata.cast.is_empty() {
+            continue;
+        }
+        let characters: Vec<Option<String>> =
+            sdata.cast.iter().map(|c| c.character.clone()).collect();
+        let td = TransData { characters, ..Default::default() };
+        let _ = translations::put(pool, "season_cast", &sc_id, lang, translations::TMDB, &td);
     }
 }
 
@@ -348,39 +384,53 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
         db::set_item_metadata(&eng.pool, &job.id, &meta)
     };
     match write {
-        Ok(()) => {
-            // Dual-write the language-agnostic cache: the invariant core once, plus
-            // a translation row per supported language (title/overview/genres/
-            // characters). Best-effort a failure here must not drop the blob/art.
-            let kind = if job.is_show { db::metadata_core::SHOW } else { db::metadata_core::ITEM };
-            if let Err(e) = db::store_localized(&eng.pool, kind, &job.id, &meta, &resolved.by_lang) {
-                warn!(id = %job.id, error = %e, "failed to store localized metadata cache");
-            }
-            // Best-effort: a vector failure must not drop the art.
-            if let Err(e) = db::set_item_vector(&eng.pool, &job.id, &vector) {
-                warn!(id = %job.id, error = %e, "failed to store embedding");
-            }
-            // Per-episode stills (+ per-language episode title/overview) for shows,
-            // once the show itself has resolved. Best-effort.
-            if job.is_show && meta.tmdb_id != 0 {
-                enrich_episodes(
-                    &eng.pool, &eng.api_key, &eng.language, &langs, &eng.data_dir, &eng.bus,
-                    &job.id, meta.tmdb_id,
-                );
-            }
-            counters.resolved.fetch_add(1, Ordering::Relaxed);
-            eng.bus.publish(if job.is_show {
-                ServerEvent::ShowUpdated { id: job.id.clone() }
-            } else {
-                ServerEvent::ItemUpdated { id: job.id.clone() }
-            });
-        }
+        Ok(()) => on_write_ok(eng, counters, &job, &meta, &vector, &resolved.by_lang, &langs),
         Err(e) => {
             counters.failed.fetch_add(1, Ordering::Relaxed);
             warn!(id = %job.id, error = %e, "failed to store metadata");
         }
     }
     bump(eng, counters, total, activity);
+}
+
+/// Post-write side effects for a successfully-stored title: dual-write the
+/// language-agnostic cache and the embedding, run the incremental per-season
+/// episode pass for shows, bump the resolved counter and publish the live update.
+/// All secondary writes are best-effort a failure must not drop the blob/art.
+#[allow(clippy::too_many_arguments)]
+fn on_write_ok(
+    eng: &Engine,
+    counters: &Counters,
+    job: &Job,
+    meta: &Metadata,
+    vector: &[f32],
+    by_lang: &std::collections::HashMap<String, Metadata>,
+    langs: &[&str],
+) {
+    // Dual-write the language-agnostic cache: the invariant core once, plus a
+    // translation row per supported language (title/overview/genres/characters).
+    let kind = if job.is_show { db::metadata_core::SHOW } else { db::metadata_core::ITEM };
+    if let Err(e) = db::store_localized(&eng.pool, kind, &job.id, meta, by_lang) {
+        warn!(id = %job.id, error = %e, "failed to store localized metadata cache");
+    }
+    // Best-effort: a vector failure must not drop the art.
+    if let Err(e) = db::set_item_vector(&eng.pool, &job.id, vector) {
+        warn!(id = %job.id, error = %e, "failed to store embedding");
+    }
+    // Per-episode stills (+ per-language episode title/overview) for shows, once
+    // the show itself has resolved. Best-effort.
+    if job.is_show && meta.tmdb_id != 0 {
+        enrich_episodes(
+            &eng.pool, &eng.api_key, &eng.language, langs, &eng.data_dir, &eng.bus,
+            &job.id, meta.tmdb_id,
+        );
+    }
+    counters.resolved.fetch_add(1, Ordering::Relaxed);
+    eng.bus.publish(if job.is_show {
+        ServerEvent::ShowUpdated { id: job.id.clone() }
+    } else {
+        ServerEvent::ItemUpdated { id: job.id.clone() }
+    });
 }
 
 /// Pick the primary language key from a per-language map: the household base code
@@ -496,6 +546,31 @@ pub fn enrich_one(state: &SharedState, id: &str, is_show: bool) -> anyhow::Resul
     Ok(())
 }
 
+/// One tracked-run worker: drain the shared queue (bailing on cancel) and process
+/// each job. A [`FinishGuard`] marks this worker finished on EVERY exit path,
+/// including a panic in `process_job`: the poll loop terminates on `finished ==
+/// worker_count`, so a bare `fetch_add` after the loop would be skipped by an
+/// unwinding worker and hang the (uncancellable) job forever.
+fn enrich_worker(
+    eng: &Engine,
+    queue: &Mutex<Vec<Job>>,
+    counters: &Counters,
+    cancel: &AtomicBool,
+    total: usize,
+) {
+    let _done = FinishGuard(counters);
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let job = match queue.lock().unwrap().pop() {
+            Some(j) => j,
+            None => break,
+        };
+        process_job(eng, counters, total, None, job);
+    }
+}
+
 /// Re-enrich the catalog synchronously (blocking the caller) so a job can track
 /// real progress, duration and per-run counts. Reports via `progress(done,
 /// total)` and stops early when `cancelled()` returns true. Unlike
@@ -526,21 +601,7 @@ pub fn run_tracked(
         let (eng, queue, counters, cancel) =
             (eng.clone(), queue.clone(), counters.clone(), cancel.clone());
         handles.push(thread::spawn(move || {
-            // Mark this worker finished on EVERY exit path, including a panic in
-            // process_job: the poll loop below terminates on `finished ==
-            // worker_count`, so a bare `fetch_add` after the loop would be skipped
-            // by an unwinding worker and hang the (uncancellable) job forever.
-            let _done = FinishGuard(&counters);
-            loop {
-                if cancel.load(Ordering::Relaxed) {
-                    break;
-                }
-                let job = match queue.lock().unwrap().pop() {
-                    Some(j) => j,
-                    None => break,
-                };
-                process_job(&eng, &counters, total, None, job);
-            }
+            enrich_worker(&eng, &queue, &counters, &cancel, total)
         }));
     }
     // Poll progress + propagate cancellation from this (blocking) job thread.

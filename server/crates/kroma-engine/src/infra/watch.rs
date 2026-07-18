@@ -42,29 +42,35 @@ pub fn spawn(state: SharedState, baseline: u64) {
         let watcher = make_watcher(&state, tx); // kept alive for the thread's life
         info!(fs_events = watcher.is_some(), "library watcher started");
 
-        let mut last = baseline;
-        loop {
-            // Re-read the cadence each iteration so an admin change takes effect
-            // without a restart. `0` → block on FS events only (no periodic tick).
-            let interval = watch_interval(&state);
-            let recv = if interval > 0 {
-                rx.recv_timeout(Duration::from_secs(interval))
-            } else {
-                rx.recv().map_err(|_| RecvTimeoutError::Disconnected)
-            };
-            let from_event = match recv {
-                Ok(()) => true,
-                Err(RecvTimeoutError::Timeout) => false, // periodic tick
-                Err(RecvTimeoutError::Disconnected) => break,
-            };
-            // Coalesce a burst of FS events into a single re-scan.
-            if from_event {
-                while rx.recv_timeout(DEBOUNCE).is_ok() {}
-            }
-            trigger_if_changed(&state, &handle, &mut last);
-        }
+        watch_loop(&state, &handle, &rx, baseline);
         drop(watcher);
     });
+}
+
+/// The debounced watcher loop: re-scan on each periodic tick or coalesced burst
+/// of FS events, until the channel disconnects (watcher dropped).
+fn watch_loop(state: &SharedState, handle: &Handle, rx: &mpsc::Receiver<()>, baseline: u64) {
+    let mut last = baseline;
+    loop {
+        // Re-read the cadence each iteration so an admin change takes effect
+        // without a restart. `0` → block on FS events only (no periodic tick).
+        let interval = watch_interval(state);
+        let recv = if interval > 0 {
+            rx.recv_timeout(Duration::from_secs(interval))
+        } else {
+            rx.recv().map_err(|_| RecvTimeoutError::Disconnected)
+        };
+        let from_event = match recv {
+            Ok(()) => true,
+            Err(RecvTimeoutError::Timeout) => false, // periodic tick
+            Err(RecvTimeoutError::Disconnected) => break,
+        };
+        // Coalesce a burst of FS events into a single re-scan.
+        if from_event {
+            while rx.recv_timeout(DEBOUNCE).is_ok() {}
+        }
+        trigger_if_changed(state, handle, &mut last);
+    }
 }
 
 /// The periodic re-scan cadence (seconds): the `watchIntervalSecs` setting, or

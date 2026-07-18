@@ -140,6 +140,40 @@ function handleCreditsKey(
   return false;
 }
 
+/** Pointer + keyboard handlers for the player root / stage, hoisted out of the
+ * component so its cognitive complexity stays low. The stage click/key pair is a
+ * pointer convenience (toggle play, double-click fullscreen); D-pad control still
+ * flows through usePlayerKeys, so the key handler stops propagation. */
+function playerInputHandlers(
+  nav: ReturnType<typeof usePlayerNav>,
+  c: PlayerController,
+  flags: PlayerFlags,
+  locked: boolean,
+) {
+  return {
+    onPointerMove: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch') nav.poke();
+    },
+    onStageClick: () => {
+      if (!locked) {
+        nav.poke();
+        c.togglePlay();
+      }
+    },
+    onStageKeyDown: (e: React.KeyboardEvent) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !locked) {
+        e.preventDefault();
+        e.stopPropagation();
+        nav.poke();
+        c.togglePlay();
+      }
+    },
+    onStageDoubleClick: () => {
+      if (flags.fullscreen) c.toggleFullscreen();
+    },
+  };
+}
+
 /**
  * The unified player chrome (§14): one component for web + TV. It owns the nav
  * machine, the keyboard router, the credits autoplay and the settings / PiP
@@ -221,40 +255,27 @@ export function Player(props: Readonly<PlayerProps>) {
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
   // the chrome auto-hides.
   const chromeFade = chromeShown ? 'opacity-100' : 'pointer-events-none opacity-0';
+  const input = playerInputHandlers(nav, c, flags, locked);
 
   return (
     <div
       ref={props.rootRef}
       className={`fixed inset-0 z-60 ${c.surface === 'video' ? 'bg-black' : 'bg-transparent'} ${nav.revealed ? '' : 'cursor-none'}`}
-      onPointerMove={(e) => {
-        if (e.pointerType !== 'touch') nav.poke();
-      }}
+      onPointerMove={input.onPointerMove}
     >
-      {/* stage: video + subtitles, transformed together for settings / PiP. The
-          click / key pair is a pointer convenience (toggle play, double-click
-          fullscreen); D-pad control still flows through usePlayerKeys, so the
-          element handler stops propagation to avoid a double toggle when focused. */}
+      {/* stage: video + subtitles, transformed together for settings / PiP.
+          role="button" (not a native <button>): it wraps the <video> surface +
+          subtitles + spinner, which a button may not contain, and legacy-TV
+          webviews render it more reliably. Keyboard parity via onStageKeyDown. */}
       <div
         role="button"
         tabIndex={0}
         aria-label={c.playing ? t('player.pause') : t('player.play')}
         className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] ${shrunk ? 'bg-black shadow-pop' : 'bg-transparent'}`}
         style={stage}
-        onClick={() => {
-          if (!locked) {
-            nav.poke();
-            c.togglePlay();
-          }
-        }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !locked) {
-            e.preventDefault();
-            e.stopPropagation();
-            nav.poke();
-            c.togglePlay();
-          }
-        }}
-        onDoubleClick={() => flags.fullscreen && c.toggleFullscreen()}
+        onClick={input.onStageClick}
+        onKeyDown={input.onStageKeyDown}
+        onDoubleClick={input.onStageDoubleClick}
       >
         {props.surface}
         <SubtitleRenderer

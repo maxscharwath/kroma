@@ -45,15 +45,17 @@ COPY server/modules ./server/modules
 # rarely, so the expensive dependency cache stays warm; the rest of packages/
 # lands with the real sources below.
 COPY packages/core/src/locales ./packages/core/src/locales
-RUN cd server \
-    && mkdir -p src && echo 'fn main() {}' > src/main.rs \
-    && cargo build --release \
+WORKDIR /src/server
+RUN mkdir -p src && echo 'fn main() {}' > src/main.rs \
+    && cargo build --locked --release \
     && rm -rf src
 # Real sources: the server crate + the shared locale catalogs it include_str!s at
 # compile time (crates/kroma-engine/src/i18n.rs -> ../../../packages/core/src/locales/*.json).
+WORKDIR /src
 COPY packages ./packages
 COPY server ./server
-RUN cd server && touch src/main.rs && cargo build --release
+WORKDIR /src/server
+RUN touch src/main.rs && cargo build --locked --release
 # → /src/server/target/release/kroma-server
 
 # ---- 3) Runtime ------------------------------------------------------------
@@ -62,7 +64,7 @@ FROM debian:bookworm-slim AS runtime
 # managed-cloudflared download; ca-certificates for outbound TLS. (openssl is
 # vendored + statically linked into the binary, so no libssl runtime dep.)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/server/target/release/kroma-server /usr/local/bin/kroma-server

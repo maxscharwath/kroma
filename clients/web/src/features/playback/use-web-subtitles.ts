@@ -33,7 +33,7 @@ export interface WebSubtitles {
  */
 export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
   const { user } = useAuth();
-  const [activeIndex, setActive] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [downloaded, setDownloaded] = useState<DownloadedSub[]>([]);
   const [caps, setCaps] = useState<SubCapabilities | null>(null);
 
@@ -43,7 +43,7 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
     if (prefApplied.current || !user) return;
     prefApplied.current = true;
     const idx = preferredSubIndex(item.subs, user.subtitleLanguage);
-    if (idx != null) setActive(idx);
+    if (idx != null) setActiveIndex(idx);
   }, [user, item.subs]);
 
   // Initial fetch of already-downloaded/generated tracks + capabilities.
@@ -70,7 +70,7 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
         .then((list) => {
           setDownloaded(list);
           const i = list.findIndex((d) => d.id === subId);
-          if (i >= 0) setActive(1000 + i);
+          if (i >= 0) setActiveIndex(1000 + i);
         })
         .catch(() => undefined);
     },
@@ -115,7 +115,7 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
       const di = downloaded.findIndex((p) => p.id === subId);
       setDownloaded((prev) => prev.filter((p) => p.id !== subId));
       if (di >= 0) {
-        setActive((cur) => {
+        setActiveIndex((cur) => {
           if (cur == null || cur < 1000) return cur;
           if (cur === 1000 + di) return null;
           if (cur > 1000 + di) return cur - 1;
@@ -181,5 +181,5 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
       ? t('player.subtitlesOff')
       : active?.label || langName(t, active?.language) || t('player.langUnknown');
 
-  return { subtitles, activeIndex, setActive, subtitleGen, label };
+  return { subtitles, activeIndex, setActive: setActiveIndex, subtitleGen, label };
 }

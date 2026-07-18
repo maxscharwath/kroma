@@ -55,34 +55,41 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
             continue;
         };
         for season in &detail.seasons {
-            let mut parts = vec![mode.clone()];
-            let mut playable = 0usize;
-            let mut unreadable = false;
-            for ep in &season.episodes {
-                if let (Some(abs), Some(d)) = (ep.abs_path.as_deref(), ep.duration_ms) {
-                    if d > 0 {
-                        playable += 1;
-                        let sig = super::sig_for_path(abs);
-                        // An unreadable episode (mount blip) must not perturb the
-                        // season hash, or the whole season re-fingerprints on every
-                        // flap. Flag the season unreadable so `reconcile` skips it.
-                        unreadable |= sig == crate::db::pipeline::UNREADABLE_SIG;
-                        parts.push(sig);
-                    }
-                }
+            if let Some(sig) = season_signature(&mode, season) {
+                out.push((format!("{}#{}", show.id, season.number), sig));
             }
-            if playable == 0 {
-                continue; // no probed episodes yet: wait for probe/scan
-            }
-            let sig = if unreadable {
-                crate::db::pipeline::UNREADABLE_SIG.to_string()
-            } else {
-                crate::services::scan::short_hash(&parts.join("|"))
-            };
-            out.push((format!("{}#{}", show.id, season.number), sig));
         }
     }
     Ok(out)
+}
+
+/// The ledger signature for one season: detection mode + every playable episode
+/// file's `mtime:size`. `None` when the season has no probed episodes yet (wait
+/// for probe/scan). An unreadable episode (mount blip) collapses the whole season
+/// to [`UNREADABLE_SIG`](crate::db::pipeline::UNREADABLE_SIG) so `reconcile` skips
+/// it rather than re-fingerprinting on every flap.
+fn season_signature(mode: &str, season: &crate::model::Season) -> Option<String> {
+    let mut parts = vec![mode.to_string()];
+    let mut playable = 0usize;
+    let mut unreadable = false;
+    for ep in &season.episodes {
+        if let (Some(abs), Some(d)) = (ep.abs_path.as_deref(), ep.duration_ms) {
+            if d > 0 {
+                playable += 1;
+                let sig = super::sig_for_path(abs);
+                unreadable |= sig == crate::db::pipeline::UNREADABLE_SIG;
+                parts.push(sig);
+            }
+        }
+    }
+    if playable == 0 {
+        return None; // no probed episodes yet: wait for probe/scan
+    }
+    if unreadable {
+        Some(crate::db::pipeline::UNREADABLE_SIG.to_string())
+    } else {
+        Some(crate::services::scan::short_hash(&parts.join("|")))
+    }
 }
 
 fn process(ctx: &JobContext, subject_id: &str) -> Result<()> {

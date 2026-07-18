@@ -3,7 +3,7 @@
 // status of every treatment applied to it, with a detail drawer to inspect and
 // reprocess. Backed by GET /api/admin/pipeline/elements + the pipeline.stats WS.
 
-import { type ElementRow, KromaEvents, type MessageKey } from '@kroma/core';
+import { type ElementRow, type KromaClient, KromaEvents, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   IconChevronLeft,
@@ -14,7 +14,15 @@ import {
   IconSearch,
   IconX,
 } from '@tabler/icons-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { PipelineDrawer } from '#web/features/admin/pipeline-drawer';
 import { ElementRowView } from '#web/features/admin/pipeline-row';
 import { PageHeader, useCap, usePoll } from '#web/features/admin/shell';
@@ -47,6 +55,70 @@ function usePipelineReloadEvents(onReload: () => void): void {
     ev.connect();
     return () => ev.close();
   }, [onReload]);
+}
+
+/** Keep the open drawer in sync with a fresh reload while its element is on the
+ * page. Pulled out of the effect so the page body stays flat. */
+function syncOpenDrawer(
+  drawer: ElementRow | null,
+  data: { elements: ElementRow[] } | null | undefined,
+  setDrawer: Dispatch<SetStateAction<ElementRow | null>>,
+): void {
+  if (!drawer || !data) return;
+  const fresh = data.elements.find((e) => e.id === drawer.id);
+  if (fresh) setDrawer(fresh);
+}
+
+/** The three privileged pipeline actions (pause toggle, reprocess a subject,
+ * retry one stage). Built fresh each render like the inline handlers it replaces,
+ * but out of the page body so its cognitive complexity stays low. */
+function pipelineActions(deps: {
+  client: KromaClient;
+  canManage: boolean;
+  t: ReturnType<typeof useT>;
+  reload: () => void;
+  paused: boolean;
+  setPaused: Dispatch<SetStateAction<boolean>>;
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  flash: (text: string) => void;
+}) {
+  const { client, canManage, t, reload, paused, setPaused, setBusy, flash } = deps;
+  const togglePause = () => {
+    if (!canManage) return;
+    const next = !paused;
+    setPaused(next); // optimistic
+    client
+      .pausePipeline(next)
+      .then((r) => {
+        setPaused(r.paused);
+        flash(t(next ? 'pipeline.toastPaused' : 'pipeline.toastResumed'));
+      })
+      .catch(() => setPaused(!next));
+  };
+  const reprocess = (el: ElementRow) => {
+    if (!canManage) return;
+    setBusy(true);
+    client
+      .reprocessSubject(apiKind(el), el.id)
+      .then(() => {
+        flash(`« ${el.title} » ${t('pipeline.toastReprocess')}`);
+        reload();
+      })
+      .finally(() => setBusy(false));
+  };
+  const retryStage = (el: ElementRow, stage: string) => {
+    if (!canManage) return;
+    setBusy(true);
+    client
+      .retryElementStage(apiKind(el), el.id, stage)
+      .then(() => {
+        const stageName = t(`pipeline.t.${stage}` as MessageKey);
+        flash(`${stageName} ${t('pipeline.toastRetry')}`);
+        reload();
+      })
+      .finally(() => setBusy(false));
+  };
+  return { togglePause, reprocess, retryStage };
 }
 
 export function PipelinePage() {
@@ -94,11 +166,7 @@ export function PipelinePage() {
   usePipelineReloadEvents(throttledReload);
 
   // Keep the open drawer fresh from reloads while its element is on the page.
-  useEffect(() => {
-    if (!drawer || !data) return;
-    const fresh = data.elements.find((e) => e.id === drawer.id);
-    if (fresh) setDrawer(fresh);
-  }, [data, drawer]);
+  useEffect(() => syncOpenDrawer(drawer, data, setDrawer), [data, drawer]);
 
   // The global pause flag lives on the pipeline-health endpoint; poll it (on the
   // admin shell's tick) so another admin's toggle shows, and mirror it into local
@@ -116,41 +184,16 @@ export function PipelinePage() {
     setToast({ text, on: true });
     window.setTimeout(() => setToast((s) => ({ ...s, on: false })), 2800);
   };
-  const togglePause = () => {
-    if (!canManage) return;
-    const next = !paused;
-    setPaused(next); // optimistic
-    client
-      .pausePipeline(next)
-      .then((r) => {
-        setPaused(r.paused);
-        flash(t(next ? 'pipeline.toastPaused' : 'pipeline.toastResumed'));
-      })
-      .catch(() => setPaused(!next));
-  };
-  const reprocess = (el: ElementRow) => {
-    if (!canManage) return;
-    setBusy(true);
-    client
-      .reprocessSubject(apiKind(el), el.id)
-      .then(() => {
-        flash(`« ${el.title} » ${t('pipeline.toastReprocess')}`);
-        reload();
-      })
-      .finally(() => setBusy(false));
-  };
-  const retryStage = (el: ElementRow, stage: string) => {
-    if (!canManage) return;
-    setBusy(true);
-    client
-      .retryElementStage(apiKind(el), el.id, stage)
-      .then(() => {
-        const stageName = t(`pipeline.t.${stage}` as MessageKey);
-        flash(`${stageName} ${t('pipeline.toastRetry')}`);
-        reload();
-      })
-      .finally(() => setBusy(false));
-  };
+  const { togglePause, reprocess, retryStage } = pipelineActions({
+    client,
+    canManage,
+    t,
+    reload,
+    paused,
+    setPaused,
+    setBusy,
+    flash,
+  });
 
   const c = data?.counts;
   const total = c?.total ?? 0;

@@ -51,7 +51,7 @@ function directionScore(
 /** The Focusable currently holding focus, or the first candidate as a fallback. */
 function currentFocusable(els: Focusable[], first: Focusable): Focusable {
   const active = document.activeElement as HTMLElement | null;
-  if (!active || active.dataset.focus === undefined) return first;
+  if (active?.dataset.focus === undefined) return first;
   return els.find((f) => f.el === active) ?? { el: active, rect: active.getBoundingClientRect() };
 }
 

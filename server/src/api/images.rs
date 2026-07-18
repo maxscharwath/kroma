@@ -79,35 +79,14 @@ pub async fn image(
 
     // Sized rendition: produced once (cwebp/ffmpeg, on the blocking pool), then
     // served from disk forever. Falls through to the original on any failure.
-    if let Some(w) = q.w.filter(|_| name.ends_with(".webp")) {
-        let width = IMAGE_WIDTHS.iter().copied().find(|b| *b >= w).unwrap_or(0);
-        if width > 0 {
-            let data_dir = state.config.data_dir.clone();
-            let sized_name = name.clone();
-            let made =
-                blocking(move || Ok(crate::infra::image::sized_rendition(&data_dir, &sized_name, width)))
-                    .await;
-            if let Ok(Some((path, content_type))) = made {
-                if let Ok(bytes) = tokio::fs::read(&path).await {
-                    return image_response(bytes, content_type);
-                }
-            }
-        }
+    if let Some(resp) = sized_rendition_response(&state, &name, &q).await {
+        return resp;
     }
 
     // JPEG rendition for Samsung TV preview tiles (the carousel rejects WebP).
     // `<hash>.webp.jpg` → transcode the cached `<hash>.webp` on demand.
-    if let Some(webp) = name.strip_suffix(".jpg").filter(|s| s.ends_with(".webp")) {
-        let data_dir = state.config.data_dir.clone();
-        let webp = webp.to_string();
-        let made = blocking(move || Ok(crate::infra::image::jpeg_rendition(&data_dir, &webp))).await;
-        return match made {
-            Ok(Some(jpg)) => match tokio::fs::read(&jpg).await {
-                Ok(bytes) => image_response(bytes, "image/jpeg"),
-                Err(_) => json_error(StatusCode::NOT_FOUND, "image not found"),
-            },
-            _ => json_error(StatusCode::NOT_FOUND, "image not found"),
-        };
+    if let Some(resp) = jpeg_rendition_response(&state, &name).await {
+        return resp;
     }
 
     let path = crate::infra::image::images_dir(&state.config.data_dir).join(&name);
@@ -115,6 +94,43 @@ pub async fn image(
         Ok(bytes) => image_response(bytes, content_type_for(&name)),
         Err(_) => json_error(StatusCode::NOT_FOUND, "image not found"),
     }
+}
+
+/// Serve a bucketed downscale of a cached `.webp` (`?w=`), producing it once on the
+/// blocking pool. `None` when there's no `?w=` on a `.webp`, the width doesn't map
+/// to a bucket, or the rendition can't be produced/read (caller falls through).
+async fn sized_rendition_response(state: &SharedState, name: &str, q: &ImageQuery) -> Option<Response> {
+    let w = q.w.filter(|_| name.ends_with(".webp"))?;
+    let width = IMAGE_WIDTHS.iter().copied().find(|b| *b >= w).unwrap_or(0);
+    if width == 0 {
+        return None;
+    }
+    let data_dir = state.config.data_dir.clone();
+    let sized_name = name.to_string();
+    let made =
+        blocking(move || Ok(crate::infra::image::sized_rendition(&data_dir, &sized_name, width))).await;
+    let Ok(Some((path, content_type))) = made else {
+        return None;
+    };
+    let bytes = tokio::fs::read(&path).await.ok()?;
+    Some(image_response(bytes, content_type))
+}
+
+/// Serve the JPEG transcode of a cached `.webp` for a `<hash>.webp.jpg` request,
+/// transcoding it on demand. `None` only when the name isn't a `.webp.jpg` (caller
+/// falls through); a matching name always yields a response (image or 404).
+async fn jpeg_rendition_response(state: &SharedState, name: &str) -> Option<Response> {
+    let webp = name.strip_suffix(".jpg").filter(|s| s.ends_with(".webp"))?;
+    let data_dir = state.config.data_dir.clone();
+    let webp = webp.to_string();
+    let made = blocking(move || Ok(crate::infra::image::jpeg_rendition(&data_dir, &webp))).await;
+    Some(match made {
+        Ok(Some(jpg)) => match tokio::fs::read(&jpg).await {
+            Ok(bytes) => image_response(bytes, "image/jpeg"),
+            Err(_) => json_error(StatusCode::NOT_FOUND, "image not found"),
+        },
+        _ => json_error(StatusCode::NOT_FOUND, "image not found"),
+    })
 }
 
 /// Cached-artwork content type by extension (WebP posters/backdrops, PNG logos).

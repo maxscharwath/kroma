@@ -37,12 +37,12 @@ export function useWebController(item: MovieView): WebController {
   const filter = useAudioFilter(pb.videoRef, `${pb.anchor}:${pb.audioIndex}`);
 
   // Loop (reapplied whenever the <video> remounts on re-anchor / audio switch).
-  const [loop, setLoopState] = useState(false);
+  const [loopState, setLoopState] = useState(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: anchor/audioIndex are intentional remount triggers, not read values. The <video> is keyed by anchor+audio, so re-anchoring / switching audio mounts a fresh element that must have `loop` reapplied. Depending on `pb` itself would rerun on every render.
   useEffect(() => {
     const v = pb.videoRef.current;
-    if (v) v.loop = loop;
-  }, [loop, pb.anchor, pb.audioIndex, pb.videoRef]);
+    if (v) v.loop = loopState;
+  }, [loopState, pb.anchor, pb.audioIndex, pb.videoRef]);
   const setLoop = useCallback(
     (b: boolean) => {
       setLoopState(b);
@@ -143,7 +143,7 @@ export function useWebController(item: MovieView): WebController {
     toggleMute: pb.toggleMute,
     rate: pb.rate,
     setRate: pb.applyRate,
-    loop,
+    loop: loopState,
     setLoop,
     audioTracks: pb.audioTracks,
     audioIndex: pb.audioIndex,

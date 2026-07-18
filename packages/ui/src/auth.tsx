@@ -86,7 +86,7 @@ function refreshExchange(
       // gate reappears instead of a zombie 'signed-in' state that 401s every
       // request forever. The account stays remembered for a re-login/PIN.
       setSessionToken(undefined);
-      client.setAuthToken(undefined);
+      client.setAuthToken();
       clearSession();
       setSession(null);
       return undefined;
@@ -117,7 +117,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
   useEffect(() => {
     if (!client) return;
     client.setRefreshHandler(() => refreshExchange(client, setSession));
-    return () => client.setRefreshHandler(undefined);
+    return () => client.setRefreshHandler();
   }, [client]);
 
   // Boot: hydrate remembered accounts + silently exchange the active access token
@@ -141,7 +141,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
         if (cancelled) return;
         // Can't silently resume (PIN required / token invalid): show the picker.
         setSessionToken(undefined);
-        client.setAuthToken(undefined);
+        client.setAuthToken();
         clearSession();
         setSession(null);
       })
@@ -205,7 +205,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
     const active = loadSession();
     if (active && client) client.relock(active.accessToken).catch(() => {});
     setSessionToken(undefined);
-    client?.setAuthToken(undefined);
+    client?.setAuthToken();
     clearSession();
     setSession(null);
   }, [client]);
@@ -221,7 +221,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
       setSession((s) => {
         if (s?.user.id === userId) {
           setSessionToken(undefined);
-          client?.setAuthToken(undefined);
+          client?.setAuthToken();
           return null;
         }
         return s;
@@ -238,7 +238,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
       /* best-effort server-side revocation */
     }
     setSessionToken(undefined);
-    client?.setAuthToken(undefined);
+    client?.setAuthToken();
     if (active) forgetAccount(active.user.id);
     else clearSession();
     setAccounts(loadAccounts());

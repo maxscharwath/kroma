@@ -20,9 +20,6 @@ on:
       - '.github/workflows/desktop-autoupdate.yml'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 # One publish at a time; a newer push supersedes an in-flight build.
 concurrency:
   group: desktop-autoupdate
@@ -30,6 +27,8 @@ concurrency:
 
 jobs:
   version:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:

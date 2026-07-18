@@ -326,87 +326,7 @@ impl JobManager {
         let manager = self.clone();
         let returned_id = run_id.clone();
         tokio::task::spawn_blocking(move || {
-            let pool = state.db.clone();
-            // If this insert fails the run still executes, but the later
-            // progress/finish UPDATEs no-op against a missing row and the run
-            // leaves no trace so surface it rather than swallowing.
-            if let Err(e) = db::insert_job_run(&pool, &run_id, key, trigger, started_ms) {
-                warn!(job = key, run = %run_id, error = %e, "failed to record job run start");
-            }
-            info!(job = key, run = %run_id, trigger, "job started");
-
-            let ctx = JobContext::new(state.clone(), handle.clone());
-            let result = catch_unwind(AssertUnwindSafe(|| match &runner {
-                Runner::Local(f) => f(&ctx),
-                Runner::Remote(f) => f(&ctx),
-            }));
-
-            let finished_ms = now_ms();
-            let (status, error): (&str, Option<String>) = match result {
-                Ok(Ok(())) if handle.is_cancelled() => ("cancelled", None),
-                Ok(Ok(())) => ("success", None),
-                Ok(Err(e)) => ("failed", Some(format!("{e:#}"))),
-                Err(panic) => ("failed", Some(panic_message(&panic))),
-            };
-
-            // Mirror a terminal failure into the run's *own* log stream (not only
-            // the `error` column), so the Tâches log view always explains why a run
-            // ended badly even for a panic or an early `?` that logged nothing
-            // itself. Success/cancellation already log their own lines from inside
-            // the job body.
-            if let ("failed", Some(msg)) = (status, error.as_deref()) {
-                let _ = db::insert_job_log(&pool, &run_id, finished_ms, "error", msg);
-                state.events.publish(ServerEvent::JobLog {
-                    run_id: run_id.clone(),
-                    level: "error",
-                    message: msg.to_string(),
-                });
-            }
-            // Finalize the run row, retrying a few times: if this write keeps
-            // failing (e.g. SQLite busy under contention) the row stays `running`
-            // with no terminal status, and `reconcile_running_runs` only sweeps at
-            // startup so the console would show it running until the next restart.
-            let mut finished = false;
-            for attempt in 0..3u32 {
-                match db::finish_job_run(&pool, &run_id, status, finished_ms, error.as_deref()) {
-                    Ok(_) => {
-                        finished = true;
-                        break;
-                    }
-                    Err(e) => {
-                        warn!(job = key, run = %run_id, attempt, error = %e, "failed to record job run finish; retrying");
-                        std::thread::sleep(std::time::Duration::from_millis(200 * u64::from(attempt + 1)));
-                    }
-                }
-            }
-            if !finished {
-                warn!(job = key, run = %run_id, "gave up recording job finish; run may show as running until restart");
-            }
-            let _ = db::prune_job_runs(&pool, key, RUNS_KEPT); // cosmetic cleanup
-            manager.running.write().unwrap().remove(&job);
-
-            match status {
-                "failed" => warn!(job = key, run = %run_id, error = error.as_deref().unwrap_or(""), "job failed"),
-                other => info!(job = key, run = %run_id, status = other, "job finished"),
-            }
-            state.events.publish(ServerEvent::JobFinished {
-                key: key.to_string(),
-                run_id,
-                status: status.to_string(),
-            });
-
-            // Chaining: fire any job that opted to run after this one, but only
-            // when this run actually succeeded. A failed or cancelled upstream
-            // must not start its dependents (a cancelled storyboard drain
-            // kicking off subtitles would surprise the admin who just cancelled,
-            // and a failed run's outputs are exactly what the next stage needs).
-            if status == "success" {
-                for next in manager.jobs_for_trigger(Trigger::AfterJob(job)) {
-                    if let Err(e) = manager.trigger(state.clone(), next, "chain") {
-                        warn!(job = key, next = %next, error = ?e, "chained job did not start");
-                    }
-                }
-            }
+            run_job(manager, state, runner, handle, run_id, key, trigger, job, started_ms)
         });
 
         Ok(returned_id)
@@ -493,6 +413,125 @@ impl Default for JobManager {
 }
 
 /// Best-effort message from a caught panic payload.
+/// Execute one reserved run on the worker thread: record the start, run the
+/// handler under `catch_unwind`, classify the outcome, finalize the run row and
+/// fire any chained jobs. Runs after [`JobManager::trigger`] has already reserved
+/// the one-run-per-key slot.
+#[allow(clippy::too_many_arguments)]
+fn run_job(
+    manager: Arc<JobManager>,
+    state: SharedState,
+    runner: Runner,
+    handle: Arc<RunHandle>,
+    run_id: String,
+    key: &'static str,
+    trigger: &'static str,
+    job: JobKey,
+    started_ms: i64,
+) {
+    let pool = state.db.clone();
+    // If this insert fails the run still executes, but the later progress/finish
+    // UPDATEs no-op against a missing row and the run leaves no trace so surface
+    // it rather than swallowing.
+    if let Err(e) = db::insert_job_run(&pool, &run_id, key, trigger, started_ms) {
+        warn!(job = key, run = %run_id, error = %e, "failed to record job run start");
+    }
+    info!(job = key, run = %run_id, trigger, "job started");
+
+    let ctx = JobContext::new(state.clone(), handle.clone());
+    let result = catch_unwind(AssertUnwindSafe(|| match &runner {
+        Runner::Local(f) => f(&ctx),
+        Runner::Remote(f) => f(&ctx),
+    }));
+
+    let finished_ms = now_ms();
+    let (status, error) = classify_result(result, &handle);
+
+    // Mirror a terminal failure into the run's *own* log stream (not only the
+    // `error` column), so the Tâches log view always explains why a run ended
+    // badly even for a panic or an early `?` that logged nothing itself.
+    // Success/cancellation already log their own lines from inside the job body.
+    if let ("failed", Some(msg)) = (status, error.as_deref()) {
+        let _ = db::insert_job_log(&pool, &run_id, finished_ms, "error", msg);
+        state.events.publish(ServerEvent::JobLog {
+            run_id: run_id.clone(),
+            level: "error",
+            message: msg.to_string(),
+        });
+    }
+
+    if !finalize_run(&pool, &run_id, key, status, finished_ms, error.as_deref()) {
+        warn!(job = key, run = %run_id, "gave up recording job finish; run may show as running until restart");
+    }
+    let _ = db::prune_job_runs(&pool, key, RUNS_KEPT); // cosmetic cleanup
+    manager.running.write().unwrap().remove(&job);
+
+    match status {
+        "failed" => warn!(job = key, run = %run_id, error = error.as_deref().unwrap_or(""), "job failed"),
+        other => info!(job = key, run = %run_id, status = other, "job finished"),
+    }
+    state.events.publish(ServerEvent::JobFinished {
+        key: key.to_string(),
+        run_id,
+        status: status.to_string(),
+    });
+
+    chain_after(&manager, &state, job, key, status);
+}
+
+/// Map the `catch_unwind` outcome of a job handler to its `(status, error)`.
+fn classify_result(
+    result: std::thread::Result<anyhow::Result<()>>,
+    handle: &RunHandle,
+) -> (&'static str, Option<String>) {
+    match result {
+        Ok(Ok(())) if handle.is_cancelled() => ("cancelled", None),
+        Ok(Ok(())) => ("success", None),
+        Ok(Err(e)) => ("failed", Some(format!("{e:#}"))),
+        Err(panic) => ("failed", Some(panic_message(&panic))),
+    }
+}
+
+/// Finalize the run row, retrying a few times: if this write keeps failing (e.g.
+/// SQLite busy under contention) the row stays `running` with no terminal status,
+/// and `reconcile_running_runs` only sweeps at startup so the console would show
+/// it running until the next restart. Returns whether the finish was recorded.
+fn finalize_run(
+    pool: &db::Pool,
+    run_id: &str,
+    key: &'static str,
+    status: &str,
+    finished_ms: i64,
+    error: Option<&str>,
+) -> bool {
+    for attempt in 0..3u32 {
+        match db::finish_job_run(pool, run_id, status, finished_ms, error) {
+            Ok(_) => return true,
+            Err(e) => {
+                warn!(job = key, run = %run_id, attempt, error = %e, "failed to record job run finish; retrying");
+                std::thread::sleep(std::time::Duration::from_millis(200 * u64::from(attempt + 1)));
+            }
+        }
+    }
+    false
+}
+
+/// Chaining: fire any job that opted to run after this one, but only when this
+/// run actually succeeded. A failed or cancelled upstream must not start its
+/// dependents (a cancelled storyboard drain kicking off subtitles would surprise
+/// the admin who just cancelled, and a failed run's outputs are exactly what the
+/// next stage needs).
+fn chain_after(manager: &Arc<JobManager>, state: &SharedState, job: JobKey, key: &'static str, status: &str) {
+    if status != "success" {
+        return;
+    }
+    for next in manager.jobs_for_trigger(Trigger::AfterJob(job)) {
+        if let Err(e) = manager.trigger(state.clone(), next, "chain") {
+            warn!(job = key, next = %next, error = ?e, "chained job did not start");
+        }
+    }
+}
+
 fn panic_message(panic: &(dyn std::any::Any + Send)) -> String {
     if let Some(s) = panic.downcast_ref::<&str>() {
         format!("panicked: {s}")

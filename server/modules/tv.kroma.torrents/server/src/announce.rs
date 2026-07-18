@@ -163,21 +163,24 @@ fn announce_urls(b: &[u8]) -> Vec<String> {
     }
     // announce-list = list of lists of strings.
     if let Some((s, e)) = dict_value_bounds(b, b"announce-list") {
-        let mut i = s + 1; // into the outer list
-        while i < e && b.get(i) == Some(&b'l') {
-            let mut j = i + 1; // into an inner list
-            while j < e && b.get(j) != Some(&b'e') {
-                if let Some((bytes, nj)) = read_bstr(b, j) {
-                    urls.push(String::from_utf8_lossy(bytes).into_owned());
-                    j = nj;
-                } else {
-                    break;
-                }
-            }
-            i = j + 1;
-        }
+        parse_announce_list(b, s, e, &mut urls);
     }
     urls
+}
+
+/// Parse a bencoded `announce-list` (a list of lists of tracker URLs) starting
+/// at the outer list at index `s`, appending each URL to `urls`.
+fn parse_announce_list(b: &[u8], s: usize, e: usize, urls: &mut Vec<String>) {
+    let mut i = s + 1; // into the outer list
+    while i < e && b.get(i) == Some(&b'l') {
+        let mut j = i + 1; // into an inner list
+        while j < e && b.get(j) != Some(&b'e') {
+            let Some((bytes, nj)) = read_bstr(b, j) else { break };
+            urls.push(String::from_utf8_lossy(bytes).into_owned());
+            j = nj;
+        }
+        i = j + 1;
+    }
 }
 
 /// Byte-range of the value for `key` in the TOP-LEVEL dict.

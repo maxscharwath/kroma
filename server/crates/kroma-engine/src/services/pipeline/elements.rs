@@ -121,65 +121,27 @@ pub fn list(state: &SharedState, f: &Filter) -> Result<PipelineElements> {
     let embed_l: Ledger = db::pipeline::stage_statuses(db, "embed")?;
     let mark_l: Ledger = db::pipeline::stage_statuses(db, "markers")?;
 
-    let is_ep = |it: &RawItem| it.kind == "episode";
-
     // Episodes grouped by show (for the series aggregate + posters).
-    let mut ep_by_show: HashMap<&str, Vec<&RawItem>> = HashMap::new();
-    for it in &items {
-        if is_ep(it) {
-            if let Some(sid) = &it.show_id {
-                ep_by_show.entry(sid.as_str()).or_default().push(it);
-            }
-        }
-    }
+    let ep_by_show = group_episodes_by_show(&items);
     let show_poster: HashMap<&str, Option<String>> =
         shows.iter().map(|s| (s.id.as_str(), s.poster.clone())).collect();
+
+    let lg = Ledgers {
+        probed: &probed,
+        markset: &markset,
+        vecset: &vecset,
+        meta_l: &meta_l,
+        story_l: &story_l,
+        subs_l: &subs_l,
+        embed_l: &embed_l,
+        mark_l: &mark_l,
+        show_poster: &show_poster,
+    };
 
     let mut all: Vec<ElementRow> = Vec::with_capacity(items.len() + shows.len());
 
     for it in &items {
-        let (treatments, kind, poster) = if is_ep(it) {
-            let (p, _) = status_of(None, probed.contains(&it.id), false);
-            let (s, se) = status_of(story_l.get(&it.id), false, true);
-            let season_key = match (it.show_id.as_deref(), it.season) {
-                (Some(sh), Some(n)) => Some(format!("{sh}#{n}")),
-                _ => None,
-            };
-            let (mk, mke) = status_of(
-                season_key.as_deref().and_then(|k| mark_l.get(k)),
-                markset.contains(&it.id),
-                true,
-            );
-            let (st, ste) = status_of(subs_l.get(&it.id), false, true);
-            let poster = it.show_id.as_deref().and_then(|sid| show_poster.get(sid).cloned().flatten());
-            (
-                vec![
-                    tr("probe", p, None),
-                    tr("storyboard", s, se),
-                    tr("subtitles", st, ste),
-                    tr("markers", mk, mke),
-                ],
-                "episode",
-                poster,
-            )
-        } else {
-            let (p, _) = status_of(None, probed.contains(&it.id), false);
-            let (m, me) = status_of(meta_l.get(&it.id), it.has_meta, false);
-            let (s, se) = status_of(story_l.get(&it.id), false, true);
-            let (st, ste) = status_of(subs_l.get(&it.id), false, true);
-            let (e, ee) = status_of(embed_l.get(&it.id), vecset.contains(&it.id), false);
-            (
-                vec![
-                    tr("probe", p, None),
-                    tr("metadata", m, me),
-                    tr("storyboard", s, se),
-                    tr("subtitles", st, ste),
-                    tr("embed", e, ee),
-                ],
-                "film",
-                it.poster.clone(),
-            )
-        };
+        let (treatments, kind, poster) = item_treatments(it, &lg);
         let overall = overall_of(&treatments).to_string();
         all.push(ElementRow {
             id: it.id.clone(),
@@ -233,8 +195,103 @@ pub fn list(state: &SharedState, f: &Filter) -> Result<PipelineElements> {
     }
 
     // Counts over the full (unfiltered) set.
+    let counts = tally_counts(&all);
+
+    // Filter.
+    let q = f.query.trim().to_lowercase();
+    let filtered: Vec<&ElementRow> =
+        all.iter().filter(|el| matches_filter(el, f, &q)).collect();
+
+    let total = filtered.len() as i64;
+    let limit = f.limit.clamp(1, 100);
+    let pages = ((total + limit - 1) / limit).max(1);
+    let page = f.page.clamp(0, pages - 1);
+    let start = (page * limit) as usize;
+    let elements: Vec<ElementRow> =
+        filtered.into_iter().skip(start).take(limit as usize).cloned().collect();
+
+    Ok(PipelineElements { total, page, pages, counts, elements })
+}
+
+/// The bulk lookups shared while building each element's per-treatment status,
+/// bundled so the row builders take one context instead of a dozen params.
+struct Ledgers<'a, 'k> {
+    probed: &'a HashSet<String>,
+    markset: &'a HashSet<String>,
+    vecset: &'a HashSet<String>,
+    meta_l: &'a Ledger,
+    story_l: &'a Ledger,
+    subs_l: &'a Ledger,
+    embed_l: &'a Ledger,
+    mark_l: &'a Ledger,
+    show_poster: &'a HashMap<&'k str, Option<String>>,
+}
+
+/// Episodes grouped by their show id (for the series aggregate + posters).
+fn group_episodes_by_show(items: &[RawItem]) -> HashMap<&str, Vec<&RawItem>> {
+    let mut ep_by_show: HashMap<&str, Vec<&RawItem>> = HashMap::new();
+    for it in items {
+        if it.kind == "episode" {
+            if let Some(sid) = &it.show_id {
+                ep_by_show.entry(sid.as_str()).or_default().push(it);
+            }
+        }
+    }
+    ep_by_show
+}
+
+/// The `(treatments, kind, poster)` for one item row: an episode gets probe /
+/// storyboard / subtitles / markers; a film/video gets probe / metadata /
+/// storyboard / subtitles / embed.
+fn item_treatments(it: &RawItem, lg: &Ledgers<'_, '_>) -> (Vec<Treatment>, &'static str, Option<String>) {
+    if it.kind == "episode" {
+        let (p, _) = status_of(None, lg.probed.contains(&it.id), false);
+        let (s, se) = status_of(lg.story_l.get(&it.id), false, true);
+        let season_key = match (it.show_id.as_deref(), it.season) {
+            (Some(sh), Some(n)) => Some(format!("{sh}#{n}")),
+            _ => None,
+        };
+        let (mk, mke) = status_of(
+            season_key.as_deref().and_then(|k| lg.mark_l.get(k)),
+            lg.markset.contains(&it.id),
+            true,
+        );
+        let (st, ste) = status_of(lg.subs_l.get(&it.id), false, true);
+        let poster = it.show_id.as_deref().and_then(|sid| lg.show_poster.get(sid).cloned().flatten());
+        (
+            vec![
+                tr("probe", p, None),
+                tr("storyboard", s, se),
+                tr("subtitles", st, ste),
+                tr("markers", mk, mke),
+            ],
+            "episode",
+            poster,
+        )
+    } else {
+        let (p, _) = status_of(None, lg.probed.contains(&it.id), false);
+        let (m, me) = status_of(lg.meta_l.get(&it.id), it.has_meta, false);
+        let (s, se) = status_of(lg.story_l.get(&it.id), false, true);
+        let (st, ste) = status_of(lg.subs_l.get(&it.id), false, true);
+        let (e, ee) = status_of(lg.embed_l.get(&it.id), lg.vecset.contains(&it.id), false);
+        (
+            vec![
+                tr("probe", p, None),
+                tr("metadata", m, me),
+                tr("storyboard", s, se),
+                tr("subtitles", st, ste),
+                tr("embed", e, ee),
+            ],
+            "film",
+            it.poster.clone(),
+        )
+    }
+}
+
+/// Roll up per-status and per-kind counts over the full (unfiltered) set.
+fn tally_counts(all: &[ElementRow]) -> ElementCounts {
     let mut counts = ElementCounts { total: all.len() as i64, ..Default::default() };
-    for el in &all {
+    for el in all {
         match el.overall.as_str() {
             "ok" => counts.ok += 1,
             "pending" => counts.pending += 1,
@@ -249,33 +306,21 @@ pub fn list(state: &SharedState, f: &Filter) -> Result<PipelineElements> {
             _ => {}
         }
     }
+    counts
+}
 
-    // Filter.
-    let q = f.query.trim().to_lowercase();
-    let filtered: Vec<&ElementRow> = all
-        .iter()
-        .filter(|el| {
-            if !q.is_empty() && !el.title.to_lowercase().contains(&q) {
-                return false;
-            }
-            if f.kind != "all" && el.kind != f.kind {
-                return false;
-            }
-            match f.status.as_str() {
-                "all" => true,
-                "attention" => el.overall != "ok",
-                other => el.overall == other,
-            }
-        })
-        .collect();
-
-    let total = filtered.len() as i64;
-    let limit = f.limit.clamp(1, 100);
-    let pages = ((total + limit - 1) / limit).max(1);
-    let page = f.page.clamp(0, pages - 1);
-    let start = (page * limit) as usize;
-    let elements: Vec<ElementRow> =
-        filtered.into_iter().skip(start).take(limit as usize).cloned().collect();
-
-    Ok(PipelineElements { total, page, pages, counts, elements })
+/// Whether one row passes the query / kind / status filter (`q` is already
+/// trimmed + lowercased).
+fn matches_filter(el: &ElementRow, f: &Filter, q: &str) -> bool {
+    if !q.is_empty() && !el.title.to_lowercase().contains(q) {
+        return false;
+    }
+    if f.kind != "all" && el.kind != f.kind {
+        return false;
+    }
+    match f.status.as_str() {
+        "all" => true,
+        "attention" => el.overall != "ok",
+        other => el.overall == other,
+    }
 }

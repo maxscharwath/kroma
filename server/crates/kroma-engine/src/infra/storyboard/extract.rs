@@ -101,18 +101,8 @@ pub(super) fn extract_tiles(abs: &str, scratch: &Path, plan: &Plan, hwaccel: boo
     // `scope` joins every thread before returning, so all tiles are on disk after.
     std::thread::scope(|s| {
         for _ in 0..tile_workers() {
-            s.spawn(|| loop {
-                let i = next.fetch_add(1, Ordering::Relaxed);
-                if i >= count || cancel() {
-                    break;
-                }
-                let out = scratch.join(format!("px_{i:04}.png"));
-                if let Err(e) = extract_one(abs, i * interval, &out, hwaccel, cancel) {
-                    let mut g = first_err.lock().unwrap();
-                    if g.is_none() {
-                        *g = Some(e);
-                    }
-                }
+            s.spawn(|| {
+                extract_tile_worker(&next, count, interval, abs, scratch, hwaccel, cancel, &first_err)
             });
         }
     });
@@ -124,6 +114,34 @@ pub(super) fn extract_tiles(abs: &str, scratch: &Path, plan: &Plan, hwaccel: boo
             .unwrap_or_else(|| "no tiles produced".to_string()));
     }
     Ok(())
+}
+
+/// One scoped worker: pull the next tile index until the range is drained (or a
+/// cancel fires), extracting each keyframe and recording the first failure cause.
+#[allow(clippy::too_many_arguments)]
+fn extract_tile_worker(
+    next: &AtomicU32,
+    count: u32,
+    interval: u32,
+    abs: &str,
+    scratch: &Path,
+    hwaccel: bool,
+    cancel: Cancel,
+    first_err: &Mutex<Option<String>>,
+) {
+    loop {
+        let i = next.fetch_add(1, Ordering::Relaxed);
+        if i >= count || cancel() {
+            break;
+        }
+        let out = scratch.join(format!("px_{i:04}.png"));
+        if let Err(e) = extract_one(abs, i * interval, &out, hwaccel, cancel) {
+            let mut g = first_err.lock().unwrap();
+            if g.is_none() {
+                *g = Some(e);
+            }
+        }
+    }
 }
 
 /// One tile: fast input seek (`-ss` before `-i` jumps to the GOP at `t_secs`

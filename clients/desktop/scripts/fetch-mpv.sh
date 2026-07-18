@@ -37,7 +37,7 @@ fi
 mkdir -p "$(dirname "$OUT")"
 URL="https://github.com/pkgforge-dev/mpv-AppImage/releases/download/${VERSION_TAG//@/%40}/$ASSET"
 echo "fetch-mpv: downloading $ASSET"
-curl -fsSL --retry 3 -o "$OUT.tmp" "$URL"
+curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 -o "$OUT.tmp" "$URL"
 if ! sum_ok "$OUT.tmp"; then
   echo "fetch-mpv: sha256 MISMATCH for $ASSET" >&2
   rm -f "$OUT.tmp"

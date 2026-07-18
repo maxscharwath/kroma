@@ -119,25 +119,41 @@ fn parallel_decode(
     let paused = AtomicBool::new(false);
     thread::scope(|scope| {
         for _ in 0..workers.min(eps.len()) {
-            scope.spawn(|| loop {
-                let i = next.fetch_add(1, Ordering::Relaxed);
-                if i >= eps.len() || ctx.cancelled() {
-                    break;
-                }
-                // Playback is the priority: block before each heavy decode while
-                // anyone is watching, so fingerprinting never competes for disk IO.
-                wait_while_idle(ctx, &paused);
-                if ctx.cancelled() {
-                    break;
-                }
-                *slots[i].lock().unwrap() = Some(decode_one(ctx, &paused, eps[i], do_fp, ffprobe));
-            });
+            scope.spawn(|| decode_worker(&next, eps, ctx, &paused, &slots, do_fp, ffprobe));
         }
     });
     slots
         .into_iter()
         .map(|m| m.into_inner().unwrap().unwrap_or(EpData { chapters: Vec::new(), start_fp: None, end_fp: None }))
         .collect()
+}
+
+/// One scoped decode worker: pull the next episode index until the season is
+/// drained (or cancelled), yielding to live playback before each heavy decode,
+/// and store the result into its slot.
+#[allow(clippy::too_many_arguments)]
+fn decode_worker(
+    next: &AtomicUsize,
+    eps: &[&MediaItem],
+    ctx: &JobContext,
+    paused: &AtomicBool,
+    slots: &[Mutex<Option<EpData>>],
+    do_fp: bool,
+    ffprobe: bool,
+) {
+    loop {
+        let i = next.fetch_add(1, Ordering::Relaxed);
+        if i >= eps.len() || ctx.cancelled() {
+            break;
+        }
+        // Playback is the priority: block before each heavy decode while anyone
+        // is watching, so fingerprinting never competes for disk IO.
+        wait_while_idle(ctx, paused);
+        if ctx.cancelled() {
+            break;
+        }
+        *slots[i].lock().unwrap() = Some(decode_one(ctx, paused, eps[i], do_fp, ffprobe));
+    }
 }
 
 /// Block while any playback session is live, so the job yields all disk/CPU to

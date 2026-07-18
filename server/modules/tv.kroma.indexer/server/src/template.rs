@@ -74,40 +74,13 @@ fn lex(input: &str) -> Vec<Chunk> {
     let mut text = String::new();
     while i < bytes.len() {
         if bytes[i] == b'{' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
-            // Whitespace-trim marker `{{-` trims trailing text whitespace.
-            let mut j = i + 2;
-            let trim_left = bytes.get(j) == Some(&b'-');
-            if trim_left {
-                j += 1;
-            }
-            if trim_left {
-                let trimmed = text.trim_end().len();
-                text.truncate(trimmed);
-            }
-            if !text.is_empty() {
-                chunks.push(Chunk::Text(std::mem::take(&mut text)));
-            }
-            // Find the closing `}}`.
-            if let Some(rel) = input[j..].find("}}") {
-                let mut body = &input[j..j + rel];
-                let mut next = j + rel + 2;
-                // `-}}` trims leading whitespace of the following text.
-                let trim_right = body.ends_with('-');
-                if trim_right {
-                    body = &body[..body.len() - 1];
+            match lex_action(input, bytes, i, &mut text, &mut chunks) {
+                Some(next) => {
+                    i = next;
+                    continue;
                 }
-                chunks.push(Chunk::Action(body.trim().to_string()));
-                if trim_right {
-                    while next < bytes.len() && bytes[next].is_ascii_whitespace() {
-                        next += 1;
-                    }
-                }
-                i = next;
-                continue;
+                None => break,
             }
-            // No close: treat the rest as literal text.
-            text.push_str(&input[i..]);
-            break;
         }
         // Push one UTF-8 char.
         let ch_len = utf8_len(bytes[i]);
@@ -118,6 +91,46 @@ fn lex(input: &str) -> Vec<Chunk> {
         chunks.push(Chunk::Text(text));
     }
     chunks
+}
+
+/// Lex a single `{{ … }}` action starting at the opening `{{` (index `i`),
+/// flushing any pending `text` and appending the action chunk. Returns the
+/// index just past the action to continue from, or `None` when there is no
+/// closing `}}` (the caller should stop).
+fn lex_action(
+    input: &str,
+    bytes: &[u8],
+    i: usize,
+    text: &mut String,
+    chunks: &mut Vec<Chunk>,
+) -> Option<usize> {
+    // Whitespace-trim marker `{{-` trims trailing text whitespace.
+    let mut j = i + 2;
+    if bytes.get(j) == Some(&b'-') {
+        j += 1;
+        let trimmed = text.trim_end().len();
+        text.truncate(trimmed);
+    }
+    if !text.is_empty() {
+        chunks.push(Chunk::Text(std::mem::take(text)));
+    }
+    // Find the closing `}}`.
+    let Some(rel) = input[j..].find("}}") else {
+        // No close: treat the rest as literal text.
+        text.push_str(&input[i..]);
+        return None;
+    };
+    let mut body = &input[j..j + rel];
+    let mut next = j + rel + 2;
+    // `-}}` trims leading whitespace of the following text.
+    if body.ends_with('-') {
+        body = &body[..body.len() - 1];
+        while next < bytes.len() && bytes[next].is_ascii_whitespace() {
+            next += 1;
+        }
+    }
+    chunks.push(Chunk::Action(body.trim().to_string()));
+    Some(next)
 }
 
 fn utf8_len(b: u8) -> usize {
@@ -157,33 +170,11 @@ fn parse_seq(chunks: &[Chunk], pos: &mut usize) -> Result<(Vec<Node>, Option<Str
                     "end" | "else" => return Ok((nodes, Some(head.to_string()))),
                     "if" | "with" => {
                         *pos += 1;
-                        let cond = parse_pipeline(rest)?;
-                        let (then, stop) = parse_seq(chunks, pos)?;
-                        let mut els = Vec::new();
-                        if stop.as_deref() == Some("else") {
-                            *pos += 1; // consume else
-                            let (e, stop2) = parse_seq(chunks, pos)?;
-                            if stop2.as_deref() != Some("end") {
-                                return Err("if: missing end".into());
-                            }
-                            *pos += 1; // consume end
-                            els = e;
-                        } else if stop.as_deref() == Some("end") {
-                            *pos += 1; // consume end
-                        } else {
-                            return Err("if: missing end".into());
-                        }
-                        nodes.push(Node::If { cond, then, els });
+                        nodes.push(parse_if(chunks, pos, rest)?);
                     }
                     "range" => {
                         *pos += 1;
-                        let expr = parse_pipeline(rest)?;
-                        let (body, stop) = parse_seq(chunks, pos)?;
-                        if stop.as_deref() != Some("end") {
-                            return Err("range: missing end".into());
-                        }
-                        *pos += 1; // consume end
-                        nodes.push(Node::Range { expr, body });
+                        nodes.push(parse_range(chunks, pos, rest)?);
                     }
                     _ => {
                         *pos += 1;
@@ -194,6 +185,39 @@ fn parse_seq(chunks: &[Chunk], pos: &mut usize) -> Result<(Vec<Node>, Option<Str
         }
     }
     Ok((nodes, None))
+}
+
+/// Parse an `{{ if COND }}…{{ else }}…{{ end }}` body after its head token was
+/// consumed. `rest` is the condition expression.
+fn parse_if(chunks: &[Chunk], pos: &mut usize, rest: &str) -> Result<Node, String> {
+    let cond = parse_pipeline(rest)?;
+    let (then, stop) = parse_seq(chunks, pos)?;
+    let mut els = Vec::new();
+    if stop.as_deref() == Some("else") {
+        *pos += 1; // consume else
+        let (e, stop2) = parse_seq(chunks, pos)?;
+        if stop2.as_deref() != Some("end") {
+            return Err("if: missing end".into());
+        }
+        *pos += 1; // consume end
+        els = e;
+    } else if stop.as_deref() == Some("end") {
+        *pos += 1; // consume end
+    } else {
+        return Err("if: missing end".into());
+    }
+    Ok(Node::If { cond, then, els })
+}
+
+/// Parse a `{{ range EXPR }}…{{ end }}` body after its head token was consumed.
+fn parse_range(chunks: &[Chunk], pos: &mut usize, rest: &str) -> Result<Node, String> {
+    let expr = parse_pipeline(rest)?;
+    let (body, stop) = parse_seq(chunks, pos)?;
+    if stop.as_deref() != Some("end") {
+        return Err("range: missing end".into());
+    }
+    *pos += 1; // consume end
+    Ok(Node::Range { expr, body })
 }
 
 /// Split the first bareword off an action body (`if and (x) (y)` -> `("if", "and (x) (y)")`).
@@ -236,49 +260,71 @@ fn tokenize_expr(s: &str) -> Result<Vec<Tok>, String> {
             toks.push(Tok::RParen);
             i += 1;
         } else if c == '"' || c == '`' {
-            let quote = c;
-            i += 1;
-            let mut lit = String::new();
-            while i < chars.len() && chars[i] != quote {
-                if quote == '"' && chars[i] == '\\' && i + 1 < chars.len() {
-                    i += 1;
-                    lit.push(match chars[i] {
-                        'n' => '\n',
-                        't' => '\t',
-                        'r' => '\r',
-                        other => other,
-                    });
-                } else {
-                    lit.push(chars[i]);
-                }
-                i += 1;
-            }
-            i += 1; // closing quote
+            let (lit, next) = lex_string(&chars, i);
+            i = next;
             toks.push(Tok::Str(lit));
         } else if c == '.' {
             // A dotted field: `.A.B` or a bare `.`.
-            let start = i;
-            i += 1;
-            while i < chars.len()
-                && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '.')
-            {
-                i += 1;
-            }
-            let raw: String = chars[start..i].iter().collect();
-            let segs: Vec<String> =
-                raw.trim_start_matches('.').split('.').filter(|s| !s.is_empty()).map(String::from).collect();
+            let (segs, next) = lex_field(&chars, i);
+            i = next;
             toks.push(Tok::Field(segs));
         } else {
             // Identifier / number / function name.
-            let start = i;
-            while i < chars.len() && !chars[i].is_whitespace() && !matches!(chars[i], '|' | '(' | ')') {
-                i += 1;
-            }
-            let word: String = chars[start..i].iter().collect();
+            let (word, next) = lex_word(&chars, i);
+            i = next;
             toks.push(Tok::Ident(word));
         }
     }
     Ok(toks)
+}
+
+/// Lex a quoted string literal starting at the opening quote `chars[i]`
+/// (either `"` with escapes or a raw `` ` ``). Returns the literal and the
+/// index just past the closing quote.
+fn lex_string(chars: &[char], mut i: usize) -> (String, usize) {
+    let quote = chars[i];
+    i += 1;
+    let mut lit = String::new();
+    while i < chars.len() && chars[i] != quote {
+        if quote == '"' && chars[i] == '\\' && i + 1 < chars.len() {
+            i += 1;
+            lit.push(match chars[i] {
+                'n' => '\n',
+                't' => '\t',
+                'r' => '\r',
+                other => other,
+            });
+        } else {
+            lit.push(chars[i]);
+        }
+        i += 1;
+    }
+    i += 1; // closing quote
+    (lit, i)
+}
+
+/// Lex a dotted field (`.A.B` or a bare `.`) starting at `chars[start] == '.'`.
+/// Returns the segments and the index just past the field.
+fn lex_field(chars: &[char], start: usize) -> (Vec<String>, usize) {
+    let mut i = start + 1;
+    while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '.') {
+        i += 1;
+    }
+    let raw: String = chars[start..i].iter().collect();
+    let segs: Vec<String> =
+        raw.trim_start_matches('.').split('.').filter(|s| !s.is_empty()).map(String::from).collect();
+    (segs, i)
+}
+
+/// Lex a bareword (identifier / number / function name) from `chars[start]`.
+/// Returns the word and the index just past it.
+fn lex_word(chars: &[char], start: usize) -> (String, usize) {
+    let mut i = start;
+    while i < chars.len() && !chars[i].is_whitespace() && !matches!(chars[i], '|' | '(' | ')') {
+        i += 1;
+    }
+    let word: String = chars[start..i].iter().collect();
+    (word, i)
 }
 
 fn parse_pipeline(s: &str) -> Result<Pipeline, String> {
@@ -436,23 +482,8 @@ fn call_function(name: &str, args: &[Value]) -> Value {
         }
         "replace" => Value::Str(s(0).replace(&s(1), &s(2))),
         "not" => Value::Bool(!args.first().map(Value::truthy).unwrap_or(false)),
-        "and" => {
-            // Go: first falsy arg, else the last arg.
-            for a in args {
-                if !a.truthy() {
-                    return a.clone();
-                }
-            }
-            args.last().cloned().unwrap_or(Value::Bool(true))
-        }
-        "or" => {
-            for a in args {
-                if a.truthy() {
-                    return a.clone();
-                }
-            }
-            args.last().cloned().unwrap_or(Value::Bool(false))
-        }
+        "and" => go_and(args),
+        "or" => go_or(args),
         "eq" => Value::Bool(values_eq(args.first(), args.get(1))),
         "ne" => Value::Bool(!values_eq(args.first(), args.get(1))),
         "lt" | "le" | "gt" | "ge" => Value::Bool(compare(name, args.first(), args.get(1))),
@@ -463,6 +494,26 @@ fn call_function(name: &str, args: &[Value]) -> Value {
         }
         _ => Value::Nil,
     }
+}
+
+/// Go `and`: the first falsy argument, else the last argument.
+fn go_and(args: &[Value]) -> Value {
+    for a in args {
+        if !a.truthy() {
+            return a.clone();
+        }
+    }
+    args.last().cloned().unwrap_or(Value::Bool(true))
+}
+
+/// Go `or`: the first truthy argument, else the last argument.
+fn go_or(args: &[Value]) -> Value {
+    for a in args {
+        if a.truthy() {
+            return a.clone();
+        }
+    }
+    args.last().cloned().unwrap_or(Value::Bool(false))
 }
 
 fn values_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
@@ -517,26 +568,30 @@ fn sprintf(format: &str, args: &[Value]) -> String {
         arg_i += 1;
         match spec.chars().last() {
             Some('s') | Some('v') => out.push_str(&arg),
-            Some('d') => {
-                let n: i64 = arg.parse().unwrap_or(0);
-                // Flags/width between '%' and 'd', e.g. "%04d" -> flags_width "04".
-                let flags_width = &spec[1..spec.len() - 1];
-                // Zero-pad only with an explicit leading '0' FLAG ("%04d"), not
-                // merely because the width digits contain a 0 ("%10d").
-                let zero_pad = flags_width.starts_with('0');
-                let width: usize = flags_width.trim_start_matches('0').parse().unwrap_or(0);
-                if zero_pad && width > 0 {
-                    out.push_str(&format!("{n:0width$}"));
-                } else if width > 0 {
-                    out.push_str(&format!("{n:width$}"));
-                } else {
-                    out.push_str(&n.to_string());
-                }
-            }
+            Some('d') => out.push_str(&format_d(&arg, &spec)),
             _ => out.push_str(&spec),
         }
     }
     out
+}
+
+/// Format one `%d` conversion: parse `arg` as an integer and apply the width /
+/// zero-pad flags carried in `spec` (e.g. `%04d`, `%10d`).
+fn format_d(arg: &str, spec: &str) -> String {
+    let n: i64 = arg.parse().unwrap_or(0);
+    // Flags/width between '%' and 'd', e.g. "%04d" -> flags_width "04".
+    let flags_width = &spec[1..spec.len() - 1];
+    // Zero-pad only with an explicit leading '0' FLAG ("%04d"), not merely
+    // because the width digits contain a 0 ("%10d").
+    let zero_pad = flags_width.starts_with('0');
+    let width: usize = flags_width.trim_start_matches('0').parse().unwrap_or(0);
+    if zero_pad && width > 0 {
+        format!("{n:0width$}")
+    } else if width > 0 {
+        format!("{n:width$}")
+    } else {
+        n.to_string()
+    }
 }
 
 #[cfg(test)]

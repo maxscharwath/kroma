@@ -94,7 +94,7 @@ export function KromaIntro({
         /* not yet seekable harmless */
       }
       const p = a.play();
-      if (p && typeof p.then === 'function') p.then(begin).catch(begin);
+      if (typeof p?.then === 'function') p.then(begin).catch(begin);
       else begin();
     } else {
       begin();

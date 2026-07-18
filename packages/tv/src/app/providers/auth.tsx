@@ -83,7 +83,7 @@ export function AuthProvider({
   // re-exchanging in an infinite loop.
   const exchangedRef = useRef<string | null>(null);
   // Coalesce concurrent silent refreshes (a poster grid full of 401s → one
-  // exchange, not N — which would trip the brute-force guard and bounce to the
+  // exchange, not N, which would trip the brute-force guard and bounce to the
   // picker).
   const refreshingRef = useRef<Promise<string | undefined> | null>(null);
 
@@ -97,8 +97,8 @@ export function AuthProvider({
     if (!client) return;
     const match = session && norm(session.serverUrl) === norm(activeServerUrl);
     if (!match || !session) {
-      client.setAuthToken(undefined);
-      client.setRefreshHandler(undefined);
+      client.setAuthToken();
+      client.setRefreshHandler();
       exchangedRef.current = null;
       return;
     }
@@ -119,7 +119,7 @@ export function AuthProvider({
 
     // Exchange once per access token (the setSession below would otherwise loop).
     if (exchangedRef.current === session.accessToken) {
-      return () => client.setRefreshHandler(undefined);
+      return () => client.setRefreshHandler();
     }
     exchangedRef.current = session.accessToken;
 
@@ -129,16 +129,14 @@ export function AuthProvider({
       .then((res) => {
         if (cancelled) return;
         client.setAuthToken(res.token);
-        setSession((cur) =>
-          cur && cur.user.id === res.user.id ? { ...cur, user: res.user } : cur,
-        );
+        setSession((cur) => (cur?.user.id === res.user.id ? { ...cur, user: res.user } : cur));
         saveSession({ ...session, user: res.user });
       })
       .catch(() => {
         if (cancelled) return;
         // Can't resume (revoked/expired token, or PIN required after a reset):
         // drop to the picker instead of a zombie 'signed-in' state with no bearer.
-        client.setAuthToken(undefined);
+        client.setAuthToken();
         exchangedRef.current = null;
         unlocked.current.clear();
         clearSession();
@@ -146,7 +144,7 @@ export function AuthProvider({
       });
     return () => {
       cancelled = true;
-      client.setRefreshHandler(undefined);
+      client.setRefreshHandler();
     };
   }, [client, session, activeServerUrl]);
 
@@ -188,7 +186,7 @@ export function AuthProvider({
   );
 
   const switchProfile = useCallback(() => {
-    client?.setAuthToken(undefined);
+    client?.setAuthToken();
     clearSession();
     unlocked.current.clear(); // re-arm every PIN lock
     setSession(null);
@@ -200,7 +198,7 @@ export function AuthProvider({
       setAccounts(loadAccounts());
       setSession((s) => {
         if (s?.user.id === userId && norm(s?.serverUrl) === norm(serverUrl)) {
-          client?.setAuthToken(undefined);
+          client?.setAuthToken();
           return null;
         }
         return s;
@@ -216,7 +214,7 @@ export function AuthProvider({
     } catch {
       /* best-effort server-side revocation */
     }
-    client?.setAuthToken(undefined);
+    client?.setAuthToken();
     if (active?.serverUrl) forgetAccountStore(active.user.id, active.serverUrl);
     else clearSession();
     unlocked.current.clear();

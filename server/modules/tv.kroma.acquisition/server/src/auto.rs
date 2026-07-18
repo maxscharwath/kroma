@@ -63,77 +63,7 @@ pub fn auto_search_pass<S: kroma_module_sdk::host::HostCtx>(state: &S, log: &dyn
         if cancelled() {
             break;
         }
-        let conn = state.db().get()?;
-        let Some(req) = db::get_request(&conn, request_id)? else { continue };
-        let wanted = db::wanted_for_request(&conn, request_id)?;
-        drop(conn);
-
-        summary.requests += 1;
-        let targets = targets_for_wanted(req.kind, &wanted, &today_ymd());
-        // Rows a pack grab already covered this pass (skip episode targets).
-        let mut covered: HashSet<String> = HashSet::new();
-        for st in &targets {
-            if cancelled() {
-                break;
-            }
-            let target_rows = wanted_row_ids(&wanted, st);
-            if target_rows.is_empty() || target_rows.iter().all(|id| covered.contains(id)) {
-                continue;
-            }
-            summary.targets += 1;
-
-            // Sweep the indexers for this target and keep the best candidate.
-            let mut best: Option<(crate::search::CachedRelease, i32)> = None;
-            for indexer in &indexers {
-                let found = match crate::search_indexer(state, indexer, &st.query) {
-                    Ok(f) => f,
-                    Err(e) => {
-                        summary.errors.push(format!("{}: {e:#}", indexer.name));
-                        continue;
-                    }
-                };
-                for release in found {
-                    let view = score_release(&release, indexer, st, &profile);
-                    let Some(score) = view.score else { continue };
-                    let magnet_or_url =
-                        release.magnet.clone().or_else(|| release.link.clone()).unwrap_or_default();
-                    if magnet_or_url.is_empty() {
-                        continue;
-                    }
-                    if best.as_ref().is_none_or(|(_, s)| score > *s) {
-                        best = Some((
-                            crate::search::CachedRelease { view, magnet_or_url, tmdb_id: req.tmdb_id },
-                            score,
-                        ));
-                    }
-                }
-            }
-
-            if let Some((candidate, score)) = best {
-                log(format!(
-                    "grabbing \"{}\" (score {score}) for \"{}\"",
-                    candidate.view.title, req.title
-                ));
-                let spec = crate::search::grab_spec_from_release(
-                    &candidate.view,
-                    &candidate.magnet_or_url,
-                    candidate.tmdb_id,
-                    Some(req.title.clone()),
-                    req.year,
-                    Some(request_id.clone()),
-                    target_rows.clone(),
-                );
-                match crate::downloads(state).grab(state, spec) {
-                    Ok(row) => {
-                        // Background job: fine to add synchronously here.
-                        crate::downloads(state).activate(state, &row);
-                        summary.grabbed += 1;
-                        covered.extend(target_rows);
-                    }
-                    Err(e) => summary.errors.push(format!("grab failed: {e:#}")),
-                }
-            }
-        }
+        search_request(state, request_id, &indexers, &profile, &mut summary, log, cancelled)?;
     }
 
     // Stamp every due row so the next pass rotates to the least recently
@@ -149,4 +79,117 @@ fn wanted_row_ids(wanted: &[db::WantedRow], st: &crate::search::SearchTarget) ->
         .into_iter()
         .filter(|id| wanted.iter().any(|w| &w.id == id && w.status == "wanted"))
         .collect()
+}
+
+/// Search every enabled indexer for one request's targets and grab the best
+/// accepted release per target.
+fn search_request<S: kroma_module_sdk::host::HostCtx>(
+    state: &S,
+    request_id: &str,
+    indexers: &[kroma_module_sdk::ports::IndexerRow],
+    profile: &kroma_module_sdk::scene::Profile,
+    summary: &mut AutoSummary,
+    log: &dyn Fn(String),
+    cancelled: &dyn Fn() -> bool,
+) -> Result<()> {
+    let conn = state.db().get()?;
+    let Some(req) = db::get_request(&conn, request_id)? else { return Ok(()) };
+    let wanted = db::wanted_for_request(&conn, request_id)?;
+    drop(conn);
+
+    summary.requests += 1;
+    let targets = targets_for_wanted(req.kind, &wanted, &today_ymd());
+    // Rows a pack grab already covered this pass (skip episode targets).
+    let mut covered: HashSet<String> = HashSet::new();
+    for st in &targets {
+        if cancelled() {
+            break;
+        }
+        let target_rows = wanted_row_ids(&wanted, st);
+        if target_rows.is_empty() || target_rows.iter().all(|id| covered.contains(id)) {
+            continue;
+        }
+        summary.targets += 1;
+
+        let Some((candidate, score)) =
+            best_candidate(state, indexers, st, profile, req.tmdb_id, &mut summary.errors)
+        else {
+            continue;
+        };
+        log(format!(
+            "grabbing \"{}\" (score {score}) for \"{}\"",
+            candidate.view.title, req.title
+        ));
+        let spec = crate::search::grab_spec_from_release(
+            &candidate.view,
+            &candidate.magnet_or_url,
+            candidate.tmdb_id,
+            Some(req.title.clone()),
+            req.year,
+            Some(request_id.to_string()),
+            target_rows.clone(),
+        );
+        match crate::downloads(state).grab(state, spec) {
+            Ok(row) => {
+                // Background job: fine to add synchronously here.
+                crate::downloads(state).activate(state, &row);
+                summary.grabbed += 1;
+                covered.extend(target_rows);
+            }
+            Err(e) => summary.errors.push(format!("grab failed: {e:#}")),
+        }
+    }
+    Ok(())
+}
+
+/// Sweep every indexer for one target and keep the single highest-scoring
+/// grabbable release across all of them.
+fn best_candidate<S: kroma_module_sdk::host::HostCtx>(
+    state: &S,
+    indexers: &[kroma_module_sdk::ports::IndexerRow],
+    st: &crate::search::SearchTarget,
+    profile: &kroma_module_sdk::scene::Profile,
+    tmdb_id: u64,
+    errors: &mut Vec<String>,
+) -> Option<(crate::search::CachedRelease, i32)> {
+    let mut best: Option<(crate::search::CachedRelease, i32)> = None;
+    for indexer in indexers {
+        let found = match crate::search_indexer(state, indexer, &st.query) {
+            Ok(f) => f,
+            Err(e) => {
+                errors.push(format!("{}: {e:#}", indexer.name));
+                continue;
+            }
+        };
+        if let Some((cand, score)) = best_in_batch(found, indexer, st, profile, tmdb_id) {
+            if best.as_ref().is_none_or(|(_, s)| score > *s) {
+                best = Some((cand, score));
+            }
+        }
+    }
+    best
+}
+
+/// The best grabbable release within one indexer's result batch.
+fn best_in_batch(
+    found: Vec<kroma_module_sdk::ports::Release>,
+    indexer: &kroma_module_sdk::ports::IndexerRow,
+    st: &crate::search::SearchTarget,
+    profile: &kroma_module_sdk::scene::Profile,
+    tmdb_id: u64,
+) -> Option<(crate::search::CachedRelease, i32)> {
+    let mut best: Option<(crate::search::CachedRelease, i32)> = None;
+    for release in found {
+        let view = score_release(&release, indexer, st, profile);
+        let Some(score) = view.score else { continue };
+        let magnet_or_url =
+            release.magnet.clone().or_else(|| release.link.clone()).unwrap_or_default();
+        if magnet_or_url.is_empty() {
+            continue;
+        }
+        if best.as_ref().is_none_or(|(_, s)| score > *s) {
+            best = Some((crate::search::CachedRelease { view, magnet_or_url, tmdb_id }, score));
+        }
+    }
+    best
 }

@@ -18,9 +18,6 @@ concurrency:
   group: sonar-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 env:
   BUN_VERSION: '1.3.14'
 
@@ -29,6 +26,7 @@ jobs:
   # be read in a job-level `if`, so a tiny job exposes it as an output instead.
   gate:
     name: Check SONAR_TOKEN
+    permissions: {}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     outputs:
@@ -49,6 +47,8 @@ jobs:
     name: SonarCloud scan
     needs: gate
     if: needs.gate.outputs.run == 'true'
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -83,6 +83,10 @@ jobs:
       - name: Rust coverage (cargo-llvm-cov -> server/lcov.info)
         working-directory: server
         continue-on-error: true
+        # Capped so a cold instrumented build of the big server workspace
+        # (candle/librqbit/whisper) can never blow the job budget; the scan then
+        # proceeds with JS/TS coverage only.
+        timeout-minutes: 25
         run: cargo llvm-cov --workspace --lcov --output-path lcov.info
 
       # --- Analysis -----------------------------------------------------------

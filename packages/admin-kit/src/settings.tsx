@@ -116,22 +116,27 @@ function Row({ row, onChange }: Readonly<{ row: SettingRow; onChange: (v: unknow
   );
 }
 
+/** A setting's stored value (untyped `serde_json::Value`) as editable text; an
+ * object would otherwise stringify to "[object Object]". */
+function asText(v: unknown): string {
+  if (v == null) return '';
+  return typeof v === 'object' ? JSON.stringify(v) : String(v);
+}
+
 function Control({ row, onChange }: Readonly<{ row: SettingRow; onChange: (v: unknown) => void }>) {
   if (row.kind === 'toggle') {
     return <Toggle on={Boolean(row.value)} onChange={onChange} />;
   }
   if (row.kind === 'select') {
-    return (
-      <Select value={String(row.value ?? '')} options={row.options ?? []} onChange={onChange} />
-    );
+    return <Select value={asText(row.value)} options={row.options ?? []} onChange={onChange} />;
   }
   if (row.kind === 'text') {
-    return <EditableText value={String(row.value ?? '')} onCommit={onChange} />;
+    return <EditableText value={asText(row.value)} onCommit={onChange} />;
   }
   // value (read-only)
   return (
     <span className="text-[13.5px] font-semibold tabular-nums text-text/60">
-      {String(row.value ?? '')}
+      {asText(row.value)}
     </span>
   );
 }

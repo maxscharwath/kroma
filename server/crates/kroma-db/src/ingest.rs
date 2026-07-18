@@ -341,224 +341,278 @@ pub fn sync_all(
     let mut conn = pool.get()?;
     let tx = conn.transaction()?;
 
-    // 1) Libraries UPSERT by id. We must NOT `DELETE FROM libraries` wholesale:
-    //    `items`/`files` cascade-delete from libraries, which would wipe all the
-    //    precious probed data and metadata we're trying to preserve. Instead
-    //    upsert each library, then delete only libraries no longer scanned (whose
-    //    cascade is the correct behaviour their items are gone too).
+    sync_libraries(&tx, libraries)?;
+    sync_shows(&tx, shows)?;
+    sync_items(&tx, items)?;
+    sync_files(&tx, items, mtimes)?;
+    prune_orphans(&tx)?;
+
+    tx.commit()?;
+
+    // Recompute every item's representative columns from its probed files.
+    recompute_all_representatives(pool)?;
+    // Drop content embeddings for titles that vanished from the catalog.
+    let _ = prune_orphan_vectors(pool);
+    Ok(())
+}
+
+/// 1) Libraries UPSERT by id. We must NOT `DELETE FROM libraries` wholesale:
+/// `items`/`files` cascade-delete from libraries, which would wipe all the
+/// precious probed data and metadata we're trying to preserve. Instead upsert
+/// each library, then delete only libraries no longer scanned (whose cascade is
+/// the correct behaviour their items are gone too).
+fn sync_libraries(tx: &rusqlite::Transaction, libraries: &[Library]) -> Result<()> {
+    let mut lib_stmt = tx.prepare(
+        "INSERT INTO libraries (id,name,kind,path,added_at) VALUES (?1,?2,?3,?4,?5) \
+         ON CONFLICT(id) DO UPDATE SET name=excluded.name, kind=excluded.kind, path=excluded.path",
+    )?;
+    for l in libraries {
+        lib_stmt.execute(params![l.id, l.name, library_kind_str(&l.kind), l.path, now_or_blank()])?;
+    }
+    // Delete libraries that vanished from the scan (cascades their items/files).
+    let keep: Vec<String> = libraries.iter().map(|l| l.id.clone()).collect();
+    let mut existing: Vec<String> = Vec::new();
     {
-        let mut lib_stmt = tx.prepare(
-            "INSERT INTO libraries (id,name,kind,path,added_at) VALUES (?1,?2,?3,?4,?5) \
-             ON CONFLICT(id) DO UPDATE SET name=excluded.name, kind=excluded.kind, path=excluded.path",
-        )?;
-        for l in libraries {
-            lib_stmt.execute(params![l.id, l.name, library_kind_str(&l.kind), l.path, now_or_blank()])?;
-        }
-        // Delete libraries that vanished from the scan (cascades their items/files).
-        let keep: Vec<String> = libraries.iter().map(|l| l.id.clone()).collect();
-        let mut existing: Vec<String> = Vec::new();
-        {
-            let mut q = tx.prepare("SELECT id FROM libraries")?;
-            let rows = q.query_map([], |r| r.get::<_, String>(0))?;
-            for r in rows {
-                existing.push(r?);
-            }
-        }
-        let mut del = tx.prepare("DELETE FROM libraries WHERE id = ?1")?;
-        for id in &existing {
-            if !keep.contains(id) {
-                del.execute(params![id])?;
-            }
+        let mut q = tx.prepare("SELECT id FROM libraries")?;
+        let rows = q.query_map([], |r| r.get::<_, String>(0))?;
+        for r in rows {
+            existing.push(r?);
         }
     }
-
-    // 2) Shows upsert without ever touching `metadata`.
-    {
-        let mut show_stmt = tx.prepare(
-            "INSERT INTO shows (id,library,title,year,added_at) VALUES (?1,?2,?3,?4,?5) \
-             ON CONFLICT(id) DO UPDATE SET library=excluded.library, title=excluded.title, \
-                 year=COALESCE(excluded.year, shows.year)",
-        )?;
-        for s in shows {
-            show_stmt.execute(params![s.id, s.library, s.title, s.year, s.added_at])?;
+    let mut del = tx.prepare("DELETE FROM libraries WHERE id = ?1")?;
+    for id in &existing {
+        if !keep.contains(id) {
+            del.execute(params![id])?;
         }
     }
+    Ok(())
+}
 
-    // 3) Items upsert without ever touching `metadata`.
-    {
-        let mut item_stmt = tx.prepare(
-            "INSERT INTO items \
-                (id,kind,title,year,container,library,show_id,show_title,\
-                 season,episode,episode_end,episode_title,rel_path,abs_path,added_at) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15) \
-             ON CONFLICT(id) DO UPDATE SET \
-                 kind=excluded.kind, title=excluded.title, year=excluded.year, \
-                 library=excluded.library, show_id=excluded.show_id, \
-                 show_title=excluded.show_title, season=excluded.season, \
-                 episode=excluded.episode, episode_end=excluded.episode_end, \
-                 episode_title=excluded.episode_title",
-        )?;
-        for i in items {
-            // The item's container/rel_path/abs_path mirror its (first) file until
-            // probing recomputes the representative; pick the first file as seed.
-            let seed = i.files.first();
-            let container = seed.map(|f| f.container.clone()).unwrap_or_default();
-            let rel_path = seed.and_then(|f| f.rel_path.clone());
-            let abs_path = seed.and_then(|f| f.abs_path.clone());
-            item_stmt.execute(params![
-                i.id,
-                kind_str(&i.kind),
-                i.title,
-                i.year,
-                container,
-                i.library,
-                i.show_id,
-                i.show_title,
-                i.season,
-                i.episode,
-                i.episode_end,
-                i.episode_title,
-                rel_path,
-                abs_path,
-                i.added_at,
-            ])?;
+/// 2) Shows upsert without ever touching `metadata`.
+fn sync_shows(tx: &rusqlite::Transaction, shows: &[Show]) -> Result<()> {
+    let mut show_stmt = tx.prepare(
+        "INSERT INTO shows (id,library,title,year,added_at) VALUES (?1,?2,?3,?4,?5) \
+         ON CONFLICT(id) DO UPDATE SET library=excluded.library, title=excluded.title, \
+             year=COALESCE(excluded.year, shows.year)",
+    )?;
+    for s in shows {
+        show_stmt.execute(params![s.id, s.library, s.title, s.year, s.added_at])?;
+    }
+    Ok(())
+}
+
+/// 3) Items upsert without ever touching `metadata`.
+fn sync_items(tx: &rusqlite::Transaction, items: &[MediaItem]) -> Result<()> {
+    let mut item_stmt = tx.prepare(
+        "INSERT INTO items \
+            (id,kind,title,year,container,library,show_id,show_title,\
+             season,episode,episode_end,episode_title,rel_path,abs_path,added_at) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15) \
+         ON CONFLICT(id) DO UPDATE SET \
+             kind=excluded.kind, title=excluded.title, year=excluded.year, \
+             library=excluded.library, show_id=excluded.show_id, \
+             show_title=excluded.show_title, season=excluded.season, \
+             episode=excluded.episode, episode_end=excluded.episode_end, \
+             episode_title=excluded.episode_title",
+    )?;
+    for i in items {
+        // The item's container/rel_path/abs_path mirror its (first) file until
+        // probing recomputes the representative; pick the first file as seed.
+        let seed = i.files.first();
+        let container = seed.map(|f| f.container.clone()).unwrap_or_default();
+        let rel_path = seed.and_then(|f| f.rel_path.clone());
+        let abs_path = seed.and_then(|f| f.abs_path.clone());
+        item_stmt.execute(params![
+            i.id,
+            kind_str(&i.kind),
+            i.title,
+            i.year,
+            container,
+            i.library,
+            i.show_id,
+            i.show_title,
+            i.season,
+            i.episode,
+            i.episode_end,
+            i.episode_title,
+            rel_path,
+            abs_path,
+            i.added_at,
+        ])?;
+    }
+    Ok(())
+}
+
+/// 4) Files diff sync by abs_path. Delete files no longer on disk; upsert
+/// scanned files, resetting `probed=0` only when size/mtime changed.
+fn sync_files(
+    tx: &rusqlite::Transaction,
+    items: &[MediaItem],
+    mtimes: &HashMap<String, Option<i64>>,
+) -> Result<()> {
+    // Build the set of abs_paths we just scanned.
+    let scanned: std::collections::HashSet<&str> = items
+        .iter()
+        .flat_map(|i| i.files.iter())
+        .filter_map(|f| f.abs_path.as_deref())
+        .collect();
+
+    delete_gone_files(tx, &scanned)?;
+    // Existing (size, mtime, probed) keyed by abs_path, to decide reuse.
+    let prev = existing_file_sigs(tx)?;
+
+    // Upsert each scanned file. When size+mtime match an already-probed row,
+    // keep probed=1 and DON'T touch its stream columns. Otherwise reset.
+    let mut keep_stmt = tx.prepare(
+        "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8) \
+         ON CONFLICT(abs_path) DO UPDATE SET \
+             id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
+             container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
+             edition=excluded.edition",
+    )?;
+    let mut reset_stmt = tx.prepare(
+        "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition,probed,\
+             duration_ms,v_codec,v_width,v_height,v_hdr,v_bit_depth,a_codec,a_channels,a_language,subtitles,audio_tracks) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'[]','[]') \
+         ON CONFLICT(abs_path) DO UPDATE SET \
+             id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
+             container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
+             edition=excluded.edition, probed=0, duration_ms=NULL, v_codec=NULL, v_width=NULL, \
+             v_height=NULL, v_hdr=NULL, v_bit_depth=NULL, a_codec=NULL, a_channels=NULL, \
+             a_language=NULL, subtitles='[]', audio_tracks='[]'",
+    )?;
+    // Files that arrive already probed (demo/seed content): store their stream
+    // data directly as probed=1 so they never enter the phase-2 pass.
+    let mut preprobed_stmt = tx.prepare(
+        "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition,probed,\
+             duration_ms,v_codec,v_width,v_height,v_hdr,v_bit_depth,a_codec,a_channels,a_language,subtitles,audio_tracks) \
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,1,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19) \
+         ON CONFLICT(abs_path) DO UPDATE SET \
+             id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
+             container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
+             edition=excluded.edition, probed=1, duration_ms=excluded.duration_ms, \
+             v_codec=excluded.v_codec, v_width=excluded.v_width, v_height=excluded.v_height, \
+             v_hdr=excluded.v_hdr, v_bit_depth=excluded.v_bit_depth, a_codec=excluded.a_codec, \
+             a_channels=excluded.a_channels, a_language=excluded.a_language, subtitles=excluded.subtitles, \
+             audio_tracks=excluded.audio_tracks",
+    )?;
+
+    for i in items {
+        for f in &i.files {
+            upsert_scanned_file(
+                &mut keep_stmt,
+                &mut reset_stmt,
+                &mut preprobed_stmt,
+                &prev,
+                mtimes,
+                i,
+                f,
+            )?;
         }
     }
+    Ok(())
+}
 
-    // 4) Files diff sync by abs_path. Delete files no longer on disk; upsert
-    //    scanned files, resetting `probed=0` only when size/mtime changed.
+/// Delete DB file rows whose abs_path is gone from disk.
+fn delete_gone_files(
+    tx: &rusqlite::Transaction,
+    scanned: &std::collections::HashSet<&str>,
+) -> Result<()> {
+    let mut existing: Vec<(String, String)> = Vec::new();
     {
-        // Build the set of abs_paths we just scanned.
-        let scanned: std::collections::HashSet<&str> = items
-            .iter()
-            .flat_map(|i| i.files.iter())
-            .filter_map(|f| f.abs_path.as_deref())
-            .collect();
-
-        // Delete DB file rows whose abs_path is gone from disk.
-        let mut existing: Vec<(String, String)> = Vec::new();
-        {
-            let mut q = tx.prepare("SELECT id, abs_path FROM files")?;
-            let rows = q.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-            for r in rows {
-                existing.push(r?);
-            }
-        }
-        {
-            let mut del = tx.prepare("DELETE FROM files WHERE id = ?1")?;
-            for (id, abs) in &existing {
-                if !scanned.contains(abs.as_str()) {
-                    del.execute(params![id])?;
-                }
-            }
-        }
-
-        // Existing (size, mtime, probed) keyed by abs_path, to decide reuse.
-        let mut prev: HashMap<String, (Option<i64>, Option<i64>, i64)> = HashMap::new();
-        {
-            let mut q = tx.prepare("SELECT abs_path, size, mtime, probed FROM files")?;
-            let rows = q.query_map([], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, Option<i64>>(1)?,
-                    r.get::<_, Option<i64>>(2)?,
-                    r.get::<_, i64>(3)?,
-                ))
-            })?;
-            for r in rows {
-                let (abs, size, mtime, probed) = r?;
-                prev.insert(abs, (size, mtime, probed));
-            }
-        }
-
-        // Upsert each scanned file. When size+mtime match an already-probed row,
-        // keep probed=1 and DON'T touch its stream columns. Otherwise reset.
-        let mut keep_stmt = tx.prepare(
-            "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8) \
-             ON CONFLICT(abs_path) DO UPDATE SET \
-                 id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
-                 container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
-                 edition=excluded.edition",
-        )?;
-        let mut reset_stmt = tx.prepare(
-            "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition,probed,\
-                 duration_ms,v_codec,v_width,v_height,v_hdr,v_bit_depth,a_codec,a_channels,a_language,subtitles,audio_tracks) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,0,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'[]','[]') \
-             ON CONFLICT(abs_path) DO UPDATE SET \
-                 id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
-                 container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
-                 edition=excluded.edition, probed=0, duration_ms=NULL, v_codec=NULL, v_width=NULL, \
-                 v_height=NULL, v_hdr=NULL, v_bit_depth=NULL, a_codec=NULL, a_channels=NULL, \
-                 a_language=NULL, subtitles='[]', audio_tracks='[]'",
-        )?;
-        // Files that arrive already probed (demo/seed content): store their stream
-        // data directly as probed=1 so they never enter the phase-2 pass.
-        let mut preprobed_stmt = tx.prepare(
-            "INSERT INTO files (id,item_id,abs_path,rel_path,container,size,mtime,edition,probed,\
-                 duration_ms,v_codec,v_width,v_height,v_hdr,v_bit_depth,a_codec,a_channels,a_language,subtitles,audio_tracks) \
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,1,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19) \
-             ON CONFLICT(abs_path) DO UPDATE SET \
-                 id=excluded.id, item_id=excluded.item_id, rel_path=excluded.rel_path, \
-                 container=excluded.container, size=excluded.size, mtime=excluded.mtime, \
-                 edition=excluded.edition, probed=1, duration_ms=excluded.duration_ms, \
-                 v_codec=excluded.v_codec, v_width=excluded.v_width, v_height=excluded.v_height, \
-                 v_hdr=excluded.v_hdr, v_bit_depth=excluded.v_bit_depth, a_codec=excluded.a_codec, \
-                 a_channels=excluded.a_channels, a_language=excluded.a_language, subtitles=excluded.subtitles, \
-                 audio_tracks=excluded.audio_tracks",
-        )?;
-
-        for i in items {
-            for f in &i.files {
-                let Some(abs) = f.abs_path.as_deref() else { continue };
-                let size = f.size.map(|s| s as i64);
-                let mtime = mtimes.get(&f.id).copied().flatten();
-
-                if f.probed {
-                    // Pre-probed (demo): store the supplied stream data.
-                    let v = f.video.as_ref();
-                    let a = f.audio.as_ref();
-                    let subs = serde_json::to_string(&f.subtitles).unwrap_or_else(|_| "[]".into());
-                    let a_tracks = serde_json::to_string(&f.audio_tracks).unwrap_or_else(|_| "[]".into());
-                    preprobed_stmt.execute(params![
-                        f.id, i.id, abs, f.rel_path, f.container, size, mtime, f.edition,
-                        f.duration_ms.map(|d| d as i64),
-                        v.map(|v| v.codec.clone()),
-                        v.and_then(|v| v.width),
-                        v.and_then(|v| v.height),
-                        v.map(|v| v.hdr as i64),
-                        v.and_then(|v| v.bit_depth),
-                        a.map(|a| a.codec.clone()),
-                        a.and_then(|a| a.channels),
-                        a.and_then(|a| a.language.clone()),
-                        subs,
-                        a_tracks,
-                    ])?;
-                    continue;
-                }
-
-                let unchanged_probed = prev.get(abs).is_some_and(|(psize, pmtime, probed)| {
-                    *probed == 1 && *psize == size && *pmtime == mtime
-                });
-                if unchanged_probed {
-                    keep_stmt.execute(params![
-                        f.id, i.id, abs, f.rel_path, f.container, size, mtime, f.edition,
-                    ])?;
-                } else {
-                    reset_stmt.execute(params![
-                        f.id, i.id, abs, f.rel_path, f.container, size, mtime, f.edition,
-                    ])?;
-                }
-            }
+        let mut q = tx.prepare("SELECT id, abs_path FROM files")?;
+        let rows = q.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+        for r in rows {
+            existing.push(r?);
         }
     }
+    let mut del = tx.prepare("DELETE FROM files WHERE id = ?1")?;
+    for (id, abs) in &existing {
+        if !scanned.contains(abs.as_str()) {
+            del.execute(params![id])?;
+        }
+    }
+    Ok(())
+}
 
-    // 5) Prune items/shows that now have zero backing files/episodes.
+/// Existing `(size, mtime, probed)` keyed by abs_path, to decide file reuse.
+fn existing_file_sigs(
+    tx: &rusqlite::Transaction,
+) -> Result<HashMap<String, (Option<i64>, Option<i64>, i64)>> {
+    let mut prev: HashMap<String, (Option<i64>, Option<i64>, i64)> = HashMap::new();
+    let mut q = tx.prepare("SELECT abs_path, size, mtime, probed FROM files")?;
+    let rows = q.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, Option<i64>>(1)?,
+            r.get::<_, Option<i64>>(2)?,
+            r.get::<_, i64>(3)?,
+        ))
+    })?;
+    for r in rows {
+        let (abs, size, mtime, probed) = r?;
+        prev.insert(abs, (size, mtime, probed));
+    }
+    Ok(prev)
+}
+
+/// Upsert one scanned file into the `files` table, choosing the right statement:
+/// pre-probed rows carry their stream data; unchanged already-probed rows keep
+/// their columns; everything else resets to `probed=0`.
+fn upsert_scanned_file<'a>(
+    keep_stmt: &mut rusqlite::Statement<'a>,
+    reset_stmt: &mut rusqlite::Statement<'a>,
+    preprobed_stmt: &mut rusqlite::Statement<'a>,
+    prev: &HashMap<String, (Option<i64>, Option<i64>, i64)>,
+    mtimes: &HashMap<String, Option<i64>>,
+    i: &MediaItem,
+    f: &MediaFile,
+) -> Result<()> {
+    let Some(abs) = f.abs_path.as_deref() else { return Ok(()) };
+    let size = f.size.map(|s| s as i64);
+    let mtime = mtimes.get(&f.id).copied().flatten();
+
+    if f.probed {
+        // Pre-probed (demo): store the supplied stream data.
+        let v = f.video.as_ref();
+        let a = f.audio.as_ref();
+        let subs = serde_json::to_string(&f.subtitles).unwrap_or_else(|_| "[]".into());
+        let a_tracks = serde_json::to_string(&f.audio_tracks).unwrap_or_else(|_| "[]".into());
+        preprobed_stmt.execute(params![
+            f.id, i.id, abs, f.rel_path, f.container, size, mtime, f.edition,
+            f.duration_ms.map(|d| d as i64),
+            v.map(|v| v.codec.clone()),
+            v.and_then(|v| v.width),
+            v.and_then(|v| v.height),
+            v.map(|v| v.hdr as i64),
+            v.and_then(|v| v.bit_depth),
+            a.map(|a| a.codec.clone()),
+            a.and_then(|a| a.channels),
+            a.and_then(|a| a.language.clone()),
+            subs,
+            a_tracks,
+        ])?;
+        return Ok(());
+    }
+
+    let unchanged_probed = prev.get(abs).is_some_and(|(psize, pmtime, probed)| {
+        *probed == 1 && *psize == size && *pmtime == mtime
+    });
+    let stmt = if unchanged_probed { keep_stmt } else { reset_stmt };
+    stmt.execute(params![
+        f.id, i.id, abs, f.rel_path, f.container, size, mtime, f.edition,
+    ])?;
+    Ok(())
+}
+
+/// 5) Prune items/shows with zero backing files/episodes, then 5b) prune the
+/// language-cache rows for titles that vanished (no FK on those tables, so the
+/// item/show cascade doesn't reach them).
+fn prune_orphans(tx: &rusqlite::Transaction) -> Result<()> {
     tx.execute("DELETE FROM items WHERE id NOT IN (SELECT DISTINCT item_id FROM files)", [])?;
     tx.execute("DELETE FROM shows WHERE id NOT IN (SELECT DISTINCT show_id FROM items WHERE show_id IS NOT NULL)", [])?;
 
-    // 5b) Prune language-cache rows for titles that vanished (no FK on those
-    //     tables, so the item/show cascade doesn't reach them).
     tx.execute(
         "DELETE FROM metadata_core WHERE \
             (subject_kind='item' AND subject_id NOT IN (SELECT id FROM items)) OR \
@@ -580,13 +634,6 @@ pub fn sync_all(
             AND substr(subject_id, 1, instr(subject_id, ':') - 1) NOT IN (SELECT id FROM shows)",
         [],
     )?;
-
-    tx.commit()?;
-
-    // 6) Recompute every item's representative columns from its probed files.
-    recompute_all_representatives(pool)?;
-    // 7) Drop content embeddings for titles that vanished from the catalog.
-    let _ = prune_orphan_vectors(pool);
     Ok(())
 }
 

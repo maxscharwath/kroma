@@ -92,24 +92,39 @@ function handleMediaKey(key: RemoteKey, a: PlayerNavActions): boolean {
   }
 }
 
+/** Up: from the controls row, bump volume or hop to the progress bar; from the
+ * progress bar, leave display mode (hide the chrome). */
+function dpadUp(ctx: DpadContext): void {
+  const { a, zone, focused } = ctx;
+  if (zone === 'controls') {
+    if (focused === 'volume') {
+      a.volumeNudge(1);
+      return;
+    }
+    ctx.setZone('progress');
+  } else {
+    ctx.clearHide();
+    ctx.setRevealed(false);
+  }
+}
+
+/** Down: progress -> controls, lower the volume when focused, else open the sheet. */
+function dpadDown(ctx: DpadContext): void {
+  const { a, zone, focused } = ctx;
+  if (zone === 'progress') ctx.setZone('controls');
+  else if (focused === 'volume') a.volumeNudge(-1);
+  else ctx.openOverlay('sheet');
+}
+
 /** Zone-aware D-pad routing, once the chrome is revealed and no overlay is open. */
 function handleDpadKey(key: RemoteKey, ctx: DpadContext): void {
   const { a, zone, focused } = ctx;
   switch (key) {
     case 'Up':
-      if (zone === 'controls') {
-        if (focused === 'volume') return a.volumeNudge(1);
-        ctx.setZone('progress');
-      } else {
-        // ▲ from the progress bar leaves display mode (hide chrome).
-        ctx.clearHide();
-        ctx.setRevealed(false);
-      }
+      dpadUp(ctx);
       return;
     case 'Down':
-      if (zone === 'progress') ctx.setZone('controls');
-      else if (focused === 'volume') a.volumeNudge(-1);
-      else ctx.openOverlay('sheet');
+      dpadDown(ctx);
       return;
     case 'Left':
       if (zone === 'progress') a.seekNudge(-1);

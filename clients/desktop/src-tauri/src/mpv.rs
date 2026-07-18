@@ -176,64 +176,81 @@ fn emit_error(app: &AppHandle, reason: &str) {
 /// events. Call once at setup; failures are logged, not fatal (the UI still runs).
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
-        let sock = socket_path();
-        let binary = mpv_binary();
-
-        // Bring mpv up on a video output this machine can actually initialise. The
-        // default gpu-next needs an EGL/GL context that aborts on some driver stacks
-        // (the Steam Deck's KDE-Wayland desktop: "Could not create default EGL
-        // display: EGL_BAD_PARAMETER"), so mpv dies and its IPC socket never appears.
-        // `start_mpv` walks the fallback ladder (Vulkan → GLX → software) until one
-        // stays up. On a healthy machine the first rung wins instantly.
-        let (child, stream) = match start_mpv(&binary, &sock) {
-            Ok(v) => v,
-            Err(reason) => {
-                if reason == "socket-timeout" {
-                    eprintln!("KROMA: mpv IPC socket never appeared at {}", sock.display());
-                }
-                emit_error(&app, reason);
-                return;
-            }
-        };
-        if let Some(state) = app.try_state::<MpvState>() {
-            *state.child.lock().unwrap() = Some(child);
-        }
-
-        let read_half = match stream.try_clone() {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("KROMA: could not clone mpv IPC socket: {e}");
-                emit_error(&app, "socket-error");
-                return;
-            }
-        };
-        if let Some(state) = app.try_state::<MpvState>() {
-            *state.conn.lock().unwrap() = Some(stream);
-        }
-
-        // Subscribe to the properties the engine consumes, then pump events.
-        for (i, prop) in OBSERVED.iter().enumerate() {
-            let _ = write_ipc(&app, &json!({ "command": ["observe_property", i + 1, prop] }));
-        }
-        let reader = BufReader::new(read_half);
-        for line in reader.lines() {
-            let Ok(line) = line else { break };
-            let line = line.trim();
-            if line.is_empty() {
-                continue;
-            }
-            if let Ok(msg) = serde_json::from_str::<Value>(line) {
-                forward(&app, &msg);
-            }
-        }
-        // The IPC stream ended: mpv exited (crash or kill). Drop the dead write half
-        // so commands fail fast, and tell the webview so an active player errors out
-        // instead of spinning forever. (On normal app exit the webview is gone anyway.)
-        if let Some(state) = app.try_state::<MpvState>() {
-            *state.conn.lock().unwrap() = None;
-        }
-        let _ = app.emit("mpv://exited", ());
+        let Some(read_half) = connect(&app) else { return };
+        pump_events(&app, read_half);
+        finish(&app);
     });
+}
+
+/// Bring mpv up, store the process + write half of its IPC socket in the managed
+/// state, and hand back the read half for the event loop. Returns `None` (after
+/// emitting the failure to the webview) when mpv can't launch or the socket can't
+/// be cloned.
+fn connect(app: &AppHandle) -> Option<UnixStream> {
+    let sock = socket_path();
+    let binary = mpv_binary();
+
+    // Bring mpv up on a video output this machine can actually initialise. The
+    // default gpu-next needs an EGL/GL context that aborts on some driver stacks
+    // (the Steam Deck's KDE-Wayland desktop: "Could not create default EGL
+    // display: EGL_BAD_PARAMETER"), so mpv dies and its IPC socket never appears.
+    // `start_mpv` walks the fallback ladder (Vulkan → GLX → software) until one
+    // stays up. On a healthy machine the first rung wins instantly.
+    let (child, stream) = match start_mpv(&binary, &sock) {
+        Ok(v) => v,
+        Err(reason) => {
+            if reason == "socket-timeout" {
+                eprintln!("KROMA: mpv IPC socket never appeared at {}", sock.display());
+            }
+            emit_error(app, reason);
+            return None;
+        }
+    };
+    if let Some(state) = app.try_state::<MpvState>() {
+        *state.child.lock().unwrap() = Some(child);
+    }
+
+    let read_half = match stream.try_clone() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("KROMA: could not clone mpv IPC socket: {e}");
+            emit_error(app, "socket-error");
+            return None;
+        }
+    };
+    if let Some(state) = app.try_state::<MpvState>() {
+        *state.conn.lock().unwrap() = Some(stream);
+    }
+    Some(read_half)
+}
+
+/// Subscribe to the observed properties, then forward every IPC event to the
+/// webview until the socket closes (mpv exited).
+fn pump_events(app: &AppHandle, read_half: UnixStream) {
+    for (i, prop) in OBSERVED.iter().enumerate() {
+        let _ = write_ipc(app, &json!({ "command": ["observe_property", i + 1, prop] }));
+    }
+    let reader = BufReader::new(read_half);
+    for line in reader.lines() {
+        let Ok(line) = line else { break };
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Ok(msg) = serde_json::from_str::<Value>(line) {
+            forward(app, &msg);
+        }
+    }
+}
+
+/// The IPC stream ended: mpv exited (crash or kill). Drop the dead write half so
+/// commands fail fast, and tell the webview so an active player errors out instead
+/// of spinning forever. (On normal app exit the webview is gone anyway.)
+fn finish(app: &AppHandle) {
+    if let Some(state) = app.try_state::<MpvState>() {
+        *state.conn.lock().unwrap() = None;
+    }
+    let _ = app.emit("mpv://exited", ());
 }
 
 /// Launch mpv, trying each rung of the video-output [`vo_ladder`] until one comes

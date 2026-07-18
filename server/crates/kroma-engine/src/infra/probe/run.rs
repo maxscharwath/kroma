@@ -85,42 +85,72 @@ pub fn spawn_probe_pass(pool: Pool, ffprobe_present: bool, bus: Bus, activity: A
     let queue = Arc::new(Mutex::new(jobs));
     let done = Arc::new(AtomicUsize::new(0));
 
-    thread::spawn(move || {
-        let worker_count = probe_workers().min(total.max(1));
-        let mut handles = Vec::with_capacity(worker_count);
-        for _ in 0..worker_count {
-            let pool = pool.clone();
-            let queue = queue.clone();
-            let done = done.clone();
-            let bus = bus.clone();
-            let activity = activity.clone();
-            handles.push(thread::spawn(move || loop {
-                let job = match queue.lock().unwrap().pop() {
-                    Some(j) => j,
-                    None => break,
-                };
-                if let Err(e) =
-                    probe_one(&pool, ffprobe_present, &bus, &job.file_id, &job.abs_path, &job.item_id)
-                {
-                    warn!(file = %job.file_id, error = %e, "failed to store probe result");
-                }
-                let n = done.fetch_add(1, Ordering::Relaxed) + 1;
-                activity::probe_progress(&activity, n);
-                if n.is_multiple_of(25) {
-                    bus.publish(ServerEvent::ProbeProgress { done: n, total });
-                }
-            }));
+    thread::spawn(move || run_probe_pass(pool, ffprobe_present, bus, activity, queue, done, total));
+}
+
+/// The detached driver of the probe pass: fan out [`probe_workers`] threads over
+/// the shared queue, join them, then publish the completion events.
+#[allow(clippy::too_many_arguments)]
+fn run_probe_pass(
+    pool: Pool,
+    ffprobe_present: bool,
+    bus: Bus,
+    activity: Activity,
+    queue: Arc<Mutex<Vec<ProbeJob>>>,
+    done: Arc<AtomicUsize>,
+    total: usize,
+) {
+    let worker_count = probe_workers().min(total.max(1));
+    let mut handles = Vec::with_capacity(worker_count);
+    for _ in 0..worker_count {
+        let pool = pool.clone();
+        let queue = queue.clone();
+        let done = done.clone();
+        let bus = bus.clone();
+        let activity = activity.clone();
+        handles.push(thread::spawn(move || {
+            probe_worker_loop(&pool, ffprobe_present, &queue, &done, &bus, &activity, total)
+        }));
+    }
+    for h in handles {
+        let _ = h.join();
+    }
+    let done = done.load(Ordering::Relaxed);
+    activity::probe_completed(&activity);
+    info!(probed = done, total, "phase-2 probing complete");
+    bus.publish(ServerEvent::ProbeProgress { done, total });
+    bus.publish(ServerEvent::ProbeCompleted { total });
+    bus.publish(ServerEvent::LibraryUpdated);
+}
+
+/// One worker: pull jobs off the shared queue until it's drained, probing each
+/// and emitting periodic progress.
+#[allow(clippy::too_many_arguments)]
+fn probe_worker_loop(
+    pool: &Pool,
+    ffprobe_present: bool,
+    queue: &Arc<Mutex<Vec<ProbeJob>>>,
+    done: &Arc<AtomicUsize>,
+    bus: &Bus,
+    activity: &Activity,
+    total: usize,
+) {
+    loop {
+        let job = match queue.lock().unwrap().pop() {
+            Some(j) => j,
+            None => break,
+        };
+        if let Err(e) =
+            probe_one(pool, ffprobe_present, bus, &job.file_id, &job.abs_path, &job.item_id)
+        {
+            warn!(file = %job.file_id, error = %e, "failed to store probe result");
         }
-        for h in handles {
-            let _ = h.join();
+        let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+        activity::probe_progress(activity, n);
+        if n.is_multiple_of(25) {
+            bus.publish(ServerEvent::ProbeProgress { done: n, total });
         }
-        let done = done.load(Ordering::Relaxed);
-        activity::probe_completed(&activity);
-        info!(probed = done, total, "phase-2 probing complete");
-        bus.publish(ServerEvent::ProbeProgress { done, total });
-        bus.publish(ServerEvent::ProbeCompleted { total });
-        bus.publish(ServerEvent::LibraryUpdated);
-    });
+    }
 }
 
 /// Probe one file and persist it: run ffprobe, store the stream columns (+

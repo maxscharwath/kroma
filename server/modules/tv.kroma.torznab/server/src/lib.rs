@@ -70,56 +70,87 @@ pub fn search(endpoint: &IndexerEndpoint, query: &Query, caps: &Caps) -> anyhow:
 
 /// The ordered parameter sets to try for a query, strongest first.
 fn attempts(query: &Query, caps: &Caps) -> Vec<Vec<(&'static str, String)>> {
-    let mut out: Vec<Vec<(&'static str, String)>> = Vec::new();
     match query {
         Query::Movie { tmdb_id, imdb_id, title, year } => {
-            if caps.search_tmdb {
-                if let Some(id) = tmdb_id {
-                    out.push(vec![("t", "movie".into()), ("tmdbid", id.to_string())]);
-                }
-            }
-            if caps.search_imdb {
-                if let Some(imdb) = imdb_id {
-                    // Torznab wants the bare number, without the tt prefix.
-                    let bare = imdb.trim_start_matches("tt").to_string();
-                    out.push(vec![("t", "movie".into()), ("imdbid", bare)]);
-                }
-            }
-            let q = match year {
-                Some(y) => format!("{title} {y}"),
-                None => title.clone(),
-            };
-            out.push(vec![("t", "search".into()), ("q", q)]);
+            movie_attempts(caps, *tmdb_id, imdb_id.as_deref(), title, *year)
         }
         Query::Episode { tmdb_id, title, season, episode } => {
-            if caps.tv_search_tmdb {
-                if let Some(id) = tmdb_id {
-                    out.push(vec![
-                        ("t", "tvsearch".into()),
-                        ("tmdbid", id.to_string()),
-                        ("season", season.to_string()),
-                        ("ep", episode.to_string()),
-                    ]);
-                }
-            }
-            out.push(vec![
-                ("t", "search".into()),
-                ("q", format!("{title} S{season:02}E{episode:02}")),
-            ]);
+            episode_attempts(caps, *tmdb_id, title, *season, *episode)
         }
-        Query::Season { tmdb_id, title, season } => {
-            if caps.tv_search_tmdb {
-                if let Some(id) = tmdb_id {
-                    out.push(vec![
-                        ("t", "tvsearch".into()),
-                        ("tmdbid", id.to_string()),
-                        ("season", season.to_string()),
-                    ]);
-                }
-            }
-            out.push(vec![("t", "search".into()), ("q", format!("{title} S{season:02}"))]);
+        Query::Season { tmdb_id, title, season } => season_attempts(caps, *tmdb_id, title, *season),
+    }
+}
+
+fn movie_attempts(
+    caps: &Caps,
+    tmdb_id: Option<u64>,
+    imdb_id: Option<&str>,
+    title: &str,
+    year: Option<u32>,
+) -> Vec<Vec<(&'static str, String)>> {
+    let mut out: Vec<Vec<(&'static str, String)>> = Vec::new();
+    if caps.search_tmdb {
+        if let Some(id) = tmdb_id {
+            out.push(vec![("t", "movie".into()), ("tmdbid", id.to_string())]);
         }
     }
+    if caps.search_imdb {
+        if let Some(imdb) = imdb_id {
+            // Torznab wants the bare number, without the tt prefix.
+            let bare = imdb.trim_start_matches("tt").to_string();
+            out.push(vec![("t", "movie".into()), ("imdbid", bare)]);
+        }
+    }
+    let q = match year {
+        Some(y) => format!("{title} {y}"),
+        None => title.to_string(),
+    };
+    out.push(vec![("t", "search".into()), ("q", q)]);
+    out
+}
+
+fn episode_attempts(
+    caps: &Caps,
+    tmdb_id: Option<u64>,
+    title: &str,
+    season: u32,
+    episode: u32,
+) -> Vec<Vec<(&'static str, String)>> {
+    let mut out: Vec<Vec<(&'static str, String)>> = Vec::new();
+    if caps.tv_search_tmdb {
+        if let Some(id) = tmdb_id {
+            out.push(vec![
+                ("t", "tvsearch".into()),
+                ("tmdbid", id.to_string()),
+                ("season", season.to_string()),
+                ("ep", episode.to_string()),
+            ]);
+        }
+    }
+    out.push(vec![
+        ("t", "search".into()),
+        ("q", format!("{title} S{season:02}E{episode:02}")),
+    ]);
+    out
+}
+
+fn season_attempts(
+    caps: &Caps,
+    tmdb_id: Option<u64>,
+    title: &str,
+    season: u32,
+) -> Vec<Vec<(&'static str, String)>> {
+    let mut out: Vec<Vec<(&'static str, String)>> = Vec::new();
+    if caps.tv_search_tmdb {
+        if let Some(id) = tmdb_id {
+            out.push(vec![
+                ("t", "tvsearch".into()),
+                ("tmdbid", id.to_string()),
+                ("season", season.to_string()),
+            ]);
+        }
+    }
+    out.push(vec![("t", "search".into()), ("q", format!("{title} S{season:02}"))]);
     out
 }
 

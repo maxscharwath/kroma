@@ -99,6 +99,7 @@ fn run(
     if let Some(l) = lang_tok {
         specials.push(l);
     }
+    let seed = DecodeSeed { sot, transcribe, no_ts, eot, lang_tok };
 
     let total_windows = n_frames.div_ceil(N_FRAMES).max(1);
     let mut out = String::from("WEBVTT\n\n");
@@ -117,30 +118,7 @@ fn run(
         }
         let features = model.encoder.forward(&window, true)?;
 
-        let mut tokens: Vec<u32> = vec![sot];
-        if let Some(l) = lang_tok {
-            tokens.push(l);
-            tokens.push(transcribe);
-        }
-        for i in 0..MAX_TOKENS {
-            let t = Tensor::new(tokens.as_slice(), &device)?.unsqueeze(0)?;
-            // `decoder.forward` returns hidden states (1, seq, d_model); the vocab
-            // logits come from the SEPARATE `final_linear` projection (candle keeps
-            // them apart). Project the LAST position to (1, 1, vocab) and argmax that
-            // - argmaxing the raw hidden states only ever indexes < d_model, so it
-            // never reaches the eot / timestamp tokens and no cues are emitted.
-            let hidden = model.decoder.forward(&t, &features, i == 0)?;
-            let last = hidden.narrow(1, hidden.dim(1)? - 1, 1)?;
-            let logits = model.decoder.final_linear(&last)?;
-            let next = logits.i((0, 0))?.argmax(0)?.to_scalar::<u32>()?;
-            if next == no_ts {
-                continue;
-            }
-            tokens.push(next);
-            if next == eot {
-                break;
-            }
-        }
+        let tokens = decode_window(&mut model, &features, &device, &seed)?;
 
         let offset = seek as f64 * HOP / SAMPLE_RATE;
         emit_segments(&mut out, &tokens, &tokenizer, ts0, &specials, offset);
@@ -149,6 +127,50 @@ fn run(
     }
     on_progress(total_windows, total_windows);
     Ok(out)
+}
+
+/// The fixed special-token ids that seed and terminate greedy decoding.
+struct DecodeSeed {
+    sot: u32,
+    transcribe: u32,
+    no_ts: u32,
+    eot: u32,
+    lang_tok: Option<u32>,
+}
+
+/// Greedily decode one 30s window into its token sequence (seeded prompt +
+/// argmax until `eot` or `MAX_TOKENS`).
+fn decode_window(
+    model: &mut w::model::Whisper,
+    features: &Tensor,
+    device: &Device,
+    seed: &DecodeSeed,
+) -> Result<Vec<u32>> {
+    let mut tokens: Vec<u32> = vec![seed.sot];
+    if let Some(l) = seed.lang_tok {
+        tokens.push(l);
+        tokens.push(seed.transcribe);
+    }
+    for i in 0..MAX_TOKENS {
+        let t = Tensor::new(tokens.as_slice(), device)?.unsqueeze(0)?;
+        // `decoder.forward` returns hidden states (1, seq, d_model); the vocab
+        // logits come from the SEPARATE `final_linear` projection (candle keeps
+        // them apart). Project the LAST position to (1, 1, vocab) and argmax that
+        // - argmaxing the raw hidden states only ever indexes < d_model, so it
+        // never reaches the eot / timestamp tokens and no cues are emitted.
+        let hidden = model.decoder.forward(&t, features, i == 0)?;
+        let last = hidden.narrow(1, hidden.dim(1)? - 1, 1)?;
+        let logits = model.decoder.final_linear(&last)?;
+        let next = logits.i((0, 0))?.argmax(0)?.to_scalar::<u32>()?;
+        if next == seed.no_ts {
+            continue;
+        }
+        tokens.push(next);
+        if next == seed.eot {
+            break;
+        }
+    }
+    Ok(tokens)
 }
 
 /// Append cues for one window's tokens: text between two timestamp tokens is a

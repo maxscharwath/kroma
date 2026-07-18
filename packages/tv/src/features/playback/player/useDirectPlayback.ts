@@ -32,13 +32,16 @@ import { MpvEngine } from '#tv/features/playback/player/mpvEngine';
 import { useResumeAndPersist } from '#tv/features/playback/player/useResumeAndPersist';
 import { useSeekGesture } from '#tv/features/playback/player/useSeekGesture';
 
+/** Which in-page surface (if any) an engine renders to. */
+type Surface = 'video' | 'avplay' | 'mpv' | 'exo';
+
 export interface Playback {
   /** The HTML `<video>` surface (HTML engine). Null while the AVPlay surface is used. */
   videoRef: React.RefObject<HTMLVideoElement | null>;
   /** The AVPlay `<object>` surface (native Tizen engine). */
   objectRef: React.RefObject<HTMLObjectElement | null>;
   /** Which surface to render. `mpv`/`exo` render nothing in-page (native plane behind). */
-  surface: 'video' | 'avplay' | 'mpv' | 'exo';
+  surface: Surface;
   verdict: DirectPlayVerdict | null;
   /** Codec/stream load failure, as an i18n key translated at the render site. */
   error: MessageKey | null;
@@ -169,7 +172,7 @@ function renditionFor(item: MediaItem, audioIndex: number): number {
  * hook body. */
 interface EnginePlan {
   eng: Engine;
-  surface: 'video' | 'avplay' | 'mpv' | 'exo';
+  surface: Surface;
   useMpv: boolean;
   useExo: boolean;
   useAvplay: boolean;
@@ -178,6 +181,35 @@ interface EnginePlan {
   direct: boolean;
   masterAac: boolean;
   playbackMode: 'direct' | 'remux' | 'transcode';
+}
+
+/** mpv / ExoPlayer / AVPlay render to their own plane behind the transparent UI,
+ * so none of them uses an in-page media element. */
+function surfaceFor(useMpv: boolean, useExo: boolean, useAvplay: boolean): Surface {
+  if (useMpv) return 'mpv';
+  if (useExo) return 'exo';
+  if (useAvplay) return 'avplay';
+  return 'video';
+}
+
+/** Video is always copied. AVPlay-direct plays the original file (direct);
+ * AVPlay-master passes surround through (remux); only the hls.js AAC master
+ * (webOS / MSE without AC3) re-encodes audio (transcode). */
+function playbackModeFor(flags: {
+  useMpv: boolean;
+  useExo: boolean;
+  useAvplay: boolean;
+  exoDirect: boolean;
+  avplayDirect: boolean;
+  direct: boolean;
+  aacMaster: boolean;
+}): 'direct' | 'remux' | 'transcode' {
+  const { useMpv, useExo, useAvplay, exoDirect, avplayDirect, direct, aacMaster } = flags;
+  if (useMpv) return 'direct'; // mpv opens the original file (master only on fallback)
+  if (useExo) return exoDirect ? 'direct' : 'remux';
+  if (useAvplay) return avplayDirect ? 'direct' : 'remux';
+  if (!direct) return aacMaster ? 'transcode' : 'remux';
+  return 'direct';
 }
 
 /** Resolve the concrete backend decision for an item + environment + user pref. */
@@ -198,25 +230,9 @@ function planEngine(item: MediaItem, env: PlayEnv, pref: EnginePref): EnginePlan
   const avplayDirect = useAvplay && avplayDirectPlayable(item);
   const exoDirect = useExo && avplayDirectPlayable(item);
   const direct = eng === 'video-direct';
-  // mpv / ExoPlayer / AVPlay render to their own plane behind the transparent UI,
-  // so none of them uses an in-page media element.
-  let surface: 'video' | 'avplay' | 'mpv' | 'exo' = 'video';
-  if (useMpv) surface = 'mpv';
-  else if (useExo) surface = 'exo';
-  else if (useAvplay) surface = 'avplay';
-  // Video is always copied. AVPlay-direct plays the original file (direct);
-  // AVPlay-master passes surround through (remux); only the hls.js AAC master
-  // (webOS / MSE without AC3) re-encodes audio (transcode).
-  let playbackMode: 'direct' | 'remux' | 'transcode';
-  if (useMpv)
-    playbackMode = 'direct'; // mpv opens the original file (master only on fallback)
-  else if (useExo) playbackMode = exoDirect ? 'direct' : 'remux';
-  else if (useAvplay) playbackMode = avplayDirect ? 'direct' : 'remux';
-  else if (!direct) playbackMode = decision.aacMaster ? 'transcode' : 'remux';
-  else playbackMode = 'direct';
   return {
     eng,
-    surface,
+    surface: surfaceFor(useMpv, useExo, useAvplay),
     useMpv,
     useExo,
     useAvplay,
@@ -226,7 +242,15 @@ function planEngine(item: MediaItem, env: PlayEnv, pref: EnginePref): EnginePlan
     // Env-aware: Safari's native HLS decodes AC3/E-AC3 so its master is stream-copied
     // (5.1 kept); Chromium/webOS MSE can't, so `selectEngine` marks those AAC.
     masterAac: decision.aacMaster,
-    playbackMode,
+    playbackMode: playbackModeFor({
+      useMpv,
+      useExo,
+      useAvplay,
+      exoDirect,
+      avplayDirect,
+      direct,
+      aacMaster: decision.aacMaster,
+    }),
   };
 }
 

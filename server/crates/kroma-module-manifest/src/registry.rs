@@ -139,45 +139,58 @@ impl Registry {
         let mut edges: HashMap<String, Vec<String>> = HashMap::new();
         for e in &self.entries {
             let m = &e.manifest;
-            let mut deps: Vec<String> = Vec::new();
-            for dep in &m.depends_on {
-                match index.get(dep.id.as_str()) {
-                    None => {
-                        return Err(ResolveError::MissingDependency {
-                            module: m.id.clone(),
-                            needs: dep.id.clone(),
-                        })
-                    }
-                    Some(target) => {
-                        check_version(m, dep, target)?;
-                        deps.push(dep.id.clone());
-                    }
+            let deps = self.module_deps(m, &index)?;
+            edges.insert(m.id.clone(), deps);
+        }
+        Ok(edges)
+    }
+
+    /// The ordering edges for one module: its hard dependencies (which must exist
+    /// and satisfy their version range), present optional dependencies (version
+    /// checked, absent ones skipped), and a provider per capability requirement.
+    /// Sorted + deduped.
+    fn module_deps(
+        &self,
+        m: &ModuleManifest,
+        index: &HashMap<&str, &ModuleManifest>,
+    ) -> Result<Vec<String>, ResolveError> {
+        let mut deps: Vec<String> = Vec::new();
+        for dep in &m.depends_on {
+            match index.get(dep.id.as_str()) {
+                None => {
+                    return Err(ResolveError::MissingDependency {
+                        module: m.id.clone(),
+                        needs: dep.id.clone(),
+                    })
                 }
-            }
-            for dep in &m.optional_depends_on {
-                if let Some(target) = index.get(dep.id.as_str()) {
+                Some(target) => {
                     check_version(m, dep, target)?;
                     deps.push(dep.id.clone());
                 }
             }
-            for req in &m.requires {
-                match self.provider_for(req) {
-                    None => {
-                        return Err(ResolveError::UnsatisfiedCapability {
-                            module: m.id.clone(),
-                            kind: req.kind.clone(),
-                            id: req.id.clone(),
-                        })
-                    }
-                    Some(provider) if provider != m.id => deps.push(provider),
-                    _ => {} // self-provided: no edge
-                }
-            }
-            deps.sort();
-            deps.dedup();
-            edges.insert(m.id.clone(), deps);
         }
-        Ok(edges)
+        for dep in &m.optional_depends_on {
+            if let Some(target) = index.get(dep.id.as_str()) {
+                check_version(m, dep, target)?;
+                deps.push(dep.id.clone());
+            }
+        }
+        for req in &m.requires {
+            match self.provider_for(req) {
+                None => {
+                    return Err(ResolveError::UnsatisfiedCapability {
+                        module: m.id.clone(),
+                        kind: req.kind.clone(),
+                        id: req.id.clone(),
+                    })
+                }
+                Some(provider) if provider != m.id => deps.push(provider),
+                _ => {} // self-provided: no edge
+            }
+        }
+        deps.sort();
+        deps.dedup();
+        Ok(deps)
     }
 
     /// The id of a registered module satisfying a capability requirement, if any.

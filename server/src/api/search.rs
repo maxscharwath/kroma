@@ -86,21 +86,17 @@ fn hydrate(pool: &db::Pool, hits: Vec<Hit>, library: Option<&str>, locale: &str)
     for hit in hits {
         match hit.kind {
             HitKind::Show => {
-                if let Some(show) = shows.remove(&hit.id) {
-                    if in_library(&show.library) {
-                        out.push(SearchHit::Show { show });
-                    }
+                if let Some(show) = shows.remove(&hit.id).filter(|s| in_library(&s.library)) {
+                    out.push(SearchHit::Show { show });
                 }
             }
             HitKind::Movie | HitKind::Episode => {
-                if let Some(item) = items.remove(&hit.id) {
-                    if in_library(&item.library) {
-                        out.push(if hit.kind == HitKind::Episode {
-                            SearchHit::Episode { item }
-                        } else {
-                            SearchHit::Movie { item }
-                        });
-                    }
+                if let Some(item) = items.remove(&hit.id).filter(|i| in_library(&i.library)) {
+                    out.push(if hit.kind == HitKind::Episode {
+                        SearchHit::Episode { item }
+                    } else {
+                        SearchHit::Movie { item }
+                    });
                 }
             }
         }

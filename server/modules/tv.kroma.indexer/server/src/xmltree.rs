@@ -86,14 +86,12 @@ pub fn parse(body: &str) -> XmlEl {
                     attrs: read_attrs(&e, &reader),
                     children: Vec::new(),
                 };
-                if let Some(parent) = stack.last_mut() {
-                    parent.children.push(XmlNode::Element(el));
-                }
+                push_child(&mut stack, el);
             }
             Ok(Event::End(_)) => {
                 if stack.len() > 1 {
                     let el = stack.pop().unwrap();
-                    stack.last_mut().unwrap().children.push(XmlNode::Element(el));
+                    push_child(&mut stack, el);
                 }
             }
             Ok(Event::Text(t)) => {
@@ -101,9 +99,7 @@ pub fn parse(body: &str) -> XmlEl {
                 // Text event now carries literal text only (no `&amp;` to unescape).
                 let s = t.decode().map(|c| c.into_owned()).unwrap_or_default();
                 if !s.trim().is_empty() {
-                    if let Some(parent) = stack.last_mut() {
-                        parent.children.push(XmlNode::Text(s));
-                    }
+                    push_text(&mut stack, s);
                 }
             }
             // An entity reference (`&amp;`, `&#38;`, ...) inside text: resolve it and
@@ -111,16 +107,12 @@ pub fn parse(body: &str) -> XmlEl {
             Ok(Event::GeneralRef(r)) => {
                 let s = resolve_entity(&r);
                 if !s.is_empty() {
-                    if let Some(parent) = stack.last_mut() {
-                        parent.children.push(XmlNode::Text(s));
-                    }
+                    push_text(&mut stack, s);
                 }
             }
             Ok(Event::CData(t)) => {
                 let s = String::from_utf8_lossy(t.as_ref()).into_owned();
-                if let Some(parent) = stack.last_mut() {
-                    parent.children.push(XmlNode::Text(s));
-                }
+                push_text(&mut stack, s);
             }
             Ok(Event::Eof) => break,
             Err(_) => break,
@@ -130,9 +122,23 @@ pub fn parse(body: &str) -> XmlEl {
     // Collapse any unclosed elements back into the root.
     while stack.len() > 1 {
         let el = stack.pop().unwrap();
-        stack.last_mut().unwrap().children.push(XmlNode::Element(el));
+        push_child(&mut stack, el);
     }
     stack.pop().unwrap()
+}
+
+/// Push an element as the last stack frame's child (no-op if the stack is empty).
+fn push_child(stack: &mut [XmlEl], el: XmlEl) {
+    if let Some(parent) = stack.last_mut() {
+        parent.children.push(XmlNode::Element(el));
+    }
+}
+
+/// Push a text node onto the last stack frame (no-op if the stack is empty).
+fn push_text(stack: &mut [XmlEl], s: String) {
+    if let Some(parent) = stack.last_mut() {
+        parent.children.push(XmlNode::Text(s));
+    }
 }
 
 fn tag_name(raw: &[u8]) -> String {
@@ -179,29 +185,34 @@ pub fn select_all<'a>(scope: &'a XmlEl, selector: &str) -> Vec<&'a XmlEl> {
     let mut current: Vec<&XmlEl> = vec![scope];
     for (comb, compound) in &steps {
         let mut next: Vec<&XmlEl> = Vec::new();
-        for el in &current {
-            match comb {
-                Comb::Descendant => {
-                    let mut desc = Vec::new();
-                    el.descendant_elements(&mut desc);
-                    for d in desc {
-                        if compound.matches(d) {
-                            next.push(d);
-                        }
-                    }
-                }
-                Comb::Child => {
-                    for c in el.child_elements() {
-                        if compound.matches(c) {
-                            next.push(c);
-                        }
-                    }
-                }
-            }
+        for &el in &current {
+            collect_step(el, comb, compound, &mut next);
         }
         current = next;
     }
     current
+}
+
+/// Append every element reachable from `el` via `comb` that matches `compound`.
+fn collect_step<'a>(el: &'a XmlEl, comb: &Comb, compound: &Compound, next: &mut Vec<&'a XmlEl>) {
+    match comb {
+        Comb::Descendant => {
+            let mut desc = Vec::new();
+            el.descendant_elements(&mut desc);
+            for d in desc {
+                if compound.matches(d) {
+                    next.push(d);
+                }
+            }
+        }
+        Comb::Child => {
+            for c in el.child_elements() {
+                if compound.matches(c) {
+                    next.push(c);
+                }
+            }
+        }
+    }
 }
 
 pub fn select_first<'a>(scope: &'a XmlEl, selector: &str) -> Option<&'a XmlEl> {
@@ -277,31 +288,43 @@ fn parse_compound(tok: &str) -> Compound {
     while i < chars.len() {
         match chars[i] {
             '[' => {
-                let close = chars[i..].iter().position(|&x| x == ']').map(|p| i + p);
-                let Some(close) = close else { break };
-                let inner: String = chars[i + 1..close].iter().collect();
-                if let Some((k, v)) = inner.split_once('=') {
-                    let v = v.trim_matches(|x| x == '"' || x == '\'').to_string();
-                    c.attrs.push((k.trim().to_string(), Some(v)));
-                } else {
-                    c.attrs.push((inner.trim().to_string(), None));
-                }
-                i = close + 1;
+                let Some(next) = parse_attr(&chars, i, &mut c) else { break };
+                i = next;
             }
             ':' if chars[i..].iter().collect::<String>().starts_with(":contains(") => {
-                let rest: String = chars[i..].iter().collect();
-                if let (Some(open), Some(close)) = (rest.find('('), rest.rfind(')')) {
-                    let term = rest[open + 1..close].trim().trim_matches(|x| x == '"' || x == '\'');
-                    if !term.is_empty() {
-                        c.contains.push(term.to_string());
-                    }
-                }
+                parse_contains(&chars, i, &mut c);
                 break;
             }
             _ => break,
         }
     }
     c
+}
+
+/// Parse an `[attr]` / `[attr=value]` clause at `chars[i] == '['`, pushing it
+/// onto `c`. Returns the index just past the `]`, or None if unterminated.
+fn parse_attr(chars: &[char], i: usize, c: &mut Compound) -> Option<usize> {
+    let close = chars[i..].iter().position(|&x| x == ']').map(|p| i + p)?;
+    let inner: String = chars[i + 1..close].iter().collect();
+    if let Some((k, v)) = inner.split_once('=') {
+        let v = v.trim_matches(|x| x == '"' || x == '\'').to_string();
+        c.attrs.push((k.trim().to_string(), Some(v)));
+    } else {
+        c.attrs.push((inner.trim().to_string(), None));
+    }
+    Some(close + 1)
+}
+
+/// Parse a `:contains("term")` clause at `chars[i] == ':'`, pushing the term
+/// onto `c`. Terminal: the caller stops after it.
+fn parse_contains(chars: &[char], i: usize, c: &mut Compound) {
+    let rest: String = chars[i..].iter().collect();
+    if let (Some(open), Some(close)) = (rest.find('('), rest.rfind(')')) {
+        let term = rest[open + 1..close].trim().trim_matches(|x| x == '"' || x == '\'');
+        if !term.is_empty() {
+            c.contains.push(term.to_string());
+        }
+    }
 }
 
 #[cfg(test)]

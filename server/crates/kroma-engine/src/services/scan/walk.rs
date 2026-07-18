@@ -51,17 +51,7 @@ pub(super) fn scan_root(
         .follow_links(true)
         .skip_hidden(false)
         .parallelism(Parallelism::RayonNewPool(walk_threads()))
-        .process_read_dir(|_depth, _path, _state, children| {
-            children.retain(|res| match res {
-                Ok(e) => !(e.file_type().is_dir() && is_pruned_dir(&e.file_name)),
-                Err(_) => true,
-            });
-            for e in children.iter_mut().flatten() {
-                if e.file_type().is_file() {
-                    e.client_state = file_meta(&e.path());
-                }
-            }
-        });
+        .process_read_dir(|_depth, _path, _state, children| prepare_children(children));
 
     for entry in walk.into_iter().filter_map(Result::ok) {
         if !entry.file_type().is_file() {
@@ -112,110 +102,156 @@ pub(super) fn scan_root(
         // Carry mtime alongside the file for the DB sync (not part of the JSON
         // contract). We stash it in a parallel map keyed by file id below.
 
-        match naming::parse(root, &path) {
-            Parsed::Movie { title, year } => {
-                *movie_seen = true;
-                let title = if title.is_empty() { "Untitled".into() } else { title };
-                let logical = movie_logical_id(lib_id, &title, year);
-                lib_item_ids.insert(logical.clone());
-                let item = items.entry(logical.clone()).or_insert_with(|| MediaItem {
-                    id: logical.clone(),
-                    title: title.clone(),
-                    kind: Kind::Movie,
-                    year,
-                    duration_ms: None,
-                    container: String::new(),
-                    video: None,
-                    audio: None,
-                    audio_tracks: Vec::new(),
-                    subtitles: Vec::new(),
-                    library: lib_id.to_string(),
-                    show_id: None,
-                    show_title: None,
-                    season: None,
-                    episode: None,
-                    episode_end: None,
-                    episode_title: None,
-                    rel_path: None,
-                    added_at: added_at.clone(),
-                    metadata: None,
-                    abs_path: None,
-                    files: Vec::new(),
-                    default_file_id: None,
-                    markers: Vec::new(),
-                    audio_analysis: None,
-                });
-                mtimes.insert(file.id.clone(), mtime);
-                item.files.push(file);
-            }
-            Parsed::Episode {
-                show_title,
-                show_year,
-                season,
-                episode,
-                episode_end,
-                episode_title,
-            } => {
-                *episode_seen = true;
-                let show_id = show_key(lib_id, &show_title);
-                shows
-                    .entry(show_id.clone())
-                    .and_modify(|s| {
-                        if s.year.is_none() {
-                            s.year = show_year;
-                        }
-                    })
-                    .or_insert_with(|| Show {
-                        id: show_id.clone(),
-                        title: show_title.clone(),
-                        year: show_year,
-                        library: lib_id.to_string(),
-                        season_count: 0,
-                        episode_count: 0,
-                        video: None,
-                        added_at: added_at.clone(),
-                        metadata: None,
-                        progress: None,
-                    });
-
-                let logical = episode_logical_id(&show_id, season, episode);
-                lib_item_ids.insert(logical.clone());
-                let title = episode_title
-                    .clone()
-                    .unwrap_or_else(|| format!("S{season:02}E{episode:02}"));
-                let item = items.entry(logical.clone()).or_insert_with(|| MediaItem {
-                    id: logical.clone(),
-                    title: title.clone(),
-                    kind: Kind::Episode,
-                    year: show_year,
-                    duration_ms: None,
-                    container: String::new(),
-                    video: None,
-                    audio: None,
-                    audio_tracks: Vec::new(),
-                    subtitles: Vec::new(),
-                    library: lib_id.to_string(),
-                    show_id: Some(show_id.clone()),
-                    show_title: Some(show_title.clone()),
-                    season: Some(season),
-                    episode: Some(episode),
-                    episode_end,
-                    episode_title: episode_title.clone(),
-                    rel_path: None,
-                    added_at: added_at.clone(),
-                    metadata: None,
-                    abs_path: None,
-                    files: Vec::new(),
-                    default_file_id: None,
-                    markers: Vec::new(),
-                    audio_analysis: None,
-                });
-                mtimes.insert(file.id.clone(), mtime);
-                item.files.push(file);
-            }
-        }
+        index_parsed(
+            naming::parse(root, &path),
+            lib_id,
+            &added_at,
+            file,
+            mtime,
+            items,
+            shows,
+            mtimes,
+            lib_item_ids,
+            movie_seen,
+            episode_seen,
+        );
 
         debug!("indexed file under {}", lib_name);
+    }
+}
+
+/// jwalk `process_read_dir` body: prune Synology/hidden dirs from the descent and
+/// stat each file *in the walk's thread pool* (so the SMB round-trips overlap).
+fn prepare_children(children: &mut Vec<jwalk::Result<jwalk::DirEntry<((), FileMeta)>>>) {
+    children.retain(|res| match res {
+        Ok(e) => !(e.file_type().is_dir() && is_pruned_dir(&e.file_name)),
+        Err(_) => true,
+    });
+    for e in children.iter_mut().flatten() {
+        if e.file_type().is_file() {
+            e.client_state = file_meta(&e.path());
+        }
+    }
+}
+
+/// Fold one parsed video file into the shared item / show maps: a movie upserts a
+/// `Movie` item; an episode upserts its show (widening a missing year) then the
+/// episode item. Either way the file + its mtime are recorded.
+#[allow(clippy::too_many_arguments)]
+fn index_parsed(
+    parsed: Parsed,
+    lib_id: &str,
+    added_at: &str,
+    file: MediaFile,
+    mtime: Option<i64>,
+    items: &mut HashMap<String, MediaItem>,
+    shows: &mut HashMap<String, Show>,
+    mtimes: &mut HashMap<String, Option<i64>>,
+    lib_item_ids: &mut std::collections::HashSet<String>,
+    movie_seen: &mut bool,
+    episode_seen: &mut bool,
+) {
+    match parsed {
+        Parsed::Movie { title, year } => {
+            *movie_seen = true;
+            let title = if title.is_empty() { "Untitled".into() } else { title };
+            let logical = movie_logical_id(lib_id, &title, year);
+            lib_item_ids.insert(logical.clone());
+            let item = items.entry(logical.clone()).or_insert_with(|| MediaItem {
+                id: logical.clone(),
+                title: title.clone(),
+                kind: Kind::Movie,
+                year,
+                duration_ms: None,
+                container: String::new(),
+                video: None,
+                audio: None,
+                audio_tracks: Vec::new(),
+                subtitles: Vec::new(),
+                library: lib_id.to_string(),
+                show_id: None,
+                show_title: None,
+                season: None,
+                episode: None,
+                episode_end: None,
+                episode_title: None,
+                rel_path: None,
+                added_at: added_at.to_string(),
+                metadata: None,
+                abs_path: None,
+                files: Vec::new(),
+                default_file_id: None,
+                markers: Vec::new(),
+                audio_analysis: None,
+            });
+            mtimes.insert(file.id.clone(), mtime);
+            item.files.push(file);
+        }
+        Parsed::Episode {
+            show_title,
+            show_year,
+            season,
+            episode,
+            episode_end,
+            episode_title,
+        } => {
+            *episode_seen = true;
+            let show_id = show_key(lib_id, &show_title);
+            shows
+                .entry(show_id.clone())
+                .and_modify(|s| {
+                    if s.year.is_none() {
+                        s.year = show_year;
+                    }
+                })
+                .or_insert_with(|| Show {
+                    id: show_id.clone(),
+                    title: show_title.clone(),
+                    year: show_year,
+                    library: lib_id.to_string(),
+                    season_count: 0,
+                    episode_count: 0,
+                    video: None,
+                    added_at: added_at.to_string(),
+                    metadata: None,
+                    progress: None,
+                });
+
+            let logical = episode_logical_id(&show_id, season, episode);
+            lib_item_ids.insert(logical.clone());
+            let title = episode_title
+                .clone()
+                .unwrap_or_else(|| format!("S{season:02}E{episode:02}"));
+            let item = items.entry(logical.clone()).or_insert_with(|| MediaItem {
+                id: logical.clone(),
+                title: title.clone(),
+                kind: Kind::Episode,
+                year: show_year,
+                duration_ms: None,
+                container: String::new(),
+                video: None,
+                audio: None,
+                audio_tracks: Vec::new(),
+                subtitles: Vec::new(),
+                library: lib_id.to_string(),
+                show_id: Some(show_id.clone()),
+                show_title: Some(show_title.clone()),
+                season: Some(season),
+                episode: Some(episode),
+                episode_end,
+                episode_title: episode_title.clone(),
+                rel_path: None,
+                added_at: added_at.to_string(),
+                metadata: None,
+                abs_path: None,
+                files: Vec::new(),
+                default_file_id: None,
+                markers: Vec::new(),
+                audio_analysis: None,
+            });
+            mtimes.insert(file.id.clone(), mtime);
+            item.files.push(file);
+        }
     }
 }
 

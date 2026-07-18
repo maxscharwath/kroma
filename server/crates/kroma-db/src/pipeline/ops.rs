@@ -83,68 +83,7 @@ pub fn reconcile(
     };
     let present: HashSet<&str> = subjects.iter().map(|(id, _)| id.as_str()).collect();
     for (id, sig) in subjects {
-        match existing.get(id) {
-            None => {
-                // Inputs unreadable right now (mount blip): do not create a task
-                // yet. The subject reappears on the next reconcile once readable,
-                // so this only defers the first-ever processing, never drops it.
-                if sig == UNREADABLE_SIG {
-                    continue;
-                }
-                tx.execute(
-                    "INSERT INTO pipeline_tasks \
-                       (stage,subject_kind,subject_id,status,input_sig,attempts,priority,enqueued_at,updated_at) \
-                     VALUES (?1,?2,?3,'pending',?4,0,0,?5,?5)",
-                    params![stage, subject_kind, id, sig, now],
-                )?;
-            }
-            Some((old_sig, status, attempts, next_retry_at)) => {
-                if status == "running" {
-                    continue;
-                }
-                // Inputs unreadable right now: leave the task exactly as it is
-                // (a `done` stays done). Never treat this as a changed signature,
-                // or a flapping mount would re-queue the whole library on every
-                // blip. The subject is still in `present`, so it is not deleted.
-                if sig == UNREADABLE_SIG {
-                    continue;
-                }
-                // Only a PRESENT-but-different signature means the inputs changed:
-                // a NULL/unknown old sig (e.g. a task enqueued by `enqueue`, which
-                // omits input_sig) must NOT be treated as a change, or a just-
-                // finished reprocess would be re-run once more here. It is instead
-                // backfilled below without disturbing status.
-                let sig_changed = old_sig.is_some() && old_sig.as_deref() != Some(sig.as_str());
-                if sig_changed {
-                    tx.execute(
-                        "UPDATE pipeline_tasks SET status='pending', input_sig=?4, attempts=0, \
-                           error=NULL, next_retry_at=NULL, enqueued_at=?5, updated_at=?5 \
-                         WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
-                        params![stage, subject_kind, id, sig, now],
-                    )?;
-                } else {
-                    // Backfill a missing signature so it stops looking "changed" on
-                    // the next reconcile. Never resets status/priority.
-                    if old_sig.is_none() {
-                        tx.execute(
-                            "UPDATE pipeline_tasks SET input_sig=?4, updated_at=?5 \
-                             WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
-                            params![stage, subject_kind, id, sig, now],
-                        )?;
-                    }
-                    // Bounded auto-retry for transient failures, gated by the
-                    // backoff window `finish_batch` stamped on the failure.
-                    let backoff_elapsed = next_retry_at.is_none_or(|t| t <= now);
-                    if status == "failed" && *attempts < MAX_ATTEMPTS && backoff_elapsed {
-                        tx.execute(
-                            "UPDATE pipeline_tasks SET status='pending', updated_at=?4 \
-                             WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
-                            params![stage, subject_kind, id, now],
-                        )?;
-                    }
-                }
-            }
-        }
+        reconcile_subject(&tx, stage, subject_kind, id, sig, existing.get(id), now)?;
     }
     for id in existing.keys() {
         if !present.contains(id.as_str()) {
@@ -155,6 +94,111 @@ pub fn reconcile(
         }
     }
     tx.commit()?;
+    Ok(())
+}
+
+/// Reconcile one enumerated subject against its existing ledger row (if any).
+type ExistingTask = (Option<String>, String, i64, Option<i64>);
+
+fn reconcile_subject(
+    tx: &rusqlite::Transaction,
+    stage: &str,
+    subject_kind: &str,
+    id: &str,
+    sig: &str,
+    existing: Option<&ExistingTask>,
+    now: i64,
+) -> Result<()> {
+    match existing {
+        None => {
+            // Inputs unreadable right now (mount blip): do not create a task yet.
+            // The subject reappears on the next reconcile once readable, so this
+            // only defers the first-ever processing, never drops it.
+            if sig != UNREADABLE_SIG {
+                tx.execute(
+                    "INSERT INTO pipeline_tasks \
+                       (stage,subject_kind,subject_id,status,input_sig,attempts,priority,enqueued_at,updated_at) \
+                     VALUES (?1,?2,?3,'pending',?4,0,0,?5,?5)",
+                    params![stage, subject_kind, id, sig, now],
+                )?;
+            }
+        }
+        Some((old_sig, status, attempts, next_retry_at)) => {
+            reconcile_existing(
+                tx,
+                stage,
+                subject_kind,
+                id,
+                sig,
+                old_sig,
+                status,
+                *attempts,
+                *next_retry_at,
+                now,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// Reconcile a subject that already has a ledger row (the `Some` arm).
+#[allow(clippy::too_many_arguments)]
+fn reconcile_existing(
+    tx: &rusqlite::Transaction,
+    stage: &str,
+    subject_kind: &str,
+    id: &str,
+    sig: &str,
+    old_sig: &Option<String>,
+    status: &str,
+    attempts: i64,
+    next_retry_at: Option<i64>,
+    now: i64,
+) -> Result<()> {
+    if status == "running" {
+        return Ok(());
+    }
+    // Inputs unreadable right now: leave the task exactly as it is (a `done`
+    // stays done). Never treat this as a changed signature, or a flapping mount
+    // would re-queue the whole library on every blip. The subject is still in
+    // `present`, so it is not deleted.
+    if sig == UNREADABLE_SIG {
+        return Ok(());
+    }
+    // Only a PRESENT-but-different signature means the inputs changed: a
+    // NULL/unknown old sig (e.g. a task enqueued by `enqueue`, which omits
+    // input_sig) must NOT be treated as a change, or a just-finished reprocess
+    // would be re-run once more here. It is instead backfilled below without
+    // disturbing status.
+    let sig_changed = old_sig.is_some() && old_sig.as_deref() != Some(sig);
+    if sig_changed {
+        tx.execute(
+            "UPDATE pipeline_tasks SET status='pending', input_sig=?4, attempts=0, \
+               error=NULL, next_retry_at=NULL, enqueued_at=?5, updated_at=?5 \
+             WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
+            params![stage, subject_kind, id, sig, now],
+        )?;
+        return Ok(());
+    }
+    // Backfill a missing signature so it stops looking "changed" on the next
+    // reconcile. Never resets status/priority.
+    if old_sig.is_none() {
+        tx.execute(
+            "UPDATE pipeline_tasks SET input_sig=?4, updated_at=?5 \
+             WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
+            params![stage, subject_kind, id, sig, now],
+        )?;
+    }
+    // Bounded auto-retry for transient failures, gated by the backoff window
+    // `finish_batch` stamped on the failure.
+    let backoff_elapsed = next_retry_at.is_none_or(|t| t <= now);
+    if status == "failed" && attempts < MAX_ATTEMPTS && backoff_elapsed {
+        tx.execute(
+            "UPDATE pipeline_tasks SET status='pending', updated_at=?4 \
+             WHERE stage=?1 AND subject_kind=?2 AND subject_id=?3",
+            params![stage, subject_kind, id, now],
+        )?;
+    }
     Ok(())
 }
 

@@ -263,29 +263,8 @@ pub fn interactive_search<S: kroma_module_sdk::host::HostCtx>(state: &S, request
         return Ok(InteractiveSearchView { releases: Vec::new(), indexer_errors: Vec::new() });
     }
 
-    let mut cached: Vec<CachedRelease> = Vec::new();
-    let mut errors: Vec<String> = Vec::new();
-    let mut seen: HashSet<(String, String)> = HashSet::new();
-    for indexer in &indexers {
-        for st in &targets {
-            match crate::search_indexer(state, indexer, &st.query) {
-                Ok(found) => {
-                    for release in found {
-                        if seen.insert((indexer.id.clone(), release.guid.clone())) {
-                            let view = score_release(&release, indexer, st, &profile);
-                            let magnet_or_url = release
-                                .magnet
-                                .clone()
-                                .or_else(|| release.link.clone())
-                                .unwrap_or_default();
-                            cached.push(CachedRelease { view, magnet_or_url, tmdb_id: req.tmdb_id });
-                        }
-                    }
-                }
-                Err(e) => errors.push(format!("{}: {e:#}", indexer.name)),
-            }
-        }
-    }
+    let (mut cached, mut errors) =
+        collect_search_hits(state, &indexers, &targets, &profile, req.tmdb_id);
 
     // Accepted first (best score), then rejects; capped so a broad tracker
     // sweep stays a readable list.
@@ -296,6 +275,49 @@ pub fn interactive_search<S: kroma_module_sdk::host::HostCtx>(state: &S, request
     let releases = cached.iter().map(|c| c.view.clone()).collect();
     cache_results(&req.id, cached);
     Ok(InteractiveSearchView { releases, indexer_errors: errors })
+}
+
+/// Sweep every indexer over every target, de-duplicating by (indexer, guid),
+/// into scored candidates plus per-indexer errors.
+fn collect_search_hits<S: kroma_module_sdk::host::HostCtx>(
+    state: &S,
+    indexers: &[IndexerRow],
+    targets: &[SearchTarget],
+    profile: &kroma_module_sdk::scene::Profile,
+    tmdb_id: u64,
+) -> (Vec<CachedRelease>, Vec<String>) {
+    let mut cached: Vec<CachedRelease> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    for indexer in indexers {
+        for st in targets {
+            match crate::search_indexer(state, indexer, &st.query) {
+                Ok(found) => push_hits(found, indexer, st, profile, tmdb_id, &mut seen, &mut cached),
+                Err(e) => errors.push(format!("{}: {e:#}", indexer.name)),
+            }
+        }
+    }
+    (cached, errors)
+}
+
+/// Score and keep one indexer/target batch's new releases (unseen guids).
+fn push_hits(
+    found: Vec<Release>,
+    indexer: &IndexerRow,
+    st: &SearchTarget,
+    profile: &kroma_module_sdk::scene::Profile,
+    tmdb_id: u64,
+    seen: &mut HashSet<(String, String)>,
+    cached: &mut Vec<CachedRelease>,
+) {
+    for release in found {
+        if seen.insert((indexer.id.clone(), release.guid.clone())) {
+            let view = score_release(&release, indexer, st, profile);
+            let magnet_or_url =
+                release.magnet.clone().or_else(|| release.link.clone()).unwrap_or_default();
+            cached.push(CachedRelease { view, magnet_or_url, tmdb_id });
+        }
+    }
 }
 
 /// Grab one release from the last interactive search of this request. Returns

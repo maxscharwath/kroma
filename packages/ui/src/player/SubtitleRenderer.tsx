@@ -9,7 +9,7 @@ interface Cue {
   text: string;
 }
 
-const TAG = /<[^>]+?>/g;
+const TAG = /<[^>]+>/g;
 
 /** Parse an `HH:MM:SS.mmm` or `MM:SS.mmm` timestamp into seconds. */
 function toSeconds(v: string): number {

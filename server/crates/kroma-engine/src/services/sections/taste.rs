@@ -120,40 +120,63 @@ fn kmeans(vecs: &[(String, Vec<f32>)], k: usize) -> Vec<usize> {
 
     let mut assign = vec![0usize; n];
     for _ in 0..KMEANS_ITERS {
-        let mut changed = false;
-        for (i, (_, v)) in vecs.iter().enumerate() {
-            let best = (0..k)
-                .max_by(|&a, &b| dot(&centroids[a], v).total_cmp(&dot(&centroids[b], v)))
-                .unwrap_or(0);
-            if best != assign[i] {
-                assign[i] = best;
-                changed = true;
-            }
-        }
-        // Recompute centroids as the (normalized) mean of their members.
-        let mut sums = vec![vec![0.0f32; dim]; k];
-        let mut counts = vec![0usize; k];
-        for (i, (_, v)) in vecs.iter().enumerate() {
-            let c = assign[i];
-            counts[c] += 1;
-            for (s, x) in sums[c].iter_mut().zip(v) {
-                *s += x;
-            }
-        }
-        for c in 0..k {
-            if counts[c] > 0 {
-                for s in &mut sums[c] {
-                    *s /= counts[c] as f32;
-                }
-                normalize(&mut sums[c]);
-                centroids[c] = std::mem::take(&mut sums[c]);
-            }
-        }
+        let changed = assign_clusters(vecs, &centroids, &mut assign, k);
+        recompute_centroids(vecs, &assign, &mut centroids, k, dim);
         if !changed {
             break;
         }
     }
     assign
+}
+
+/// Assign each vector to its nearest centroid (max dot product). Returns whether
+/// any assignment changed this pass (the k-means convergence signal).
+fn assign_clusters(
+    vecs: &[(String, Vec<f32>)],
+    centroids: &[Vec<f32>],
+    assign: &mut [usize],
+    k: usize,
+) -> bool {
+    let mut changed = false;
+    for (i, (_, v)) in vecs.iter().enumerate() {
+        let best = (0..k)
+            .max_by(|&a, &b| dot(&centroids[a], v).total_cmp(&dot(&centroids[b], v)))
+            .unwrap_or(0);
+        if best != assign[i] {
+            assign[i] = best;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// Recompute each centroid as the (normalized) mean of its assigned members.
+/// Empty clusters keep their previous centroid.
+fn recompute_centroids(
+    vecs: &[(String, Vec<f32>)],
+    assign: &[usize],
+    centroids: &mut [Vec<f32>],
+    k: usize,
+    dim: usize,
+) {
+    let mut sums = vec![vec![0.0f32; dim]; k];
+    let mut counts = vec![0usize; k];
+    for (i, (_, v)) in vecs.iter().enumerate() {
+        let c = assign[i];
+        counts[c] += 1;
+        for (s, x) in sums[c].iter_mut().zip(v) {
+            *s += x;
+        }
+    }
+    for c in 0..k {
+        if counts[c] > 0 {
+            for s in &mut sums[c] {
+                *s /= counts[c] as f32;
+            }
+            normalize(&mut sums[c]);
+            centroids[c] = std::mem::take(&mut sums[c]);
+        }
+    }
 }
 
 fn mean(vectors: &[&[f32]]) -> Vec<f32> {

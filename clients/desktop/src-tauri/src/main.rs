@@ -23,49 +23,91 @@ mod mpv;
 #[allow(dead_code)]
 mod libmpv_mac;
 
-fn main() {
+/// WebKitGTK env fixups applied before the webview initialises (Deck / Linux).
+/// Each var is only set when the user hasn't already pinned an explicit value.
+#[cfg(target_os = "linux")]
+fn prepare_linux_env() {
     // WebKitGTK's DMABUF renderer fails on some GPU/driver combos (verified on the
     // Steam Deck: "Could not create default EGL display: EGL_BAD_PARAMETER" - the
     // web process aborts, so the transparent window renders NOTHING and sits
     // invisible-but-focused over the desktop). Disable it before WebKitGTK
     // initializes. Compositing stays on, so window transparency (mpv behind the
     // webview) is unaffected. An explicit user value is respected.
-    #[cfg(target_os = "linux")]
-    {
-        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
-        // Disabling DMABUF is not enough on some Wayland stacks (verified on the
-        // Steam Deck): WebKitGTK's *native Wayland* backend still can't create an
-        // EGL display ("Could not create default EGL display: EGL_BAD_PARAMETER"),
-        // the web process aborts, and the transparent window shows NOTHING. Pin GTK
-        // to X11 so the webview runs over XWayland instead, whose GLX/EGL path is the
-        // battle-tested one on the Deck (gamescope in Game Mode, KDE in Desktop mode
-        // both provide XWayland). Compositing stays on, so window transparency (mpv
-        // behind the webview) is unaffected - unlike WEBKIT_DISABLE_COMPOSITING_MODE.
-        // This is the webview analog of mpv.rs's "GLX via X11, no EGL" ladder rung.
-        // An explicit GDK_BACKEND (e.g. a user pinning wayland) is respected.
-        if std::env::var_os("GDK_BACKEND").is_none() {
-            std::env::set_var("GDK_BACKEND", "x11");
-        }
-        // The stock AppRun in Tauri AppImages exports GST_PLUGIN_SYSTEM_PATH(_1_0)
-        // pointing at $APPDIR/usr/lib/gstreamer-1.0 even with bundleMediaFramework
-        // off, where that directory is never created. GStreamer treats the var as
-        // "search ONLY here", so the system plugins are masked: webview audio dies
-        // ("GStreamer element autoaudiosink not found") and the user's
-        // ~/.cache/gstreamer-1.0 registry is rebuilt EMPTY, breaking other
-        // GStreamer apps until cleared (tauri-apps/tauri#15665). Drop the vars
-        // when they point at a missing directory; WebKit's child processes
-        // inherit our env, so they fall back to the system plugin search.
-        for var in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_SYSTEM_PATH"] {
-            if let Some(path) = std::env::var_os(var) {
-                let single_path = !path.to_string_lossy().contains(':');
-                if single_path && !std::path::Path::new(&path).is_dir() {
-                    std::env::remove_var(var);
-                }
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+    // Disabling DMABUF is not enough on some Wayland stacks (verified on the
+    // Steam Deck): WebKitGTK's *native Wayland* backend still can't create an
+    // EGL display ("Could not create default EGL display: EGL_BAD_PARAMETER"),
+    // the web process aborts, and the transparent window shows NOTHING. Pin GTK
+    // to X11 so the webview runs over XWayland instead, whose GLX/EGL path is the
+    // battle-tested one on the Deck (gamescope in Game Mode, KDE in Desktop mode
+    // both provide XWayland). Compositing stays on, so window transparency (mpv
+    // behind the webview) is unaffected - unlike WEBKIT_DISABLE_COMPOSITING_MODE.
+    // This is the webview analog of mpv.rs's "GLX via X11, no EGL" ladder rung.
+    // An explicit GDK_BACKEND (e.g. a user pinning wayland) is respected.
+    if std::env::var_os("GDK_BACKEND").is_none() {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+    // The stock AppRun in Tauri AppImages exports GST_PLUGIN_SYSTEM_PATH(_1_0)
+    // pointing at $APPDIR/usr/lib/gstreamer-1.0 even with bundleMediaFramework
+    // off, where that directory is never created. GStreamer treats the var as
+    // "search ONLY here", so the system plugins are masked: webview audio dies
+    // ("GStreamer element autoaudiosink not found") and the user's
+    // ~/.cache/gstreamer-1.0 registry is rebuilt EMPTY, breaking other
+    // GStreamer apps until cleared (tauri-apps/tauri#15665). Drop the vars
+    // when they point at a missing directory; WebKit's child processes
+    // inherit our env, so they fall back to the system plugin search.
+    for var in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_SYSTEM_PATH"] {
+        if let Some(path) = std::env::var_os(var) {
+            let single_path = !path.to_string_lossy().contains(':');
+            if single_path && !std::path::Path::new(&path).is_dir() {
+                std::env::remove_var(var);
             }
         }
     }
+}
+
+// macOS: tell the frontend the mpv engine is available (+ the debug test URL) up
+// front, then build the in-process libmpv engine AFTER the window is on-screen +
+// laid out. mpv's `--wid` embedding needs a visible, non-zero view or it falls
+// back to opening its OWN window - so we can't init in `setup` (the window isn't
+// shown yet); defer to the running loop.
+#[cfg(all(target_os = "macos", feature = "libmpv"))]
+fn init_libmpv_deferred(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(700));
+        let h = handle.clone();
+        let _ = handle.run_on_main_thread(move || {
+            if let Some(win) = h.webview_windows().values().next() {
+                if let Ok(nsw) = win.ns_window() {
+                    // Advertise mpv to the frontend ONLY after the engine is up,
+                    // so playback started early can't invoke a no-op mpv_load.
+                    if libmpv_mac::init(&h, nsw) {
+                        let _ = win.eval("window.__KROMA_MPV__ = true;");
+                    }
+                }
+            }
+        });
+    });
+}
+
+/// Deck: Tauri does not reap child processes; kill the mpv binary on exit.
+#[cfg(target_os = "linux")]
+fn on_run_event(app: &tauri::AppHandle, event: &tauri::RunEvent) {
+    use tauri::Manager;
+    if let tauri::RunEvent::Exit = event {
+        if let Some(state) = app.try_state::<mpv::MpvState>() {
+            mpv::shutdown(state.inner());
+        }
+    }
+}
+
+fn main() {
+    #[cfg(target_os = "linux")]
+    prepare_linux_env();
 
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
@@ -107,45 +149,19 @@ fn main() {
                 use tauri::Manager;
                 mpv::spawn(_app.handle().clone());
             }
-            // macOS: tell the frontend the mpv engine is available (+ the debug test
-            // URL) up front, then build the in-process libmpv engine AFTER the window
-            // is on-screen + laid out. mpv's `--wid` embedding needs a visible, non-zero
-            // view or it falls back to opening its OWN window - so we can't init in
-            // `setup` (the window isn't shown yet); defer to the running loop.
+            // macOS: build the in-process libmpv engine once the window is laid out
+            // (deferred; see [`init_libmpv_deferred`]).
             #[cfg(all(target_os = "macos", feature = "libmpv"))]
             {
                 use tauri::Manager;
-                let handle = _app.handle().clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(700));
-                    let h = handle.clone();
-                    let _ = handle.run_on_main_thread(move || {
-                        if let Some(win) = h.webview_windows().values().next() {
-                            if let Ok(nsw) = win.ns_window() {
-                                // Advertise mpv to the frontend ONLY after the engine is up,
-                                // so playback started early can't invoke a no-op mpv_load.
-                                if libmpv_mac::init(&h, nsw) {
-                                    let _ = win.eval("window.__KROMA_MPV__ = true;");
-                                }
-                            }
-                        }
-                    });
-                });
+                init_libmpv_deferred(_app.handle());
             }
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building the KROMA desktop app")
         .run(|_app, _event| {
-            // Tauri does not reap child processes; kill the mpv binary on exit (Deck).
             #[cfg(target_os = "linux")]
-            {
-                use tauri::Manager;
-                if let tauri::RunEvent::Exit = _event {
-                    if let Some(state) = _app.try_state::<mpv::MpvState>() {
-                        mpv::shutdown(state.inner());
-                    }
-                }
-            }
+            on_run_event(_app, &_event);
         });
 }

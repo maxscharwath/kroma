@@ -98,7 +98,7 @@ if [[ -f "$SIDECAR" ]]; then
 fi
 
 TOOL="$WORK/appimagetool"
-curl -fsSL --retry 3 -o "$TOOL" \
+curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 -o "$TOOL" \
   "https://github.com/AppImage/appimagetool/releases/download/${TOOL_VERSION}/appimagetool-x86_64.AppImage"
 if [[ "$(sum_of "$TOOL")" != "$TOOL_SHA256" ]]; then
   echo "fix-appimage: sha256 MISMATCH for appimagetool ${TOOL_VERSION}" >&2

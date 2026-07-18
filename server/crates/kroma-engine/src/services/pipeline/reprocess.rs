@@ -52,88 +52,109 @@ pub fn stage_for(state: &SharedState, kind: &str, id: &str, stage: &str) -> Resu
     let db = &state.db;
     let now = now_ms();
     match stage {
-        "metadata" => {
-            if kind == "show" {
-                db::clear_show_metadata(db, id)?;
-            } else {
-                db::clear_item_metadata(db, id)?;
-            }
-            db::pipeline::enqueue(db, "metadata", "item", id, HIGH, now)?;
-        }
-        "embed" => {
-            db::clear_item_vector(db, id)?;
-            db::pipeline::enqueue(db, "embed", "item", id, HIGH, now)?;
-        }
-        "storyboard" => {
-            if kind == "show" {
-                // Storyboards live per episode, not on the show id: fan out just
-                // like `reprocess_show` so each episode is actually rebuilt.
-                for ep in show_episodes(db, id)? {
-                    state.storyboard.invalidate(&ep);
-                    db::pipeline::enqueue(db, "storyboard", "item", &ep.id, HIGH, now)?;
-                }
-            } else {
-                if let Some(item) = db::get_item(db, id)? {
-                    state.storyboard.invalidate(&item);
-                }
-                db::pipeline::enqueue(db, "storyboard", "item", id, HIGH, now)?;
-            }
-        }
-        "subtitles" => {
-            if kind == "show" {
-                // Subtitles live per episode: fan out to the show's episodes.
-                for ep in show_episodes(db, id)? {
-                    if let Some(abs) = ep.abs_path.as_deref() {
-                        crate::infra::subtitles::invalidate(&state.config.data_dir, abs, &ep.subtitles);
-                    }
-                    db::pipeline::enqueue(db, "subtitles", "item", &ep.id, HIGH, now)?;
-                }
-            } else {
-                if let Some(item) = db::get_item(db, id)? {
-                    if let Some(abs) = item.abs_path.as_deref() {
-                        crate::infra::subtitles::invalidate(&state.config.data_dir, abs, &item.subtitles);
-                    }
-                }
-                db::pipeline::enqueue(db, "subtitles", "item", id, HIGH, now)?;
-            }
-        }
-        "probe" => {
-            if kind == "show" {
-                // Files hang off episodes, not the show: fan out per episode.
-                for ep in show_episodes(db, id)? {
-                    db::unprobe_item_files(db, &ep.id)?;
-                    for file_id in db::file_ids_for_item(db, &ep.id)? {
-                        db::pipeline::enqueue(db, "probe", "file", &file_id, HIGH, now)?;
-                    }
-                }
-            } else {
-                db::unprobe_item_files(db, id)?;
-                for file_id in db::file_ids_for_item(db, id)? {
-                    db::pipeline::enqueue(db, "probe", "file", &file_id, HIGH, now)?;
-                }
-            }
-        }
-        "markers" => {
-            let seasons: Vec<String> = if kind == "show" {
-                db::get_show(db, id)?
-                    .map(|d| d.seasons.iter().map(|s| format!("{id}#{}", s.number)).collect())
-                    .unwrap_or_default()
-            } else {
-                db::get_item(db, id)?
-                    .and_then(|it| match (it.show_id, it.season) {
-                        (Some(sh), Some(n)) => Some(vec![format!("{sh}#{n}")]),
-                        _ => None,
-                    })
-                    .unwrap_or_default()
-            };
-            for s in &seasons {
-                db::pipeline::enqueue(db, "markers", "season", s, HIGH, now)?;
-            }
-        }
+        "metadata" => stage_metadata(db, kind, id, now)?,
+        "embed" => stage_embed(db, id, now)?,
+        "storyboard" => stage_storyboard(state, db, kind, id, now)?,
+        "subtitles" => stage_subtitles(state, db, kind, id, now)?,
+        "probe" => stage_probe(db, kind, id, now)?,
+        "markers" => stage_markers(db, kind, id, now)?,
         other => bail!("unknown stage {other:?}"),
     }
     if let Some(job) = state.jobs.resolve(&format!("pipeline.{stage}")) {
         let _ = state.jobs.trigger(state.clone(), job, "reprocess");
+    }
+    Ok(())
+}
+
+/// Clear + requeue the metadata stage for one element.
+fn stage_metadata(db: &db::Pool, kind: &str, id: &str, now: i64) -> Result<()> {
+    if kind == "show" {
+        db::clear_show_metadata(db, id)?;
+    } else {
+        db::clear_item_metadata(db, id)?;
+    }
+    db::pipeline::enqueue(db, "metadata", "item", id, HIGH, now)?;
+    Ok(())
+}
+
+/// Clear + requeue the embed stage for one element.
+fn stage_embed(db: &db::Pool, id: &str, now: i64) -> Result<()> {
+    db::clear_item_vector(db, id)?;
+    db::pipeline::enqueue(db, "embed", "item", id, HIGH, now)?;
+    Ok(())
+}
+
+/// Storyboards live per episode, not on the show id: fan out just like
+/// `reprocess_show` so each episode is actually rebuilt.
+fn stage_storyboard(state: &SharedState, db: &db::Pool, kind: &str, id: &str, now: i64) -> Result<()> {
+    if kind == "show" {
+        for ep in show_episodes(db, id)? {
+            state.storyboard.invalidate(&ep);
+            db::pipeline::enqueue(db, "storyboard", "item", &ep.id, HIGH, now)?;
+        }
+    } else {
+        if let Some(item) = db::get_item(db, id)? {
+            state.storyboard.invalidate(&item);
+        }
+        db::pipeline::enqueue(db, "storyboard", "item", id, HIGH, now)?;
+    }
+    Ok(())
+}
+
+/// Subtitles live per episode: fan out to the show's episodes.
+fn stage_subtitles(state: &SharedState, db: &db::Pool, kind: &str, id: &str, now: i64) -> Result<()> {
+    if kind == "show" {
+        for ep in show_episodes(db, id)? {
+            if let Some(abs) = ep.abs_path.as_deref() {
+                crate::infra::subtitles::invalidate(&state.config.data_dir, abs, &ep.subtitles);
+            }
+            db::pipeline::enqueue(db, "subtitles", "item", &ep.id, HIGH, now)?;
+        }
+    } else {
+        if let Some(item) = db::get_item(db, id)? {
+            if let Some(abs) = item.abs_path.as_deref() {
+                crate::infra::subtitles::invalidate(&state.config.data_dir, abs, &item.subtitles);
+            }
+        }
+        db::pipeline::enqueue(db, "subtitles", "item", id, HIGH, now)?;
+    }
+    Ok(())
+}
+
+/// Files hang off episodes, not the show: fan out per episode.
+fn stage_probe(db: &db::Pool, kind: &str, id: &str, now: i64) -> Result<()> {
+    if kind == "show" {
+        for ep in show_episodes(db, id)? {
+            db::unprobe_item_files(db, &ep.id)?;
+            for file_id in db::file_ids_for_item(db, &ep.id)? {
+                db::pipeline::enqueue(db, "probe", "file", &file_id, HIGH, now)?;
+            }
+        }
+    } else {
+        db::unprobe_item_files(db, id)?;
+        for file_id in db::file_ids_for_item(db, id)? {
+            db::pipeline::enqueue(db, "probe", "file", &file_id, HIGH, now)?;
+        }
+    }
+    Ok(())
+}
+
+/// Markers are per season: enqueue every affected season key.
+fn stage_markers(db: &db::Pool, kind: &str, id: &str, now: i64) -> Result<()> {
+    let seasons: Vec<String> = if kind == "show" {
+        db::get_show(db, id)?
+            .map(|d| d.seasons.iter().map(|s| format!("{id}#{}", s.number)).collect())
+            .unwrap_or_default()
+    } else {
+        db::get_item(db, id)?
+            .and_then(|it| match (it.show_id, it.season) {
+                (Some(sh), Some(n)) => Some(vec![format!("{sh}#{n}")]),
+                _ => None,
+            })
+            .unwrap_or_default()
+    };
+    for s in &seasons {
+        db::pipeline::enqueue(db, "markers", "season", s, HIGH, now)?;
     }
     Ok(())
 }

@@ -3,8 +3,8 @@
 //! `t=caps` capability document. Torznab error documents surface as `Err`.
 
 use anyhow::{bail, Result};
-use quick_xml::events::Event;
-use quick_xml::Reader;
+use quick_xml::events::{BytesEnd, BytesStart, Event};
+use quick_xml::{Decoder, Reader};
 
 use crate::{Caps, Release};
 
@@ -28,64 +28,8 @@ pub fn parse_items(xml: &[u8]) -> Result<Vec<Release>> {
 
     loop {
         match reader.read_event_into(&mut buf)? {
-            Event::Start(e) => {
-                text.clear();
-                field = match e.local_name().as_ref() {
-                    b"item" => {
-                        current = Some(Release::default());
-                        None
-                    }
-                    b"title" if current.is_some() => Some("title"),
-                    b"guid" if current.is_some() => Some("guid"),
-                    b"link" if current.is_some() => Some("link"),
-                    b"comments" if current.is_some() => Some("comments"),
-                    b"size" if current.is_some() => Some("size"),
-                    b"pubDate" if current.is_some() => Some("pubDate"),
-                    _ => None,
-                };
-            }
-            Event::Empty(e) => match e.local_name().as_ref() {
-                b"error" => {
-                    let mut code = String::new();
-                    let mut description = String::new();
-                    for attr in e.attributes().flatten() {
-                        let v = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
-                        match attr.key.local_name().as_ref() {
-                            b"code" => code = v,
-                            b"description" => description = v,
-                            _ => {}
-                        }
-                    }
-                    bail!("torznab error {code}: {description}");
-                }
-                b"enclosure" => {
-                    if let Some(rel) = current.as_mut() {
-                        for attr in e.attributes().flatten() {
-                            if attr.key.local_name().as_ref() == b"url" {
-                                let url = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
-                                if rel.link.is_none() {
-                                    rel.link = Some(url);
-                                }
-                            }
-                        }
-                    }
-                }
-                b"attr" => {
-                    if let Some(rel) = current.as_mut() {
-                        let (mut name, mut value) = (String::new(), String::new());
-                        for attr in e.attributes().flatten() {
-                            let v = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
-                            match attr.key.local_name().as_ref() {
-                                b"name" => name = v,
-                                b"value" => value = v,
-                                _ => {}
-                            }
-                        }
-                        apply_attr(rel, &name, &value);
-                    }
-                }
-                _ => {}
-            },
+            Event::Start(e) => field = handle_start(&e, &mut current, &mut text),
+            Event::Empty(e) => handle_empty(&e, decoder, &mut current)?,
             // Text carries only literal text in 0.41 (no `&amp;` to unescape).
             Event::Text(e) if field.is_some() => text.push_str(&e.decode()?),
             // An entity reference inside a field (`&amp;`, `&#38;`, ...).
@@ -93,26 +37,123 @@ pub fn parse_items(xml: &[u8]) -> Result<Vec<Release>> {
             Event::CData(e) if field.is_some() => {
                 text.push_str(&String::from_utf8_lossy(&e));
             }
-            Event::End(e) => {
-                // Flush the accumulated field text as the element closes.
-                if let (Some(rel), Some(f)) = (current.as_mut(), field.take()) {
-                    apply_field(rel, f, &text);
-                }
-                text.clear();
-                if e.local_name().as_ref() == b"item" {
-                    if let Some(rel) = current.take() {
-                        if !rel.title.is_empty() {
-                            out.push(rel);
-                        }
-                    }
-                }
-            }
+            Event::End(e) => handle_end(&e, &mut current, &mut field, &mut text, &mut out),
             Event::Eof => break,
             _ => {}
         }
         buf.clear();
     }
     Ok(out)
+}
+
+/// A `<...>` open tag: start a new item, or name the simple text field the
+/// following text belongs to. Clears the field-text accumulator.
+fn handle_start(
+    e: &BytesStart,
+    current: &mut Option<Release>,
+    text: &mut String,
+) -> Option<&'static str> {
+    text.clear();
+    match e.local_name().as_ref() {
+        b"item" => {
+            *current = Some(Release::default());
+            None
+        }
+        b"title" if current.is_some() => Some("title"),
+        b"guid" if current.is_some() => Some("guid"),
+        b"link" if current.is_some() => Some("link"),
+        b"comments" if current.is_some() => Some("comments"),
+        b"size" if current.is_some() => Some("size"),
+        b"pubDate" if current.is_some() => Some("pubDate"),
+        _ => None,
+    }
+}
+
+/// A self-closing `<... />` element: the torznab error doc, `<enclosure>`, or a
+/// `<torznab:attr>` extension.
+fn handle_empty(e: &BytesStart, decoder: Decoder, current: &mut Option<Release>) -> Result<()> {
+    match e.local_name().as_ref() {
+        b"error" => read_error(e, decoder),
+        b"enclosure" => {
+            if let Some(rel) = current.as_mut() {
+                read_enclosure(e, decoder, rel)?;
+            }
+            Ok(())
+        }
+        b"attr" => {
+            if let Some(rel) = current.as_mut() {
+                read_attr_el(e, decoder, rel)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+/// A `<error code=.. description=.. />` document: always surfaced as `Err`.
+fn read_error(e: &BytesStart, decoder: Decoder) -> Result<()> {
+    let mut code = String::new();
+    let mut description = String::new();
+    for attr in e.attributes().flatten() {
+        let v = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
+        match attr.key.local_name().as_ref() {
+            b"code" => code = v,
+            b"description" => description = v,
+            _ => {}
+        }
+    }
+    bail!("torznab error {code}: {description}");
+}
+
+/// `<enclosure url=.. />`: the `.torrent` link, if no link is set yet.
+fn read_enclosure(e: &BytesStart, decoder: Decoder, rel: &mut Release) -> Result<()> {
+    for attr in e.attributes().flatten() {
+        if attr.key.local_name().as_ref() == b"url" {
+            let url = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
+            if rel.link.is_none() {
+                rel.link = Some(url);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `<torznab:attr name=.. value=.. />`: fold the extension into the release.
+fn read_attr_el(e: &BytesStart, decoder: Decoder, rel: &mut Release) -> Result<()> {
+    let (mut name, mut value) = (String::new(), String::new());
+    for attr in e.attributes().flatten() {
+        let v = quick_xml::escape::unescape(&decoder.decode(&attr.value)?)?.into_owned();
+        match attr.key.local_name().as_ref() {
+            b"name" => name = v,
+            b"value" => value = v,
+            _ => {}
+        }
+    }
+    apply_attr(rel, &name, &value);
+    Ok(())
+}
+
+/// A `</...>` close tag: flush the accumulated field text, and on `</item>`
+/// commit the release (if it has a title).
+fn handle_end(
+    e: &BytesEnd,
+    current: &mut Option<Release>,
+    field: &mut Option<&'static str>,
+    text: &mut String,
+    out: &mut Vec<Release>,
+) {
+    // Flush the accumulated field text as the element closes.
+    if let (Some(rel), Some(f)) = (current.as_mut(), field.take()) {
+        apply_field(rel, f, text);
+    }
+    text.clear();
+    if e.local_name().as_ref() == b"item" {
+        if let Some(rel) = current.take() {
+            if !rel.title.is_empty() {
+                out.push(rel);
+            }
+        }
+    }
 }
 
 /// Resolve a quick-xml `GeneralRef` (the `amp` of `&amp;`, or `#38` of `&#38;`)

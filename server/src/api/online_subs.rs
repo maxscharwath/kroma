@@ -75,7 +75,6 @@ impl kroma_engine::ports::Whisper for WhisperClient {
         on_progress: &dyn Fn(usize, usize),
         cancel: &std::sync::atomic::AtomicBool,
     ) -> Option<String> {
-        use std::sync::atomic::Ordering;
         use std::sync::mpsc::TryRecvError;
         use std::time::Duration;
 
@@ -131,24 +130,7 @@ impl kroma_engine::ports::Whisper for WhisperClient {
             }
             // One pooled connection per tick: push the cancel flag (if latched)
             // then read progress off the same row.
-            if let Ok(conn) = self.pool.get() {
-                if cancel.load(Ordering::Relaxed) {
-                    let _ = conn.execute("UPDATE whisper_jobs SET cancel = 1 WHERE id = ?1", [&job_id]);
-                }
-                if let Ok((stage, done, total)) = conn.query_row(
-                    "SELECT stage, done, total FROM whisper_jobs WHERE id = ?1",
-                    [&job_id],
-                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)),
-                ) {
-                    if !stage.is_empty() && stage != last_stage {
-                        on_stage(&stage);
-                        last_stage = stage;
-                    }
-                    if total > 0 {
-                        on_progress(done as usize, total as usize);
-                    }
-                }
-            }
+            pump_progress(&self.pool, &job_id, cancel, on_stage, on_progress, &mut last_stage);
             std::thread::sleep(Duration::from_millis(250));
         };
 
@@ -156,6 +138,38 @@ impl kroma_engine::ports::Whisper for WhisperClient {
             let _ = conn.execute("DELETE FROM whisper_jobs WHERE id = ?1", [&job_id]);
         }
         result
+    }
+}
+
+/// One progress tick of a whisper transcription: on a fresh pooled connection,
+/// push the cancel flag if latched, then read the stage/progress off the shared
+/// coordination row and drive the callbacks. `last_stage` dedups the stage
+/// callback. Best-effort: a connection/query failure just skips this tick.
+fn pump_progress(
+    pool: &kroma_db::Pool,
+    job_id: &str,
+    cancel: &std::sync::atomic::AtomicBool,
+    on_stage: &dyn Fn(&str),
+    on_progress: &dyn Fn(usize, usize),
+    last_stage: &mut String,
+) {
+    use std::sync::atomic::Ordering;
+    let Ok(conn) = pool.get() else { return };
+    if cancel.load(Ordering::Relaxed) {
+        let _ = conn.execute("UPDATE whisper_jobs SET cancel = 1 WHERE id = ?1", [job_id]);
+    }
+    if let Ok((stage, done, total)) = conn.query_row(
+        "SELECT stage, done, total FROM whisper_jobs WHERE id = ?1",
+        [job_id],
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?)),
+    ) {
+        if !stage.is_empty() && stage != *last_stage {
+            on_stage(&stage);
+            *last_stage = stage;
+        }
+        if total > 0 {
+            on_progress(done as usize, total as usize);
+        }
     }
 }
 
@@ -277,63 +291,107 @@ pub async fn generate(State(state): State<SharedState>, Path(id): Path<String>, 
     // here would break fire-and-poll (the client would have nothing to poll and a
     // proxy/browser could time out). So we return the genId now and do ALL source
     // resolution + model work in a background task, marking the entry failed on error.
-    let state = state.clone();
     let item_id = id.clone();
     let spoken_lang = req.spoken_lang.clone().filter(|s| !s.trim().is_empty());
     let quality = Quality::parse(req.quality.as_deref().unwrap_or("balanced"));
     let audio_track = req.audio_track.unwrap_or(0);
-    tokio::spawn(async move {
-        let source_vtt = if mode == GenMode::Translate {
-            match resolve_source(&state, &item_id, &abs, &req).await {
-                Ok(vtt) => Some(vtt),
-                Err(reason) => {
-                    handle.fail(&reason);
-                    return;
-                }
-            }
-        } else {
-            None
-        };
-        let spec = GenSpec { mode, target_lang, spoken_lang, quality, audio_track, source_vtt };
-        let settings = state.settings.clone();
-        let data_dir = state.config.data_dir.clone();
-        let pool = state.db.clone();
-        // The whisper transcriber is the out-of-process sidecar proxy (registered
-        // as a service in the composition root); translate-only generations don't
-        // need it, so a missing one only fails a transcribe.
-        let whisper = kroma_module_host::service::<WhisperClient>(&state);
-        // The model (ffmpeg + Whisper / LLM) is blocking: run it on the blocking pool
-        // and finalize the registry entry with its result.
-        let _ = tokio::task::spawn_blocking(move || {
-            let result = match whisper.as_ref() {
-                Some(whisper) => subtitles::generate(
-                    &settings,
-                    &data_dir,
-                    &pool,
-                    &item_id,
-                    std::path::Path::new(&abs),
-                    &spec,
-                    &handle,
-                    whisper.as_ref(),
-                ),
-                None => Err("the Whisper module is not installed".to_string()),
-            };
-            match result {
-                Ok(sub) => handle.done(&sub.id),
-                Err(_) if handle.cancelled() => handle.fail("cancelled"),
-                Err(reason) => {
-                    // Surface the *real* reason (LLM/Whisper error, bad config, …) both
-                    // in the server log and on the polled generation, instead of a blank
-                    // "generation failed" the client can't act on.
-                    tracing::warn!(item = %item_id, mode = mode_label, "subtitle generation failed: {reason}");
-                    handle.fail(&reason);
-                }
-            }
-        })
-        .await;
-    });
+    tokio::spawn(run_generation(GenTask {
+        state: state.clone(),
+        item_id,
+        abs,
+        req,
+        mode,
+        mode_label,
+        target_lang,
+        spoken_lang,
+        quality,
+        audio_track,
+        handle,
+    }));
 
     (StatusCode::ACCEPTED, Json(GenStarted { gen_id })).into_response()
+}
+
+/// Inputs for the off-request-path subtitle generation task ([`run_generation`]).
+struct GenTask {
+    state: SharedState,
+    item_id: String,
+    abs: String,
+    req: GenerateReq,
+    mode: GenMode,
+    mode_label: &'static str,
+    target_lang: String,
+    spoken_lang: Option<String>,
+    quality: Quality,
+    audio_track: u32,
+    handle: subtitles::Handle,
+}
+
+/// The whole generation, done OFF the request path (translate first resolves its
+/// source WebVTT, which alone can take up to subtitles::TIMEOUT). Marks the
+/// registry entry done/failed with the real reason.
+async fn run_generation(t: GenTask) {
+    let GenTask {
+        state,
+        item_id,
+        abs,
+        req,
+        mode,
+        mode_label,
+        target_lang,
+        spoken_lang,
+        quality,
+        audio_track,
+        handle,
+    } = t;
+    let source_vtt = if mode == GenMode::Translate {
+        match resolve_source(&state, &item_id, &abs, &req).await {
+            Ok(vtt) => Some(vtt),
+            Err(reason) => {
+                handle.fail(&reason);
+                return;
+            }
+        }
+    } else {
+        None
+    };
+    let spec = GenSpec { mode, target_lang, spoken_lang, quality, audio_track, source_vtt };
+    let settings = state.settings.clone();
+    let data_dir = state.config.data_dir.clone();
+    let pool = state.db.clone();
+    // The whisper transcriber is the out-of-process sidecar proxy (registered
+    // as a service in the composition root); translate-only generations don't
+    // need it, so a missing one only fails a transcribe.
+    let whisper = kroma_module_host::service::<WhisperClient>(&state);
+    // The model (ffmpeg + Whisper / LLM) is blocking: run it on the blocking pool
+    // and finalize the registry entry with its result.
+    let _ = tokio::task::spawn_blocking(move || {
+        let result = match whisper.as_ref() {
+            Some(whisper) => subtitles::generate(
+                &settings,
+                &data_dir,
+                &pool,
+                &item_id,
+                std::path::Path::new(&abs),
+                &spec,
+                &handle,
+                whisper.as_ref(),
+            ),
+            None => Err("the Whisper module is not installed".to_string()),
+        };
+        match result {
+            Ok(sub) => handle.done(&sub.id),
+            Err(_) if handle.cancelled() => handle.fail("cancelled"),
+            Err(reason) => {
+                // Surface the *real* reason (LLM/Whisper error, bad config, …) both
+                // in the server log and on the polled generation, instead of a blank
+                // "generation failed" the client can't act on.
+                tracing::warn!(item = %item_id, mode = mode_label, "subtitle generation failed: {reason}");
+                handle.fail(&reason);
+            }
+        }
+    })
+    .await;
 }
 
 /// Resolve the WebVTT source for a translate request (cached id or embedded track).

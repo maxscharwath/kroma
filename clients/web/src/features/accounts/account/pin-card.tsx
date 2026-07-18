@@ -44,7 +44,7 @@ export function PinCard() {
     setConfirm('');
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (pin.length !== 4 || (hasPin && current.length !== 4)) return;
     if (pin !== confirm) {

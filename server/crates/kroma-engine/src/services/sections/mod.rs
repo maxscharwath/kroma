@@ -72,13 +72,7 @@ pub fn build_home(state: &SharedState, pool: &Pool, locale: &str, user_id: &str)
     //    makes a *specific* similarity claim about one seed so require a shared
     //    genre with it. (No-op when the seed has no genres, or with a discriminative
     //    backend where the neighbours already share genres.)
-    if let Some(last) = &ctx.last_played {
-        if let Some(title) = last_title(pool, last) {
-            let heading = i18n::t(locale, "content.becauseYouWatched", &[("title", &title)]);
-            let ranked = db::genre_guard(pool, last, state.vectors.similar(last, FETCH));
-            out.push("because", heading, None, ranked, NO_FLOOR);
-        }
-    }
+    push_because(&mut out, state, pool, &ctx, locale);
 
     // 2.5) Personalized, LLM-named rows authored by the nightly
     //      `sections.personalize` job. The model only *names* each row; the items
@@ -86,40 +80,17 @@ pub fn build_home(state: &SharedState, pool: &Pool, locale: &str, user_id: &str)
     //      real catalog titles. Floored like themed rows. Falls through to the
     //      static bank below when the user has none yet (no LLM / too little
     //      history).
-    for gs in generate::load(pool, user_id) {
-        if out.sections.len() >= discretionary_cap {
-            break;
-        }
-        let query = state.embedder.embed(&gs.query);
-        let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
-        let reason = (!gs.reason.is_empty()).then_some(gs.reason);
-        out.push(&format!("ai:{}", gs.key), gs.title, reason, ranked, floor);
-    }
+    push_ai_rows(&mut out, state, pool, user_id, discretionary_cap, floor);
 
     // 2.6) Editorial curated collections global, same for everyone (director
     //      spotlights + LLM-curated genre/list/franchise/mood rows from the
     //      `sections.curate` job). Membership is explicit (resolved ids), so
     //      NO_FLOOR; a daily-rotated window keeps the home feeling fresh.
-    for (key, title, reason, ids) in curated_rows(pool, locale) {
-        if out.sections.len() >= discretionary_cap {
-            break;
-        }
-        out.push(&format!("curated:{key}"), title, reason, unscored(ids), NO_FLOOR);
-    }
+    push_curated_rows(&mut out, pool, locale, discretionary_cap);
 
     // 3) Themed rows eligible phrases, FLOORED: a phrase only becomes a row if
     //    the library actually has matches above the noise level.
-    let mut themed = 0;
-    for phrase in phrases::eligible(&ctx) {
-        if themed >= MAX_THEMED || out.sections.len() >= discretionary_cap {
-            break;
-        }
-        let query = state.embedder.embed(phrase.query);
-        let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
-        if out.push(&format!("themed:{}", phrase.key), i18n::t(locale, phrase.title_key, &[]), None, ranked, floor) {
-            themed += 1;
-        }
-    }
+    push_themed_rows(&mut out, state, &ctx, locale, discretionary_cap, floor);
 
     // 4) Trending in your library (recency-weighted plays) SQL, unscored.
     let trending = unscored(db::trending_ids(pool, FETCH).unwrap_or_default());
@@ -139,6 +110,79 @@ pub fn build_home(state: &SharedState, pool: &Pool, locale: &str, user_id: &str)
         let _ = db::localize::overlay_section_items(pool, &mut s.items, locale);
     }
     sections
+}
+
+/// "Because you watched <the last thing>". Genre-guarded: the lexical embedder is
+/// weakly discriminative item<->item, and this row makes a *specific* similarity
+/// claim about one seed, so require a shared genre with it. (No-op when the seed
+/// has no genres, or with a discriminative backend.)
+fn push_because(out: &mut Builder, state: &SharedState, pool: &Pool, ctx: &Context, locale: &str) {
+    if let Some(last) = &ctx.last_played {
+        if let Some(title) = last_title(pool, last) {
+            let heading = i18n::t(locale, "content.becauseYouWatched", &[("title", &title)]);
+            let ranked = db::genre_guard(pool, last, state.vectors.similar(last, FETCH));
+            out.push("because", heading, None, ranked, NO_FLOOR);
+        }
+    }
+}
+
+/// Personalized, LLM-named rows authored by the nightly `sections.personalize`
+/// job. The model only *names* each row; the items come from the embedder
+/// resolving its vibe `query`, so they're always real catalog titles. Floored
+/// like themed rows. Empty when the user has none yet (no LLM / too little
+/// history).
+fn push_ai_rows(
+    out: &mut Builder,
+    state: &SharedState,
+    pool: &Pool,
+    user_id: &str,
+    discretionary_cap: usize,
+    floor: f32,
+) {
+    for gs in generate::load(pool, user_id) {
+        if out.sections.len() >= discretionary_cap {
+            break;
+        }
+        let query = state.embedder.embed(&gs.query);
+        let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
+        let reason = (!gs.reason.is_empty()).then_some(gs.reason);
+        out.push(&format!("ai:{}", gs.key), gs.title, reason, ranked, floor);
+    }
+}
+
+/// Editorial curated collections global, same for everyone (director spotlights +
+/// LLM-curated genre/list/franchise/mood rows). Membership is explicit (resolved
+/// ids), so `NO_FLOOR`; a daily-rotated window keeps the home feeling fresh.
+fn push_curated_rows(out: &mut Builder, pool: &Pool, locale: &str, discretionary_cap: usize) {
+    for (key, title, reason, ids) in curated_rows(pool, locale) {
+        if out.sections.len() >= discretionary_cap {
+            break;
+        }
+        out.push(&format!("curated:{key}"), title, reason, unscored(ids), NO_FLOOR);
+    }
+}
+
+/// Themed rows eligible phrases, FLOORED: a phrase only becomes a row if the
+/// library actually has matches above the noise level.
+fn push_themed_rows(
+    out: &mut Builder,
+    state: &SharedState,
+    ctx: &Context,
+    locale: &str,
+    discretionary_cap: usize,
+    floor: f32,
+) {
+    let mut themed = 0;
+    for phrase in phrases::eligible(ctx) {
+        if themed >= MAX_THEMED || out.sections.len() >= discretionary_cap {
+            break;
+        }
+        let query = state.embedder.embed(phrase.query);
+        let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
+        if out.push(&format!("themed:{}", phrase.key), i18n::t(locale, phrase.title_key, &[]), None, ranked, floor) {
+            themed += 1;
+        }
+    }
 }
 
 /// Wrap SQL-sourced ids (trending / recently-added) as `(id, score)` so they flow

@@ -193,30 +193,36 @@ impl Supervisor {
             .stderr(stdio())
             .spawn()?;
         if let Some(log_line) = &self.cfg.log_line {
-            for pipe in [
-                child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>),
-                child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                let log_line = log_line.clone();
-                let id = id.to_string();
-                // One drainer per pipe; exits on EOF when the child dies.
-                std::thread::spawn(move || {
-                    use std::io::BufRead;
-                    for line in std::io::BufReader::new(pipe).lines() {
-                        match line {
-                            Ok(line) => log_line(&id, &line),
-                            Err(_) => break,
-                        }
-                    }
-                });
-            }
+            Self::drain_logs(&mut child, id, log_line);
         }
         tracing::info!(module = %id, port, pid = child.id(), "spawned module process");
         self.procs.write().unwrap().insert(id.to_string(), Proc { port, child });
         Ok(port)
+    }
+
+    /// Fan the child's stdout+stderr out to one drainer thread each: every line is
+    /// forwarded to `log_line` until EOF (when the child dies).
+    fn drain_logs(child: &mut Child, id: &str, log_line: &Arc<dyn Fn(&str, &str) + Send + Sync>) {
+        for pipe in [
+            child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>),
+            child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let log_line = log_line.clone();
+            let id = id.to_string();
+            // One drainer per pipe; exits on EOF when the child dies.
+            std::thread::spawn(move || {
+                use std::io::BufRead;
+                for line in std::io::BufReader::new(pipe).lines() {
+                    match line {
+                        Ok(line) => log_line(&id, &line),
+                        Err(_) => break,
+                    }
+                }
+            });
+        }
     }
 
     /// Stop a module process (SIGKILL). A no-op if not running.

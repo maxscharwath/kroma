@@ -18,74 +18,93 @@ pub(super) fn find_marker(stem: &str) -> Option<Marker> {
     let b = lower.as_bytes();
 
     // Form 1: SxxEyy [(-|E)zz]
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b's' {
-            let (sd, sn) = read_digits(b, i + 1);
-            if sd > 0 {
-                let j = i + 1 + sd;
-                if j < b.len() && b[j] == b'e' {
-                    let (ed, en) = read_digits(b, j + 1);
-                    if ed > 0 && plausible(sn, en) {
-                        let mut k = j + 1 + ed;
-                        let mut episode_end = None;
-                        // Optional multi-episode tail: "-E03", "-03", "E03".
-                        let mut m = k;
-                        if m < b.len() && b[m] == b'-' {
-                            m += 1;
-                        }
-                        if m < b.len() && b[m] == b'e' {
-                            m += 1;
-                        }
-                        if m > k {
-                            let (ed2, en2) = read_digits(b, m);
-                            if ed2 > 0 {
-                                episode_end = Some(en2);
-                                k = m + ed2;
-                            }
-                        }
-                        return Some(Marker {
-                            season: sn,
-                            episode: en,
-                            episode_end,
-                            start: i,
-                            end: k,
-                        });
-                    }
-                }
-            }
+    for i in 0..b.len() {
+        if let Some(m) = match_sxxeyy(b, i) {
+            return Some(m);
         }
-        i += 1;
     }
 
     // Form 2: NxNN (e.g. 1x02). Bounded season to avoid matching resolutions.
-    let mut i = 0;
-    while i < b.len() {
-        if b[i].is_ascii_digit() {
-            let (sd, sn) = read_digits(b, i);
-            let before_ok = i == 0 || !b[i - 1].is_ascii_alphanumeric();
-            if before_ok && sd >= 1 && sn <= 50 {
-                let xpos = i + sd;
-                if xpos < b.len() && b[xpos] == b'x' {
-                    let (ed, en) = read_digits(b, xpos + 1);
-                    if ed >= 1 && plausible(sn, en) {
-                        return Some(Marker {
-                            season: sn,
-                            episode: en,
-                            episode_end: None,
-                            start: i,
-                            end: xpos + 1 + ed,
-                        });
-                    }
-                }
-            }
-            i += sd.max(1);
-        } else {
-            i += 1;
+    for i in 0..b.len() {
+        if let Some(m) = match_nxnn(b, i) {
+            return Some(m);
         }
     }
 
     None
+}
+
+/// Try to match Form 1 (`SxxEyy` with an optional multi-episode tail) starting
+/// at byte `i`. Returns the marker when the bytes at `i` form a valid one.
+fn match_sxxeyy(b: &[u8], i: usize) -> Option<Marker> {
+    if b[i] != b's' {
+        return None;
+    }
+    let (sd, sn) = read_digits(b, i + 1);
+    if sd == 0 {
+        return None;
+    }
+    let j = i + 1 + sd;
+    if j >= b.len() || b[j] != b'e' {
+        return None;
+    }
+    let (ed, en) = read_digits(b, j + 1);
+    if ed == 0 || !plausible(sn, en) {
+        return None;
+    }
+
+    let mut k = j + 1 + ed;
+    let mut episode_end = None;
+    // Optional multi-episode tail: "-E03", "-03", "E03".
+    let mut m = k;
+    if m < b.len() && b[m] == b'-' {
+        m += 1;
+    }
+    if m < b.len() && b[m] == b'e' {
+        m += 1;
+    }
+    if m > k {
+        let (ed2, en2) = read_digits(b, m);
+        if ed2 > 0 {
+            episode_end = Some(en2);
+            k = m + ed2;
+        }
+    }
+    Some(Marker {
+        season: sn,
+        episode: en,
+        episode_end,
+        start: i,
+        end: k,
+    })
+}
+
+/// Try to match Form 2 (`NxNN`, e.g. `1x02`) starting at byte `i`. The season is
+/// bounded and must not be preceded by an alphanumeric (to avoid resolutions).
+fn match_nxnn(b: &[u8], i: usize) -> Option<Marker> {
+    if !b[i].is_ascii_digit() {
+        return None;
+    }
+    let (sd, sn) = read_digits(b, i);
+    let before_ok = i == 0 || !b[i - 1].is_ascii_alphanumeric();
+    if !before_ok || sd < 1 || sn > 50 {
+        return None;
+    }
+    let xpos = i + sd;
+    if xpos >= b.len() || b[xpos] != b'x' {
+        return None;
+    }
+    let (ed, en) = read_digits(b, xpos + 1);
+    if ed < 1 || !plausible(sn, en) {
+        return None;
+    }
+    Some(Marker {
+        season: sn,
+        episode: en,
+        episode_end: None,
+        start: i,
+        end: xpos + 1 + ed,
+    })
 }
 
 /// Guard against resolutions / wild numbers being read as season/episode.

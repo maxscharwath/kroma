@@ -42,7 +42,7 @@ if [[ -x "$TIZEN_HOME/tools/ide/bin/tizen" ]]; then
 else
   if [[ ! -s "$DEST" ]]; then
     say "Downloading Tizen Studio $VER (a few hundred MB)…"
-    curl -L --fail --progress-bar -o "$DEST" "$URL"
+    curl -L --proto '=https' --proto-redir '=https' --fail --progress-bar -o "$DEST" "$URL"
   else
     ok "Installer already downloaded: $DEST"
   fi

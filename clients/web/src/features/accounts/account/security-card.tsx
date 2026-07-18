@@ -28,7 +28,7 @@ export function SecurityCard() {
   const mismatch = confirm.length > 0 && next !== confirm;
   const valid = current.length > 0 && next.length >= 4 && confirm.length > 0 && !mismatch;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!valid) return;
     save.run(async () => {

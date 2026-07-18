@@ -257,7 +257,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     if (!v) return;
     if (v.paused) {
       const p = v.play();
-      if (p && typeof p.then === 'function') p.catch(() => undefined);
+      if (typeof p?.then === 'function') p.catch(() => undefined);
     } else v.pause();
   }, []);
 

@@ -529,23 +529,10 @@ impl DownloadManager {
         // directly (no proxy), and hand the engine the bytes; only peer traffic
         // then rides the VPN. Magnets have no file to fetch - let the engine
         // resolve those (via proxied peers).
-        let prefetched: Option<Vec<u8>> =
-            if client.kind == "rqbit" && row.magnet_or_url.starts_with("http") {
-                match fetch_torrent_for(host, row) {
-                    Ok(bytes) => {
-                        tracing::info!(id = %row.id, bytes = bytes.len(), "fetched .torrent directly (bypassing VPN)");
-                        Some(bytes)
-                    }
-                    Err(e) => {
-                        let msg = format!("could not fetch .torrent from the indexer: {e:#}");
-                        tracing::warn!(id = %row.id, error = %msg, "torrent file fetch failed");
-                        let _ = db::set_download_status(host.db(), &row.id, "failed", Some(&msg));
-                        return;
-                    }
-                }
-            } else {
-                None
-            };
+        let prefetched = match self.prefetch_torrent(host, row, &client) {
+            Ok(p) => p,
+            Err(()) => return,
+        };
         let added = engine.add(&AddTorrentReq {
             magnet_or_url: &row.magnet_or_url,
             download_dir: row.save_path.as_deref(),
@@ -554,55 +541,91 @@ impl DownloadManager {
             torrent_bytes: prefetched.as_deref(),
         });
         match added {
-            Ok(client_ref) => {
-                // The add can take a while; the admin may have removed or paused
-                // the row meanwhile. Honor that instead of resurrecting it.
-                let current = host
-                    .db()
-                    .get()
-                    .ok()
-                    .and_then(|c| db::get_download(&c, &row.id).ok().flatten())
-                    .map(|r| r.status);
-                match current.as_deref() {
-                    None => {
-                        // Removed while adding: drop the orphan torrent.
-                        let _ = engine.remove(&client_ref, true);
-                        tracing::info!(id = %row.id, "torrent add landed after removal; dropped");
-                    }
-                    Some("paused") => {
-                        let _ = engine.pause(&client_ref);
-                        let _ = db::set_download_ref(host.db(), &row.id, &client_ref);
-                        tracing::info!(release = %row.release_title, "torrent added then paused (paused while adding)");
-                    }
-                    _ => {
-                        // Dedup by info-hash: the engine returns the SAME ref for
-                        // identical content grabbed from a different URL. If another
-                        // live row already owns this torrent, don't run two against
-                        // one - fail this one (the engine torrent stays for the other).
-                        let dup = host
-                    .db()
-                    .get()
-                            .ok()
-                            .and_then(|c| db::other_active_download_with_ref(&c, &row.id, &client_ref).ok().flatten());
-                        if let Some(other) = dup {
-                            let name = other.title.as_deref().unwrap_or(&other.release_title);
-                            let _ = db::set_download_status(host.db(), &row.id, "failed", Some(&format!("duplicate of \"{name}\" (same torrent already downloading)")));
-                            tracing::info!(id = %row.id, "grab duplicates a live download; marked failed");
-                        } else {
-                            if let Err(e) = db::activate_download(host.db(), &row.id, &client_ref) {
-                                tracing::warn!(id = %row.id, error = %format!("{e:#}"), "failed to record activated torrent");
-                            }
-                            tracing::info!(release = %row.release_title, hash = %client_ref, "torrent added to engine");
-                        }
-                    }
-                }
-            }
+            Ok(client_ref) => self.reconcile_added(host, row, &*engine, &client_ref),
             Err(e) => {
                 let msg = format!("{e:#}");
                 tracing::warn!(id = %row.id, release = %row.release_title, error = %msg, "torrent add failed");
                 let _ = db::set_download_status(host.db(), &row.id, "failed", Some(&msg));
             }
         }
+    }
+
+    /// Fetch a `.torrent` file ourselves (bypassing the VPN proxy) when the grab
+    /// is an HTTP link on the embedded engine, since librqbit's own fetch would
+    /// hang on a LAN indexer behind a `0.0.0.0/0` tunnel. `Err(())` means the row
+    /// was already marked failed and the caller should abort.
+    fn prefetch_torrent(
+        &self,
+        host: &dyn HostCtx,
+        row: &DownloadRow,
+        client: &DownloadClientRow,
+    ) -> Result<Option<Vec<u8>>, ()> {
+        if client.kind != "rqbit" || !row.magnet_or_url.starts_with("http") {
+            return Ok(None);
+        }
+        match fetch_torrent_for(host, row) {
+            Ok(bytes) => {
+                tracing::info!(id = %row.id, bytes = bytes.len(), "fetched .torrent directly (bypassing VPN)");
+                Ok(Some(bytes))
+            }
+            Err(e) => {
+                let msg = format!("could not fetch .torrent from the indexer: {e:#}");
+                tracing::warn!(id = %row.id, error = %msg, "torrent file fetch failed");
+                let _ = db::set_download_status(host.db(), &row.id, "failed", Some(&msg));
+                Err(())
+            }
+        }
+    }
+
+    /// After the engine accepted the add, reconcile against the row's current
+    /// state: the admin may have removed or paused it while the (slow) add ran.
+    fn reconcile_added(
+        &self,
+        host: &dyn HostCtx,
+        row: &DownloadRow,
+        engine: &dyn DownloadClient,
+        client_ref: &str,
+    ) {
+        let current = host
+            .db()
+            .get()
+            .ok()
+            .and_then(|c| db::get_download(&c, &row.id).ok().flatten())
+            .map(|r| r.status);
+        match current.as_deref() {
+            None => {
+                // Removed while adding: drop the orphan torrent.
+                let _ = engine.remove(client_ref, true);
+                tracing::info!(id = %row.id, "torrent add landed after removal; dropped");
+            }
+            Some("paused") => {
+                let _ = engine.pause(client_ref);
+                let _ = db::set_download_ref(host.db(), &row.id, client_ref);
+                tracing::info!(release = %row.release_title, "torrent added then paused (paused while adding)");
+            }
+            _ => self.reconcile_dedup(host, row, client_ref),
+        }
+    }
+
+    /// Dedup by info-hash: the engine returns the SAME ref for identical content
+    /// grabbed from a different URL. If another live row already owns this
+    /// torrent, fail this one (the engine torrent stays for the other).
+    fn reconcile_dedup(&self, host: &dyn HostCtx, row: &DownloadRow, client_ref: &str) {
+        let dup = host
+            .db()
+            .get()
+            .ok()
+            .and_then(|c| db::other_active_download_with_ref(&c, &row.id, client_ref).ok().flatten());
+        if let Some(other) = dup {
+            let name = other.title.as_deref().unwrap_or(&other.release_title);
+            let _ = db::set_download_status(host.db(), &row.id, "failed", Some(&format!("duplicate of \"{name}\" (same torrent already downloading)")));
+            tracing::info!(id = %row.id, "grab duplicates a live download; marked failed");
+            return;
+        }
+        if let Err(e) = db::activate_download(host.db(), &row.id, client_ref) {
+            tracing::warn!(id = %row.id, error = %format!("{e:#}"), "failed to record activated torrent");
+        }
+        tracing::info!(release = %row.release_title, hash = %client_ref, "torrent added to engine");
     }
 
     /// Re-attempt a failed (or removed) grab: drop any half-added torrent from

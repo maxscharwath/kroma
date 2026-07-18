@@ -17,9 +17,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: synology-${{ github.ref }}
   cancel-in-progress: true
@@ -33,6 +30,8 @@ jobs:
   # runs always build.
   changes:
     name: Detect relevant changes
+    permissions:
+      contents: read
     # Branch pushes only: tags/dispatch always build, and dorny's diff base is
     # undefined on tag pushes.
     if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
@@ -57,6 +56,8 @@ jobs:
   build:
     name: Build .spk
     needs: changes
+    permissions:
+      contents: read
     # `always()` so a SKIPPED changes job (tag / dispatch) still lets the tag
     # and dispatch legs run; a main push only builds when relevant files changed.
     if: >-

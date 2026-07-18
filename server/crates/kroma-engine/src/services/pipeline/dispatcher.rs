@@ -224,37 +224,52 @@ fn process_batch(
         .min(batch.len().max(1));
     thread::scope(|scope| {
         for _ in 0..workers {
-            scope.spawn(|| loop {
-                let i = next.fetch_add(1, Ordering::Relaxed);
-                if i >= batch.len() || ctx.cancelled() {
-                    break;
-                }
-                // Yield per item to the global pause (all stages) and, for the
-                // playback-sensitive stages, to a live stream. Keeps an in-flight
-                // batch from starting new ffmpeg the moment either fires.
-                wait_while_held(ctx, &paused, stage.pause_for_playback);
-                if ctx.cancelled() {
-                    break;
-                }
-                let (id, _sig) = &batch[i];
-                let started = Instant::now();
-                // Catch a panic in `process` so one bad file can't unwind out of the
-                // scope and skip `finish_batch`/`reset_running`, wedging the whole
-                // claimed batch as `running`. A panic is recorded like a returned Err.
-                let outcome =
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (stage.process)(ctx, id)));
-                let duration_ms = started.elapsed().as_millis() as i64;
-                let error = match outcome {
-                    Ok(Ok(())) => None,
-                    Ok(Err(e)) => Some(format!("{e:#}")),
-                    Err(_) => Some("panicked during processing".to_string()),
-                };
-                *slots[i].lock().unwrap() =
-                    Some(db::pipeline::TaskResult { id: id.clone(), error, duration_ms });
-            });
+            scope.spawn(|| process_task_worker(&next, batch, ctx, &paused, &slots, stage));
         }
     });
     slots.into_iter().filter_map(|m| m.into_inner().unwrap()).collect()
+}
+
+/// One scoped worker: pull the next task index off the batch until it's drained
+/// (or cancelled), yielding to the pause/playback hold before each item, and
+/// store its [`db::pipeline::TaskResult`] (a panic in `process` is recorded like
+/// a returned `Err` so it can never unwind out of the scope).
+fn process_task_worker(
+    next: &AtomicUsize,
+    batch: &[(String, String)],
+    ctx: &JobContext,
+    paused: &AtomicBool,
+    slots: &[Mutex<Option<db::pipeline::TaskResult>>],
+    stage: &Stage,
+) {
+    loop {
+        let i = next.fetch_add(1, Ordering::Relaxed);
+        if i >= batch.len() || ctx.cancelled() {
+            break;
+        }
+        // Yield per item to the global pause (all stages) and, for the
+        // playback-sensitive stages, to a live stream. Keeps an in-flight batch
+        // from starting new ffmpeg the moment either fires.
+        wait_while_held(ctx, paused, stage.pause_for_playback);
+        if ctx.cancelled() {
+            break;
+        }
+        let (id, _sig) = &batch[i];
+        let started = Instant::now();
+        // Catch a panic in `process` so one bad file can't unwind out of the
+        // scope and skip `finish_batch`/`reset_running`, wedging the whole
+        // claimed batch as `running`. A panic is recorded like a returned Err.
+        let outcome =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (stage.process)(ctx, id)));
+        let duration_ms = started.elapsed().as_millis() as i64;
+        let error = match outcome {
+            Ok(Ok(())) => None,
+            Ok(Err(e)) => Some(format!("{e:#}")),
+            Err(_) => Some("panicked during processing".to_string()),
+        };
+        *slots[i].lock().unwrap() =
+            Some(db::pipeline::TaskResult { id: id.clone(), error, duration_ms });
+    }
 }
 
 /// Block while heavy work should hold off: the global pipeline pause is set, or
@@ -275,13 +290,18 @@ fn wait_while_held(ctx: &JobContext, paused: &AtomicBool, pause_for_playback: bo
             return;
         }
         if !paused.swap(true, Ordering::Relaxed) {
-            ctx.info(if admin_hold {
-                "paused (pipeline held by admin)"
-            } else {
-                "playback active, pausing (playback has priority)"
-            });
+            ctx.info(hold_reason(admin_hold));
         }
         thread::sleep(Duration::from_secs(PAUSE_POLL_S));
+    }
+}
+
+/// The log line for a hold, depending on which side asked for it.
+fn hold_reason(admin_hold: bool) -> &'static str {
+    if admin_hold {
+        "paused (pipeline held by admin)"
+    } else {
+        "playback active, pausing (playback has priority)"
     }
 }
 

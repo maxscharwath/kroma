@@ -437,43 +437,57 @@ fn extract_row_xml(
     Some(result)
 }
 
+/// Resolve one field against an XML row. `None` signals a required miss.
 fn resolve_field_xml(field: &Field, row: &crate::xmltree::XmlEl, ctx: &Context) -> Option<String> {
+    // 1) Raw value from text template / case switch / selector / row itself.
     let raw: Option<String> = if let Some(text) = &field.text {
         Some(template::render(text, ctx))
     } else if !field.case.is_empty() {
-        let mut default = None;
-        let mut hit = None;
-        for (sel, val) in &field.case {
-            if sel == "*" {
-                default = Some(val);
-            } else if crate::xmltree::select_first(row, &template::render(sel, ctx)).is_some() {
-                hit = Some(val);
-                break;
-            }
-        }
-        hit.or(default).map(|v| template::render(v, ctx))
+        eval_case_xml(field, row, ctx)
     } else if let Some(sel) = &field.selector {
         let sel = template::render(sel, ctx);
-        crate::xmltree::select_first(row, &sel).map(|el| match &field.attribute {
-            Some(attr) => el.attr(attr).unwrap_or_default().to_string(),
-            None => el.text(),
-        })
+        crate::xmltree::select_first(row, &sel).map(|el| read_element_xml(field, el))
     } else {
-        Some(match &field.attribute {
-            Some(attr) => row.attr(attr).unwrap_or_default().to_string(),
-            None => row.text(),
-        })
+        // No locator: read the row element itself.
+        Some(read_element_xml(field, row))
     };
 
+    // 2) Fall back to `default`, then honor optional/required semantics.
     let value = match raw {
         Some(v) => v,
         None => match &field.default {
             Some(d) => template::render(d, ctx),
             None if field.optional => String::new(),
-            None => return None,
+            None => return None, // required field missing -> skip the row
         },
     };
+
+    // 3) Field filters.
     Some(filters::apply(&value, &field.filters, ctx))
+}
+
+/// Read an attribute or the flattened text of a matched XML element.
+fn read_element_xml(field: &Field, el: &crate::xmltree::XmlEl) -> String {
+    match &field.attribute {
+        Some(attr) => el.attr(attr).unwrap_or_default().to_string(),
+        None => el.text(),
+    }
+}
+
+/// `case:` switch - first sub-selector that matches wins; `*` is the default.
+fn eval_case_xml(field: &Field, row: &crate::xmltree::XmlEl, ctx: &Context) -> Option<String> {
+    let mut default: Option<&String> = None;
+    for (sel, val) in &field.case {
+        if sel == "*" {
+            default = Some(val);
+            continue;
+        }
+        let rendered = template::render(sel, ctx);
+        if crate::xmltree::select_first(row, &rendered).is_some() {
+            return Some(template::render(val, ctx));
+        }
+    }
+    default.map(|d| template::render(d, ctx))
 }
 
 // ----- result -> release ----------------------------------------------------------

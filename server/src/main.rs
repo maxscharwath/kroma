@@ -104,31 +104,15 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let ffprobe_available = infra::probe::ffprobe_available();
-    if ffprobe_available {
-        info!("ffprobe detected: full metadata extraction enabled");
-    } else {
-        warn!("ffprobe not found: metadata will be inferred from file extensions");
-    }
-
-    if config.tmdb_api_key.is_some() {
-        if infra::metadata::curl_available() {
-            info!(language = %config.tmdb_language, "TMDB enrichment enabled");
-        } else {
-            warn!("KROMA_TMDB_API_KEY is set but `curl` was not found; TMDB enrichment disabled");
-        }
-    }
+    log_ffprobe_status(ffprobe_available);
+    log_tmdb_status(&config);
 
     let db = db::init(&config.db_path()).context("failed to initialise database")?;
 
     // Let each module create the tables it owns, once, right after the core
     // schema (the acquisition module tables live in the module crates now). Runs
     // before any module reads/writes them (settings load, `apply_enabled_states`).
-    {
-        let conn = db.get().context("failed to get a db connection for module schema")?;
-        for migration in kroma_module_kernel::module_migrations() {
-            db::apply_migrations(&conn, migration).context("failed to apply module schema")?;
-        }
-    }
+    apply_module_schema(&db)?;
 
     // Persisted settings (incl. the editable library definitions, seeded from
     // KROMA_MEDIA_DIRS on first run).
@@ -409,6 +393,35 @@ async fn main() -> anyhow::Result<()> {
     }
     supervisor.stop_all();
 
+    Ok(())
+}
+
+/// Log whether `ffprobe` was found (full metadata vs extension-inferred).
+fn log_ffprobe_status(available: bool) {
+    if available {
+        info!("ffprobe detected: full metadata extraction enabled");
+    } else {
+        warn!("ffprobe not found: metadata will be inferred from file extensions");
+    }
+}
+
+/// Log the TMDB enrichment status when a key is configured (it needs `curl`).
+fn log_tmdb_status(config: &Config) {
+    if config.tmdb_api_key.is_some() {
+        if infra::metadata::curl_available() {
+            info!(language = %config.tmdb_language, "TMDB enrichment enabled");
+        } else {
+            warn!("KROMA_TMDB_API_KEY is set but `curl` was not found; TMDB enrichment disabled");
+        }
+    }
+}
+
+/// Let each module create the tables it owns, once, right after the core schema.
+fn apply_module_schema(db: &db::Pool) -> anyhow::Result<()> {
+    let conn = db.get().context("failed to get a db connection for module schema")?;
+    for migration in kroma_module_kernel::module_migrations() {
+        db::apply_migrations(&conn, migration).context("failed to apply module schema")?;
+    }
     Ok(())
 }
 

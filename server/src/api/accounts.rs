@@ -300,42 +300,9 @@ pub async fn exchange_token(
 
     // PIN-locked account, not yet verified on this device → demand the PIN.
     if user.has_pin && !pin_verified {
-        if let Some(secs) = pin::lock_remaining(&user.id) {
-            return pin::locked_response(loc, secs);
+        if let Err(resp) = enforce_pin_gate(&state, loc, &user, &access, body.pin.as_deref()).await {
+            return resp;
         }
-        let stored = match pin::fetch_hash(&state, &user.id).await {
-            Ok(h) => h,
-            Err(resp) => return resp,
-        };
-        match (body.pin.as_deref(), stored.as_deref()) {
-            // No PIN hash on record → nothing to gate (treat as verified).
-            (_, None) => {}
-            // No PIN supplied → this is a silent refresh / boot probe, NOT a wrong
-            // attempt. Ask for the PIN WITHOUT counting a failure, so background
-            // refreshes can't trip the brute-force lockout. The `pinRequired` flag
-            // lets the client show the PIN screen even if its cached `hasPin` was
-            // stale (a PIN added on another device).
-            (None, Some(_)) => {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({ "error": i18n::t(loc, "auth.pinRequired", &[]), "pinRequired": true })),
-                )
-                    .into_response();
-            }
-            // A PIN was supplied verify it, and only THEN a wrong one is penalised.
-            (Some(pin), Some(hash)) => {
-                if !auth::verify_password(pin, hash) {
-                    let locked = pin::record_fail(&user.id);
-                    if locked > 0 {
-                        return pin::locked_response(loc, locked);
-                    }
-                    return lerr(loc, StatusCode::UNAUTHORIZED, "auth.pinIncorrect");
-                }
-            }
-        }
-        pin::reset(&user.id);
-        let tok = access.clone();
-        let _ = query(&state.db, move |pool| db::set_access_pin_verified(&pool, &tok, true)).await;
     }
 
     // Best-effort last-seen stamp, then mint a fresh session.
@@ -358,6 +325,53 @@ pub async fn exchange_token(
         return resp;
     }
     Json(super::dto::SessionResult { token, user }).into_response()
+}
+
+/// Enforce the PIN gate for a PIN-locked account whose access token isn't yet
+/// PIN-verified on this device (token exchange). Returns `Err(resp)` with the
+/// response to send on any lockout / missing / wrong PIN; on success it marks the
+/// access token PIN-verified so later silent refreshes skip the prompt.
+async fn enforce_pin_gate(
+    state: &SharedState,
+    loc: &str,
+    user: &User,
+    access: &str,
+    supplied_pin: Option<&str>,
+) -> Result<(), Response> {
+    if let Some(secs) = pin::lock_remaining(&user.id) {
+        return Err(pin::locked_response(loc, secs));
+    }
+    let stored = pin::fetch_hash(state, &user.id).await?;
+    match (supplied_pin, stored.as_deref()) {
+        // No PIN hash on record → nothing to gate (treat as verified).
+        (_, None) => {}
+        // No PIN supplied → this is a silent refresh / boot probe, NOT a wrong
+        // attempt. Ask for the PIN WITHOUT counting a failure, so background
+        // refreshes can't trip the brute-force lockout. The `pinRequired` flag
+        // lets the client show the PIN screen even if its cached `hasPin` was
+        // stale (a PIN added on another device).
+        (None, Some(_)) => {
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                Json(json!({ "error": i18n::t(loc, "auth.pinRequired", &[]), "pinRequired": true })),
+            )
+                .into_response());
+        }
+        // A PIN was supplied verify it, and only THEN a wrong one is penalised.
+        (Some(pin), Some(hash)) => {
+            if !auth::verify_password(pin, hash) {
+                let locked = pin::record_fail(&user.id);
+                if locked > 0 {
+                    return Err(pin::locked_response(loc, locked));
+                }
+                return Err(lerr(loc, StatusCode::UNAUTHORIZED, "auth.pinIncorrect"));
+            }
+        }
+    }
+    pin::reset(&user.id);
+    let tok = access.to_string();
+    let _ = query(&state.db, move |pool| db::set_access_pin_verified(&pool, &tok, true)).await;
+    Ok(())
 }
 
 /// `GET /api/auth/config` → `{ publicUserList, hasAccounts }`. Unauthenticated:
@@ -433,103 +447,152 @@ pub async fn update_me(
     AuthUser(mut user): AuthUser,
     Json(body): Json<UpdateMeBody>,
 ) -> Response {
-    // ----- display name -----
-    if let Some(name) = body.username {
-        let name = name.unwrap_or_default().trim().to_string();
-        if name.is_empty() {
-            return lerr(loc, StatusCode::BAD_REQUEST, "auth.usernameInvalid");
-        }
-        // Reject a collision with a *different* account (a no-op keep is allowed).
-        let check = name.clone();
-        let self_id = user.id.clone();
-        match query(&state.db, move |pool| db::username_taken(&pool, &check, Some(&self_id))).await {
-            Ok(true) => return lerr(loc, StatusCode::CONFLICT, "auth.usernameTaken"),
-            Ok(false) => {}
-            Err(resp) => return resp,
-        }
-        let uid = user.id.clone();
-        let n = name.clone();
-        if let Err(resp) = query(&state.db, move |pool| db::set_user_username(&pool, &uid, &n)).await {
-            return resp;
-        }
-        user.username = name;
+    if let Err(resp) = apply_username(&state, loc, &mut user, body.username).await {
+        return resp;
     }
-
-    // ----- email (validated + unique) -----
-    if let Some(email) = body.email {
-        let email = email.unwrap_or_default().trim().to_lowercase();
-        if email.is_empty() || !email.contains('@') {
-            return lerr(loc, StatusCode::BAD_REQUEST, "auth.emailInvalid");
-        }
-        // Reject a collision with a *different* account (a no-op change to the
-        // caller's own current email is allowed).
-        let check = email.clone();
-        match query(&state.db, move |pool| db::find_user_by_email(&pool, &check)).await {
-            Ok(Some((other, _))) if other.id != user.id => {
-                return lerr(loc, StatusCode::CONFLICT, "auth.emailTaken");
-            }
-            Ok(_) => {}
-            Err(resp) => return resp,
-        }
-        let uid = user.id.clone();
-        let e = email.clone();
-        if let Err(resp) = query(&state.db, move |pool| db::set_user_email(&pool, &uid, &e)).await {
-            // The write can still fail on the UNIQUE(email) constraint if a
-            // concurrent request took the address between our check and write.
-            // Re-confirm and surface the clean 409 rather than a generic 500.
-            let check = email.clone();
-            let self_id = user.id.clone();
-            if let Ok(Some((other, _))) =
-                query(&state.db, move |pool| db::find_user_by_email(&pool, &check)).await
-            {
-                if other.id != self_id {
-                    return lerr(loc, StatusCode::CONFLICT, "auth.emailTaken");
-                }
-            }
-            return resp;
-        }
-        user.email = email;
+    if let Err(resp) = apply_email(&state, loc, &mut user, body.email).await {
+        return resp;
     }
-
-    // ----- preferred UI locale -----
-    if let Some(lang) = body.language {
-        // Normalise to a supported code; an unknown/garbage tag or an explicit
-        // `null` both clear it (fall back to the device locale).
-        let language = lang.and_then(|tag| i18n::normalize(&tag)).map(|c| c.to_string());
-        let uid = user.id.clone();
-        let l = language.clone();
-        if let Err(resp) = query(&state.db, move |pool| db::set_user_language(&pool, &uid, l.as_deref())).await
-        {
-            return resp;
-        }
-        user.language = language;
+    if let Err(resp) = apply_language(&state, &mut user, body.language).await {
+        return resp;
     }
-
-    // ----- preferred audio language -----
-    if let Some(audio) = body.audio_language {
-        let audio = norm_media_lang(audio);
-        let uid = user.id.clone();
-        let a = audio.clone();
-        if let Err(resp) = query(&state.db, move |pool| db::set_user_audio_language(&pool, &uid, a.as_deref())).await
-        {
-            return resp;
-        }
-        user.audio_language = audio;
+    if let Err(resp) = apply_audio_language(&state, &mut user, body.audio_language).await {
+        return resp;
     }
-
-    // ----- preferred subtitle language -----
-    if let Some(sub) = body.subtitle_language {
-        let sub = norm_media_lang(sub);
-        let uid = user.id.clone();
-        let s = sub.clone();
-        if let Err(resp) = query(&state.db, move |pool| db::set_user_subtitle_language(&pool, &uid, s.as_deref())).await
-        {
-            return resp;
-        }
-        user.subtitle_language = sub;
+    if let Err(resp) = apply_subtitle_language(&state, &mut user, body.subtitle_language).await {
+        return resp;
     }
-
     Json(json!({ "user": user })).into_response()
+}
+
+/// Apply the optional display-name change (absent field = no-op). `Err(resp)` is
+/// the response to return: invalid/empty name, a collision with a different
+/// account, or a DB error.
+async fn apply_username(
+    state: &SharedState,
+    loc: &str,
+    user: &mut User,
+    field: Option<Option<String>>,
+) -> Result<(), Response> {
+    let Some(name) = field else { return Ok(()) };
+    let name = name.unwrap_or_default().trim().to_string();
+    if name.is_empty() {
+        return Err(lerr(loc, StatusCode::BAD_REQUEST, "auth.usernameInvalid"));
+    }
+    // Reject a collision with a *different* account (a no-op keep is allowed).
+    let check = name.clone();
+    let self_id = user.id.clone();
+    match query(&state.db, move |pool| db::username_taken(&pool, &check, Some(&self_id))).await {
+        Ok(true) => return Err(lerr(loc, StatusCode::CONFLICT, "auth.usernameTaken")),
+        Ok(false) => {}
+        Err(resp) => return Err(resp),
+    }
+    let uid = user.id.clone();
+    let n = name.clone();
+    if let Err(resp) = query(&state.db, move |pool| db::set_user_username(&pool, &uid, &n)).await {
+        return Err(resp);
+    }
+    user.username = name;
+    Ok(())
+}
+
+/// Apply the optional email change (absent field = no-op). Validated + unique;
+/// `Err(resp)` is the response to return.
+async fn apply_email(
+    state: &SharedState,
+    loc: &str,
+    user: &mut User,
+    field: Option<Option<String>>,
+) -> Result<(), Response> {
+    let Some(email) = field else { return Ok(()) };
+    let email = email.unwrap_or_default().trim().to_lowercase();
+    if email.is_empty() || !email.contains('@') {
+        return Err(lerr(loc, StatusCode::BAD_REQUEST, "auth.emailInvalid"));
+    }
+    // Reject a collision with a *different* account (a no-op change to the
+    // caller's own current email is allowed).
+    let check = email.clone();
+    match query(&state.db, move |pool| db::find_user_by_email(&pool, &check)).await {
+        Ok(Some((other, _))) if other.id != user.id => {
+            return Err(lerr(loc, StatusCode::CONFLICT, "auth.emailTaken"));
+        }
+        Ok(_) => {}
+        Err(resp) => return Err(resp),
+    }
+    let uid = user.id.clone();
+    let e = email.clone();
+    if let Err(resp) = query(&state.db, move |pool| db::set_user_email(&pool, &uid, &e)).await {
+        // The write can still fail on the UNIQUE(email) constraint if a
+        // concurrent request took the address between our check and write.
+        // Re-confirm and surface the clean 409 rather than a generic 500.
+        let check = email.clone();
+        let self_id = user.id.clone();
+        if let Ok(Some((other, _))) =
+            query(&state.db, move |pool| db::find_user_by_email(&pool, &check)).await
+        {
+            if other.id != self_id {
+                return Err(lerr(loc, StatusCode::CONFLICT, "auth.emailTaken"));
+            }
+        }
+        return Err(resp);
+    }
+    user.email = email;
+    Ok(())
+}
+
+/// Apply the optional preferred-UI-locale change (absent field = no-op). An
+/// unknown/garbage tag or an explicit `null` both clear it (fall back to the
+/// device locale). `Err(resp)` is the DB-error response to return.
+async fn apply_language(
+    state: &SharedState,
+    user: &mut User,
+    field: Option<Option<String>>,
+) -> Result<(), Response> {
+    let Some(lang) = field else { return Ok(()) };
+    let language = lang.and_then(|tag| i18n::normalize(&tag)).map(|c| c.to_string());
+    let uid = user.id.clone();
+    let l = language.clone();
+    if let Err(resp) = query(&state.db, move |pool| db::set_user_language(&pool, &uid, l.as_deref())).await {
+        return Err(resp);
+    }
+    user.language = language;
+    Ok(())
+}
+
+/// Apply the optional preferred-audio-language change (absent field = no-op).
+/// `Err(resp)` is the DB-error response to return.
+async fn apply_audio_language(
+    state: &SharedState,
+    user: &mut User,
+    field: Option<Option<String>>,
+) -> Result<(), Response> {
+    let Some(audio) = field else { return Ok(()) };
+    let audio = norm_media_lang(audio);
+    let uid = user.id.clone();
+    let a = audio.clone();
+    if let Err(resp) = query(&state.db, move |pool| db::set_user_audio_language(&pool, &uid, a.as_deref())).await {
+        return Err(resp);
+    }
+    user.audio_language = audio;
+    Ok(())
+}
+
+/// Apply the optional preferred-subtitle-language change (absent field = no-op).
+/// `Err(resp)` is the DB-error response to return.
+async fn apply_subtitle_language(
+    state: &SharedState,
+    user: &mut User,
+    field: Option<Option<String>>,
+) -> Result<(), Response> {
+    let Some(sub) = field else { return Ok(()) };
+    let sub = norm_media_lang(sub);
+    let uid = user.id.clone();
+    let s = sub.clone();
+    if let Err(resp) = query(&state.db, move |pool| db::set_user_subtitle_language(&pool, &uid, s.as_deref())).await {
+        return Err(resp);
+    }
+    user.subtitle_language = sub;
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]

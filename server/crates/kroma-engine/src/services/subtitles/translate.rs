@@ -131,30 +131,11 @@ pub fn translate_vtt(
 
     std::thread::scope(|s| {
         for _ in 0..workers {
-            s.spawn(|| loop {
-                if handle.cancelled() {
-                    break;
-                }
-                let bi = next.fetch_add(1, Ordering::Relaxed);
-                if bi >= batches {
-                    break;
-                }
-                let batch = chunks[bi];
-                match translate_one(&backends, &active, batch, target_lang) {
-                    Ok(v) => {
-                        *results[bi].lock().unwrap() = Some(v);
-                        translated.fetch_add(1, Ordering::Relaxed);
-                    }
-                    Err(e) => {
-                        warn!(batch = bi + 1, total = batches, "subtitle translate: batch failed on every provider: {e}");
-                        let mut fe = first_error.lock().unwrap();
-                        if fe.is_none() {
-                            *fe = Some(e);
-                        }
-                    }
-                }
-                let d = done.fetch_add(batch.len(), Ordering::Relaxed) + batch.len();
-                handle.progress(d, total);
+            s.spawn(|| {
+                translate_worker(
+                    &next, &active, &done, &translated, &chunks, &backends, &results,
+                    &first_error, handle, target_lang, batches, total,
+                )
             });
         }
     });
@@ -176,6 +157,58 @@ pub fn translate_vtt(
 
     // Reassemble in cue order; an untranslated batch or a per-line gap falls back to
     // the ORIGINAL text (never a blank line).
+    Ok(reassemble_vtt(&chunks, &results))
+}
+
+/// One scoped translate worker: pull the next batch until the queue drains (or a
+/// cancel fires), translating it through the provider chain and recording the
+/// result / first hard error, then report progress.
+#[allow(clippy::too_many_arguments)]
+fn translate_worker(
+    next: &AtomicUsize,
+    active: &AtomicUsize,
+    done: &AtomicUsize,
+    translated: &AtomicUsize,
+    chunks: &[&[Cue]],
+    backends: &[Backend],
+    results: &[Mutex<Option<Vec<Option<String>>>>],
+    first_error: &Mutex<Option<String>>,
+    handle: &Handle,
+    target_lang: &str,
+    batches: usize,
+    total: usize,
+) {
+    loop {
+        if handle.cancelled() {
+            break;
+        }
+        let bi = next.fetch_add(1, Ordering::Relaxed);
+        if bi >= batches {
+            break;
+        }
+        let batch = chunks[bi];
+        match translate_one(backends, active, batch, target_lang) {
+            Ok(v) => {
+                *results[bi].lock().unwrap() = Some(v);
+                translated.fetch_add(1, Ordering::Relaxed);
+            }
+            Err(e) => {
+                warn!(batch = bi + 1, total = batches, "subtitle translate: batch failed on every provider: {e}");
+                let mut fe = first_error.lock().unwrap();
+                if fe.is_none() {
+                    *fe = Some(e);
+                }
+            }
+        }
+        let d = done.fetch_add(batch.len(), Ordering::Relaxed) + batch.len();
+        handle.progress(d, total);
+    }
+}
+
+/// Reassemble the translated batches back into one WebVTT document in cue order.
+/// An untranslated batch or a per-line gap falls back to the ORIGINAL cue text
+/// (never a blank line).
+fn reassemble_vtt(chunks: &[&[Cue]], results: &[Mutex<Option<Vec<Option<String>>>>]) -> String {
     let mut out = String::from("WEBVTT\n\n");
     for (bi, batch) in chunks.iter().enumerate() {
         let res = results[bi].lock().unwrap();
@@ -192,7 +225,7 @@ pub fn translate_vtt(
             out.push_str("\n\n");
         }
     }
-    Ok(out)
+    out
 }
 
 /// Translate one batch, trying the currently-active backend first and falling

@@ -15,8 +15,10 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context as _, Result};
 
+use scraper::ElementRef;
+
 use crate::context::Context;
-use crate::definition::{Definition, Login};
+use crate::definition::{Definition, Download, Login};
 use crate::selector;
 use crate::{engine, template, IndexerConfig, Query, Release};
 
@@ -352,36 +354,47 @@ impl Session {
         let requests = engine::build_requests(&self.def, &self.cfg, query, wanted_cats);
         let mut seen = std::collections::HashSet::new();
         for req in requests {
-            let body = match req.method.as_str() {
-                "post" => self.post_form_text(&req.url, &req.inputs),
-                _ => self.get_text(&req.url, &req.inputs),
-            };
-            let body = match body {
-                Ok(b) => b,
-                Err(e) => {
-                    outcome.errors.push(format!("{}: {e:#}", self.def.name));
-                    continue;
-                }
-            };
-            // Preprocessing filters run on the raw body before parsing.
-            let body = engine::preprocess(&self.def, &self.cfg, &body);
-            let parsed = match req.response_kind.as_str() {
-                "json" => engine::parse_json(&self.def, &self.cfg, &body),
-                "xml" => engine::parse_xml(&self.def, &self.cfg, &body),
-                _ => engine::parse_html_auto(&self.def, &self.cfg, &body),
-            };
-            match parsed {
-                Ok(rels) => {
-                    for r in rels {
-                        if seen.insert(r.guid.clone()) {
-                            outcome.releases.push(r);
-                        }
-                    }
-                }
-                Err(e) => outcome.errors.push(format!("{}: parse: {e:#}", self.def.name)),
-            }
+            self.search_one(&req, &mut seen, &mut outcome);
         }
         outcome
+    }
+
+    /// Fetch and parse one prepared search request, appending its de-duplicated
+    /// releases (or a per-path error note) to `outcome`.
+    fn search_one(
+        &self,
+        req: &engine::SearchRequest,
+        seen: &mut std::collections::HashSet<String>,
+        outcome: &mut SearchOutcome,
+    ) {
+        let body = match req.method.as_str() {
+            "post" => self.post_form_text(&req.url, &req.inputs),
+            _ => self.get_text(&req.url, &req.inputs),
+        };
+        let body = match body {
+            Ok(b) => b,
+            Err(e) => {
+                outcome.errors.push(format!("{}: {e:#}", self.def.name));
+                return;
+            }
+        };
+        // Preprocessing filters run on the raw body before parsing.
+        let body = engine::preprocess(&self.def, &self.cfg, &body);
+        let parsed = match req.response_kind.as_str() {
+            "json" => engine::parse_json(&self.def, &self.cfg, &body),
+            "xml" => engine::parse_xml(&self.def, &self.cfg, &body),
+            _ => engine::parse_html_auto(&self.def, &self.cfg, &body),
+        };
+        match parsed {
+            Ok(rels) => {
+                for r in rels {
+                    if seen.insert(r.guid.clone()) {
+                        outcome.releases.push(r);
+                    }
+                }
+            }
+            Err(e) => outcome.errors.push(format!("{}: parse: {e:#}", self.def.name)),
+        }
     }
 
     /// Server title (definition name) + reachability, for the admin test button.
@@ -410,37 +423,12 @@ impl Session {
             let root = doc.root_element();
             let ctx = Context::with_config(&self.def, &self.cfg);
 
-            for sel in &download.selectors {
-                let Some(css) = &sel.selector else { continue };
-                let css = template::render(css, &ctx);
-                if let Some(el) = selector::select_first(root, &css) {
-                    let val = match &sel.attribute {
-                        Some(a) => selector::element_attr(el, a).unwrap_or_default(),
-                        None => selector::element_text(el),
-                    };
-                    if val.is_empty() {
-                        continue;
-                    }
-                    return Ok(classify_target(&engine::join_url(&self.rendered_base(), &val)));
-                }
+            if let Some(target) = self.download_from_selectors(download, root, &ctx) {
+                return Ok(target);
             }
             // Fall back to an infohash rule -> synthesize a magnet.
-            if let Some(ih) = &download.infohash {
-                let hash_sel = ih.hash.as_ref().and_then(|h| h.selector.clone()).or_else(|| ih.selector.clone());
-                if let Some(hs) = hash_sel {
-                    if let Some(el) = selector::select_first(root, &hs) {
-                        let hash = match &ih.attribute {
-                            Some(a) => selector::element_attr(el, a).unwrap_or_default(),
-                            None => selector::element_text(el),
-                        };
-                        if !hash.is_empty() {
-                            return Ok(DownloadTarget::Magnet(format!(
-                                "magnet:?xt=urn:btih:{hash}&dn={}",
-                                crate::filters::url_encode(&release.title)
-                            )));
-                        }
-                    }
-                }
+            if let Some(target) = self.download_from_infohash(download, root, release) {
+                return Ok(target);
             }
             bail!("download selectors matched nothing on the details page");
         }
@@ -448,6 +436,54 @@ impl Session {
             return Ok(classify_target(link));
         }
         bail!("release has no magnet, link, or download rule")
+    }
+
+    /// First non-empty `download` selector match on the fetched details page.
+    fn download_from_selectors(
+        &self,
+        download: &Download,
+        root: ElementRef,
+        ctx: &Context,
+    ) -> Option<DownloadTarget> {
+        for sel in &download.selectors {
+            let Some(css) = &sel.selector else { continue };
+            let css = template::render(css, ctx);
+            if let Some(el) = selector::select_first(root, &css) {
+                let val = match &sel.attribute {
+                    Some(a) => selector::element_attr(el, a).unwrap_or_default(),
+                    None => selector::element_text(el),
+                };
+                if val.is_empty() {
+                    continue;
+                }
+                return Some(classify_target(&engine::join_url(&self.rendered_base(), &val)));
+            }
+        }
+        None
+    }
+
+    /// Synthesize a magnet from an `infohash` rule on the details page, if any.
+    fn download_from_infohash(
+        &self,
+        download: &Download,
+        root: ElementRef,
+        release: &Release,
+    ) -> Option<DownloadTarget> {
+        let ih = download.infohash.as_ref()?;
+        let hash_sel =
+            ih.hash.as_ref().and_then(|h| h.selector.clone()).or_else(|| ih.selector.clone())?;
+        let el = selector::select_first(root, &hash_sel)?;
+        let hash = match &ih.attribute {
+            Some(a) => selector::element_attr(el, a).unwrap_or_default(),
+            None => selector::element_text(el),
+        };
+        if hash.is_empty() {
+            return None;
+        }
+        Some(DownloadTarget::Magnet(format!(
+            "magnet:?xt=urn:btih:{hash}&dn={}",
+            crate::filters::url_encode(&release.title)
+        )))
     }
 }
 

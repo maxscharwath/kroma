@@ -136,7 +136,7 @@ fi
 FF="$CACHE/ffmpeg-amd64-static"
 if [ ! -x "$FF/ffmpeg" ]; then
   say "Fetching static ffmpeg/ffprobe"
-  curl -fSL "$FFMPEG_URL" -o "$WORK/ff.tar.xz"
+  curl -fSL --proto '=https' --proto-redir '=https' "$FFMPEG_URL" -o "$WORK/ff.tar.xz"
   mkdir -p "$FF" && tar xJf "$WORK/ff.tar.xz" -C "$FF" --strip-components=1
 fi
 

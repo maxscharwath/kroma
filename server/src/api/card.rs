@@ -231,24 +231,40 @@ fn draw_text(pm: &mut Pixmap, font: &Font, text: &str, x: f32, baseline: f32, st
     let mut pen = x;
     for ch in text.chars() {
         let (m, bitmap) = font.rasterize(ch, size);
-        if m.width > 0 && m.height > 0 {
-            if let Some(mut glyph) = Pixmap::new(m.width as u32, m.height as u32) {
-                let px = glyph.pixels_mut();
-                for (i, &c) in bitmap.iter().enumerate() {
-                    let r = (color.0 as u16 * c as u16 / 255) as u8;
-                    let g = (color.1 as u16 * c as u16 / 255) as u8;
-                    let b = (color.2 as u16 * c as u16 / 255) as u8;
-                    if let Some(p) = PremultipliedColorU8::from_rgba(r, g, b, c) {
-                        px[i] = p;
-                    }
-                }
-                let gx = (pen + m.xmin as f32).round() as i32;
-                let gy = (baseline - m.height as f32 - m.ymin as f32).round() as i32;
-                pm.draw_pixmap(gx, gy, glyph.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
-            }
-        }
+        blit_glyph(pm, &m, &bitmap, color, pen, baseline);
         pen += m.advance_width + tracking;
     }
+}
+
+/// Tint one rasterised glyph coverage `bitmap` by `color` and blit it at the pen
+/// position. No-op for empty glyphs (e.g. spaces) or when the scratch pixmap can't
+/// be allocated.
+fn blit_glyph(
+    pm: &mut Pixmap,
+    m: &fontdue::Metrics,
+    bitmap: &[u8],
+    color: (u8, u8, u8),
+    pen: f32,
+    baseline: f32,
+) {
+    if m.width == 0 || m.height == 0 {
+        return;
+    }
+    let Some(mut glyph) = Pixmap::new(m.width as u32, m.height as u32) else {
+        return;
+    };
+    let px = glyph.pixels_mut();
+    for (i, &c) in bitmap.iter().enumerate() {
+        let r = (color.0 as u16 * c as u16 / 255) as u8;
+        let g = (color.1 as u16 * c as u16 / 255) as u8;
+        let b = (color.2 as u16 * c as u16 / 255) as u8;
+        if let Some(p) = PremultipliedColorU8::from_rgba(r, g, b, c) {
+            px[i] = p;
+        }
+    }
+    let gx = (pen + m.xmin as f32).round() as i32;
+    let gy = (baseline - m.height as f32 - m.ymin as f32).round() as i32;
+    pm.draw_pixmap(gx, gy, glyph.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
 }
 
 fn text_width(font: &Font, text: &str, size: f32, tracking: f32) -> f32 {

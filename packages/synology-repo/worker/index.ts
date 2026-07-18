@@ -22,8 +22,8 @@ import {
   cmpDsmVersion,
   DEFAULT_REPO,
   type Entry,
-  entryVersion,
   type Env,
+  entryVersion,
   loadCatalog,
   toDsmPackage,
 } from './catalog';

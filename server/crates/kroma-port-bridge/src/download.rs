@@ -509,4 +509,31 @@ mod tests {
         assert!(c.mark_download_imported(&MockHost, "id", &["p".to_string()], 0).is_err());
         assert!(c.set_download_status(&MockHost, "id", "done", None).is_err());
     }
+
+    // --- Wire-struct serde ----------------------------------------------------
+
+    #[test]
+    fn wire_requests_deserialize() {
+        let m: MagnetReq =
+            serde_json::from_value(serde_json::json!({ "magnet_or_url": "magnet:?xt=1" })).unwrap();
+        assert_eq!(m.magnet_or_url, "magnet:?xt=1");
+
+        let mi: MarkImportedReq = serde_json::from_value(
+            serde_json::json!({ "id": "d1", "paths": ["a.mkv", "b.mkv"], "now_ms": 42 }),
+        )
+        .unwrap();
+        assert_eq!(mi.id, "d1");
+        assert_eq!(mi.paths, vec!["a.mkv".to_string(), "b.mkv".to_string()]);
+        assert_eq!(mi.now_ms, 42);
+
+        // `error` is optional and defaults to absent.
+        let ss: SetStatusReq =
+            serde_json::from_value(serde_json::json!({ "id": "d1", "status": "failed", "error": "boom" }))
+                .unwrap();
+        assert_eq!(ss.status, "failed");
+        assert_eq!(ss.error.as_deref(), Some("boom"));
+        let ss: SetStatusReq =
+            serde_json::from_value(serde_json::json!({ "id": "d1", "status": "done" })).unwrap();
+        assert!(ss.error.is_none());
+    }
 }

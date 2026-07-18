@@ -1,3 +1,4 @@
+import type { AudioTrack, MediaItem, VideoTrack } from '@kroma/client';
 import { describe, expect, it } from 'vitest';
 import {
   audioTrackLabel,
@@ -15,7 +16,6 @@ import {
   sizedImageUrl,
 } from './format';
 import type { Translate } from './i18n';
-import type { AudioTrack, MediaItem, VideoTrack } from '@kroma/client';
 
 // Echoes the message key so localized output is asserted by key.
 const t: Translate = (key) => key;

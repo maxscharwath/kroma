@@ -5,10 +5,10 @@ import { useMemo } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
+import { useFocusNav } from '#tv/app/useFocusNav';
 import { useServersHealth } from '#tv/app/useServersHealth';
 import { StatusDot } from '#tv/features/accounts/ServerStatus';
-import { artUrl, AuthScreen, hostOf, KromaMark, ProfileAvatar } from '#tv/shared/ui';
-import { useFocusNav } from '#tv/app/useFocusNav';
+import { AuthScreen, artUrl, hostOf, KromaMark, ProfileAvatar } from '#tv/shared/ui';
 
 interface Tile {
   key: string;

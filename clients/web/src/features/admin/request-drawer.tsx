@@ -3,6 +3,7 @@
 // with optional reason / delete). The interactive release search joins with
 // the indexer milestone.
 
+import { useModuleEnabled } from '@kroma/admin-kit';
 import {
   apiErrorText,
   type InteractiveSearchView,
@@ -10,7 +11,6 @@ import {
   type MessageKey,
   type ScoredReleaseView,
 } from '@kroma/core';
-import { useModuleEnabled } from '@kroma/admin-kit';
 import { useT } from '@kroma/ui';
 import { IconCheck, IconLoader2, IconSearch, IconTrash, IconX } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';

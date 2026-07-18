@@ -14,9 +14,9 @@ import {
 import { useLocale, useT } from '@kroma/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
-import { apiBase } from '#web/shared/lib/api';
 import { moduleRegistry } from '#web/modules/registry';
 import { loadRuntimeRemotes } from '#web/modules/remotes';
+import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
 /** GET a JSON resource under the server's /api, carrying the session bearer. */

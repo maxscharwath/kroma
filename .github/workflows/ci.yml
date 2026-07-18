@@ -54,11 +54,10 @@ jobs:
       - name: Unit tests (vitest)
         run: bun run test
 
-      # Non-blocking for now: the repo has a backlog of Biome lint findings.
-      # Flip `continue-on-error` to false once `bun run check` is clean.
+      # Hard gate: the Biome backlog is cleared (`bun run check` is clean), so
+      # lint + format regressions now fail CI.
       - name: Biome (lint + format)
         run: bun run check
-        continue-on-error: true
 
   clients:
     name: Client / ${{ matrix.name }}

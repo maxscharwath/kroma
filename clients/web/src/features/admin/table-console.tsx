@@ -72,10 +72,8 @@ export function ConsoleSummary({
 }: Readonly<{ total: number; totalLabel: string; accent: number; accentLabel: string }>) {
   return (
     <p className="mb-5 mt-1.5 text-[14.5px] font-medium text-dim">
-      <span className="font-bold text-white">{total.toLocaleString()}</span>{' '}
-      {totalLabel} ·{' '}
-      <span className="font-bold text-accent">{accent.toLocaleString()}</span>{' '}
-      {accentLabel}
+      <span className="font-bold text-white">{total.toLocaleString()}</span> {totalLabel} ·{' '}
+      <span className="font-bold text-accent">{accent.toLocaleString()}</span> {accentLabel}
     </p>
   );
 }

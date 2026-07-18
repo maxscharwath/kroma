@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { KromaModule } from './module';
-import { ModuleRegistry, depEntries } from './registry';
 import type { HostBase } from './host';
+import type { KromaModule } from './module';
+import { depEntries, ModuleRegistry } from './registry';
 import type { ModuleManifest } from './types';
 
 /** A tiny module builder; only the fields a given test needs are set. */

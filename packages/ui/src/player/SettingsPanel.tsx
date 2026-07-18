@@ -186,6 +186,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     <>
       {/* click-to-close scrim; Back on the D-pad closes the panel, this mirrors it
           for the mouse + keyboard (§15). */}
+      {/* biome-ignore lint/a11y/useSemanticElements: full-surface click scrim, not a control; keyboard parity is provided. */}
       <div
         role="button"
         tabIndex={0}

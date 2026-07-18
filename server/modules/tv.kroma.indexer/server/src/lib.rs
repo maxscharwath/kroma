@@ -592,4 +592,132 @@ search:
             other => panic!("expected a magnet target, got {other:?}"),
         }
     }
+
+    // ----- IndexerDb / IndexerTorrentFetch against a real temp DB -----------------
+
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// A fresh temp-file pool with the core schema + the indexers table applied.
+    fn db_pool() -> kroma_module_sdk::db::Pool {
+        static SEQ: AtomicU32 = AtomicU32::new(0);
+        let n = SEQ.fetch_add(1, Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("kroma-indexer-lib-{}-{n}.db", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        let pool = kroma_module_sdk::db::init(&path).expect("init db");
+        {
+            let conn = pool.get().unwrap();
+            kroma_module_sdk::db::apply_migrations(&conn, db::MIGRATIONS).expect("indexers schema");
+        }
+        pool
+    }
+
+    /// A `HostCtx` backed by a real pool, for the DB-touching port wrappers. Every
+    /// other capability is a stub (none of these tests exercise it).
+    #[derive(Clone)]
+    struct DbHost {
+        pool: kroma_module_sdk::db::Pool,
+    }
+    impl kroma_module_sdk::host::HostCtx for DbHost {
+        fn db(&self) -> &kroma_module_sdk::db::Pool {
+            &self.pool
+        }
+        fn data_dir(&self) -> &std::path::Path {
+            std::path::Path::new("/tmp")
+        }
+        fn require(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+            _perm: kroma_module_sdk::domain::Permission,
+        ) -> Result<(), axum::response::Response> {
+            Ok(())
+        }
+        fn require_any_admin(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+        ) -> Result<(), axum::response::Response> {
+            Ok(())
+        }
+        fn lerr(
+            &self,
+            _user: &kroma_module_sdk::domain::User,
+            _status: axum::http::StatusCode,
+            _key: &str,
+        ) -> axum::response::Response {
+            unimplemented!()
+        }
+        fn setting_str(&self, _key: &str, default: &str) -> String {
+            default.to_string()
+        }
+        fn setting_bool(&self, _key: &str, default: bool) -> bool {
+            default
+        }
+        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
+            default
+        }
+        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
+        fn publish(&self, _event: kroma_module_sdk::host::Event) {}
+        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
+        fn module_enabled(&self, _id: &str) -> bool {
+            true
+        }
+        fn library_folders(&self) -> Vec<kroma_module_sdk::host::LibraryFolders> {
+            Vec::new()
+        }
+        fn tmdb_api_key(&self) -> Option<String> {
+            None
+        }
+        fn metadata_language(&self) -> String {
+            "en".into()
+        }
+        fn get_service(
+            &self,
+            _type_id: std::any::TypeId,
+        ) -> Option<std::sync::Arc<dyn std::any::Any + Send + Sync>> {
+            None
+        }
+    }
+
+    fn seed_row(id: &str, kind: &str, enabled: bool, created_at: i64) -> kroma_module_sdk::ports::IndexerRow {
+        let mut r = port_row();
+        r.id = id.into();
+        r.kind = kind.into();
+        r.enabled = enabled;
+        r.created_at = created_at;
+        r
+    }
+
+    #[test]
+    fn indexer_db_port_lists_gets_and_notes_against_a_real_db() {
+        use kroma_module_sdk::ports::IndexerDbPort;
+        let pool = db_pool();
+        db::insert_indexer(&pool, &seed_row("a", admin::KIND_BUILTIN, true, 100)).unwrap();
+        db::insert_indexer(&pool, &seed_row("b", "torznab", false, 200)).unwrap();
+        let host = DbHost { pool: pool.clone() };
+
+        // list returns both rows.
+        assert_eq!(IndexerDb.list_indexers(&host).unwrap().len(), 2);
+        // get hits + misses.
+        assert_eq!(IndexerDb.get_indexer(&host, "a").unwrap().unwrap().id, "a");
+        assert!(IndexerDb.get_indexer(&host, "ghost").unwrap().is_none());
+        // enabled filters out the disabled "b".
+        let enabled = IndexerDb.enabled_indexers(&host).unwrap();
+        assert_eq!(enabled.len(), 1);
+        assert_eq!(enabled[0].id, "a");
+        // note_indexer_result records the outcome on the row.
+        IndexerDb.note_indexer_result(&host, "a", true, None, 4242).unwrap();
+        assert_eq!(IndexerDb.get_indexer(&host, "a").unwrap().unwrap().last_ok_at, Some(4242));
+    }
+
+    #[test]
+    fn torrent_fetch_returns_none_for_unknown_or_non_builtin_indexer() {
+        use kroma_module_sdk::ports::TorrentFetchPort;
+        let pool = db_pool();
+        db::insert_indexer(&pool, &seed_row("tz", "torznab", true, 100)).unwrap();
+        let host = DbHost { pool };
+        // Unknown indexer id -> None (the caller falls back to a plain fetch).
+        assert!(IndexerTorrentFetch.fetch_torrent(&host, "nope", "http://x/f.torrent").is_none());
+        // A non-builtin (torznab) indexer is not cookie-gated here -> None.
+        assert!(IndexerTorrentFetch.fetch_torrent(&host, "tz", "http://x/f.torrent").is_none());
+    }
 }

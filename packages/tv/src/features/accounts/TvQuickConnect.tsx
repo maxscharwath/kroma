@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
-import { AuthScreen, KromaMark } from '#tv/shared/ui';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { AuthScreen, KromaMark } from '#tv/shared/ui';
 
 /**
  * Quick Connect (route `quick`) against the active server: shows a code + QR; an

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { RequestStatus } from '@kroma/core';
+import { describe, expect, it } from 'vitest';
 import { REQUEST_STATUS_META, requestStatusMeta, seasonsSummary } from './status';
 
 describe('requestStatusMeta', () => {

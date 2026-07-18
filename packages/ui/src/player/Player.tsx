@@ -267,6 +267,7 @@ export function Player(props: Readonly<PlayerProps>) {
           role="button" (not a native <button>): it wraps the <video> surface +
           subtitles + spinner, which a button may not contain, and legacy-TV
           webviews render it more reliably. Keyboard parity via onStageKeyDown. */}
+      {/* biome-ignore lint/a11y/useSemanticElements: a native <button> can't wrap the video/subtitle/spinner surface; keyboard parity is provided. */}
       <div
         role="button"
         tabIndex={0}

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { AudioTrack, Translate } from '@kroma/core';
+import { describe, expect, it } from 'vitest';
 import type { MovieView } from '../../shared/lib/api';
 import { buildWebStats, type WebStatsInput } from './web-stats';
 

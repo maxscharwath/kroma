@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { ComponentType } from 'react';
+import { describe, expect, it } from 'vitest';
 import { defineModule, pageHref } from './define';
 import type { ModuleComponentProps } from './module';
 

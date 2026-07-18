@@ -3,7 +3,10 @@
 // web app or contributed by a module. A module ui/ package imports everything it
 // needs for a full admin page from here, so it never reaches into app internals.
 
-export { AdminKitProvider, useAdminKit, resolveImageUrl, type AdminKitValue } from './context';
+export { AdminKitProvider, type AdminKitValue, resolveImageUrl, useAdminKit } from './context';
+export { Button, Disclosure, NumberField, SegmentedControl } from './controls';
+export { AddEngineModal, FieldForm, useEnabledEngines, useModuleEnabled } from './engines';
+export { CardSkeleton, EmptyState, Skeleton, TableSkeleton } from './feedback';
 export {
   avatarGradient,
   decimal,
@@ -12,6 +15,19 @@ export {
   initial,
 } from './format';
 export {
+  Field,
+  Modal,
+  ModalActions,
+  OptionSelect,
+  type OptionSelectProps,
+  Select,
+  type SelectOption,
+  TextInput,
+} from './forms';
+export { HeaderAction, PAGE_SUBTITLE, PAGE_TITLE, PageHeader } from './header';
+export { Denied, isAnyAdmin, useAsyncAction, useCap, usePoll } from './hooks';
+export {
+  Avatar,
   C,
   Card,
   FilterLabel,
@@ -20,21 +36,5 @@ export {
   Section,
   StatCard,
   Toggle,
-  Avatar,
 } from './primitives';
-export { Button, Disclosure, NumberField, SegmentedControl } from './controls';
-export { AddEngineModal, FieldForm, useEnabledEngines, useModuleEnabled } from './engines';
-export {
-  Field,
-  Modal,
-  ModalActions,
-  OptionSelect,
-  Select,
-  TextInput,
-  type OptionSelectProps,
-  type SelectOption,
-} from './forms';
-export { HeaderAction, PageHeader, PAGE_SUBTITLE, PAGE_TITLE } from './header';
-export { Denied, isAnyAdmin, useAsyncAction, useCap, usePoll } from './hooks';
-export { CardSkeleton, EmptyState, Skeleton, TableSkeleton } from './feedback';
 export { SettingsView } from './settings';

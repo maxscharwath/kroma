@@ -3,7 +3,7 @@
 // rows, progress bars, gradient avatars).
 import { IconChevronDown } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
-import { useAdminKit, resolveImageUrl } from './context';
+import { resolveImageUrl, useAdminKit } from './context';
 import { avatarGradient, initial } from './format';
 
 /** Chart/semantic colors from the design that aren't Tailwind tokens. */

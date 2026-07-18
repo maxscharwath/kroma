@@ -19,8 +19,8 @@ import {
   IconShieldLock,
   IconSparkles,
   IconSubtask,
-  type TablerIcon,
   IconWorld,
+  type TablerIcon,
 } from '@tabler/icons-react';
 
 const ICONS: Record<string, TablerIcon> = {

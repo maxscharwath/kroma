@@ -288,4 +288,77 @@ mod tests {
             .collect();
         assert!(!plain.contains(&"-4".to_string()), "{plain:?}");
     }
+
+    #[test]
+    fn snippet_trims_and_truncates_long_bodies() {
+        // Leading/trailing whitespace is trimmed.
+        assert_eq!(snippet(b"  hi there  "), "hi there");
+        // A body over 200 chars is capped and gets an ellipsis suffix.
+        let long = "a".repeat(500);
+        let s = snippet(long.as_bytes());
+        assert_eq!(s.chars().count(), 203, "200 kept chars + the ... suffix");
+        assert!(s.ends_with("..."));
+        // Exactly 200 chars is kept whole (no suffix).
+        let exact = "b".repeat(200);
+        let s = snippet(exact.as_bytes());
+        assert_eq!(s.chars().count(), 200);
+        assert!(!s.ends_with("..."));
+    }
+
+    #[test]
+    fn parse_last_block_errors_without_a_status_line() {
+        // A header dump with no `HTTP/...` line has no parseable status.
+        let err = parse_last_block("Content-Type: text/plain\r\n\r\n").unwrap_err();
+        assert!(err.to_string().contains("no HTTP status line"), "{err}");
+    }
+
+    #[test]
+    fn response_text_and_json_round_trip_and_error() {
+        let resp = Response { status: 200, headers: Vec::new(), body: br#"{"a":1}"#.to_vec() };
+        assert_eq!(resp.text(), r#"{"a":1}"#);
+        let v: serde_json::Value = resp.json().unwrap();
+        assert_eq!(v["a"], 1);
+
+        // Non-JSON body surfaces a "parse JSON" error carrying a body snippet.
+        let bad = Response { status: 200, headers: Vec::new(), body: b"not json at all".to_vec() };
+        let err = bad.json::<serde_json::Value>().unwrap_err().to_string();
+        assert!(err.contains("parse JSON"), "{err}");
+        assert!(err.contains("not json"), "{err}");
+    }
+
+    #[test]
+    fn ensure_ok_accepts_2xx() {
+        let resp = Response { status: 204, headers: Vec::new(), body: Vec::new() };
+        assert!(resp.ensure_ok().is_ok());
+        // The upper bound is exclusive of 300.
+        let redirect = Response { status: 300, headers: Vec::new(), body: b"moved".to_vec() };
+        assert!(redirect.ensure_ok().is_err());
+    }
+
+    #[test]
+    fn base_cmd_includes_headers_cookie_jar_and_max_time() {
+        let args: Vec<String> = Fetch::new()
+            .header("X-Test", "v")
+            .max_time(99)
+            .cookie_jar("/tmp/jar")
+            .base_cmd()
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert!(args.contains(&"X-Test: v".to_string()), "{args:?}");
+        assert!(args.contains(&"99".to_string()), "max-time value present: {args:?}");
+        // The jar is passed for both read (-b) and write (-c).
+        assert!(args.contains(&"-c".to_string()) && args.contains(&"-b".to_string()), "{args:?}");
+        assert!(args.contains(&"/tmp/jar".to_string()), "{args:?}");
+    }
+
+    #[test]
+    fn builder_setters_record_options() {
+        let f = Fetch::new().query("q", "hello world").header("A", "b").max_time(5);
+        assert_eq!(f.query, vec![("q".to_string(), "hello world".to_string())]);
+        assert_eq!(f.headers, vec![("A".to_string(), "b".to_string())]);
+        assert_eq!(f.max_time_secs, 5);
+        // The default network budget is 30 seconds.
+        assert_eq!(Fetch::new().max_time_secs, 30);
+    }
 }

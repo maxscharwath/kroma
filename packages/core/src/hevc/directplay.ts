@@ -1,8 +1,8 @@
 // Direct-play verdict + audio support / per-track delivery planning, derived
 // from the runtime {@link PlaybackCapabilities}.
 
-import type { MessageKey, TVars } from '../i18n';
 import type { AudioTrack, MediaItem } from '@kroma/client';
+import type { MessageKey, TVars } from '../i18n';
 import { type AudioCapabilities, capabilities, type PlaybackCapabilities } from './capabilities';
 
 export interface DirectPlayVerdict {

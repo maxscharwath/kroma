@@ -1,4 +1,6 @@
+import type { Metadata } from '@kroma/client';
 import { describe, expect, it } from 'vitest';
+import type { Translate } from './i18n';
 import {
   creditsPerson,
   jobLabel,
@@ -6,8 +8,6 @@ import {
   personInvolvement,
   roleLabels,
 } from './people';
-import type { Translate } from './i18n';
-import type { Metadata } from '@kroma/client';
 
 // A trivial translator that echoes the key, so role labels are asserted by key.
 const t: Translate = (key) => key;

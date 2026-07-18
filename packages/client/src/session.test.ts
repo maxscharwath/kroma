@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { User } from './types';
 import {
   clearSession,
   forgetAccount,
@@ -10,13 +9,14 @@ import {
   loadSession,
   migrateStorage,
   normalizeServerUrl,
+  type StoredSession,
   saveLocalePref,
   saveServer,
   saveSession,
   sharedTokenExchange,
-  type StoredSession,
   touchServer,
 } from './session';
+import type { User } from './types';
 
 // Minimal in-memory localStorage so the DOM-guarded helpers have real storage.
 class MemStorage {

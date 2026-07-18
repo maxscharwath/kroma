@@ -1,13 +1,13 @@
 import { formatRuntime, qualityBadge } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
-import { CastRow, EndsAtHint, ListButton, WatchedButton } from '#tv/features/catalog/detail/parts';
-import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
-import { PlayGlyph, TV_PLAY_BTN } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
+import { CastRow, EndsAtHint, ListButton, WatchedButton } from '#tv/features/catalog/detail/parts';
+import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
+import { PlayGlyph, TV_PLAY_BTN } from '#tv/shared/TvMedia';
 
 /** Film detail backdrop, synopsis, metadata, a Lecture button, my-list, an
  * "ends at" hint and the cast. The movie already carries its TMDB metadata from

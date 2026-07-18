@@ -14,8 +14,8 @@ import {
   type MessageKey,
   type ModuleInfo,
 } from '@kroma/core';
-import { useQuery } from '@tanstack/react-query';
 import { useT } from '@kroma/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useAdminKit } from './context';
 import { SegmentedControl } from './controls';

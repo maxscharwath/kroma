@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { AudioTrack, MediaItem, Translate } from '@kroma/core';
+import { describe, expect, it } from 'vitest';
 import { buildTvStats, type TvStatsInput } from './tv-stats';
 
 const t: Translate = ((key: string, vars?: unknown) =>

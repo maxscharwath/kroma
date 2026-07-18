@@ -9,13 +9,13 @@ import {
 import { useT } from '@kroma/ui';
 import { useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
-import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
-import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { TvTopNav } from '#tv/features/catalog/home/TopNav';
+import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
+import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 
 interface GridHero {
   hero: MediaItem | Show | null;

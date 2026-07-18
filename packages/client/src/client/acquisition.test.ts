@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { SaveIndexerBody, SaveVpnBody } from '../types';
-import type { RequestContext } from './base';
 import {
   analyzeTorrent,
   manualSearch,
@@ -9,6 +8,7 @@ import {
   saveVpn,
   updateIndexer,
 } from './acquisition';
+import type { RequestContext } from './base';
 
 function recordCtx() {
   const calls: { path: string; init?: RequestInit }[] = [];

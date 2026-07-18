@@ -46,7 +46,6 @@ describe('toMovieView / toShowView', () => {
       ],
       metadata: { posterUrl: '/api/p.webp', backdropUrl: null },
       video: null,
-      // biome-ignore lint/suspicious/noExplicitAny: minimal MediaItem fixture
     } as any;
     const v = toMovieView(client, item);
     expect(v.poster).toBe('http://kroma.test/api/p.webp');
@@ -62,7 +61,6 @@ describe('toMovieView / toShowView', () => {
     const show = {
       id: 's1',
       metadata: { posterUrl: '/api/sp.webp', backdropUrl: '/api/sb.webp' },
-      // biome-ignore lint/suspicious/noExplicitAny: minimal Show fixture
     } as any;
     const sv = toShowView(client, show);
     expect(sv.poster).toBe('http://kroma.test/api/sp.webp');

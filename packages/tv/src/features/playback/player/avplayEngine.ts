@@ -19,12 +19,12 @@
 // shows an `<object type="application/avplayer">` surface (transparent body)
 // and the HTML chrome + subtitle overlay sit on top.
 
-import { type AvplayApi, getAvplay, resolveMasterStart } from '#tv/features/playback/player/engine';
 import {
   BaseTvEngine,
   type EngineOptions,
   NATIVE_SEEK_AHEAD,
 } from '#tv/features/playback/player/baseEngine';
+import { type AvplayApi, getAvplay, resolveMasterStart } from '#tv/features/playback/player/engine';
 
 export class AvplayEngine extends BaseTvEngine {
   readonly kind = 'avplay';

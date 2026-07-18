@@ -203,7 +203,6 @@ describe('posterBlob', () => {
     const { client, calls } = makeClient(undefined, { authToken: 'tok' });
     const blob = await client.posterBlob({
       id: ItemId.of('i1'),
-      // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
       metadata: { posterUrl: 'https://image.tmdb.org/p.jpg' } as any,
     });
     expect(blob).toBeInstanceOf(Blob);
@@ -215,7 +214,6 @@ describe('posterBlob', () => {
   it('throws when an absolute poster fetch is not ok', async () => {
     const { client } = makeClient(() => ({ ok: false, status: 404 }), { authToken: 'tok' });
     await expect(
-      // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
       client.posterBlob({
         id: ItemId.of('i1'),
         metadata: { posterUrl: 'https://img/x.jpg' } as any,
@@ -227,7 +225,6 @@ describe('posterBlob', () => {
     const { client, calls } = makeClient();
     await client.posterBlob({
       id: ItemId.of('i1'),
-      // biome-ignore lint/suspicious/noExplicitAny: minimal metadata fixture
       metadata: { posterUrl: '/api/images/p.webp' } as any,
     });
     expect(calls[0]?.url).toBe('http://kroma.test/api/images/p.webp');
@@ -261,21 +258,17 @@ describe('URL builders (pure, no request)', () => {
     expect(c.resolveArt('/api/images/x.webp')).toBe('http://kroma.test/api/images/x.webp');
     expect(c.resolveArt('https://cdn/x.jpg')).toBe('https://cdn/x.jpg');
     expect(c.resolveArt(null)).toBeNull();
-    // biome-ignore lint/suspicious/noExplicitAny: minimal fixtures
     expect(c.posterFor({ id: 'i1', metadata: { posterUrl: '/api/p.webp' } as any })).toBe(
       'http://kroma.test/api/p.webp',
     );
     expect(c.posterFor({ id: 'i2', metadata: null })).toBe('http://kroma.test/api/items/i2/poster');
-    // biome-ignore lint/suspicious/noExplicitAny: minimal fixtures
     expect(c.showPosterFor({ id: 's1', metadata: null } as any)).toBe(
       'http://kroma.test/api/shows/s1/poster',
     );
-    // biome-ignore lint/suspicious/noExplicitAny: minimal fixtures
     expect(c.backdropFor({ metadata: { backdropUrl: '/api/b.webp' } as any })).toBe(
       'http://kroma.test/api/b.webp',
     );
     expect(c.backdropFor({ metadata: null })).toBeNull();
-    // biome-ignore lint/suspicious/noExplicitAny: minimal fixtures
     expect(c.themeFor({ metadata: { themeUrl: '/api/t.mp3' } as any })).toBe(
       'http://kroma.test/api/t.mp3',
     );
@@ -329,9 +322,7 @@ describe('delegating methods issue the expected request', () => {
     ['deleteLibrary', (c) => c.deleteLibrary('x'), 'DELETE', '/admin/libraries/x'],
     ['scanLibrary', (c) => c.scanLibrary('x'), 'POST', '/admin/libraries/x/scan'],
     ['adminNaming', (c) => c.adminNaming(), 'GET', '/admin/organize/naming'],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['namingSample', (c) => c.namingSample({} as any), 'POST', '/admin/organize/sample'],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['saveNaming', (c) => c.saveNaming({} as any), 'PUT', '/admin/organize/naming'],
     ['organizePreview', (c) => c.organizePreview(), 'GET', '/admin/organize/preview'],
     ['organizeApply', (c) => c.organizeApply(), 'POST', '/admin/organize/apply'],
@@ -351,7 +342,6 @@ describe('delegating methods issue the expected request', () => {
   const others: Array<[string, (c: KromaClient) => unknown]> = [
     ['downloadedSubtitles', (c) => c.downloadedSubtitles('i1')],
     ['subtitleCapabilities', (c) => c.subtitleCapabilities('i1')],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['generateSubtitle', (c) => c.generateSubtitle('i1', {} as any)],
     ['subtitleGenerations', (c) => c.subtitleGenerations('i1')],
     ['cancelGeneration', (c) => c.cancelGeneration('i1', 'g1')],
@@ -362,13 +352,11 @@ describe('delegating methods issue the expected request', () => {
     ['passkeyRegisterStart', (c) => c.passkeyRegisterStart()],
     [
       'passkeyRegisterFinish',
-      // biome-ignore lint/suspicious/noExplicitAny: minimal body
       (c) => c.passkeyRegisterFinish({ ceremonyId: 'c', name: 'n', credential: {} as any }),
     ],
     ['listPasskeys', (c) => c.listPasskeys()],
     ['deletePasskey', (c) => c.deletePasskey('p1')],
     ['passkeyAuthStart', (c) => c.passkeyAuthStart()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['passkeyAuthFinish', (c) => c.passkeyAuthFinish({ ceremonyId: 'c', credential: {} as any })],
     ['pinVerify', (c) => c.pinVerify('1234')],
     ['setPin', (c) => c.setPin('1234')],
@@ -400,18 +388,14 @@ describe('delegating methods issue the expected request', () => {
     ['getMissing', (c) => c.getMissing()],
     ['searchAllMissing', (c) => c.searchAllMissing()],
     ['autoSearchRequest', (c) => c.autoSearchRequest('r1')],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['createRequest', (c) => c.createRequest({} as any)],
     ['deleteRequest', (c) => c.deleteRequest('r1')],
     ['approveRequest', (c) => c.approveRequest('r1')],
     ['denyRequest', (c) => c.denyRequest('r1')],
     ['searchReleases', (c) => c.searchReleases('r1')],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['grabRelease', (c) => c.grabRelease('r1', {} as any)],
     ['adminIndexers', (c) => c.adminIndexers()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['createIndexer', (c) => c.createIndexer({} as any)],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['updateIndexer', (c) => c.updateIndexer('x', {} as any)],
     ['deleteIndexer', (c) => c.deleteIndexer('x')],
     ['testIndexer', (c) => c.testIndexer('x')],
@@ -419,9 +403,7 @@ describe('delegating methods issue the expected request', () => {
     ['indexerDefinitionDetail', (c) => c.indexerDefinitionDetail('x')],
     ['syncIndexerDefinitions', (c) => c.syncIndexerDefinitions()],
     ['adminDownloadClients', (c) => c.adminDownloadClients()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['createDownloadClient', (c) => c.createDownloadClient({} as any)],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['updateDownloadClient', (c) => c.updateDownloadClient('x', {} as any)],
     ['deleteDownloadClient', (c) => c.deleteDownloadClient('x')],
     ['testDownloadClient', (c) => c.testDownloadClient('x')],
@@ -436,10 +418,8 @@ describe('delegating methods issue the expected request', () => {
     ['removeDownload', (c) => c.removeDownload('x')],
     ['manualSearch', (c) => c.manualSearch('q')],
     ['analyzeTorrent', (c) => c.analyzeTorrent('magnet:?x')],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['manualAdd', (c) => c.manualAdd({} as any)],
     ['adminVpn', (c) => c.adminVpn()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['saveVpn', (c) => c.saveVpn({} as any)],
     ['testVpn', (c) => c.testVpn()],
     ['adminBrowseFolders', (c) => c.adminBrowseFolders()],
@@ -481,14 +461,10 @@ describe('delegating methods issue the expected request', () => {
     ['retryElementStage', (c) => c.retryElementStage('item', 'i1', 's')],
     ['showProcessing', (c) => c.showProcessing('s1')],
     ['adminLlm', (c) => c.adminLlm()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['saveLlm', (c) => c.saveLlm({} as any)],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['llmModels', (c) => c.llmModels({} as any)],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['testLlm', (c) => c.testLlm({} as any)],
     ['adminRemote', (c) => c.adminRemote()],
-    // biome-ignore lint/suspicious/noExplicitAny: minimal body
     ['saveRemote', (c) => c.saveRemote({} as any)],
     ['logs', (c) => c.logs()],
     ['storyboard', (c) => c.storyboard('i1')],

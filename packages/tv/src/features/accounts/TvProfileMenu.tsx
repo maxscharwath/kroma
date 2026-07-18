@@ -10,10 +10,6 @@ import {
   IconUsersGroup,
 } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
-import { useAuth } from '#tv/app/providers/auth';
-import { useConnection } from '#tv/app/providers/connection';
-import { useNav } from '#tv/app/router';
-import { AuthScreen, ProfileAvatar } from '#tv/shared/ui';
 import {
   availableEngines,
   ENGINE_LABEL_KEY,
@@ -21,7 +17,11 @@ import {
   getEnginePref,
   setEnginePref,
 } from '#tv/app/enginePref';
+import { useAuth } from '#tv/app/providers/auth';
+import { useConnection } from '#tv/app/providers/connection';
+import { useNav } from '#tv/app/router';
 import { useFocusNav } from '#tv/app/useFocusNav';
+import { AuthScreen, ProfileAvatar } from '#tv/shared/ui';
 
 const MENU_ROW =
   'flex w-full items-center gap-4 rounded-[15px] border border-border bg-[rgba(255,255,255,0.03)] px-5 py-4 text-left outline-none transition-transform focus:scale-[1.02] focus:border-accent';

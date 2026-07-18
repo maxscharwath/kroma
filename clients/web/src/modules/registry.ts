@@ -8,8 +8,8 @@
 
 import { acquisitionModule } from '@kroma/module-acquisition';
 import { indexerModule } from '@kroma/module-indexer';
-import { ModuleRegistry } from '@kroma/module-sdk';
 import { remoteModule } from '@kroma/module-remote';
+import { ModuleRegistry } from '@kroma/module-sdk';
 import { torrentsModule } from '@kroma/module-torrents';
 import { vpnModule } from '@kroma/module-vpn';
 import { generatedModules } from '@kroma/modules-generated';

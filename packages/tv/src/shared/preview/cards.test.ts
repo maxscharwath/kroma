@@ -20,7 +20,6 @@ function mov(
   } as unknown as MediaItem;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: parsed JSON is dynamic
 type Doc = { sections: Array<{ title: string; tiles: any[] }> };
 const parse = (s: string | null): Doc => JSON.parse(s as string) as Doc;
 

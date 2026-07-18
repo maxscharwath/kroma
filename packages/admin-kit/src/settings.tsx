@@ -7,10 +7,10 @@ import type { MessageKey, SettingGroup, SettingRow } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useEffect, useState } from 'react';
 import { useAdminKit } from './context';
-import { Card, Toggle } from './primitives';
 import { Select, TextInput } from './forms';
 import { PageHeader } from './header';
 import { Denied, useCap } from './hooks';
+import { Card, Toggle } from './primitives';
 
 interface SettingsViewProps {
   view: string;

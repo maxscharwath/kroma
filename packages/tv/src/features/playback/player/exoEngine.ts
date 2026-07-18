@@ -20,15 +20,15 @@
 // Kotlin side invokes with a JSON payload.
 
 import {
-  type ExoShellBridge,
-  getExo,
-  resolveMasterStart,
-} from '#tv/features/playback/player/engine';
-import {
   BaseTvEngine,
   type EngineOptions,
   NATIVE_SEEK_AHEAD,
 } from '#tv/features/playback/player/baseEngine';
+import {
+  type ExoShellBridge,
+  getExo,
+  resolveMasterStart,
+} from '#tv/features/playback/player/engine';
 
 /** Event payload pushed by the Kotlin bridge. */
 interface ExoEvent {

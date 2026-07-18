@@ -2,6 +2,5 @@
 
 import type { KromaModule } from '@kroma/module-sdk';
 
-
 /** Every single-file (codegen) module, for the host registry to register. */
 export const generatedModules: KromaModule[] = [];

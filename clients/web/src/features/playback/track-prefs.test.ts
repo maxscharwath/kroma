@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { AudioTrack } from '@kroma/core';
+import { describe, expect, it } from 'vitest';
 import type { SubtitleView } from '../../shared/lib/api';
 import { matchesLang, preferredAudioIndex, preferredSubIndex } from './track-prefs';
 

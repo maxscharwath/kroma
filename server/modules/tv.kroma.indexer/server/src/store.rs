@@ -426,4 +426,19 @@ search:
         assert!(pick_version_dir(&dir).is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn yaml_extension_is_recognized_like_yml() {
+        let data = tmpdir("yaml-ext");
+        let store = DefinitionStore::new(&data);
+        std::fs::create_dir_all(store.dir()).unwrap();
+        // The `.yaml` spelling counts as a definition file for population + listing
+        // (keyed on the file stem). `load` resolves the `.yml` spelling only.
+        std::fs::write(store.dir().join("tracker.yaml"), valid_definition("t").as_bytes()).unwrap();
+        assert!(store.is_populated());
+        let metas = store.list().unwrap();
+        assert_eq!(metas.len(), 1);
+        assert_eq!(metas[0].id, "tracker");
+        let _ = std::fs::remove_dir_all(&data);
+    }
 }

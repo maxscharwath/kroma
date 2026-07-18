@@ -484,5 +484,162 @@ mod tests {
     #[test]
     fn diacritics_filter() {
         assert_eq!(run("Amélie Café", &[f("diacritics", &[])]), "Amelie Cafe");
+        // Uppercase accents + cedilla map to their ASCII base letter too.
+        assert_eq!(run("ÀÉÎÕÜ Ñ Ç", &[f("diacritics", &[])]), "AEIOU N C");
+    }
+
+    #[test]
+    fn trim_variants_and_case() {
+        // trim with an explicit cut-set trims those chars from both ends.
+        assert_eq!(run("**hi**", &[f("trim", &["*"])]), "hi");
+        assert_eq!(run("xxabcx", &[f("trim", &["x"])]), "abc");
+        assert_eq!(run("/dl/file", &[f("trimprefix", &["/dl/"])]), "file");
+        // A prefix/suffix that is not present leaves the value unchanged.
+        assert_eq!(run("file", &[f("trimprefix", &["/dl/"])]), "file");
+        assert_eq!(run("file.torrent", &[f("trimsuffix", &[".torrent"])]), "file");
+        assert_eq!(run("file", &[f("trimsuffix", &[".torrent"])]), "file");
+        assert_eq!(run("abc", &[f("toupper", &[])]), "ABC");
+    }
+
+    #[test]
+    fn html_encode_escapes_entities() {
+        assert_eq!(run("1 < 2 & 3", &[f("htmlencode", &[])]), "1 &lt; 2 &amp; 3");
+        assert_eq!(run("say \"hi\"", &[f("htmlencode", &[])]), "say &quot;hi&quot;");
+    }
+
+    #[test]
+    fn html_decode_hex_and_unknown_entities() {
+        // Hex numeric entity decodes.
+        assert_eq!(run("&#x41;&#x42;", &[f("htmldecode", &[])]), "AB");
+        // An unknown entity is left verbatim (never dropped).
+        assert_eq!(run("&foo;bar", &[f("htmldecode", &[])]), "&foo;bar");
+        // A bare ampersand with no terminating `;` stays literal.
+        assert_eq!(run("Tom & Jerry", &[f("htmldecode", &[])]), "Tom & Jerry");
+    }
+
+    #[test]
+    fn url_decode_plus_and_malformed_escapes() {
+        // `+` decodes to a space.
+        assert_eq!(run("a+b+c", &[f("urldecode", &[])]), "a b c");
+        // A malformed `%zz` escape is passed through byte-for-byte.
+        assert_eq!(run("a%zzb", &[f("urldecode", &[])]), "a%zzb");
+    }
+
+    #[test]
+    fn split_edge_cases() {
+        // An empty separator returns the value unchanged.
+        assert_eq!(run("abc", &[f("split", &["", "0"])]), "abc");
+        // An index past the end (positive or negative) returns the whole value.
+        assert_eq!(run("a/b", &[f("split", &["/", "9"])]), "a/b");
+        assert_eq!(run("a/b", &[f("split", &["/", "-9"])]), "a/b");
+        // A non-numeric index defaults to 0 (the first element).
+        assert_eq!(run("a/b/c", &[f("split", &["/", "notnum"])]), "a");
+    }
+
+    #[test]
+    fn regexp_extract_group_whole_match_and_errors() {
+        // No capture group -> the whole match.
+        assert_eq!(run("abc123def", &[f("regexp", &["\\d+"])]), "123");
+        // No match at all -> empty string.
+        assert_eq!(run("abc", &[f("regexp", &["\\d+"])]), "");
+        // An invalid pattern leaves the value unchanged.
+        assert_eq!(run("abc", &[f("regexp", &["("])]), "abc");
+    }
+
+    #[test]
+    fn re_replace_invalid_pattern_passes_through() {
+        assert_eq!(run("keep me", &[f("re_replace", &["(", "x"])]), "keep me");
+    }
+
+    #[test]
+    fn querystring_no_match_and_no_question_mark() {
+        // A missing key yields empty.
+        assert_eq!(run("https://x/dl?id=99", &[f("querystring", &["missing"])]), "");
+        // A bare `k=v&...` (no `?`) is treated as the query itself.
+        assert_eq!(run("id=5&k=v", &[f("querystring", &["k"])]), "v");
+    }
+
+    #[test]
+    fn unknown_and_debug_filters_pass_value_through() {
+        assert_eq!(run("keep", &[f("totally_unknown_filter", &[])]), "keep");
+        assert_eq!(run("keep", &[f("hexdump", &[])]), "keep");
+        assert_eq!(run("keep", &[f("strdump", &[])]), "keep");
+        assert_eq!(run("keep", &[f("widthfix", &[])]), "keep");
+    }
+
+    #[test]
+    fn dateparse_datetime_layout_and_unparseable_fallback() {
+        // A full datetime Go layout parses date + time.
+        let out = run("2023-05-01 14:30:00", &[f("dateparse", &["2006-01-02 15:04:05"])]);
+        assert!(out.starts_with("2023-05-01T14:30:00"), "got {out}");
+        // Nothing matches -> the original text is returned verbatim.
+        assert_eq!(run("total garbage", &[f("dateparse", &["2006"])]), "total garbage");
+    }
+
+    #[test]
+    fn reltime_parses_rfc2822_and_rfc3339_and_keeps_unparseable() {
+        // RFC 2822 (RSS/Torznab pubDate) normalises to UTC RFC 3339.
+        let out = run("Tue, 30 Jun 2026 11:19:47 +0000", &[f("reltime", &[])]);
+        assert!(out.starts_with("2026-06-30T11:19:47"), "got {out}");
+        // RFC 3339 with an offset is shifted to UTC.
+        let out = run("2026-06-30T11:19:47+02:00", &[f("timeago", &[])]);
+        assert!(out.starts_with("2026-06-30T09:19:47"), "got {out}");
+        // A string that is not a date at all is returned unchanged.
+        assert_eq!(run("hello world foobar", &[f("reltime", &[])]), "hello world foobar");
+    }
+
+    #[test]
+    fn parse_relative_covers_every_unit_and_keyword() {
+        // Keywords.
+        assert!(parse_relative("just now").is_some());
+        assert!(parse_relative("now").is_some());
+        assert!(parse_relative("garbage nonsense").is_none());
+
+        // "today" is midnight; "yesterday" is one day earlier at midnight.
+        let today = parse_relative("today").unwrap();
+        assert_eq!((today.hour(), today.minute(), today.second()), (0, 0, 0));
+        let yesterday = parse_relative("yesterday").unwrap();
+        assert_eq!((today - yesterday), Duration::days(1));
+
+        // "<n> <unit> ago" for each supported unit, plus "a"/"an" as one.
+        for expr in [
+            "5 seconds ago",
+            "30 minutes ago",
+            "2 hours ago",
+            "3 days ago",
+            "1 week ago",
+            "2 months ago",
+            "1 year ago",
+            "an hour ago",
+            "a day ago",
+        ] {
+            assert!(parse_relative(expr).is_some(), "expected Some for {expr:?}");
+        }
+
+        // A relative time is strictly in the past.
+        let two_hours_ago = parse_relative("2 hours ago").unwrap();
+        let now = parse_relative("just now").unwrap();
+        assert!(two_hours_ago < now);
+    }
+
+    #[test]
+    fn sub_months_clamps_day_and_crosses_year_boundary() {
+        // 31 Mar - 1 month clamps the day to 28 (no 31 Feb).
+        let dt = NaiveDate::from_ymd_opt(2023, 3, 31).unwrap().and_hms_opt(12, 0, 0).unwrap();
+        assert_eq!(sub_months(dt, 1).date(), NaiveDate::from_ymd_opt(2023, 2, 28).unwrap());
+        // Subtracting across the year boundary rolls the year back.
+        let dt2 = NaiveDate::from_ymd_opt(2023, 1, 15).unwrap().and_hms_opt(0, 0, 0).unwrap();
+        assert_eq!(sub_months(dt2, 2).date(), NaiveDate::from_ymd_opt(2022, 11, 15).unwrap());
+    }
+
+    #[test]
+    fn go_layout_to_chrono_translates_reference_tokens() {
+        assert_eq!(go_layout_to_chrono("2006-01-02"), "%Y-%m-%d");
+        assert_eq!(go_layout_to_chrono("15:04:05"), "%H:%M:%S");
+        assert_eq!(go_layout_to_chrono("02/01/2006"), "%d/%m/%Y");
+        assert_eq!(go_layout_to_chrono("January 2006"), "%B %Y");
+        assert_eq!(go_layout_to_chrono("03:04 PM"), "%I:%M %p");
+        assert_eq!(go_layout_to_chrono("-0700"), "%z");
+        assert_eq!(go_layout_to_chrono("-07:00"), "%:z");
     }
 }

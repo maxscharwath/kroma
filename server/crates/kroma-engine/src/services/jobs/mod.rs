@@ -722,4 +722,24 @@ mod tests {
         assert_eq!(runs[0].status, "failed");
         assert_eq!(runs[0].error.as_deref(), Some("boom"));
     }
+
+    #[test]
+    fn cancel_all_on_idle_manager_is_a_noop() {
+        let m = JobManager::new();
+        // No runs in flight: cancel_all must not panic and leaves the count at 0.
+        m.cancel_all();
+        assert_eq!(m.running_count(), 0);
+    }
+
+    #[test]
+    fn register_remote_reregistration_stays_resolvable() {
+        let m = JobManager::new();
+        let run: RemoteRun = Arc::new(|_ctx: &JobContext| Ok(()));
+        m.register_remote("mod.job", Category::Maintenance, Some("0 4 * * *".into()), run);
+        // A respawn re-registers the same key with a refreshed closure; the entry
+        // is not duplicated and stays resolvable to the one JobKey.
+        let run2: RemoteRun = Arc::new(|_ctx: &JobContext| Ok(()));
+        m.register_remote("mod.job", Category::Recommendations, Some("0 9 * * *".into()), run2);
+        assert_eq!(m.resolve("mod.job"), Some(JobKey("mod.job")));
+    }
 }

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { RequestContext } from './base';
 import {
   adminBrowseFolders,
   adminJob,
@@ -14,6 +13,7 @@ import {
   topUsers,
   updateUser,
 } from './admin';
+import type { RequestContext } from './base';
 
 function recordCtx() {
   const json: { path: string; init?: RequestInit }[] = [];

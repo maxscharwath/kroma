@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { AudioTrack, MediaItem } from '@kroma/client';
+import { describe, expect, it } from 'vitest';
 import {
   audioTrackId,
   avplayDirectPlayable,

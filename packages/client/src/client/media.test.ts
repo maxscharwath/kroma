@@ -17,8 +17,8 @@ import {
   storyboard,
   streamUrl,
   subtitleUrl,
-  themeFor,
   themed,
+  themeFor,
 } from './media';
 
 // `hlsMasterUrl` (and the other URL builders) only read `ctx.baseUrl`, so a

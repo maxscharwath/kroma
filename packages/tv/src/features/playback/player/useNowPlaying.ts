@@ -5,7 +5,10 @@ import { getTauri } from '#tv/features/playback/player/engine';
 /** Resolve a canvas JPEG blob's bytes into `done` (null on any failure). Hoisted so
  * the `arrayBuffer().then().catch()` chain doesn't nest inside the canvas callback. */
 function deliverJpegBytes(jpeg: Blob | null, done: (out: Uint8Array | null) => void): void {
-  if (!jpeg) return done(null);
+  if (!jpeg) {
+    done(null);
+    return;
+  }
   jpeg
     .arrayBuffer()
     .then((buf) => done(new Uint8Array(buf)))

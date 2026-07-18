@@ -7,7 +7,9 @@ import type { AudioFilterMode } from './types';
  * included) without a server transcode:
  *   - off      source → destination (untouched)
  *   - standard levels the loud/quiet gap (gentle 4:1 compression + a little gain)
- *   - night    clamps loud peaks hard and lifts dialogue (12:1, low threshold)
+ *   - night    clamps loud peaks (8:1) and, crucially, sits BELOW unity gain so the
+ *              whole thing is the QUIETEST, most even mode - for late-night
+ *              listening where you never want a peak to wake anyone.
  * Persisted like the subtitle appearance.
  */
 
@@ -54,13 +56,17 @@ function configure(g: Graph, mode: Exclude<AudioFilterMode, 'off'>): void {
     comp.release.value = 0.25;
     gain.gain.value = 1.4;
   } else {
-    // night: aggressive limiting of peaks, dialogue lifted the most.
-    comp.threshold.value = -40;
+    // night: clamp the loud stuff (peaks pulled down to near dialogue level) and
+    // keep the OUTPUT quiet + even. Below-unity make-up (0.9) guarantees night is
+    // never louder than off/standard - it is the quietest mode by design. A less
+    // extreme threshold than the peak-limiter tuning keeps speech intelligible
+    // rather than crushing everything to a whisper.
+    comp.threshold.value = -28;
     comp.knee.value = 20;
-    comp.ratio.value = 12;
-    comp.attack.value = 0.003;
-    comp.release.value = 0.2;
-    gain.gain.value = 1.8;
+    comp.ratio.value = 8;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.25;
+    gain.gain.value = 0.9;
   }
 }
 

@@ -73,7 +73,7 @@ export function FolderPicker({
         <button
           type="button"
           onClick={() => list?.parent != null && setPath(list.parent)}
-          disabled={!list || list.parent == null}
+          disabled={list?.parent == null}
           aria-label={t('admin.parentFolder')}
           title={t('admin.parentFolder')}
           className="shrink-0 rounded-md p-1 text-text/55 hover:text-text disabled:opacity-30"

@@ -17,9 +17,9 @@
 # afterwards wherever updater artifacts matter (desktop-autoupdate.yml does).
 set -euo pipefail
 
-[ $# -eq 1 ] || { echo "usage: fix-appimage.sh <AppImage>" >&2; exit 2; }
+[[ $# -eq 1 ]] || { echo "usage: fix-appimage.sh <AppImage>" >&2; exit 2; }
 APPIMAGE="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
-[ -f "$APPIMAGE" ] || { echo "fix-appimage: no such file: $APPIMAGE" >&2; exit 1; }
+[[ -f "$APPIMAGE" ]] || { echo "fix-appimage: no such file: $APPIMAGE" >&2; exit 1; }
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Pinned repack tool (immutable versioned release; bump TOOL_* together).
@@ -30,14 +30,15 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 sum_of() {
-  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1"; else sha256sum "$1"; fi | awk '{print $1}'
+  local file="$1"
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$file"; else sha256sum "$file"; fi | awk '{print $1}'
 }
 
 # Unpack via the embedded runtime (no FUSE needed).
 chmod +x "$APPIMAGE"
 (cd "$WORK" && "$APPIMAGE" --appimage-extract >/dev/null)
 APPDIR="$WORK/squashfs-root"
-[ -d "$APPDIR/usr/lib" ] || { echo "fix-appimage: unexpected AppDir layout" >&2; exit 1; }
+[[ -d "$APPDIR/usr/lib" ]] || { echo "fix-appimage: unexpected AppDir layout" >&2; exit 1; }
 
 # The over-bundled infra libs. List from tauri#15665, confirmed drop-in
 # replaceable by the system copies on every target distro (SteamOS ships all
@@ -64,7 +65,7 @@ for glob in "${STRIP_GLOBS[@]}"; do
     removed=$((removed + 1))
   done < <(find "$APPDIR/usr/lib" -maxdepth 1 -name "$glob" -print0)
 done
-if [ "$removed" -eq 0 ]; then
+if [[ "$removed" -eq 0 ]]; then
   # Not fatal: a future Tauri bundler may stop over-bundling, making this a no-op.
   echo "fix-appimage: WARNING: nothing to strip - bundler output changed?" >&2
 else
@@ -78,15 +79,15 @@ fi
 # fine. Restore the pristine bytes fetched by fetch-mpv.sh.
 SIDECAR="$APPDIR/usr/bin/kroma-mpv"
 PRISTINE="$SCRIPT_DIR/../src-tauri/bin/kroma-mpv-x86_64-unknown-linux-gnu"
-if [ -f "$SIDECAR" ]; then
-  if [ -f "$PRISTINE" ]; then
-    if [ "$(sum_of "$SIDECAR")" != "$(sum_of "$PRISTINE")" ]; then
+if [[ -f "$SIDECAR" ]]; then
+  if [[ -f "$PRISTINE" ]]; then
+    if [[ "$(sum_of "$SIDECAR")" != "$(sum_of "$PRISTINE")" ]]; then
       install -m 0755 "$PRISTINE" "$SIDECAR"
       echo "fix-appimage: restored pristine kroma-mpv sidecar (bundler patchelf corrupted it)"
     else
       echo "fix-appimage: kroma-mpv sidecar already pristine"
     fi
-  elif [ "${CI:-}" = "true" ]; then
+  elif [[ "${CI:-}" = "true" ]]; then
     # In CI the pristine file must exist (fetch-mpv.sh runs before the build);
     # shipping the corrupted sidecar would brick native playback.
     echo "fix-appimage: pristine kroma-mpv missing (run scripts/fetch-mpv.sh first)" >&2
@@ -99,7 +100,7 @@ fi
 TOOL="$WORK/appimagetool"
 curl -fsSL --retry 3 -o "$TOOL" \
   "https://github.com/AppImage/appimagetool/releases/download/${TOOL_VERSION}/appimagetool-x86_64.AppImage"
-if [ "$(sum_of "$TOOL")" != "$TOOL_SHA256" ]; then
+if [[ "$(sum_of "$TOOL")" != "$TOOL_SHA256" ]]; then
   echo "fix-appimage: sha256 MISMATCH for appimagetool ${TOOL_VERSION}" >&2
   exit 1
 fi

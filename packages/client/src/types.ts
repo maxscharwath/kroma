@@ -12,7 +12,7 @@ import type { Permission, User } from './schemas';
 
 /** Convenience open unions over the wire `codec` strings (kept open so a client
  * built before a new codec still parses it; the server sends a plain string). */
-export type VideoCodec = 'hevc' | 'h264' | 'av1' | 'vp9' | 'mpeg2' | 'mpeg4' | string;
+export type VideoCodec = 'hevc' | 'h264' | 'av1' | 'vp9' | 'mpeg2' | 'mpeg4' | (string & {});
 export type AudioCodec =
   | 'aac'
   | 'eac3'
@@ -22,7 +22,7 @@ export type AudioCodec =
   | 'flac'
   | 'opus'
   | 'mp3'
-  | string;
+  | (string & {});
 
 /** What a client reports on each playback heartbeat (`POST /api/playback/ping`). */
 export interface PlaybackPing {

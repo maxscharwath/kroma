@@ -23,7 +23,14 @@ import {
   sharedTokenExchange,
   type User,
 } from '@kroma/core';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 /** Outcome of an {@link AuthSession.activate}. `needsPin` asks the UI to collect
  * the profile PIN and call `activate` again with it; `retryAfter` (seconds) is
@@ -57,6 +64,35 @@ export interface AuthSession {
   updateUser: (patch: Partial<User>) => void;
 }
 
+/** Silent re-exchange behind the client's 401 refresh handler. Hoisted out of the
+ * effect so the callback nesting stays shallow. */
+function refreshExchange(
+  client: KromaClient,
+  setSession: Dispatch<SetStateAction<StoredSession | null>>,
+): Promise<string | undefined> {
+  const active = loadSession();
+  if (!active) return Promise.resolve(undefined);
+  return sharedTokenExchange(() => client.exchangeToken(active.accessToken))
+    .then((res) => {
+      setSessionToken(res.token);
+      client.setAuthToken(res.token);
+      setSession((cur) => (cur ? { ...cur, user: res.user } : cur));
+      saveSession({ ...active, user: res.user });
+      return res.token as string | undefined;
+    })
+    .catch(() => {
+      // The access token is dead (revoked/expired, or a PIN was added
+      // elsewhere so no-PIN exchange 401s). Drop the session so the login
+      // gate reappears instead of a zombie 'signed-in' state that 401s every
+      // request forever. The account stays remembered for a re-login/PIN.
+      setSessionToken(undefined);
+      client.setAuthToken(undefined);
+      clearSession();
+      setSession(null);
+      return undefined;
+    });
+}
+
 export function useAuthSession(client: KromaClient | null): AuthSession {
   const [session, setSession] = useState<StoredSession | null>(null);
   const [accounts, setAccounts] = useState<StoredSession[]>([]);
@@ -80,29 +116,7 @@ export function useAuthSession(client: KromaClient | null): AuthSession {
   // concurrent 401s (and the boot exchange / data layer) share one exchange.
   useEffect(() => {
     if (!client) return;
-    client.setRefreshHandler(() => {
-      const active = loadSession();
-      if (!active) return Promise.resolve(undefined);
-      return sharedTokenExchange(() => client.exchangeToken(active.accessToken))
-        .then((res) => {
-          setSessionToken(res.token);
-          client.setAuthToken(res.token);
-          setSession((cur) => (cur ? { ...cur, user: res.user } : cur));
-          saveSession({ ...active, user: res.user });
-          return res.token as string | undefined;
-        })
-        .catch(() => {
-          // The access token is dead (revoked/expired, or a PIN was added
-          // elsewhere so no-PIN exchange 401s). Drop the session so the login
-          // gate reappears instead of a zombie 'signed-in' state that 401s every
-          // request forever. The account stays remembered for a re-login/PIN.
-          setSessionToken(undefined);
-          client.setAuthToken(undefined);
-          clearSession();
-          setSession(null);
-          return undefined;
-        });
-    });
+    client.setRefreshHandler(() => refreshExchange(client, setSession));
     return () => client.setRefreshHandler(undefined);
   }, [client]);
 

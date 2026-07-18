@@ -19,7 +19,7 @@ type Check = [RegExp, string];
 // probes), and `async function*` only inside core-js probe STRINGS (evaluated
 // in try/catch at runtime, safe on old engines).
 const JS_CHECKS: Check[] = [
-  [/[\w$)\]]\?\.[[($A-Za-z_$]/, 'optional chaining (?.) is ES2020 - Chromium 53 fails to parse'],
+  [/[\w$)\]]\?\.[[($A-Za-z_]/, 'optional chaining (?.) is ES2020 - Chromium 53 fails to parse'],
   [/[\w$)\]"']\?\?[^?=/]/, 'nullish coalescing (??) is ES2020 - Chromium 53 fails to parse'],
   [/\?\?=/, 'logical assignment (??=) is ES2021 - Chromium 53 fails to parse'],
   [/\basync function(?!\*)|\basync\s+\w+\s*=>/, 'async (ES2017) must be lowered to generators'],

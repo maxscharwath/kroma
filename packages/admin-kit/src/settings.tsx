@@ -21,6 +21,16 @@ interface SettingsViewProps {
   embedded?: boolean;
 }
 
+/** Return a copy of `groups` with the row keyed by `key` set to `value` (the rest
+ * shared by reference). Hoisted out of the component so the map chain doesn't nest
+ * callbacks too deeply. */
+function applySetting(groups: SettingGroup[], key: string, value: unknown): SettingGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    rows: g.rows.map((r) => (r.key === key ? { ...r, value } : r)),
+  }));
+}
+
 export function SettingsView(props: Readonly<SettingsViewProps>) {
   // Settings views require the `settings.manage` capability (server enforces it
   // too); deny cleanly instead of rendering a page that would 403 on every call.
@@ -46,12 +56,7 @@ function SettingsViewInner({ view, titleKey, subtitleKey, embedded }: Readonly<S
   }, [client, view]);
 
   function set(key: string, value: unknown) {
-    setGroups((gs) =>
-      gs.map((g) => ({
-        ...g,
-        rows: g.rows.map((r) => (r.key === key ? { ...r, value } : r)),
-      })),
-    );
+    setGroups((gs) => applySetting(gs, key, value));
     client
       .updateSettings({ [key]: value })
       .then(() => {

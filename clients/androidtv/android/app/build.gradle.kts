@@ -49,8 +49,10 @@ android {
 }
 
 dependencies {
-    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    // Single source of truth for the media3 (ExoPlayer) version.
+    val media3Version = "1.5.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
     // HLS media source: the stream-copy master fallback (`master=true` loads).
-    implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
 }

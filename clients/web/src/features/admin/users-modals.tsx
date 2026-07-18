@@ -1,7 +1,7 @@
 import { type AdminUser, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { IconMail } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAsyncAction } from '#web/features/admin/shell';
 import { Field, Modal, ModalActions } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
@@ -70,6 +70,7 @@ function PermPicker({
       {PERMISSIONS.map((p) => (
         <label
           key={p.key}
+          aria-label={t(p.labelKey)}
           className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/3"
         >
           <input
@@ -88,6 +89,22 @@ function PermPicker({
   );
 }
 
+/** A Permission set with a stable toggle, shared by the edit + invite modals. */
+function usePermissionSet(
+  initial: Iterable<Permission>,
+): [Set<Permission>, (p: Permission) => void] {
+  const [perms, setPerms] = useState<Set<Permission>>(() => new Set(initial));
+  const toggle = useCallback((p: Permission) => {
+    setPerms((s) => {
+      const next = new Set(s);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  }, []);
+  return [perms, toggle];
+}
+
 export function EditUserModal({
   user,
   onClose,
@@ -100,18 +117,9 @@ export function EditUserModal({
   const t = useT();
   const { client, user: me } = useAuth();
   const [name, setName] = useState(user.username);
-  const [perms, setPerms] = useState<Set<Permission>>(new Set(user.permissions));
+  const [perms, toggle] = usePermissionSet(user.permissions);
   const { busy, error, run } = useAsyncAction();
   const isSelf = me?.id === user.id;
-
-  function toggle(p: Permission) {
-    setPerms((s) => {
-      const next = new Set(s);
-      if (next.has(p)) next.delete(p);
-      else next.add(p);
-      return next;
-    });
-  }
 
   const save = () =>
     run(
@@ -150,12 +158,16 @@ export function EditUserModal({
       <ModalActions
         onCancel={onClose}
         cancelLabel={t('common.cancel')}
-        onConfirm={() => void save()}
+        onConfirm={() => {
+          save();
+        }}
         confirmLabel={busy ? t('common.saving') : t('common.save')}
         busy={busy}
         destructive={{
           label: t('admin.deleteAccount'),
-          onClick: () => void remove(),
+          onClick: () => {
+            remove();
+          },
           disabled: isSelf,
           title: isSelf ? t('admin.cantDeleteYourself') : undefined,
         }}
@@ -170,19 +182,10 @@ export function InviteModal({
 }: Readonly<{ onClose: () => void; onCreated: () => void }>) {
   const t = useT();
   const { client } = useAuth();
-  const [perms, setPerms] = useState<Set<Permission>>(new Set<Permission>(['playback']));
+  const [perms, toggle] = usePermissionSet(['playback']);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { busy, run } = useAsyncAction();
-
-  function toggle(p: Permission) {
-    setPerms((s) => {
-      const next = new Set(s);
-      if (next.has(p)) next.delete(p);
-      else next.add(p);
-      return next;
-    });
-  }
 
   const create = () =>
     run(async () => {
@@ -229,7 +232,9 @@ export function InviteModal({
         <ModalActions
           onCancel={onClose}
           cancelLabel={t('common.cancel')}
-          onConfirm={() => void create()}
+          onConfirm={() => {
+            create();
+          }}
           confirmLabel={busy ? t('common.creating') : t('admin.createLink')}
           busy={busy}
           disabled={perms.size === 0}

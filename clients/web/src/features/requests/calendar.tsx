@@ -32,7 +32,7 @@ export function ComingSoonPage() {
     if (!e.airDate) continue;
     const key = monthKey(e.airDate);
     let g = groups.at(-1);
-    if (!g || g.key !== key) {
+    if (g?.key !== key) {
       const label = new Date(`${e.airDate}T00:00:00`).toLocaleDateString(locale, {
         month: 'long',
         year: 'numeric',
@@ -57,7 +57,7 @@ export function ComingSoonPage() {
         </div>
       ) : null}
 
-      {entries && entries.length === 0 ? (
+      {entries?.length === 0 ? (
         <EmptyState
           icon={<IconCalendarClock size={32} stroke={1.5} />}
           title={t('requests.calendarEmpty')}

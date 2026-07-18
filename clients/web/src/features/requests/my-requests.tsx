@@ -72,7 +72,7 @@ export function MyRequestsPage() {
         </div>
       ) : null}
 
-      {requests && requests.length === 0 ? (
+      {requests?.length === 0 ? (
         <EmptyState
           icon={<IconInbox size={32} stroke={1.5} />}
           title={t('requests.myEmpty')}
@@ -138,9 +138,10 @@ function RequestRow({
   // Coming-soon badge: a show's next episode, or an unreleased movie's release,
   // shown only while the date is still upcoming (today or later).
   const today = new Date().toISOString().slice(0, 10);
+  const upcomingKey = req.kind === 'show' ? 'requests.nextEpisodeDate' : 'requests.availableDate';
   const upcoming =
     req.nextAirDate && req.nextAirDate >= today
-      ? t(req.kind === 'show' ? 'requests.nextEpisodeDate' : 'requests.availableDate', {
+      ? t(upcomingKey, {
           date: new Date(`${req.nextAirDate}T00:00:00`).toLocaleDateString(locale),
         })
       : null;

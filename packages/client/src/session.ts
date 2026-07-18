@@ -119,7 +119,7 @@ function writeJson(key: string, value: unknown): void {
 /** Normalize a server origin for comparison (drop trailing slashes). Tolerates
  * null/undefined (TV call sites may pass an unset serverUrl). */
 export function normalizeServerUrl(u?: string | null): string {
-  return (u ?? '').replace(/\/+$/, '');
+  return (u ?? '').replace(/(^|[^/])\/+$/, '$1');
 }
 
 /** The server scope of a stored account, normalized, or `null` (web / legacy). */

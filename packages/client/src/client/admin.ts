@@ -219,8 +219,9 @@ export function adminLogs(
   if (opts.source) params.set('source', opts.source);
   if (opts.q) params.set('q', opts.q);
   if (opts.limit) params.set('limit', String(opts.limit));
-  const qs = params.toString();
-  return ctx.json<LogsView>(`/admin/logs${qs ? `?${qs}` : ''}`);
+  const query = params.toString();
+  const suffix = query ? `?${query}` : '';
+  return ctx.json<LogsView>(`/admin/logs${suffix}`);
 }
 
 // ----- background jobs / scheduler --------------------------------------------
@@ -355,8 +356,9 @@ export function pipelineElements(
   if (params.q) p.set('q', params.q);
   if (params.page != null) p.set('page', String(params.page));
   if (params.limit != null) p.set('limit', String(params.limit));
-  const qs = p.toString();
-  return ctx.json<PipelineElements>(`/admin/pipeline/elements${qs ? `?${qs}` : ''}`);
+  const query = p.toString();
+  const suffix = query ? `?${query}` : '';
+  return ctx.json<PipelineElements>(`/admin/pipeline/elements${suffix}`);
 }
 
 /** Re-run one stage for one element (the drawer's per-treatment retry). */

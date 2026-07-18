@@ -151,19 +151,17 @@ export function NamingTokenModal({
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: presentational backdrop; the click only dismisses the modal (a mouse convenience). Keyboard users close via the X / Close buttons.
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="presentation"
-    >
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: the onClick only stops propagation so an inside-click doesn't reach the backdrop; there is no user action to mirror on the keyboard. */}
-      <div
-        className="flex max-h-[88vh] w-full max-w-3xl flex-col rounded-2xl border border-border bg-surface-1 shadow-pop"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Native <button> backdrop: click (or Enter/Space) dismisses the modal.
+          The panel is a sibling that paints above it, so inside-clicks never
+          reach the backdrop (no stopPropagation needed). */}
+      <button
+        type="button"
+        aria-label={t('common.close')}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/60"
+      />
+      <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col rounded-2xl border border-border bg-surface-1 shadow-pop">
         <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-4">
           <div className="font-display text-[18px] font-bold">
             {t('naming.tokensTitle')} <span className="text-dim">· {fieldLabel}</span>
@@ -264,5 +262,5 @@ function Fieldset({ title, children }: Readonly<{ title: string; children: React
 
 /** Show the token's example with the chosen separator swapped in for spaces. */
 function example(ex: string, separator: string): string {
-  return separator === ' ' ? ex : ex.replace(/ /g, separator);
+  return separator === ' ' ? ex : ex.replaceAll(' ', separator);
 }

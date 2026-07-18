@@ -38,15 +38,15 @@ else
 fi
 
 SERVER_PID=""
-cleanup() { [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true; }
+cleanup() { [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
-if [ -n "${KROMA_URL:-}" ]; then
+if [[ -n "${KROMA_URL:-}" ]]; then
   URL="$KROMA_URL"
 else
   # Host the built bundle locally over http (default: the dist beside this script).
   DIR="${KROMA_DIR:-$HERE/../dist}"
-  if [ ! -f "$DIR/index.html" ]; then
+  if [[ ! -f "$DIR/index.html" ]]; then
     echo "No built client at $DIR. Run 'bun run build:steamdeck' first, or set KROMA_DIR / KROMA_URL." >&2
     exit 1
   fi

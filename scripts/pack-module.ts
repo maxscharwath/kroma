@@ -29,7 +29,7 @@ const modulesRoot = join(root, 'server/modules');
 
 /** Every module (any dir with a module.json). Modules with a `[[bin]]` pack a
  * native sidecar; those without pack as a "library" module (manifest + FE only,
- * no spawned process — e.g. the release-name parser, whose code is co-linked). */
+ * no spawned process, e.g. the release-name parser, whose code is co-linked). */
 export function packableModules(): string[] {
   return readdirSync(modulesRoot, { withFileTypes: true })
     .filter((e) => e.isDirectory())
@@ -60,62 +60,59 @@ export function crateAndBin(moduleDir: string): {
   return { pkg, bin, features };
 }
 
-async function packOne(moduleDir: string): Promise<string> {
-  const manifest = JSON.parse(readFileSync(join(moduleDir, 'module.json'), 'utf8')) as {
-    id: string;
-  };
-  const { id } = manifest;
-  const { pkg, bin, features } = crateAndBin(moduleDir);
-  const kind = bin
-    ? `${pkg} -> bin ${bin}${features.length ? ` [+${features.join(',')}]` : ''}`
-    : 'library (no binary)';
-  console.log(`\npacking ${id} (${kind})`);
-
-  // 1) Build the module's native binary, with any declared features. Uses the
-  //    `release-kmod` profile (release + panic=abort): a sidecar aborts on panic
-  //    and the supervisor respawns it, which drops the unwinding tables for ~11%
-  //    smaller binaries at no speed cost (opt-level stays 3). Library modules (no
-  //    [[bin]]) skip this: their code is co-linked, not spawned.
-  // Optional cross-target (KMOD_TARGET, e.g. x86_64-unknown-linux-musl). A .kmod
-  // carries a NATIVE binary, so the platform must match the server; when set, the
-  // bundle is suffixed with the triple (see the output name below). Unset = host.
-  const target = process.env.KMOD_TARGET?.trim() || null;
-  // KMOD_SKIP_BUILD: the sidecar binaries were already cross-compiled out of
-  // band (CI builds them inside the musl cross-toolchain image the Synology
-  // build uses, which is proven to link candle / librqbit; this script then
-  // just stages + packs them). Skips the `cargo build` and reads the prebuilt
-  // artifact from the expected path.
-  const skipBuild = process.env.KMOD_SKIP_BUILD === '1';
-  let binPath: string | null = null;
-  if (bin) {
-    // cargo nests the artifact under target/<triple>/ when --target is given.
-    const outRoot = target ? `server/target/${target}/release-kmod` : 'server/target/release-kmod';
-    binPath = join(root, outRoot, bin);
-    if (!skipBuild) {
-      const featArgs = features.length ? ['--features', features.join(',')] : [];
-      const targetArgs = target ? ['--target', target] : [];
-      await $`cargo build --profile release-kmod -p ${pkg} --bin ${bin} ${featArgs} ${targetArgs}`.cwd(
-        join(root, 'server'),
-      );
-    }
-    if (!existsSync(binPath)) {
-      throw new Error(
-        skipBuild
-          ? `KMOD_SKIP_BUILD set but no prebuilt binary at ${binPath} (build it first)`
-          : `built no binary at ${binPath}`,
-      );
-    }
+// 1) Build the module's native binary, with any declared features. Uses the
+//    `release-kmod` profile (release + panic=abort): a sidecar aborts on panic
+//    and the supervisor respawns it, which drops the unwinding tables for ~11%
+//    smaller binaries at no speed cost (opt-level stays 3). Library modules (no
+//    [[bin]]) skip this: their code is co-linked, not spawned.
+// Optional cross-target (KMOD_TARGET, e.g. x86_64-unknown-linux-musl). A .kmod
+// carries a NATIVE binary, so the platform must match the server; when set, the
+// bundle is suffixed with the triple (see the output name below). Unset = host.
+// KMOD_SKIP_BUILD: the sidecar binaries were already cross-compiled out of band
+// (CI builds them inside the musl cross-toolchain image the Synology build uses,
+// which is proven to link candle / librqbit; this script then just stages +
+// packs them). Skips the `cargo build` and reads the prebuilt artifact.
+async function buildModuleBinary(
+  bin: string,
+  pkg: string,
+  features: string[],
+  target: string | null,
+  skipBuild: boolean,
+): Promise<string> {
+  // cargo nests the artifact under target/<triple>/ when --target is given.
+  const outRoot = target ? `server/target/${target}/release-kmod` : 'server/target/release-kmod';
+  const binPath = join(root, outRoot, bin);
+  if (!skipBuild) {
+    const featArgs = features.length ? ['--features', features.join(',')] : [];
+    const targetArgs = target ? ['--target', target] : [];
+    await $`cargo build --profile release-kmod -p ${pkg} --bin ${bin} ${featArgs} ${targetArgs}`.cwd(
+      join(root, 'server'),
+    );
   }
+  if (!existsSync(binPath)) {
+    throw new Error(
+      skipBuild
+        ? `KMOD_SKIP_BUILD set but no prebuilt binary at ${binPath} (build it first)`
+        : `built no binary at ${binPath}`,
+    );
+  }
+  return binPath;
+}
 
-  // 2) Build the frontend remote if the module ships one.
-  const uiDir = join(moduleDir, 'ui');
-  const feDist = join(uiDir, 'dist');
+// 2) Build the frontend remote if the module ships one.
+async function buildFrontend(uiDir: string): Promise<void> {
   if (existsSync(uiDir) && existsSync(join(uiDir, 'vite.config.ts'))) {
     console.log('  - vite build (frontend remote)');
     await $`bun run build`.cwd(uiDir).nothrow();
   }
+}
 
-  // 3) Stage the bundle.
+// 3) Stage the bundle (manifest + native binary + icons; the FE remote is added
+//    by the caller once it knows the build produced a `dist/`).
+function stageBundle(
+  moduleDir: string,
+  binPath: string | null,
+): { staging: string; entries: string[] } {
   const staging = join(moduleDir, '.bundle');
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
@@ -132,6 +129,32 @@ async function packOne(moduleDir: string): Promise<string> {
       entries.push(icon);
     }
   }
+  return { staging, entries };
+}
+
+function describeBuild(pkg: string, bin: string | null, features: string[]): string {
+  if (!bin) return 'library (no binary)';
+  const featSuffix = features.length ? ` [+${features.join(',')}]` : '';
+  return `${pkg} -> bin ${bin}${featSuffix}`;
+}
+
+async function packOne(moduleDir: string): Promise<string> {
+  const manifest = JSON.parse(readFileSync(join(moduleDir, 'module.json'), 'utf8')) as {
+    id: string;
+  };
+  const { id } = manifest;
+  const { pkg, bin, features } = crateAndBin(moduleDir);
+  console.log(`\npacking ${id} (${describeBuild(pkg, bin, features)})`);
+
+  const target = process.env.KMOD_TARGET?.trim() || null;
+  const skipBuild = process.env.KMOD_SKIP_BUILD === '1';
+  const binPath = bin ? await buildModuleBinary(bin, pkg, features, target, skipBuild) : null;
+
+  const uiDir = join(moduleDir, 'ui');
+  await buildFrontend(uiDir);
+
+  const { staging, entries } = stageBundle(moduleDir, binPath);
+  const feDist = join(uiDir, 'dist');
   if (existsSync(feDist)) {
     await $`cp -R ${feDist} ${join(staging, 'fe')}`;
     entries.push('fe');

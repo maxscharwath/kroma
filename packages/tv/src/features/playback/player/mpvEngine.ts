@@ -96,6 +96,11 @@ export class MpvEngine implements TvEngine {
     } else {
       this.baseSec = opts.startSec;
     }
+  }
+
+  /** Subscribe to the shell's mpv events and open the source. Called once right
+   * after construction, kept out of the constructor so it holds no async work. */
+  start(): void {
     void this.subscribe();
     this.open();
   }
@@ -163,13 +168,7 @@ export class MpvEngine implements TvEngine {
         break;
       }
       case 'duration': {
-        // Direct mode: mpv's duration is the real absolute runtime; prefer it over
-        // the catalogue value. Master mode: the remux restarts at 0, so mpv's
-        // duration is the REMAINING tail from the anchor - keep the catalogue total.
-        if (typeof p.data === 'number' && p.data > 0 && this.mode === 'direct') {
-          this.durSec = p.data;
-          this.listeners.onDuration(this.durSec);
-        }
+        this.onDurationProp(p.data);
         break;
       }
       case 'demuxer-cache-time': {
@@ -191,17 +190,32 @@ export class MpvEngine implements TvEngine {
         break;
       }
       case 'track-list': {
-        if (Array.isArray(p.data)) {
-          const audio = (p.data as Array<{ id?: number; type?: string }>).filter(
-            (t) => t?.type === 'audio' && typeof t.id === 'number',
-          );
-          this.audioIds = audio.map((t) => t.id as number);
-          // Re-assert the wanted track now that the real ids are known (idempotent).
-          if (this.audioIds.length) this.selectAudio(this.rendition);
-        }
+        this.onTrackList(p.data);
         break;
       }
     }
+  }
+
+  /** Direct mode: mpv's duration is the real absolute runtime; prefer it over the
+   * catalogue value. Master mode: the remux restarts at 0, so mpv's duration is the
+   * REMAINING tail from the anchor - keep the catalogue total. */
+  private onDurationProp(data: unknown): void {
+    if (typeof data === 'number' && data > 0 && this.mode === 'direct') {
+      this.durSec = data;
+      this.listeners.onDuration(this.durSec);
+    }
+  }
+
+  /** The observed `track-list`: remember mpv's own audio track ids (in file order)
+   * so a rendition maps to the right track, then re-assert the wanted one. */
+  private onTrackList(data: unknown): void {
+    if (!Array.isArray(data)) return;
+    const audio = (data as Array<{ id?: number; type?: string }>).filter(
+      (t) => t?.type === 'audio' && typeof t.id === 'number',
+    );
+    this.audioIds = audio.map((t) => t.id as number);
+    // Re-assert the wanted track now that the real ids are known (idempotent).
+    if (this.audioIds.length) this.selectAudio(this.rendition);
   }
 
   /** mpv finished loading a file: apply the resume seek + audio track, announce

@@ -87,7 +87,8 @@ async function fetchCatalogFromGitHub(env: Env): Promise<Catalog> {
     if (r.draft) continue;
     const spk = r.assets.find((a) => a.name.endsWith('.spk'));
     if (!spk) continue; // desktop-latest & friends carry no package
-    const channel = r.tag_name === 'nightly' ? 'nightly' : r.prerelease ? null : 'stable';
+    const nonNightly = r.prerelease ? null : 'stable';
+    const channel = r.tag_name === 'nightly' ? 'nightly' : nonNightly;
     if (!channel) continue;
     entries.push({
       channel,
@@ -110,7 +111,9 @@ async function fetchCatalogFromGitHub(env: Env): Promise<Catalog> {
       const sidecar = rel?.assets.find((a) => a.name === `${e.spkName}.info.json`);
       if (!sidecar) return;
       try {
-        const res = await fetch(sidecar.browser_download_url, { headers: { 'user-agent': 'kroma-package-source-worker' } });
+        const res = await fetch(sidecar.browser_download_url, {
+          headers: { 'user-agent': 'kroma-package-source-worker' },
+        });
         if (res.ok) e.info = (await res.json()) as SpkInfo;
       } catch {
         // tolerate a missing/broken sidecar; the entry just loses md5/desc
@@ -128,7 +131,10 @@ async function fetchCatalogFromGitHub(env: Env): Promise<Catalog> {
 
 /** Cached catalog: 5-minute edge cache, refreshed inline on miss; a week-long
  * stale copy answers if GitHub is down or rate-limits the anonymous fetch. */
-export async function loadCatalog(env: Env, waitUntil: (p: Promise<unknown>) => void): Promise<Catalog> {
+export async function loadCatalog(
+  env: Env,
+  waitUntil: (p: Promise<unknown>) => void,
+): Promise<Catalog> {
   const cache = edgeCache();
   const hit = await cache?.match(CACHE_FRESH);
   if (hit) return (await hit.json()) as Catalog;
@@ -170,7 +176,10 @@ export function entryVersion(e: Entry): string {
 export function cmpDsmVersion(a: string, b: string): number {
   const parse = (v: string) => {
     const [feat = '', build = '0'] = v.split('-');
-    return { seg: feat.split('.').map((n) => Number.parseInt(n, 10) || 0), build: Number.parseInt(build, 10) || 0 };
+    return {
+      seg: feat.split('.').map((n) => Number.parseInt(n, 10) || 0),
+      build: Number.parseInt(build, 10) || 0,
+    };
   };
   const pa = parse(a);
   const pb = parse(b);

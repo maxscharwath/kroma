@@ -5,7 +5,7 @@
 /** Deterministic hue (0..359) from a string. */
 export function hue(s: string): number {
   let h = 0;
-  for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  for (let i = 0; i < (s || '').length; i++) h = (h * 31 + (s.codePointAt(i) ?? 0)) % 360;
   return h;
 }
 

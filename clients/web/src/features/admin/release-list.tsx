@@ -129,55 +129,70 @@ function ReleaseRow({
         ) : null}
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[23px] text-[11px] font-semibold text-white/45">
-        <span className="inline-flex items-center gap-1">
-          {r.indexerName}
-          {r.detailsUrl ? (
-            <a
-              href={r.detailsUrl}
-              target="_blank"
-              rel="noreferrer"
-              title={t('downloads.viewOnTracker')}
-              className="text-white/40 hover:text-accent"
-            >
-              <IconExternalLink size={11} stroke={2} />
-            </a>
-          ) : null}
-        </span>
-        {r.sizeBytes != null ? <span>{formatBytes(r.sizeBytes)}</span> : null}
-        {r.seeders != null ? (
-          <span className="text-[#46D08D]">{t('requests.seedersN', { n: String(r.seeders) })}</span>
-        ) : null}
-        {r.target !== 'movie' ? (
-          <span className="text-[#86A8FF]">
-            {r.target === 'season'
-              ? `S${String(r.season ?? 0).padStart(2, '0')} pack`
-              : `S${String(r.season ?? 0).padStart(2, '0')}E${String(r.episodes?.[0] ?? 0).padStart(2, '0')}`}
-          </span>
-        ) : null}
-        {r.rejected ? <span className="text-[#EF8091]">{r.rejected}</span> : null}
-      </div>
+      <ReleaseMeta r={r} />
 
-      {open && r.breakdown.length > 0 ? (
-        <div className="mt-2 flex flex-col gap-1 border-t border-white/[0.05] pl-[23px] pt-2">
-          {r.breakdown.map((l) => (
-            <div
-              key={`${l.rule}-${l.note}`}
-              className="flex items-center justify-between gap-3 text-[11px]"
-            >
-              <span className="min-w-0 truncate font-medium text-white/55">
-                {l.rule} · {l.note}
-              </span>
-              <span
-                className="flex-[0_0_auto] font-bold tabular-nums"
-                style={{ color: l.delta >= 0 ? '#46D08D' : '#EF8091' }}
-              >
-                {l.delta >= 0 ? `+${l.delta}` : l.delta}
-              </span>
-            </div>
-          ))}
-        </div>
+      {open && r.breakdown.length > 0 ? <ScoreBreakdown breakdown={r.breakdown} /> : null}
+    </div>
+  );
+}
+
+/** Season/episode tag for a non-movie release (e.g. `S01 pack`, `S01E02`). */
+function targetLabel(r: ScoredReleaseView): string {
+  const s = String(r.season ?? 0).padStart(2, '0');
+  return r.target === 'season'
+    ? `S${s} pack`
+    : `S${s}E${String(r.episodes?.[0] ?? 0).padStart(2, '0')}`;
+}
+
+/** The secondary metadata line under a release title (indexer, size, seeders…). */
+function ReleaseMeta({ r }: Readonly<{ r: ScoredReleaseView }>) {
+  const t = useT();
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[23px] text-[11px] font-semibold text-white/45">
+      <span className="inline-flex items-center gap-1">
+        {r.indexerName}
+        {r.detailsUrl ? (
+          <a
+            href={r.detailsUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={t('downloads.viewOnTracker')}
+            className="text-white/40 hover:text-accent"
+          >
+            <IconExternalLink size={11} stroke={2} />
+          </a>
+        ) : null}
+      </span>
+      {r.sizeBytes != null ? <span>{formatBytes(r.sizeBytes)}</span> : null}
+      {r.seeders != null ? (
+        <span className="text-[#46D08D]">{t('requests.seedersN', { n: String(r.seeders) })}</span>
       ) : null}
+      {r.target !== 'movie' ? <span className="text-[#86A8FF]">{targetLabel(r)}</span> : null}
+      {r.rejected ? <span className="text-[#EF8091]">{r.rejected}</span> : null}
+    </div>
+  );
+}
+
+/** The expandable per-release score breakdown (one row per scoring rule). */
+function ScoreBreakdown({ breakdown }: Readonly<{ breakdown: ScoredReleaseView['breakdown'] }>) {
+  return (
+    <div className="mt-2 flex flex-col gap-1 border-t border-white/[0.05] pl-[23px] pt-2">
+      {breakdown.map((l) => (
+        <div
+          key={`${l.rule}-${l.note}`}
+          className="flex items-center justify-between gap-3 text-[11px]"
+        >
+          <span className="min-w-0 truncate font-medium text-white/55">
+            {l.rule} · {l.note}
+          </span>
+          <span
+            className="flex-[0_0_auto] font-bold tabular-nums"
+            style={{ color: l.delta >= 0 ? '#46D08D' : '#EF8091' }}
+          >
+            {l.delta >= 0 ? `+${l.delta}` : l.delta}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

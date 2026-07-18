@@ -94,6 +94,7 @@ function InvitePage() {
           {PERMISSIONS.map((p) => (
             <label
               key={p.key}
+              aria-label={t(p.labelKey)}
               className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/3"
             >
               <input

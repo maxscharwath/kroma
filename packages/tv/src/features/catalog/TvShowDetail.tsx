@@ -108,6 +108,7 @@ export function TvShowDetail() {
     };
   }, [client, show.id]);
   const playTarget = upNext?.item ?? firstEpisode;
+  const playLabelKey = upNext?.resume ? 'player.resumeEpisode' : 'player.playEpisode';
 
   const metaLong = [
     show.year ? String(show.year) : null,
@@ -138,7 +139,7 @@ export function TvShowDetail() {
         >
           <PlayGlyph />
           {playTarget
-            ? t(upNext?.resume ? 'player.resumeEpisode' : 'player.playEpisode', {
+            ? t(playLabelKey, {
                 season: playTarget.season ?? 0,
                 episode: playTarget.episode ?? 0,
               })

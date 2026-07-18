@@ -56,7 +56,7 @@ export function TvAddProfile() {
   // manual-entry row exactly the design's layout.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `pick` and `nav` are stable enough here; rows rebuild on the reactive inputs (discovered/servers/t) only.
   const rows = useMemo<Row[]>(() => {
-    const localUrls = discovered.map(norm);
+    const localUrls = discovered.map((u) => norm(u));
     const out: Row[] = [];
     for (const url of localUrls) {
       const saved = servers.find((s) => s.url === url);

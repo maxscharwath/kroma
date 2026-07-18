@@ -23,7 +23,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 /** Move `dir` steps through `options` from `current`, clamped (no wrap). */
 function step<V>(options: readonly V[], current: V, dir: -1 | 1): V {
   const i = options.indexOf(current);
-  return options[clamp((i < 0 ? 0 : i) + dir, 0, options.length - 1)] ?? current;
+  return options[clamp(Math.max(0, i) + dir, 0, options.length - 1)] ?? current;
 }
 
 const SIZES: SubSize[] = ['sm', 'md', 'lg', 'xl'];

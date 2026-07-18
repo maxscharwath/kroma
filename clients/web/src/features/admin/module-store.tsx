@@ -97,7 +97,7 @@ function StoreCard({
         </div>
         <div className="text-[11px] text-dim">
           {m.id} · v{m.version}
-          {m.size ? <> · {(m.size / 1024) | 0} KB</> : null}
+          {m.size ? <> · {Math.trunc(m.size / 1024)} KB</> : null}
         </div>
         {m.description && <p className="mt-1 text-xs text-muted">{m.description}</p>}
         {!m.compatible && m.reason && (

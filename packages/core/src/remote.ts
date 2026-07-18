@@ -72,7 +72,10 @@ const KEY_NAMES: Record<string, RemoteKey> = {
 export function resolveRemoteKey(e: KeyboardEvent): RemoteKey | null {
   const named = e.key ? KEY_NAMES[e.key] : undefined;
   if (named) return named;
-  return KEY_CODES[e.keyCode] ?? null;
+  // Legacy fallback: old TV browsers report only the numeric code. Read it through
+  // a plain structural type so we don't touch the deprecated `KeyboardEvent.keyCode`.
+  const legacyCode = (e as { keyCode: number }).keyCode;
+  return KEY_CODES[legacyCode] ?? null;
 }
 
 /** A remote-key handler. Return `false` to mark the key *unhandled* (so the event

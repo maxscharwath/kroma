@@ -117,9 +117,9 @@ export class ModuleRegistry {
 
     const queue = mods.filter((m) => (indegree.get(m.id) ?? 0) === 0).map((m) => m.id);
     const orderedIds: string[] = [];
-    for (let i = 0; i < queue.length; i++) {
-      const id = queue[i];
-      if (id === undefined) continue;
+    // A worklist: the for-of iterator keeps up with `queue.push` below, so newly
+    // unblocked ids are visited in the same pass (Kahn's topological sort).
+    for (const id of queue) {
       orderedIds.push(id);
       for (const dependent of dependents.get(id) ?? []) {
         const next = (indegree.get(dependent) ?? 0) - 1;
@@ -155,9 +155,7 @@ export class ModuleRegistry {
   }
 
   navItems(): ModuleNav[] {
-    return this.order().flatMap((m) =>
-      (m.navItems ?? []).map((n) => ({ ...n, moduleId: m.id })),
-    );
+    return this.order().flatMap((m) => (m.navItems ?? []).map((n) => ({ ...n, moduleId: m.id })));
   }
 
   routes(): ModuleRoute[] {

@@ -7,7 +7,9 @@ const ctx = { baseUrl: 'http://kroma.test' } as unknown as RequestContext;
 
 describe('hlsMasterUrl', () => {
   it('emits the copy program at anchor 0, audio 0', () => {
-    expect(hlsMasterUrl(ctx, 'abc')).toBe('http://kroma.test/api/items/abc/hls/copy/0/0/index.m3u8');
+    expect(hlsMasterUrl(ctx, 'abc')).toBe(
+      'http://kroma.test/api/items/abc/hls/copy/0/0/index.m3u8',
+    );
   });
 
   it('emits the aac program for the AAC variant', () => {

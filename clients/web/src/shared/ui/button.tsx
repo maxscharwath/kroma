@@ -31,6 +31,7 @@ export function Button({
 }: Readonly<ButtonProps>) {
   return (
     <button
+      type="button"
       className={`inline-flex items-center justify-center gap-2 rounded-md font-semibold cursor-pointer
         transition-[transform,background-color,box-shadow] duration-200 ease-(--ease-spring)
         active:scale-95 disabled:opacity-50 disabled:pointer-events-none

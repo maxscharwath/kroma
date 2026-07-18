@@ -237,12 +237,11 @@ export function RequestsQueuePage() {
   );
 }
 
-function Head({
-  children,
-  className = '',
-}: Readonly<{ children: ReactNode; className?: string }>) {
+function Head({ children, className = '' }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
-    <span className={`text-[9.5px] font-bold uppercase tracking-[.12em] text-white/40 ${className}`}>
+    <span
+      className={`text-[9.5px] font-bold uppercase tracking-[.12em] text-white/40 ${className}`}
+    >
       {children}
     </span>
   );

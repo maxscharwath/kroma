@@ -32,6 +32,198 @@ import { userQueries } from '#web/shared/lib/queries';
 import { type TitleView, tmdbMetaLine } from '#web/shared/lib/titleView';
 import { useWatched } from '#web/shared/lib/watched';
 
+type ProgressEntry = { itemId: string; positionMs: number; durationMs?: number | null };
+
+/** Resume-progress percentage per item id (owned show episodes). */
+function progressMap(entries: readonly ProgressEntry[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  for (const e of entries) {
+    const dur = e.durationMs ?? 0;
+    if (dur > 0 && e.positionMs > 0) {
+      map[e.itemId] = Math.min(100, Math.round((e.positionMs / dur) * 100));
+    }
+  }
+  return map;
+}
+
+/** Optimistically fold a fresh request into the view (top-level status + the
+ * requested seasons). Per-episode asks only lift the status. */
+function nextViewAfterRequest(
+  v: TitleView,
+  status: TitleView['requestStatus'],
+  seasons: number[] | null,
+  episodes?: EpisodeRef[],
+): TitleView {
+  if (episodes?.length) return { ...v, requestStatus: status };
+  const target = new Set(
+    seasons ?? v.seasons.filter((s) => !s.available && !s.requested).map((s) => s.number),
+  );
+  return {
+    ...v,
+    requestStatus: status,
+    seasons: v.seasons.map((s) => (target.has(s.number) ? { ...s, requested: true } : s)),
+  };
+}
+
+/** Mark the picked episodes pending (`"season-episode"` keys). */
+function addPendingEpisodes(prev: Set<string>, episodes: EpisodeRef[]): Set<string> {
+  const next = new Set(prev);
+  for (const e of episodes) next.add(`${e.season}-${e.episode}`);
+  return next;
+}
+
+/** The cinematic hero for a title (Play for owned, Request CTA otherwise). */
+function TitleHero({
+  view,
+  owned,
+  localId,
+  busy,
+  overline,
+  isWatched,
+  toggleWatched,
+  inList,
+  toggleList,
+  onPlay,
+  onRequest,
+  onBack,
+}: Readonly<{
+  view: TitleView;
+  owned: boolean;
+  localId: string | null | undefined;
+  busy: boolean;
+  overline: string;
+  isWatched: (id: string) => boolean;
+  toggleWatched: (id: string) => void;
+  inList: (id: string) => boolean;
+  toggleList: (id: string) => void;
+  onPlay: (id: string) => void;
+  onRequest: () => void;
+  onBack: () => void;
+}>) {
+  const t = useT();
+  const playable = owned ? view.playable : null;
+  const listState: {
+    watched?: boolean;
+    onToggleWatched?: () => void;
+    inList?: boolean;
+    onToggleList?: () => void;
+  } =
+    owned && localId
+      ? {
+          watched: isWatched(localId),
+          onToggleWatched: () => toggleWatched(localId),
+          inList: inList(localId),
+          onToggleList: () => toggleList(localId),
+        }
+      : {};
+  const trackInfo: { audio?: string; subtitles?: string } = playable
+    ? { audio: audioString(t, playable), subtitles: subString(t, playable) }
+    : {};
+  return (
+    <DetailHero
+      art={{
+        id: localId ?? String(view.tmdbId ?? view.title),
+        backdrop: view.backdrop,
+        poster: view.poster,
+      }}
+      overline={overline}
+      title={view.title}
+      rating={view.rating}
+      meta={metaLine(t, view)}
+      badges={view.video ? qualityBadges(view.video) : []}
+      audioFlag={owned ? audioFlagLabel(t, view.playable) : null}
+      directors={view.directors}
+      tagline={view.tagline}
+      overview={view.overview}
+      audio={trackInfo.audio}
+      subtitles={trackInfo.subtitles}
+      playable={playable}
+      playLabel={view.playLabel ?? undefined}
+      themeUrl={view.themeUrl}
+      watched={listState.watched}
+      onToggleWatched={listState.onToggleWatched}
+      inList={listState.inList}
+      onToggleList={listState.onToggleList}
+      primaryAction={
+        owned ? undefined : <RequestCta view={view} busy={busy} onRequest={onRequest} />
+      }
+      onBack={onBack}
+      onPlay={playable ? () => onPlay(playable.id) : undefined}
+    />
+  );
+}
+
+/** The stacked sections below the hero (treatments, cast/seasons, similar, AI). */
+function TitleBody({
+  view,
+  owned,
+  localId,
+  error,
+  similarItems,
+  epProgress,
+  busy,
+  pendingEps,
+  isWatched,
+  toggleWatched,
+  onPlay,
+  onPickSeason,
+  onPickAll,
+  onRequestEpisode,
+  onOpenSimilar,
+}: Readonly<{
+  view: TitleView;
+  owned: boolean;
+  localId: string | null | undefined;
+  error: string | null;
+  similarItems: SimilarItem[];
+  epProgress: Record<string, number>;
+  busy: boolean;
+  pendingEps: Set<string>;
+  isWatched: (id: string) => boolean;
+  toggleWatched: (id: string) => void;
+  onPlay: (id: string) => void;
+  onPickSeason: (season: number) => void;
+  onPickAll: () => void;
+  onRequestEpisode: (season: number, episode: number) => void;
+  onOpenSimilar: (key: string) => void;
+}>) {
+  const t = useT();
+  return (
+    <>
+      {error ? (
+        <p className="mt-2 px-(--gutter-web) text-[13.5px] font-semibold text-[#EF8091]">{error}</p>
+      ) : null}
+
+      {owned && localId ? (
+        <TreatmentsPanel kind={view.kind === 'show' ? 'show' : 'item'} id={localId} />
+      ) : null}
+
+      {view.kind === 'movie' ? (
+        <CastRail cast={view.cast} />
+      ) : (
+        <SeasonSection
+          seasons={view.seasons}
+          fallbackCast={view.cast}
+          isWatched={isWatched}
+          toggleWatched={toggleWatched}
+          progressOf={(id) => epProgress[id] ?? null}
+          onPlay={onPlay}
+          canRequest={view.canRequest}
+          onPickSeason={onPickSeason}
+          onPickAll={onPickAll}
+          onRequestEpisode={onRequestEpisode}
+          pendingEpisodes={pendingEps}
+          requestBusy={busy}
+        />
+      )}
+
+      <SimilarRail title={t('content.similarTitles')} items={similarItems} onOpen={onOpenSimilar} />
+
+      {owned && localId ? <AiSuggestRail id={localId} /> : null}
+    </>
+  );
+}
+
 export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
   const t = useT();
   const { client, user } = useAuth();
@@ -56,16 +248,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
   const { data: epProgress = {} } = useQuery({
     ...userQueries.progress(),
     enabled: !!user && !!localId && view.kind === 'show',
-    select: (entries) => {
-      const map: Record<string, number> = {};
-      for (const e of entries) {
-        const dur = e.durationMs ?? 0;
-        if (dur > 0 && e.positionMs > 0) {
-          map[e.itemId] = Math.min(100, Math.round((e.positionMs / dur) * 100));
-        }
-      }
-      return map;
-    },
+    select: (entries) => progressMap(entries),
   });
 
   const play = (id: string) => navigate({ to: '/watch/$id', params: { id } });
@@ -77,26 +260,8 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
     client
       .createRequest({ kind: view.kind, tmdbId: view.tmdbId, seasons, episodes })
       .then((req) => {
-        setView((v) => {
-          // Per-episode ask: only lift the top-level status (the picked episodes
-          // are tracked in `pendingEps`); whole-season asks flag their seasons.
-          if (episodes?.length) return { ...v, requestStatus: req.status };
-          const target = new Set(
-            seasons ?? v.seasons.filter((s) => !s.available && !s.requested).map((s) => s.number),
-          );
-          return {
-            ...v,
-            requestStatus: req.status,
-            seasons: v.seasons.map((s) => (target.has(s.number) ? { ...s, requested: true } : s)),
-          };
-        });
-        if (episodes?.length) {
-          setPendingEps((prev) => {
-            const next = new Set(prev);
-            for (const e of episodes) next.add(`${e.season}-${e.episode}`);
-            return next;
-          });
-        }
+        setView((v) => nextViewAfterRequest(v, req.status, seasons, episodes));
+        if (episodes?.length) setPendingEps((prev) => addPendingEpisodes(prev, episodes));
         setPick(null);
       })
       .catch((e) => setError(apiErrorText(e, t('discover.requestFailed'))))
@@ -120,9 +285,10 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
     }
   };
 
+  const fallbackOverlineKey = view.kind === 'show' ? 'content.series' : 'content.film';
   const overline = view.genres.length
     ? view.genres.slice(0, 3).join(' · ')
-    : t(view.kind === 'show' ? 'content.series' : 'content.film');
+    : t(fallbackOverlineKey);
   const similarItems: SimilarItem[] = view.similar.map((s) => ({
     id: s.key,
     title: s.title,
@@ -133,66 +299,38 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
 
   return (
     <main className="min-w-0 animate-[fade-in_.4s_ease] pb-20">
-      <DetailHero
-        art={{
-          id: localId ?? String(view.tmdbId ?? view.title),
-          backdrop: view.backdrop,
-          poster: view.poster,
-        }}
+      <TitleHero
+        view={view}
+        owned={owned}
+        localId={localId}
+        busy={busy}
         overline={overline}
-        title={view.title}
-        rating={view.rating}
-        meta={metaLine(t, view)}
-        badges={view.video ? qualityBadges(view.video) : []}
-        audioFlag={owned ? audioFlagLabel(t, view.playable) : null}
-        directors={view.directors}
-        tagline={view.tagline}
-        overview={view.overview}
-        audio={owned && view.playable ? audioString(t, view.playable) : undefined}
-        subtitles={owned && view.playable ? subString(t, view.playable) : undefined}
-        playable={owned ? view.playable : null}
-        playLabel={view.playLabel ?? undefined}
-        themeUrl={view.themeUrl}
-        watched={owned && localId ? isWatched(localId) : undefined}
-        onToggleWatched={owned && localId ? () => toggleWatched(localId) : undefined}
-        inList={owned && localId ? inList(localId) : undefined}
-        onToggleList={owned && localId ? () => toggleList(localId) : undefined}
-        primaryAction={
-          owned ? undefined : <RequestCta view={view} busy={busy} onRequest={onRequestClick} />
-        }
+        isWatched={isWatched}
+        toggleWatched={toggleWatched}
+        inList={inList}
+        toggleList={toggleList}
+        onPlay={play}
+        onRequest={onRequestClick}
         onBack={() => navigate({ to: backTo })}
-        onPlay={owned && view.playable ? () => play(view.playable?.id ?? '') : undefined}
       />
-      {error ? (
-        <p className="mt-2 px-(--gutter-web) text-[13.5px] font-semibold text-[#EF8091]">{error}</p>
-      ) : null}
 
-      {owned && localId ? (
-        <TreatmentsPanel kind={view.kind === 'show' ? 'show' : 'item'} id={localId} />
-      ) : null}
-
-      {view.kind === 'movie' ? (
-        <CastRail cast={view.cast} />
-      ) : (
-        <SeasonSection
-          seasons={view.seasons}
-          fallbackCast={view.cast}
-          isWatched={isWatched}
-          toggleWatched={toggleWatched}
-          progressOf={(id) => epProgress[id] ?? null}
-          onPlay={play}
-          canRequest={view.canRequest}
-          onPickSeason={(s) => setPick([s])}
-          onPickAll={() => setPick([])}
-          onRequestEpisode={requestEpisode}
-          pendingEpisodes={pendingEps}
-          requestBusy={busy}
-        />
-      )}
-
-      <SimilarRail title={t('content.similarTitles')} items={similarItems} onOpen={openSimilar} />
-
-      {owned && localId ? <AiSuggestRail id={localId} /> : null}
+      <TitleBody
+        view={view}
+        owned={owned}
+        localId={localId}
+        error={error}
+        similarItems={similarItems}
+        epProgress={epProgress}
+        busy={busy}
+        pendingEps={pendingEps}
+        isWatched={isWatched}
+        toggleWatched={toggleWatched}
+        onPlay={play}
+        onPickSeason={(s) => setPick([s])}
+        onPickAll={() => setPick([])}
+        onRequestEpisode={requestEpisode}
+        onOpenSimilar={openSimilar}
+      />
 
       {pick !== null ? (
         <SeasonPicker

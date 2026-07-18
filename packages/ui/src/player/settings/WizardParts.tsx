@@ -31,11 +31,12 @@ export function CycleField({
   const arrow = `flex-none text-accent text-[20px] leading-none cursor-pointer bg-transparent border-none px-1 ${
     focused ? 'opacity-100' : 'opacity-45'
   }`;
+  const focusCls = `bg-[rgba(255,255,255,0.08)] ${FOCUS_RING_SM}`;
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: onMouseEnter only moves D-pad focus onto the field (hover cue, §15); the real controls are the ◀ ▶ buttons.
     <div
       onMouseEnter={onFocus}
-      className={`${CYCLE_ROW} ${focused ? `bg-[rgba(255,255,255,0.08)] ${FOCUS_RING_SM}` : 'bg-[rgba(255,255,255,0.04)]'}`}
+      className={`${CYCLE_ROW} ${focused ? focusCls : 'bg-[rgba(255,255,255,0.04)]'}`}
     >
       <span className="font-sans font-semibold text-[17px] text-[rgba(244,243,240,0.62)]">
         {label}

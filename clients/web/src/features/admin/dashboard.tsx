@@ -45,7 +45,11 @@ export function DashboardScreen() {
 
   return (
     <>
-      <PageHeader title={serverInfo?.name ?? 'KROMA'} suffix={t('admin.dashboardSuffix')} realtime />
+      <PageHeader
+        title={serverInfo?.name ?? 'KROMA'}
+        suffix={t('admin.dashboardSuffix')}
+        realtime
+      />
 
       <Section title={t('admin.nowPlaying')}>
         {sessions.length === 0 ? (
@@ -157,7 +161,10 @@ function CpuSection({ metrics }: Readonly<{ metrics: MetricsSnapshot | null }>) 
           { label: t('admin.legendKromaServer'), color: C.green },
           { label: t('admin.legendSystem'), color: C.cpuRed },
         ]}
-        footer={t('admin.cpuAverages', { kroma: decimal(avg(kroma), 1), sys: decimal(avg(sys), 1) })}
+        footer={t('admin.cpuAverages', {
+          kroma: decimal(avg(kroma), 1),
+          sys: decimal(avg(sys), 1),
+        })}
       />
     </Section>
   );
@@ -180,7 +187,10 @@ function RamSection({ metrics }: Readonly<{ metrics: MetricsSnapshot | null }>) 
           { label: t('admin.legendKromaServer'), color: C.green },
           { label: t('admin.legendSystem'), color: C.purple },
         ]}
-        footer={t('admin.ramAverages', { kroma: decimal(avg(kroma), 2), sys: decimal(avg(sys), 2) })}
+        footer={t('admin.ramAverages', {
+          kroma: decimal(avg(kroma), 2),
+          sys: decimal(avg(sys), 2),
+        })}
       />
     </Section>
   );

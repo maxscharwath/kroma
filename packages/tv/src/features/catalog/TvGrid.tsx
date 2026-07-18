@@ -1,4 +1,11 @@
-import { posterColors, qualityBadge, qualityBadgeForVideo } from '@kroma/core';
+import {
+  type KromaClient,
+  type MediaItem,
+  posterColors,
+  qualityBadge,
+  qualityBadgeForVideo,
+  type Show,
+} from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
@@ -9,6 +16,38 @@ import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 import { useFocusNav } from '#tv/app/useFocusNav';
+
+interface GridHero {
+  hero: MediaItem | Show | null;
+  heroBackdrop: string | null;
+  heroBadge: string | null;
+}
+
+/** The hero title for a grid section (first film / first show / first my-list
+ * entry), with its backdrop art and quality badge. */
+function computeGridHero(
+  isFilms: boolean,
+  isSeries: boolean,
+  movies: MediaItem[],
+  shows: Show[],
+  inList: (id: string) => boolean,
+  client: KromaClient,
+): GridHero {
+  let heroMovie: MediaItem | undefined;
+  if (isFilms) heroMovie = movies[0];
+  else if (isSeries) heroMovie = undefined;
+  else heroMovie = movies.find((m) => inList(m.id));
+  let heroShow: Show | undefined;
+  if (isSeries) heroShow = shows[0];
+  else if (heroMovie) heroShow = undefined;
+  else heroShow = shows.find((s) => inList(s.id));
+  const hero = heroMovie ?? heroShow ?? null;
+  const heroBackdrop = hero ? (client.backdropFor(hero) ?? client.posterFor(hero)) : null;
+  let heroBadge: string | null = null;
+  if (heroMovie) heroBadge = qualityBadge(heroMovie);
+  else if (heroShow) heroBadge = qualityBadgeForVideo(heroShow.video);
+  return { hero, heroBackdrop, heroBadge };
+}
 
 /** Full-screen catalogue grid for one section (Films / Séries / Ma liste): a 44%
  * hero over the first title, then an incrementally-rendered 2:3 poster grid.
@@ -51,19 +90,14 @@ export function TvGrid() {
     ];
   }, [isFilms, isSeries, movies, shows, client, nav, myList, watched]);
 
-  let heroMovie: (typeof movies)[number] | undefined;
-  if (isFilms) heroMovie = movies[0];
-  else if (isSeries) heroMovie = undefined;
-  else heroMovie = movies.find((m) => myList.has(m.id));
-  let heroShow: (typeof shows)[number] | undefined;
-  if (isSeries) heroShow = shows[0];
-  else if (heroMovie) heroShow = undefined;
-  else heroShow = shows.find((s) => myList.has(s.id));
-  const hero = heroMovie ?? heroShow ?? null;
-  const heroBackdrop = hero ? (client.backdropFor(hero) ?? client.posterFor(hero)) : null;
-  let heroBadge: string | null = null;
-  if (heroMovie) heroBadge = qualityBadge(heroMovie);
-  else if (heroShow) heroBadge = qualityBadgeForVideo(heroShow.video);
+  const { hero, heroBackdrop, heroBadge } = computeGridHero(
+    isFilms,
+    isSeries,
+    movies,
+    shows,
+    (id) => myList.has(id),
+    client,
+  );
   let label: string;
   if (isFilms) label = t('nav.films');
   else if (isSeries) label = t('nav.series');

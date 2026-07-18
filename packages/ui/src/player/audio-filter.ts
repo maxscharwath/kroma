@@ -101,7 +101,7 @@ export function useAudioFilter(
   videoRef: RefObject<HTMLVideoElement | null>,
   remountKey: string,
 ): { mode: AudioFilterMode; setMode: (m: AudioFilterMode) => void; supported: boolean } {
-  const [mode, setModeState] = useState<AudioFilterMode>('off');
+  const [modeState, setModeState] = useState<AudioFilterMode>('off');
   const [supported, setSupported] = useState(false);
 
   useEffect(() => {
@@ -118,8 +118,8 @@ export function useAudioFilter(
   // biome-ignore lint/correctness/useExhaustiveDependencies: remountKey tracks the element identity.
   useEffect(() => {
     const v = videoRef.current;
-    if (v) wire(v, mode);
-  }, [mode, remountKey, videoRef]);
+    if (v) wire(v, modeState);
+  }, [modeState, remountKey, videoRef]);
 
   const setMode = useCallback((m: AudioFilterMode) => {
     setModeState(m);
@@ -130,5 +130,5 @@ export function useAudioFilter(
     }
   }, []);
 
-  return { mode, setMode, supported };
+  return { mode: modeState, setMode, supported };
 }

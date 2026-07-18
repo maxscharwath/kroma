@@ -37,6 +37,7 @@ export function Button({
 }: Readonly<ButtonProps>) {
   return (
     <button
+      type="button"
       style={{
         display: 'inline-flex',
         alignItems: 'center',

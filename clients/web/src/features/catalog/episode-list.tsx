@@ -290,12 +290,7 @@ export function SeasonSection({
   // plays what is on disk or offers a per-episode request. Missing rows are only
   // enumerated when the viewer can request AND TMDB gave us the episode count;
   // otherwise the list stays owned-only (unchanged for no-permission viewers).
-  const ownedByNum = new Map<number, MediaItem>();
-  for (const ep of current.episodes) if (ep.episode != null) ownedByNum.set(ep.episode, ep);
-  const perEpisode = canRequest && !current.available && current.episodeCount > 0;
-  const epNumbers = new Set<number>(ownedByNum.keys());
-  if (perEpisode) for (let n = 1; n <= current.episodeCount; n++) epNumbers.add(n);
-  const ordered = [...epNumbers].sort((a, b) => a - b);
+  const { ownedByNum, ordered, perEpisode } = mergeEpisodes(current, canRequest);
 
   return (
     <section className="mt-10">
@@ -332,33 +327,18 @@ export function SeasonSection({
               count: perEpisode ? current.episodeCount : current.episodes.length,
             })}
           </div>
-          <div className="flex flex-col gap-3.5 px-(--gutter-web)">
-            {ordered.map((n) => {
-              const owned = ownedByNum.get(n);
-              if (owned) {
-                return (
-                  <EpisodeRow
-                    key={owned.id}
-                    episode={owned}
-                    watched={isWatched(owned.id)}
-                    progress={progressOf(owned.id)}
-                    onPlay={() => onPlay(owned.id)}
-                    onToggleWatched={() => toggleWatched(owned.id)}
-                  />
-                );
-              }
-              return (
-                <MissingEpisodeRow
-                  key={`m-${n}`}
-                  season={current.number}
-                  episode={n}
-                  pending={current.requested || pendingEpisodes.has(`${current.number}-${n}`)}
-                  busy={requestBusy}
-                  onRequest={() => onRequestEpisode(current.number, n)}
-                />
-              );
-            })}
-          </div>
+          <SeasonEpisodes
+            current={current}
+            ordered={ordered}
+            ownedByNum={ownedByNum}
+            isWatched={isWatched}
+            toggleWatched={toggleWatched}
+            progressOf={progressOf}
+            onPlay={onPlay}
+            onRequestEpisode={onRequestEpisode}
+            pendingEpisodes={pendingEpisodes}
+            requestBusy={requestBusy}
+          />
           {partialCurrent ? (
             <div className="mt-3.5">
               <SeasonRequestCard
@@ -379,5 +359,77 @@ export function SeasonSection({
         </div>
       )}
     </section>
+  );
+}
+
+/** Merge the season's owned episodes with its missing ones (by number). Missing
+ * rows are only enumerated when the viewer can request AND TMDB gave us the
+ * episode count; otherwise the list stays owned-only. */
+function mergeEpisodes(
+  current: TitleSeason,
+  canRequest: boolean,
+): { ownedByNum: Map<number, MediaItem>; ordered: number[]; perEpisode: boolean } {
+  const ownedByNum = new Map<number, MediaItem>();
+  for (const ep of current.episodes) if (ep.episode != null) ownedByNum.set(ep.episode, ep);
+  const perEpisode = canRequest && !current.available && current.episodeCount > 0;
+  const epNumbers = new Set<number>(ownedByNum.keys());
+  if (perEpisode) for (let n = 1; n <= current.episodeCount; n++) epNumbers.add(n);
+  const ordered = [...epNumbers].sort((a, b) => a - b);
+  return { ownedByNum, ordered, perEpisode };
+}
+
+/** The season's episode rows: each number is either an owned, playable row or a
+ * per-episode request row for a gap. */
+function SeasonEpisodes({
+  current,
+  ordered,
+  ownedByNum,
+  isWatched,
+  toggleWatched,
+  progressOf,
+  onPlay,
+  onRequestEpisode,
+  pendingEpisodes,
+  requestBusy,
+}: Readonly<{
+  current: TitleSeason;
+  ordered: number[];
+  ownedByNum: Map<number, MediaItem>;
+  isWatched: (id: string) => boolean;
+  toggleWatched: (id: string) => void;
+  progressOf: (id: string) => number | null;
+  onPlay: (id: string) => void;
+  onRequestEpisode: (season: number, episode: number) => void;
+  pendingEpisodes: Set<string>;
+  requestBusy: boolean;
+}>) {
+  return (
+    <div className="flex flex-col gap-3.5 px-(--gutter-web)">
+      {ordered.map((n) => {
+        const owned = ownedByNum.get(n);
+        if (owned) {
+          return (
+            <EpisodeRow
+              key={owned.id}
+              episode={owned}
+              watched={isWatched(owned.id)}
+              progress={progressOf(owned.id)}
+              onPlay={() => onPlay(owned.id)}
+              onToggleWatched={() => toggleWatched(owned.id)}
+            />
+          );
+        }
+        return (
+          <MissingEpisodeRow
+            key={`m-${n}`}
+            season={current.number}
+            episode={n}
+            pending={current.requested || pendingEpisodes.has(`${current.number}-${n}`)}
+            busy={requestBusy}
+            onRequest={() => onRequestEpisode(current.number, n)}
+          />
+        );
+      })}
+    </div>
   );
 }

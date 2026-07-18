@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 # One publish at a time; a newer push supersedes an in-flight build.
 concurrency:
@@ -46,6 +46,8 @@ jobs:
 
   create-release:
     needs: version
+    permissions:
+      contents: write # delete + recreate the rolling desktop-latest release
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -77,6 +79,8 @@ jobs:
 
   build:
     needs: [version, create-release]
+    permissions:
+      contents: write # upload signed bundles + latest.json to the release
     strategy:
       fail-fast: false
       # Sequential so tauri-action accumulates each platform into one latest.json
@@ -213,6 +217,8 @@ jobs:
 
   publish:
     needs: [create-release, build]
+    permissions:
+      contents: write # flip the draft pre-release to published
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

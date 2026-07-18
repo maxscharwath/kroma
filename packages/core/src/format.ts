@@ -16,7 +16,7 @@ export function sizedImageUrl(url: string | null | undefined, displayWidth: numb
 /** Deterministic two-stop key-art gradient derived from an item id. */
 export function posterColors(id: string): [string, string] {
   let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + (id.codePointAt(i) ?? 0)) >>> 0;
   const hue = h % 360;
   const hue2 = (hue + 40) % 360;
   return [`hsl(${hue} 38% 26%)`, `hsl(${hue2} 50% 12%)`];

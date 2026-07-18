@@ -85,6 +85,6 @@ export const kindMeta = (k: string): KindMeta => KIND_META[k] ?? FILM_KIND;
  *  loads), mirroring the design's placeholder. */
 export function posterGrad(seed: string): string {
   let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + (seed.codePointAt(i) ?? 0)) % 360;
   return `radial-gradient(120% 90% at 30% 16%, hsla(${(h + 22) % 360},60%,46%,.5), transparent 62%), linear-gradient(155deg, hsl(${h} 42% 27%), hsl(${(h + 30) % 360} 48% 10%))`;
 }

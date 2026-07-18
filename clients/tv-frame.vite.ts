@@ -85,7 +85,7 @@ html[data-tv-frame="on"] #root {
 function stageJs(w: number, h: number): string {
   // Classic (non-module) inline script in <head>: runs during head parse, before
   // the deferred app module mounts, so the stage is in place with no layout flash.
-  return `(function () {
+  return String.raw`(function () {
   var W = ${w}, H = ${h}, KEY = 'kroma.tvFrame', root = document.documentElement;
   function fit() {
     root.style.setProperty('--tv-frame-scale', String(Math.min(innerWidth / W, innerHeight / H)));
@@ -96,7 +96,7 @@ function stageJs(w: number, h: number): string {
   function showHint() {
     if (!document.body) { document.addEventListener('DOMContentLoaded', showHint, { once: true }); return; }
     if (!hint) { hint = document.createElement('div'); hint.id = 'kroma-tv-frame-hint'; document.body.appendChild(hint); }
-    hint.textContent = on ? (W + '\\u00d7' + H + '  \\u00b7  \\u0060 to unframe') : ('full window  \\u00b7  \\u0060 to frame');
+    hint.textContent = on ? (W + '\u00d7' + H + '  \u00b7  \u0060 to unframe') : ('full window  \u00b7  \u0060 to frame');
     hint.style.opacity = '1';
     clearTimeout(hintTimer);
     hintTimer = setTimeout(function () { if (hint) hint.style.opacity = '0'; }, 2600);
@@ -112,7 +112,7 @@ function stageJs(w: number, h: number): string {
   addEventListener('resize', fit, { passive: true });
   addEventListener('keydown', function (e) {
     var tag = ((e.target && e.target.tagName) || '').toUpperCase();
-    if (e.key === '\\u0060' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+    if (e.key === '\u0060' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
       e.preventDefault(); e.stopImmediatePropagation(); set(!on);
     }
   }, true);

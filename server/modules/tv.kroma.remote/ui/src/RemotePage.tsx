@@ -5,7 +5,6 @@
 //
 // One control drives the connector: the enable toggle (auto-saved). The server
 // reconciles the running connector to match it, so disabling always stops it.
-import type { RemoteAccessView } from '@kroma/module-sdk';
 import {
   Button,
   C,
@@ -14,13 +13,14 @@ import {
   Field,
   PageHeader,
   Pill,
+  type RemoteAccessView,
   Section,
   TextInput,
   Toggle,
   useAdminKit,
   useCap,
+  useT,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import { IconCloud, IconDeviceFloppy, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
 

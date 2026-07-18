@@ -36,14 +36,12 @@ class ExoBridge(
 
     // Position/buffer heartbeat for the web engine's clock (absolute time is
     // reconstructed there: baseSec + this relative position).
-    private val ticker = object : Runnable {
-        override fun run() {
-            if (player.playbackState != Player.STATE_IDLE) {
-                emit(JSONObject().put("t", "time").put("sec", player.currentPosition / 1000.0))
-                emit(JSONObject().put("t", "buffered").put("sec", player.bufferedPosition / 1000.0))
-            }
-            main.postDelayed(this, 500)
+    private val ticker = Runnable {
+        if (player.playbackState != Player.STATE_IDLE) {
+            emit(JSONObject().put("t", "time").put("sec", player.currentPosition / 1000.0))
+            emit(JSONObject().put("t", "buffered").put("sec", player.bufferedPosition / 1000.0))
         }
+        main.postDelayed(ticker, 500)
     }
 
     private val listener = object : Player.Listener {

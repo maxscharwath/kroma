@@ -47,7 +47,7 @@ function Arrow({
  * cards' hover-lift + amber ring room before the overflow clips.
  */
 export function Rail({ children, gap = 18, padded = false, label }: Readonly<RailProps>) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLElement>(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
 
@@ -95,14 +95,10 @@ export function Rail({ children, gap = 18, padded = false, label }: Readonly<Rai
 
   return (
     <div className="group/rail relative">
-      {/* `group` is the correct ARIA role for a set of related items (this
-          horizontal slide scroller) and, unlike a plain <div>, supports the
-          aria-label naming it. The rule suggests <fieldset>, but that is a
-          form-controls grouping and wrong here. */}
-      {/* biome-ignore lint/a11y/useSemanticElements: role="group" names a scroller, not a form fieldset */}
-      <div
+      {/* A native <section> names this horizontal scroller for assistive tech via
+          its aria-label, without the invalid ARIA role a plain <div> would need. */}
+      <section
         ref={ref}
-        role="group"
         aria-label={label}
         // `py-4` + the horizontal inset give the cards' hover-lift + amber focus
         // ring room before the overflow clips them. Non-padded (home) rails inset
@@ -113,7 +109,7 @@ export function Rail({ children, gap = 18, padded = false, label }: Readonly<Rai
         style={{ gap: `${gap}px` }}
       >
         {children}
-      </div>
+      </section>
       <Arrow dir="prev" show={canPrev} onClick={() => page(-1)} />
       <Arrow dir="next" show={canNext} onClick={() => page(1)} />
     </div>

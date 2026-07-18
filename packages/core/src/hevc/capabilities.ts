@@ -80,12 +80,10 @@ function detectHdr(): boolean {
  */
 export function detectCapabilities(): PlaybackCapabilities {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isTizen =
-    /Tizen/i.test(ua) || typeof (globalThis as Record<string, unknown>).tizen !== 'undefined';
+  const isTizen = /Tizen/i.test(ua) || (globalThis as Record<string, unknown>).tizen !== undefined;
   const isWebOS =
-    /Web0S|webOS/i.test(ua) || typeof (globalThis as Record<string, unknown>).webOS !== 'undefined';
-  const isAndroidTvShell =
-    typeof (globalThis as Record<string, unknown>).__KROMA_ANDROID__ !== 'undefined';
+    /Web0S|webOS/i.test(ua) || (globalThis as Record<string, unknown>).webOS !== undefined;
+  const isAndroidTvShell = (globalThis as Record<string, unknown>).__KROMA_ANDROID__ !== undefined;
 
   if (isTizen || isWebOS || isAndroidTvShell) {
     // TVs hardware-decode the common surround codecs (AC3/EAC3/DTS) too.

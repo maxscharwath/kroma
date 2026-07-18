@@ -1,5 +1,13 @@
 import type { RemoteKey } from '@kroma/core';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { type ControlId, controlOrder, type Overlay, type Zone } from './nav';
 import type { PlayerFlags } from './types';
 
@@ -42,6 +50,83 @@ export interface PlayerNav {
   /** Mouse focus helpers (hover moves focus, §15). */
   focusControl(id: ControlId): void;
   focusProgress(): void;
+}
+
+interface DpadContext {
+  a: PlayerNavActions;
+  zone: Zone;
+  focused: ControlId | undefined;
+  controlsLen: number;
+  setZone: Dispatch<SetStateAction<Zone>>;
+  setControlIndex: Dispatch<SetStateAction<number>>;
+  setRevealed: Dispatch<SetStateAction<boolean>>;
+  clearHide: () => void;
+  openOverlay: (o: Exclude<Overlay, null>) => void;
+  activate: (id: ControlId) => void;
+}
+
+/** Hardware media keys act globally, regardless of zone / overlay. Returns
+ * whether the key was a media key (already handled). */
+function handleMediaKey(key: RemoteKey, a: PlayerNavActions): boolean {
+  switch (key) {
+    case 'Play':
+    case 'Pause':
+    case 'PlayPause':
+      a.togglePlay();
+      return true;
+    case 'Next':
+      a.onNext();
+      return true;
+    case 'Prev':
+    case 'Rewind':
+      a.seekNudge(-1);
+      return true;
+    case 'FastForward':
+      a.seekNudge(1);
+      return true;
+    case 'Stop':
+      a.onExit();
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Zone-aware D-pad routing, once the chrome is revealed and no overlay is open. */
+function handleDpadKey(key: RemoteKey, ctx: DpadContext): void {
+  const { a, zone, focused } = ctx;
+  switch (key) {
+    case 'Up':
+      if (zone === 'controls') {
+        if (focused === 'volume') return a.volumeNudge(1);
+        ctx.setZone('progress');
+      } else {
+        // ▲ from the progress bar leaves display mode (hide chrome).
+        ctx.clearHide();
+        ctx.setRevealed(false);
+      }
+      return;
+    case 'Down':
+      if (zone === 'progress') ctx.setZone('controls');
+      else if (focused === 'volume') a.volumeNudge(-1);
+      else ctx.openOverlay('sheet');
+      return;
+    case 'Left':
+      if (zone === 'progress') a.seekNudge(-1);
+      else ctx.setControlIndex((i) => Math.max(0, i - 1));
+      return;
+    case 'Right':
+      if (zone === 'progress') a.seekNudge(1);
+      else ctx.setControlIndex((i) => Math.min(ctx.controlsLen - 1, i + 1));
+      return;
+    case 'Enter':
+      if (zone === 'progress') a.togglePlay();
+      else if (focused) ctx.activate(focused);
+      return;
+    case 'Back':
+      a.onExit();
+      return;
+  }
 }
 
 /**
@@ -144,22 +229,7 @@ export function usePlayerNav(
   const handleKey = useCallback(
     (key: RemoteKey) => {
       const a = actionsRef.current;
-      // Hardware media keys act globally, regardless of zone / overlay.
-      switch (key) {
-        case 'Play':
-        case 'Pause':
-        case 'PlayPause':
-          return a.togglePlay();
-        case 'Next':
-          return a.onNext();
-        case 'Prev':
-        case 'Rewind':
-          return a.seekNudge(-1);
-        case 'FastForward':
-          return a.seekNudge(1);
-        case 'Stop':
-          return a.onExit();
-      }
+      if (handleMediaKey(key, a)) return;
 
       // While hidden, the first key just brings the chrome back (§3, §16).
       if (!revealed) {
@@ -174,39 +244,18 @@ export function usePlayerNav(
         return;
       }
 
-      const focused = controls[controlIndex];
-      switch (key) {
-        case 'Up':
-          if (zone === 'controls') {
-            if (focused === 'volume') return a.volumeNudge(1);
-            setZone('progress');
-          } else {
-            // ▲ from the progress bar leaves display mode (hide chrome).
-            clearHide();
-            setRevealed(false);
-          }
-          return;
-        case 'Down':
-          if (zone === 'progress') setZone('controls');
-          else if (focused === 'volume') a.volumeNudge(-1);
-          else openOverlay('sheet');
-          return;
-        case 'Left':
-          if (zone === 'progress') a.seekNudge(-1);
-          else setControlIndex((i) => Math.max(0, i - 1));
-          return;
-        case 'Right':
-          if (zone === 'progress') a.seekNudge(1);
-          else setControlIndex((i) => Math.min(controls.length - 1, i + 1));
-          return;
-        case 'Enter':
-          if (zone === 'progress') a.togglePlay();
-          else if (focused) activate(focused);
-          return;
-        case 'Back':
-          a.onExit();
-          return;
-      }
+      handleDpadKey(key, {
+        a,
+        zone,
+        focused: controls[controlIndex],
+        controlsLen: controls.length,
+        setZone,
+        setControlIndex,
+        setRevealed,
+        clearHide,
+        openOverlay,
+        activate,
+      });
     },
     [
       revealed,

@@ -20,7 +20,9 @@ import {
 import type { ControlId } from './nav';
 import { CTRL, CTRL_OFF, CTRL_ON, FOCUS_RING } from './tw';
 
-const TRANSPORT: ControlId[] = ['rewind', 'play', 'forward'];
+const TRANSPORT: ReadonlySet<ControlId> = new Set<ControlId>(['rewind', 'play', 'forward']);
+const CTRL_ON_FOCUS = `${CTRL_ON} ${FOCUS_RING}`;
+const PLAY_ON_FOCUS = `bg-accent-hover ${FOCUS_RING}`;
 
 export interface ControlClusterProps {
   controls: ControlId[];
@@ -61,7 +63,7 @@ function Circle({
       aria-label={label}
       onClick={() => onActivate(id)}
       onMouseEnter={() => onFocus(id)}
-      className={`${CTRL} ${size} ${focused ? `${CTRL_ON} ${FOCUS_RING}` : CTRL_OFF}`}
+      className={`${CTRL} ${size} ${focused ? CTRL_ON_FOCUS : CTRL_OFF}`}
     >
       {children}
     </button>
@@ -86,10 +88,10 @@ export function ControlCluster({
   onActivate,
   onFocus,
   onVolume,
-}: ControlClusterProps) {
+}: Readonly<ControlClusterProps>) {
   const t = useT();
-  const transport = controls.filter((c) => TRANSPORT.includes(c));
-  const cluster = controls.filter((c) => !TRANSPORT.includes(c));
+  const transport = controls.filter((c) => TRANSPORT.has(c));
+  const cluster = controls.filter((c) => !TRANSPORT.has(c));
 
   const render = (id: ControlId) => {
     const on = focused === id;
@@ -116,7 +118,7 @@ export function ControlCluster({
             aria-label={playing ? t('player.pause') : t('player.play')}
             onClick={() => onActivate(id)}
             onMouseEnter={() => onFocus(id)}
-            className={`${CTRL} h-20 w-20 text-accent-ink ${on ? `bg-accent-hover ${FOCUS_RING}` : 'bg-accent'}`}
+            className={`${CTRL} h-20 w-20 text-accent-ink ${on ? PLAY_ON_FOCUS : 'bg-accent'}`}
           >
             {playing ? <IconPause size={33} /> : <IconPlay size={35} />}
           </button>
@@ -213,7 +215,7 @@ export function ControlCluster({
             aria-label={t('player.pip')}
             onClick={() => onActivate(id)}
             onMouseEnter={() => onFocus(id)}
-            className={`${CTRL} h-14 w-14 ${pipActive ? 'text-accent' : ''} ${on ? `${CTRL_ON} ${FOCUS_RING}` : CTRL_OFF}`}
+            className={`${CTRL} h-14 w-14 ${pipActive ? 'text-accent' : ''} ${on ? CTRL_ON_FOCUS : CTRL_OFF}`}
           >
             <IconPip size={23} />
           </button>
@@ -301,7 +303,7 @@ function VolumeControl({
     // biome-ignore lint/a11y/noStaticElementInteractions: hover just moves focus (pointer parity with the D-pad); activation is via the inner buttons.
     <div
       onMouseEnter={onFocus}
-      className={`flex h-14 flex-none items-center overflow-hidden rounded-full transition-[transform,box-shadow,background] duration-150 ease-out ${focused ? `${CTRL_ON} ${FOCUS_RING}` : CTRL_OFF}`}
+      className={`flex h-14 flex-none items-center overflow-hidden rounded-full transition-[transform,box-shadow,background] duration-150 ease-out ${focused ? CTRL_ON_FOCUS : CTRL_OFF}`}
     >
       <button
         type="button"

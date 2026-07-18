@@ -18,8 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # create/update releases + upload assets
-  packages: write # push the Docker image to ghcr
+  contents: read
 
 concurrency:
   group: synology-${{ github.ref }}
@@ -147,6 +146,9 @@ jobs:
   docker:
     name: Docker image (from the .spk payload)
     needs: build
+    permissions:
+      contents: read
+      packages: write # push the Docker image to ghcr
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -204,6 +206,8 @@ jobs:
     name: Attach .spk to the release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
+    permissions:
+      contents: write # create/update the release + upload assets
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -226,6 +230,8 @@ jobs:
     name: Publish nightly prerelease
     if: github.ref == 'refs/heads/main'
     needs: build
+    permissions:
+      contents: write # create/update the rolling nightly release + assets
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

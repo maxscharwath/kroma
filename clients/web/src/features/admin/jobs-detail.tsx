@@ -41,10 +41,7 @@ export function JobDetailPanel({ jobKey }: Readonly<{ jobKey: string }>) {
         {logs.length === 0 ? (
           <div className="text-[12.5px] text-dim">{t('jobs.noLogs')}</div>
         ) : (
-          logs.map((l, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: append-only log lines, never reordered
-            <LogLine key={i} log={l} />
-          ))
+          logs.map((l) => <LogLine key={`${l.ts}-${l.message}`} log={l} />)
         )}
       </div>
     </div>

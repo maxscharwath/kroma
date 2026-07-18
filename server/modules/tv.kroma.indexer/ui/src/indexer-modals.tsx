@@ -5,22 +5,20 @@
 
 import {
   apiErrorText,
+  Field,
   type IndexerDefinitionDetailView,
   type IndexerDefinitionView,
   type IndexerView,
-  type SaveIndexerBody,
-} from '@kroma/module-sdk';
-import {
-  Field,
   Modal,
   ModalActions,
-  OptionSelect as UiSelect,
+  type SaveIndexerBody,
   TextInput,
   Toggle,
+  OptionSelect as UiSelect,
   useAdminKit,
   useAsyncAction,
+  useT,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import { IconLoader2, IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 

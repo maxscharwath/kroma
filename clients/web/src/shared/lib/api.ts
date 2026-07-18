@@ -24,29 +24,36 @@ declare global {
 
 const DEFAULT_BASE = 'http://localhost:4040';
 
+/** Strip any trailing slashes (linear scan, no backtracking regex). */
+function stripTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '/') end -= 1;
+  return s.slice(0, end);
+}
+
 /** The KROMA server origin (no trailing slash). */
 export function apiBase(): string {
   // 1) Explicit runtime override (rare).
   if (typeof window !== 'undefined' && window.__KROMA_API__) {
-    return window.__KROMA_API__.replace(/\/+$/, '');
+    return stripTrailingSlashes(window.__KROMA_API__);
   }
   // 2) Build-time override set in dev/staging to point at a specific API.
   const envBase = import.meta.env?.VITE_KROMA_SERVER;
-  if (envBase) return envBase.replace(/\/+$/, '');
+  if (envBase) return stripTrailingSlashes(envBase);
   // 3) Dev (vite): same-origin the Vite dev server reverse-proxies `/api`
   //    (incl. the events WebSocket) to the Rust server, so the whole app lives
   //    on one port (`:3000`). Just call the page origin, like production. SSR /
   //    prerender (no window) falls back to the conventional local API.
   if (import.meta.env?.DEV) {
     return typeof window !== 'undefined'
-      ? window.location.origin.replace(/\/+$/, '')
+      ? stripTrailingSlashes(window.location.origin)
       : DEFAULT_BASE;
   }
   // 4) Production SPA: same origin as the page (the Rust server serves both).
-  if (typeof window !== 'undefined') return window.location.origin.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') return stripTrailingSlashes(window.location.origin);
   // 5) SSR / prerender fallback.
   const env = typeof process !== 'undefined' ? process.env.KROMA_SERVER_URL : undefined;
-  return (env ?? DEFAULT_BASE).replace(/\/+$/, '');
+  return stripTrailingSlashes(env ?? DEFAULT_BASE);
 }
 
 /** Whether an account is active on this device (has a stored access token).

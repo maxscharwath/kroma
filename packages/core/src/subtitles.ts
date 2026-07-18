@@ -20,8 +20,8 @@ export interface Cue {
 /** Strip WebVTT inline markup (`<i>`, `<c.classname>`, `{...}`) to plain text. */
 function clean(text: string): string {
   return text
-    .replace(/<[^>]+>/g, '')
-    .replace(/\{[^}]+\}/g, '')
+    .replace(/<[^<>]+>/g, '')
+    .replace(/\{[^{}]+\}/g, '')
     .trim();
 }
 
@@ -34,7 +34,7 @@ function parseTs(ts: string): number {
 /** Minimal, fast WebVTT parser → cue list sorted by start time. */
 export function parseVtt(raw: string): Cue[] {
   const cues: Cue[] = [];
-  for (const block of raw.replace(/\r/g, '').split('\n\n')) {
+  for (const block of raw.replaceAll('\r', '').split('\n\n')) {
     const lines = block.split('\n');
     const ti = lines.findIndex((l) => l.includes('-->'));
     if (ti === -1) continue;
@@ -56,26 +56,22 @@ export function parseVtt(raw: string): Cue[] {
  * binary search to re-sync after a seek. Returns the text and the new pointer to
  * remember for the next call.
  */
-export function activeCueText(
-  cues: Cue[],
-  t: number,
-  hint: number,
-): { text: string; index: number } {
-  if (cues.length === 0) return { text: '', index: 0 };
+type CueHit = { text: string; index: number };
 
-  const cur = cues[hint];
-  // Fast path: still inside the current cue.
-  if (cur && t >= cur.start && t <= cur.end) return { text: cur.text, index: hint };
-  // Walk forward a few cues (normal playback advances by one).
-  if (cur && t > cur.end) {
-    for (let i = hint + 1; i < cues.length && i <= hint + 3; i++) {
-      const c = cues[i];
-      if (!c) continue;
-      if (t < c.start) return { text: '', index: hint };
-      if (t <= c.end) return { text: c.text, index: i };
-    }
+/** Walk forward up to 3 cues from `hint` (normal playback advances by one), or
+ * `null` when the target isn't in that window. */
+function walkForwardCue(cues: Cue[], t: number, hint: number): CueHit | null {
+  for (let i = hint + 1; i < cues.length && i <= hint + 3; i++) {
+    const c = cues[i];
+    if (!c) continue;
+    if (t < c.start) return { text: '', index: hint };
+    if (t <= c.end) return { text: c.text, index: i };
   }
-  // Binary search (covers seeks / large jumps).
+  return null;
+}
+
+/** Binary search for the cue at `t` (covers seeks / large jumps). */
+function binarySearchCue(cues: Cue[], t: number): CueHit {
   let lo = 0;
   let hi = cues.length - 1;
   while (lo <= hi) {
@@ -87,6 +83,20 @@ export function activeCueText(
     else return { text: c.text, index: mid };
   }
   return { text: '', index: Math.max(0, lo - 1) };
+}
+
+export function activeCueText(cues: Cue[], t: number, hint: number): CueHit {
+  if (cues.length === 0) return { text: '', index: 0 };
+
+  const cur = cues[hint];
+  // Fast path: still inside the current cue.
+  if (cur && t >= cur.start && t <= cur.end) return { text: cur.text, index: hint };
+  // Walk forward a few cues (normal playback advances by one).
+  if (cur && t > cur.end) {
+    const forward = walkForwardCue(cues, t, hint);
+    if (forward) return forward;
+  }
+  return binarySearchCue(cues, t);
 }
 
 import type { MessageKey } from './i18n';

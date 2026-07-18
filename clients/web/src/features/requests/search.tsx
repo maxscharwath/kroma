@@ -39,7 +39,9 @@ export function SearchPage() {
   } else if (canDiscover) {
     body = <TrendingBrowse entries={trending.entries} loading={trending.loading} type={type} />;
   } else {
-    body = <EmptyState icon={<IconMoodEmpty size={32} stroke={1.5} />} title={t('discover.empty')} />;
+    body = (
+      <EmptyState icon={<IconMoodEmpty size={32} stroke={1.5} />} title={t('discover.empty')} />
+    );
   }
 
   return (

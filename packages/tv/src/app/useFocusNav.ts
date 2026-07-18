@@ -28,17 +28,40 @@ function focusables(): Focusable[] {
   return out;
 }
 
+/** Score a candidate at offset `dx,dy` for a move in `dir`, or `null` when it does
+ * not lie in that direction. Lower is better; cross-axis drift is weighted x2 so we
+ * prefer straight-line neighbours. */
+function directionScore(
+  dir: 'Up' | 'Down' | 'Left' | 'Right',
+  dx: number,
+  dy: number,
+): number | null {
+  switch (dir) {
+    case 'Left':
+      return dx >= -2 ? null : -dx + Math.abs(dy) * 2;
+    case 'Right':
+      return dx <= 2 ? null : dx + Math.abs(dy) * 2;
+    case 'Up':
+      return dy >= -2 ? null : -dy + Math.abs(dx) * 2;
+    case 'Down':
+      return dy <= 2 ? null : dy + Math.abs(dx) * 2;
+  }
+}
+
+/** The Focusable currently holding focus, or the first candidate as a fallback. */
+function currentFocusable(els: Focusable[], first: Focusable): Focusable {
+  const active = document.activeElement as HTMLElement | null;
+  if (!active || active.dataset.focus === undefined) return first;
+  return els.find((f) => f.el === active) ?? { el: active, rect: active.getBoundingClientRect() };
+}
+
 /** Geometric spatial navigation: move focus to the nearest element in `dir`. */
 function moveFocus(dir: 'Up' | 'Down' | 'Left' | 'Right') {
   const els = focusables();
   const first = els[0];
   if (!first) return; // nothing focusable on screen
 
-  const active = document.activeElement as HTMLElement | null;
-  const activeFocusable = active && active.dataset.focus !== undefined;
-  const current: Focusable =
-    (activeFocusable && els.find((f) => f.el === active)) ||
-    (activeFocusable && active ? { el: active, rect: active.getBoundingClientRect() } : first);
+  const current = currentFocusable(els, first);
   const r = current.rect;
   const cx = r.left + r.width / 2;
   const cy = r.top + r.height / 2;
@@ -47,38 +70,8 @@ function moveFocus(dir: 'Up' | 'Down' | 'Left' | 'Right') {
   let bestScore = Infinity;
   for (const { el, rect: b } of els) {
     if (el === current.el) continue;
-    const bx = b.left + b.width / 2;
-    const by = b.top + b.height / 2;
-    const dx = bx - cx;
-    const dy = by - cy;
-
-    let primary: number;
-    let secondary: number;
-    switch (dir) {
-      case 'Left':
-        if (dx >= -2) continue;
-        primary = -dx;
-        secondary = Math.abs(dy);
-        break;
-      case 'Right':
-        if (dx <= 2) continue;
-        primary = dx;
-        secondary = Math.abs(dy);
-        break;
-      case 'Up':
-        if (dy >= -2) continue;
-        primary = -dy;
-        secondary = Math.abs(dx);
-        break;
-      case 'Down':
-        if (dy <= 2) continue;
-        primary = dy;
-        secondary = Math.abs(dx);
-        break;
-    }
-    // Weight cross-axis drift heavily so we prefer straight-line neighbours.
-    const score = primary + secondary * 2;
-    if (score < bestScore) {
+    const score = directionScore(dir, b.left + b.width / 2 - cx, b.top + b.height / 2 - cy);
+    if (score != null && score < bestScore) {
       bestScore = score;
       best = el;
     }

@@ -3,6 +3,7 @@
 // profile PIN (masked) and Quick Connect codes (plain).
 
 import { OTPInput, REGEXP_ONLY_DIGITS, type SlotProps } from 'input-otp';
+import { useMemo } from 'react';
 
 export interface OtpProps {
   value: string;
@@ -28,6 +29,9 @@ export function Otp({
   autoFocus,
   ariaLabel,
 }: Readonly<OtpProps>) {
+  // Stable, non-index keys for the fixed positional slot row (regenerated only
+  // when the slot count changes).
+  const slotKeys = useMemo(() => Array.from({ length }, () => crypto.randomUUID()), [length]);
   return (
     <OTPInput
       maxLength={length}
@@ -45,8 +49,7 @@ export function Otp({
       render={({ slots }) => (
         <>
           {slots.map((slot, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length slot row
-            <Slot key={i} {...slot} mask={mask} />
+            <Slot key={slotKeys[i]} {...slot} mask={mask} />
           ))}
         </>
       )}

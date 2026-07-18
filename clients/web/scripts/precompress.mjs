@@ -20,7 +20,17 @@ const brotli = promisify(zlib.brotliCompress);
 const gzip = promisify(zlib.gzip);
 
 const ROOT = path.resolve(process.argv[2] ?? 'dist/client');
-const EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html', '.svg', '.json', '.txt', '.map', '.webmanifest']);
+const EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.css',
+  '.html',
+  '.svg',
+  '.json',
+  '.txt',
+  '.map',
+  '.webmanifest',
+]);
 // Below this, compression overhead beats the savings.
 const MIN_BYTES = 1024;
 const CONCURRENCY = Math.max(4, os.availableParallelism());
@@ -64,4 +74,6 @@ await Promise.all(
     }
   }),
 );
-console.log(`precompress: ${files} assets, ${(saved / 1024).toFixed(0)} KiB saved (brotli, x${CONCURRENCY})`);
+console.log(
+  `precompress: ${files} assets, ${(saved / 1024).toFixed(0)} KiB saved (brotli, x${CONCURRENCY})`,
+);

@@ -86,6 +86,8 @@ function FlowDots({ treatments }: Readonly<{ treatments: Treatment[] }>) {
       {treatments.map((tr, i) => {
         const m = statusMeta(tr.status);
         const prevDone = i > 0 && treatments[i - 1]?.status === 'done';
+        const treatmentName = t(`pipeline.t.${tr.key}` as MessageKey);
+        const treatmentState = t(`pipeline.st.${tr.status}` as MessageKey);
         return (
           <span key={tr.key} className="flex items-center">
             {i > 0 ? (
@@ -95,7 +97,7 @@ function FlowDots({ treatments }: Readonly<{ treatments: Treatment[] }>) {
               />
             ) : null}
             <span
-              title={`${t(`pipeline.t.${tr.key}` as MessageKey)} - ${t(`pipeline.st.${tr.status}` as MessageKey)}`}
+              title={`${treatmentName} - ${treatmentState}`}
               className="flex h-[19px] w-[19px] flex-[0_0_19px] items-center justify-center rounded-full border"
               style={{ background: m.bg, borderColor: m.ring, color: m.color }}
             >

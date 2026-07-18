@@ -4,7 +4,10 @@
 import { type Catalog, type Entry, entryVersion } from './catalog';
 
 const esc = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  s.replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
+  );
 
 const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
 const day = (iso: string) => (iso ? iso.slice(0, 10) : '');
@@ -20,8 +23,7 @@ function row(e: Entry): string {
 
 export function renderLanding(catalog: Catalog, origin: string): string {
   const nightly = catalog.entries.find((e) => e.channel === 'nightly');
-  const stable = catalog.entries.filter((e) => e.channel === 'stable');
-  const latest = stable[0];
+  const latest = catalog.entries.find((e) => e.channel === 'stable');
   return `<!doctype html>
 <html lang="en">
 <head>

@@ -144,7 +144,7 @@ export function bindMediaEvents(
     setReady(true);
     if (started || !v.paused) return;
     const p = v.play();
-    if (p && typeof p.then === 'function') p.catch(() => undefined);
+    p?.catch(() => undefined);
   };
   const onStarted = () => {
     started = true;

@@ -5,7 +5,7 @@
 
 import type { KromaEvents } from './contracts';
 
-export type EventKey = keyof KromaEvents & string;
+export type EventKey = Extract<keyof KromaEvents, string>;
 
 export interface EventBus {
   emit<K extends EventKey>(key: K, payload: KromaEvents[K]): void;
@@ -24,7 +24,8 @@ export function createEventBus(): EventBus {
       if (!set) return;
       // Snapshot: a handler may (un)subscribe during dispatch; every handler
       // subscribed when emit began still fires exactly once.
-      for (const handler of [...set]) (handler as (p: typeof payload) => void)(payload);
+      const snapshot = Array.from(set);
+      for (const handler of snapshot) (handler as (p: typeof payload) => void)(payload);
     },
     on(key, handler) {
       const set = handlers.get(key) ?? new Set<AnyHandler>();

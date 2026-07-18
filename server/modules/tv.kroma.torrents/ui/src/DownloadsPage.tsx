@@ -2,10 +2,11 @@
 // page-scoped download.progress stream, slow poll as the safety net), a VPN
 // status banner, aggregate stat cards and the download-clients section.
 
-import { type DownloadView, KromaEventStream } from '@kroma/module-sdk';
 import {
+  type DownloadView,
   EmptyState,
   formatBytes,
+  KromaEventStream,
   Modal,
   ModalActions,
   PageHeader,
@@ -14,8 +15,8 @@ import {
   useAdminKit,
   useCap,
   usePoll,
+  useT,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import {
   IconDownload,
   IconPlayerPause,
@@ -24,7 +25,15 @@ import {
   IconShieldX,
   IconUsersPlus,
 } from '@tabler/icons-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { DownloadClientsSection } from './download-clients';
 import { DownloadRowView, type LiveDl } from './download-row';
 import { ManualGrabModal } from './manual-grab';
@@ -55,33 +64,7 @@ export default function DownloadsPage() {
     reload();
   }, [reload]);
 
-  useEffect(() => {
-    const ev = new KromaEventStream(apiBase, {
-      onEvent: (e) => {
-        if (e.type === 'download.progress') {
-          setLive((s) => ({
-            ...s,
-            [e.id]: {
-              progress: e.progress,
-              downBps: e.downBps,
-              upBps: e.upBps,
-              peers: e.peers,
-              peersSeen: e.peersSeen,
-              state: e.state,
-            },
-          }));
-        } else if (
-          e.type === 'download.completed' ||
-          e.type === 'request.updated' ||
-          e.type === 'vpn.status'
-        ) {
-          throttledReload();
-        }
-      },
-    });
-    ev.connect();
-    return () => ev.close();
-  }, [throttledReload, apiBase]);
+  useDownloadEventStream(apiBase, setLive, throttledReload);
 
   const act = (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -128,26 +111,7 @@ export default function DownloadsPage() {
       {/* spacer to match the standard PageHeader → content rhythm */}
       <div className="mt-6" />
 
-      {vpn ? (
-        <div
-          className={`mb-4 flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-[13.5px] font-semibold ${
-            vpn.connected
-              ? 'border-[#46D08D]/30 bg-[#46D08D]/[0.10] text-[#46D08D]'
-              : 'border-[#F4B642]/30 bg-[#F4B642]/[0.10] text-[#F4B642]'
-          }`}
-        >
-          {vpn.connected ? (
-            <IconShieldCheck size={15} stroke={2} />
-          ) : (
-            <IconShieldX size={15} stroke={2} />
-          )}
-          {vpn.connected
-            ? t('downloads.vpnOk', { ip: vpn.exitIp ?? '?' })
-            : vpn.paused
-              ? t('downloads.vpnBlocked')
-              : t('downloads.vpnDown')}
-        </div>
-      ) : null}
+      {vpn ? <VpnBanner vpn={vpn} /> : null}
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label={t('downloads.statActive')} value={String(activeRows.length)} />
@@ -240,6 +204,68 @@ export default function DownloadsPage() {
 
       {manual ? <ManualGrabModal onClose={() => setManual(false)} onAdded={reload} /> : null}
     </>
+  );
+}
+
+/** Subscribe to the live download event stream: `download.progress` frames feed
+ *  the per-row overlay, terminal events trigger a throttled reload (safety net). */
+function useDownloadEventStream(
+  apiBase: string,
+  setLive: Dispatch<SetStateAction<Record<string, LiveDl>>>,
+  throttledReload: () => void,
+) {
+  useEffect(() => {
+    const ev = new KromaEventStream(apiBase, {
+      onEvent: (e) => {
+        if (e.type === 'download.progress') {
+          setLive((s) => ({
+            ...s,
+            [e.id]: {
+              progress: e.progress,
+              downBps: e.downBps,
+              upBps: e.upBps,
+              peers: e.peers,
+              peersSeen: e.peersSeen,
+              state: e.state,
+            },
+          }));
+        } else if (
+          e.type === 'download.completed' ||
+          e.type === 'request.updated' ||
+          e.type === 'vpn.status'
+        ) {
+          throttledReload();
+        }
+      },
+    });
+    ev.connect();
+    return () => ev.close();
+  }, [throttledReload, apiBase, setLive]);
+}
+
+function VpnBanner({
+  vpn,
+}: Readonly<{ vpn: { connected: boolean; exitIp: string | null; paused: boolean } }>) {
+  const t = useT();
+  let message: string;
+  if (vpn.connected) message = t('downloads.vpnOk', { ip: vpn.exitIp ?? '?' });
+  else if (vpn.paused) message = t('downloads.vpnBlocked');
+  else message = t('downloads.vpnDown');
+  return (
+    <div
+      className={`mb-4 flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-[13.5px] font-semibold ${
+        vpn.connected
+          ? 'border-[#46D08D]/30 bg-[#46D08D]/[0.10] text-[#46D08D]'
+          : 'border-[#F4B642]/30 bg-[#F4B642]/[0.10] text-[#F4B642]'
+      }`}
+    >
+      {vpn.connected ? (
+        <IconShieldCheck size={15} stroke={2} />
+      ) : (
+        <IconShieldX size={15} stroke={2} />
+      )}
+      {message}
+    </div>
   );
 }
 

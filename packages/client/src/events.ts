@@ -61,7 +61,7 @@ export class KromaEvents {
 
   constructor(baseUrl: string, opts: KromaEventsOptions = {}) {
     // http→ws, https→wss.
-    this.url = `${baseUrl.replace(/^http/i, 'ws').replace(/\/+$/, '')}/api/events`;
+    this.url = `${baseUrl.replace(/^http/i, 'ws').replace(/(^|[^/])\/+$/, '$1')}/api/events`;
     this.opts = opts;
   }
 

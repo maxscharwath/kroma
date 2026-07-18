@@ -52,7 +52,7 @@ async function discoverRemotes(): Promise<RemoteSpec[]> {
 /** MF remote name for a module id (must be a valid identifier -- no dots). Kept
  *  in sync with each module's vite `federation({ name })`. */
 function mfName(id: string): string {
-  return id.replace(/[^a-zA-Z0-9_]/g, '_');
+  return id.replace(/\W/g, '_');
 }
 
 // The Module Federation runtime is init'd ONCE (shared React singleton); remotes
@@ -80,32 +80,30 @@ function injectRemoteStyles(entry: string): void {
 }
 
 function ensureMf(): Promise<typeof import('@module-federation/runtime')> {
-  if (!mfReady) {
-    mfReady = import('@module-federation/runtime')
-      .then((mf) => {
-        mf.init({
-          name: 'kroma_web_host',
-          remotes: [],
-          shared: {
-            react: {
-              version: React.version,
-              lib: () => React,
-              shareConfig: { singleton: true, requiredVersion: '^19' },
-            },
-            'react-dom': {
-              version: React.version,
-              lib: () => ReactDOM,
-              shareConfig: { singleton: true, requiredVersion: '^19' },
-            },
+  mfReady ??= import('@module-federation/runtime')
+    .then((mf) => {
+      mf.init({
+        name: 'kroma_web_host',
+        remotes: [],
+        shared: {
+          react: {
+            version: React.version,
+            lib: () => React,
+            shareConfig: { singleton: true, requiredVersion: '^19' },
           },
-        });
-        return mf;
-      })
-      .catch((e) => {
-        mfReady = null; // let a later call retry
-        throw e;
+          'react-dom': {
+            version: React.version,
+            lib: () => ReactDOM,
+            shareConfig: { singleton: true, requiredVersion: '^19' },
+          },
+        },
       });
-  }
+      return mf;
+    })
+    .catch((e) => {
+      mfReady = null; // let a later call retry
+      throw e;
+    });
   return mfReady;
 }
 
@@ -154,7 +152,10 @@ export async function loadRuntimeRemotes(registry: ModuleRegistry): Promise<stri
           } catch (err) {
             registry.unregister(mod.id);
             loadedRemotes.delete(s.name);
-            console.warn(`[modules] runtime remote "${s.name}" has unmet deps/cycle; unregistered`, err);
+            console.warn(
+              `[modules] runtime remote "${s.name}" has unmet deps/cycle; unregistered`,
+              err,
+            );
           }
         }
       } catch (e) {

@@ -69,7 +69,7 @@ function StoragePage() {
           {(data?.volumes ?? []).map((v) => (
             <VolumeCard key={v.mount} v={v} />
           ))}
-          {data && data.volumes.length === 0 ? (
+          {data?.volumes.length === 0 ? (
             <EmptyState
               icon={<IconDatabase size={32} stroke={1.5} />}
               title={t('admin.noVolumes')}

@@ -174,8 +174,8 @@ export class HtmlEngine implements TvEngine {
   }
 
   play(): void {
-    const p = this.v.play();
-    if (p && typeof p.then === 'function') p.catch(() => undefined);
+    const p = this.v.play() as Promise<void> | undefined;
+    p?.catch(() => undefined);
   }
   pause(): void {
     this.v.pause();

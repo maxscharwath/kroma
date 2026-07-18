@@ -13,5 +13,14 @@ export default defineConfig({
       'packages/tv/src/**/*.test.ts',
       'clients/web/src/**/*.test.ts',
     ],
+    coverage: {
+      // istanbul (source-instrumented) works under Bun's runtime; the v8
+      // provider needs node:inspector coverage APIs Bun doesn't implement.
+      // Emits lcov for SonarCloud (coverage/lcov.info) + a text summary in CI.
+      // Scope/exclusions live in sonar-project.properties.
+      provider: 'istanbul',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+    },
   },
 });

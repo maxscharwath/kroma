@@ -63,7 +63,11 @@ function dsmPackages(catalog: Catalog, params: URLSearchParams, origin: string) 
   const nightly = catalog.entries.find((e) => e.channel === 'nightly');
 
   let pick: Entry | undefined = stable;
-  if (beta && nightly && (!stable || cmpDsmVersion(entryVersion(nightly), entryVersion(stable)) > 0)) {
+  if (
+    beta &&
+    nightly &&
+    (!stable || cmpDsmVersion(entryVersion(nightly), entryVersion(stable)) > 0)
+  ) {
     pick = nightly;
   }
   return { packages: pick ? [toDsmPackage(pick, origin, catalog.repo)] : [] };
@@ -87,7 +91,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecCtx): Promise<Response> {
     const url = new URL(request.url);
     const origin = url.origin;
-    const path = url.pathname.replace(/\/+$/, '') || '/';
+    const path = url.pathname.replace(/(^|[^/])\/+$/, '$1') || '/';
 
     if (path === '/ping') return new Response('pong');
     if (path === '/icon.png') return icon(env.GITHUB_REPO || DEFAULT_REPO, ctx);
@@ -131,7 +135,10 @@ export default {
           !url.searchParams.has('unique');
         if (wantsHtml) {
           return new Response(renderLanding(catalog, origin), {
-            headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' },
+            headers: {
+              'content-type': 'text/html; charset=utf-8',
+              'cache-control': 'public, max-age=300',
+            },
           });
         }
         return json(dsmPackages(catalog, await dsmParams(request, url), origin));

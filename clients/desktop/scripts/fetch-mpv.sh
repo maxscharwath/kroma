@@ -21,9 +21,13 @@ OUT="$DIR/src-tauri/bin/kroma-mpv-x86_64-unknown-linux-gnu"
 
 # Portable across GNU coreutils (CI) and BSD/macOS.
 sum_of() {
-  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1"; else sha256sum "$1"; fi | awk '{print $1}'
+  local file="$1"
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$file"; else sha256sum "$file"; fi | awk '{print $1}'
 }
-sum_ok() { [ -f "$1" ] && [ "$(sum_of "$1")" = "$SHA256" ]; }
+sum_ok() {
+  local file="$1"
+  [[ -f "$file" ]] && [[ "$(sum_of "$file")" = "$SHA256" ]]
+}
 
 if sum_ok "$OUT"; then
   echo "fetch-mpv: $ASSET already present, sha256 OK"

@@ -22,60 +22,65 @@ export interface GridFocus {
   hover: (i: number) => () => void;
 }
 
+/** Key handling when the grid is empty: ▲ or Back can still exit / go back. */
+function emptyGridKey(
+  key: RemoteKey,
+  onExit?: (edge: 'top' | 'bottom') => void,
+  onBack?: () => void,
+): boolean {
+  if (key === 'Up') {
+    onExit?.('top');
+    return onExit != null;
+  }
+  if (key === 'Back') {
+    onBack?.();
+    return onBack != null;
+  }
+  return false;
+}
+
 export function useGridFocus(opts: GridFocusOptions): GridFocus {
   const { count, cols, onActivate, onBack, onExit } = opts;
   const [index, setIndex] = useState(opts.initial ?? 0);
 
   const onKey = useCallback(
     (key: RemoteKey): boolean => {
-      if (count === 0) {
-        if (key === 'Up') {
-          onExit?.('top');
-          return onExit != null;
+      if (count === 0) return emptyGridKey(key, onExit, onBack);
+      const col = index % cols;
+      switch (key) {
+        case 'Left':
+          if (col === 0) return true;
+          setIndex(index - 1);
+          return true;
+        case 'Right':
+          if (col === cols - 1 || index + 1 >= count) return true;
+          setIndex(index + 1);
+          return true;
+        case 'Up':
+          if (index - cols < 0) {
+            onExit?.('top');
+            return onExit != null;
+          }
+          setIndex(index - cols);
+          return true;
+        case 'Down': {
+          const next = index + cols;
+          if (next >= count) {
+            onExit?.('bottom');
+            return onExit != null;
+          }
+          setIndex(next);
+          return true;
         }
-        if (key === 'Back') {
+        case 'Enter':
+          onActivate?.(index);
+          return onActivate != null;
+        case 'Back':
           onBack?.();
           return onBack != null;
-        }
-        return false;
+        default:
+          return false;
       }
-      const col = index % cols;
-      if (key === 'Left') {
-        if (col === 0) return true;
-        setIndex(index - 1);
-        return true;
-      }
-      if (key === 'Right') {
-        if (col === cols - 1 || index + 1 >= count) return true;
-        setIndex(index + 1);
-        return true;
-      }
-      if (key === 'Up') {
-        if (index - cols < 0) {
-          onExit?.('top');
-          return onExit != null;
-        }
-        setIndex(index - cols);
-        return true;
-      }
-      if (key === 'Down') {
-        const next = index + cols;
-        if (next >= count) {
-          onExit?.('bottom');
-          return onExit != null;
-        }
-        setIndex(next);
-        return true;
-      }
-      if (key === 'Enter') {
-        onActivate?.(index);
-        return onActivate != null;
-      }
-      if (key === 'Back') {
-        onBack?.();
-        return onBack != null;
-      }
-      return false;
     },
     [index, count, cols, onActivate, onBack, onExit],
   );

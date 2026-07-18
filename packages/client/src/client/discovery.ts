@@ -27,8 +27,9 @@ export function discoverTrending(
   const params = new URLSearchParams();
   if (opts?.type && opts.type !== 'all') params.set('type', opts.type);
   if (opts?.page && opts.page > 1) params.set('page', String(opts.page));
-  const qs = params.toString();
-  return ctx.json<DiscoverResponse>(`/discover/trending${qs ? `?${qs}` : ''}`);
+  const query = params.toString();
+  const suffix = query ? `?${query}` : '';
+  return ctx.json<DiscoverResponse>(`/discover/trending${suffix}`);
 }
 
 /** One title's request-flow detail. `kind` follows the route vocabulary

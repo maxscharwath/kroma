@@ -9,10 +9,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
 
-export function DiscoverCard({
-  entry,
-  width,
-}: Readonly<{ entry: DiscoverEntry; width?: number }>) {
+export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; width?: number }>) {
   const t = useT();
   const navigate = useNavigate();
   const [imgOk, setImgOk] = useState(true);

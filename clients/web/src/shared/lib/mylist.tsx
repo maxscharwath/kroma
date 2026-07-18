@@ -29,6 +29,15 @@ interface MyListValue {
 
 const MyListContext = createContext<MyListValue | null>(null);
 
+/** State updater that undoes an optimistic membership change (kept at module
+ * scope so its inner callbacks don't nest inside the provider). */
+function revertMembership(id: string, wasAdding: boolean) {
+  return (prev: readonly string[]): readonly string[] => {
+    if (wasAdding) return prev.filter((x) => x !== id);
+    return prev.includes(id) ? prev : [id, ...prev];
+  };
+}
+
 export function MyListProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { client, user, ready: authReady } = useAuth();
   const [ids, setIds] = useState<readonly string[]>([]);
@@ -70,10 +79,7 @@ export function MyListProvider({ children }: Readonly<{ children: ReactNode }>) 
       const call = inList ? client.addToList(id) : client.removeFromList(id);
       call.catch(() => {
         // Revert the optimistic change on failure.
-        setIds((prev) => {
-          if (inList) return prev.filter((x) => x !== id);
-          return prev.includes(id) ? prev : [id, ...prev];
-        });
+        setIds(revertMembership(id, inList));
       });
     },
     [client, user],

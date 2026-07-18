@@ -95,9 +95,11 @@ export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
     };
   }, [queryClient]);
 
+  const adminValue = useMemo(() => ({ serverInfo }), [serverInfo]);
+
   return (
     <AdminKitProvider value={kit}>
-      <AdminContext.Provider value={{ serverInfo }}>{children}</AdminContext.Provider>
+      <AdminContext.Provider value={adminValue}>{children}</AdminContext.Provider>
     </AdminKitProvider>
   );
 }

@@ -23,7 +23,7 @@ import { SubtitleAppearancePanel } from './settings/SubtitleAppearancePanel';
 import { SubtitlesPanel } from './settings/SubtitlesPanel';
 import type { SubtitleAppearance } from './subtitle-appearance';
 import { PANEL } from './tw';
-import type { PlayerController } from './types';
+import type { PlayerController, PlayerSub } from './types';
 import { useListFocus } from './useListFocus';
 
 // Sub-views the menu can open; toggles (loop/statistics) act in place.
@@ -50,6 +50,19 @@ interface Entry {
   toggle?: boolean;
   on?: boolean;
   activate: () => void;
+}
+
+/** The subtitles menu-row value: Off, an AI track's own label, else the language. */
+function subtitleValue(t: ReturnType<typeof useT>, curSub: PlayerSub | null | undefined): string {
+  if (!curSub) return t('player.subtitlesOff');
+  if (curSub.ai && curSub.label) return curSub.label;
+  return langName(t, curSub.language) || t('player.langUnknown');
+}
+
+/** The panel heading: "Settings" on the menu, else the open sub-view's label. */
+function panelTitle(view: View, entries: Entry[], t: ReturnType<typeof useT>): string {
+  if (view === 'menu') return t('player.settings');
+  return entries.find((e) => e.id === view)?.label ?? '';
 }
 
 /**
@@ -87,10 +100,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     night: t('player.audioFilterNight'),
   } as const;
 
-  let subValue: string;
-  if (!curSub) subValue = t('player.subtitlesOff');
-  else if (curSub.ai && curSub.label) subValue = curSub.label;
-  else subValue = langName(t, curSub.language) || t('player.langUnknown');
+  const subValue = subtitleValue(t, curSub);
 
   const entries: Entry[] = [
     {
@@ -170,14 +180,26 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     [view, menuFocus.onKey],
   );
 
-  const title =
-    view === 'menu' ? t('player.settings') : (entries.find((e) => e.id === view)?.label ?? '');
+  const title = panelTitle(view, entries, t);
 
   return (
     <>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: a click-to-close scrim; Back on the D-pad closes the panel, this only mirrors it for the mouse (§15). */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Back is handled by the shell's D-pad routing, so this scrim needs no element-level key handler. */}
-      <div className="absolute inset-y-0 left-0 z-[41] w-[56%] cursor-pointer" onClick={onClose} />
+      {/* click-to-close scrim; Back on the D-pad closes the panel, this mirrors it
+          for the mouse + keyboard (§15). */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={t('common.close')}
+        className="absolute inset-y-0 left-0 z-[41] w-[56%] cursor-pointer"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }
+        }}
+      />
       <div className={`${PANEL} w-[44%] max-w-[720px] px-[58px] py-14`}>
         <div className="mb-[30px] flex items-center gap-[18px]">
           {view !== 'menu' ? (

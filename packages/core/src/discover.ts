@@ -76,18 +76,23 @@ export async function getLocalIPv4(): Promise<string | null> {
 
 // ----- per-platform local IP --------------------------------------------------
 
+/** Wrap a resolver so only the first call settles it (later calls are ignored). */
+function once<T>(resolve: (value: T) => void): (value: T) => void {
+  let settled = false;
+  return (value: T) => {
+    if (!settled) {
+      settled = true;
+      resolve(value);
+    }
+  };
+}
+
 function tizenLocalIp(): Promise<string | null> {
   const tizen = (globalThis as { tizen?: TizenSystemInfo }).tizen;
   const si = tizen?.systeminfo;
   if (!si?.getPropertyValue) return Promise.resolve(null);
   return new Promise((resolve) => {
-    let settled = false;
-    const finish = (v: string | null) => {
-      if (!settled) {
-        settled = true;
-        resolve(v);
-      }
-    };
+    const finish = once(resolve);
     const good = (ip?: string) => (ip && ip !== '0.0.0.0' ? ip : null);
     try {
       si.getPropertyValue(
@@ -119,13 +124,7 @@ function webosLocalIp(): Promise<string | null> {
   const svc = (globalThis as { webOS?: WebOSBridge }).webOS?.service;
   if (!svc?.request) return Promise.resolve(null);
   return new Promise((resolve) => {
-    let settled = false;
-    const finish = (v: string | null) => {
-      if (!settled) {
-        settled = true;
-        resolve(v);
-      }
-    };
+    const finish = once(resolve);
     try {
       svc.request('luna://com.palm.connectionmanager', {
         method: 'getStatus',
@@ -176,7 +175,7 @@ function webrtcLocalIp(): Promise<string | null> {
 }
 
 function isPrivateIPv4(ip: string): boolean {
-  return /^10\./.test(ip) || /^192\.168\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+  return ip.startsWith('10.') || ip.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
 }
 
 // ----- probing ----------------------------------------------------------------
@@ -239,7 +238,7 @@ async function probe(
 }
 
 function stripTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '');
+  return url.replace(/(^|[^/])\/+$/, '$1');
 }
 
 // ----- minimal platform typings -----------------------------------------------

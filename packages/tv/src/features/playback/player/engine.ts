@@ -45,7 +45,7 @@ export interface TvEngine {
 /** One track from `getTotalTrackInfo()`. `extra_info` is a JSON string. */
 export interface AvplayTrack {
   index: number;
-  type: 'VIDEO' | 'AUDIO' | 'TEXT' | string;
+  type: 'VIDEO' | 'AUDIO' | 'TEXT' | (string & {});
   extra_info?: string;
 }
 

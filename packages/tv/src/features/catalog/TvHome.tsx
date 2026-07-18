@@ -1,10 +1,12 @@
 import {
   episodeTag,
   formatRuntime,
+  type KromaClient,
   type MediaItem,
   posterColors,
   qualityBadge,
   qualityBadgeForVideo,
+  type Section,
   type SectionItem,
   type Show,
 } from '@kroma/core';
@@ -33,6 +35,37 @@ interface Row {
 // A recommendation row entry is a movie *or* a show (the server mixes them).
 const entryId = (e: SectionItem): string => (e.type === 'show' ? e.show.id : e.item.id);
 const entryMetadata = (e: SectionItem) => (e.type === 'show' ? e.show.metadata : e.item.metadata);
+
+interface HeroInfo {
+  hero: SectionItem | null;
+  heroId: string | null;
+  heroMeta: ReturnType<typeof entryMetadata> | null;
+  heroBackdrop: string | null;
+  heroBadge: string | null;
+}
+
+/** The featured spotlight: the first entry of the top server section (For You),
+ * falling back to the most prominent catalog movie so the hero is never empty,
+ * plus its resolved backdrop art and quality badge. */
+function computeHero(sections: Section[], movies: MediaItem[], client: KromaClient): HeroInfo {
+  const hero: SectionItem | null =
+    sections[0]?.items[0] ?? (movies[0] ? { type: 'movie', item: movies[0] } : null);
+  const heroId = hero ? entryId(hero) : null;
+  const heroMeta = hero ? entryMetadata(hero) : null;
+  let heroBackdrop: string | null = null;
+  if (hero) {
+    heroBackdrop =
+      hero.type === 'show'
+        ? (client.backdropFor(hero.show) ?? client.showPosterFor(hero.show))
+        : (client.backdropFor(hero.item) ?? client.posterFor(hero.item));
+  }
+  let heroBadge: string | null = null;
+  if (hero) {
+    heroBadge =
+      hero.type === 'show' ? qualityBadgeForVideo(hero.show.video) : qualityBadge(hero.item);
+  }
+  return { hero, heroId, heroMeta, heroBackdrop, heroBadge };
+}
 
 /** The 10-foot home a cinematic hero over a vertical stack of horizontal rails
  * (Reprendre / Films / Séries previews). Films, Séries and Search live on their
@@ -108,12 +141,8 @@ export function TvHome() {
     [entryCard],
   );
 
-  // Featured spotlight: the first entry of the top server section (For You),
-  // falling back to the most prominent catalog movie so the hero is never empty.
-  const hero: SectionItem | null =
-    sections[0]?.items[0] ?? (movies[0] ? { type: 'movie', item: movies[0] } : null);
-  const heroId = hero ? entryId(hero) : null;
-  const heroMeta = hero ? entryMetadata(hero) : null;
+  // Featured spotlight (hero) + its backdrop art and quality badge, computed once.
+  const { hero, heroId, heroMeta, heroBackdrop, heroBadge } = computeHero(sections, movies, client);
 
   const rows = useMemo<Row[]>(() => {
     const continueRow: Row | null = continueItems.length
@@ -188,19 +217,6 @@ export function TvHome() {
     isWatched,
     t,
   ]);
-
-  let heroBackdrop: string | null = null;
-  if (hero) {
-    heroBackdrop =
-      hero.type === 'show'
-        ? (client.backdropFor(hero.show) ?? client.showPosterFor(hero.show))
-        : (client.backdropFor(hero.item) ?? client.posterFor(hero.item));
-  }
-  let heroBadge: string | null = null;
-  if (hero) {
-    heroBadge =
-      hero.type === 'show' ? qualityBadgeForVideo(hero.show.video) : qualityBadge(hero.item);
-  }
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-bg">

@@ -17,6 +17,53 @@ export interface PlayerKeysParams {
   credits?: { active: boolean; onKey: (key: RemoteKey) => boolean };
 }
 
+/** While the player is locked (admin-stop overlay) only Back / OK dismiss it. */
+function lockedKey(e: KeyboardEvent, nav: PlayerNav): void {
+  const k = resolveRemoteKey(e);
+  if (k === 'Back' || k === 'Enter') {
+    e.preventDefault();
+    nav.handleKey('Back');
+  }
+}
+
+/** Web letter / Space transport shortcuts (no arrow clash). Returns whether the
+ * event was one of them (so the caller can stop routing it as a D-pad key). */
+function letterShortcut(
+  e: KeyboardEvent,
+  nav: PlayerNav,
+  controller: PlayerController,
+  flags: PlayerFlags,
+): boolean {
+  const letter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (e.code === 'Space' || letter === 'k') {
+    e.preventDefault();
+    nav.poke();
+    controller.togglePlay();
+    return true;
+  }
+  if (letter === 'f' && flags.fullscreen) {
+    nav.poke();
+    controller.toggleFullscreen();
+    return true;
+  }
+  if (letter === 'm' && flags.volume) {
+    nav.poke();
+    controller.toggleMute();
+    return true;
+  }
+  if (letter === 'j') {
+    nav.poke();
+    controller.skip(-10);
+    return true;
+  }
+  if (letter === 'l') {
+    nav.poke();
+    controller.skip(10);
+    return true;
+  }
+  return false;
+}
+
 /**
  * The single window keydown router (§3, §15). D-pad keys (arrows / OK / Back,
  * from `@kroma/core` `resolveRemoteKey`) flow to the open panel first, then the
@@ -37,42 +84,12 @@ export function usePlayerKeys({
   const latest = useRef<(e: KeyboardEvent) => void>(() => undefined);
   latest.current = (e: KeyboardEvent) => {
     if (locked) {
-      const k = resolveRemoteKey(e);
-      if (k === 'Back' || k === 'Enter') {
-        e.preventDefault();
-        nav.handleKey('Back');
-      }
+      lockedKey(e, nav);
       return;
     }
 
     // Letter / space transport shortcuts (web convenience, no arrow clash).
-    const letter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-    if (e.code === 'Space' || letter === 'k') {
-      e.preventDefault();
-      nav.poke();
-      controller.togglePlay();
-      return;
-    }
-    if (letter === 'f' && flags.fullscreen) {
-      nav.poke();
-      controller.toggleFullscreen();
-      return;
-    }
-    if (letter === 'm' && flags.volume) {
-      nav.poke();
-      controller.toggleMute();
-      return;
-    }
-    if (letter === 'j') {
-      nav.poke();
-      controller.skip(-10);
-      return;
-    }
-    if (letter === 'l') {
-      nav.poke();
-      controller.skip(10);
-      return;
-    }
+    if (letterShortcut(e, nav, controller, flags)) return;
 
     const remote = resolveRemoteKey(e);
     if (!remote) return;

@@ -1,5 +1,14 @@
 import { formatTimecode as fmtTime, type Marker, type RemoteKey } from '@kroma/core';
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocale, useT } from '../i18n';
 import type { StoryboardTile } from '../storyboard';
 import { ChapterProgressBar } from './ChapterProgressBar';
@@ -59,6 +68,78 @@ export interface PlayerProps {
   onClose: () => void;
 }
 
+function initialSettingsView(overlay: string | null): 'audio' | 'subtitles' | 'menu' {
+  if (overlay === 'audio') return 'audio';
+  if (overlay === 'subtitles') return 'subtitles';
+  return 'menu';
+}
+
+// The stage scales/translates (transform-origin + transform) for a smooth shrink:
+// settings -> a rounded card on the left; PiP -> a bottom-right window. Native TV
+// planes can't be transformed, so those never shrink (settingsShrink stays false).
+function stageTransformFor(pipOpen: boolean, settingsShrink: boolean): CSSProperties {
+  if (pipOpen) {
+    return {
+      transformOrigin: '100% 100%',
+      transform: 'translate(-24px,-24px) scale(0.2)',
+      borderRadius: 18,
+    };
+  }
+  if (settingsShrink) {
+    return {
+      transformOrigin: '0 50%',
+      transform: 'translate(3vw,0) scale(0.5)',
+      borderRadius: 22,
+    };
+  }
+  return { transformOrigin: '0 50%', transform: 'none', borderRadius: 0 };
+}
+
+/** Derived chrome-visibility flags, kept out of the component to stay flat. The
+ * video only shrinks into a card for an IN-PAGE surface; native planes just get
+ * the panel slid over them. */
+function deriveChrome(
+  nav: ReturnType<typeof usePlayerNav>,
+  c: PlayerController,
+  props: Readonly<PlayerProps>,
+  pipOpen: boolean,
+) {
+  const settingsOpen =
+    nav.overlay === 'settings' || nav.overlay === 'audio' || nav.overlay === 'subtitles';
+  const sheetOpen = nav.overlay === 'sheet';
+  const settingsShrink = settingsOpen && c.surface === 'video';
+  const shrunk = settingsShrink || pipOpen;
+  const hasUpNext = props.upNext.nextEpisodes.length + props.upNext.recommendations.length > 0;
+  const peekVisible = nav.revealed && hasUpNext && !shrunk && !nav.overlay;
+  const chromeShown = nav.revealed && !nav.overlay && !pipOpen;
+  return { settingsOpen, sheetOpen, settingsShrink, shrunk, peekVisible, chromeShown };
+}
+
+/** Credits card key routing: Left/Right swap Play/Cancel focus, OK fires the
+ * focused one, Back cancels. Returns whether the key was consumed. */
+function handleCreditsKey(
+  key: RemoteKey,
+  focus: 'play' | 'cancel',
+  setFocus: Dispatch<SetStateAction<'play' | 'cancel'>>,
+  onPlay: () => void,
+  onCancel: () => void,
+): boolean {
+  if (key === 'Left' || key === 'Right') {
+    setFocus((f) => (f === 'play' ? 'cancel' : 'play'));
+    return true;
+  }
+  if (key === 'Enter') {
+    if (focus === 'play') onPlay();
+    else onCancel();
+    return true;
+  }
+  if (key === 'Back') {
+    onCancel();
+    return true;
+  }
+  return false;
+}
+
 /**
  * The unified player chrome (§14): one component for web + TV. It owns the nav
  * machine, the keyboard router, the credits autoplay and the settings / PiP
@@ -111,22 +192,14 @@ export function Player(props: Readonly<PlayerProps>) {
     onExit: props.onClose,
   });
 
-  const creditsKey = (key: RemoteKey): boolean => {
-    if (key === 'Left' || key === 'Right') {
-      setCreditsFocus((f) => (f === 'play' ? 'cancel' : 'play'));
-      return true;
-    }
-    if (key === 'Enter') {
-      if (creditsFocus === 'play') props.onPlayNext?.();
-      else credits.cancel();
-      return true;
-    }
-    if (key === 'Back') {
-      credits.cancel();
-      return true;
-    }
-    return false;
-  };
+  const creditsKey = (key: RemoteKey): boolean =>
+    handleCreditsKey(
+      key,
+      creditsFocus,
+      setCreditsFocus,
+      () => props.onPlayNext?.(),
+      credits.cancel,
+    );
 
   usePlayerKeys({
     nav,
@@ -138,44 +211,15 @@ export function Player(props: Readonly<PlayerProps>) {
     credits: { active: credits.show, onKey: creditsKey },
   });
 
-  const settingsOpen =
-    nav.overlay === 'settings' || nav.overlay === 'audio' || nav.overlay === 'subtitles';
-  let initialView: 'audio' | 'subtitles' | 'menu' = 'menu';
-  if (nav.overlay === 'audio') initialView = 'audio';
-  else if (nav.overlay === 'subtitles') initialView = 'subtitles';
-  const sheetOpen = nav.overlay === 'sheet';
-  // The video only shrinks into a card for an IN-PAGE surface. Native TV planes
-  // (avplay / mpv / exo) live behind the page, so the panel just slides over them.
-  const settingsShrink = settingsOpen && c.surface === 'video';
-  const shrunk = settingsShrink || pipOpen;
-
-  // The stage scales/translates (transform-origin + transform) for a smooth
-  // shrink: settings -> a rounded card on the left; PiP -> a bottom-right window.
+  const { settingsOpen, sheetOpen, settingsShrink, shrunk, peekVisible, chromeShown } =
+    deriveChrome(nav, c, props, pipOpen);
+  const initialView = initialSettingsView(nav.overlay);
   // Subtitles live inside the stage, so they scale WITH the video (stay in the
-  // card, §5). Transforming a native plane is impossible, so those never shrink.
-  let stageTransform: CSSProperties;
-  if (pipOpen) {
-    stageTransform = {
-      transformOrigin: '100% 100%',
-      transform: 'translate(-24px,-24px) scale(0.2)',
-      borderRadius: 18,
-    };
-  } else if (settingsShrink) {
-    stageTransform = {
-      transformOrigin: '0 50%',
-      transform: 'translate(3vw,0) scale(0.5)',
-      borderRadius: 22,
-    };
-  } else {
-    stageTransform = { transformOrigin: '0 50%', transform: 'none', borderRadius: 0 };
-  }
-
-  const hasUpNext = props.upNext.nextEpisodes.length + props.upNext.recommendations.length > 0;
-  const peekVisible = nav.revealed && hasUpNext && !shrunk && !nav.overlay;
+  // card, §5).
+  const stage = stageTransformFor(pipOpen, settingsShrink);
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
-  // The top bar + transport hide while a panel / PiP owns the screen (the design
-  // shows only the shrunk video + the panel), and whenever the chrome auto-hides.
-  const chromeShown = nav.revealed && !nav.overlay && !pipOpen;
+  // The top bar + transport hide while a panel / PiP owns the screen, and whenever
+  // the chrome auto-hides.
   const chromeFade = chromeShown ? 'opacity-100' : 'pointer-events-none opacity-0';
 
   return (
@@ -186,14 +230,26 @@ export function Player(props: Readonly<PlayerProps>) {
         if (e.pointerType !== 'touch') nav.poke();
       }}
     >
-      {/* stage: video + subtitles, transformed together for settings / PiP */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: the stage is a pointer convenience (click toggles play, double-click fullscreen); all keyboard/D-pad control runs through usePlayerKeys. */}
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard is handled globally by usePlayerKeys, so this click pair needs no element-level key handler. */}
+      {/* stage: video + subtitles, transformed together for settings / PiP. The
+          click / key pair is a pointer convenience (toggle play, double-click
+          fullscreen); D-pad control still flows through usePlayerKeys, so the
+          element handler stops propagation to avoid a double toggle when focused. */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={c.playing ? t('player.pause') : t('player.play')}
         className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] ${shrunk ? 'bg-black shadow-pop' : 'bg-transparent'}`}
-        style={stageTransform}
+        style={stage}
         onClick={() => {
           if (!locked) {
+            nav.poke();
+            c.togglePlay();
+          }
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !locked) {
+            e.preventDefault();
+            e.stopPropagation();
             nav.poke();
             c.togglePlay();
           }

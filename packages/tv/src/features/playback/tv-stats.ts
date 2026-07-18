@@ -15,6 +15,22 @@ export interface TvStatsInput {
   t: Translate;
 }
 
+/** Video codec label, e.g. "HEVC 10-bit HDR" (empty parts dropped). */
+function videoCodecLabel(video: MediaItem['video']): string | undefined {
+  if (!video) return undefined;
+  const depth = video.bitDepth ? ` ${video.bitDepth}-bit` : '';
+  const hdr = video.hdr ? ' HDR' : '';
+  return `${video.codec.toUpperCase()}${depth}${hdr}`;
+}
+
+/** Audio format label, e.g. "EAC3 5.0 (fr)" (empty parts dropped). */
+function audioFormatLabel(track: AudioTrack | undefined): string | undefined {
+  if (!track) return undefined;
+  const channels = track.channels ? ` ${track.channels}.0` : '';
+  const lang = track.language ? ` (${track.language})` : '';
+  return `${track.codec.toUpperCase()}${channels}${lang}`;
+}
+
 /**
  * "Stats for nerds" (§9) for the TV player. Native surfaces expose no decode
  * counters, so this is a lean snapshot from the item metadata + engine clock,
@@ -30,12 +46,8 @@ export function buildTvStats(s: TvStatsInput): PlayerStats {
   return {
     mode,
     resolution: vw && vh ? `${vw}×${vh}` : undefined,
-    videoCodec: item.video
-      ? `${item.video.codec.toUpperCase()}${item.video.bitDepth ? ` ${item.video.bitDepth}-bit` : ''}${item.video.hdr ? ' HDR' : ''}`
-      : undefined,
-    audioFormat: selAudio
-      ? `${selAudio.codec.toUpperCase()}${selAudio.channels ? ` ${selAudio.channels}.0` : ''}${selAudio.language ? ` (${selAudio.language})` : ''}`
-      : undefined,
+    videoCodec: videoCodecLabel(item.video),
+    audioFormat: audioFormatLabel(selAudio),
     buffer: t('stats.bufferAhead', { seconds: Math.max(0, bufEnd - cur).toFixed(1) }),
     dropped: q ? `${q.droppedVideoFrames} / ${q.totalVideoFrames}` : undefined,
     extra: [

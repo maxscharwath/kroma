@@ -106,9 +106,9 @@ for (const file of files) {
   generated.push({
     id,
     crate,
-    crateIdent: crate.replace(/-/g, '_'),
+    crateIdent: crate.replaceAll('-', '_'),
     pkg,
-    aliasIdent: `m_${slug(id).replace(/-/g, '_')}`,
+    aliasIdent: `m_${slug(id).replaceAll('-', '_')}`,
   });
 
   // Packaged icon file, sitting next to module.json.
@@ -217,7 +217,7 @@ for (const r of roster) {
     seenCrates.add(r.crate);
   }
 }
-const ident = (crate: string) => crate.replace(/-/g, '_');
+const ident = (crate: string) => crate.replaceAll('-', '_');
 
 // ---- BE aggregator: kroma-modules-generated ---------------------------------
 // Path deps for every crate the roster wires in: the single-file codegen crates
@@ -230,15 +230,15 @@ const crateDeps = [
 // EmbeddedModule (from the packaged module.json + optional icon) for the
 // crate-less manifest-only ones. Roster first, then the codegen modules.
 const manifestRegs = [
-  ...roster.map((r) =>
-    r.manifestOnly
-      ? `    reg.register(Box::new(kroma_module_manifest::EmbeddedModule::${
-          r.icon
-            ? `new(include_str!("../../../modules/${r.id}/module.json"), include_bytes!("../../../modules/${r.id}/icon.svg"))`
-            : `iconless(include_str!("../../../modules/${r.id}/module.json"))`
-        }));`
-      : `    reg.register(Box::new(${ident(r.crate as string)}::MODULE));`,
-  ),
+  ...roster.map((r) => {
+    if (!r.manifestOnly) {
+      return `    reg.register(Box::new(${ident(r.crate as string)}::MODULE));`;
+    }
+    const embedded = r.icon
+      ? `new(include_str!("../../../modules/${r.id}/module.json"), include_bytes!("../../../modules/${r.id}/icon.svg"))`
+      : `iconless(include_str!("../../../modules/${r.id}/module.json"))`;
+    return `    reg.register(Box::new(kroma_module_manifest::EmbeddedModule::${embedded}));`;
+  }),
   ...generated.map((g) => `    reg.register(Box::new(${g.crateIdent}::MODULE));`),
 ];
 // Backend behaviors: only the roster crates that export server_module().

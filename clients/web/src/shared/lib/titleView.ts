@@ -155,9 +155,10 @@ export function buildTitleView(
     const meta = show.metadata ?? null;
     const first = detail.seasons[0]?.episodes[0] ?? null;
     const playTarget = upNext?.item ?? first;
+    const episodeKey = upNext?.resume ? 'player.resumeEpisode' : 'player.playEpisode';
     const playLabel =
       playTarget?.season != null && playTarget.episode != null
-        ? t(upNext?.resume ? 'player.resumeEpisode' : 'player.playEpisode', {
+        ? t(episodeKey, {
             season: playTarget.season,
             episode: playTarget.episode,
           })

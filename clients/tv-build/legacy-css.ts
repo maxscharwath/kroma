@@ -20,7 +20,7 @@
 
 import type { AtRule, ChildNode, Declaration, Plugin, Root, Rule } from 'postcss';
 
-const RATIO = /(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/;
+const RATIO = /(?=(\d+(?:\.\d+)?))\1\s*\/\s*(\d+(?:\.\d+)?)/;
 
 /** Split a CSS value on top-level whitespace (never inside parentheses). */
 function splitSpace(value: string): string[] {

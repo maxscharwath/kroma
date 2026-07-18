@@ -49,7 +49,7 @@ export function ChapterProgressBar({
   endsAt,
   onScrub,
   onScrubCommit,
-}: ChapterProgressBarProps) {
+}: Readonly<ChapterProgressBarProps>) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const [hoverSec, setHoverSec] = useState<number | null>(null);
@@ -207,5 +207,6 @@ function fmtSec(s: number): string {
   const m = Math.floor((t % 3600) / 60);
   const sec = t % 60;
   const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-  return `${h > 0 ? `${h}:` : ''}${mm}:${String(sec).padStart(2, '0')}`;
+  const hh = h > 0 ? `${h}:` : '';
+  return `${hh}${mm}:${String(sec).padStart(2, '0')}`;
 }

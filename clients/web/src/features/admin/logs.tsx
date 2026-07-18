@@ -102,10 +102,8 @@ export function LogsPage() {
       {entries.length > 0 ? (
         <Card className="p-0">
           <div ref={scroller} className="max-h-[70vh] overflow-y-auto px-4 py-3">
-            {entries.map((e, i) => (
-              // The ring has no stable ids; position is stable enough for a log tail.
-              // biome-ignore lint/suspicious/noArrayIndexKey: append-only tail
-              <LogLine key={i} entry={e} />
+            {entries.map((e) => (
+              <LogLine key={`${e.ts}-${e.source}-${e.message}`} entry={e} />
             ))}
           </div>
         </Card>

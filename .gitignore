@@ -57,3 +57,6 @@ scripts/serve-nas.sh
 
 # Cloudflare Workers local state
 **/.wrangler/
+
+# Test coverage (vitest -> lcov for SonarCloud)
+coverage/

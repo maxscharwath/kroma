@@ -8,7 +8,9 @@ import { REVERSE_DNS, slug as toSlug } from './module-format';
 
 const id = process.argv[2];
 if (!id || !REVERSE_DNS.test(id)) {
-  console.error('usage: bun run modules:new <reverse.dns.id>   e.g. bun run modules:new tv.kroma.notes');
+  console.error(
+    'usage: bun run modules:new <reverse.dns.id>   e.g. bun run modules:new tv.kroma.notes',
+  );
   process.exit(1);
 }
 

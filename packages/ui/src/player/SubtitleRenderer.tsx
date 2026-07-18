@@ -9,12 +9,13 @@ interface Cue {
   text: string;
 }
 
-const TAG = /<[^>]+>/g;
+const TAG = /<[^>]+?>/g;
 
 /** Parse an `HH:MM:SS.mmm` or `MM:SS.mmm` timestamp into seconds. */
 function toSeconds(v: string): number {
   let sec = 0;
-  for (const part of v.trim().split(':')) sec = sec * 60 + parseFloat(part.replace(',', '.'));
+  for (const part of v.trim().split(':'))
+    sec = sec * 60 + Number.parseFloat(part.replace(',', '.'));
   return sec;
 }
 

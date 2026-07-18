@@ -76,12 +76,117 @@ export function JobsPage() {
   );
 }
 
+function JobMeta({ job, onEdit }: Readonly<{ job: JobInfo; onEdit?: () => void }>) {
+  const t = useT();
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2.5">
+        <span className="font-display text-[16px] font-bold">{t(job.name as MessageKey)}</span>
+        <StatusPill job={job} />
+      </div>
+      <div className="mt-0.75 text-[12.5px] text-dim">{t(job.description as MessageKey)}</div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text/55">
+        <ScheduleChip job={job} onEdit={onEdit} />
+        {job.schedule && job.enabled && job.nextRunAt ? (
+          <span className="inline-flex items-center gap-1.5">
+            <IconClock size={13} stroke={1.8} />
+            {t('jobs.next')} {rel(job.nextRunAt)}
+          </span>
+        ) : null}
+        <LastRun job={job} />
+      </div>
+    </div>
+  );
+}
+
+function JobActions({
+  job,
+  canManage,
+  busy,
+  open,
+  onRun,
+  onCancel,
+  onToggle,
+  onToggleOpen,
+}: Readonly<{
+  job: JobInfo;
+  canManage: boolean;
+  busy: boolean;
+  open: boolean;
+  onRun: () => void;
+  onCancel: () => void;
+  onToggle: (enabled: boolean) => void;
+  onToggleOpen: () => void;
+}>) {
+  const t = useT();
+  return (
+    <div className="flex shrink-0 items-center gap-3">
+      {job.schedule ? (
+        <Toggle on={job.enabled} onChange={canManage ? onToggle : undefined} />
+      ) : null}
+      {job.running ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={!canManage || busy}
+          className="inline-flex items-center gap-1.5 rounded-[9px] border border-[#E8536A]/25 bg-[#E8536A]/10 px-3.5 py-2.25 text-[13px] font-semibold text-[#E8536A] disabled:opacity-50"
+        >
+          <IconPlayerStop size={15} stroke={2} />
+          {t('jobs.cancel')}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onRun}
+          disabled={!canManage || busy}
+          className="inline-flex items-center gap-1.5 rounded-[9px] border border-border-strong bg-surface-2 px-3.5 py-2.25 text-[13px] font-semibold text-text disabled:opacity-50"
+        >
+          <IconPlayerPlay size={15} stroke={2} />
+          {t('jobs.runNow')}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="rounded-md p-1.5 text-muted transition-colors hover:text-text"
+        aria-label={t('jobs.history')}
+      >
+        <IconChevronDown
+          size={18}
+          stroke={2}
+          className={`transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function JobProgress({ prog }: Readonly<{ prog: { done: number; total: number } }>) {
+  const t = useT();
+  return (
+    <div className="px-5.5 pb-4">
+      {prog.total > 0 ? (
+        <div className="flex items-center gap-3">
+          <ProgressBar pct={(prog.done / prog.total) * 100} color={C.accent} />
+          <span className="shrink-0 text-[12px] font-semibold tabular-nums text-text/60">
+            {prog.done}/{prog.total}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-[12.5px] font-semibold text-accent">
+          <IconBolt size={14} stroke={2} />
+          {t('jobs.runningNow')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function JobCard({
   job,
   live,
   reload,
 }: Readonly<{ job: JobInfo; live?: { done: number; total: number }; reload: () => void }>) {
-  const t = useT();
   const { client } = useAuth();
   const canManage = useCap('settings.manage');
   const action = useAsyncAction();
@@ -100,81 +205,20 @@ function JobCard({
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-4 px-5.5 py-4.5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <span className="font-display text-[16px] font-bold">{t(job.name as MessageKey)}</span>
-            <StatusPill job={job} />
-          </div>
-          <div className="mt-0.75 text-[12.5px] text-dim">{t(job.description as MessageKey)}</div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-text/55">
-            <ScheduleChip job={job} onEdit={canManage ? () => setEditing(true) : undefined} />
-            {job.schedule && job.enabled && job.nextRunAt ? (
-              <span className="inline-flex items-center gap-1.5">
-                <IconClock size={13} stroke={1.8} />
-                {t('jobs.next')} {rel(job.nextRunAt)}
-              </span>
-            ) : null}
-            <LastRun job={job} />
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3">
-          {job.schedule ? (
-            <Toggle on={job.enabled} onChange={canManage ? toggle : undefined} />
-          ) : null}
-          {job.running ? (
-            <button
-              type="button"
-              onClick={cancel}
-              disabled={!canManage || action.busy}
-              className="inline-flex items-center gap-1.5 rounded-[9px] border border-[#E8536A]/25 bg-[#E8536A]/10 px-3.5 py-2.25 text-[13px] font-semibold text-[#E8536A] disabled:opacity-50"
-            >
-              <IconPlayerStop size={15} stroke={2} />
-              {t('jobs.cancel')}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={run}
-              disabled={!canManage || action.busy}
-              className="inline-flex items-center gap-1.5 rounded-[9px] border border-border-strong bg-surface-2 px-3.5 py-2.25 text-[13px] font-semibold text-text disabled:opacity-50"
-            >
-              <IconPlayerPlay size={15} stroke={2} />
-              {t('jobs.runNow')}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            className="rounded-md p-1.5 text-muted transition-colors hover:text-text"
-            aria-label={t('jobs.history')}
-          >
-            <IconChevronDown
-              size={18}
-              stroke={2}
-              className={`transition-transform ${open ? 'rotate-180' : ''}`}
-            />
-          </button>
-        </div>
+        <JobMeta job={job} onEdit={canManage ? () => setEditing(true) : undefined} />
+        <JobActions
+          job={job}
+          canManage={canManage}
+          busy={action.busy}
+          open={open}
+          onRun={run}
+          onCancel={cancel}
+          onToggle={toggle}
+          onToggleOpen={() => setOpen((o) => !o)}
+        />
       </div>
 
-      {prog ? (
-        <div className="px-5.5 pb-4">
-          {prog.total > 0 ? (
-            <div className="flex items-center gap-3">
-              <ProgressBar pct={(prog.done / prog.total) * 100} color={C.accent} />
-              <span className="shrink-0 text-[12px] font-semibold tabular-nums text-text/60">
-                {prog.done}/{prog.total}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-[12.5px] font-semibold text-accent">
-              <IconBolt size={14} stroke={2} />
-              {t('jobs.runningNow')}
-            </div>
-          )}
-        </div>
-      ) : null}
+      {prog ? <JobProgress prog={prog} /> : null}
 
       {action.error ? (
         <div className="px-5.5 pb-3 text-[12.5px] font-semibold text-[#E8536A]">{action.error}</div>

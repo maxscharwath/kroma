@@ -15,5 +15,6 @@ export function hostOf(url: string): string | null {
 export function artUrl(serverUrl: string, url?: string | null): string | null {
   if (!url) return null;
   if (/^https?:\/\//.test(url)) return url;
-  return `${normalizeServerUrl(serverUrl)}${url.startsWith('/') ? url : `/${url}`}`;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${normalizeServerUrl(serverUrl)}${path}`;
 }

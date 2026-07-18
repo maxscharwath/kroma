@@ -31,28 +31,39 @@ export interface PersonInvolvement {
   profileUrl: string | null;
 }
 
+type CastCredit = NonNullable<Metadata['cast']>[number];
+type CrewCredit = NonNullable<Metadata['crew']>[number];
+
+/** Fold one title's cast credits for `name` into the running involvement. */
+function scanCast(acc: PersonInvolvement, cast: readonly CastCredit[], name: string): void {
+  for (const c of cast) {
+    if (!sameName(c.name, name)) continue;
+    acc.acted = true;
+    if (!acc.profileUrl && c.profileUrl) acc.profileUrl = c.profileUrl;
+  }
+}
+
+/** Fold one title's crew credits for `name` into the running involvement. */
+function scanCrew(acc: PersonInvolvement, crew: readonly CrewCredit[], name: string): void {
+  for (const c of crew) {
+    if (!sameName(c.name, name)) continue;
+    if (!acc.jobs.includes(c.job)) acc.jobs.push(c.job);
+    if (!acc.profileUrl && c.profileUrl) acc.profileUrl = c.profileUrl;
+  }
+}
+
 /** Aggregate {@link PersonInvolvement} for `name` over many titles' metadata. */
 export function personInvolvement(
   metas: ReadonlyArray<Metadata | null | undefined>,
   name: string,
 ): PersonInvolvement {
-  let acted = false;
-  let profileUrl: string | null = null;
-  const jobs: string[] = [];
+  const acc: PersonInvolvement = { acted: false, jobs: [], profileUrl: null };
   for (const meta of metas) {
     if (!meta) continue;
-    for (const c of meta.cast ?? []) {
-      if (!sameName(c.name, name)) continue;
-      acted = true;
-      if (!profileUrl && c.profileUrl) profileUrl = c.profileUrl;
-    }
-    for (const c of meta.crew ?? []) {
-      if (!sameName(c.name, name)) continue;
-      if (!jobs.includes(c.job)) jobs.push(c.job);
-      if (!profileUrl && c.profileUrl) profileUrl = c.profileUrl;
-    }
+    scanCast(acc, meta.cast ?? [], name);
+    scanCrew(acc, meta.crew ?? [], name);
   }
-  return { acted, jobs, profileUrl };
+  return acc;
 }
 
 /** Recover a person's display name with its original casing from titles' metadata

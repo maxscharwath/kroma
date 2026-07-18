@@ -14,7 +14,7 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   Button,
   C,
@@ -90,6 +90,323 @@ function hostOf(baseUrl: string, isAnthropic: boolean): string {
   }
 }
 
+type Probe = { ok: boolean; text: string } | null;
+type Busy = 'idle' | 'test' | 'models';
+
+function ProviderHeader({
+  p,
+  isDefault,
+  expanded,
+  host,
+  probe,
+  onToggle,
+}: Readonly<{
+  p: ProviderForm;
+  isDefault: boolean;
+  expanded: boolean;
+  host: string;
+  probe: Probe;
+  onToggle: () => void;
+}>) {
+  const t = useT();
+  return (
+    // Collapsed header click to expand
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full items-center gap-3 px-5 py-4 text-left"
+    >
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ background: isDefault ? C.accent : 'rgba(255,255,255,.18)' }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[14.5px] font-bold">
+            {p.name || t('admin.aiUntitledProvider')}
+          </span>
+          <Pill color="#9AA0AA" bg="rgba(255,255,255,.06)">
+            {p.provider}
+          </Pill>
+          {isDefault ? (
+            <Pill color={C.accent} bg="rgba(244,182,66,.14)">
+              {t('admin.aiDefault')}
+            </Pill>
+          ) : null}
+        </div>
+        <div className="mt-0.5 truncate text-[12.5px] text-dim">
+          {p.model || '-'}
+          {host ? ` · ${host}` : ''}
+        </div>
+      </div>
+      {probe ? (
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: probe.ok ? C.green : C.red }}
+        />
+      ) : null}
+      <IconChevronDown
+        size={16}
+        className={`shrink-0 text-dim transition-transform ${expanded ? 'rotate-180' : ''}`}
+      />
+    </button>
+  );
+}
+
+function ModelField({
+  p,
+  models,
+  busy,
+  modelPlaceholder,
+  onModel,
+  onLoad,
+}: Readonly<{
+  p: ProviderForm;
+  models: string[];
+  busy: Busy;
+  modelPlaceholder: string;
+  onModel: (v: string) => void;
+  onLoad: () => void;
+}>) {
+  const t = useT();
+  return (
+    <Field
+      label={t('admin.aiModel')}
+      hint={
+        models.length > 0
+          ? t('admin.aiModelsCount', { count: models.length })
+          : t('admin.aiModelHint')
+      }
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        {models.length > 0 ? (
+          <SearchSelect
+            value={p.model}
+            options={models}
+            onChange={onModel}
+            placeholder={modelPlaceholder}
+            searchPlaceholder={t('admin.aiSearchModels')}
+            className="w-72 max-w-full"
+          />
+        ) : (
+          <TextInput
+            value={p.model}
+            onChange={onModel}
+            placeholder={modelPlaceholder}
+            className="w-72 max-w-full font-mono"
+          />
+        )}
+        <Button
+          label={busy === 'models' ? t('admin.aiLoading') : t('admin.aiLoadModels')}
+          icon={IconReload}
+          onClick={onLoad}
+          disabled={busy !== 'idle'}
+        />
+      </div>
+    </Field>
+  );
+}
+
+function AdvancedSection({
+  p,
+  spec,
+  baseUrlField,
+  onSet,
+}: Readonly<{
+  p: ProviderForm;
+  spec: Spec;
+  baseUrlField: ReactNode;
+  onSet: (patch: Partial<ProviderForm>) => void;
+}>) {
+  const t = useT();
+  return (
+    <Disclosure title={t('admin.aiAdvanced')}>
+      {spec.baseUrl === 'advanced' ? baseUrlField : null}
+      {spec.temperature ? (
+        <Field label={t('admin.aiTemperature')} hint={t('admin.aiTemperatureHint')}>
+          <NumberField
+            value={p.temperature}
+            step={0.1}
+            min={0}
+            max={2}
+            onChange={(n) => onSet({ temperature: n })}
+          />
+        </Field>
+      ) : null}
+      <Field label={t('admin.aiMaxTokens')} hint={t('admin.aiMaxTokensHint')}>
+        <NumberField
+          value={p.maxTokens}
+          step={100}
+          min={64}
+          onChange={(n) => onSet({ maxTokens: n })}
+        />
+      </Field>
+      {spec.reasoning ? (
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <div className="text-[14px] font-bold">{t('admin.aiReasoning')}</div>
+            <div className="mt-0.5 text-[12.5px] text-dim">{t('admin.aiReasoningHint')}</div>
+          </div>
+          <Toggle on={p.reasoning} onChange={(v) => onSet({ reasoning: v })} />
+        </div>
+      ) : null}
+    </Disclosure>
+  );
+}
+
+function CardActions({
+  busy,
+  isDefault,
+  probe,
+  onTest,
+  onSetDefault,
+  onRemove,
+}: Readonly<{
+  busy: Busy;
+  isDefault: boolean;
+  probe: Probe;
+  onTest: () => void;
+  onSetDefault: () => void;
+  onRemove: () => void;
+}>) {
+  const t = useT();
+  return (
+    <div className="mb-5 mt-2 flex flex-wrap items-center gap-2.5">
+      <Button
+        label={busy === 'test' ? t('admin.aiTesting') : t('admin.aiTest')}
+        icon={IconPlugConnected}
+        onClick={onTest}
+        disabled={busy !== 'idle'}
+      />
+      {!isDefault ? (
+        <Button label={t('admin.aiSetDefault')} icon={IconStar} onClick={onSetDefault} />
+      ) : null}
+      {probe ? (
+        <span
+          className="inline-flex items-center gap-1.5 text-[13px] font-semibold"
+          style={{ color: probe.ok ? C.green : C.red }}
+        >
+          {probe.ok ? <IconCheck size={15} stroke={2.4} /> : <IconX size={15} stroke={2.4} />}
+          {probe.text}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#E8536A]"
+      >
+        <IconTrash size={15} stroke={2} />
+        {t('admin.aiRemoveProvider')}
+      </button>
+    </div>
+  );
+}
+
+function ProviderBody({
+  p,
+  spec,
+  models,
+  busy,
+  modelPlaceholder,
+  probe,
+  isDefault,
+  set,
+  onProvider,
+  onLoadModels,
+  onTest,
+  onSetDefault,
+  onRemove,
+}: Readonly<{
+  p: ProviderForm;
+  spec: Spec;
+  models: string[];
+  busy: Busy;
+  modelPlaceholder: string;
+  probe: Probe;
+  isDefault: boolean;
+  set: (patch: Partial<ProviderForm>) => void;
+  onProvider: (v: string) => void;
+  onLoadModels: () => void;
+  onTest: () => void;
+  onSetDefault: () => void;
+  onRemove: () => void;
+}>) {
+  const t = useT();
+  // Placed in the main column (openai) or under Advanced (openrouter/anthropic).
+  const baseUrlField = (
+    <Field
+      label={t('admin.aiBaseUrl')}
+      hint={t(BASE_HINT_KEY[p.provider] ?? 'admin.aiBaseUrlHint')}
+    >
+      <TextInput
+        value={p.baseUrl}
+        onChange={(v) => set({ baseUrl: v })}
+        placeholder={PROVIDER_BASE[p.provider] || 'http://localhost:11434/v1'}
+        className="w-full max-w-120 font-mono"
+      />
+    </Field>
+  );
+  const apiKeyRequirement =
+    spec.apiKey === 'required' ? t('admin.aiRequired') : t('admin.aiOptional');
+
+  return (
+    <div className="border-t border-border px-5 pt-5">
+      <Field label={t('admin.aiProviderName')}>
+        <TextInput
+          value={p.name}
+          onChange={(v) => set({ name: v })}
+          placeholder={t('admin.aiProviderNamePlaceholder')}
+          className="w-full max-w-120"
+        />
+      </Field>
+
+      <Field label={t('admin.aiProvider')} hint={t('admin.aiProviderHint')}>
+        <SegmentedControl
+          value={p.provider}
+          onChange={onProvider}
+          options={[
+            { value: 'openai', label: t('admin.aiProviderOpenai') },
+            { value: 'openrouter', label: t('admin.aiProviderOpenrouter') },
+            { value: 'anthropic', label: t('admin.aiProviderAnthropic') },
+          ]}
+        />
+      </Field>
+
+      {spec.baseUrl === 'required' ? baseUrlField : null}
+
+      <Field label={`${t('admin.aiApiKey')} · ${apiKeyRequirement}`} hint={t('admin.aiApiKeyHint')}>
+        <TextInput
+          value={p.apiKey}
+          onChange={(v) => set({ apiKey: v })}
+          type="password"
+          placeholder={p.hasApiKey ? t('admin.aiApiKeyKeep') : 'sk-…'}
+          className="w-full max-w-120 font-mono"
+        />
+      </Field>
+
+      <ModelField
+        p={p}
+        models={models}
+        busy={busy}
+        modelPlaceholder={modelPlaceholder}
+        onModel={(v) => set({ model: v })}
+        onLoad={onLoadModels}
+      />
+
+      <AdvancedSection p={p} spec={spec} baseUrlField={baseUrlField} onSet={set} />
+
+      <CardActions
+        busy={busy}
+        isDefault={isDefault}
+        probe={probe}
+        onTest={onTest}
+        onSetDefault={onSetDefault}
+        onRemove={onRemove}
+      />
+    </div>
+  );
+}
+
 export function ProviderCard({
   provider: p,
   isDefault,
@@ -109,10 +426,9 @@ export function ProviderCard({
   onRemove: () => void;
   client: KromaClient;
 }>) {
-  const t = useT();
   const [models, setModels] = useState<string[]>([]);
-  const [busy, setBusy] = useState<'idle' | 'test' | 'models'>('idle');
-  const [probe, setProbe] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState<Busy>('idle');
+  const [probe, setProbe] = useState<Probe>(null);
 
   const isAnthropic = p.provider === 'anthropic';
   const spec = SPEC[p.provider] ?? SPEC_OPENAI;
@@ -160,199 +476,35 @@ export function ProviderCard({
 
   const host = hostOf(p.baseUrl, isAnthropic);
 
-  // Placed in the main column (openai) or under Advanced (openrouter/anthropic).
-  const baseUrlField = (
-    <Field
-      label={t('admin.aiBaseUrl')}
-      hint={t(BASE_HINT_KEY[p.provider] ?? 'admin.aiBaseUrlHint')}
-    >
-      <TextInput
-        value={p.baseUrl}
-        onChange={(v) => set({ baseUrl: v })}
-        placeholder={PROVIDER_BASE[p.provider] || 'http://localhost:11434/v1'}
-        className="w-full max-w-120 font-mono"
-      />
-    </Field>
-  );
-
   return (
     <Card className="overflow-hidden">
-      {/* Collapsed header click to expand */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center gap-3 px-5 py-4 text-left"
-      >
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{ background: isDefault ? C.accent : 'rgba(255,255,255,.18)' }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-[14.5px] font-bold">
-              {p.name || t('admin.aiUntitledProvider')}
-            </span>
-            <Pill color="#9AA0AA" bg="rgba(255,255,255,.06)">
-              {p.provider}
-            </Pill>
-            {isDefault ? (
-              <Pill color={C.accent} bg="rgba(244,182,66,.14)">
-                {t('admin.aiDefault')}
-              </Pill>
-            ) : null}
-          </div>
-          <div className="mt-0.5 truncate text-[12.5px] text-dim">
-            {p.model || '-'}
-            {host ? ` · ${host}` : ''}
-          </div>
-        </div>
-        {probe ? (
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ background: probe.ok ? C.green : C.red }}
-          />
-        ) : null}
-        <IconChevronDown
-          size={16}
-          className={`shrink-0 text-dim transition-transform ${expanded ? 'rotate-180' : ''}`}
-        />
-      </button>
+      <ProviderHeader
+        p={p}
+        isDefault={isDefault}
+        expanded={expanded}
+        host={host}
+        probe={probe}
+        onToggle={onToggle}
+      />
 
       {expanded ? (
-        <div className="border-t border-border px-5 pt-5">
-          <Field label={t('admin.aiProviderName')}>
-            <TextInput
-              value={p.name}
-              onChange={(v) => set({ name: v })}
-              placeholder={t('admin.aiProviderNamePlaceholder')}
-              className="w-full max-w-120"
-            />
-          </Field>
-
-          <Field label={t('admin.aiProvider')} hint={t('admin.aiProviderHint')}>
-            <SegmentedControl
-              value={p.provider}
-              onChange={setProvider}
-              options={[
-                { value: 'openai', label: t('admin.aiProviderOpenai') },
-                { value: 'openrouter', label: t('admin.aiProviderOpenrouter') },
-                { value: 'anthropic', label: t('admin.aiProviderAnthropic') },
-              ]}
-            />
-          </Field>
-
-          {spec.baseUrl === 'required' ? baseUrlField : null}
-
-          <Field
-            label={`${t('admin.aiApiKey')} · ${spec.apiKey === 'required' ? t('admin.aiRequired') : t('admin.aiOptional')}`}
-            hint={t('admin.aiApiKeyHint')}
-          >
-            <TextInput
-              value={p.apiKey}
-              onChange={(v) => set({ apiKey: v })}
-              type="password"
-              placeholder={p.hasApiKey ? t('admin.aiApiKeyKeep') : 'sk-…'}
-              className="w-full max-w-120 font-mono"
-            />
-          </Field>
-
-          <Field
-            label={t('admin.aiModel')}
-            hint={
-              models.length > 0
-                ? t('admin.aiModelsCount', { count: models.length })
-                : t('admin.aiModelHint')
-            }
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              {models.length > 0 ? (
-                <SearchSelect
-                  value={p.model}
-                  options={models}
-                  onChange={(v) => set({ model: v })}
-                  placeholder={modelPlaceholder}
-                  searchPlaceholder={t('admin.aiSearchModels')}
-                  className="w-72 max-w-full"
-                />
-              ) : (
-                <TextInput
-                  value={p.model}
-                  onChange={(v) => set({ model: v })}
-                  placeholder={modelPlaceholder}
-                  className="w-72 max-w-full font-mono"
-                />
-              )}
-              <Button
-                label={busy === 'models' ? t('admin.aiLoading') : t('admin.aiLoadModels')}
-                icon={IconReload}
-                onClick={loadModels}
-                disabled={busy !== 'idle'}
-              />
-            </div>
-          </Field>
-
-          <Disclosure title={t('admin.aiAdvanced')}>
-            {spec.baseUrl === 'advanced' ? baseUrlField : null}
-            {spec.temperature ? (
-              <Field label={t('admin.aiTemperature')} hint={t('admin.aiTemperatureHint')}>
-                <NumberField
-                  value={p.temperature}
-                  step={0.1}
-                  min={0}
-                  max={2}
-                  onChange={(n) => set({ temperature: n })}
-                />
-              </Field>
-            ) : null}
-            <Field label={t('admin.aiMaxTokens')} hint={t('admin.aiMaxTokensHint')}>
-              <NumberField
-                value={p.maxTokens}
-                step={100}
-                min={64}
-                onChange={(n) => set({ maxTokens: n })}
-              />
-            </Field>
-            {spec.reasoning ? (
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-[14px] font-bold">{t('admin.aiReasoning')}</div>
-                  <div className="mt-0.5 text-[12.5px] text-dim">{t('admin.aiReasoningHint')}</div>
-                </div>
-                <Toggle on={p.reasoning} onChange={(v) => set({ reasoning: v })} />
-              </div>
-            ) : null}
-          </Disclosure>
-
-          {/* Per-card actions */}
-          <div className="mb-5 mt-2 flex flex-wrap items-center gap-2.5">
-            <Button
-              label={busy === 'test' ? t('admin.aiTesting') : t('admin.aiTest')}
-              icon={IconPlugConnected}
-              onClick={() => void test()}
-              disabled={busy !== 'idle'}
-            />
-            {!isDefault ? (
-              <Button label={t('admin.aiSetDefault')} icon={IconStar} onClick={onSetDefault} />
-            ) : null}
-            {probe ? (
-              <span
-                className="inline-flex items-center gap-1.5 text-[13px] font-semibold"
-                style={{ color: probe.ok ? C.green : C.red }}
-              >
-                {probe.ok ? <IconCheck size={15} stroke={2.4} /> : <IconX size={15} stroke={2.4} />}
-                {probe.text}
-              </span>
-            ) : null}
-            <button
-              type="button"
-              onClick={onRemove}
-              className="ml-auto inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#E8536A]"
-            >
-              <IconTrash size={15} stroke={2} />
-              {t('admin.aiRemoveProvider')}
-            </button>
-          </div>
-        </div>
+        <ProviderBody
+          p={p}
+          spec={spec}
+          models={models}
+          busy={busy}
+          modelPlaceholder={modelPlaceholder}
+          probe={probe}
+          isDefault={isDefault}
+          set={set}
+          onProvider={setProvider}
+          onLoadModels={loadModels}
+          onTest={() => {
+            test();
+          }}
+          onSetDefault={onSetDefault}
+          onRemove={onRemove}
+        />
       ) : null}
     </Card>
   );

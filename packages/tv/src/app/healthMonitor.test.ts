@@ -117,6 +117,6 @@ describe('startHealthMonitor', () => {
     const before = probe.mock.calls.length;
     m.stop();
     await vi.advanceTimersByTimeAsync(5000);
-    expect(probe.mock.calls.length).toBe(before);
+    expect(probe.mock.calls).toHaveLength(before);
   });
 });

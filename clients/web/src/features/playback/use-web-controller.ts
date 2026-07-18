@@ -117,7 +117,8 @@ export function useWebController(item: MovieView): WebController {
 
   const qualities = useMemo(() => {
     const badge = qualityBadgeForVideo(item.video);
-    return [{ id: 'auto', label: `${t('player.qualityAuto')}${badge ? ` · ${badge}` : ''}` }];
+    const badgeSuffix = badge ? ` · ${badge}` : '';
+    return [{ id: 'auto', label: `${t('player.qualityAuto')}${badgeSuffix}` }];
   }, [item.video, t]);
 
   const controller: PlayerController = {

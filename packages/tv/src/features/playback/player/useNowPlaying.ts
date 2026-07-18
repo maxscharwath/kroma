@@ -2,6 +2,16 @@ import type { KromaClient, MediaItem } from '@kroma/core';
 import { useCallback, useEffect, useRef } from 'react';
 import { getTauri } from '#tv/features/playback/player/engine';
 
+/** Resolve a canvas JPEG blob's bytes into `done` (null on any failure). Hoisted so
+ * the `arrayBuffer().then().catch()` chain doesn't nest inside the canvas callback. */
+function deliverJpegBytes(jpeg: Blob | null, done: (out: Uint8Array | null) => void): void {
+  if (!jpeg) return done(null);
+  jpeg
+    .arrayBuffer()
+    .then((buf) => done(new Uint8Array(buf)))
+    .catch(() => done(null));
+}
+
 /** Draw a poster blob (WebP / JPEG / the generated SVG) onto a canvas and re-encode as
  * JPEG - a raster the OS's NSImage decodes reliably (it can't render SVG at all). Returns
  * the JPEG bytes, or `null` if the image never loaded. */
@@ -23,17 +33,7 @@ function rasterize(blob: Blob, w = 342, h = 513): Promise<Uint8Array | null> {
         ctx.drawImage(img, 0, 0, w, h);
         // JPEG, not PNG: a poster is a photo, so this is far smaller on the Tauri IPC
         // (the bytes cross as a number[]); NSImage decodes it just the same.
-        canvas.toBlob(
-          (jpeg) => {
-            if (!jpeg) return done(null);
-            jpeg
-              .arrayBuffer()
-              .then((buf) => done(new Uint8Array(buf)))
-              .catch(() => done(null));
-          },
-          'image/jpeg',
-          0.82,
-        );
+        canvas.toBlob((jpeg) => deliverJpegBytes(jpeg, done), 'image/jpeg', 0.82);
       } catch {
         done(null);
       }
@@ -63,16 +63,27 @@ async function resolveArtwork(client: KromaClient, item: MediaItem): Promise<num
  * command + MPRemoteCommandCenter); a no-op everywhere else. The poster is fetched +
  * rasterized on item change; play/pause just updates the rate + elapsed time.
  */
-export function useNowPlaying(
-  client: KromaClient,
-  item: MediaItem,
-  title: string,
-  subtitle: string,
-  durationSec: number,
-  positionSec: number,
-  playing: boolean,
-  seekTo: (sec: number) => void,
-): void {
+export interface NowPlayingInput {
+  client: KromaClient;
+  item: MediaItem;
+  title: string;
+  subtitle: string;
+  durationSec: number;
+  positionSec: number;
+  playing: boolean;
+  seekTo: (sec: number) => void;
+}
+
+export function useNowPlaying({
+  client,
+  item,
+  title,
+  subtitle,
+  durationSec,
+  positionSec,
+  playing,
+  seekTo,
+}: NowPlayingInput): void {
   const bridge = getTauri();
   const active = !!bridge && '__KROMA_MPV__' in globalThis;
 

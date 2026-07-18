@@ -5,21 +5,19 @@
 
 import {
   apiErrorText,
-  type ManualReleaseView,
-  type TorrentAnalysis,
-  type TorrentFileView,
-} from '@kroma/module-sdk';
-import {
   Field,
   formatBytes,
+  type ManualReleaseView,
   Modal,
   ModalActions,
   SegmentedControl,
   TextInput,
+  type TorrentAnalysis,
+  type TorrentFileView,
   useAdminKit,
   useAsyncAction,
+  useT,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import { IconDownload, IconLoader2, IconSearch, IconWand } from '@tabler/icons-react';
 import { useState } from 'react';
 
@@ -32,6 +30,63 @@ const KIND_COLOR: Record<string, string> = {
   series: '#C792EA',
   unknown: 'rgba(244,243,240,.55)',
 };
+
+/** Derive the pre-filled target from the detected content. Absent `season` /
+ * `episode` keys mean "leave the current value untouched". */
+function detectTarget(a: TorrentAnalysis): { kind: Kind; season?: string; episode?: string } {
+  if (a.kind === 'movie') return { kind: 'movie' };
+  if (a.kind === 'episode') {
+    const ep = a.files.find((f) => f.episode != null);
+    if (ep) {
+      return {
+        kind: 'episode',
+        season: ep.season != null ? String(ep.season) : '',
+        episode: String(ep.episode),
+      };
+    }
+    return { kind: 'episode' };
+  }
+  // season / series: import per-file by parsed S/E.
+  const first = a.files.find((f) => f.season != null);
+  if (first?.season != null && a.seasons.length === 1) {
+    return { kind: 'season', season: String(first.season) };
+  }
+  return { kind: 'season' };
+}
+
+/** Assemble the `manualAdd` payload from the current form + analysis state. */
+function buildManualAddBody(fields: {
+  magnet: string;
+  kind: Kind;
+  title: string;
+  year: string;
+  season: string;
+  episode: string;
+  detailsUrl: string | null;
+  analysis: TorrentAnalysis | null;
+  selected: Set<number>;
+  videoFiles: TorrentFileView[];
+}) {
+  const { magnet, kind, title, year, season, episode, detailsUrl, analysis, selected, videoFiles } =
+    fields;
+  // Only send onlyFiles when the admin narrowed the selection.
+  const totalVideos = videoFiles.length;
+  const onlyFiles =
+    analysis && selected.size > 0 && selected.size < totalVideos
+      ? [...selected].sort((a, b) => a - b)
+      : null;
+  return {
+    magnetOrUrl: magnet.trim(),
+    kind,
+    title: title.trim() || null,
+    year: year ? Number.parseInt(year, 10) : null,
+    season: kind !== 'movie' && season ? Number.parseInt(season, 10) : null,
+    episode: kind === 'episode' && episode ? Number.parseInt(episode, 10) : null,
+    tmdbId: null,
+    onlyFiles,
+    detailsUrl,
+  };
+}
 
 export function ManualGrabModal({
   onClose,
@@ -102,29 +157,14 @@ export function ManualGrabModal({
         setAnalysis(a);
         // Default selection = all video files.
         setSelected(new Set(a.files.filter((f) => f.isVideo).map((f) => f.index)));
-        applyDetection(a);
+        // Pre-fill the target from the detected content (admin can still override).
+        const det = detectTarget(a);
+        setKind(det.kind);
+        if (det.season !== undefined) setSeason(det.season);
+        if (det.episode !== undefined) setEpisode(det.episode);
       })
       .catch((e) => setAnalyzeErr(apiErrorText(e, t('manual.analyzeFailed'))))
       .finally(() => setAnalyzing(false));
-  };
-
-  // Pre-fill the target from the detected content (admin can still override).
-  const applyDetection = (a: TorrentAnalysis) => {
-    if (a.kind === 'movie') {
-      setKind('movie');
-    } else if (a.kind === 'episode') {
-      setKind('episode');
-      const ep = a.files.find((f) => f.episode != null);
-      if (ep) {
-        setSeason(ep.season != null ? String(ep.season) : '');
-        setEpisode(String(ep.episode));
-      }
-    } else {
-      // season / series: import per-file by parsed S/E.
-      setKind('season');
-      const first = a.files.find((f) => f.season != null);
-      if (first?.season != null && a.seasons.length === 1) setSeason(String(first.season));
-    }
   };
 
   const toggleFile = (i: number) => {
@@ -142,23 +182,20 @@ export function ManualGrabModal({
   const add = () =>
     run(
       async () => {
-        // Only send onlyFiles when the admin narrowed the selection.
-        const totalVideos = videoFiles.length;
-        const onlyFiles =
-          analysis && selected.size > 0 && selected.size < totalVideos
-            ? [...selected].sort((a, b) => a - b)
-            : null;
-        await client.manualAdd({
-          magnetOrUrl: magnet.trim(),
-          kind,
-          title: title.trim() || null,
-          year: year ? Number.parseInt(year, 10) : null,
-          season: kind !== 'movie' && season ? Number.parseInt(season, 10) : null,
-          episode: kind === 'episode' && episode ? Number.parseInt(episode, 10) : null,
-          tmdbId: null,
-          onlyFiles,
-          detailsUrl,
-        });
+        await client.manualAdd(
+          buildManualAddBody({
+            magnet,
+            kind,
+            title,
+            year,
+            season,
+            episode,
+            detailsUrl,
+            analysis,
+            selected,
+            videoFiles,
+          }),
+        );
         onAdded();
         onClose();
       },
@@ -170,45 +207,15 @@ export function ManualGrabModal({
   return (
     <Modal title={t('manual.title')} onClose={onClose}>
       {/* search sub-panel */}
-      <div className="mb-4">
-        <div className="flex gap-2">
-          <div className="flex h-11 flex-1 items-center rounded-[9px] border border-border-strong bg-[#0F0F13] px-3">
-            <IconSearch size={16} className="shrink-0 text-dim" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-              placeholder={t('manual.searchPlaceholder')}
-              className="min-w-0 flex-1 bg-transparent px-2.5 text-[13.5px] font-semibold text-text outline-none placeholder:text-dim"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={doSearch}
-            disabled={searching || !query.trim()}
-            className="inline-flex items-center gap-1.5 rounded-[9px] bg-accent px-4 text-[13px] font-bold text-accent-ink hover:bg-accent-hover disabled:opacity-50"
-          >
-            {searching ? <IconLoader2 size={14} stroke={2.4} className="animate-spin" /> : null}
-            {t('manual.search')}
-          </button>
-        </div>
-        {searchErr ? (
-          <p className="mt-1.5 text-[12px] font-semibold text-[#F4B642]">{searchErr}</p>
-        ) : null}
-        {results ? (
-          <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-white/[0.07] bg-[#0F0F13]">
-            {results.length === 0 ? (
-              <div className="px-3 py-4 text-center text-[12.5px] font-medium text-dim">
-                {t('manual.noResults')}
-              </div>
-            ) : (
-              results.map((r) => (
-                <ResultRow key={`${r.indexerName}-${r.guid}`} r={r} onPick={() => pick(r)} />
-              ))
-            )}
-          </div>
-        ) : null}
-      </div>
+      <SearchPanel
+        query={query}
+        setQuery={setQuery}
+        searching={searching}
+        searchErr={searchErr}
+        results={results}
+        onSearch={doSearch}
+        onPick={pick}
+      />
 
       {/* magnet + analyze */}
       <Field label={t('manual.magnet')} hint={t('manual.magnetHint')}>
@@ -244,53 +251,14 @@ export function ManualGrabModal({
 
       {/* analysis result: detected kind + file selection */}
       {analysis ? (
-        <div className="mb-4 rounded-xl border border-white/[0.07] bg-[#0F0F13] p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[.06em]"
-              style={{
-                color: KIND_COLOR[analysis.kind],
-                background: `${KIND_COLOR[analysis.kind]}1f`,
-              }}
-            >
-              {t(`manual.detected.${analysis.kind}` as Parameters<typeof t>[0])}
-              {analysis.seasons.length > 0
-                ? ` · ${analysis.seasons.map((s) => `S${s}`).join(' ')}`
-                : ''}
-            </span>
-            {videoFiles.length > 1 ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setSelected(
-                    allVideoSelected ? new Set() : new Set(videoFiles.map((f) => f.index)),
-                  )
-                }
-                className="text-[12px] font-semibold text-accent hover:underline"
-              >
-                {allVideoSelected ? t('manual.selectNone') : t('manual.selectAll')}
-              </button>
-            ) : null}
-          </div>
-          <div className="max-h-52 overflow-y-auto">
-            {analysis.files.map((f) => (
-              <FileRow
-                key={f.index}
-                f={f}
-                checked={selected.has(f.index)}
-                onToggle={() => toggleFile(f.index)}
-              />
-            ))}
-          </div>
-          {videoFiles.length > 1 ? (
-            <div className="mt-2 text-[11.5px] font-medium text-dim">
-              {t('manual.selectedCount', {
-                n: String(selected.size),
-                total: String(videoFiles.length),
-              })}
-            </div>
-          ) : null}
-        </div>
+        <AnalysisPanel
+          analysis={analysis}
+          videoFiles={videoFiles}
+          selected={selected}
+          allVideoSelected={allVideoSelected}
+          setSelected={setSelected}
+          onToggleFile={toggleFile}
+        />
       ) : null}
 
       {/* target form */}
@@ -359,6 +327,71 @@ export function ManualGrabModal({
   );
 }
 
+function AnalysisPanel({
+  analysis,
+  videoFiles,
+  selected,
+  allVideoSelected,
+  setSelected,
+  onToggleFile,
+}: Readonly<{
+  analysis: TorrentAnalysis;
+  videoFiles: TorrentFileView[];
+  selected: Set<number>;
+  allVideoSelected: boolean;
+  setSelected: (value: Set<number>) => void;
+  onToggleFile: (i: number) => void;
+}>) {
+  const t = useT();
+  const seasonTags = analysis.seasons.map((s) => `S${s}`).join(' ');
+  const seasonsLabel = analysis.seasons.length > 0 ? ` · ${seasonTags}` : '';
+  return (
+    <div className="mb-4 rounded-xl border border-white/[0.07] bg-[#0F0F13] p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[.06em]"
+          style={{
+            color: KIND_COLOR[analysis.kind],
+            background: `${KIND_COLOR[analysis.kind]}1f`,
+          }}
+        >
+          {t(`manual.detected.${analysis.kind}` as Parameters<typeof t>[0])}
+          {seasonsLabel}
+        </span>
+        {videoFiles.length > 1 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setSelected(allVideoSelected ? new Set() : new Set(videoFiles.map((f) => f.index)))
+            }
+            className="text-[12px] font-semibold text-accent hover:underline"
+          >
+            {allVideoSelected ? t('manual.selectNone') : t('manual.selectAll')}
+          </button>
+        ) : null}
+      </div>
+      <div className="max-h-52 overflow-y-auto">
+        {analysis.files.map((f) => (
+          <FileRow
+            key={f.index}
+            f={f}
+            checked={selected.has(f.index)}
+            onToggle={() => onToggleFile(f.index)}
+          />
+        ))}
+      </div>
+      {videoFiles.length > 1 ? (
+        <div className="mt-2 text-[11.5px] font-medium text-dim">
+          {t('manual.selectedCount', {
+            n: String(selected.size),
+            total: String(videoFiles.length),
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function FileRow({
   f,
   checked,
@@ -390,6 +423,67 @@ function FileRow({
       ) : null}
       <span className="shrink-0 text-[11px] tabular-nums text-dim">{formatBytes(f.sizeBytes)}</span>
     </label>
+  );
+}
+
+function SearchPanel({
+  query,
+  setQuery,
+  searching,
+  searchErr,
+  results,
+  onSearch,
+  onPick,
+}: Readonly<{
+  query: string;
+  setQuery: (v: string) => void;
+  searching: boolean;
+  searchErr: string | null;
+  results: ManualReleaseView[] | null;
+  onSearch: () => void;
+  onPick: (r: ManualReleaseView) => void;
+}>) {
+  const t = useT();
+  return (
+    <div className="mb-4">
+      <div className="flex gap-2">
+        <div className="flex h-11 flex-1 items-center rounded-[9px] border border-border-strong bg-[#0F0F13] px-3">
+          <IconSearch size={16} className="shrink-0 text-dim" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+            placeholder={t('manual.searchPlaceholder')}
+            className="min-w-0 flex-1 bg-transparent px-2.5 text-[13.5px] font-semibold text-text outline-none placeholder:text-dim"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onSearch}
+          disabled={searching || !query.trim()}
+          className="inline-flex items-center gap-1.5 rounded-[9px] bg-accent px-4 text-[13px] font-bold text-accent-ink hover:bg-accent-hover disabled:opacity-50"
+        >
+          {searching ? <IconLoader2 size={14} stroke={2.4} className="animate-spin" /> : null}
+          {t('manual.search')}
+        </button>
+      </div>
+      {searchErr ? (
+        <p className="mt-1.5 text-[12px] font-semibold text-[#F4B642]">{searchErr}</p>
+      ) : null}
+      {results ? (
+        <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-white/[0.07] bg-[#0F0F13]">
+          {results.length === 0 ? (
+            <div className="px-3 py-4 text-center text-[12.5px] font-medium text-dim">
+              {t('manual.noResults')}
+            </div>
+          ) : (
+            results.map((r) => (
+              <ResultRow key={`${r.indexerName}-${r.guid}`} r={r} onPick={() => onPick(r)} />
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

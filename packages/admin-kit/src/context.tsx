@@ -34,7 +34,9 @@ export function AdminKitProvider({
 export function useAdminKit(): AdminKitValue {
   const ctx = useContext(AdminKitContext);
   if (!ctx) {
-    throw new Error('useAdminKit must be used within <AdminKitProvider> (the admin shell mounts it)');
+    throw new Error(
+      'useAdminKit must be used within <AdminKitProvider> (the admin shell mounts it)',
+    );
   }
   return ctx;
 }

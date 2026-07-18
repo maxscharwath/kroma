@@ -35,7 +35,11 @@ function hasAddFlow(cap: EngineCapability): boolean {
  * keeps it live. */
 function useModules(): ModuleInfo[] {
   const { client } = useAdminKit();
-  const { data } = useQuery({ queryKey: ['modules'], queryFn: () => client.modules(), staleTime: 30_000 });
+  const { data } = useQuery({
+    queryKey: ['modules'],
+    queryFn: () => client.modules(),
+    staleTime: 30_000,
+  });
   return data ?? [];
 }
 
@@ -145,7 +149,10 @@ export function AddEngineModal({
           <SegmentedControl
             value={engineId}
             onChange={setEngineId}
-            options={engines.map((e) => ({ value: e.id, label: t((e.label ?? e.id) as MessageKey) }))}
+            options={engines.map((e) => ({
+              value: e.id,
+              label: t((e.label ?? e.id) as MessageKey),
+            }))}
           />
         </div>
       ) : null}

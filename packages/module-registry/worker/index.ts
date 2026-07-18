@@ -56,7 +56,10 @@ async function fetchCatalog(env: Env): Promise<{ body: string; catalog: Catalog 
   return { body, catalog: JSON.parse(body) as Catalog };
 }
 
-async function loadCatalog(env: Env, waitUntil: (p: Promise<unknown>) => void): Promise<{ body: string; catalog: Catalog }> {
+async function loadCatalog(
+  env: Env,
+  waitUntil: (p: Promise<unknown>) => void,
+): Promise<{ body: string; catalog: Catalog }> {
   const cache = edgeCache();
   const hit = await cache?.match(CACHE_FRESH);
   if (hit) {
@@ -91,7 +94,10 @@ function jsonResponse(body: string, maxAge: number): Response {
 }
 
 const esc = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  s.replace(
+    /[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string,
+  );
 const mb = (n?: number) => (n ? `${(n / 1048576).toFixed(1)} MB` : '');
 
 function landing(catalog: Catalog, origin: string, repo: string): string {
@@ -99,7 +105,9 @@ function landing(catalog: Catalog, origin: string, repo: string): string {
   const rows = mods
     .map((m) => {
       const targets = (m.artifacts ?? []).map((a) => a.target || 'any').join(', ');
-      const deps = (m.dependsOn ?? []).length ? `<div class="deps">needs ${(m.dependsOn ?? []).map(esc).join(', ')}</div>` : '';
+      const deps = (m.dependsOn ?? []).length
+        ? `<div class="deps">needs ${(m.dependsOn ?? []).map(esc).join(', ')}</div>`
+        : '';
       const icon = m.icon ? `<img src="${esc(m.icon)}" alt="" />` : '<div class="noicon"></div>';
       return `<div class="mod">
       ${icon}
@@ -139,7 +147,7 @@ ${rows || '<p>No modules published yet.</p>'}
 export default {
   async fetch(request: Request, env: Env, ctx: ExecCtx): Promise<Response> {
     const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, '') || '/';
+    const path = url.pathname.replace(/(^|[^/])\/+$/, '$1') || '/';
     if (path === '/ping') return new Response('pong');
 
     let data: { body: string; catalog: Catalog };
@@ -151,10 +159,14 @@ export default {
 
     if (path === '/modules.json' || path === '/all.json') return jsonResponse(data.body, 300);
 
-    const wantsHtml = request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
+    const wantsHtml =
+      request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
     if (wantsHtml) {
       return new Response(landing(data.catalog, url.origin, env.GITHUB_REPO || DEFAULT_REPO), {
-        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' },
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'public, max-age=300',
+        },
       });
     }
     return jsonResponse(data.body, 300);

@@ -25,7 +25,26 @@ interface MissingGroup {
 
 /** A stable key for one missing episode row (unique across the whole list). */
 function epKey(e: CalendarEntry): string {
-  return `${e.requestId ?? `tmdb:${e.tmdbId}`}:${e.season ?? 0}:${e.episode ?? 0}`;
+  const groupKey = e.requestId ?? `tmdb:${e.tmdbId}`;
+  return `${groupKey}:${e.season ?? 0}:${e.episode ?? 0}`;
+}
+
+/** Toggle a single row key in a selection set (returns a fresh set). */
+function toggleKey(prev: Set<string>, key: string): Set<string> {
+  const n = new Set(prev);
+  if (n.has(key)) n.delete(key);
+  else n.add(key);
+  return n;
+}
+
+/** Add or remove a batch of row keys in a selection set (returns a fresh set). */
+function toggleKeys(prev: Set<string>, keys: string[], pick: boolean): Set<string> {
+  const n = new Set(prev);
+  for (const k of keys) {
+    if (pick) n.add(k);
+    else n.delete(k);
+  }
+  return n;
 }
 
 /** Fold the flat, title-sorted entries into one group per title (keyed by the
@@ -136,13 +155,7 @@ export function MissingPage() {
       .catch(() => setSearchAll('idle'));
   };
 
-  const toggleEp = (key: string) =>
-    setSelected((s) => {
-      const n = new Set(s);
-      if (n.has(key)) n.delete(key);
-      else n.add(key);
-      return n;
-    });
+  const toggleEp = (key: string) => setSelected((s) => toggleKey(s, key));
 
   const selectedCount = selected.size;
 
@@ -193,7 +206,7 @@ export function MissingPage() {
         </div>
       ) : null}
 
-      {entries && entries.length === 0 ? (
+      {entries?.length === 0 ? (
         <EmptyState
           icon={<IconInbox size={32} stroke={1.5} />}
           title={t('requests.missingEmpty')}
@@ -210,16 +223,7 @@ export function MissingPage() {
             busy={busy.has(g.requestId ?? `tmdb:${g.tmdbId}`)}
             selected={selected}
             onToggleEp={toggleEp}
-            onToggleSeries={(pick) =>
-              setSelected((s) => {
-                const n = new Set(s);
-                for (const k of g.items.map(epKey)) {
-                  if (pick) n.add(k);
-                  else n.delete(k);
-                }
-                return n;
-              })
-            }
+            onToggleSeries={(pick) => setSelected((s) => toggleKeys(s, g.items.map(epKey), pick))}
             onSearchSeries={() => runGroup(g, g.items)}
             onSearchEp={(item) => runGroup(g, [item])}
             onOpen={() =>

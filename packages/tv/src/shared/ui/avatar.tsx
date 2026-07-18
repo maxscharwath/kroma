@@ -16,7 +16,7 @@ export const AVATAR_GRADS = [
  * colour everywhere. */
 export function gradFor(seed: string): string {
   let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + (seed.codePointAt(i) ?? 0)) >>> 0;
   return AVATAR_GRADS[h % AVATAR_GRADS.length] as string;
 }
 
@@ -26,7 +26,7 @@ export function initials(name: string): string {
   const first = parts[0];
   if (!first) return '?';
   if (parts.length === 1) return first.slice(0, 2).toUpperCase();
-  const last = parts[parts.length - 1] ?? first;
+  const last = parts.at(-1) ?? first;
   return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase();
 }
 

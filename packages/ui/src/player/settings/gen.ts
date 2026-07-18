@@ -1,5 +1,4 @@
 import type { SubCapabilities, SubtitleGeneration } from '@kroma/core';
-import type { PlayerSub } from '../types';
 
 /**
  * A prop-driven subtitle-generation request the {@link GenerateWizard} emits.
@@ -38,4 +37,4 @@ export interface SubtitleGenBundle {
 }
 
 /** Re-exported for the panels that consume generation sources. */
-export type { PlayerSub };
+export type { PlayerSub } from '../types';

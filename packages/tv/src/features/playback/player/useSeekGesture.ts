@@ -55,11 +55,13 @@ export interface SeekGesture {
 }
 
 export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): SeekGesture {
-  const [preview, setPreviewState] = useState<number | null>(null);
+  const [preview, setPreview] = useState<number | null>(null);
   const previewRef = useRef<number | null>(null);
-  const setPreview = useCallback((v: number | null) => {
+  // Mirror the preview into a ref (read synchronously by the gesture handlers)
+  // whenever we update the state.
+  const updatePreview = useCallback((v: number | null) => {
     previewRef.current = v;
-    setPreviewState(v);
+    setPreview(v);
   }, []);
 
   const clamp = useCallback(
@@ -90,9 +92,9 @@ export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): See
       tapTimer.current = null;
     }
     const target = previewRef.current;
-    setPreview(null);
+    updatePreview(null);
     if (target != null) seekTo(target);
-  }, [seekTo, setPreview]);
+  }, [seekTo, updatePreview]);
 
   // Held past HOLD_MS: run an rAF loop that advances the target with a speed that
   // ramps up the longer the key is down. One preview per frame, one seek on release.
@@ -109,11 +111,11 @@ export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): See
       const elapsed = (t - s.holdAt) / 1000;
       const speed = Math.min(HOLD_MAX, HOLD_BASE * HOLD_GROWTH ** elapsed);
       s.target = clamp(s.target + s.dir * speed * dt);
-      setPreview(s.target);
+      updatePreview(s.target);
       raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
-  }, [clamp, setPreview]);
+  }, [clamp, updatePreview]);
 
   const press = useCallback(
     (dir: -1 | 1) => {
@@ -128,10 +130,10 @@ export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): See
       s.active = true;
       s.holding = false;
       s.target = clamp(base + dir * TAP_STEP); // optimistic: show the first tap at once
-      setPreview(s.target);
+      updatePreview(s.target);
       holdTimer.current = setTimeout(runHold, HOLD_MS);
     },
-    [clamp, getPosition, runHold, setPreview],
+    [clamp, getPosition, runHold, updatePreview],
   );
 
   const release = useCallback(() => {
@@ -176,9 +178,9 @@ export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): See
         tapTimer.current = null;
       }
       stopRaf();
-      setPreview(clamp(absSec));
+      updatePreview(clamp(absSec));
     },
-    [clamp, setPreview, stopRaf],
+    [clamp, updatePreview, stopRaf],
   );
 
   // Any key / pointer release (anywhere) ends a directional press - robust to the

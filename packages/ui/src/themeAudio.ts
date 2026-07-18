@@ -90,7 +90,7 @@ export function useThemeAudio(themeUrl: string | null | undefined): ThemeAudio {
     const start = () => {
       if (readMuted()) return;
       const p = a.play();
-      if (p && typeof p.then === 'function')
+      if (p != null && typeof p.then === 'function')
         p.then(() => fadeTo(TARGET_VOLUME, FADE_IN_MS)).catch(() => undefined);
       else fadeTo(TARGET_VOLUME, FADE_IN_MS);
     };
@@ -130,7 +130,7 @@ export function useThemeAudio(themeUrl: string | null | undefined): ThemeAudio {
       fadeTo(0, 250, true);
     } else {
       const p = a.play();
-      if (p && typeof p.then === 'function') p.catch(() => undefined);
+      if (p != null && typeof p.then === 'function') p.catch(() => undefined);
       fadeTo(TARGET_VOLUME, 400);
     }
   }, [fadeTo]);

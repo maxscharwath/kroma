@@ -14,8 +14,8 @@
  * platform, not bundled.
  */
 
-var PRIVATE_DIR = 'wgt-private';
-var PREVIEW_FILE = 'preview.json';
+const PRIVATE_DIR = 'wgt-private';
+const PREVIEW_FILE = 'preview.json';
 
 function log(msg) {
   // `console` may be absent in the Tizen service runtime, so guard it.
@@ -41,7 +41,7 @@ function readPreviewData() {
     tizen.filesystem.resolve(
       PRIVATE_DIR,
       (dir) => {
-        var file;
+        let file;
         try {
           file = dir.resolve(PREVIEW_FILE);
         } catch (e) {
@@ -51,7 +51,7 @@ function readPreviewData() {
         file.openStream(
           'r',
           (stream) => {
-            var data = '';
+            let data = '';
             try {
               if (stream.bytesAvailable > 0) {
                 data = stream.read(stream.bytesAvailable);
@@ -81,8 +81,7 @@ function publish(data) {
       return;
     }
     log(`read ${data.length} bytes from disk`);
-    var hasApi =
-      typeof webapis !== 'undefined' && webapis.preview && webapis.preview.setPreviewData;
+    const hasApi = typeof webapis !== 'undefined' && webapis.preview?.setPreviewData;
     log(`webapis.preview.setPreviewData present: ${!!hasApi}`);
     if (!hasApi) {
       reject(new Error('webapis.preview.setPreviewData unavailable'));

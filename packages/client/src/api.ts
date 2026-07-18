@@ -152,7 +152,7 @@ export class KromaClient {
   private readonly ctx: RequestContext;
 
   constructor(options: KromaClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    this.baseUrl = options.baseUrl.replace(/(^|[^/])\/+$/, '$1');
     this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.authToken = options.authToken;
     this.locale = options.locale;

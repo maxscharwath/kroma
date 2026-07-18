@@ -155,7 +155,6 @@ export function DetailHero({
   adminAction,
 }: Readonly<DetailHeroProps>) {
   const t = useT();
-  const navigate = useNavigate();
   const [c1, c2] = posterColors(art.id);
   const heroBg = art.backdrop ? `url("${art.backdrop}")` : `linear-gradient(135deg, ${c1}, ${c2})`;
   const theme = useThemeAudio(themeUrl);
@@ -183,22 +182,7 @@ export function DetailHero({
         <IconChevronLeft size={20} stroke={2} color="#fff" />
       </button>
 
-      {theme.active ? (
-        <button
-          type="button"
-          onClick={theme.toggle}
-          aria-label={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
-          title={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
-          className="absolute right-4 top-4 z-3 flex h-10.5 w-10.5 items-center justify-center rounded-full sm:right-8 sm:top-6.5
-            border border-white/12 bg-[rgba(10,10,12,.5)] backdrop-blur-sm transition-colors hover:bg-[rgba(10,10,12,.8)]"
-        >
-          {theme.muted ? (
-            <IconVolumeOff size={19} stroke={2} color="#fff" />
-          ) : (
-            <IconVolume size={19} stroke={2} color="#fff" />
-          )}
-        </button>
-      ) : null}
+      <ThemeToggle theme={theme} />
 
       <div className="relative flex flex-wrap items-end gap-6 px-(--gutter-web) pb-9 pt-12 sm:gap-10 sm:pt-22.5">
         {/* Flanking poster: hidden on phones (the backdrop already carries the
@@ -239,24 +223,7 @@ export function DetailHero({
             {audioFlag ? <Badge tone="warning">{audioFlag}</Badge> : null}
           </div>
 
-          {directors && directors.length > 0 ? (
-            <div className="mb-3 text-[13.5px] text-white/60 max-sm:text-[15px]">
-              <span className="font-semibold text-white/80">{t('content.directedBy')}</span>{' '}
-              {directors.map((d, i) => (
-                <span key={d}>
-                  {i > 0 ? ', ' : ''}
-                  <button
-                    type="button"
-                    onClick={() => navigate({ to: '/person/$name', params: { name: d } })}
-                    aria-label={t('person.viewWorks', { name: d })}
-                    className="cursor-pointer bg-transparent p-0 text-inherit underline-offset-2 transition-colors hover:text-accent hover:underline"
-                  >
-                    {d}
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : null}
+          <DirectorsLine directors={directors} />
 
           {tagline ? (
             <p className="mb-3 text-[14px] italic text-white/50 max-sm:text-[15px]">{tagline}</p>
@@ -274,55 +241,124 @@ export function DetailHero({
                   {playLabel ?? t('content.play')}
                 </Button>
               ) : null)}
-            {onToggleWatched ? (
-              <button
-                type="button"
-                onClick={onToggleWatched}
-                aria-pressed={watched ?? false}
-                aria-label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-                title={watched ? t('content.watched') : t('content.markWatched')}
-                className={`flex h-12.5 items-center gap-2 rounded-md border px-4 text-[14px] font-semibold transition-colors
-                  ${
-                    watched
-                      ? 'border-accent bg-accent text-black hover:bg-accent/90'
-                      : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
-                  }`}
-              >
-                <IconCheck size={19} stroke={2.4} />
-                {watched ? t('content.watched') : t('content.markWatched')}
-              </button>
-            ) : null}
-            {onToggleList ? (
-              <button
-                type="button"
-                onClick={onToggleList}
-                aria-pressed={inList ?? false}
-                aria-label={inList ? t('content.removeFromList') : t('content.addToList')}
-                title={inList ? t('content.inList') : t('content.addToList')}
-                className={`flex h-12.5 w-12.5 items-center justify-center rounded-md border transition-colors
-                  ${
-                    inList
-                      ? 'border-accent bg-accent-soft text-accent hover:bg-accent-soft/80'
-                      : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
-                  }`}
-              >
-                {inList ? <IconCheck size={20} stroke={2.4} /> : <IconPlus size={20} stroke={2} />}
-              </button>
-            ) : null}
+            <WatchedButton watched={watched} onToggle={onToggleWatched} />
+            <ListButton inList={inList} onToggle={onToggleList} />
             {adminAction}
           </div>
 
-          {audio != null || subtitles != null ? (
-            <div className="flex flex-wrap gap-x-6 gap-y-4 border-t border-white/8 py-4.5 sm:gap-x-11">
-              {audio != null ? <Field label={t('content.fieldAudio')} value={audio} /> : null}
-              {subtitles != null ? (
-                <Field label={t('content.fieldSubtitles')} value={subtitles} />
-              ) : null}
-            </div>
-          ) : null}
+          <HeroFields audio={audio} subtitles={subtitles} />
           {unsupported ? <p className="mt-3.5 text-[13px] text-muted">{unsupported}</p> : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Loop-theme mute toggle in the hero corner (TV shows with a theme song). */
+function ThemeToggle({ theme }: Readonly<{ theme: ReturnType<typeof useThemeAudio> }>) {
+  const t = useT();
+  if (!theme.active) return null;
+  return (
+    <button
+      type="button"
+      onClick={theme.toggle}
+      aria-label={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
+      title={theme.muted ? t('content.unmuteTheme') : t('content.muteTheme')}
+      className="absolute right-4 top-4 z-3 flex h-10.5 w-10.5 items-center justify-center rounded-full sm:right-8 sm:top-6.5
+        border border-white/12 bg-[rgba(10,10,12,.5)] backdrop-blur-sm transition-colors hover:bg-[rgba(10,10,12,.8)]"
+    >
+      {theme.muted ? (
+        <IconVolumeOff size={19} stroke={2} color="#fff" />
+      ) : (
+        <IconVolume size={19} stroke={2} color="#fff" />
+      )}
+    </button>
+  );
+}
+
+/** "Réalisation" line linking each director to their filmography. */
+function DirectorsLine({ directors }: Readonly<{ directors?: string[] }>) {
+  const t = useT();
+  const navigate = useNavigate();
+  if (!directors || directors.length === 0) return null;
+  return (
+    <div className="mb-3 text-[13.5px] text-white/60 max-sm:text-[15px]">
+      <span className="font-semibold text-white/80">{t('content.directedBy')}</span>{' '}
+      {directors.map((d, i) => (
+        <span key={d}>
+          {i > 0 ? ', ' : ''}
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/person/$name', params: { name: d } })}
+            aria-label={t('person.viewWorks', { name: d })}
+            className="cursor-pointer bg-transparent p-0 text-inherit underline-offset-2 transition-colors hover:text-accent hover:underline"
+          >
+            {d}
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Watched toggle button; renders nothing without an `onToggle` handler. */
+function WatchedButton({
+  watched,
+  onToggle,
+}: Readonly<{ watched?: boolean; onToggle?: () => void }>) {
+  const t = useT();
+  if (!onToggle) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={watched ?? false}
+      aria-label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+      title={watched ? t('content.watched') : t('content.markWatched')}
+      className={`flex h-12.5 items-center gap-2 rounded-md border px-4 text-[14px] font-semibold transition-colors
+        ${
+          watched
+            ? 'border-accent bg-accent text-black hover:bg-accent/90'
+            : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
+        }`}
+    >
+      <IconCheck size={19} stroke={2.4} />
+      {watched ? t('content.watched') : t('content.markWatched')}
+    </button>
+  );
+}
+
+/** "Ma liste" add/remove button; renders nothing without an `onToggle` handler. */
+function ListButton({ inList, onToggle }: Readonly<{ inList?: boolean; onToggle?: () => void }>) {
+  const t = useT();
+  if (!onToggle) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={inList ?? false}
+      aria-label={inList ? t('content.removeFromList') : t('content.addToList')}
+      title={inList ? t('content.inList') : t('content.addToList')}
+      className={`flex h-12.5 w-12.5 items-center justify-center rounded-md border transition-colors
+        ${
+          inList
+            ? 'border-accent bg-accent-soft text-accent hover:bg-accent-soft/80'
+            : 'border-border-strong bg-white/10 text-text hover:bg-white/15'
+        }`}
+    >
+      {inList ? <IconCheck size={20} stroke={2.4} /> : <IconPlus size={20} stroke={2} />}
+    </button>
+  );
+}
+
+/** Audio / subtitle summary fields under the hero actions (owned titles). */
+function HeroFields({ audio, subtitles }: Readonly<{ audio?: string; subtitles?: string }>) {
+  const t = useT();
+  if (audio == null && subtitles == null) return null;
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-4 border-t border-white/8 py-4.5 sm:gap-x-11">
+      {audio != null ? <Field label={t('content.fieldAudio')} value={audio} /> : null}
+      {subtitles != null ? <Field label={t('content.fieldSubtitles')} value={subtitles} /> : null}
     </div>
   );
 }

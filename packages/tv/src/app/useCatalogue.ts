@@ -66,7 +66,7 @@ export function useCatalogue(platform: string): Catalogue {
   // server with its token already applied (no flicker on "Reprendre").
   const bootSession = useMemo(() => loadSession(), []);
   const [servers, setServers] = useState<SavedServer[]>(() => initialServers());
-  const [activeServerUrl, setActiveUrl] = useState<string | null>(
+  const [activeServerUrl, setActiveServerUrl] = useState<string | null>(
     () => bootSession?.serverUrl ?? servers[0]?.url ?? null,
   );
 
@@ -90,12 +90,12 @@ export function useCatalogue(platform: string): Catalogue {
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [deepLink, setDeepLink] = useState<DeepLink | null>(() => readDeepLink());
 
-  const setActiveServer = useCallback((url: string) => setActiveUrl(norm(url)), []);
+  const setActiveServer = useCallback((url: string) => setActiveServerUrl(norm(url)), []);
 
   const addServer = useCallback((url: string, name?: string | null) => {
     const next = saveServerStore({ url, name });
     setServers(next);
-    setActiveUrl(norm(url));
+    setActiveServerUrl(norm(url));
   }, []);
 
   const forgetServer = useCallback(
@@ -105,7 +105,7 @@ export function useCatalogue(platform: string): Catalogue {
       forgetServerStore(u);
       const next = servers.filter((s) => s.url !== u);
       setServers(next);
-      if (activeServerUrl && norm(activeServerUrl) === u) setActiveUrl(next[0]?.url ?? null);
+      if (activeServerUrl && norm(activeServerUrl) === u) setActiveServerUrl(next[0]?.url ?? null);
     },
     [servers, activeServerUrl],
   );

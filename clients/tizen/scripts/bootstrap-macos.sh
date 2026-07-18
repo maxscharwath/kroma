@@ -25,8 +25,8 @@ DEST="$HOME/Downloads/$DMG"
 TIZEN_HOME="$HOME/tizen-studio"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 
-say(){ printf "\n\033[1;33m▶ %s\033[0m\n" "$1"; }
-ok(){  printf "\033[1;32m  ✓ %s\033[0m\n" "$1"; }
+say(){ local msg="$1"; printf "\n\033[1;33m▶ %s\033[0m\n" "$msg"; }
+ok(){  local msg="$1"; printf "\033[1;32m  ✓ %s\033[0m\n" "$msg"; }
 
 # ---- 1. Rosetta -----------------------------------------------------------
 if /usr/bin/pgrep -q oahd; then
@@ -37,10 +37,10 @@ else
 fi
 
 # ---- 2/3. Tizen Studio ----------------------------------------------------
-if [ -x "$TIZEN_HOME/tools/ide/bin/tizen" ]; then
+if [[ -x "$TIZEN_HOME/tools/ide/bin/tizen" ]]; then
   ok "Tizen Studio already installed at $TIZEN_HOME"
 else
-  if [ ! -s "$DEST" ]; then
+  if [[ ! -s "$DEST" ]]; then
     say "Downloading Tizen Studio $VER (a few hundred MB)…"
     curl -L --fail --progress-bar -o "$DEST" "$URL"
   else

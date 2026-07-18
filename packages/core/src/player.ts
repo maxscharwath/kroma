@@ -1,6 +1,5 @@
-import type { KromaClient } from '@kroma/client';
+import type { KromaClient, MediaItem } from '@kroma/client';
 import { canDirectPlay, capabilities, type DirectPlayVerdict } from './hevc';
-import type { MediaItem } from '@kroma/client';
 
 export interface AttachOptions {
   /** Resume position in milliseconds. */

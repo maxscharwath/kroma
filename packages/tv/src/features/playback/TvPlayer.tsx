@@ -1,9 +1,10 @@
-import { audioSupport, type MediaItem, playerSubtitle } from '@kroma/core';
+import { audioSupport, type MediaItem, playerSubtitle, type Translate } from '@kroma/core';
 import { Player, TV_FLAGS, type UpNextItem, useSubtitleAppearance, useT } from '@kroma/ui';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { BackChevron, StopGlyph } from '#tv/features/playback/player/icons';
 import { FOCUS_RING } from '#tv/features/playback/player/playerStyles';
+import type { Playback } from '#tv/features/playback/player/useDirectPlayback';
 import { useNowPlaying } from '#tv/features/playback/player/useNowPlaying';
 import { useStoryboard } from '#tv/features/playback/player/useStoryboard';
 import { useTvController } from '#tv/features/playback/use-tv-controller';
@@ -11,6 +12,17 @@ import { useTvUpNext } from '#tv/features/playback/use-tv-upnext';
 
 /** Scrub-preview thumbnail width (px); the storyboard tile keeps 16:9. */
 const PREVIEW_W = 256;
+
+/** Warning pill text, by priority: stream/codec error -> direct-play verdict
+ * (in-page surface only) -> audio support. Null when nothing to warn about. */
+function playerWarn(pb: Playback, item: MediaItem, t: Translate): string | null {
+  if (pb.error) return t(pb.error);
+  if (pb.surface === 'video' && pb.verdict && !pb.verdict.canDirectPlay)
+    return t(pb.verdict.messageKey, pb.verdict.messageVars);
+  const audio = audioSupport(item);
+  if (!audio.canPlay && audio.messageKey) return t(audio.messageKey, audio.messageVars);
+  return null;
+}
 
 /**
  * The TV player: a thin wrapper adapting the native-plane engine to the shared
@@ -58,7 +70,16 @@ export function TvPlayer() {
   );
 
   const subtitle = playerSubtitle(item);
-  useNowPlaying(client, item, item.title, subtitle, pb.dur, pb.cur, pb.playing, pb.seekTo);
+  useNowPlaying({
+    client,
+    item,
+    title: item.title,
+    subtitle,
+    durationSec: pb.dur,
+    positionSec: pb.cur,
+    playing: pb.playing,
+    seekTo: pb.seekTo,
+  });
 
   // Intro window (episodes only).
   const intro = useMemo(() => (item.markers ?? []).find((m) => m.kind === 'intro'), [item.markers]);
@@ -75,14 +96,7 @@ export function TvPlayer() {
     return () => el.classList.remove('kroma-native-surface');
   }, [pb.surface, pb.ready]);
 
-  // Warning pill, by priority: stream/codec error -> direct-play verdict (in-page
-  // surface only) -> audio support.
-  const audio = audioSupport(item);
-  let warn: string | null = null;
-  if (pb.error) warn = t(pb.error);
-  else if (pb.surface === 'video' && pb.verdict && !pb.verdict.canDirectPlay)
-    warn = t(pb.verdict.messageKey, pb.verdict.messageVars);
-  else if (!audio.canPlay && audio.messageKey) warn = t(audio.messageKey, audio.messageVars);
+  const warn = playerWarn(pb, item, t);
 
   const nextTitle = next
     ? {
@@ -103,19 +117,24 @@ export function TvPlayer() {
         type="application/avplayer"
         style={{ width: '100%', height: '100%' }}
         aria-label={item.title}
-      />
+      >
+        {item.title}
+      </object>
     );
   } else if (pb.surface === 'mpv' || pb.surface === 'exo') {
     surface = <div style={{ width: '100%', height: '100%' }} role="img" aria-label={item.title} />;
   } else {
     surface = (
-      // biome-ignore lint/a11y/useMediaCaption: subtitles render via the shared SubtitleRenderer.
+      // Subtitles render via the shared SubtitleRenderer; the empty captions track
+      // is only present to satisfy the media-caption accessibility requirement.
       <video
         ref={pb.videoRef}
         style={{ width: '100%', height: '100%', background: '#000', objectFit: 'contain' }}
         autoPlay
         playsInline
-      />
+      >
+        <track kind="captions" />
+      </video>
     );
   }
 

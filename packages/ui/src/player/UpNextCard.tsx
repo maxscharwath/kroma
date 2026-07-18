@@ -36,7 +36,7 @@ export const UP_NEXT_CARD_W = 'w-[calc((100%-52px)/3)]';
 /** Deterministic, subtle amber-into-charcoal placeholder when there is no still. */
 function placeholderGradient(id: string): string {
   let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + (id.codePointAt(i) ?? 0)) >>> 0;
   const tilt = 138 + (h % 54);
   return `linear-gradient(${tilt}deg, rgba(244,182,66,0.16) 0%, rgba(20,18,22,0.96) 64%)`;
 }

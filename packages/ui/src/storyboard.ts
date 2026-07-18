@@ -62,6 +62,15 @@ export function useStoryboard(
     setSheetUrl(null);
     setLoaded(false);
 
+    // Preload so the first hover never flashes an empty/half-loaded sheet.
+    const preload = (url: string) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!cancelled) setLoaded(true);
+      };
+      img.src = url;
+    };
+
     const poll = () => {
       client
         .storyboard(itemId)
@@ -80,12 +89,7 @@ export function useStoryboard(
           const url = client.resolveArt(res.url) ?? res.url;
           setManifest(res);
           setSheetUrl(url);
-          // Preload so the first hover never flashes an empty/half-loaded sheet.
-          const img = new Image();
-          img.onload = () => {
-            if (!cancelled) setLoaded(true);
-          };
-          img.src = url;
+          preload(url);
         })
         .catch(() => undefined);
     };

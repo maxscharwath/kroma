@@ -3,8 +3,13 @@
 // (⋮) menu with the row's state-dependent actions (pause/resume, ask more
 // peers, retry, tracker link, remove).
 
-import type { DownloadView, MessageKey } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
+import {
+  type DownloadView,
+  formatBytes,
+  type MessageKey,
+  ProgressBar,
+  useT,
+} from '@kroma/module-sdk';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   IconDotsVertical,
@@ -20,7 +25,6 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
-import { formatBytes, ProgressBar } from '@kroma/module-sdk';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
 export interface LiveDl {
@@ -73,8 +77,6 @@ export function DownloadRowView({
   onAskPeers: () => void;
   onRemove: () => void;
 }>) {
-  const t = useT();
-  const navigate = useNavigate();
   const status = live?.state && dl.status !== 'imported' ? live.state : dl.status;
   const progress = live?.progress ?? dl.progress;
   // Prefer the live WS event when present, else the polled row (so speed + peers
@@ -87,6 +89,185 @@ export function DownloadRowView({
   };
   const color = STATUS_COLOR[status] ?? 'rgba(244,243,240,.55)';
   const active = status === 'downloading' || status === 'queued';
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.04] px-5 py-3 md:grid-cols-[minmax(0,1fr)_190px_120px_110px_84px]">
+      <RowTitleCell dl={dl} />
+      <RowProgressCell dl={dl} progress={progress} color={color} />
+      <RowSpeedCell active={active} stat={stat} />
+      <RowStatusCell dl={dl} status={status} color={color} active={active} />
+      <RowActionsMenu
+        dl={dl}
+        status={status}
+        active={active}
+        busy={busy}
+        onPause={onPause}
+        onResume={onResume}
+        onRetry={onRetry}
+        onAskPeers={onAskPeers}
+        onRemove={onRemove}
+      />
+    </div>
+  );
+}
+
+/** Release title cell: poster, title + target pill, release/indexer/tracker line. */
+function RowTitleCell({ dl }: Readonly<{ dl: DownloadView }>) {
+  const t = useT();
+  const targetLabel = targetPill(dl);
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      {dl.posterUrl ? (
+        <img
+          src={dl.posterUrl}
+          alt=""
+          loading="lazy"
+          className="h-11 w-[30px] flex-[0_0_auto] rounded-[3px] bg-white/5 object-cover"
+        />
+      ) : (
+        <div className="flex h-11 w-[30px] flex-[0_0_auto] items-center justify-center rounded-[3px] bg-white/[0.05]">
+          <IconMovie size={13} className="text-white/25" />
+        </div>
+      )}
+      <div className="min-w-0">
+        <div className="flex items-center gap-2.5">
+          <span className="truncate text-[13.5px] font-bold" title={dl.releaseTitle}>
+            {dl.title}
+          </span>
+          {targetLabel ? (
+            <span className="flex-[0_0_auto] rounded-full bg-[#86A8FF]/[0.14] px-[7px] py-0.5 text-[9px] font-bold text-[#86A8FF]">
+              {targetLabel}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-[3px] flex items-center gap-1.5 text-[11.5px] font-medium text-white/40">
+          <span className="truncate" title={dl.releaseTitle}>
+            {dl.releaseTitle}
+          </span>
+          {dl.indexerName ? (
+            <span className="flex-[0_0_auto] text-white/30">· {dl.indexerName}</span>
+          ) : null}
+          {dl.detailsUrl ? (
+            <a
+              href={dl.detailsUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={t('downloads.viewOnTracker')}
+              className="flex-[0_0_auto] text-white/40 hover:text-accent"
+            >
+              <IconExternalLink size={12} stroke={2} />
+            </a>
+          ) : null}
+        </div>
+        {dl.error ? (
+          <div className="mt-1 truncate text-[11.5px] font-semibold text-[#EF8091]">{dl.error}</div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** Progress cell: bar + percent and (when known) total size. */
+function RowProgressCell({
+  dl,
+  progress,
+  color,
+}: Readonly<{ dl: DownloadView; progress: number; color: string }>) {
+  return (
+    <div className="max-md:hidden">
+      <ProgressBar pct={progress * 100} color={color} height={5} />
+      <div className="mt-1 flex items-center justify-between text-[11px] font-semibold tabular-nums text-white/45">
+        <span>{Math.round(progress * 100)}%</span>
+        {dl.sizeBytes != null ? <span>{formatBytes(dl.sizeBytes)}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+/** Speed + peers cell (only while the download is active). */
+function RowSpeedCell({
+  active,
+  stat,
+}: Readonly<{
+  active: boolean;
+  stat: { downBps: number; upBps: number; peers: number; peersSeen: number };
+}>) {
+  const t = useT();
+  return (
+    <div className="text-[11.5px] font-semibold tabular-nums text-white/55 max-md:hidden">
+      {active ? (
+        <>
+          <div className="text-[#46D08D]">{formatBytes(stat.downBps)}/s</div>
+          <div className="flex items-center gap-1.5 text-white/35">
+            <span>{formatBytes(stat.upBps)}/s</span>
+            <span
+              className={`flex items-center gap-0.5 ${stat.peers > 0 ? 'text-[#86A8FF]' : 'text-[#F4B642]'}`}
+              title={t('downloads.peersDetail', {
+                live: String(stat.peers),
+                seen: String(stat.peersSeen),
+              })}
+            >
+              <IconUsers size={11} stroke={2} />
+              {stat.peersSeen > stat.peers ? `${stat.peers}/${stat.peersSeen}` : stat.peers}
+            </span>
+          </div>
+        </>
+      ) : (
+        <span className="text-white/30">-</span>
+      )}
+    </div>
+  );
+}
+
+/** Status pill cell + client name. */
+function RowStatusCell({
+  dl,
+  status,
+  color,
+  active,
+}: Readonly<{ dl: DownloadView; status: string; color: string; active: boolean }>) {
+  const t = useT();
+  return (
+    <div className="max-md:hidden">
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full px-[10px] py-[4px] text-[11px] font-bold"
+        style={{ color, background: `${STATUS_COLOR[status] ?? '#fff'}22` }}
+      >
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${active ? 'animate-pulse' : ''}`}
+          style={{ background: color }}
+        />
+        {t(`downloads.st.${status}` as MessageKey)}
+      </span>
+      <div className="mt-1 text-[10.5px] font-medium text-white/35">{dl.clientName}</div>
+    </div>
+  );
+}
+
+/** Kebab (⋮) menu with the row's state-dependent actions. */
+function RowActionsMenu({
+  dl,
+  status,
+  active,
+  busy,
+  onPause,
+  onResume,
+  onRetry,
+  onAskPeers,
+  onRemove,
+}: Readonly<{
+  dl: DownloadView;
+  status: string;
+  active: boolean;
+  busy: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  onRetry: () => void;
+  onAskPeers: () => void;
+  onRemove: () => void;
+}>) {
+  const t = useT();
+  const navigate = useNavigate();
   const pausable = active;
   const resumable = status === 'paused';
   // "Ask more peers" only makes sense while the torrent is live in the engine.
@@ -95,8 +276,6 @@ export function DownloadRowView({
   // (completed/imported -> re-import; anything else -> reset + re-add). Useful to
   // force-restart a stuck download or re-run an import, not just failed grabs.
   const retryable = true;
-
-  const targetLabel = targetPill(dl);
 
   // "Open in KROMA" jumps to the library fiche, once the title has been imported.
   const localId = dl.localId;
@@ -109,176 +288,78 @@ export function DownloadRowView({
     : null;
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.04] px-5 py-3 md:grid-cols-[minmax(0,1fr)_190px_120px_110px_84px]">
-      <div className="flex min-w-0 items-center gap-3">
-        {dl.posterUrl ? (
-          <img
-            src={dl.posterUrl}
-            alt=""
-            loading="lazy"
-            className="h-11 w-[30px] flex-[0_0_auto] rounded-[3px] bg-white/5 object-cover"
-          />
-        ) : (
-          <div className="flex h-11 w-[30px] flex-[0_0_auto] items-center justify-center rounded-[3px] bg-white/[0.05]">
-            <IconMovie size={13} className="text-white/25" />
-          </div>
-        )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <span className="truncate text-[13.5px] font-bold" title={dl.releaseTitle}>
-              {dl.title}
-            </span>
-            {targetLabel ? (
-              <span className="flex-[0_0_auto] rounded-full bg-[#86A8FF]/[0.14] px-[7px] py-0.5 text-[9px] font-bold text-[#86A8FF]">
-                {targetLabel}
-              </span>
+    <div className="flex justify-end">
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button
+            type="button"
+            aria-label={t('downloads.rowActions')}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/12 bg-[#1A1A20] text-white/70 outline-none transition-colors hover:text-white data-[state=open]:bg-white/[0.08] data-[state=open]:text-white"
+          >
+            <IconDotsVertical size={15} stroke={2} />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content align="end" sideOffset={6} className={MENU}>
+            {pausable ? (
+              <RowMenuItem
+                icon={<IconPlayerPause size={14} stroke={2.2} />}
+                label={t('downloads.pause')}
+                onSelect={onPause}
+                disabled={busy}
+              />
             ) : null}
-          </div>
-          <div className="mt-[3px] flex items-center gap-1.5 text-[11.5px] font-medium text-white/40">
-            <span className="truncate" title={dl.releaseTitle}>
-              {dl.releaseTitle}
-            </span>
-            {dl.indexerName ? (
-              <span className="flex-[0_0_auto] text-white/30">· {dl.indexerName}</span>
+            {resumable ? (
+              <RowMenuItem
+                icon={<IconPlayerPlay size={14} stroke={2.2} />}
+                label={t('downloads.resume')}
+                onSelect={onResume}
+                disabled={busy}
+              />
+            ) : null}
+            {canAskPeers ? (
+              <RowMenuItem
+                icon={<IconUsersPlus size={14} stroke={2.2} />}
+                label={t('downloads.askPeers')}
+                onSelect={onAskPeers}
+                disabled={busy}
+              />
+            ) : null}
+            {retryable ? (
+              <RowMenuItem
+                icon={<IconRefresh size={14} stroke={2.2} />}
+                label={t('downloads.retry')}
+                onSelect={onRetry}
+                disabled={busy}
+              />
+            ) : null}
+            {openInKroma ? (
+              <RowMenuItem
+                icon={<IconInfoCircle size={14} stroke={2} />}
+                label={t('downloads.openInKroma')}
+                onSelect={openInKroma}
+              />
             ) : null}
             {dl.detailsUrl ? (
-              <a
-                href={dl.detailsUrl}
-                target="_blank"
-                rel="noreferrer"
-                title={t('downloads.viewOnTracker')}
-                className="flex-[0_0_auto] text-white/40 hover:text-accent"
-              >
-                <IconExternalLink size={12} stroke={2} />
-              </a>
-            ) : null}
-          </div>
-          {dl.error ? (
-            <div className="mt-1 truncate text-[11.5px] font-semibold text-[#EF8091]">
-              {dl.error}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="max-md:hidden">
-        <ProgressBar pct={progress * 100} color={color} height={5} />
-        <div className="mt-1 flex items-center justify-between text-[11px] font-semibold tabular-nums text-white/45">
-          <span>{Math.round(progress * 100)}%</span>
-          {dl.sizeBytes != null ? <span>{formatBytes(dl.sizeBytes)}</span> : null}
-        </div>
-      </div>
-
-      <div className="text-[11.5px] font-semibold tabular-nums text-white/55 max-md:hidden">
-        {active ? (
-          <>
-            <div className="text-[#46D08D]">{formatBytes(stat.downBps)}/s</div>
-            <div className="flex items-center gap-1.5 text-white/35">
-              <span>{formatBytes(stat.upBps)}/s</span>
-              <span
-                className={`flex items-center gap-0.5 ${stat.peers > 0 ? 'text-[#86A8FF]' : 'text-[#F4B642]'}`}
-                title={t('downloads.peersDetail', {
-                  live: String(stat.peers),
-                  seen: String(stat.peersSeen),
-                })}
-              >
-                <IconUsers size={11} stroke={2} />
-                {stat.peersSeen > stat.peers ? `${stat.peers}/${stat.peersSeen}` : stat.peers}
-              </span>
-            </div>
-          </>
-        ) : (
-          <span className="text-white/30">-</span>
-        )}
-      </div>
-
-      <div className="max-md:hidden">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full px-[10px] py-[4px] text-[11px] font-bold"
-          style={{ color, background: `${STATUS_COLOR[status] ?? '#fff'}22` }}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${active ? 'animate-pulse' : ''}`}
-            style={{ background: color }}
-          />
-          {t(`downloads.st.${status}` as MessageKey)}
-        </span>
-        <div className="mt-1 text-[10.5px] font-medium text-white/35">{dl.clientName}</div>
-      </div>
-
-      <div className="flex justify-end">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button
-              type="button"
-              aria-label={t('downloads.rowActions')}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/12 bg-[#1A1A20] text-white/70 outline-none transition-colors hover:text-white data-[state=open]:bg-white/[0.08] data-[state=open]:text-white"
-            >
-              <IconDotsVertical size={15} stroke={2} />
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={6} className={MENU}>
-              {pausable ? (
-                <RowMenuItem
-                  icon={<IconPlayerPause size={14} stroke={2.2} />}
-                  label={t('downloads.pause')}
-                  onSelect={onPause}
-                  disabled={busy}
-                />
-              ) : null}
-              {resumable ? (
-                <RowMenuItem
-                  icon={<IconPlayerPlay size={14} stroke={2.2} />}
-                  label={t('downloads.resume')}
-                  onSelect={onResume}
-                  disabled={busy}
-                />
-              ) : null}
-              {canAskPeers ? (
-                <RowMenuItem
-                  icon={<IconUsersPlus size={14} stroke={2.2} />}
-                  label={t('downloads.askPeers')}
-                  onSelect={onAskPeers}
-                  disabled={busy}
-                />
-              ) : null}
-              {retryable ? (
-                <RowMenuItem
-                  icon={<IconRefresh size={14} stroke={2.2} />}
-                  label={t('downloads.retry')}
-                  onSelect={onRetry}
-                  disabled={busy}
-                />
-              ) : null}
-              {openInKroma ? (
-                <RowMenuItem
-                  icon={<IconInfoCircle size={14} stroke={2} />}
-                  label={t('downloads.openInKroma')}
-                  onSelect={openInKroma}
-                />
-              ) : null}
-              {dl.detailsUrl ? (
-                <RowMenuItem
-                  icon={<IconExternalLink size={14} stroke={2} />}
-                  label={t('downloads.viewOnTracker')}
-                  onSelect={() => {
-                    if (dl.detailsUrl) window.open(dl.detailsUrl, '_blank', 'noopener,noreferrer');
-                  }}
-                />
-              ) : null}
-              <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
               <RowMenuItem
-                icon={<IconTrash size={14} stroke={2} />}
-                label={t('downloads.remove')}
-                onSelect={onRemove}
-                disabled={busy}
-                danger
+                icon={<IconExternalLink size={14} stroke={2} />}
+                label={t('downloads.viewOnTracker')}
+                onSelect={() => {
+                  if (dl.detailsUrl) window.open(dl.detailsUrl, '_blank', 'noopener,noreferrer');
+                }}
               />
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      </div>
+            ) : null}
+            <DropdownMenu.Separator className="my-1 h-px bg-white/[0.07]" />
+            <RowMenuItem
+              icon={<IconTrash size={14} stroke={2} />}
+              label={t('downloads.remove')}
+              onSelect={onRemove}
+              disabled={busy}
+              danger
+            />
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
     </div>
   );
 }

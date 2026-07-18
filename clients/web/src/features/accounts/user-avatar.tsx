@@ -13,7 +13,7 @@ const GRADS = [
 
 function hashIndex(seed: string, n: number): number {
   let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + (seed.codePointAt(i) ?? 0)) >>> 0;
   return h % n;
 }
 
@@ -31,7 +31,7 @@ export function initials(name: string): string {
   // `parts` came from `filter(Boolean)`, so every entry is a non-empty string:
   // `last` exists (length >= 2) and both first chars are present. The `?? ''`
   // fallbacks are only there to satisfy the type-checker and never trigger.
-  const last = parts[parts.length - 1] ?? first;
+  const last = parts.at(-1) ?? first;
   return ((first[0] ?? '') + (last[0] ?? '')).toUpperCase();
 }
 

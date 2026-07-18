@@ -77,7 +77,11 @@ function Field({
   field,
   value,
   onChange,
-}: Readonly<{ field: ConfigField; value: ConfigValue | undefined; onChange: (v: ConfigValue) => void }>) {
+}: Readonly<{
+  field: ConfigField;
+  value: ConfigValue | undefined;
+  onChange: (v: ConfigValue) => void;
+}>) {
   const id = useId();
   const inputCls = 'w-40 rounded border border-border bg-transparent px-2 py-1 text-text';
 

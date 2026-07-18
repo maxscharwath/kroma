@@ -4,8 +4,8 @@
 // routing is WireGuard-only (any provider). Default export so the module runtime
 // can React.lazy it into its own chunk.
 
-import { apiErrorText, type VpnTestResult } from '@kroma/module-sdk';
 import {
+  apiErrorText,
   Card,
   Denied,
   Modal,
@@ -17,8 +17,9 @@ import {
   useAsyncAction,
   useCap,
   usePoll,
+  useT,
+  type VpnTestResult,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import { IconLoader2, IconShield, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
 import { useState } from 'react';
 
@@ -55,13 +56,7 @@ export function VpnCard() {
 
   const state = data;
   const configured = state?.wgConfigured ?? false;
-  const icon = !configured ? (
-    <IconShield size={18} stroke={1.8} />
-  ) : state?.status?.connected ? (
-    <IconShieldCheck size={18} stroke={1.8} />
-  ) : (
-    <IconShieldX size={18} stroke={1.8} />
-  );
+  const connected = state?.status?.connected ?? false;
 
   return (
     <Card className="mb-5 p-4.5">
@@ -69,24 +64,14 @@ export function VpnCard() {
         <div className="flex min-w-0 items-center gap-3">
           <span
             className="flex h-10 w-10 flex-[0_0_40px] items-center justify-center rounded-xl border border-border-strong bg-surface-2"
-            style={{
-              color: !configured
-                ? 'rgba(244,243,240,.5)'
-                : state?.status?.connected
-                  ? '#46D08D'
-                  : '#F4B642',
-            }}
+            style={{ color: statusColor(configured, connected) }}
           >
-            {icon}
+            <StatusIcon configured={configured} connected={connected} />
           </span>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-[14.5px] font-bold">{t('vpn.title')}</span>
-              {configured ? (
-                <Pill color={state?.bridgeRunning ? '#46D08D' : '#E8536A'}>
-                  {state?.bridgeRunning ? t('vpn.bridgeUp') : t('vpn.bridgeDown')}
-                </Pill>
-              ) : null}
+              {configured ? <BridgePill running={state?.bridgeRunning ?? false} /> : null}
             </div>
             <div className="mt-0.5 text-[12px] font-medium text-dim">
               {configured
@@ -119,16 +104,7 @@ export function VpnCard() {
 
       {test.error || test.result ? (
         <div className="mt-3 border-t border-white/[0.06] pt-3 text-[12.5px] font-semibold">
-          {test.error ? (
-            <span className="text-[#EF8091]">{test.error}</span>
-          ) : test.result?.sealed ? (
-            <span className="text-[#46D08D]">
-              {t('vpn.sealed', { ip: test.result.proxiedIp ?? '?' })}
-              {test.result.directIp ? ` · ${t('vpn.directIp', { ip: test.result.directIp })}` : ''}
-            </span>
-          ) : (
-            <span className="text-[#F4B642]">{test.result?.error ?? t('vpn.notSealed')}</span>
-          )}
+          <TestResultLine test={test} />
         </div>
       ) : null}
 
@@ -144,6 +120,45 @@ export function VpnCard() {
       ) : null}
     </Card>
   );
+}
+
+function StatusIcon({
+  configured,
+  connected,
+}: Readonly<{ configured: boolean; connected: boolean }>) {
+  if (!configured) return <IconShield size={18} stroke={1.8} />;
+  if (connected) return <IconShieldCheck size={18} stroke={1.8} />;
+  return <IconShieldX size={18} stroke={1.8} />;
+}
+
+function statusColor(configured: boolean, connected: boolean): string {
+  if (!configured) return 'rgba(244,243,240,.5)';
+  return connected ? '#46D08D' : '#F4B642';
+}
+
+function BridgePill({ running }: Readonly<{ running: boolean }>) {
+  const t = useT();
+  return (
+    <Pill color={running ? '#46D08D' : '#E8536A'}>
+      {running ? t('vpn.bridgeUp') : t('vpn.bridgeDown')}
+    </Pill>
+  );
+}
+
+function TestResultLine({
+  test,
+}: Readonly<{ test: { busy?: boolean; result?: VpnTestResult; error?: string } }>) {
+  const t = useT();
+  if (test.error) return <span className="text-[#EF8091]">{test.error}</span>;
+  if (test.result?.sealed) {
+    return (
+      <span className="text-[#46D08D]">
+        {t('vpn.sealed', { ip: test.result.proxiedIp ?? '?' })}
+        {test.result.directIp ? ` · ${t('vpn.directIp', { ip: test.result.directIp })}` : ''}
+      </span>
+    );
+  }
+  return <span className="text-[#F4B642]">{test.result?.error ?? t('vpn.notSealed')}</span>;
 }
 
 function VpnConfigModal({

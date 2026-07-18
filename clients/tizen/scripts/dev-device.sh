@@ -17,7 +17,7 @@ set -euo pipefail
 # the API. Detected by lan-ip.sh, the same source of truth make dev-shell uses, so
 # the baked-in address and the HMR address match. Override with KROMA_TV_HOST.
 HOST_IP="${KROMA_TV_HOST:-$("$(dirname "$0")/lan-ip.sh")}"
-if [ -z "$HOST_IP" ]; then
+if [[ -z "$HOST_IP" ]]; then
   echo "dev-device: could not detect a LAN IP." >&2
   echo "  Set it explicitly:  KROMA_TV_HOST=192.168.1.20 bun run dev:tizen:device" >&2
   exit 1

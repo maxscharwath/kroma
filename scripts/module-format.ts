@@ -10,7 +10,7 @@ export type Manifest = Record<string, unknown>;
 
 /** Parse the YAML frontmatter of a `.module.md`, or null if it has none. */
 export function frontmatter(md: string): Manifest | null {
-  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(md);
   return m ? (Bun.YAML.parse(m[1]) as Manifest) : null;
 }
 
@@ -20,9 +20,9 @@ export function frontmatter(md: string): Manifest | null {
  *  fence (not ```localeXen), and a nested triple-backtick indented inside the
  *  block does not truncate it. */
 export function fenced(md: string, lang: string): string | null {
-  const escaped = lang.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = lang.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   const re = new RegExp(`^\`\`\`${escaped}[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n\`\`\`[ \\t]*$`, 'm');
-  const m = md.match(re);
+  const m = re.exec(md);
   return m ? m[1] : null;
 }
 
@@ -30,6 +30,6 @@ export function fenced(md: string, lang: string): string | null {
 export function slug(id: string): string {
   return id
     .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/^-|-$/g, '')
     .toLowerCase();
 }

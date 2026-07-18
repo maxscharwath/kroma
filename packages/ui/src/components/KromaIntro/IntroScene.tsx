@@ -90,9 +90,11 @@ export function IntroScene({ runId, lite, showTagline, tagline }: Readonly<Intro
       />
 
       {/* embers */}
-      {embers.map(({ anim, ...s }, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: EMBERS is a fixed, static list that is never reordered.
-        <div key={i} style={{ position: 'absolute', borderRadius: '50%', animation: anim, ...s }} />
+      {embers.map(({ anim, ...s }) => (
+        <div
+          key={anim}
+          style={{ position: 'absolute', borderRadius: '50%', animation: anim, ...s }}
+        />
       ))}
 
       {/* lockup */}

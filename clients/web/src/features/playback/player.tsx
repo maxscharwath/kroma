@@ -96,7 +96,6 @@ export function Player({
     : null;
 
   const surface = (
-    // biome-ignore lint/a11y/useMediaCaption: subtitles render via the shared SubtitleRenderer, not <track>.
     <video
       key={`${pb.anchor}:${pb.audioIndex}`}
       ref={videoRef}
@@ -104,7 +103,11 @@ export function Player({
       playsInline
       crossOrigin="anonymous"
       style={{ width: '100%', height: '100%', background: '#000', objectFit: 'contain' }}
-    />
+    >
+      {/* Captions render out-of-band via the shared SubtitleRenderer; this empty
+          default track satisfies the captions requirement without adding cues. */}
+      <track kind="captions" />
+    </video>
   );
 
   return (

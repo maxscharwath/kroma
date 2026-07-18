@@ -81,7 +81,9 @@ export function AddLibraryModal({
       <ModalActions
         onCancel={onClose}
         cancelLabel={t('common.cancel')}
-        onConfirm={() => void create()}
+        onConfirm={() => {
+          create();
+        }}
         confirmLabel={busy ? t('common.creating') : t('common.create')}
         busy={busy}
         disabled={!name.trim()}
@@ -139,10 +141,17 @@ export function ManageLibraryModal({
       <ModalActions
         onCancel={onClose}
         cancelLabel={t('common.cancel')}
-        onConfirm={() => void save()}
+        onConfirm={() => {
+          save();
+        }}
         confirmLabel={busy ? t('common.saving') : t('common.save')}
         busy={busy}
-        destructive={{ label: t('common.delete'), onClick: () => void remove() }}
+        destructive={{
+          label: t('common.delete'),
+          onClick: () => {
+            remove();
+          },
+        }}
       />
     </Modal>
   );

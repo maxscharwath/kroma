@@ -2,10 +2,12 @@
 // engine (embedded / Transmission / qBittorrent) with enable toggle, live
 // connection test and the add/edit modal.
 
-import { apiErrorText, type ClientTestResult, type DownloadClientView } from '@kroma/module-sdk';
 import {
   AddEngineModal,
+  apiErrorText,
   Card,
+  type ClientTestResult,
+  type DownloadClientView,
   EmptyState,
   Pill,
   Section,
@@ -14,8 +16,8 @@ import {
   useAdminKit,
   useEnabledEngines,
   usePoll,
+  useT,
 } from '@kroma/module-sdk';
-import { useT } from '@kroma/module-sdk';
 import { IconCpu, IconLoader2, IconPencil, IconPlus, IconServer } from '@tabler/icons-react';
 import { useState } from 'react';
 import { DownloadClientModal } from './download-client-modals';

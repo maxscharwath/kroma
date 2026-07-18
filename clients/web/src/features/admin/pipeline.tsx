@@ -26,6 +26,29 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/inp
 const PER_PAGE = 30;
 const apiKind = (el: ElementRow): 'item' | 'show' => (el.kind === 'series' ? 'show' : 'item');
 
+// Server events that should refresh the pipeline table.
+const RELOAD_EVENTS = new Set([
+  'pipeline.stats',
+  'job.finished',
+  'job.started',
+  'item.updated',
+  'show.updated',
+  'library.updated',
+]);
+
+/** Refetch the table whenever a pipeline-relevant server event lands. */
+function usePipelineReloadEvents(onReload: () => void): void {
+  useEffect(() => {
+    const ev = new KromaEvents(apiBase(), {
+      onEvent: (e) => {
+        if (RELOAD_EVENTS.has(e.type)) onReload();
+      },
+    });
+    ev.connect();
+    return () => ev.close();
+  }, [onReload]);
+}
+
 export function PipelinePage() {
   const t = useT();
   const { client } = useAuth();
@@ -68,24 +91,7 @@ export function PipelinePage() {
     reload();
   }, [reload]);
 
-  useEffect(() => {
-    const ev = new KromaEvents(apiBase(), {
-      onEvent: (e) => {
-        if (
-          e.type === 'pipeline.stats' ||
-          e.type === 'job.finished' ||
-          e.type === 'job.started' ||
-          e.type === 'item.updated' ||
-          e.type === 'show.updated' ||
-          e.type === 'library.updated'
-        ) {
-          throttledReload();
-        }
-      },
-    });
-    ev.connect();
-    return () => ev.close();
-  }, [throttledReload]);
+  usePipelineReloadEvents(throttledReload);
 
   // Keep the open drawer fresh from reloads while its element is on the page.
   useEffect(() => {
@@ -139,7 +145,8 @@ export function PipelinePage() {
     client
       .retryElementStage(apiKind(el), el.id, stage)
       .then(() => {
-        flash(`${t(`pipeline.t.${stage}` as MessageKey)} ${t('pipeline.toastRetry')}`);
+        const stageName = t(`pipeline.t.${stage}` as MessageKey);
+        flash(`${stageName} ${t('pipeline.toastRetry')}`);
         reload();
       })
       .finally(() => setBusy(false));
@@ -321,10 +328,7 @@ export function PipelinePage() {
 
         {data && rows.length === 0 ? (
           <div className="py-6">
-            <EmptyState
-              icon={<IconInbox size={32} stroke={1.5} />}
-              title={t('pipeline.noMatch')}
-            />
+            <EmptyState icon={<IconInbox size={32} stroke={1.5} />} title={t('pipeline.noMatch')} />
           </div>
         ) : null}
 
@@ -389,12 +393,11 @@ export function PipelinePage() {
   );
 }
 
-function Head({
-  children,
-  className = '',
-}: Readonly<{ children: ReactNode; className?: string }>) {
+function Head({ children, className = '' }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
-    <span className={`text-[9.5px] font-bold uppercase tracking-[.12em] text-white/40 ${className}`}>
+    <span
+      className={`text-[9.5px] font-bold uppercase tracking-[.12em] text-white/40 ${className}`}
+    >
       {children}
     </span>
   );

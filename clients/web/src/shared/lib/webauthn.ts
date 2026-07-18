@@ -13,7 +13,7 @@ export function passkeysSupported(): boolean {
   return (
     typeof window !== 'undefined' &&
     window.isSecureContext &&
-    typeof window.PublicKeyCredential !== 'undefined' &&
+    window.PublicKeyCredential !== undefined &&
     !!navigator.credentials?.create
   );
 }
@@ -21,9 +21,9 @@ export function passkeysSupported(): boolean {
 /** base64url string → bytes. */
 function decode(s: string): Uint8Array {
   const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  const bin = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const bin = atob((s + pad).replaceAll('-', '+').replaceAll('_', '/'));
   const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+  for (let i = 0; i < bin.length; i += 1) out[i] = bin.codePointAt(i) ?? 0;
   return out;
 }
 
@@ -31,8 +31,10 @@ function decode(s: string): Uint8Array {
 function encode(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   let bin = '';
-  for (let i = 0; i < bytes.length; i += 1) bin += String.fromCharCode(bytes[i] as number);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  for (const b of bytes) bin += String.fromCodePoint(b);
+  const b64 = btoa(bin).replaceAll('+', '-').replaceAll('/', '_');
+  const padAt = b64.indexOf('=');
+  return padAt === -1 ? b64 : b64.slice(0, padAt);
 }
 
 /** Convert the server's `publicKey` options (base64url binary fields) into the

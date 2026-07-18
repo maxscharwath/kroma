@@ -234,7 +234,7 @@ describe('MpvEngine audio track mapping', () => {
     const { e, t } = started(0);
     const before = t.cmds().length;
     e.setAudioRendition(0);
-    expect(t.cmds().length).toBe(before);
+    expect(t.cmds()).toHaveLength(before);
   });
 });
 

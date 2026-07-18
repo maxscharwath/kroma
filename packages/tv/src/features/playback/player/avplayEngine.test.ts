@@ -287,6 +287,6 @@ describe('AvplayEngine visibility + destroy', () => {
     expect(names()).toContain('close');
     const before = names().length;
     document.dispatchEvent(new Event('visibilitychange'));
-    expect(names().length).toBe(before); // listener gone
+    expect(names()).toHaveLength(before); // listener gone
   });
 });

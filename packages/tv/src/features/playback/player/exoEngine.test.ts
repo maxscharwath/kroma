@@ -216,7 +216,7 @@ describe('ExoEngine transport', () => {
     expect(x.cmds()).toContainEqual({ op: 'audio', value: 1 });
     const before = x.cmds().length;
     e.setAudioRendition(1);
-    expect(x.cmds().length).toBe(before);
+    expect(x.cmds()).toHaveLength(before);
   });
 
   it('master audio switch re-anchors at the current position', async () => {

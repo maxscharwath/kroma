@@ -3,6 +3,7 @@ import { Player, TV_FLAGS, type UpNextItem, useSubtitleAppearance, useT } from '
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEnv } from '#tv/app/providers/env';
 import { useClient, useNav, useParams } from '#tv/app/router';
+import { getTauri } from '#tv/features/playback/player/engine';
 import { BackChevron, StopGlyph } from '#tv/features/playback/player/icons';
 import { FOCUS_RING } from '#tv/features/playback/player/playerStyles';
 import type { Playback } from '#tv/features/playback/player/useDirectPlayback';
@@ -37,10 +38,16 @@ export function TvPlayer() {
   const { item } = useParams('player');
   const client = useClient();
   const t = useT();
-  // Reveal-on-pointer only when a REAL fine pointer drives this shell (desktop /
-  // magic-remote); a plain TV has no pointer, so the chrome auto-hides on idle.
+  // Reveal-on-pointer only in the DESKTOP (Tauri) shell, where a real mouse
+  // exists. Real TVs (Tizen / webOS / Android TV) have no Tauri and their
+  // magic-remote cursor reports `(pointer: fine)` while emitting phantom
+  // pointermove events - which would pin the chrome (title + controls) open
+  // forever. There the D-pad drives reveal, so the chrome auto-hides on idle.
   const { pointer } = useEnv();
-  const playerFlags = useMemo(() => ({ ...TV_FLAGS, pointer }), [pointer]);
+  const playerFlags = useMemo(
+    () => ({ ...TV_FLAGS, pointer: pointer && getTauri() != null }),
+    [pointer],
+  );
 
   const { controller, pb, subtitleGen } = useTvController(client, item);
   const [appearance, setAppearance] = useSubtitleAppearance();

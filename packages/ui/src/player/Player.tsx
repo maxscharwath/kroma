@@ -94,12 +94,15 @@ function stageTransformFor(settingsShrink: boolean): CSSProperties {
 // centred), so a NATIVE plane shrinks to exactly where the <video> card sits.
 const CARD_RECT: PlaneRect = { x: 0.03, y: 0.25, w: 0.5, h: 0.5 };
 const FULL_RECT: PlaneRect = { x: 0, y: 0, w: 1, h: 1 };
-const SHRINK_MS = 380;
+const SHRINK_MS = 280;
 // Resizing a hardware video plane (AVPlay setDisplayRect / ExoPlayer SurfaceView)
-// is EXPENSIVE, so cap the native resizes to ~30fps instead of every rAF frame -
-// the difference from 60fps is imperceptible for a 380ms move but roughly halves
-// the compositor load that made the effect lag on real TVs.
-const PLANE_STEP_MS = 32;
+// is EXPENSIVE - each call reconfigures the hardware scaler and can cost most of a
+// frame - so we deliberately do only a FEW coarse steps (~every 70ms → ~4 resizes)
+// instead of a per-frame tween. The rounded mask fades smoothly over the same
+// window on a GPU layer, which carries the perceived smoothness; the plane itself
+// just steps down under it. (For a fully janky TV, raise this toward SHRINK_MS to
+// make it a single snap.)
+const PLANE_STEP_MS = 70;
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 function lerpRect(a: PlaneRect, b: PlaneRect, t: number): PlaneRect {
   return {
@@ -371,7 +374,7 @@ export function Player(props: Readonly<PlayerProps>) {
       {hasPlane ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute z-[3] transition-opacity duration-[380ms] ease-out"
+          className="pointer-events-none absolute z-[3] transition-opacity duration-[280ms] ease-out"
           style={{
             left: `${CARD_RECT.x * 100}%`,
             top: `${CARD_RECT.y * 100}%`,
@@ -380,6 +383,10 @@ export function Player(props: Readonly<PlayerProps>) {
             borderRadius: 24,
             boxShadow: '0 0 0 100vmax #000',
             opacity: nativeShrink ? 1 : 0,
+            // Force a GPU layer so the opacity fade composites (no per-frame
+            // repaint of the full-screen box-shadow) - keeps the fade smooth even
+            // while the plane steps behind it.
+            willChange: 'opacity',
           }}
         />
       ) : null}

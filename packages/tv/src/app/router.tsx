@@ -227,5 +227,10 @@ export function TvOutlet() {
   const screens = useContext(ScreensCtx);
   if (!screens) throw new Error('<TvOutlet> must be inside <TvNavProvider screens={…}>');
   const Screen = screens[route.name];
-  return <Screen />;
+  // Key the player by item id so an "up next" / recommendation swap - which keeps
+  // the same `player` route on top - REMOUNTS it, starting the new title from a
+  // clean state (engine, resume, progress) instead of inheriting the previous
+  // one's. Other screens keep their instance across same-route navigation.
+  const key = route.name === 'player' ? `player:${route.params.item.id}` : route.name;
+  return <Screen key={key} />;
 }

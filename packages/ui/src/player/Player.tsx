@@ -93,63 +93,29 @@ function stageTransformFor(settingsShrink: boolean): CSSProperties {
 // above produces (scale 0.5 from the left edge, nudged 3vw right, vertically
 // centred), so a NATIVE plane shrinks to exactly where the <video> card sits.
 const CARD_RECT: PlaneRect = { x: 0.03, y: 0.25, w: 0.5, h: 0.5 };
-const FULL_RECT: PlaneRect = { x: 0, y: 0, w: 1, h: 1 };
-const SHRINK_MS = 280;
-// Resizing a hardware video plane (AVPlay setDisplayRect / ExoPlayer SurfaceView)
-// is EXPENSIVE - each call reconfigures the hardware scaler and can cost most of a
-// frame - so we deliberately do only a FEW coarse steps (~every 70ms → ~4 resizes)
-// instead of a per-frame tween. The rounded mask fades smoothly over the same
-// window on a GPU layer, which carries the perceived smoothness; the plane itself
-// just steps down under it. (For a fully janky TV, raise this toward SHRINK_MS to
-// make it a single snap.)
-const PLANE_STEP_MS = 70;
-const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
-function lerpRect(a: PlaneRect, b: PlaneRect, t: number): PlaneRect {
-  return {
-    x: a.x + (b.x - a.x) * t,
-    y: a.y + (b.y - a.y) * t,
-    w: a.w + (b.w - a.w) * t,
-    h: a.h + (b.h - a.h) * t,
-  };
-}
 
 /**
- * Shrink a NATIVE video plane (AVPlay / mpv / ExoPlayer) between fullscreen and
- * the settings card. A hardware plane behind the page can't be CSS-transformed
- * like an in-page <video>, so we tween its display rect via `setPlaneRect`,
- * THROTTLED (the resize is the costly part). The rounded black surround is a
- * separate, geometry-static CSS mask that only fades opacity, so nothing repaints
- * a full-screen box-shadow every frame. A no-op when there's no plane (web).
+ * Shrink a NATIVE video plane (AVPlay / mpv / ExoPlayer) into the settings card.
+ * A hardware plane behind the page can't be CSS-transformed like an in-page
+ * <video>, and ANIMATING its display rect (repeated setDisplayRect) reconfigures
+ * the hardware scaler each call and lags badly on real TVs. So the plane SNAPS -
+ * one resize to the card, one back to fullscreen - and the smooth part is the
+ * rounded mask fading over it (a cheap GPU opacity transition). A no-op when
+ * there's no plane to drive (in-page <video>, which the CSS transform handles).
  */
 function useNativePlaneShrink(
   active: boolean,
   setPlaneRect: PlayerController['setPlaneRect'],
 ): void {
-  const cur = useRef<PlaneRect>(FULL_RECT);
-  const raf = useRef(0);
-  const lastApplied = useRef(0);
   const apply = useRef(setPlaneRect);
   apply.current = setPlaneRect;
   useEffect(() => {
-    if (!apply.current) return; // in-page <video>: the CSS transform handles it
-    const to = active ? CARD_RECT : FULL_RECT;
-    const from = cur.current;
-    const start = performance.now();
-    lastApplied.current = 0;
-    cancelAnimationFrame(raf.current);
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / SHRINK_MS);
-      cur.current = lerpRect(from, to, easeOutCubic(t));
-      // Throttle the native resize; always apply the final frame exactly.
-      if (t >= 1 || now - lastApplied.current >= PLANE_STEP_MS) {
-        lastApplied.current = now;
-        apply.current?.(t >= 1 && !active ? null : cur.current);
-      }
-      if (t < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
+    apply.current?.(active ? CARD_RECT : null);
   }, [active]);
+  // Always restore fullscreen when the player tears down - otherwise leaving with
+  // settings still open would strand the plane at card size (a small video stuck
+  // upper-left) behind the next screen.
+  useEffect(() => () => apply.current?.(null), []);
 }
 
 /** Derived chrome-visibility flags, kept out of the component to stay flat. The

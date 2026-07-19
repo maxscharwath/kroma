@@ -146,7 +146,11 @@ export function TvPlayer() {
       // is only present to satisfy the media-caption accessibility requirement.
       <video
         ref={pb.videoRef}
-        style={{ width: '100%', height: '100%', background: '#000', objectFit: 'contain' }}
+        // object-fit comes from the stage (contain normally, cover when it shrinks
+        // into the settings card); borderRadius: inherit so the video clips itself
+        // to the card's rounded corners (a transformed parent's overflow-hidden
+        // doesn't clip a child <video>). Same fix as the web player's surface.
+        style={{ width: '100%', height: '100%', background: '#000', borderRadius: 'inherit' }}
         autoPlay
         playsInline
       >

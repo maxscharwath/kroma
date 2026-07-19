@@ -307,7 +307,7 @@ export function Player(props: Readonly<PlayerProps>) {
         role="button"
         tabIndex={0}
         aria-label={c.playing ? t('player.pause') : t('player.play')}
-        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] ${settingsShrink ? 'bg-black shadow-pop [&>video]:object-cover' : 'bg-transparent [&>video]:object-contain'}`}
+        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] [&>video]:object-contain ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
         style={stage}
         onClick={input.onStageClick}
         onKeyDown={input.onStageKeyDown}

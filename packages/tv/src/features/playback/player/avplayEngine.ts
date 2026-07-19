@@ -111,6 +111,15 @@ export class AvplayEngine extends BaseTvEngine {
 
   private onPrepared(): void {
     if (this.destroyed) return;
+    // Silence AVPlay's OWN subtitle/caption rendering (we draw our own overlay).
+    // Tizen ignores setSilentSubtitle in the IDLE state, so the call in openNow()
+    // often has no effect - re-apply it now that the media is prepared, or the
+    // file's embedded text track shows up (e.g. a title/caption top-left).
+    try {
+      this.api.setSilentSubtitle(true);
+    } catch {
+      /* not all firmwares expose it */
+    }
     try {
       const d = this.api.getDuration();
       if (d > 0) this.durSec = d / 1000;

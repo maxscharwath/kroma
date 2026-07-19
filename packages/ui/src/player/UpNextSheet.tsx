@@ -1,5 +1,5 @@
 import type { RemoteKey, Translate } from '@kroma/core';
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useT } from '../i18n';
 import type { PanelHandle } from './nav';
 import { EYEBROW } from './tw';
@@ -97,6 +97,16 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
     [open, grid.onKey],
   );
 
+  // Scroll the focused card into view on D-pad nav only (grid.keyNonce bumps on
+  // arrow keys, not hover), so the ring never leaves the viewport on TV while a
+  // pointer hover leaves the scroll position - and the layout under it - untouched.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: grid.keyNonce is a change-trigger (re-run on D-pad moves only), intentionally not read in the body.
+  useEffect(() => {
+    if (!open) return;
+    scrollRef.current?.querySelector('[data-focused]')?.scrollIntoView({ block: 'nearest' });
+  }, [grid.keyNonce, open]);
+
   if (!open && (!revealed || items.length === 0)) return null;
 
   const sections = buildSections(data, t);
@@ -112,6 +122,7 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
         className={`absolute inset-0 z-[43] border-none bg-[linear-gradient(180deg,rgba(0,0,0,0.1),rgba(0,0,0,0.55)_45%)] transition-opacity duration-[340ms] ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <div
+        ref={scrollRef}
         className={`absolute inset-x-0 bottom-0 z-[45] h-[82%] overflow-x-hidden bg-[linear-gradient(180deg,transparent,rgba(10,10,12,0.55)_12%,rgba(10,10,12,0.97)_30%)] transition-transform duration-[340ms] ease-[cubic-bezier(.22,1,.36,1)] ${open ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
         style={{ transform: open ? 'translateY(0)' : `translateY(calc(100% - ${PEEK_HEIGHT}px))` }}
       >

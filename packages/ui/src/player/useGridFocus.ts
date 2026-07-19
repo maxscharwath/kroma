@@ -20,6 +20,10 @@ export interface GridFocus {
   setIndex: (i: number) => void;
   onKey: (key: RemoteKey) => boolean;
   hover: (i: number) => () => void;
+  /** Bumps on every D-pad move (NOT hover), so a scroll container can bring the
+   *  focused card into view only for keyboard nav (scrolling on pointer hover
+   *  would shift the layout under the cursor). */
+  keyNonce: number;
 }
 
 /** Key handling when the grid is empty: ▲ or Back can still exit / go back. */
@@ -42,6 +46,14 @@ function emptyGridKey(
 export function useGridFocus(opts: GridFocusOptions): GridFocus {
   const { count, cols, onActivate, onBack, onExit } = opts;
   const [index, setIndex] = useState(opts.initial ?? 0);
+  const [keyNonce, setKeyNonce] = useState(0);
+
+  // A D-pad move: change the index AND bump the nonce (so the sheet scrolls it into
+  // view). `hover` uses the plain setIndex, so pointer focus never triggers scroll.
+  const move = useCallback((i: number) => {
+    setIndex(i);
+    setKeyNonce((n) => n + 1);
+  }, []);
 
   const onKey = useCallback(
     (key: RemoteKey): boolean => {
@@ -50,18 +62,18 @@ export function useGridFocus(opts: GridFocusOptions): GridFocus {
       switch (key) {
         case 'Left':
           if (col === 0) return true;
-          setIndex(index - 1);
+          move(index - 1);
           return true;
         case 'Right':
           if (col === cols - 1 || index + 1 >= count) return true;
-          setIndex(index + 1);
+          move(index + 1);
           return true;
         case 'Up':
           if (index - cols < 0) {
             onExit?.('top');
             return onExit != null;
           }
-          setIndex(index - cols);
+          move(index - cols);
           return true;
         case 'Down': {
           const next = index + cols;
@@ -69,7 +81,7 @@ export function useGridFocus(opts: GridFocusOptions): GridFocus {
             onExit?.('bottom');
             return onExit != null;
           }
-          setIndex(next);
+          move(next);
           return true;
         }
         case 'Enter':
@@ -82,10 +94,10 @@ export function useGridFocus(opts: GridFocusOptions): GridFocus {
           return false;
       }
     },
-    [index, count, cols, onActivate, onBack, onExit],
+    [index, count, cols, move, onActivate, onBack, onExit],
   );
 
   const hover = useCallback((i: number) => () => setIndex(i), []);
 
-  return { index, setIndex, onKey, hover };
+  return { index, setIndex, onKey, hover, keyNonce };
 }

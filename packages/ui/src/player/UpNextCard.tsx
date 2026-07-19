@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { FOCUS_RING } from './tw';
 
 /**
@@ -43,22 +42,17 @@ function placeholderGradient(id: string): string {
 }
 
 export function UpNextCard({ item, focused, onActivate, onFocus }: Readonly<UpNextCardProps>) {
-  const ref = useRef<HTMLButtonElement>(null);
   const backgroundImage = item.posterUrl
     ? `url("${item.posterUrl}")`
     : placeholderGradient(item.id);
 
-  // Focus is state-driven (the amber ring, no DOM .focus()), so the sheet's scroll
-  // container won't follow it on its own - D-pad nav past the fold on TV would move
-  // the ring off-screen with no scroll. Bring the focused card into view ourselves.
-  useEffect(() => {
-    if (focused) ref.current?.scrollIntoView({ block: 'nearest' });
-  }, [focused]);
-
   return (
     <button
-      ref={ref}
       type="button"
+      // Marks the D-pad-focused card so the sheet can scroll it into view on key
+      // nav ONLY (scrolling on pointer hover would shift the sheet under the cursor
+      // and land clicks on the wrong card).
+      data-focused={focused || undefined}
       onClick={onActivate}
       onMouseEnter={onFocus}
       className={`${UP_NEXT_CARD_W} block cursor-pointer rounded-[14px] border-none bg-transparent p-0 text-left outline-none transition-[transform,box-shadow] duration-[180ms] ease-out ${focused ? FOCUS_RING : ''}`}

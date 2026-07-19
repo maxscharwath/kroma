@@ -99,14 +99,16 @@ export function Player({
     : null;
 
   const surface = (
-    // Fill / object-fit / rounded-inherit all come from the shared stage's
-    // `[&>video]:*` rules (see packages/ui Player.tsx).
+    // Fill + object-fit come from the shared stage's `[&>video]:*` rules;
+    // borderRadius stays inline (guaranteed) so the video clips itself to the
+    // shrink-card radius even if the arbitrary-property class isn't generated.
     <video
       key={`${pb.anchor}:${pb.audioIndex}`}
       ref={videoRef}
       autoPlay
       playsInline
       crossOrigin="anonymous"
+      style={{ borderRadius: 'inherit' }}
     >
       {/* Captions render out-of-band via the shared SubtitleRenderer; this empty
           default track satisfies the captions requirement without adding cues. */}

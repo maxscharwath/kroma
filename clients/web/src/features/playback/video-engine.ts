@@ -79,7 +79,6 @@ export interface VideoPlayback {
   toggleMute: () => void;
   applyRate: (r: number) => void;
   toggleFullscreen: () => void;
-  togglePip: () => void;
   seekToClientX: (clientX: number) => void;
   onBarMove: (e: React.PointerEvent) => void;
 }

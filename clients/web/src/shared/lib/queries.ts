@@ -110,12 +110,6 @@ export const catalogQueries = {
       queryFn: () => kromaClient().upNext(showId),
     }),
 
-  nextEpisode: (itemId: string) =>
-    queryOptions({
-      queryKey: ['nextEpisode', itemId] as const,
-      queryFn: () => kromaClient().nextEpisode(itemId),
-    }),
-
   /** The player payload: the item (art/stream URLs resolved) + its upcoming
    * episodes. `next` (the immediate one) drives autoplay; the full list fills the
    * player's "up next" episode rail. */

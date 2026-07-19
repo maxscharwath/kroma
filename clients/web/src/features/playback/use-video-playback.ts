@@ -405,15 +405,6 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     if (typeof v?.webkitEnterFullscreen === 'function') v.webkitEnterFullscreen();
   }, []);
 
-  const togglePip = useCallback(() => {
-    const v = videoRef.current as
-      | (HTMLVideoElement & { requestPictureInPicture?: () => Promise<unknown> })
-      | null;
-    if (!v) return;
-    if (document.pictureInPictureElement) void document.exitPictureInPicture();
-    else void v.requestPictureInPicture?.();
-  }, []);
-
   // Switch audio language. For HLS, RE-ANCHOR at the current position rather than
   // hls.js's in-place `audioTrack` swap: the in-place swap can leave the new audio
   // out of sync with the picture, whereas a re-anchor is a clean fresh attach that
@@ -483,7 +474,6 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     toggleMute,
     applyRate,
     toggleFullscreen,
-    togglePip,
     seekToClientX,
     onBarMove,
   };

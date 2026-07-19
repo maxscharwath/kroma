@@ -282,12 +282,20 @@ export function Player(props: Readonly<PlayerProps>) {
   const hasPlane = c.surface !== 'video' && Boolean(c.setPlaneRect);
   useNativePlaneShrink(nativeShrink, c.setPlaneRect);
   const initialView = initialSettingsView(nav.overlay);
-  // The stage shrinks whenever settings are open (settingsShrink || nativeShrink
-  // === settingsOpen). For a native plane the video itself moves via setPlaneRect;
-  // transforming the stage is what carries the stage's OTHER children - the
-  // buffering spinner + our subtitle overlay - down into the same card (§5). The
-  // transparent native surface placeholder rides along harmlessly.
-  const stage = stageTransformFor(settingsOpen);
+  // The stage (which holds the in-page <video>) transforms ONLY for a `video`
+  // surface - never for a native plane, whose hardware layer some firmwares would
+  // drag around if the <object> placeholder were CSS-transformed.
+  const stage = stageTransformFor(settingsShrink);
+  // The buffering spinner + subtitle overlay ride into the card via their own
+  // wrapper: on the CSS path they sit inside the (transformed) stage untouched; on
+  // a native shrink the stage stays put, so the wrapper carries them down itself.
+  const contentShrink: CSSProperties | undefined = nativeShrink
+    ? { transformOrigin: '0 50%', transform: 'translate(3vw,0) scale(0.5)' }
+    : undefined;
+  // Keep the mask on a GPU layer through the open AND close fades, then drop it
+  // when idle (onTransitionEnd) so no huge box-shadow backing store lingers.
+  const [maskLayer, setMaskLayer] = useState(false);
+  if (nativeShrink && !maskLayer) setMaskLayer(true);
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
   // the chrome auto-hides.
@@ -310,32 +318,36 @@ export function Player(props: Readonly<PlayerProps>) {
         role="button"
         tabIndex={0}
         aria-label={c.playing ? t('player.pause') : t('player.play')}
-        // The stage owns the full surface-<video> style so neither client repeats
-        // it: fill + black bg, object-contain, and rounded-[inherit] so the video
-        // clips itself to the stage's radius (a transformed parent's overflow-hidden
-        // won't clip a child <video>).
-        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] [&>video]:h-full [&>video]:w-full [&>video]:bg-black [&>video]:object-contain [&>video]:[border-radius:inherit] ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
+        // The stage owns the surface-<video> fill/object-fit (borderRadius: inherit
+        // stays inline on each surface so it's guaranteed, not dependent on a
+        // generated arbitrary-property class in the legacy-tier TV build).
+        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] [&>video]:h-full [&>video]:w-full [&>video]:bg-black [&>video]:object-contain ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
         style={stage}
         onClick={input.onStageClick}
         onKeyDown={input.onStageKeyDown}
         onDoubleClick={input.onStageDoubleClick}
       >
         {props.surface}
-        <SubtitleRenderer
-          positionSec={c.cur}
-          playing={c.playing}
-          subtitles={c.subtitles}
-          activeIndex={c.subtitleIndex}
-          appearance={props.appearance}
-          raised={nav.revealed}
-        />
-        {/* Buffering spinner lives INSIDE the stage so it shrinks with the video
-            into the settings card (not floating over the full page). */}
-        {c.waiting && !locked ? (
-          <div className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center">
-            <div className="h-14 w-14 rounded-full border-[3px] border-[rgba(255,255,255,0.2)] border-t-accent [animation:kpl-spin_0.9s_linear_infinite]" />
-          </div>
-        ) : null}
+        {/* Spinner + subtitles ride into the card: inside the transformed stage on
+            the CSS path, or via this wrapper's own transform on a native shrink. */}
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden transition-transform duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)]"
+          style={contentShrink}
+        >
+          <SubtitleRenderer
+            positionSec={c.cur}
+            playing={c.playing}
+            subtitles={c.subtitles}
+            activeIndex={c.subtitleIndex}
+            appearance={props.appearance}
+            raised={nav.revealed}
+          />
+          {c.waiting && !locked ? (
+            <div className="absolute inset-0 z-[4] flex items-center justify-center">
+              <div className="h-14 w-14 rounded-full border-[3px] border-[rgba(255,255,255,0.2)] border-t-accent [animation:kpl-spin_0.9s_linear_infinite]" />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Native-plane shrink mask: the plane itself moves via setPlaneRect; this
@@ -348,6 +360,9 @@ export function Player(props: Readonly<PlayerProps>) {
         <div
           aria-hidden="true"
           className="pointer-events-none absolute z-[3] transition-opacity duration-[280ms] ease-out"
+          onTransitionEnd={() => {
+            if (!nativeShrink) setMaskLayer(false);
+          }}
           style={{
             left: `${CARD_RECT.x * 100}%`,
             top: `${CARD_RECT.y * 100}%`,
@@ -356,11 +371,11 @@ export function Player(props: Readonly<PlayerProps>) {
             borderRadius: 24,
             boxShadow: '0 0 0 100vmax #000',
             opacity: nativeShrink ? 1 : 0,
-            // Promote to a GPU layer ONLY while shrinking so the opacity fade
-            // composites (no per-frame repaint of the full-screen box-shadow);
-            // dropped when idle so a huge backing store isn't reserved for the
-            // ~99% of the session the mask is invisible (memory-tight TVs).
-            willChange: nativeShrink ? 'opacity' : 'auto',
+            // Promote to a GPU layer for the open AND close fades (so the
+            // full-screen box-shadow composites instead of repainting per frame),
+            // then drop it on transition-end when idle so no huge backing store is
+            // reserved for the ~99% of the session the mask is invisible.
+            willChange: maskLayer ? 'opacity' : 'auto',
           }}
         />
       ) : null}

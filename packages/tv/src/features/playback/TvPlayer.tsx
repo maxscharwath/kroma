@@ -139,9 +139,10 @@ export function TvPlayer() {
   } else {
     surface = (
       // Subtitles render via the shared SubtitleRenderer; the empty captions track
-      // only satisfies the media-caption a11y requirement. Fill / object-fit /
-      // rounded-inherit all come from the shared stage's `[&>video]:*` rules.
-      <video ref={pb.videoRef} autoPlay playsInline>
+      // only satisfies the media-caption a11y requirement. Fill / object-fit come
+      // from the shared stage's `[&>video]:*` rules; borderRadius stays inline
+      // (guaranteed) so the remux shrink-card is rounded on the legacy-tier build.
+      <video ref={pb.videoRef} autoPlay playsInline style={{ borderRadius: 'inherit' }}>
         <track kind="captions" />
       </video>
     );

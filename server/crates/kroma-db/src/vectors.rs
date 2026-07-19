@@ -269,14 +269,11 @@ pub fn similar_items(pool: &Pool, id: &str, n: usize) -> Result<Vec<MediaItem>> 
             items.iter().map(|i| i.id.clone()).collect();
         have.insert(id.to_string());
         let recent = super::recently_added_ids(pool, n * 3)?;
-        let extra_ids: Vec<&str> =
+        let mut extra_ids: Vec<&str> =
             recent.iter().filter(|r| !have.contains(r.as_str())).map(String::as_str).collect();
-        for it in super::items_by_ids(pool, &extra_ids)? {
-            if items.len() >= n {
-                break;
-            }
-            items.push(it);
-        }
+        // Only hydrate what actually fills the rail (each item is a full MediaItem).
+        extra_ids.truncate(n - items.len());
+        items.extend(super::items_by_ids(pool, &extra_ids)?);
     }
     Ok(items)
 }

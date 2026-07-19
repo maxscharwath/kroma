@@ -107,15 +107,15 @@ function useNativePlaneShrink(
   active: boolean,
   setPlaneRect: PlayerController['setPlaneRect'],
 ): void {
-  const apply = useRef(setPlaneRect);
-  apply.current = setPlaneRect;
+  // setPlaneRect is a stable callback (or undefined on web), so it can be a dep
+  // directly - no latest-ref needed.
   useEffect(() => {
-    apply.current?.(active ? CARD_RECT : null);
-  }, [active]);
+    setPlaneRect?.(active ? CARD_RECT : null);
+  }, [active, setPlaneRect]);
   // Always restore fullscreen when the player tears down - otherwise leaving with
   // settings still open would strand the plane at card size (a small video stuck
   // upper-left) behind the next screen.
-  useEffect(() => () => apply.current?.(null), []);
+  useEffect(() => () => setPlaneRect?.(null), [setPlaneRect]);
 }
 
 /** Derived chrome-visibility flags, kept out of the component to stay flat. The
@@ -282,14 +282,12 @@ export function Player(props: Readonly<PlayerProps>) {
   const hasPlane = c.surface !== 'video' && Boolean(c.setPlaneRect);
   useNativePlaneShrink(nativeShrink, c.setPlaneRect);
   const initialView = initialSettingsView(nav.overlay);
-  // Subtitles live inside the stage, so they scale WITH the video (stay in the
-  // card, §5).
-  // Transform the stage for a native shrink too: the video is a hardware plane
-  // (moved separately via setPlaneRect), but the stage's OTHER children - the
-  // buffering spinner + our subtitle overlay - must ride down into the same card
-  // instead of staying full-screen. (The transparent native surface placeholder
-  // rides along harmlessly; the plane is placed by its own display rect.)
-  const stage = stageTransformFor(settingsShrink || nativeShrink);
+  // The stage shrinks whenever settings are open (settingsShrink || nativeShrink
+  // === settingsOpen). For a native plane the video itself moves via setPlaneRect;
+  // transforming the stage is what carries the stage's OTHER children - the
+  // buffering spinner + our subtitle overlay - down into the same card (§5). The
+  // transparent native surface placeholder rides along harmlessly.
+  const stage = stageTransformFor(settingsOpen);
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
   // the chrome auto-hides.
@@ -312,7 +310,11 @@ export function Player(props: Readonly<PlayerProps>) {
         role="button"
         tabIndex={0}
         aria-label={c.playing ? t('player.pause') : t('player.play')}
-        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] [&>video]:object-contain ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
+        // The stage owns the full surface-<video> style so neither client repeats
+        // it: fill + black bg, object-contain, and rounded-[inherit] so the video
+        // clips itself to the stage's radius (a transformed parent's overflow-hidden
+        // won't clip a child <video>).
+        className={`absolute inset-0 z-[2] overflow-hidden transition-[transform,border-radius,box-shadow] duration-[420ms] ease-[cubic-bezier(.22,1,.36,1)] [&>video]:h-full [&>video]:w-full [&>video]:bg-black [&>video]:object-contain [&>video]:[border-radius:inherit] ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
         style={stage}
         onClick={input.onStageClick}
         onKeyDown={input.onStageKeyDown}
@@ -354,10 +356,11 @@ export function Player(props: Readonly<PlayerProps>) {
             borderRadius: 24,
             boxShadow: '0 0 0 100vmax #000',
             opacity: nativeShrink ? 1 : 0,
-            // Force a GPU layer so the opacity fade composites (no per-frame
-            // repaint of the full-screen box-shadow) - keeps the fade smooth even
-            // while the plane steps behind it.
-            willChange: 'opacity',
+            // Promote to a GPU layer ONLY while shrinking so the opacity fade
+            // composites (no per-frame repaint of the full-screen box-shadow);
+            // dropped when idle so a huge backing store isn't reserved for the
+            // ~99% of the session the mask is invisible (memory-tight TVs).
+            willChange: nativeShrink ? 'opacity' : 'auto',
           }}
         />
       ) : null}

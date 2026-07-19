@@ -23,6 +23,11 @@ export interface TvEnv {
   platform: string;
   /** A fine pointer (mouse / magic remote) is present → let the focus ring track it. */
   pointer: boolean;
+  /** A REAL mouse (desktop shell), not a magic-remote fine pointer. Keyed off the
+   * platform like `physicalKeyboard`: a webOS/Tizen magic remote reports
+   * `(pointer: fine)` yet emits phantom pointermove events, so only a Desktop
+   * mouse should drive pointer-move UX like the player's reveal-on-move. */
+  mousePointer: boolean;
   /** A hardware keyboard is present → render real, typeable text inputs instead of the on-screen keyboard. */
   physicalKeyboard: boolean;
 }
@@ -41,9 +46,13 @@ function finePointer(): boolean {
 
 /** Derive the input environment from the platform label, honoring any overrides. */
 export function computeEnv(platform: string, overrides: TvEnvOverrides = {}): TvEnv {
+  const pointer = overrides.pointer ?? finePointer();
   return {
     platform,
-    pointer: overrides.pointer ?? finePointer(),
+    pointer,
+    // A real mouse only on the desktop shell; a TV magic remote is a fine pointer
+    // but must not drive pointer-move UX.
+    mousePointer: pointer && platform === 'Desktop',
     // Only the desktop shell claims a hardware keyboard; every TV uses its OSK.
     physicalKeyboard: overrides.physicalKeyboard ?? platform === 'Desktop',
   };
@@ -52,6 +61,7 @@ export function computeEnv(platform: string, overrides: TvEnvOverrides = {}): Tv
 const EnvContext = createContext<TvEnv>({
   platform: 'TV',
   pointer: false,
+  mousePointer: false,
   physicalKeyboard: false,
 });
 

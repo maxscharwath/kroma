@@ -413,9 +413,9 @@ pub fn following_episodes(pool: &Pool, item_id: &str, n: usize) -> Result<Vec<Me
         .query_map(params![show_id, season, episode, n as i64], row_to_item)?
         .collect::<rusqlite::Result<_>>()?;
     drop(stmt);
-    for item in &mut items {
-        attach_files(&conn, item)?;
-    }
+    // Batch-hydrate (files + markers in one query each) instead of N queries per
+    // episode - this rail can be up to UP_NEXT_EPISODES rows on every watch load.
+    super::attach_files_batch(&conn, &mut items)?;
     Ok(items)
 }
 

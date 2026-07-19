@@ -84,11 +84,8 @@ export class AvplayEngine extends BaseTvEngine {
       } catch {
         /* not all firmwares accept this */
       }
-      try {
-        this.api.setSilentSubtitle(true);
-      } catch {
-        /* optional we render our own overlay */
-      }
+      // NB: silencing subtitles here (IDLE state) is ignored by Tizen; it's
+      // (re)applied in onPrepared (READY) and play (PLAYING) instead.
       this.api.setListener({
         onbufferingstart: () => this.listeners.onWaiting(),
         onbufferingcomplete: () => this.listeners.onPlaying(),
@@ -109,17 +106,20 @@ export class AvplayEngine extends BaseTvEngine {
     }
   }
 
-  private onPrepared(): void {
-    if (this.destroyed) return;
-    // Silence AVPlay's OWN subtitle/caption rendering (we draw our own overlay).
-    // Tizen ignores setSilentSubtitle in the IDLE state, so the call in openNow()
-    // often has no effect - re-apply it now that the media is prepared, or the
-    // file's embedded text track shows up (e.g. a title/caption top-left).
+  /** Suppress AVPlay's OWN subtitle/caption rendering (we draw our own overlay).
+   * Firmware honors it inconsistently by state, so it's re-asserted at READY
+   * (onPrepared) and PLAYING (play) - IDLE (openNow) is ignored. Idempotent. */
+  private silenceSubtitles(): void {
     try {
       this.api.setSilentSubtitle(true);
     } catch {
       /* not all firmwares expose it */
     }
+  }
+
+  private onPrepared(): void {
+    if (this.destroyed) return;
+    this.silenceSubtitles();
     try {
       const d = this.api.getDuration();
       if (d > 0) this.durSec = d / 1000;
@@ -169,13 +169,7 @@ export class AvplayEngine extends BaseTvEngine {
   play(): void {
     try {
       this.api.play();
-      // Some firmwares only honor silent-subtitle once PLAYING; re-assert it here
-      // too so the file's embedded text track never surfaces (title/caption).
-      try {
-        this.api.setSilentSubtitle(true);
-      } catch {
-        /* optional */
-      }
+      this.silenceSubtitles(); // some firmwares only honor it once PLAYING
       this.paused = false;
       this.listeners.onPlay();
     } catch {
@@ -271,8 +265,8 @@ export class AvplayEngine extends BaseTvEngine {
         }
       : { x: 0, y: 0, w: AVPLAY_W, h: AVPLAY_H };
     const p = this.displayRect;
-    // Skip a redundant resize (the throttled tween settles on the same px for
-    // several frames) - each setDisplayRect hits the hardware compositor.
+    // Skip a no-op resize (e.g. the restore-to-fullscreen on unmount when already
+    // fullscreen) - each setDisplayRect hits the hardware compositor.
     if (next.x === p.x && next.y === p.y && next.w === p.w && next.h === p.h) return;
     this.displayRect = next;
     try {

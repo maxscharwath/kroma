@@ -24,7 +24,6 @@ export type {
   Chapter,
   PlaneRect,
   PlayerController,
-  PlayerEngineOption,
   PlayerFlags,
   PlayerQuality,
   PlayerStats,

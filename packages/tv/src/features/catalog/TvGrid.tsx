@@ -1,13 +1,19 @@
 import {
+  collectGenres,
+  hasGenre,
   type KromaClient,
   type MediaItem,
+  type MessageKey,
   posterColors,
   qualityBadge,
   qualityBadgeForVideo,
   type Show,
+  SORT_MODES,
+  type SortMode,
+  sortTitles,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
@@ -17,30 +23,34 @@ import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { badgeClasses, TvArt } from '#tv/shared/TvMedia';
 
+const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
+  added: 'browse.sort.added',
+  release: 'browse.sort.release',
+  title: 'browse.sort.title',
+  rating: 'browse.sort.rating',
+};
+
+// Season-selector chip (see TvShowDetail): amber when active, scale on focus.
+// rgba() literal (not a `/opacity` modifier) for the legacy webOS tier.
+const CHIP_CLS =
+  'shrink-0 cursor-pointer rounded-full border-none bg-surface-2 px-4 py-1.75 font-sans text-[14px] font-semibold text-muted transition-transform focus:scale-[1.05] aria-[current=true]:bg-accent aria-[current=true]:text-accent-ink';
+
 interface GridHero {
   hero: MediaItem | Show | null;
   heroBackdrop: string | null;
   heroBadge: string | null;
 }
 
-/** The hero title for a grid section (first film / first show / first my-list
- * entry), with its backdrop art and quality badge. */
+/** The hero title for a grid section (the first title of the current, filtered +
+ * sorted view), with its backdrop art and quality badge. */
 function computeGridHero(
-  isFilms: boolean,
   isSeries: boolean,
-  movies: MediaItem[],
+  films: MediaItem[],
   shows: Show[],
-  inList: (id: string) => boolean,
   client: KromaClient,
 ): GridHero {
-  let heroMovie: MediaItem | undefined;
-  if (isFilms) heroMovie = movies[0];
-  else if (isSeries) heroMovie = undefined;
-  else heroMovie = movies.find((m) => inList(m.id));
-  let heroShow: Show | undefined;
-  if (isSeries) heroShow = shows[0];
-  else if (heroMovie) heroShow = undefined;
-  else heroShow = shows.find((s) => inList(s.id));
+  const heroMovie = isSeries ? undefined : films[0];
+  const heroShow = heroMovie ? undefined : shows[0];
   const hero = heroMovie ?? heroShow ?? null;
   const heroBackdrop = hero ? (client.backdropFor(hero) ?? client.posterFor(hero)) : null;
   let heroBadge: string | null = null;
@@ -50,8 +60,8 @@ function computeGridHero(
 }
 
 /** Full-screen catalogue grid for one section (Films / Séries / Ma liste): a 44%
- * hero over the first title, then an incrementally-rendered 2:3 poster grid.
- * Shares the top nav with Home. */
+ * hero over the first title, a sort + genre control strip, then an
+ * incrementally-rendered 2:3 poster grid. Shares the top nav with Home. */
 export function TvGrid() {
   const { kind } = useParams('grid');
   const { movies, shows } = useConnection();
@@ -64,8 +74,41 @@ export function TvGrid() {
   const isSeries = kind === 'series';
   useFocusNav({ onBack: nav.back, resetKey: kind });
 
+  const [sort, setSort] = useState<SortMode>('added');
+  const [genre, setGenre] = useState<string | undefined>(undefined);
+  // Films / Séries / Ma liste share this component (a top-nav jump swaps the param
+  // without remounting), so clear the genre filter when the section changes it may
+  // not exist in the other section's catalogue.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: kind is an intentional re-run key (resets the filter on a section switch), not read inside the effect
+  useEffect(() => setGenre(undefined), [kind]);
+
+  // Base lists for the active section, before genre filter + sort.
+  const baseMovies = useMemo(() => {
+    if (isFilms) return movies;
+    if (isSeries) return [];
+    return movies.filter((m) => myList.has(m.id));
+  }, [isFilms, isSeries, movies, myList]);
+  const baseShows = useMemo(() => {
+    if (isSeries) return shows;
+    if (isFilms) return [];
+    return shows.filter((s) => myList.has(s.id));
+  }, [isFilms, isSeries, shows, myList]);
+
+  const genres = useMemo(
+    () => collectGenres([...baseMovies, ...baseShows]),
+    [baseMovies, baseShows],
+  );
+
+  const [filmList, showList] = useMemo(() => {
+    const keep = (it: MediaItem | Show) => !genre || hasGenre(it, genre);
+    return [
+      sortTitles(baseMovies.filter(keep), sort),
+      sortTitles(baseShows.filter(keep), sort),
+    ] as const;
+  }, [baseMovies, baseShows, genre, sort]);
+
   const cards = useMemo<GridCard[]>(() => {
-    const movieCard = (m: (typeof movies)[number]): GridCard => ({
+    const movieCard = (m: MediaItem): GridCard => ({
       id: m.id,
       title: m.title,
       poster: client.posterFor(m),
@@ -73,7 +116,7 @@ export function TvGrid() {
       watched: watched.has(m.id),
       onClick: () => nav.go('movie', { item: m }),
     });
-    const showCard = (s: (typeof shows)[number]): GridCard => ({
+    const showCard = (s: Show): GridCard => ({
       id: s.id,
       title: s.title,
       poster: client.showPosterFor(s),
@@ -82,26 +125,15 @@ export function TvGrid() {
       progress: s.progress ?? null,
       onClick: () => nav.go('show', { show: s }),
     });
-    if (isFilms) return movies.map(movieCard);
-    if (isSeries) return shows.map(showCard);
-    return [
-      ...movies.filter((m) => myList.has(m.id)).map(movieCard),
-      ...shows.filter((s) => myList.has(s.id)).map(showCard),
-    ];
-  }, [isFilms, isSeries, movies, shows, client, nav, myList, watched]);
+    return [...filmList.map(movieCard), ...showList.map(showCard)];
+  }, [filmList, showList, client, nav, watched]);
 
-  const { hero, heroBackdrop, heroBadge } = computeGridHero(
-    isFilms,
-    isSeries,
-    movies,
-    shows,
-    (id) => myList.has(id),
-    client,
-  );
+  const { hero, heroBackdrop, heroBadge } = computeGridHero(isSeries, filmList, showList, client);
   let label: string;
   if (isFilms) label = t('nav.films');
   else if (isSeries) label = t('nav.series');
   else label = t('nav.myList');
+  const hasItems = baseMovies.length + baseShows.length > 0;
   const empty = kind === 'mylist' && cards.length === 0;
 
   return (
@@ -141,6 +173,49 @@ export function TvGrid() {
           </div>
         )}
       </section>
+
+      {hasItems ? (
+        <div className="scrollbar-none flex shrink-0 items-center gap-2 overflow-x-auto px-16 py-3">
+          {SORT_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              data-focus=""
+              aria-current={mode === sort}
+              onClick={() => setSort(mode)}
+              className={CHIP_CLS}
+            >
+              {t(SORT_LABEL_KEY[mode])}
+            </button>
+          ))}
+          {genres.length > 0 ? (
+            <>
+              <span className="mx-1 h-6 w-px shrink-0 bg-[rgba(255,255,255,0.14)]" />
+              <button
+                type="button"
+                data-focus=""
+                aria-current={!genre}
+                onClick={() => setGenre(undefined)}
+                className={CHIP_CLS}
+              >
+                {t('browse.allGenres')}
+              </button>
+              {genres.map((g) => (
+                <button
+                  key={g.name}
+                  type="button"
+                  data-focus=""
+                  aria-current={g.name === genre}
+                  onClick={() => setGenre(g.name)}
+                  className={CHIP_CLS}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {empty ? (
         <div className="flex flex-1 items-center justify-center px-16">

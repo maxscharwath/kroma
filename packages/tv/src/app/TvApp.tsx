@@ -24,6 +24,8 @@ import { TvPin } from '#tv/features/accounts/TvPin';
 import { TvProfileMenu } from '#tv/features/accounts/TvProfileMenu';
 import { TvProfiles } from '#tv/features/accounts/TvProfiles';
 import { TvQuickConnect } from '#tv/features/accounts/TvQuickConnect';
+import { TvGenreGrid } from '#tv/features/catalog/TvGenreGrid';
+import { TvGenres } from '#tv/features/catalog/TvGenres';
 import { TvGrid } from '#tv/features/catalog/TvGrid';
 import { TvHome } from '#tv/features/catalog/TvHome';
 import { TvMovieDetail } from '#tv/features/catalog/TvMovieDetail';
@@ -109,6 +111,8 @@ const SCREENS: TvScreens = {
   profileMenu: TvProfileMenu,
   home: TvHome,
   grid: TvGrid,
+  genres: TvGenres,
+  genre: TvGenreGrid,
   search: TvSearch,
   person: TvPerson,
   movie: TvMovieDetail,
@@ -124,6 +128,8 @@ const AUTH_SCREENS = ['profiles', 'addProfile', 'connect', 'quick', 'pin'] as co
 const APP_SCREENS = [
   'home',
   'grid',
+  'genres',
+  'genre',
   'search',
   'person',
   'movie',

@@ -6,6 +6,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   IconAlertTriangle,
   IconCalendarClock,
+  IconCategory,
   IconDeviceDesktop,
   IconDeviceTv,
   IconHome,
@@ -41,6 +42,7 @@ const NAV: { labelKey: MessageKey; to: string; icon: TablerIcon; exact?: boolean
   { labelKey: 'nav.search', to: '/search', icon: IconSearch },
   { labelKey: 'nav.films', to: '/films', icon: IconMovie },
   { labelKey: 'nav.series', to: '/series', icon: IconDeviceTv },
+  { labelKey: 'nav.genres', to: '/genres', icon: IconCategory },
   { labelKey: 'nav.myList', to: '/mylist', icon: IconListDetails },
 ];
 

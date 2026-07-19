@@ -5,7 +5,7 @@ import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { KromaMark, ProfileAvatar, TvBackButton, useClock } from '#tv/shared/ui';
 
-export type NavKey = 'home' | 'films' | 'series' | 'mylist' | 'search';
+export type NavKey = 'home' | 'films' | 'series' | 'genres' | 'mylist' | 'search';
 
 /** The shared 10-foot top bar brand mark, a centred nav pill (Accueil / Films /
  * Séries / Ma liste / Rechercher), the clock and the account avatar (opens the
@@ -25,6 +25,7 @@ export function TvTopNav({ active }: Readonly<{ active?: NavKey }>) {
     { key: 'home', label: t('nav.home'), go: () => nav.home() },
     { key: 'films', label: t('nav.films'), go: () => nav.reset('grid', { kind: 'films' }) },
     { key: 'series', label: t('nav.series'), go: () => nav.reset('grid', { kind: 'series' }) },
+    { key: 'genres', label: t('nav.genres'), go: () => nav.reset('genres') },
     { key: 'mylist', label: t('nav.myList'), go: () => nav.reset('grid', { kind: 'mylist' }) },
     { key: 'search', label: t('nav.search'), search: true, go: () => nav.reset('search') },
   ];

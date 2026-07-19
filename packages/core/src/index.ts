@@ -2,6 +2,7 @@
 // formatting, permissions). It re-exports @kroma/client so app code can keep
 // importing the API client, wire types and schemas from `@kroma/core` unchanged.
 export * from '@kroma/client';
+export * from './browse';
 export * from './discover';
 export * from './format';
 export * from './hevc';

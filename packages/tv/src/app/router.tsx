@@ -44,6 +44,10 @@ export interface TvRoutes {
   home: undefined;
   /** Full-screen catalogue grid for one section (Films / Séries / Ma liste). */
   grid: { kind: 'films' | 'series' | 'mylist' };
+  /** Genre picker: every genre in the library. */
+  genres: undefined;
+  /** Every title in one genre (selected from the genre picker). */
+  genre: { name: string };
   /** Search with an on-screen keyboard. */
   search: undefined;
   /** Everything one cast/crew person is credited in (selected from a detail

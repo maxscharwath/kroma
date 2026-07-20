@@ -197,7 +197,7 @@ async fn change_password_succeeds_with_the_correct_current() {
         "PATCH",
         "/api/auth/me/password",
         Some(&token),
-        Some(json!({ "current": "hunter2", "next": "hunter3" })),
+        Some(json!({ "current": "hunter2", "next": "hunter3!" })),
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
@@ -208,7 +208,7 @@ async fn change_password_succeeds_with_the_correct_current() {
         "PATCH",
         "/api/auth/me/password",
         Some(&token),
-        Some(json!({ "current": "hunter2", "next": "again" })),
+        Some(json!({ "current": "hunter2", "next": "again123" })),
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "old password should be dead");

@@ -49,12 +49,25 @@ async fn require_host_token(
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-        .is_some_and(|t| t == token.0);
+        .is_some_and(|t| ct_eq(t.as_bytes(), token.0.as_bytes()));
     if ok {
         next.run(req).await
     } else {
         (StatusCode::UNAUTHORIZED, "bad host token").into_response()
     }
+}
+
+/// Constant-time byte comparison, so matching the shared host token never leaks a
+/// shared prefix through timing.
+fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 #[derive(serde::Deserialize)]

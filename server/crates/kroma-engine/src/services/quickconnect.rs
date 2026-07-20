@@ -128,7 +128,11 @@ impl QuickConnectInner {
     pub fn poll(&self, secret: &str) -> PollState {
         let mut map = self.map.lock().unwrap();
         Self::reap(&mut map);
-        let Some(code) = map.iter().find(|(_, p)| p.secret == secret).map(|(c, _)| c.clone()) else {
+        let Some(code) = map
+            .iter()
+            .find(|(_, p)| super::auth::ct_eq(p.secret.as_bytes(), secret.as_bytes()))
+            .map(|(c, _)| c.clone())
+        else {
             return PollState::Unknown;
         };
         let entry = map.get(&code).expect("entry present");

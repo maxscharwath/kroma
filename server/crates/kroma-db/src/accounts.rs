@@ -466,6 +466,38 @@ pub fn delete_access_token_by_id(pool: &Pool, user_id: &str, id: &str) -> Result
     Ok(true)
 }
 
+/// Sign the user out of every OTHER credential on a password change: delete all
+/// of the user's short-lived sessions and long-lived device (access) tokens
+/// except the ones the caller is currently using (identified by their live
+/// session `keep_token` and the device it was minted from). A rotated password
+/// thus evicts any stolen session or 90-day device token while the caller stays
+/// signed in. If `keep_token` is unknown, nothing is preserved and everything is
+/// revoked (fail-closed).
+pub fn revoke_other_sessions(pool: &Pool, user_id: &str, keep_token: &str) -> Result<()> {
+    let conn = pool.get()?;
+    // The device credential the surviving session was minted from (keep it too).
+    let keep_device: Option<String> = conn
+        .query_row(
+            "SELECT access_token FROM sessions WHERE token = ?1",
+            params![keep_token],
+            |r| r.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+    conn.execute(
+        "DELETE FROM sessions WHERE user_id = ?1 AND token <> ?2",
+        params![user_id, keep_token],
+    )?;
+    match keep_device {
+        Some(dev) => conn.execute(
+            "DELETE FROM access_tokens WHERE user_id = ?1 AND token <> ?2",
+            params![user_id, dev],
+        )?,
+        None => conn.execute("DELETE FROM access_tokens WHERE user_id = ?1", params![user_id])?,
+    };
+    Ok(())
+}
+
 /// Resolve a (non-expired) access token to its user plus the stored
 /// `pin_verified` flag. `None` when unknown/expired.
 pub fn access_token_user(pool: &Pool, token: &str) -> Result<Option<(User, bool)>> {

@@ -27,6 +27,10 @@ pub fn routes() -> Router<SharedState> {
 
 const DEFAULT_LIMIT: usize = 30;
 const MAX_LIMIT: usize = 60;
+/// Cap the query length. The engine builds ~12 fuzzy/prefix subqueries per token,
+/// so an unbounded `q` (thousands of words) is a CPU-exhaustion vector on a
+/// NAS-class box. A short cap bounds the work while covering any real search.
+const MAX_QUERY_CHARS: usize = 128;
 
 #[derive(Debug, Deserialize)]
 pub struct SearchParams {
@@ -44,7 +48,7 @@ pub async fn search(
     ReqLocale(locale): ReqLocale,
     Query(p): Query<SearchParams>,
 ) -> Result<Response, Response> {
-    let q = p.q.unwrap_or_default().trim().to_string();
+    let q: String = p.q.unwrap_or_default().trim().chars().take(MAX_QUERY_CHARS).collect();
     let limit = p.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let library = p.library;
 

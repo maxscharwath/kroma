@@ -59,7 +59,7 @@ async fn register_consumes_an_invite_and_inherits_its_permissions() {
         Some(json!({
             "email": "joiner@test.dev",
             "username": "joiner",
-            "password": "s3cret",
+            "password": "s3cret12",
             "inviteToken": token,
         })),
     )
@@ -79,7 +79,7 @@ async fn register_consumes_an_invite_and_inherits_its_permissions() {
         Some(json!({
             "email": "second@test.dev",
             "username": "second",
-            "password": "s3cret",
+            "password": "s3cret12",
             "inviteToken": token,
         })),
     )
@@ -97,7 +97,7 @@ async fn register_requires_a_valid_invite_after_the_owner_exists() {
         "POST",
         "/api/auth/register",
         None,
-        Some(json!({ "email": "noinvite@test.dev", "username": "noinvite", "password": "s3cret" })),
+        Some(json!({ "email": "noinvite@test.dev", "username": "noinvite", "password": "s3cret12" })),
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
@@ -111,7 +111,7 @@ async fn register_requires_a_valid_invite_after_the_owner_exists() {
         Some(json!({
             "email": "badinvite@test.dev",
             "username": "badinvite",
-            "password": "s3cret",
+            "password": "s3cret12",
             "inviteToken": "not-a-real-invite",
         })),
     )
@@ -129,7 +129,7 @@ async fn register_rejects_a_malformed_body_and_a_duplicate_email() {
         "POST",
         "/api/auth/register",
         None,
-        Some(json!({ "email": "nope", "username": "x", "password": "s3cret" })),
+        Some(json!({ "email": "nope", "username": "x", "password": "s3cret12" })),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -145,7 +145,7 @@ async fn register_rejects_a_malformed_body_and_a_duplicate_email() {
         Some(json!({
             "email": "owner@test.dev",
             "username": "dupe",
-            "password": "s3cret",
+            "password": "s3cret12",
             "inviteToken": token,
         })),
     )
@@ -167,7 +167,7 @@ async fn register_rejects_a_taken_username_before_burning_the_invite() {
         Some(json!({
             "email": "fresh@test.dev",
             "username": "owner",
-            "password": "s3cret",
+            "password": "s3cret12",
             "inviteToken": token,
         })),
     )

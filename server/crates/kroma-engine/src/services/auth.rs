@@ -8,9 +8,15 @@
 
 use sha2::{Digest, Sha256};
 
-/// PBKDF2 iteration count. A balance between the OWASP recommendation and the
-/// modest CPU of a NAS login stays well under a second.
-const PBKDF2_ITERS: u32 = 120_000;
+/// PBKDF2 iteration count for newly-hashed passwords. Release builds (every
+/// shipped artifact: Docker, musl, the Synology .spk) use OWASP's current
+/// recommendation for PBKDF2-HMAC-SHA256 (600k). Debug builds (tests + local
+/// dev) use a light factor so the unoptimized hash doesn't make the suite crawl;
+/// this never affects a production binary. The count is stored in each hash
+/// (`pbkdf2$<iters>$…`) and `verify_password` reads it back, so changing it never
+/// invalidates existing hashes: they keep verifying at their original cost and
+/// only pick up the new factor when the password is next changed.
+const PBKDF2_ITERS: u32 = if cfg!(debug_assertions) { 20_000 } else { 600_000 };
 /// Salt length in bytes.
 const SALT_LEN: usize = 16;
 /// SHA-256 block size (HMAC).

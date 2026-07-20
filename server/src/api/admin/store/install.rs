@@ -93,8 +93,23 @@ pub async fn install_with_deps(
     for entry in plan {
         let artifact = catalog::pick_artifact(entry)
             .ok_or_else(|| anyhow!("'{}' has no build for this server's platform", entry.id))?;
+        // Registry installs download and run native code, so harden the transport:
+        // require HTTPS (no cleartext artifact fetch) and a published sha256 (the
+        // catalog generator always emits one). `install_from_url` verifies the
+        // bytes against it before anything is written or spawned.
+        if !artifact.url.starts_with("https://") {
+            bail!("'{}' artifact URL must be https (got '{}')", entry.id, artifact.url);
+        }
+        let sha = artifact
+            .sha256
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                anyhow!("'{}' has no published sha256 checksum; refusing to install", entry.id)
+            })?;
         let manifest = sup
-            .install_from_url(&artifact.url, artifact.sha256.as_deref())
+            .install_from_url(&artifact.url, Some(sha))
             .await
             .map_err(|e| anyhow!("installing '{}' failed: {e:#}", entry.id))?;
         installed.push(json!({

@@ -79,8 +79,17 @@ pub async fn update_user(
         query(&state.db, move |pool| db::update_user_permissions(&pool, &id3, &perms)).await?;
     }
     if let Some(name) = body.username.clone().filter(|n| !n.trim().is_empty()) {
-        let id3 = id.clone();
         let name = name.trim().to_string();
+        // Enforce the same uniqueness the self-service rename does: without this an
+        // admin could rename account B to another account's email/username and
+        // reintroduce the `find_user_by_login` ambiguity `username_taken` exists to
+        // prevent (email and username share one login namespace).
+        let check_name = name.clone();
+        let exclude = id.clone();
+        if query(&state.db, move |pool| db::username_taken(&pool, &check_name, Some(&exclude))).await? {
+            return Err(lerr(super::user_locale(&user), StatusCode::CONFLICT, "auth.usernameTaken"));
+        }
+        let id3 = id.clone();
         query(&state.db, move |pool| db::set_user_username(&pool, &id3, &name)).await?;
     }
     state.events.publish(ServerEvent::LibraryUpdated);

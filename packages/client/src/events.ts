@@ -2,6 +2,7 @@
 // and updates its UI in place no relaunch/refresh when the library changes
 // (scan finished, metadata/art resolved). Auto-reconnects with backoff.
 
+import { sessionToken } from './session';
 import type { StageStat } from './types';
 
 export type ServerEvent =
@@ -71,8 +72,13 @@ export class KromaEvents {
     if (!WS) return;
 
     let ws: WebSocket;
+    // The server gates the event bus on a valid session. A browser can't set
+    // headers on a WS handshake, so the bearer rides as a subprotocol the server
+    // validates and echoes back (see server ws.rs). Read it fresh on each
+    // (re)connect so a refreshed token is picked up automatically.
+    const token = sessionToken();
     try {
-      ws = new WS(this.url);
+      ws = token ? new WS(this.url, `kroma.session.${token}`) : new WS(this.url);
     } catch {
       this.scheduleReconnect();
       return;

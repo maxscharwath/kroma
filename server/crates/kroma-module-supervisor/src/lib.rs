@@ -447,6 +447,15 @@ fn unpack_validated(tar_bytes: &[u8], dest: &std::path::Path) -> anyhow::Result<
     let mut archive = tar::Archive::new(tar_bytes);
     for entry in archive.entries()? {
         let mut entry = entry?;
+        // Only ever write regular files. A symlink/hardlink entry's target is not
+        // sanitized by `sanitized_entry` (which only rewrites the entry's own
+        // path), so a symlink whose name passes the allow-list (e.g. `fe/x` → an
+        // outside dir) followed by a regular file under it would let a later
+        // `create_dir_all(parent)` + `unpack` write outside `dest`. Reject any
+        // non-regular entry outright.
+        if !entry.header().entry_type().is_file() {
+            continue;
+        }
         let raw = entry.path()?.into_owned();
         let Some(safe) = sanitized_entry(&raw) else { continue };
         let out = dest.join(&safe);
@@ -458,16 +467,28 @@ fn unpack_validated(tar_bytes: &[u8], dest: &std::path::Path) -> anyhow::Result<
     Ok(())
 }
 
+/// Upper bound on a body forwarded through the module reverse proxy (256 MiB):
+/// generous for any legitimate module payload, but a hard stop on a hostile
+/// unbounded upload that would otherwise be buffered before the module authenticates.
+const MAX_PROXY_BODY_BYTES: usize = 256 * 1024 * 1024;
+
 /// Reverse-proxy `req` (its path already rewritten to the module-local path) to a
 /// module process on `port`. Streams the body both ways.
 pub async fn proxy_to(port: u16, path_and_query: &str, req: Request) -> Response {
     let url = format!("http://127.0.0.1:{port}{path_and_query}");
     let (parts, body) = req.into_parts();
-    let bytes = match axum::body::to_bytes(body, usize::MAX).await {
+    // This route is mounted outside the core session gate and buffers the whole
+    // body before the target module authenticates it, so an unbounded read is a
+    // pre-auth memory-exhaustion DoS. Cap it (well above any real module payload).
+    let bytes = match axum::body::to_bytes(body, MAX_PROXY_BODY_BYTES).await {
         Ok(b) => b,
-        Err(_) => return (StatusCode::BAD_REQUEST, "bad body").into_response(),
+        Err(_) => return (StatusCode::PAYLOAD_TOO_LARGE, "body too large").into_response(),
     };
-    let client = reqwest::Client::new();
+    // A total timeout so a wedged sidecar can't pin a proxied request open forever.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(600))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
     let mut out = client.request(parts.method, &url).body(bytes.to_vec());
     for (name, value) in &parts.headers {
         // Host header must not be forwarded verbatim to the upstream.
@@ -525,12 +546,25 @@ async fn auth(State(auth): State<HostAuth>, headers: HeaderMap, req: Request, ne
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-        .is_some_and(|t| t == auth.token);
+        .is_some_and(|t| ct_eq(t.as_bytes(), auth.token.as_bytes()));
     if ok {
         next.run(req).await
     } else {
         (StatusCode::UNAUTHORIZED, "bad host token").into_response()
     }
+}
+
+/// Constant-time byte comparison, so matching the shared host token never leaks a
+/// shared prefix through timing.
+fn ct_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 #[derive(serde::Deserialize)]

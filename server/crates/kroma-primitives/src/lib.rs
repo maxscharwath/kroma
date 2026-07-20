@@ -31,29 +31,27 @@ pub fn short_hash(input: &str) -> String {
     hex::encode(hasher.finalize())[..16].to_string()
 }
 
-/// `n` random bytes from `/dev/urandom`, with a clock-seeded SHA-256 CTR fallback
-/// if the device is unavailable.
+/// `n` cryptographically-secure random bytes, read from the OS CSPRNG
+/// (`/dev/urandom`, falling back to `/dev/random`).
+///
+/// Every session/access/invite token, password salt and Quick Connect code is
+/// derived from this, so there is deliberately **no** algorithmic fallback: if
+/// the kernel RNG cannot be read we panic rather than mint predictable secrets.
+/// A clock-seeded stand-in (the previous behaviour) would let an attacker who
+/// can estimate when a token was generated brute-force the seed. On the only
+/// platforms the server targets (Linux NAS / macOS) the device is always
+/// present, so this never triggers in practice.
 pub fn random_bytes(n: usize) -> Vec<u8> {
     use std::io::Read;
     let mut buf = vec![0u8; n];
-    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
-        if f.read_exact(&mut buf).is_ok() {
-            return buf;
+    for path in ["/dev/urandom", "/dev/random"] {
+        if let Ok(mut f) = std::fs::File::open(path) {
+            if f.read_exact(&mut buf).is_ok() {
+                return buf;
+            }
         }
     }
-    // Degraded fallback: SHA-256 CTR seeded with the high-resolution clock.
-    let seed = OffsetDateTime::now_utc().unix_timestamp_nanos();
-    let mut out = Vec::with_capacity(n);
-    let mut counter: u64 = 0;
-    while out.len() < n {
-        let mut h = Sha256::new();
-        h.update(seed.to_le_bytes());
-        h.update(counter.to_le_bytes());
-        out.extend_from_slice(&h.finalize());
-        counter += 1;
-    }
-    out.truncate(n);
-    out
+    panic!("kroma-primitives: OS CSPRNG unavailable; refusing to generate insecure randomness");
 }
 
 /// A fresh opaque session token: 32 random bytes, hex-encoded (64 chars).

@@ -4,7 +4,8 @@
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
-use axum::response::Response;
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
 use tokio::sync::broadcast::error::RecvError;
 
 use crate::infra::events::ServerEvent;
@@ -12,13 +13,45 @@ use crate::state::SharedState;
 use axum::routing::get;
 use axum::Router;
 
+/// Subprotocol prefix the client uses to carry its session bearer on the upgrade.
+const SESSION_PROTO_PREFIX: &str = "kroma.session.";
+
 /// `GET /api/events` (WebSocket upgrade for the live event bus).
 pub fn routes() -> Router<SharedState> {
     Router::new().route("/events", get(events))
 }
 
-pub async fn events(State(state): State<SharedState>, ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(move |socket| pump(socket, state))
+/// Authenticate the WebSocket upgrade, then stream events. A browser can't set
+/// request headers on a WS handshake, so the client passes its session bearer as
+/// a WebSocket subprotocol (`kroma.session.<token>`); we validate it against the
+/// `sessions` table and echo the subprotocol back so the handshake completes.
+///
+/// Without this the event bus streams to anyone who can reach the server: it
+/// carries job-log lines, library/playback activity and download/VPN status, and
+/// (being exempt from the browser same-origin policy) an unauthenticated bus is
+/// also open to cross-site WebSocket hijacking from any page the victim visits.
+pub async fn events(State(state): State<SharedState>, headers: HeaderMap, ws: WebSocketUpgrade) -> Response {
+    let Some(offered) = headers
+        .get(axum::http::header::SEC_WEBSOCKET_PROTOCOL)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').map(str::trim).find(|p| p.starts_with(SESSION_PROTO_PREFIX)))
+        .map(str::to_string)
+    else {
+        return (StatusCode::UNAUTHORIZED, "authentication required").into_response();
+    };
+    let token = offered[SESSION_PROTO_PREFIX.len()..].to_string();
+    let pool = state.db.clone();
+    let authed = tokio::task::spawn_blocking(move || crate::db::session_user(&pool, &token))
+        .await
+        .ok()
+        .and_then(|r| r.ok())
+        .flatten()
+        .is_some();
+    if !authed {
+        return (StatusCode::UNAUTHORIZED, "invalid or expired session").into_response();
+    }
+    // Echo the accepted subprotocol so the browser completes the handshake.
+    ws.protocols([offered]).on_upgrade(move |socket| pump(socket, state))
 }
 
 async fn pump(mut socket: WebSocket, state: SharedState) {

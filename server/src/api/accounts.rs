@@ -58,6 +58,11 @@ pub const MAX_AVATAR_BYTES: usize = 8 * 1024 * 1024;
 
 // ----- auth -------------------------------------------------------------------
 
+/// Minimum accepted password length at register and change. A soft floor (the
+/// PBKDF2 work factor is the real defence), raised from 4 so a trivially short
+/// password can't be set.
+const MIN_PASSWORD_LEN: usize = 8;
+
 #[derive(Debug, Deserialize)]
 pub struct RegisterBody {
     pub email: String,
@@ -82,7 +87,11 @@ pub async fn register(
 ) -> Response {
     let email = body.email.trim().to_lowercase();
     let username = body.username.trim().to_string();
-    if email.is_empty() || !email.contains('@') || username.is_empty() || body.password.len() < 4 {
+    if email.is_empty()
+        || !email.contains('@')
+        || username.is_empty()
+        || body.password.len() < MIN_PASSWORD_LEN
+    {
         return lerr(loc, StatusCode::BAD_REQUEST, "auth.registerInvalid");
     }
 
@@ -604,22 +613,24 @@ async fn apply_subtitle_language(
 pub struct ChangePasswordBody {
     /// The account's current password (verified before the change).
     pub current: String,
-    /// The new password (min 4 chars, matching registration).
+    /// The new password (min length matches registration, see `MIN_PASSWORD_LEN`).
     pub next: String,
 }
 
 /// `PATCH /api/auth/me/password` (Bearer) `{ current, next }` → 204. Self-service
 /// password change: verifies `current` against the stored hash, then replaces it.
 /// There is no email-based reset flow (LAN self-hosted, no mail service), so this
-/// is the way an account rotates its own password. The current session stays
-/// valid (the bearer token is unaffected).
+/// is the way an account rotates its own password. Every OTHER session and
+/// long-lived device token is revoked (a rotation is how a user evicts a stolen
+/// credential), while the caller's own session keeps working.
 pub async fn change_password(
     State(state): State<SharedState>,
     ReqLocale(loc): ReqLocale,
+    headers: HeaderMap,
     AuthUser(user): AuthUser,
     Json(body): Json<ChangePasswordBody>,
 ) -> Response {
-    if body.next.len() < 4 {
+    if body.next.len() < MIN_PASSWORD_LEN {
         return lerr(loc, StatusCode::BAD_REQUEST, "auth.passwordTooShort");
     }
     let uid = user.id.clone();
@@ -635,6 +646,12 @@ pub async fn change_password(
     let uid = user.id.clone();
     if let Err(resp) = query(&state.db, move |pool| db::set_user_password(&pool, &uid, &hash)).await {
         return resp;
+    }
+    // Evict any other (possibly stolen) session/device credential, keeping the
+    // caller's current one. Best-effort: a failure here must not fail the change.
+    if let Some(keep) = bearer_from_headers(&headers) {
+        let uid = user.id.clone();
+        let _ = query(&state.db, move |pool| db::revoke_other_sessions(&pool, &uid, &keep)).await;
     }
     StatusCode::NO_CONTENT.into_response()
 }

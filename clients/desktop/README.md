@@ -164,6 +164,26 @@ re-spawn ("popup every 5s" on the Deck). KROMA never plays online video, so
 `mpv.rs` neutralizes both: a no-op `yt-dlp` shim on the child's PATH (the hook
 only probes it with `command -v`), `DISABLE_AUTO_UPDATES=1`, and `--ytdl=no`.
 
+### Why `bundleMediaFramework` stays `false`
+
+tauri-apps/tauri#4642 ("GStreamer element autoaudiosink not found", blank window)
+is normally answered with `bundle.linux.appimage.bundleMediaFramework: true` plus
+every GStreamer plugin installed on the build host. **Do not do that here.** It
+would bake the runner's Ubuntu 22.04 GStreamer core *and* plugins into `usr/lib`
+and pin `GST_PLUGIN_SYSTEM_PATH_1_0` at them, masking the host's newer copies:
+the exact stale-infra-lib class that `fix-appimage.sh` exists to strip, and a
+regression for the Deck. KROMA bundles no GStreamer at all and uses the host's,
+which is what the strip list and the `main.rs` guard below already ensure.
+`fix-appimage.sh` refuses to half-undo the flag if it is ever turned on.
+
+Linux playback defaults to the native mpv engine, so this only affects the
+`webview` / `remux` engines. The `.deb` covers them by depending on
+`libwebkit2gtk-4.1-0`, which hard-depends on `gstreamer1.0-plugins-base` and
+`gstreamer1.0-plugins-good` (the `autoaudiosink` provider) on every Debian and
+Ubuntu suite. GTK3 is deliberately NOT listed: `libgtk-3-0` was renamed
+`libgtk-3-0t64` in the time_t64 transition, so naming it directly would break
+`apt install` on Ubuntu 24.04+; WebKit pulls the right one per suite.
+
 Related in-app guards (also part of this fix): `main.rs` drops the stock
 AppRun's stale `GST_PLUGIN_SYSTEM_PATH(_1_0)` export (else webview audio dies
 with "GStreamer element autoaudiosink not found" AND the user's

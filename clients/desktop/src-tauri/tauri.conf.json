@@ -41,6 +41,10 @@
     "linux": {
       "appimage": {
         "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0"],
+        "recommends": ["gstreamer1.0-libav", "gstreamer1.0-plugins-bad"]
       }
     }
   },

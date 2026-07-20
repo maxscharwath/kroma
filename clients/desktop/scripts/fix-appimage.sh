@@ -57,6 +57,24 @@ STRIP_GLOBS=(
   # appear later, libdbus-1/libsystemd/libudev/libpsl are the next candidates.
   'libnghttp2.so*'
 )
+
+# KROMA ships with `bundleMediaFramework: false`, so nothing GStreamer is bundled and
+# the libgst* above are only linuxdeploy's transitive sweep of WebKit's deps: dropping
+# them hands the webview back to the HOST's GStreamer. Were the flag ever turned on
+# (tauri-apps/tauri#4642's advice), linuxdeploy would ALSO install plugins into
+# usr/lib/gstreamer-1.0 plus an AppRun hook pinning GST_PLUGIN_SYSTEM_PATH_1_0 to them;
+# stripping the core libs out from under those plugins would leave a broken hybrid that
+# neither finds bundled nor system plugins. Honor the flag instead of half-undoing it.
+if [[ -d "$APPDIR/usr/lib/gstreamer-1.0" ]]; then
+  echo "fix-appimage: WARNING: bundled GStreamer plugins found (bundleMediaFramework on)." >&2
+  echo "fix-appimage:          Keeping libgst* so the bundle stays self-consistent." >&2
+  keep=()
+  for glob in "${STRIP_GLOBS[@]}"; do
+    [[ "$glob" == 'libgst*.so*' ]] || keep+=("$glob")
+  done
+  STRIP_GLOBS=("${keep[@]}")
+fi
+
 removed=0
 for glob in "${STRIP_GLOBS[@]}"; do
   while IFS= read -r -d '' lib; do

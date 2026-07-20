@@ -1,0 +1,93 @@
+---
+import SectionHead from './SectionHead.astro';
+import { faq } from '../data/faq';
+---
+
+<section id="faq" aria-labelledby="t-faq">
+  <div class="wrap">
+    <SectionHead label="Straight answers" num="06" title="Questions people actually ask." titleId="t-faq" />
+    <div class="faq">
+      {faq.map((item, i) => {
+        const id = `faq-a${i + 1}`;
+        return (
+          <div class="qa rv">
+            <button type="button" aria-expanded="false" aria-controls={id}>
+              <span class="qn">0{i + 1}</span>
+              <h3>{item.q}</h3>
+              <span class="x" aria-hidden="true">+</span>
+            </button>
+            <div class="a" id={id} role="region">
+              <div><p set:html={item.a} /></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>
+
+<style>
+  .faq {
+    margin-top: 44px;
+    border-top: 1px solid var(--color-line);
+    max-width: 880px;
+  }
+  .qa {
+    border-bottom: 1px solid var(--color-line);
+  }
+  .qa button {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    gap: 22px;
+    text-align: left;
+    padding: 22px 0;
+  }
+  .qn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-faint);
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: clamp(16px, 1.8vw, 19px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    flex: 1;
+  }
+  .x {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--color-amber);
+    flex-shrink: 0;
+    transition: transform 0.35s var(--ease-k);
+  }
+  .qa[data-open] .x {
+    transform: rotate(45deg);
+  }
+  .a {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.45s var(--ease-k);
+  }
+  .qa[data-open] .a {
+    grid-template-rows: 1fr;
+  }
+  .a > div {
+    overflow: hidden;
+  }
+  .a p {
+    padding: 0 0 24px 34px;
+    max-width: 60ch;
+    color: var(--color-dim);
+    font-size: 15px;
+  }
+  .a p :global(a) {
+    color: var(--color-amber);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .a {
+      transition: none;
+    }
+  }
+</style>

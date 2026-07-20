@@ -1,0 +1,224 @@
+---
+import SectionHead from './SectionHead.astro';
+import { site, dockerCommand } from '../data/site';
+
+const image = site.dockerImage;
+const command = dockerCommand.slice(0, dockerCommand.lastIndexOf(image));
+const tabs = ['Docker', 'Synology', 'Desktop', 'TV apps'];
+---
+
+<section id="install" aria-labelledby="t-install">
+  <div class="wrap">
+    <SectionHead
+      label="Install"
+      num="05"
+      title="Running in the time a container pulls."
+      titleId="t-install"
+      lead="Install the <strong>server</strong> once, then point any client at it. Each client asks for the server address on first launch and remembers it."
+    />
+
+    <div class="installer rv" data-tabs>
+      <div class="tabbar" role="tablist" aria-label="Install methods">
+        {tabs.map((t, i) => (
+          <button role="tab" id={`tab-${i}`} aria-controls={`panel-${i}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <div class="panel" id="panel-0" role="tabpanel" aria-labelledby="tab-0">
+        <p>Any Linux box or NAS with Docker. Images are published for <code>amd64</code> and <code>arm64</code>.</p>
+        <div class="mini">
+          <button type="button" data-copy="cmd-install" aria-label="Copy the Docker command">copy</button>
+          <pre id="cmd-install">{command}<span class="a">{image}</span></pre>
+        </div>
+        <p>Open <code>http://localhost:4040</code>, create the first account, add your folders.</p>
+      </div>
+
+      <div class="panel" id="panel-1" role="tabpanel" aria-labelledby="tab-1" hidden>
+        <ol>
+          <li>Package Center → <b>Settings → Package Sources</b> → add <code>{site.packagesUrl}</code></li>
+          <li>Set Trust Level to <b>Any publisher</b></li>
+          <li>Install <b>KROMA</b> from the Community tab. Updates arrive like any other package.</li>
+        </ol>
+        <p class="foot"><a href={site.packagesUrl} rel="noopener">packages.kroma.tv →</a></p>
+      </div>
+
+      <div class="panel" id="panel-2" role="tabpanel" aria-labelledby="tab-2" hidden>
+        <p>A native app with hardware video decode, including a Steam Deck-ready AppImage with full gamepad navigation. Updates itself after the first install.</p>
+        <div class="chips"><span>macOS .dmg</span><span>Windows .exe / .msi</span><span>Linux .AppImage / .deb</span><span>Steam Deck</span></div>
+        <p class="foot"><a href={site.releases} rel="noopener">Download the latest release →</a></p>
+      </div>
+
+      <div class="panel" id="panel-3" role="tabpanel" aria-labelledby="tab-3" hidden>
+        <p>Sideload once in developer mode. The TV decodes H.265 in hardware; the interface is built for a D-pad, with Quick Connect sign-in.</p>
+        <div class="chips"><span>Samsung Tizen .wgt</span><span>LG webOS .ipk</span><span>Android TV .apk</span><span>Chromecast w/ Google TV</span></div>
+        <p class="foot"><a href={site.installGuide} rel="noopener">Step-by-step TV guide →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .installer {
+    margin-top: clamp(36px, 6vh, 56px);
+    max-width: 860px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  .tabbar {
+    display: flex;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .tabbar [role='tab'] {
+    flex: 1;
+    padding: 15px 10px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.25s, border-color 0.25s;
+  }
+  .tabbar [role='tab'] + [role='tab'] {
+    border-left: 1px solid var(--color-line);
+  }
+  .tabbar [role='tab']:hover {
+    color: var(--color-ivory);
+  }
+  .tabbar [role='tab'][aria-selected='true'] {
+    color: var(--color-amber);
+    border-bottom-color: var(--color-amber);
+  }
+  .panel {
+    padding: 26px 28px 30px;
+    display: grid;
+    gap: 14px;
+  }
+  .panel p {
+    font-size: 14.5px;
+    color: var(--color-dim);
+  }
+  .panel code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--color-ink);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    padding: 2px 7px;
+    color: var(--color-amber);
+  }
+  .panel ol {
+    list-style: decimal;
+    padding-left: 20px;
+    display: grid;
+    gap: 10px;
+    font-size: 14.5px;
+    color: var(--color-dim);
+  }
+  .panel ol b {
+    color: var(--color-ivory);
+    font-weight: 560;
+  }
+  .mini {
+    background: var(--color-ink);
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    position: relative;
+  }
+  .mini pre {
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .mini .a {
+    color: var(--color-amber);
+  }
+  .mini button {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+    border-radius: 6px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--color-dim);
+    padding: 4px 10px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .mini button:hover {
+    color: var(--color-ink);
+    background: var(--color-amber);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chips span {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--color-dim);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    padding: 5px 13px;
+  }
+  .foot a {
+    color: var(--color-amber);
+    font-size: 14px;
+    font-weight: 560;
+    text-decoration: none;
+  }
+  .foot a:hover {
+    text-decoration: underline;
+  }
+  @media (max-width: 640px) {
+    .tabbar {
+      flex-wrap: wrap;
+    }
+    .tabbar [role='tab'] {
+      flex: 1 1 50%;
+    }
+    .tabbar [role='tab']:nth-child(n + 3) {
+      border-top: 1px solid var(--color-line);
+    }
+    .tabbar [role='tab']:nth-child(3) {
+      border-left: none;
+    }
+  }
+</style>
+
+<script>
+  // Accessible tabs: click + left/right arrows.
+  const root = document.querySelector('[data-tabs]');
+  if (root) {
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const panels = [...root.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
+    const select = (i: number) => {
+      tabs.forEach((t, j) => {
+        t.setAttribute('aria-selected', String(i === j));
+        t.tabIndex = i === j ? 0 : -1;
+      });
+      panels.forEach((p, j) => {
+        p.hidden = i !== j;
+      });
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(i));
+      t.addEventListener('keydown', (e) => {
+        const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!d) return;
+        const n = (i + d + tabs.length) % tabs.length;
+        select(n);
+        tabs[n]?.focus();
+      });
+    });
+  }
+</script>

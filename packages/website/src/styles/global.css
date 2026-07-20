@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* KROMA design tokens: charcoal ground, ivory type, amber as the single
+   accent. The six-color chroma lives only in the logo lockup. */
+@theme {
+  --color-ink: #0a0a0c;
+  --color-panel: #111114;
+  --color-line: #222226;
+  --color-ivory: #f4f3f0;
+  --color-dim: #a7a49d;
+  --color-faint: #7d7b75;
+  --color-amber: #f4b642;
+  --color-amber-hot: #ffc862;
+
+  --font-disp: "Archivo", sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --ease-k: cubic-bezier(0.22, 0.61, 0.2, 1);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-ink);
+    color: var(--color-ivory);
+    font-family: var(--font-disp);
+    font-weight: 410;
+    font-variation-settings: "wdth" 100;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+  ::selection {
+    background: var(--color-amber);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  section {
+    scroll-margin-top: 64px;
+    padding-top: clamp(80px, 12vh, 150px);
+  }
+}
+
+@layer components {
+  /* display voices: Archivo expanded, tight tracking */
+  .d1,
+  .d2 {
+    font-variation-settings: "wdth" 118;
+    font-weight: 780;
+    letter-spacing: -0.03em;
+    line-height: 0.96;
+    text-wrap: balance;
+  }
+  .d1 {
+    font-size: clamp(44px, 8.4vw, 124px);
+  }
+  .d2 {
+    font-size: clamp(30px, 4.6vw, 58px);
+  }
+  .label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  /* the human voice: serif italic against Archivo's hard caps */
+  .voice {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--color-dim);
+  }
+  .voice em,
+  .voice .hl {
+    font-style: italic;
+    color: var(--color-amber);
+  }
+
+  /* cinematic film grain over the whole page */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 240px 240px;
+  }
+
+  .wrap {
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: clamp(20px, 4vw, 56px);
+  }
+
+  /* Buttons: no transforms, no wipes. A quiet color change and nothing else.
+     Size comes from custom props so .btn-sm sets its own without !important. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--color-amber);
+    color: var(--color-ink);
+    text-decoration: none;
+    font-weight: 640;
+    font-size: var(--btn-fs, 15px);
+    padding: var(--btn-py, 13px) var(--btn-px, 26px);
+    border-radius: 999px;
+    transition:
+      background 0.15s ease,
+      box-shadow 0.15s ease,
+      color 0.15s ease;
+  }
+  .btn:hover {
+    background: var(--color-amber-hot);
+  }
+  .btn-sm {
+    --btn-fs: 13.5px;
+    --btn-py: 9px;
+    --btn-px: 18px;
+  }
+  .btn-line {
+    background: transparent;
+    color: var(--color-ivory);
+    box-shadow: inset 0 0 0 1px var(--color-line);
+  }
+  .btn-line:hover {
+    background: transparent;
+    color: var(--color-ivory);
+    box-shadow: inset 0 0 0 1px var(--color-faint);
+  }
+
+  /* scroll entry reveals, staggered via .dly-1/2/3 */
+  .rv {
+    opacity: 0;
+    transform: translateY(26px);
+    transition:
+      opacity 0.8s var(--ease-k),
+      transform 0.8s var(--ease-k);
+  }
+  .rv.in {
+    opacity: 1;
+    transform: none;
+  }
+  .dly-1 { transition-delay: 0.08s; }
+  .dly-2 { transition-delay: 0.16s; }
+  .dly-3 { transition-delay: 0.24s; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rv {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}

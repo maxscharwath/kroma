@@ -1,0 +1,39 @@
+---
+import { site } from '../data/site';
+
+const links = [
+  { href: site.github, label: 'GitHub' },
+  { href: site.releases, label: 'Releases' },
+  { href: site.installGuide, label: 'Install guide' },
+  { href: site.license, label: 'MIT License' },
+];
+---
+
+<footer class="overflow-hidden border-t border-line pt-[34px]">
+  <div class="wrap flex flex-wrap items-center gap-7">
+    <img src="/lockup.svg" alt="KROMA" class="h-4 w-auto" />
+    <nav aria-label="Footer" class="ml-auto flex gap-[22px]">
+      {links.map((l) => <a href={l.href} rel="noopener" class="text-[13.5px] text-dim no-underline hover:text-ivory">{l.label}</a>)}
+    </nav>
+    <p class="mt-2 w-full font-mono text-[11.5px] tracking-[.06em] text-faint">
+      KROMA streams media you own, from hardware you own. Your library and your activity never leave your network.
+    </p>
+  </div>
+  <!-- the sign-off: a monumental ghost of the wordmark, cropped by the fold -->
+  <div class="ghost wrap" aria-hidden="true">
+    <img src="/lockup.svg" alt="" loading="lazy" />
+  </div>
+</footer>
+
+<style>
+  .ghost {
+    margin-top: 34px;
+  }
+  .ghost img {
+    display: block;
+    width: 100%;
+    height: auto;
+    opacity: 0.07;
+    transform: translateY(26%);
+  }
+</style>

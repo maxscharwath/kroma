@@ -1,0 +1,16 @@
+{
+  // kroma.tv marketing site: static Astro output, no worker script.
+  // Deploy with: bun run deploy   (astro build + CI=1 wrangler deploy)
+  "name": "kroma-website",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "workers_dev": true,
+  // Apex of the kroma.tv zone; modules.kroma.tv and packages.kroma.tv are
+  // separate workers on their own subdomains. Provisioning this the first
+  // time needs the confirm answered: printf 'y\n' | CI=1 bunx wrangler deploy
+  "routes": [{ "pattern": "kroma.tv", "custom_domain": true }]
+}

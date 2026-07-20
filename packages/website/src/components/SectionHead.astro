@@ -1,0 +1,58 @@
+---
+// Ruled section opener: mono label left, section number right, then the
+// display heading, optionally split with a supporting lead on the right.
+interface Props {
+  label: string;
+  num: string;
+  title: string;
+  titleId: string;
+  lead?: string;
+}
+const { label, num, title, titleId, lead } = Astro.props;
+---
+
+<div class="flex items-baseline justify-between gap-6 border-t border-line pt-[22px]">
+  <p class="label shrink-0">{label}</p>
+  <p class="label shrink-0">{num}</p>
+</div>
+
+{
+  lead ? (
+    <div class="split">
+      <h2 id={titleId} class="d2 rv max-w-[22ch]">{title}</h2>
+      <p class="lead rv" set:html={lead} />
+    </div>
+  ) : (
+    <h2 id={titleId} class="d2 rv mt-[26px] max-w-[22ch]">{title}</h2>
+  )
+}
+
+<style>
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4.6fr);
+    gap: clamp(28px, 4vw, 64px);
+    align-items: end;
+    margin-top: 26px;
+  }
+  .lead {
+    color: var(--color-dim);
+    max-width: 62ch;
+    font-size: 16px;
+    padding-bottom: 8px;
+  }
+  .lead :global(strong) {
+    color: var(--color-ivory);
+    font-weight: 560;
+  }
+  @media (max-width: 1020px) {
+    .split {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .lead {
+      padding-bottom: 0;
+    }
+  }
+</style>

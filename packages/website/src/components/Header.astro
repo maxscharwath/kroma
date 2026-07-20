@@ -1,0 +1,33 @@
+---
+import { site } from '../data/site';
+---
+
+<header class="sticky top-0 z-40 border-b border-line backdrop-blur-2xl" style="background:color-mix(in srgb,var(--color-ink) 78%,transparent)">
+  <div class="wrap flex h-[68px] items-center gap-8">
+    <a href="/" aria-label="KROMA home"><img src="/lockup.svg" alt="KROMA" width="458" height="100" class="h-5 w-auto" /></a>
+    <nav aria-label="Main" class="ml-auto flex items-center gap-6">
+      <a href="#screens" class="nav-link">Product</a>
+      <a href="#install" class="nav-link">Install</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <a class="btn btn-sm" href={site.github} rel="noopener">GitHub<span aria-hidden="true">→</span></a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .nav-link {
+    text-decoration: none;
+    color: var(--color-dim);
+    font-size: 14px;
+    transition: color 0.25s var(--ease-k);
+  }
+  .nav-link:hover,
+  .nav-link:focus-visible {
+    color: var(--color-ivory);
+  }
+  @media (max-width: 640px) {
+    .nav-link {
+      display: none;
+    }
+  }
+</style>

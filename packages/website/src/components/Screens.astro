@@ -1,0 +1,218 @@
+---
+import SectionHead from './SectionHead.astro';
+import { screens } from '../data/screens';
+---
+
+<section id="screens" aria-labelledby="t-screens">
+  <div class="wrap">
+    <SectionHead label="The product" num="03" title="Built to be looked at every evening." titleId="t-screens" />
+
+    <div class="viewer" data-viewer>
+      <!-- sticky projection: one frame, four slides crossfading with scroll -->
+      <div class="vframe" aria-hidden="true">
+        <div class="vstack">
+          {screens.map((s, i) => (
+            <img
+              class={i === 0 ? 'active' : ''}
+              data-slide={i}
+              loading="lazy"
+              src={`/img/${s.img}-1200.webp`}
+              srcset={`/img/${s.img}-1200.webp 1200w, /img/${s.img}-2200.webp 2200w`}
+              sizes="(max-width: 1020px) 0px, min(56vw, 660px)"
+              width="3200"
+              height="2000"
+              alt=""
+            />
+          ))}
+        </div>
+        <p class="vcap" data-viewer-caption>{screens[0]?.caption}</p>
+      </div>
+
+      <ol class="steps">
+        {screens.map((s, i) => (
+          <li data-step={i} class={i === 0 ? 'active' : ''} data-caption={s.caption}>
+            <figure class="minifig">
+              <img
+                loading="lazy"
+                src={`/img/${s.img}-1200.webp`}
+                srcset={`/img/${s.img}-1200.webp 1200w, /img/${s.img}-2200.webp 2200w`}
+                sizes="(min-width: 1021px) 0px, 94vw"
+                width="3200"
+                height="2000"
+                alt={s.alt}
+              />
+              <figcaption>{s.caption}</figcaption>
+            </figure>
+            <p class="label text-amber">{s.tag}</p>
+            <h3>{s.title}</h3>
+            <p class="body">{s.body}</p>
+            <ul>
+              {s.points.map((pt) => (
+                <li><b>{pt.lead}</b> {pt.rest}</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </div>
+</section>
+
+<style>
+  .viewer {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4.6fr);
+    gap: clamp(32px, 5vw, 80px);
+    align-items: start;
+    margin-top: clamp(40px, 6vh, 72px);
+  }
+  .vframe {
+    position: sticky;
+    top: clamp(80px, 12vh, 130px);
+  }
+  .vstack {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--color-ivory) 13%, transparent);
+    box-shadow: 0 50px 130px rgba(0, 0, 0, 0.6);
+  }
+  .vstack img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1.02);
+    transition:
+      opacity 0.55s var(--ease-k),
+      transform 0.9s var(--ease-k);
+  }
+  .vstack img.active {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .vcap {
+    margin-top: 14px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    transition: opacity 0.4s;
+  }
+
+  .steps li[data-step] {
+    list-style: none;
+    min-height: 72vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0.32;
+    transition: opacity 0.45s var(--ease-k);
+  }
+  .steps li[data-step].active {
+    opacity: 1;
+  }
+  .steps li[data-step]:last-child {
+    min-height: 60vh;
+  }
+  .minifig {
+    display: none;
+  }
+  h3 {
+    font-variation-settings: 'wdth' 116;
+    font-weight: 740;
+    letter-spacing: -0.02em;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.08;
+    margin-top: 14px;
+    max-width: 16ch;
+  }
+  .body {
+    font-size: 15px;
+    color: var(--color-dim);
+    margin-top: 14px;
+    max-width: 44ch;
+  }
+  .steps ul {
+    margin-top: 18px;
+  }
+  .steps ul li {
+    list-style: none;
+    padding: 10px 0;
+    border-top: 1px solid var(--color-line);
+    font-size: 14px;
+    color: var(--color-dim);
+  }
+  .steps ul li b {
+    color: var(--color-ivory);
+    font-weight: 560;
+  }
+
+  @media (max-width: 1020px) {
+    .viewer {
+      grid-template-columns: 1fr;
+    }
+    .vframe {
+      display: none;
+    }
+    .steps li[data-step] {
+      min-height: 0;
+      opacity: 1;
+      margin-top: 64px;
+    }
+    .steps li[data-step]:first-child {
+      margin-top: 0;
+    }
+    .minifig {
+      display: block;
+    }
+    .minifig img {
+      border-radius: 14px;
+      border: 1px solid color-mix(in srgb, var(--color-ivory) 12%, transparent);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    }
+    .minifig figcaption {
+      margin-top: 12px;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--color-faint);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .vstack img,
+    .steps li[data-step] {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Scroll-driven viewer: the step crossing the viewport's center band
+  // becomes active and swaps the sticky slide + caption.
+  const viewer = document.querySelector('[data-viewer]');
+  if (viewer) {
+    const slides = viewer.querySelectorAll<HTMLElement>('[data-slide]');
+    const steps = viewer.querySelectorAll<HTMLElement>('[data-step]');
+    const cap = viewer.querySelector<HTMLElement>('[data-viewer-caption]');
+    const activate = (i: number) => {
+      for (const s of slides) s.classList.toggle('active', s.dataset.slide === String(i));
+      for (const s of steps) s.classList.toggle('active', s.dataset.step === String(i));
+      const c = steps[i]?.dataset.caption;
+      if (cap && c) cap.textContent = c;
+    };
+    const io = new IntersectionObserver(
+      (es) => {
+        for (const e of es) if (e.isIntersecting) activate(Number((e.target as HTMLElement).dataset.step));
+      },
+      { rootMargin: '-42% 0px -42% 0px', threshold: 0 },
+    );
+    for (const s of steps) io.observe(s);
+  }
+</script>

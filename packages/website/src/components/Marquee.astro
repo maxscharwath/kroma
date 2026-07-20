@@ -1,0 +1,62 @@
+---
+// Hairline-bounded ticker of everything in the box. Pure CSS animation,
+// duplicated track for a seamless loop; frozen under reduced motion.
+const items = [
+  'Indexers', 'Torrent engine', 'VPN kill switch', 'TMDB metadata', 'Whisper subtitles',
+  'Direct-play H.265', 'Requests', 'Quality scoring', 'Multi-user', 'Passkeys',
+  'Skip-intro markers', 'Semantic search', 'Module store', 'Admin console',
+];
+---
+
+<div class="marquee mt-[clamp(64px,10vh,110px)] border-y border-line" aria-hidden="true">
+  <div class="track">
+    {[0, 1].map(() => (
+      <span class="seg">
+        {items.map((it) => (
+          <span class="it">{it}<i>·</i></span>
+        ))}
+      </span>
+    ))}
+  </div>
+</div>
+
+<style>
+  .marquee {
+    overflow: hidden;
+  }
+  .track {
+    display: flex;
+    width: max-content;
+    animation: slide 46s linear infinite;
+  }
+  .seg {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .it {
+    display: inline-flex;
+    align-items: center;
+    padding: 15px 0;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-dim);
+    white-space: nowrap;
+  }
+  .it i {
+    font-style: normal;
+    color: var(--color-amber);
+    margin: 0 22px;
+  }
+  @keyframes slide {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .track {
+      animation: none;
+    }
+  }
+</style>

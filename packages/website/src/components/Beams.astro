@@ -1,0 +1,37 @@
+---
+// Animated WebGL light-beam burst (the intro film's signature). Mountable
+// several times per page; each canvas sets its origin via data-center
+// ("x,y" GL coords, y from bottom) or locks onto a DOM element with
+// data-anchor (a selector). Falls back to a still film frame.
+interface Props {
+  /** Burst origin, "x,y" GL coords (y measured from the bottom). */
+  center?: string;
+  /** Selector of the element the burst locks onto (wins over center). */
+  anchor?: string;
+  class?: string;
+}
+const { center, anchor, class: cls = '' } = Astro.props;
+---
+
+<canvas class={`beams ${cls}`} data-center={center} data-anchor={anchor} aria-hidden="true"></canvas>
+
+<style>
+  .beams {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+  }
+  .beams.static {
+    background: url(/img/intro-bg.webp) center 30% / cover no-repeat;
+    opacity: 0.3;
+  }
+</style>
+
+<script>
+  import { mountBeams } from '../scripts/beams';
+  for (const el of document.querySelectorAll<HTMLCanvasElement>('canvas.beams')) {
+    const [x, y] = (el.dataset.center ?? '0.5,0.7').split(',').map(Number);
+    const anchor = el.dataset.anchor ? document.querySelector(el.dataset.anchor) : null;
+    mountBeams(el, { center: [x || 0.5, y || 0.7], anchor });
+  }
+</script>

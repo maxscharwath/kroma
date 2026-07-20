@@ -18,7 +18,10 @@
       "!server",
       "!clients/web/src/styles.css",
       "!packages/ui/src/tailwind.css",
-      "!packages/tv/src/tv.css"
+      "!packages/tv/src/tv.css",
+      "!packages/website/src/styles/global.css",
+      "!**/*.astro",
+      "!**/.astro"
     ]
   },
   "formatter": {

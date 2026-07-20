@@ -1,0 +1,21 @@
+{
+  "name": "@kroma/website",
+  "version": "0.1.28",
+  "description": "KROMA marketing site (kroma.tv)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && CI=1 wrangler deploy"
+  },
+  "dependencies": {
+    "astro": "^5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4",
+    "tailwindcss": "^4",
+    "wrangler": "^4"
+  }
+}

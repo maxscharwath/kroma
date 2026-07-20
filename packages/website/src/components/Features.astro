@@ -1,0 +1,86 @@
+---
+import SectionHead from './SectionHead.astro';
+import { features } from '../data/features';
+---
+
+<section aria-labelledby="t-built">
+  <div class="wrap">
+    <SectionHead label="Also in the box" num="04" title="Everything you would have bolted on." titleId="t-built" />
+    <ol class="index">
+      {features.map((f, i) => (
+        <li class={`rv ${i % 2 ? 'dly-1' : ''}`}>
+          <span class="num">{String(i + 1).padStart(2, '0')}</span>
+          <div>
+            <div class="head">
+              <h3>{f.title}</h3>
+              <span class="k">{f.k}</span>
+            </div>
+            <p>{f.text}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  /* a two-column index: numbered entries, ruled rows */
+  .index {
+    margin-top: clamp(36px, 6vh, 56px);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: clamp(32px, 4vw, 72px);
+    border-top: 1px solid var(--color-line);
+  }
+  .index li {
+    list-style: none;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 14px;
+    padding: 24px 14px;
+    margin: 0 -14px;
+    border-bottom: 1px solid var(--color-line);
+    border-radius: 10px;
+    transition: background 0.25s var(--ease-k);
+    align-items: baseline;
+  }
+  .index li:hover {
+    background: var(--color-panel);
+  }
+  .num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-amber);
+    letter-spacing: 0.1em;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 680;
+    letter-spacing: -0.01em;
+  }
+  .k {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    white-space: nowrap;
+  }
+  p {
+    margin-top: 7px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--color-dim);
+  }
+  @media (max-width: 1020px) {
+    .index {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,28 @@
+---
+import Beams from './Beams.astro';
+import { site } from '../data/site';
+---
+
+<div class="close relative isolate overflow-x-clip pt-[clamp(110px,16vh,190px)] pb-[clamp(90px,13vh,140px)] text-center">
+  <Beams id="beams-close" center="0.5,0.52" class="close-beams" />
+  <div class="wrap">
+    <p class="label rv">One command from here</p>
+    <p class="d1 rv mx-auto mt-[22px] max-w-[13ch]">Point KROMA at your media. <span class="text-amber">Press play.</span></p>
+    <p class="voice rv mx-auto mt-6 text-[clamp(17px,1.9vw,22px)]">the lights are already dimmed.</p>
+    <div class="rv mt-10 flex flex-wrap justify-center gap-3.5">
+      <a class="btn" href="#install">Install now<span aria-hidden="true">→</span></a>
+      <a class="btn btn-line" href={site.releases} rel="noopener">Latest release</a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .close :global(.close-beams) {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.55;
+    -webkit-mask-image: radial-gradient(90% 100% at 50% 50%, #000 0%, transparent 78%);
+    mask-image: radial-gradient(90% 100% at 50% 50%, #000 0%, transparent 78%);
+  }
+</style>

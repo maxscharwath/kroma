@@ -1,0 +1,111 @@
+---
+import SectionHead from './SectionHead.astro';
+import { pipeline } from '../data/facts';
+
+// The six wheel segments, in order: one per pipeline stage.
+const wheel = ['#F2685C', '#F4B642', '#5FBF8F', '#4F9DE0', '#6366F1', '#A855F7'];
+---
+
+<section aria-labelledby="t-pipe">
+  <div class="wrap">
+    <SectionHead label="From request to playback" num="02" title="Ask for a title. The rest is automatic." titleId="t-pipe" />
+    <p class="voice rv mt-6 text-[clamp(17px,1.8vw,21px)]">one request in, <em>one press of play out.</em></p>
+
+    <ol class="strip">
+      {pipeline.map((s, i) => (
+        <li class={`rv ${i % 3 ? `dly-${i % 3}` : ''}`} style={`--tint:${wheel[i]}`}>
+          <span class="dot" aria-hidden="true"></span>
+          <span class="num">0{i + 1}</span>
+          <h3>{s.title}</h3>
+          <p>{s.text}</p>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  /* a filmstrip: six frames hung on one line, each pinned by its wheel color */
+  .strip {
+    margin-top: clamp(36px, 6vh, 56px);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    border-top: 1px solid var(--color-line);
+  }
+  .strip li {
+    list-style: none;
+    position: relative;
+    padding: 30px 18px 8px 0;
+  }
+  .strip li + li {
+    padding-left: 18px;
+  }
+  .dot {
+    position: absolute;
+    top: -4.5px;
+    left: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--tint);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--tint) 70%, transparent);
+  }
+  .strip li + li .dot {
+    left: 18px;
+  }
+  .num {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--tint);
+  }
+  h3 {
+    margin-top: 10px;
+    font-size: 16.5px;
+    font-weight: 680;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-dim);
+  }
+  @media (max-width: 1020px) {
+    .strip {
+      grid-template-columns: repeat(3, 1fr);
+      row-gap: 26px;
+    }
+    .strip li:nth-child(n + 4) {
+      border-top: 1px solid var(--color-line);
+      padding-top: 30px;
+    }
+    .strip li:nth-child(4) {
+      padding-left: 0;
+    }
+    .strip li:nth-child(4) .dot {
+      left: 0;
+    }
+  }
+  @media (max-width: 640px) {
+    .strip {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .strip li:nth-child(n + 3) {
+      border-top: 1px solid var(--color-line);
+      padding-top: 30px;
+    }
+    .strip li:nth-child(odd) {
+      padding-left: 0;
+    }
+    .strip li:nth-child(odd) .dot {
+      left: 0;
+    }
+    .strip li:nth-child(even) {
+      padding-left: 18px;
+    }
+    .strip li:nth-child(even) .dot {
+      left: 18px;
+    }
+  }
+</style>

@@ -1,0 +1,57 @@
+---
+import { facts } from '../data/facts';
+---
+
+<ul class="facts">
+  {facts.map((f, i) => (
+    <li class={`rv ${i ? `dly-${i}` : ''}`}>
+      <p class="n">{f.n}</p>
+      <p class="mt-2.5 max-w-[26ch] text-[13.5px] text-dim">{f.text}</p>
+    </li>
+  ))}
+</ul>
+
+<style>
+  /* ruled numerals, no card chrome */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-block: 1px solid var(--color-line);
+    margin-top: clamp(56px, 9vh, 100px);
+  }
+  .facts > li {
+    list-style: none;
+    padding: 30px 26px 30px 0;
+  }
+  .facts > li + li {
+    padding-left: 28px;
+    border-left: 1px solid var(--color-line);
+  }
+  .n {
+    font-variation-settings: 'wdth' 118;
+    font-weight: 780;
+    letter-spacing: -0.02em;
+    font-size: clamp(40px, 4.6vw, 64px);
+    line-height: 1;
+    color: var(--color-amber);
+  }
+  @media (max-width: 1020px) {
+    .facts {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .facts > li {
+      padding: 22px 20px 22px 0;
+    }
+    .facts > li + li {
+      padding-left: 0;
+      border-left: none;
+    }
+    .facts > li:nth-child(even) {
+      padding-left: 24px;
+      border-left: 1px solid var(--color-line);
+    }
+    .facts > li:nth-child(n + 3) {
+      border-top: 1px solid var(--color-line);
+    }
+  }
+</style>

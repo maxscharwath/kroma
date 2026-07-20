@@ -1,0 +1,171 @@
+---
+import Beams from './Beams.astro';
+import { site, dockerCommand } from '../data/site';
+---
+
+<div class="hero relative isolate overflow-x-clip pt-[clamp(56px,9vh,110px)] text-center">
+  <Beams id="beams-hero" anchor="#hero-wheel" class="hero-beams" />
+  <div class="wrap">
+    <p class="label kicker rv in"><b class="text-amber">●</b>&nbsp; Open source · Self-hosted · v{site.version}</p>
+
+    <!-- the projector: the chromatic wheel is the source the beams fire from -->
+    <img id="hero-wheel" class="wheel rv in dly-1" src="/favicon.svg" alt="" aria-hidden="true" width="72" height="72" />
+
+    <h1 class="d1 rv in dly-1 mx-auto mt-7 max-w-[13ch]">The entire media stack. <em class="not-italic text-amber">One binary.</em></h1>
+
+    <p class="voice rv in dly-2 mx-auto mt-7 max-w-[44ch] text-[clamp(19px,2.2vw,26px)] leading-snug">
+      Find it, download it, organize it, stream it:
+      <span class="hl">your</span> library, on <span class="hl">your</span> hardware, on every screen you own.
+    </p>
+
+    <div class="rv dly-3 in mt-9 flex flex-wrap items-center justify-center gap-3.5">
+      <a class="btn" href="#install">Install KROMA<span aria-hidden="true">→</span></a>
+      <a class="btn btn-line" href={site.github} rel="noopener">Read the source</a>
+    </div>
+
+    <div class="cmd rv dly-3 in">
+      <pre id="cmd-hero"><span class="p">$</span> {dockerCommand}</pre>
+      <button type="button" data-copy="cmd-hero" aria-label="Copy the Docker command">copy</button>
+    </div>
+
+    <figure class="stage">
+      <div class="mask" data-stage>
+        <img
+          src="/img/home-1200.webp"
+          srcset="/img/home-1200.webp 1200w, /img/home-2200.webp 2200w"
+          sizes="(max-width: 1300px) 94vw, 1200px"
+          width="3200"
+          height="2000"
+          fetchpriority="high"
+          alt="KROMA home screen: a dark library with a featured Stranger Things banner showing 4K, HDR and H.265 badges, and a row of Hayao Miyazaki film posters"
+        />
+      </div>
+      <figcaption>Every screenshot on this page is the running app, captured from a live install.</figcaption>
+    </figure>
+  </div>
+</div>
+
+<style>
+  .hero :global(.hero-beams) {
+    inset: -68px 0 auto 0;
+    height: min(900px, 125vh);
+    width: 100%;
+    opacity: 0.92;
+    -webkit-mask-image: radial-gradient(105% 94% at 50% 28%, #000 0%, transparent 80%);
+    mask-image: radial-gradient(105% 94% at 50% 28%, #000 0%, transparent 80%);
+  }
+  .kicker {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--color-line);
+    background: color-mix(in srgb, var(--color-ink) 62%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-dim);
+  }
+  .wheel {
+    display: block;
+    margin: 40px auto 0;
+    width: clamp(84px, 10vw, 128px);
+    height: auto;
+    filter: drop-shadow(0 0 32px rgba(244, 182, 66, 0.55)) drop-shadow(0 0 90px rgba(244, 182, 66, 0.3));
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .wheel {
+      animation: wheel-spin 60s linear infinite;
+    }
+  }
+  @keyframes wheel-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* command line, centered, overlapping the stage below it */
+  .cmd {
+    position: relative;
+    z-index: 2;
+    margin: 56px auto 0;
+    display: flex;
+    align-items: center;
+    text-align: left;
+    background: color-mix(in srgb, var(--color-panel) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    max-width: 760px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  }
+  .cmd pre {
+    padding: 18px 22px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .cmd pre .p {
+    color: var(--color-faint);
+  }
+  .cmd button {
+    align-self: stretch;
+    padding: 0 22px;
+    border-left: 1px solid var(--color-line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-dim);
+    white-space: nowrap;
+    transition: color 0.2s, background 0.2s;
+  }
+  .cmd button:hover {
+    color: var(--color-ink);
+    background: var(--color-amber);
+  }
+
+  /* hero screenshot with its scroll-driven opening mask */
+  .stage {
+    margin-top: -26px;
+  }
+  .stage .mask {
+    will-change: clip-path, transform;
+    clip-path: inset(4% 9% 10% 9% round 22px);
+  }
+  .stage img {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--color-ivory) 14%, transparent);
+    box-shadow: 0 60px 160px rgba(0, 0, 0, 0.6);
+  }
+  .stage figcaption {
+    margin-top: 16px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-faint);
+    letter-spacing: 0.06em;
+  }
+
+  @media (max-width: 640px) {
+    .cmd {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .cmd button {
+      border-left: none;
+      border-top: 1px solid var(--color-line);
+      padding: 12px;
+    }
+    .stage {
+      margin-top: 10px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage .mask {
+      clip-path: none !important;
+      transform: none !important;
+    }
+  }
+</style>

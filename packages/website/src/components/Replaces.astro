@@ -1,0 +1,113 @@
+---
+import SectionHead from './SectionHead.astro';
+import { replaces } from '../data/facts';
+---
+
+<section aria-labelledby="t-replaces">
+  <div class="wrap">
+    <SectionHead label="What it replaces" num="01" title="Six services, retired by one process." titleId="t-replaces" />
+
+    <div class="scene">
+      <div class="statement rv">
+        <p class="big" aria-hidden="true">6<span class="to-arrow">→</span><b>1</b></p>
+        <p class="voice mt-4 text-[clamp(18px,1.9vw,23px)]">six daemons, six configs, six ways to break, <em>collapsed into one process.</em></p>
+        <p class="mt-5 max-w-[38ch] text-[15px] text-dim">
+          The usual stack wires six containers together. KROMA does the same jobs in-process,
+          against a single library, with nothing to keep in sync.
+        </p>
+      </div>
+
+      <ul class="ledger">
+        {replaces.map((r) => (
+          <li class="rv">
+            <span class="was"><s>{r.was}</s></span>
+            <span class="to" aria-hidden="true">→</span>
+            <span class="now">{r.now}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<style>
+  .scene {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(32px, 5vw, 80px);
+    align-items: start;
+    margin-top: clamp(40px, 6vh, 64px);
+  }
+  .big {
+    font-variation-settings: 'wdth' 120;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+    font-size: clamp(90px, 12vw, 190px);
+    color: var(--color-ivory);
+  }
+  .big .to-arrow {
+    color: var(--color-faint);
+    font-variation-settings: 'wdth' 100;
+    font-weight: 300;
+    margin: 0 0.06em;
+  }
+  .big b {
+    color: var(--color-amber);
+  }
+
+  .ledger {
+    border-top: 1px solid var(--color-line);
+  }
+  .ledger li {
+    list-style: none;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) 40px minmax(0, 7fr);
+    gap: 14px;
+    align-items: center;
+    padding: 16px 14px;
+    margin: 0 -14px;
+    border-bottom: 1px solid var(--color-line);
+    border-radius: 10px;
+    transition: background 0.25s var(--ease-k);
+  }
+  .ledger li:hover {
+    background: var(--color-panel);
+  }
+  .was {
+    color: var(--color-faint);
+    font-size: 15px;
+  }
+  .was s {
+    text-decoration-thickness: 1px;
+    text-decoration-color: color-mix(in srgb, var(--color-faint) 60%, transparent);
+  }
+  .to {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-amber);
+    text-align: center;
+    transition: transform 0.3s var(--ease-k);
+  }
+  .ledger li:hover .to {
+    transform: translateX(5px);
+  }
+  .now {
+    font-size: 15px;
+  }
+  @media (max-width: 1020px) {
+    .scene {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .ledger li {
+      grid-template-columns: 1fr;
+      gap: 4px;
+      padding: 14px;
+    }
+    .to {
+      display: none;
+    }
+  }
+</style>

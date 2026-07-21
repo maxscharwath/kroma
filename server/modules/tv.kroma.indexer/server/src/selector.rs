@@ -25,7 +25,17 @@ pub fn is_xpath(sel: &str) -> bool {
 /// Select all elements matching `sel` within `scope` (descendants only), with
 /// `:contains()` emulation.
 pub fn select_all<'a>(scope: ElementRef<'a>, sel: &str) -> Vec<ElementRef<'a>> {
-    let (clean, contains) = strip_contains(sel);
+    let (mut clean, contains) = strip_contains(sel);
+    // A selector that is ONLY `:contains("x")` strips to an empty string, which
+    // fails to parse - so it would silently match nothing. This shape is common
+    // and load-bearing: Cardigann login-error checks (`:contains("invalid api
+    // key")`) and freeleech markers are written this way, and a missed login
+    // error means a bad/empty API key reads as "0 results" instead of an error.
+    // In jQuery/Cardigann a bare `:contains` matches ANY element holding the
+    // text, so fall back to the universal selector and let the text filter work.
+    if clean.trim().is_empty() && !contains.is_empty() {
+        clean = "*".to_string();
+    }
     let parsed = match Selector::parse(clean.trim()) {
         Ok(p) => p,
         // Retry once with `:has(...)` removed for the (rare) engine that can't
@@ -208,6 +218,17 @@ mod tests {
         let rows = select_all(root, "tr.torrent:contains(\"Cool\")");
         assert_eq!(rows.len(), 1);
         assert!(element_text(rows[0]).contains("Cool Movie"));
+    }
+
+    #[test]
+    fn bare_contains_matches_any_element() {
+        // A selector that is ONLY `:contains(...)` (Cardigann login-error /
+        // freeleech checks) must still match - the empty cleaned selector used
+        // to fail to parse and silently match nothing.
+        let doc = parse_document("<html><body>invalid api key</body></html>");
+        let root = doc.root_element();
+        assert!(select_first(root, ":contains(\"invalid api key\")").is_some());
+        assert!(select_first(root, ":contains(\"not present here\")").is_none());
     }
 
     #[test]

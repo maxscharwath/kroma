@@ -172,6 +172,9 @@ export interface ExoShellBridge {
    *  thrown). Optional: an older installed APK does not expose it, and there
    *  the old assume-supported behaviour stands. */
   audioFilterSupported?(): boolean;
+  /** Terminate the whole app (the "Quitter" menu row). Optional: an older
+   *  installed APK does not expose it, so the quit row stays hidden there. */
+  quit?(): void;
 }
 
 /** The injected ExoPlayer bridge when running inside the Android TV shell, else null. */

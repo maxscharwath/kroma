@@ -36,7 +36,7 @@ import org.json.JSONObject
 private const val TAG = "KromaExo"
 
 class ExoBridge(
-    activity: Activity,
+    private val activity: Activity,
     private val webView: WebView,
     private val playerView: PlayerView,
 ) {
@@ -170,6 +170,15 @@ class ExoBridge(
      * main thread may do. A `filterSupported` event follows if the answer flips. */
     @JavascriptInterface
     fun audioFilterSupported(): Boolean = filterSupported
+
+    /** Terminate the whole app (the "Quitter" menu row in the TV shell). Android
+     * TV runs a single fullscreen activity with no window chrome, so - like the
+     * desktop shell's `app_quit` - the UI must offer the way out. Removes the
+     * task from Recents for a clean exit; onDestroy then releases the player. */
+    @JavascriptInterface
+    fun quit() {
+        main.post { activity.finishAndRemoveTask() }
+    }
 
     /** Audio filter / volume normalizer (0 off, 1 standard, 2 night): a
      * single-band DynamicsProcessing compressor + safety limiter on the player's

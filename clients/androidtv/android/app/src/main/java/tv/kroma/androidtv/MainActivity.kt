@@ -58,6 +58,12 @@ class MainActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true // session/servers persist in localStorage
             settings.mediaPlaybackRequiresUserGesture = false
+            // Honor the app's `<meta viewport width=1920>` and scale that fixed
+            // 1080p layout to fill the panel. Without this the WebView lays out at
+            // the display's density width (a 4K TV at density 640 = only 960dp),
+            // so a 1920-designed UI renders ~2x too big ("everything feels huge").
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
             // The app runs on the https appassets origin but a LAN KROMA server is
             // usually plain http; allow that cross-scheme fetch (mixed content).
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW

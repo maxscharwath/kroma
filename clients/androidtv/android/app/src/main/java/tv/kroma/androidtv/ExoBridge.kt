@@ -96,7 +96,15 @@ class ExoBridge(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            emit(JSONObject().put("t", "error").put("message", error.errorCodeName))
+            emit(
+                JSONObject()
+                    .put("t", "error")
+                    .put("message", error.errorCodeName)
+                    // Flag an audio-decode failure (e.g. E-AC3/DTS/TrueHD with no
+                    // hardware decoder) so the web engine falls back to the server's
+                    // AAC-transcoded master instead of erroring out.
+                    .put("audio", audioUnsupported()),
+            )
         }
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -178,6 +186,20 @@ class ExoBridge(
     @JavascriptInterface
     fun quit() {
         main.post { activity.finishAndRemoveTask() }
+    }
+
+    /** True when the current media carries an audio track this device cannot
+     * decode and NONE it can (e.g. E-AC3/DTS/TrueHD without a hardware decoder) -
+     * the signal for the web engine to reopen the AAC-transcoded master. Reads
+     * the player, so only call from the main thread (onPlayerError runs there). */
+    private fun audioUnsupported(): Boolean {
+        var sawAudio = false
+        for (group in player.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            sawAudio = true
+            for (i in 0 until group.length) if (group.isTrackSupported(i)) return false
+        }
+        return sawAudio
     }
 
     /** Publish the "continue watching" list into the launcher's system Watch Next

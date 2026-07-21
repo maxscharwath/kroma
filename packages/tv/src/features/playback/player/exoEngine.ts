@@ -43,6 +43,9 @@ interface ExoEvent {
   active?: boolean;
   supported?: boolean;
   message?: string;
+  /** On `error`: the device could not decode the source AUDIO track (so the
+   * fallback must transcode it to AAC), vs a demux/video failure. */
+  audio?: boolean;
 }
 
 type ExoEventGlobal = { __kromaExoEvent?: (e: ExoEvent) => void };
@@ -100,7 +103,7 @@ export class ExoEngine extends BaseTvEngine {
         if (e.supported === false) this.listeners.onAudioFilterUnavailable?.();
         break;
       case 'error':
-        this.fail();
+        this.fail(e.audio === true);
         break;
     }
   }

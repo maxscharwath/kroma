@@ -55,4 +55,10 @@ dependencies {
     // HLS media source: the stream-copy master fallback (`master=true` loads).
     implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
+    // WebViewAssetLoader: serve the bundled web app over a real https origin
+    // (appassets.androidplatform.net) instead of file://, so the Vite ES-module
+    // bundle (`<script type="module">` + dynamic import()) actually loads. From
+    // file:// the WebView blocks module scripts (CORS null origin) and the app
+    // never renders (black screen). See MainActivity.
+    implementation("androidx.webkit:webkit:1.12.1")
 }

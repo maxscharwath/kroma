@@ -5,6 +5,13 @@
 //  - The web app detects the injected `__KROMA_ANDROID__` bridge (ExoBridge) and
 //    routes playback through its ExoEngine; everything else (navigation, auth,
 //    discovery, subtitles) is the plain web app.
+//  - The bundle is served over the https://appassets.androidplatform.net virtual
+//    origin (WebViewAssetLoader), NOT file://: the Vite build emits ES-module
+//    scripts (`<script type="module">` + dynamic import()), which a WebView
+//    refuses to load from file:// (module scripts require CORS, and file:// is a
+//    null origin) - the app then never renders and the black ExoPlayer plane
+//    shows through (a full black screen). A real https origin fixes that, and as
+//    a bonus makes it a secure context (Web Crypto / passkeys work).
 //  - D-pad and OK arrive as normal DOM key events through the WebView. BACK and
 //    the media-transport keys are consumed by Android before the WebView sees
 //    them, so they are re-injected as synthetic `keydown`s with the key names
@@ -17,9 +24,14 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.media3.ui.PlayerView
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewClientCompat
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -34,13 +46,27 @@ class MainActivity : Activity() {
             useController = false // KROMA draws its own chrome in the WebView
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
         }
+        // Serve the bundled assets over the virtual https origin so ES-module
+        // scripts load (see the file header). `/assets/` maps to android_asset/.
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         webView = WebView(this).apply {
             setBackgroundColor(Color.TRANSPARENT) // video plane shows through
             layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true // session/servers persist in localStorage
             settings.mediaPlaybackRequiresUserGesture = false
-            settings.allowFileAccess = true // the app is packaged as file:// assets
+            // The app runs on the https appassets origin but a LAN KROMA server is
+            // usually plain http; allow that cross-scheme fetch (mixed content).
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            webViewClient = object : WebViewClientCompat() {
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest,
+                ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+            }
         }
         bridge = ExoBridge(this, webView, playerView)
         webView.addJavascriptInterface(bridge, "__KROMA_ANDROID__")
@@ -49,7 +75,7 @@ class MainActivity : Activity() {
         root.addView(webView)
         setContentView(root)
 
-        webView.loadUrl("file:///android_asset/kroma/index.html")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/kroma/index.html")
     }
 
     // Keys Android consumes before the WebView: re-injected as the DOM key names

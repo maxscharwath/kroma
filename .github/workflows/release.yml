@@ -88,7 +88,7 @@ jobs:
       channel: ${{ steps.v.outputs.channel }}
       proceed: ${{ steps.v.outputs.proceed }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: v
         shell: bash
         env:
@@ -188,7 +188,7 @@ jobs:
     steps:
       # This job used to be pure `gh api` calls and needed no working copy;
       # it runs a script now, so the repo has to be there.
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Flip the draft live (marked latest)
         run: .github/scripts/publish-release.sh
@@ -213,7 +213,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       VERSION: ${{ needs.version.outputs.version }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # full history for the commit log in the release notes
 

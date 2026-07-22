@@ -2,19 +2,12 @@ import type { AudioTrack } from '@kroma/core';
 import { channelLabel, langName } from '@kroma/core';
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { IconOk } from '../icons';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
 import type { PanelHandle } from '../nav';
 import { useListFocus } from '../useListFocus';
-import {
-  panelEmpty,
-  panelList,
-  rowCx,
-  selectLabel,
-  selectRow,
-  selectRowOff,
-  selectRowOn,
-  selectSub,
-} from './panelStyle';
+import { panelEmpty, panelList } from './panelStyle';
+import { SelectRow } from './SelectRow';
 
 interface AudioPanelProps {
   tracks: AudioTrack[];
@@ -40,36 +33,26 @@ export const AudioPanel = forwardRef<PanelHandle, AudioPanelProps>(function Audi
   useImperativeHandle(ref, () => ({ onKey: focus.onKey }), [focus.onKey]);
 
   if (tracks.length === 0) {
-    return <div className={panelEmpty}>{t('player.noAudioTracks')}</div>;
+    return <Txt style={panelEmpty}>{t('player.noAudioTracks')}</Txt>;
   }
 
   return (
-    <div className={panelList}>
+    <Box style={panelList}>
       {tracks.map((a, i) => {
         const ch = channelLabel(a.channels);
         const codec = a.codec.toUpperCase();
         return (
-          <button
+          <SelectRow
             key={a.index}
-            type="button"
-            onClick={() => pick(i)}
-            onMouseEnter={focus.hover(i)}
-            className={rowCx(selectRow, selectRowOn, selectRowOff, focus.index === i)}
-          >
-            <span className="min-w-0 flex-1">
-              <span className={`block truncate ${selectLabel}`}>
-                {a.title?.trim() || langName(t, a.language) || t('player.langUnknown')}
-              </span>
-              <span className={`block ${selectSub}`}>{ch ? `${codec} · ${ch}` : codec}</span>
-            </span>
-            {a.index === current ? (
-              <span className="flex flex-none text-accent">
-                <IconOk size={24} />
-              </span>
-            ) : null}
-          </button>
+            label={a.title?.trim() || langName(t, a.language) || t('player.langUnknown')}
+            sub={ch ? `${codec} · ${ch}` : codec}
+            selected={a.index === current}
+            focused={focus.index === i}
+            onActivate={() => pick(i)}
+            onFocus={focus.hover(i)}
+          />
         );
       })}
-    </div>
+    </Box>
   );
 });

@@ -1,5 +1,11 @@
 import { forwardRef, type ReactNode, useImperativeHandle } from 'react';
+import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
+import { gradient } from '../../primitives/css';
+import { Progress } from '../../primitives/Progress';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
+import { colors, fonts } from '../../tokens';
 import type { PanelHandle } from '../nav';
 import {
   SUB_COLORS,
@@ -7,10 +13,10 @@ import {
   type SubFont,
   type SubSize,
   type SubtitleAppearance,
-  subtitleCss,
+  subtitleStyle,
 } from '../subtitle-appearance';
 import { useListFocus } from '../useListFocus';
-import { rowCx, valueLabel, valueRow, valueRowOff, valueRowOn } from './panelStyle';
+import { rowStyle, valueLabel, valueRow, valueRowOff, valueRowOn } from './panelStyle';
 
 interface SubtitleAppearancePanelProps {
   appearance: SubtitleAppearance;
@@ -128,11 +134,21 @@ export const SubtitleAppearancePanel = forwardRef<PanelHandle, SubtitleAppearanc
     useImperativeHandle(ref, () => ({ onKey: focus.onKey }), [focus.onKey]);
 
     return (
-      <div>
-        <div className="mb-[18px] flex min-h-[92px] items-center justify-center rounded-[14px] border border-[rgba(255,255,255,0.06)] bg-[linear-gradient(135deg,#1c1c24,#0d0d11)] px-5 py-4 text-center">
-          <span style={subtitleCss(appearance)}>{t('player.subPreview')}</span>
-        </div>
-        <div className="flex flex-col gap-2.5">
+      <Box>
+        <Box
+          minH={92}
+          center
+          radius={14}
+          borderWidth={1}
+          border="rgba(255, 255, 255, 0.06)"
+          px={20}
+          py={16}
+          mb={18}
+          style={gradient('linear-gradient(135deg, #1c1c24, #0d0d11)')}
+        >
+          <Txt style={subtitleStyle(appearance)}>{t('player.subPreview')}</Txt>
+        </Box>
+        <Box gap={10}>
           {rows.map((r, i) => (
             <AppearanceRow
               key={r.key}
@@ -145,8 +161,8 @@ export const SubtitleAppearancePanel = forwardRef<PanelHandle, SubtitleAppearanc
               {r.control}
             </AppearanceRow>
           ))}
-        </div>
-      </div>
+        </Box>
+      </Box>
     );
   },
 );
@@ -167,25 +183,40 @@ function AppearanceRow({
   onInc: () => void;
   children: ReactNode;
 }>) {
-  const arrow = `flex-none cursor-pointer border-none bg-transparent px-1 text-[17px] leading-none text-accent ${
-    focused ? 'opacity-100' : 'opacity-40'
-  }`;
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: onMouseEnter only moves D-pad focus onto the row (hover cue, §15); the controls are the ◀ ▶ + segment/swatch/meter buttons inside.
-    <div onMouseEnter={onFocus} className={rowCx(valueRow, valueRowOn, valueRowOff, focused)}>
-      <div className="mb-[11px] flex items-center justify-between">
-        <span className={valueLabel}>{label}</span>
-        <div className="flex items-center gap-4">
-          <button type="button" aria-label="prev" onClick={onDec} className={arrow}>
-            ◀
-          </button>
-          <button type="button" aria-label="next" onClick={onInc} className={arrow}>
-            ▶
-          </button>
-        </div>
-      </div>
+    <Box
+      onPointerEnter={onFocus}
+      style={rowStyle(valueRow, valueRowOn, valueRowOff, focused)}
+    >
+      <Box row align="center" between mb={11}>
+        <Txt style={valueLabel}>{label}</Txt>
+        <Box row align="center" gap={16}>
+          <Arrow glyph="◀" label="prev" dim={!focused} onPress={onDec} />
+          <Arrow glyph="▶" label="next" dim={!focused} onPress={onInc} />
+        </Box>
+      </Box>
       {children}
-    </div>
+    </Box>
+  );
+}
+
+/** One ◀ / ▶ nudge control. Dimmed until its row holds focus, so the row that
+ * the D-pad will act on is unambiguous. */
+function Arrow({
+  glyph,
+  label,
+  dim,
+  onPress,
+}: Readonly<{ glyph: string; label: string; dim: boolean; onPress: () => void }>) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <Txt
+        style={{ fontSize: 17, lineHeight: 20, paddingHorizontal: 4, opacity: dim ? 0.4 : 1 }}
+        color="accent"
+      >
+        {glyph}
+      </Txt>
+    </Pressable>
   );
 }
 
@@ -196,58 +227,75 @@ function Seg<V extends string>({
   onPick,
 }: Readonly<{ value: V; options: { v: V; label: string }[]; onPick: (v: V) => void }>) {
   return (
-    <div className="flex gap-2">
-      {options.map((o) => (
-        <button
-          key={o.v}
-          type="button"
-          onClick={() => onPick(o.v)}
-          className={`flex-1 rounded-[9px] py-[9px] text-center font-sans font-bold text-[13px] border-none outline-none cursor-pointer transition-[background] duration-150 ease-out ${
-            o.v === value
-              ? 'bg-accent text-accent-ink'
-              : 'bg-[rgba(255,255,255,0.06)] text-[rgba(244,243,240,0.7)]'
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <Box row gap={8}>
+      {options.map((o) => {
+        const on = o.v === value;
+        return (
+          <Pressable
+            key={o.v}
+            onPress={() => onPick(o.v)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={{
+              flex: 1,
+              borderRadius: 9,
+              paddingVertical: 9,
+              alignItems: 'center',
+              backgroundColor: on ? colors.accent : 'rgba(255, 255, 255, 0.06)',
+            }}
+          >
+            <Txt
+              style={{ fontFamily: fonts.ui, fontWeight: '700', fontSize: 13 }}
+              color={on ? 'accentInk' : 'rgba(244, 243, 240, 0.7)'}
+            >
+              {o.label}
+            </Txt>
+          </Pressable>
+        );
+      })}
+    </Box>
   );
 }
 
 /** Row of 32px colour swatches (subtitle colour). */
 function Swatches({ value, onPick }: Readonly<{ value: string; onPick: (color: string) => void }>) {
   return (
-    <div className="flex gap-3.5">
+    <Box row gap={14}>
       {SUB_COLORS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          aria-label={c}
-          onClick={() => onPick(c)}
-          style={{ background: c }}
-          className={`h-8 w-8 rounded-full border-none cursor-pointer outline-none ${
-            c === value ? 'shadow-[0_0_0_2px_#F4B642]' : 'shadow-[0_0_0_1px_rgba(255,255,255,0.2)]'
-          }`}
-        />
+        <Pressable key={c} onPress={() => onPick(c)} accessibilityRole="button" accessibilityLabel={c}>
+          <Box
+            w={32}
+            h={32}
+            radius="pill"
+            bg={c}
+            style={{
+              boxShadow:
+                c === value ? '0 0 0 2px #F4B642' : '0 0 0 1px rgba(255, 255, 255, 0.2)',
+            }}
+          />
+        </Pressable>
       ))}
-    </div>
+    </Box>
   );
 }
 
 /** A read-only amber meter with a trailing percent (opacity rows). */
 function Meter({ value }: Readonly<{ value: number }>) {
   return (
-    <div className="flex items-center gap-3.5">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.14)]">
-        <div
-          className="h-full rounded-full bg-[linear-gradient(90deg,#F4B642,#FFD262)]"
-          style={{ width: `${value}%` }}
-        />
-      </div>
-      <span className="min-w-[52px] text-right font-sans font-bold text-[14px] tabular-nums text-text">
-        {value}%
-      </span>
-    </div>
+    <Box row align="center" gap={14}>
+      <Box flex>
+        <Progress value={value / 100} trackColor="rgba(255, 255, 255, 0.14)" rounded />
+      </Box>
+      <Txt style={METER_VALUE}>{`${value}%`}</Txt>
+    </Box>
   );
 }
+
+const METER_VALUE = {
+  minWidth: 52,
+  textAlign: 'right' as const,
+  fontFamily: fonts.ui,
+  fontWeight: '700' as const,
+  fontSize: 14,
+  fontVariant: ['tabular-nums' as const],
+};

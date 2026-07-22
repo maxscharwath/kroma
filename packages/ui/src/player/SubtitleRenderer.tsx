@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { type SubtitleAppearance, subtitleCss } from './subtitle-appearance';
+import { Box } from '../system/Box';
+import { Txt } from '../primitives/Text';
+import { type SubtitleAppearance, subtitleStyle } from './subtitle-appearance';
 import type { PlayerSub } from './types';
 
 /** A parsed WebVTT cue at absolute playback seconds. */
@@ -171,15 +173,22 @@ export function SubtitleRenderer({
 
   if (activeIndex == null || !text) return null;
 
-  // Positioned via inline `bottom` (a runtime value): 17% clears the control
-  // chrome when it is up, 9% hugs the frame otherwise. `pre-line` (from
-  // subtitleCss) keeps hard line breaks in multi-line cues.
+  // Positioned by percentage: 17% clears the control chrome when it is up, 9%
+  // hugs the frame otherwise. Multi-line cues keep their hard breaks, which is
+  // what <Text> does with newlines anyway.
   return (
-    <div
-      className="pointer-events-none absolute left-0 right-0 z-3 flex flex-col items-center gap-[7px] px-[8%] text-center transition-[bottom] duration-300"
-      style={{ bottom: raised ? '17%' : '9%' }}
+    <Box
+      absolute
+      left={0}
+      right={0}
+      bottom={raised ? '17%' : '9%'}
+      z={3}
+      align="center"
+      gap={7}
+      px="8%"
+      pointerEvents="none"
     >
-      <span style={subtitleCss(appearance)}>{text}</span>
-    </div>
+      <Txt style={subtitleStyle(appearance)}>{text}</Txt>
+    </Box>
   );
 }

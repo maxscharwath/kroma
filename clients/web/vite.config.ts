@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { RNW_OPTIMIZE_INCLUDE, WEB_EXTENSIONS } from '../tv-build/rnw';
 import { kromaModule } from '@kroma/module-sdk/vite';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
@@ -57,14 +58,22 @@ export default defineConfig({
     exitAfterBuild(),
   ],
   resolve: {
-    // `#web/*` → this app's src (mirrors tsconfig.base paths; Vite needs it explicitly).
-    alias: { '#web': fileURLToPath(new URL('./src', import.meta.url)) },
+    // `#web/*` → this app's src (mirrors tsconfig.base paths; Vite needs it
+    // explicitly), plus the react-native → react-native-web redirect every
+    // browser target shares (clients/tv-build/rnw.ts). This app is DOM React,
+    // but the shared player chrome it mounts comes from @kroma/ui, which is
+    // written once against React Native so it can also run on a TV.
+    alias: [
+      { find: '#web', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+      { find: /^react-native$/, replacement: 'react-native-web' },
+    ],
+    extensions: WEB_EXTENSIONS,
     // One React copy: the other clients stay on their own React, so pin this
     // bundle to a single react/react-dom (guards against "Invalid hook call").
     // `react-call` is deduped too: its callables keep a module-level store, so a
     // second copy (bundled from a module UI's own node_modules) would give the
     // Root and the `.call()` different stores and the modal would never open.
-    dedupe: ['react', 'react-dom', 'react-call'],
+    dedupe: ['react', 'react-dom', 'react-call', 'react-native-web'],
   },
   server: {
     // Allow importing TS source from the workspace packages (@kroma/ui, @kroma/core).
@@ -77,6 +86,9 @@ export default defineConfig({
     },
   },
   // Workspace packages ship raw TS source bundle them for SSR (don't externalize).
-  ssr: { noExternal: ['@kroma/ui', '@kroma/core'] },
-  optimizeDeps: { exclude: ['@kroma/ui', '@kroma/core'] },
+  ssr: { noExternal: ['@kroma/ui', '@kroma/core', 'react-native-web'] },
+  optimizeDeps: {
+    exclude: ['@kroma/ui', '@kroma/core'],
+    include: RNW_OPTIMIZE_INCLUDE,
+  },
 });

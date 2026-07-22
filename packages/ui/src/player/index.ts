@@ -16,7 +16,7 @@ export {
   type SubFont,
   type SubSize,
   type SubtitleAppearance,
-  subtitleCss,
+  subtitleStyle,
   useSubtitleAppearance,
 } from './subtitle-appearance';
 export type {

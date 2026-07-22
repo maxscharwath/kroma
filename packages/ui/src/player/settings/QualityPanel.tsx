@@ -1,9 +1,10 @@
 import { forwardRef, useImperativeHandle } from 'react';
-import { IconOk } from '../icons';
+import { Box } from '../../system/Box';
 import type { PanelHandle } from '../nav';
 import type { PlayerQuality } from '../types';
 import { useListFocus } from '../useListFocus';
-import { panelList, rowCx, selectLabel, selectRow, selectRowOff, selectRowOn } from './panelStyle';
+import { panelList } from './panelStyle';
+import { SelectRow } from './SelectRow';
 
 interface QualityPanelProps {
   qualities: PlayerQuality[];
@@ -31,23 +32,17 @@ export const QualityPanel = forwardRef<PanelHandle, QualityPanelProps>(function 
   useImperativeHandle(ref, () => ({ onKey: focus.onKey }), [focus.onKey]);
 
   return (
-    <div className={panelList}>
+    <Box style={panelList}>
       {qualities.map((q, i) => (
-        <button
+        <SelectRow
           key={q.id}
-          type="button"
-          onClick={() => pick(i)}
-          onMouseEnter={focus.hover(i)}
-          className={rowCx(selectRow, selectRowOn, selectRowOff, focus.index === i)}
-        >
-          <span className={`min-w-0 flex-1 ${selectLabel}`}>{q.label}</span>
-          {q.id === current ? (
-            <span className="flex flex-none text-accent">
-              <IconOk size={24} />
-            </span>
-          ) : null}
-        </button>
+          label={q.label}
+          selected={q.id === current}
+          focused={focus.index === i}
+          onActivate={() => pick(i)}
+          onFocus={focus.hover(i)}
+        />
       ))}
-    </div>
+    </Box>
   );
 });

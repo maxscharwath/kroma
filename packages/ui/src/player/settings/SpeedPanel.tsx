@@ -1,9 +1,10 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { IconOk } from '../icons';
+import { Box } from '../../system/Box';
 import type { PanelHandle } from '../nav';
 import { useListFocus } from '../useListFocus';
-import { panelList, rowCx, selectLabel, selectRow, selectRowOff, selectRowOn } from './panelStyle';
+import { panelList } from './panelStyle';
+import { SelectRow } from './SelectRow';
 
 /** The offered playback rates (§5). */
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
@@ -29,25 +30,17 @@ export const SpeedPanel = forwardRef<PanelHandle, SpeedPanelProps>(function Spee
   useImperativeHandle(ref, () => ({ onKey: focus.onKey }), [focus.onKey]);
 
   return (
-    <div className={panelList}>
+    <Box style={panelList}>
       {RATES.map((r, i) => (
-        <button
+        <SelectRow
           key={r}
-          type="button"
-          onClick={() => pick(i)}
-          onMouseEnter={focus.hover(i)}
-          className={rowCx(selectRow, selectRowOn, selectRowOff, focus.index === i)}
-        >
-          <span className={`min-w-0 flex-1 ${selectLabel}`}>
-            {r === 1 ? t('player.normalSpeed') : `${r}×`}
-          </span>
-          {r === rate ? (
-            <span className="flex flex-none text-accent">
-              <IconOk size={24} />
-            </span>
-          ) : null}
-        </button>
+          label={r === 1 ? t('player.normalSpeed') : `${r}×`}
+          selected={r === rate}
+          focused={focus.index === i}
+          onActivate={() => pick(i)}
+          onFocus={focus.hover(i)}
+        />
       ))}
-    </div>
+    </Box>
   );
 });

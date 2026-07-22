@@ -1,4 +1,6 @@
-import { type CSSProperties, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { TextStyle } from 'react-native';
+import { clampPct, edgeStyle } from './subtitle-edge';
 
 /**
  * Subtitle appearance (§8): size, colour, edge treatment, font and opacity, with
@@ -75,27 +77,22 @@ export function useSubtitleAppearance(): [
   return [style, update];
 }
 
-/** Compute the inline CSS for a subtitle text span from the appearance. */
-export function subtitleCss(style: SubtitleAppearance): CSSProperties {
-  const css: CSSProperties = {
+/** The text style for a subtitle line, from the viewer's appearance choice.
+ * The edge treatment is the one piece that differs per platform (see
+ * subtitle-edge.ts); everything else is one set of numbers. */
+export function subtitleStyle(style: SubtitleAppearance): TextStyle {
+  const size = SIZE_PX[style.size];
+  return {
     color: style.color,
-    fontSize: SIZE_PX[style.size],
-    fontWeight: 600,
-    lineHeight: 1.3,
+    fontSize: size,
+    fontWeight: '600',
+    // React Native needs an absolute line height, not the design's 1.3 ratio.
+    lineHeight: Math.round(size * 1.3),
     fontFamily: FONT_STACK[style.font],
-    whiteSpace: 'pre-line',
-    display: 'inline-block',
+    textAlign: 'center',
     borderRadius: 10,
     opacity: Math.max(0.2, Math.min(1, style.opacity / 100)),
-    padding: style.edge === 'box' ? '4px 16px' : undefined,
+    ...(style.edge === 'box' ? { paddingVertical: 4, paddingHorizontal: 16 } : null),
+    ...edgeStyle(style.edge, clampPct(style.bgOpacity)),
   };
-  if (style.edge === 'shadow') {
-    css.textShadow = '0 2px 10px rgba(0,0,0,.92), 0 0 3px rgba(0,0,0,.95)';
-  } else if (style.edge === 'outline') {
-    css.textShadow =
-      '-1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000, -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000, 0 2px 6px rgba(0,0,0,.7)';
-  } else if (style.edge === 'box') {
-    css.background = `rgba(0,0,0,${Math.max(0, Math.min(100, style.bgOpacity)) / 100})`;
-  }
-  return css;
 }

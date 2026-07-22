@@ -1,15 +1,25 @@
 import type { ReactNode } from 'react';
-import { FOCUS_RING_SM } from '../tw';
+import { Pressable } from 'react-native';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
+import { colors, fonts } from '../../tokens';
+import { FOCUS_SHADOW_SM } from '../style';
 
 /**
- * Presentational atoms for the {@link GenerateWizard} (kept out of the wizard so
- * each file stays small). Tailwind classes only; both the web + TV builds
- * `@source` this folder so they render identically. Focus is state-driven (§15):
- * hover calls `onFocus`, a `focused` boolean toggles the ring, never CSS :hover.
+ * Presentational atoms for the {@link GenerateWizard}, kept out of the wizard so
+ * each file stays small. Focus is state-driven (§15): a pointer entering a field
+ * calls `onFocus`, and a `focused` boolean draws the ring, never CSS :hover.
  */
 
-const CYCLE_ROW =
-  'flex items-center justify-between gap-[18px] rounded-[14px] px-[22px] py-[18px] transition-[background,box-shadow] duration-150 ease-out';
+const CYCLE_ROW = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'space-between' as const,
+  gap: 18,
+  borderRadius: 14,
+  paddingHorizontal: 22,
+  paddingVertical: 18,
+};
 
 /** A ◀ value ▶ cycle field (mode / language / quality / source picking). ▲▼ move
  * between fields, ◀▶ change the focused field's value. */
@@ -28,33 +38,58 @@ export function CycleField({
   onDec: () => void;
   onInc: () => void;
 }>) {
-  const arrow = `flex-none text-accent text-[20px] leading-none cursor-pointer bg-transparent border-none px-1 ${
-    focused ? 'opacity-100' : 'opacity-45'
-  }`;
-  const focusCls = `bg-[rgba(255,255,255,0.08)] ${FOCUS_RING_SM}`;
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: onMouseEnter only moves D-pad focus onto the field (hover cue, §15); the real controls are the ◀ ▶ buttons.
-    <div
-      onMouseEnter={onFocus}
-      className={`${CYCLE_ROW} ${focused ? focusCls : 'bg-[rgba(255,255,255,0.04)]'}`}
+    <Box
+      onPointerEnter={onFocus}
+      style={[
+        CYCLE_ROW,
+        focused
+          ? { backgroundColor: 'rgba(255, 255, 255, 0.08)', boxShadow: FOCUS_SHADOW_SM }
+          : { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
+      ]}
     >
-      <span className="font-sans font-semibold text-[17px] text-[rgba(244,243,240,0.62)]">
-        {label}
-      </span>
-      <div className="flex items-center gap-4">
-        <button type="button" aria-label="prev" onClick={onDec} className={arrow}>
-          ◀
-        </button>
-        <span className="min-w-[180px] text-center font-sans font-bold text-[19px] text-text">
-          {value}
-        </span>
-        <button type="button" aria-label="next" onClick={onInc} className={arrow}>
-          ▶
-        </button>
-      </div>
-    </div>
+      <Txt style={FIELD_LABEL}>{label}</Txt>
+      <Box row align="center" gap={16}>
+        <CycleArrow glyph="◀" label="prev" dim={!focused} onPress={onDec} />
+        <Txt style={FIELD_VALUE}>{value}</Txt>
+        <CycleArrow glyph="▶" label="next" dim={!focused} onPress={onInc} />
+      </Box>
+    </Box>
   );
 }
+
+function CycleArrow({
+  glyph,
+  label,
+  dim,
+  onPress,
+}: Readonly<{ glyph: string; label: string; dim: boolean; onPress: () => void }>) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <Txt
+        style={{ fontSize: 20, lineHeight: 22, paddingHorizontal: 4, opacity: dim ? 0.45 : 1 }}
+        color="accent"
+      >
+        {glyph}
+      </Txt>
+    </Pressable>
+  );
+}
+
+const FIELD_LABEL = {
+  fontFamily: fonts.ui,
+  fontWeight: '600' as const,
+  fontSize: 17,
+  color: 'rgba(244, 243, 240, 0.62)',
+};
+
+const FIELD_VALUE = {
+  minWidth: 180,
+  textAlign: 'center' as const,
+  fontFamily: fonts.ui,
+  fontWeight: '700' as const,
+  fontSize: 19,
+};
 
 /** The full-width wizard action button (amber when focused). */
 export function ActionButton({
@@ -62,31 +97,57 @@ export function ActionButton({
   focused,
   disabled,
   onFocus,
-  onClick,
+  onPress,
   children,
 }: Readonly<{
   label: string;
   focused: boolean;
   disabled?: boolean;
   onFocus: () => void;
-  onClick: () => void;
+  onPress: () => void;
   children?: ReactNode;
 }>) {
-  let tone: string;
-  if (disabled)
-    tone = 'bg-[rgba(255,255,255,0.08)] text-[rgba(244,243,240,0.4)] cursor-not-allowed';
-  else if (focused) tone = `bg-accent text-accent-ink ${FOCUS_RING_SM} cursor-pointer`;
-  else tone = 'bg-[rgba(255,255,255,0.08)] text-text cursor-pointer';
+  const tone = actionTone(Boolean(disabled), focused);
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      onPointerEnter={onFocus}
       disabled={disabled}
-      onMouseEnter={onFocus}
-      className={`mt-1 flex w-full items-center justify-center gap-2.5 rounded-[14px] py-[18px] font-sans font-bold text-[18px] border-none outline-none transition-[background,box-shadow] duration-150 ease-out ${tone}`}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[ACTION, tone.box]}
     >
       {children}
-      {label}
-    </button>
+      <Txt style={{ fontFamily: fonts.ui, fontWeight: '700', fontSize: 18 }} color={tone.ink}>
+        {label}
+      </Txt>
+    </Pressable>
   );
 }
+
+function actionTone(disabled: boolean, focused: boolean) {
+  if (disabled) {
+    return {
+      box: { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+      ink: 'rgba(244, 243, 240, 0.4)',
+    };
+  }
+  if (focused) {
+    return {
+      box: { backgroundColor: colors.accent, boxShadow: FOCUS_SHADOW_SM },
+      ink: colors.accentInk,
+    };
+  }
+  return { box: { backgroundColor: 'rgba(255, 255, 255, 0.08)' }, ink: colors.text };
+}
+
+const ACTION = {
+  marginTop: 4,
+  width: '100%' as const,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  gap: 10,
+  borderRadius: 14,
+  paddingVertical: 18,
+};

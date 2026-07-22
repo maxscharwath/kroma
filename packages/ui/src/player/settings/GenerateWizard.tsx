@@ -1,10 +1,15 @@
 import type { GenQuality, SubCapabilities } from '@kroma/core';
 import { GEN_LANGS, GEN_QUALITIES } from '@kroma/core';
 import { forwardRef, useImperativeHandle, useState } from 'react';
+import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
+import { gradient } from '../../primitives/css';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
+import { colors } from '../../tokens';
 import { IconAi, IconClose } from '../icons';
 import type { PanelHandle } from '../nav';
-import { FOCUS_RING_SM } from '../tw';
+import { FOCUS_SHADOW_SM } from '../style';
 import type { PlayerSub } from '../types';
 import { useListFocus } from '../useListFocus';
 import type { SubtitleGenRequest } from './gen';
@@ -106,44 +111,50 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
   const noSource = mode === 'translate' && sources.length === 0;
 
   return (
-    <div className="rounded-[20px] border border-[rgba(124,92,255,0.34)] bg-[linear-gradient(180deg,rgba(124,92,255,0.1),rgba(124,92,255,0.02))] p-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <h3 className="m-0 font-display font-bold text-[24px] text-text">
+    <Box
+      radius={20}
+      borderWidth={1}
+      border="rgba(124, 92, 255, 0.34)"
+      p={32}
+      style={gradient('linear-gradient(180deg, rgba(124,92,255,0.1), rgba(124,92,255,0.02))')}
+    >
+      <Box row align="center" between gap={16} mb={24}>
+        <Txt variant="h2" style={{ fontSize: 24 }}>
           {t('player.subGenerate')}
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t('player.subGenClose')}
-          className="flex flex-none h-9 w-9 items-center justify-center rounded-full border-none cursor-pointer text-text bg-[rgba(255,255,255,0.1)]"
-        >
-          <IconClose size={17} />
-        </button>
-      </div>
+        </Txt>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('player.subGenClose')}>
+          <Box w={36} h={36} shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.1)">
+            <IconClose size={17} />
+          </Box>
+        </Pressable>
+      </Box>
 
-      {/* mode tabs (index 0): ◀▶ toggles, click picks directly. */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: onMouseEnter only moves D-pad focus onto the tab group (hover cue, §15); the real controls are the <button> tabs inside. */}
-      <div
-        onMouseEnter={focus.hover(0)}
-        className={`mb-3.5 flex gap-2.5 rounded-[14px] ${focus.index === 0 ? FOCUS_RING_SM : ''}`}
+      {/* mode tabs (index 0): ◀▶ toggles, a press picks directly. */}
+      <Box
+        row
+        gap={10}
+        mb={14}
+        radius={14}
+        onPointerEnter={focus.hover(0)}
+        style={focus.index === 0 ? { boxShadow: FOCUS_SHADOW_SM } : null}
       >
         <ModeTab
           on={mode === 'transcribe'}
           enabled={Boolean(caps?.transcribe)}
           label={t('player.subModeTranscribe')}
           hint={t('player.subModeTranscribeHint')}
-          onClick={() => caps?.transcribe && setMode('transcribe')}
+          onPress={() => caps?.transcribe && setMode('transcribe')}
         />
         <ModeTab
           on={mode === 'translate'}
           enabled={Boolean(caps?.translate)}
           label={t('player.subModeTranslate')}
           hint={t('player.subModeTranslateHint')}
-          onClick={() => caps?.translate && setMode('translate')}
+          onPress={() => caps?.translate && setMode('translate')}
         />
-      </div>
+      </Box>
 
-      <div className="flex flex-col gap-3">
+      <Box gap={12}>
         {mode === 'translate' && curSource != null ? (
           <CycleField
             label={t('player.subSource')}
@@ -155,7 +166,7 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
           />
         ) : null}
         {mode === 'translate' && curSource == null ? (
-          <div className={panelEmpty}>{t('player.subNoSource')}</div>
+          <Txt style={panelEmpty}>{t('player.subNoSource')}</Txt>
         ) : null}
         {mode === 'transcribe' ? (
           <>
@@ -177,24 +188,33 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
             />
           </>
         ) : null}
-      </div>
+      </Box>
 
-      <p className="mx-0.5 mb-1 mt-3 font-sans font-medium text-[14px] leading-relaxed text-[rgba(244,243,240,0.4)]">
+      <Txt style={BACKGROUND_HINT} color="rgba(244, 243, 240, 0.4)">
         {t('player.subGenBackground')}
-      </p>
+      </Txt>
 
       <ActionButton
         label={t('player.subGenStart')}
         focused={focus.index === at('start')}
         disabled={noSource}
         onFocus={focus.hover(at('start'))}
-        onClick={start}
+        onPress={start}
       >
         <IconAi size={18} />
       </ActionButton>
-    </div>
+    </Box>
   );
 });
+
+const BACKGROUND_HINT = {
+  marginHorizontal: 2,
+  marginTop: 12,
+  marginBottom: 4,
+  fontWeight: '500' as const,
+  fontSize: 14,
+  lineHeight: 22,
+};
 
 /** One mode tab (transcribe / translate) with its hint line. */
 function ModeTab({
@@ -202,22 +222,37 @@ function ModeTab({
   enabled,
   label,
   hint,
-  onClick,
-}: Readonly<{ on: boolean; enabled: boolean; label: string; hint: string; onClick: () => void }>) {
-  let tone: string;
-  if (!enabled)
-    tone = 'bg-[rgba(255,255,255,0.04)] text-[rgba(244,243,240,0.4)] cursor-not-allowed';
-  else if (on) tone = 'bg-accent text-accent-ink cursor-pointer';
-  else tone = 'bg-[rgba(255,255,255,0.05)] text-[rgba(244,243,240,0.75)] cursor-pointer';
+  onPress,
+}: Readonly<{ on: boolean; enabled: boolean; label: string; hint: string; onPress: () => void }>) {
+  const tone = modeTone(enabled, on);
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Pressable
+      onPress={enabled ? onPress : undefined}
       disabled={!enabled}
-      className={`flex-1 rounded-[12px] px-[18px] py-3.5 text-left border-none outline-none transition-[background] duration-150 ease-out ${tone}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: on, disabled: !enabled }}
+      style={[{ flex: 1, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 14 }, tone.box]}
     >
-      <div className="font-sans font-bold text-[16px]">{label}</div>
-      <div className="font-sans text-[12px] opacity-75">{hint}</div>
-    </button>
+      <Txt style={{ fontWeight: '700', fontSize: 16 }} color={tone.ink}>
+        {label}
+      </Txt>
+      <Txt style={{ fontSize: 12, opacity: 0.75 }} color={tone.ink}>
+        {hint}
+      </Txt>
+    </Pressable>
   );
+}
+
+function modeTone(enabled: boolean, on: boolean) {
+  if (!enabled) {
+    return {
+      box: { backgroundColor: 'rgba(255, 255, 255, 0.04)' },
+      ink: 'rgba(244, 243, 240, 0.4)',
+    };
+  }
+  if (on) return { box: { backgroundColor: colors.accent }, ink: colors.accentInk };
+  return {
+    box: { backgroundColor: 'rgba(255, 255, 255, 0.05)' },
+    ink: 'rgba(244, 243, 240, 0.75)',
+  };
 }

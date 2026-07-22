@@ -9,10 +9,13 @@
 // (px-9, gap-2.75, text-[19px]) rather than pretending they sit on a 4pt grid.
 // Only the values that ARE tokens (colour, radius, elevation) take token names.
 
-import type { ViewStyle } from 'react-native';
+import type { DimensionValue, ViewStyle } from 'react-native';
 import { absoluteFill, type ColorToken, colors, radius, shadow } from '../tokens';
 
-export type Spacing = number;
+/** A length. Numbers are px on the 1920x1080 design canvas; percentage strings
+ * are allowed because a few places in the design genuinely are relative (the
+ * subtitle line sits at 17% of the frame, not at a fixed offset). */
+export type Spacing = DimensionValue;
 export type Align = ViewStyle['alignItems'];
 export type Justify = ViewStyle['justifyContent'];
 
@@ -49,10 +52,10 @@ export interface BoxStyleProps {
   /** Stretch to the positioned parent (absolute, inset 0). */
   fill?: boolean;
   absolute?: boolean;
-  top?: number;
-  right?: number;
-  bottom?: number;
-  left?: number;
+  top?: DimensionValue;
+  right?: DimensionValue;
+  bottom?: DimensionValue;
+  left?: DimensionValue;
   z?: number;
 
   // ---- spacing ----
@@ -157,13 +160,13 @@ export function boxStyle(p: Readonly<BoxStyleProps>): ViewStyle {
 function putEdges(
   out: Record<string, unknown>,
   prefix: 'padding' | 'margin',
-  all?: number,
-  x?: number,
-  y?: number,
-  top?: number,
-  right?: number,
-  bottom?: number,
-  left?: number,
+  all?: Spacing,
+  x?: Spacing,
+  y?: Spacing,
+  top?: Spacing,
+  right?: Spacing,
+  bottom?: Spacing,
+  left?: Spacing,
 ): void {
   const t = top ?? y ?? all;
   const r = right ?? x ?? all;

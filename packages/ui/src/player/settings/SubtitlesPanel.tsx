@@ -1,22 +1,20 @@
 import type { RemoteKey, SubtitleGeneration } from '@kroma/core';
 import { langName, subtitleEtaTime, subtitleStageKey } from '@kroma/core';
-import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
-import { IconAi, IconDelete, IconOk } from '../icons';
+import { Progress } from '../../primitives/Progress';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
+import { fonts } from '../../tokens';
+import { IconAi, IconDelete } from '../icons';
 import type { PanelHandle } from '../nav';
 import type { PlayerSub } from '../types';
 import { useListFocus } from '../useListFocus';
 import { GenerateWizard } from './GenerateWizard';
 import type { SubtitleGenBundle } from './gen';
-import {
-  panelList,
-  rowCx,
-  selectLabel,
-  selectRow,
-  selectRowOff,
-  selectRowOn,
-  selectSub,
-} from './panelStyle';
+import { panelList } from './panelStyle';
+import { SelectRow } from './SelectRow';
 
 interface SubtitlesPanelProps {
   subs: PlayerSub[];
@@ -25,10 +23,6 @@ interface SubtitlesPanelProps {
   gen: SubtitleGenBundle;
   onBack: () => void;
 }
-
-/** Violet "IA" pill shown on generated tracks / generation rows. */
-const AI_BADGE =
-  'inline-flex flex-none items-center gap-1 rounded-[5px] bg-[rgba(124,92,255,0.18)] px-1.5 py-0.5 font-sans font-bold text-[10px] text-[#B7A6FF]';
 
 /**
  * Subtitle picker (§5): an "Off" row, the embedded / downloaded tracks (AI tracks
@@ -76,58 +70,60 @@ export const SubtitlesPanel = forwardRef<PanelHandle, SubtitlesPanelProps>(funct
   );
 
   return (
-    <div>
-      <div className={panelList}>
-        <Row
+    <Box>
+      <Box style={panelList}>
+        <SelectRow
           label={t('player.subtitlesOff')}
-          active={current == null}
+          selected={current == null}
           focused={focus.index === 0}
           onActivate={() => activate(0)}
           onFocus={focus.hover(0)}
         />
         {subs.map((s, i) => {
           const codec = s.codec.toUpperCase();
+          // A picture sub cannot be rendered as text, so its row is inert and
+          // reads as such rather than being hidden (the track does exist).
           const row = (
-            <Row
-              key={s.index}
-              label={s.ai && s.label ? s.label : langName(t, s.language) || t('player.langUnknown')}
-              sub={s.selectable ? codec : `${codec} · ${t('player.pictureSub')}`}
-              badge={s.ai ? <AiBadge /> : null}
-              active={current === s.index}
-              disabled={!s.selectable}
-              focused={focus.index === i + 1}
-              onActivate={() => activate(i + 1)}
-              onFocus={focus.hover(i + 1)}
-            />
+            <Box flex={s.ai && s.subId ? 1 : undefined} style={{ minWidth: 0 }} opacity={s.selectable ? 1 : 0.4}>
+              <SelectRow
+                label={s.ai && s.label ? s.label : langName(t, s.language) || t('player.langUnknown')}
+                sub={s.selectable ? codec : `${codec} · ${t('player.pictureSub')}`}
+                trailing={s.ai ? <AiBadge /> : null}
+                selected={current === s.index}
+                focused={focus.index === i + 1}
+                onActivate={() => (s.selectable ? activate(i + 1) : undefined)}
+                onFocus={focus.hover(i + 1)}
+              />
+            </Box>
           );
           return s.ai && s.subId ? (
-            <div key={s.index} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">{row}</div>
+            <Box key={s.index} row align="center" gap={8}>
+              {row}
               <TrashButton
                 label={t('player.subGenDelete')}
-                onClick={() => gen.onDelete(s.subId as string)}
+                onPress={() => gen.onDelete(s.subId as string)}
               />
-            </div>
+            </Box>
           ) : (
-            <div key={s.index}>{row}</div>
+            <Box key={s.index}>{row}</Box>
           );
         })}
         {gen.pending.map((g) => (
           <GenRow key={g.id} gen={g} onCancel={() => gen.onCancel(g.id)} />
         ))}
         {gen.canCreate && !wizardOpen ? (
-          <Row
-            icon={<IconAi size={22} />}
+          <SelectRow
+            leading={<IconAi size={22} />}
             label={t('player.subCreateMissing')}
             focused={focus.index === createIndex}
             onActivate={() => setWizardOpen(true)}
             onFocus={focus.hover(createIndex)}
           />
         ) : null}
-      </div>
+      </Box>
 
       {gen.canCreate && wizardOpen ? (
-        <div className="mt-3">
+        <Box mt={12}>
           <GenerateWizard
             ref={wizardRef}
             caps={gen.caps}
@@ -135,80 +131,32 @@ export const SubtitlesPanel = forwardRef<PanelHandle, SubtitlesPanelProps>(funct
             onStart={gen.onStart}
             onClose={() => setWizardOpen(false)}
           />
-        </div>
+        </Box>
       ) : null}
-    </div>
+    </Box>
   );
 });
 
-/** A subtitle list row: optional leading icon, label (+ sub-line), optional
- * badge, an accent check when active. Rendered as a real button (focus/OK). */
-function Row({
-  icon,
-  label,
-  sub,
-  badge,
-  active,
-  disabled,
-  focused,
-  onActivate,
-  onFocus,
-}: Readonly<{
-  icon?: ReactNode;
-  label: string;
-  sub?: string;
-  badge?: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  focused: boolean;
-  onActivate: () => void;
-  onFocus: () => void;
-}>) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onActivate}
-      onMouseEnter={onFocus}
-      className={`${rowCx(selectRow, selectRowOn, selectRowOff, focused)} ${
-        disabled ? 'opacity-40 cursor-not-allowed' : ''
-      }`}
-    >
-      {icon ? <span className="flex flex-none text-text">{icon}</span> : null}
-      <span className="min-w-0 flex-1">
-        <span className={`block truncate ${selectLabel}`}>{label}</span>
-        {sub ? <span className={`block ${selectSub}`}>{sub}</span> : null}
-      </span>
-      {badge}
-      {active ? (
-        <span className="flex flex-none text-accent">
-          <IconOk size={24} />
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
+/** Violet "IA" pill shown on generated tracks / generation rows. */
 function AiBadge() {
   return (
-    <span className={AI_BADGE}>
-      <IconAi size={11} />
-      IA
-    </span>
+    <Box row align="center" gap={4} shrink={0} radius={5} px={6} py={2} bg="rgba(124, 92, 255, 0.18)">
+      <IconAi size={11} color="#B7A6FF" />
+      <Txt style={{ fontFamily: fonts.ui, fontWeight: '700', fontSize: 10, color: '#B7A6FF' }}>
+        IA
+      </Txt>
+    </Box>
   );
 }
 
 /** Small trash control beside a deletable AI track / generation row. */
-function TrashButton({ label, onClick }: Readonly<{ label: string; onClick: () => void }>) {
+function TrashButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="flex flex-none h-9 w-9 items-center justify-center rounded-md border-none cursor-pointer text-[rgba(255,255,255,0.5)] bg-[rgba(255,255,255,0.04)]"
-    >
-      <IconDelete size={16} />
-    </button>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+      <Box w={36} h={36} shrink={0} center radius="md" bg="rgba(255, 255, 255, 0.04)">
+        <IconDelete size={16} color="rgba(255, 255, 255, 0.5)" />
+      </Box>
+    </Pressable>
   );
 }
 
@@ -220,41 +168,53 @@ function GenRow({ gen, onCancel }: Readonly<{ gen: SubtitleGeneration; onCancel:
   const err = gen.status === 'error';
   const engine = gen.mode === 'translate' ? t('player.subAiBadge') : 'Whisper';
   return (
-    <div className="rounded-[14px] border border-[rgba(124,92,255,0.4)] bg-[rgba(124,92,255,0.06)] p-4">
-      <div className="flex items-center gap-3.5">
-        <span className="min-w-0 flex-1 font-sans font-semibold text-[16px] text-text">
+    <Box radius={14} borderWidth={1} border="rgba(124, 92, 255, 0.4)" bg="rgba(124, 92, 255, 0.06)" p={16}>
+      <Box row align="center" gap={14}>
+        <Txt style={{ flex: 1, fontFamily: fonts.ui, fontWeight: '600', fontSize: 16 }}>
           {gen.lang ?? ''}
-        </span>
+        </Txt>
         <AiBadge />
-        <TrashButton label={t('player.subGenCancel')} onClick={onCancel} />
-      </div>
-      <div className="mt-2 flex items-center justify-between font-sans text-[13px]">
-        <span
-          title={err ? (gen.error ?? undefined) : undefined}
-          className={`flex items-center gap-2 ${err ? 'text-[#e8536a]' : 'text-[#9a8ff0]'}`}
-        >
-          {!err ? <span className="h-1.5 w-1.5 rounded-full bg-[#8b7ff0]" /> : null}
-          {err
-            ? (gen.error ?? t(subtitleStageKey(gen.stage)))
-            : `${engine} · ${t(subtitleStageKey(gen.stage))}`}
-        </span>
-        <span className="font-bold text-[#b3a9f5] tabular-nums">{err ? '' : `${pct} %`}</span>
-      </div>
+        <TrashButton label={t('player.subGenCancel')} onPress={onCancel} />
+      </Box>
+      <Box row align="center" between mt={8}>
+        <Box row align="center" gap={8}>
+          {!err ? <Box w={6} h={6} radius="pill" bg="#8B7FF0" /> : null}
+          <Txt style={{ fontFamily: fonts.ui, fontSize: 13 }} color={err ? '#E8536A' : '#9A8FF0'}>
+            {err
+              ? (gen.error ?? t(subtitleStageKey(gen.stage)))
+              : `${engine} · ${t(subtitleStageKey(gen.stage))}`}
+          </Txt>
+        </Box>
+        <Txt style={PCT} color="#B3A9F5">
+          {err ? '' : `${pct} %`}
+        </Txt>
+      </Box>
       {!err ? (
         <>
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.1)]">
-            <div
-              className="h-full rounded-full bg-[#7c6ff5] transition-[width] duration-500"
-              style={{ width: `${pct}%` }}
+          <Box mt={6}>
+            <Progress
+              value={gen.progress}
+              color="#7C6FF5"
+              trackColor="rgba(255, 255, 255, 0.1)"
+              rounded
             />
-          </div>
+          </Box>
           {gen.etaSec != null ? (
-            <div className="mt-1.5 font-sans text-[12px] text-[rgba(255,255,255,0.4)]">
+            <Txt style={ETA} color="rgba(255, 255, 255, 0.4)">
               {t('player.subEta', { time: subtitleEtaTime(gen.etaSec) })}
-            </div>
+            </Txt>
           ) : null}
         </>
       ) : null}
-    </div>
+    </Box>
   );
 }
+
+const PCT = {
+  fontFamily: fonts.ui,
+  fontSize: 13,
+  fontWeight: '700' as const,
+  fontVariant: ['tabular-nums' as const],
+};
+
+const ETA = { fontFamily: fonts.ui, fontSize: 12, marginTop: 6 };

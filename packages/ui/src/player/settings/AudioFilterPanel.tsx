@@ -1,18 +1,12 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { IconOk } from '../icons';
+import { Txt } from '../../primitives/Text';
+import { Box } from '../../system/Box';
 import type { PanelHandle } from '../nav';
 import type { AudioFilterMode } from '../types';
 import { useListFocus } from '../useListFocus';
-import {
-  panelHint,
-  panelList,
-  rowCx,
-  selectLabel,
-  selectRow,
-  selectRowOff,
-  selectRowOn,
-} from './panelStyle';
+import { panelHint, panelList } from './panelStyle';
+import { SelectRow } from './SelectRow';
 
 interface AudioFilterPanelProps {
   value: AudioFilterMode;
@@ -41,27 +35,21 @@ export const AudioFilterPanel = forwardRef<PanelHandle, AudioFilterPanelProps>(
     useImperativeHandle(ref, () => ({ onKey: focus.onKey }), [focus.onKey]);
 
     return (
-      <div>
-        <div className={panelList}>
+      <Box>
+        <Box style={panelList}>
           {MODES.map((m, i) => (
-            <button
+            <SelectRow
               key={m}
-              type="button"
-              onClick={() => pick(i)}
-              onMouseEnter={focus.hover(i)}
-              className={rowCx(selectRow, selectRowOn, selectRowOff, focus.index === i)}
-            >
-              <span className={`min-w-0 flex-1 ${selectLabel}`}>{labels[m]}</span>
-              {m === value ? (
-                <span className="flex flex-none text-accent">
-                  <IconOk size={24} />
-                </span>
-              ) : null}
-            </button>
+              label={labels[m]}
+              selected={m === value}
+              focused={focus.index === i}
+              onActivate={() => pick(i)}
+              onFocus={focus.hover(i)}
+            />
           ))}
-        </div>
-        <p className={panelHint}>{t('player.audioFilterHint')}</p>
-      </div>
+        </Box>
+        <Txt style={panelHint}>{t('player.audioFilterHint')}</Txt>
+      </Box>
     );
   },
 );

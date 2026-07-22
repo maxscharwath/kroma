@@ -1,25 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { FOCUS_RING_SM } from '../tw';
-import { menuRowOn, rowCx, selectRowOff, selectRowOn } from './panelStyle';
+import { FOCUS_SHADOW_SM } from '../style';
+import { menuRowOn, rowStyle, selectRowOff, selectRowOn } from './panelStyle';
 
-describe('rowCx', () => {
-  it('appends the ON classes when focused', () => {
-    expect(rowCx('base', 'on', 'off', true)).toBe('base on');
+describe('rowStyle', () => {
+  it('picks the ON style when focused', () => {
+    expect(rowStyle({ gap: 1 }, { opacity: 1 }, { opacity: 0 }, true)).toEqual([
+      { gap: 1 },
+      { opacity: 1 },
+    ]);
   });
 
-  it('appends the OFF classes when not focused', () => {
-    expect(rowCx('base', 'on', 'off', false)).toBe('base off');
+  it('picks the OFF style when not focused', () => {
+    expect(rowStyle({ gap: 1 }, { opacity: 1 }, { opacity: 0 }, false)).toEqual([
+      { gap: 1 },
+      { opacity: 0 },
+    ]);
   });
 });
 
-describe('focus-state class atoms', () => {
+describe('focus-state style atoms', () => {
   it('bakes the shared small focus ring into every ON row', () => {
-    expect(selectRowOn).toContain(FOCUS_RING_SM);
-    expect(menuRowOn).toContain(FOCUS_RING_SM);
+    expect(selectRowOn.boxShadow).toBe(FOCUS_SHADOW_SM);
+    expect(menuRowOn.boxShadow).toBe(FOCUS_SHADOW_SM);
   });
 
-  it('keeps OFF rows transparent (no ring)', () => {
-    expect(selectRowOff).toBe('bg-transparent');
-    expect(selectRowOff).not.toContain(FOCUS_RING_SM);
+  it('keeps OFF rows transparent, with no ring', () => {
+    expect(selectRowOff).toEqual({ backgroundColor: 'transparent' });
+    expect(selectRowOff.boxShadow).toBeUndefined();
   });
 });

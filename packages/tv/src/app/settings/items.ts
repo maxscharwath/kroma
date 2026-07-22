@@ -17,12 +17,12 @@
 //  - account : synced to the signed-in account by the server
 
 import type { MessageKey } from '@kroma/core';
-import type { ComponentType } from 'react';
+import type { IconName } from '@kroma/ui/kit';
 
 export type SettingsLevel = 'device' | 'shell' | 'account';
 
-/** Icon component slot (any @tabler icon fits). */
-export type RowIcon = ComponentType<{ size?: string | number; stroke?: string | number }>;
+/** Icon slot: a name from the kit's generated glyph set (see its registry). */
+export type RowIcon = IconName;
 
 /** Trailing status badge (the PIN row's On, a toggle's Off...). */
 export interface RowBadge {

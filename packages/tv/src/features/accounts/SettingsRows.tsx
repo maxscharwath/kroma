@@ -1,4 +1,5 @@
 import { useT } from '@kroma/ui';
+import { Txt } from '@kroma/ui/kit';
 import type {
   ActionItem,
   ChoiceItem,
@@ -32,13 +33,12 @@ export function SettingsRows({ items }: Readonly<{ items: readonly SettingsEntry
 function Badge({ badge }: Readonly<{ badge: RowBadge }>) {
   const t = useT();
   return (
-    <span
-      className={`font-sans text-[15px] font-semibold ${
-        badge.tone === 'success' ? 'text-success' : 'text-dim'
-      }`}
+    <Txt
+      style={{ fontSize: 15, fontWeight: '600' }}
+      color={badge.tone === 'success' ? 'success' : 'textDim'}
     >
       {t(badge.label)}
-    </span>
+    </Txt>
   );
 }
 
@@ -51,12 +51,11 @@ function ChoiceRow({ item }: Readonly<{ item: ChoiceItem }>) {
     const next = options[(options.indexOf(value) + 1) % options.length];
     if (next) set(next);
   };
-  const Icon = item.icon;
   return (
-    <MenuRow icon={<Icon size={22} stroke={1.7} />} label={t(item.label)} onAct={cycle}>
-      <span className="font-sans text-[16px] font-semibold text-accent">
+    <MenuRow icon={item.icon} label={t(item.label)} onAct={cycle}>
+      <Txt style={{ fontSize: 16, fontWeight: '600' }} color="accent">
         {t(item.valueLabel(value))}
-      </span>
+      </Txt>
     </MenuRow>
   );
 }
@@ -64,9 +63,8 @@ function ChoiceRow({ item }: Readonly<{ item: ChoiceItem }>) {
 function ToggleRow({ item }: Readonly<{ item: ToggleItem }>) {
   const t = useT();
   const [on, set] = item.use();
-  const Icon = item.icon;
   return (
-    <MenuRow icon={<Icon size={22} stroke={1.7} />} label={t(item.label)} onAct={() => set(!on)}>
+    <MenuRow icon={item.icon} label={t(item.label)} onAct={() => set(!on)}>
       <Badge
         badge={{ label: on ? 'profileMenu.on' : 'profileMenu.off', tone: on ? 'success' : 'dim' }}
       />
@@ -76,9 +74,8 @@ function ToggleRow({ item }: Readonly<{ item: ToggleItem }>) {
 
 function ActionRow({ item }: Readonly<{ item: ActionItem }>) {
   const t = useT();
-  const Icon = item.icon;
   return (
-    <MenuRow icon={<Icon size={22} stroke={1.7} />} label={t(item.label)} onAct={item.run}>
+    <MenuRow icon={item.icon} label={t(item.label)} onAct={item.run}>
       {item.badge ? <Badge badge={item.badge} /> : undefined}
     </MenuRow>
   );

@@ -8,7 +8,6 @@
 
 import { LOCALES } from '@kroma/core';
 import { useLocale, useSetLocale } from '@kroma/ui';
-import { IconCpu, IconKeyboard, IconLanguage, IconMovie, IconPower } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { canQuitApp, quitApp } from '#tv/app/appQuit';
 import { getGpuRendering, gpuToggleAvailable, setGpuRendering } from '#tv/app/desktopGpu';
@@ -27,7 +26,7 @@ export const localeSetting: SettingsItem = choiceItem({
   id: 'locale',
   level: 'account',
   label: 'common.language',
-  icon: IconLanguage,
+  icon: 'language',
   options: () => LOCALES.map((l) => l.code),
   // The find can't miss: options() only offers LOCALES codes.
   valueLabel: (code) => LOCALES.find((l) => l.code === code)?.labelKey ?? 'common.language',
@@ -39,7 +38,7 @@ export const keyboardLayoutSetting: SettingsItem = choiceItem({
   id: 'keyboardLayout',
   level: 'device',
   label: 'keyboardLayout.title',
-  icon: IconKeyboard,
+  icon: 'keyboard',
   options: () => ALL_KEYBOARD_LAYOUTS,
   valueLabel: (v) => KEYBOARD_LAYOUT_LABEL_KEY[v],
   use: () => useStoredPref(keyboardLayoutStore),
@@ -51,7 +50,7 @@ export const engineSetting: SettingsItem = choiceItem({
   id: 'playbackEngine',
   level: 'device',
   label: 'playbackEngine.title',
-  icon: IconMovie,
+  icon: 'movie',
   options: availableEngines,
   valueLabel: (v) => ENGINE_LABEL_KEY[v],
   use: () => useStoredPref(enginePrefStore),
@@ -63,7 +62,7 @@ export const gpuRenderingSetting: SettingsItem = toggleItem({
   id: 'gpuRendering',
   level: 'shell',
   label: 'profileMenu.gpuRendering',
-  icon: IconCpu,
+  icon: 'cpu',
   available: gpuToggleAvailable,
   use: () => {
     const [on, setOn] = useState(false);
@@ -82,7 +81,7 @@ export const gpuRenderingSetting: SettingsItem = toggleItem({
 export const quitAppItem: SettingsItem = actionItem({
   id: 'quitApp',
   label: 'profileMenu.quitApp',
-  icon: IconPower,
+  icon: 'power',
   available: canQuitApp,
   run: quitApp,
 });

@@ -28,6 +28,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // jsdom only provides localStorage on a real origin: on the default
+    // about:blank the origin is opaque and the property is undefined, which is
+    // what broke the stored-preference tests.
+    environmentOptions: { jsdom: { url: 'http://localhost/' } },
     include: [
       'packages/*/src/**/*.test.ts',
       'packages/*/src/**/*.test.tsx',

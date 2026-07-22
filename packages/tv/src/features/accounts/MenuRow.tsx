@@ -1,8 +1,5 @@
-import { IconChevronRight } from '@tabler/icons-react';
+import { Box, Focusable, Icon, type IconName, Txt } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
-
-const MENU_ROW =
-  'flex w-full items-center gap-4 rounded-[15px] border border-border bg-[rgba(255,255,255,0.03)] px-5 py-4 text-left outline-none transition-transform focus:scale-[1.02] focus:border-accent';
 
 /** One focusable settings row (icon + label + trailing value or chevron),
  * shared by the profile menu and the signed-out device-settings screen. */
@@ -12,18 +9,40 @@ export function MenuRow({
   onAct,
   children,
 }: Readonly<{
-  icon: ReactNode;
+  icon: IconName;
   label: string;
   onAct: () => void;
   children?: ReactNode;
 }>) {
   return (
-    <button data-focus="" type="button" onClick={onAct} className={MENU_ROW}>
-      <span className="flex h-10.5 w-10.5 flex-none items-center justify-center rounded-xl bg-[rgba(255,255,255,0.06)] text-muted">
-        {icon}
-      </span>
-      <span className="flex-1 font-sans text-[18px] font-bold text-text">{label}</span>
-      {children ?? <IconChevronRight size={20} className="text-dim" />}
-    </button>
+    <Focusable
+      onPress={onAct}
+      label={label}
+      focusScale={1.02}
+      ring={false}
+      style={ROW}
+      focusedStyle={FOCUSED}
+    >
+      <Box w={42} h={42} shrink={0} center radius="xl" bg="rgba(255, 255, 255, 0.06)">
+        <Icon name={icon} size={20} color="textMuted" />
+      </Box>
+      <Txt style={{ flex: 1, fontSize: 18, fontWeight: '700' }}>{label}</Txt>
+      {children ?? <Icon name="chevron-right" size={20} color="textDim" />}
+    </Focusable>
   );
 }
+
+const ROW = {
+  width: '100%' as const,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 16,
+  borderRadius: 15,
+  borderWidth: 1,
+  borderColor: 'rgba(255, 255, 255, 0.08)',
+  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  paddingHorizontal: 20,
+  paddingVertical: 16,
+};
+
+const FOCUSED = { borderColor: '#F4B642' };

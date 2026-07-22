@@ -1,4 +1,5 @@
 import type { KromaClient, MediaItem, Show, StoredSession } from '@kroma/core';
+import { Box } from '@kroma/ui/kit';
 import {
   type ComponentType,
   createContext,
@@ -251,7 +252,7 @@ export function TvOutlet() {
   // this is invisible for all of browse.
   return (
     <main>
-      <Suspense fallback={<div className="fixed inset-0 bg-bg" />}>
+      <Suspense fallback={<Box fill bg="bg" />}>
         <Screen key={key} />
       </Suspense>
     </main>

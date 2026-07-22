@@ -6,8 +6,6 @@ import { actionItem, choiceItem, type SettingsEntry, toggleItem } from '#tv/app/
 import { reactivePref, useStoredPref } from '#tv/app/settings/store';
 import { SettingsRows } from './SettingsRows';
 
-const Ic = () => null;
-
 function show(items: readonly SettingsEntry[]) {
   return render(
     <I18nProvider locale="en">
@@ -26,7 +24,7 @@ describe('SettingsRows', () => {
         id: 'kbd',
         level: 'device',
         label: 'keyboardLayout.title',
-        icon: Ic,
+        icon: 'check',
         options: () => ['abc', 'azerty'] as const,
         valueLabel: () => 'keyboardLayout.title',
         use: () => useStoredPref(pref),
@@ -46,7 +44,7 @@ describe('SettingsRows', () => {
         id: 'single',
         level: 'device',
         label: 'keyboardLayout.title',
-        icon: Ic,
+        icon: 'check',
         options: () => ['abc'] as const,
         valueLabel: () => 'keyboardLayout.title',
         use: () => useStoredPref(pref),
@@ -63,10 +61,10 @@ describe('SettingsRows', () => {
         id: 'gpu',
         level: 'shell',
         label: 'profileMenu.gpuRendering',
-        icon: Ic,
+        icon: 'check',
         use: () => [false, setToggle] as const,
       }),
-      actionItem({ id: 'quit', label: 'profileMenu.quitApp', icon: Ic, run }),
+      actionItem({ id: 'quit', label: 'profileMenu.quitApp', icon: 'check', run }),
     ]);
     const [toggle, action] = screen.getAllByRole('button');
     if (!toggle || !action) throw new Error('expected a toggle and an action row');
@@ -85,11 +83,11 @@ describe('SettingsRows', () => {
       actionItem({
         id: 'gated',
         label: 'profileMenu.quitApp',
-        icon: Ic,
+        icon: 'check',
         available: () => false,
         run,
       }),
-      actionItem({ id: 'shown', label: 'profileMenu.quitApp', icon: Ic, run }),
+      actionItem({ id: 'shown', label: 'profileMenu.quitApp', icon: 'check', run }),
     ]);
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });

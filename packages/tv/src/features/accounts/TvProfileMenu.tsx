@@ -1,6 +1,5 @@
 import { useT } from '@kroma/ui';
-import { useFocusNav } from '@kroma/ui/kit';
-import { IconLock, IconLogout, IconUsersGroup } from '@tabler/icons-react';
+import { Box, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
@@ -33,7 +32,7 @@ export function TvProfileMenu() {
     ...PROFILE_SETTINGS,
     actionItem({
       id: 'pin',
-      icon: IconLock,
+      icon: 'lock',
       label: user.hasPin ? 'profileMenu.removePin' : 'profileMenu.setPin',
       badge: user.hasPin
         ? { label: 'profileMenu.on', tone: 'success' as const }
@@ -42,17 +41,17 @@ export function TvProfileMenu() {
     }),
     actionItem({
       id: 'changeProfile',
-      icon: IconUsersGroup,
+      icon: 'users-group',
       label: 'nav.changeProfile',
       run: switchProfile,
     }),
-    actionItem({ id: 'signOut', icon: IconLogout, label: 'auth.logout', run: onSignOut }),
+    actionItem({ id: 'signOut', icon: 'logout', label: 'auth.logout', run: onSignOut }),
     quitAppItem,
   ];
 
   return (
     <AuthScreen>
-      <div className="mb-8 flex flex-col items-center gap-3.5">
+      <Box align="center" gap={14} mb={32}>
         <ProfileAvatar
           name={user.username}
           seed={user.id}
@@ -60,16 +59,21 @@ export function TvProfileMenu() {
           radius={26}
           src={client?.resolveArt(user.avatarUrl)}
         />
-        <h1 className="m-0 font-display text-[32px] font-semibold">{user.username}</h1>
-      </div>
+        <Txt variant="h1" style={{ fontSize: 32, fontWeight: '600' }}>
+          {user.username}
+        </Txt>
+      </Box>
 
-      <div className="flex w-full max-w-[560px] flex-col gap-3">
+      <Box w="100%" maxW={560} gap={12}>
         <SettingsRows items={rows} />
-      </div>
+      </Box>
 
-      <div className="mt-7 font-sans text-[14px] font-medium text-[rgba(244,243,240,0.4)]">
+      <Txt
+        style={{ fontSize: 14, fontWeight: '500', marginTop: 28 }}
+        color="rgba(244, 243, 240, 0.4)"
+      >
         {t('profileMenu.navHint')}
-      </div>
+      </Txt>
     </AuthScreen>
   );
 }

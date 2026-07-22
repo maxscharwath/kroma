@@ -12,12 +12,25 @@
 // browser admin app uses. As screens move over, those disappear and this becomes
 // the root. Nothing is duplicated between the two: they are disjoint sets.
 
+// ---- brand ----
+export type { LogoProps } from './brand/Logo';
+export { Logo } from './brand/Logo';
+export type { WheelProps } from './brand/Wheel';
+export { Wheel } from './brand/Wheel';
+export type { WheelSpin } from './brand/wheelPaths';
+export {
+  KROMA_WHEEL_COLORS,
+  KROMA_WHEEL_SEGMENTS,
+  WHEEL_SPIN_MS,
+  WHEEL_VIEWBOX,
+} from './brand/wheelPaths';
 // ---- focus ----
 export type { FocusableProps, FocusState } from './focus/Focusable';
 export { Focusable } from './focus/Focusable';
 export { armPressGuard, clearPressGuard, PRESS_GUARD_MS, pressGuardActive } from './focus/guard';
 export { useFocusNav } from './focus/nav';
 export type { FocusEngine, FocusHostProps, FocusNavHandlers } from './focus/types';
+
 // ---- media ----
 export type { GridProps } from './media/Grid';
 export { cellWidth, Grid } from './media/Grid';
@@ -33,9 +46,15 @@ export type { WatchedBadgeProps } from './media/WatchedBadge';
 export { WatchedBadge } from './media/WatchedBadge';
 // ---- primitives ----
 export type { AvatarProps } from './primitives/Avatar';
-export { AVATAR_GRADIENT, Avatar, initialsOf } from './primitives/Avatar';
+export {
+  AVATAR_GRADIENT,
+  AVATAR_GRADIENTS,
+  Avatar,
+  gradientFor,
+  initialsOf,
+} from './primitives/Avatar';
 export type { BadgeProps, BadgeTone } from './primitives/Badge';
-export { Badge } from './primitives/Badge';
+export { Badge, qualityTone } from './primitives/Badge';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './primitives/Button';
 export { Button } from './primitives/Button';
 export type { ChipProps } from './primitives/Chip';
@@ -52,6 +71,8 @@ export type { Rect } from './primitives/focal';
 export { coverRect, parsePosition } from './primitives/focal';
 export type { IconName, IconProps } from './primitives/Icon';
 export { Icon } from './primitives/Icon';
+export type { IconButtonProps } from './primitives/IconButton';
+export { IconButton } from './primitives/IconButton';
 export { Img } from './primitives/Img';
 export { DEFAULT_ICON_SIZE, DEFAULT_ICON_STROKE, ICON_NAMES } from './primitives/icons/glyph';
 export type { ImgProps } from './primitives/img-types';

@@ -1,16 +1,18 @@
-// <Icon> on the native targets (Apple TV, Android TV): react-native-svg.
+// <Icon>: one glyph component for every target.
 //
-// Same glyph data as the web renderer (icons.generated.ts); only the element
-// factory differs. The generator refuses any Tabler glyph using an element that
-// is not in this map, so a missing case is a build error, never a silently
-// half-drawn icon.
+// The path data is generated from @tabler/icons (see icons/registry.ts) rather
+// than imported from @tabler/icons-react, which renders DOM svg and cannot run
+// on a TV. The elements come from ./svg, which is the only thing that differs
+// per platform.
 
 import type { ComponentType } from 'react';
-import Svg, { Circle, Ellipse, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 import { type IconProps, resolveIcon } from './icons/glyph';
+import { Circle, Ellipse, Line, Path, Polygon, Polyline, Rect, Svg } from './svg';
 
 export type { IconName, IconProps } from './icons/glyph';
 
+/** The generator refuses any Tabler glyph using an element that is not here, so
+ * a missing case is a build error, never a silently half-drawn icon. */
 const ELEMENTS: Record<string, ComponentType<Record<string, unknown>>> = {
   path: Path as ComponentType<Record<string, unknown>>,
   circle: Circle as ComponentType<Record<string, unknown>>,

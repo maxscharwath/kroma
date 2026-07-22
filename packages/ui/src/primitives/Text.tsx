@@ -4,14 +4,16 @@
 // which resolves a design type role and a palette colour.
 
 import { Text as RNText, type StyleProp, type TextProps, type TextStyle } from 'react-native';
-import { type ColorToken, colors, type TypeRole, type as typeRoles } from '../tokens';
+import { color as resolveColor } from '../system/boxStyle';
+import { type ColorToken, type TypeRole, type as typeRoles } from '../tokens';
 
 export interface TxtProps extends Omit<TextProps, 'style' | 'role'> {
   /** Design type role. Defaults to `body`. (Named `variant`, not `role`, which
    *  React Native already uses for the ARIA role.) */
   variant?: TypeRole;
-  /** Palette token. Defaults to `text`. */
-  color?: ColorToken;
+  /** Palette token, or any raw colour string for a one-off (the design uses a
+   *  few literal rgba washes that are not tokens). Defaults to `text`. */
+  color?: ColorToken | (string & {});
   /** Escape hatch for one-off sizing/weight, merged last. */
   style?: StyleProp<TextStyle>;
   /** Clamp to N lines with an ellipsis (the RN spelling of line-clamp). */
@@ -29,7 +31,7 @@ export function Txt({
     <RNText
       {...rest}
       numberOfLines={lines}
-      style={[typeRoles[variant], { color: colors[color] }, style]}
+      style={[typeRoles[variant], { color: resolveColor(color) }, style]}
     />
   );
 }

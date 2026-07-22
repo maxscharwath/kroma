@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearPressGuard } from '../focus/guard';
 import { colors, radius } from '../tokens';
-import { Avatar, initialsOf } from './Avatar';
+import { AVATAR_GRADIENTS, Avatar, gradientFor, initialsOf } from './Avatar';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { Chip } from './Chip';
@@ -119,10 +119,17 @@ describe('Badge and Chip', () => {
 });
 
 describe('Avatar', () => {
-  it('derives initials from the first two words', () => {
+  it('derives initials from the first and last name', () => {
     expect(initialsOf('Marie Curie')).toBe('MC');
-    expect(initialsOf('cher')).toBe('C');
-    expect(initialsOf('  ')).toBe('');
+    expect(initialsOf('Jean Claude Van Damme')).toBe('JD');
+    // A single word keeps two of its own letters rather than one lonely capital.
+    expect(initialsOf('cher')).toBe('CH');
+    expect(initialsOf('  ')).toBe('?');
+  });
+
+  it('gives a seed a stable gradient and different seeds different ones', () => {
+    expect(gradientFor('user-1')).toBe(gradientFor('user-1'));
+    expect(AVATAR_GRADIENTS).toContain(gradientFor('user-1'));
   });
 
   it('shows the initials when there is no photo, and not when there is', () => {

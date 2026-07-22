@@ -14,8 +14,9 @@ import {
   type SortMode,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Badge, Box, Chip, Divider, qualityTone, Txt } from '@kroma/ui/kit';
+import { ScrollView } from 'react-native';
 import type { CatalogEntry } from '#tv/features/catalog/home/AmbientBackdrop';
-import { badgeClasses } from '#tv/shared/TvMedia';
 
 const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
   added: 'browse.sort.added',
@@ -23,11 +24,6 @@ const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
   title: 'browse.sort.title',
   rating: 'browse.sort.rating',
 };
-
-// Compact filter chip: translucent over the ambient art, amber when active.
-// rgba() literal (not a `/opacity` modifier) for the legacy webOS tier.
-const CHIP_CLS =
-  'shrink-0 cursor-pointer rounded-full border-none bg-[rgba(255,255,255,0.08)] px-3.5 py-1.5 font-sans text-[13px] font-semibold text-muted transition-transform focus:scale-[1.06] aria-current:bg-accent aria-current:text-accent-ink';
 
 /** Meta line under the focused title: year · runtime|seasons · lead genres. */
 function entryLine(e: CatalogEntry, seasons: string | null): string {
@@ -41,9 +37,27 @@ function entryBadge(e: CatalogEntry): string | null {
   return e.kind === 'movie' ? qualityBadge(e.item) : qualityBadgeForVideo(e.item.video);
 }
 
+const SECTION_LABEL = {
+  fontWeight: '700' as const,
+  fontSize: 13,
+  lineHeight: 16,
+  letterSpacing: 2.86,
+  textTransform: 'uppercase' as const,
+};
+
+// The design sizes this with clamp(30px, 4.8vh, 46px). On the fixed 1920x1080
+// stage that always resolves to the 46px ceiling, so it is spelled out: a
+// viewport unit would mean something different on each of the four targets.
+const ECHO_TITLE = {
+  fontSize: 46,
+  lineHeight: 48,
+  fontWeight: '700' as const,
+  letterSpacing: -0.92,
+};
+
 /**
- * Fixed-height header (justify-end) so the grid never reflows as the focus echo
- * swaps titles; one truncated line keeps that guarantee.
+ * Fixed-height header (content pinned to the bottom) so the grid never reflows
+ * as the focus echo swaps titles; one truncated line keeps that guarantee.
  */
 export function BrowseHeader({
   label,
@@ -57,18 +71,17 @@ export function BrowseHeader({
   focused: CatalogEntry | null;
 }>) {
   return (
-    <header className="flex h-52 shrink-0 flex-col justify-end px-16">
-      <div className="mb-2 font-sans text-[13px] font-bold uppercase tracking-[0.22em] text-accent">
+    <Box h={208} shrink={0} justify="flex-end" px={64} pb={8}>
+      <Txt style={SECTION_LABEL} color="accent">
         {label}
-        {hasItems ? <span className="text-dim"> · {count}</span> : null}
-      </div>
+        {hasItems ? <Txt style={SECTION_LABEL} color="textDim">{` · ${count}`}</Txt> : null}
+      </Txt>
       {focused ? <FocusEcho entry={focused} /> : null}
-    </header>
+    </Box>
   );
 }
 
-/** The focused tile's title + meta line, re-keyed on every swap so the fade
- * replays. */
+/** The focused tile's title + meta line. */
 function FocusEcho({ entry }: Readonly<{ entry: CatalogEntry }>) {
   const t = useT();
   const rating = entry.item.metadata?.rating;
@@ -76,16 +89,22 @@ function FocusEcho({ entry }: Readonly<{ entry: CatalogEntry }>) {
   const seasons =
     entry.kind === 'show' ? t('content.seasonCount', { count: entry.item.seasonCount }) : null;
   return (
-    <div key={entry.item.id} className="animate-[tv-fade-in_0.25s_ease]">
-      <h1 className="m-0 max-w-240 truncate font-display text-[clamp(30px,4.8vh,46px)] font-bold leading-[1.05] tracking-[-0.02em]">
+    <Box mt={8} gap={6}>
+      <Txt variant="hero" style={[ECHO_TITLE, { maxWidth: 960 }]} lines={1}>
         {entry.item.title}
-      </h1>
-      <div className="mt-1.5 flex items-center gap-2.5 font-sans text-[15px] font-semibold text-muted">
-        {rating ? <span className="font-bold text-accent">{rating.toFixed(1)}★</span> : null}
-        <span>{entryLine(entry, seasons)}</span>
-        {badge ? <span className={badgeClasses(badge)}>{badge}</span> : null}
-      </div>
-    </div>
+      </Txt>
+      <Box row align="center" gap={10}>
+        {rating ? (
+          <Txt style={{ fontSize: 15, fontWeight: '700' }} color="accent">
+            {`${rating.toFixed(1)}★`}
+          </Txt>
+        ) : null}
+        <Txt style={{ fontSize: 15, fontWeight: '600' }} color="textMuted">
+          {entryLine(entry, seasons)}
+        </Txt>
+        {badge ? <Badge tone={qualityTone(badge)}>{badge}</Badge> : null}
+      </Box>
+    </Box>
   );
 }
 
@@ -106,45 +125,51 @@ export function BrowseFilters({
 }>) {
   const t = useT();
   return (
-    <div className="scrollbar-none flex shrink-0 items-center gap-2 overflow-x-auto px-16 py-3">
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ flexGrow: 0, flexShrink: 0 }}
+      contentContainerStyle={{
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 64,
+        paddingVertical: 12,
+      }}
+    >
       {SORT_MODES.map((mode) => (
-        <button
+        <Chip
           key={mode}
-          type="button"
-          data-focus=""
-          aria-current={mode === sort}
-          onClick={() => onSort(mode)}
-          className={CHIP_CLS}
-        >
-          {t(SORT_LABEL_KEY[mode])}
-        </button>
+          variant="subtle"
+          focusScale={1.06}
+          active={mode === sort}
+          label={t(SORT_LABEL_KEY[mode])}
+          onPress={() => onSort(mode)}
+        />
       ))}
       {genres.length > 0 ? (
         <>
-          <span className="mx-1 h-5 w-px shrink-0 bg-[rgba(255,255,255,0.14)]" />
-          <button
-            type="button"
-            data-focus=""
-            aria-current={!genre}
-            onClick={() => onGenre(undefined)}
-            className={CHIP_CLS}
-          >
-            {t('browse.allGenres')}
-          </button>
+          <Box mx={4}>
+            <Divider vertical size={1} color="rgba(255, 255, 255, 0.14)" />
+          </Box>
+          <Chip
+            variant="subtle"
+            focusScale={1.06}
+            active={!genre}
+            label={t('browse.allGenres')}
+            onPress={() => onGenre(undefined)}
+          />
           {genres.map((g) => (
-            <button
+            <Chip
               key={g.name}
-              type="button"
-              data-focus=""
-              aria-current={g.name === genre}
-              onClick={() => onGenre(g.name)}
-              className={CHIP_CLS}
-            >
-              {g.name}
-            </button>
+              variant="subtle"
+              focusScale={1.06}
+              active={g.name === genre}
+              label={g.name}
+              onPress={() => onGenre(g.name)}
+            />
           ))}
         </>
       ) : null}
-    </div>
+    </ScrollView>
   );
 }

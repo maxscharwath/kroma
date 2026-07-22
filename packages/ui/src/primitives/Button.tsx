@@ -30,6 +30,17 @@ const button = sv({
       },
       ghost: { backgroundColor: 'transparent' },
       danger: { backgroundColor: colors.danger },
+      /** A bordered toggle: the detail screen's "Ma liste" / "Vu" pills, which
+       *  read as pressed rather than as a primary action. */
+      outline: {
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+      },
+    },
+    active: {
+      true: {},
+      false: {},
     },
     size: {
       sm: { paddingVertical: 9, paddingHorizontal: 16 },
@@ -41,10 +52,16 @@ const button = sv({
       false: {},
     },
   },
-  defaults: { variant: 'primary', size: 'md', block: 'false' },
+  compound: [
+    {
+      when: { variant: 'outline', active: 'true' },
+      style: { backgroundColor: colors.accentSoft, borderColor: 'rgba(242, 180, 66, 0.45)' },
+    },
+  ],
+  defaults: { variant: 'primary', size: 'md', block: 'false', active: 'false' },
 });
 
-export type ButtonVariant = 'primary' | 'glass' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'glass' | 'ghost' | 'danger' | 'outline';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 /** Label metrics per size, matching the design's button scale. */
@@ -63,6 +80,7 @@ const INK = {
   glass: 'text',
   ghost: 'text',
   danger: 'text',
+  outline: 'text',
 } as const;
 
 export interface ButtonProps
@@ -71,6 +89,8 @@ export interface ButtonProps
   size?: ButtonSize;
   /** Stretch to the width of the parent. */
   block?: boolean;
+  /** Pressed state of a toggle. Only the `outline` variant paints it. */
+  active?: boolean;
   /** Leading glyph. */
   icon?: IconName;
   /** Trailing glyph (a chevron on a settings row, for instance). */
@@ -88,6 +108,7 @@ export function Button({
   variant = 'primary',
   size = 'md',
   block = false,
+  active = false,
   icon,
   iconRight,
   label,
@@ -97,7 +118,8 @@ export function Button({
   focusScale = 1.04,
   ...focusProps
 }: Readonly<ButtonProps>) {
-  const ink = INK[variant];
+  // An active toggle tints its glyph and label amber along with its fill.
+  const ink = variant === 'outline' && active ? 'accent' : INK[variant];
   const glyph = ICON_SIZE[size];
   return (
     <Focusable
@@ -106,7 +128,7 @@ export function Button({
       focusScale={focusScale}
       label={label}
       style={button(
-        { variant, size, block: block ? 'true' : 'false' },
+        { variant, size, block: block ? 'true' : 'false', active: active ? 'true' : 'false' },
         disabled ? DISABLED : null,
         style,
       )}

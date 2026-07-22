@@ -38,6 +38,15 @@ const LABEL = {
   tv: { fontFamily: fonts.ui, fontWeight: '700' as const, fontSize: 13, letterSpacing: 0.26 },
 };
 
+/** The quality strings the catalogue produces ("4K", "HDR", "H.265", ...) mapped
+ * to a tone. Anything unrecognised gets the amber treatment, which is what the
+ * pre-kit `badgeClasses` did and what every non-special quality badge wants. */
+export function qualityTone(badge: string): BadgeTone {
+  if (badge === 'HDR') return 'HDR';
+  if (badge === 'H.265') return 'H.265';
+  return '4K';
+}
+
 export interface BadgeProps {
   tone?: BadgeTone;
   size?: 'sm' | 'tv';

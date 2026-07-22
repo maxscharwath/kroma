@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { Focusable, type FocusableProps } from '../focus/Focusable';
 import { sv } from '../system/sv';
 import { colors, fonts, radius } from '../tokens';
+import { Icon, type IconName } from './Icon';
 import { Txt } from './Text';
 
 const chip = sv({
@@ -24,13 +25,22 @@ const chip = sv({
       true: { backgroundColor: colors.accent },
       false: { backgroundColor: 'rgba(255, 255, 255, 0.07)' },
     },
+    /** `subtle` is the strip that floats over the browse screens' ambient art:
+     *  a fainter wash, no border, and muted text so it recedes until focused. */
+    variant: {
+      solid: {},
+      subtle: { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 0 },
+    },
     size: {
       sm: {},
       /** The 10-foot size: bigger tap area and type for a 3 m viewing distance. */
       tv: { paddingVertical: 10, paddingHorizontal: 22 },
     },
   },
-  defaults: { active: 'false', size: 'sm' },
+  compound: [
+    { when: { variant: 'subtle', active: 'true' }, style: { backgroundColor: colors.accent } },
+  ],
+  defaults: { active: 'false', size: 'sm', variant: 'solid' },
 });
 
 const LABEL = {
@@ -41,6 +51,9 @@ const LABEL = {
 export interface ChipProps extends Omit<FocusableProps, 'children' | 'style' | 'label'> {
   active?: boolean;
   size?: 'sm' | 'tv';
+  variant?: 'solid' | 'subtle';
+  /** Leading glyph, before the label. */
+  icon?: IconName;
   label?: string;
   children?: ReactNode;
   style?: FocusableProps['style'];
@@ -49,21 +62,30 @@ export interface ChipProps extends Omit<FocusableProps, 'children' | 'style' | '
 export function Chip({
   active = false,
   size = 'sm',
+  variant = 'solid',
+  icon,
   label,
   children,
   style,
   ...focusProps
 }: Readonly<ChipProps>) {
+  const idle = variant === 'subtle' ? colors.textMuted : colors.text;
   return (
     <Focusable
       {...focusProps}
       label={label}
-      style={chip({ active: active ? 'true' : 'false', size }, style)}
+      style={chip({ active: active ? 'true' : 'false', size, variant }, style)}
     >
+      {icon ? (
+        <Icon
+          name={icon}
+          size={size === 'tv' ? 17 : 15}
+          stroke={2}
+          color={active ? colors.accentInk : idle}
+        />
+      ) : null}
       {label === undefined ? null : (
-        <Txt style={{ ...LABEL[size], color: active ? colors.accentInk : colors.text }}>
-          {label}
-        </Txt>
+        <Txt style={{ ...LABEL[size], color: active ? colors.accentInk : idle }}>{label}</Txt>
       )}
       {children}
     </Focusable>

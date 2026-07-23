@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ICON_SLUGS } from '../src/primitives/icons/registry';
+import { ICON_SLUGS } from '../src/icons/registry';
 
 const require = createRequire(import.meta.url);
 
@@ -29,7 +29,7 @@ const filled = nodeData('tabler-nodes-filled.json');
 type IconNode = [string, Record<string, string | number>];
 type NodeMap = Record<string, IconNode[]>;
 
-const OUT = fileURLToPath(new URL('../src/primitives/icons/icons.generated.ts', import.meta.url));
+const OUT = fileURLToPath(new URL('../src/icons/icons.generated.ts', import.meta.url));
 
 /** SVG elements Tabler actually uses. Anything else means the renderers need a
  * new case, so fail loudly rather than silently dropping part of a glyph. */

@@ -34,14 +34,18 @@ function NowPlayingThumb({ s }: Readonly<{ s: PlaybackSession }>) {
       {posterFailed ? null : (
         <Image src={poster} fit="cover" fill onError={() => setPosterFailed(true)} />
       )}
+      {/* A storyboard tile is a window onto the sprite sheet; here that window is
+          this box, so the sheet is drawn at its scaled size and slid into place.
+          (The shared player draws the same geometry with an offset child, which
+          is what a television can render - see StoryboardThumb.) */}
       {frame ? (
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: frame.backgroundImage,
-            backgroundPosition: frame.backgroundPosition,
-            backgroundSize: frame.backgroundSize,
-            backgroundRepeat: frame.backgroundRepeat,
+            backgroundImage: `url("${frame.sheet}")`,
+            backgroundPosition: `${frame.offsetX}px ${frame.offsetY}px`,
+            backgroundSize: `${frame.sheetWidth * frame.scale}px ${frame.sheetHeight * frame.scale}px`,
+            backgroundRepeat: 'no-repeat',
           }}
         />
       ) : null}

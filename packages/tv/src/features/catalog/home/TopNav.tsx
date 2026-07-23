@@ -1,11 +1,32 @@
 import { useT } from '@kroma/ui';
-import { Box, Chip, Focusable, gradient, Icon, Spinner, Txt } from '@kroma/ui/kit';
+import {
+  Avatar,
+  Box,
+  Focusable,
+  FocusRegion,
+  gradient,
+  Icon,
+  Spinner,
+  screenEntry,
+  Txt,
+} from '@kroma/ui/kit';
+import { type ComponentRef, createRef } from 'react';
+import type { View } from 'react-native';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
-import { KromaMark, ProfileAvatar, TvBackButton, useClock } from '#tv/shared/ui';
+import { type NavItem, NavPill } from '#tv/features/catalog/home/NavPill';
+import { KromaMark, TvBackButton, useClock } from '#tv/shared/ui';
 
 export type NavKey = 'home' | 'films' | 'series' | 'genres' | 'mylist' | 'search';
+
+/** The two ends of the bar's right-hand gap. The pill stops well short of the
+ * avatar and the clock between them is not focusable, so a strict band search
+ * runs out of candidates and the account menu cannot be reached at all - six
+ * presses of Right and focus never left the search chip. Measured on an Apple
+ * TV. Both sides are named so the crossing works in both directions. */
+const navLastChip = createRef<ComponentRef<typeof View>>();
+const navAvatar = createRef<ComponentRef<typeof View>>();
 
 // Top scrim so the logo / clock / avatar stay readable over bright hero art (a
 // sky, a snowy shot...): the hero veil only darkens left and bottom.
@@ -25,13 +46,30 @@ export function TvTopNav({ active }: Readonly<{ active?: NavKey }>) {
   const { user } = useAuth();
   const { client, online } = useConnection();
 
-  const items: { key: NavKey; label: string; search?: boolean; go: () => void }[] = [
-    { key: 'home', label: t('nav.home'), go: () => nav.home() },
-    { key: 'films', label: t('nav.films'), go: () => nav.reset('grid', { kind: 'films' }) },
-    { key: 'series', label: t('nav.series'), go: () => nav.reset('grid', { kind: 'series' }) },
-    { key: 'genres', label: t('nav.genres'), go: () => nav.reset('genres') },
-    { key: 'mylist', label: t('nav.myList'), go: () => nav.reset('grid', { kind: 'mylist' }) },
-    { key: 'search', label: t('nav.search'), search: true, go: () => nav.reset('search') },
+  // Same glyph per section as the phone app's tab bar (Tabler home / movie /
+  // device-tv / category / bookmark / search), so the two clients read alike.
+  const items: NavItem[] = [
+    { key: 'home', icon: 'home', label: t('nav.home'), onPress: () => nav.home() },
+    {
+      key: 'films',
+      icon: 'movie',
+      label: t('nav.films'),
+      onPress: () => nav.reset('grid', { kind: 'films' }),
+    },
+    {
+      key: 'series',
+      icon: 'device-tv',
+      label: t('nav.series'),
+      onPress: () => nav.reset('grid', { kind: 'series' }),
+    },
+    { key: 'genres', icon: 'category', label: t('nav.genres'), onPress: () => nav.reset('genres') },
+    {
+      key: 'mylist',
+      icon: 'bookmark',
+      label: t('nav.myList'),
+      onPress: () => nav.reset('grid', { kind: 'mylist' }),
+    },
+    { key: 'search', icon: 'search', label: t('nav.search'), onPress: () => nav.reset('search') },
   ];
 
   return (
@@ -45,48 +83,33 @@ export function TvTopNav({ active }: Readonly<{ active?: NavKey }>) {
         pointerEvents="none"
         style={gradient(SCRIM)}
       />
-      <Box row align="center" between>
-        {/* Back (mouse users): shown on any pushed screen, hidden on Home (root). */}
+      {/* The whole bar is one focus BAND, and that is what makes a centred pill
+          reachable at all. A television moves focus in a straight line, so from
+          a control at the bottom left there is nothing overhead and Up does
+          nothing - but the band spans the full width, so every Up from anywhere
+          below lands in it, whatever the screen puts underneath, and it hands
+          focus to the chip you used last. One region here replaces a crossing on
+          every screen that shows the bar. */}
+      <FocusRegion style={BAND}>
+        {/* Back (mouse users): shown on any pushed screen, hidden on Home. */}
         <Box row align="center" gap={16}>
           <TvBackButton />
           <KromaMark size={28} />
         </Box>
-        {/* Solid translucent fill, no backdrop blur: Tizen composites blur on the
-            CPU and it costs visible frames on every scroll / focus move. */}
-        <Box
-          row
-          align="center"
-          gap={4}
-          p={6}
-          radius="pill"
-          border="border"
-          bg="rgba(10, 10, 12, 0.78)"
-        >
-          {items.map((n) => (
-            <Chip
-              key={n.key}
-              variant="subtle"
-              size="tv"
-              focusScale={1.04}
-              active={n.key === active}
-              icon={n.search ? 'search' : undefined}
-              label={n.label}
-              onPress={n.go}
-              style={NAV_CHIP}
-            />
-          ))}
-        </Box>
+        <NavPill items={items} active={active} lastRef={navLastChip} lastNeighbours={TO_AVATAR} />
         <Box row align="center" gap={18}>
           <ConnectionStatus online={online} label={t('connection.reconnecting')} />
           <Txt style={CLOCK}>{clock}</Txt>
           {user ? (
             <Focusable
+              ref={navAvatar}
+              neighbours={FROM_AVATAR}
               onPress={() => nav.go('profileMenu')}
               label={user.username}
               focusScale={1.08}
               style={{ borderRadius: 11 }}
             >
-              <ProfileAvatar
+              <Avatar
                 name={user.username}
                 seed={user.id}
                 size={44}
@@ -96,14 +119,20 @@ export function TvTopNav({ active }: Readonly<{ active?: NavKey }>) {
             </Focusable>
           ) : null}
         </Box>
-      </Box>
+      </FocusRegion>
     </Box>
   );
 }
 
-// The nav pill sits inside its own rounded container, so its chips run tighter
-// than the standalone `tv` chip and carry no border of their own.
-const NAV_CHIP = { paddingVertical: 9, paddingHorizontal: 20, borderWidth: 0 } as const;
+/** The band is laid out by its caller, so it has to be told to span the row. */
+const BAND = {
+  width: '100%',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+} as const;
+
+const TO_AVATAR = { right: navAvatar };
+const FROM_AVATAR = { left: navLastChip, down: screenEntry };
 
 const CLOCK = {
   fontSize: 17,

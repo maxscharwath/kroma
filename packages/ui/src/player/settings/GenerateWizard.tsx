@@ -3,15 +3,16 @@ import { GEN_LANGS, GEN_QUALITIES } from '@kroma/core';
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
-import { gradient } from '../../primitives/css';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
-import { colors } from '../../tokens';
+import { gradient } from '../../lib/css';
+import { colors } from '../../lib/tokens';
+import { Box } from '../../ui/primitives/box';
+import { Txt } from '../../ui/primitives/text';
 import { IconAi, IconClose } from '../icons';
 import type { PanelHandle } from '../nav';
 import { FOCUS_SHADOW_SM } from '../style';
 import type { PlayerSub } from '../types';
 import { useListFocus } from '../useListFocus';
+import { VIRTUAL_FOCUS } from '../virtual-focus';
 import type { SubtitleGenRequest } from './gen';
 import { panelEmpty } from './panelStyle';
 import { ActionButton, CycleField } from './WizardParts';
@@ -122,7 +123,12 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
         <Txt variant="h2" style={{ fontSize: 24 }}>
           {t('player.subGenerate')}
         </Txt>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('player.subGenClose')}>
+        <Pressable
+          {...VIRTUAL_FOCUS}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('player.subGenClose')}
+        >
           <Box w={36} h={36} shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.1)">
             <IconClose size={17} />
           </Box>
@@ -227,6 +233,7 @@ function ModeTab({
   const tone = modeTone(enabled, on);
   return (
     <Pressable
+      {...VIRTUAL_FOCUS}
       onPress={enabled ? onPress : undefined}
       disabled={!enabled}
       accessibilityRole="button"

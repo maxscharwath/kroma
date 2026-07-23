@@ -69,7 +69,7 @@ export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
             key={`${p.name}-${p.character ?? ''}`}
             name={p.name}
             character={p.character}
-            photo={client.resolveArt(p.profileUrl)}
+            photo={client.resolveArt(p.profileUrl, FACE_W)}
             gradient={CAST_GRADIENTS[i % CAST_GRADIENTS.length] as string}
             label={t('person.viewWorks', { name: p.name })}
             onPress={() => nav.go('person', { name: p.name })}
@@ -176,6 +176,16 @@ export function WatchedButton({
   );
 }
 
+/** "Signaler un problème": opens the report screen for this title. Deliberately
+ * the quiet, icon-only control of the action row it must be reachable, never
+ * the thing the remote lands on next to Lecture. */
+export function ReportButton({ onPress }: Readonly<{ onPress: () => void }>) {
+  const t = useT();
+  return (
+    <IconButton icon="flag" glyph={24} size={60} label={t('report.action')} onPress={onPress} />
+  );
+}
+
 /** Round mute toggle for the show's theme song (remote-focusable). */
 export function ThemeButton({
   muted,
@@ -196,3 +206,6 @@ export function ThemeButton({
 
 // Cast-circle gradients, cycled by position so adjacent faces never share a colour.
 const CAST_GRADIENTS = [...AVATAR_GRADIENTS, 'linear-gradient(135deg, #FBBF24, #F97316)'];
+
+/** A cast face is a 96pt circle. */
+const FACE_W = 96;

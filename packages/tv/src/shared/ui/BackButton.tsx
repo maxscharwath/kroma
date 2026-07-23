@@ -1,51 +1,65 @@
 import { useT } from '@kroma/ui';
-import { Box, Icon } from '@kroma/ui/kit';
-import { useState } from 'react';
-import { Pressable } from 'react-native';
+import { Box, colors, Focusable, Icon, screenEntry } from '@kroma/ui/kit';
 import { useNav } from '#tv/app/router';
 
 /**
- * Pointer-first Back affordance for the 10-foot app. The remote already has a
- * dedicated Back key (wired per screen through useFocusNav -> onBack), so this
- * button exists for MOUSE users (the desktop shell, an LG Magic-Remote pointer):
- * every screen that can go back now shows something clickable.
+ * The on-screen Back affordance for the 10-foot app.
  *
- * It is a bare Pressable rather than a <Focusable> on purpose: staying out of
- * the spatial-focus set means it never steals the initial focus from a screen's
- * primary action, which keeps the tuned remote UX intact. Renders nothing at the
- * root of the stack (unless an explicit `onPress` is given), so there is never a
- * dead Back control.
+ * It sits alone in the top-left corner, which is the hardest place on a screen
+ * for a television to reason about: focus moves in a straight band, so a corner
+ * button has nothing beneath it (the content is centred) and nothing beside it.
+ * Left as-is it could be entered and never left - measured on an Apple TV, and
+ * the reason it was once made unfocusable there.
  *
- * The hover tint is colour-only, and it comes from pointer events rather than
- * react-native-web's `hovered` state so the component stays platform-neutral (a
- * TV simply never fires them).
+ * It is reachable and escapable like anything else: the row model puts it on
+ * the same line as the brand mark and the nav pill, and Down leads to whatever
+ * the screen puts below.
+ *
+ * The remote has Back regardless: every screen wires `useFocusNav` -> `onBack`,
+ * the Menu key raises it, and each screen's hint line says so. This button is
+ * the pointer's equivalent of that key.
+ *
+ * Renders nothing at the root of the stack (unless an explicit `onPress` is
+ * given), so there is never a dead Back control.
  */
 export function TvBackButton({ onPress }: Readonly<{ onPress?: () => void }>) {
   const nav = useNav();
   const t = useT();
-  const [hovered, setHovered] = useState(false);
   if (!onPress && !nav.canGoBack) return null;
+  const act = onPress ?? nav.back;
+
+  const glyph = (focused: boolean) => (
+    <Box w={44} h={44} shrink={0} center radius="pill" style={focused ? FOCUSED : BUTTON}>
+      <Icon name="chevron-left" size={22} stroke={2} color={focused ? 'accentInk' : 'text'} />
+    </Box>
+  );
+
   return (
-    <Pressable
-      onPress={onPress ?? nav.back}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      accessibilityRole="button"
-      accessibilityLabel={t('common.back')}
-      focusable={false}
-      tabIndex={-1}
+    <Focusable
+      onPress={act}
+      label={t('common.back')}
+      focusScale={1.08}
+      ring={false}
+      neighbours={BACK_OUT}
     >
-      <Box
-        w={44}
-        h={44}
-        shrink={0}
-        center
-        radius="pill"
-        border="border"
-        bg="rgba(10, 10, 12, 0.78)"
-      >
-        <Icon name="chevron-left" size={22} stroke={2} color={hovered ? 'accent' : 'text'} />
-      </Box>
-    </Pressable>
+      {({ focused }) => glyph(focused)}
+    </Focusable>
   );
 }
+
+/** Alone in a corner with the content centred, Down finds nothing; the way back
+ * into the page is declared rather than searched for. */
+const BACK_OUT = { down: screenEntry };
+
+const BUTTON = {
+  borderWidth: 1,
+  borderColor: colors.border,
+  backgroundColor: 'rgba(10, 10, 12, 0.78)',
+} as const;
+
+/** Focused it fills amber, like every other primary control in the design. */
+const FOCUSED = {
+  borderWidth: 1,
+  borderColor: colors.accent,
+  backgroundColor: colors.accent,
+} as const;

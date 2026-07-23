@@ -12,96 +12,66 @@
 // browser admin app uses. As screens move over, those disappear and this becomes
 // the root. Nothing is duplicated between the two: they are disjoint sets.
 
-// ---- brand ----
-export type { LogoProps } from './brand/Logo';
-export { Logo } from './brand/Logo';
-export type { WheelProps } from './brand/Wheel';
-export { Wheel } from './brand/Wheel';
-export type { WheelSpin } from './brand/wheelPaths';
+export type { Align, BoxStyleProps, Justify, Spacing } from './lib/box-style';
+export { boxStyle, color } from './lib/box-style';
+export type { Rect } from './lib/cover-rect';
+export { coverRect, parsePosition } from './lib/cover-rect';
+// ---- cross-platform CSS escape hatches ----
+export { bgPosition, bgSize, gradient, promote } from './lib/css';
+// The one sanctioned way to ask for the DOM from shared code (null on a TV).
+export { webDocument, webWindow } from './lib/dom';
+export type { FocusBridgeProps } from './lib/focus-bridge';
+export { FocusBridge } from './lib/focus-bridge';
+export type { Crossing, Crossings } from './lib/focus-crossings';
+export { screenEntry } from './lib/focus-crossings';
+export { useFocusNav } from './lib/focus-nav';
+export { configureRemote } from './lib/focus-remote';
+export type { FocusScopeProps } from './lib/focus-scope';
+export { FocusColumn, FocusRegion, FocusScope } from './lib/focus-scope';
+export type { FocusScrollProps } from './lib/focus-scroll';
+export { FocusRail, FocusScroll, FocusSlot } from './lib/focus-scroll';
+export type { FocusEngine, FocusHostProps, FocusNavHandlers } from './lib/focus-types';
+export { DEFAULT_ICON_SIZE, DEFAULT_ICON_STROKE, ICON_NAMES } from './lib/glyph';
+export type { ImageBackend, ImageBackendProps } from './lib/image-backend';
+export { imageBackend, reactNativeImage, setImageBackend } from './lib/image-backend';
+// A full-screen overlay takes the remote with this (the brand intro does).
+export { clearInputHolds, holdInput, inputHeld } from './lib/input-gate';
+export { PageMain } from './lib/landmark';
+// ---- hooks ----
+export type { LoopKind } from './lib/loop';
+export { useLoop } from './lib/loop';
+export type { PerfReport } from './lib/perf';
+export { perfReport, perfRunning, resetPerf, startPerf, stopPerf } from './lib/perf';
+export {
+  armPressGuard,
+  clearPressGuard,
+  PRESS_GUARD_MS,
+  pressGuardActive,
+} from './lib/press-guard';
+export type { ReportCategoryMeta } from './lib/report-categories';
+export { REPORT_CATEGORIES } from './lib/report-categories';
+export type { RingGeometry, RingProps } from './lib/ring';
+export { RING_ROTATION, ringGeometry } from './lib/ring';
+export type { CompoundVariant, SvConfig, SvFn, VariantProps } from './lib/sv';
+export { sv } from './lib/sv';
+export { SvgXml } from './lib/svg';
+// ---- design tokens ----
+export * from './lib/tokens';
+export type { GrowingCount } from './lib/use-growing-count';
+export { useGrowingCount } from './lib/use-growing-count';
+export type { WheelSpin } from './lib/wheel-paths';
 export {
   KROMA_WHEEL_COLORS,
   KROMA_WHEEL_SEGMENTS,
   WHEEL_SPIN_MS,
   WHEEL_VIEWBOX,
-} from './brand/wheelPaths';
-// ---- focus ----
-export type { FocusableProps, FocusState } from './focus/Focusable';
-export { Focusable } from './focus/Focusable';
-export { armPressGuard, clearPressGuard, PRESS_GUARD_MS, pressGuardActive } from './focus/guard';
-export { useFocusNav } from './focus/nav';
-export type { FocusEngine, FocusHostProps, FocusNavHandlers } from './focus/types';
-
-// ---- media ----
-export type { GridProps } from './media/Grid';
-export { cellWidth, Grid } from './media/Grid';
-export type { MediaCardProps } from './media/MediaCard';
-export { CARD_SCRIM, MediaCard, tintGradient } from './media/MediaCard';
-export type { PosterCardProps } from './media/PosterCard';
-export { POSTER_SCRIM, PosterCard } from './media/PosterCard';
-export type { RailProps } from './media/Rail';
-export { Rail } from './media/Rail';
-export type { GrowingCount } from './media/useGrowingCount';
-export { useGrowingCount } from './media/useGrowingCount';
-export type { WatchedBadgeProps } from './media/WatchedBadge';
-export { WatchedBadge } from './media/WatchedBadge';
-// ---- primitives ----
-export type { AvatarProps } from './primitives/Avatar';
-export {
-  AVATAR_GRADIENT,
-  AVATAR_GRADIENTS,
-  Avatar,
-  gradientFor,
-  initialsOf,
-} from './primitives/Avatar';
-export type { BadgeProps, BadgeTone } from './primitives/Badge';
-export { Badge, qualityTone } from './primitives/Badge';
-export type { ButtonProps, ButtonSize, ButtonVariant } from './primitives/Button';
-export { Button } from './primitives/Button';
-export type { ChipProps } from './primitives/Chip';
-export { Chip } from './primitives/Chip';
-// ---- cross-platform CSS escape hatches ----
-export { bgPosition, bgSize, gradient } from './primitives/css';
-export type { ConfirmDialogProps, DialogProps } from './primitives/Dialog';
-export { ConfirmDialog, Dialog, DialogFooter } from './primitives/Dialog';
-export type { DividerProps } from './primitives/Divider';
-export { Divider } from './primitives/Divider';
-export type { EmptyStateProps } from './primitives/EmptyState';
-export { EmptyState } from './primitives/EmptyState';
-export type { Rect } from './primitives/focal';
-export { coverRect, parsePosition } from './primitives/focal';
-export type { IconName, IconProps } from './primitives/Icon';
-export { Icon } from './primitives/Icon';
-export type { IconButtonProps } from './primitives/IconButton';
-export { IconButton } from './primitives/IconButton';
-export { Img } from './primitives/Img';
-export { DEFAULT_ICON_SIZE, DEFAULT_ICON_STROKE, ICON_NAMES } from './primitives/icons/glyph';
-export type { ImgProps } from './primitives/img-types';
-export { IMG_FADE_MS } from './primitives/img-types';
-export type { ProgressProps } from './primitives/Progress';
-export { clamp01, Progress } from './primitives/Progress';
-export type { ProgressRingProps } from './primitives/ProgressRing';
-export { ProgressRing } from './primitives/ProgressRing';
-export type { RingGeometry, RingProps } from './primitives/ring';
-export { RING_ROTATION, ringGeometry } from './primitives/ring';
-export type { SkeletonProps } from './primitives/Skeleton';
-export { Skeleton } from './primitives/Skeleton';
-export type { SpinnerProps } from './primitives/Spinner';
-export { Spinner } from './primitives/Spinner';
-export { SvgXml } from './primitives/svg';
-export type { TxtProps } from './primitives/Text';
-export { Txt } from './primitives/Text';
-export type { TextFieldProps } from './primitives/TextField';
-export { TextField } from './primitives/TextField';
-
-// ---- stage ----
-export type { TvStageProps } from './stage/TvStage';
-export { TvStage } from './stage/TvStage';
-// ---- style system ----
-export type { BoxProps } from './system/Box';
-export { Box, Column, Row, Spacer } from './system/Box';
-export type { Align, BoxStyleProps, Justify, Spacing } from './system/boxStyle';
-export { boxStyle, color } from './system/boxStyle';
-export type { CompoundVariant, SvConfig, SvFn, VariantProps } from './system/sv';
-export { sv } from './system/sv';
-// ---- design tokens ----
-export * from './tokens';
+} from './lib/wheel-paths';
+// ---- components, in two tiers ----
+// Primitives are the atoms; molecules are the arrangements the design names.
+// Both are re-exported flat, so a consumer writes `import { Button, ListRow }`
+// and never has to know which tier something lives in.
+export * from './ui/molecules';
+export * from './ui/primitives';
+// The workbench is NOT re-exported here. It is a tool, not part of the library,
+// and it pulls in every story: apps that never open it should never bundle it.
+// Import it from '@kroma/ui/workbench', ideally lazily.

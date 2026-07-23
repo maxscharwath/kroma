@@ -1,11 +1,17 @@
 import { formatRuntime, qualityBadge } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Button, useFocusNav } from '@kroma/ui/kit';
+import { Button, FocusRegion, useFocusNav } from '@kroma/ui/kit';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
-import { CastRow, EndsAtHint, ListButton, WatchedButton } from '#tv/features/catalog/detail/parts';
+import {
+  CastRow,
+  EndsAtHint,
+  ListButton,
+  ReportButton,
+  WatchedButton,
+} from '#tv/features/catalog/detail/parts';
 import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
 
 /** Film detail backdrop, synopsis, metadata, a Lecture button, my-list, an
@@ -39,20 +45,31 @@ export function TvMovieDetail() {
       meta={metaLong}
       badge={qualityBadge(item)}
       overview={meta?.overview}
+      // The action row: Left and Right move between the buttons. It belongs to
+      // the header rather than to the rows below it, which is why the scaffold
+      // takes it as a prop (see TvDetailScaffold).
+      actions={
+        <FocusRegion style={ACTION_ROW}>
+          <Button
+            size="lg"
+            autoFocus
+            icon="player-play-filled"
+            label={t('player.play')}
+            onPress={() => nav.go('player', { item })}
+          />
+          <ListButton inList={myList.has(item.id)} onToggle={() => myList.toggle(item.id)} />
+          <WatchedButton watched={watched.has(item.id)} onToggle={() => watched.toggle(item.id)} />
+          <ReportButton
+            onPress={() => nav.go('report', { kind: 'movie', id: item.id, title: item.title })}
+          />
+        </FocusRegion>
+      }
     >
-      <Box row align="center" gap={16}>
-        <Button
-          size="lg"
-          icon="player-play-filled"
-          label={t('player.play')}
-          onPress={() => nav.go('player', { item })}
-        />
-        <ListButton inList={myList.has(item.id)} onToggle={() => myList.toggle(item.id)} />
-        <WatchedButton watched={watched.has(item.id)} onToggle={() => watched.toggle(item.id)} />
-      </Box>
       <EndsAtHint runtimeMs={item.durationMs} />
       <CastRow cast={item.metadata?.cast} />
       <TvAiSuggestRow id={item.id} />
     </TvDetailScaffold>
   );
 }
+
+const ACTION_ROW = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 16 };

@@ -1,5 +1,5 @@
 import { useT } from '@kroma/ui';
-import { Txt } from '@kroma/ui/kit';
+import { ListRow, Txt } from '@kroma/ui/kit';
 import type {
   ActionItem,
   ChoiceItem,
@@ -7,7 +7,6 @@ import type {
   SettingsEntry,
   ToggleItem,
 } from '#tv/app/settings/items';
-import { MenuRow } from './MenuRow';
 
 /**
  * Render a settings menu from a declarative item list (see settings/items.ts).
@@ -18,13 +17,21 @@ import { MenuRow } from './MenuRow';
  * switch-profile crash).
  */
 export function SettingsRows({ items }: Readonly<{ items: readonly SettingsEntry[] }>) {
+  const visible = items.filter(
+    (item): item is Exclude<SettingsEntry, false | null | undefined> =>
+      item !== false && item != null && (!item.available || item.available()),
+  );
   return (
     <>
-      {items.map((item) => {
-        if (!item || (item.available && !item.available())) return null;
-        if (item.kind === 'choice') return <ChoiceRow key={item.id} item={item} />;
-        if (item.kind === 'toggle') return <ToggleRow key={item.id} item={item} />;
-        return <ActionRow key={item.id} item={item} />;
+      {visible.map((item, index) => {
+        // The FIRST rendered row is the screen's focus entry point. Without one,
+        // tvOS picks by its own geometry (roughly the top-left-most control) and
+        // lands somewhere nobody chose; the web engine just takes what happens to
+        // be first in the DOM. Naming it makes both engines agree.
+        const first = index === 0;
+        if (item.kind === 'choice') return <ChoiceRow key={item.id} item={item} first={first} />;
+        if (item.kind === 'toggle') return <ToggleRow key={item.id} item={item} first={first} />;
+        return <ActionRow key={item.id} item={item} first={first} />;
       })}
     </>
   );
@@ -42,7 +49,7 @@ function Badge({ badge }: Readonly<{ badge: RowBadge }>) {
   );
 }
 
-function ChoiceRow({ item }: Readonly<{ item: ChoiceItem }>) {
+function ChoiceRow({ item, first }: Readonly<{ item: ChoiceItem; first?: boolean }>) {
   const t = useT();
   const [value, set] = item.use();
   const options = item.options();
@@ -52,31 +59,47 @@ function ChoiceRow({ item }: Readonly<{ item: ChoiceItem }>) {
     if (next) set(next);
   };
   return (
-    <MenuRow icon={item.icon} label={t(item.label)} onAct={cycle}>
-      <Txt style={{ fontSize: 16, fontWeight: '600' }} color="accent">
-        {t(item.valueLabel(value))}
-      </Txt>
-    </MenuRow>
+    <ListRow
+      icon={item.icon}
+      label={t(item.label)}
+      autoFocus={first}
+      onPress={cycle}
+      trailing={
+        <Txt style={{ fontSize: 16, fontWeight: '600' }} color="accent">
+          {t(item.valueLabel(value))}
+        </Txt>
+      }
+    />
   );
 }
 
-function ToggleRow({ item }: Readonly<{ item: ToggleItem }>) {
+function ToggleRow({ item, first }: Readonly<{ item: ToggleItem; first?: boolean }>) {
   const t = useT();
   const [on, set] = item.use();
   return (
-    <MenuRow icon={item.icon} label={t(item.label)} onAct={() => set(!on)}>
-      <Badge
-        badge={{ label: on ? 'profileMenu.on' : 'profileMenu.off', tone: on ? 'success' : 'dim' }}
-      />
-    </MenuRow>
+    <ListRow
+      icon={item.icon}
+      label={t(item.label)}
+      autoFocus={first}
+      onPress={() => set(!on)}
+      trailing={
+        <Badge
+          badge={{ label: on ? 'profileMenu.on' : 'profileMenu.off', tone: on ? 'success' : 'dim' }}
+        />
+      }
+    />
   );
 }
 
-function ActionRow({ item }: Readonly<{ item: ActionItem }>) {
+function ActionRow({ item, first }: Readonly<{ item: ActionItem; first?: boolean }>) {
   const t = useT();
   return (
-    <MenuRow icon={item.icon} label={t(item.label)} onAct={item.run}>
-      {item.badge ? <Badge badge={item.badge} /> : undefined}
-    </MenuRow>
+    <ListRow
+      icon={item.icon}
+      label={t(item.label)}
+      autoFocus={first}
+      onPress={item.run}
+      trailing={item.badge ? <Badge badge={item.badge} /> : undefined}
+    />
   );
 }

@@ -10,7 +10,7 @@
  */
 
 import type { TextStyle, ViewStyle } from 'react-native';
-import { colors, fonts } from '../../tokens';
+import { colors, fonts } from '../../lib/tokens';
 import { FOCUS_SHADOW_SM } from '../style';
 
 /** Vertical stack of selectable rows (design gap: 10px). */
@@ -28,11 +28,6 @@ const ROW_BASE: ViewStyle = {
 /** A selectable sub-list row (Quality / Audio / Subtitles / Speed): icon-free,
  * label (+ optional sub-line) on the left, an accent check when active. */
 export const selectRow: ViewStyle = { ...ROW_BASE, gap: 16 };
-export const selectRowOn: ViewStyle = {
-  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  boxShadow: FOCUS_SHADOW_SM,
-};
-export const selectRowOff: ViewStyle = { backgroundColor: 'transparent' };
 export const selectLabel: TextStyle = {
   fontFamily: fonts.ui,
   fontWeight: '600',
@@ -51,8 +46,6 @@ export const selectSub: TextStyle = {
 
 /** A main-menu row: leading icon, bold label + current value, trailing control. */
 export const menuRow: ViewStyle = { ...ROW_BASE, gap: 18 };
-export const menuRowOn = selectRowOn;
-export const menuRowOff = selectRowOff;
 export const menuLabel: TextStyle = {
   fontFamily: fonts.ui,
   fontWeight: '700',
@@ -75,7 +68,6 @@ export const valueRowOn: ViewStyle = {
   backgroundColor: 'rgba(255, 255, 255, 0.08)',
   boxShadow: FOCUS_SHADOW_SM,
 };
-export const valueRowOff: ViewStyle = { backgroundColor: 'transparent' };
 export const valueLabel: TextStyle = {
   fontFamily: fonts.ui,
   fontWeight: '700',
@@ -103,10 +95,17 @@ export const panelEmpty: TextStyle = {
   color: 'rgba(244, 243, 240, 0.45)',
 };
 
+/** The focus treatment shared by the select rows and the main-menu rows, and the
+ * resting state shared by every row. One pair, so a designer retuning either
+ * cannot miss a copy. The appearance rows keep their own softer `valueRowOn`. */
+export const rowOn: ViewStyle = {
+  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  boxShadow: FOCUS_SHADOW_SM,
+};
+export const rowOff: ViewStyle = { backgroundColor: 'transparent' };
+
 /** Compose a row's base + focus/idle style on the `focused` boolean. */
-export const rowStyle = (
-  base: ViewStyle,
-  on: ViewStyle,
-  off: ViewStyle,
-  focused: boolean,
-): ViewStyle[] => [base, focused ? on : off];
+export const rowStyle = (base: ViewStyle, on: ViewStyle, focused: boolean): ViewStyle[] => [
+  base,
+  focused ? on : rowOff,
+];

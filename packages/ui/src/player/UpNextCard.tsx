@@ -1,10 +1,11 @@
 import { type DimensionValue, Pressable } from 'react-native';
-import { gradient } from '../primitives/css';
-import { Img } from '../primitives/Img';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { colors, fonts } from '../tokens';
+import { gradient } from '../lib/css';
+import { colors, fonts } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { Img } from '../ui/primitives/img';
+import { Txt } from '../ui/primitives/text';
 import { FOCUS_SCALE, FOCUS_SHADOW } from './style';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 /**
  * One "À suivre" tile (§10): a 16:9 thumbnail with a duration badge, then a
@@ -58,13 +59,28 @@ export function UpNextCard({
 }: Readonly<UpNextCardProps>) {
   return (
     <Pressable
+      {...VIRTUAL_FOCUS}
       onPress={onActivate}
       onPointerEnter={onFocus}
       accessibilityRole="button"
       accessibilityLabel={item.title}
-      style={[{ width, borderRadius: 14 }, focused ? FOCUSED : null]}
+      style={{ width }}
     >
-      <Box aspect={16 / 9} w="100%" radius={14} overflow="hidden" bg="surface1">
+      {/* The ring and the lift belong to the ARTWORK, not to the whole card.
+          Drawn around the card as a whole they enclosed the caption too, so the
+          amber outline ran along the bottom of the subtitle with the still
+          floating inside it - and the scaled block shoved its own text into the
+          row below. Ringing the still is also what every other card in the kit
+          does (see MediaCard), so a focused "À suivre" tile now reads the same
+          as a focused rail tile. */}
+      <Box
+        aspect={16 / 9}
+        w="100%"
+        radius={14}
+        overflow="hidden"
+        bg="surface1"
+        style={focused ? FOCUSED : null}
+      >
         <Img src={item.posterUrl ?? null} background={placeholderGradient(item.id)} fill />
         <Box fill pointerEvents="none" style={gradient(VIGNETTE)} />
         {item.durationLabel ? (
@@ -99,7 +115,9 @@ const DURATION = {
 };
 
 const CATEGORY = {
-  marginTop: 12,
+  // Clears the focused still's lift (FOCUS_SCALE grows it ~8px downwards) so the
+  // ring never sits on top of the eyebrow.
+  marginTop: 18,
   fontFamily: fonts.ui,
   fontSize: 11,
   fontWeight: '700' as const,

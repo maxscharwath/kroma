@@ -1,4 +1,6 @@
+import { deviceStorage } from '@kroma/core';
 import { type RefObject, useCallback, useEffect, useState } from 'react';
+import { webDocument } from '../lib/dom';
 import type { AudioFilterMode } from './types';
 
 /**
@@ -25,7 +27,7 @@ const KEY = 'kroma.audioFilter';
  * frame, before React state has hydrated. */
 export function storedAudioFilter(): AudioFilterMode {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = deviceStorage()?.getItem(KEY) ?? null;
     if (raw === 'standard' || raw === 'night') return raw;
   } catch {
     /* ignore */
@@ -35,10 +37,14 @@ export function storedAudioFilter(): AudioFilterMode {
 
 // One page-wide AudioContext, created on first enable (a user gesture, so it is
 // never born suspended by autoplay policy) and kept for the tab's lifetime.
+// biome-ignore lint/style/noRestrictedGlobals: audited - inside audioCtx(), which returns null when AudioContext is absent; the native engines level audio themselves.
 let sharedCtx: AudioContext | null = null;
+// biome-ignore lint/style/noRestrictedGlobals: audited - inside audioCtx(), which returns null when AudioContext is absent; the native engines level audio themselves.
 function audioCtx(): AudioContext | null {
+  // biome-ignore lint/style/noRestrictedGlobals: audited - Web Audio is the browser's own leveling path; the native engines do their own (mpv af, Exo DynamicsProcessing, server-side aac-night), and this returns null there.
   if (typeof AudioContext === 'undefined') return null;
   if (!sharedCtx) {
+    // biome-ignore lint/style/noRestrictedGlobals: audited - inside audioCtx(), which returns null when AudioContext is absent; the native engines level audio themselves.
     sharedCtx = new AudioContext();
     // A persisted filter hydrates WITHOUT a user gesture, so the context can be
     // born suspended and an element routed into a suspended context is MUTED.
@@ -46,8 +52,9 @@ function audioCtx(): AudioContext | null {
     const resume = () => {
       if (sharedCtx?.state === 'suspended') void sharedCtx.resume();
     };
-    document.addEventListener('pointerdown', resume, true);
-    document.addEventListener('keydown', resume, true);
+    const doc = webDocument();
+    doc?.addEventListener('pointerdown', resume, true);
+    doc?.addEventListener('keydown', resume, true);
   }
   if (sharedCtx.state === 'suspended') void sharedCtx.resume();
   return sharedCtx;
@@ -64,6 +71,7 @@ interface Graph {
  * context, CORS-tainted element): attach an AnalyserNode to `graph.gain` and
  * check `ctx.state` to tell "filter working" from "filter muting everything". */
 interface FilterDebugHandle {
+  // biome-ignore lint/style/noRestrictedGlobals: a TYPE reference, erased at build; no value is read.
   ctx: AudioContext;
   graph: Graph;
   mode: AudioFilterMode;
@@ -151,6 +159,7 @@ export function useAudioFilter(
   const [supported, setSupported] = useState(false);
 
   useEffect(() => {
+    // biome-ignore lint/style/noRestrictedGlobals: audited - this IS the capability probe; false on native, where the engines level audio themselves.
     setSupported(typeof AudioContext !== 'undefined');
     setModeState(storedAudioFilter());
   }, []);
@@ -165,7 +174,7 @@ export function useAudioFilter(
   const setMode = useCallback((m: AudioFilterMode) => {
     setModeState(m);
     try {
-      localStorage.setItem(KEY, m);
+      deviceStorage()?.setItem(KEY, m);
     } catch {
       /* ignore */
     }

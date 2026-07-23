@@ -1,12 +1,13 @@
 import { Pressable } from 'react-native';
 import { useT } from '../i18n';
-import { gradient } from '../primitives/css';
-import { Img } from '../primitives/Img';
-import { ProgressRing } from '../primitives/ProgressRing';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { colors, fonts } from '../tokens';
+import { gradient } from '../lib/css';
+import { colors, fonts } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { Img } from '../ui/primitives/img';
+import { ProgressRing } from '../ui/primitives/progress-ring';
+import { Txt } from '../ui/primitives/text';
 import { IconPlay } from './icons';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 /**
  * Minimal shape the credits card needs from the up-next item. Declared locally
@@ -135,6 +136,7 @@ function Action({
 }>) {
   return (
     <Pressable
+      {...VIRTUAL_FOCUS}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}

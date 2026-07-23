@@ -1,5 +1,5 @@
 import { useT } from '@kroma/ui';
-import { Box, Button, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Button, Hint, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -99,12 +99,15 @@ export function TvConnect() {
           submitLabel={t('connect.connect')}
         />
 
-        <Txt
-          style={{ fontSize: 14, fontWeight: '500', textAlign: 'center', marginTop: 20 }}
+        <Hint
+          text={t('connect.keyboardHint')}
+          size={14}
+          gap={4}
+          justify="center"
+          mt={20}
           color="rgba(244, 243, 240, 0.4)"
-        >
-          {t('connect.keyboardHint')}
-        </Txt>
+          textStyle={{ fontWeight: '500' }}
+        />
       </Box>
     </AuthScreen>
   );

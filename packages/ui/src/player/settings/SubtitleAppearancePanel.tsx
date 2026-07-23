@@ -1,11 +1,11 @@
 import { forwardRef, type ReactNode, useImperativeHandle } from 'react';
 import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
-import { gradient } from '../../primitives/css';
-import { Progress } from '../../primitives/Progress';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
-import { colors, fonts } from '../../tokens';
+import { gradient } from '../../lib/css';
+import { colors, fonts } from '../../lib/tokens';
+import { Box } from '../../ui/primitives/box';
+import { Progress } from '../../ui/primitives/progress';
+import { Txt } from '../../ui/primitives/text';
 import type { PanelHandle } from '../nav';
 import {
   SUB_COLORS,
@@ -16,7 +16,8 @@ import {
   subtitleStyle,
 } from '../subtitle-appearance';
 import { useListFocus } from '../useListFocus';
-import { rowStyle, valueLabel, valueRow, valueRowOff, valueRowOn } from './panelStyle';
+import { VIRTUAL_FOCUS } from '../virtual-focus';
+import { rowStyle, valueLabel, valueRow, valueRowOn } from './panelStyle';
 
 interface SubtitleAppearancePanelProps {
   appearance: SubtitleAppearance;
@@ -184,10 +185,7 @@ function AppearanceRow({
   children: ReactNode;
 }>) {
   return (
-    <Box
-      onPointerEnter={onFocus}
-      style={rowStyle(valueRow, valueRowOn, valueRowOff, focused)}
-    >
+    <Box onPointerEnter={onFocus} style={rowStyle(valueRow, valueRowOn, focused)}>
       <Box row align="center" between mb={11}>
         <Txt style={valueLabel}>{label}</Txt>
         <Box row align="center" gap={16}>
@@ -209,7 +207,12 @@ function Arrow({
   onPress,
 }: Readonly<{ glyph: string; label: string; dim: boolean; onPress: () => void }>) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable
+      {...VIRTUAL_FOCUS}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Txt
         style={{ fontSize: 17, lineHeight: 20, paddingHorizontal: 4, opacity: dim ? 0.4 : 1 }}
         color="accent"
@@ -232,6 +235,7 @@ function Seg<V extends string>({
         const on = o.v === value;
         return (
           <Pressable
+            {...VIRTUAL_FOCUS}
             key={o.v}
             onPress={() => onPick(o.v)}
             accessibilityRole="button"
@@ -262,15 +266,20 @@ function Swatches({ value, onPick }: Readonly<{ value: string; onPick: (color: s
   return (
     <Box row gap={14}>
       {SUB_COLORS.map((c) => (
-        <Pressable key={c} onPress={() => onPick(c)} accessibilityRole="button" accessibilityLabel={c}>
+        <Pressable
+          {...VIRTUAL_FOCUS}
+          key={c}
+          onPress={() => onPick(c)}
+          accessibilityRole="button"
+          accessibilityLabel={c}
+        >
           <Box
             w={32}
             h={32}
             radius="pill"
             bg={c}
             style={{
-              boxShadow:
-                c === value ? '0 0 0 2px #F4B642' : '0 0 0 1px rgba(255, 255, 255, 0.2)',
+              boxShadow: c === value ? '0 0 0 2px #F4B642' : '0 0 0 1px rgba(255, 255, 255, 0.2)',
             }}
           />
         </Pressable>

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 // @vitest-environment jsdom
 //
 // The first screen piece moved onto the universal kit. It renders through
@@ -5,9 +6,15 @@
 // compiles to native views on Apple TV / Android TV from the same source.
 
 import { clearPressGuard } from '@kroma/ui/kit';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { onScreen } from '@kroma/ui/testing';
+import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type GridCard, TvGrid } from '#tv/features/catalog/home/TvGrid';
+
+/** Every kit control is a node of the spatial navigator, and a node needs a
+ * navigator - the router gives every screen one. A test renders inside the same
+ * scope so the tree it mounts is the tree the app mounts. */
+const render = (ui: ReactElement) => renderRaw(onScreen(ui));
 
 afterEach(() => {
   cleanup();
@@ -28,13 +35,29 @@ function cards(n: number, over: Partial<GridCard> = {}): GridCard[] {
 describe('TvGrid', () => {
   it('renders one focusable poster per card', () => {
     const { container } = render(<TvGrid cards={cards(8)} />);
-    expect(container.querySelectorAll('[data-focus]')).toHaveLength(8);
+    expect(container.querySelectorAll('[role="button"]')).toHaveLength(8);
     expect(screen.getByLabelText('Film 0')).toBeTruthy();
   });
 
-  it('renders only the first chunk of a long library', () => {
+  // The point of virtualising: what a 2000-title library costs is what a
+  // screenful costs, and it does not grow as the viewer walks down. It used to
+  // render in chunks of 120 that were never released, so the screen got heavier
+  // the further in you went - and a library is the screen people walk to the end
+  // of. The exact window size is the list's business (a screenful plus the
+  // overscan rows); what this pins is that it is BOUNDED, and far below the data.
+  it('renders a bounded window, not the whole library', () => {
     const { container } = render(<TvGrid cards={cards(500)} />);
-    expect(container.querySelectorAll('[data-focus]')).toHaveLength(120);
+    const mounted = container.querySelectorAll('[role="button"]').length;
+    expect(mounted).toBeGreaterThan(0);
+    expect(mounted).toBeLessThan(100);
+  });
+
+  it('mounts no more for a huge library than for a small one', () => {
+    const { container: small } = render(<TvGrid cards={cards(200)} />);
+    const smallCount = small.querySelectorAll('[role="button"]').length;
+    cleanup();
+    const { container: huge } = render(<TvGrid cards={cards(2000)} />);
+    expect(huge.querySelectorAll('[role="button"]')).toHaveLength(smallCount);
   });
 
   it('activates a tile on press', () => {
@@ -52,8 +75,10 @@ describe('TvGrid', () => {
 
   it('lays the tiles out at the design column width', () => {
     const { container } = render(<TvGrid cards={cards(3)} />);
-    // 1792px of content, 8 columns, 24px gaps -> 203px cells.
-    const cell = container.querySelector('[data-focus]')?.parentElement as HTMLElement;
-    expect(getComputedStyle(cell).width).toBe('203px');
+    // 1792px of content, 8 columns, 24px gaps -> 203px tiles. A virtualised grid
+    // lays its rows out from the item size it was given rather than from a cell
+    // that stretches, so the tile itself carries the width.
+    const tile = container.querySelector('[role="button"]') as HTMLElement;
+    expect(getComputedStyle(tile).width).toBe('203px');
   });
 });

@@ -1,13 +1,23 @@
 import { normalizeServerUrl as norm, type StoredSession } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Chip, Focusable, Icon, Txt, useFocusNav } from '@kroma/ui/kit';
+import {
+  Avatar,
+  Box,
+  Chip,
+  Focusable,
+  FocusRegion,
+  Hint,
+  Icon,
+  Txt,
+  useFocusNav,
+} from '@kroma/ui/kit';
 import { useMemo } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { useServersHealth } from '#tv/app/useServersHealth';
 import { StatusDot } from '#tv/features/accounts/ServerStatus';
-import { AuthScreen, artUrl, hostOf, KromaMark, ProfileAvatar } from '#tv/shared/ui';
+import { AuthScreen, artUrl, hostOf, KromaMark } from '#tv/shared/ui';
 
 interface Tile {
   key: string;
@@ -77,30 +87,24 @@ export function TvProfiles() {
       {/* No own scroll or clip: the page (AuthScreen) scrolls, so the focus zoom
           and the amber ring are never cropped. Gutters keep the edge tiles'
           rings clear. */}
-      <Box
-        row
-        wrap
-        justify="center"
-        align="flex-start"
-        gap={28}
-        w="100%"
-        maxW={1100}
-        px={24}
-        py={16}
-      >
-        {tiles.map(({ key, account, serverName }) => {
-          const up = health[norm(account.serverUrl ?? '')];
+      <FocusRegion style={PROFILE_ROW}>
+        {tiles.map(({ key, account, serverName }, index) => {
+          const up = health[norm(account.serverUrl ?? '')]?.online;
           const offline = up === false;
           return (
             <Box key={key} w={150} align="center" gap={12}>
               <Focusable
                 onPress={() => onSelect(account, offline)}
                 label={account.user.username}
+                // The screen's entry point: the first profile. Named rather than
+                // left to chance, because tvOS picks by geometry and the web
+                // engine by DOM order, and neither is a design decision.
+                autoFocus={index === 0}
                 focusScale={1.07}
                 style={{ borderRadius: 24 }}
               >
                 <Box opacity={offline ? 0.4 : 1}>
-                  <ProfileAvatar
+                  <Avatar
                     name={account.user.username}
                     seed={account.user.id}
                     size={146}
@@ -132,6 +136,8 @@ export function TvProfiles() {
           <Focusable
             onPress={() => nav.go('addProfile')}
             label={t('profiles.addProfile')}
+            // Entry point only when there is no profile to land on.
+            autoFocus={tiles.length === 0}
             focusScale={1.07}
             ring={false}
             style={ADD_TILE}
@@ -150,7 +156,7 @@ export function TvProfiles() {
             {t('profiles.addProfile')}
           </Txt>
         </Box>
-      </Box>
+      </FocusRegion>
 
       {/* Device settings (language, keyboard, desktop extras) must stay reachable
           while signed out: there is no profile menu yet. */}
@@ -165,9 +171,13 @@ export function TvProfiles() {
         />
       </Box>
 
-      <Txt style={NAV_HINT} color="rgba(244, 243, 240, 0.4)">
-        {t('profiles.navHint')}
-      </Txt>
+      <Hint
+        text={t('profiles.navHint')}
+        size={14}
+        gap={4}
+        color="rgba(244, 243, 240, 0.4)"
+        textStyle={NAV_HINT}
+      />
     </AuthScreen>
   );
 }
@@ -188,4 +198,16 @@ const NAV_HINT = {
   fontWeight: '600' as const,
   letterSpacing: 0.42,
   marginTop: 24,
+};
+
+const PROFILE_ROW = {
+  flexDirection: 'row' as const,
+  flexWrap: 'wrap' as const,
+  justifyContent: 'center' as const,
+  alignItems: 'flex-start' as const,
+  gap: 28,
+  width: '100%' as const,
+  maxWidth: 1100,
+  paddingHorizontal: 24,
+  paddingVertical: 16,
 };

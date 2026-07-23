@@ -1,17 +1,25 @@
 import type { RemoteKey, Translate } from '@kroma/core';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Animated, Easing, type LayoutChangeEvent, Pressable, ScrollView } from 'react-native';
+import {
+  Animated,
+  Easing,
+  type LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
 import { useT } from '../i18n';
-import { gradient } from '../primitives/css';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { fonts, motion } from '../tokens';
+import { gradient } from '../lib/css';
+import { fonts, motion } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { cellWidth } from '../ui/primitives/grid';
+import { Txt } from '../ui/primitives/text';
 import { IconCollapse } from './icons';
 import type { PanelHandle } from './nav';
 import { EYEBROW } from './style';
-import { cellWidth } from '../media/Grid';
 import { UP_NEXT_COLUMNS, UP_NEXT_GAP, UpNextCard, type UpNextItem } from './UpNextCard';
 import { useGridFocus } from './useGridFocus';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 export type { UpNextItem };
 
@@ -38,6 +46,17 @@ export interface UpNextSheetProps {
 const PEEK_HEIGHT = 150;
 /** Sheet height as a fraction of the player surface. */
 const SHEET_FRACTION = 0.82;
+
+/** How far down the sheet sits when parked: everything but the peek.
+ *
+ * In PIXELS, measured. It used to be a percentage string, which react-native-web
+ * hands to CSS (where a percentage transform resolves against the element's own
+ * box) but which native React Native cannot interpret at all - so on Apple TV the
+ * sheet never parked and the "À suivre" grid covered the film the instant
+ * playback started, transport controls and all. */
+function parkOffset(sheetHeight: number): number {
+  return Math.max(0, sheetHeight - PEEK_HEIGHT);
+}
 
 const SCRIM = 'linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.55) 45%)';
 const SHEET_FILL =
@@ -73,7 +92,6 @@ function buildSections(data: UpNextData, t: Translate): Section[] {
   return sections;
 }
 
-
 /**
  * The YouTube-TV-style "À suivre" surface (§10): ONE sliding sheet with two
  * positions. Parked (peek) it sits low so only the header + a clipped card row
@@ -108,6 +126,13 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
     () => ({ onKey: (key: RemoteKey) => (open ? grid.onKey(key) : false) }),
     [open, grid.onKey],
   );
+
+  // The sheet's own height, which is what "parked" is measured against. Seeded
+  // from the stage so the very first frame is already parked (a sheet that starts
+  // at 0 and corrects on layout is a full-screen flash over the film), then kept
+  // honest by onLayout.
+  const { height: stageHeight } = useWindowDimensions();
+  const [sheetHeight, setSheetHeight] = useState(() => Math.round(stageHeight * SHEET_FRACTION));
 
   // Rise / park. Animated rather than a CSS transition so the one sheet slides
   // the same way on every target.
@@ -149,14 +174,18 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
   return (
     <>
       <Pressable
+        {...VIRTUAL_FOCUS}
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={t('player.back')}
-        focusable={false}
         pointerEvents={open ? 'auto' : 'none'}
         style={[SCRIM_BOX, gradient(SCRIM), { opacity: open ? 1 : 0 }]}
       />
       <Animated.View
+        onLayout={(e) => {
+          const h = Math.round(e.nativeEvent.layout.height);
+          setSheetHeight((prev) => (prev === h ? prev : h));
+        }}
         style={[
           SHEET_BOX,
           gradient(SHEET_FILL),
@@ -166,19 +195,27 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
                 translateY: slide.interpolate({
                   inputRange: [0, 1],
                   // Parked, all but PEEK_HEIGHT of the sheet sits below the edge.
-                  outputRange: ['0%', `${100 - (PEEK_HEIGHT / (SHEET_FRACTION * 1080)) * 100}%`],
+                  outputRange: [0, parkOffset(sheetHeight)],
                 }),
               },
             ],
           },
         ]}
       >
-        <SheetHeader open={open} title={t('player.upNextTitle')} onToggle={open ? onClose : onOpen} />
+        <SheetHeader
+          open={open}
+          title={t('player.upNextTitle')}
+          onToggle={open ? onClose : onOpen}
+        />
         <ScrollView
           ref={scroller}
           scrollEnabled={open}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 56, paddingTop: 4, paddingBottom: 56 }}
+          // Top padding is the focused still's headroom: at 4px the first row's
+          // ring was shaved off by the sheet's own overflow clip. The bottom
+          // matches, so the last row clears the screen edge instead of dying
+          // against it.
+          contentContainerStyle={{ paddingHorizontal: 56, paddingTop: 16, paddingBottom: 72 }}
         >
           {sections.map((sec) => (
             <Box key={sec.id} mb={32}>
@@ -264,8 +301,13 @@ function SheetHeader({
   onToggle,
 }: Readonly<{ open: boolean; title: string; onToggle: () => void }>) {
   return (
-    <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={title}>
-      <Box row align="center" gap={14} px={56} pt={24} pb={16}>
+    <Pressable
+      {...VIRTUAL_FOCUS}
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Box row align="center" gap={14} px={56} pt={28} pb={18}>
         <Txt style={{ fontFamily: fonts.display, fontSize: 22, fontWeight: '700' }}>{title}</Txt>
         <Box style={{ transform: [{ rotate: open ? '0deg' : '180deg' }] }}>
           <Chevron />

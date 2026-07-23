@@ -1,16 +1,37 @@
 import type { AudioTrack, MediaItem, VideoTrack } from '@kroma/client';
-import type { MessageKey, Translate } from './i18n';
+import type { Translate } from './i18n';
+import { langKey } from './lang';
 import { match } from './match';
 import { formatRuntime } from './player';
 
+/**
+ * How many image pixels to ask for per CSS pixel.
+ *
+ * This used to be a flat 2, "for crisp hidpi/TV rendering", and the second half
+ * of that is wrong: a 1920x1080 television reports a devicePixelRatio of 1, so
+ * every request was for four times the pixels the panel can show. Measured on a
+ * Samsung LS03D, the ambient backdrop behind the browse grids was being fetched
+ * at `?w=2560` and decoded for a 1920-wide screen - and it is re-decoded every
+ * time the focus settles on a new tile. A retina browser really does have two
+ * device pixels per CSS pixel and still gets its 2x.
+ *
+ * Rounded and capped: a 3x phone gains nothing visible over 2x and pays for it
+ * in decode, and a fractional ratio would defeat the server's bucketing.
+ */
+function artworkRatio(): number {
+  const dpr = (globalThis as { devicePixelRatio?: number }).devicePixelRatio;
+  return Math.min(2, Math.max(1, Math.round(dpr ?? 1)));
+}
+
 /** Request a downscaled rendition of LOCALLY-CACHED artwork (`?w=`, snapped to
  * a server-side bucket): a 200px card must not download the full 780px poster.
- * Pass the DISPLAY width; this asks for 2x for crisp hidpi/TV rendering. Remote
- * (TMDB fallback) URLs and non-image URLs pass through untouched. */
+ * Pass the DISPLAY width; this scales it by the device's real pixel ratio (see
+ * {@link artworkRatio}). Remote (TMDB fallback) URLs and non-image URLs pass
+ * through untouched. */
 export function sizedImageUrl(url: string | null | undefined, displayWidth: number): string | null {
   if (!url) return null;
   if (!url.includes('/api/images/') || url.includes('?')) return url;
-  return `${url}?w=${Math.max(1, Math.round(displayWidth * 2))}`;
+  return `${url}?w=${Math.max(1, Math.round(displayWidth * artworkRatio()))}`;
 }
 
 /** Deterministic hue (0-359) for a string: a rolling 31x hash, unsigned. The one
@@ -121,42 +142,13 @@ export function channelLabel(ch: number | null | undefined): string | null {
   return `${ch}.0`;
 }
 
-/** ISO 639 code (2- or 3-letter) → the `lang.*` catalog key for its native name. */
-const LANG_KEYS: Record<string, MessageKey> = {
-  fr: 'lang.fr',
-  fra: 'lang.fr',
-  fre: 'lang.fr',
-  en: 'lang.en',
-  eng: 'lang.en',
-  es: 'lang.es',
-  spa: 'lang.es',
-  de: 'lang.de',
-  ger: 'lang.de',
-  deu: 'lang.de',
-  it: 'lang.it',
-  ita: 'lang.it',
-  ja: 'lang.ja',
-  jpn: 'lang.ja',
-  ko: 'lang.ko',
-  kor: 'lang.ko',
-  zh: 'lang.zh',
-  zho: 'lang.zh',
-  chi: 'lang.zh',
-  ru: 'lang.ru',
-  rus: 'lang.ru',
-  pt: 'lang.pt',
-  por: 'lang.pt',
-  nl: 'lang.nl',
-  dut: 'lang.nl',
-  nld: 'lang.nl',
-};
-
 /** Localized language name for an ISO code, the upper-cased code if unknown, or
  * null when there is no code at all. Shared by every client (audio/subtitle track
- * labels localize identically). */
+ * labels localize identically). Any spelling `langBase` knows resolves to the
+ * same name, so "fre", "fra" and "fr-FR" all read "Français". */
 export function langName(t: Translate, code: string | null | undefined): string | null {
   if (!code) return null;
-  const key = LANG_KEYS[code.toLowerCase()];
+  const key = langKey(code);
   return key ? t(key) : code.toUpperCase();
 }
 

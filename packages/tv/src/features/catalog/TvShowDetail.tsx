@@ -1,35 +1,17 @@
-import {
-  formatRuntime,
-  posterColors,
-  qualityBadgeForVideo,
-  type ShowDetail,
-  type UpNext,
-} from '@kroma/core';
-import { useLocale, useT, useThemeAudio } from '@kroma/ui';
-import {
-  Box,
-  Button,
-  Chip,
-  Focusable,
-  Icon,
-  Img,
-  Progress,
-  Rail,
-  Txt,
-  tintGradient,
-  useFocusNav,
-  WatchedBadge,
-} from '@kroma/ui/kit';
-import { useEffect, useMemo, useState } from 'react';
+import { episodeTag, qualityBadgeForVideo, type ShowDetail, type UpNext } from '@kroma/core';
+import { useT, useThemeAudio } from '@kroma/ui';
+import { Box, Button, Chip, FocusRegion, FocusSlot, Rail, Txt, useFocusNav } from '@kroma/ui/kit';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
+import { EpisodeGrid } from '#tv/features/catalog/detail/EpisodeGrid';
 import {
   CastRow,
   EndsAtHint,
-  endsAtClock,
   ListButton,
+  ReportButton,
   ThemeButton,
   WatchedButton,
 } from '#tv/features/catalog/detail/parts';
@@ -39,7 +21,6 @@ export function TvShowDetail() {
   const { show } = useParams('show');
   const client = useClient();
   const t = useT();
-  const locale = useLocale();
   const [detail, setDetail] = useState<ShowDetail | null>(null);
   const [season, setSeason] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +51,24 @@ export function TvShowDetail() {
     };
     // show.id: re-fetch when switching shows (the screen is reused on this route).
   }, [client, show.id]);
+
+  // Marking an episode watched also clears its resume position server-side, so
+  // drop the local progress bar with it instead of leaving a stale one under a
+  // watched badge.
+  const toggleEpisodeWatched = useCallback(
+    (id: string) => {
+      const nowWatched = !watched.has(id);
+      watched.toggle(id);
+      if (nowWatched) {
+        setEpProgress((cur) => {
+          if (cur[id] == null) return cur;
+          const { [id]: _gone, ...rest } = cur;
+          return rest;
+        });
+      }
+    },
+    [watched],
+  );
 
   useFocusNav({ onBack: nav.back, resetKey: detail });
 
@@ -139,26 +138,47 @@ export function TvShowDetail() {
       meta={metaLong}
       badge={qualityBadgeForVideo(show.video)}
       overview={meta?.overview}
+      // The action row: Left and Right move between the buttons. It belongs to
+      // the header rather than to the rows below it, which is why the scaffold
+      // takes it as a prop (see TvDetailScaffold).
+      actions={
+        <FocusRegion style={ACTION_ROW}>
+          <Button
+            size="lg"
+            autoFocus
+            icon="player-play-filled"
+            disabled={!playTarget}
+            label={
+              playTarget
+                ? t(playLabelKey, {
+                    season: playTarget.season ?? 0,
+                    episode: playTarget.episode ?? 0,
+                  })
+                : t('player.play')
+            }
+            onPress={() => playTarget && nav.go('player', { item: playTarget })}
+          />
+          <ListButton inList={myList.has(show.id)} onToggle={() => myList.toggle(show.id)} />
+          <WatchedButton watched={watched.has(show.id)} onToggle={() => watched.toggle(show.id)} />
+          {theme.active ? <ThemeButton muted={theme.muted} onToggle={theme.toggle} /> : null}
+          <ReportButton
+            onPress={() =>
+              nav.go('report', {
+                kind: 'show',
+                id: show.id,
+                title: show.title,
+                // The loaded season travels with the route, so the report screen
+                // can offer "one episode" without fetching the series again.
+                episodes: (activeSeason?.episodes ?? []).map((ep) => ({
+                  id: ep.id,
+                  label: episodeTag(ep) || `${ep.episode}`,
+                })),
+              })
+            }
+          />
+        </FocusRegion>
+      }
     >
-      <Box row align="center" gap={16}>
-        <Button
-          size="lg"
-          icon="player-play-filled"
-          disabled={!playTarget}
-          label={
-            playTarget
-              ? t(playLabelKey, {
-                  season: playTarget.season ?? 0,
-                  episode: playTarget.episode ?? 0,
-                })
-              : t('player.play')
-          }
-          onPress={() => playTarget && nav.go('player', { item: playTarget })}
-        />
-        <ListButton inList={myList.has(show.id)} onToggle={() => myList.toggle(show.id)} />
-        <WatchedButton watched={watched.has(show.id)} onToggle={() => watched.toggle(show.id)} />
-        {theme.active ? <ThemeButton muted={theme.muted} onToggle={theme.toggle} /> : null}
-      </Box>
       {/* Match the Play button's target (resume/next episode), not always ep 1. */}
       <EndsAtHint runtimeMs={playTarget?.durationMs} />
 
@@ -173,90 +193,61 @@ export function TvShowDetail() {
         </Txt>
       ) : null}
 
-      {detail && detail.seasons.length > 1 ? (
-        <Box row align="center" gap={18} mt={30}>
-          <Txt style={SEASON_LABEL} color="textMuted">
-            {t('content.seasonsHeader')}
-          </Txt>
-          <Rail inset={12} gap={10}>
-            {detail.seasons.map((s) => (
-              <Chip
-                key={s.number}
-                variant="surface"
-                focusScale={1.05}
-                active={s.number === activeSeason?.number}
-                label={t('content.season', { number: s.number })}
-                onPress={() => setSeason(s.number)}
-                style={SEASON_CHIP}
-              />
-            ))}
-          </Rail>
-        </Box>
-      ) : null}
+      {/* Three <FocusSlot>s, always rendered, even while empty.
+          The navigator orders siblings by the moment they REGISTER, and these
+          three do not arrive together: the cast comes from the show the route
+          already carries, while the seasons and the episodes wait for
+          `client.show()`. So the cast used to register first and own the order -
+          Down from the actions reached the cast, and the next Down jumped back
+          UP to the seasons that had appeared above it in the meantime. A slot
+          claims the position at first render and lets its content turn up
+          whenever it likes. */}
+      <FocusSlot>
+        {detail && detail.seasons.length > 1 ? (
+          <Box row align="center" gap={18} mt={30}>
+            <Txt style={SEASON_LABEL} color="textMuted">
+              {t('content.seasonsHeader')}
+            </Txt>
+            <Rail inset={12} gap={10}>
+              {detail.seasons.map((s) => (
+                <Chip
+                  key={s.number}
+                  variant="surface"
+                  focusScale={1.05}
+                  active={s.number === activeSeason?.number}
+                  label={t('content.season', { number: s.number })}
+                  onPress={() => setSeason(s.number)}
+                  style={SEASON_CHIP}
+                />
+              ))}
+            </Rail>
+          </Box>
+        ) : null}
+      </FocusSlot>
 
       {/* Cast for the selected season (TMDB season credits), falling back to the
           show's overall cast until the season is enriched. */}
-      <CastRow cast={activeSeason?.cast?.length ? activeSeason.cast : meta?.cast} />
+      <FocusSlot>
+        <CastRow cast={activeSeason?.cast?.length ? activeSeason.cast : meta?.cast} />
+      </FocusSlot>
 
-      {activeSeason ? (
-        <Box mt={32} gap={16}>
-          <Txt style={EPISODES_LABEL} color="rgba(244, 243, 240, 0.55)">
-            {t('content.episodesHeader')}
-          </Txt>
-          <Rail inset={0} gap={18}>
-            {activeSeason.episodes.map((ep) => (
-              // The focus ring belongs to the thumbnail only (design) title +
-              // meta sit below it, outside the amber border.
-              <Box key={ep.id} w={260} shrink={0} gap={9}>
-                {/* The focus ring belongs to the thumbnail only (design): title
-                    and meta sit below it, outside the amber border. */}
-                <Focusable
-                  onPress={() => nav.go('player', { item: ep })}
-                  label={ep.episodeTitle ?? ep.title}
-                  style={{ borderRadius: 12 }}
-                >
-                  <Box aspect={16 / 9} center radius={12} overflow="hidden" bg="surface1">
-                    <Img
-                      src={client.backdropFor(ep) ?? backdrop}
-                      background={tintGradient(posterColors(ep.id))}
-                      position="50% 30%"
-                      fill
-                    />
-                    {watched.has(ep.id) ? <WatchedBadge size={26} /> : null}
-                    <Box w={46} h={46} center radius="pill" bg="rgba(10, 10, 12, 0.5)">
-                      <Icon name="player-play-filled" size={18} color="#FFFFFF" />
-                    </Box>
-                    {epProgress[ep.id] != null && !watched.has(ep.id) ? (
-                      <Box absolute left={0} right={0} bottom={0}>
-                        <Progress value={(epProgress[ep.id] ?? 0) / 100} />
-                      </Box>
-                    ) : null}
-                  </Box>
-                </Focusable>
-                <Txt style={EPISODE_TITLE}>{`${ep.episode}. ${ep.episodeTitle ?? ep.title}`}</Txt>
-                <Box row align="center" gap={8}>
-                  <Txt style={EPISODE_META} color="textDim">
-                    {formatRuntime(ep.durationMs)}
-                  </Txt>
-                  {endsAtClock(ep.durationMs, locale) ? (
-                    <>
-                      <Txt style={[EPISODE_META, { opacity: 0.4 }]} color="textDim">
-                        ·
-                      </Txt>
-                      <Box row align="center" gap={6}>
-                        <Icon name="clock" size={12} stroke={2} color="accent" />
-                        <Txt style={EPISODE_META} color="textDim">
-                          {t('content.endsAtShort', { time: endsAtClock(ep.durationMs, locale) })}
-                        </Txt>
-                      </Box>
-                    </>
-                  ) : null}
-                </Box>
-              </Box>
-            ))}
-          </Rail>
-        </Box>
-      ) : null}
+      <FocusSlot>
+        {activeSeason ? (
+          <Box mt={32} gap={16}>
+            <Txt style={EPISODES_LABEL} color="rgba(244, 243, 240, 0.55)">
+              {t('content.episodesHeader')}
+            </Txt>
+            <EpisodeGrid
+              episodes={activeSeason.episodes}
+              stillFor={(ep, w) => client.backdropFor(ep, w) ?? backdrop}
+              isWatched={(id) => watched.has(id)}
+              progressOf={(id) => epProgress[id] ?? null}
+              onPlay={(ep) => nav.go('player', { item: ep })}
+              onToggleWatched={toggleEpisodeWatched}
+            />
+          </Box>
+        ) : null}
+      </FocusSlot>
     </TvDetailScaffold>
   );
 }
@@ -270,9 +261,4 @@ const EPISODES_LABEL = {
   letterSpacing: 0.6,
   textTransform: 'uppercase' as const,
 };
-const EPISODE_TITLE = { fontSize: 15, fontWeight: '600' as const };
-const EPISODE_META = {
-  fontSize: 13,
-  fontWeight: '500' as const,
-  fontVariant: ['tabular-nums' as const],
-};
+const ACTION_ROW = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 16 };

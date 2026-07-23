@@ -1,6 +1,17 @@
-import { type PointerEvent as ReactPointerEvent, useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  PanResponder,
+  View,
+} from 'react-native';
+import { gradient } from '../lib/css';
+import { fonts } from '../lib/tokens';
 import type { StoryboardTile } from '../storyboard';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import { clamp01 } from './fmt';
+import { StoryboardThumb } from './StoryboardThumb';
 import type { Chapter } from './types';
 
 export interface ChapterProgressBarProps {
@@ -35,6 +46,21 @@ export interface ChapterProgressBarProps {
  * follows the cursor (mouse) or the position (D-pad). Pointer down-drag-up
  * previews then commits one seek click-to-point is the zero-length drag.
  */
+/** Where the scrub preview's centre sits: on the cursor, clamped so the whole
+ * thumbnail stays within the track. Falls back to the raw position before the
+ * track has been measured. */
+function previewCentre(
+  previewSec: number | null,
+  dur: number,
+  trackWidth: number,
+  half: number,
+): number {
+  if (previewSec == null || dur <= 0 || trackWidth <= 0) return 0;
+  const centre = clamp01(previewSec / dur) * trackWidth;
+  if (half * 2 >= trackWidth) return centre; // nothing to clamp into
+  return Math.max(half, Math.min(trackWidth - half, centre));
+}
+
 export function ChapterProgressBar({
   cur,
   dur,
@@ -50,49 +76,63 @@ export function ChapterProgressBar({
   onScrub,
   onScrubCommit,
 }: Readonly<ChapterProgressBarProps>) {
-  const trackRef = useRef<HTMLDivElement>(null);
+  // The track measures itself rather than reading a DOM rect, so the same drag
+  // maths runs on a TV. React Native's responder system (through PanResponder)
+  // is the one gesture API both renderers implement.
+  const track = useRef({ x: 0, width: 0 });
   const dragging = useRef(false);
   const [hoverSec, setHoverSec] = useState<number | null>(null);
+  // The track's width in state as well as in the ref: the ref serves the pointer
+  // maths (read during a gesture, must not re-render), this serves the render
+  // that has to keep the scrub preview on screen.
+  const [trackWidth, setTrackWidth] = useState(0);
 
   const shown = seekPreview ?? cur;
   const shownPct = dur > 0 ? clamp01(shown / dur) * 100 : 0;
 
+  const onTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    track.current = { x, width };
+    setTrackWidth((prev) => (prev === width ? prev : width));
+  }, []);
+
   const secAt = useCallback(
-    (clientX: number): number | null => {
-      const el = trackRef.current;
-      if (!el || dur <= 0) return null;
-      const r = el.getBoundingClientRect();
-      return clamp01((clientX - r.left) / r.width) * dur;
+    (pageX: number): number | null => {
+      const { x, width } = track.current;
+      if (width <= 0 || dur <= 0) return null;
+      return clamp01((pageX - x) / width) * dur;
     },
     [dur],
   );
 
-  const onDown = useCallback(
-    (e: ReactPointerEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      const s = secAt(e.clientX);
-      if (s == null) return;
-      dragging.current = true;
-      onScrub(s);
-      const move = (ev: PointerEvent) => {
-        if (!dragging.current) return;
-        const m = secAt(ev.clientX);
-        if (m != null) {
-          onScrub(m);
-          setHoverSec(m);
-        }
-      };
-      const up = () => {
-        if (!dragging.current) return;
-        dragging.current = false;
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        onScrubCommit();
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    },
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e: GestureResponderEvent) => {
+          const sec = secAt(e.nativeEvent.locationX + track.current.x);
+          if (sec == null) return;
+          dragging.current = true;
+          onScrub(sec);
+          setHoverSec(sec);
+        },
+        onPanResponderMove: (e: GestureResponderEvent) => {
+          if (!dragging.current) return;
+          const sec = secAt(e.nativeEvent.locationX + track.current.x);
+          if (sec == null) return;
+          onScrub(sec);
+          setHoverSec(sec);
+        },
+        onPanResponderRelease: () => {
+          if (!dragging.current) return;
+          dragging.current = false;
+          onScrubCommit();
+        },
+        onPanResponderTerminate: () => {
+          dragging.current = false;
+        },
+      }),
     [secAt, onScrub, onScrubCommit],
   );
 
@@ -109,96 +149,136 @@ export function ChapterProgressBar({
   if (hoverSec != null) previewSec = hoverSec;
   else if (focused) previewSec = shown;
   const previewTile = previewSec != null ? tileAt(previewSec) : null;
-  const previewPct = previewSec != null && dur > 0 ? clamp01(previewSec / dur) * 100 : 0;
+  // Centred on the cursor, but kept inside the track: at 0:00 half the thumbnail
+  // would hang off the left edge of the screen (and the last frames off the
+  // right), which is exactly where a resume point or the credits put you.
+  const previewHalf = (previewTile?.width ?? 0) / 2;
+  const previewX = previewCentre(previewSec, dur, trackWidth, previewHalf);
 
   return (
-    <div className="mb-5">
+    <Box mb={20}>
       {/* info row */}
-      <div className="mb-[13px] flex items-baseline justify-between">
-        <span className="font-sans text-[18px] font-semibold text-[#F4F3F0] tabular-nums">
+      <Box row align="baseline" between mb={13}>
+        <Txt style={TIME}>
           {elapsed}
           {chapterLabel ? (
-            <span className="font-medium text-[rgba(244,243,240,0.5)]"> · {chapterLabel}</span>
+            <Txt style={[TIME, MUTED]} color="rgba(244, 243, 240, 0.5)">{` · ${chapterLabel}`}</Txt>
           ) : null}
-        </span>
-        <span className="font-sans text-[18px] font-semibold text-[rgba(244,243,240,0.5)] tabular-nums">
+        </Txt>
+        <Txt style={TIME} color="rgba(244, 243, 240, 0.5)">
           {total}
           {endsAt ? (
-            <span className="font-medium text-[rgba(244,243,240,0.38)]"> · {endsAt}</span>
+            <Txt style={[TIME, MUTED]} color="rgba(244, 243, 240, 0.38)">{` · ${endsAt}`}</Txt>
           ) : null}
-        </span>
-      </div>
+        </Txt>
+      </Box>
 
       {/* track */}
-      <div
-        role="slider"
-        aria-label="progress"
-        aria-valuemin={0}
-        aria-valuemax={Math.round(dur)}
-        aria-valuenow={Math.round(shown)}
-        tabIndex={-1}
-        onPointerDown={onDown}
-        onPointerMove={(e) => setHoverSec(secAt(e.clientX))}
-        onPointerLeave={() => {
-          if (!dragging.current) setHoverSec(null);
-        }}
-        className={`relative flex h-[18px] touch-none cursor-pointer items-center gap-1 rounded-full px-0.5 transition-shadow duration-200 ${
-          focused ? 'shadow-[0_0_0_4px_rgba(242,180,66,0.28)]' : ''
-        }`}
+      <Box
+        row
+        align="center"
+        gap={4}
+        h={18}
+        px={2}
+        radius="pill"
+        accessibilityRole="adjustable"
+        accessibilityLabel="progress"
+        accessibilityValue={{ min: 0, max: Math.round(dur), now: Math.round(shown) }}
+        style={focused ? FOCUSED_TRACK : null}
       >
         {/* storyboard preview + timestamp */}
         {previewSec != null ? (
-          <div
-            className="pointer-events-none absolute bottom-9 z-6 flex -translate-x-1/2 flex-col items-center gap-2"
-            style={{ left: `${previewPct}%` }}
+          <Box
+            absolute
+            bottom={36}
+            left={previewX}
+            z={6}
+            align="center"
+            gap={8}
+            pointerEvents="none"
+            style={{ transform: [{ translateX: -previewHalf }] }}
           >
-            {previewTile ? (
-              <div
-                className="relative overflow-hidden rounded-lg border-2 border-[rgba(255,255,255,0.3)] bg-black shadow-[0_16px_40px_rgba(0,0,0,0.7)]"
-                style={previewTile as object}
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_50%_35%,transparent,rgba(0,0,0,0.5))]" />
-              </div>
-            ) : null}
-            <span className="rounded-lg bg-[rgba(0,0,0,0.8)] px-3 py-1 font-sans text-[14px] font-bold text-white tabular-nums">
-              {fmtSec(previewSec)}
-            </span>
-          </div>
+            {previewTile ? <StoryboardThumb tile={previewTile} /> : null}
+            <Box radius="md" bg="rgba(0, 0, 0, 0.8)" px={12} py={4}>
+              <Txt style={STAMP}>{fmtSec(previewSec)}</Txt>
+            </Box>
+          </Box>
         ) : null}
 
         {/* segmented track */}
-        <div ref={trackRef} className="relative flex h-1.5 flex-1 items-center gap-1">
+        <View
+          onLayout={onTrackLayout}
+          {...pan.panHandlers}
+          style={{
+            position: 'relative',
+            flexDirection: 'row',
+            alignItems: 'center',
+            height: 6,
+            flex: 1,
+            gap: 4,
+          }}
+        >
           {segs.map((seg) => {
             const span = Math.max(1, seg.endMs - seg.startMs);
             const played = clamp01((shownMs - seg.startMs) / span);
             const buffed = clamp01((bufMs - seg.startMs) / span);
             return (
-              <div
+              <Box
                 key={seg.startMs}
-                className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.2)]"
+                flex
+                h={6}
+                radius="pill"
+                overflow="hidden"
+                bg="rgba(255, 255, 255, 0.2)"
               >
-                <div
-                  className="absolute inset-0 rounded-full bg-[rgba(255,255,255,0.28)]"
-                  style={{ right: `${(1 - buffed) * 100}%` }}
+                <Box
+                  fill
+                  radius="pill"
+                  bg="rgba(255, 255, 255, 0.28)"
+                  right={`${(1 - buffed) * 100}%`}
                 />
-                <div
-                  className="absolute inset-0 rounded-full bg-[linear-gradient(90deg,#F4B642,#FFD262)]"
-                  style={{ right: `${(1 - played) * 100}%` }}
-                />
-              </div>
+                <Box fill radius="pill" right={`${(1 - played) * 100}%`} style={gradient(PLAYED)} />
+              </Box>
             );
           })}
 
           {/* playhead pill */}
-          <div
-            className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_4px_rgba(242,180,66,0.5),0_2px_8px_rgba(0,0,0,0.6)]"
-            style={{ left: `${shownPct}%` }}
+          <Box
+            absolute
+            top="50%"
+            left={`${shownPct}%`}
+            w={16}
+            h={16}
+            radius="pill"
+            bg="#FFFFFF"
+            style={[PLAYHEAD, { transform: [{ translateX: -8 }, { translateY: -8 }] }]}
           />
-        </div>
-      </div>
-    </div>
+        </View>
+      </Box>
+    </Box>
   );
 }
+
+const TIME = {
+  fontFamily: fonts.ui,
+  fontSize: 18,
+  fontWeight: '600' as const,
+  color: '#F4F3F0',
+  fontVariant: ['tabular-nums' as const],
+};
+const MUTED = { fontWeight: '500' as const };
+const FOCUSED_TRACK = { boxShadow: '0 0 0 4px rgba(242, 180, 66, 0.28)' };
+const PLAYED = 'linear-gradient(90deg, #F4B642, #FFD262)';
+const PLAYHEAD = {
+  boxShadow: '0 0 0 4px rgba(242, 180, 66, 0.5), 0 2px 8px rgba(0, 0, 0, 0.6)',
+};
+const STAMP = {
+  fontFamily: fonts.ui,
+  fontSize: 14,
+  fontWeight: '700' as const,
+  color: '#FFFFFF',
+  fontVariant: ['tabular-nums' as const],
+};
 
 /** Local mm:ss / h:mm:ss for the preview bubble (avoids importing to keep it terse). */
 function fmtSec(s: number): string {

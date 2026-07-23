@@ -2,6 +2,7 @@ import {
   type DownloadedSub,
   GEN_LANGS,
   langName,
+  preferredSubIndex,
   type SubCapabilities,
   type Translate,
 } from '@kroma/core';
@@ -12,7 +13,6 @@ import {
   useSubtitleGenerations,
 } from '@kroma/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { preferredSubIndex } from '#web/features/playback/track-prefs';
 import { kromaClient, type MovieView, type SubtitleView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
@@ -42,7 +42,10 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
   useEffect(() => {
     if (prefApplied.current || !user) return;
     prefApplied.current = true;
-    const idx = preferredSubIndex(item.subs, user.subtitleLanguage);
+    const idx = preferredSubIndex(
+      item.subs.map((s) => ({ ...s, generated: s.downloaded })),
+      user.subtitleLanguage,
+    );
     if (idx != null) setActiveIndex(idx);
   }, [user, item.subs]);
 

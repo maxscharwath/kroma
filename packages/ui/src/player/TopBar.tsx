@@ -1,11 +1,12 @@
 import { Pressable } from 'react-native';
 import { useT } from '../i18n';
-import { gradient } from '../primitives/css';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { fonts } from '../tokens';
+import { gradient } from '../lib/css';
+import { fonts } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import { IconBack } from './icons';
 import { FOCUS_SCALE, FOCUS_SHADOW } from './style';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 /**
  * Player top chrome (§ top chrome): a gradient bar holding the round back
@@ -41,7 +42,12 @@ export function TopBar({ title, subtitle, warn, onBack, backFocused }: Readonly<
       pointerEvents="box-none"
       style={gradient(SCRIM)}
     >
-      <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel={t('player.back')}>
+      <Pressable
+        {...VIRTUAL_FOCUS}
+        onPress={onBack}
+        accessibilityRole="button"
+        accessibilityLabel={t('player.back')}
+      >
         <Box
           w={42}
           h={42}
@@ -78,5 +84,10 @@ export function TopBar({ title, subtitle, warn, onBack, backFocused }: Readonly<
 }
 
 const FOCUSED = { boxShadow: FOCUS_SHADOW, transform: [{ scale: FOCUS_SCALE }] };
-const TITLE = { fontFamily: fonts.display, fontSize: 19, fontWeight: '700' as const, color: '#FFFFFF' };
+const TITLE = {
+  fontFamily: fonts.display,
+  fontSize: 19,
+  fontWeight: '700' as const,
+  color: '#FFFFFF',
+};
 const SUBTITLE = { fontFamily: fonts.ui, fontSize: 13, fontWeight: '500' as const };

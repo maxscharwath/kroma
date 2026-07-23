@@ -2,12 +2,12 @@ import type { AudioTrack } from '@kroma/core';
 import { channelLabel, langName } from '@kroma/core';
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
+import { Box } from '../../ui/primitives/box';
+import { Txt } from '../../ui/primitives/text';
 import type { PanelHandle } from '../nav';
 import { useListFocus } from '../useListFocus';
 import { panelEmpty, panelList } from './panelStyle';
-import { SelectRow } from './SelectRow';
+import { SelectRow } from './select-row';
 
 interface AudioPanelProps {
   tracks: AudioTrack[];

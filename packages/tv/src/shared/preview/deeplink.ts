@@ -58,7 +58,14 @@ export function readDeepLink(): DeepLink | null {
  *  launch is covered by readDeepLink(); this handles selection while open.
  *  Returns a cleanup function. */
 export function onDeepLink(cb: (link: DeepLink) => void): () => void {
-  if (typeof window === 'undefined') return () => undefined;
+  // Both sources below are WebView-shell events, so the native TV clients have
+  // nothing to subscribe to (they get deep links through RN's Linking instead).
+  // Testing `window` alone is not enough to detect them: React Native defines
+  // `window` as an alias of `global`, and only trips over `addEventListener`
+  // missing from it.
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => undefined;
+  }
   // Android TV warm start: MainActivity dispatches `kroma-deeplink` with the item
   // id as `detail` (see MainActivity.onNewIntent).
   const android = (e: Event) => {

@@ -77,6 +77,7 @@ export function LocaleProvider({
   // Keep the API client (Accept-Language) and optionally <html lang> in sync.
   useEffect(() => {
     client?.setLocale(locale);
+    // biome-ignore lint/style/noRestrictedGlobals: audited - guarded; there is no <html lang> to sync on a native target.
     if (syncHtmlLang && typeof document !== 'undefined') document.documentElement.lang = locale;
   }, [client, locale, syncHtmlLang]);
 

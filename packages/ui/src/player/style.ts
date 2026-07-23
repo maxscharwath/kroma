@@ -8,7 +8,7 @@
 // control and both input models light the same thing.
 
 import type { TextStyle, ViewStyle } from 'react-native';
-import { colors, fonts, radius, ring } from '../tokens';
+import { colors, fonts, radius, ring } from '../lib/tokens';
 
 /** The unified amber focus treatment for any focused control: the ring plus the
  * spring pop. `glow-accent` is the amber bloom the player uses (the 10-foot

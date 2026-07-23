@@ -12,6 +12,7 @@ import {
 } from '#tv/features/catalog/home/AmbientBackdrop';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
+import { EMPTY, SECTION, TITLE } from '#tv/features/catalog/screenStyle';
 
 // Best-known titles first (rating, then year) the same ranking as the person grid.
 const SORT: SortMode = 'rating';
@@ -63,6 +64,12 @@ export function TvGenreGrid() {
 
   return (
     <Box fill bg="bg" overflow="hidden" style={{ isolation: 'isolate' }}>
+      {/* The bar comes FIRST in the tree because the navigator moves in tree
+          order and the bar is visually at the top; it still paints above,
+          on its own z. Which control opens focused is said by `autoFocus`,
+          not by the order. */}
+      <TvTopNav />
+
       <AmbientBackdrop
         src={backdrop}
         colors={focused ? posterColors(focused.item.id) : ['#1c1c22', '#0a0a0c']}
@@ -88,24 +95,6 @@ export function TvGenreGrid() {
           </Txt>
         </Box>
       )}
-
-      {/* Persistent nav last in DOM so a poster keeps the initial focus. */}
-      <TvTopNav />
     </Box>
   );
 }
-
-const SECTION = {
-  fontSize: 13,
-  fontWeight: '700' as const,
-  letterSpacing: 2.86,
-  textTransform: 'uppercase' as const,
-};
-// clamp(34px, 5.5vh, 60px) resolves to 59px on the fixed 1080-tall stage.
-const TITLE = { fontSize: 59, lineHeight: 58, fontWeight: '700' as const, letterSpacing: -1.18 };
-const EMPTY = {
-  fontSize: 18,
-  fontWeight: '500' as const,
-  textAlign: 'center' as const,
-  maxWidth: 640,
-};

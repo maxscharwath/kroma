@@ -7,6 +7,7 @@
 // `hasTVPreferredFocus` is NOT here: core React Native already declares it on
 // ViewProps, so redeclaring it would conflict.
 
+import type { ComponentType } from 'react';
 import 'react-native';
 
 declare module 'react-native' {
@@ -23,6 +24,12 @@ declare module 'react-native' {
    * focusable (Back / Menu, transport keys, gestures). */
   export const useTVEventHandler: (handleEvent: (event: HWEvent) => void) => void;
 
+  /** The same stream, outside React: what the spatial navigator subscribes to.
+   * Undefined on a build without the TV surface (the phone app). */
+  export const TVEventHandler:
+    | { addListener: (callback: (event: HWEvent) => void) => { remove: () => void } }
+    | undefined;
+
   /** Claim TV-level keys and gestures from the system. */
   export const TVEventControl: {
     enableTVMenuKey(): void;
@@ -33,9 +40,23 @@ declare module 'react-native' {
     disableGestureHandlersCancelTouches(): void;
   };
 
+  /** A focus guide: a region the OS focus engine can be steered into.
+   * `autoFocus` makes it hand focus to its first focusable child, which is how
+   * a screen gets an entry point without every screen naming one. */
+  export const TVFocusGuideView: ComponentType<
+    ViewProps & {
+      /** Where focus goes when the engine searches into this guide. Component
+       * instances or node handles. */
+      destinations?: unknown[] | undefined;
+      autoFocus?: boolean | undefined;
+      trapFocusUp?: boolean | undefined;
+      trapFocusDown?: boolean | undefined;
+      trapFocusLeft?: boolean | undefined;
+      trapFocusRight?: boolean | undefined;
+    }
+  >;
+
   interface ViewProps {
-    /** Android TV: take part in the focus hierarchy. */
-    tvFocusable?: boolean | undefined;
     /** Scroll snap alignment applied when this view takes focus inside a
      * ScrollView whose `snapToAlignment` is "item". */
     scrollSnapAlign?: 'start' | 'center' | 'end' | undefined;

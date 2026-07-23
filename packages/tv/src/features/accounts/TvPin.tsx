@@ -6,13 +6,13 @@ import {
   type User,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Icon, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Avatar, Box, Icon, Spinner, Txt, useFocusNav, webWindow } from '@kroma/ui/kit';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
 import { useNav, useParams } from '#tv/app/router';
-import { AuthScreen, artUrl, Keypad, ProfileAvatar } from '#tv/shared/ui';
+import { AuthScreen, artUrl, Keypad } from '#tv/shared/ui';
 
 /** PINs are a fixed 4 digits; the last digit auto-validates (no OK press). */
 const PIN_LENGTH = 4;
@@ -199,7 +199,12 @@ export function TvPin() {
   const locked = useRef(false);
   locked.current = busy || cooldown > 0;
   useEffect(() => {
-    if (!physicalKeyboard) return;
+    // Typing the PIN on a hardware keyboard is a DOM affordance; the keypad below
+    // is what a remote uses. `physicalKeyboard` is already false on a television,
+    // so this is belt-and-braces - but it is the kind of belt whose absence is a
+    // crash rather than a missing feature.
+    const w = physicalKeyboard ? webWindow() : null;
+    if (!w) return;
     const onKey = (e: KeyboardEvent) => {
       if (locked.current) return;
       if (/^\d$/.test(e.key)) {
@@ -209,14 +214,14 @@ export function TvPin() {
         setBuffer((b) => b.slice(0, -1));
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    w.addEventListener('keydown', onKey);
+    return () => w.removeEventListener('keydown', onKey);
   }, [physicalKeyboard]);
 
   return (
     <AuthScreen>
       {headerUser ? (
-        <ProfileAvatar
+        <Avatar
           name={headerUser.name}
           seed={headerUser.seed}
           size={118}

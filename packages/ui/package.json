@@ -6,26 +6,32 @@
   "exports": {
     ".": "./src/index.ts",
     "./kit": "./src/kit.ts",
+    "./workbench": "./src/workbench/index.ts",
+    "./testing": "./src/testing.tsx",
     "./tokens": "./src/tokens/index.ts",
     "./styles.css": "./src/styles.css",
-    "./tailwind.css": "./src/tailwind.css"
+    "./tailwind.css": "./src/tailwind.css",
+    "./src/assets/*": "./src/assets/*"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "build": "tsgo --noEmit",
     "gen:css": "bun ./scripts/gen-token-css.ts",
-    "gen:icons": "bun ./scripts/gen-icons.ts"
+    "gen:icons": "bun ./scripts/gen-icons.ts",
+    "shots": "bun ./scripts/shoot-stories.ts"
   },
   "dependencies": {
     "@kroma/core": "workspace:*",
+    "@tabler/icons": "^3.44.0",
     "@tabler/icons-react": "^3.44.0",
     "react-native-svg": "^15.15.5",
-    "@tabler/icons": "^3.44.0"
+    "react-tv-space-navigation": "6.0.0-beta1"
   },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18",
-    "react-native": "*"
+    "react-native": "*",
+    "expo-video": "~57.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -36,5 +42,10 @@
     "react-native": "npm:react-native-tvos@0.86.0-2",
     "react-native-web": "^0.21.2",
     "typescript": "^7.0.2"
+  },
+  "peerDependenciesMeta": {
+    "expo-video": {
+      "optional": true
+    }
   }
 }

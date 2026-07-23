@@ -1,57 +1,71 @@
 import type { SearchHit } from '@kroma/core';
 import { posterColors, qualityBadge, qualityBadgeForVideo } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Chip, Grid, PosterCard, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Chip, IconButton, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView } from 'react-native';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
 import { useClient, useNav } from '#tv/app/router';
+import { onSearchRequest, takePendingSearch } from '#tv/app/searchRequest';
+import { searchShell } from '#tv/app/searchShell';
+import { voiceSearchBackend } from '#tv/app/voiceSearch';
 import { addRecentSearch, getRecentSearches } from '#tv/features/catalog/searchHistory';
+import type { SearchResult } from '#tv/features/catalog/TvSearchResults';
+import { TvSearchResults } from '#tv/features/catalog/TvSearchResults';
+import { TvVoiceSearch } from '#tv/features/catalog/TvVoiceSearch';
 import { KromaMark, OnScreenKeyboard, TvBackButton } from '#tv/shared/ui';
-
-interface Hit {
-  id: string;
-  title: string;
-  badge: string | null;
-  poster: string;
-  colors: [string, string];
-  onOpen: () => void;
-}
 
 const DEBOUNCE_MS = 250;
 
-/** Search with a D-pad on-screen keyboard (left) and a live results grid (right).
- * Queries the server's full-text engine (`/api/search` typo-tolerant, ranked
- * across title/cast/genre/overview), falling back to the in-memory catalogue when
- * the request fails. */
+/** Search with a live results grid, typed either on our D-pad on-screen keyboard
+ * or on the platform's own where that is the better one (Apple TV, whose
+ * keyboard is also the only thing on the device that can hear dictation - see
+ * `app/searchShell`). Queries the server's full-text engine (`/api/search`
+ * typo-tolerant, ranked across title/cast/genre/overview), falling back to the
+ * in-memory catalogue when the request fails. */
 export function TvSearch() {
   const { movies, shows } = useConnection();
   const client = useClient();
   const t = useT();
   const nav = useNav();
-  const [query, setQuery] = useState('');
-  const [hits, setHits] = useState<Hit[]>([]);
+  // A query spoken to Siri (or handed over by any other shell) is waiting here
+  // when the screen was opened BY that request; typing starts empty as usual.
+  const [query, setQuery] = useState(() => takePendingSearch() ?? '');
+  const [hits, setHits] = useState<SearchResult[]>([]);
   const [recent, setRecent] = useState<string[]>(getRecentSearches);
   const { physicalKeyboard } = useEnv();
   useFocusNav({ onBack: nav.back });
+  // Null on every shell that cannot hear (the browser TVs today, an Android TV
+  // whose recogniser is missing): then no mic is shown at all.
+  const voice = voiceSearchBackend();
+  const [speaking, setSpeaking] = useState(false);
+  const stopSpeaking = useCallback(() => setSpeaking(false), []);
+  // Null on every shell that types on our keyboard, which is all but Apple TV.
+  const shell = searchShell();
+
+  // Asking Siri again while the screen is already open re-targets it rather than
+  // reopening it, so the second request is not silently dropped.
+  useEffect(() => onSearchRequest(setQuery), []);
 
   // A search "counts" once the user opens one of its results: remember the
   // query then, so the recent list holds real searches, not typing prefixes.
-  const openHit = (h: Hit) => {
-    setRecent(addRecentSearch(query));
-    h.onOpen();
-  };
+  const openHit = useCallback(
+    (h: SearchResult) => {
+      setRecent(addRecentSearch(query));
+      h.onOpen();
+    },
+    [query],
+  );
 
   const toHit = useCallback(
-    (hit: SearchHit): Hit => {
+    (hit: SearchHit): SearchResult => {
       if (hit.type === 'show') {
         const s = hit.show;
         return {
           id: s.id,
           title: s.title,
           badge: qualityBadgeForVideo(s.video),
-          poster: client.showPosterFor(s),
+          poster: client.showPosterFor(s, RESULT_W),
           colors: posterColors(s.id),
           onOpen: () => nav.go('show', { show: s }),
         };
@@ -61,7 +75,7 @@ export function TvSearch() {
         id: m.id,
         title: m.episodeTitle ?? m.title,
         badge: qualityBadge(m),
-        poster: client.posterFor(m),
+        poster: client.posterFor(m, RESULT_W),
         colors: posterColors(m.id),
         onOpen: () => nav.go('movie', { item: m }),
       };
@@ -71,7 +85,7 @@ export function TvSearch() {
 
   // Offline fallback: filter the already-loaded catalogue by title / genre.
   const localHits = useCallback(
-    (q: string): Hit[] => {
+    (q: string): SearchResult[] => {
       const needle = q.toLowerCase();
       const match = (title: string, genres?: string[] | null) =>
         title.toLowerCase().includes(needle) ||
@@ -109,6 +123,45 @@ export function TvSearch() {
     return () => clearTimeout(timer);
   }, [query, client, toHit, localHits]);
 
+  const recentPills = recent.length ? (
+    <Box mt={28} gap={12} style={{ minHeight: 0 }}>
+      <Txt style={RECENT_LABEL} color="textDim">
+        {t('search.recent')}
+      </Txt>
+      <Box row wrap gap={10}>
+        {recent.map((term) => (
+          <Chip
+            key={term}
+            variant="subtle"
+            focusScale={1.06}
+            label={term}
+            onPress={() => setQuery(term)}
+            style={{ maxWidth: 240, paddingHorizontal: 18, paddingVertical: 8 }}
+          />
+        ))}
+      </Box>
+    </Box>
+  ) : null;
+
+  // The platform's chrome owns the whole screen - its field, its keyboard, and
+  // the room it leaves - so there is no header of ours to draw around it.
+  if (shell) {
+    const { Shell } = shell;
+    return (
+      <Shell value={query} onChange={setQuery} placeholder={t('nav.search')}>
+        {({ width }) => (
+          <TvSearchResults
+            hits={hits}
+            query={query}
+            width={width - RESULTS_PADDING}
+            onOpen={openHit}
+            header={recentPills}
+          />
+        )}
+      </Shell>
+    );
+  }
+
   return (
     <Box fill z={10} bg="bg" px={64} py={44}>
       <Box row align="center" gap={14} mb={28}>
@@ -132,71 +185,43 @@ export function TvSearch() {
             mb={26}
             bg="rgba(255, 255, 255, 0.05)"
             textStyle={{ fontSize: 24, fontWeight: '600' }}
+            trailing={
+              voice ? (
+                <IconButton
+                  icon="microphone"
+                  size={48}
+                  glyph={24}
+                  variant="ghost"
+                  label={t('search.voice')}
+                  onPress={() => setSpeaking(true)}
+                />
+              ) : null
+            }
           />
           <OnScreenKeyboard value={query} onChange={setQuery} onClose={nav.back} layout="search" />
 
           {/* recent searches: focusable pills that re-run the query */}
-          {recent.length ? (
-            <Box mt={28} gap={12} style={{ minHeight: 0 }}>
-              <Txt style={RECENT_LABEL} color="textDim">
-                {t('search.recent')}
-              </Txt>
-              <Box row wrap gap={10}>
-                {recent.map((term) => (
-                  <Chip
-                    key={term}
-                    variant="subtle"
-                    focusScale={1.06}
-                    label={term}
-                    onPress={() => setQuery(term)}
-                    style={{ maxWidth: 240, paddingHorizontal: 18, paddingVertical: 8 }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          ) : null}
+          {recentPills}
         </Box>
 
-        <ScrollView
-          style={{ flex: 1, minHeight: 0 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <Box row wrap align="center" gap={14} mb={18}>
-            <Txt style={{ fontSize: 15, fontWeight: '700', letterSpacing: 0.6 }} color="textMuted">
-              {t('search.results')}
-            </Txt>
-            <Txt style={{ fontSize: 12, fontWeight: '600' }} color="rgba(244, 243, 240, 0.34)">
-              {t('search.hint')}
-            </Txt>
-          </Box>
-          {/* The results pane is a fixed 1180px (1792 content - 520 keyboard -
-              52 gap - 40 padding), so 4 columns of 277px with 24px gaps. */}
-          {hits.length ? (
-            <Grid width={RESULTS_WIDTH} columns={4} gap={24}>
-              {hits.map((h) => (
-                <PosterCard
-                  key={h.id}
-                  title={h.title}
-                  art={h.poster}
-                  tint={h.colors}
-                  onPress={() => openHit(h)}
-                />
-              ))}
-            </Grid>
-          ) : (
-            <Txt
-              style={{ fontSize: 17, fontWeight: '500', paddingTop: 20 }}
-              color="rgba(244, 243, 240, 0.4)"
-            >
-              {query.trim() ? t('search.noResults') : t('search.empty')}
-            </Txt>
-          )}
-        </ScrollView>
+        {/* The results pane is a fixed 1180px (1792 content - 520 keyboard -
+            52 gap - 40 padding), so 4 columns of 277px with 24px gaps. */}
+        <TvSearchResults hits={hits} query={query} width={RESULTS_WIDTH} onOpen={openHit} />
       </Box>
+
+      {/* Spoken words land in the same `query` typing feeds, so the grid behind
+          fills in while the user is still talking. */}
+      {speaking && voice ? (
+        <TvVoiceSearch backend={voice} onText={setQuery} onDone={stopSpeaking} />
+      ) : null}
     </Box>
   );
 }
 
 const RESULTS_WIDTH = 1180;
+/** The scroller's own horizontal padding, which the grid does not get to use. */
+const RESULTS_PADDING = 40;
 const RECENT_LABEL = { fontSize: 13, fontWeight: '700' as const, letterSpacing: 0.52 };
+
+/** The results grid draws 277pt posters, which the server serves from its 320 bucket. */
+const RESULT_W = 320;

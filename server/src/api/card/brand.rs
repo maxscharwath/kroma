@@ -17,7 +17,7 @@ use super::{draw_text, text_width, TextStyle, MARGIN, W, WHITE};
 fn font() -> &'static Font {
     static FONT: OnceLock<Font> = OnceLock::new();
     FONT.get_or_init(|| {
-        let bytes = include_bytes!("../../../assets/fonts/BricolageGrotesque-ExtraBold.ttf") as &[u8];
+        let bytes = include_bytes!("../../../../packages/ui/src/assets/fonts/BricolageGrotesque-ExtraBold.ttf") as &[u8];
         Font::from_bytes(bytes, fontdue::FontSettings::default()).expect("bundled font parses")
     })
 }

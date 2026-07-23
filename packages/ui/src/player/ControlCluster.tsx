@@ -1,5 +1,15 @@
-import { type ReactNode, type PointerEvent as ReactPointerEvent, useCallback, useRef } from 'react';
+import type { MessageKey } from '@kroma/core';
+import { type ReactNode, useCallback, useMemo, useRef } from 'react';
+import {
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  PanResponder,
+  Pressable,
+  View,
+} from 'react-native';
 import { useT } from '../i18n';
+import { colors } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
 import { clamp01, sliderToVolume, volumeToSlider } from './fmt';
 import {
   IconAudioTrack,
@@ -18,11 +28,15 @@ import {
   IconVolLow,
 } from './icons';
 import type { ControlId } from './nav';
-import { CTRL, CTRL_OFF, CTRL_ON, FOCUS_RING } from './tw';
+import { CTRL, CTRL_OFF, CTRL_ON, FOCUS_SCALE, FOCUS_SHADOW } from './style';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 const TRANSPORT: ReadonlySet<ControlId> = new Set<ControlId>(['rewind', 'play', 'forward']);
-const CTRL_ON_FOCUS = `${CTRL_ON} ${FOCUS_RING}`;
-const PLAY_ON_FOCUS = `bg-accent-hover ${FOCUS_RING}`;
+/** The focused control lifts and takes the amber ring; the fill brightens too. */
+const FOCUS_POP = { boxShadow: FOCUS_SHADOW, transform: [{ scale: FOCUS_SCALE }] };
+const circleFill = (focused: boolean) => ({
+  backgroundColor: focused ? CTRL_ON : CTRL_OFF,
+});
 
 export interface ControlClusterProps {
   controls: ControlId[];
@@ -50,7 +64,7 @@ function Circle({
   children,
 }: Readonly<{
   id: ControlId;
-  size: string;
+  size: number;
   focused: boolean;
   label: string;
   onActivate: (id: ControlId) => void;
@@ -58,17 +72,51 @@ function Circle({
   children: ReactNode;
 }>) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={() => onActivate(id)}
-      onMouseEnter={() => onFocus(id)}
-      className={`${CTRL} ${size} ${focused ? CTRL_ON_FOCUS : CTRL_OFF}`}
+    <Pressable
+      {...VIRTUAL_FOCUS}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => onActivate(id)}
+      onPointerEnter={() => onFocus(id)}
+      style={[CTRL, { width: size, height: size }, circleFill(focused), focused ? FOCUS_POP : null]}
     >
       {children}
-    </button>
+    </Pressable>
   );
 }
+
+/** Player state a circular control's glyph can depend on. */
+interface GlyphState {
+  pipActive: boolean;
+  fullscreen: boolean;
+}
+
+/** Every control except play and volume is the SAME circular button, differing
+ * only in diameter, accessible label and glyph, so they are a table rather than
+ * eight near-identical JSX blocks. `pip` and `fullscreen` swap their glyph with
+ * player state, which is why a glyph is a function of it. */
+const CIRCLES: Record<
+  Exclude<ControlId, 'play' | 'volume'>,
+  { size: number; label: MessageKey; glyph: (s: GlyphState) => ReactNode }
+> = {
+  rewind: { size: 62, label: 'player.back10', glyph: () => <IconBack10 size={27} /> },
+  forward: { size: 62, label: 'player.fwd10', glyph: () => <IconFwd10 size={27} /> },
+  next: { size: 56, label: 'player.nextEpisode', glyph: () => <IconNext size={24} /> },
+  subtitles: { size: 56, label: 'player.subtitles', glyph: () => <IconSubtitles size={25} /> },
+  audio: { size: 56, label: 'player.audioTrack', glyph: () => <IconAudioTrack size={24} /> },
+  settings: { size: 56, label: 'player.settings', glyph: () => <IconGear size={25} /> },
+  pip: {
+    size: 56,
+    label: 'player.pip',
+    glyph: ({ pipActive }) => <IconPip size={23} color={pipActive ? colors.accent : '#FFFFFF'} />,
+  },
+  fullscreen: {
+    size: 56,
+    label: 'player.fullscreen',
+    glyph: ({ fullscreen }) =>
+      fullscreen ? <IconFullscreenExit size={23} /> : <IconFullscreen size={23} />,
+  },
+};
 
 /**
  * The middle control row (§4): centered transport (rewind / play / forward) plus
@@ -93,156 +141,76 @@ export function ControlCluster({
   const transport = controls.filter((c) => TRANSPORT.has(c));
   const cluster = controls.filter((c) => !TRANSPORT.has(c));
 
+  const glyphState: GlyphState = { pipActive, fullscreen };
+
   const render = (id: ControlId) => {
     const on = focused === id;
-    switch (id) {
-      case 'rewind':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-[62px] w-[62px]"
-            focused={on}
-            label={t('player.back10')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconBack10 size={27} />
-          </Circle>
-        );
-      case 'play':
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-label={playing ? t('player.pause') : t('player.play')}
-            onClick={() => onActivate(id)}
-            onMouseEnter={() => onFocus(id)}
-            className={`${CTRL} h-20 w-20 text-accent-ink ${on ? PLAY_ON_FOCUS : 'bg-accent'}`}
-          >
-            {playing ? <IconPause size={33} /> : <IconPlay size={35} />}
-          </button>
-        );
-      case 'forward':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-[62px] w-[62px]"
-            focused={on}
-            label={t('player.fwd10')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconFwd10 size={27} />
-          </Circle>
-        );
-      case 'next':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-14 w-14"
-            focused={on}
-            label={t('player.nextEpisode')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconNext size={24} />
-          </Circle>
-        );
-      case 'volume':
-        return (
-          <VolumeControl
-            key={id}
-            focused={on}
-            muted={muted}
-            volume={volume}
-            onFocus={() => onFocus(id)}
-            onToggle={() => onActivate(id)}
-            onVolume={onVolume}
-            label={t('player.volume')}
-            muteLabel={t('player.mute')}
-          />
-        );
-      case 'subtitles':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-14 w-14"
-            focused={on}
-            label={t('player.subtitles')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconSubtitles size={25} />
-          </Circle>
-        );
-      case 'audio':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-14 w-14"
-            focused={on}
-            label={t('player.audioTrack')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconAudioTrack size={24} />
-          </Circle>
-        );
-      case 'settings':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-14 w-14"
-            focused={on}
-            label={t('player.settings')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            <IconGear size={25} />
-          </Circle>
-        );
-      case 'pip':
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-label={t('player.pip')}
-            onClick={() => onActivate(id)}
-            onMouseEnter={() => onFocus(id)}
-            className={`${CTRL} h-14 w-14 ${pipActive ? 'text-accent' : ''} ${on ? CTRL_ON_FOCUS : CTRL_OFF}`}
-          >
-            <IconPip size={23} />
-          </button>
-        );
-      case 'fullscreen':
-        return (
-          <Circle
-            key={id}
-            id={id}
-            size="h-14 w-14"
-            focused={on}
-            label={t('player.fullscreen')}
-            onActivate={onActivate}
-            onFocus={onFocus}
-          >
-            {fullscreen ? <IconFullscreenExit size={23} /> : <IconFullscreen size={23} />}
-          </Circle>
-        );
+    // The two controls that are not a plain circle: play carries the accent fill
+    // and its own play/pause glyph, volume owns a slider.
+    if (id === 'play') {
+      return (
+        <Pressable
+          {...VIRTUAL_FOCUS}
+          key={id}
+          accessibilityRole="button"
+          accessibilityLabel={playing ? t('player.pause') : t('player.play')}
+          onPress={() => onActivate(id)}
+          onPointerEnter={() => onFocus(id)}
+          style={[
+            CTRL,
+            { width: 80, height: 80, backgroundColor: on ? colors.accentHover : colors.accent },
+            on ? FOCUS_POP : null,
+          ]}
+        >
+          {playing ? (
+            <IconPause size={33} color={colors.accentInk} />
+          ) : (
+            <IconPlay size={35} color={colors.accentInk} />
+          )}
+        </Pressable>
+      );
     }
+    if (id === 'volume') {
+      return (
+        <VolumeControl
+          key={id}
+          focused={on}
+          muted={muted}
+          volume={volume}
+          onFocus={() => onFocus(id)}
+          onToggle={() => onActivate(id)}
+          onVolume={onVolume}
+          label={t('player.volume')}
+          muteLabel={t('player.mute')}
+        />
+      );
+    }
+    const { size, label, glyph } = CIRCLES[id];
+    return (
+      <Circle
+        key={id}
+        id={id}
+        size={size}
+        focused={on}
+        label={t(label)}
+        onActivate={onActivate}
+        onFocus={onFocus}
+      >
+        {glyph(glyphState)}
+      </Circle>
+    );
   };
 
   return (
-    <div className="flex items-center pt-1">
-      <div className="flex-1" />
-      <div className="flex items-center gap-5">{transport.map(render)}</div>
-      <div className="flex flex-1 items-center justify-end gap-3.5">{cluster.map(render)}</div>
-    </div>
+    <Box row align="center" pt={4}>
+      <Box flex />
+      <Box row align="center" gap={20}>
+        {transport.map(render)}
+      </Box>
+      <Box row flex align="center" justify="flex-end" gap={14}>
+        {cluster.map(render)}
+      </Box>
+    </Box>
   );
 }
 
@@ -266,11 +234,11 @@ function VolumeControl({
   label: string;
   muteLabel: string;
 }>) {
-  const trackRef = useRef<HTMLButtonElement>(null);
+  const track = useRef({ x: 0, width: 0 });
   const level = muted ? 0 : volume;
-  // The fill/thumb track the perceptual slider position, not the raw amplitude,
-  // so the handle sits under the pointer while the audio follows the loudness
-  // curve (a linear fader would look wrong against a tapered volume).
+  // The fill and thumb track the perceptual slider position, not the raw
+  // amplitude, so the handle sits under the pointer while the audio follows the
+  // loudness curve (a linear fader would look wrong against a tapered volume).
   const sliderPos = muted ? 0 : volumeToSlider(volume);
   let volIcon: ReactNode;
   if (level === 0) volIcon = <IconMute size={24} />;
@@ -278,63 +246,80 @@ function VolumeControl({
   else volIcon = <IconVolHigh size={24} />;
 
   const setAt = useCallback(
-    (clientX: number) => {
-      const el = trackRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      onVolume(sliderToVolume(clamp01((clientX - r.left) / r.width)));
+    (x: number) => {
+      const { width } = track.current;
+      if (width <= 0) return;
+      onVolume(sliderToVolume(clamp01(x / width)));
     },
     [onVolume],
   );
 
-  const onDown = useCallback(
-    (e: ReactPointerEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      setAt(e.clientX);
-      const move = (ev: PointerEvent) => setAt(ev.clientX);
-      const up = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    },
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e: GestureResponderEvent) => setAt(e.nativeEvent.locationX),
+        onPanResponderMove: (e: GestureResponderEvent) => setAt(e.nativeEvent.locationX),
+      }),
     [setAt],
   );
 
+  const onTrackLayout = (e: LayoutChangeEvent) => {
+    track.current = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
+  };
+
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover just moves focus (pointer parity with the D-pad); activation is via the inner buttons.
-    <div
-      onMouseEnter={onFocus}
-      className={`flex h-14 flex-none items-center overflow-hidden rounded-full transition-[transform,box-shadow,background] duration-150 ease-out ${focused ? CTRL_ON_FOCUS : CTRL_OFF}`}
+    <Box
+      row
+      align="center"
+      shrink={0}
+      h={56}
+      radius="pill"
+      overflow="hidden"
+      onPointerEnter={onFocus}
+      style={[circleFill(focused), focused ? FOCUS_POP : null]}
     >
-      <button
-        type="button"
-        aria-label={muteLabel}
-        onClick={onToggle}
-        className="flex h-14 w-14 flex-none cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-white outline-none"
+      <Pressable
+        {...VIRTUAL_FOCUS}
+        accessibilityRole="button"
+        accessibilityLabel={muteLabel}
+        onPress={onToggle}
+        style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
       >
         {volIcon}
-      </button>
-      <button
-        type="button"
-        ref={trackRef}
-        aria-label={label}
-        onPointerDown={onDown}
-        className="flex h-14 w-24 cursor-pointer touch-none items-center border-none bg-transparent pr-5 outline-none"
+      </Pressable>
+      <View
+        onLayout={onTrackLayout}
+        {...pan.panHandlers}
+        accessibilityRole="adjustable"
+        accessibilityLabel={label}
+        style={{ height: 56, width: 96, justifyContent: 'center', paddingRight: 20 }}
       >
-        <div className="relative h-1.5 w-full rounded-full bg-[rgba(255,255,255,0.22)]">
-          <div
-            className="absolute inset-y-0 left-0 rounded-full bg-accent"
-            style={{ width: `${sliderPos * 100}%` }}
+        <Box h={6} w="100%" radius="pill" bg="rgba(255, 255, 255, 0.22)">
+          <Box
+            absolute
+            top={0}
+            bottom={0}
+            left={0}
+            w={`${sliderPos * 100}%`}
+            radius="pill"
+            bg="accent"
           />
-          <div
-            className="absolute top-1/2 h-[13px] w-[13px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.5)]"
-            style={{ left: `${sliderPos * 100}%` }}
+          <Box
+            absolute
+            top="50%"
+            left={`${sliderPos * 100}%`}
+            w={13}
+            h={13}
+            radius="pill"
+            bg="#FFFFFF"
+            style={[THUMB, { transform: [{ translateX: -6.5 }, { translateY: -6.5 }] }]}
           />
-        </div>
-      </button>
-    </div>
+        </Box>
+      </View>
+    </Box>
   );
 }
+
+const THUMB = { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)' };

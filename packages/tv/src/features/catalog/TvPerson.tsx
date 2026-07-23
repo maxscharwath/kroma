@@ -1,16 +1,23 @@
 import type { Metadata } from '@kroma/core';
 import { creditsPerson, personInvolvement, posterColors, roleLabels } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Avatar, Box, radius, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
+import { PersonHeader } from '#tv/features/catalog/person/PersonHeader';
+import { usePersonDetail } from '#tv/features/catalog/person/usePersonDetail';
+import { EMPTY } from '#tv/features/catalog/screenStyle';
 
-/** Everything one cast/crew person is credited in reached by selecting a face
- * in a detail page's "Distribution" rail. Filters the already-loaded catalogue
- * locally (no extra request), ranked best-known work first. */
+/** Everything one cast/crew person is credited in, under who they are reached
+ * by selecting a face in a detail page's "Distribution" rail.
+ *
+ * The filmography is filtered out of the already-loaded catalogue (no request,
+ * ranked best-known work first); the biography beside it is the one thing the
+ * library cannot know, so it comes from the metadata provider and lands a
+ * moment later. */
 export function TvPerson() {
   const { name } = useParams('person');
   const { movies, shows } = useConnection();
@@ -32,7 +39,7 @@ export function TvPerson() {
       card: {
         id: m.id,
         title: m.title,
-        poster: client.posterFor(m),
+        poster: client.posterFor(m, POSTER_W),
         colors: posterColors(m.id),
         onClick: () => nav.go('movie', { item: m }),
       } satisfies GridCard,
@@ -42,7 +49,7 @@ export function TvPerson() {
       card: {
         id: s.id,
         title: s.title,
-        poster: client.showPosterFor(s),
+        poster: client.showPosterFor(s, POSTER_W),
         colors: posterColors(s.id),
         onClick: () => nav.go('show', { show: s }),
       } satisfies GridCard,
@@ -55,29 +62,29 @@ export function TvPerson() {
     return { cards, involvement: personInvolvement(metas, name) };
   }, [movies, shows, name, client, nav]);
 
-  const photo = client.resolveArt(involvement.profileUrl);
+  const detail = usePersonDetail(name);
+  // The provider's portrait is the better one (a bigger source, and it exists
+  // for people who only ever crewed); the credit's photo is the instant one.
+  const photo = client.resolveArt(detail?.profileUrl ?? involvement.profileUrl, PORTRAIT_W);
   const roles = roleLabels(t, involvement);
 
   return (
     <Box fill bg="bg" overflow="hidden">
+      {/* The bar comes FIRST in the tree because the navigator moves in tree
+          order and the bar is visually at the top; it still paints above,
+          on its own z. Which control opens focused is said by `autoFocus`,
+          not by the order. */}
+      <TvTopNav />
+
       {/* Header sits below the persistent nav bar (its top padding clears it);
           Back is the remote key, so no separate hint. */}
-      <Box row align="center" gap={24} px={64} pt={112} pb={24}>
-        <Avatar name={name} src={photo} size={96} radius={radius.pill} />
-        <Box style={{ minWidth: 0 }} gap={8}>
-          {roles.length ? (
-            <Txt style={SECTION} color="accent">
-              {roles.join(' · ')}
-            </Txt>
-          ) : null}
-          <Txt variant="hero" style={TITLE}>
-            {name}
-          </Txt>
-          <Txt style={{ fontSize: 16, fontWeight: '600' }} color="textMuted">
-            {t('person.titleCount', { count: cards.length })}
-          </Txt>
-        </Box>
-      </Box>
+      <PersonHeader
+        name={detail?.name ?? name}
+        roles={roles}
+        photo={photo}
+        titleCount={cards.length}
+        detail={detail}
+      />
 
       {cards.length ? (
         <PosterGrid cards={cards} />
@@ -88,24 +95,10 @@ export function TvPerson() {
           </Txt>
         </Box>
       )}
-
-      {/* Persistent nav last in the tree so a poster keeps the initial focus. */}
-      <TvTopNav />
     </Box>
   );
 }
 
-const SECTION = {
-  fontSize: 13,
-  fontWeight: '700' as const,
-  letterSpacing: 2.86,
-  textTransform: 'uppercase' as const,
-};
-// clamp(34px, 5.5vh, 60px) resolves to 59px on the fixed 1080-tall stage.
-const TITLE = { fontSize: 59, lineHeight: 58, fontWeight: '700' as const, letterSpacing: -1.18 };
-const EMPTY = {
-  fontSize: 18,
-  fontWeight: '500' as const,
-  textAlign: 'center' as const,
-  maxWidth: 640,
-};
+/** The filmography posters, and the portrait beside the name. */
+const POSTER_W = 203;
+const PORTRAIT_W = 220;

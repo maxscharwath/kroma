@@ -1,8 +1,7 @@
 // The shared radial backdrop for the TV auth / connect / pin screens.
 
-import { Box, gradient } from '@kroma/ui/kit';
+import { Box, FocusScroll, gradient } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
-import { ScrollView } from 'react-native';
 import { TvBackButton } from '#tv/shared/ui/BackButton';
 
 const BACKDROP = 'radial-gradient(120% 90% at 50% 0%, #15131C, #0A0A0C 68%)';
@@ -16,22 +15,25 @@ const BACKDROP = 'radial-gradient(120% 90% at 50% 0%, #15131C, #0A0A0C 68%)';
 export function AuthScreen({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <Box fill z={10} style={gradient(BACKDROP)}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 40,
-          paddingVertical: 48,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
+      <FocusScroll style={AUTH_SCROLL} contentStyle={AUTH_CONTENT}>
         {children}
-      </ScrollView>
+      </FocusScroll>
       <Box absolute left={32} top={28} z={20}>
         <TvBackButton />
       </Box>
     </Box>
   );
 }
+
+/** The page scroller's own box: the navigator scrolls it to follow focus. */
+const AUTH_SCROLL = { flex: 1 } as const;
+
+/** The content centres when it fits and scrolls from the top when it does not,
+ * which is why the growth and the centring are on the CONTENT, not the box. */
+const AUTH_CONTENT = {
+  flexGrow: 1,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  paddingHorizontal: 40,
+  paddingVertical: 48,
+};

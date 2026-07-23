@@ -11,6 +11,8 @@ import { useT } from '@kroma/ui';
 import {
   Box,
   Focusable,
+  FocusRegion,
+  FocusScroll,
   fonts,
   gradient,
   Img,
@@ -19,13 +21,10 @@ import {
   useFocusNav,
 } from '@kroma/ui/kit';
 import { useMemo } from 'react';
-import { ScrollView } from 'react-native';
 import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav } from '#tv/app/router';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
-
-// clamp(34px, 5.5vh, 60px) resolves to 59px on the fixed 1080-tall stage.
-const TITLE = { fontSize: 59, lineHeight: 58, fontWeight: '700' as const, letterSpacing: -1.18 };
+import { TITLE } from '#tv/features/catalog/screenStyle';
 
 /** Genre picker: every genre in the library (movies + shows), most common first.
  * Selecting one drills into {@link TvGenreGrid}. Derives the genre list from the
@@ -44,6 +43,12 @@ export function TvGenres() {
 
   return (
     <Box fill bg="bg" overflow="hidden">
+      {/* The bar comes FIRST in the tree because the navigator moves in tree
+          order and the bar is visually at the top; it still paints above,
+          on its own z. Which control opens focused is said by `autoFocus`,
+          not by the order. */}
+      <TvTopNav active="genres" />
+
       <Box px={64} pt={112} pb={16}>
         <Txt variant="hero" style={TITLE}>
           {t('nav.genres')}
@@ -51,26 +56,30 @@ export function TvGenres() {
       </Box>
 
       {genres.length ? (
-        <ScrollView
-          style={{ flex: 1, minHeight: 0 }}
-          contentContainerStyle={{ paddingHorizontal: 64, paddingTop: 8, paddingBottom: 72 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <Box row wrap gap={12}>
-            {genres.map((g) => {
-              const pick = showcases.get(g.name);
-              return (
-                <GenreCard
-                  key={g.name}
-                  genre={g}
-                  count={t('person.titleCount', { count: g.count })}
-                  backdrop={pick ? client.backdropFor(pick) : null}
-                  onPress={() => nav.go('genre', { name: g.name })}
-                />
-              );
-            })}
-          </Box>
-        </ScrollView>
+        <FocusScroll style={GENRE_SCROLL} contentStyle={GENRE_CONTENT} offsetFromStart={120}>
+          {/* The field WRAPS on screen, so it is a grid, and it has to be
+              declared as one: a single row would leave Up and Down with nowhere
+              to go and make Right walk all twenty-odd genres in a line. One
+              region per visible line, exactly what the eye sees. */}
+          {lines(genres, GENRE_COLUMNS).map((line, row) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the index IS the line's identity.
+            <FocusRegion key={row} style={GENRE_LINE}>
+              {line.map((g, column) => {
+                const pick = showcases.get(g.name);
+                return (
+                  <GenreCard
+                    autoFocus={row === 0 && column === 0}
+                    key={g.name}
+                    genre={g}
+                    count={t('person.titleCount', { count: g.count })}
+                    backdrop={pick ? client.backdropFor(pick, CARD_W) : null}
+                    onPress={() => nav.go('genre', { name: g.name })}
+                  />
+                );
+              })}
+            </FocusRegion>
+          ))}
+        </FocusScroll>
       ) : (
         <Box flex center px={64}>
           <Txt
@@ -81,9 +90,6 @@ export function TvGenres() {
           </Txt>
         </Box>
       )}
-
-      {/* Persistent nav last in the tree so a genre tile keeps the initial focus. */}
-      <TvTopNav active="genres" />
     </Box>
   );
 }
@@ -96,9 +102,23 @@ function GenreCard({
   count,
   backdrop,
   onPress,
-}: Readonly<{ genre: GenreCount; count: string; backdrop: string | null; onPress: () => void }>) {
+  autoFocus,
+}: Readonly<{
+  genre: GenreCount;
+  count: string;
+  backdrop: string | null;
+  onPress: () => void;
+  /** Marks this card the screen's focus entry point. */
+  autoFocus?: boolean;
+}>) {
   return (
-    <Focusable onPress={onPress} label={genre.name} focusScale={1.04} style={CARD}>
+    <Focusable
+      onPress={onPress}
+      label={genre.name}
+      autoFocus={autoFocus}
+      focusScale={1.04}
+      style={CARD}
+    >
       <Box aspect={16 / 9} radius={14} overflow="hidden" bg="surface1" shadow="card">
         <Img
           src={sizedImageUrl(backdrop, 328)}
@@ -132,3 +152,32 @@ const COUNT = {
   color: 'rgba(255, 255, 255, 0.72)',
   fontVariant: ['tabular-nums' as const],
 };
+
+/** 1792pt of content fits five 340pt cards with 12pt gaps, which is what the
+ * wrap produces on the 1920 stage. Declared rather than measured: the stage is
+ * fixed, and the navigator needs the shape before anything is laid out. */
+const GENRE_COLUMNS = 5;
+
+const GENRE_LINE = { flexDirection: 'row' as const, gap: 12 };
+
+/** Split a list into lines of `size`, so each visible line can be a row. */
+function lines<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let at = 0; at < items.length; at += size) out.push(items.slice(at, at + size));
+  return out;
+}
+
+/** The page scroller's own box: the navigator scrolls it to follow focus. */
+const GENRE_SCROLL = { flex: 1, minHeight: 0 } as const;
+
+/** The padding belongs to the CONTENT, not to the scroller's own box: on the
+ * box it would pad the viewport and clip the last row instead of the list. */
+const GENRE_CONTENT = {
+  paddingHorizontal: 64,
+  paddingTop: 8,
+  paddingBottom: 72,
+  gap: 12,
+} as const;
+
+/** A genre card is drawn 340pt wide; 320 is the rendition bucket just under it. */
+const CARD_W = 320;

@@ -1,5 +1,5 @@
 import { useT } from '@kroma/ui';
-import { Box, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Hint, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useNav } from '#tv/app/router';
 import { DEVICE_SETTINGS } from '#tv/app/settings/registry';
 import { AuthScreen, KromaMark } from '#tv/shared/ui';
@@ -32,12 +32,14 @@ export function TvDeviceSettings() {
         <SettingsRows items={DEVICE_SETTINGS} />
       </Box>
 
-      <Txt
-        style={{ fontSize: 14, fontWeight: '500', marginTop: 28 }}
+      <Hint
+        text={t('profileMenu.navHint')}
+        size={14}
+        gap={4}
+        mt={28}
         color="rgba(244, 243, 240, 0.4)"
-      >
-        {t('profileMenu.navHint')}
-      </Txt>
+        textStyle={{ fontWeight: '500' }}
+      />
     </AuthScreen>
   );
 }

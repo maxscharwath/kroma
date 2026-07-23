@@ -12,16 +12,37 @@
 
 import type { KromaClient, StoryboardManifest } from '@kroma/core';
 import { useCallback, useEffect, useState } from 'react';
+import { Image } from 'react-native';
+import { webDocument } from './lib/dom';
 
-/** CSS for one preview tile, scaled to a requested display width. Spread onto a
- * fixed-size box (the sheet shows through via `background-position`). */
+/**
+ * One preview tile, scaled to a requested display width.
+ *
+ * Geometry rather than CSS: the tile is a window onto a sprite sheet, and it is
+ * described here as "draw the whole sheet at this size, offset by this much,
+ * and clip it to width x height". A browser could express that as a
+ * `background-position`, but React Native has no such thing - its
+ * `experimental_backgroundImage` takes gradients, not `url()` - so the CSS
+ * spelling rendered nothing at all on Apple TV. The offsets below draw
+ * identically on both.
+ */
 export interface StoryboardTile {
+  /** Display size of the visible tile. */
   width: number;
   height: number;
-  backgroundImage: string;
-  backgroundPosition: string;
-  backgroundSize: string;
-  backgroundRepeat: 'no-repeat';
+  /** The sprite sheet holding every thumbnail. */
+  sheet: string;
+  /** The sheet's OWN pixel size. Draw it at this size and scale the result by
+   *  `scale` - never ask the decoder for `sheetWidth * scale` pixels. A 2560px
+   *  sheet blown up to a 4096pt view is 8192px of texture on a 2x display, which
+   *  is where the GPU stops drawing and the thumbnail silently comes out empty. */
+  sheetWidth: number;
+  sheetHeight: number;
+  /** Where to move the scaled sheet to bring this tile into the window (<= 0). */
+  offsetX: number;
+  offsetY: number;
+  /** Display size over source size: `width / tileW`. */
+  scale: number;
 }
 
 export interface Storyboard {
@@ -63,12 +84,19 @@ export function useStoryboard(
     setLoaded(false);
 
     // Preload so the first hover never flashes an empty/half-loaded sheet.
+    //
+    // React Native's own prefetch rather than `new Image()`: the DOM constructor
+    // does not exist on a television, and because this runs inside the poll's
+    // promise chain the ReferenceError was swallowed by its `.catch` - the sheet
+    // silently never became `loaded`, so the Apple TV scrub preview showed a
+    // timecode and never a picture. `Image.prefetch` is implemented by both React
+    // Native and react-native-web.
     const preload = (url: string) => {
-      const img = new Image();
-      img.onload = () => {
-        if (!cancelled) setLoaded(true);
-      };
-      img.src = url;
+      Image.prefetch(url)
+        .then(() => {
+          if (!cancelled) setLoaded(true);
+        })
+        .catch(() => undefined); // unreachable sheet: fall back to the time label
     };
 
     const poll = () => {
@@ -98,8 +126,9 @@ export function useStoryboard(
     // Re-check when the tab becomes visible again, so a sheet that finished while
     // backgrounded is picked up without a tight interval. (Only for the real
     // player: dashboard thumbs stay a single fetch.)
+    const doc = webDocument();
     const onVisible = () => {
-      if (document.visibilityState !== 'visible' || cancelled || resolved) return;
+      if (doc?.visibilityState !== 'visible' || cancelled || resolved) return;
       if (timer) {
         clearTimeout(timer);
         timer = null;
@@ -107,12 +136,12 @@ export function useStoryboard(
       tries = 0;
       poll();
     };
-    if (generate) document.addEventListener('visibilitychange', onVisible);
+    if (generate) doc?.addEventListener('visibilitychange', onVisible);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
-      if (generate) document.removeEventListener('visibilitychange', onVisible);
+      if (generate) doc?.removeEventListener('visibilitychange', onVisible);
     };
   }, [client, itemId, generate]);
 
@@ -127,10 +156,12 @@ export function useStoryboard(
       return {
         width: displayW,
         height: Math.round(tileH * scale),
-        backgroundImage: `url("${sheetUrl}")`,
-        backgroundPosition: `-${Math.round(col * tileW * scale)}px -${Math.round(row * tileH * scale)}px`,
-        backgroundSize: `${Math.round(cols * tileW * scale)}px ${Math.round(rows * tileH * scale)}px`,
-        backgroundRepeat: 'no-repeat',
+        sheet: sheetUrl,
+        sheetWidth: cols * tileW,
+        sheetHeight: rows * tileH,
+        offsetX: -Math.round(col * tileW * scale),
+        offsetY: -Math.round(row * tileH * scale),
+        scale,
       };
     },
     [manifest, sheetUrl, loaded],

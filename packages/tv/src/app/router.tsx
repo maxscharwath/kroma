@@ -1,5 +1,5 @@
-import type { KromaClient, MediaItem, Show, StoredSession } from '@kroma/core';
-import { Box } from '@kroma/ui/kit';
+import type { KromaClient, MediaItem, ReportSubjectKind, Show, StoredSession } from '@kroma/core';
+import { Box, FocusScope, PageMain, PerfHud } from '@kroma/ui/kit';
 import {
   type ComponentType,
   createContext,
@@ -11,6 +11,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { perfHudPrefStore, useStoredPref } from '#tv/app/settings/store';
 
 /**
  * A tiny, type-safe, zero-dependency router for the 10-foot app TanStack-grade
@@ -61,6 +62,22 @@ export interface TvRoutes {
   movie: { item: MediaItem };
   show: { show: Show };
   player: { item: MediaItem };
+  /** Report a problem on a title (the detail pages' "Signaler un problème").
+   * `episodes` carries the loaded season of a series, which turns the subject
+   * row on so a viewer can point at the one episode that is broken instead of
+   * the whole show. */
+  report: {
+    kind: ReportSubjectKind;
+    id: string;
+    title: string;
+    episodes?: ReportEpisode[];
+  };
+}
+
+/** One episode a report may target: its id and how the subject row names it. */
+export interface ReportEpisode {
+  id: string;
+  label: string;
 }
 
 export type RouteName = keyof TvRoutes;
@@ -112,6 +129,7 @@ const DEV_NAV_KEY = 'kroma:dev-nav';
 function loadDevStack(): TvRoute[] | null {
   if (!IS_DEV) return null;
   try {
+    // biome-ignore lint/style/noRestrictedGlobals: audited - dev-only (IS_DEV) and inside try/catch, so React Native simply keeps the default stack.
     const saved = sessionStorage.getItem(DEV_NAV_KEY);
     const parsed = saved ? (JSON.parse(saved) as TvRoute[]) : null;
     return parsed?.length ? parsed : null;
@@ -146,6 +164,7 @@ export function TvNavProvider({
   useEffect(() => {
     if (!IS_DEV) return;
     try {
+      // biome-ignore lint/style/noRestrictedGlobals: audited - dev-only (IS_DEV) and inside try/catch.
       sessionStorage.setItem(DEV_NAV_KEY, JSON.stringify(stack));
     } catch {
       /* ignore quota/availability */
@@ -241,20 +260,36 @@ export function TvOutlet() {
   // clean state (engine, resume, progress) instead of inheriting the previous
   // one's. Other screens keep their instance across same-route navigation.
   const key = route.name === 'player' ? `player:${route.params.item.id}` : route.name;
-  // The single page landmark. Every screen root is `position:fixed inset-0`, so
-  // this wrapper is layout-neutral (0-height in flow) it exists only to give
-  // assistive tech / Lighthouse the required <main>. The key stays on <Screen>
-  // so a same-route param swap (e.g. up-next) still remounts just the screen.
+  // The single page landmark: a real <main> in the browser, nothing at all on
+  // the native TVs, which have no such concept (see @kroma/ui lib/landmark).
+  // The key stays on <Screen> so a same-route param swap (e.g. up-next) still
+  // remounts just the screen.
   //
   // <Suspense> catches the lazily-loaded player chunk on the first play; its
   // fallback is a plain themed black fill (fixed inset-0), which reads as the
   // player fading up rather than a flash. Non-lazy screens never suspend, so
   // this is invisible for all of browse.
+  // <FocusScope> is what gives a new screen its entry point on Apple TV and
+  // Android TV: the OS focus engine will not invent one, so without it a screen
+  // whose controls do not declare `autoFocus` mounts with focus nowhere and the
+  // remote does nothing at all. Keyed with the screen so each arrival re-runs
+  // it, exactly as the web engine's focusFirst() does on the same key. On the
+  // browser targets it is a plain box, so the tree is identical on both.
   return (
-    <main>
+    <PageMain>
       <Suspense fallback={<Box fill bg="bg" />}>
-        <Screen key={key} />
+        <FocusScope key={key}>
+          <Screen key={key} />
+        </FocusScope>
       </Suspense>
-    </main>
+      {/* Outside the scope on purpose: the read-out must survive a screen
+          change, and it is not something the remote can land on. */}
+      <PerfHud enabled={usePerfHud()} />
+    </PageMain>
   );
+}
+
+/** Whether the performance read-out is on (a device preference). */
+function usePerfHud(): boolean {
+  return useStoredPref(perfHudPrefStore)[0] === 'on';
 }

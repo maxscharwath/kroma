@@ -1,10 +1,10 @@
 import { forwardRef, useImperativeHandle } from 'react';
-import { Box } from '../../system/Box';
+import { Box } from '../../ui/primitives/box';
 import type { PanelHandle } from '../nav';
 import type { PlayerQuality } from '../types';
 import { useListFocus } from '../useListFocus';
 import { panelList } from './panelStyle';
-import { SelectRow } from './SelectRow';
+import { SelectRow } from './select-row';
 
 interface QualityPanelProps {
   qualities: PlayerQuality[];

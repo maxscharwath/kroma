@@ -26,6 +26,19 @@ export interface EngineListeners {
    * filtered remux failed). The chrome hides the row instead of showing a mode
    * that is doing nothing. */
   onAudioFilterUnavailable?(): void;
+  /**
+   * The engine swapped the object the surface renders, and the surface must be
+   * re-rendered against the new one.
+   *
+   * Only the native backend fires this. The browser surfaces are stable DOM
+   * elements the engine attaches to (`videoRef`, `objectRef`), so they never
+   * change identity; expo-video's player is a value the engine OWNS and
+   * REPLACES - on the direct→remux fallback, and on every seek of an anchored
+   * master. Without this the `<VideoView>` kept rendering the previous player
+   * after it had been released: the picture went black and stayed black, and
+   * scrubbing an MKV was impossible.
+   */
+  onSurfaceChange?(): void;
 }
 
 /** The uniform surface the hook + UI talk to, regardless of backend. */

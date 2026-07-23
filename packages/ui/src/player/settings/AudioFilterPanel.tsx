@@ -1,12 +1,12 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
+import { Box } from '../../ui/primitives/box';
+import { Txt } from '../../ui/primitives/text';
 import type { PanelHandle } from '../nav';
 import type { AudioFilterMode } from '../types';
 import { useListFocus } from '../useListFocus';
 import { panelHint, panelList } from './panelStyle';
-import { SelectRow } from './SelectRow';
+import { SelectRow } from './select-row';
 
 interface AudioFilterPanelProps {
   value: AudioFilterMode;

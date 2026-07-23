@@ -16,6 +16,7 @@
 //               but made the primary player (the Android equivalent of mpv).
 
 import { isTizenRuntime, isWebOsRuntime, type MessageKey } from '@kroma/core';
+import { Platform } from 'react-native';
 import { reactivePref } from '#tv/app/settings/store';
 import { exoAvailable, mpvAvailable } from '#tv/features/playback/player/engine';
 
@@ -45,6 +46,11 @@ export function setEnginePref(p: EnginePref): void {
  * AVPlay but can do direct `<video>` vs the remux. mpv is offered only on the Linux
  * desktop shell. A single-entry list (unknown/other) hides the row. */
 export function availableEngines(): EnginePref[] {
+  // The native clients have ONE player (expo-video: AVPlayer / Media3). The only
+  // choice left is whether it opens the original file or the server's remux, so
+  // that is all the row offers. Everything below this line names a browser engine
+  // that does not exist here - an Apple TV was being offered "webview".
+  if (Platform.OS !== 'web') return ['auto', 'remux'];
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   // Android TV: ExoPlayer (hardware) with a libVLC software-decode fallback plays
   // EVERY codec, including the HEVC 10-bit / E-AC3 the Chromium WebView cannot.

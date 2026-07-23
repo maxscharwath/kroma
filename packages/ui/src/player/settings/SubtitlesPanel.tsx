@@ -3,18 +3,19 @@ import { langName, subtitleEtaTime, subtitleStageKey } from '@kroma/core';
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useT } from '../../i18n';
-import { Progress } from '../../primitives/Progress';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
-import { fonts } from '../../tokens';
+import { fonts } from '../../lib/tokens';
+import { Box } from '../../ui/primitives/box';
+import { Progress } from '../../ui/primitives/progress';
+import { Txt } from '../../ui/primitives/text';
 import { IconAi, IconDelete } from '../icons';
 import type { PanelHandle } from '../nav';
 import type { PlayerSub } from '../types';
 import { useListFocus } from '../useListFocus';
+import { VIRTUAL_FOCUS } from '../virtual-focus';
 import { GenerateWizard } from './GenerateWizard';
 import type { SubtitleGenBundle } from './gen';
 import { panelList } from './panelStyle';
-import { SelectRow } from './SelectRow';
+import { SelectRow } from './select-row';
 
 interface SubtitlesPanelProps {
   subs: PlayerSub[];
@@ -84,9 +85,15 @@ export const SubtitlesPanel = forwardRef<PanelHandle, SubtitlesPanelProps>(funct
           // A picture sub cannot be rendered as text, so its row is inert and
           // reads as such rather than being hidden (the track does exist).
           const row = (
-            <Box flex={s.ai && s.subId ? 1 : undefined} style={{ minWidth: 0 }} opacity={s.selectable ? 1 : 0.4}>
+            <Box
+              flex={s.ai && s.subId ? 1 : undefined}
+              style={{ minWidth: 0 }}
+              opacity={s.selectable ? 1 : 0.4}
+            >
               <SelectRow
-                label={s.ai && s.label ? s.label : langName(t, s.language) || t('player.langUnknown')}
+                label={
+                  s.ai && s.label ? s.label : langName(t, s.language) || t('player.langUnknown')
+                }
                 sub={s.selectable ? codec : `${codec} · ${t('player.pictureSub')}`}
                 trailing={s.ai ? <AiBadge /> : null}
                 selected={current === s.index}
@@ -96,17 +103,21 @@ export const SubtitlesPanel = forwardRef<PanelHandle, SubtitlesPanelProps>(funct
               />
             </Box>
           );
-          return s.ai && s.subId ? (
-            <Box key={s.index} row align="center" gap={8}>
-              {row}
-              <TrashButton
-                label={t('player.subGenDelete')}
-                onPress={() => gen.onDelete(s.subId as string)}
-              />
-            </Box>
-          ) : (
-            <Box key={s.index}>{row}</Box>
-          );
+          // A generated track pairs its row with a delete control; everything
+          // else is the row on its own. Either way the key belongs to whatever
+          // this branch returns, which is the element the list actually holds.
+          if (s.ai && s.subId) {
+            return (
+              <Box key={s.index} row align="center" gap={8}>
+                {row}
+                <TrashButton
+                  label={t('player.subGenDelete')}
+                  onPress={() => gen.onDelete(s.subId as string)}
+                />
+              </Box>
+            );
+          }
+          return <Box key={s.index}>{row}</Box>;
         })}
         {gen.pending.map((g) => (
           <GenRow key={g.id} gen={g} onCancel={() => gen.onCancel(g.id)} />
@@ -140,7 +151,16 @@ export const SubtitlesPanel = forwardRef<PanelHandle, SubtitlesPanelProps>(funct
 /** Violet "IA" pill shown on generated tracks / generation rows. */
 function AiBadge() {
   return (
-    <Box row align="center" gap={4} shrink={0} radius={5} px={6} py={2} bg="rgba(124, 92, 255, 0.18)">
+    <Box
+      row
+      align="center"
+      gap={4}
+      shrink={0}
+      radius={5}
+      px={6}
+      py={2}
+      bg="rgba(124, 92, 255, 0.18)"
+    >
       <IconAi size={11} color="#B7A6FF" />
       <Txt style={{ fontFamily: fonts.ui, fontWeight: '700', fontSize: 10, color: '#B7A6FF' }}>
         IA
@@ -152,7 +172,12 @@ function AiBadge() {
 /** Small trash control beside a deletable AI track / generation row. */
 function TrashButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable
+      {...VIRTUAL_FOCUS}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Box w={36} h={36} shrink={0} center radius="md" bg="rgba(255, 255, 255, 0.04)">
         <IconDelete size={16} color="rgba(255, 255, 255, 0.5)" />
       </Box>
@@ -168,7 +193,13 @@ function GenRow({ gen, onCancel }: Readonly<{ gen: SubtitleGeneration; onCancel:
   const err = gen.status === 'error';
   const engine = gen.mode === 'translate' ? t('player.subAiBadge') : 'Whisper';
   return (
-    <Box radius={14} borderWidth={1} border="rgba(124, 92, 255, 0.4)" bg="rgba(124, 92, 255, 0.06)" p={16}>
+    <Box
+      radius={14}
+      borderWidth={1}
+      border="rgba(124, 92, 255, 0.4)"
+      bg="rgba(124, 92, 255, 0.06)"
+      p={16}
+    >
       <Box row align="center" gap={14}>
         <Txt style={{ flex: 1, fontFamily: fonts.ui, fontWeight: '600', fontSize: 16 }}>
           {gen.lang ?? ''}

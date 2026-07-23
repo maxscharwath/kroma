@@ -9,8 +9,8 @@
  * @tabler/icons, so the same components compile for Apple TV and Android TV.
  */
 
-import { Icon, type IconName } from '../primitives/Icon';
-import type { ColorToken } from '../tokens';
+import type { ColorToken } from '../lib/tokens';
+import { Icon, type IconName } from '../ui/primitives/icon';
 
 type P = Readonly<{ size?: number; stroke?: number; color?: ColorToken | (string & {}) }>;
 
@@ -53,6 +53,7 @@ export const IconQuality = glyph('badge-4k', 22, 1.8);
 export const IconAudioFilter = glyph('adjustments-horizontal', 22, 1.8);
 export const IconAppearance = glyph('typography', 22, 1.8);
 export const IconSpeed = glyph('gauge', 22, 1.8);
+export const IconReport = glyph('flag', 22, 1.8);
 export const IconStop = glyph('player-stop-filled', 52);
 export const IconEndsAt = glyph('clock', 15, 1.8);
 export const IconRestart = glyph('rotate-clockwise-2', 18, 1.8);

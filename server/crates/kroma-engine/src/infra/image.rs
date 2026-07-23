@@ -229,6 +229,14 @@ fn finalize(tmp: &Path, out: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Ensure a remote image is cached as WebP and return its public path, or
+/// `None` on failure (the caller keeps the provider URL). The one entry point
+/// for art that arrives outside title enrichment for instance a person's
+/// portrait, resolved per request rather than stored on a row.
+pub fn cache_remote(data_dir: &Path, remote_url: &str) -> Option<String> {
+    cache(data_dir, remote_url)
+}
+
 /// Ensure `remote_url` is cached as WebP and return its public path
 /// (`/api/images/<hash>.webp`). Returns `None` on failure (caller keeps the
 /// original URL).

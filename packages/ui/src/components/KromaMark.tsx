@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { KROMA_WHEEL_COLORS, KROMA_WHEEL_SEGMENTS, WHEEL_VIEWBOX } from '../brand/wheelPaths';
+import { KROMA_WHEEL_COLORS, KROMA_WHEEL_SEGMENTS, WHEEL_VIEWBOX } from '../lib/wheel-paths';
 
 // Geometry and palette live in ../brand/wheel so the universal <Wheel> and this
 // DOM-only mark cannot drift apart.

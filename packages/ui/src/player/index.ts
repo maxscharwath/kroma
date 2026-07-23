@@ -19,6 +19,8 @@ export {
   subtitleStyle,
   useSubtitleAppearance,
 } from './subtitle-appearance';
+export type { SurfaceRadius } from './surface-radius';
+export { SurfaceRadiusProvider, useSurfaceRadius } from './surface-radius';
 export type {
   AudioFilterMode,
   Chapter,

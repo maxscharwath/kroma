@@ -1,4 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { setImageBackend } from '@kroma/ui/kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -7,10 +8,15 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DownloadsProvider } from '#mobile/lib/downloads';
 import { I18nProvider } from '#mobile/lib/i18n';
+import { expoImageBackend } from '#mobile/lib/image-backend';
 import { SessionProvider, useSession } from '#mobile/lib/session';
 import { colors } from '#mobile/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+// The design system draws artwork through whichever decoder the app registers.
+// A phone wants expo-image's memory + disk cache; see lib/image-backend.
+setImageBackend(expoImageBackend);
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({

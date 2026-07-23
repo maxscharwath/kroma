@@ -1,3 +1,4 @@
+import { deviceStorage } from '@kroma/core';
 import { useCallback, useEffect, useState } from 'react';
 import type { TextStyle } from 'react-native';
 import { clampPct, edgeStyle } from './subtitle-edge';
@@ -55,7 +56,7 @@ export function useSubtitleAppearance(): [
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = deviceStorage()?.getItem(KEY) ?? null;
       if (raw) setStyle({ ...DEFAULT_SUB_APPEARANCE, ...JSON.parse(raw) });
     } catch {
       /* ignore */
@@ -66,7 +67,7 @@ export function useSubtitleAppearance(): [
     setStyle((prev) => {
       const merged = { ...prev, ...next };
       try {
-        localStorage.setItem(KEY, JSON.stringify(merged));
+        deviceStorage()?.setItem(KEY, JSON.stringify(merged));
       } catch {
         /* ignore */
       }

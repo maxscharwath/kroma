@@ -1,10 +1,10 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { useT } from '../../i18n';
-import { Box } from '../../system/Box';
+import { Box } from '../../ui/primitives/box';
 import type { PanelHandle } from '../nav';
 import { useListFocus } from '../useListFocus';
 import { panelList } from './panelStyle';
-import { SelectRow } from './SelectRow';
+import { SelectRow } from './select-row';
 
 /** The offered playback rates (§5). */
 export const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;

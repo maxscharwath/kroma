@@ -1,22 +1,22 @@
 import { normalizeServerUrl as norm } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Focusable, Icon, type IconName, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, FocusColumn, Hint, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useEffect, useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { useServersHealth } from '#tv/app/useServersHealth';
-import { StatusDot } from '#tv/features/accounts/ServerStatus';
+import { ActionRow, ServerRow, ServerRowSkeleton } from '#tv/features/accounts/ServerRow';
 import { AuthScreen, hostOf } from '#tv/shared/ui';
 
-interface Row {
-  key: string;
-  icon: IconName;
-  iconAccent?: boolean;
-  title: string;
-  sub: string;
-  /** Server origin for the live status dot, or undefined for the manual row. */
-  url?: string;
-  onSelect: () => void;
+interface Entry {
+  url: string;
+  /** Name to show until the server states its own (saved label, else host). */
+  fallbackName: string;
+  /** The label this server was saved under, if it is saved at all. */
+  savedName?: string | null;
+  address: string;
+  /** Discovered on the LAN but not saved yet. */
+  isNew: boolean;
 }
 
 /** "host" or "host · port N" for a server URL. */
@@ -32,7 +32,9 @@ function addrOf(url: string): string {
 /**
  * Add-profile wizard, step 1 choose a server. One "Serveurs disponibles" list
  * (LAN-discovered + saved, with a discovery spinner) followed by "Ajouter
- * manuellement". Picking any of them points the client at it and advances to
+ * manuellement". Every listed server is polled on its public `/api/health`, so a
+ * row states what it is (name, version, catalogue size) and whether it answers
+ * before you commit to it. Picking one points the client at it and advances to
  * Quick Connect. The wizard never offers a password or registration.
  */
 export function TvAddProfile() {
@@ -45,53 +47,34 @@ export function TvAddProfile() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on open.
   useEffect(() => discover(), []);
 
+  // A single "Serveurs disponibles" section: discovered servers first (tagged
+  // "nouveau" when not yet saved), then any saved-but-not-discovered.
+  const entries = useMemo<Entry[]>(() => {
+    const localUrls = discovered.map((u) => norm(u));
+    const of = (url: string, saved?: { name?: string | null }, isNew = false): Entry => ({
+      url,
+      fallbackName: saved?.name || (hostOf(url) ?? url),
+      savedName: saved?.name,
+      address: addrOf(url),
+      isNew,
+    });
+    const out = localUrls.map((url) => {
+      const saved = servers.find((s) => s.url === url);
+      return of(url, saved, !saved);
+    });
+    for (const s of servers.filter((sv) => !localUrls.includes(sv.url))) out.push(of(s.url, s));
+    return out;
+  }, [discovered, servers]);
+
+  // Probe each listed server so a row shows whether it actually answers (a saved
+  // server can be offline; a freshly discovered one is reachable but confirmed
+  // here) and what it is. Public endpoint: no session needed.
+  const health = useServersHealth(entries.map((e) => e.url));
+
   const pick = (url: string, name?: string | null) => {
     addServer(url, name);
     nav.go('quick');
   };
-
-  // A single "Serveurs disponibles" section: discovered servers first (tagged
-  // "nouveau" when not yet saved), then any saved-but-not-discovered, then the
-  // manual-entry row exactly the design's layout.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `pick` and `nav` are stable enough here; rows rebuild on the reactive inputs (discovered/servers/t) only.
-  const rows = useMemo<Row[]>(() => {
-    const localUrls = discovered.map((u) => norm(u));
-    const out: Row[] = [];
-    for (const url of localUrls) {
-      const saved = servers.find((s) => s.url === url);
-      out.push({
-        key: `srv-${url}`,
-        icon: 'server-2',
-        title: saved?.name || (hostOf(url) ?? url),
-        sub: saved ? addrOf(url) : `${addrOf(url)} · ${t('addProfile.new')}`,
-        url,
-        onSelect: () => pick(url, saved?.name),
-      });
-    }
-    for (const s of servers.filter((sv) => !localUrls.includes(sv.url))) {
-      out.push({
-        key: `srv-${s.url}`,
-        icon: 'server-2',
-        title: s.name || (hostOf(s.url) ?? s.url),
-        sub: addrOf(s.url),
-        url: s.url,
-        onSelect: () => pick(s.url, s.name),
-      });
-    }
-    out.push({
-      key: 'manual',
-      icon: 'plus',
-      iconAccent: true,
-      title: t('addProfile.addManually'),
-      sub: t('addProfile.addManuallySub'),
-      onSelect: () => nav.go('connect'),
-    });
-    return out;
-  }, [discovered, servers, t]);
-
-  // Probe each listed server so a row shows whether it actually answers (a saved
-  // server can be offline; a freshly discovered one is reachable but confirmed here).
-  const health = useServersHealth(rows.map((r) => r.url).filter((u): u is string => !!u));
 
   return (
     <AuthScreen>
@@ -116,71 +99,62 @@ export function TvAddProfile() {
           {discovering ? <Spinner size={13} thickness={2} /> : null}
         </Box>
         <Box gap={12}>
-          {rows.map((r) => (
-            <Focusable
-              key={r.key}
-              onPress={r.onSelect}
-              label={r.title}
-              focusScale={1.02}
-              ring={false}
-              style={ROW}
-              focusedStyle={{ borderColor: '#F4B642' }}
-            >
-              <Box
-                w={46}
-                h={46}
-                shrink={0}
-                center
-                radius="xl"
-                bg={r.iconAccent ? 'accentSoft' : 'rgba(255, 255, 255, 0.06)'}
-              >
-                <Icon
-                  name={r.icon}
-                  size={24}
-                  stroke={1.7}
-                  color={r.iconAccent ? 'accent' : 'textMuted'}
+          {/* The servers get a group of their own, mounted whether or not any
+              server is known yet. The navigator orders a group's children by the
+              order they REGISTERED, not by where they sit, so a server found by
+              discovery a second later would otherwise register behind "Ajouter
+              manuellement" and Down would walk past that row forever. This group
+              holds their place above it; the keys are POSITIONS for the same
+              reason (a server prepended to the list must not register last). */}
+          <FocusColumn style={LIST}>
+            {entries.map((e, index) => {
+              const probe = health[e.url];
+              return (
+                <ServerRow
+                  // biome-ignore lint/suspicious/noArrayIndexKey: the index IS the identity here - it is the slot in the list, and the navigator registers by mount order.
+                  key={index}
+                  address={e.address}
+                  fallbackName={e.fallbackName}
+                  isNew={e.isNew}
+                  probe={probe}
+                  autoFocus={index === 0}
+                  // The health answer is the freshest name the server has, so a
+                  // renamed server is saved under its new label, not the old one.
+                  onPress={() => pick(e.url, probe?.name ?? e.savedName)}
                 />
-              </Box>
-              <Box flex style={{ minWidth: 0 }}>
-                <Txt lines={1} style={{ fontSize: 19, fontWeight: '700' }}>
-                  {r.title}
-                </Txt>
-                <Txt lines={1} style={{ fontSize: 14, fontWeight: '500' }} color="textDim">
-                  {r.sub}
-                </Txt>
-              </Box>
-              {r.url ? <StatusDot online={health[r.url]} /> : null}
-              <Icon name="chevron-right" size={22} color="textDim" />
-            </Focusable>
-          ))}
+              );
+            })}
+            {/* Nothing found YET: show the shape of a row rather than a gap. */}
+            {entries.length === 0 && discovering ? <ServerRowSkeleton /> : null}
+          </FocusColumn>
+          <ActionRow
+            icon="plus"
+            title={t('addProfile.addManually')}
+            sub={t('addProfile.addManuallySub')}
+            autoFocus={entries.length === 0}
+            onPress={() => nav.go('connect')}
+          />
         </Box>
 
-        <Txt
-          style={{ fontSize: 14, fontWeight: '500', textAlign: 'center', marginTop: 28 }}
+        <Hint
+          text={t('addProfile.navHint')}
+          size={14}
+          gap={4}
+          justify="center"
+          mt={28}
           color="rgba(244, 243, 240, 0.4)"
-        >
-          {t('addProfile.navHint')}
-        </Txt>
+          textStyle={{ fontWeight: '500' }}
+        />
       </Box>
     </AuthScreen>
   );
 }
+
+const LIST = { gap: 12 };
 
 const SECTION = {
   fontSize: 12,
   fontWeight: '700' as const,
   letterSpacing: 1.92,
   textTransform: 'uppercase' as const,
-};
-
-const ROW = {
-  flexDirection: 'row' as const,
-  alignItems: 'center' as const,
-  gap: 16,
-  borderRadius: 15,
-  borderWidth: 1,
-  borderColor: 'rgba(255, 255, 255, 0.08)',
-  backgroundColor: 'rgba(255, 255, 255, 0.03)',
-  paddingHorizontal: 20,
-  paddingVertical: 16,
 };

@@ -1,5 +1,5 @@
 import { type KromaClient, type MediaItem, type Show, sizedImageUrl } from '@kroma/core';
-import { Box, gradient, Img, tintGradient } from '@kroma/ui/kit';
+import { Box, gradient, Img, promote, tintGradient } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 
 /** `value`, but only after it has held still for `delayMs`. Lets a fast D-pad
@@ -48,17 +48,41 @@ export function AmbientBackdrop({
   return (
     <Box fill z={-1} overflow="hidden" pointerEvents="none" accessibilityElementsHidden>
       <Img
-        src={sizedImageUrl(settled, 1280)}
+        // 960, not 1280: this fills the whole 1920 stage but sits behind a poster
+        // grid and two dimming veils, so it is never seen sharp - and a
+        // television has ONE device pixel per CSS pixel, so 1280 was already
+        // asking for more than the panel can show. Halving the width quarters the
+        // pixels the TV decodes on every backdrop swap, which is what the browse
+        // grid does on every focus move.
+        src={sizedImageUrl(settled, 960)}
         background={tintGradient(colors)}
         position="50% 20%"
         duration={FADE_MS}
+        // The one place a cross-fade is pure cost: a full-screen decorative layer
+        // that swaps constantly. Holding the previous backdrop under the incoming
+        // one meant the TV composited two 1080p images for half a second on every
+        // move. It still fades in; there is just no second layer.
+        noCrossFade
         fill
       />
-      <Box fill pointerEvents="none" style={gradient(VEIL_HORIZONTAL)} />
-      <Box fill pointerEvents="none" style={gradient(VEIL_VERTICAL)} />
+      {/* Each veil on its OWN compositing layer (`translateZ(0)`).
+          A full-screen gradient is expensive to RASTERIZE on a TV GPU, and these
+          two sit right above a backdrop that fades on every focus move - so
+          without this the browser re-rasterized both 1920x1080 gradients on every
+          frame of every fade, which measured as the browse grid's worst stutter.
+          Promoted, each gradient is rasterized ONCE into a texture and the fade
+          underneath only re-composites it: on the panel, ~185 -> ~307 painted
+          frames across the same walk. */}
+      <Box fill pointerEvents="none" style={VEIL_H} />
+      <Box fill pointerEvents="none" style={VEIL_V} />
     </Box>
   );
 }
+
+/** A veil on its own compositing layer (see `promote`), so the backdrop fading
+ * beneath it does not re-rasterize the gradient every frame. */
+const VEIL_H = [gradient(VEIL_HORIZONTAL), promote()];
+const VEIL_V = [gradient(VEIL_VERTICAL), promote()];
 
 // ----- the art one catalogue entry contributes -------------------------------
 
@@ -68,8 +92,15 @@ export type CatalogEntry = { kind: 'movie'; item: MediaItem } | { kind: 'show'; 
 
 /** The entry's poster (films and series resolve theirs from different endpoints). */
 export function entryPoster(client: KromaClient, e: CatalogEntry): string {
-  return e.kind === 'movie' ? client.posterFor(e.item) : client.showPosterFor(e.item);
+  return e.kind === 'movie'
+    ? client.posterFor(e.item, GRID_POSTER_W)
+    : client.showPosterFor(e.item, GRID_POSTER_W);
 }
+
+/** A browse-grid cell is 203pt wide on the 1920 stage. Asking the server for
+ * that instead of the full-size original is what keeps a 120-tile grid from
+ * stuttering on a television: the rendition is bucketed and cached on disk. */
+const GRID_POSTER_W = 203;
 
 /** The ambient art for the focused entry: its backdrop, falling back to its
  * poster, and nothing at all when the view is empty. One spelling of the chain

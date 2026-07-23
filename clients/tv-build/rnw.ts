@@ -26,13 +26,18 @@ export const WEB_EXTENSIONS = [
 
 /**
  * Build a shell's `resolve` block. `alias` is the shell's own path aliases (e.g.
- * `#tv`); the react-native redirect is appended last.
+ * `#tv`); the react-native redirect is appended last. `extraDedupe` names any
+ * further single-instance package the shell needs (the web client adds
+ * `react-call`, whose callables keep a module-level store).
  *
  * The redirect is an anchored RegExp on purpose: a plain string alias also
  * matches subpath imports, so `react-native/Libraries/...` would silently become
  * `react-native-web/Libraries/...` and fail to resolve with a confusing error.
  */
-export function webResolve(alias: Record<string, string> = {}): UserConfig['resolve'] {
+export function webResolve(
+  alias: Record<string, string> = {},
+  extraDedupe: string[] = [],
+): UserConfig['resolve'] {
   return {
     alias: [
       ...Object.entries(alias).map(([find, replacement]) => ({ find, replacement })),
@@ -41,10 +46,24 @@ export function webResolve(alias: Record<string, string> = {}): UserConfig['reso
     extensions: WEB_EXTENSIONS,
     // bun installs per workspace, so React can otherwise be linked twice (once
     // for the shell, once for a package it depends on) and hooks blow up.
-    dedupe: ['react', 'react-dom', 'react-native-web'],
+    dedupe: ['react', 'react-dom', 'react-native-web', ...extraDedupe],
   };
 }
 
 /** react-native-web is CommonJS and pulls a deep tree; pre-bundling it keeps the
  * dev server's module graph small enough for a TV's slow connection. */
 export const RNW_OPTIMIZE_INCLUDE = ['react-native-web'];
+
+/**
+ * react-native-web's Animated implementation reads the React Native `global`,
+ * which no browser defines: without this, every Animated component throws
+ * `ReferenceError: global is not defined` the moment it unmounts and tries to
+ * stop its animation. That is the pulsing skeleton, the spinner, the brand
+ * wheel, the settings switch and the text caret, so the whole screen goes with
+ * them.
+ *
+ * `globalThis` is the standard spelling of what React Native means by `global`,
+ * and it exists on every engine this app ships to, including the Chromium 53
+ * legacy webOS tier (it is ES2020, which that tier's build already down-levels).
+ */
+export const RNW_DEFINE = { global: 'globalThis' };

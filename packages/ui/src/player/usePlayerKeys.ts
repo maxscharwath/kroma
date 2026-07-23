@@ -1,121 +1,95 @@
-import { type RemoteKey, resolveRemoteKey } from '@kroma/core';
-import { type RefObject, useEffect, useRef } from 'react';
-import type { PanelHandle } from './nav';
-import type { PlayerController, PlayerFlags } from './types';
-import type { PlayerNav } from './usePlayerNav';
+/// <reference path="../types/react-native-tv.d.ts" />
+// Native key source: the Apple TV / Android TV remote.
+//
+// The player is the one screen that does NOT use the OS focus engine. Its chrome
+// is virtually focused (see usePlayerNav: a zone plus an index, with each control
+// drawn from a `focused` prop) because the transport has to stay reachable while
+// the chrome is fading, the progress bar scrubs by held direction, and a panel
+// slides in over the top. So directional presses cannot come from focus moves the
+// way they do everywhere else in the app - they have to be read off the remote.
+//
+// `window.addEventListener` is what the web does, and React Native defines
+// `window` as `global`: the call is not missing, it is UNDEFINED, so the player
+// used to take the whole app down with "undefined is not a function" the moment
+// it mounted. This is the same contract fed from `useTVEventHandler`.
 
-export interface PlayerKeysParams {
-  nav: PlayerNav;
-  controller: PlayerController;
-  flags: PlayerFlags;
-  /** The currently-open panel (settings / sheet); keys route here first. */
-  panelRef: RefObject<PanelHandle | null>;
-  locked: boolean;
-  /** Skip-intro affordance: OK skips while it is showing (§13). */
-  intro?: { active: boolean; onSkip: () => void };
-  /** Credits autoplay card: it handles its own OK / Back / left-right (§11). */
-  credits?: { active: boolean; onKey: (key: RemoteKey) => boolean };
-}
-
-/** While the player is locked (admin-stop overlay) only Back / OK dismiss it. */
-function lockedKey(e: KeyboardEvent, nav: PlayerNav): void {
-  const k = resolveRemoteKey(e);
-  if (k === 'Back' || k === 'Enter') {
-    e.preventDefault();
-    nav.handleKey('Back');
-  }
-}
-
-/** Web letter / Space transport shortcuts (no arrow clash). Returns whether the
- * event was one of them (so the caller can stop routing it as a D-pad key). */
-function letterShortcut(
-  e: KeyboardEvent,
-  nav: PlayerNav,
-  controller: PlayerController,
-  flags: PlayerFlags,
-): boolean {
-  const letter = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-  if (e.code === 'Space' || letter === 'k') {
-    e.preventDefault();
-    nav.poke();
-    controller.togglePlay();
-    return true;
-  }
-  if (letter === 'f' && flags.fullscreen) {
-    nav.poke();
-    controller.toggleFullscreen();
-    return true;
-  }
-  if (letter === 'm' && flags.volume) {
-    nav.poke();
-    controller.toggleMute();
-    return true;
-  }
-  if (letter === 'j') {
-    nav.poke();
-    controller.skip(-10);
-    return true;
-  }
-  if (letter === 'l') {
-    nav.poke();
-    controller.skip(10);
-    return true;
-  }
-  return false;
-}
+import type { RemoteKey } from '@kroma/core';
+import { useEffect, useRef } from 'react';
+import { type HWEvent, useTVEventHandler } from 'react-native';
+import { holdMenuKey, isRemoteKeyUp, releaseMenuKey } from '../lib/tv-remote';
+import { type PlayerKeysParams, routeRemoteKey } from './player-keys';
 
 /**
- * The single window keydown router (§3, §15). D-pad keys (arrows / OK / Back,
- * from `@kroma/core` `resolveRemoteKey`) flow to the open panel first, then the
- * skip-intro / credits affordances, then the nav machine. On top, a few letter
- * shortcuts give web power users the classic transport (Space/k play, f
- * fullscreen, m mute, j/l seek) without clashing with the arrow-driven D-pad
- * model. One stable listener calls the latest closure.
+ * react-native-tvos event types to logical keys.
+ *
+ * Both halves of the Siri remote are here on purpose: the clickpad's directional
+ * presses arrive as `up`/`down`/`left`/`right`, while a thumb swipe on the touch
+ * surface arrives as `swipeUp`/`swipeDown`/... They come from different gesture
+ * recognizers and never both fire for one gesture, so mapping both is what makes
+ * the player answer to the remote the way the rest of tvOS does.
  */
-export function usePlayerKeys({
-  nav,
-  controller,
-  flags,
-  panelRef,
-  locked,
-  intro,
-  credits,
-}: PlayerKeysParams): void {
-  const latest = useRef<(e: KeyboardEvent) => void>(() => undefined);
-  latest.current = (e: KeyboardEvent) => {
-    if (locked) {
-      lockedKey(e, nav);
-      return;
-    }
+const REMOTE_KEYS: Record<string, RemoteKey> = {
+  up: 'Up',
+  down: 'Down',
+  left: 'Left',
+  right: 'Right',
+  swipeUp: 'Up',
+  swipeDown: 'Down',
+  swipeLeft: 'Left',
+  swipeRight: 'Right',
+  select: 'Enter',
+  // tvOS reports the Menu button as `menu` once the key is claimed (see
+  // focus-nav); Android TV's remote sends `back`.
+  menu: 'Back',
+  back: 'Back',
+  playPause: 'PlayPause',
+  play: 'Play',
+  pause: 'Pause',
+  fastForward: 'FastForward',
+  rewind: 'Rewind',
+  stop: 'Stop',
+  nextTrack: 'Next',
+  previousTrack: 'Prev',
+};
 
-    // Letter / space transport shortcuts (web convenience, no arrow clash).
-    if (letterShortcut(e, nav, controller, flags)) return;
+/** The remote surface only exists in the react-native-tvos fork; the mobile app
+ * runs on mainline React Native, where the import is simply undefined. Bound at
+ * module scope so React never sees the hook count change between builds - the
+ * same degradation `focus-nav.ts` makes for the rest of the app. */
+const useRemoteEvents: (handler: (event: HWEvent) => void) => void =
+  typeof useTVEventHandler === 'function' ? useTVEventHandler : () => {};
 
-    const remote = resolveRemoteKey(e);
-    if (!remote) return;
-    e.preventDefault();
-    if (!nav.revealed) {
-      nav.poke();
-      return;
-    }
-    nav.poke();
+/**
+ * Route the TV remote into the player. The mirror of `usePlayerKeys.web.ts`:
+ * same routing, a different source. Metro picks this file, Vite the `.web` one.
+ *
+ * There are no letter shortcuts here - a remote has no letters - and no
+ * `preventDefault`, because a claimed TV event has no default to suppress.
+ */
+export function usePlayerKeys(params: Readonly<PlayerKeysParams>): void {
+  // One handler reading the latest params, so a re-render never re-subscribes.
+  const latest = useRef(params);
+  latest.current = params;
 
-    if (nav.overlay) {
-      if (panelRef.current?.onKey(remote)) return;
-      nav.handleKey(remote); // an unhandled Back closes the panel
-      return;
-    }
-    if (intro?.active && remote === 'Enter') {
-      intro.onSkip();
-      return;
-    }
-    if (credits?.active && credits.onKey(remote)) return;
-    nav.handleKey(remote);
-  };
-
+  // Claim the Menu button for as long as the player is on screen. Unclaimed, tvOS
+  // treats it as "leave the app", so Back in the player did not close the settings
+  // panel or return to the detail screen - it quit KROMA outright, mid-film.
+  //
+  // Through the shared counter, not the global switch: the screen underneath
+  // holds the same claim, and whichever unmounts first would otherwise drop it
+  // for both.
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => latest.current(e);
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    holdMenuKey();
+    return releaseMenuKey;
   }, []);
+
+  useRemoteEvents((evt: HWEvent) => {
+    if (isRemoteKeyUp(evt)) return;
+    const key = REMOTE_KEYS[evt.eventType];
+    // focus/blur/pan and the long-press variants land here; ignoring them is the
+    // whole point of an explicit map.
+    if (key) routeRemoteKey(latest.current, key);
+  });
 }
+
+export type { PlayerKeysParams };

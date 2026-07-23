@@ -15,7 +15,10 @@ const H = vi.hoisted(() => ({
   lastGenOpts: null as { onComplete: (subId: string) => void } | null,
 }));
 
-vi.mock('@kroma/core', () => ({
+// The language matcher is the real one (it IS what this test exercises); the
+// catalog-facing bits stay stubbed.
+vi.mock('@kroma/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@kroma/core')>()),
   GEN_LANGS: [
     { code: 'fr', label: 'Français' },
     { code: 'en', label: 'English' },

@@ -16,6 +16,17 @@ export default defineConfig({
       // in every browser target) that resolves to react-native-web, exactly the
       // way the Tizen / webOS / desktop bundles wire it.
       { find: /^react-native$/, replacement: 'react-native-web' },
+      // The spatial navigator ships a webpack UMD bundle whose `require`s Node
+      // resolves itself, which walks straight past the alias above and lands on
+      // React Native's Flow source ("Unexpected token 'typeof'"). It also ships
+      // its TypeScript sources, so point the runner at those and let Vite
+      // transform them like any other source file.
+      {
+        find: /^react-tv-space-navigation$/,
+        replacement: dir(
+          './node_modules/.bun/react-tv-space-navigation@6.0.0-beta1/node_modules/react-tv-space-navigation/src/index.ts',
+        ),
+      },
     ],
     // `.web.*` wins over the plain file, so the kit's web focus engine and web
     // focus transition are what the DOM tests exercise. This mirrors the shells'

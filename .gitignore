@@ -63,3 +63,10 @@ coverage/
 
 # Brand generator intermediate (input to `bunx tauri icon`, not a shipped asset).
 scripts/brand/tauri-source-1024.png
+
+# Workbench screenshots (bun run shots): review artefacts, not sources.
+.shots/
+
+# Recorded profiles + traces (clients/tv-build/perf-profile.ts). Big, and a
+# measurement of one machine at one moment: keep the numbers, not the files.
+/perf/

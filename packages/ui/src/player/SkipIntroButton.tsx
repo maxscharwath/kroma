@@ -1,10 +1,11 @@
 import { Pressable } from 'react-native';
 import { useT } from '../i18n';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { colors, fonts } from '../tokens';
+import { colors, fonts } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import { IconForward } from './icons';
 import { FOCUS_SCALE, FOCUS_SHADOW } from './style';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 /**
  * Skip-intro pill (§13): a bottom-right "Passer l'intro" button shown only
@@ -24,7 +25,12 @@ export function SkipIntroButton({ visible, focused, onSkip }: Readonly<SkipIntro
   const ink = focused ? colors.accentInk : '#FFFFFF';
   return (
     <Box absolute bottom={214} right={34} z={30}>
-      <Pressable onPress={onSkip} accessibilityRole="button" accessibilityLabel={t('player.skipIntro')}>
+      <Pressable
+        {...VIRTUAL_FOCUS}
+        onPress={onSkip}
+        accessibilityRole="button"
+        accessibilityLabel={t('player.skipIntro')}
+      >
         <Box
           row
           align="center"

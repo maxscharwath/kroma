@@ -1,11 +1,11 @@
 import { useT } from '@kroma/ui';
-import { Box, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Avatar, Box, Hint, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { actionItem } from '#tv/app/settings/items';
 import { PROFILE_SETTINGS, quitAppItem } from '#tv/app/settings/registry';
-import { AuthScreen, ProfileAvatar } from '#tv/shared/ui';
+import { AuthScreen } from '#tv/shared/ui';
 import { SettingsRows } from './SettingsRows';
 
 /** Profile menu (route `profileMenu`): the shared settings block
@@ -52,7 +52,7 @@ export function TvProfileMenu() {
   return (
     <AuthScreen>
       <Box align="center" gap={14} mb={32}>
-        <ProfileAvatar
+        <Avatar
           name={user.username}
           seed={user.id}
           size={96}
@@ -68,12 +68,14 @@ export function TvProfileMenu() {
         <SettingsRows items={rows} />
       </Box>
 
-      <Txt
-        style={{ fontSize: 14, fontWeight: '500', marginTop: 28 }}
+      <Hint
+        text={t('profileMenu.navHint')}
+        size={14}
+        gap={4}
+        mt={28}
         color="rgba(244, 243, 240, 0.4)"
-      >
-        {t('profileMenu.navHint')}
-      </Txt>
+        textStyle={{ fontWeight: '500' }}
+      />
     </AuthScreen>
   );
 }

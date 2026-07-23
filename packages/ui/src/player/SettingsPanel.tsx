@@ -1,6 +1,10 @@
+import type { ReportCategory } from '@kroma/core';
 import { langName } from '@kroma/core';
 import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
+import { Pressable, ScrollView } from 'react-native';
 import { useT } from '../i18n';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import {
   IconAppearance,
   IconAudioFilter,
@@ -9,6 +13,7 @@ import {
   IconGear,
   IconLoop,
   IconQuality,
+  IconReport,
   IconSpeed,
   IconStats,
   IconSubtitles,
@@ -17,15 +22,17 @@ import type { PanelHandle } from './nav';
 import { AudioFilterPanel } from './settings/AudioFilterPanel';
 import { AudioPanel } from './settings/AudioPanel';
 import type { SubtitleGenBundle } from './settings/gen';
-import { MenuRow } from './settings/MenuRow';
+import { MenuRow } from './settings/menu-row';
 import { QualityPanel } from './settings/QualityPanel';
+import { ReportPanel } from './settings/ReportPanel';
 import { SpeedPanel } from './settings/SpeedPanel';
 import { SubtitleAppearancePanel } from './settings/SubtitleAppearancePanel';
 import { SubtitlesPanel } from './settings/SubtitlesPanel';
+import { PANEL } from './style';
 import type { SubtitleAppearance } from './subtitle-appearance';
-import { PANEL } from './tw';
 import type { PlayerController, PlayerSub } from './types';
 import { useListFocus } from './useListFocus';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 // Sub-views the menu can open; toggles (loop/statistics) act in place.
 type View =
@@ -36,7 +43,8 @@ type View =
   | 'audioFilter'
   | 'subtitles'
   | 'appearance'
-  | 'speed';
+  | 'speed'
+  | 'report';
 
 interface SettingsPanelProps {
   controller: PlayerController;
@@ -45,6 +53,10 @@ interface SettingsPanelProps {
   statsOn: boolean;
   onToggleStats: () => void;
   subtitleGen: SubtitleGenBundle;
+  /** Report a problem with what is playing. The menu grows a "Signaler un
+   * problème" row only when the host provides this, so a surface with its own
+   * reporting flow (or none) is unaffected. */
+  onReport?: (category: ReportCategory) => Promise<void>;
   /** Open straight into a sub-view (the Audio / Subtitles cluster quick-access). */
   initialView?: View;
   onClose: () => void;
@@ -78,8 +90,8 @@ function panelTitle(view: View, entries: Entry[], t: ReturnType<typeof useT>): s
  * The right-side settings panel (§5): a two-level surface over a click-to-close
  * scrim. A main menu lists every setting; OK opens a sub-view (or toggles Loop /
  * Statistics in place). Keys route to the open sub-view's {@link PanelHandle} when
- * one is open, else to the menu. Back in a sub-view returns to the menu (consumed);
- * Back in the menu bubbles out so the shell closes the panel.
+ * one is open, else to the menu. Back in a sub-view returns to the menu; Back in
+ * the menu closes the panel.
  */
 export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(function SettingsPanel(
   {
@@ -89,6 +101,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     statsOn,
     onToggleStats,
     subtitleGen,
+    onReport,
     initialView,
     onClose,
   },
@@ -186,11 +199,28 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
       on: statsOn,
       activate: onToggleStats,
     },
+    // Last on purpose: it is the row nobody wants to need, and the one that must
+    // be there when they do.
+    ...(onReport
+      ? [
+          {
+            id: 'report' as const,
+            icon: <IconReport />,
+            label: t('report.action'),
+            activate: () => setView('report'),
+          },
+        ]
+      : []),
   ];
 
   const menuFocus = useListFocus({
     count: entries.length,
     onActivate: (i) => entries[i]?.activate(),
+    // Back at the menu closes the panel, here rather than by declining the key
+    // and trusting the shell to notice: that fall-through never fired on Apple
+    // TV, and a settings panel you cannot leave with the remote's Back button is
+    // a dead end in the middle of a film.
+    onBack: onClose,
   });
   useImperativeHandle(
     ref,
@@ -204,40 +234,40 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
 
   return (
     <>
-      {/* click-to-close scrim; Back on the D-pad closes the panel, this mirrors it
-          for the mouse + keyboard (§15). */}
-      {/* biome-ignore lint/a11y/useSemanticElements: full-surface click scrim, not a control; keyboard parity is provided. */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={t('common.close')}
-        className="absolute inset-y-0 left-0 z-41 w-[56%] cursor-pointer"
-        onClick={onClose}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            e.stopPropagation();
-            onClose();
-          }
-        }}
+      {/* Press-to-close scrim; Back on the D-pad closes the panel and this
+          mirrors it for a pointer (§15). */}
+      <Pressable
+        {...VIRTUAL_FOCUS}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.close')}
+        onPress={onClose}
+        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '56%', zIndex: 41 }}
       />
-      <div className={`${PANEL} w-[44%] max-w-[720px] px-[58px] py-14`}>
-        <div className="mb-[30px] flex items-center gap-[18px]">
+      <ScrollView
+        style={[PANEL, { width: '44%', maxWidth: 720 }]}
+        contentContainerStyle={{ paddingHorizontal: 58, paddingVertical: 56 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Box row align="center" gap={18} mb={30}>
           {view !== 'menu' ? (
-            <button
-              type="button"
-              onClick={backToMenu}
-              aria-label={t('player.back')}
-              className="flex flex-none h-[46px] w-[46px] items-center justify-center rounded-full border-none cursor-pointer text-text bg-[rgba(255,255,255,0.1)]"
+            <Pressable
+              {...VIRTUAL_FOCUS}
+              onPress={backToMenu}
+              accessibilityRole="button"
+              accessibilityLabel={t('player.back')}
             >
-              <IconBack size={21} />
-            </button>
+              <Box w={46} h={46} shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.1)">
+                <IconBack size={21} />
+              </Box>
+            </Pressable>
           ) : null}
-          <h2 className="m-0 font-display font-bold text-[38px] text-text">{title}</h2>
-        </div>
+          <Txt variant="h1" style={{ fontSize: 38 }}>
+            {title}
+          </Txt>
+        </Box>
 
         {view === 'menu' ? (
-          <div className="flex flex-col gap-3">
+          <Box gap={12}>
             {entries.map((e, i) => (
               <MenuRow
                 key={e.id}
@@ -251,7 +281,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
                 onFocus={menuFocus.hover(i)}
               />
             ))}
-          </div>
+          </Box>
         ) : null}
 
         {view === 'quality' ? (
@@ -308,6 +338,9 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
             onBack={backToMenu}
           />
         ) : null}
+        {view === 'report' && onReport ? (
+          <ReportPanel ref={subRef} onReport={onReport} onBack={backToMenu} />
+        ) : null}
         {view === 'speed' ? (
           <SpeedPanel
             ref={subRef}
@@ -316,7 +349,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
             onBack={backToMenu}
           />
         ) : null}
-      </div>
+      </ScrollView>
     </>
   );
 });

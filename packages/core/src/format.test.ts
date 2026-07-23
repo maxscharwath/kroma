@@ -1,5 +1,5 @@
 import type { AudioTrack, MediaItem, VideoTrack } from '@kroma/client';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   audioTrackLabel,
   channelLabel,
@@ -90,13 +90,30 @@ describe('playerSubtitle', () => {
 
 // ----- sizedImageUrl ---------------------------------------------------------
 
+// The pixel ratio is read from the global at call time, so a stub must not leak
+// into the next test.
+afterEach(() => vi.unstubAllGlobals());
+
 describe('sizedImageUrl', () => {
-  it('appends a 2x width bucket to a local cached-art URL', () => {
+  /** jsdom reports a ratio of 1, which is also what a 1920x1080 television
+   * reports - and asking a television for 2x was four times the pixels it can
+   * show, on every backdrop swap. */
+  it('asks for the display width on a 1x screen (a television)', () => {
+    expect(sizedImageUrl('/api/images/abc.webp', 200)).toBe('/api/images/abc.webp?w=200');
+  });
+
+  it('asks for 2x on a retina screen', () => {
+    vi.stubGlobal('devicePixelRatio', 2);
+    expect(sizedImageUrl('/api/images/abc.webp', 200)).toBe('/api/images/abc.webp?w=400');
+  });
+
+  it('caps the ratio at 2, so a 3x phone does not decode 3x the pixels', () => {
+    vi.stubGlobal('devicePixelRatio', 3);
     expect(sizedImageUrl('/api/images/abc.webp', 200)).toBe('/api/images/abc.webp?w=400');
   });
 
   it('rounds and floors the requested width to at least 1', () => {
-    expect(sizedImageUrl('/api/images/x', 100.4)).toBe('/api/images/x?w=201');
+    expect(sizedImageUrl('/api/images/x', 100.4)).toBe('/api/images/x?w=100');
     expect(sizedImageUrl('/api/images/x', 0)).toBe('/api/images/x?w=1');
   });
 

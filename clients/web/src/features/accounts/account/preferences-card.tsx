@@ -5,18 +5,16 @@
 // drive the player's default track pick (see useVideoPlayback). Empty value =
 // no preference; subtitles also offer the "off" sentinel.
 
-import { LOCALES, langName } from '@kroma/core';
+import { LANG_NO_PREF, LOCALES, langName, PREF_LANGS } from '@kroma/core';
 import { useLocale, useSetLocale, useT } from '@kroma/ui';
 import { IconBadgeCc, IconLanguage, IconVolume } from '@tabler/icons-react';
 import { PrefRow } from '#web/features/accounts/account/ui';
 import { Select } from '#web/shared/ui';
 
-/** Curated set of offered playback languages the codes with catalog labels. */
-const PREF_LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'ru', 'ja', 'ko', 'zh'];
-
 /** Sentinel for the "no preference" option Radix Select forbids an empty value,
- * so we map it to `null` (clear the pref) on the way to the server. */
-export const NONE = 'none';
+ * so we map it to `null` (clear the pref) on the way to the server. The offered
+ * languages (PREF_LANGS) are the shared curated set every client uses. */
+export const NONE = LANG_NO_PREF;
 
 const TRIGGER = 'min-w-[min(188px,45vw)]';
 

@@ -1,6 +1,10 @@
-import { formatTimecode as fmtTime, type Marker, type RemoteKey } from '@kroma/core';
 import {
-  type CSSProperties,
+  formatTimecode as fmtTime,
+  type Marker,
+  type RemoteKey,
+  type ReportCategory,
+} from '@kroma/core';
+import {
   type Dispatch,
   type ReactNode,
   type SetStateAction,
@@ -9,8 +13,14 @@ import {
   useRef,
   useState,
 } from 'react';
+import type { View, ViewStyle } from 'react-native';
+import { Animated, Easing, Pressable, useWindowDimensions } from 'react-native';
 import { useLocale, useT } from '../i18n';
+import { gradient } from '../lib/css';
+import { motion } from '../lib/tokens';
 import type { StoryboardTile } from '../storyboard';
+import { Box } from '../ui/primitives/box';
+import { Spinner } from '../ui/primitives/spinner';
 import { ChapterProgressBar } from './ChapterProgressBar';
 import { ControlCluster } from './ControlCluster';
 import { CreditsCard, type CreditsCardItem } from './CreditsCard';
@@ -24,12 +34,15 @@ import { SubtitleRenderer } from './SubtitleRenderer';
 import type { SubtitleGenBundle } from './settings/gen';
 import { injectKeyframes } from './styles';
 import type { SubtitleAppearance } from './subtitle-appearance';
+import { SurfaceRadiusProvider } from './surface-radius';
 import { TopBar } from './TopBar';
 import type { Chapter, PlaneRect, PlayerController, PlayerFlags } from './types';
 import { type UpNextData, type UpNextItem, UpNextSheet } from './UpNextSheet';
 import { usePlayerCredits } from './usePlayerCredits';
 import { usePlayerKeys } from './usePlayerKeys';
 import { usePlayerNav } from './usePlayerNav';
+import { useSeekNudge } from './useSeekNudge';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 export interface PlayerProps {
   controller: PlayerController;
@@ -47,6 +60,9 @@ export interface PlayerProps {
   appearance: SubtitleAppearance;
   onAppearance: (next: Partial<SubtitleAppearance>) => void;
   subtitleGen: SubtitleGenBundle;
+  /** Send a report about what is playing. Given one, the settings panel grows a
+   * "Signaler un problème" row; without it, nothing changes. */
+  onReport?: (category: ReportCategory) => Promise<void>;
   /** "À suivre" data (§10): next episodes + recommendations. */
   upNext: UpNextData;
   /** Play an up-next card (recommendation / next episode from the sheet). */
@@ -63,7 +79,9 @@ export interface PlayerProps {
   /** Floating toasts (resume prompt, etc.). */
   children?: ReactNode;
   /** The element that goes fullscreen on web (the player root). */
-  rootRef?: React.Ref<HTMLDivElement>;
+  /** The player's root host view. The web client keeps it to drive the browser
+   *  Fullscreen API on the container. */
+  rootRef?: React.Ref<View>;
   onClose: () => void;
 }
 
@@ -73,26 +91,91 @@ function initialSettingsView(overlay: string | null): 'audio' | 'subtitles' | 'm
   return 'menu';
 }
 
-// The stage scales/translates (transform-origin + transform) for a smooth shrink
-// into a rounded card on the left when the settings panel opens. Native TV planes
-// can't be transformed, so those never shrink (settingsShrink stays false). PiP is
-// the browser's own floating window (web), so it needs no in-page transform.
-function stageTransformFor(settingsShrink: boolean): CSSProperties {
-  if (settingsShrink) {
-    return {
-      transformOrigin: '0 50%',
-      transform: 'translate(3vw,0) scale(0.5)',
-      // The card is drawn at scale 0.5, so the on-screen radius is half this.
-      borderRadius: 48,
-    };
-  }
-  return { transformOrigin: '0 50%', transform: 'none', borderRadius: 0 };
+/** The stage is pressable AND animated: one component, so the zoom below drives
+ * the same element the pointer taps. */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** The settings panel's own width, mirrored from SettingsPanel's style so the
+ * card can be centred in what is left of the screen rather than guessed at. */
+const PANEL_FRACTION = 0.44;
+const PANEL_MAX = 720;
+/** Breathing room between the card and both the screen edge and the panel. */
+const CARD_MARGIN = 64;
+/** Drawn at the card's scale, so the on-screen radius is a fraction of this. */
+const CARD_RADIUS = 72;
+/** The zoom between fullscreen and card. */
+const ZOOM_MS = 340;
+
+/**
+ * Where the video sits while the settings panel is open.
+ *
+ * Derived, not hard-coded: the card is as large as the space beside the panel
+ * allows and centred in it. It used to be a flat half-scale nudged 3% in from
+ * the left, which left the picture small and visibly off-centre, with far more
+ * empty space on the panel side than on the outside.
+ *
+ * The scale is uniform, so the card's height fraction equals its width fraction
+ * and `transformOrigin: '0 50%'` keeps it vertically centred for free.
+ */
+function cardGeometry(stageWidth: number): { scale: number; x: number; rect: PlaneRect } {
+  const panel = Math.min(stageWidth * PANEL_FRACTION, PANEL_MAX);
+  const free = Math.max(0, stageWidth - panel);
+  const width = Math.max(0, free - CARD_MARGIN * 2);
+  const scale = stageWidth > 0 ? width / stageWidth : 0.5;
+  const x = (free - width) / 2;
+  return {
+    scale,
+    x,
+    // The same geometry as fractions, for a NATIVE plane (AVPlay / mpv /
+    // ExoPlayer) that cannot be transformed and is moved with setPlaneRect.
+    rect: { x: stageWidth > 0 ? x / stageWidth : 0, y: (1 - scale) / 2, w: scale, h: scale },
+  };
 }
 
-// The settings card as viewport FRACTIONS - the same geometry the CSS transform
-// above produces (scale 0.5 from the left edge, nudged 3vw right, vertically
-// centred), so a NATIVE plane shrinks to exactly where the <video> card sits.
-const CARD_RECT: PlaneRect = { x: 0.03, y: 0.25, w: 0.5, h: 0.5 };
+/**
+ * The stage's shrink into the settings card, as an animation.
+ *
+ * It used to be a style swap - one frame fullscreen, the next frame a card -
+ * which on a television reads as a glitch rather than a transition. Driving it
+ * from one 0→1 value zooms the picture down into the card and back out again.
+ *
+ * The JS driver, deliberately: `borderRadius` is not a native-driver property,
+ * and the corners have to round IN STEP with the scale or the card is square
+ * until the moment it lands. One value, one timeline.
+ *
+ * Native TV planes can't be transformed at all, so those never shrink
+ * (settingsShrink stays false) and take the setPlaneRect path instead.
+ */
+function useStageZoom(settingsShrink: boolean, card: { scale: number; x: number }) {
+  const zoom = useRef(new Animated.Value(settingsShrink ? 1 : 0)).current;
+  useEffect(() => {
+    const anim = Animated.timing(zoom, {
+      toValue: settingsShrink ? 1 : 0,
+      duration: ZOOM_MS,
+      easing: Easing.bezier(...(motion.bezier.out as [number, number, number, number])),
+      useNativeDriver: false,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [settingsShrink, zoom]);
+
+  const radius = zoom.interpolate({ inputRange: [0, 1], outputRange: [0, CARD_RADIUS] });
+  return {
+    radius,
+    style: {
+      transformOrigin: '0 50%',
+      transform: [
+        // Pixels, not '3%': React Native cannot interpret a percentage in a
+        // transform (react-native-web can, which is why it only broke on the TV).
+        {
+          translateX: zoom.interpolate({ inputRange: [0, 1], outputRange: [0, card.x] }),
+        },
+        { scale: zoom.interpolate({ inputRange: [0, 1], outputRange: [1, card.scale] }) },
+      ],
+      borderRadius: radius,
+    },
+  };
+}
 
 /**
  * Shrink a NATIVE video plane (AVPlay / mpv / ExoPlayer) into the settings card.
@@ -105,13 +188,14 @@ const CARD_RECT: PlaneRect = { x: 0.03, y: 0.25, w: 0.5, h: 0.5 };
  */
 function useNativePlaneShrink(
   active: boolean,
+  rect: PlaneRect,
   setPlaneRect: PlayerController['setPlaneRect'],
 ): void {
   // setPlaneRect is a stable callback (or undefined on web), so it can be a dep
   // directly - no latest-ref needed.
   useEffect(() => {
-    setPlaneRect?.(active ? CARD_RECT : null);
-  }, [active, setPlaneRect]);
+    setPlaneRect?.(active ? rect : null);
+  }, [active, rect, setPlaneRect]);
   // Always restore fullscreen when the player tears down - otherwise leaving with
   // settings still open would strand the plane at card size (a small video stuck
   // upper-left) behind the next screen.
@@ -172,27 +256,22 @@ function playerInputHandlers(
   locked: boolean,
 ) {
   return {
-    onPointerMove: (e: React.PointerEvent) => {
+    onPointerMove: (e: { nativeEvent?: { pointerType?: string } }) => {
       // Only a real fine pointer reveals the chrome. On TVs (flags.pointer false)
-      // a magic-remote cursor emits phantom pointermove events that would keep the
+      // a magic-remote cursor emits phantom pointer moves that would keep the
       // chrome pinned open; the D-pad drives reveal there instead.
-      if (flags.pointer && e.pointerType !== 'touch') nav.poke();
+      if (flags.pointer && e.nativeEvent?.pointerType !== 'touch') nav.poke();
     },
-    onStageClick: () => {
+    onStagePress: () => {
       if (!locked) {
         nav.poke();
         c.togglePlay();
       }
     },
-    onStageKeyDown: (e: React.KeyboardEvent) => {
-      if ((e.key === 'Enter' || e.key === ' ') && !locked) {
-        e.preventDefault();
-        e.stopPropagation();
-        nav.poke();
-        c.togglePlay();
-      }
-    },
-    onStageDoubleClick: () => {
+    // The design's double-click-to-fullscreen. A long press is its cross-platform
+    // spelling; `flags.fullscreen` is off on a TV, which is already fullscreen,
+    // so this only ever fires in a browser.
+    onStageLongPress: () => {
       if (flags.fullscreen) c.toggleFullscreen();
     },
   };
@@ -209,6 +288,9 @@ function playerInputHandlers(
 export function Player(props: Readonly<PlayerProps>) {
   useEffect(injectKeyframes, []);
   const { controller: c, flags } = props;
+  // The stage fills the screen, so the card is measured against this.
+  const { width: stageWidth } = useWindowDimensions();
+  const card = useMemo(() => cardGeometry(stageWidth), [stageWidth]);
   const t = useT();
   const locale = useLocale();
 
@@ -237,9 +319,10 @@ export function Player(props: Readonly<PlayerProps>) {
     if (credits.show) setCreditsFocus('play');
   }, [credits.show]);
 
+  const seekNudge = useSeekNudge(c);
   const nav = usePlayerNav(flags, c.playing, {
     togglePlay: c.togglePlay,
-    seekNudge: (d) => c.skip(d * 10),
+    seekNudge,
     onNext: () => props.onPlayNext?.(),
     hasNext: Boolean(props.onPlayNext),
     // Step in perceptual slider space so a nudge feels even across the range.
@@ -280,60 +363,57 @@ export function Player(props: Readonly<PlayerProps>) {
   // path (nativeShrink is false / setPlaneRect absent).
   const nativeShrink = settingsOpen && c.surface !== 'video';
   const hasPlane = c.surface !== 'video' && Boolean(c.setPlaneRect);
-  useNativePlaneShrink(nativeShrink, c.setPlaneRect);
+  useNativePlaneShrink(nativeShrink, card.rect, c.setPlaneRect);
   const initialView = initialSettingsView(nav.overlay);
   // The stage (which holds the in-page <video>) transforms ONLY for a `video`
   // surface - never for a native plane, whose hardware layer some firmwares would
   // drag around if the <object> placeholder were CSS-transformed.
-  const stage = stageTransformFor(settingsShrink);
+  const stage = useStageZoom(settingsShrink, card);
   // The buffering spinner + subtitle overlay ride into the card via their own
   // wrapper: on the CSS path they sit inside the (transformed) stage untouched; on
   // a native shrink the stage stays put, so the wrapper carries them down itself.
-  const contentShrink: CSSProperties | undefined = nativeShrink
-    ? { transformOrigin: '0 50%', transform: 'translate(3vw,0) scale(0.5)' }
+  const contentShrink: ViewStyle | undefined = nativeShrink
+    ? { transformOrigin: '0 50%', transform: [{ translateX: '3%' }, { scale: 0.5 }] }
     : undefined;
-  // Keep the mask on a GPU layer through the open AND close fades, then drop it
-  // when idle (onTransitionEnd) so no huge box-shadow backing store lingers.
-  const [maskLayer, setMaskLayer] = useState(false);
-  if (nativeShrink && !maskLayer) setMaskLayer(true);
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
-  // the chrome auto-hides.
-  const chromeFade = chromeShown ? 'opacity-100' : 'pointer-events-none opacity-0';
+  // the chrome auto-hides (see `chromeShown`).
   const input = playerInputHandlers(nav, c, flags, locked);
 
   return (
-    <div
+    <Box
       ref={props.rootRef}
-      className={`fixed inset-0 z-60 ${c.surface === 'video' ? 'bg-black' : 'bg-transparent'} ${nav.revealed ? '' : 'cursor-none'}`}
+      fill
+      z={60}
+      bg={c.surface === 'video' ? '#000000' : 'transparent'}
       onPointerMove={input.onPointerMove}
     >
-      {/* stage: video + subtitles, transformed together to shrink into the
-          settings card. role="button" (not a native <button>): it wraps the
-          <video> surface + subtitles + spinner, which a button may not contain,
-          and legacy-TV webviews render it more reliably. Keyboard parity via
-          onStageKeyDown. */}
-      {/* biome-ignore lint/a11y/useSemanticElements: a native <button> can't wrap the video/subtitle/spinner surface; keyboard parity is provided. */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label={c.playing ? t('player.pause') : t('player.play')}
-        // The stage owns the surface-<video> fill/object-fit (borderRadius: inherit
-        // stays inline on each surface so it's guaranteed, not dependent on a
-        // generated arbitrary-property class in the legacy-tier TV build).
-        className={`absolute inset-0 z-2 overflow-hidden transition-[transform,border-radius,box-shadow] duration-420 ease-out [&>video]:h-full [&>video]:w-full [&>video]:bg-black [&>video]:object-contain ${settingsShrink ? 'bg-black shadow-pop' : 'bg-transparent'}`}
-        style={stage}
-        onClick={input.onStageClick}
-        onKeyDown={input.onStageKeyDown}
-        onDoubleClick={input.onStageDoubleClick}
+      {/* Stage: the video surface, its subtitles and the buffering spinner,
+          transformed together to shrink into the settings card.
+          Its id is what the injected stylesheet hooks to size the in-page
+          <video> a browser surface mounts here (see injectKeyframes); a native
+          surface sizes itself and never sees that rule. */}
+      <AnimatedPressable
+        {...VIRTUAL_FOCUS}
+        accessibilityRole="button"
+        accessibilityLabel={c.playing ? t('player.pause') : t('player.play')}
+        onPress={input.onStagePress}
+        onLongPress={input.onStageLongPress}
+        nativeID={STAGE_ID}
+        style={[
+          STAGE,
+          settingsShrink ? { backgroundColor: '#000000', boxShadow: STAGE_SHADOW } : null,
+          stage.style,
+        ]}
       >
-        {props.surface}
-        {/* Spinner + subtitles ride into the card: inside the transformed stage on
-            the CSS path, or via this wrapper's own transform on a native shrink. */}
-        <div
-          className="pointer-events-none absolute inset-0 overflow-hidden transition-transform duration-420 ease-out"
-          style={contentShrink}
-        >
+        {/* The surface rounds ITSELF to the card: a rounded parent does not clip
+            a native video layer. Renders no element, so the web client's
+            direct-child `<video>` rule still matches. */}
+        <SurfaceRadiusProvider radius={stage.radius}>{props.surface}</SurfaceRadiusProvider>
+        {/* The spinner + subtitles ride into the card: inside the transformed
+            stage on the CSS path, or via this wrapper's own transform when a
+            native plane shrinks (the stage itself must not move then). */}
+        <Box fill overflow="hidden" pointerEvents="none" style={contentShrink}>
           <SubtitleRenderer
             positionSec={c.cur}
             playing={c.playing}
@@ -343,40 +423,31 @@ export function Player(props: Readonly<PlayerProps>) {
             raised={nav.revealed}
           />
           {c.waiting && !locked ? (
-            <div className="absolute inset-0 z-4 flex items-center justify-center">
-              <div className="h-14 w-14 rounded-full border-[3px] border-[rgba(255,255,255,0.2)] border-t-accent animate-[kpl-spin_0.9s_linear_infinite]" />
-            </div>
+            <Box fill z={4} center>
+              <Spinner size={56} thickness={3} />
+            </Box>
           ) : null}
-        </div>
-      </div>
+        </Box>
+      </AnimatedPressable>
 
       {/* Native-plane shrink mask: the plane itself moves via setPlaneRect; this
-          rounds the card corners + blacks out the surround (a hardware plane has
-          no CSS radius). Geometry is STATIC (fixed at the card) - only opacity
-          fades - so the full-screen box-shadow rasterizes once and composites,
-          instead of repainting every frame (that was a big part of the lag). Sits
-          below the settings panel so the panel stays on top. */}
+          rounds the card corners and blacks out the surround (a hardware plane
+          has no corner radius of its own). The geometry is STATIC, fixed at the
+          card, and only the opacity changes, so the huge surround shadow
+          rasterizes once instead of repainting every frame. Sits below the
+          settings panel so the panel stays on top. */}
       {hasPlane ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute z-3 transition-opacity duration-280 ease-out"
-          onTransitionEnd={() => {
-            if (!nativeShrink) setMaskLayer(false);
-          }}
-          style={{
-            left: `${CARD_RECT.x * 100}%`,
-            top: `${CARD_RECT.y * 100}%`,
-            width: `${CARD_RECT.w * 100}%`,
-            height: `${CARD_RECT.h * 100}%`,
-            borderRadius: 24,
-            boxShadow: '0 0 0 100vmax #000',
-            opacity: nativeShrink ? 1 : 0,
-            // Promote to a GPU layer for the open AND close fades (so the
-            // full-screen box-shadow composites instead of repainting per frame),
-            // then drop it on transition-end when idle so no huge backing store is
-            // reserved for the ~99% of the session the mask is invisible.
-            willChange: maskLayer ? 'opacity' : 'auto',
-          }}
+        <Box
+          absolute
+          left={`${card.rect.x * 100}%`}
+          top={`${card.rect.y * 100}%`}
+          w={`${card.rect.w * 100}%`}
+          h={`${card.rect.h * 100}%`}
+          z={3}
+          radius={24}
+          opacity={nativeShrink ? 1 : 0}
+          pointerEvents="none"
+          style={MASK_SURROUND}
         />
       ) : null}
 
@@ -406,8 +477,14 @@ export function Player(props: Readonly<PlayerProps>) {
       {statsOn ? <StatsPanel controller={c} onClose={() => setStatsOn(false)} /> : null}
 
       {/* top bar */}
-      <div
-        className={`absolute inset-x-0 top-0 z-20 transition-opacity duration-350 ${chromeFade}`}
+      <Box
+        absolute
+        left={0}
+        right={0}
+        top={0}
+        z={20}
+        opacity={chromeShown ? 1 : 0}
+        pointerEvents={chromeShown ? 'box-none' : 'none'}
       >
         <TopBar
           title={props.title}
@@ -415,7 +492,7 @@ export function Player(props: Readonly<PlayerProps>) {
           warn={props.warn}
           onBack={props.onClose}
         />
-      </div>
+      </Box>
 
       {/* up-next sheet (peek + expand, §10) */}
       <UpNextSheet
@@ -433,9 +510,18 @@ export function Player(props: Readonly<PlayerProps>) {
           above the up-next peek with padding instead - so the peek (higher
           z-index) overlays the gradient's dark foot seamlessly rather than the
           gradient ending in a hard shadow band just above the peek. */}
-      <div
-        className={`absolute inset-x-0 bottom-0 z-15 bg-[linear-gradient(0deg,rgba(0,0,0,0.82),transparent)] px-[34px] pt-20 transition-[padding,opacity] duration-300 ${chromeFade}`}
-        style={{ paddingBottom: peekVisible ? 146 : 28 }}
+      <Box
+        absolute
+        left={0}
+        right={0}
+        bottom={0}
+        z={15}
+        px={34}
+        pt={80}
+        pb={peekVisible ? 146 : 28}
+        opacity={chromeShown ? 1 : 0}
+        pointerEvents={chromeShown ? 'box-none' : 'none'}
+        style={gradient(BOTTOM_SCRIM)}
       >
         <ChapterProgressBar
           cur={c.cur}
@@ -464,7 +550,7 @@ export function Player(props: Readonly<PlayerProps>) {
           onFocus={nav.focusControl}
           onVolume={c.setVolume}
         />
-      </div>
+      </Box>
 
       {/* settings / audio / subtitles panel (§5) */}
       {settingsOpen ? (
@@ -477,12 +563,32 @@ export function Player(props: Readonly<PlayerProps>) {
           statsOn={statsOn}
           onToggleStats={() => setStatsOn((s) => !s)}
           subtitleGen={props.subtitleGen}
+          onReport={props.onReport}
           onClose={() => nav.closeOverlay()}
         />
       ) : null}
 
       {props.terminated}
       {props.children}
-    </div>
+    </Box>
   );
 }
+
+/** Rendered as the element id on the web, which is what the injected stylesheet
+ * hooks to size the in-page <video> a browser surface mounts here. */
+const STAGE_ID = 'kroma-player-stage';
+
+const STAGE = {
+  position: 'absolute' as const,
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  zIndex: 2,
+  overflow: 'hidden' as const,
+};
+
+const STAGE_SHADOW = '0 20px 50px rgba(0, 0, 0, 0.55)';
+/** A surround dark enough to read as "everything but the card is black". */
+const MASK_SURROUND = { boxShadow: '0 0 0 100vmax #000' };
+const BOTTOM_SCRIM = 'linear-gradient(0deg, rgba(0,0,0,0.82), transparent)';

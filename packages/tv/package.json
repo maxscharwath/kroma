@@ -21,13 +21,20 @@
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18",
-    "react-native": "*"
+    "react-native": "*",
+    "expo-video": "*"
   },
   "devDependencies": {
     "@types/qrcode-generator": "^1.0.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "typescript": "^7.0.2",
-    "react-native": "npm:react-native-tvos@0.86.0-2"
+    "react-native": "npm:react-native-tvos@0.86.0-2",
+    "expo-video": "~57.0.1"
+  },
+  "peerDependenciesMeta": {
+    "expo-video": {
+      "optional": true
+    }
   }
 }

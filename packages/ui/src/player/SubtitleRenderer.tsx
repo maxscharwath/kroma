@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box } from '../system/Box';
-import { Txt } from '../primitives/Text';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import { type SubtitleAppearance, subtitleStyle } from './subtitle-appearance';
 import type { PlayerSub } from './types';
 

@@ -1,6 +1,12 @@
 import type { AuthResult, KromaClient, MessageKey, QuickConnectInit } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, Spinner, SvgXml, Txt, useFocusNav } from '@kroma/ui/kit';
+// Imported STATICALLY, not with `import()`. Metro has no code splitting: a
+// dynamic import is a lazy bundle fetch that needs the dev server's HMR client,
+// and it fails outright when that is not connected ("Expected HMRClient.setup()
+// call at startup"), which is exactly how the QR went missing on Apple TV. The
+// library is a few kilobytes, so there was never anything to gain by deferring.
+import qrcode from 'qrcode-generator';
 import { useEffect, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
@@ -9,6 +15,14 @@ import { AuthScreen, KromaMark } from '#tv/shared/ui';
 
 /** Regenerate the code this many seconds before the server-side TTL lapses. */
 const EXPIRY_MARGIN_SEC = 5;
+
+/**
+ * `qrcode-generator` is a UMD module: `module.exports` IS the factory function,
+ * with no `default` property and no `__esModule` flag. Vite synthesises a default
+ * export for CommonJS, so `mod.default` works on every browser target; Metro does
+ * not, so on Apple TV and Android TV `mod.default` is undefined and calling it
+ * throws. Take whichever shape the bundler actually produced.
+ */
 
 /**
  * Quick Connect (route `quick`) against the active server: shows a code + QR; an
@@ -73,15 +87,17 @@ export function TvQuickConnect() {
         setQr(null);
         const url = connectUrl(client, init.code, init.authorizeUrl);
         if (url) {
-          void import('qrcode-generator')
-            .then((mod) => {
-              if (cancelled) return;
-              const qrc = mod.default(0, 'M');
-              qrc.addData(url);
-              qrc.make();
-              setQr(qrc.createSvgTag({ cellSize: 6, margin: 1, scalable: true }));
-            })
-            .catch(() => undefined);
+          try {
+            const qrc = qrcode(0, 'M');
+            qrc.addData(url);
+            qrc.make();
+            setQr(qrc.createSvgTag({ cellSize: 6, margin: 1, scalable: true }));
+          } catch (cause) {
+            // The code on screen still pairs the device without a QR, so this
+            // must not take the screen down. It must not be SILENT either:
+            // swallowing it is how a missing QR went unnoticed on Apple TV.
+            console.warn('[kroma] QR code unavailable:', cause);
+          }
         }
         // Proactively mint a fresh code a touch before the server TTL lapses, so
         // the code on screen is always valid to approve (independent of the poll

@@ -1,6 +1,8 @@
 // The D-pad numeric keypad for the PIN screen.
 
-import { Box, Focusable, Txt } from '@kroma/ui/kit';
+import { Box, Focusable, FocusRegion, Txt } from '@kroma/ui/kit';
+
+const PAD_ROW = { flexDirection: 'row' as const, gap: 13 };
 
 const KEY = {
   height: 72,
@@ -35,6 +37,8 @@ export function Keypad({
       key={label}
       onPress={onPress}
       label={label}
+      // Entry point of every PIN screen: the first digit.
+      autoFocus={label === '1'}
       focusScale={1.08}
       ring={false}
       style={KEY}
@@ -50,16 +54,16 @@ export function Keypad({
   return (
     <Box gap={13}>
       {ROWS.map((row) => (
-        <Box key={row.join('')} row gap={13}>
+        <FocusRegion key={row.join('')} style={PAD_ROW}>
           {row.map((d) => key(d, () => onDigit(d)))}
-        </Box>
+        </FocusRegion>
       ))}
-      <Box row gap={13}>
+      <FocusRegion style={PAD_ROW}>
         {/* Spacer keeps 0 under the centre column now that OK is gone. */}
         <Box w={88} h={72} />
         {key('0', () => onDigit('0'))}
         {key('⌫', onDelete, 22)}
-      </Box>
+      </FocusRegion>
     </Box>
   );
 }

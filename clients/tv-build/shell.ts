@@ -21,7 +21,7 @@ import react from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
 import { tvFrame } from '../tv-frame.vite';
 import { legacyFinalize } from './legacy-finalize';
-import { RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
+import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
 
 export interface TvTarget {
   /** Which TV this shell is for (diagnostics label; playback wiring is runtime-detected). */
@@ -39,6 +39,11 @@ export interface TvTarget {
    * console.* so on-TV logs reach the platform log collector). */
   deviceDev?: boolean;
 }
+
+/** Build for the profiler rather than for the television: readable names and
+ * source maps, so a recorded profile attributes time to components instead of to
+ * single letters. Off unless asked for. */
+const PROFILE = process.env.KROMA_PROFILE === '1';
 
 /** This machine's LAN IPv4 a dev TV connects back to for the HMR websocket.
  * KROMA_TV_HOST (set by dev-device.sh) wins; the scan is only a fallback. */
@@ -69,7 +74,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
   const deviceDev = target.deviceDev === true && process.env.KROMA_TV_DEVICE === '1';
   const floor = target.chromeFloor ?? 99;
   return ({ command }: ConfigEnv): UserConfig => ({
-    define: { __KROMA_VERSION__: JSON.stringify(clientVersion(repoRoot)) },
+    define: { __KROMA_VERSION__: JSON.stringify(clientVersion(repoRoot)), ...RNW_DEFINE },
     // `tvFrame()` is dev-only (apply: 'serve'): letterboxes the app into a
     // 1920x1080 stage in a desktop browser; on a real TV the panel already is
     // that canvas, so device mode turns it off.
@@ -104,6 +109,12 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
       cssMinify: 'lightningcss',
       modulePreload: { polyfill: false },
       reportCompressedSize: true,
+      // A profile of a mangled bundle names every frame `Zt`, which is the same
+      // as having no profile at all. KROMA_PROFILE=1 keeps the names and emits
+      // the maps, so clients/tv-build/perf-profile.ts (and the DevTools
+      // Performance panel it writes for) can say which component is spending the
+      // frame. Never on for a shipped build: it is bigger and slower to parse.
+      sourcemap: PROFILE,
       rolldownOptions: {
         // Strip logging from shipped bundles; dev keeps console.* so on-TV logs
         // still surface in the platform log collector. vite 8 IGNORES
@@ -111,7 +122,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
         // output options now. Legal comments are already stripped by minify.
         output: {
           minify:
-            command === 'build'
+            command === 'build' && !PROFILE
               ? { compress: { dropConsole: true, dropDebugger: true }, mangle: true, codegen: true }
               : undefined,
         },
@@ -134,6 +145,7 @@ export function tvShellLegacyConfig(shellUrl: string, target: TvTarget): UserCon
       react(),
       legacyFinalize({ distDir: fileURLToPath(new URL('dist', shellUrl)), chrome }),
     ],
+    define: RNW_DEFINE,
     resolve: webResolve({ '#tv': fileURLToPath(new URL('../../packages/tv/src', shellUrl)) }),
     base: './',
     // appinfo/manifest + icons are already copied into dist/ by the modern build.

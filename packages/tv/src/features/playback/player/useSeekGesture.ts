@@ -1,3 +1,4 @@
+import { webWindow } from '@kroma/ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // One seek gesture model shared by the remote and the mouse. It turns a press
@@ -185,15 +186,24 @@ export function useSeekGesture({ getPosition, duration, seekTo }: SeekDeps): See
 
   // Any key / pointer release (anywhere) ends a directional press - robust to the
   // pointer leaving the button, or a remote that only emits keyup at the very end.
+  //
+  // Browser targets only. A native TV remote reports a directional press as ONE
+  // discrete event with no key-up to pair it with, so there is nothing to listen
+  // for; the native player seeks through `skip` / `scrub` instead, which need no
+  // release. Guarded rather than assumed: `window` exists under React Native (it
+  // is `global`), it just has no addEventListener, and calling it crashed the
+  // player on Apple TV before the surrounding chrome ever rendered.
   useEffect(() => {
+    const w = webWindow();
+    if (!w) return;
     const onUp = () => release();
-    window.addEventListener('keyup', onUp);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('blur', onUp);
+    w.addEventListener('keyup', onUp);
+    w.addEventListener('pointerup', onUp);
+    w.addEventListener('blur', onUp);
     return () => {
-      window.removeEventListener('keyup', onUp);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('blur', onUp);
+      w.removeEventListener('keyup', onUp);
+      w.removeEventListener('pointerup', onUp);
+      w.removeEventListener('blur', onUp);
     };
   }, [release]);
 

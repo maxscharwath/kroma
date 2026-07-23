@@ -2,6 +2,7 @@ import { type KromaClient, type MediaItem, qualityBadgeForVideo } from '@kroma/c
 import { type PlayerController, useAudioFilter, useT } from '@kroma/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { availableEngines, ENGINE_LABEL_KEY, type EnginePref } from '#tv/app/enginePref';
+import { useLangPrefs } from '#tv/app/langPref';
 import { type Playback, useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
 import { buildTvStats } from '#tv/features/playback/tv-stats';
 import { type TvSubtitles, useTvSubtitles } from '#tv/features/playback/use-tv-subtitles';
@@ -24,8 +25,12 @@ export interface TvController {
  */
 export function useTvController(client: KromaClient, item: MediaItem): TvController {
   const t = useT();
-  const pb = useDirectPlayback(client, item);
-  const subs = useTvSubtitles(client, item);
+  // Preferred audio / subtitle language, on the ACCOUNT. Read here so a title
+  // opens on the right tracks, and written back by the pickers below so the
+  // choice made once in the player is the choice every later title starts from.
+  const langs = useLangPrefs();
+  const pb = useDirectPlayback(client, item, langs.audio);
+  const subs = useTvSubtitles(client, item, langs);
 
   // Audio normalizer (§7), one persisted mode across every engine. The Web Audio
   // compressor taps the in-page <video> (HTML engine: legacy webOS, the macOS
@@ -58,6 +63,20 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     const list = availableEngines();
     return list.length > 1 ? list.map((id) => ({ id, label: t(ENGINE_LABEL_KEY[id]) })) : [];
   }, [t]);
+
+  // Switching audio track is also how a viewer says "I watch in French": store
+  // the track's language as the preference. A track with no declared language
+  // leaves the stored preference alone - there is nothing to learn from it.
+  const { setAudio: pickAudio, audioTracks: tracks } = pb;
+  const { setAudio: rememberAudio } = langs;
+  const setAudio = useCallback(
+    (index: number) => {
+      pickAudio(index);
+      const language = tracks.find((a) => a.index === index)?.language;
+      if (language) rememberAudio(language);
+    },
+    [pickAudio, rememberAudio, tracks],
+  );
 
   const statsRef = useRef<() => ReturnType<typeof buildTvStats>>(() => ({}));
   statsRef.current = () =>
@@ -100,7 +119,7 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     setLoop: () => undefined,
     audioTracks: pb.audioTracks,
     audioIndex: pb.audioIndex,
-    setAudio: pb.setAudio,
+    setAudio,
     subtitles: subs.subtitles,
     subtitleIndex: subs.activeIndex,
     setSubtitle: subs.setActive,

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useT } from '../i18n';
-import { Polyline, Svg } from '../primitives/svg';
-import { Txt } from '../primitives/Text';
-import { Box } from '../system/Box';
-import { fonts } from '../tokens';
+import { Polyline, Svg } from '../lib/svg';
+import { fonts } from '../lib/tokens';
+import { Box } from '../ui/primitives/box';
+import { Txt } from '../ui/primitives/text';
 import { IconClose } from './icons';
 import type { PlayerController, PlayerMeter, PlayerStats } from './types';
+import { VIRTUAL_FOCUS } from './virtual-focus';
 
 /** How many samples of history each sparkline keeps (~40s at the 500ms poll). */
 const HISTORY = 80;
@@ -163,7 +164,12 @@ export function StatsPanel({
         <Txt style={PANEL_TITLE} color="rgba(244, 243, 240, 0.5)">
           {t('stats.title')}
         </Txt>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+        <Pressable
+          {...VIRTUAL_FOCUS}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        >
           <Box shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.08)" p={4}>
             <IconClose size={15} color="rgba(244, 243, 240, 0.5)" />
           </Box>

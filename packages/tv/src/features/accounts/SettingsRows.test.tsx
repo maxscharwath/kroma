@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { I18nProvider } from '@kroma/ui';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { onScreen } from '@kroma/ui/testing';
+import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { actionItem, choiceItem, type SettingsEntry, toggleItem } from '#tv/app/settings/items';
 import { reactivePref, useStoredPref } from '#tv/app/settings/store';
 import { SettingsRows } from './SettingsRows';
+
+/** Every kit control is a node of the spatial navigator, and a node needs a
+ * navigator - the router gives every screen one. A test renders inside the same
+ * scope so the tree it mounts is the tree the app mounts. */
+const render = (ui: ReactElement) => renderRaw(onScreen(ui));
 
 function show(items: readonly SettingsEntry[]) {
   return render(

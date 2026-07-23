@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { Pressable } from 'react-native';
-import { Txt } from '../../primitives/Text';
-import { Box } from '../../system/Box';
-import { colors, fonts } from '../../tokens';
+import { colors, fonts } from '../../lib/tokens';
+import { Box } from '../../ui/primitives/box';
+import { Txt } from '../../ui/primitives/text';
 import { FOCUS_SHADOW_SM } from '../style';
+import { VIRTUAL_FOCUS } from '../virtual-focus';
 
 /**
  * Presentational atoms for the {@link GenerateWizard}, kept out of the wizard so
@@ -65,7 +66,12 @@ function CycleArrow({
   onPress,
 }: Readonly<{ glyph: string; label: string; dim: boolean; onPress: () => void }>) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable
+      {...VIRTUAL_FOCUS}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Txt
         style={{ fontSize: 20, lineHeight: 22, paddingHorizontal: 4, opacity: dim ? 0.45 : 1 }}
         color="accent"
@@ -110,6 +116,7 @@ export function ActionButton({
   const tone = actionTone(Boolean(disabled), focused);
   return (
     <Pressable
+      {...VIRTUAL_FOCUS}
       onPress={disabled ? undefined : onPress}
       onPointerEnter={onFocus}
       disabled={disabled}

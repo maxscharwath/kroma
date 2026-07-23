@@ -4,8 +4,17 @@
 // ordering follows the device's persisted layout preference (ABC / AZERTY /
 // QWERTY / QWERTZ, see keyboardLayoutPref).
 
-import { Box, Focusable, Icon, type IconName, Txt } from '@kroma/ui/kit';
+import {
+  Focusable,
+  FocusColumn,
+  FocusRegion,
+  Icon,
+  type IconName,
+  Txt,
+  webWindow,
+} from '@kroma/ui/kit';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { TextStyle, ViewStyle } from 'react-native';
 import { getKeyboardLayoutPref, type KeyboardLayoutPref } from '#tv/app/keyboardLayoutPref';
 import { useEnv } from '#tv/app/providers/env';
 import { LAYOUT_LETTER_ROWS, urlRows } from './keyboardLayouts';
@@ -28,7 +37,8 @@ function usePhysicalTyping(value: string, onChange: (next: string) => void) {
   const stateRef = useRef({ value, onChange });
   stateRef.current = { value, onChange };
   useEffect(() => {
-    if (!physicalKeyboard || typeof window.addEventListener !== 'function') return;
+    const w = physicalKeyboard ? webWindow() : null;
+    if (!w) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
       const t = e.target;
@@ -44,8 +54,8 @@ function usePhysicalTyping(value: string, onChange: (next: string) => void) {
         s.onChange(s.value + e.key);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    w.addEventListener('keydown', onKey);
+    return () => w.removeEventListener('keydown', onKey);
   }, [physicalKeyboard]);
 }
 
@@ -79,20 +89,24 @@ function Key({
   textStyle,
   focusFill,
   focusInk,
+  autoFocus,
 }: Readonly<{
   label?: string;
   icon?: IconName;
   iconSize?: number;
   onPress: () => void;
-  style?: Record<string, unknown>;
-  textStyle?: Record<string, unknown>;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
   focusFill: string;
   focusInk: string;
+  /** Marks this key the screen's focus entry point. */
+  autoFocus?: boolean;
 }>) {
   return (
     <Focusable
       onPress={onPress}
       label={label}
+      autoFocus={autoFocus}
       focusScale={1.08}
       ring={false}
       style={[KEY_FACE, { alignItems: 'center', justifyContent: 'center' }, style]}
@@ -146,6 +160,15 @@ export function OnScreenKeyboard({
 }
 
 const URL_FOCUS_FILL = 'rgba(244, 182, 66, 0.18)';
+// Module scope, not the render body: this keyboard re-renders on every keystroke
+// and hands these to ~40 keys, so rebuilding them would hand every key a new
+// style identity each time (see useLayout's note above).
+const URL_KEY: ViewStyle = { height: 52, flex: 1 };
+const URL_KEY_TEXT: TextStyle = { fontSize: 20 };
+const URL_CLEAR_KEY: ViewStyle = { height: 52, flex: 2 };
+const URL_CLEAR_TEXT: TextStyle = { fontSize: 16 };
+
+const KEY_ROW = { flexDirection: 'row' as const, gap: 12 };
 
 /** The server-URL keyboard: a digit row, the preferred layout's letters as rows
  * of ten lowercase keys with the URL specials appended, then clear / "." / the
@@ -166,39 +189,45 @@ function UrlKeyboard({
     if (k === '⌫') onChange(value.slice(0, -1));
     else onChange(value + k);
   };
-  const face = { height: 52, flex: 1 };
-  const text = { fontSize: 20 };
   return (
-    <Box gap={12}>
-      {rows.map((row) => (
-        <Box key={row.join('')} row gap={12}>
-          {row.map((k) => (
+    // `grid`: Down from a key lands on the key BELOW it, not on wherever the next
+    // row was last left. Same reason as the search keyboard.
+    <FocusColumn grid style={{ gap: 12 }}>
+      {rows.map((row, rowIndex) => (
+        <FocusRegion key={row.join('')} style={KEY_ROW}>
+          {row.map((k, keyIndex) => (
             <Key
               key={k}
               label={k}
+              // Entry point of every screen built on the keyboard: its first key.
+              autoFocus={rowIndex === 0 && keyIndex === 0}
               onPress={() => press(k)}
-              style={face}
-              textStyle={text}
+              style={URL_KEY}
+              textStyle={URL_KEY_TEXT}
               focusFill={URL_FOCUS_FILL}
               focusInk="accent"
             />
           ))}
-        </Box>
+        </FocusRegion>
       ))}
-      <Box row gap={12}>
+      {/* A row, and it has to SAY so: as a plain box its three controls were
+          siblings of the vertical column, so Left and Right did nothing between
+          them and the submit button could only be reached by pressing Down past
+          it. */}
+      <FocusRegion style={KEY_ROW}>
         <Key
           label="⌧"
           onPress={() => onChange('')}
-          style={{ height: 52, flex: 2 }}
-          textStyle={{ fontSize: 16 }}
+          style={URL_CLEAR_KEY}
+          textStyle={URL_CLEAR_TEXT}
           focusFill={URL_FOCUS_FILL}
           focusInk="accent"
         />
         <Key
           label="."
           onPress={() => onChange(`${value}.`)}
-          style={face}
-          textStyle={text}
+          style={URL_KEY}
+          textStyle={URL_KEY_TEXT}
           focusFill={URL_FOCUS_FILL}
           focusInk="accent"
         />
@@ -222,8 +251,8 @@ function UrlKeyboard({
             </Txt>
           </Focusable>
         ) : null}
-      </Box>
-    </Box>
+      </FocusRegion>
+    </FocusColumn>
   );
 }
 
@@ -247,8 +276,9 @@ function searchLook(layout: KeyboardLayoutPref) {
     face: wide ? { height: 48, width: 44, flexShrink: 0 } : { height: 56, flex: 1 },
     text: { fontSize: wide ? 19 : 22 },
     rowGap: wide ? 8 : 12,
-    centred: wide,
-    iconSize: wide ? 22 : 26,
+    // The three trailing-row glyphs are optically balanced against each other,
+    // so they are sized together here rather than each at its own call site.
+    icon: wide ? { space: 24, back: 22, close: 20 } : { space: 28, back: 26, close: 24 },
   };
 }
 
@@ -262,8 +292,7 @@ function SearchKeyboard({
   onChange,
   onClose,
 }: Readonly<{ value: string; onChange: (next: string) => void; onClose?: () => void }>) {
-  const { letterRows, lastRow, wide, face, text, rowGap, centred, iconSize } =
-    useLayout(searchLook);
+  const { letterRows, lastRow, wide, face, text, rowGap, icon } = useLayout(searchLook);
   const key = (id: string, label: string, onPress: () => void) => (
     <Key
       key={id}
@@ -287,13 +316,28 @@ function SearchKeyboard({
     />
   );
   const letter = (l: string) => key(l, l, () => onChange(value + l.toLowerCase()));
+  // A <FocusRegion>, not a <Box row>. A plain box is a layout and nothing else:
+  // the keys inside it end up siblings of every other key on the keyboard, one
+  // flat list in the order they mounted, so Up and Down stepped along that list
+  // and the ring appeared to move diagonally. (The URL keyboard next door always
+  // did declare its rows, which is why only this one felt broken.)
   const row = (children: React.ReactNode, id: string) => (
-    <Box key={id} row gap={rowGap} justify={centred ? 'center' : undefined}>
+    <FocusRegion
+      key={id}
+      style={{
+        flexDirection: 'row',
+        gap: rowGap,
+        justifyContent: wide ? 'center' : undefined,
+      }}
+    >
       {children}
-    </Box>
+    </FocusRegion>
   );
   return (
-    <Box gap={rowGap}>
+    // `grid`: keep the COLUMN when moving between rows. Without it the navigator
+    // lands on whichever key the next row was last left on, which on a keyboard
+    // is the difference between Down from T reaching G and reaching A.
+    <FocusColumn grid style={{ gap: rowGap }}>
       {row(
         SEARCH_DIGITS.map((d) => key(d, d, () => onChange(value + d))),
         'digits',
@@ -302,12 +346,12 @@ function SearchKeyboard({
       {row(
         <>
           {lastRow.map(letter)}
-          {glyph('space', 'space', wide ? 24 : 28, () => onChange(`${value} `))}
-          {glyph('delete', 'backspace', iconSize, () => onChange(value.slice(0, -1)))}
-          {glyph('close', 'x', wide ? 20 : 24, () => onClose?.())}
+          {glyph('space', 'space', icon.space, () => onChange(`${value} `))}
+          {glyph('delete', 'backspace', icon.back, () => onChange(value.slice(0, -1)))}
+          {glyph('close', 'x', icon.close, () => onClose?.())}
         </>,
         'last',
       )}
-    </Box>
+    </FocusColumn>
   );
 }

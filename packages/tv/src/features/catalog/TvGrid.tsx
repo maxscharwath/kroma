@@ -24,6 +24,7 @@ import {
 import { HintBar } from '#tv/features/catalog/home/HintBar';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
+import { EMPTY } from '#tv/features/catalog/screenStyle';
 import { BrowseFilters, BrowseHeader } from '#tv/features/catalog/TvBrowseHeader';
 
 /** The section label over the grid, one key per section. */
@@ -129,11 +130,16 @@ export function TvGrid() {
 
   return (
     <Box fill bg="bg" overflow="hidden" style={{ isolation: 'isolate' }}>
+      {/* The bar comes FIRST in the tree because the navigator moves in tree
+          order and the bar is visually at the top; it still paints above,
+          on its own z. Which control opens focused is said by `autoFocus`,
+          not by the order. */}
+      <TvTopNav active={kind} />
+
       <AmbientBackdrop
         src={entryBackdrop(client, focused)}
         colors={focused ? posterColors(focused.item.id) : ['#1c1c22', '#0a0a0c']}
       />
-      <TvTopNav active={kind} />
 
       <BrowseHeader
         label={t(LABEL_KEY[kind])}
@@ -166,10 +172,3 @@ export function TvGrid() {
     </Box>
   );
 }
-
-const EMPTY = {
-  fontSize: 18,
-  fontWeight: '500' as const,
-  textAlign: 'center' as const,
-  maxWidth: 640,
-};

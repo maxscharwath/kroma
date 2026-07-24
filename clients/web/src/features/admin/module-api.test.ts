@@ -31,7 +31,7 @@ describe('adminApi', () => {
     stubFetch(new Response(JSON.stringify({ ok: 1 }), { status: 200 }));
     const out = await adminApi<{ ok: number }>('/modules');
     expect(out).toEqual({ ok: 1 });
-    expect(calls[0]!.url.endsWith('/api/admin/modules')).toBe(true);
+    expect(calls[0]?.url.endsWith('/api/admin/modules')).toBe(true);
   });
 
   it('adds a Bearer header when a session token is present', async () => {
@@ -39,24 +39,24 @@ describe('adminApi', () => {
     expect(sessionToken()).toBe('tok123');
     stubFetch(new Response('{}', { status: 200 }));
     await adminApi('/modules');
-    expect(headersOf(calls[0]!.init).Authorization).toBe('Bearer tok123');
+    expect(headersOf(calls[0]?.init).Authorization).toBe('Bearer tok123');
   });
 
   it('omits the Authorization header when signed out', async () => {
     stubFetch(new Response('{}', { status: 200 }));
     await adminApi('/modules');
-    expect(headersOf(calls[0]!.init).Authorization).toBeUndefined();
+    expect(headersOf(calls[0]?.init).Authorization).toBeUndefined();
   });
 
   it('sets a JSON Content-Type only when there is a body', async () => {
     stubFetch(new Response('{}', { status: 200 }));
     await adminApi('/modules/x/config', { method: 'POST', body: JSON.stringify({ a: 1 }) });
-    expect(headersOf(calls[0]!.init)['Content-Type']).toBe('application/json');
+    expect(headersOf(calls[0]?.init)['Content-Type']).toBe('application/json');
 
     calls = [];
     stubFetch(new Response('{}', { status: 200 }));
     await adminApi('/modules');
-    expect(headersOf(calls[0]!.init)['Content-Type']).toBeUndefined();
+    expect(headersOf(calls[0]?.init)['Content-Type']).toBeUndefined();
   });
 
   it('returns undefined for a 204 No Content', async () => {

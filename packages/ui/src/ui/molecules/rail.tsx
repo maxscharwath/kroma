@@ -28,10 +28,10 @@ import type { StyleProp, TextStyle } from 'react-native';
 import { SpatialNavigationNode, SpatialNavigationView } from 'react-tv-space-navigation';
 import { FocusRail } from '../../lib/focus-scroll';
 import { gutter } from '../../lib/tokens';
-import { VirtualRail } from './virtual';
 import { useGrowingCount } from '../../lib/use-growing-count';
 import { Box } from '../primitives/box';
 import { Txt } from '../primitives/text';
+import { VirtualRail } from './virtual';
 
 interface RailProps {
   title?: string;

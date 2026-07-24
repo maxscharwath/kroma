@@ -15,8 +15,8 @@ import { resolveRedirect } from '#tv/app/guard';
 import { GUARD } from '#tv/app/navPolicy';
 import { EnvProvider } from '#tv/app/providers/env';
 import {
-  type TvNav,
   TvClientProvider,
+  type TvNav,
   TvNavProvider,
   TvOutlet,
   type TvScreens,

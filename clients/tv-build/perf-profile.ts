@@ -23,7 +23,7 @@
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chromium, type CDPSession, type Page } from 'playwright';
+import { type CDPSession, chromium, type Page } from 'playwright';
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string): string => {
@@ -181,7 +181,11 @@ function bottomUp(
   }
 
   return [...merged]
-    .map(([label, ms]) => ({ label, ms: Math.round(ms), pct: Math.round((ms / total) * 1000) / 10 }))
+    .map(([label, ms]) => ({
+      label,
+      ms: Math.round(ms),
+      pct: Math.round((ms / total) * 1000) / 10,
+    }))
     .sort((a, b) => b.ms - a.ms);
 }
 
@@ -349,7 +353,9 @@ if (worst) {
     nested.set(e.name, { ms: seen.ms + e.dur / 1000, n: seen.n + 1 });
   }
   for (const [name, { ms, n }] of [...nested].sort((a, b) => b[1].ms - a[1].ms).slice(0, 10)) {
-    console.log(`    trace ${String(Math.round(ms)).padStart(6)}ms  x${String(n).padEnd(5)} ${name}`);
+    console.log(
+      `    trace ${String(Math.round(ms)).padStart(6)}ms  x${String(n).padEnd(5)} ${name}`,
+    );
   }
 }
 console.log(`\n  written: ${join(OUT, `${stamp}.cpuprofile`)} (open in DevTools > Performance)\n`);

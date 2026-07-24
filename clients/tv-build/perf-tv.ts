@@ -167,7 +167,10 @@ async function walk(keys: string[], forMs: number): Promise<void> {
 
 const SCENARIOS: Record<string, () => Promise<void>> = {
   browse: () =>
-    walk(['ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowLeft'], RECORD_MS),
+    walk(
+      ['ArrowDown', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowLeft'],
+      RECORD_MS,
+    ),
   rail: () => walk(['ArrowRight'], RECORD_MS),
   rows: () => walk(['ArrowDown', 'ArrowDown', 'ArrowUp'], RECORD_MS),
   grid: async () => {
@@ -249,7 +252,11 @@ function bottomUp(profile: CpuProfile): { label: string; ms: number; pct: number
     );
   }
   return [...merged]
-    .map(([label, ms]) => ({ label, ms: Math.round(ms), pct: Math.round((ms / total) * 1000) / 10 }))
+    .map(([label, ms]) => ({
+      label,
+      ms: Math.round(ms),
+      pct: Math.round((ms / total) * 1000) / 10,
+    }))
     .sort((a, b) => b.ms - a.ms);
 }
 

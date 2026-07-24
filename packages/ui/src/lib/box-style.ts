@@ -9,7 +9,7 @@
 // (px-9, gap-2.75, text-[19px]) rather than pretending they sit on a 4pt grid.
 // Only the values that ARE tokens (colour, radius, elevation) take token names.
 
-import { StyleSheet, type DimensionValue, type ViewStyle } from 'react-native';
+import { type DimensionValue, StyleSheet, type ViewStyle } from 'react-native';
 import { absoluteFill, type ColorToken, colors, radius, shadow } from './tokens';
 
 /** A length. Numbers are px on the 1920x1080 design canvas; percentage strings

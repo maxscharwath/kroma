@@ -2,9 +2,11 @@
 // cancel action for still-pending ones. Slow poll + a page-scoped event
 // stream (request.updated reloads, download.progress patches the bar).
 
+import { Image } from '@kroma/admin-kit';
 import { KromaEvents, type MediaRequest, posterColors, sizedImageUrl } from '@kroma/core';
-import { Image, useLocale, useT } from '@kroma/ui';
-import { IconCalendarClock, IconInbox, IconLoader2, IconX } from '@tabler/icons-react';
+import { useLocale, useT } from '@kroma/ui';
+import { EmptyState } from '@kroma/ui/kit';
+import { IconCalendarClock, IconLoader2, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
@@ -13,7 +15,7 @@ import { seasonsSummary } from '#web/features/requests/status';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { userQueries } from '#web/shared/lib/queries';
-import { EmptyState, PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
+import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
 
 export function MyRequestsPage() {
   const t = useT();
@@ -74,7 +76,7 @@ export function MyRequestsPage() {
 
       {requests?.length === 0 ? (
         <EmptyState
-          icon={<IconInbox size={32} stroke={1.5} />}
+          icon="inbox"
           title={t('requests.myEmpty')}
           action={
             <button

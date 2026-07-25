@@ -58,4 +58,62 @@ describe('sv', () => {
     expect(sv({ base: { flex: 1 } })()).toEqual([{ flex: 1 }]);
     expect(sv({})()).toEqual([]);
   });
+
+  it('returns the SAME array for the same combination, so a re-render is identity-equal', () => {
+    expect(button({ variant: 'ghost' })).toBe(button({ variant: 'ghost' }));
+    // Spelling out a default resolves to the same combination as omitting it.
+    expect(button()).toBe(button({ variant: 'primary', size: 'md' }));
+    expect(button({ variant: 'ghost' })).not.toBe(button());
+  });
+
+  it('never lets an override leak into the cached combination', () => {
+    const before = button({ variant: 'ghost' });
+    const overridden = button({ variant: 'ghost' }, { backgroundColor: 'red' });
+    expect(overridden).not.toBe(before);
+    expect(button({ variant: 'ghost' })).toBe(before);
+    expect(before).not.toContainEqual({ backgroundColor: 'red' });
+  });
+});
+
+describe('sv slots', () => {
+  const card = sv({
+    slots: {
+      root: { borderRadius: 10 },
+      label: { fontWeight: '700' },
+    },
+    variants: {
+      size: {
+        md: { root: { padding: 20 }, label: { fontSize: 16 } },
+        sm: { root: { padding: 12 }, label: { fontSize: 13 } },
+      },
+      tone: {
+        plain: {},
+        loud: { label: { color: '#F4B642' } },
+      },
+    },
+    compound: [{ when: { size: 'sm', tone: 'loud' }, style: { root: { borderWidth: 1 } } }],
+    defaults: { size: 'md', tone: 'plain' },
+  });
+
+  it('resolves every slot, applying only the styles an option declares for it', () => {
+    const s = card({ size: 'sm', tone: 'loud' });
+    expect(s.root).toEqual([{ borderRadius: 10 }, { padding: 12 }, { borderWidth: 1 }]);
+    expect(s.label).toEqual([{ fontWeight: '700' }, { fontSize: 13 }, { color: '#F4B642' }]);
+  });
+
+  it('applies the defaults when the caller passes nothing', () => {
+    const s = card();
+    expect(s.root).toEqual([{ borderRadius: 10 }, { padding: 20 }]);
+    expect(s.label).toEqual([{ fontWeight: '700' }, { fontSize: 16 }]);
+  });
+
+  it('returns the SAME object for the same combination', () => {
+    expect(card({ size: 'sm' })).toBe(card({ size: 'sm' }));
+    expect(card()).toBe(card({ size: 'md', tone: 'plain' }));
+  });
+
+  it('carries the introspection surface the workbench reads', () => {
+    expect(card.options).toEqual({ size: ['md', 'sm'], tone: ['plain', 'loud'] });
+    expect(card.defaults).toEqual({ size: 'md', tone: 'plain' });
+  });
 });

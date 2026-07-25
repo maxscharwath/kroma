@@ -7,7 +7,7 @@
 // placeholders use, rather than the five-way profile palette the TV pickers use.
 
 import { posterColors } from '@kroma/core';
-import { Avatar as KitAvatar, radius, tintGradient } from '@kroma/ui/kit';
+import { Avatar as KitAvatar, tintGradient } from '@kroma/ui/kit';
 
 export function Avatar({
   uri,
@@ -24,7 +24,7 @@ export function Avatar({
       name={label}
       src={uri ?? null}
       size={size}
-      radius={radius.pill}
+      circle
       gradient={tintGradient(posterColors(label))}
       shadow={false}
     />

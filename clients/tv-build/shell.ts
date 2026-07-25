@@ -21,11 +21,13 @@ import react from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
 import { tvFrame } from '../tv-frame.vite';
 import { legacyFinalize } from './legacy-finalize';
-import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
+import { KROMA_SOURCE_PACKAGES, RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
 
 export interface TvTarget {
-  /** Which TV this shell is for (diagnostics label; playback wiring is runtime-detected). */
-  platform: 'tizen' | 'webos' | 'androidtv';
+  /** Which TV this shell is for (diagnostics label; playback wiring is runtime-detected).
+   * `bench` is not a television: the perf bench reuses this exact build so it
+   * measures the shipping pipeline rather than an approximation of it. */
+  platform: 'tizen' | 'webos' | 'androidtv' | 'bench';
   /** Vite dev-server port for this shell. */
   port: number;
   /** Chrome floor of the MODERN bundle's Lightning CSS down-level. Tailwind v4
@@ -91,7 +93,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
       fs: { allow: [repoRoot] },
     },
     optimizeDeps: {
-      exclude: ['@kroma/ui', '@kroma/core', '@kroma/tv'],
+      exclude: KROMA_SOURCE_PACKAGES,
       include: RNW_OPTIMIZE_INCLUDE,
     },
     // Down-level the modern CSS Tailwind emits (color-mix, oklch) to plain

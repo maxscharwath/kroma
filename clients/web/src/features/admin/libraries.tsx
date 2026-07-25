@@ -1,9 +1,9 @@
 import type { AdminLibrary } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { EmptyState } from '@kroma/ui/kit';
 import {
   IconDeviceTv,
   IconFolder,
-  IconLibrary,
   IconMovie,
   IconMusic,
   IconPhoto,
@@ -25,7 +25,7 @@ import { Denied, HeaderAction, PageHeader, useCap, usePoll } from '#web/features
 import { Card } from '#web/features/admin/ui';
 import { formatBytes, relativeSeen } from '#web/shared/lib/adminFormat';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, TableSkeleton } from '#web/shared/ui';
+import { TableSkeleton } from '#web/shared/ui';
 
 const ICONS: Record<string, TablerIcon> = {
   film: IconMovie,
@@ -77,7 +77,7 @@ function LibrariesPageInner() {
       ) : null}
       {data && libraries.length === 0 ? (
         <EmptyState
-          icon={<IconLibrary size={32} stroke={1.5} />}
+          icon="library"
           title={t('admin.noLibraries')}
           action={<HeaderAction label={t('admin.addLibrary')} onClick={() => void openAdd()} />}
         />

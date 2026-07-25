@@ -165,7 +165,7 @@ export default function DownloadsPage() {
         {data && downloads.length === 0 ? (
           <div className="py-6">
             <EmptyState
-              icon={<IconDownload size={32} stroke={1.5} />}
+              icon="download"
               title={t('downloads.empty')}
             />
           </div>

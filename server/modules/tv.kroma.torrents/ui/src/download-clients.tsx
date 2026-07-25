@@ -154,7 +154,7 @@ export function DownloadClientsSection() {
       </div>
       {data && clients.length === 0 ? (
         <EmptyState
-          icon={<IconServer size={32} stroke={1.5} />}
+          icon="server"
           title={t('dlclients.empty')}
           action={addButton ?? undefined}
         />

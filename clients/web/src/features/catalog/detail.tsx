@@ -1,3 +1,4 @@
+import { Image } from '@kroma/admin-kit';
 import {
   type CastMember,
   canDirectPlay,
@@ -9,7 +10,7 @@ import {
   type Translate,
   type VideoTrack,
 } from '@kroma/core';
-import { Image, useT, useThemeAudio } from '@kroma/ui';
+import { useT, useThemeAudio } from '@kroma/ui';
 import {
   IconCheck,
   IconChevronLeft,

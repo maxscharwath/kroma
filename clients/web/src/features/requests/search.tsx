@@ -4,13 +4,14 @@
 
 import { type DiscoverType, hasPermission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconMoodEmpty, IconSearch, IconX } from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+import { IconSearch, IconX } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
 import { SearchResults } from '#web/features/requests/search-results';
 import { TrendingBrowse } from '#web/features/requests/trending';
 import { useDiscoverSearch, useTrending } from '#web/features/requests/use-discover-search';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
+import { PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
 
 const TYPES: {
   value: DiscoverType;
@@ -39,9 +40,7 @@ export function SearchPage() {
   } else if (canDiscover) {
     body = <TrendingBrowse entries={trending.entries} loading={trending.loading} type={type} />;
   } else {
-    body = (
-      <EmptyState icon={<IconMoodEmpty size={32} stroke={1.5} />} title={t('discover.empty')} />
-    );
+    body = <EmptyState icon="mood-empty" title={t('discover.empty')} />;
   }
 
   return (

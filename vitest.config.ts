@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+import { propDocs } from './clients/tv-build/props-docs';
 import { WEB_EXTENSIONS } from './clients/tv-build/rnw';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
@@ -8,14 +9,24 @@ const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 // subpath aliases (from tsconfig paths) are resolved here so source files that
 // use them are importable under vitest.
 export default defineConfig({
+  // `virtual:kroma-props` - the Props tab's data, read by TypeScript's own
+  // checker over @kroma/ui. The kit site's config loads this too; it is here so
+  // the kit's tests exercise the REAL prop docs rather than a stub, which is the
+  // only way `stories.web.ts` can be imported under the runner at all.
+  plugins: [propDocs({ tsconfig: dir('./packages/ui/tsconfig.json') })],
   resolve: {
     alias: [
       { find: /^#tv\//, replacement: dir('./packages/tv/src/') },
+      { find: /^#ui\//, replacement: dir('./packages/ui/src/') },
       { find: /^#web\//, replacement: dir('./clients/web/src/') },
       // @kroma/ui is written against React Native. Under the test runner (as
       // in every browser target) that resolves to react-native-web, exactly the
       // way the Tizen / webOS / desktop bundles wire it.
       { find: /^react-native$/, replacement: 'react-native-web' },
+      // The icons resolve the way they do in every browser target: the kit
+      // imports @tabler/icons-react-native, and the web half of that pair is
+      // @tabler/icons-react (DOM svg). Mirrors clients/tv-build/rnw.ts.
+      { find: /^@tabler\/icons-react-native$/, replacement: '@tabler/icons-react' },
       // The spatial navigator ships a webpack UMD bundle whose `require`s Node
       // resolves itself, which walks straight past the alias above and lands on
       // React Native's Flow source ("Unexpected token 'typeof'"). It also ships
@@ -50,6 +61,11 @@ export default defineConfig({
       'clients/web/src/**/*.test.ts',
       'clients/web/src/**/*.test.tsx',
       'clients/desktop/src/**/*.test.ts',
+      // The kit site is where the workbench is COMPOSED - the tool, the design
+      // system's stories, and the config that joins them - so the integration
+      // test for all three lives with the config rather than in either package.
+      'clients/kit/src/**/*.test.ts',
+      'clients/kit/src/**/*.test.tsx',
     ],
     // Inline zod so Vite resolves it (via the `import` condition -> built
     // index.js) instead of Bun externalizing it and matching zod's `@zod/source`

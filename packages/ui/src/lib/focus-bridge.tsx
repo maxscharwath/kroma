@@ -1,4 +1,4 @@
-/// <reference path="../types/react-native-tv.d.ts" />
+/// <reference path="types/react-native-tv.d.ts" />
 // <FocusBridge>: a crossing for the focus engine.
 //
 // tvOS moves focus GEOMETRICALLY: pressing Up looks for a focusable in the band

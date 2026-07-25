@@ -5,10 +5,10 @@
 
 import { type ElementRow, type KromaClient, KromaEvents, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { EmptyState } from '@kroma/ui/kit';
 import {
   IconChevronLeft,
   IconChevronRight,
-  IconInbox,
   IconPlayerPause,
   IconPlayerPlay,
 } from '@tabler/icons-react';
@@ -27,7 +27,6 @@ import {
 } from '#web/features/admin/table-console';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState } from '#web/shared/ui';
 
 const PER_PAGE = 30;
 const apiKind = (el: ElementRow): 'item' | 'show' => (el.kind === 'series' ? 'show' : 'item');
@@ -355,7 +354,7 @@ export function PipelinePage() {
 
         {data && rows.length === 0 ? (
           <div className="py-6">
-            <EmptyState icon={<IconInbox size={32} stroke={1.5} />} title={t('pipeline.noMatch')} />
+            <EmptyState icon="inbox" title={t('pipeline.noMatch')} />
           </div>
         ) : null}
 

@@ -5,7 +5,7 @@
 // custom properties; the TV app consumes the TS objects directly.
 //
 //   bun run tokens:gen     (regenerate)
-//   bun run tokens:check   (regenerate + fail on any diff; runs in CI)
+//   bun run tokens:check   (regenerate + fail on any diff; a CI gate)
 
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -46,16 +46,47 @@ const CSS_COLOR: Record<keyof typeof colors, string> = {
   hdr: 'hdr',
   h265: 'h265',
   danger: 'danger',
+  wash: 'wash',
 };
 
 const color = (k: keyof typeof colors, note = '') =>
   `  --kroma-${CSS_COLOR[k]}: ${colors[k].toLowerCase()};${note && ` /* ${note} */`}`;
 
+/**
+ * Guard: every colour in the TS tokens must actually reach the CSS.
+ *
+ * `CSS_COLOR` being exhaustive only proves a token has a css NAME - the emission
+ * below is a hand-ordered list (sections, comments), so a token added to
+ * colors.ts and forgotten here would simply never exist as a custom property,
+ * and the web side would fall back to nothing with no error anywhere. That is
+ * exactly how `wash` was missed. Fail the generator instead.
+ */
+function assertEveryColourEmitted(css: string): void {
+  const missing = (Object.keys(colors) as (keyof typeof colors)[]).filter(
+    (k) => !css.includes(`--kroma-${CSS_COLOR[k]}:`),
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `colors.ts declares ${missing.join(', ')} but colorsCss() never emits it. ` +
+        'Add it to the section it belongs to in gen-token-css.ts.',
+    );
+  }
+}
+
 function colorsCss(): string {
   return block([
     '  /* Surfaces: deep cinematic charcoal */',
     ...(
-      ['bg', 'surface1', 'surface2', 'surface3', 'overlay', 'border', 'borderStrong'] as const
+      [
+        'bg',
+        'surface1',
+        'surface2',
+        'surface3',
+        'overlay',
+        'border',
+        'borderStrong',
+        'wash',
+      ] as const
     ).map((k) => color(k)),
     ...section('Text on dark'),
     ...(['text', 'textMuted', 'textDim'] as const).map((k) => color(k)),
@@ -141,8 +172,11 @@ function typographyCss(): string {
   ]);
 }
 
+const colorsOut = colorsCss();
+assertEveryColourEmitted(colorsOut);
+
 const files: Record<string, string> = {
-  'colors.css': colorsCss(),
+  'colors.css': colorsOut,
   'spacing.css': spacingCss(),
   'effects.css': effectsCss(),
   'typography.css': typographyCss(),

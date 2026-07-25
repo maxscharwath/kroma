@@ -24,23 +24,49 @@
 //
 // The caller's own `style` is always merged LAST, so a one-off override wins,
 // exactly like passing `className` to a shadcn component.
+//
+// A component with named parts declares SLOTS instead of `base`, the way
+// tailwind-variants does, and every part's design lives in the one declaration
+// rather than in parallel lookup maps beside it:
+//
+//   const button = sv({
+//     slots: { root: { flexDirection: 'row' }, label: { fontWeight: '700' } },
+//     variants: {
+//       size: {
+//         md: { root: { paddingHorizontal: 36 }, label: { fontSize: 16 } },
+//         sm: { root: { paddingHorizontal: 20 }, label: { fontSize: 13 } },
+//       },
+//     },
+//     defaults: { size: 'md' },
+//   });
+//
+//   const s = button({ size });
+//   <View style={[s.root, style]}><Text style={s.label} /></View>
+//
+// Both forms resolve each variant combination ONCE and hand back the same
+// (frozen) arrays on every call after that. The style objects themselves are
+// the module-level declarations, so a row in a browse grid re-rendering does
+// not allocate, and react-native-web's styleq cache is hit by identity instead
+// of re-walking the declarations. Do not mutate what a compiled `sv` returns.
 
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 
-// ViewStyle is the widest of React Native's style shapes: TextStyle and
-// ImageStyle both extend it, so one type covers every component's variants.
-type Style = ViewStyle;
+// TextStyle extends ViewStyle in React Native's types, so it is the WIDEST of
+// the style shapes a component composes: one type lets a declaration carry
+// paddings and fontSizes alike, and the result still satisfies a plain View's
+// style prop because every TextStyle is structurally a ViewStyle.
+type Style = TextStyle;
 
 /** A variant group: the prop name maps to its options' styles. */
 export type VariantGroups = Record<string, Record<string, Style>>;
 
 /** The props a compiled `sv` accepts: one optional key per variant group,
  * typed to that group's option names. */
-export type VariantProps<V extends VariantGroups> = {
+export type VariantProps<V> = {
   [K in keyof V]?: keyof V[K];
 };
 
-export interface CompoundVariant<V extends VariantGroups> {
+export interface CompoundVariant<V> {
   /** All of these must match for `style` to apply. */
   when: VariantProps<V>;
   style: Style;
@@ -54,6 +80,16 @@ export interface SvConfig<V extends VariantGroups> {
   compound?: readonly CompoundVariant<V>[];
   /** Used when the caller leaves a variant prop undefined. */
   defaults?: VariantProps<V>;
+}
+
+/** The introspection surface a compiled `sv` carries, slotted or not. It is
+ * what the workbench reads to derive a story's controls and variant matrix
+ * without anything hand-written. */
+export interface VariantSource {
+  /** Group name to its option names, in declaration order. */
+  options: Record<string, readonly string[]>;
+  /** What each group resolves to when the caller passes nothing. */
+  defaults: Record<string, PropertyKey | undefined>;
 }
 
 /**
@@ -75,51 +111,178 @@ export type SvFn<V extends VariantGroups> = ((
 ) => ViewStyle[]) & {
   /** The declaration this was compiled from, verbatim. */
   config: SvConfig<V>;
-  /** Group name to its option names, in declaration order. */
   options: { [K in keyof V]: (keyof V[K])[] };
-  /** What each group resolves to when the caller passes nothing. */
   defaults: VariantProps<V>;
 };
 
-export function sv<V extends VariantGroups>(config: SvConfig<V>): SvFn<V> {
-  const { base, variants, compound, defaults } = config;
-  const groups = variants ? (Object.keys(variants) as (keyof V)[]) : [];
+// ---- the slotted form ----
 
-  const fn: SvFn<V> = ((props?: VariantProps<V>, ...overrides: StyleProp<ViewStyle>[]) => {
+/** Slot name to its always-applied base style. */
+export type Slots = Record<string, Style>;
+
+/** A slotted variant group: each option styles any subset of the slots. */
+export type SlotVariantGroups<S extends Slots> = Record<
+  string,
+  Record<string, Partial<Record<keyof S, Style>>>
+>;
+
+export interface SvSlotsConfig<S extends Slots, V extends SlotVariantGroups<S>> {
+  slots: S;
+  variants?: V;
+  compound?: readonly { when: VariantProps<V>; style: Partial<Record<keyof S, Style>> }[];
+  defaults?: VariantProps<V>;
+}
+
+/** What a slotted call returns: one stable, frozen style array per slot. */
+export type SlotStyles<S extends Slots> = { readonly [K in keyof S]: ViewStyle[] };
+
+export type SvSlotsFn<S extends Slots, V extends SlotVariantGroups<S>> = ((
+  props?: VariantProps<V>,
+) => SlotStyles<S>) & {
+  config: SvSlotsConfig<S, V>;
+  options: { [K in keyof V]: (keyof V[K])[] };
+  defaults: VariantProps<V>;
+};
+
+// ---- shared resolution machinery ----
+
+/** The cache key for the caller's picks resolved against the defaults: the
+ * picks in group-declaration order, so two calls that resolve to the same
+ * combination share one entry whatever the caller spelled out.
+ *
+ * Deliberately split from `resolvePicked` and allocation-free: the cache HIT is
+ * the hot path, and it only needs the key. The picks record is built once per
+ * combination, on the miss that fills the entry. */
+function pickKey(
+  groups: readonly string[],
+  props: Record<string, PropertyKey | undefined> | undefined,
+  defaults: Record<string, PropertyKey | undefined>,
+): string {
+  let key = '';
+  for (const group of groups) key += `${String(props?.[group] ?? defaults[group])}|`;
+  return key;
+}
+
+function resolvePicked(
+  groups: readonly string[],
+  props: Record<string, PropertyKey | undefined> | undefined,
+  defaults: Record<string, PropertyKey | undefined>,
+): Record<string, PropertyKey | undefined> {
+  const picked: Record<string, PropertyKey | undefined> = {};
+  for (const group of groups) picked[group] = props?.[group] ?? defaults[group];
+  return picked;
+}
+
+function compoundMatches(
+  when: Record<string, PropertyKey | undefined>,
+  picked: Record<string, PropertyKey | undefined>,
+): boolean {
+  return Object.entries(when).every(([group, value]) => picked[group] === value);
+}
+
+export function sv<V extends VariantGroups>(config: SvConfig<V>): SvFn<V>;
+export function sv<S extends Slots, const V extends SlotVariantGroups<S>>(
+  config: SvSlotsConfig<S, V>,
+): SvSlotsFn<S, V>;
+export function sv(
+  config: SvConfig<VariantGroups> | SvSlotsConfig<Slots, SlotVariantGroups<Slots>>,
+): unknown {
+  return 'slots' in config ? compileSlots(config) : compileFlat(config);
+}
+
+function compileFlat(config: SvConfig<VariantGroups>): SvFn<VariantGroups> {
+  const { base, variants, compound, defaults = {} } = config;
+  const groups = variants ? Object.keys(variants) : [];
+
+  // One resolved (frozen) array per combination ever asked for. The option
+  // space is finite and the styles are static, so this is small and exact.
+  const cache = new Map<string, ViewStyle[]>();
+
+  const resolve = (props?: VariantProps<VariantGroups>): ViewStyle[] => {
+    const key = pickKey(groups, props, defaults);
+    const hit = cache.get(key);
+    if (hit) return hit;
+
+    const picked = resolvePicked(groups, props, defaults);
     const out: ViewStyle[] = [];
     if (base) out.push(base);
-
-    // Resolve each group once, keeping the picks for the compound pass so a
-    // compound rule sees the SAME resolved value the caller will render with
-    // (including the defaults it never passed).
-    const picked: VariantProps<V> = {};
     for (const group of groups) {
-      const value = props?.[group] ?? defaults?.[group];
+      const value = picked[group];
       if (value === undefined) continue;
-      picked[group] = value;
       const style = variants?.[group]?.[value as string];
       if (style) out.push(style);
     }
-
     for (const rule of compound ?? []) {
-      const matches = Object.entries(rule.when).every(
-        ([group, value]) => picked[group as keyof V] === value,
-      );
-      if (matches) out.push(rule.style);
+      if (compoundMatches(rule.when, picked)) out.push(rule.style);
     }
-
-    // React Native flattens nested style arrays itself, so a caller's own
-    // `style` can be pushed through whatever shape it arrives in.
-    for (const override of overrides) {
-      if (override) out.push(override as ViewStyle);
-    }
+    cache.set(key, Object.freeze(out) as ViewStyle[]);
     return out;
-  }) as SvFn<V>;
+  };
+
+  const fn = ((props?: VariantProps<VariantGroups>, ...overrides: StyleProp<ViewStyle>[]) => {
+    const combo = resolve(props);
+    // No overrides is the hot path: hand back the SAME array so a re-render is
+    // identity-equal and styleq's cache short-circuits.
+    let out: ViewStyle[] | null = null;
+    for (const override of overrides) {
+      if (!override) continue;
+      out ??= [...combo];
+      out.push(override as ViewStyle);
+    }
+    return out ?? combo;
+  }) as SvFn<VariantGroups>;
 
   fn.config = config;
-  fn.defaults = defaults ?? {};
+  fn.defaults = defaults;
   fn.options = Object.fromEntries(
     groups.map((group) => [group, Object.keys(variants?.[group] ?? {})]),
-  ) as SvFn<V>['options'];
+  );
+  return fn;
+}
+
+function compileSlots(
+  config: SvSlotsConfig<Slots, SlotVariantGroups<Slots>>,
+): SvSlotsFn<Slots, SlotVariantGroups<Slots>> {
+  const { slots, variants, compound, defaults = {} } = config;
+  const groups = variants ? Object.keys(variants) : [];
+  const names = Object.keys(slots);
+
+  const cache = new Map<string, SlotStyles<Slots>>();
+
+  const fn = ((props?: VariantProps<SlotVariantGroups<Slots>>) => {
+    const key = pickKey(groups, props, defaults);
+    const hit = cache.get(key);
+    if (hit) return hit;
+
+    const picked = resolvePicked(groups, props, defaults);
+    const out: Record<string, ViewStyle[]> = {};
+    for (const [name, baseStyle] of Object.entries(slots)) out[name] = [baseStyle];
+    for (const group of groups) {
+      const value = picked[group];
+      if (value === undefined) continue;
+      const perSlot = variants?.[group]?.[value as string];
+      for (const name of names) {
+        const style = perSlot?.[name];
+        if (style) out[name]?.push(style);
+      }
+    }
+    for (const rule of compound ?? []) {
+      if (!compoundMatches(rule.when, picked)) continue;
+      for (const name of names) {
+        const style = rule.style[name];
+        if (style) out[name]?.push(style);
+      }
+    }
+    for (const name of names) Object.freeze(out[name]);
+    const frozen = Object.freeze(out) as SlotStyles<Slots>;
+    cache.set(key, frozen);
+    return frozen;
+  }) as SvSlotsFn<Slots, SlotVariantGroups<Slots>>;
+
+  fn.config = config;
+  fn.defaults = defaults;
+  fn.options = Object.fromEntries(
+    groups.map((group) => [group, Object.keys(variants?.[group] ?? {})]),
+  );
   return fn;
 }

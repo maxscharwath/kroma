@@ -1,24 +1,30 @@
-// <FocusScope>: the navigator for one screen.
+// <FocusScope>: the navigator for one screen, and the groups inside it.
 //
 // Every screen is wrapped in one by the router, and it does two things: it holds
 // the spatial tree for that screen, and it makes sure exactly ONE navigator is
 // listening to the remote at a time. A screen that is pushed over another stays
 // mounted underneath, and two live navigators would both act on the same press.
 //
-// This replaces what the OS focus engine used to do here. It used to be a
-// `TVFocusGuideView autoFocus`, which the native side turns into a UIFocusGuide
-// constrained to the WHOLE SCREEN - a focus candidate in every direction, so any
-// press without a legitimate target was caught by it and thrown back to the
-// screen's first control. That is gone: nothing on a screen is natively
-// focusable any more, so there is nothing for the platform to guess at.
+// SHARED, on purpose. Only the screen root differs between the targets - the web
+// must contribute no box, native needs a focusable key host and a `flex: 1` view
+// - so only the root is forked, into focus-root.tsx / focus-root.web.tsx. This
+// file used to be forked whole, which meant <FocusRegion> and <FocusColumn> had
+// two homes with nothing linking them: a prop added to one compiled fine and
+// silently gave the browser TVs different focus behaviour from the native ones,
+// which is the class of bug the shared navigator was adopted to eliminate.
 
-import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
-import { SpatialNavigationRoot, SpatialNavigationView } from 'react-tv-space-navigation';
+import type { ReactNode } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { SpatialNavigationView } from 'react-tv-space-navigation';
+import { useFocusEntryScope } from './focus-entry';
 import { useRemoteBridge } from './focus-remote';
+import { FocusRoot } from './focus-root';
+import { flat } from './nav-style';
 
 interface FocusScopeProps {
   children: ReactNode;
+  /** Applied to the screen's own box - which exists on native and not on the
+   *  web, where the root deliberately renders no element. See focus-root. */
   style?: StyleProp<ViewStyle>;
 }
 
@@ -28,37 +34,12 @@ interface FocusColumnProps extends FocusScopeProps {
   grid?: boolean;
 }
 
-/** The navigator's own `style` type follows whichever react-native copy the
- * consuming app resolves (the tvos fork on a TV, mainline on the phone), and
- * those two are not assignable to each other. Flatten once, here. */
-type NavigatorStyle = ComponentProps<typeof SpatialNavigationView>['style'];
-const flat = (style: StyleProp<ViewStyle>[] | StyleProp<ViewStyle>): NavigatorStyle =>
-  StyleSheet.flatten(style) as NavigatorStyle;
-
 function FocusScope({ children, style }: Readonly<FocusScopeProps>) {
   useRemoteBridge();
-  return (
-    <SpatialNavigationRoot isActive>
-      {/* The one thing tvOS focuses, and the reason the remote is heard at all.
-          A directional press is delivered to the app only when the app owns the
-          focus: with nothing focusable in the window the system keeps every key
-          and `useTVEventHandler` never fires - measured, with a trace, twice.
-          So one full-screen transparent host sits behind the content and holds
-          the platform's focus, which can then never MOVE because there is
-          nowhere else for it to go. Every press arrives as an event, and the
-          navigator decides what it means. A Pressable rather than a View
-          because that is what this fork actually makes focusable. */}
-      <Pressable focusable isTVSelectable hasTVPreferredFocus style={KEY_HOST} />
-      <SpatialNavigationView direction="vertical" style={flat([FILL, style])}>
-        {children}
-      </SpatialNavigationView>
-    </SpatialNavigationRoot>
-  );
+  // A fresh scope decides where focus opens again: see lib/focus-entry.
+  useFocusEntryScope();
+  return <FocusRoot style={style}>{children}</FocusRoot>;
 }
-
-const FILL = { flex: 1 } as const;
-
-const KEY_HOST = StyleSheet.absoluteFill;
 
 /**
  * <FocusRegion>: a group of controls that belong together on one line.

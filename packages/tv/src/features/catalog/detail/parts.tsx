@@ -103,14 +103,7 @@ function CastFace({
       {({ focused }) => (
         <>
           <Box radius="pill" style={focused ? RING : null}>
-            <Avatar
-              name={name}
-              src={photo}
-              gradient={gradient}
-              size={120}
-              radius={radius.pill}
-              shadow={false}
-            />
+            <Avatar name={name} src={photo} gradient={gradient} size={120} circle shadow={false} />
           </Box>
           <Txt
             lines={1}

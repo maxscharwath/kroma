@@ -1,7 +1,7 @@
 import type { SearchHit } from '@kroma/core';
 import { posterColors, qualityBadge, qualityBadgeForVideo } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Chip, IconButton, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Chip, Field, IconButton, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -175,16 +175,21 @@ export function TvSearch() {
 
       <Box row flex gap={52} style={{ minHeight: 0 }}>
         <Box w={520} shrink={0}>
-          <TextField
+          <Field
             value={query}
             onChange={setQuery}
             icon="search"
+            // No label drawn: a full-width search box under a screen titled
+            // "Search" does not need one. It still names the input for VoiceOver.
             label={t('nav.search')}
+            hideLabel
             physicalKeyboard={physicalKeyboard}
-            h={68}
             mb={26}
-            bg="rgba(255, 255, 255, 0.05)"
-            textStyle={{ fontSize: 24, fontWeight: '600' }}
+            entry={{
+              h: 68,
+              bg: 'rgba(255, 255, 255, 0.05)',
+              textStyle: { fontSize: 24, fontWeight: '600' },
+            }}
             trailing={
               voice ? (
                 <IconButton

@@ -1,5 +1,6 @@
+import { Image } from '@kroma/admin-kit';
 import type { PlaybackSession } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import { IconPlayerStopFilled } from '@tabler/icons-react';
 import { useId, useState } from 'react';
 import { createCallable } from 'react-call';

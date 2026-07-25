@@ -2,8 +2,9 @@
 // status (and, on failure, the error + a per-stage retry), a series episode
 // aggregate, and the "reprocess this element" action.
 
+import { Image } from '@kroma/admin-kit';
 import type { ElementRow, MessageKey } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import { IconLoader2, IconRefresh, IconX } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';

@@ -9,7 +9,14 @@
     // not only through this TypeScript-level mapping.
     "paths": {
       "#mobile/*": ["./src/*"],
-      "#mobile-assets/*": ["./assets/*"]
+      "#mobile-assets/*": ["./assets/*"],
+      // This config extends expo's base rather than the repo's, so the aliases
+      // the workspace packages import THEMSELVES by have to be repeated here:
+      // typechecking this app pulls @kroma/ui's own sources into the program,
+      // and those name each other `#ui/...`. Metro resolves them from
+      // packages/ui's package.json "imports" - this is the TypeScript half.
+      "#ui/*": ["../../packages/ui/src/*"],
+      "#tv/*": ["../../packages/tv/src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]

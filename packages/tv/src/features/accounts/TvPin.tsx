@@ -6,8 +6,8 @@ import {
   type User,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Avatar, Box, Icon, Spinner, Txt, useFocusNav, webWindow } from '@kroma/ui/kit';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Avatar, Box, Icon, PinField, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -16,9 +16,6 @@ import { AuthScreen, artUrl, Keypad } from '#tv/shared/ui';
 
 /** PINs are a fixed 4 digits; the last digit auto-validates (no OK press). */
 const PIN_LENGTH = 4;
-
-/** Stable keys for the fixed PIN dot row (one per digit slot). */
-const PIN_DOTS = Array.from({ length: PIN_LENGTH }, (_, i) => `pin-dot-${i}`);
 
 interface HeaderUser {
   name: string;
@@ -157,10 +154,10 @@ export function TvPin() {
     }
   };
 
-  const submit = async () => {
+  // Auto-validation: the PinField reports a full code through `onComplete`, so
+  // a completed PIN validates or is rejected the instant it is typed.
+  const submit = async (pin: string) => {
     if (busy || cooldown > 0) return;
-    const pin = buffer;
-    if (pin.length < PIN_LENGTH) return; // auto-submit only fires on a full PIN
     setError('');
     setBusy(true);
     try {
@@ -174,12 +171,6 @@ export function TvPin() {
     }
   };
 
-  // Auto-validate the instant the PIN is complete, so no OK press is needed.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fire only when the buffer fills; `submit` reads fresh state via closure.
-  useEffect(() => {
-    if (buffer.length === PIN_LENGTH) void submit();
-  }, [buffer]);
-
   const addDigit = (d: string) => {
     if (busy || cooldown > 0) return;
     setError('');
@@ -191,32 +182,10 @@ export function TvPin() {
     setBuffer((b) => b.slice(0, -1));
   };
 
-  // Desktop: type the PIN with the number-row / numpad (Delete edits). Digits and
-  // Delete aren't remote keys, so they don't collide with useFocusNav's arrows /
-  // Back; on a TV (on-screen keypad) this listener never attaches. A ref carries
-  // the lock so the listener stays stable (no re-subscribe per keystroke).
+  // Desktop types the PIN with the number-row / numpad; the PinField owns that
+  // capture. On a TV (`physicalKeyboard` false) the on-screen keypad below is
+  // what a remote uses, feeding the same buffer.
   const { physicalKeyboard } = useEnv();
-  const locked = useRef(false);
-  locked.current = busy || cooldown > 0;
-  useEffect(() => {
-    // Typing the PIN on a hardware keyboard is a DOM affordance; the keypad below
-    // is what a remote uses. `physicalKeyboard` is already false on a television,
-    // so this is belt-and-braces - but it is the kind of belt whose absence is a
-    // crash rather than a missing feature.
-    const w = physicalKeyboard ? webWindow() : null;
-    if (!w) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (locked.current) return;
-      if (/^\d$/.test(e.key)) {
-        setError('');
-        setBuffer((b) => (b.length < PIN_LENGTH ? b + e.key : b));
-      } else if (e.key === 'Delete') {
-        setBuffer((b) => b.slice(0, -1));
-      }
-    };
-    w.addEventListener('keydown', onKey);
-    return () => w.removeEventListener('keydown', onKey);
-  }, [physicalKeyboard]);
 
   return (
     <AuthScreen>
@@ -225,7 +194,7 @@ export function TvPin() {
           name={headerUser.name}
           seed={headerUser.seed}
           size={118}
-          radius={30}
+          roundness={0.25}
           src={headerUser.src}
         />
       ) : null}
@@ -239,18 +208,19 @@ export function TvPin() {
         </Txt>
       </Box>
 
-      <Box key={shake} row gap={18} mt={32} opacity={busy ? 0.6 : 1}>
-        {PIN_DOTS.map((dotKey, i) => (
-          <Box
-            key={dotKey}
-            w={18}
-            h={18}
-            radius="pill"
-            borderWidth={2}
-            bg={i < buffer.length ? '#F4B642' : 'transparent'}
-            border={i < buffer.length ? '#F4B642' : 'rgba(255, 255, 255, 0.25)'}
-          />
-        ))}
+      <Box key={shake} mt={32}>
+        <PinField
+          length={PIN_LENGTH}
+          value={buffer}
+          onChange={(next) => {
+            if (busy || cooldown > 0) return;
+            setError('');
+            setBuffer(next);
+          }}
+          onComplete={(pin) => void submit(pin)}
+          disabled={busy}
+          physicalKeyboard={physicalKeyboard}
+        />
       </Box>
 
       <Box row align="center" gap={8} h={24}>

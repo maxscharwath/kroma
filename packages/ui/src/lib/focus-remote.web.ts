@@ -31,6 +31,13 @@ export function configureRemote(): void {
       const onKey = (event: KeyboardEvent) => {
         const direction = KEYS[event.key];
         if (!direction) return;
+        // No guard here for text entries, deliberately: react-native-web's
+        // TextInput calls stopPropagation() on every keydown (its issue #612),
+        // so a key pressed while a field holds the caret never reaches this
+        // listener in the first place. Typing already wins - and note the flip
+        // side, which is NOT this file's to fix: while a field holds DOM focus
+        // the navigator cannot be driven at all.
+        //
         // A television's browser scrolls the page on an arrow key otherwise, and
         // the focused control walks out of the viewport.
         event.preventDefault();

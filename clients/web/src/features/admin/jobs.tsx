@@ -5,12 +5,12 @@
 
 import { type JobInfo, KromaEvents, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { EmptyState } from '@kroma/ui/kit';
 import {
   IconBolt,
   IconCalendarClock,
   IconChevronDown,
   IconClock,
-  IconClockBolt,
   IconPlayerPlay,
   IconPlayerStop,
 } from '@tabler/icons-react';
@@ -22,7 +22,7 @@ import { PageHeader, useAsyncAction, useCap, usePoll } from '#web/features/admin
 import { C, Card, Pill, ProgressBar, Section, Toggle } from '#web/features/admin/ui';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, TableSkeleton } from '#web/shared/ui';
+import { TableSkeleton } from '#web/shared/ui';
 
 /** Live progress pushed over the WS bus, keyed by job key. */
 type LiveProgress = Record<string, { done: number; total: number }>;
@@ -69,9 +69,7 @@ export function JobsPage() {
           </div>
         </Section>
       ))}
-      {data && jobs.length === 0 ? (
-        <EmptyState icon={<IconClockBolt size={32} stroke={1.5} />} title={t('jobs.empty')} />
-      ) : null}
+      {data && jobs.length === 0 ? <EmptyState icon="clock-bolt" title={t('jobs.empty')} /> : null}
     </>
   );
 }

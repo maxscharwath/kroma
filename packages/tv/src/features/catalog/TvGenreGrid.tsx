@@ -10,8 +10,8 @@ import {
   entryBackdrop,
   entryPoster,
 } from '#tv/features/catalog/home/AmbientBackdrop';
+import { type GridCard, PosterGrid } from '#tv/features/catalog/home/PosterGrid';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
-import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { EMPTY, SECTION, TITLE } from '#tv/features/catalog/screenStyle';
 
 // Best-known titles first (rating, then year) the same ranking as the person grid.

@@ -5,7 +5,7 @@
 // POST /store/install-id, which resolves missing hard dependencies from the
 // same catalog and verifies each download's sha256 before unpacking.
 
-import { Image } from '@kroma/ui';
+import { Image } from '@kroma/admin-kit';
 import { IconSearch } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';

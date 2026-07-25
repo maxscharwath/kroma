@@ -10,12 +10,9 @@ import {
 import { useT } from '@kroma/ui';
 import {
   Box,
-  Focusable,
+  CategoryTile,
   FocusRegion,
   FocusScroll,
-  fonts,
-  gradient,
-  Img,
   Txt,
   tintGradient,
   useFocusNav,
@@ -94,9 +91,9 @@ export function TvGenres() {
   );
 }
 
-/** One genre tile: library backdrop (or the genre-colour gradient) under a
- * bottom-heavy wash of the genre's hue. The tile's own padding keeps the amber
- * focus ring clear of the artwork. */
+/** One genre tile. The arrangement - artwork, wash, label block - is the kit's
+ * `<CategoryTile>`; what stays here is the part that is actually about genres,
+ * which is where each hue comes from. */
 function GenreCard({
   genre,
   count,
@@ -112,46 +109,18 @@ function GenreCard({
   autoFocus?: boolean;
 }>) {
   return (
-    <Focusable
-      onPress={onPress}
+    <CategoryTile
       label={genre.name}
+      meta={count}
+      art={sizedImageUrl(backdrop, 328)}
+      background={tintGradient(genreColors(genre.name))}
+      wash={genreTint(genre.name)}
+      accent={genreAccent(genre.name)}
+      onPress={onPress}
       autoFocus={autoFocus}
-      focusScale={1.04}
-      style={CARD}
-    >
-      <Box aspect={16 / 9} radius={14} overflow="hidden" bg="surface1" shadow="card">
-        <Img
-          src={sizedImageUrl(backdrop, 328)}
-          background={tintGradient(genreColors(genre.name))}
-          position="50% 25%"
-          fill
-        />
-        <Box fill pointerEvents="none" style={gradient(genreTint(genre.name))} />
-        <Box absolute left={20} right={20} bottom={16} gap={2}>
-          <Box h={4} w={28} radius="pill" bg={genreAccent(genre.name)} mb={8} />
-          <Txt style={NAME}>{genre.name}</Txt>
-          <Txt style={COUNT}>{count}</Txt>
-        </Box>
-      </Box>
-    </Focusable>
+    />
   );
 }
-
-const CARD = { width: 340, flexShrink: 0, padding: 6, borderRadius: 20 } as const;
-const NAME = {
-  fontFamily: fonts.display,
-  fontSize: 23,
-  lineHeight: 24,
-  fontWeight: '700' as const,
-  color: '#FFFFFF',
-};
-const COUNT = {
-  fontFamily: fonts.ui,
-  fontSize: 14,
-  fontWeight: '600' as const,
-  color: 'rgba(255, 255, 255, 0.72)',
-  fontVariant: ['tabular-nums' as const],
-};
 
 /** 1792pt of content fits five 340pt cards with 12pt gaps, which is what the
  * wrap produces on the 1920 stage. Declared rather than measured: the stage is

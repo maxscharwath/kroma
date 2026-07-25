@@ -1,10 +1,11 @@
 import { hasPermission, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconLock } from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
+import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
 
 // Admin page to invite users. Gated by the `users.manage` permission the only
 // way (besides the bootstrap owner) to create accounts is via these invites.
@@ -40,10 +41,7 @@ function InvitePage() {
   if (!allowed) {
     return (
       <main className={PAGE_MAIN}>
-        <EmptyState
-          icon={<IconLock size={32} stroke={1.5} />}
-          title={t('admin.noUsersPermission')}
-        />
+        <EmptyState icon="lock" title={t('admin.noUsersPermission')} />
       </main>
     );
   }

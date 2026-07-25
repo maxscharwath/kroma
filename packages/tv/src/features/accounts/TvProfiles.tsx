@@ -108,7 +108,6 @@ export function TvProfiles() {
                     name={account.user.username}
                     seed={account.user.id}
                     size={146}
-                    radius={24}
                     src={artUrl(norm(account.serverUrl), account.user.avatarUrl)}
                     locked={account.user.hasPin}
                   />

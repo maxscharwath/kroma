@@ -20,7 +20,7 @@ export { setVoiceSearchBackend } from '#tv/app/voiceSearch';
 /** Loaded on demand: the workbench carries every story in the design system, and
  * an app that is not being inspected should not pay for them. */
 const Workbench = lazy(async () => ({
-  default: (await import('@kroma/ui/workbench')).Workbench,
+  default: (await import('#tv/workbench')).Workbench,
 }));
 
 /** `?workbench` opens the design system's component atelier instead of the app:

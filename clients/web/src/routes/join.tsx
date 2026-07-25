@@ -1,4 +1,5 @@
-import { Logo, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
+import { Logo } from '@kroma/ui/kit';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { RegisterFields, type RegisterValues } from '#web/features/accounts/auth-fields';

@@ -24,7 +24,14 @@ function stubFetch(res: Response) {
   );
 }
 
-const headersOf = (init: RequestInit) => init.headers as Record<string, string>;
+/** The headers of a recorded call. Throws when there is no call rather than
+ * returning nothing: `headersOf(undefined).Authorization` would be `undefined`
+ * too, so a test asserting an ABSENT header would pass for the wrong reason - the
+ * request never having been made. */
+const headersOf = (init: RequestInit | undefined): Record<string, string> => {
+  if (!init) throw new Error('expected a recorded fetch call, but none was made');
+  return init.headers as Record<string, string>;
+};
 
 describe('adminApi', () => {
   it('GETs /api/admin<path> and parses the JSON body', async () => {

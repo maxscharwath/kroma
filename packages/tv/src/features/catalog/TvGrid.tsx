@@ -22,8 +22,8 @@ import {
   entryPoster,
 } from '#tv/features/catalog/home/AmbientBackdrop';
 import { HintBar } from '#tv/features/catalog/home/HintBar';
+import { type GridCard, PosterGrid } from '#tv/features/catalog/home/PosterGrid';
 import { TvTopNav } from '#tv/features/catalog/home/TopNav';
-import { type GridCard, TvGrid as PosterGrid } from '#tv/features/catalog/home/TvGrid';
 import { EMPTY } from '#tv/features/catalog/screenStyle';
 import { BrowseFilters, BrowseHeader } from '#tv/features/catalog/TvBrowseHeader';
 

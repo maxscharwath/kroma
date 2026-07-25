@@ -1,7 +1,7 @@
 // Geometry for <ProgressRing>, shared by both renderers so the arc is identical
 // on every target. Pure maths, so it is unit-tested rather than eyeballed.
 
-import { clamp01 } from '../ui/primitives/progress';
+import { clamp01 } from '#ui/components/atoms/progress';
 
 export interface RingProps {
   /** Fill fraction, 0..1 (clamped). */

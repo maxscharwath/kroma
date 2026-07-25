@@ -8,6 +8,7 @@
   --kroma-overlay: rgba(18, 18, 22, 0.86);
   --kroma-border: rgba(255, 255, 255, 0.08);
   --kroma-border-strong: rgba(255, 255, 255, 0.14);
+  --kroma-wash: rgba(255, 255, 255, 0.06);
 
   /* Text on dark */
   --kroma-text: #f4f3f0;

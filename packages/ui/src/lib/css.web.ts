@@ -15,6 +15,13 @@ export function bgSize(value: string): ViewStyle {
   return { backgroundSize: value } as ViewStyle;
 }
 
+/** A CSS `mask-image` value, e.g. `linear-gradient(to right, transparent, #000 32px)`.
+ *  react-native-web writes it out with the `-webkit-` / `-moz-` / `-ms-` prefixes
+ *  as well, which is what makes it land on the 2019 WebKits the TV shells run. */
+export function maskImage(css: string): ViewStyle {
+  return { maskImage: css } as ViewStyle;
+}
+
 /** Give this view its own GPU layer, so an animation near it does not force it
  * to re-rasterize. `translateZ(0)` is the portable "own texture"; `willChange`
  * keeps the layer alive between animations instead of paying to rebuild it. See

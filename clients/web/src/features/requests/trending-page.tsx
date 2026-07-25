@@ -4,13 +4,8 @@
 
 import { hasPermission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import {
-  IconArrowLeft,
-  IconChevronLeft,
-  IconChevronRight,
-  IconFlame,
-  IconMoodEmpty,
-} from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+import { IconArrowLeft, IconChevronLeft, IconChevronRight, IconFlame } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { DiscoverCard } from '#web/features/requests/discover-card';
@@ -19,7 +14,7 @@ import {
   useTrendingPage,
 } from '#web/features/requests/use-discover-search';
 import { useAuth } from '#web/shared/lib/auth';
-import { EmptyState, PAGE_MAIN, PAGE_TITLE, SkeletonRow } from '#web/shared/ui';
+import { PAGE_MAIN, PAGE_TITLE, SkeletonRow } from '#web/shared/ui';
 
 // Same auto-fill poster grid as the catalogue (see cards.tsx GRID).
 const GRID =
@@ -57,7 +52,7 @@ export function TrendingPage({ type }: Readonly<{ type: 'movie' | 'tv' }>) {
       </h1>
 
       {!canDiscover ? (
-        <EmptyState icon={<IconMoodEmpty size={32} stroke={1.5} />} title={t('discover.empty')} />
+        <EmptyState icon="mood-empty" title={t('discover.empty')} />
       ) : (
         <>
           <Body state={state} />
@@ -83,9 +78,7 @@ function Body({ state }: Readonly<{ state: TrendingPageState }>) {
     );
   }
   if (state.entries.length === 0) {
-    return (
-      <EmptyState icon={<IconMoodEmpty size={32} stroke={1.5} />} title={t('discover.noResults')} />
-    );
+    return <EmptyState icon="mood-empty" title={t('discover.noResults')} />;
   }
   return (
     <div className={GRID}>

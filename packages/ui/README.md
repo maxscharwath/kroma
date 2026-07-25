@@ -18,13 +18,20 @@ tile.
 
 ```
 src/
-  lib/              tokens, the variant helper, the focus engine, pure maths
-  ui/primitives/    the atoms: Box, Txt, Icon, Button, Switch, Img...
-  ui/molecules/     arrangements the design names: MediaCard, ListRow, Dialog...
-  icons/            generated glyph data (see "Icons")
-  workbench/        the component atelier: stories, controls, matrix (see below)
-  player/           the unified player chrome
+  lib/tokens/       LEVEL 1  the raw values every other level is made of
+  components/atoms/         LEVEL 2  indivisible controls: Button, Txt, Icon, Switch...
+  ui/molecules/     LEVEL 3  named arrangements: PosterCard, Field, ListRow...
+  ui/organisms/     LEVEL 4  whole regions that behave: Rail, Dialog, Virtual...
+  ui/templates/     LEVEL 5  page skeletons with no data: TvStage
+                    LEVEL 6  pages are NOT here - they live in the app packages
+  lib/              the variant helper, the focus engine, pure maths
+  icons/            the icon set, resolved from Tabler by name (see "Icons")
+  workbench/        the component atelier: stories, demos, controls, matrix
+  player/           the unified player chrome (a family of organisms)
   components/       the older DOM-only components the browser admin app still uses
+
+Every component is a FOLDER holding its code, its story, its demos and its tests.
+See src/components/README.md for the hierarchy and the three ways to import from it.
 ```
 
 ```tsx
@@ -207,14 +214,30 @@ in any screen changes.
 
 ## Icons
 
-Icons are **generated**, not imported. `@tabler/icons-react` renders DOM `<svg>`
-and cannot run on a TV, so `bun run icons:gen` reads the slugs listed in
-`src/icons/registry.ts`, pulls each glyph's path data out of `@tabler/icons` and
-writes `src/icons/icons.generated.ts`. One `<Icon name="play" />` then renders
-through DOM svg in a browser and through react-native-svg natively, from the same
-data. It also ships only the icons the app uses, instead of all 5093.
+There is nothing to register. `<Icon name="wave-sine" />` works because
+[Tabler](https://tabler.io/icons) has `IconWaveSine`, and `src/icons/glyphs.ts`
+translates one spelling into the other. No slug list, no generator, no generated
+file. A name the package does not have draws the fallback (`help-circle`)
+instead of crashing, which is what makes it safe to take an icon name from
+**data** — a server-installed module names its glyph in a manifest, and no list
+could ever be complete.
 
-To add one: add its Tabler slug to the registry, then run `bun run icons:gen`.
+Tabler ships the same icons twice, with the same export names:
+`@tabler/icons-react` draws DOM `<svg>`, `@tabler/icons-react-native` draws
+through react-native-svg. `glyphs.ts` imports the React Native one, and every
+web bundler aliases that specifier to the DOM one (`clients/tv-build/rnw.ts`,
+the same trick as `react-native` → `react-native-web`). So a browser gets native
+SVG and never loads react-native-svg's runtime; native gets react-native-svg,
+where it is the only way to draw at all. The one prop the two disagree on is the
+outline weight — see `src/icons/stroke-prop.ts`.
+
+The cost, measured: a namespace import cannot be tree-shaken, so the whole set
+ships. The kit site went from 258 KB to 741 KB gzipped. Lazy loading does not
+recover it on the targets that care — Metro has no dynamic import with a
+computed specifier, and the webOS legacy tier inlines every chunk back into one
+IIFE — so it would only help the modern web tier, at the price of thousands of
+chunks and glyphs arriving over the network mid-render. Reverting to a
+hand-written map is a small change, local to `glyphs.ts`.
 
 ---
 
@@ -295,15 +318,54 @@ a type cannot express: a range with real bounds, an enum that is not a variant,
 an icon picker. Compositions a grid cannot express (an open dialog, a stateful
 toggle) go in `scenes`.
 
-**Stories are discovered, never listed.** Drop a `*.stories.tsx` anywhere under
-`src/` and it is in the workbench: there is no registry to regenerate and no
-generated file to fall behind. That needs a bundler primitive, and the two
-bundlers spell it differently, so this is one of the kit's `.web` splits:
-`registry.ts` uses Metro's `require.context`, `registry.web.ts` uses Vite's
-`import.meta.glob`. Every state is a deep link
+**Writing a demo.** A demo is the other half of the job: not the same component
+under other args, but a worked example with its own state and several components
+in it - a form that validates, a code screen that rejects a code. It is **one
+file, and it declares nothing**:
+
+```tsx
+// components/atoms/button.detail-actions.demo.tsx
+import { Box } from './box';
+import { Button } from './button';
+
+/**
+ * The row from a title screen: the primary action, two stateful toggles and a
+ * demoted extra. Press the `outline` buttons to see the amber `active` fill.
+ *
+ * @name Detail actions
+ */
+export default function DetailActions() {
+  return <Box row gap={12}>{/* ... */}</Box>;
+}
+```
+
+The file name says which story it belongs to (`<story-id>.<demo>.demo.tsx`) and
+what the tab is called; the doc comment above the export is the prose (`@name`
+renames the tab, any other tag is ignored); and **the file itself is the code
+sample** - read as text by the bundler, so the sample cannot drift from the
+example the way a hand-copied template literal did. Reading a file as text is a
+Vite primitive (`?raw`) that Metro has no answer for, so on Apple TV and Android
+TV a demo renders with no code panel rather than a stale one. See
+`workbench/demos.ts`.
+
+**Stories and demos are discovered, never listed.** Drop a `*.stories.tsx` or a
+`*.demo.tsx` anywhere under `src/` and it is in the workbench: there is no
+registry to regenerate and no generated file to fall behind. That needs a bundler
+primitive, and the two bundlers spell it differently, so this is one of the kit's
+`.web` splits: `registry.ts` uses Metro's `require.context`, `registry.web.ts`
+uses Vite's `import.meta.glob`. Every state is a deep link
 (`?workbench&story=button&view=matrix`).
 
-The workbench is imported from `@kroma/ui/workbench`, not from `@kroma/ui/kit`.
+**One screen, three widths.** The workbench is also the kit's own responsive
+test: `workbench/layout.ts` is a pure function of the window, and the regions
+*move* rather than shrink. Past 1240pt the list, the canvas and the inspector are
+three columns; below that the inspector docks under the canvas as a wrapping row;
+below 880pt the list becomes a drawer over the canvas and the dock collapses to
+its titlebar, so the component keeps the room on a phone.
+
+The workbench is `@kroma/workbench`, a package of its own. This one provides the
+stories and the demos and nothing else: no registry, no config, no mark. Each
+shell configures its own — see `clients/kit/src/config.tsx`.
 It is a tool, not part of the library, and it drags in every story: an app that
 is not being inspected should not pay for it. The TV entry loads it lazily,
 behind the `?workbench` flag.

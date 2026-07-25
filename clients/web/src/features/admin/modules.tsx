@@ -5,9 +5,9 @@
 // and /api/admin/store. The Store grid lives in module-store.tsx, the
 // dependency chips in module-deps.tsx.
 
+import { Image } from '@kroma/admin-kit';
 import { sessionToken } from '@kroma/core';
 import { moduleIconUrl } from '@kroma/module-sdk';
-import { Image } from '@kroma/ui';
 import { useRef, useState } from 'react';
 import { type AdminModule, adminApi } from '#web/features/admin/module-api';
 import { ModuleConfigForm } from '#web/features/admin/module-config-form';

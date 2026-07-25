@@ -9,6 +9,7 @@
 
 import { dispatchRemoteKey, registerTvMediaKeys } from '@kroma/core';
 import { useEffect } from 'react';
+import { resetFocusEntry } from './focus-entry';
 import type { FocusHostProps, FocusNavHandlers } from './focus-types';
 import { armPressGuard } from './press-guard';
 import { inTextField } from './spatial-nav.web';
@@ -20,6 +21,8 @@ export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers)
     // Arm the guard before the listener attaches, so the press that navigated
     // here cannot beat it and activate the control we auto-focus below.
     armPressGuard();
+    // A new screen gets to decide where focus opens again: see lib/focus-entry.
+    resetFocusEntry();
 
     const onKey = (e: KeyboardEvent) => {
       // When a text field is focused, let it own the horizontal keys (cursor)

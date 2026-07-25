@@ -17,7 +17,7 @@
       "!clients/synology",
       "!server",
       "!clients/web/src/styles.css",
-      "!packages/ui/src/tailwind.css",
+      "!packages/ui/src/styles/tailwind.css",
       "!packages/tv/src/tv.css"
     ]
   },
@@ -63,7 +63,7 @@
         "!packages/**/*.web.tsx",
         "!packages/**/*.test.ts",
         "!packages/**/*.test.tsx",
-        "!packages/ui/src/components/**",
+        "!packages/ui/src/components/organisms/kroma-intro/**",
         "!packages/tv/src/shared/preview/**",
         "!packages/tv/src/features/playback/player/avplayEngine.ts",
         "!packages/tv/src/features/playback/player/htmlEngine.ts",

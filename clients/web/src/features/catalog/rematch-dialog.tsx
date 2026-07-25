@@ -8,8 +8,9 @@
 // rather than waiting for the new art (the fiche live-refreshes on the update
 // event).
 
+import { Image } from '@kroma/admin-kit';
 import { apiErrorText, type MatchCandidate } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import { IconCheck, IconLoader2, IconSearch, IconX } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';

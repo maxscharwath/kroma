@@ -1,6 +1,7 @@
 import { personDisplayName, personInvolvement, posterColors, roleLabels } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconUserX } from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { type CatalogEntry, CatalogGrid } from '#web/features/catalog/cards';
@@ -12,7 +13,6 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  EmptyState,
   PAGE_MAIN,
   PAGE_TITLE,
   PageSkeleton,
@@ -87,7 +87,7 @@ function PersonPage() {
       {entries.length ? (
         <CatalogGrid entries={entries} />
       ) : (
-        <EmptyState icon={<IconUserX size={32} stroke={1.5} />} title={t('person.empty')} />
+        <EmptyState icon="user-x" title={t('person.empty')} />
       )}
     </main>
   );

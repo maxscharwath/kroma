@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
-import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from '../tv-build/rnw';
+import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, RNW_SSR_NO_EXTERNAL, webResolve } from '../tv-build/rnw';
 import { buildInfoPlugin } from './build-info';
 
 // `vite build` used to sit idle for exactly 5 minutes after the prerender: the
@@ -80,8 +80,19 @@ export default defineConfig({
       '/api': { target: apiTarget, changeOrigin: true, ws: true },
     },
   },
-  // Workspace packages ship raw TS source bundle them for SSR (don't externalize).
-  ssr: { noExternal: ['@kroma/ui', '@kroma/core', 'react-native-web'] },
+  // Workspace packages ship raw TS source, so bundle them for SSR rather than
+  // externalizing. `RNW_SSR_NO_EXTERNAL` adds the packages that must ride along
+  // BECAUSE of `webResolve`'s aliases - it is exported next to them so the
+  // alias and its precondition cannot separate.
+  ssr: {
+    noExternal: ['@kroma/ui', '@kroma/core', ...RNW_SSR_NO_EXTERNAL],
+    // Its dist is also a webpack UMD bundle; the SSR module runner executes it
+    // as ESM where neither `module` nor `this` exist, so the UMD wrapper
+    // crashes. Prebundling converts it to real ESM (and its react-native
+    // external lands on react-native-web via the alias). The `>` path is
+    // needed because bun's isolated installs only expose it under @kroma/ui.
+    optimizeDeps: { include: ['@kroma/ui > react-tv-space-navigation'] },
+  },
   optimizeDeps: {
     exclude: ['@kroma/ui', '@kroma/core'],
     include: RNW_OPTIMIZE_INCLUDE,

@@ -1,4 +1,4 @@
-/// <reference path="../types/react-native-tv.d.ts" />
+/// <reference path="types/react-native-tv.d.ts" />
 // Reading react-native-tvos remote events the same way in both places that read
 // them: the focus engine's Back/PlayPause bridge (focus-nav) and the player's key
 // router (usePlayerKeys).

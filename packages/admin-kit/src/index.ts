@@ -6,7 +6,7 @@
 export { AdminKitProvider, type AdminKitValue, resolveImageUrl, useAdminKit } from './context';
 export { Button, Disclosure, NumberField, SegmentedControl } from './controls';
 export { AddEngineModal, FieldForm, useEnabledEngines, useModuleEnabled } from './engines';
-export { CardSkeleton, EmptyState, Skeleton, TableSkeleton } from './feedback';
+export { CardSkeleton, Skeleton, TableSkeleton } from './feedback';
 export {
   avatarGradient,
   decimal,
@@ -26,6 +26,8 @@ export {
 } from './forms';
 export { HeaderAction, PAGE_SUBTITLE, PAGE_TITLE, PageHeader } from './header';
 export { Denied, isAnyAdmin, useAsyncAction, useCap, usePoll } from './hooks';
+export type { ImageProps } from './image';
+export { Image } from './image';
 export {
   Avatar,
   C,

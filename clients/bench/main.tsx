@@ -69,6 +69,20 @@ const tint = (n: number): [string, string] => [
  * down. The bench measures the app's behaviour, not a stripped version of it. */
 const ROW_CHUNK = 3;
 
+/** The grid, built once as DATA. The bench is synthetic, so a row could be keyed
+ * on its position - but building it up front means every tile carries an id, and
+ * the render below reads like the real screens it stands in for. */
+const GRID = Array.from({ length: RAILS }, (_, row) => ({
+  id: `row-${row}`,
+  title: `Row ${row + 1}`,
+  tiles: Array.from({ length: TILES }, (_, col) => ({
+    id: `tile-${row}-${col}`,
+    title: `Title ${row + 1}-${col + 1}`,
+    autoFocus: row === 0 && col === 0,
+    seed: row * TILES + col,
+  })),
+}));
+
 function Bench() {
   const { count, isNearEnd, grow } = useGrowingCount(RAILS, ROW_CHUNK);
   return (
@@ -82,18 +96,18 @@ function Bench() {
           contentStyle={{ paddingTop: 24 }}
           offsetFromStart={120}
         >
-          {Array.from({ length: count }, (_, row) => (
-            <FocusSlot key={row} onActive={isNearEnd(row) ? grow : undefined}>
+          {GRID.slice(0, count).map((rail, row) => (
+            <FocusSlot key={rail.id} onActive={isNearEnd(row) ? grow : undefined}>
               <Box mb={8} mt={18}>
-                <Rail title={`Rangée ${row + 1}`}>
-                  {Array.from({ length: TILES }, (_, col) => (
+                <Rail title={rail.title}>
+                  {rail.tiles.map((tile) => (
                     <MediaCard
-                      key={col}
-                      autoFocus={row === 0 && col === 0}
-                      title={`Titre ${row + 1}-${col + 1}`}
-                      overline="Film"
-                      art={artFor(row * TILES + col)}
-                      tint={tint(row * TILES + col)}
+                      key={tile.id}
+                      autoFocus={tile.autoFocus}
+                      title={tile.title}
+                      overline="Movie"
+                      art={artFor(tile.seed)}
+                      tint={tint(tile.seed)}
                       width={330}
                       onPress={() => {}}
                     />
@@ -103,7 +117,7 @@ function Bench() {
             </FocusSlot>
           ))}
           <Loaders count={LOADERS} />
-          <Txt color="textDim">{`${RAILS} rangées x ${TILES} tuiles`}</Txt>
+          <Txt color="textDim">{`${RAILS} rows x ${TILES} tiles`}</Txt>
         </FocusScroll>
       </Box>
     </FocusScope>

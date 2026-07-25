@@ -7,14 +7,8 @@
 
 import type { AccountPatch } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import {
-  IconAt,
-  IconCheck,
-  IconDeviceFloppy,
-  IconLogout,
-  IconMail,
-  IconUserOff,
-} from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+import { IconAt, IconCheck, IconMail } from '@tabler/icons-react';
 import { useState } from 'react';
 import { PasskeysCard } from '#web/features/accounts/account/passkeys-card';
 import { PinCard } from '#web/features/accounts/account/pin-card';
@@ -24,7 +18,7 @@ import { SecurityCard } from '#web/features/accounts/account/security-card';
 import { SessionsCard } from '#web/features/accounts/account/sessions-card';
 import { LabeledInput, Panel, Section, useSave } from '#web/features/accounts/account/ui';
 import { useAuth } from '#web/shared/lib/auth';
-import { Button, EmptyState, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
+import { Button, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
 
 export function AccountPage() {
   const t = useT();
@@ -33,7 +27,7 @@ export function AccountPage() {
   if (!user) {
     return (
       <main className="min-w-0 px-(--gutter-web) pb-20 pt-9">
-        <EmptyState icon={<IconUserOff size={32} stroke={1.5} />} title={t('account.signedOut')} />
+        <EmptyState icon="user-off" title={t('account.signedOut')} />
       </main>
     );
   }
@@ -105,12 +99,7 @@ function ProfileEditor() {
           <h1 className={PAGE_TITLE}>{t('account.title')}</h1>
           <p className={`max-w-[560px] ${PAGE_SUBTITLE}`}>{t('account.subtitle')}</p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<IconLogout size={16} />}
-          onClick={() => void logout()}
-        >
+        <Button variant="ghost" size="sm" icon="logout" onClick={() => void logout()}>
           {t('auth.logout')}
         </Button>
       </header>
@@ -169,7 +158,7 @@ function ProfileEditor() {
               </Button>
               <Button
                 size="sm"
-                icon={<IconDeviceFloppy size={16} />}
+                icon="device-floppy"
                 onClick={saveProfile}
                 disabled={!canSave || save.status === 'saving'}
               >

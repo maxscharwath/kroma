@@ -23,6 +23,20 @@ export function bgSize(value: string): ViewStyle {
 }
 
 /**
+ * A CSS `mask-image` value - and a NO-OP here, which is the one place these
+ * helpers do not paper over the difference.
+ *
+ * React Native has no mask at any prefix: masking a view means wrapping it in a
+ * `<MaskedView>`, a second view tree rendered off-screen, which is a different
+ * component rather than a different style. So a caller that wants a masked edge
+ * gets it on the web and needs its own answer on native - see `virtual-rail.tsx`,
+ * which falls back to painting the page colour over the row there.
+ */
+export function maskImage(_css: string): ViewStyle {
+  return {};
+}
+
+/**
  * Promote a view to its own compositing layer.
  *
  * A no-op on native, where the OS compositor already decides layers and RN has

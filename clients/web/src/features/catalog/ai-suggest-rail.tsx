@@ -4,7 +4,8 @@
 // in the same Poster/Rail as the home + similar rails (movies *and* shows). Empty
 // items or a timeout → render nothing.
 
-import { ProgressRing, useAiSuggest, useT } from '@kroma/ui';
+import { useAiSuggest, useT } from '@kroma/ui';
+import { ProgressRing } from '@kroma/ui/kit';
 import { SectionPoster } from '#web/features/catalog/cards';
 import { useAuth } from '#web/shared/lib/auth';
 import { Rail } from '#web/shared/ui';

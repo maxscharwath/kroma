@@ -63,6 +63,12 @@ function expoWorkspaceConfig(projectRoot, aliases = {}) {
 
   // Every prefix that must resolve to one specific directory, whatever asked.
   const pinned = {
+    // `@kroma/ui`'s own internal subpath alias, declared in its package.json
+    // `imports` and mirrored here because Metro does not read that field. Every
+    // native client gets it for free: a shell should not have to know that the
+    // kit refers to itself as `#ui`. The Vite half is `webResolve` in
+    // clients/tv-build/rnw.ts, and tsconfig.base.json carries the types.
+    '#ui': path.join(workspaceRoot, 'packages', 'ui', 'src'),
     ...aliases,
     'react-native': reactNative,
   };

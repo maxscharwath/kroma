@@ -1,7 +1,7 @@
 import type { PersonDetail } from '@kroma/core';
 import { personFacts } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
-import { Avatar, Box, Chip, radius, Txt } from '@kroma/ui/kit';
+import { Avatar, Box, Chip, Txt } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { SECTION, TITLE } from '#tv/features/catalog/screenStyle';
 
@@ -52,7 +52,7 @@ export function PersonHeader({
 
   return (
     <Box row gap={32} px={64} pt={112} pb={20}>
-      <Avatar name={name} src={photo} size={132} radius={radius.pill} />
+      <Avatar name={name} src={photo} size={132} circle />
       <Box style={{ minWidth: 0, flex: 1 }} gap={8}>
         {roles.length ? (
           <Txt style={SECTION} color="accent">

@@ -1,7 +1,7 @@
 import type { ReportCategory, ReportSubjectKind } from '@kroma/core';
 import { apiErrorText } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Button, ListRow, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Button, Field, ListRow, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEnv } from '#tv/app/providers/env';
 import { useClient, useNav, useParams } from '#tv/app/router';
@@ -94,18 +94,21 @@ export function TvReport() {
           <Txt variant="h1" style={HEADING}>
             {t('report.message')}
           </Txt>
-          <TextField
+          <Field
             value={message}
             onChange={setMessage}
             onSubmit={() => setTyping(false)}
             icon="message"
             placeholder={t('report.messagePlaceholder')}
             label={t('report.message')}
+            hideLabel
             physicalKeyboard={physicalKeyboard}
-            py={16}
-            radius="md"
-            bg="#0F0F13"
-            textStyle={{ fontSize: 20, fontWeight: '600' }}
+            entry={{
+              py: 16,
+              radius: 'md',
+              bg: '#0F0F13',
+              textStyle: { fontSize: 20, fontWeight: '600' },
+            }}
           />
           <OnScreenKeyboard
             value={message}

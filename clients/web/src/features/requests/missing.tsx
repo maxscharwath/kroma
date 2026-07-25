@@ -7,14 +7,15 @@
 
 import { type CalendarEntry, hasPermission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconInbox, IconLoader2, IconSearch } from '@tabler/icons-react';
+import { EmptyState } from '@kroma/ui/kit';
+import { IconLoader2, IconSearch } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { epKey, type MissingGroup, MissingGroupCard } from '#web/features/requests/missing-group';
 import { useAuth } from '#web/shared/lib/auth';
 import { userQueries } from '#web/shared/lib/queries';
-import { EmptyState, PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
+import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
 
 /** Toggle a single row key in a selection set (returns a fresh set). */
 function toggleKey(prev: Set<string>, key: string): Set<string> {
@@ -160,7 +161,7 @@ export function MissingPage() {
 
       {entries?.length === 0 ? (
         <EmptyState
-          icon={<IconInbox size={32} stroke={1.5} />}
+          icon="inbox"
           title={t('requests.missingEmpty')}
           hint={t('requests.missingEmptyHint')}
         />

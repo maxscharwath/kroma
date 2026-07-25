@@ -1,5 +1,6 @@
+import { Image } from '@kroma/admin-kit';
 import { sizedImageUrl } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import { IconCheck } from '@tabler/icons-react';
 import { useState } from 'react';
 

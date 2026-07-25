@@ -1,4 +1,4 @@
-/// <reference path="../types/react-native-tv.d.ts" />
+/// <reference path="types/react-native-tv.d.ts" />
 // Wiring the remote into the spatial navigator, once, for every target.
 //
 // The navigator (react-tv-space-navigation, built on the BBC's LRUD) does not

@@ -3,27 +3,30 @@
   "version": "0.1.3",
   "type": "module",
   "description": "KROMA design system: one universal component library. Authored against React Native, it renders natively on Apple TV / Android TV and through react-native-web on Tizen / webOS / desktop / browser. Design tokens live here in TypeScript and generate the CSS custom properties.",
+  "imports": {
+    "#ui/*": "./src/*"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./kit": "./src/kit.ts",
-    "./workbench": "./src/workbench/index.ts",
+    "./kit/*": "./src/components/*/index.ts",
     "./testing": "./src/testing.tsx",
-    "./tokens": "./src/tokens/index.ts",
-    "./styles.css": "./src/styles.css",
-    "./tailwind.css": "./src/tailwind.css",
+    "./workbench-config": "./src/workbench-config.tsx",
+    "./tokens": "./src/lib/tokens/index.ts",
+    "./styles.css": "./src/styles/styles.css",
+    "./tailwind.css": "./src/styles/tailwind.css",
     "./src/assets/*": "./src/assets/*"
   },
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "build": "tsgo --noEmit",
     "gen:css": "bun ./scripts/gen-token-css.ts",
-    "gen:icons": "bun ./scripts/gen-icons.ts",
     "shots": "bun ./scripts/shoot-stories.ts"
   },
   "dependencies": {
     "@kroma/core": "workspace:*",
-    "@tabler/icons": "^3.44.0",
     "@tabler/icons-react": "^3.44.0",
+    "@tabler/icons-react-native": "^3.45.0",
     "react-native-svg": "^15.15.5",
     "react-tv-space-navigation": "6.0.0-beta1"
   },
@@ -41,7 +44,8 @@
     "react-dom": "19.2.8",
     "react-native": "npm:react-native-tvos@0.86.0-2",
     "react-native-web": "^0.21.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@kroma/workbench": "workspace:*"
   },
   "peerDependenciesMeta": {
     "expo-video": {

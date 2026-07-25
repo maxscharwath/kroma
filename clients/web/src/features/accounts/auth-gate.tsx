@@ -12,7 +12,8 @@ import {
   type StoredSession,
   UserId,
 } from '@kroma/core';
-import { type ActivateResult, Logo, useT } from '@kroma/ui';
+import { type ActivateResult, useT } from '@kroma/ui';
+import { Logo } from '@kroma/ui/kit';
 import { IconLock, IconPlus } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { LoginForm, RegisterForm } from '#web/features/accounts/auth-forms';

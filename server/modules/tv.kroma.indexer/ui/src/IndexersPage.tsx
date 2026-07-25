@@ -134,7 +134,7 @@ export default function IndexersPage() {
 
       {indexers.length === 0 && data ? (
         <EmptyState
-          icon={<IconAntenna size={32} stroke={1.5} />}
+          icon="antenna"
           title={t('indexers.emptyTitle')}
           hint={engines.length === 0 ? t('indexers.noEngines') : t('indexers.emptyBody')}
           action={addButtons ?? undefined}

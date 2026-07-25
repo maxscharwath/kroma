@@ -1,5 +1,5 @@
-/// <reference path="../types/react-native-tv.d.ts" />
-/// <reference path="../types/react-native-web.d.ts" />
+/// <reference path="types/react-native-tv.d.ts" />
+/// <reference path="types/react-native-web.d.ts" />
 // Native focus engine (Apple TV, Android TV, and phones).
 //
 // The OS focus engine owns directional movement: UIFocusEngine on tvOS, the
@@ -42,6 +42,7 @@ import {
   noteFocused,
   onRegistryChange,
 } from './focus-crossings';
+import { resetFocusEntry } from './focus-entry';
 import type { FocusHostProps, FocusNavHandlers } from './focus-types';
 import { inputHeld } from './input-gate';
 import { armPressGuard } from './press-guard';
@@ -71,6 +72,8 @@ function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers): void 
     // Arm the guard on mount exactly like the web engine, so a held Select that
     // opened this screen cannot also fire the control the OS auto-focuses.
     armPressGuard();
+    // A new screen gets to decide where focus opens again: see lib/focus-entry.
+    resetFocusEntry();
   }, [resetKey]);
 
   useEffect(() => {

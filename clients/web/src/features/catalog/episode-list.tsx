@@ -4,8 +4,9 @@
 // plays what it has and requests the gaps on one screen. Extracted from the old
 // show fiche + the discover season cards.
 
+import { Image } from '@kroma/admin-kit';
 import { type CastMember, formatRuntime, type MediaItem, posterColors } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import {
   IconCheck,
   IconChevronRight,

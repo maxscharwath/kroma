@@ -56,7 +56,7 @@ export function TvProfileMenu() {
           name={user.username}
           seed={user.id}
           size={96}
-          radius={26}
+          roundness={0.27}
           src={client?.resolveArt(user.avatarUrl)}
         />
         <Txt variant="h1" style={{ fontSize: 32, fontWeight: '600' }}>

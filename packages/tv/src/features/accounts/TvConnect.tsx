@@ -1,5 +1,5 @@
 import { useT } from '@kroma/ui';
-import { Box, Button, Hint, TextField, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Box, Button, Field, Hint, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -65,20 +65,25 @@ export function TvConnect() {
           {t('connect.addServerSub')}
         </Txt>
 
-        <TextField
+        <Field
           value={value}
           onChange={setValue}
           onSubmit={submit}
           icon="world-search"
           placeholder={t('connect.serverPlaceholder')}
+          // The screen's own title already says "Add a server"; a label row here
+          // would repeat it. Still the accessible name for the input.
           label={t('connect.addServerTitle')}
+          hideLabel
           keyboardType="url"
           physicalKeyboard={physicalKeyboard}
           mb={20}
-          py={16}
-          radius="md"
-          bg="#0F0F13"
-          textStyle={{ fontSize: 20, fontWeight: '600' }}
+          entry={{
+            py: 16,
+            radius: 'md',
+            bg: '#0F0F13',
+            textStyle: { fontSize: 20, fontWeight: '600' },
+          }}
           trailing={
             <Button
               variant="glass"

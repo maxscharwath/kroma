@@ -1,5 +1,6 @@
+import { Image } from '@kroma/admin-kit';
 import { metaLine, posterColors, type Section } from '@kroma/core';
-import { Image, useT } from '@kroma/ui';
+import { useT } from '@kroma/ui';
 import { useNavigate } from '@tanstack/react-router';
 import { memo } from 'react';
 import type { MovieView, ShowView } from '#web/shared/lib/api';

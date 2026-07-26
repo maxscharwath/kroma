@@ -82,15 +82,22 @@ function Workbench(props: Readonly<WorkbenchProps>) {
   // Standalone surfaces own their remote, the way TvApp does: nothing above the
   // workbench will have pointed the navigator at this build's key source.
   //
-  // On MOUNT rather than at module load, and that is a fix rather than a tidy-up.
-  // `index.ts` re-exports this file, so a bare module-scope call meant that merely
-  // importing `story()` from @kroma/workbench - which every *.stories.tsx in the
-  // design system does - reconfigured the host app's navigator. On the phone the
-  // workbench is an Expo Router route module, so simply enumerating the route
-  // context was enough to overwrite the app's key source without the workbench
-  // ever rendering. `configureRemote` is idempotent, so calling it per mount is
-  // free.
-  useEffect(() => configureRemote(), []);
+  // IN RENDER rather than at module load, and that is a fix rather than a
+  // tidy-up. `index.ts` re-exports this file, so a bare module-scope call meant
+  // that merely importing `story()` from @kroma/workbench - which every
+  // *.stories.tsx in the design system does - reconfigured the host app's
+  // navigator. On the phone the workbench is an Expo Router route module, so
+  // simply enumerating the route context was enough to overwrite the app's key
+  // source without the workbench ever rendering.
+  //
+  // And in render rather than in an EFFECT, which is the second half of the fix:
+  // effects mount children-first, so the navigator inside <FocusScope> below
+  // subscribed to a remote nobody had configured yet - the library warned, the
+  // subscription was dead, and on an Apple TV that is every input there is. A
+  // lazy `useState` initializer runs during this component's own first render,
+  // strictly before any child renders, and never again. `configureRemote` is
+  // idempotent either way.
+  useState(configureRemote);
   return (
     <FocusScope>
       <WorkbenchShell {...props} />
@@ -294,11 +301,7 @@ function WorkbenchShell({
         {layout.panel === 'side' && !full ? panel : null}
       </Box>
 
-      {drawer && navOpen ? (
-        <NavDrawer layout={layout} onClose={() => setNavOpen(false)}>
-          {tree}
-        </NavDrawer>
-      ) : null}
+      {drawer && navOpen ? <NavDrawer onClose={() => setNavOpen(false)}>{tree}</NavDrawer> : null}
 
       {searchOpen ? (
         <CommandPalette
@@ -318,15 +321,23 @@ function WorkbenchShell({
  * has for a drawer, and it is a `Focusable` so a remote and a keyboard can
  * reach it too. */
 function NavDrawer({
-  layout,
   onClose,
   children,
-}: Readonly<{ layout: WorkbenchLayout; onClose: () => void; children: ReactNode }>) {
+}: Readonly<{ onClose: () => void; children: ReactNode }>) {
   return (
-    <Box absolute top={0} right={0} bottom={0} left={0} row z={20}>
-      <Box w={layout.navWidth} shrink={0}>
-        {children}
-      </Box>
+    // `z` above the toolbar's 30 and below the palette's 40: the drawer floats
+    // over ALL of the canvas column - a toolbar drawn over the story list read
+    // as the drawer starting a row down - and the palette, which the drawer's
+    // own search button opens, still lands on top.
+    //
+    // The tree hangs DIRECTLY off this row, exactly as it does off the shell's
+    // column-mode row. It used to sit in a plain wrapper box, and that wrapper
+    // is why the drawer arrived collapsed: the row stretched the wrapper to
+    // full height, but a column stretches its children on the CROSS axis only,
+    // so the sidebar inside kept its content height and the `flex: 1` tree
+    // under its search row resolved against nothing and disappeared.
+    <Box absolute top={0} right={0} bottom={0} left={0} row z={35}>
+      {children}
       <Focusable label="Close component list" ring={false} onPress={onClose} style={SCRIM} />
     </Box>
   );

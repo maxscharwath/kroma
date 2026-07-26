@@ -49,6 +49,10 @@ meters: [
   // The panel carries its own 768pt width and sits 34pt in, so the floor is what
   // it needs and the range above it is what the surface behind it can be.
   width: { min: 820, max: 1200 },
+  // 768pt of table on a stage that can be 326 (a phone): the scroller shows a
+  // third of it. The TV frame shows the whole read-out - which is how it is
+  // read - and `Fit` stays one press away.
+  viewport: 'tv',
   args: {},
   // The WEB snapshot, which is the richest one any surface builds: headline
   // fields, media / transport / client diagnostics, and three live series. The

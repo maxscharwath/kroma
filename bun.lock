@@ -107,9 +107,11 @@
         "expo": "~57.0.8",
         "expo-font": "~57.0.1",
         "expo-keep-awake": "~57.0.1",
+        "expo-system-ui": "~57.0.1",
         "react": "19.2.3",
         "react-dom": "19.2.3",
         "react-native": "npm:react-native-tvos@0.86.0-2",
+        "react-native-safe-area-context": "~5.7.0",
         "react-native-svg": "15.15.4",
         "react-native-web": "^0.21.2",
       },
@@ -542,6 +544,10 @@
         "react": ">=18",
       },
     },
+  },
+  "patchedDependencies": {
+    "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
+    "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],

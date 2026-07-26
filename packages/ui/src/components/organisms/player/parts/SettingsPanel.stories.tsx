@@ -44,6 +44,11 @@ export default story({
   // The drawer is 56% of the player surface, not a fixed panel, so a range is
   // what actually exercises it: the rows have to hold at both ends of one.
   width: { min: 640, max: 1100 },
+  // Right-anchored on a 10-foot surface: on a stage narrower than `min` (a
+  // phone) the scroller opens at the EMPTY left half and the drawer is off
+  // canvas, so the story opens in the TV frame - seen whole, like the player's
+  // other overlays - and `Fit` remains one press away.
+  viewport: 'tv',
   args: { statsOn: false as boolean, canReport: true },
   render: ({ statsOn, canReport }) => (
     // The drawer is inset to the full height of the surface it slides over, so

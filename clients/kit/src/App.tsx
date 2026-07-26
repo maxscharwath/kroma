@@ -17,10 +17,12 @@
 //               where a 44pt hit target is 44pt.
 
 import { TvStage } from '@kroma/ui/kit';
+import { colors } from '@kroma/ui/tokens';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import type { ReactNode } from 'react';
-import { LogBox, Platform } from 'react-native';
+import { LogBox, Platform, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Kit } from './config';
 
 LogBox.ignoreAllLogs(true);
@@ -34,7 +36,41 @@ const FONTS = {
 };
 
 function Stage({ children }: Readonly<{ children: ReactNode }>) {
-  return Platform.isTV ? <TvStage>{children}</TvStage> : children;
+  return Platform.isTV ? <TvStage>{children}</TvStage> : <SafeFrame>{children}</SafeFrame>;
+}
+
+/** The phone's own bezel, kept out of the workbench.
+ *
+ * The workbench draws edge to edge, because that is right on the two surfaces it
+ * was built for: a browser window has no bezel, and <TvStage> already insets for
+ * overscan. A phone has neither luxury - the status bar and the home indicator
+ * sit ON TOP of the window - so its toolbar rendered under the clock and the
+ * dynamic island, and the docs bar ran off the bottom edge.
+ *
+ * Padding here rather than inside @kroma/workbench on purpose: the workbench
+ * "knows no app", and the device's chrome is exactly the sort of thing the host
+ * is supposed to absorb for it - the same division that already puts the i18n
+ * provider and the story registry out here. Inset rather than a <SafeAreaView>
+ * so a landscape phone gets its left/right notch too, which the edges-only
+ * component would miss.
+ */
+function SafeFrame({ children }: Readonly<{ children: ReactNode }>) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View
+      style={[
+        styles.frame,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 export function App() {
@@ -45,10 +81,25 @@ export function App() {
   // problem; blocking on it renders nothing at all, and on a television that is
   // indistinguishable from a frozen app with no way to find out why.
   const [fontsLoaded, fontError] = useFonts(FONTS);
-  if (!fontsLoaded && !fontError) return null;
+  const ready = fontsLoaded || fontError !== null;
   return (
-    <Stage>
-      <Kit />
-    </Stage>
+    // The provider wraps the font gate rather than sitting inside it. It measures
+    // the window on mount, so gating IT would mean the first frame the workbench
+    // draws is the one where the insets are still zero - the toolbar would land
+    // under the clock and then jump down.
+    <SafeAreaProvider style={styles.frame}>
+      {ready ? (
+        <Stage>
+          <Kit />
+        </Stage>
+      ) : null}
+    </SafeAreaProvider>
   );
 }
+
+/** The bezel is painted, not left transparent: an unpainted inset shows the root
+ * view through it, which is white until `expo-system-ui` applies the
+ * `ios.backgroundColor` from app.json. */
+const styles = StyleSheet.create({
+  frame: { flex: 1, backgroundColor: colors.bg },
+});

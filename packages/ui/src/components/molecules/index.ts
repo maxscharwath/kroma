@@ -19,6 +19,8 @@ export type { ListRowProps, ListRowSize } from './list-row';
 export { ListRow, listRowVariants } from './list-row';
 export type { MediaCardProps } from './media-card';
 export { CARD_SCRIM, MediaCard, tintGradient } from './media-card';
+export type { NavPillItemProps, NavPillProps, NavPillSize } from './nav-pill';
+export { NavPill, NavPillItem } from './nav-pill';
 export type { OtpFieldProps, OtpSize, OtpSlot } from './otp-field';
 export {
   OtpField,
@@ -33,3 +35,5 @@ export type { PosterCardProps } from './poster-card';
 export { POSTER_SCRIM, PosterCard } from './poster-card';
 export type { SectionProps } from './section';
 export { Section } from './section';
+export type { SelectOption, SelectProps } from './select';
+export { Select } from './select';

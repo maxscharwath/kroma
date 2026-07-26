@@ -32,8 +32,11 @@ import {
   Animated,
   Easing,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
   type ViewStyle,
@@ -49,6 +52,10 @@ import { clipStyles, FOCUS_BLEED, OVERSCAN } from './clip';
 import { edgeScrollOffset, fitPitch } from './edge-scroll';
 
 const WEB = Platform.OS === 'web';
+/** A screen someone SCROLLS WITH A THUMB: the phones and the tablets, where the
+ * row's other two inputs (a D-pad walking focus, a wheel under a pointer) do not
+ * exist and the row would otherwise be frozen scenery. */
+const TOUCH = !WEB && !Platform.isTV;
 
 /**
  * The horizontal padding a content style spends, in pixels.
@@ -361,6 +368,10 @@ function VirtualRail<T>({
       // after any grace window you pick - and off nothing at all on the
       // televisions, where a remote is the only input there is.
       if (WEB && Date.now() - keyAt.current > KEY_GRACE_MS) return;
+      // On a touchscreen the ScrollView owns the position outright: a tap that
+      // focused a tile yanking the row underneath it is the drawer-thumb bug in
+      // sideways clothing.
+      if (TOUCH) return;
       at.current = edgeScrollOffset({
         offset: at.current,
         index,
@@ -399,6 +410,21 @@ function VirtualRail<T>({
 
   const pan = useCallback((delta: number) => panBy(delta, true), [panBy]);
   useWheelPan(viewport, pan, wheel);
+
+  /** The thumb's gesture, reported by the ScrollView that owns it on touch. The
+   * row's own bookkeeping still has to happen - the reach grows so a fling never
+   * runs into unmounted blank, the offset feeds the edge fades, and the end of
+   * the row still asks for the next page. */
+  const onTouchScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = Math.round(event.nativeEvent.contentOffset.x);
+      at.current = x;
+      setOffset(x);
+      grow(Math.ceil((x + measured.current) / pitch) + OVERSCAN);
+      if (x >= maxOffset(count, pitch, measured.current) - OVERSCAN * pitch) onEndReached?.();
+    },
+    [count, grow, onEndReached, pitch],
+  );
 
   /** One arrow press moves a screenful less a tile, so the row overlaps itself
    *  by one and nothing is skipped over. */
@@ -492,13 +518,33 @@ function VirtualRail<T>({
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
     >
-      {/* The fade is a MASK on the clip box on the web, and painted over the row
+      {/* Three ways the row moves, one per input the platform actually has. On
+          touch it is a real ScrollView - thumb physics cannot be imitated with a
+          transition, and before this branch existed a swipe on a phone moved
+          nothing at all. Elsewhere the row is translated: by the D-pad through
+          the navigator on a television, by the wheel and the arrows on the web.
+          The fade is a MASK on the clip box on the web, and painted over the row
           on native, which has no mask - see `railMask` and `scrim`. */}
-      <View style={clip}>
-        <MovingRow offset={offset} instant={panning} style={contentStyle} interactive={!panning}>
+      {TOUCH ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScroll={onTouchScroll}
+          scrollEventThrottle={32}
+          // The full row's width from the first frame, tiles or no tiles: the
+          // scroll RANGE must not grow with the mounted window, or a hard fling
+          // bounces off the end of what happened to be mounted.
+          contentContainerStyle={[styles.row, contentStyle, { minWidth: count * pitch }]}
+        >
           <SpatialNavigationView direction="horizontal">{tiles}</SpatialNavigationView>
-        </MovingRow>
-      </View>
+        </ScrollView>
+      ) : (
+        <View style={clip}>
+          <MovingRow offset={offset} instant={panning} style={contentStyle} interactive={!panning}>
+            <SpatialNavigationView direction="horizontal">{tiles}</SpatialNavigationView>
+          </MovingRow>
+        </View>
+      )}
       {/* The edges are always mounted, so their control FADES rather than
           appears: a row that can be scrolled says so at all times, and the
           button arrives when the pointer does. */}
@@ -552,8 +598,23 @@ function RailEdge({
   width: number;
 }>) {
   const start = side === 'start';
+  // The strip's own appearance ANIMATES on native too. `FADE` is a CSS
+  // transition, which only react-native-web understands - on a phone or a
+  // television the style is silently ignored and the painted gradient BLINKED
+  // in the frame the row started moving. Same value, same duration, through
+  // `Animated` where CSS is not available.
+  const fade = useRef(new Animated.Value(shown ? 1 : 0)).current;
+  useEffect(() => {
+    if (WEB) return;
+    Animated.timing(fade, {
+      toValue: shown ? 1 : 0,
+      duration: SETTLE_MS,
+      easing: EASE_NATIVE,
+      useNativeDriver: true,
+    }).start();
+  }, [shown, fade]);
   return (
-    <View
+    <Animated.View
       pointerEvents={shown && arrow ? 'box-none' : 'none'}
       style={[
         styles.edge,
@@ -563,8 +624,8 @@ function RailEdge({
         // row's own edge away, and a gradient on top of that would be the slab
         // over the neighbouring content that the mask exists to stop being.
         WEB ? null : scrimStyle(start, width),
-        { opacity: shown ? 1 : 0 } as ViewStyle,
-        FADE as ViewStyle,
+        WEB ? ({ opacity: shown ? 1 : 0 } as ViewStyle) : { opacity: fade },
+        WEB ? (FADE as ViewStyle) : null,
       ]}
     >
       <Pressable
@@ -582,7 +643,7 @@ function RailEdge({
       >
         <Icon name={start ? 'chevron-left' : 'chevron-right'} size={24} color="text" />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

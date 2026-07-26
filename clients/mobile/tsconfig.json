@@ -16,7 +16,14 @@
       // and those name each other `#ui/...`. Metro resolves them from
       // packages/ui's package.json "imports" - this is the TypeScript half.
       "#ui/*": ["../../packages/ui/src/*"],
-      "#tv/*": ["../../packages/tv/src/*"]
+      "#tv/*": ["../../packages/tv/src/*"],
+      // ONE react-native for the whole program. This app aliases react-native
+      // to the TV fork, but dependencies with their own nested copies (bun
+      // links them the PLAIN package) dragged upstream's types into the same
+      // program as the fork's, and identical shapes failed as "not assignable"
+      // to each other (ViewStyle vs ViewStyle, from two copies). Every bare
+      // `react-native` now names the copy this app actually ships.
+      "react-native": ["./node_modules/react-native"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]

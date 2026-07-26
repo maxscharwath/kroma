@@ -54,6 +54,10 @@ export default story({
   // the narrow end wraps to three lines, and that is where `box` starts covering
   // the picture. One width would only ever answer for itself.
   width: { min: 560, max: 1100 },
+  // The cue is centred on the picture, so a stage narrower than `min` (a phone)
+  // opens its scroller with the caption cut mid-word. The TV frame shows the
+  // cue ON the picture it is set against; `Fit` stays one press away.
+  viewport: 'tv',
   args: {
     positionSec: 8,
     playing: false,

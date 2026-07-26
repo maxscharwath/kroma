@@ -27,6 +27,10 @@ export default story({
   // The card pins itself to a corner of the player and carries its own 392pt
   // width, so what the story varies is the surface around it.
   width: { min: 560, max: 1100 },
+  // The corner it pins to is the RIGHT one, so a stage narrower than `min` (a
+  // phone) opens its scroller with the card half off canvas. The TV frame shows
+  // it where it sits; `Fit` stays one press away.
+  viewport: 'tv',
   args: {
     title: 'The Pointy End',
     subtitle: 'S1 E8',

@@ -1,10 +1,10 @@
-import { type ReactNode, useEffect, useRef } from 'react';
-import { Animated, Pressable } from 'react-native';
+import type { ReactNode } from 'react';
+import { Pressable } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
+import { SwitchFace } from '#ui/components/atoms/switch';
 import { Txt } from '#ui/components/atoms/text';
 import { VIRTUAL_FOCUS } from '#ui/components/organisms/player/lib/virtual-focus';
-import { colors, motion, radius } from '#ui/lib/tokens';
 import { menuLabel, menuRow, menuValue, rowOn, rowStyle } from './panelStyle';
 
 /**
@@ -52,44 +52,16 @@ export function MenuRow({
         <Txt style={menuLabel}>{label}</Txt>
         {!toggle && value != null ? <Txt style={menuValue}>{value}</Txt> : null}
       </Box>
-      {toggle ? <Switch on={Boolean(on)} /> : <Icon name="chevron-right" size={23} stroke={2.2} />}
+      {/* The KIT's switch face, not a private lookalike: the row is the control
+          (see the header), so it renders the atom's visuals without the atom's
+          `Focusable`. The 10-foot size, because this panel is read from a sofa. */}
+      {toggle ? (
+        <SwitchFace checked={Boolean(on)} size="tv" style={NO_SHRINK} />
+      ) : (
+        <Icon name="chevron-right" size={23} stroke={2.2} />
+      )}
     </Pressable>
   );
 }
 
-/** The 48x28 track + 22px knob switch used by the Loop / Statistics rows. */
-function Switch({ on }: Readonly<{ on: boolean }>) {
-  const slide = useRef(new Animated.Value(on ? 1 : 0)).current;
-  useEffect(() => {
-    const anim = Animated.timing(slide, {
-      toValue: on ? 1 : 0,
-      duration: motion.duration.base,
-      useNativeDriver: true,
-    });
-    anim.start();
-    return () => anim.stop();
-  }, [on, slide]);
-  const x = slide.interpolate({ inputRange: [0, 1], outputRange: [3, 23] });
-  return (
-    <Box
-      w={48}
-      h={28}
-      shrink={0}
-      radius="pill"
-      bg={on ? colors.accent : 'rgba(255, 255, 255, 0.2)'}
-    >
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 3,
-          left: 0,
-          width: 22,
-          height: 22,
-          borderRadius: radius.pill,
-          backgroundColor: '#FFFFFF',
-          transform: [{ translateX: x }],
-        }}
-      />
-    </Box>
-  );
-}
+const NO_SHRINK = { flexShrink: 0 } as const;

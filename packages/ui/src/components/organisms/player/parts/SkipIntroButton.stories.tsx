@@ -17,6 +17,10 @@ export default story({
   // A range: the pill is pinned to the bottom-right of the player, so what has
   // to hold is the surface changing size under it, not one size of it.
   width: { min: 480, max: 1000 },
+  // Pinned bottom-RIGHT, so a stage narrower than `min` (a phone) opens its
+  // scroller on the empty left half and the pill is off canvas. The TV frame
+  // shows the pill where it sits; `Fit` stays one press away.
+  viewport: 'tv',
   args: { visible: true, focused: false },
   render: ({ visible, focused }) => (
     // It positions itself absolutely against the player surface, so the story

@@ -40,7 +40,7 @@ export { Spinner } from './spinner';
 export type { SurfacePad, SurfaceProps, SurfaceTone } from './surface';
 export { Surface, surfaceVariants } from './surface';
 export type { SwitchProps, SwitchSize } from './switch';
-export { Switch, switchVariants } from './switch';
+export { Switch, SwitchFace, switchVariants } from './switch';
 export type { TxtProps } from './text';
 export { Txt } from './text';
 // <TextField> is deliberately NOT exported. It is the control <Field> renders,

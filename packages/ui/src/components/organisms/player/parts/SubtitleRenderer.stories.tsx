@@ -10,7 +10,7 @@ import { SubtitleRenderer } from './SubtitleRenderer';
  *  (cross-origin `<track>` cues never load when the app and the media server are
  *  different origins), and a `data:` url is a url — so the workbench gets actual
  *  cues instead of an empty caption area. */
-const VTT = `data:text/vtt,${encodeURIComponent(`WEBVTT
+const CUES = `WEBVTT
 
 00:00:00.000 --> 00:00:20.000
 I've seen things you people wouldn't believe.
@@ -21,7 +21,9 @@ Attack ships on fire off the shoulder of Orion.
 00:00:40.000 --> 00:01:00.000
 All those moments will be lost in time,
 like tears in rain.
-`)}`;
+`;
+
+const VTT = `data:text/vtt,${encodeURIComponent(CUES)}`;
 
 const TRACK: PlayerSub[] = [
   { index: 0, language: 'eng', label: 'English', codec: 'webvtt', url: VTT, selectable: true },

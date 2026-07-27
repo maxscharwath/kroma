@@ -243,7 +243,8 @@ function writePath(prefix: string, at: WorkbenchLocation, replace: boolean): voi
   const win = webWindow();
   if (!win?.history || !at.story) return;
   const view = viewPath(at.view);
-  const path = `${prefix}story/${encodeURIComponent(at.story)}${view ? `/${view}` : ''}`;
+  const suffix = view ? `/${view}` : '';
+  const path = `${prefix}story/${encodeURIComponent(at.story)}${suffix}`;
   const url = `${path}${win.location.search}`;
   if (replace) win.history.replaceState(null, '', url);
   else win.history.pushState(null, '', url);

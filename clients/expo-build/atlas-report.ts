@@ -102,7 +102,8 @@ for (const row of rows.slice(0, TOP)) {
 }
 if (rows.length > TOP) {
   const rest = rows.slice(TOP).reduce((sum, row) => sum + row.bytes, 0);
-  console.log(`  ${`and ${rows.length - TOP} more`.padEnd(40)} ${kb(rest).padStart(9)}`);
+  const more = `and ${rows.length - TOP} more`;
+  console.log(`  ${more.padEnd(40)} ${kb(rest).padStart(9)}`);
 }
 
 // One fat file usually explains a whole bucket, and it is the thing you can act

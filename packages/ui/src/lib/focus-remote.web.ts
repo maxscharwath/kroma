@@ -64,4 +64,7 @@ export function useRemoteBridge(): void {}
  * better placed - it can see the real `<input>` the desktop shell renders and
  * stay out of its way. This exists so the on-screen keyboard can call the same
  * hook on every target. */
-export function useHardwareKeys(_handle: (key: string) => void): void {}
+export function useHardwareKeys(_handle: (key: string) => void): void {
+  // Intentionally nothing. The browser tier reaches keys through the DOM, so
+  // this half exists only to give every target the same call site.
+}

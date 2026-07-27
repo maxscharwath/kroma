@@ -10,7 +10,6 @@
 
 const { collectBuildInfo } = require('../build-info');
 
-module.exports = ({ config }) => ({
-  ...config,
-  extra: { ...config.extra, buildInfo: collectBuildInfo(__dirname) },
-});
+module.exports = function kitAppConfig({ config }) {
+  return { ...config, extra: { ...config.extra, buildInfo: collectBuildInfo(__dirname) } };
+};

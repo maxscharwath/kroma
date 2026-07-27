@@ -34,7 +34,7 @@ import { useControllable } from '#ui/lib/use-controllable';
  * copied from a web screen keeps working. They are whole-value regexes there;
  * here each candidate CHARACTER is tested against the pattern, which means a
  * code pasted with stray spaces is cleaned instead of rejected outright. */
-const REGEXP_ONLY_DIGITS = '^\\d+$';
+const REGEXP_ONLY_DIGITS = String.raw`^\d+$`;
 const REGEXP_ONLY_CHARS = '^[a-zA-Z]+$';
 const REGEXP_ONLY_DIGITS_AND_CHARS = '^[a-zA-Z0-9]+$';
 

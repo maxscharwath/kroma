@@ -29,9 +29,9 @@ import { useEffect, useState } from 'react';
  * later is repaired when it opens rather than only on first mount.
  */
 function useModalPortalRepair(mounted: boolean): void {
-  const [, bump] = useState(0);
+  const [, setRepairTick] = useState(0);
   useEffect(() => {
-    if (mounted) bump((n) => n + 1);
+    if (mounted) setRepairTick((n) => n + 1);
   }, [mounted]);
 }
 

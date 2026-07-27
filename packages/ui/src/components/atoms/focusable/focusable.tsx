@@ -141,7 +141,7 @@ function Focusable({
   label,
   ref,
 }: Readonly<FocusableProps>) {
-  const [selfFocused, setFocused] = useState(false);
+  const [selfFocused, setSelfFocused] = useState(false);
   /** Controlled mode: the caller says what focused is; the navigator is out. */
   const controlled = controlledFocus !== undefined;
   const focused = controlled ? controlledFocus : selfFocused;
@@ -172,14 +172,14 @@ function Focusable({
     // The screen now has a focus owner, so a control that mounts later must not
     // take it away. See lib/focus-entry.
     markFocusSettled();
-    setFocused(true);
+    setSelfFocused(true);
     reveal();
     report?.();
     onFocus?.();
   }, [onFocus, reveal, report]);
 
   const handleBlur = useCallback(() => {
-    setFocused(false);
+    setSelfFocused(false);
     onBlur?.();
   }, [onBlur]);
 

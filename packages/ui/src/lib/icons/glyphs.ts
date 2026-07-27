@@ -172,15 +172,13 @@ function slugOf(name: string): string {
  */
 let names: IconName[] | undefined;
 function iconNames(): IconName[] {
-  if (!names) {
-    // The cast is the one place the runtime transform is trusted to agree with
-    // the compile-time one. It is not taken on faith: `slugOf` and the `Kebab`
-    // type are asserted against each other in glyphs.test.tsx.
-    names = Object.keys(EXPORTS)
-      .filter((key) => key.startsWith('Icon') && key !== 'IconProps')
-      .map(slugOf)
-      .sort((a, b) => a.localeCompare(b)) as IconName[];
-  }
+  // The cast is the one place the runtime transform is trusted to agree with
+  // the compile-time one. It is not taken on faith: `slugOf` and the `Kebab`
+  // type are asserted against each other in glyphs.test.tsx.
+  names ??= Object.keys(EXPORTS)
+    .filter((key) => key.startsWith('Icon') && key !== 'IconProps')
+    .map(slugOf)
+    .sort((a, b) => a.localeCompare(b)) as IconName[];
   return names;
 }
 

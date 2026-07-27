@@ -252,55 +252,6 @@ function Focusable({
   // hundreds of these.
   const layers = useMemo(() => (WEB ? null : splitBoxLayers(style)), [style]);
 
-  const painted = [
-    layers ? layers.face : style,
-    focused ? focusedStyle : null,
-    showRing && focused ? { boxShadow: ring.focusLift } : null,
-    animated,
-  ];
-
-  const node = (
-    <SpatialNavigationFocusableView
-      ref={entry}
-      onSelect={press}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      // On the browser targets the control is ONE element: the navigator's own
-      // view carries the design's box. A television renders hundreds of these,
-      // and a second view per control (plus the Pressable that used to wrap it)
-      // is a cost Tizen pays on every focus move. The native builds keep the
-      // inner view because their focus scale is a real Animated value, so there
-      // this view carries the box the parent lays out and the inner one the face.
-      style={WEB ? flat(painted) : (layers?.box as NavigatorStyle)}
-      // The `ref` rides in with the other view props: React 19 carries one
-      // through a spread like any other prop, and this object is spread straight
-      // onto the navigator's view.
-      viewProps={
-        {
-          accessibilityRole: 'button',
-          accessibilityLabel: label,
-          ref: setBox,
-        } as NavigatorViewProps
-      }
-    >
-      {({ isFocused }: { isFocused: boolean }) => {
-        const render = (pressed: boolean) =>
-          typeof children === 'function' ? children({ focused: isFocused, pressed }) : children;
-        if (WEB) return <>{render(false)}</>;
-        return (
-          <Painted
-            painted={painted}
-            pressedStyle={pressedStyle}
-            onPress={pointerPress}
-            onLongPress={onLongPress}
-            hitSlop={hitSlop}
-            render={render}
-          />
-        );
-      }}
-    </SpatialNavigationFocusableView>
-  );
-
   // A disabled control is not a node at all, so the remote walks straight past
   // it rather than stopping on something that does nothing.
   if (disabled) {
@@ -369,6 +320,60 @@ function Focusable({
       </TouchPressable>
     );
   }
+
+  // Built AFTER the three early returns above, not before them: a phone, a plain
+  // web page and every controlled control take one of those paths and never
+  // touch the navigator node, so constructing it first made the kit's most
+  // instantiated component pay for a SpatialNavigationFocusableView and a child
+  // render closure on every render that could not use them.
+  const painted = [
+    layers ? layers.face : style,
+    focused ? focusedStyle : null,
+    showRing && focused ? { boxShadow: ring.focusLift } : null,
+    animated,
+  ];
+
+  const node = (
+    <SpatialNavigationFocusableView
+      ref={entry}
+      onSelect={press}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      // On the browser targets the control is ONE element: the navigator's own
+      // view carries the design's box. A television renders hundreds of these,
+      // and a second view per control (plus the Pressable that used to wrap it)
+      // is a cost Tizen pays on every focus move. The native builds keep the
+      // inner view because their focus scale is a real Animated value, so there
+      // this view carries the box the parent lays out and the inner one the face.
+      style={WEB ? flat(painted) : (layers?.box as NavigatorStyle)}
+      // The `ref` rides in with the other view props: React 19 carries one
+      // through a spread like any other prop, and this object is spread straight
+      // onto the navigator's view.
+      viewProps={
+        {
+          accessibilityRole: 'button',
+          accessibilityLabel: label,
+          ref: setBox,
+        } as NavigatorViewProps
+      }
+    >
+      {({ isFocused }: { isFocused: boolean }) => {
+        const render = (pressed: boolean) =>
+          typeof children === 'function' ? children({ focused: isFocused, pressed }) : children;
+        if (WEB) return <>{render(false)}</>;
+        return (
+          <Painted
+            painted={painted}
+            pressedStyle={pressedStyle}
+            onPress={pointerPress}
+            onLongPress={onLongPress}
+            hitSlop={hitSlop}
+            render={render}
+          />
+        );
+      }}
+    </SpatialNavigationFocusableView>
+  );
 
   return isEntry ? <DefaultFocus>{node}</DefaultFocus> : node;
 }

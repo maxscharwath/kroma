@@ -19,7 +19,15 @@
 // what keeps every target pixel-identical.
 
 import { safeImageUrl } from '@kroma/core';
-import { type CSSProperties, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   type LayoutChangeEvent,
@@ -203,53 +211,23 @@ function Img({
   ];
 
   if (IS_WEB) {
-    // Fill with the four longhands, not the `inset` shorthand, which old webOS
-    // Chromium 53 does not know and would drop from an inline style.
-    const layer: CSSProperties = {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      width: '100%',
-      height: '100%',
-      objectFit: fit,
-      objectPosition: position,
-      // The image rounds ITSELF, rather than trusting the container to clip it.
-      // Chrome does not reliably apply an `overflow: hidden` + `border-radius`
-      // clip to a COMPOSITED descendant, and an <img> is exactly that - so a
-      // rounded card drew square artwork into all four corners, and looked like a
-      // hard-edged rectangle with a scrim painted across it. The container still
-      // clips; this just stops the result depending on whether it does.
-      borderRadius: radius,
-    };
     return (
       <View style={container}>
-        {under && under !== src ? (
-          <img key="under" src={under} alt="" aria-hidden draggable={false} style={layer} />
-        ) : null}
-        {src && !errored ? (
-          <img
-            key={src}
-            src={src}
-            alt={alt}
-            // Cached art can already be `complete` before React attaches onLoad,
-            // so the event never fires: check the element the moment it mounts.
-            ref={(el) => {
-              if (el?.complete && el.naturalWidth > 0) markLoaded();
-            }}
-            loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : undefined}
-            decoding="async"
-            draggable={false}
-            onLoad={() => {
-              markLoaded();
-              onLoad?.();
-            }}
-            onError={handleError}
-            style={{ ...layer, opacity: loaded ? 1 : 0, transition: `opacity ${duration}ms ease` }}
-          />
-        ) : null}
+        {webLayers({
+          src,
+          under,
+          alt,
+          fit,
+          position,
+          radius,
+          priority,
+          duration,
+          loaded,
+          errored,
+          markLoaded,
+          onLoad,
+          onError: handleError,
+        })}
       </View>
     );
   }
@@ -289,6 +267,89 @@ function Img({
       ) : null}
       {src && !errored ? <Fragment key={src}>{leaf(src, true)}</Fragment> : null}
     </View>
+  );
+}
+
+/** Every argument the web leaf needs. One object, because the alternative is a
+ * dozen positional parameters. */
+interface WebLayersArgs {
+  src: string | null;
+  under: string | null;
+  alt: string;
+  fit: 'cover' | 'contain';
+  position: string;
+  radius: number | undefined;
+  priority: boolean;
+  duration: number;
+  loaded: boolean;
+  errored: boolean;
+  markLoaded: () => void;
+  onLoad: (() => void) | undefined;
+  onError: () => void;
+}
+
+/**
+ * The web leaves: the outgoing image held underneath, and the incoming one
+ * fading in over it.
+ *
+ * A plain function rather than a component, deliberately. It returns the same
+ * two elements <Img> used to return inline, so the tree, the keys and the style
+ * identities are unchanged - a component here would add a layer to the most
+ * instantiated primitive in the kit for nothing.
+ */
+function webLayers(at: Readonly<WebLayersArgs>): ReactNode {
+  // Fill with the four longhands, not the `inset` shorthand, which old webOS
+  // Chromium 53 does not know and would drop from an inline style.
+  const layer: CSSProperties = {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: at.fit,
+    objectPosition: at.position,
+    // The image rounds ITSELF, rather than trusting the container to clip it.
+    // Chrome does not reliably apply an `overflow: hidden` + `border-radius`
+    // clip to a COMPOSITED descendant, and an <img> is exactly that - so a
+    // rounded card drew square artwork into all four corners, and looked like a
+    // hard-edged rectangle with a scrim painted across it. The container still
+    // clips; this just stops the result depending on whether it does.
+    borderRadius: at.radius,
+  };
+  return (
+    <>
+      {at.under && at.under !== at.src ? (
+        <img key="under" src={at.under} alt="" aria-hidden draggable={false} style={layer} />
+      ) : null}
+      {at.src && !at.errored ? (
+        <img
+          key={at.src}
+          src={at.src}
+          alt={at.alt}
+          // Cached art can already be `complete` before React attaches onLoad,
+          // so the event never fires: check the element the moment it mounts.
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth > 0) at.markLoaded();
+          }}
+          loading={at.priority ? 'eager' : 'lazy'}
+          fetchPriority={at.priority ? 'high' : undefined}
+          decoding="async"
+          draggable={false}
+          onLoad={() => {
+            at.markLoaded();
+            at.onLoad?.();
+          }}
+          onError={at.onError}
+          style={{
+            ...layer,
+            opacity: at.loaded ? 1 : 0,
+            transition: `opacity ${at.duration}ms ease`,
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

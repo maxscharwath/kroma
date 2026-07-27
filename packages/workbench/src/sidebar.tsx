@@ -169,37 +169,21 @@ function Sidebar({
                 onPress={() => toggle(tier.tier)}
               />
               {tierOpen
-                ? tier.groups.map(({ group, entries }) => {
-                    // One group per level means the group row would only repeat
-                    // the level, so the leaves hang straight off it.
-                    const solo = tier.groups.length === 1;
-                    const key = `${tier.tier}/${group}`;
-                    const groupOpen = solo || open.has(key);
-                    return (
-                      <Box key={group}>
-                        {solo ? null : (
-                          <Branch
-                            label={group}
-                            count={entries.length}
-                            open={groupOpen}
-                            depth={1}
-                            onPress={() => toggle(key)}
-                          />
-                        )}
-                        {groupOpen
-                          ? entries.map((story) => (
-                              <Leaf
-                                key={story.id}
-                                story={story}
-                                active={story.id === selected}
-                                depth={solo ? 1 : 2}
-                                onPress={() => onSelect(story.id)}
-                              />
-                            ))
-                          : null}
-                      </Box>
-                    );
-                  })
+                ? tier.groups.map(({ group, entries }) => (
+                    <Group
+                      key={group}
+                      group={group}
+                      entries={entries}
+                      // One group per level means the group row would only
+                      // repeat the level, so the leaves hang straight off it.
+                      solo={tier.groups.length === 1}
+                      open={open}
+                      tier={tier.tier}
+                      selected={selected}
+                      onToggle={toggle}
+                      onSelect={onSelect}
+                    />
+                  ))
                 : null}
             </Box>
           );
@@ -282,6 +266,62 @@ function SearchButton({ onPress }: Readonly<{ onPress: () => void }>) {
 /** A foldable row: the twisty, the name, and how many leaves are under it. The
  * chevron ROTATES in place rather than swapping glyph, which is the one detail
  * that makes a tree feel like a tree. */
+/**
+ * One group inside a tier: its own row, and the stories under it.
+ *
+ * Its own component so the tree is two nested maps rather than three. The leaf
+ * loop used to sit inside the group loop inside the tier loop, four callbacks
+ * deep, which is the point at which the indentation stops telling you which
+ * level you are looking at.
+ */
+function Group({
+  group,
+  entries,
+  solo,
+  open,
+  tier,
+  selected,
+  onToggle,
+  onSelect,
+}: Readonly<{
+  group: string;
+  entries: readonly Story[];
+  /** The only group in its tier: the row would just repeat the tier's name. */
+  solo: boolean;
+  open: ReadonlySet<string>;
+  tier: string;
+  selected: string;
+  onToggle: (key: string) => void;
+  onSelect: (id: string) => void;
+}>) {
+  const key = `${tier}/${group}`;
+  const groupOpen = solo || open.has(key);
+  return (
+    <Box>
+      {solo ? null : (
+        <Branch
+          label={group}
+          count={entries.length}
+          open={groupOpen}
+          depth={1}
+          onPress={() => onToggle(key)}
+        />
+      )}
+      {groupOpen
+        ? entries.map((story) => (
+            <Leaf
+              key={story.id}
+              story={story}
+              active={story.id === selected}
+              depth={solo ? 1 : 2}
+              onPress={() => onSelect(story.id)}
+            />
+          ))
+        : null}
+    </Box>
+  );
+}
+
 function Branch({
   label,
   count,

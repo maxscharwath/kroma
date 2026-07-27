@@ -64,39 +64,74 @@ const KEYWORDS = new Set([
 ]);
 
 /**
- * One pass, longest-match-first. The groups, in order: comments, strings, a JSX
- * tag name (`<Button`, `</Box`), an attribute name (an identifier followed by
- * `=`), a number, a brace or bracket, then any other identifier.
+ * The scanners, in longest-match-first order: comments, strings, a JSX tag name
+ * (`<Button`, `</Box`), an attribute name (an identifier followed by `=`), a
+ * number, a brace or bracket, then any other identifier.
  *
- * Anything the regex does not claim falls through as plain text, so an
- * unsupported construct degrades to uncoloured rather than to mangled.
+ * ORDERED AND STICKY rather than one alternation, which is what this used to be:
+ * a single 87-branch regex that no one could read and that backtracked
+ * quadratically on an unterminated string, because `(?:[^"\\]|\\.)*` lets the
+ * two branches claim the same characters. Each pattern here is tried at one
+ * position only, and each string pattern is the unrolled form, which cannot.
+ *
+ * Anything no scanner claims falls through as plain text, so an unsupported
+ * construct degrades to uncoloured rather than to mangled.
  */
-const TOKEN =
-  /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(<\/?[A-Z][\w.]*|<\/?[a-z][\w.]*(?=[\s/>]))|([A-Za-z_$][\w$]*)(?=\s*=[^=])|(\b\d+(?:\.\d+)?\b)|([{}[\]()])|([A-Za-z_$][\w$]*)/g;
+/** A scanner's name. `word` is not a token kind: it is the fallback identifier
+ * scanner, whose match becomes `keyword` or `plain` depending on the word. */
+type ScanKind = TokenKind | 'word';
+
+const SCANNERS: readonly (readonly [ScanKind, RegExp])[] = [
+  ['comment', /\/\/[^\n]*|\/\*[\s\S]*?\*\//y],
+  ['string', /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|`[^`\\]*(?:\\.[^`\\]*)*`/y],
+  ['tag', /<\/?[A-Z][\w.]*|<\/?[a-z][\w.]*(?=[\s/>])/y],
+  ['attr', /[A-Za-z_$][\w$]*(?=\s*=[^=])/y],
+  ['number', /\d+(?:\.\d+)?\b/y],
+  ['brace', /[{}[\]()]/y],
+  ['word', /[A-Za-z_$][\w$]*/y],
+];
+
+/** The token starting at `from`, or null when nothing claims that position. */
+function scanAt(code: string, from: number): { text: string; kind: TokenKind } | null {
+  for (const [kind, pattern] of SCANNERS) {
+    pattern.lastIndex = from;
+    const hit = pattern.exec(code);
+    if (!hit?.[0]) continue;
+    // `word` is the fallback identifier scanner: a keyword is just one whose
+    // text is in the list.
+    const real = kind === 'word' ? (KEYWORDS.has(hit[0]) ? 'keyword' : 'plain') : kind;
+    return { text: hit[0], kind: real };
+  }
+  return null;
+}
 
 function tokenize(code: string): Token[] {
   const out: Token[] = [];
-  let at = 0;
-  const push = (text: string, kind: TokenKind) => {
-    if (text) out.push({ text, kind });
+  let plain = '';
+  const flush = () => {
+    if (plain) out.push({ text: plain, kind: 'plain' });
+    plain = '';
   };
 
-  TOKEN.lastIndex = 0;
-  let match = TOKEN.exec(code);
-  while (match) {
-    push(code.slice(at, match.index), 'plain');
-    const [raw, comment, string, tag, attr, number, brace, word] = match;
-    if (comment) push(raw, 'comment');
-    else if (string) push(raw, 'string');
-    else if (tag) push(raw, 'tag');
-    else if (attr) push(raw, 'attr');
-    else if (number) push(raw, 'number');
-    else if (brace) push(raw, 'brace');
-    else push(raw, KEYWORDS.has(word ?? '') ? 'keyword' : 'plain');
-    at = match.index + raw.length;
-    match = TOKEN.exec(code);
+  let at = 0;
+  while (at < code.length) {
+    const hit = scanAt(code, at);
+    if (!hit) {
+      plain += code[at];
+      at += 1;
+      continue;
+    }
+    // A `word` that turned out to be plain merges with the run around it, so
+    // the output has no gratuitous seams in it.
+    if (hit.kind === 'plain') {
+      plain += hit.text;
+    } else {
+      flush();
+      out.push(hit);
+    }
+    at += hit.text.length;
   }
-  push(code.slice(at), 'plain');
+  flush();
   return out;
 }
 

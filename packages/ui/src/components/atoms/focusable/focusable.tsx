@@ -122,6 +122,53 @@ interface FocusableProps {
   ref?: Ref<ComponentRef<typeof View>>;
 }
 
+/** The ring lift, hoisted: a module constant object is one styleq cache entry
+ * rather than a fresh miss on every focused render. */
+const FOCUS_RING = { boxShadow: ring.focusLift } as const;
+
+/**
+ * The pressable form of a control: same box, same press, no navigator node.
+ *
+ * A plain function rather than a component, so the element tree is exactly what
+ * the two branches used to return inline - the kit's most instantiated
+ * primitive gains no extra layer from the extraction.
+ */
+function touchForm(at: {
+  boxRef: (view: View | null) => void;
+  label: string | undefined;
+  base: FocusableProps['style'][];
+  pressedStyle: FocusableProps['pressedStyle'];
+  onPress: () => void;
+  onLongPress: FocusableProps['onLongPress'];
+  onHoverIn: FocusableProps['onHoverIn'];
+  hitSlop: FocusableProps['hitSlop'];
+  /** Controlled controls report the owner's `focused`; unscoped ones can never
+   *  be focused, so their children are always told `false`. */
+  controlled: boolean;
+  focused: boolean;
+  children: FocusableProps['children'];
+}): ReactNode {
+  return (
+    <TouchPressable
+      boxRef={at.boxRef}
+      label={at.label}
+      base={at.base}
+      pressedStyle={at.pressedStyle}
+      onPress={at.onPress}
+      onLongPress={at.onLongPress}
+      onHoverIn={at.onHoverIn}
+      hitSlop={at.hitSlop}
+      {...(at.controlled ? { unfocusable: true } : null)}
+    >
+      {(pressed) =>
+        typeof at.children === 'function'
+          ? at.children({ focused: at.controlled ? at.focused : false, pressed })
+          : at.children
+      }
+    </TouchPressable>
+  );
+}
+
 function Focusable({
   onPress,
   onLongPress,
@@ -267,58 +314,37 @@ function Focusable({
     );
   }
 
-  // Controlled focus: no navigator node, no platform focus - the caller's
-  // `focused` drives every focus visual, and the pressable half (a click on the
-  // desktop, a tap on a phone) keeps working. The pointer reports through
-  // `onHoverIn` so the owner can move its highlight to what the mouse is over.
-  if (controlled) {
-    return (
-      <TouchPressable
-        boxRef={setBox}
-        label={label}
-        base={[
-          style,
-          focused ? focusedStyle : null,
-          showRing && focused ? { boxShadow: ring.focusLift } : null,
-          animated,
-        ]}
-        pressedStyle={pressedStyle}
-        onPress={press}
-        onLongPress={onLongPress}
-        onHoverIn={onHoverIn}
-        hitSlop={hitSlop}
-        unfocusable
-      >
-        {(pressed) => (typeof children === 'function' ? children({ focused, pressed }) : children)}
-      </TouchPressable>
-    );
-  }
-
-  // No <FocusScope> above means no navigator, and registering with one that is
-  // not there is the library throwing at render. That is the CORRECT outcome on
-  // a television - an unscoped TV screen is a screen the remote cannot reach,
-  // and the crash is the diagnosis - and the wrong one everywhere else: a phone
-  // app rendering a kit control has no navigator on purpose, and a plain web
-  // page embedding one control should not have to mount a focus engine to show
-  // a button. Those get the control's pressable form: same box, same press,
-  // no focus states (there is nothing to be focused BY).
-  if (!scoped && !Platform.isTV) {
-    return (
-      <TouchPressable
-        boxRef={setBox}
-        label={label}
-        base={[style, animated]}
-        pressedStyle={pressedStyle}
-        onPress={press}
-        onLongPress={onLongPress}
-        onHoverIn={onHoverIn}
-        hitSlop={hitSlop}
-      >
-        {(pressed) =>
-          typeof children === 'function' ? children({ focused: false, pressed }) : children
-        }
-      </TouchPressable>
-    );
+  // The two pressable forms, which differ only in what can make them look
+  // focused:
+  //
+  // CONTROLLED - the caller's `focused` drives every focus visual and the
+  //   navigator is out of it; the pointer still reports through `onHoverIn` so
+  //   the owner can move its highlight to what the mouse is over.
+  // UNSCOPED - no <FocusScope> above, so there is no navigator to register
+  //   with and nothing that can focus this at all. A phone app has none on
+  //   purpose, and a plain web page embedding one control should not have to
+  //   mount a focus engine to show a button.
+  //
+  // Unscoped on a TELEVISION is deliberately NOT handled here: registering with
+  // a navigator that is not there throws at render, which is the correct
+  // outcome - an unscoped TV screen is a screen the remote cannot reach, and
+  // the crash is the diagnosis.
+  if (controlled || (!scoped && !Platform.isTV)) {
+    return touchForm({
+      boxRef: setBox,
+      label,
+      base: controlled
+        ? [style, focused ? focusedStyle : null, showRing && focused ? FOCUS_RING : null, animated]
+        : [style, animated],
+      pressedStyle,
+      onPress: press,
+      onLongPress,
+      onHoverIn,
+      hitSlop,
+      controlled,
+      focused,
+      children,
+    });
   }
 
   // Built AFTER the three early returns above, not before them: a phone, a plain
@@ -329,7 +355,7 @@ function Focusable({
   const painted = [
     layers ? layers.face : style,
     focused ? focusedStyle : null,
-    showRing && focused ? { boxShadow: ring.focusLift } : null,
+    showRing && focused ? FOCUS_RING : null,
     animated,
   ];
 

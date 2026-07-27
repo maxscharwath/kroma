@@ -259,6 +259,6 @@ describe('prompt pings', () => {
     const before = client.pingPlayback.mock.calls.length;
     act(() => void video.dispatchEvent(new Event('play')));
     act(() => void video.dispatchEvent(new Event('pause')));
-    expect(client.pingPlayback.mock.calls.length).toBe(before + 2);
+    expect(client.pingPlayback.mock.calls).toHaveLength(before + 2);
   });
 });

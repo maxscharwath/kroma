@@ -111,7 +111,7 @@ for (let at = 0; at < KEYS; at += 1) {
 const report = await page.evaluate(() => {
   const perf = (globalThis as { KROMA_PERF?: { report(): unknown } }).KROMA_PERF;
   return {
-    ...((perf?.report() as Record<string, number>) ?? {}),
+    ...(perf?.report() as Record<string, number> | undefined),
     nodes: document.querySelectorAll('*').length,
     controls: document.querySelectorAll('[role="button"]').length,
   };

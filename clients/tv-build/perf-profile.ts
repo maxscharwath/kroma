@@ -212,7 +212,7 @@ function longestTaskWindow(events: TraceEvent[]): { start: number; end: number }
 /** What the Performance panel calls the summary: how long the main thread spent
  * in each kind of work, plus the long tasks that are the visible stutters. */
 function traceSummary(events: TraceEvent[]): Record<string, number> {
-  const KINDS = [
+  const KINDS = new Set([
     'RunTask',
     'FunctionCall',
     'UpdateLayoutTree', // "Recalculate Style"
@@ -224,7 +224,7 @@ function traceSummary(events: TraceEvent[]): Record<string, number> {
     'GCEvent',
     'MajorGC',
     'MinorGC',
-  ];
+  ]);
   const out: Record<string, number> = {};
   let longTasks = 0;
   let longest = 0;
@@ -235,7 +235,7 @@ function traceSummary(events: TraceEvent[]): Record<string, number> {
       if (ms >= 50) longTasks += 1;
       longest = Math.max(longest, ms);
     }
-    if (KINDS.includes(e.name)) out[e.name] = Math.round((out[e.name] ?? 0) + e.dur / 1000);
+    if (KINDS.has(e.name)) out[e.name] = Math.round((out[e.name] ?? 0) + e.dur / 1000);
   }
   out.longTasks = longTasks;
   out.longestTaskMs = Math.round(longest);

@@ -142,6 +142,44 @@ function shotStage(at: {
   );
 }
 
+/** How the stage is being LOOKED at: which device frame, whether it is turned,
+ * what it sits on, and whether it has the whole window.
+ *
+ * One hook because they are one concept and they interact - picking a frame
+ * resets the rotation, and opening a story in its authored frame has to do the
+ * same. Left inline they were four useStates and two effects in a body that
+ * also owns routing, the drawer, the search and the per-story edits. */
+function useStageView(story: Story | undefined) {
+  const [viewport, setViewport] = useState<ViewportName>('fit');
+  // The frame on its side. Not part of the frame itself: it is a way of LOOKING
+  // at one, and the two devices that turn share the one switch.
+  const [rotate, setRotate] = useState(false);
+  const [surface, setSurface] = useState<ColorToken>('bg');
+  // The canvas with the whole window: no tree, no inspector. What you reach for
+  // to look at a 1920 stage on a laptop, where the two columns beside it are
+  // most of the width the component wanted.
+  const [full, setFull] = useState(false);
+
+  // A story authored for a device frame opens in it (see StoryDef.viewport).
+  // An effect rather than derived state so the toolbar stays in charge after:
+  // switching frame by hand must not be undone on the next render.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the story, not on the frame the user may have chosen since
+  useEffect(() => {
+    setViewport(story?.viewport ?? 'fit');
+    setRotate(false);
+  }, [story?.id]);
+
+  /** A frame is picked to see the component IN it, upright. Carrying the last
+   * frame's orientation across is a state nobody asked for, and on a frame that
+   * does not turn it would be a state with no way back. */
+  const pickViewport = useCallback((next: ViewportName) => {
+    setViewport(next);
+    setRotate(false);
+  }, []);
+
+  return { viewport, rotate, surface, full, setRotate, setSurface, setFull, pickViewport };
+}
+
 function WorkbenchShell({
   stories,
   brand,
@@ -156,20 +194,8 @@ function WorkbenchShell({
   // outside, and it can only do that if nothing here shadows what it says.
   const selected = at.story ?? stories[0]?.id ?? '';
   const view: View = at.view ?? 'preview';
-  const [viewport, setViewport] = useState<ViewportName>('fit');
-  // The frame on its side. Not part of the frame itself: it is a way of LOOKING
-  // at one, and the two devices that turn share the one switch.
-  const [rotate, setRotate] = useState(false);
-  // A story authored for a device frame opens in it (see StoryDef.viewport). Kept
-  // as an effect rather than derived state so the toolbar stays in charge after:
-  // switching frame by hand must not be undone on the next render.
-  const [surface, setSurface] = useState<ColorToken>('bg');
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  // The canvas with the whole window: no tree, no inspector. What you reach for
-  // to look at a 1920 stage on a laptop, where the two columns beside it are most
-  // of the width the component wanted.
-  const [full, setFull] = useState(false);
   // Edits are kept per story, so wandering off to check another component and
   // coming back does not throw away what you had set up.
   const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
@@ -191,19 +217,8 @@ function WorkbenchShell({
   const story = stories.find((candidate) => candidate.id === selected) ?? stories[0];
   const args = useMemo(() => ({ ...story?.args, ...edits[story?.id ?? ''] }), [story, edits]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the story, not on the frame the user may have chosen since
-  useEffect(() => {
-    setViewport(story?.viewport ?? 'fit');
-    setRotate(false);
-  }, [story?.id]);
-
-  /** A frame is picked to see the component IN it, upright. Carrying the last
-   * frame's orientation across is a state nobody asked for, and on a frame that
-   * does not turn it would be a state with no way back. */
-  const pickViewport = useCallback((next: ViewportName) => {
-    setViewport(next);
-    setRotate(false);
-  }, []);
+  const stage = useStageView(story);
+  const { viewport, rotate, surface, full, setRotate, setSurface, setFull, pickViewport } = stage;
 
   const select = useCallback(
     (id: string) => {

@@ -92,6 +92,10 @@ function TextField({
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const input = useRef<TextInput>(null);
+  // Hoisted out of the JSX: a conditional spread inside a branch of the
+  // physicalKeyboard ternary is a ternary inside a ternary, which reads badly
+  // exactly where the props are already dense.
+  const keyboardProps = keyboardType ? { keyboardType } : null;
   const masked = type === 'password' && !revealed;
   return (
     <Box
@@ -139,7 +143,7 @@ function TextField({
           autoCapitalize="none"
           spellCheck={false}
           secureTextEntry={masked}
-          {...(keyboardType ? { keyboardType } : null)}
+          {...keyboardProps}
           selectionColor={colors.accent}
           style={[INPUT, NO_OUTLINE, { color: colors.text }, textStyle]}
         />

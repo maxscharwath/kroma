@@ -198,6 +198,84 @@ function subtitleLabel(subs: Subtitles, t: ReturnType<typeof useT>): string {
   return track?.label?.trim() ?? langName(t, track?.language) ?? `#${(subs.active ?? 0) + 1}`;
 }
 
+/**
+ * The main menu: one row per setting, each naming its current value.
+ *
+ * Its own component because it is a flat list of what the sheet OFFERS, and
+ * inlining it put seven more conditionals in a body that also owns the sheet's
+ * animation, its sub-views and its gesture handling.
+ */
+function SheetMenu(
+  at: Readonly<{
+    t: ReturnType<typeof useT>;
+    quality: string;
+    audioCount: number;
+    audio: string | undefined;
+    /** Null where there is no filter to offer (an offline file). */
+    filter: string | null;
+    subtitles: string;
+    appearance: string;
+    speed: string;
+    statsOn: boolean;
+    onToggleStats(): void;
+    go(view: SheetView): void;
+    onReport(): void;
+  }>,
+) {
+  return (
+    <View style={styles.menuList}>
+      <MenuRow
+        icon="badge-4k"
+        label={at.t('player.quality')}
+        value={at.quality}
+        onPress={() => at.go('quality')}
+      />
+      {at.audioCount > 1 ? (
+        <MenuRow
+          icon="wave-sine"
+          label={at.t('player.audioTracks')}
+          value={at.audio}
+          onPress={() => at.go('audio')}
+        />
+      ) : null}
+      {at.filter === null ? null : (
+        <MenuRow
+          icon="adjustments-horizontal"
+          label={at.t('player.audioFilters')}
+          value={at.filter}
+          onPress={() => at.go('audioFilter')}
+        />
+      )}
+      <MenuRow
+        icon="badge-cc"
+        label={at.t('player.subtitles')}
+        value={at.subtitles}
+        onPress={() => at.go('subtitles')}
+      />
+      <MenuRow
+        icon="typography"
+        label={at.t('player.subAppearance')}
+        value={at.appearance}
+        onPress={() => at.go('appearance')}
+      />
+      <MenuRow
+        icon="gauge"
+        label={at.t('player.speed')}
+        value={at.speed}
+        onPress={() => at.go('speed')}
+      />
+      <MenuRow
+        icon="chart-bar"
+        label={at.t('player.stats')}
+        toggle
+        on={at.statsOn}
+        onPress={at.onToggleStats}
+      />
+      <MenuRow icon="flag" label={at.t('reports.sheet')} onPress={at.onReport} />
+    </View>
+  );
+}
+
 export function TrackSheet({
   visible,
   onClose,
@@ -285,65 +363,25 @@ export function TrackSheet({
   };
 
   const menu = (
-    <View style={styles.menuList}>
-      <MenuRow
-        icon="badge-4k"
-        label={t('player.quality')}
-        value={qualityLabel}
-        onPress={() => setView('quality')}
-      />
-      {audio.length > 1 ? (
-        <MenuRow
-          icon="wave-sine"
-          label={t('player.audioTracks')}
-          value={currentAudio}
-          onPress={() => setView('audio')}
-        />
-      ) : null}
-      {engine.offline ? null : (
-        <MenuRow
-          icon="adjustments-horizontal"
-          label={t('player.audioFilters')}
-          value={filterLabel}
-          onPress={() => setView('audioFilter')}
-        />
-      )}
-      <MenuRow
-        icon="badge-cc"
-        label={t('player.subtitles')}
-        value={currentSub}
-        onPress={() => setView('subtitles')}
-      />
-      <MenuRow
-        icon="typography"
-        label={t('player.subAppearance')}
-        value={sizeName[appearance.size]}
-        onPress={() => setView('appearance')}
-      />
-      <MenuRow
-        icon="gauge"
-        label={t('player.speed')}
-        value={speedLabel}
-        onPress={() => setView('speed')}
-      />
-      <MenuRow
-        icon="chart-bar"
-        label={t('player.stats')}
-        toggle
-        on={statsOn}
-        onPress={onToggleStats}
-      />
-      <MenuRow
-        icon="flag"
-        label={t('reports.sheet')}
-        onPress={() => {
-          onClose();
-          router.push(
-            `/report/${item.id}?kind=${item.kind === 'episode' ? 'episode' : 'movie'}` as never,
-          );
-        }}
-      />
-    </View>
+    <SheetMenu
+      t={t}
+      quality={qualityLabel}
+      audioCount={audio.length}
+      audio={currentAudio}
+      filter={engine.offline ? null : filterLabel}
+      subtitles={currentSub}
+      appearance={sizeName[appearance.size]}
+      speed={speedLabel}
+      statsOn={statsOn}
+      onToggleStats={onToggleStats}
+      go={setView}
+      onReport={() => {
+        onClose();
+        router.push(
+          `/report/${item.id}?kind=${item.kind === 'episode' ? 'episode' : 'movie'}` as never,
+        );
+      }}
+    />
   );
 
   const body = (

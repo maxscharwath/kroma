@@ -134,8 +134,11 @@ function splitProps(props: Record<string, unknown>): {
   for (const name of STYLE_PROPS) {
     const value = style[name];
     if (value === undefined) continue;
-    // A transform is an array of objects; everything else is a primitive.
-    const part = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    // A transform is an array of objects; everything else is a primitive. The
+    // primitive side is named explicitly so String() never meets an object.
+    const primitive =
+      typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+    const part = primitive ? String(value) : JSON.stringify(value);
     key += `${name}:${part};`;
   }
   return { view, layout: sharedBoxStyle(key, style as BoxStyleProps) };

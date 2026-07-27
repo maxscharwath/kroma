@@ -8,12 +8,12 @@
 // `style` is still there and always wins, for the genuinely one-off cases.
 
 import type { ReactNode, Ref } from 'react';
-import { View, type ViewProps, type ViewStyle } from 'react-native';
+import { type StyleProp, View, type ViewProps, type ViewStyle } from 'react-native';
 import { type BoxStyleProps, sharedBoxStyle } from '#ui/lib/box-style';
 
 interface BoxProps extends BoxStyleProps, Omit<ViewProps, 'style'> {
   children?: ReactNode;
-  style?: ViewProps['style'];
+  style?: StyleProp<ViewStyle>;
   /** Forwarded to the underlying host view. React 19 takes `ref` as a plain
    *  prop, so no forwardRef wrapper is needed; it is declared explicitly because
    *  ViewProps does not carry it. */
@@ -133,7 +133,8 @@ function splitProps(props: Record<string, unknown>): {
   let key = '';
   for (const name of STYLE_PROPS) {
     const value = style[name];
-    if (value !== undefined) key += `${name}:${String(value)};`;
+    if (value !== undefined)
+      key += `${name}:${typeof value === 'object' ? JSON.stringify(value) : value};`;
   }
   return { view, layout: sharedBoxStyle(key, style as BoxStyleProps) };
 }

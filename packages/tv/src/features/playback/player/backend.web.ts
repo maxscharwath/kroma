@@ -7,11 +7,12 @@
 // which one it got: a bare <video> plus hls.js, Samsung's AVPlay plane, mpv on
 // the desktop shell, or expo-video natively.
 
-import type { KromaClient, MediaItem } from '@kroma/core';
 import {
   audioTracksOf,
   avplayDirectPlayable,
   canDirectPlay,
+  type KromaClient,
+  type MediaItem,
   NATIVE_TV_CAPS,
   type PlayEnv,
   selectEngine,

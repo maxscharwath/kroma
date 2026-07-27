@@ -15,7 +15,7 @@
 // thumb slid read as two switches disagreeing.
 
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Animated, Platform, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { ease } from '#ui/lib/ease';
 import { sv } from '#ui/lib/sv';
@@ -70,7 +70,7 @@ interface SwitchProps extends Omit<FocusableProps, 'children' | 'onPress' | 'sty
   defaultChecked?: boolean;
   onChange?: (next: boolean) => void;
   size?: SwitchSize;
-  style?: FocusableProps['style'];
+  style?: StyleProp<ViewStyle>;
 }
 
 function Switch({

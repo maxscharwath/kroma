@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 // <Chip>: the pill filter / selector (language codes, audio formats, genres,
 // recent searches). Focusable, so the same component is a click target in the
 // browser and a D-pad stop on a TV.
@@ -72,7 +73,7 @@ interface ChipProps extends Omit<FocusableProps, 'children' | 'style' | 'label'>
   icon?: IconName;
   label?: string;
   children?: ReactNode;
-  style?: FocusableProps['style'];
+  style?: StyleProp<ViewStyle>;
 }
 
 function Chip({

@@ -35,8 +35,8 @@ describe('commandGroups', () => {
   });
 
   it('matches the section as well as the name', () => {
-    expect(flatten(commandGroups(STORIES, 'actions')).length).toBe(2);
-    expect(flatten(commandGroups(STORIES, 'zzz')).length).toBe(0);
+    expect(flatten(commandGroups(STORIES, 'actions'))).toHaveLength(2);
+    expect(flatten(commandGroups(STORIES, 'zzz'))).toHaveLength(0);
   });
 });
 

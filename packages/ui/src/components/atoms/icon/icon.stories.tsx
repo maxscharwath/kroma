@@ -42,7 +42,7 @@ const UNKNOWN = ['chevron-rihgt', 'glyph-from-a-module'] as unknown as IconName[
 /** A control's value arrives as an unknown; anything that is not a real glyph
  *  falls back on render anyway, so this only has to satisfy the type. */
 const asName = (value: unknown, fallback: IconName): IconName => {
-  const name = String(value ?? '');
+  const name = typeof value === 'string' ? value : '';
   return hasGlyph(name) ? name : fallback;
 };
 

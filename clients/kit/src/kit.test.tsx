@@ -52,7 +52,7 @@ describe('the kit site', () => {
     expect(screen.getAllByText('Colors').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Expand Atoms' })).toBeTruthy();
     // The first story of the first level is what a cold open lands on.
-    expect(screen.getAllByText('Preview').length).toBe(1);
+    expect(screen.getAllByText('Preview')).toHaveLength(1);
   });
 
   it('carries the config: the mark, the wordmark and the locale lens', () => {
@@ -164,7 +164,7 @@ describe('the toolbar', () => {
     press('Give the canvas the whole window');
     expect(screen.queryByRole('button', { name: 'Collapse Foundations' })).toBeNull();
     // The story itself is still there - it is the chrome that went.
-    expect(screen.getAllByText('Preview').length).toBe(1);
+    expect(screen.getAllByText('Preview')).toHaveLength(1);
     press('Show the tree and inspector');
     expect(screen.getByRole('button', { name: 'Collapse Foundations' })).toBeTruthy();
   });

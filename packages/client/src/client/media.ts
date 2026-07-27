@@ -247,7 +247,8 @@ export function resolveArt(
 ): string | null {
   if (!url) return null;
   if (/^https?:\/\//.test(url)) return url;
-  const sized = width ? `${url}${url.includes('?') ? '&' : '?'}w=${Math.round(width)}` : url;
+  const join = url.includes('?') ? '&' : '?';
+  const sized = width ? `${url}${join}w=${Math.round(width)}` : url;
   return `${ctx.baseUrl}${sized}`;
 }
 

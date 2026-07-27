@@ -1,3 +1,5 @@
+import type { StyleProp, TextStyle } from 'react-native';
+import type { ColorToken } from '#ui/lib/tokens';
 // <Hint>: the row that tells you what the remote does.
 //
 // These lines used to be written with the geometric characters as literal text
@@ -16,7 +18,7 @@
 import type { ReactNode } from 'react';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
-import { Txt, type TxtProps } from '#ui/components/atoms/text';
+import { Txt } from '#ui/components/atoms/text';
 
 /** The keys a hint can name, and the glyph each one draws. */
 const KEYS = {
@@ -38,10 +40,10 @@ interface HintProps extends Omit<BoxProps, 'children'> {
   text: string;
   /** Glyph and text size. Hints are secondary, so this is small by default. */
   size?: number;
-  color?: TxtProps['color'];
+  color?: ColorToken | (string & {});
   /** Extra style for the WORDS. `style` stays with <Box>, as on every other
    * component, so a caller can lay the row out and tune its type separately. */
-  textStyle?: TxtProps['style'];
+  textStyle?: StyleProp<TextStyle>;
 }
 
 function Hint({ text, size = 15, color = 'textDim', textStyle, ...box }: Readonly<HintProps>) {

@@ -7,7 +7,7 @@
 // parallel lookup maps at the call site.
 
 import type { ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
@@ -144,7 +144,7 @@ interface ButtonProps
    *  mid-spin would strand the remote on nothing. */
   loading?: boolean;
   children?: ReactNode;
-  style?: FocusableProps['style'];
+  style?: StyleProp<ViewStyle>;
   /** Focus scale. Defaults to the design's 1.04 for the primary action. */
   focusScale?: number;
 }

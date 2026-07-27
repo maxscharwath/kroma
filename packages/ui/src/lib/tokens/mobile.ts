@@ -49,4 +49,4 @@ export const mobileType = {
 export type MobileTypeRole = keyof typeof mobileType;
 
 /** The display family, for the few places a phone screen wants the title face. */
-export const mobileFonts = fonts;
+export { fonts as mobileFonts };

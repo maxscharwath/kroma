@@ -205,7 +205,12 @@ function NavPill({
     },
     [targets],
   );
-  const withdraw = useCallback((id: string) => void targets.delete(id), [targets]);
+  const withdraw = useCallback(
+    (id: string) => {
+      targets.delete(id);
+    },
+    [targets],
+  );
   /** The previewed item: state, because the items re-ink from it; mirrored in
    * a ref because the responder's callbacks are minted once. `quiet` keeps the
    * grant's seed - the section the finger started on - out of `onPreview`,

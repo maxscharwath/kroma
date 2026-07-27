@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 // <ListRow>: one focusable row of a menu or a settings list.
 //
 // This shape was written three times before it moved here: the TV profile menu,
@@ -66,7 +67,7 @@ interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'labe
   /** Trailing content: a value, a Switch, a Badge. Defaults to a chevron when
    *  the row leads somewhere, and to nothing when it does not. */
   trailing?: ReactNode;
-  style?: FocusableProps['style'];
+  style?: StyleProp<ViewStyle>;
 }
 
 function ListRow({

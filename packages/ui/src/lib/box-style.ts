@@ -31,7 +31,7 @@ export interface BoxStyleProps {
   align?: Align;
   justify?: Justify;
   /** Override the parent's alignment for this child alone. */
-  self?: ViewStyle['alignSelf'];
+  self?: NonNullable<ViewStyle['alignSelf']>;
   /** `flexShrink`. Rail tiles set 0 so they keep their width in a row. */
   shrink?: number;
   grow?: number;
@@ -40,12 +40,12 @@ export interface BoxStyleProps {
   between?: boolean;
 
   // ---- box ----
-  w?: ViewStyle['width'];
-  h?: ViewStyle['height'];
-  minW?: ViewStyle['minWidth'];
-  minH?: ViewStyle['minHeight'];
-  maxW?: ViewStyle['maxWidth'];
-  maxH?: ViewStyle['maxHeight'];
+  w?: DimensionValue;
+  h?: DimensionValue;
+  minW?: DimensionValue;
+  minH?: DimensionValue;
+  maxW?: DimensionValue;
+  maxH?: DimensionValue;
   aspect?: number;
 
   // ---- position ----
@@ -83,7 +83,7 @@ export interface BoxStyleProps {
   /** Elevation token. */
   shadow?: keyof typeof shadow;
   opacity?: number;
-  overflow?: ViewStyle['overflow'];
+  overflow?: NonNullable<ViewStyle['overflow']>;
 }
 
 /** A token name resolves through the palette; anything else is a raw colour. */

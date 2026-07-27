@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 // <CategoryTile>: a labelled artwork tile with a coloured wash over it.
 //
 // The genre grid wrote this first - a library backdrop under a bottom-heavy
@@ -66,7 +67,7 @@ interface CategoryTileProps extends Omit<FocusableProps, 'children' | 'style' | 
   aspect?: number;
   /** Anything extra pinned into the bottom block, under the meta line. */
   children?: ReactNode;
-  style?: FocusableProps['style'];
+  style?: StyleProp<ViewStyle>;
 }
 
 function CategoryTile({

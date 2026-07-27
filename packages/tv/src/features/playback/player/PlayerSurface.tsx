@@ -29,7 +29,7 @@ export function PlayerSurface({ pb, title }: Readonly<{ pb: Playback; title: str
   // ref, so replacing the player inside it changes nothing React can see, and
   // this view would happily go on rendering a player that has been released -
   // a black picture that never comes back, which is what every seek used to do.
-  void pb.surfaceNonce;
+  // It is read below, as the view's key.
   const engine = pb.engineRef.current as ExpoVideoEngine | null;
   const player = engine?.videoPlayer ?? null;
   if (!player) return null;

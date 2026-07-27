@@ -68,7 +68,6 @@
         "!packages/tv/src/features/playback/player/avplayEngine.ts",
         "!packages/tv/src/features/playback/player/htmlEngine.ts",
         "!packages/tv/src/features/playback/player/useNowPlaying.ts",
-        "!packages/tv/src/index.tsx",
         "!**/*.test.ts",
         "!**/*.test.tsx",
         "!**/preview/**",

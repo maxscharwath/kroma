@@ -46,20 +46,16 @@ export { boxStyle, color } from './lib/box-style';
 export type { Rect } from './lib/cover-rect';
 export { coverRect, parsePosition } from './lib/cover-rect';
 // ---- cross-platform CSS escape hatches ----
-export { bgPosition, bgSize, gradient, promote } from './lib/css';
+export { backdropBlur, bgPosition, bgSize, gradient, promote } from './lib/css';
 // The one sanctioned way to ask for the DOM from shared code (null on a TV).
 export { webDocument, webWindow } from './lib/dom';
-export type { FocusBridgeProps } from './lib/focus-bridge';
-export { FocusBridge } from './lib/focus-bridge';
-export type { Crossing, Crossings } from './lib/focus-crossings';
-export { screenEntry } from './lib/focus-crossings';
 export { useFocusNav } from './lib/focus-nav';
-export { configureRemote } from './lib/focus-remote';
-export type { FocusScopeProps } from './lib/focus-scope';
+export { configureRemote, useHardwareKeys } from './lib/focus-remote';
+export type { FocusScopeProps, ScreenScopeProps } from './lib/focus-scope';
 export { FocusColumn, FocusRegion, FocusScope } from './lib/focus-scope';
 export type { FocusScrollProps } from './lib/focus-scroll';
-export { FocusRail, FocusScroll, FocusSlot } from './lib/focus-scroll';
-export type { FocusEngine, FocusHostProps, FocusNavHandlers } from './lib/focus-types';
+export { FocusLine, FocusRail, FocusScroll, FocusSlot } from './lib/focus-scroll';
+export type { FocusNavHandlers } from './lib/focus-types';
 export {
   DEFAULT_ICON_SIZE,
   DEFAULT_ICON_STROKE,

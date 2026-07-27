@@ -1,7 +1,6 @@
 import type { AdminUser } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { EmptyState } from '@kroma/ui/kit';
-import { IconDots } from '@tabler/icons-react';
+import { EmptyState, IconButton } from '@kroma/ui/kit';
 import { Denied, HeaderAction, PageHeader, useCap, usePoll } from '#web/features/admin/shell';
 import { Avatar, C, Card, Section, StatCard } from '#web/features/admin/ui';
 import { EditUserModal, InviteModal, PendingInvite } from '#web/features/admin/users-modals';
@@ -115,14 +114,16 @@ function UsersPageInner() {
                   />
                   {u.online ? t('admin.online') : relativeSeen(u.lastSeen)}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void openEdit(u)}
-                  className="flex justify-end text-text/50 hover:text-text"
-                  aria-label={t('admin.editUserAction')}
-                >
-                  <IconDots size={18} stroke={2} />
-                </button>
+                <div className="flex justify-end">
+                  <IconButton
+                    variant="ghost"
+                    size={32}
+                    glyph={18}
+                    icon="dots"
+                    label={t('admin.editUserAction')}
+                    onPress={() => void openEdit(u)}
+                  />
+                </div>
               </div>
             );
           })}

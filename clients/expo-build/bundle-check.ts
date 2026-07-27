@@ -27,14 +27,46 @@ if (!dir) {
   process.exit(2);
 }
 const root = resolve(process.cwd(), dir);
+
+/**
+ * The size this client is not allowed to exceed, in MB (`--max 10`).
+ *
+ * A RATCHET, not a target: it is set just above whatever the bundle weighs
+ * today, so the number can only ever be lowered. Bloat on a television does not
+ * arrive as one bad commit, it arrives as fifty reasonable ones, and the gate
+ * exists to make the fifty-first argue for itself. Without a ceiling the size
+ * was printed on every run and read by nobody - the TV bundle reached 9.4 MB of
+ * bytecode that way, 69% of it icons nothing asked for.
+ *
+ * Lower it whenever a change wins room back. See atlas-report.ts for where the
+ * weight actually is.
+ */
+const maxAt = envArgs.indexOf('--max');
+const MAX_MB = maxAt === -1 ? Number.POSITIVE_INFINITY : Number(envArgs[maxAt + 1]);
 const extraEnv = Object.fromEntries(
-  envArgs.map((pair) => {
-    const at = pair.indexOf('=');
-    return [pair.slice(0, at), pair.slice(at + 1)];
-  }),
+  envArgs
+    // `--max` and its value are a flag, not environment. Guarded on `maxAt`
+    // being found: with no flag it is -1, and `maxAt + 1` would then drop
+    // argument 0 - which is `EXPO_TV=1`, and losing it builds the TV client as
+    // a phone without saying so.
+    .filter((_, index) => maxAt === -1 || (index !== maxAt && index !== maxAt + 1))
+    .map((pair) => {
+      const at = pair.indexOf('=');
+      return [pair.slice(0, at), pair.slice(at + 1)];
+    }),
 );
 
 const platforms = ['ios', 'android'] as const;
+
+/** Expo prints `(9.4 MB)`, and a gate needs a number. Returns NaN for a size it
+ * did not recognise, which compares false against the budget - an unreadable
+ * size must not fail the build, it is the bundle that is being tested here. */
+function bytesOf(size: string): number {
+  const match = /^([\d.]+)\s*([kMG]?B)$/.exec(size.trim());
+  if (!match) return Number.NaN;
+  const scale = { B: 1, kB: 1e3, MB: 1e6, GB: 1e9 }[match[2] as string] ?? Number.NaN;
+  return Number(match[1]) * scale;
+}
 
 /** Bundle one platform. Neither depends on the other's result, so the two runs
  * are started together: a Metro export of this workspace is minutes, and this
@@ -50,6 +82,11 @@ async function bundle(platform: (typeof platforms)[number]): Promise<string | nu
     );
     const size =
       /[a-z]+-[a-f0-9]+\.hbc \(([^)]+)\)/.exec(`${stdout}${stderr}`)?.[1] ?? 'unknown size';
+    const bytes = bytesOf(size);
+    if (bytes > MAX_MB * 1e6) {
+      console.log(`bundling ${platform}... ok (${size}) OVER BUDGET`);
+      return `${platform}: ${size} of bytecode exceeds the ${MAX_MB} MB budget.\nRun atlas-report.ts on the export to see which package grew.`;
+    }
     console.log(`bundling ${platform}... ok (${size})`);
     return null;
   } catch (err) {

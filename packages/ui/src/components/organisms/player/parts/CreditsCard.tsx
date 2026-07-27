@@ -1,13 +1,12 @@
-import { Pressable } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { Button } from '#ui/components/atoms/button';
 import { Img } from '#ui/components/atoms/img';
+import { clamp01 } from '#ui/components/atoms/progress';
 import { ProgressRing } from '#ui/components/atoms/progress-ring';
 import { Txt } from '#ui/components/atoms/text';
 import { gradient } from '#ui/lib/css';
 import { colors, fonts } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
-import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
-import { IconPlay } from './icons';
 
 /**
  * Minimal shape the credits card needs from the up-next item. Declared locally
@@ -55,7 +54,7 @@ export function CreditsCard({
   onCancel,
 }: Readonly<CreditsCardProps>) {
   const t = useT();
-  const progress = total > 0 ? Math.max(0, Math.min(1, secondsLeft / total)) : 0;
+  const progress = total > 0 ? clamp01(secondsLeft / total) : 0;
   return (
     <Box
       absolute
@@ -99,67 +98,38 @@ export function CreditsCard({
           {item.subtitle}
         </Txt>
       ) : null}
+      {/* Controlled kit buttons (`focused` is ALWAYS passed): neither may ever
+          become a platform / navigator focus target - see ../lib/virtual-focus.ts.
+          `playFocused` / `cancelFocused` drive the highlight; there is no hover
+          handler here, exactly as before (the nav machine owns this card). */}
       <Box row gap={12} mt={16}>
-        <Action
-          label={t('player.cancel')}
+        <Button
+          variant="ghost"
+          size="sm"
+          focused={cancelFocused}
+          focusedStyle={CANCEL_FOCUS}
           onPress={onCancel}
-          background={cancelFocused ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.08)'}
-          ink={colors.text}
+          label={t('player.cancel')}
         />
-        <Action
-          label={t('player.playNow')}
+        <Button
+          variant="primary"
+          size="sm"
+          icon="player-play-filled"
+          focused={playFocused}
+          focusedStyle={PLAY_FOCUS}
           onPress={onPlay}
-          background={playFocused ? colors.accentHover : colors.accent}
-          ink={colors.accentInk}
-          grow
-          icon={<IconPlay size={17} color={colors.accentInk} />}
+          label={t('player.playNow')}
+          style={GROW}
         />
       </Box>
     </Box>
   );
 }
 
-function Action({
-  label,
-  onPress,
-  background,
-  ink,
-  grow,
-  icon,
-}: Readonly<{
-  label: string;
-  onPress: () => void;
-  background: string;
-  ink: string;
-  grow?: boolean;
-  icon?: React.ReactNode;
-}>) {
-  return (
-    <Pressable
-      {...VIRTUAL_FOCUS}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{
-        flex: grow ? 1 : undefined,
-        flexShrink: grow ? undefined : 0,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        borderRadius: 11,
-        paddingHorizontal: grow ? 0 : 18,
-        paddingVertical: 12,
-        backgroundColor: background,
-      }}
-    >
-      {icon}
-      <Txt style={{ fontFamily: fonts.ui, fontSize: 14, fontWeight: '700' }} color={ink}>
-        {label}
-      </Txt>
-    </Pressable>
-  );
-}
+const GROW = { flex: 1 } as const;
+/** The focused fills the card always had, on top of the kit's ring + scale. */
+const CANCEL_FOCUS = { backgroundColor: 'rgba(255, 255, 255, 0.16)' } as const;
+const PLAY_FOCUS = { backgroundColor: colors.accentHover } as const;
 
 const CARD_SHADOW = { boxShadow: '0 26px 64px rgba(0, 0, 0, 0.62)' };
 

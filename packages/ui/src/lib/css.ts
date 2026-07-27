@@ -37,6 +37,20 @@ export function maskImage(_css: string): ViewStyle {
 }
 
 /**
+ * A CSS `backdrop-filter: blur(...)` - and a NO-OP here, like `maskImage`.
+ *
+ * React Native has no backdrop filter at any prefix: blurring what sits behind
+ * a view means importing a platform blur view, a dependency the kit
+ * deliberately stays free of (see nav-pill for the reasoning - old Tizen also
+ * composites blur on the CPU and pays in frames). The browser targets get the
+ * real thing, so a translucent card frosts the artwork behind it there and
+ * keeps its plain wash on native.
+ */
+export function backdropBlur(_px: number): ViewStyle {
+  return {};
+}
+
+/**
  * Promote a view to its own compositing layer.
  *
  * A no-op on native, where the OS compositor already decides layers and RN has

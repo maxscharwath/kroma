@@ -7,6 +7,8 @@
 //
 // The test for adding one: has this arrangement now been written twice?
 
+export type { BackButtonProps } from './back-button';
+export { BackButton } from './back-button';
 export type { CategoryTileProps, CategoryTileSize } from './category-tile';
 export { CategoryTile, categoryTileVariants } from './category-tile';
 export type { EmptyStateProps } from './empty-state';
@@ -15,11 +17,13 @@ export type { FieldProps } from './field';
 export { Field } from './field';
 export type { HintKey, HintProps } from './hint';
 export { HINT_KEYS, Hint } from './hint';
+export type { KeypadProps } from './keypad';
+export { Keypad } from './keypad';
 export type { ListRowProps, ListRowSize } from './list-row';
 export { ListRow, listRowVariants } from './list-row';
 export type { MediaCardProps } from './media-card';
 export { CARD_SCRIM, MediaCard, tintGradient } from './media-card';
-export type { NavPillItemProps, NavPillProps, NavPillSize } from './nav-pill';
+export type { NavPillItemProps, NavPillLabels, NavPillProps, NavPillSize } from './nav-pill';
 export { NavPill, NavPillItem } from './nav-pill';
 export type { OtpFieldProps, OtpSize, OtpSlot } from './otp-field';
 export {
@@ -29,6 +33,8 @@ export {
   REGEXP_ONLY_DIGITS,
   REGEXP_ONLY_DIGITS_AND_CHARS,
 } from './otp-field';
+export type { PersonCardProps, PersonCardSize } from './person-card';
+export { PersonCard, personCardVariants } from './person-card';
 export type { PinFieldProps } from './pin-field';
 export { PinField } from './pin-field';
 export type { PosterCardProps } from './poster-card';

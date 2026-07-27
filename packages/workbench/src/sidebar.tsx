@@ -19,11 +19,11 @@
 // Everything is a `Focusable` rather than a link, so the same tree is operated
 // with a mouse in a browser and with a D-pad on a television.
 
-import { Box, Focusable, Icon, Txt } from '@kroma/ui/kit';
+import { Box, Focusable, Icon, IconButton, Txt } from '@kroma/ui/kit';
 import { colors, radius, shadow } from '@kroma/ui/tokens';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { FOCUS_WASH } from './chrome';
+import { FOCUS_WASH, RULE_TOP } from './chrome';
 import { commandHint, Kbd } from './command';
 import type { WorkbenchLayout } from './layout';
 import { groupBy, type Story } from './story';
@@ -43,6 +43,12 @@ interface SidebarProps {
   brand?: ReactNode;
   /** The wordmark beside it. Defaults to naming the tool. */
   title?: string;
+  /**
+   * Pinned under the tree, below the scroll. A slot for the same reason `brand`
+   * is one: what a host wants to say about itself down there - a build stamp, a
+   * link, a licence - is the host's business, not this package's.
+   */
+  footer?: ReactNode;
   layout: WorkbenchLayout;
   /** Present only while the tree is a drawer, where it has to be dismissible. */
   onClose?: () => void;
@@ -109,6 +115,7 @@ function Sidebar({
   onSearch,
   brand,
   title = 'Workbench',
+  footer,
   layout,
   onClose,
 }: Readonly<SidebarProps>) {
@@ -198,6 +205,14 @@ function Sidebar({
           );
         })}
       </ScrollView>
+      {footer ? (
+        // Outside the ScrollView, so it stays put however long the tree gets,
+        // and ruled off so it reads as a note about the tool rather than the
+        // last entry in the list.
+        <Box px={16} py={12} style={RULE_TOP}>
+          {footer}
+        </Box>
+      ) : null}
     </Box>
   );
 }
@@ -224,15 +239,18 @@ function Brand({
       </Box>
       <Box flex />
       {onClose ? (
-        <Focusable
+        <IconButton
+          variant="ghost"
+          size={CLOSE_BOX}
+          radius={radius.sm}
           label="Close component list"
           ring={false}
-          onPress={onClose}
-          style={CLOSE}
+          focusScale={1}
           focusedStyle={FOCUS_WASH}
+          onPress={onClose}
         >
           <Icon name="x" size={16} color="textMuted" />
-        </Focusable>
+        </IconButton>
       ) : null}
     </Box>
   );
@@ -340,7 +358,8 @@ const DRAWER = {
   borderRightColor: colors.borderStrong,
   boxShadow: shadow.pop,
 };
-const CLOSE = { padding: 7, borderRadius: radius.sm } as const;
+/** The 16pt glyph in the box the old padded shape came to. */
+const CLOSE_BOX = 30;
 const BRAND = { fontWeight: '700', fontSize: 13 } as const;
 const TALLY = { fontSize: 10.5 } as const;
 const SEARCH = {

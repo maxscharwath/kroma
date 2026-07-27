@@ -25,6 +25,9 @@ const ACCESS: Record<RouteName, Access> = {
   connect: 'signedOut',
   quick: 'signedOut',
   deviceSettings: 'signedOut',
+  // Reached from device settings signed out and from the profile menu signed
+  // in, and it needs neither: it only reports what this build is.
+  about: 'both',
   pin: 'both',
   home: 'signedIn',
   grid: 'signedIn',
@@ -37,6 +40,7 @@ const ACCESS: Record<RouteName, Access> = {
   player: 'signedIn',
   report: 'signedIn',
   profileMenu: 'signedIn',
+  settingsGroup: 'both',
 };
 
 function screensFor(access: Exclude<Access, 'both'>): RouteName[] {

@@ -1,13 +1,12 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { Pressable } from 'react-native';
+import { ScrollView } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { IconButton } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
 import { fonts } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import { CHART_WINDOW } from '../lib/chart-geometry';
-import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
 import type { PlayerController, PlayerMeter, PlayerStats } from '../types';
-import { IconClose } from './icons';
 import { StatsChart } from './StatsChart';
 
 /**
@@ -35,7 +34,24 @@ import { StatsChart } from './StatsChart';
 export function StatsPanel({
   controller,
   onClose,
-}: Readonly<{ controller: PlayerController; onClose: () => void }>) {
+  top = 100,
+  left = 34,
+  width = PANEL_W,
+  maxHeight,
+}: Readonly<{
+  /** Any read-only stats source; the full PlayerController satisfies this, and a
+   *  surface with its own chrome (the phone) can hand just `getStats`. */
+  controller: Pick<PlayerController, 'getStats'>;
+  onClose: () => void;
+  /** Position + width overrides for pocket-sized hosts; the defaults are the
+   *  10-foot layout every TV/web surface uses. */
+  top?: number;
+  left?: number;
+  width?: number;
+  /** Cap the panel's height; the body scrolls past it (the header and its close
+   *  X stay pinned). A screen shorter than the read-out must never CROP it. */
+  maxHeight?: number;
+}>) {
   const t = useT();
   const [s, setS] = useState<PlayerStats>(() => controller.getStats());
   // Rolling numeric history per meter key, kept across polls in a ref (drawing is
@@ -80,6 +96,7 @@ export function StatsPanel({
   }, []);
 
   const charts = chartGroups(s.meters ?? []);
+  const stackCharts = width < 560;
   // A charted value must not ALSO be a text row. The web builder reports buffer,
   // bandwidth and stream bitrate as both, because the text rows predate the
   // charts - and a panel that prints "Bandwidth 91.32 Mb/s" twice, once as a row
@@ -94,10 +111,11 @@ export function StatsPanel({
   return (
     <Box
       absolute
-      top={100}
-      left={34}
+      top={top}
+      left={left}
       z={20}
-      w={PANEL_W}
+      w={width}
+      maxH={maxHeight}
       radius={14}
       borderWidth={1}
       border="rgba(255, 255, 255, 0.1)"
@@ -110,36 +128,43 @@ export function StatsPanel({
         <Txt style={PANEL_TITLE} color="rgba(244, 243, 240, 0.5)">
           {t('stats.title')}
         </Txt>
-        <Pressable
-          {...VIRTUAL_FOCUS}
+        {/* Pointer-only close, controlled at `false`: never a platform /
+            navigator focus target (see ../lib/virtual-focus.ts). */}
+        <IconButton
+          variant="ghost"
+          size={24}
+          icon="x"
+          glyph={15}
+          focused={false}
+          hitSlop={6}
           onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.close')}
-        >
-          <Box shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.08)" p={4}>
-            <IconClose size={15} color="rgba(244, 243, 240, 0.5)" />
-          </Box>
-        </Pressable>
+          label={t('common.close')}
+        />
       </Box>
 
-      <SummaryBlock headline={summary.headline} pairs={summary.pairs} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={BODY}>
+        <SummaryBlock headline={summary.headline} pairs={summary.pairs} />
 
-      {charts.length > 0 ? (
-        <Box row gap={COL_GAP} align="flex-start">
-          {charts.map((group) => (
-            <Box key={group.id} grow={1} shrink={1} style={CHART_CELL}>
-              <StatsChart
-                meters={group.meters}
-                history={historyRef.current}
-                width={chartWidth(charts.length)}
-                slot={group.slot}
-              />
-            </Box>
-          ))}
-        </Box>
-      ) : null}
+        {charts.length > 0 ? (
+          // A pocket-width panel stacks its charts: two traces sharing 400pt
+          // truncate their own read-outs, and a chart that cannot show its
+          // number is decoration.
+          <Box row={!stackCharts} gap={stackCharts ? 12 : COL_GAP} align="stretch">
+            {charts.map((group) => (
+              <Box key={group.id} grow={1} shrink={1} style={stackCharts ? null : CHART_CELL}>
+                <StatsChart
+                  meters={group.meters}
+                  history={historyRef.current}
+                  width={chartWidth(stackCharts ? 1 : charts.length, width)}
+                  slot={group.slot}
+                />
+              </Box>
+            ))}
+          </Box>
+        ) : null}
 
-      <GroupGrid groups={groups} />
+        <GroupGrid groups={groups} />
+      </ScrollView>
     </Box>
   );
 }
@@ -330,8 +355,8 @@ function chartGroups(meters: readonly PlayerMeter[]): ChartGroup[] {
 /** Charts split the panel's inner width evenly, so one chart fills it and two
  * share it. Computed rather than measured: the panel's width is fixed, which is
  * what lets the SVG be sized without an extra layout pass on open. */
-function chartWidth(count: number): number {
-  const inner = PANEL_W - PANEL_PAD * 2;
+function chartWidth(count: number, panelWidth: number): number {
+  const inner = panelWidth - PANEL_PAD * 2;
   return Math.floor((inner - COL_GAP * (count - 1)) / count);
 }
 
@@ -360,6 +385,8 @@ const CARD = 'rgba(10, 10, 12, 0.94)';
  */
 const COLUMN = { flexBasis: 200, flexGrow: 1, flexShrink: 1, minWidth: 180 } as const;
 const CHART_CELL = { flexBasis: 0, minWidth: 0 } as const;
+/** The scrolling body keeps the panel's own rhythm between its blocks. */
+const BODY = { gap: 16 } as const;
 const TOP_RULE = {
   borderTopWidth: 1,
   borderTopColor: 'rgba(255, 255, 255, 0.08)',

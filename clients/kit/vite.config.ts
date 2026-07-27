@@ -9,6 +9,7 @@
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { collectBuildInfo } from '../build-info/index.js';
 import { propDocs } from '../tv-build/props-docs';
 import {
   KROMA_SOURCE_PACKAGES,
@@ -18,9 +19,13 @@ import {
 } from '../tv-build/rnw';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+const kitDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
-  define: RNW_DEFINE,
+  // Which build the site is, for the line under the story tree. The kit app gets
+  // the same object through Expo's `extra`; see app.config.js. Its own package
+  // version, not the product's: this ships the design system, not the player.
+  define: { __KROMA_BUILD__: JSON.stringify(collectBuildInfo(kitDir)), ...RNW_DEFINE },
   // The Props tab's data, read by TypeScript's own checker over @kroma/ui at
   // build time and served as `virtual:kroma-props`. See the plugin for why this
   // is not a regex in the browser any more.

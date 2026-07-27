@@ -1,14 +1,14 @@
 // The contract every platform focus engine implements. Two implementations:
 //
-//   nav.ts      native  - Apple TV / Android TV. The OS focus engine owns
-//                         directional movement; we only bridge Back / PlayPause
-//                         and declare the preferred first responder.
-//   nav.web.ts  web     - Tizen / webOS / desktop / browser. No OS focus engine,
-//                         so we do geometric spatial navigation over the DOM
-//                         nodes react-native-web renders for our focusables.
+//   focus-nav.ts      native  - Apple TV / Android TV. The OS focus engine owns
+//                               directional movement; we only bridge Back and
+//                               PlayPause.
+//   focus-nav.web.ts  web     - Tizen / webOS / desktop / browser. The spatial
+//                               navigator owns directional movement; we bridge
+//                               Back, the transport keys, and the held-OK guard.
 //
-// Metro picks nav.ts, Vite picks nav.web.ts (resolve.extensions puts `.web.*`
-// first). App code only ever imports from './nav'.
+// Metro picks focus-nav.ts, Vite picks focus-nav.web.ts (resolve.extensions puts
+// `.web.*` first). App code only ever imports from './focus-nav'.
 
 export interface FocusNavHandlers {
   /** Remote Back / Escape. Return `false` to say "not handled, keep the
@@ -21,14 +21,9 @@ export interface FocusNavHandlers {
   resetKey?: unknown;
 }
 
-/** Extra props the engine injects into the underlying Pressable of a
- * `<Focusable>`. Deliberately loose: each platform contributes a different set
- * (`hasTVPreferredFocus` natively, `dataSet` + `nativeID` on the web). */
-export type FocusHostProps = Record<string, unknown>;
-
-export interface FocusEngine {
-  /** Wire the remote for the screen that mounts this. */
-  useFocusNav(handlers: FocusNavHandlers): void;
-  /** Props for one focusable host. */
-  useFocusHostProps(opts: { autoFocus?: boolean; disabled?: boolean }): FocusHostProps;
-}
+/** What a control that opts out of platform focus tells the PLATFORM focus
+ * engines: skip me. react-native-tvos gates a Pressable's focusability on
+ * exactly these two (`focusable !== false && isTVSelectable !== false`);
+ * `isTVSelectable` is the tvOS spelling and not in mainline RN's types - see
+ * components/organisms/player/lib/virtual-focus.ts for the bug this prevents. */
+export const UNFOCUSABLE = { focusable: false, isTVSelectable: false } as const;

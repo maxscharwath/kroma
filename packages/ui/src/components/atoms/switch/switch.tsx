@@ -15,8 +15,9 @@
 // thumb slid read as two switches disagreeing.
 
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { Animated, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
+import { ease } from '#ui/lib/ease';
 import { sv } from '#ui/lib/sv';
 import { colors, motion, radius } from '#ui/lib/tokens';
 import { useControllable } from '#ui/lib/use-controllable';
@@ -24,9 +25,8 @@ import { useControllable } from '#ui/lib/use-controllable';
 const WEB = Platform.OS === 'web';
 
 const FLIP_MS = motion.duration.fast;
-const [x1, y1, x2, y2] = motion.bezier.out;
-const EASE_CSS = `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
-const EASE_NATIVE = Easing.bezier(x1, y1, x2, y2);
+const EASE_CSS = ease.out.css;
+const EASE_NATIVE = ease.out.native;
 
 const switchVariants = sv({
   base: {

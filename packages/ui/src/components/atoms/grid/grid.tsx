@@ -13,6 +13,7 @@
 import { Children, type ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { FocusRegion } from '#ui/lib/focus-scope';
+import { FocusLine } from '#ui/lib/focus-scroll';
 
 interface GridProps {
   /** Total width available to the grid, gutters included. */
@@ -41,15 +42,20 @@ function Grid({ width, columns, gap = 24, rowGap, children }: Readonly<GridProps
   return (
     <Box gap={rowGap ?? gap}>
       {lines.map((line, index) => (
+        // Each line is also the page's scroll anchor (see <FocusLine>): inside
+        // a <FocusSlot> taller than the screen, the page would otherwise pin
+        // the slot's top once and never follow the focus down the grid.
         // biome-ignore lint/suspicious/noArrayIndexKey: the index IS the row's identity.
-        <FocusRegion key={index} style={{ flexDirection: 'row', gap }}>
-          {line.map((child, column) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: the index IS the cell's slot in the row.
-            <Box key={column} w={cell}>
-              {child}
-            </Box>
-          ))}
-        </FocusRegion>
+        <FocusLine key={index}>
+          <FocusRegion style={{ flexDirection: 'row', gap }}>
+            {line.map((child, column) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the index IS the cell's slot in the row.
+              <Box key={column} w={cell}>
+                {child}
+              </Box>
+            ))}
+          </FocusRegion>
+        </FocusLine>
       ))}
     </Box>
   );

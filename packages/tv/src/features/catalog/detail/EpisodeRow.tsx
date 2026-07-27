@@ -1,36 +1,63 @@
-// One episode, as a row: still, number + title + runtime, recap underneath.
+// One episode, as a row: still, title + status pills, ends-at, recap, and the
+// row's three actions as real buttons - Lecture, Vu, Signaler.
 //
-// Ported from the design source (`LUMA - TV.dc.html`, the episodes block of the
-// série detail), values kept literal so a diff against the design stays legible:
-// a 200pt still, 14pt padding, a 2.5% white card on a hairline border, 17pt
-// title, and the recap at 14/1.5 in 60% ivory.
+// Ported from the design source (`LUMA - TV.dc.html`, the TV DETAIL 10-foot
+// episodes block - not the web detail's lighter list), values kept literal so a
+// diff against the design stays legible: a 240pt still in an 18pt-padded card
+// on a 20pt radius, the episode number and runtime as chips ON the still, a
+// 54pt play disc that fills amber when the play action holds the focus, the
+// title at h2 (Bricolage 22), the recap at 16/1.45, and the 12/19-padded
+// buttons underneath. The still's furniture is the kit's tile language
+// (CARD_SCRIM, <Progress>), and the buttons are the kit's <Button> - which is
+// why the watched toggle lights AMBER like the header's own "Vu" button
+// directly above this list, where the design mock paints it green.
 //
-// The design draws these ONE to a line inside a 1000pt column, not two. That is
-// not wasted space: the detail screen is a full-bleed backdrop, and the empty
-// right-hand side is the artwork the page is built around. Two columns of cards
-// covered it, which is what made the screen read like a table instead of a
-// television.
+// The design draws these ONE to a line, not two: a second column of cards is
+// what made this screen read like a table instead of a television. The line
+// spans the scaffold's full content width (wider than the design's 1240 cap),
+// and the frosted card keeps the full-bleed backdrop present through it.
 //
-// The watched toggle is the ONE addition to the design - the design has no way
-// to mark a single episode seen, and that is the feature this screen was asked
-// for. It is a real focus stop rather than a long-press on the row: a television
-// remote has no discoverable long-press, and a hidden gesture is a feature
-// nobody finds. Row and toggle share the line's horizontal region, so Left and
-// Right move between them and Down goes to the next episode.
+// The three buttons are the row's focus stops (the design's `◀▶ action`), so
+// the CARD is not focusable itself: Down lands on the play button, Left and
+// Right walk the actions, and the card lights up while any of them holds the
+// focus. That state is tracked here rather than asked of the navigator - a
+// blur can arrive after the neighbour's focus, so each button only clears the
+// highlight it set.
 
-import { formatRuntime, type MediaItem, posterColors } from '@kroma/core';
-import { useT } from '@kroma/ui';
-import { Box, colors, Focusable, Icon, Img, radius, Txt, tintGradient } from '@kroma/ui/kit';
+import { episodeTag, formatRuntime, type MediaItem, posterColors } from '@kroma/core';
+import { endsAtClock, useLocale, useT } from '@kroma/ui';
+import {
+  Badge,
+  Box,
+  Button,
+  CARD_SCRIM,
+  colors,
+  Frost,
+  gradient,
+  Icon,
+  Img,
+  Progress,
+  Row,
+  radius,
+  Txt,
+  tintGradient,
+} from '@kroma/ui/kit';
+import { useState } from 'react';
 
-/** The still is drawn 200pt wide (design); served from the 320 bucket. */
-export const EPISODE_W = 320;
+/** The still is drawn 240pt wide (design); served from the 480 bucket. */
+export const EPISODE_W = 480;
 
-/** One episode to a line, in a 1000pt column (design). */
+/** One episode to a line, spanning the scaffold's full content width: the
+ * 1920pt stage minus its two 64pt gutters. (The design caps the column at
+ * 1240; the row's own buttons want the room.) */
 export const EPISODE_COLUMNS = 1;
-export const EPISODE_COLUMN_W = 1000;
+export const EPISODE_COLUMN_W = 1920 - 64 * 2;
 
-const STILL_W = 200;
-const TOGGLE = 44;
+const STILL_W = 240;
+const PLAY_DISC = 54;
+
+/** The row's three focus stops, in D-pad order. */
+type RowAction = 'play' | 'seen' | 'report';
 
 export function EpisodeRow({
   episode,
@@ -39,6 +66,7 @@ export function EpisodeRow({
   progress,
   onPlay,
   onToggleWatched,
+  onReport,
   onFocus,
 }: Readonly<{
   episode: MediaItem;
@@ -49,162 +77,218 @@ export function EpisodeRow({
   progress: number | null;
   onPlay: () => void;
   onToggleWatched: () => void;
+  onReport: () => void;
   /** Fired when the row takes focus (grows the rendered window). */
   onFocus?: () => void;
 }>) {
   const t = useT();
+  const locale = useLocale();
   const title = episode.episodeTitle ?? episode.title;
   const synopsis = episode.metadata?.overview;
   const runtime = formatRuntime(episode.durationMs);
+  const tag =
+    episode.episode != null ? t('content.episodeN', { n: episode.episode }) : episodeTag(episode);
+  const inProgress = progress != null && !watched;
+  // "fin à 21h34": what is LEFT of the episode, since play resumes mid-way.
+  const endsAt = endsAtClock(
+    episode.durationMs ? episode.durationMs * (1 - (inProgress ? progress : 0) / 100) : null,
+    locale,
+  );
+
+  // Which of the three buttons holds the focus (null: the row is at rest).
+  const [action, setAction] = useState<RowAction | null>(null);
+  const focusAction = (a: RowAction) => () => {
+    setAction(a);
+    onFocus?.();
+  };
+  const blurAction = (a: RowAction) => () =>
+    setAction((current) => (current === a ? null : current));
+  const lit = action != null;
 
   return (
-    <Box row align="center" gap={12}>
-      {/* The ROW is the focusable, so the amber ring wraps the card itself.
-          Ringing an inner box drew a second rounded outline inside the card's
-          own border - two nested rectangles for one control. */}
-      <Focusable
-        onPress={onPlay}
-        onFocus={onFocus}
-        label={title}
-        style={[ROW, watched ? ROW_WATCHED : null]}
-      >
-        <Box row align="center" gap={20}>
+    <Box style={[ROW, watched ? ROW_WATCHED : null, lit ? ROW_LIT : null]}>
+      <Frost radius={20} />
+      <Row gap={26}>
+        <Box
+          w={STILL_W}
+          aspect={16 / 9}
+          center
+          radius="lg"
+          overflow="hidden"
+          bg="surface2"
+          shrink={0}
+        >
+          {/* Every layer rounds itself and the parent still clips - the same
+              belt and braces as <MediaCard>, for the same Chrome clip bug. */}
+          <Img
+            src={still}
+            background={tintGradient(posterColors(episode.id))}
+            radius={radius.lg}
+            position="50% 30%"
+            fill
+            style={watched ? DIMMED : undefined}
+          />
+          <Box fill pointerEvents="none" radius="lg" style={gradient(CARD_SCRIM)} />
           <Box
-            w={STILL_W}
-            aspect={16 / 9}
+            w={PLAY_DISC}
+            h={PLAY_DISC}
             center
-            radius={10}
-            overflow="hidden"
-            bg="surface2"
-            shrink={0}
+            radius="pill"
+            bg={action === 'play' ? colors.accent : 'rgba(10, 10, 12, 0.5)'}
           >
-            <Img
-              src={still}
-              background={tintGradient(posterColors(episode.id))}
-              position="50% 30%"
-              fill
-              style={watched ? DIMMED : undefined}
+            <Icon
+              name="player-play-filled"
+              size={20}
+              color={action === 'play' ? colors.accentInk : '#FFFFFF'}
             />
-            <Box w={44} h={44} center radius="pill" bg="rgba(10, 10, 12, 0.5)">
-              <Icon name="player-play-filled" size={18} color="#FFFFFF" />
-            </Box>
-            {/* The design's own resume bar: a 4pt track with an amber fill. */}
-            {progress != null && !watched ? (
-              <Box absolute left={0} right={0} bottom={0} h={4} bg="rgba(255, 255, 255, 0.25)">
-                <Box h={4} w={`${progress}%`} bg="accent" />
-              </Box>
-            ) : null}
           </Box>
-
-          <Box flex={1}>
-            <Box row align="center" gap={10} mb={6}>
-              <Txt lines={1} style={TITLE}>
-                {`${episode.episode}. ${title}`}
-              </Txt>
-              {runtime ? <Txt style={RUNTIME}>{runtime}</Txt> : null}
-              {watched ? (
-                <Txt style={STATUS_BADGE} color="accent">
-                  {t('content.watched')}
-                </Txt>
-              ) : null}
+          {tag ? (
+            <Box absolute top={10} left={10} px={9} py={4} radius={7} bg={CHIP_BG}>
+              <Txt style={TAG_CHIP}>{tag}</Txt>
             </Box>
-            {synopsis ? (
-              <Txt lines={2} style={SYNOPSIS}>
-                {synopsis}
-              </Txt>
-            ) : null}
-          </Box>
+          ) : null}
+          {runtime ? (
+            <Box absolute bottom={11} right={11} px={8} py={3} radius={6} bg={CHIP_BG}>
+              <Txt style={RUNTIME_CHIP}>{runtime}</Txt>
+            </Box>
+          ) : null}
+          {watched ? (
+            <Box absolute top={10} right={10} w={26} h={26} center radius="pill" bg={SEEN_BG}>
+              <Icon name="check" size={14} color={colors.success} stroke={3} />
+            </Box>
+          ) : null}
+          {inProgress ? (
+            <Box absolute left={0} right={0} bottom={0}>
+              <Progress value={progress / 100} />
+            </Box>
+          ) : null}
         </Box>
-      </Focusable>
 
-      <WatchedToggle
-        watched={watched}
-        onToggle={onToggleWatched}
-        label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-      />
+        <Box flex={1} gap={8}>
+          <Row gap={12} wrap>
+            <Txt variant="h2" lines={1} style={TITLE}>
+              {title}
+            </Txt>
+            {watched ? (
+              <Badge tone="success" size="tv">
+                {t('content.watched')}
+              </Badge>
+            ) : null}
+            {inProgress ? (
+              <Badge tone="4K" size="tv">
+                {t('content.inProgress')}
+              </Badge>
+            ) : null}
+          </Row>
+          {endsAt ? (
+            <Row gap={9}>
+              <Icon name="clock" size={14} stroke={1.8} color="accent" />
+              <Txt style={ENDS_AT} color="textDim">
+                {t('content.endsAtShort', { time: endsAt })}
+              </Txt>
+            </Row>
+          ) : null}
+          {synopsis ? (
+            <Txt lines={3} style={SYNOPSIS} color={lit ? SYNOPSIS_LIT : SYNOPSIS_DIM}>
+              {synopsis}
+            </Txt>
+          ) : null}
+          <Row gap={12} wrap mt={8}>
+            {/* The play action wears the amber tint always (design), which is
+                the outline variant's ACTIVE coat. */}
+            <Button
+              variant="outline"
+              active
+              icon="player-play-filled"
+              label={inProgress ? t('player.resume') : t('player.play')}
+              style={ACTION_BTN}
+              onPress={onPlay}
+              onFocus={focusAction('play')}
+              onBlur={blurAction('play')}
+            />
+            <Button
+              variant="outline"
+              active={watched}
+              icon="check"
+              label={watched ? t('content.watched') : t('content.markWatched')}
+              style={ACTION_BTN}
+              onPress={onToggleWatched}
+              onFocus={focusAction('seen')}
+              onBlur={blurAction('seen')}
+            />
+            <Button
+              variant="outline"
+              icon="alert-triangle"
+              label={t('report.actionShort')}
+              style={ACTION_BTN}
+              onPress={onReport}
+              onFocus={focusAction('report')}
+              onBlur={blurAction('report')}
+            />
+          </Row>
+        </Box>
+      </Row>
     </Box>
   );
 }
 
-/** The round mark-as-watched control, in the design's badge language: amber on
- * `accentSoft` once seen, a quiet outline until then. */
-function WatchedToggle({
-  watched,
-  onToggle,
-  label,
-}: Readonly<{ watched: boolean; onToggle: () => void; label: string }>) {
-  return (
-    <Focusable onPress={onToggle} label={label} ring={false} focusScale={1.08} style={TOGGLE_BOX}>
-      {({ focused }) => (
-        <Box
-          w={TOGGLE}
-          h={TOGGLE}
-          center
-          radius="pill"
-          bg={watched ? colors.accentSoft : 'rgba(255, 255, 255, 0.05)'}
-          style={focused ? TOGGLE_RING : TOGGLE_IDLE}
-        >
-          <Icon
-            name="check"
-            size={19}
-            stroke={2.4}
-            color={watched ? colors.accent : 'rgba(244, 243, 240, 0.45)'}
-          />
-        </Box>
-      )}
-    </Focusable>
-  );
-}
-
-/** The card. Design: `padding:14;border-radius:14;background:rgba(255,255,255,.025);
- * border:1px solid rgba(255,255,255,.05)`. */
+/** The card. Design: `padding:18;border-radius:20;background:rgba(255,255,255,.025);
+ * border:1px solid rgba(255,255,255,.05)`, lit while one of its buttons holds
+ * the focus. The <Frost> first child blurs the artwork behind the card - CSS
+ * backdrop-filter on the browser tiers, the shell's registered blur view on
+ * Apple TV. */
 const ROW = {
-  flex: 1,
-  minWidth: 0,
-  padding: 14,
-  borderRadius: 14,
+  padding: 18,
+  borderRadius: 20,
   backgroundColor: 'rgba(255, 255, 255, 0.025)',
   borderWidth: 1,
   borderColor: 'rgba(255, 255, 255, 0.05)',
 } as const;
+const ROW_LIT = {
+  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  borderColor: 'rgba(255, 255, 255, 0.12)',
+} as const;
 const ROW_WATCHED = { borderColor: 'rgba(242, 180, 66, 0.22)' } as const;
 
 const DIMMED = { opacity: 0.55 } as const;
-const TOGGLE_BOX = { borderRadius: radius.pill, flexShrink: 0 } as const;
-const TOGGLE_IDLE = { borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.12)' } as const;
-const TOGGLE_RING = {
-  borderWidth: 1,
-  borderColor: colors.accent,
-  boxShadow: '0 0 0 3px rgba(244, 182, 66, 0.45)',
-} as const;
 
-/** `font:700 17px` (design). */
-const TITLE = { fontSize: 17, fontWeight: '700' as const, flexShrink: 1 };
-/** `font:500 13px;color:rgba(244,243,240,.45)` (design). */
-const RUNTIME = {
-  fontSize: 13,
-  fontWeight: '500' as const,
-  color: 'rgba(244, 243, 240, 0.45)',
-  fontVariant: ['tabular-nums' as const],
-  flexShrink: 0,
-};
-/** The design's episode status pill, reused for the watched state. */
-const STATUS_BADGE = {
-  fontSize: 10,
+/** `padding:12px 19px;border-radius:11px` (design) over the kit button's md coat. */
+const ACTION_BTN = { paddingVertical: 12, paddingHorizontal: 19, borderRadius: 11 } as const;
+
+/** The dark wash behind the chips on the still (design `rgba(10,10,12,.68)`). */
+const CHIP_BG = 'rgba(10, 10, 12, 0.68)';
+const SEEN_BG = 'rgba(10, 10, 12, 0.72)';
+/** `font:800 12px;letter-spacing:.06em`, uppercase (design; 700 is the kit's
+ * heaviest loaded weight). */
+const TAG_CHIP = {
+  fontSize: 12,
+  lineHeight: 15,
   fontWeight: '700' as const,
-  letterSpacing: 0.4,
+  letterSpacing: 0.72,
   textTransform: 'uppercase' as const,
-  paddingVertical: 3,
-  paddingHorizontal: 8,
-  borderRadius: 5,
-  backgroundColor: colors.accentSoft,
-  overflow: 'hidden' as const,
-  flexShrink: 0,
 };
-/** `font:400 14px/1.5;color:rgba(244,243,240,.6)` (design). */
+/** `font:700 12px;color:rgba(244,243,240,.9)` (design). */
+const RUNTIME_CHIP = {
+  fontSize: 12,
+  lineHeight: 15,
+  fontWeight: '700' as const,
+  color: 'rgba(244, 243, 240, 0.9)',
+  fontVariant: ['tabular-nums' as const],
+};
+
+/** `font:700 22px 'Bricolage Grotesque'` (design) - the kit's h2 role. */
+const TITLE = { flexShrink: 1 };
+/** `font:500 15px;color:rgba(244,243,240,.45)` (design). */
+const ENDS_AT = { fontSize: 15, fontWeight: '500' as const };
+/** `font:400 16px/1.45;max-width:660` (design), brightening with the row's
+ * focus. The measure is the design's, NOT the card's: on the full-width card an
+ * unclamped recap ran as one screen-wide line, and 660pt is what keeps it a
+ * readable multi-line paragraph. */
 const SYNOPSIS = {
-  fontSize: 14,
-  lineHeight: 21,
+  fontSize: 16,
+  lineHeight: 23,
   fontWeight: '400' as const,
-  color: 'rgba(244, 243, 240, 0.6)',
+  maxWidth: 660,
 };
+const SYNOPSIS_DIM = 'rgba(244, 243, 240, 0.6)';
+const SYNOPSIS_LIT = 'rgba(244, 243, 240, 0.78)';

@@ -26,11 +26,11 @@
 // nothing on screen is unattached to the component being looked at.
 
 import { Box, configureRemote, Focusable, FocusScope, Txt } from '@kroma/ui/kit';
-import { type ColorToken, colors } from '@kroma/ui/tokens';
+import type { ColorToken } from '@kroma/ui/tokens';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Matrix, stageWidth, ViewportFrame, type ViewportName } from './canvas';
-import { FOCUS_WASH, RULE, TAB, TAB_ACTIVE } from './chrome';
+import { FOCUS_WASH, RULE, RULE_TOP, TAB, TAB_ACTIVE } from './chrome';
 import { CodeBlock } from './code';
 import { CommandPalette, useCommandKey } from './command';
 import { RichText, snippet } from './docs';
@@ -58,6 +58,9 @@ interface WorkbenchProps {
   brand?: ReactNode;
   /** The wordmark beside the mark. Defaults to naming the tool. */
   title?: string;
+  /** Pinned under the story tree: a build stamp, a link, whatever the host wants
+   * to say about itself. Nothing without it. */
+  footer?: ReactNode;
   /** Lenses on the toolbar beyond the canvas's own: a locale, a theme. */
   lenses?: readonly ToolbarLens[];
   /**
@@ -109,6 +112,7 @@ function WorkbenchShell({
   stories,
   brand,
   title,
+  footer,
   lenses,
   router = DEFAULT_ROUTER,
 }: Readonly<WorkbenchProps>) {
@@ -231,6 +235,7 @@ function WorkbenchShell({
       stories={stories}
       brand={brand}
       title={title}
+      footer={footer}
       selected={story.id}
       onSelect={select}
       onSearch={openSearch}
@@ -320,10 +325,7 @@ function WorkbenchShell({
  * The dim is itself the dismiss target, which is the gesture everyone already
  * has for a drawer, and it is a `Focusable` so a remote and a keyboard can
  * reach it too. */
-function NavDrawer({
-  onClose,
-  children,
-}: Readonly<{ onClose: () => void; children: ReactNode }>) {
+function NavDrawer({ onClose, children }: Readonly<{ onClose: () => void; children: ReactNode }>) {
   return (
     // `z` above the toolbar's 30 and below the palette's 40: the drawer floats
     // over ALL of the canvas column - a toolbar drawn over the story list read
@@ -518,7 +520,7 @@ const SCRIM = { flex: 1, backgroundColor: 'rgba(10, 10, 12, 0.6)' } as const;
 const TAB_ROW = { flexGrow: 0, flexShrink: 0 } as const;
 const TAB_ROW_BODY = { flexGrow: 1 } as const;
 const TAB_LABEL = { fontSize: 13.5, fontWeight: '600' } as const;
-const CODE_BAR = { borderTopWidth: 1, borderTopColor: colors.border, maxHeight: 320 } as const;
+const CODE_BAR = { ...RULE_TOP, maxHeight: 320 } as const;
 const CODE_TOGGLE = { paddingVertical: 12 } as const;
 const CODE_HINT = { fontSize: 10 } as const;
 

@@ -48,4 +48,34 @@ export const clipStyles = StyleSheet.create({
     padding: FOCUS_BLEED,
     overflow: 'hidden',
   } satisfies ViewStyle,
+
+  /**
+   * The same box, but FLUSH AT THE TOP - for a vertical list, which always has
+   * chrome directly above it.
+   *
+   * The bleed is a hole in the clip, and upwards that hole points straight at
+   * whatever the screen puts over the list. On the browse screens that is the
+   * sort/genre filter strip, and the 32px showing through it is the bottom of
+   * the row scrolled off the top - title bar and all - painted across the chips.
+   * Raising the strip's `zIndex` does not fix it either: the chips are opaque
+   * but the strip is not, so the bleed simply shows between them.
+   *
+   * A vertical list gets its ring room from the TOP PADDING of its content
+   * instead (see PosterGrid's `paddingTop`): the list parks the focused row at
+   * the content origin, so padding there is room inside the clip rather than a
+   * hole through it. Sideways and below, the bleed is kept - nothing of the
+   * app's sits there, and a focused tile in the first or last column still needs
+   * its ring.
+   */
+  column: {
+    position: 'absolute',
+    top: 0,
+    right: -FOCUS_BLEED,
+    bottom: -FOCUS_BLEED,
+    left: -FOCUS_BLEED,
+    paddingRight: FOCUS_BLEED,
+    paddingBottom: FOCUS_BLEED,
+    paddingLeft: FOCUS_BLEED,
+    overflow: 'hidden',
+  } satisfies ViewStyle,
 });

@@ -21,7 +21,7 @@
 // keyboard: the menu opens with the current option under the cursor, Escape
 // closes, and a D-pad walks the panel exactly as it walks the tree.
 
-import { Box, Focusable, Icon, type IconName, Txt, webWindow } from '@kroma/ui/kit';
+import { Box, Focusable, Icon, IconButton, type IconName, Txt, webWindow } from '@kroma/ui/kit';
 import { type ColorToken, colors, radius, shadow } from '@kroma/ui/tokens';
 import { type ReactNode, useCallback, useState } from 'react';
 import { canRotate, SURFACES, VIEWPORTS, type ViewportName } from './canvas';
@@ -383,7 +383,10 @@ function Item({
   );
 }
 
-/** A glyph-only tool. Fills when it is a toggle that is currently on. */
+/** A glyph-only tool: the kit's own icon button, in the workbench's chrome
+ * language - the small corner, the shared wash, no ring. Fills (the kit's
+ * accent-soft toggle fill) when it is a toggle that is currently on. The glyph
+ * rides in as a child so it keeps the toolbar's muted idle ink. */
 function IconTool({
   glyph,
   label,
@@ -391,15 +394,19 @@ function IconTool({
   onPress,
 }: Readonly<{ glyph: IconName; label: string; active?: boolean; onPress: () => void }>) {
   return (
-    <Focusable
+    <IconButton
+      variant="ghost"
+      size={TOOL_BOX}
+      radius={radius.sm}
+      active={active}
       label={label}
       ring={false}
-      onPress={onPress}
-      style={[ICON_TOOL, active && TRIGGER_OPEN]}
+      focusScale={1}
       focusedStyle={active ? undefined : FOCUS_WASH}
+      onPress={onPress}
     >
       <Icon name={glyph} size={16} color={active ? 'accent' : 'textMuted'} />
-    </Focusable>
+    </IconButton>
   );
 }
 
@@ -418,15 +425,18 @@ function CopyLink() {
   if (!available) return null;
   return (
     <>
-      <Focusable
+      <IconButton
+        variant="ghost"
+        size={TOOL_BOX}
+        radius={radius.sm}
         label={LINK_LABEL[state]}
         ring={false}
-        onPress={onPress}
-        style={ICON_TOOL}
+        focusScale={1}
         focusedStyle={FOCUS_WASH}
+        onPress={onPress}
       >
         <Icon name={LINK_GLYPH[state]} size={16} color={LINK_INK[state]} />
-      </Focusable>
+      </IconButton>
       <Sep />
     </>
   );
@@ -472,12 +482,9 @@ const TRIGGER_OPEN = {
   borderColor: colors.borderStrong,
 } as const;
 const TRIGGER_INK = { fontSize: 12.5, fontWeight: '600' } as const;
-const ICON_TOOL = {
-  padding: 7,
-  borderRadius: radius.sm,
-  borderWidth: 1,
-  borderColor: 'transparent',
-} as const;
+/** The icon tools' square: a 16pt glyph in the box the old padded shape came to,
+ * so the bar's rhythm is unchanged by the move to the kit's `IconButton`. */
+const TOOL_BOX = 32;
 // Down the window and across the canvas column, and no further: `right: 0` keeps
 // it inside a column the page must never be able to scroll sideways past.
 const SCRIM = { position: 'absolute', top: 0, right: 0, left: 0, zIndex: 1 } as const;
@@ -497,9 +504,6 @@ const ITEM = {
 } as const;
 const ITEM_INK = { fontSize: 12.5, fontWeight: '600' } as const;
 const ITEM_NOTE = { fontSize: 11 } as const;
-
-/** The hover/focus wash every piece of workbench chrome shares. Lives here
- * because the toolbar is the chrome the rest of it takes its cue from. */
 
 export type { Choice, ToolbarLens, ToolbarProps };
 export { FRAMES, Toolbar };

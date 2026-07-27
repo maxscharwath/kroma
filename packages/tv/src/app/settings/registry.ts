@@ -6,7 +6,16 @@
 // UI, the cycle logic, the platform gating and the cross-component reactivity
 // all come from items.ts / store.ts / <SettingsRows>.
 
-import { LANG_NO_PREF, LANG_OFF, LOCALES, langKey, type MessageKey, PREF_LANGS } from '@kroma/core';
+import {
+  LANG_NO_PREF,
+  LANG_OFF,
+  LOCALES,
+  type Locale,
+  langKey,
+  langOptions,
+  type MessageKey,
+  type Translate,
+} from '@kroma/core';
 import { useLocale, useSetLocale } from '@kroma/ui';
 import { useEffect, useState } from 'react';
 import { canQuitApp, quitApp } from '#tv/app/appQuit';
@@ -18,7 +27,7 @@ import {
   keyboardLayoutStore,
 } from '#tv/app/keyboardLayoutPref';
 import { prefValue, useLangPrefs } from '#tv/app/langPref';
-import { actionItem, choiceItem, type SettingsItem, toggleItem } from './items';
+import { actionItem, choiceItem, type RowIcon, type SettingsItem, toggleItem } from './items';
 import { perfHudPrefStore, useStoredPref } from './store';
 
 /** Interface language. Account level: the I18nProvider owns the value and the
@@ -36,13 +45,18 @@ export const localeSetting: SettingsItem = choiceItem({
 
 /** Preferred audio language: the track a title opens on whenever the file
  * carries it. Account level, so it follows the viewer to the web and the phone.
- * The player's audio picker writes it too - choosing French once is the setting. */
+ * The player's audio picker writes it too - choosing French once is the setting.
+ *
+ * `pick: 'list'` because the offer is every language there is (see PREF_LANGS):
+ * the sentinel first, then the languages ordered by their name in the reader's
+ * own language, which is the only order a picker that long can be read in. */
 export const audioLanguageSetting: SettingsItem = choiceItem({
   id: 'audioLanguage',
   level: 'account',
   label: 'account.audioLanguage',
   icon: 'volume',
-  options: () => [LANG_NO_PREF, ...PREF_LANGS],
+  pick: 'list',
+  options: (t, locale) => [LANG_NO_PREF, ...langCodes(t, locale)],
   valueLabel: langValueLabel,
   use: () => {
     const { audio, setAudio } = useLangPrefs();
@@ -57,13 +71,19 @@ export const subtitleLanguageSetting: SettingsItem = choiceItem({
   level: 'account',
   label: 'account.subtitleLanguage',
   icon: 'badge-cc',
-  options: () => [LANG_NO_PREF, LANG_OFF, ...PREF_LANGS],
+  pick: 'list',
+  options: (t, locale) => [LANG_NO_PREF, LANG_OFF, ...langCodes(t, locale)],
   valueLabel: langValueLabel,
   use: () => {
     const { subtitle, setSubtitle } = useLangPrefs();
     return [prefValue(subtitle), setSubtitle] as const;
   },
 });
+
+/** The languages themselves, alphabetical by their translated name. */
+function langCodes(t: Translate, locale: Locale): string[] {
+  return langOptions(t, locale).map((option) => option.code);
+}
 
 /** Row label for a language preference value (a code, `none`, or `off`). */
 function langValueLabel(value: string): MessageKey {
@@ -145,13 +165,21 @@ export const quitAppItem: SettingsItem = actionItem({
   run: quitApp,
 });
 
-/** The signed-out device-settings screen: everything a fresh install needs. */
+/** Which build is running (route `about`). A factory, not a constant, because
+ * the row navigates and only the screen holds a navigator - the same reason the
+ * profile menu's PIN row is built inline. */
+export function aboutItem(open: () => void): SettingsItem {
+  return actionItem({ id: 'about', label: 'about.title', icon: 'info-circle', run: open });
+}
+
+/** The signed-out device-settings screen: everything a fresh install needs.
+ * `aboutItem` and `quitAppItem` are appended by the screen, after this block -
+ * the first needs a navigator, and the second belongs last on any menu. */
 export const DEVICE_SETTINGS: readonly SettingsItem[] = [
   localeSetting,
   keyboardLayoutSetting,
   gpuRenderingSetting,
   perfHudSetting,
-  quitAppItem,
 ];
 
 /** The settings block at the top of the signed-in profile menu. */
@@ -164,3 +192,63 @@ export const PROFILE_SETTINGS: readonly SettingsItem[] = [
   gpuRenderingSetting,
   perfHudSetting,
 ];
+
+// ---- groups: the same settings, one step deeper ----
+//
+// Signed in, the flat block above plus the account rows is twelve rows, which is
+// taller than a 1080 screen: the name and avatar scrolled off the top, and the
+// remote walked past six things nobody came for to reach "Sign out". A menu that
+// does not fit is also a menu you cannot see at a glance, which on a television
+// is most of what a menu is for.
+//
+// So the settings half becomes three rows that open a screen each. The items
+// themselves do not change - a group is a NAME and a list, and the sub-screen
+// renders it with the same <SettingsRows> - so nothing about how a setting is
+// declared, bound or persisted moves.
+
+export type SettingsGroupId = 'languages' | 'playback' | 'device';
+
+export interface SettingsGroup {
+  id: SettingsGroupId;
+  label: MessageKey;
+  icon: RowIcon;
+  items: readonly SettingsItem[];
+}
+
+export const SETTINGS_GROUPS: Record<SettingsGroupId, SettingsGroup> = {
+  /** What the app speaks, and what a title should open in. */
+  languages: {
+    id: 'languages',
+    label: 'settings.languages',
+    icon: 'language',
+    items: [localeSetting, audioLanguageSetting, subtitleLanguageSetting],
+  },
+  /** How a title plays. */
+  playback: {
+    id: 'playback',
+    label: 'settings.playback',
+    icon: 'movie',
+    items: [engineSetting, perfHudSetting],
+  },
+  /** This box, not this account: the on-screen keyboard and the shell's own
+   *  rendering switch. Both are device-level, so they are the group that still
+   *  makes sense signed out. */
+  device: {
+    id: 'device',
+    label: 'settings.device',
+    icon: 'device-tv',
+    items: [keyboardLayoutSetting, gpuRenderingSetting],
+  },
+};
+
+/** The row that opens one group. Hidden when the platform gates away every item
+ * inside it - a group whose screen would be empty is not a place to send anyone. */
+export function groupItem(group: SettingsGroup, open: () => void): SettingsItem {
+  return actionItem({
+    id: `group:${group.id}`,
+    icon: group.icon,
+    label: group.label,
+    available: () => group.items.some((item) => !item.available || item.available()),
+    run: open,
+  });
+}

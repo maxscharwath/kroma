@@ -126,44 +126,7 @@ ${lockupPaths(IVORY)}
   console.log('wrote banner.svg');
 }
 
-// ---- 4. Android TV banner vector drawable -------------------------------------
-
-{
-  const w = 240;
-  const s = Math.round((w / LOCKUP_W) * 100000) / 100000;
-  const tx = round2((320 - w) / 2);
-  const ty = round2((180 - LOCKUP_H * s) / 2);
-  const xml = `<?xml version="1.0" encoding="utf-8"?>
-<!-- KROMA launcher banner (320x180): the official horizontal lockup (outlined
-     letters + chromatic-wheel O, mask-free annular sectors). -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="320dp"
-    android:height="180dp"
-    android:viewportWidth="320"
-    android:viewportHeight="180">
-
-    <path
-        android:pathData="M0,0h320v180h-320z"
-        android:fillColor="#0A0A0C" />
-
-    <group
-        android:translateX="${tx}"
-        android:translateY="${ty}"
-        android:scaleX="${s}"
-        android:scaleY="${s}">
-        <path android:pathData="${KR_D}" android:fillColor="#F4F3F0" />
-${wheelSectors()
-  .map((d, i) => `        <path android:pathData="${d}" android:fillColor="${WHEEL_COLORS[i]}" />`)
-  .join('\n')}
-        <path android:pathData="${MA_D}" android:fillColor="#F4F3F0" />
-    </group>
-</vector>
-`;
-  await Bun.write(`${REPO}/clients/androidtv/android/app/src/main/res/drawable/tv_banner.xml`, xml);
-  console.log('wrote tv_banner.xml');
-}
-
-// ---- 5. raster icons (wheel full-bleed in its own box) ------------------------
+// ---- 4. raster icons (wheel full-bleed in its own box) ------------------------
 
 // Icon SVG: wheel centred, `symbolFrac` = true wheel diameter / icon size.
 function iconSvg(size: number, bg: string, radiusFrac: number, symbolFrac: number): string {
@@ -238,7 +201,7 @@ await png(`${REPO}/clients/mobile/assets/images/splash-icon.png`, 512, 'none', {
   console.log('wrote', `${REPO}/clients/mobile/assets/images/android-icon-monochrome.png`);
 }
 
-// ---- 6. native TV client (Apple TV + Android TV) ------------------------------
+// ---- 5. native TV client (Apple TV + Android TV) ------------------------------
 
 // TV brand surfaces are landscape plates, not square icons: the tvOS app icon
 // is 400x240, the top shelf is a 1920x720 banner and the Android TV banner is

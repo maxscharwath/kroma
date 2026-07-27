@@ -1,14 +1,14 @@
 import type { MessageKey } from '@kroma/core';
-import { type ReactNode, useCallback, useMemo } from 'react';
-import { type GestureResponderEvent, PanResponder, Pressable, View } from 'react-native';
+import { memo, type ReactNode, useCallback, useMemo } from 'react';
+import { type GestureResponderEvent, PanResponder, View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { IconButton } from '#ui/components/atoms/icon-button';
 import { colors } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import { useDragTrack } from '../hooks/useDragTrack';
 import { clamp01, sliderToVolume, volumeToSlider } from '../lib/fmt';
 import type { ControlId } from '../lib/nav';
-import { CTRL, CTRL_OFF, CTRL_ON, FOCUS_SCALE, FOCUS_SHADOW } from '../lib/style';
-import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
+import { CTRL_OFF, CTRL_ON, FOCUS_SCALE, FOCUS_SHADOW } from '../lib/style';
 import {
   IconAudioTrack,
   IconBack10,
@@ -27,11 +27,15 @@ import {
 } from './icons';
 
 const TRANSPORT: ReadonlySet<ControlId> = new Set<ControlId>(['rewind', 'play', 'forward']);
-/** The focused control lifts and takes the amber ring; the fill brightens too. */
+/** The focused control lifts and takes the amber ring; the fill brightens too.
+ * (Kept for the volume pill, whose wrapper is not a kit atom: the pill holds a
+ * button AND a slider, so the focus visuals live on the wrapper.) */
 const FOCUS_POP = { boxShadow: FOCUS_SHADOW, transform: [{ scale: FOCUS_SCALE }] };
 const circleFill = (focused: boolean) => ({
   backgroundColor: focused ? CTRL_ON : CTRL_OFF,
 });
+/** The focused play key steps to the accent's hover fill, as it always did. */
+const PLAY_BRIGHTEN = { backgroundColor: colors.accentHover };
 
 export interface ControlClusterProps {
   controls: ControlId[];
@@ -48,7 +52,9 @@ export interface ControlClusterProps {
   onVolume: (v: number) => void;
 }
 
-/** Circular control button matching the design (state-driven focus ring). */
+/** Circular control button matching the design (state-driven focus, kit atom in
+ * controlled mode: `focused` is ALWAYS passed, so it never becomes a platform /
+ * navigator focus target - see ../lib/virtual-focus.ts). */
 function Circle({
   id,
   size,
@@ -67,18 +73,22 @@ function Circle({
   children: ReactNode;
 }>) {
   return (
-    <Pressable
-      {...VIRTUAL_FOCUS}
-      accessibilityRole="button"
-      accessibilityLabel={label}
+    <IconButton
+      variant="glass"
+      size={size}
+      focused={focused}
+      focusedStyle={BRIGHTEN}
+      label={label}
       onPress={() => onActivate(id)}
-      onPointerEnter={() => onFocus(id)}
-      style={[CTRL, { width: size, height: size }, circleFill(focused), focused ? FOCUS_POP : null]}
+      onHoverIn={() => onFocus(id)}
     >
       {children}
-    </Pressable>
+    </IconButton>
   );
 }
+
+/** The focused circle brightens its fill, on top of the kit's ring + scale. */
+const BRIGHTEN = { backgroundColor: CTRL_ON };
 
 /** Player state a circular control's glyph can depend on. */
 interface GlyphState {
@@ -119,8 +129,12 @@ const CIRCLES: Record<
  * settings / pip / fullscreen). The `controls` array is already filtered by the
  * feature flags, so this only renders what is present (no dead buttons). Matches
  * the 10-foot layout of the design (62 / 80 / 62 transport, 56 cluster circles).
+ *
+ * Memoized: every prop is stable between playback ticks (the nav machine's
+ * callbacks and `controls` array are referentially stable), so the row skips the
+ * ~4 Hz timeupdate re-renders the rest of the chrome makes.
  */
-export function ControlCluster({
+export const ControlCluster = memo(function ControlCluster({
   controls,
   focused,
   playing,
@@ -144,25 +158,22 @@ export function ControlCluster({
     // and its own play/pause glyph, volume owns a slider.
     if (id === 'play') {
       return (
-        <Pressable
-          {...VIRTUAL_FOCUS}
+        <IconButton
           key={id}
-          accessibilityRole="button"
-          accessibilityLabel={playing ? t('player.pause') : t('player.play')}
+          variant="primary"
+          size={80}
+          focused={on}
+          focusedStyle={PLAY_BRIGHTEN}
+          label={playing ? t('player.pause') : t('player.play')}
           onPress={() => onActivate(id)}
-          onPointerEnter={() => onFocus(id)}
-          style={[
-            CTRL,
-            { width: 80, height: 80, backgroundColor: on ? colors.accentHover : colors.accent },
-            on ? FOCUS_POP : null,
-          ]}
+          onHoverIn={() => onFocus(id)}
         >
           {playing ? (
             <IconPause size={33} color={colors.accentInk} />
           ) : (
             <IconPlay size={35} color={colors.accentInk} />
           )}
-        </Pressable>
+        </IconButton>
       );
     }
     if (id === 'volume') {
@@ -207,7 +218,7 @@ export function ControlCluster({
       </Box>
     </Box>
   );
-}
+});
 
 /** Volume as an always-expanded pill (§4b): mute button + inline slider. */
 function VolumeControl({
@@ -278,15 +289,12 @@ function VolumeControl({
       onPointerEnter={onFocus}
       style={[circleFill(focused), focused ? FOCUS_POP : null]}
     >
-      <Pressable
-        {...VIRTUAL_FOCUS}
-        accessibilityRole="button"
-        accessibilityLabel={muteLabel}
-        onPress={onToggle}
-        style={{ width: 56, height: 56, alignItems: 'center', justifyContent: 'center' }}
-      >
+      {/* Controlled at `false`: the PILL carries the focus visuals for the whole
+          volume control, so the button itself never paints one - but it must
+          still opt out of platform focus like everything else in the chrome. */}
+      <IconButton variant="ghost" size={56} focused={false} label={muteLabel} onPress={onToggle}>
         {volIcon}
-      </Pressable>
+      </IconButton>
       <View
         {...pan.panHandlers}
         accessibilityRole="adjustable"
@@ -302,24 +310,26 @@ function VolumeControl({
           radius="pill"
           bg="rgba(255, 255, 255, 0.22)"
         >
+          {/* The fill width and thumb offset vary with the volume, so they go
+              through `style` (which bypasses the shared cache) rather than the
+              `w` / `left` shorthands, which would mint a cache entry per level. */}
           <Box
             absolute
             top={0}
             bottom={0}
             left={0}
-            w={`${sliderPos * 100}%`}
             radius="pill"
             bg="accent"
+            style={{ width: `${sliderPos * 100}%` }}
           />
           <Box
             absolute
             top="50%"
-            left={`${sliderPos * 100}%`}
             w={13}
             h={13}
             radius="pill"
             bg="#FFFFFF"
-            style={[THUMB, { transform: [{ translateX: -6.5 }, { translateY: -6.5 }] }]}
+            style={[THUMB, { left: `${sliderPos * 100}%` }]}
           />
         </Box>
       </View>
@@ -327,4 +337,7 @@ function VolumeControl({
   );
 }
 
-const THUMB = { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)' };
+const THUMB = {
+  boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)',
+  transform: [{ translateX: -6.5 }, { translateY: -6.5 }],
+};

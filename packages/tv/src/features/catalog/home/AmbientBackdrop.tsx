@@ -1,5 +1,5 @@
 import { type KromaClient, type MediaItem, type Show, sizedImageUrl } from '@kroma/core';
-import { Box, gradient, Img, promote, tintGradient } from '@kroma/ui/kit';
+import { Box, gradient, Img, promote, SHADE, shade, tintGradient } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 
 /** `value`, but only after it has held still for `delayMs`. Lets a fast D-pad
@@ -22,10 +22,8 @@ const FADE_MS = 500;
 // Disney+ browse look. Two separate layers rather than one comma-separated
 // background-image, because a multi-value background is a CSS-only luxury that
 // React Native's gradient support does not have.
-const VEIL_HORIZONTAL =
-  'linear-gradient(90deg, rgba(10,10,12,0.8) 0%, rgba(10,10,12,0.38) 48%, rgba(10,10,12,0.12) 100%)';
-const VEIL_VERTICAL =
-  'linear-gradient(0deg, #0A0A0C 0%, rgba(10,10,12,0.78) 30%, rgba(10,10,12,0.35) 68%, rgba(10,10,12,0.12) 100%)';
+const VEIL_HORIZONTAL = `linear-gradient(90deg, ${shade(0.8)} 0%, ${shade(0.38)} 48%, ${shade(0.12)} 100%)`;
+const VEIL_VERTICAL = `linear-gradient(0deg, ${SHADE.full} 0%, ${shade(0.78)} 30%, ${shade(0.35)} 68%, ${shade(0.12)} 100%)`;
 
 /**
  * Full-screen ambient art for the browse screens: the focused title's backdrop,

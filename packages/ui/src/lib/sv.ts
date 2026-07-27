@@ -53,9 +53,20 @@ import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 
 // TextStyle extends ViewStyle in React Native's types, so it is the WIDEST of
 // the style shapes a component composes: one type lets a declaration carry
-// paddings and fontSizes alike, and the result still satisfies a plain View's
-// style prop because every TextStyle is structurally a ViewStyle.
+// paddings and fontSizes alike.
 type Style = TextStyle;
+
+// What a compiled `sv` RETURNS. The intersection - not TextStyle - because the
+// two interfaces are only mutually assignable under mainline React Native's
+// types: the tvos fork (which the phone app's checker resolves) declares a few
+// properties with literal unions the other spells differently, so a TextStyle
+// there is NOT a ViewStyle and a plain-TextStyle result would satisfy neither
+// a <View>'s style prop nor a <Text>'s across both type sets. An intersection
+// is assignable to each by construction, whichever fork is looking. The casts
+// into it below are downcasts (the intersection is a subtype of Style), legal
+// under every checker; at runtime nothing changes - these are the same frozen
+// declaration objects either way.
+type AnyStyle = ViewStyle & TextStyle;
 
 /** A variant group: the prop name maps to its options' styles. */
 export type VariantGroups = Record<string, Record<string, Style>>;
@@ -95,7 +106,7 @@ export interface VariantSource {
 /**
  * The compiled variant function. Extra `overrides` are appended last.
  *
- * It returns a flat `ViewStyle[]` rather than the wider `StyleProp<ViewStyle>`:
+ * It returns a flat `AnyStyle[]` rather than the wider `StyleProp<ViewStyle>`:
  * an array is what React Native wants anyway, and the concrete type keeps the
  * result inspectable (in tests, and when composing one variant set into another)
  * instead of collapsing to a union you have to narrow first.
@@ -108,7 +119,7 @@ export interface VariantSource {
 export type SvFn<V extends VariantGroups> = ((
   props?: VariantProps<V>,
   ...overrides: StyleProp<ViewStyle>[]
-) => ViewStyle[]) & {
+) => AnyStyle[]) & {
   /** The declaration this was compiled from, verbatim. */
   config: SvConfig<V>;
   options: { [K in keyof V]: (keyof V[K])[] };
@@ -133,8 +144,10 @@ export interface SvSlotsConfig<S extends Slots, V extends SlotVariantGroups<S>> 
   defaults?: VariantProps<V>;
 }
 
-/** What a slotted call returns: one stable, frozen style array per slot. */
-export type SlotStyles<S extends Slots> = { readonly [K in keyof S]: ViewStyle[] };
+/** What a slotted call returns: one stable, frozen style array per slot. The
+ * arrays are `AnyStyle[]` so a `label` slot lands on a <Text> and a `root` slot
+ * on a <View> without either fork's checker objecting - see `AnyStyle`. */
+export type SlotStyles<S extends Slots> = { readonly [K in keyof S]: AnyStyle[] };
 
 export type SvSlotsFn<S extends Slots, V extends SlotVariantGroups<S>> = ((
   props?: VariantProps<V>,
@@ -196,26 +209,26 @@ function compileFlat(config: SvConfig<VariantGroups>): SvFn<VariantGroups> {
 
   // One resolved (frozen) array per combination ever asked for. The option
   // space is finite and the styles are static, so this is small and exact.
-  const cache = new Map<string, ViewStyle[]>();
+  const cache = new Map<string, AnyStyle[]>();
 
-  const resolve = (props?: VariantProps<VariantGroups>): ViewStyle[] => {
+  const resolve = (props?: VariantProps<VariantGroups>): AnyStyle[] => {
     const key = pickKey(groups, props, defaults);
     const hit = cache.get(key);
     if (hit) return hit;
 
     const picked = resolvePicked(groups, props, defaults);
-    const out: ViewStyle[] = [];
-    if (base) out.push(base);
+    const out: AnyStyle[] = [];
+    if (base) out.push(base as AnyStyle);
     for (const group of groups) {
       const value = picked[group];
       if (value === undefined) continue;
       const style = variants?.[group]?.[value as string];
-      if (style) out.push(style);
+      if (style) out.push(style as AnyStyle);
     }
     for (const rule of compound ?? []) {
-      if (compoundMatches(rule.when, picked)) out.push(rule.style);
+      if (compoundMatches(rule.when, picked)) out.push(rule.style as AnyStyle);
     }
-    cache.set(key, Object.freeze(out) as ViewStyle[]);
+    cache.set(key, Object.freeze(out) as AnyStyle[]);
     return out;
   };
 
@@ -223,11 +236,11 @@ function compileFlat(config: SvConfig<VariantGroups>): SvFn<VariantGroups> {
     const combo = resolve(props);
     // No overrides is the hot path: hand back the SAME array so a re-render is
     // identity-equal and styleq's cache short-circuits.
-    let out: ViewStyle[] | null = null;
+    let out: AnyStyle[] | null = null;
     for (const override of overrides) {
       if (!override) continue;
       out ??= [...combo];
-      out.push(override as ViewStyle);
+      out.push(override as AnyStyle);
     }
     return out ?? combo;
   }) as SvFn<VariantGroups>;
@@ -255,22 +268,22 @@ function compileSlots(
     if (hit) return hit;
 
     const picked = resolvePicked(groups, props, defaults);
-    const out: Record<string, ViewStyle[]> = {};
-    for (const [name, baseStyle] of Object.entries(slots)) out[name] = [baseStyle];
+    const out: Record<string, AnyStyle[]> = {};
+    for (const [name, baseStyle] of Object.entries(slots)) out[name] = [baseStyle as AnyStyle];
     for (const group of groups) {
       const value = picked[group];
       if (value === undefined) continue;
       const perSlot = variants?.[group]?.[value as string];
       for (const name of names) {
         const style = perSlot?.[name];
-        if (style) out[name]?.push(style);
+        if (style) out[name]?.push(style as AnyStyle);
       }
     }
     for (const rule of compound ?? []) {
       if (!compoundMatches(rule.when, picked)) continue;
       for (const name of names) {
         const style = rule.style[name];
-        if (style) out[name]?.push(style);
+        if (style) out[name]?.push(style as AnyStyle);
       }
     }
     for (const name of names) Object.freeze(out[name]);

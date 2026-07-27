@@ -9,8 +9,20 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "tv.kroma.tv",
-      "supportsTablet": false
+      "bundleIdentifier": "tv.kroma.mobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleLocalizations": ["en", "fr"],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "KROMA searches your local network to find your media server.",
+        "NSBonjourServices": ["_http._tcp", "_kroma._tcp"],
+        "NSSiriUsageDescription": "KROMA lets you ask Siri to search for something to watch in your library."
+      }
     },
     "android": {
       "package": "tv.kroma.tv"
@@ -43,6 +55,9 @@
         }
       ],
       "./plugins/with-siri-intents",
+      "./plugins/with-tv-key-events",
+      "./plugins/with-top-shelf",
+      "./plugins/with-tv-blur-link",
       "expo-video"
     ],
     "experiments": {

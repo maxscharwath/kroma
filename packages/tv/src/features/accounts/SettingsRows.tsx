@@ -1,5 +1,6 @@
-import { useT } from '@kroma/ui';
+import { useLocale, useT } from '@kroma/ui';
 import { ListRow, Txt } from '@kroma/ui/kit';
+import { useMemo, useState } from 'react';
 import type {
   ActionItem,
   ChoiceItem,
@@ -7,6 +8,7 @@ import type {
   SettingsEntry,
   ToggleItem,
 } from '#tv/app/settings/items';
+import { ChoicePicker } from './ChoicePicker';
 
 /**
  * Render a settings menu from a declarative item list (see settings/items.ts).
@@ -51,25 +53,46 @@ function Badge({ badge }: Readonly<{ badge: RowBadge }>) {
 
 function ChoiceRow({ item, first }: Readonly<{ item: ChoiceItem; first?: boolean }>) {
   const t = useT();
+  const locale = useLocale();
   const [value, set] = item.use();
-  const options = item.options();
+  const [picking, setPicking] = useState(false);
+  // Memoised because a language row's options are ~190 names put through a
+  // collator, and this list re-renders whenever any pref on the menu changes.
+  const options = useMemo(() => item.options(t, locale), [item, t, locale]);
   if (options.length < 2) return null;
+
   const cycle = () => {
     const next = options[(options.indexOf(value) + 1) % options.length];
     if (next) set(next);
   };
+
+  const list = item.pick === 'list';
+
   return (
-    <ListRow
-      icon={item.icon}
-      label={t(item.label)}
-      autoFocus={first}
-      onPress={cycle}
-      trailing={
-        <Txt style={{ fontSize: 16, fontWeight: '600' }} color="accent">
-          {t(item.valueLabel(value))}
-        </Txt>
-      }
-    />
+    <>
+      <ListRow
+        icon={item.icon}
+        label={t(item.label)}
+        autoFocus={first}
+        onPress={list ? () => setPicking(true) : cycle}
+        trailing={
+          <Txt style={{ fontSize: 16, fontWeight: '600' }} color="accent">
+            {t(item.valueLabel(value))}
+          </Txt>
+        }
+      />
+      {list ? (
+        <ChoicePicker
+          open={picking}
+          onClose={() => setPicking(false)}
+          title={t(item.label)}
+          item={item}
+          options={options}
+          value={value}
+          onPick={set}
+        />
+      ) : null}
+    </>
   );
 }
 

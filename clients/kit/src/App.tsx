@@ -16,6 +16,7 @@
 //   phone       no stage: the point of the phone build is the REAL point grid,
 //               where a 44pt hit target is 44pt.
 
+import { KIT_FONTS } from '@kroma/ui/fonts';
 import { TvStage } from '@kroma/ui/kit';
 import { colors } from '@kroma/ui/tokens';
 import { useFonts } from 'expo-font';
@@ -26,14 +27,6 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { Kit } from './config';
 
 LogBox.ignoreAllLogs(true);
-
-/** The design's two families, from the design system's own asset folder. On the
- * site they arrive through a <link> to Google Fonts; here they are bundled, so
- * the type renders identically on a device with no network. */
-const FONTS = {
-  'Bricolage Grotesque': require('@kroma/ui/src/assets/fonts/BricolageGrotesque-ExtraBold.ttf'),
-  'Hanken Grotesk': require('@kroma/ui/src/assets/fonts/HankenGrotesk.ttf'),
-};
 
 function Stage({ children }: Readonly<{ children: ReactNode }>) {
   return Platform.isTV ? <TvStage>{children}</TvStage> : <SafeFrame>{children}</SafeFrame>;
@@ -80,7 +73,7 @@ export function App() {
   // Render on FAILURE as well as on success. A missing font is a cosmetic
   // problem; blocking on it renders nothing at all, and on a television that is
   // indistinguishable from a frozen app with no way to find out why.
-  const [fontsLoaded, fontError] = useFonts(FONTS);
+  const [fontsLoaded, fontError] = useFonts(KIT_FONTS);
   const ready = fontsLoaded || fontError !== null;
   return (
     // The provider wraps the font gate rather than sitting inside it. It measures

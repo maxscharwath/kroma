@@ -16,6 +16,7 @@
 // See BrandIntro.web.tsx for the browser half.
 
 import { colors, holdInput } from '@kroma/ui/kit';
+import { EXIT_MS, SAFETY_SLACK_MS } from '@kroma/ui/kit/organisms/kroma-intro';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, type HWEvent, StyleSheet, useTVEventHandler, View } from 'react-native';
@@ -30,14 +31,10 @@ export interface BrandIntroProps {
  * registry entry, and that entry is what expo-video takes as a source. */
 const FILM: number = require('@kroma/ui/src/assets/kroma-intro-hevc.mp4');
 
-/** Exit fade to the app, in ms. The web intro's veil, to the millisecond. */
-const EXIT_MS = 850;
 /** Stall safety: how long the intro may hold the screen before handing off on
  * its own. Replaced by the film's real length as soon as the player reports one,
  * so this only ever covers a film that never becomes ready at all. */
 const SAFETY_MS = 15_000;
-/** Slack added to the film's own duration for that same timer. */
-const SAFETY_SLACK_MS = 1500;
 /** Steps the film's sound is ramped down in while the picture fades out. */
 const AUDIO_FADE_STEPS = 8;
 

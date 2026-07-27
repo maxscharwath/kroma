@@ -8,16 +8,26 @@
 // control and both input models light the same thing.
 
 import type { TextStyle, ViewStyle } from 'react-native';
-import { colors, fonts, radius, ring } from '#ui/lib/tokens';
+import { colors, fonts, glow, radius, ring } from '#ui/lib/tokens';
 
 /** The unified amber focus treatment for any focused control: the ring plus the
- * spring pop. `glow-accent` is the amber bloom the player uses (the 10-foot
+ * spring pop. `glow.accent` is the amber bloom the player uses (the 10-foot
  * screens override it to a dark lift; inside the player the video behind is
  * already dark, so the bloom is what reads). */
-export const FOCUS_SHADOW = `${ring.focus}, 0 6px 22px rgba(242, 180, 66, 0.4)`;
+export const FOCUS_SHADOW = `${ring.focus}, ${glow.accent}`;
 /** Thinner ring for dense rows (settings entries, cards). */
-export const FOCUS_SHADOW_SM = `${ring.focusSm}, 0 6px 22px rgba(242, 180, 66, 0.4)`;
+export const FOCUS_SHADOW_SM = `${ring.focusSm}, ${glow.accent}`;
 export const FOCUS_SCALE = 1.07;
+
+/** The seek bar's anatomy (§1), shared with the mobile touch scrub bar so both
+ * draw the identical track: the resting and buffered fills, the amber played
+ * gradient's stops, and the playhead's amber halo. */
+export const SEEK_BAR = {
+  track: 'rgba(255, 255, 255, 0.2)',
+  buffered: 'rgba(255, 255, 255, 0.28)',
+  played: [colors.accent, colors.accentBright],
+  playheadHalo: 'rgba(242, 180, 66, 0.5)',
+} as const;
 
 /** Circular transport / cluster control base. */
 export const CTRL: ViewStyle = {

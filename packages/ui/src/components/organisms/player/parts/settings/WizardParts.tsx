@@ -1,10 +1,9 @@
-import type { ReactNode } from 'react';
 import { Pressable } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { FOCUS_SHADOW_SM } from '#ui/components/organisms/player/lib/style';
 import { VIRTUAL_FOCUS } from '#ui/components/organisms/player/lib/virtual-focus';
-import { colors, fonts } from '#ui/lib/tokens';
+import { fonts } from '#ui/lib/tokens';
 
 /**
  * Presentational atoms for the {@link GenerateWizard}, kept out of the wizard so
@@ -95,66 +94,4 @@ const FIELD_VALUE = {
   fontFamily: fonts.ui,
   fontWeight: '700' as const,
   fontSize: 19,
-};
-
-/** The full-width wizard action button (amber when focused). */
-export function ActionButton({
-  label,
-  focused,
-  disabled,
-  onFocus,
-  onPress,
-  children,
-}: Readonly<{
-  label: string;
-  focused: boolean;
-  disabled?: boolean;
-  onFocus: () => void;
-  onPress: () => void;
-  children?: ReactNode;
-}>) {
-  const tone = actionTone(Boolean(disabled), focused);
-  return (
-    <Pressable
-      {...VIRTUAL_FOCUS}
-      onPress={disabled ? undefined : onPress}
-      onPointerEnter={onFocus}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={[ACTION, tone.box]}
-    >
-      {children}
-      <Txt style={{ fontFamily: fonts.ui, fontWeight: '700', fontSize: 18 }} color={tone.ink}>
-        {label}
-      </Txt>
-    </Pressable>
-  );
-}
-
-function actionTone(disabled: boolean, focused: boolean) {
-  if (disabled) {
-    return {
-      box: { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
-      ink: 'rgba(244, 243, 240, 0.4)',
-    };
-  }
-  if (focused) {
-    return {
-      box: { backgroundColor: colors.accent, boxShadow: FOCUS_SHADOW_SM },
-      ink: colors.accentInk,
-    };
-  }
-  return { box: { backgroundColor: 'rgba(255, 255, 255, 0.08)' }, ink: colors.text };
-}
-
-const ACTION = {
-  marginTop: 4,
-  width: '100%' as const,
-  flexDirection: 'row' as const,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  gap: 10,
-  borderRadius: 14,
-  paddingVertical: 18,
 };

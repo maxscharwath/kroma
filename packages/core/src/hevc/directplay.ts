@@ -299,16 +299,10 @@ export const NATIVE_TV_CAPS: PlaybackCapabilities = {
 
 // ----- engine selection ------------------------------------------------------
 
-export type PlayerEngineKind =
-  | 'direct'
-  | 'web-mse'
-  | 'tizen-avplay'
-  | 'webos'
-  | 'desktop-mpv'
-  | 'android-exo';
+export type PlayerEngineKind = 'direct' | 'web-mse' | 'tizen-avplay' | 'webos' | 'desktop-mpv';
 
 export interface PlayEnv {
-  platform: 'web' | 'tizen' | 'webos' | 'desktop' | 'androidtv';
+  platform: 'web' | 'tizen' | 'webos' | 'desktop';
   safari: boolean;
   /** Runtime-probed capabilities of a bare `<video>` element (canPlayType /
    * MediaSource), when the caller has a DOM to probe. Widens direct-play beyond
@@ -410,17 +404,10 @@ export function nativeDirectPlayable(item: MediaItem, os: 'ios' | 'android'): bo
  *    native seeking, in-place audio-track switching via `aid`), so the server
  *    only sends bytes. Like AVPlay the engine keeps a direct→master fallback for
  *    the rare file mpv cannot demux, so the master (when used) is stream-copy.
- *  - androidtv: `android-exo` always. The shell's media3/ExoPlayer bridge plays
- *    the ORIGINAL file directly (hardware HEVC + platform surround decode,
- *    in-place audio switching) with a direct→master fallback, so the master
- *    (when used) is stream-copy - the same shape as AVPlay/mpv.
  */
 export function selectEngine(item: MediaItem, env: PlayEnv): EngineDecision {
   if (env.platform === 'desktop') {
     return { kind: 'desktop-mpv', aacMaster: false };
-  }
-  if (env.platform === 'androidtv') {
-    return { kind: 'android-exo', aacMaster: false };
   }
   if (env.platform === 'tizen') {
     return { kind: 'tizen-avplay', aacMaster: false };

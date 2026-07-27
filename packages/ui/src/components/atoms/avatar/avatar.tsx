@@ -2,6 +2,7 @@
 // deterministic gradient with the person's initials, so a profile is never a
 // blank circle and always keeps the same colour everywhere it appears.
 
+import { hashString } from '@kroma/core';
 import { Box } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
@@ -23,9 +24,7 @@ const AVATAR_GRADIENT = AVATAR_GRADIENTS[0];
 /** Stable gradient for a seed (a user id, a person's name), so a profile keeps
  * its colour on every screen and on every device. */
 function gradientFor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + (seed.codePointAt(i) ?? 0)) >>> 0;
-  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length] as string;
+  return AVATAR_GRADIENTS[hashString(seed) % AVATAR_GRADIENTS.length] as string;
 }
 
 /** One or two letters for the fallback: the first and last name's initials, or

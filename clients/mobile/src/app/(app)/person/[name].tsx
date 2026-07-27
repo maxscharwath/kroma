@@ -1,6 +1,7 @@
 // One person: who they are, then every movie and show they are credited in.
 
 import { personInvolvement, roleLabels } from '@kroma/core';
+import { Icon } from '@kroma/ui/kit';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useWindowDimensions } from 'react-native';
@@ -8,7 +9,6 @@ import { type CardModel, movieCard, showCard } from '#mobile/components/cards';
 import { PageHeader } from '#mobile/components/PageHeader';
 import { PersonProfile } from '#mobile/components/PersonProfile';
 import { gridMetrics, PosterGrid } from '#mobile/components/PosterGrid';
-import { ProfileTabIcon } from '#mobile/components/tabIcons';
 import { EmptyState, Loading, Screen } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
 import { useClient } from '#mobile/lib/session';
@@ -74,7 +74,7 @@ export default function PersonPage() {
         }
         empty={
           <EmptyState
-            icon={<ProfileTabIcon color={colors.textDim} size={34} />}
+            icon={<Icon name="user-circle" size={34} stroke={1.8} color={colors.textDim} />}
             title={t('search.noResults')}
           />
         }

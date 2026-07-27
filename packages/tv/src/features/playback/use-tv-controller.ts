@@ -1,11 +1,23 @@
-import { type KromaClient, type MediaItem, qualityBadgeForVideo } from '@kroma/core';
-import { type PlayerController, useAudioFilter, useT } from '@kroma/ui';
+import {
+  type KromaClient,
+  type MediaItem,
+  qualityBadgeForVideo,
+  refineTrackLang,
+} from '@kroma/core';
+import { buildLeanStats, type PlayerController, useAudioFilter, useT } from '@kroma/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { availableEngines, ENGINE_LABEL_KEY, type EnginePref } from '#tv/app/enginePref';
 import { useLangPrefs } from '#tv/app/langPref';
 import { type Playback, useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
-import { buildTvStats } from '#tv/features/playback/tv-stats';
 import { type TvSubtitles, useTvSubtitles } from '#tv/features/playback/use-tv-subtitles';
+
+/** The controls a television does not own (the set has the volume, there is no
+ * PiP and it is already fullscreen; the native engines expose no rate). One
+ * shared no-op, because a fresh `() => undefined` per render is a NEW prop on
+ * every ~4 Hz playback tick, and `ControlCluster` is memoized precisely so it can
+ * skip those - a transport row of ten focusables was reconciling for the whole
+ * film. */
+const NOOP = (): undefined => undefined;
 
 export interface TvController {
   controller: PlayerController;
@@ -18,7 +30,7 @@ export interface TvController {
  * Adapts the TV engine (`useDirectPlayback`, driving AVPlay / mpv / ExoPlayer /
  * hls.js) + subtitle state into the shared {@link PlayerController}. Volume, PiP
  * and fullscreen are TV-off (handled by the set / already fullscreen) and
- * playback speed / loop are not exposed by the native engines - surfaced
+ * playback speed is not exposed by the native engines - surfaced
  * honestly as no-ops so the shared chrome hides or disables them. Audio filters
  * work on EVERY surface: Web Audio on the in-page <video>, in-engine DSP on the
  * native planes.
@@ -65,22 +77,25 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
   }, [t]);
 
   // Switching audio track is also how a viewer says "I watch in French": store
-  // the track's language as the preference. A track with no declared language
-  // leaves the stored preference alone - there is nothing to learn from it.
+  // the track's language as the preference - REFINED by the dub variant its
+  // title betrays ('fre' + "VFF …" → 'fr-FR'), so choosing the France dub can
+  // never auto-pick the Quebec one on the next title. A track with no declared
+  // language leaves the stored preference alone - nothing to learn from it.
   const { setAudio: pickAudio, audioTracks: tracks } = pb;
   const { setAudio: rememberAudio } = langs;
   const setAudio = useCallback(
     (index: number) => {
       pickAudio(index);
-      const language = tracks.find((a) => a.index === index)?.language;
-      if (language) rememberAudio(language);
+      const track = tracks.find((a) => a.index === index);
+      const code = refineTrackLang(track?.language, track?.title);
+      if (code) rememberAudio(code);
     },
     [pickAudio, rememberAudio, tracks],
   );
 
-  const statsRef = useRef<() => ReturnType<typeof buildTvStats>>(() => ({}));
+  const statsRef = useRef<() => ReturnType<typeof buildLeanStats>>(() => ({}));
   statsRef.current = () =>
-    buildTvStats({
+    buildLeanStats({
       item,
       cur: pb.cur,
       dur: pb.dur,
@@ -92,6 +107,7 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
       t,
     });
   const getStats = useCallback(() => statsRef.current(), []);
+  const setEngine = useCallback((id: string) => pb.setEngine(id as EnginePref), [pb.setEngine]);
 
   const controller: PlayerController = {
     cur: pb.cur,
@@ -111,12 +127,10 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     scrubCommit: pb.seekScrubCommit,
     volume: 1,
     muted: false,
-    setVolume: () => undefined,
-    toggleMute: () => undefined,
+    setVolume: NOOP,
+    toggleMute: NOOP,
     rate: 1,
-    setRate: () => undefined,
-    loop: false,
-    setLoop: () => undefined,
+    setRate: NOOP,
     audioTracks: pb.audioTracks,
     audioIndex: pb.audioIndex,
     setAudio,
@@ -125,10 +139,10 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     setSubtitle: subs.setActive,
     qualities,
     qualityId: 'auto',
-    setQuality: () => undefined,
+    setQuality: NOOP,
     engines,
     engineId: pb.enginePref,
-    setEngine: (id: string) => pb.setEngine(id as EnginePref),
+    setEngine,
     audioFilter: filter.mode,
     setAudioFilter: filter.setMode,
     // In-page <video> needs Web Audio; a native plane answers for its own DSP
@@ -137,9 +151,9 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     // showing a mode that is doing nothing.
     audioFilterSupported: pb.surface === 'video' ? filter.supported : pb.audioFilterSupported,
     pipActive: false,
-    togglePip: () => undefined,
+    togglePip: NOOP,
     fullscreen: false,
-    toggleFullscreen: () => undefined,
+    toggleFullscreen: NOOP,
     setPlaneRect: pb.setPlaneRect,
     getStats,
   };

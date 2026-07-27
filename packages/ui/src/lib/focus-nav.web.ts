@@ -10,9 +10,15 @@
 import { dispatchRemoteKey, registerTvMediaKeys } from '@kroma/core';
 import { useEffect } from 'react';
 import { resetFocusEntry } from './focus-entry';
-import type { FocusHostProps, FocusNavHandlers } from './focus-types';
+import type { FocusNavHandlers } from './focus-types';
 import { armPressGuard } from './press-guard';
-import { inTextField } from './spatial-nav.web';
+
+/** True when a real text field owns the keys (it needs its own left/right and
+ * Backspace). */
+function inTextField(): boolean {
+  const active = document.activeElement;
+  return active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+}
 
 export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers): void {
   // biome-ignore lint/correctness/useExhaustiveDependencies: resetKey is an intentional re-run trigger (a view switch re-focuses the first element); it is not read inside the effect.
@@ -77,24 +83,4 @@ export function useFocusNav({ onBack, onPlayPause, resetKey }: FocusNavHandlers)
       window.removeEventListener('keydown', onKey);
     };
   }, [onBack, onPlayPause, resetKey]);
-}
-
-/** `data-focus` is what spatial.web.ts queries for; `data-autofocus` marks the
- * screen's entry point (the web equivalent of tvOS `hasTVPreferredFocus`). A
- * disabled focusable is skipped by the geometry AND by the tab order. */
-export function useFocusHostProps({
-  autoFocus,
-  disabled,
-  onFocus,
-}: {
-  autoFocus?: boolean;
-  disabled?: boolean;
-  /** Accepted and ignored: this engine's own scoring already crosses the gaps
-   * the native one has to be told about. */
-  neighbours?: unknown;
-  host?: unknown;
-  onFocus?: () => void;
-}): FocusHostProps {
-  if (disabled) return { tabIndex: -1 };
-  return { dataSet: autoFocus ? { focus: '', autofocus: '' } : { focus: '' }, onFocus };
 }

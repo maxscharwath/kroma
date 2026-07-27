@@ -2,9 +2,20 @@
 // clients @source this dir; legacy-safe flex-only + no /opacity, see ./tw).
 // Barrel for the public surface consumed by the web + TV wrappers.
 
-export { storedAudioFilter, useAudioFilter } from './lib/audio-filter';
+export {
+  AUDIO_FILTER_KEY,
+  audioFilterLabels,
+  storedAudioFilter,
+  useAudioFilter,
+} from './lib/audio-filter';
 export { currentChapter, currentChapterIndex, normalizeChapters } from './lib/chapters';
 export { clamp01, endsAtClock, pct } from './lib/fmt';
+export {
+  buildLeanStats,
+  type LeanStatsInput,
+  type LeanStatsVideoHandle,
+} from './lib/lean-stats';
+export { SEEK_BAR } from './lib/style';
 export {
   DEFAULT_SUB_APPEARANCE,
   SUB_COLORS,
@@ -18,6 +29,7 @@ export {
 export type { PlayerProps } from './Player';
 export { Player } from './Player';
 export type { CreditsCardItem } from './parts/CreditsCard';
+export { StatsPanel } from './parts/StatsPanel';
 export type { SubtitleGenBundle, SubtitleGenRequest } from './parts/settings/gen';
 export type { SurfaceRadius } from './parts/surface-radius';
 export { SurfaceRadiusProvider, useSurfaceRadius } from './parts/surface-radius';

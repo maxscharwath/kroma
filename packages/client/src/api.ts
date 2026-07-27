@@ -317,8 +317,8 @@ export class KromaClient {
   streamUrl(id: string): string {
     return media.streamUrl(this.ctx, id);
   }
-  downloadUrl(id: string, copyCodecs?: string[]): string {
-    return media.downloadUrl(this.ctx, id, copyCodecs);
+  downloadUrl(id: string, copyCodecs?: string[], videoCodecs?: string[]): string {
+    return media.downloadUrl(this.ctx, id, copyCodecs, videoCodecs);
   }
   hlsMasterUrl(
     id: string,

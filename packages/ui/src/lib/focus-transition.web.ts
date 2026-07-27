@@ -26,10 +26,12 @@
 // answering it. The SCALE still eases, because that is the design's signature
 // and it is free.
 
+import { useCallback, useState } from 'react';
+import { ease } from './ease';
 import { motion } from './tokens';
 
 const DURATION = `${motion.duration.base}ms`;
-const TIMING = `cubic-bezier(${motion.bezier.out.join(', ')})`;
+const TIMING = ease.out.css;
 
 /** A focusable with no scale gets no `transform` at all: a browse grid holds
  * hundreds of tiles, and a transform on each promotes each one to its own
@@ -46,5 +48,37 @@ export function useFocusScale(focused: boolean, to: number): Record<string, unkn
     transitionProperty: 'transform',
     transitionDuration: DURATION,
     transitionTimingFunction: TIMING,
+  };
+}
+
+const DURATION_FAST = `${motion.duration.fast}ms`;
+const SPRING = ease.spring.css;
+
+interface PressScale {
+  pressed: boolean;
+  style: Record<string, unknown>;
+  onPressIn: () => void;
+  onPressOut: () => void;
+}
+
+/**
+ * The design's press dip (`motion.pressScale`), web half: the same CSS
+ * `transition: transform` discipline as the focus scale, with the spring bezier
+ * carrying the release overshoot. See focus-transition.ts for the native half.
+ */
+export function usePressScale(): PressScale {
+  const [pressed, setPressed] = useState(false);
+  const onPressIn = useCallback(() => setPressed(true), []);
+  const onPressOut = useCallback(() => setPressed(false), []);
+  return {
+    pressed,
+    style: {
+      transform: [{ scale: pressed ? motion.pressScale : 1 }],
+      transitionProperty: 'transform',
+      transitionDuration: DURATION_FAST,
+      transitionTimingFunction: SPRING,
+    },
+    onPressIn,
+    onPressOut,
   };
 }

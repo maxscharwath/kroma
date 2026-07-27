@@ -15,7 +15,15 @@ const episode = {
   metadata: { overview: 'Jack wakes in the jungle and finds the other survivors.' },
 } as unknown as MediaItem;
 
-function row(over: { watched?: boolean; onToggleWatched?: () => void; item?: MediaItem } = {}) {
+function row(
+  over: {
+    watched?: boolean;
+    progress?: number | null;
+    onToggleWatched?: () => void;
+    onReport?: () => void;
+    item?: MediaItem;
+  } = {},
+) {
   return render(
     onScreen(
       <I18nProvider locale="en">
@@ -23,9 +31,10 @@ function row(over: { watched?: boolean; onToggleWatched?: () => void; item?: Med
           episode={over.item ?? episode}
           still={null}
           watched={over.watched ?? false}
-          progress={null}
+          progress={over.progress ?? null}
           onPlay={() => undefined}
           onToggleWatched={over.onToggleWatched ?? (() => undefined)}
+          onReport={over.onReport ?? (() => undefined)}
         />
       </I18nProvider>,
     ),
@@ -35,30 +44,44 @@ function row(over: { watched?: boolean; onToggleWatched?: () => void; item?: Med
 afterEach(cleanup);
 
 describe('EpisodeRow', () => {
-  it('shows the recap next to the still', () => {
+  it('shows the recap next to the still, with the number and runtime as chips on it', () => {
     row();
-    expect(screen.getByText('1. Pilot')).toBeTruthy();
+    expect(screen.getByText('Pilot')).toBeTruthy();
     expect(screen.getByText(/Jack wakes in the jungle/)).toBeTruthy();
+    // The episode number and the runtime live on the still.
+    expect(screen.getByText('Episode 1')).toBeTruthy();
     expect(screen.getByText('45min')).toBeTruthy();
+    // A known runtime also says when the episode would end.
+    expect(screen.getByText(/ends at/)).toBeTruthy();
   });
 
-  it('offers a watched toggle beside the play target, so one episode can be marked alone', () => {
+  it("offers the row's three actions as buttons: play, mark watched, report", () => {
     const onToggleWatched = vi.fn();
-    row({ onToggleWatched });
-    // Two focus stops: the card (plays) and the toggle (marks it seen).
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    const onReport = vi.fn();
+    row({ onToggleWatched, onReport });
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getByText('Play')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('Mark as watched'));
     expect(onToggleWatched).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByLabelText('Report'));
+    expect(onReport).toHaveBeenCalledTimes(1);
   });
 
-  it('offers the reverse once the episode is watched', () => {
+  it('turns the toggle into "Watched" once the episode is seen, and says so in a pill', () => {
     row({ watched: true });
-    expect(screen.getByLabelText('Mark as unwatched')).toBeTruthy();
+    // The button and the title pill both carry the watched word.
+    expect(screen.getAllByText('Watched').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('offers Resume instead of Play for an episode mid-way, flagged in progress', () => {
+    row({ progress: 40 });
+    expect(screen.getByText('Resume')).toBeTruthy();
+    expect(screen.getByText('In progress')).toBeTruthy();
   });
 
   it('drops the recap line when the episode has no synopsis', () => {
     row({ item: { ...episode, metadata: null } as unknown as MediaItem });
-    expect(screen.getByText('1. Pilot')).toBeTruthy();
+    expect(screen.getByText('Pilot')).toBeTruthy();
     expect(screen.queryByText(/Jack wakes in the jungle/)).toBeNull();
   });
 });

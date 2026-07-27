@@ -81,6 +81,11 @@ interface SubtitleRendererProps {
   appearance: SubtitleAppearance;
   /** When true the controls are visible, so lift the caption above them. */
   raised: boolean;
+  /** The active track's WebVTT could not be fetched, or held zero cues. The
+   *  HOST decides what that means (mark the picker row unavailable, fall back
+   *  to off) - a renderer that swallows the failure leaves a settings row that
+   *  silently does nothing, which reads as a broken app. */
+  onTrackFailed?: (index: number) => void;
 }
 
 /**
@@ -98,6 +103,7 @@ export function SubtitleRenderer({
   activeIndex,
   appearance,
   raised,
+  onTrackFailed,
 }: Readonly<SubtitleRendererProps>) {
   const [text, setText] = useState('');
   const [cues, setCues] = useState<Cue[]>([]);
@@ -125,16 +131,22 @@ export function SubtitleRenderer({
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
       .then((raw) => {
         const parsed = parseVtt(raw);
+        if (parsed.length === 0) return Promise.reject(new Error('empty track'));
         cache.current.set(activeUrl, parsed);
         if (!cancelled) setCues(parsed);
+        return undefined;
       })
       .catch(() => {
-        if (!cancelled) setCues([]);
+        if (cancelled) return;
+        setCues([]);
+        if (activeIndex != null) onTrackFailed?.(activeIndex);
       });
     return () => {
       cancelled = true;
     };
-  }, [activeUrl]);
+    // `activeIndex`/`onTrackFailed` ride along for the failure report only; the
+    // fetch itself is keyed on the url.
+  }, [activeUrl, activeIndex, onTrackFailed]);
 
   // Re-anchor the moving cue pointer on every committed seek.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset only on the seek signal.

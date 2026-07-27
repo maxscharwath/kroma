@@ -441,8 +441,6 @@ const SCALED_BOX = { overflow: 'visible' } as const;
 const MEASURE = { alignSelf: 'flex-start' } as const;
 
 const SCROLL = { flex: 1 } as const;
-/** The sideways scroller a self-measuring story gets instead of a scale. `flexGrow:
- * 0` so it hugs the story rather than stretching the stage card to the window. */
 /** The sideways scroller a story too wide for the stage gets instead of a scale.
  * `alignSelf: stretch` so it takes the stage's width and scrolls WITHIN it - left
  * to hug its content it would grow to the story's width and overflow the card. */

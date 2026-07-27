@@ -6,7 +6,7 @@
   "description": "KROMA Samsung Tizen TV client thin shell over @kroma/tv.",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo --noEmit && vite build",
+    "build": "tsgo --noEmit && vite build && bun ../tv-build/stamp-version.ts",
     "build:fast": "vite build",
     "preview": "vite preview",
     "typecheck": "tsgo --noEmit",

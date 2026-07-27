@@ -1,8 +1,7 @@
 import type { RemoteKey, Translate } from '@kroma/core';
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Easing,
   type LayoutChangeEvent,
   Pressable,
   ScrollView,
@@ -12,7 +11,8 @@ import { Box } from '#ui/components/atoms/box';
 import { cellWidth } from '#ui/components/atoms/grid';
 import { Txt } from '#ui/components/atoms/text';
 import { gradient } from '#ui/lib/css';
-import { fonts, motion } from '#ui/lib/tokens';
+import { ease } from '#ui/lib/ease';
+import { fonts } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import { useGridFocus } from '../hooks/useGridFocus';
 import type { PanelHandle } from '../lib/nav';
@@ -58,9 +58,10 @@ function parkOffset(sheetHeight: number): number {
   return Math.max(0, sheetHeight - PEEK_HEIGHT);
 }
 
-const SCRIM = 'linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.55) 45%)';
-const SHEET_FILL =
-  'linear-gradient(180deg, transparent, rgba(10,10,12,0.55) 12%, rgba(10,10,12,0.97) 30%)';
+const SCRIM = gradient('linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.55) 45%)');
+const SHEET_FILL = gradient(
+  'linear-gradient(180deg, transparent, rgba(10,10,12,0.55) 12%, rgba(10,10,12,0.97) 30%)',
+);
 
 interface Section {
   id: string;
@@ -92,6 +93,14 @@ function buildSections(data: UpNextData, t: Translate): Section[] {
   return sections;
 }
 
+/** While parked only the peek's first row is visible, so only it mounts (and
+ * only its art is fetched); the rest of the grid mounts when the sheet opens. */
+function peekSections(sections: Section[]): Section[] {
+  const first = sections[0];
+  if (!first) return [];
+  return [{ ...first, items: first.items.slice(0, UP_NEXT_COLUMNS) }];
+}
+
 /**
  * The YouTube-TV-style "À suivre" surface (§10): ONE sliding sheet with two
  * positions. Parked (peek) it sits low so only the header + a clipped card row
@@ -100,12 +109,13 @@ function buildSections(data: UpNextData, t: Translate): Section[] {
  * "Recommandations". D-pad focus runs across the FLAT list of every card via
  * `useGridFocus` (cols=3); ▲ off the top (or Back) closes, Enter plays.
  */
-export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function UpNextSheet(
+const UpNextSheetBase = forwardRef<PanelHandle, UpNextSheetProps>(function UpNextSheet(
   { data, open, revealed, onOpen, onClose, onPlay },
   ref,
 ) {
   const t = useT();
-  const items = [...data.nextEpisodes, ...data.recommendations];
+  const items = useMemo(() => [...data.nextEpisodes, ...data.recommendations], [data]);
+  const sections = useMemo(() => buildSections(data, t), [data, t]);
 
   const grid = useGridFocus({
     count: items.length,
@@ -141,7 +151,7 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
     const anim = Animated.timing(slide, {
       toValue: open ? 0 : 1,
       duration: 340,
-      easing: Easing.bezier(...(motion.bezier.out as [number, number, number, number])),
+      easing: ease.out.native,
       useNativeDriver: true,
     });
     anim.start();
@@ -168,8 +178,8 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
 
   if (!open && (!revealed || items.length === 0)) return null;
 
-  const sections = buildSections(data, t);
   const grouped = sections.length > 1;
+  const shown = open ? sections : peekSections(sections);
 
   return (
     <>
@@ -179,7 +189,7 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
         accessibilityRole="button"
         accessibilityLabel={t('player.back')}
         pointerEvents={open ? 'auto' : 'none'}
-        style={[SCRIM_BOX, gradient(SCRIM), { opacity: open ? 1 : 0 }]}
+        style={[SCRIM_BOX, SCRIM, { opacity: open ? 1 : 0 }]}
       />
       <Animated.View
         onLayout={(e) => {
@@ -188,7 +198,7 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
         }}
         style={[
           SHEET_BOX,
-          gradient(SHEET_FILL),
+          SHEET_FILL,
           {
             transform: [
               {
@@ -217,7 +227,7 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
           // against it.
           contentContainerStyle={{ paddingHorizontal: 56, paddingTop: 16, paddingBottom: 72 }}
         >
-          {sections.map((sec) => (
+          {shown.map((sec) => (
             <Box key={sec.id} mb={32}>
               {grouped ? <Txt style={[EYEBROW, { marginBottom: 14 }]}>{sec.title}</Txt> : null}
               <Box
@@ -253,6 +263,10 @@ export const UpNextSheet = forwardRef<PanelHandle, UpNextSheetProps>(function Up
     </>
   );
 });
+
+/** Memoized: between playback ticks every prop is stable (the shell hoists its
+ * handlers), so the parked sheet skips the chrome's ~4 Hz re-renders. */
+export const UpNextSheet = memo(UpNextSheetBase);
 
 /** Reports where its row starts, so the sheet can scroll a D-pad move into view
  * without reaching for the DOM. */

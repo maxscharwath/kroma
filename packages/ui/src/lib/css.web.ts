@@ -29,3 +29,12 @@ export function maskImage(css: string): ViewStyle {
 export function promote(): ViewStyle {
   return { transform: 'translateZ(0)', willChange: 'transform' } as unknown as ViewStyle;
 }
+
+/** A CSS `backdrop-filter: blur(Npx)`, with the `-webkit-` spelling alongside
+ * for the older TV WebKits. See css.ts for why native gets nothing. */
+export function backdropBlur(px: number): ViewStyle {
+  return {
+    backdropFilter: `blur(${px}px)`,
+    WebkitBackdropFilter: `blur(${px}px)`,
+  } as unknown as ViewStyle;
+}

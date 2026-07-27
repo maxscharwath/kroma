@@ -1,7 +1,7 @@
 import type { SearchHit } from '@kroma/core';
 import { posterColors, qualityBadge, qualityBadgeForVideo } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Chip, Field, IconButton, Txt, useFocusNav } from '@kroma/ui/kit';
+import { BackButton, Box, Chip, Field, IconButton, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -13,7 +13,7 @@ import { addRecentSearch, getRecentSearches } from '#tv/features/catalog/searchH
 import type { SearchResult } from '#tv/features/catalog/TvSearchResults';
 import { TvSearchResults } from '#tv/features/catalog/TvSearchResults';
 import { TvVoiceSearch } from '#tv/features/catalog/TvVoiceSearch';
-import { KromaMark, OnScreenKeyboard, TvBackButton } from '#tv/shared/ui';
+import { KromaMark, OnScreenKeyboard } from '#tv/shared/ui';
 
 const DEBOUNCE_MS = 250;
 
@@ -165,7 +165,8 @@ export function TvSearch() {
   return (
     <Box fill z={10} bg="bg" px={64} py={44}>
       <Box row align="center" gap={14} mb={28}>
-        <TvBackButton />
+        {/* Back (mouse users); the remote's Back key is wired via useFocusNav. */}
+        {nav.canGoBack ? <BackButton onPress={nav.back} label={t('common.back')} /> : null}
         <KromaMark size={28} />
         <Box flex />
         <Txt style={{ fontSize: 14, fontWeight: '600' }} color="textDim">

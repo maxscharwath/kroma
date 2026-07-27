@@ -4,10 +4,12 @@ import {
   Avatar,
   Box,
   Chip,
+  colors,
   Focusable,
   FocusRegion,
   Hint,
   Icon,
+  StatusDot,
   Txt,
   useFocusNav,
 } from '@kroma/ui/kit';
@@ -16,7 +18,6 @@ import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { useServersHealth } from '#tv/app/useServersHealth';
-import { StatusDot } from '#tv/features/accounts/ServerStatus';
 import { AuthScreen, artUrl, hostOf, KromaMark } from '#tv/shared/ui';
 
 interface Tile {
@@ -140,7 +141,7 @@ export function TvProfiles() {
             focusScale={1.07}
             ring={false}
             style={ADD_TILE}
-            focusedStyle={{ borderColor: '#F4B642' }}
+            focusedStyle={{ borderColor: colors.accent }}
           >
             {({ focused }) => (
               <Icon
@@ -174,6 +175,7 @@ export function TvProfiles() {
         text={t('profiles.navHint')}
         size={14}
         gap={4}
+        mt={24}
         color="rgba(244, 243, 240, 0.4)"
         textStyle={NAV_HINT}
       />
@@ -192,11 +194,12 @@ const ADD_TILE = {
   borderColor: 'rgba(255, 255, 255, 0.18)',
 };
 
+// Type only. Anything that lays the ROW out (the margin above it) goes on the
+// <Hint> itself: `textStyle` reaches the words alone, so a margin here drops the
+// words below the chevrons instead of moving the whole line.
 const NAV_HINT = {
-  fontSize: 14,
   fontWeight: '600' as const,
   letterSpacing: 0.42,
-  marginTop: 24,
 };
 
 const PROFILE_ROW = {

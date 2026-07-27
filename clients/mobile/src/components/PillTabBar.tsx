@@ -11,6 +11,7 @@
 
 import { NavPill, NavPillItem } from '@kroma/ui/kit';
 import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 // Type-only deep import: expo-router vendors react-navigation and does not
 // re-export the tab bar props type from its root.
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
@@ -28,6 +29,12 @@ export function PillTabBar({ state, descriptors, navigation }: Readonly<BottomTa
       <View style={styles.shadow}>
         <NavPill
           size="sm"
+          // The pill's slide reports each crossing; a selection tick under the
+          // thumb is how the preview reads through a moving finger. Null is
+          // the slide ending - nothing to feel there.
+          onPreview={(label) => {
+            if (label !== null) void Haptics.selectionAsync();
+          }}
           backdrop={
             Platform.OS === 'ios' ? (
               <BlurView tint="dark" intensity={60} style={StyleSheet.absoluteFill} />

@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { useListFocus } from '#ui/components/organisms/player/hooks/useListFocus';
+import { audioFilterLabels } from '#ui/components/organisms/player/lib/audio-filter';
 import type { PanelHandle } from '#ui/components/organisms/player/lib/nav';
 import type { AudioFilterMode } from '#ui/components/organisms/player/types';
 import { useT } from '#ui/services/i18n';
@@ -21,11 +22,7 @@ const MODES: AudioFilterMode[] = ['off', 'standard', 'night'];
 export const AudioFilterPanel = forwardRef<PanelHandle, AudioFilterPanelProps>(
   function AudioFilterPanel({ value, onSelect, onBack }, ref) {
     const t = useT();
-    const labels: Record<AudioFilterMode, string> = {
-      off: t('player.audioFilterOff'),
-      standard: t('player.audioFilterStandard'),
-      night: t('player.audioFilterNight'),
-    };
+    const labels = audioFilterLabels(t);
     const pick = (i: number) => {
       const m = MODES[i];
       if (m) onSelect(m);

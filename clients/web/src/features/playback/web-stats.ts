@@ -1,18 +1,7 @@
-import type { AudioTrack, Translate } from '@kroma/core';
+import { type AudioTrack, formatTimecode as clock, type Translate } from '@kroma/core';
 import type { PlayerMeter, PlayerStats } from '@kroma/ui';
 import type { EngineLiveStats } from '#web/features/playback/engine-stats';
 import type { MovieView } from '#web/shared/lib/api';
-
-/** Format seconds as `H:MM:SS` (or `M:SS`). */
-function clock(s: number): string {
-  if (!Number.isFinite(s) || s < 0) s = 0;
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const mm = h ? String(m).padStart(2, '0') : String(m);
-  const hours = h ? `${h}:` : '';
-  return `${hours}${mm}:${String(sec).padStart(2, '0')}`;
-}
 
 const READY = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT', 'HAVE_FUTURE', 'HAVE_ENOUGH'];
 const NETWORK = ['EMPTY', 'IDLE', 'LOADING', 'NO_SOURCE'];

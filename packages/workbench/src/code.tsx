@@ -11,7 +11,7 @@
 // Everything is <Txt> and <Box>, so the same code block renders in a browser,
 // on a television and in a screenshot.
 
-import { Box, Focusable, Icon, type IconName, Txt } from '@kroma/ui/kit';
+import { Box, Icon, IconButton, type IconName, Txt } from '@kroma/ui/kit';
 import { type ColorToken, colors, radius } from '@kroma/ui/tokens';
 import { useCallback, useMemo } from 'react';
 import { Platform, ScrollView } from 'react-native';
@@ -204,15 +204,20 @@ function CopyButton({ code }: Readonly<{ code: string }>) {
 
   return (
     <Box absolute style={COPY_SLOT}>
-      <Focusable
+      <IconButton
+        variant="ghost"
+        size={COPY_BOX}
+        radius={radius.sm}
         label={COPY_LABEL[state]}
         ring={false}
-        onPress={onPress}
-        style={COPY}
+        focusScale={1}
         focusedStyle={COPY_FOCUS}
+        onPress={onPress}
       >
+        {/* The stateful glyph rides in as a child: the confirmation is the icon
+            itself turning into a tick, in its own ink. */}
         <Icon name={COPY_GLYPH[state]} size={15} color={COPY_INK[state]} />
-      </Focusable>
+      </IconButton>
     </Box>
   );
 }
@@ -257,7 +262,10 @@ const GUTTER = {
   opacity: 0.6,
 } as const;
 const COPY_SLOT = { top: 6, right: 6, zIndex: 1 } as const;
-const COPY = { padding: 7, borderRadius: radius.sm } as const;
+/** The 15pt glyph in the box the old padded shape came to. */
+const COPY_BOX = 29;
+// A notch up from the chrome's FOCUS_WASH: the button floats over a lifted
+// surface, where the plain wash reads as nothing at all.
 const COPY_FOCUS = { backgroundColor: 'rgba(255, 255, 255, 0.08)' } as const;
 // Indexed rather than nested ternaries: three states, three lookups, and the
 // failure is SAID rather than left looking like the press did nothing.

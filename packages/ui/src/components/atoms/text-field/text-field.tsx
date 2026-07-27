@@ -141,7 +141,7 @@ function TextField({
           secureTextEntry={masked}
           {...(keyboardType ? { keyboardType } : null)}
           selectionColor={colors.accent}
-          style={[INPUT, { color: colors.text }, textStyle]}
+          style={[INPUT, NO_OUTLINE, { color: colors.text }, textStyle]}
         />
       ) : (
         <Box row align="center" flex gap={2} h={CONTENT}>
@@ -209,8 +209,14 @@ const INPUT = {
   borderWidth: 0,
   backgroundColor: 'transparent',
   padding: 0,
-  outlineWidth: 0,
 } as const;
+
+/** Web only, and `none` rather than width 0: Chrome's own focus ring is
+ * `outline-style: auto`, which ignores the width - the field kept its blue
+ * browser ring inside the kit's amber one until the STYLE was cleared. React
+ * Native's types don't know `none` (native has no outline at all), hence the
+ * cast. */
+const NO_OUTLINE = { outlineStyle: 'none', outlineWidth: 0 } as unknown as TextStyle;
 
 const REVEAL_SIZE = 20;
 /** Centred on the field's right edge, inside its own padding. */

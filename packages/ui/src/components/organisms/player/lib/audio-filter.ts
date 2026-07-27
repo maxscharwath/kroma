@@ -1,4 +1,4 @@
-import { deviceStorage } from '@kroma/core';
+import { deviceStorage, type MessageKey, type Translate } from '@kroma/core';
 import { type RefObject, useCallback, useEffect, useState } from 'react';
 import { webDocument } from '#ui/lib/dom';
 import type { AudioFilterMode } from '../types';
@@ -21,6 +21,25 @@ import type { AudioFilterMode } from '../types';
  */
 
 const KEY = 'kroma.audioFilter';
+
+/** Catalog key naming each mode. One table, because the phone's chrome, its track
+ * sheet, the kit's settings menu and the kit's filter panel all name these three
+ * modes and had each grown their own copy - a fourth mode meant finding all four.
+ * A mode with no name here fails to compile rather than rendering a raw key. */
+export const AUDIO_FILTER_KEY: Record<AudioFilterMode, MessageKey> = {
+  off: 'player.audioFilterOff',
+  standard: 'player.audioFilterStandard',
+  night: 'player.audioFilterNight',
+};
+
+/** The three mode names in the active locale. */
+export function audioFilterLabels(t: Translate): Record<AudioFilterMode, string> {
+  return {
+    off: t(AUDIO_FILTER_KEY.off),
+    standard: t(AUDIO_FILTER_KEY.standard),
+    night: t(AUDIO_FILTER_KEY.night),
+  };
+}
 
 /** The persisted filter mode (synchronous; `off` without storage/DOM). Native
  * engines read it at construction so a remembered mode applies from the first

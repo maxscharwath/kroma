@@ -56,9 +56,37 @@ declare module 'react-native' {
     }
   >;
 
+  /**
+   * A hardware key, as Fabric reports it to a VIEW (Android).
+   *
+   * Spelled the way the web spells it, because it is the same table: the
+   * renderer maps KEYCODE_DPAD_UP to `"ArrowUp"` and KEYCODE_DPAD_CENTER to
+   * `"Enter"` (ReactAndroid .../uimanager/events/KeyEvent.kt). Note KEYCODE_BACK
+   * is NOT in that table - Back stays with BackHandler.
+   */
+  export type TVKeyEvent = {
+    /** The key, e.g. `ArrowUp`, `Enter` - or the CHARACTER itself for anything
+     * printable, which is what makes typing on a hardware keyboard possible
+     * (`getKeyString()` returns the unicode char whenever it is not a control). */
+    key: string;
+    /** The physical key, e.g. `ArrowUp`. The one to switch on. */
+    code: string;
+    /** True while the key is auto-repeating from being held. */
+    repeat?: boolean | undefined;
+    altKey?: boolean | undefined;
+    ctrlKey?: boolean | undefined;
+    metaKey?: boolean | undefined;
+    shiftKey?: boolean | undefined;
+  };
+
   interface ViewProps {
     /** Scroll snap alignment applied when this view takes focus inside a
      * ScrollView whose `snapToAlignment` is "item". */
     scrollSnapAlign?: 'start' | 'center' | 'end' | undefined;
+    /** Fabric's per-view key events (Android, behind the `enableKeyEvents`
+     * feature flag - see clients/tv-native/plugins/with-tv-key-events.js). The
+     * fork ships these in its Flow types only, so they are restated here. */
+    onKeyDown?: ((event: NativeSyntheticEvent<TVKeyEvent>) => void) | undefined;
+    onKeyUp?: ((event: NativeSyntheticEvent<TVKeyEvent>) => void) | undefined;
   }
 }

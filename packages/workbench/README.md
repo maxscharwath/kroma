@@ -18,7 +18,7 @@ the component being looked at.
 
 The consequence worth the trouble: **it runs wherever the kit runs.** Open it in a
 browser (`bun run dev:kit`), on a TV shell (`?workbench`), on an Apple TV
-(`bun run workbench` in `clients/tv-native`) or on a phone (`/workbench`), and you
+(`bun run run:kit:appletv`) or on a phone (`bun run run:kit:ios`), and you
 are inspecting the components on the device that has to display them.
 
 ## Mounting it

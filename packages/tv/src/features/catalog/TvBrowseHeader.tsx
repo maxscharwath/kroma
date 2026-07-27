@@ -14,8 +14,8 @@ import {
   type SortMode,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Badge, Box, Chip, Divider, qualityTone, Txt } from '@kroma/ui/kit';
-import { ScrollView } from 'react-native';
+import { Badge, Box, Chip, Divider, qualityTone, Rail, Txt } from '@kroma/ui/kit';
+import { memo } from 'react';
 import type { CatalogEntry } from '#tv/features/catalog/home/AmbientBackdrop';
 
 const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
@@ -36,14 +36,6 @@ function entryLine(e: CatalogEntry, seasons: string | null): string {
 function entryBadge(e: CatalogEntry): string | null {
   return e.kind === 'movie' ? qualityBadge(e.item) : qualityBadgeForVideo(e.item.video);
 }
-
-const SECTION_LABEL = {
-  fontWeight: '700' as const,
-  fontSize: 13,
-  lineHeight: 16,
-  letterSpacing: 2.86,
-  textTransform: 'uppercase' as const,
-};
 
 // The design sizes this with clamp(30px, 4.8vh, 46px). On the fixed 1920x1080
 // stage that always resolves to the 46px ceiling, so it is spelled out: a
@@ -71,10 +63,17 @@ export function BrowseHeader({
   focused: CatalogEntry | null;
 }>) {
   return (
-    <Box h={208} shrink={0} justify="flex-end" px={64} pb={8}>
-      <Txt style={SECTION_LABEL} color="accent">
+    // `zIndex`: the poster grid below is a LATER sibling, so by DOM order it
+    // paints over this. That matters because the grid's clip box deliberately
+    // bleeds `FOCUS_BLEED` (32px) past its own bounds to clear a focused tile's
+    // ring and scale (organisms/virtual/clip.ts) - which is exactly enough to
+    // show the bottom strip, title bar and all, of the row scrolled off its top.
+    // It was landing on top of the chrome up here. Lifting the header and the
+    // filter strip puts the bleed behind them, where it is invisible.
+    <Box h={208} shrink={0} justify="flex-end" px={64} pb={8} style={{ zIndex: 1 }}>
+      <Txt variant="overlineTv" color="accent">
         {label}
-        {hasItems ? <Txt style={SECTION_LABEL} color="textDim">{` · ${count}`}</Txt> : null}
+        {hasItems ? <Txt variant="overlineTv" color="textDim">{` · ${count}`}</Txt> : null}
       </Txt>
       {focused ? <FocusEcho entry={focused} /> : null}
     </Box>
@@ -109,8 +108,15 @@ function FocusEcho({ entry }: Readonly<{ entry: CatalogEntry }>) {
 }
 
 /** The sort + genre chip strip: every sort mode, then (when the section has any)
- * an "all genres" chip and one chip per genre. */
-export function BrowseFilters({
+ * an "all genres" chip and one chip per genre.
+ *
+ * Memoised, and it matters more than it looks: the browse screen re-renders on
+ * every FOCUS MOVE (each tile's `onFocus` sets the id the ambient header echoes),
+ * and with a pointer that means every hover. This strip depends on none of that -
+ * only on the sort and genre it is showing - so without the memo, moving the
+ * mouse across a 1,000-title grid re-rendered twenty-odd Chips, each a navigator
+ * node, on every single move. */
+const BrowseFiltersImpl = function BrowseFilters({
   sort,
   onSort,
   genres,
@@ -124,52 +130,57 @@ export function BrowseFilters({
   onGenre: (name: string | undefined) => void;
 }>) {
   const t = useT();
+  // A kit <Rail> (untitled, unvirtualised) rather than a bare ScrollView: the
+  // rail scrolls to FOLLOW focus, so walking Right along the chips keeps the
+  // focused one on screen. The children stay a FLAT list - a fragment would
+  // reach the rail as ONE tile and swallow the genre chips into a single
+  // navigator node.
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={{ flexGrow: 0, flexShrink: 0 }}
-      contentContainerStyle={{
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 64,
-        paddingVertical: 12,
-      }}
-    >
-      {SORT_MODES.map((mode) => (
-        <Chip
-          key={mode}
-          variant="subtle"
-          focusScale={1.06}
-          active={mode === sort}
-          label={t(SORT_LABEL_KEY[mode])}
-          onPress={() => onSort(mode)}
-        />
-      ))}
-      {genres.length > 0 ? (
-        <>
-          <Box mx={4}>
+    // `grow={false}`: a filter you cannot see is a filter that does not exist,
+    // and a growing rail opened this strip on its first eight children - the
+    // four sort chips, the divider, "all genres", and two genres.
+    <Box style={{ zIndex: 1 }}>
+      <Rail gap={8} inset={64} grow={false}>
+        {SORT_MODES.map((mode) => (
+          <Chip
+            key={mode}
+            variant="subtle"
+            focusScale={1.06}
+            active={mode === sort}
+            label={t(SORT_LABEL_KEY[mode])}
+            onPress={() => onSort(mode)}
+          />
+        ))}
+        {genres.length > 0 ? (
+          <Box key="divider" mx={4}>
             <Divider vertical size={1} color="rgba(255, 255, 255, 0.14)" />
           </Box>
+        ) : null}
+        {genres.length > 0 ? (
           <Chip
+            key="all"
             variant="subtle"
             focusScale={1.06}
             active={!genre}
             label={t('browse.allGenres')}
             onPress={() => onGenre(undefined)}
           />
-          {genres.map((g) => (
-            <Chip
-              key={g.name}
-              variant="subtle"
-              focusScale={1.06}
-              active={g.name === genre}
-              label={g.name}
-              onPress={() => onGenre(g.name)}
-            />
-          ))}
-        </>
-      ) : null}
-    </ScrollView>
+        ) : null}
+        {genres.length > 0
+          ? genres.map((g) => (
+              <Chip
+                key={g.name}
+                variant="subtle"
+                focusScale={1.06}
+                active={g.name === genre}
+                label={g.name}
+                onPress={() => onGenre(g.name)}
+              />
+            ))
+          : null}
+      </Rail>
+    </Box>
   );
-}
+};
+
+export const BrowseFilters = memo(BrowseFiltersImpl);

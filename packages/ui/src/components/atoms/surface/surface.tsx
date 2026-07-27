@@ -6,7 +6,9 @@
 // owns rather than something each screen re-derives.
 
 import type { ReactNode } from 'react';
+import { StyleSheet } from 'react-native';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
+import { Frost } from '#ui/components/atoms/frost';
 import { sv } from '#ui/lib/sv';
 import { colors, radius, shadow } from '#ui/lib/tokens';
 
@@ -66,11 +68,15 @@ function Surface({
   children,
   ...box
 }: Readonly<SurfaceProps>) {
+  const flat = surfaceVariants({ tone, pad, elevated: elevated ? 'true' : 'false' }, style);
+  // Glass frosts what sits behind it (see <Frost>); the other tones are
+  // opaque, where a backdrop blur has nothing to do.
+  const frostRadius = StyleSheet.flatten(flat)?.borderRadius;
   return (
-    <Box
-      {...box}
-      style={surfaceVariants({ tone, pad, elevated: elevated ? 'true' : 'false' }, style)}
-    >
+    <Box {...box} style={flat}>
+      {tone === 'glass' ? (
+        <Frost radius={typeof frostRadius === 'number' ? frostRadius : radius.lg} />
+      ) : null}
       {children}
     </Box>
   );

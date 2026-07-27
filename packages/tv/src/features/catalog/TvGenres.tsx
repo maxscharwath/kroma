@@ -20,7 +20,6 @@ import {
 import { useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav } from '#tv/app/router';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { TITLE } from '#tv/features/catalog/screenStyle';
 
 /** Genre picker: every genre in the library (movies + shows), most common first.
@@ -40,12 +39,6 @@ export function TvGenres() {
 
   return (
     <Box fill bg="bg" overflow="hidden">
-      {/* The bar comes FIRST in the tree because the navigator moves in tree
-          order and the bar is visually at the top; it still paints above,
-          on its own z. Which control opens focused is said by `autoFocus`,
-          not by the order. */}
-      <TvTopNav active="genres" />
-
       <Box px={64} pt={112} pb={16}>
         <Txt variant="hero" style={TITLE}>
           {t('nav.genres')}

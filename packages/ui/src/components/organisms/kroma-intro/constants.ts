@@ -22,6 +22,8 @@ export const VIDEO_SOURCES = [
 export const SAFETY_MS = 5400;
 /** Exit fade-to-black length (ms) matches the `transition` below. */
 export const EXIT_MS = 850;
+/** Slack added to the film's own duration for the stall-safety timer (ms). */
+export const SAFETY_SLACK_MS = 1500;
 
 export const KEYFRAMES = `
 @keyframes kroma-igniteGlow{from{opacity:0;transform:scale(.5)}to{opacity:.5;transform:scale(1)}}

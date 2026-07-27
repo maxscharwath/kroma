@@ -11,6 +11,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import type { SettingsGroupId } from '#tv/app/settings/registry';
 import { perfHudPrefStore, useStoredPref } from '#tv/app/settings/store';
 
 /**
@@ -43,10 +44,15 @@ export interface TvRoutes {
   /** Device-level settings reachable while signed out: language, on-screen
    * keyboard layout, and the desktop shell's GPU/quit extras. */
   deviceSettings: undefined;
+  /** Which build of the client is running: version, commit, branch, build date,
+   * repository. Reachable from device settings and from the profile menu. */
+  about: undefined;
   /** PIN entry: verify a locked profile, or set/clear the active account's PIN. */
   pin: { intent: 'verify' | 'set' | 'clear'; account?: StoredSession };
-  /** Profile menu: language, PIN, switch profile, sign out, forget server. */
+  /** Profile menu: the settings groups, PIN, switch profile, sign out. */
   profileMenu: undefined;
+  /** One group of settings (languages / playback / device), opened from a menu. */
+  settingsGroup: { group: SettingsGroupId };
   home: undefined;
   /** Full-screen catalogue grid for one section (Films / Séries / Ma liste). */
   grid: { kind: 'films' | 'series' | 'mylist' };
@@ -147,14 +153,39 @@ function loadDevStack(): TvRoute[] | null {
 export type TvScreens = { [K in RouteName]: ComponentType };
 const ScreensCtx = createContext<TvScreens | null>(null);
 
+/**
+ * Chrome that outlives the screen under it: the browse screens' top bar.
+ *
+ * It has to be rendered by the OUTLET rather than by each screen, and the reason
+ * is the nav pill's travelling lens. A screen that draws its own bar hands the
+ * remote a new <NavPill> on every section change, and a lens with no previous
+ * box to leave arrives instead of travelling - so the one animation the design
+ * asks for could never play, on any target. Rendered here, one bar survives the
+ * swap and the lens moves from the old section to the new one.
+ *
+ * It stays INSIDE the screen's <FocusScope>: the scope is the spatial tree, and
+ * a bar outside it is a bar the remote cannot reach. So the routes that share
+ * the chrome also share one scope, and the screen inside it is keyed instead
+ * (`entryKey` is what re-decides where focus opens on arrival).
+ */
+export interface TvChrome {
+  /** The routes that show it - and therefore share one focus scope. */
+  routes: readonly RouteName[];
+  /** Drawn ABOVE the screen in tree order, as the bar always was: the navigator
+   *  moves in tree order and the bar is visually at the top. */
+  render: ComponentType;
+}
+const ChromeCtx = createContext<TvChrome | null>(null);
+
 function make<K extends RouteName>(name: K, params?: TvRoutes[K]): TvRoute {
   return { name, params } as TvRoute;
 }
 
 export function TvNavProvider({
   screens,
+  chrome,
   children,
-}: Readonly<{ screens: TvScreens; children: ReactNode }>) {
+}: Readonly<{ screens: TvScreens; chrome?: TvChrome; children: ReactNode }>) {
   // Start on the profile picker the signed-out home. Adding a server happens
   // inside the Add-profile wizard, never as the launch screen. The guard advances
   // to `home` once a session resolves.
@@ -207,7 +238,9 @@ export function TvNavProvider({
   );
   return (
     <NavCtx.Provider value={value}>
-      <ScreensCtx.Provider value={screens}>{children}</ScreensCtx.Provider>
+      <ScreensCtx.Provider value={screens}>
+        <ChromeCtx.Provider value={chrome ?? null}>{children}</ChromeCtx.Provider>
+      </ScreensCtx.Provider>
     </NavCtx.Provider>
   );
 }
@@ -253,8 +286,10 @@ export function useClient(): KromaClient {
 export function TvOutlet() {
   const { route } = useNav();
   const screens = useContext(ScreensCtx);
+  const chrome = useContext(ChromeCtx);
   if (!screens) throw new Error('<TvOutlet> must be inside <TvNavProvider screens={…}>');
   const Screen = screens[route.name];
+  const Chrome = chrome?.routes.includes(route.name) ? chrome.render : null;
   // Key the player by item id so an "up next" / recommendation swap - which keeps
   // the same `player` route on top - REMOUNTS it, starting the new title from a
   // clean state (engine, resume, progress) instead of inheriting the previous
@@ -272,13 +307,19 @@ export function TvOutlet() {
   // <FocusScope> is what gives a new screen its entry point on Apple TV and
   // Android TV: the OS focus engine will not invent one, so without it a screen
   // whose controls do not declare `autoFocus` mounts with focus nowhere and the
-  // remote does nothing at all. Keyed with the screen so each arrival re-runs
-  // it, exactly as the web engine's focusFirst() does on the same key. On the
-  // browser targets it is a plain box, so the tree is identical on both.
+  // remote does nothing at all. On the browser targets it is a plain box, so the
+  // tree is identical on both.
+  //
+  // The screens that share the chrome share ONE scope, so the bar inside it
+  // keeps its instance (see TvChrome); everywhere else the scope is keyed with
+  // the screen, exactly as before. Either way `entryKey` names the screen, so
+  // each arrival re-decides where focus opens.
+  const scopeKey = Chrome ? 'chrome' : key;
   return (
     <PageMain>
       <Suspense fallback={<Box fill bg="bg" />}>
-        <FocusScope key={key}>
+        <FocusScope key={scopeKey} entryKey={key}>
+          {Chrome ? <Chrome /> : null}
           <Screen key={key} />
         </FocusScope>
       </Suspense>

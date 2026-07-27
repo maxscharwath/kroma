@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { I18nProvider } from '@kroma/ui';
+import { clearPressGuard } from '@kroma/ui/kit';
 import { onScreen } from '@kroma/ui/testing';
 import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
@@ -22,6 +23,10 @@ function show(items: readonly SettingsEntry[]) {
 }
 
 afterEach(cleanup);
+// Opening a dialog arms the OK guard (see press-guard: one physical press must
+// not carry into the screen it opened). It lives at module scope so it survives
+// unmounting - which means it survives a TEST too unless it is dropped here.
+afterEach(clearPressGuard);
 
 describe('SettingsRows', () => {
   it('cycles a choice row through its options on activation', () => {
@@ -58,6 +63,37 @@ describe('SettingsRows', () => {
       }),
     ]);
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('opens a picker instead of cycling when a choice asks for a list', () => {
+    const set = vi.fn();
+    show([
+      choiceItem({
+        id: 'audioLanguage',
+        level: 'account',
+        label: 'account.audioLanguage',
+        icon: 'check',
+        pick: 'list',
+        options: () => ['fr', 'en', 'sv'] as const,
+        valueLabel: (value) => `lang.${value}` as const,
+        use: () => ['fr', set] as const,
+      }),
+    ]);
+
+    // The row itself picks nothing: it opens the list.
+    fireEvent.click(screen.getByRole('button', { name: /audio/i }));
+    expect(set).not.toHaveBeenCalled();
+
+    // getByText, not just the accessible name: the name comes from the row's
+    // `label` prop and survives even when the visible label has collapsed, which
+    // is exactly the failure this picker shipped with.
+    expect(screen.getByText('Swedish')).toBeTruthy();
+
+    // The dialog armed the OK guard on mount; the pick is the viewer's NEXT,
+    // deliberate press, which in a test arrives before the window elapses.
+    clearPressGuard();
+    fireEvent.click(screen.getByRole('button', { name: 'Swedish' }));
+    expect(set).toHaveBeenCalledWith('sv');
   });
 
   it('flips a toggle and runs an action', () => {

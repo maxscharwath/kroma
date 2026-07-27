@@ -1,36 +1,28 @@
 import { useT } from '@kroma/ui';
 import {
   Avatar,
+  BackButton,
   Box,
   Focusable,
   FocusRegion,
   gradient,
   Icon,
   Spinner,
-  screenEntry,
+  StatusDot,
+  shade,
   Txt,
 } from '@kroma/ui/kit';
-import { type ComponentRef, createRef } from 'react';
-import type { View } from 'react-native';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { type NavItem, NavPill } from '#tv/features/catalog/home/NavPill';
-import { KromaMark, TvBackButton, useClock } from '#tv/shared/ui';
+import { KromaMark, useClock } from '#tv/shared/ui';
 
 export type NavKey = 'home' | 'films' | 'series' | 'genres' | 'mylist' | 'search';
 
-/** The two ends of the bar's right-hand gap. The pill stops well short of the
- * avatar and the clock between them is not focusable, so a strict band search
- * runs out of candidates and the account menu cannot be reached at all - six
- * presses of Right and focus never left the search chip. Measured on an Apple
- * TV. Both sides are named so the crossing works in both directions. */
-const navLastChip = createRef<ComponentRef<typeof View>>();
-const navAvatar = createRef<ComponentRef<typeof View>>();
-
 // Top scrim so the logo / clock / avatar stay readable over bright hero art (a
 // sky, a snowy shot...): the hero veil only darkens left and bottom.
-const SCRIM = 'linear-gradient(180deg, rgba(10,10,12,0.72), rgba(10,10,12,0.25) 45%, transparent)';
+const SCRIM = `linear-gradient(180deg, ${shade(0.72)}, ${shade(0.25)} 45%, transparent)`;
 
 /** The shared 10-foot top bar: brand mark, a centred nav pill (Accueil / Films /
  * Séries / Ma liste / Rechercher), the clock and the account avatar (opens the
@@ -91,19 +83,19 @@ export function TvTopNav({ active }: Readonly<{ active?: NavKey }>) {
           focus to the chip you used last. One region here replaces a crossing on
           every screen that shows the bar. */}
       <FocusRegion style={BAND}>
-        {/* Back (mouse users): shown on any pushed screen, hidden on Home. */}
+        {/* Back (mouse users): shown on any pushed screen, hidden on Home. The
+            remote has Back regardless (every screen wires useFocusNav -> onBack);
+            this button is the pointer's equivalent of that key. */}
         <Box row align="center" gap={16}>
-          <TvBackButton />
+          {nav.canGoBack ? <BackButton onPress={nav.back} label={t('common.back')} /> : null}
           <KromaMark size={28} />
         </Box>
-        <NavPill items={items} active={active} lastRef={navLastChip} lastNeighbours={TO_AVATAR} />
+        <NavPill items={items} active={active} />
         <Box row align="center" gap={18}>
           <ConnectionStatus online={online} label={t('connection.reconnecting')} />
           <Txt style={CLOCK}>{clock}</Txt>
           {user ? (
             <Focusable
-              ref={navAvatar}
-              neighbours={FROM_AVATAR}
               onPress={() => nav.go('profileMenu')}
               label={user.username}
               focusScale={1.08}
@@ -131,9 +123,6 @@ const BAND = {
   justifyContent: 'space-between',
 } as const;
 
-const TO_AVATAR = { right: navAvatar };
-const FROM_AVATAR = { left: navLastChip, down: screenEntry };
-
 const CLOCK = {
   fontSize: 17,
   fontWeight: '600' as const,
@@ -141,14 +130,12 @@ const CLOCK = {
   textShadow: '0 1px 4px rgba(0, 0, 0, 0.6)',
 };
 
-/** Server-reachability indicator for the top bar. Online: a quiet green dot with
- * a dark halo so it reads over any hero art. Offline: a solid red badge holding a
- * wifi-off glyph, over a spinner that signals the automatic reconnect in
- * progress. Icon-only, no label: the state reads at a glance. */
+/** Server-reachability indicator for the top bar. Online: the app's own
+ * kit <StatusDot>, ringed so it reads over any hero art. Offline: a solid red badge
+ * holding a wifi-off glyph, over a spinner that signals the automatic reconnect
+ * in progress. Icon-only, no label: the state reads at a glance. */
 function ConnectionStatus({ online, label }: Readonly<{ online: boolean; label: string }>) {
-  if (online) {
-    return <Box w={10} h={10} radius="pill" bg="success" style={ONLINE_DOT} />;
-  }
+  if (online) return <StatusDot online overArt />;
   return (
     <Box w={36} h={36} center accessibilityLabel={label} accessibilityRole="progressbar">
       <Box absolute>
@@ -160,9 +147,5 @@ function ConnectionStatus({ online, label }: Readonly<{ online: boolean; label: 
     </Box>
   );
 }
-
-const ONLINE_DOT = {
-  boxShadow: '0 0 0 2px rgba(0, 0, 0, 0.4), 0 0 8px rgba(70, 208, 141, 0.85)',
-} as const;
 
 const OFFLINE_BADGE = { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.6)' } as const;

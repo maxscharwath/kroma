@@ -1,12 +1,10 @@
-import { Pressable } from 'react-native';
+import { memo } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
+import { BackButton } from '#ui/components/molecules/back-button';
 import { gradient } from '#ui/lib/css';
 import { fonts } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
-import { FOCUS_SCALE, FOCUS_SHADOW } from '../lib/style';
-import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
-import { IconBack } from './icons';
 
 /**
  * Player top chrome (§ top chrome): a gradient bar holding the round back
@@ -26,7 +24,15 @@ export interface TopBarProps {
 
 const SCRIM = 'linear-gradient(180deg, rgba(0,0,0,0.65), transparent)';
 
-export function TopBar({ title, subtitle, warn, onBack, backFocused }: Readonly<TopBarProps>) {
+/** Memoized: its props never change on a playback tick, so the bar skips the
+ * ~4 Hz timeupdate re-renders of the surrounding chrome. */
+export const TopBar = memo(function TopBar({
+  title,
+  subtitle,
+  warn,
+  onBack,
+  backFocused,
+}: Readonly<TopBarProps>) {
   const t = useT();
   return (
     <Box
@@ -42,26 +48,16 @@ export function TopBar({ title, subtitle, warn, onBack, backFocused }: Readonly<
       pointerEvents="box-none"
       style={gradient(SCRIM)}
     >
-      <Pressable
-        {...VIRTUAL_FOCUS}
+      {/* Controlled focus (`focused` is ALWAYS passed): the button must never
+          become a platform / navigator focus target inside the player - see
+          ../lib/virtual-focus.ts. */}
+      <BackButton
+        variant="glass"
+        size={42}
+        focused={backFocused ?? false}
         onPress={onBack}
-        accessibilityRole="button"
-        accessibilityLabel={t('player.back')}
-      >
-        <Box
-          w={42}
-          h={42}
-          shrink={0}
-          center
-          radius="pill"
-          borderWidth={1}
-          border="rgba(255, 255, 255, 0.14)"
-          bg="rgba(255, 255, 255, 0.1)"
-          style={backFocused ? FOCUSED : null}
-        >
-          <IconBack size={20} />
-        </Box>
-      </Pressable>
+        label={t('player.back')}
+      />
       <Box style={{ minWidth: 0 }}>
         <Txt lines={1} style={TITLE}>
           {title}
@@ -81,9 +77,8 @@ export function TopBar({ title, subtitle, warn, onBack, backFocused }: Readonly<
       ) : null}
     </Box>
   );
-}
+});
 
-const FOCUSED = { boxShadow: FOCUS_SHADOW, transform: [{ scale: FOCUS_SCALE }] };
 const TITLE = {
   fontFamily: fonts.display,
   fontSize: 19,

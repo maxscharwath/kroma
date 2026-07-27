@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CssIntro } from './CssIntro';
-import { SAFETY_MS, VIDEO_SOURCES } from './constants';
+import { SAFETY_MS, SAFETY_SLACK_MS, VIDEO_SOURCES } from './constants';
 import { IntroShell } from './IntroShell';
 import { useIntroExit } from './useIntroExit';
 import { useIntroKeys } from './useIntroKeys';
@@ -55,8 +55,6 @@ const TAGLINE_LEAD_S = 2.6;
  * Long enough that a slow network is still "loading" (NETWORK_LOADING) rather
  * than sourceless, short enough that the fallback still opens with the sting. */
 const NO_SOURCE_MS = 500;
-/** Slack added to the video duration for the stall-safety timer (ms). */
-const SAFETY_SLACK_MS = 1500;
 /** How far into the film a first gesture still rewinds it to play with sound
  * from the top. Past this the gesture only unmutes. */
 const UNMUTE_REWIND_S = 0.4;

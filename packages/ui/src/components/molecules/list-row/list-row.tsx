@@ -5,11 +5,16 @@
 // than a primitive because it composes four of them (Focusable, Icon, Txt and
 // whatever sits at the end) into the one arrangement the design specifies:
 // a round glyph well, the label taking the slack, and a trailing affordance.
+//
+// The well itself is <IconWell>, because the TV's server list needed the same
+// mark on a row this component cannot draw (a badge beside the title, two
+// sub-lines) and was drawing its own, four points larger.
 
 import type { ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
+import { IconWell } from '#ui/components/atoms/icon-well';
 import { Txt } from '#ui/components/atoms/text';
 import { sv } from '#ui/lib/sv';
 import { colors, radius } from '#ui/lib/tokens';
@@ -46,13 +51,10 @@ const listRowVariants = sv({
   defaults: { size: 'tv' },
 });
 
-/** Non-style metrics per size: the glyph well and the glyph inside it. */
-const METRICS = {
-  sm: { well: 34, glyph: 17 },
-  tv: { well: 42, glyph: 20 },
-} as const;
+/** The trailing chevron, sized with the leading well's glyph. */
+const GLYPH = { sm: 17, tv: 20 } as const;
 
-type ListRowSize = keyof typeof METRICS;
+type ListRowSize = keyof typeof GLYPH;
 
 interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'label'> {
   /** Leading glyph. Omit it and the row starts at the label. */
@@ -77,7 +79,6 @@ function ListRow({
   style,
   ...focusProps
 }: Readonly<ListRowProps>) {
-  const metrics = METRICS[size];
   const s = listRowVariants({ size });
   return (
     <Focusable
@@ -89,11 +90,7 @@ function ListRow({
       style={[s.root, style]}
       focusedStyle={FOCUSED}
     >
-      {icon ? (
-        <Box w={metrics.well} h={metrics.well} shrink={0} center radius="xl" bg={WELL}>
-          <Icon name={icon} size={metrics.glyph} color="textMuted" />
-        </Box>
-      ) : null}
+      {icon ? <IconWell name={icon} size={size} /> : null}
       <Box flex gap={2}>
         <Txt style={s.label}>{label}</Txt>
         {hint ? (
@@ -103,12 +100,11 @@ function ListRow({
         ) : null}
       </Box>
       {trailing ??
-        (onPress ? <Icon name="chevron-right" size={metrics.glyph} color="textDim" /> : null)}
+        (onPress ? <Icon name="chevron-right" size={GLYPH[size]} color="textDim" /> : null)}
     </Focusable>
   );
 }
 
-const WELL = 'rgba(255, 255, 255, 0.06)';
 /** Focus is a solid amber edge rather than a fill: a row is wide, and a filled
  * one at the top of a list reads as "selected forever" instead of "focused". */
 const FOCUSED = { borderColor: colors.accent } as const;

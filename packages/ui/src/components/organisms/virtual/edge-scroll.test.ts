@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { edgeScrollOffset, fitPitch } from './edge-scroll';
-import { edgeWidth, horizontalInset, railMask } from './virtual-rail';
+import { edgeScrollOffset, fitPitch, horizontalInset } from './edge-scroll';
+import { edgeWidth, railMask } from './rail-edge';
 
 /** A row of 200 tiles, 200px pitch, showing 5 at a time, one tile of margin. */
 const ROW = { itemSize: 200, viewport: 1000, count: 200, margin: 200 };

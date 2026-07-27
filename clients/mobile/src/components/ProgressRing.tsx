@@ -5,8 +5,7 @@
 // negative value means "indeterminate", and a queued download shows the
 // platform spinner rather than a ring stuck at zero.
 
-import { colors, ProgressRing as Ring } from '@kroma/ui/kit';
-import { ActivityIndicator } from 'react-native';
+import { colors, ProgressRing as Ring, Spinner } from '@kroma/ui/kit';
 
 export function ProgressRing({
   progress,
@@ -18,7 +17,7 @@ export function ProgressRing({
   size?: number;
   stroke?: number;
 }>) {
-  if (progress < 0) return <ActivityIndicator size="small" color={colors.accent} />;
+  if (progress < 0) return <Spinner size={20} color={colors.accent} />;
   return (
     <Ring
       // A ring at exactly 0 reads as broken rather than as "just started", so

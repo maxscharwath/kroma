@@ -85,3 +85,9 @@ export const SHADE = {
   mid: 'rgba(10, 10, 12, 0.55)',
   full: '#0A0A0C',
 } as const;
+
+/** The page background (`colors.bg`) at an arbitrary alpha, for the hand-tuned
+ * veil gradients whose stops fall between {@link SHADE}'s three. */
+export function shade(alpha: number): string {
+  return `rgba(10, 10, 12, ${alpha})`;
+}

@@ -158,11 +158,21 @@ export function streamUrl(ctx: RequestContext, id: string): string {
  * EMPTY array sends an empty one ("this device decodes none of them, transcode
  * everything"). Collapsing the two would turn "copy nothing" into "copy all"
  * and hand a phone Dolby tracks it can't decode, offline, where the player has
- * no fallback left. */
-export function downloadUrl(ctx: RequestContext, id: string, copyCodecs?: string[]): string {
+ * no fallback left. `videoCodecs` follows the same three states for the video
+ * track: omitted = stream-copy always; listed = the server transcodes to H.264
+ * when the source codec is not in the set (AV1 on a pre-A17 iPhone downloaded
+ * as audio under a black frame otherwise). */
+export function downloadUrl(
+  ctx: RequestContext,
+  id: string,
+  copyCodecs?: string[],
+  videoCodecs?: string[],
+): string {
   const base = `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/download`;
-  if (!copyCodecs) return base;
-  return `${base}?copy=${encodeURIComponent(copyCodecs.join(','))}`;
+  const params: string[] = [];
+  if (copyCodecs) params.push(`copy=${encodeURIComponent(copyCodecs.join(','))}`);
+  if (videoCodecs) params.push(`video=${encodeURIComponent(videoCodecs.join(','))}`);
+  return params.length ? `${base}?${params.join('&')}` : base;
 }
 
 /** Server-side loudness-filter variant of the HLS master (night-mode volume

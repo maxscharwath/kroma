@@ -27,19 +27,30 @@ interface TxtProps extends Omit<TextProps, 'style' | 'role'> {
 }
 
 /**
- * A `style` that resizes the text without restating `lineHeight` would keep the
- * role's absolute one, which is sized for the role's own font size. Web only
- * spills the glyph out of that line box, but native React Native CLIPS it (the
- * PIN keypad's 28px digits lost their tops to `body`'s 25px line). Re-derive the
- * line height from the role's authored ratio so the override stays proportional.
+ * A `style` that resizes the text carries two absolutes with it that were sized
+ * for the ROLE's font size, not for the new one.
+ *
+ * `lineHeight` is the one that breaks visibly: web only spills the glyph out of
+ * the line box, but native React Native CLIPS it (the PIN keypad's 28px digits
+ * lost their tops to `body`'s 25px line). `letterSpacing` breaks quietly, which
+ * is worse - an overline resized from 11px to 13px kept 11px's tracking and read
+ * as a tighter eyebrow, so every 10-foot screen wrote the whole style by hand
+ * instead. Both are re-derived from what the role AUTHORS (a ratio and an em),
+ * and only when the caller has not stated them.
  */
-function lineFix(variant: TypeRole, style: StyleProp<TextStyle>): TextStyle | null {
+function sizeFix(variant: TypeRole, style: StyleProp<TextStyle>): TextStyle | null {
   if (!style) return null;
   const flat = StyleSheet.flatten(style);
   const size = flat?.fontSize;
   const spec = typeSpec[variant];
   if (typeof size !== 'number' || size === spec.size) return null;
-  return flat.lineHeight === undefined ? { lineHeight: Math.round(size * spec.ratio) } : null;
+  const em = 'em' in spec ? spec.em : undefined;
+  return {
+    ...(flat.lineHeight === undefined ? { lineHeight: Math.round(size * spec.ratio) } : null),
+    ...(flat.letterSpacing === undefined && em !== undefined
+      ? { letterSpacing: Math.round(size * em * 100) / 100 }
+      : null),
+  };
 }
 
 function Txt({ variant = 'body', color = 'text', style, lines, ...rest }: Readonly<TxtProps>) {
@@ -47,7 +58,7 @@ function Txt({ variant = 'body', color = 'text', style, lines, ...rest }: Readon
     <RNText
       {...rest}
       numberOfLines={lines}
-      style={[typeRoles[variant], { color: resolveColor(color) }, style, lineFix(variant, style)]}
+      style={[typeRoles[variant], { color: resolveColor(color) }, style, sizeFix(variant, style)]}
     />
   );
 }

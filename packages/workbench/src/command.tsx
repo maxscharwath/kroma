@@ -40,7 +40,7 @@ import {
 import { colors, radius, shadow } from '@kroma/ui/tokens';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, ScrollView } from 'react-native';
-import { FOCUS_WASH_STRONG } from './chrome';
+import { FOCUS_WASH_STRONG, RULE, RULE_TOP } from './chrome';
 import { MONO } from './code';
 import { groupBy, matches, type Story } from './story';
 
@@ -312,7 +312,7 @@ function CommandPalette({
         shadow="pop"
         overflow="hidden"
       >
-        <Box row align="center" px={14} style={RULE_BOTTOM}>
+        <Box row align="center" px={14} style={RULE}>
           <Box flex>
             <Field
               value={query}
@@ -449,8 +449,6 @@ function Hint({ keys, label }: Readonly<{ keys: readonly string[]; label: string
 
 const SCRIM = { backgroundColor: 'rgba(10, 10, 12, 0.72)' } as const;
 const SCRIM_TAP = { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } as const;
-const RULE_BOTTOM = { borderBottomWidth: 1, borderBottomColor: colors.border } as const;
-const RULE_TOP = { borderTopWidth: 1, borderTopColor: colors.border } as const;
 const LIST = { padding: LIST_PAD } as const;
 const INPUT = { fontSize: 15, fontWeight: '500' as const };
 const ITEM = {

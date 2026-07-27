@@ -1,16 +1,15 @@
 import type { RemoteKey, SubtitleGeneration } from '@kroma/core';
 import { langName, subtitleEtaTime, subtitleStageKey } from '@kroma/core';
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { IconButton } from '#ui/components/atoms/icon-button';
 import { Progress } from '#ui/components/atoms/progress';
 import { Txt } from '#ui/components/atoms/text';
 import { useListFocus } from '#ui/components/organisms/player/hooks/useListFocus';
 import type { PanelHandle } from '#ui/components/organisms/player/lib/nav';
-import { VIRTUAL_FOCUS } from '#ui/components/organisms/player/lib/virtual-focus';
-import { IconAi, IconDelete } from '#ui/components/organisms/player/parts/icons';
+import { IconAi } from '#ui/components/organisms/player/parts/icons';
 import type { PlayerSub } from '#ui/components/organisms/player/types';
-import { fonts } from '#ui/lib/tokens';
+import { fonts, radius } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import { GenerateWizard } from './GenerateWizard';
 import type { SubtitleGenBundle } from './gen';
@@ -169,19 +168,21 @@ function AiBadge() {
   );
 }
 
-/** Small trash control beside a deletable AI track / generation row. */
+/** Small trash control beside a deletable AI track / generation row.
+ * Pointer-only, controlled at `false`: never a platform / navigator focus
+ * target (see ../../lib/virtual-focus.ts). */
 function TrashButton({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
   return (
-    <Pressable
-      {...VIRTUAL_FOCUS}
+    <IconButton
+      variant="ghost"
+      size={36}
+      icon="trash"
+      glyph={16}
+      radius={radius.md}
+      focused={false}
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Box w={36} h={36} shrink={0} center radius="md" bg="rgba(255, 255, 255, 0.04)">
-        <IconDelete size={16} color="rgba(255, 255, 255, 0.5)" />
-      </Box>
-    </Pressable>
+      label={label}
+    />
   );
 }
 

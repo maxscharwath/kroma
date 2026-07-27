@@ -198,8 +198,6 @@ function fakeController(over: Partial<PlayerController> = {}): PlayerController 
 
     rate: 1,
     setRate: noop,
-    loop: false,
-    setLoop: noop,
 
     audioTracks: AUDIO_TRACKS,
     audioIndex: 0,

@@ -6,18 +6,11 @@ import type { ReportEpisode } from '#tv/app/router';
 /** A small uppercase heading above one group of the form. */
 export function GroupLabel({ text }: Readonly<{ text: string }>) {
   return (
-    <Txt style={GROUP} color="rgba(244, 243, 240, 0.45)">
+    <Txt variant="overlineTv" color="rgba(244, 243, 240, 0.45)">
       {text}
     </Txt>
   );
 }
-
-const GROUP = {
-  fontSize: 13,
-  fontWeight: '700' as const,
-  letterSpacing: 2.2,
-  textTransform: 'uppercase' as const,
-};
 
 /**
  * What the report is about: the title itself, or one of its episodes.

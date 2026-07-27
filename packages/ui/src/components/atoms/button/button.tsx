@@ -7,8 +7,11 @@
 // parallel lookup maps at the call site.
 
 import type { ReactNode } from 'react';
+import { StyleSheet } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
+import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
+import { Spinner } from '#ui/components/atoms/spinner';
 import { Txt } from '#ui/components/atoms/text';
 import { sv } from '#ui/lib/sv';
 import { colors, radius, type as typeRoles } from '#ui/lib/tokens';
@@ -36,6 +39,15 @@ const buttonVariants = sv({
       },
       ghost: { root: { backgroundColor: 'transparent' } },
       danger: { root: { backgroundColor: colors.danger } },
+      /** A dark wash for a control floating OVER artwork it must not brighten
+       *  (a skip-intro pill, an overlay's quiet action). */
+      scrim: {
+        root: {
+          backgroundColor: 'rgba(10, 10, 12, 0.7)',
+          borderWidth: 1,
+          borderColor: 'rgba(255, 255, 255, 0.15)',
+        },
+      },
       /** A bordered toggle: the detail screen's "Ma liste" / "Vu" pills, which
        *  read as pressed rather than as a primary action. */
       outline: {
@@ -85,7 +97,7 @@ const buttonVariants = sv({
   defaults: { variant: 'primary', size: 'md', block: 'false', active: 'false' },
 });
 
-type ButtonVariant = 'primary' | 'glass' | 'ghost' | 'danger' | 'outline';
+type ButtonVariant = 'primary' | 'glass' | 'ghost' | 'danger' | 'outline' | 'scrim';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'tv';
 
 const ICON_SIZE = { sm: 16, md: 20, lg: 22, tv: 22 } satisfies Record<ButtonSize, number>;
@@ -98,6 +110,18 @@ const INK = {
   ghost: 'text',
   danger: 'text',
   outline: 'text',
+  scrim: 'text',
+} as const;
+
+/** The brightened fill while a finger is down: touch's answer to the focus
+ * ring. Amber goes to its hover step; the translucent fills step up. */
+const PRESSED = {
+  primary: { backgroundColor: colors.accentHover },
+  glass: { backgroundColor: 'rgba(255, 255, 255, 0.18)' },
+  ghost: { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  danger: { opacity: 0.85 },
+  outline: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+  scrim: { backgroundColor: 'rgba(40, 40, 48, 0.75)' },
 } as const;
 
 interface ButtonProps
@@ -115,6 +139,10 @@ interface ButtonProps
   /** Text label. It is also the accessibility name. Pass `children` instead for
    *  anything richer than a string. */
   label?: string;
+  /** Busy: a spinner takes the leading glyph's place and presses are ignored.
+   *  The control stays focusable - a submit that dropped out of the navigator
+   *  mid-spin would strand the remote on nothing. */
+  loading?: boolean;
   children?: ReactNode;
   style?: FocusableProps['style'];
   /** Focus scale. Defaults to the design's 1.04 for the primary action. */
@@ -129,10 +157,12 @@ function Button({
   icon,
   iconRight,
   label,
+  loading = false,
   children,
   style,
   disabled = false,
   focusScale = 1.04,
+  onPress,
   ...focusProps
 }: Readonly<ButtonProps>) {
   // An active toggle tints its glyph and label amber along with its fill.
@@ -144,15 +174,24 @@ function Button({
     block: block ? 'true' : 'false',
     active: active ? 'true' : 'false',
   });
+  // The translucent coats frost what sits behind them (see <Frost>); the
+  // radius follows any caller override so the blur clips with the corner.
+  const frostRadius = StyleSheet.flatten([s.root, style])?.borderRadius;
   return (
     <Focusable
       {...focusProps}
+      onPress={loading ? undefined : onPress}
       disabled={disabled}
       focusScale={focusScale}
       label={label}
+      pressedStyle={PRESSED[variant]}
       style={[s.root, disabled && DISABLED, style]}
     >
-      {icon ? <Icon name={icon} size={glyph} color={ink} /> : null}
+      {FROSTED.has(variant) ? (
+        <Frost radius={typeof frostRadius === 'number' ? frostRadius : radius.md} />
+      ) : null}
+      {loading ? <Spinner size={glyph} color={colors[ink]} /> : null}
+      {!loading && icon ? <Icon name={icon} size={glyph} color={ink} /> : null}
       {label === undefined ? null : (
         <Txt color={ink} style={s.label}>
           {label}
@@ -165,6 +204,10 @@ function Button({
 }
 
 const DISABLED = { opacity: 0.5 } as const;
+
+/** The variants whose fill is a translucency over whatever sits behind - the
+ * ones a backdrop blur has anything to do for. Solid fills stay solid. */
+const FROSTED = new Set<ButtonVariant>(['glass', 'outline', 'scrim']);
 
 export type { ButtonProps, ButtonSize, ButtonVariant };
 export { Button, buttonVariants };

@@ -3,9 +3,10 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type UserConfig } from 'vite';
 import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from '../tv-build/rnw';
-import { clientVersion } from '../tv-build/shell';
+import { buildDefine } from '../tv-build/shell';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
+const shellDir = fileURLToPath(new URL('.', import.meta.url));
 
 // Unlike the Tizen / webOS shells, the Steam Deck runs a current desktop Chromium
 // (SteamOS 3, Arch-based), so there is no old-webview floor: no Lightning CSS
@@ -17,9 +18,10 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 export default defineConfig(
   ({ command }): UserConfig => ({
     plugins: [tailwindcss(), react()],
-    // This build's version, for the server-compatibility banner (see @kroma/tv
-    // CompatBanner / @kroma/core checkServerCompat).
-    define: { __KROMA_VERSION__: JSON.stringify(clientVersion(repoRoot)), ...RNW_DEFINE },
+    // This build's identity: its version for the server-compatibility banner (see
+    // @kroma/tv CompatBanner / @kroma/core checkServerCompat), and the commit /
+    // date / repository the About screen shows.
+    define: { ...buildDefine(repoRoot, shellDir), ...RNW_DEFINE },
     // `#tv/*` -> the @kroma/tv package src (mirrors tsconfig.base paths; Vite needs
     // it explicitly), plus the shared react-native -> react-native-web redirect.
     resolve: webResolve({

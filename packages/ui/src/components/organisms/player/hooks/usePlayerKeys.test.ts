@@ -30,8 +30,6 @@ function makeController(): PlayerController {
     toggleMute: vi.fn(),
     rate: 1,
     setRate: vi.fn(),
-    loop: false,
-    setLoop: vi.fn(),
     audioTracks: [],
     audioIndex: 0,
     setAudio: vi.fn(),

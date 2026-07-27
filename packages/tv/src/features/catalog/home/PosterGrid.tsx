@@ -81,8 +81,14 @@ export const PosterGrid = memo(PosterGridImpl);
  * inset the clip and shave the rows. */
 const GRID_VIEWPORT = { flex: 1, minHeight: 0 } as const;
 
-/** The padding belongs to the content the list translates. */
-const GRID_CONTENT = { paddingHorizontal: 64, paddingTop: 24 } as const;
+/** The padding belongs to the content the list translates.
+ *
+ * `paddingTop` is FOCUS_BLEED, and that is not a coincidence: <VirtualGrid> clips
+ * flush at its top (the bleed there would show the row scrolled off it, over the
+ * filter chips - see organisms/virtual/clip.ts), so the room a focused row's ring
+ * and scale need has to come from INSIDE the content instead. The list parks the
+ * focused row at the content origin, which this pushes 32px clear of the clip. */
+const GRID_CONTENT = { paddingHorizontal: 64, paddingTop: 32 } as const;
 
 /** A row: the gap between tiles. The vertical gap is part of ROW_HEIGHT, which
  * is what the list scrolls by. */

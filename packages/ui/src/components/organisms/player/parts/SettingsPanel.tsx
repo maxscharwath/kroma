@@ -4,8 +4,10 @@ import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } fro
 import { Pressable, ScrollView } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
+import { BackButton } from '#ui/components/molecules/back-button';
 import { useT } from '#ui/services/i18n';
 import { useListFocus } from '../hooks/useListFocus';
+import { audioFilterLabels } from '../lib/audio-filter';
 import type { PanelHandle } from '../lib/nav';
 import { PANEL } from '../lib/style';
 import type { SubtitleAppearance } from '../lib/subtitle-appearance';
@@ -15,9 +17,7 @@ import {
   IconAppearance,
   IconAudioFilter,
   IconAudioTrack,
-  IconBack,
   IconGear,
-  IconLoop,
   IconQuality,
   IconReport,
   IconSpeed,
@@ -34,7 +34,7 @@ import { SpeedPanel } from './settings/SpeedPanel';
 import { SubtitleAppearancePanel } from './settings/SubtitleAppearancePanel';
 import { SubtitlesPanel } from './settings/SubtitlesPanel';
 
-// Sub-views the menu can open; toggles (loop/statistics) act in place.
+// Sub-views the menu can open; toggles (statistics) act in place.
 type View =
   | 'menu'
   | 'quality'
@@ -64,7 +64,7 @@ interface SettingsPanelProps {
 
 /** One main-menu entry: a navigable sub-panel or an in-place toggle. */
 interface Entry {
-  id: View | 'loop' | 'stats';
+  id: View | 'stats';
   icon: ReactNode;
   label: string;
   value?: ReactNode;
@@ -88,7 +88,7 @@ function panelTitle(view: View, entries: Entry[], t: ReturnType<typeof useT>): s
 
 /**
  * The right-side settings panel (§5): a two-level surface over a click-to-close
- * scrim. A main menu lists every setting; OK opens a sub-view (or toggles Loop /
+ * scrim. A main menu lists every setting; OK opens a sub-view (or toggles
  * Statistics in place). Keys route to the open sub-view's {@link PanelHandle} when
  * one is open, else to the menu. Back in a sub-view returns to the menu; Back in
  * the menu closes the panel.
@@ -116,11 +116,7 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
   const curAudio = c.audioTracks.find((a) => a.index === c.audioIndex);
   const curSub =
     c.subtitleIndex == null ? null : c.subtitles.find((s) => s.index === c.subtitleIndex);
-  const filterLabels = {
-    off: t('player.audioFilterOff'),
-    standard: t('player.audioFilterStandard'),
-    night: t('player.audioFilterNight'),
-  } as const;
+  const filterLabels = audioFilterLabels(t);
 
   const subValue = subtitleValue(t, curSub);
 
@@ -184,14 +180,6 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
       activate: () => setView('speed'),
     },
     {
-      id: 'loop',
-      icon: <IconLoop />,
-      label: t('player.loop'),
-      toggle: true,
-      on: c.loop,
-      activate: () => c.setLoop(!c.loop),
-    },
-    {
       id: 'stats',
       icon: <IconStats />,
       label: t('player.stats'),
@@ -250,16 +238,16 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
       >
         <Box row align="center" gap={18} mb={30}>
           {view !== 'menu' ? (
-            <Pressable
-              {...VIRTUAL_FOCUS}
+            // Pointer-only (the remote leaves a sub-view with Back), controlled
+            // at `false`: never a platform / navigator focus target - see
+            // ../lib/virtual-focus.ts.
+            <BackButton
+              variant="glass"
+              size={46}
+              focused={false}
               onPress={backToMenu}
-              accessibilityRole="button"
-              accessibilityLabel={t('player.back')}
-            >
-              <Box w={46} h={46} shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.1)">
-                <IconBack size={21} />
-              </Box>
-            </Pressable>
+              label={t('player.back')}
+            />
           ) : null}
           <Txt variant="h1" style={{ fontSize: 38 }}>
             {title}

@@ -34,13 +34,20 @@ export function sizedImageUrl(url: string | null | undefined, displayWidth: numb
   return `${url}?w=${Math.max(1, Math.round(displayWidth * artworkRatio()))}`;
 }
 
-/** Deterministic hue (0-359) for a string: a rolling 31x hash, unsigned. The one
- * hash behind every generated colour (key-art gradients here, genre art in
- * genre-art.ts) so the same name always lands on the same hue. */
-export function hueFromString(s: string): number {
+/** The ONE hash behind every generated colour: a rolling 31x hash, unsigned.
+ * Exposed raw for the pickers that need a modulus other than 360 (avatar
+ * gradients, placeholder tilts), so every derived colour keys off the same
+ * value for the same string. */
+export function hashString(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + (s.codePointAt(i) ?? 0)) >>> 0;
-  return h % 360;
+  return h;
+}
+
+/** Deterministic hue (0-359) for a string (key-art gradients here, genre art in
+ * genre-art.ts) so the same name always lands on the same hue. */
+export function hueFromString(s: string): number {
+  return hashString(s) % 360;
 }
 
 /** Deterministic two-stop key-art gradient derived from an item id. */
@@ -165,4 +172,39 @@ export function audioTrackLabel(
   const codec = track.codec ? track.codec.toUpperCase() : undefined;
   const label = [name, channelLabel(track.channels), codec].filter(Boolean).join(' · ');
   return label || undefined;
+}
+
+// ----- build identity -------------------------------------------------------
+//
+// Every shell shows what it was built from - the TV's About screen, the phone's
+// settings, the kit's stamp - and each had grown its own copy of these three,
+// two of them byte-identical down to the doc comment. They take primitives
+// rather than a BuildInfo, because each shell reads that record from its own
+// bundler (Expo's manifest, a Vite define) and only the fields matter here.
+
+/** The commit as it should be READ - flagged when the tree it was built from had
+ * uncommitted changes, since that hash alone no longer describes the binary. */
+export function commitLabel(commit: string | null | undefined, dirty: boolean): string | null {
+  if (!commit) return null;
+  return dirty ? `${commit}-dirty` : commit;
+}
+
+/** `https://github.com/owner/repo` -> `github.com/owner/repo`, the same trim the
+ * server row gives its URL. A television cannot follow the link, so it is shown
+ * as something to TYPE elsewhere. */
+export function repoLabel(repository: string | null | undefined): string | null {
+  return repository?.replace(/^https?:\/\//, '') ?? null;
+}
+
+/** The build stamp in the reader's own locale. Falls back to the raw ISO string
+ * rather than to nothing: an unparseable date is still information. */
+export function formatBuildDate(iso: string | null | undefined, locale: string): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  try {
+    return date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
+  } catch {
+    return date.toISOString();
+  }
 }

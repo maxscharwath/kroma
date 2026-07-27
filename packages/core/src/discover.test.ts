@@ -4,19 +4,28 @@ import {
   discoverServer,
   discoverServers,
   getLocalIPv4,
+  resolveServerOrigin,
   subnetCandidates,
 } from './discover';
 
 // A fetch stub driven by a URL -> health-body map. Any URL absent from the map
 // resolves as a non-ok response (a dead host).
-type Health = { ok?: boolean; status?: string; throws?: boolean; body?: Record<string, unknown> };
+type Health = {
+  ok?: boolean;
+  status?: string;
+  throws?: boolean;
+  body?: Record<string, unknown>;
+  /** Where the answer really came from, when the server redirected. */
+  url?: string;
+};
 function fakeFetch(map: Record<string, Health>): typeof globalThis.fetch {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     const h = map[url];
-    if (!h) return { ok: false, json: async () => ({}) } as Response;
+    if (!h) return { ok: false, url, json: async () => ({}) } as Response;
     return {
       ok: h.ok ?? true,
+      url: h.url ?? url,
       json: async () => {
         if (h.throws) throw new Error('bad json');
         return { status: h.status ?? 'ok', ...h.body };
@@ -181,5 +190,134 @@ describe('discoverServers', () => {
       fetch: fakeFetch({}),
     });
     expect(found).toEqual([]);
+  });
+});
+
+describe('resolveServerOrigin', () => {
+  const H = '/api/health';
+
+  it('prefers TLS on the standard port for a bare host', async () => {
+    const fetch = fakeFetch({
+      [`https://media.example.net${H}`]: {},
+      [`http://media.example.net${H}`]: {},
+    });
+    expect(await resolveServerOrigin('media.example.net', { fetch })).toEqual({
+      url: 'https://media.example.net',
+      secure: true,
+    });
+  });
+
+  it("falls back to this project's own port when the standard ones are dead", async () => {
+    const fetch = fakeFetch({ [`http://media.example.net:4040${H}`]: {} });
+    expect(await resolveServerOrigin('media.example.net', { fetch })).toEqual({
+      url: 'http://media.example.net:4040',
+      secure: false,
+    });
+  });
+
+  // The case that makes the padlock honest: a plain-http probe SUCCEEDS against
+  // a server that redirects, so only the final URL can be trusted.
+  it('reports https when http redirects to it', async () => {
+    const fetch = fakeFetch({
+      [`http://media.example.net${H}`]: { url: `https://media.example.net${H}` },
+    });
+    expect(await resolveServerOrigin('media.example.net', { fetch })).toEqual({
+      url: 'https://media.example.net',
+      secure: true,
+    });
+  });
+
+  it('honours an explicit scheme and port exactly', async () => {
+    const fetch = fakeFetch({ [`https://media.example.net:8443${H}`]: {} });
+    expect(await resolveServerOrigin('https://media.example.net:8443', { fetch })).toEqual({
+      url: 'https://media.example.net:8443',
+      secure: true,
+    });
+  });
+
+  it('tries 4040 for an explicit scheme with no port', async () => {
+    const fetch = fakeFetch({ [`https://media.example.net:4040${H}`]: {} });
+    expect(await resolveServerOrigin('https://media.example.net', { fetch })).toEqual({
+      url: 'https://media.example.net:4040',
+      secure: true,
+    });
+  });
+
+  it('never swaps a typed scheme for the other one', async () => {
+    const fetch = fakeFetch({ [`https://media.example.net${H}`]: {} });
+    expect(await resolveServerOrigin('http://media.example.net', { fetch })).toBeNull();
+  });
+
+  it('is null when nothing answers, which is not the same as insecure', async () => {
+    expect(await resolveServerOrigin('media.example.net', { fetch: fakeFetch({}) })).toBeNull();
+  });
+
+  it('ignores an empty address', async () => {
+    expect(await resolveServerOrigin('   ', { fetch: fakeFetch({}) })).toBeNull();
+  });
+});
+
+describe('discovery via the DNS-SD browse', () => {
+  const H = '/api/health';
+
+  it('prefers an announced server over the named candidate', async () => {
+    const fetch = fakeFetch({
+      [`http://kroma.local:4040${H}`]: {},
+      [`http://announced.local:9000${H}`]: {},
+    });
+    const browse = async () => [{ host: 'announced.local', port: 9000 }];
+    await expect(discoverServer({ browse, scanSubnet: false, fetch })).resolves.toBe(
+      'http://announced.local:9000',
+    );
+  });
+
+  // The whole point of announcing: a port the sweep would never have scanned.
+  it('finds a server on a port nothing would have guessed', async () => {
+    const fetch = fakeFetch({ [`https://media.local:8443${H}`]: {} });
+    const browse = async () => [{ host: 'media.local', port: 8443 }];
+    await expect(discoverServer({ browse, scanSubnet: false, fetch })).resolves.toBe(
+      'https://media.local:8443',
+    );
+  });
+
+  it('falls back to the named candidate when the browse finds nothing', async () => {
+    const fetch = fakeFetch({ [`http://kroma.local:4040${H}`]: {} });
+    const browse = async () => [];
+    await expect(discoverServer({ browse, scanSubnet: false, fetch })).resolves.toBe(
+      'http://kroma.local:4040',
+    );
+  });
+
+  // An accelerator in front of two working fallbacks must never be the reason
+  // discovery fails.
+  it('falls back when the browse throws', async () => {
+    const fetch = fakeFetch({ [`http://kroma.local:4040${H}`]: {} });
+    const browse = async () => {
+      throw new Error('no multicast on this network');
+    };
+    await expect(discoverServer({ browse, scanSubnet: false, fetch })).resolves.toBe(
+      'http://kroma.local:4040',
+    );
+  });
+
+  it('ignores an announced server that does not actually answer', async () => {
+    const fetch = fakeFetch({ [`http://kroma.local:4040${H}`]: {} });
+    const browse = async () => [{ host: 'ghost.local', port: 4040 }];
+    await expect(discoverServer({ browse, scanSubnet: false, fetch })).resolves.toBe(
+      'http://kroma.local:4040',
+    );
+  });
+
+  it('lists announced servers first in discoverServers', async () => {
+    const fetch = fakeFetch({
+      [`http://kroma.local:4040${H}`]: { body: { instanceId: 'named' } },
+      [`http://announced.local:9000${H}`]: { body: { instanceId: 'announced' } },
+    });
+    const browse = async () => [{ host: 'announced.local', port: 9000 }];
+    const found = await discoverServers({ browse, scanSubnet: false, fetch });
+    expect(found.map((f) => f.url)).toEqual([
+      'http://announced.local:9000',
+      'http://kroma.local:4040',
+    ]);
   });
 });

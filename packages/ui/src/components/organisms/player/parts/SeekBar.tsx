@@ -1,3 +1,4 @@
+import { formatTimecode } from '@kroma/core';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, PanResponder, View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
@@ -8,6 +9,7 @@ import type { StoryboardTile } from '#ui/services/storyboard';
 import { useDragTrack } from '../hooks/useDragTrack';
 import { clamp01 } from '../lib/fmt';
 import { msAtOffset, offsetAt, SEGMENT_GAP } from '../lib/seek-track';
+import { SEEK_BAR } from '../lib/style';
 import type { Chapter } from '../types';
 import { StoryboardThumb } from './StoryboardThumb';
 
@@ -183,39 +185,29 @@ export function SeekBar({
         accessibilityValue={{ min: 0, max: Math.round(dur), now: Math.round(shown) }}
         style={focused ? FOCUSED_TRACK : null}
       >
-        {/* storyboard preview + timestamp */}
+        {/* storyboard preview + timestamp. The continuously-varying offset rides
+            the transform (via `style`, never a shorthand prop): a shorthand
+            would mint a permanent sharedBoxStyle cache entry per pixel. */}
         {previewSec != null ? (
           <Box
             absolute
             bottom={36}
-            left={previewX}
+            left={0}
             z={6}
             align="center"
             gap={8}
             pointerEvents="none"
-            style={{ transform: [{ translateX: -previewHalf }] }}
+            style={{ transform: [{ translateX: previewX - previewHalf }] }}
           >
             {previewTile ? <StoryboardThumb tile={previewTile} /> : null}
             <Box radius="md" bg="rgba(0, 0, 0, 0.8)" px={12} py={4}>
-              <Txt style={STAMP}>{fmtSec(previewSec)}</Txt>
+              <Txt style={STAMP}>{formatTimecode(previewSec)}</Txt>
             </Box>
           </Box>
         ) : null}
 
         {/* segmented track */}
-        <View
-          ref={track.ref}
-          onLayout={track.onLayout}
-          {...pan.panHandlers}
-          style={{
-            position: 'relative',
-            flexDirection: 'row',
-            alignItems: 'center',
-            height: 6,
-            flex: 1,
-            gap: SEGMENT_GAP,
-          }}
-        >
+        <View ref={track.ref} onLayout={track.onLayout} {...pan.panHandlers} style={TRACK}>
           {segs.map((seg) => {
             const span = Math.max(1, seg.endMs - seg.startMs);
             const played = clamp01((shownMs - seg.startMs) / span);
@@ -230,31 +222,40 @@ export function SeekBar({
                 h={6}
                 radius="pill"
                 overflow="hidden"
-                bg="rgba(255, 255, 255, 0.2)"
+                bg={SEEK_BAR.track}
                 pointerEvents="none"
               >
+                {/* Fill insets vary per tick, so they go through `style` (which
+                    bypasses the shared cache) rather than the `right` shorthand.
+                    Not scaleX: that would stretch the gradient and the pill caps. */}
                 <Box
                   fill
                   radius="pill"
-                  bg="rgba(255, 255, 255, 0.28)"
-                  right={`${(1 - buffed) * 100}%`}
+                  bg={SEEK_BAR.buffered}
+                  style={{ right: `${(1 - buffed) * 100}%` }}
                 />
-                <Box fill radius="pill" right={`${(1 - played) * 100}%`} style={gradient(PLAYED)} />
+                <Box
+                  fill
+                  radius="pill"
+                  style={[PLAYED_FILL, { right: `${(1 - played) * 100}%` }]}
+                />
               </Box>
             );
           })}
 
-          {/* playhead pill */}
+          {/* playhead pill: the varying offset is folded into the transform, so
+              a tick only moves a composited layer (and never touches the shared
+              style cache). */}
           <Box
             absolute
             top="50%"
-            left={playheadX}
+            left={0}
             w={16}
             h={16}
             radius="pill"
             bg="#FFFFFF"
             pointerEvents="none"
-            style={[PLAYHEAD, { transform: [{ translateX: -8 }, { translateY: -8 }] }]}
+            style={[PLAYHEAD, { transform: [{ translateX: playheadX - 8 }, { translateY: -8 }] }]}
           />
         </View>
       </Box>
@@ -271,9 +272,19 @@ const TIME = {
 };
 const MUTED = { fontWeight: '500' as const };
 const FOCUSED_TRACK = { boxShadow: '0 0 0 4px rgba(242, 180, 66, 0.28)' };
-const PLAYED = 'linear-gradient(90deg, #F4B642, #FFD262)';
+const TRACK = {
+  position: 'relative' as const,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  height: 6,
+  flex: 1,
+  gap: SEGMENT_GAP,
+};
+const PLAYED_FILL = gradient(
+  `linear-gradient(90deg, ${SEEK_BAR.played[0]}, ${SEEK_BAR.played[1]})`,
+);
 const PLAYHEAD = {
-  boxShadow: '0 0 0 4px rgba(242, 180, 66, 0.5), 0 2px 8px rgba(0, 0, 0, 0.6)',
+  boxShadow: `0 0 0 4px ${SEEK_BAR.playheadHalo}, 0 2px 8px rgba(0, 0, 0, 0.6)`,
 };
 const STAMP = {
   fontFamily: fonts.ui,
@@ -282,14 +293,3 @@ const STAMP = {
   color: '#FFFFFF',
   fontVariant: ['tabular-nums' as const],
 };
-
-/** Local mm:ss / h:mm:ss for the preview bubble (avoids importing to keep it terse). */
-function fmtSec(s: number): string {
-  const t = Math.max(0, Math.floor(s));
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  const sec = t % 60;
-  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-  const hh = h > 0 ? `${h}:` : '';
-  return `${hh}${mm}:${String(sec).padStart(2, '0')}`;
-}

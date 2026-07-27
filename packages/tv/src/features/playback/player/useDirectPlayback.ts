@@ -24,19 +24,15 @@ import {
   setEnginePref as persistEnginePref,
 } from '#tv/app/enginePref';
 // Which backend to build for an item, and how to build it. Platform-split: the
-// browser targets get the <video>/hls.js, AVPlay, mpv and ExoPlayer engines, the
-// native TV app gets expo-video. This hook drives whichever it is handed.
-import {
-  createTvEngine,
-  planEngine,
-  renditionFor,
-  type Surface,
-} from '#tv/features/playback/player/backend';
+// browser targets get the <video>/hls.js, AVPlay and mpv engines, the native TV
+// app gets expo-video. This hook drives whichever it is handed.
+import { createTvEngine, planEngine } from '#tv/features/playback/player/backend';
 import {
   type EngineListeners,
-  exoAvailable,
   getTauri,
   mpvAvailable,
+  renditionFor,
+  type Surface,
   type TvEngine,
 } from '#tv/features/playback/player/engine';
 import { useResumeAndPersist } from '#tv/features/playback/player/useResumeAndPersist';
@@ -53,7 +49,7 @@ export interface Playback {
   engineRef: React.RefObject<TvEngine | null>;
   /** The AVPlay `<object>` surface (native Tizen engine). */
   objectRef: React.RefObject<HTMLObjectElement | null>;
-  /** Which surface to render. `mpv`/`exo` render nothing in-page (native plane behind). */
+  /** Which surface to render. `mpv` renders nothing in-page (native plane behind). */
   surface: Surface;
   /** The active engine override (per-device pref); `auto` lets `planEngine` decide. */
   enginePref: EnginePref;
@@ -96,11 +92,6 @@ export interface Playback {
   seekTo: (absSec: number) => void;
   /** Read the absolute current position in seconds. */
   getPosition: () => number;
-  /** Begin a directional seek press (remote key / mouse button down). A short press
-   * is a stacking tap; held past a threshold it becomes an accelerating scrub. */
-  seekPress: (dir: -1 | 1) => void;
-  /** A discrete directional tap (OK on a focused rewind/forward control). */
-  seekTap: (dir: -1 | 1) => void;
   /** Live-preview an absolute position while clicking / dragging the scrub bar. */
   seekScrub: (absSec: number) => void;
   /** Commit the current scrub preview (drag release / bar click). */
@@ -120,7 +111,6 @@ export interface Playback {
  * @kroma/desktop shell is a Tauri app whose native mpv bridge is detectable). */
 function detectTvEnv(): PlayEnv {
   if (mpvAvailable()) return { platform: 'desktop', safari: false }; // Linux shell -> mpv
-  if (exoAvailable()) return { platform: 'androidtv', safari: false }; // Android TV shell -> ExoPlayer
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   // Tauri on macOS = WKWebView (Safari engine: native HEVC + AC3/EAC3), so treat it
   // as Safari web - caps + engine selection then match the in-page <video> we use
@@ -145,16 +135,6 @@ function openingAudioIndex(item: MediaItem, audioLanguage?: string | null): numb
   const preferred = preferredAudioIndex(tracks, audioLanguage);
   if (preferred != null) return preferred;
   return (tracks.find((tr) => tr.default) ?? tracks[0])?.index ?? 0;
-}
-
-/** A human label for the current TV device (admin dashboard). */
-function tvDeviceLabel(useMpv: boolean, useExo: boolean): string {
-  if (useMpv) return 'Desktop';
-  if (useExo) return 'Android TV';
-  const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
-  if (/Tizen/i.test(ua)) return 'Samsung TV';
-  if (/web0?s|LG/i.test(ua)) return 'LG TV';
-  return 'TV';
 }
 
 /**
@@ -231,18 +211,11 @@ export function useDirectPlayback(
   // lecture") re-plans + rebuilds the engine live. Seeded from the per-device
   // pref (shared with the profile-menu picker).
   const [enginePref, setEnginePrefState] = useState<EnginePref>(getEnginePref);
-  const {
-    eng,
-    surface,
-    useMpv,
-    useExo,
-    avplayDirect,
-    exoDirect,
-    forceVlc,
-    direct,
-    masterAac,
-    playbackMode,
-  } = planEngine(item, env, enginePref);
+  // The plan is forwarded to `createTvEngine` WHOLE: which flags a backend needs
+  // is that backend's business (five engines' worth on the browser targets, none
+  // on the native one), and this hook deliberately does not learn them.
+  const plan = planEngine(item, env, enginePref);
+  const { surface, playbackMode, deviceLabel, rebuildKey } = plan;
   const durationSec = item.durationMs ? item.durationMs / 1000 : 0;
   // The runtime decode verdict for this item (from probed `capabilities()`). Drives
   // the pre-play warning and, when a `<video>`-engine attempt fails, the SPECIFIC
@@ -349,23 +322,17 @@ export function useDirectPlayback(
     };
 
     const engine = createTvEngine({
-      eng,
+      plan,
       client,
       item,
       durationSec,
       rendition: renditionFor(item, audioIndexRef.current),
       startSec,
-      exoDirect,
-      avplayDirect,
-      forceVlc,
-      direct,
-      masterAac,
       // Persisted mode, read at build time so a remembered filter is active from
       // the first frame (AVPlay even picks its source from it); later changes
       // arrive in place through setAudioFilter.
       audioFilter: storedAudioFilter(),
-      forceNativeHls: env.nativeHls,
-      video: videoRef.current,
+      dom: { video: videoRef.current, nativeHls: env.nativeHls },
       listeners,
     });
     if (!engine) return; // <video> surface not mounted yet; rebuild next render
@@ -378,18 +345,9 @@ export function useDirectPlayback(
       engine.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    client,
-    item,
-    eng,
-    exoDirect,
-    avplayDirect,
-    direct,
-    masterAac,
-    durationSec,
-    startSec,
-    failKey,
-  ]);
+    // `rebuildKey` stands in for every backend flag the plan resolved, so this
+    // list no longer has to name them one by one (and no longer misses one).
+  }, [client, item, rebuildKey, durationSec, startSec, failKey]);
 
   // In-place audio rendition switch: no source reload, picture keeps playing.
   useEffect(() => {
@@ -411,10 +369,10 @@ export function useDirectPlayback(
     // "codec not supported" toast. `loadBeat` is in the deps: each buffering signal
     // re-arms this timer, so a slow-but-alive load never trips it (and a dead one,
     // which emits nothing, still fails after the grace).
-    const graceMs = surface === 'exo' || surface === 'mpv' ? 30000 : 15000;
+    const graceMs = surface === 'mpv' ? 30000 : 15000;
     const graceS = graceMs / 1000;
     const id = setTimeout(() => {
-      if (surface === 'mpv' || surface === 'exo') {
+      if (surface === 'mpv') {
         console.error(`[KROMA] ${surface} engine did not signal ready in ${graceS}s`);
       } else {
         const v = videoRef.current;
@@ -472,7 +430,7 @@ export function useDirectPlayback(
     pingSignal: `${playing}|${waiting}|${audioIndex}`,
     mode: playbackMode,
     player: 'KROMA TV',
-    device: tvDeviceLabel(useMpv, useExo),
+    device: deviceLabel,
     eventsBaseUrl: client.baseUrl,
     idPrefix: 'tv',
     onTerminated: (message) => {
@@ -518,18 +476,14 @@ export function useDirectPlayback(
 
   const seek = useCallback((delta: number) => seekTo(getPosition() + delta), [seekTo, getPosition]);
 
-  // Tap-vs-hold seek gesture shared by the remote and the mouse: a short press
-  // stacks fixed 5s taps into one commit (precise), a held press turns into an
-  // accelerating scrub (fast), and `scrub` drives the same preview from an
-  // absolute position for a mouse click / drag on the bar. Only ONE real seek per
-  // gesture; with the VOD master / direct source that seek is instant.
+  // Scrub gesture shared by the remote and the mouse: `scrub` drives a preview
+  // from an absolute position for a mouse click / drag on the bar. Only ONE real
+  // seek per gesture; with the VOD master / direct source that seek is instant.
   const {
     preview: seekPreview,
-    press: seekPress,
-    tap: seekTap,
     scrub: seekScrub,
     commit: seekScrubCommit,
-  } = useSeekGesture({ getPosition, duration: runtime, seekTo });
+  } = useSeekGesture({ duration: runtime, seekTo });
 
   const setAudio = useCallback(
     (index: number) => setAudioIndex((c) => (c === index ? c : index)),
@@ -576,8 +530,6 @@ export function useDirectPlayback(
     seek,
     seekTo,
     getPosition,
-    seekPress,
-    seekTap,
     seekScrub,
     seekScrubCommit,
     seekPreview,

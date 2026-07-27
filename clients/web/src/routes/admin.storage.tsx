@@ -1,6 +1,6 @@
 import type { Volume } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { EmptyState } from '@kroma/ui/kit';
+import { Button, EmptyState } from '@kroma/ui/kit';
 import { IconDatabase } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -150,14 +150,13 @@ function StoragePage() {
             title={t('admin.clearCache')}
             desc={t('admin.clearCacheDesc', { size: formatBytes(data?.cache.bytes ?? 0) })}
             right={
-              <button
-                type="button"
-                onClick={() => void clearCache()}
-                disabled={clearing}
-                className="rounded-[9px] border border-[#E8536A]/25 bg-[#E8536A]/10 px-3.75 py-2.25 text-[13px] font-semibold text-[#E8536A] disabled:opacity-50"
-              >
-                {clearing ? t('admin.clearing') : t('admin.clearNow')}
-              </button>
+              <Button
+                variant="danger"
+                size="sm"
+                label={clearing ? t('admin.clearing') : t('admin.clearNow')}
+                onPress={() => void clearCache()}
+                loading={clearing}
+              />
             }
           />
           <MaintRow
@@ -165,14 +164,13 @@ function StoragePage() {
             desc={t('admin.resetMetadataDesc')}
             border={false}
             right={
-              <button
-                type="button"
-                onClick={() => void resetMetadata()}
-                disabled={resetting}
-                className="rounded-[9px] border border-[#E8536A]/25 bg-[#E8536A]/10 px-3.75 py-2.25 text-[13px] font-semibold text-[#E8536A] disabled:opacity-50"
-              >
-                {resetting ? t('admin.resetting') : t('admin.resetMetadataBtn')}
-              </button>
+              <Button
+                variant="danger"
+                size="sm"
+                label={resetting ? t('admin.resetting') : t('admin.resetMetadataBtn')}
+                onPress={() => void resetMetadata()}
+                loading={resetting}
+              />
             }
           />
         </Card>

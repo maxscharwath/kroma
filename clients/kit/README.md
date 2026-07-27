@@ -18,8 +18,8 @@ bun run ios:tv       # Apple TV simulator
 bun run android:tv   # Android TV emulator
 ```
 
-From the repo root the same four are `bun run kit:ios`, `kit:android`,
-`kit:tv`, `kit:androidtv`.
+From the repo root the same five are `bun run dev:kit`, `run:kit:ios`,
+`run:kit:android`, `run:kit:appletv`, `run:kit:androidtv`.
 
 The first native run does an `expo prebuild`, which writes `ios/` and
 `android/` from `app.json` — both are generated and both are gitignored. The

@@ -47,7 +47,6 @@ export const IconOk = glyph('check', 18, 2.2);
 export const IconAi = glyph('sparkles', 13, 2);
 export const IconDelete = glyph('trash', 16, 1.8);
 export const IconStats = glyph('chart-bar', 22, 1.8);
-export const IconLoop = glyph('repeat', 22, 1.8);
 // Settings-menu row glyphs (§5): quality / audio-filter / appearance / speed.
 export const IconQuality = glyph('badge-4k', 22, 1.8);
 export const IconAudioFilter = glyph('adjustments-horizontal', 22, 1.8);

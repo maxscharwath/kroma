@@ -12,11 +12,11 @@
 // dock, and the docked one collapses to its tab row on a phone, where the canvas
 // and the panel are otherwise fighting over one short column.
 
-import { Box, Focusable, Icon, type IconName, Txt } from '@kroma/ui/kit';
+import { Box, Focusable, Icon, IconButton, type IconName, Txt } from '@kroma/ui/kit';
 import { colors } from '@kroma/ui/tokens';
 import { type ReactNode, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { FOCUS_WASH, RULE, TAB, TAB_ACTIVE } from './chrome';
+import { FOCUS_WASH, RULE, RULE_TOP, TAB, TAB_ACTIVE } from './chrome';
 import { CodeBlock, MONO } from './code';
 import { Controls } from './controls';
 import { Guidelines, RichText } from './docs';
@@ -74,7 +74,7 @@ function PropTable({ props }: Readonly<{ props: readonly PropDoc[] }>) {
           gap={3}
           pt={at === 0 ? 0 : 12}
           pb={12}
-          style={at === props.length - 1 ? undefined : ROW_RULE}
+          style={at === props.length - 1 ? undefined : RULE}
         >
           <Box row align="baseline" gap={8} wrap>
             <Txt variant="meta" style={PROP_NAME}>
@@ -179,7 +179,7 @@ function Panel({ story, args, onChange, onReset, showControls, layout }: Readonl
       shrink={0}
       w={docked ? undefined : layout.panelWidth}
       h={docked && shown ? layout.panelHeight : undefined}
-      style={docked ? DOCK : SIDE}
+      style={docked ? RULE_TOP : SIDE}
     >
       {/* The tab row is also the panel's titlebar: it is what says the panel is a
           tool rather than leftover page. It holds TABS and nothing else. `Reset`
@@ -267,25 +267,29 @@ function TabButton({
  * the tabs beside it already name what is inside. */
 function Handle({ open, onPress }: Readonly<{ open: boolean; onPress: () => void }>) {
   return (
-    <Focusable
+    <IconButton
+      variant="ghost"
+      size={35}
+      radius={0}
       label={open ? 'Hide the inspector' : 'Show the inspector'}
       ring={false}
-      onPress={onPress}
-      style={HANDLE}
+      focusScale={1}
       focusedStyle={FOCUS_WASH}
+      style={HANDLE}
+      onPress={onPress}
     >
       <Icon name={open ? 'chevron-down' : 'chevron-up'} size={15} color="textMuted" />
-    </Focusable>
+    </IconButton>
   );
 }
 
 const SCROLL = { flex: 1 } as const;
 const SIDE = { borderLeftWidth: 1, borderLeftColor: colors.border } as const;
-const DOCK = { borderTopWidth: 1, borderTopColor: colors.border } as const;
-const ROW_RULE = { borderBottomWidth: 1, borderBottomColor: colors.border } as const;
 const SIDE_BODY = { padding: 16, paddingBottom: 56 } as const;
 const DOCK_BODY = { paddingHorizontal: 20, paddingVertical: 18, paddingBottom: 32 } as const;
-const HANDLE = { paddingHorizontal: 10, paddingVertical: 11 } as const;
+// Two points taller than the kit button's square, which is the box the old
+// padded grip came to: the tab row beside it sets the height being filled.
+const HANDLE = { height: 37 } as const;
 // The shared tab shape plus this row's own layout: an icon, a label and a count
 // side by side. `minWidth: 0` is what lets the label inside actually truncate -
 // without it a flex item refuses to shrink below its content and the row spills

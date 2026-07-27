@@ -10,6 +10,10 @@ import { useClient, useNav } from '#tv/app/router';
 // whatever is on screen at the time, so the rail becomes navigable the moment it
 // appears.
 
+/** A <MediaCard> at this row's 300 width, 16:9, and the 24px gap after it (the
+ * same recipe as TvHome's ROW_TILE: `item.width` is the tile PITCH). */
+const ROW_TILE = { width: 300 + 24, height: Math.round((300 * 9) / 16) };
+
 const LABEL = {
   fontWeight: '700' as const,
   fontSize: 15,
@@ -64,8 +68,10 @@ export function TvAiSuggestRow({ id }: Readonly<{ id: string }>) {
           </Txt>
         ) : null}
         {/* The rail already pads itself by the 10-foot gutter; this one sits
-            inside a detail column that has its own padding, so it opts out. */}
-        <Rail inset={0} gap={24}>
+            inside a detail column that has its own padding, so it opts out.
+            Virtualised like TvHome's rows: the pitch is the card width plus the
+            gap after it, the height the 16:9 card at 300 wide. */}
+        <Rail inset={0} gap={24} item={ROW_TILE}>
           {section.items.map(card)}
         </Rail>
       </Box>

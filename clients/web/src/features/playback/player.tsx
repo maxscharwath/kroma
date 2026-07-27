@@ -5,10 +5,11 @@ import {
   playerSubtitle,
 } from '@kroma/core';
 import { Player as UnifiedPlayer, useSubtitleAppearance, useT, WEB_FLAGS } from '@kroma/ui';
+import { Button } from '@kroma/ui/kit';
 import type { Ref } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { View } from 'react-native';
-import { IconBack, IconStopped } from '#web/features/playback/icons';
+import { IconStopped } from '#web/features/playback/icons';
 import { Toast } from '#web/features/playback/player-toast';
 import { usePlaybackSession } from '#web/features/playback/use-playback-session';
 import { useResumeProgress } from '#web/features/playback/use-resume-progress';
@@ -151,14 +152,13 @@ export function Player({
               <IconStopped size={52} />
             </span>
             <p className="max-w-115 text-[15px] text-white/80">{terminated}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex items-center gap-2 rounded-md bg-accent px-6 py-2.5 text-[14px] font-semibold text-accent-ink hover:bg-accent-hover"
-            >
-              <IconBack />
-              {t('player.back')}
-            </button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon="chevron-left"
+              label={t('player.back')}
+              onPress={onClose}
+            />
           </div>
         ) : null
       }

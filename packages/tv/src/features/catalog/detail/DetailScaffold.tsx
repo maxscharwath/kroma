@@ -2,6 +2,7 @@ import { posterColors } from '@kroma/core';
 import {
   Badge,
   Box,
+  colors,
   FocusScroll,
   FocusSlot,
   gradient,
@@ -11,20 +12,11 @@ import {
   tintGradient,
 } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 
 // Two layers rather than one comma-separated background-image: multi-value
 // backgrounds are a CSS-only luxury React Native's gradient support lacks.
-const VEIL_HORIZONTAL = 'linear-gradient(90deg, #0A0A0C 12%, transparent 68%)';
-const VEIL_VERTICAL = 'linear-gradient(0deg, #0A0A0C 4%, transparent 60%)';
-
-const KIND = {
-  fontWeight: '700' as const,
-  fontSize: 13,
-  lineHeight: 16,
-  letterSpacing: 2.6,
-  textTransform: 'uppercase' as const,
-};
+const VEIL_HORIZONTAL = `linear-gradient(90deg, ${colors.bg} 12%, transparent 68%)`;
+const VEIL_VERTICAL = `linear-gradient(0deg, ${colors.bg} 4%, transparent 60%)`;
 
 // clamp(46px, 7.6vh, 86px) resolves to 82px on the fixed 1080-tall stage.
 const TITLE = { fontSize: 82, lineHeight: 78, fontWeight: '700' as const, letterSpacing: -1.64 };
@@ -66,12 +58,6 @@ export function TvDetailScaffold({
 }>) {
   return (
     <Box fill bg="bg" overflow="hidden">
-      {/* The bar comes FIRST in the tree because the navigator moves in tree
-          order and the bar is visually at the top; it still paints above,
-          on its own z. Which control opens focused is said by `autoFocus`,
-          not by the order. */}
-      <TvTopNav />
-
       <Img src={backdrop} background={tintGradient(posterColors(id))} position="50% 18%" fill />
       <Box fill pointerEvents="none" style={gradient(VEIL_HORIZONTAL)} />
       <Box fill pointerEvents="none" style={gradient(VEIL_VERTICAL)} />
@@ -79,7 +65,7 @@ export function TvDetailScaffold({
       <FocusScroll style={DETAIL_SCROLL} contentStyle={DETAIL_CONTENT} offsetFromStart={120}>
         {/* The header and the actions, one row: the page shows it whole. */}
         <FocusSlot>
-          <Txt style={KIND} color="accent">
+          <Txt variant="overlineTv" color="accent">
             {kind}
           </Txt>
           <Txt variant="hero" style={[TITLE, { marginTop: 14, marginBottom: 16 }]}>

@@ -9,7 +9,7 @@
 // typing, from the same state.
 
 import { useLocale, useT } from '@kroma/ui';
-import { Box, Button, Dialog, DialogFooter, Icon, Txt } from '@kroma/ui/kit';
+import { Box, Button, colors, Dialog, DialogFooter, Icon, Txt } from '@kroma/ui/kit';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 import type { VoiceSearchBackend } from '#tv/app/voiceSearch';
@@ -111,7 +111,7 @@ function Pulse({ children }: Readonly<{ children: React.ReactNode }>) {
           borderRadius: 28,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(242, 180, 66, 0.16)',
+          backgroundColor: colors.accentSoft,
         }}
       >
         {children}

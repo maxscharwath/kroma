@@ -93,7 +93,7 @@ export function TvAddProfile() {
         </Txt>
 
         <Box row align="center" gap={10} mb={12}>
-          <Txt style={SECTION} color="rgba(244, 243, 240, 0.42)">
+          <Txt variant="overlineTv" style={SECTION} color="rgba(244, 243, 240, 0.42)">
             {t('addProfile.availableServers')}
           </Txt>
           {discovering ? <Spinner size={13} thickness={2} /> : null}
@@ -152,9 +152,5 @@ export function TvAddProfile() {
 
 const LIST = { gap: 12 };
 
-const SECTION = {
-  fontSize: 12,
-  fontWeight: '700' as const,
-  letterSpacing: 1.92,
-  textTransform: 'uppercase' as const,
-};
+/** A size down from the kit role: this list sits inside a dialog-width column. */
+const SECTION = { fontSize: 12 };

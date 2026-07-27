@@ -5,15 +5,18 @@
 // QWERTY / QWERTZ, see keyboardLayoutPref).
 
 import {
+  Button,
+  colors,
   Focusable,
   FocusColumn,
   FocusRegion,
   Icon,
   type IconName,
   Txt,
+  useHardwareKeys,
   webWindow,
 } from '@kroma/ui/kit';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TextStyle, ViewStyle } from 'react-native';
 import { getKeyboardLayoutPref, type KeyboardLayoutPref } from '#tv/app/keyboardLayoutPref';
 import { useEnv } from '#tv/app/providers/env';
@@ -57,6 +60,22 @@ function usePhysicalTyping(value: string, onChange: (next: string) => void) {
     w.addEventListener('keydown', onKey);
     return () => w.removeEventListener('keydown', onKey);
   }, [physicalKeyboard]);
+
+  // The native half of the same idea. An Android TV takes a bluetooth keyboard
+  // and the emulator has one; there is no `document` to listen to, so the
+  // characters come from the remote bridge instead (a no-op on every browser
+  // shell, where the listener above already has it covered). No capability
+  // check: `physicalKeyboard` decides whether to render a typeable input INSTEAD
+  // of this keyboard, which is not the question here - a keyboard someone
+  // plugged into a television should just work, with the on-screen one still up
+  // for the remote.
+  useHardwareKeys(
+    useCallback((key: string) => {
+      const s = stateRef.current;
+      if (key === 'Backspace') s.onChange(s.value.slice(0, -1));
+      else if (key.length === 1) s.onChange(s.value + key);
+    }, []),
+  );
 }
 
 // ----- layout preference ------------------------------------------------------
@@ -167,6 +186,7 @@ const URL_KEY: ViewStyle = { height: 52, flex: 1 };
 const URL_KEY_TEXT: TextStyle = { fontSize: 20 };
 const URL_CLEAR_KEY: ViewStyle = { height: 52, flex: 2 };
 const URL_CLEAR_TEXT: TextStyle = { fontSize: 16 };
+const URL_SUBMIT: ViewStyle = { height: 52, flex: 3 };
 
 const KEY_ROW = { flexDirection: 'row' as const, gap: 12 };
 
@@ -232,24 +252,7 @@ function UrlKeyboard({
           focusInk="accent"
         />
         {onSubmit ? (
-          <Focusable
-            onPress={onSubmit}
-            label={submitLabel}
-            focusScale={1.06}
-            ring={false}
-            style={{
-              height: 52,
-              flex: 3,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 16,
-              backgroundColor: '#F4B642',
-            }}
-          >
-            <Txt style={{ fontSize: 17, fontWeight: '700' }} color="accentInk">
-              {submitLabel}
-            </Txt>
-          </Focusable>
+          <Button variant="primary" onPress={onSubmit} label={submitLabel} style={URL_SUBMIT} />
         ) : null}
       </FocusRegion>
     </FocusColumn>
@@ -300,7 +303,7 @@ function SearchKeyboard({
       onPress={onPress}
       style={face}
       textStyle={text}
-      focusFill="#F4B642"
+      focusFill={colors.accent}
       focusInk="accentInk"
     />
   );
@@ -311,7 +314,7 @@ function SearchKeyboard({
       iconSize={size}
       onPress={onPress}
       style={face}
-      focusFill="#F4B642"
+      focusFill={colors.accent}
       focusInk="accentInk"
     />
   );

@@ -32,14 +32,32 @@
 // JS driver, deliberately - left and width are layout properties the native
 // driver cannot carry, and a 260ms one-shot is what the JS driver is for).
 //
-// The fill is a solid translucency, not a blur: Tizen composites blur on the
-// CPU and pays in frames on every focus move. A platform that composites it on
-// the GPU (the iPhone) passes its own <BlurView> as `backdrop`, and the fill
-// thins to let it read - the kit stays free of platform blur dependencies.
+// The fill is a solid translucency, not a blur: the kit stays free of platform
+// blur dependencies. A platform that composites blur on the GPU fills the
+// `backdrop` slot - the iPhone with its own <BlurView>, the TV chrome with the
+// kit's <Frost> (which is CSS backdrop-filter on the browsers, ignored for
+// free by the legacy panels, and the shell's registered blur view on native) -
+// and the fill thins to let it read.
+//
+// On glass the capsule is also a SLIDER. A tap switches sections as it always
+// has, but a finger that lands and then travels is captured by the capsule
+// itself: the lens - and the amber ink with it - chases the finger from item to
+// item as a PREVIEW, and lifting commits whatever it rests on, the drag the
+// native tab bar taught thumbs to expect. Committing on the RELEASE rather than
+// on every crossing is what keeps the gesture calm: `active` never flips while
+// the finger is down, so no label swaps and no rect reflows happen under a
+// thumb that is still moving - the host navigates once, when it lets go. A
+// television never sees any of this: the remote has no finger.
+//
+// The root's options bend these defaults without forking the design: `labels`
+// overrides the size's label policy (`none` is the icon-only bar), `slide`
+// turns the gesture off for a tap-only host, and `onPreview` reports each
+// crossing as it happens - the hook a host hangs its selection haptics on,
+// since the kit itself stays free of platform haptics dependencies.
 
 import {
-  createContext,
   type ComponentRef,
+  createContext,
   type ReactNode,
   type Ref,
   useCallback,
@@ -51,8 +69,8 @@ import {
 } from 'react';
 import {
   Animated,
-  Easing,
   type LayoutChangeEvent,
+  PanResponder,
   Platform,
   type StyleProp,
   type View,
@@ -62,18 +80,28 @@ import { Box } from '#ui/components/atoms/box';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
-import { colors, motion } from '#ui/lib/tokens';
+import { ease } from '#ui/lib/ease';
+import { colors } from '#ui/lib/tokens';
 
 const WEB = Platform.OS === 'web';
 
 /** How the lens travels: the kit's spring curve, at a pace that reads as the
  * lens ARRIVING somewhere rather than teleporting or wallowing. */
 const TRAVEL_MS = 260;
-const [x1, y1, x2, y2] = motion.bezier.spring;
-const EASE_CSS = `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
-const EASE_NATIVE = Easing.bezier(x1, y1, x2, y2);
+/** How the lens travels UNDER A FINGER: tighter, so it reads as chasing the
+ * finger magnetically rather than commuting behind it. */
+const CHASE_MS = 160;
+/** Horizontal travel before the capsule takes the touch from the item under it.
+ * Inside the slop a touch is a tap and belongs to the item's own pressable. */
+const SLIDE_SLOP = 8;
+const EASE_CSS = ease.spring.css;
+const EASE_NATIVE = ease.spring.native;
 
 type NavPillSize = 'sm' | 'tv';
+
+/** Which items carry their label. `auto` is the size's own policy: every label
+ * at `tv`, the active item's at `sm`. */
+type NavPillLabels = 'auto' | 'all' | 'active' | 'none';
 
 /** Where an item sits inside the capsule, in the capsule's own coordinates. */
 interface LensRect {
@@ -81,18 +109,48 @@ interface LensRect {
   width: number;
 }
 
+/** What the root can do with an item during a slide: read where it sits (live,
+ * through a getter, so a re-layout never goes stale), select it, and tell the
+ * host's `onPreview` what the finger is over. */
+interface SlideTarget {
+  label: string;
+  rect: () => LensRect | null;
+  select: () => void;
+}
+
 interface PillContext {
   size: NavPillSize;
+  /** The RESOLVED label policy: the root has already spent `auto`. */
+  labels: Exclude<NavPillLabels, 'auto'>;
   /** The active item saying where it is. `id` is the caller's own, so a report
    *  from an item that has since gone inactive cannot clobber the owner's. */
   claim: (id: string, rect: LensRect) => void;
   /** An item that WAS the lens's owner saying it no longer is. */
   release: (id: string) => void;
+  /** Every item enrols as a slide target, active or not: a finger can land
+   *  anywhere and travel everywhere. */
+  enrol: (id: string, target: SlideTarget) => void;
+  withdraw: (id: string) => void;
+  /** The item a slide is previewing. While a finger is down the amber ink
+   *  follows this instead of `active`; null means no slide is in flight. */
+  hover: string | null;
 }
 
 interface NavPillProps {
   /** `tv`: 10-foot metrics, every label. `sm`: thumb metrics, active label only. */
   size?: NavPillSize;
+  /** Overrides the size's label policy: `none` is the icon-only bar
+   *  (Instagram's), `all` labels everything, `active` labels the current
+   *  section. `auto` (the default) lets the size decide. */
+  labels?: NavPillLabels;
+  /** The touch slide: press, travel, and the lens previews under the finger,
+   *  committing the item it rests on at the release. On by default everywhere
+   *  a finger exists; `false` keeps the capsule tap-only. */
+  slide?: boolean;
+  /** The slide's crossings as they happen: called with the label under the
+   *  finger each time the preview moves to a new item, and with null when the
+   *  slide ends. The hook a host hangs its selection haptics on. */
+  onPreview?: (label: string | null) => void;
   /** A platform's own backdrop (the iPhone's BlurView), filled behind the
    *  items. Given one, the capsule's own fill thins so it can read. */
   backdrop?: ReactNode;
@@ -100,9 +158,27 @@ interface NavPillProps {
   children: ReactNode;
 }
 
-const Context = createContext<PillContext>({ size: 'tv', claim: () => {}, release: () => {} });
+const Context = createContext<PillContext>({
+  size: 'tv',
+  labels: 'all',
+  claim: () => {},
+  release: () => {},
+  enrol: () => {},
+  withdraw: () => {},
+  hover: null,
+});
 
-function NavPill({ size = 'tv', backdrop, style, children }: Readonly<NavPillProps>) {
+function NavPill({
+  size = 'tv',
+  labels = 'auto',
+  slide = true,
+  onPreview,
+  backdrop,
+  style,
+  children,
+}: Readonly<NavPillProps>) {
+  const auto = size === 'tv' ? 'all' : 'active';
+  const labelPolicy = labels === 'auto' ? auto : labels;
   const [lens, setLens] = useState<{ id: string; rect: LensRect } | null>(null);
   const claim = useCallback((id: string, rect: LensRect) => {
     setLens((prev) =>
@@ -114,12 +190,131 @@ function NavPill({ size = 'tv', backdrop, style, children }: Readonly<NavPillPro
   const release = useCallback((id: string) => {
     setLens((prev) => (prev?.id === id ? null : prev));
   }, []);
+
+  // The slide. The capsule watches every touch and takes over only when one
+  // TRAVELS - a tap never crosses the slop and lands on the item's own
+  // pressable, exactly as before. Once captured, each move is hit-tested
+  // against the enrolled items by nearest centre (so the 2-4px gaps have no
+  // dead zones and a finger past either end clamps to the end item), and the
+  // nearest item becomes the PREVIEW: the lens and the ink chase it, but the
+  // host hears nothing until the finger lifts on it.
+  const targets = useRef(new Map<string, SlideTarget>()).current;
+  const enrol = useCallback(
+    (id: string, target: SlideTarget) => void targets.set(id, target),
+    [targets],
+  );
+  const withdraw = useCallback((id: string) => void targets.delete(id), [targets]);
+  /** The previewed item: state, because the items re-ink from it; mirrored in
+   * a ref because the responder's callbacks are minted once. `quiet` keeps the
+   * grant's seed - the section the finger started on - out of `onPreview`,
+   * which reports crossings, not the landing. */
+  const [hover, setHover] = useState<string | null>(null);
+  const hoverRef = useRef<string | null>(null);
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+  const preview = useCallback(
+    (id: string | null, quiet = false) => {
+      hoverRef.current = id;
+      setHover(id);
+      if (quiet) return;
+      onPreviewRef.current?.(id === null ? null : (targets.get(id)?.label ?? null));
+    },
+    [targets],
+  );
+  const capsule = useRef<View>(null);
+  /** The capsule's window x, so a move's pageX can be read in lens space.
+   * Measured at grant; moves before the measure lands are simply skipped. */
+  const originX = useRef<number | null>(null);
+  const lensId = useRef<string | null>(null);
+  lensId.current = lens?.id ?? null;
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (settle.current) clearTimeout(settle.current);
+    },
+    [],
+  );
+
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+        Math.abs(gesture.dx) > SLIDE_SLOP && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderGrant: () => {
+        if (settle.current) clearTimeout(settle.current);
+        originX.current = null;
+        preview(lensId.current, true);
+        // In a browser the ref is a DOM node and the rect is synchronous;
+        // everywhere else, measureInWindow answers within the frame.
+        const node = capsule.current as
+          | (View & { getBoundingClientRect?: () => { left: number } })
+          | null;
+        if (node?.getBoundingClientRect) {
+          const scrollX = (globalThis as { scrollX?: number }).scrollX ?? 0;
+          originX.current = node.getBoundingClientRect().left + scrollX;
+        } else {
+          node?.measureInWindow((x) => {
+            originX.current = x;
+          });
+        }
+      },
+      onPanResponderMove: (_event, gesture) => {
+        if (originX.current === null) return;
+        const x = gesture.moveX - originX.current;
+        let hit: string | null = null;
+        let gap = Number.POSITIVE_INFINITY;
+        for (const [id, target] of targets) {
+          const rect = target.rect();
+          if (!rect) continue;
+          const away = Math.abs(x - (rect.x + rect.width / 2));
+          if (away < gap) {
+            gap = away;
+            hit = id;
+          }
+        }
+        if (hit && hit !== hoverRef.current) preview(hit);
+      },
+      // The bar is the destination, not a passenger: once a slide owns the
+      // touch, no ancestor scroll view takes it back.
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderRelease: () => {
+        const rested = hoverRef.current;
+        if (rested === null || rested === lensId.current) {
+          preview(null);
+          return;
+        }
+        targets.get(rested)?.select();
+        // The preview HOLDS while the host navigates, so the lens never dips
+        // back toward the old owner between this release and the new item's
+        // claim. The timer is the safety net for a host that declines the
+        // switch: effects flush before timers on the same thread, so by the
+        // time it fires, a claim that was coming has landed and clearing the
+        // preview changes nothing visible - and if no claim ever comes, the
+        // lens springs home instead of squatting on an item that is not
+        // active.
+        settle.current = setTimeout(() => preview(null), 64);
+      },
+      // Terminated means the system took the touch; nothing was chosen.
+      onPanResponderTerminate: () => preview(null),
+    }),
+  ).current;
+
+  /** While a slide is in flight (or settling), the lens sits on the preview's
+   * box rather than the owner's, read live so a re-layout mid-flight lands. */
+  const previewRect = hover === null ? null : (targets.get(hover)?.rect() ?? null);
+
   return (
-    <Context.Provider value={{ size, claim, release }}>
+    <Context.Provider value={{ size, labels: labelPolicy, claim, release, enrol, withdraw, hover }}>
       <Box
+        ref={capsule}
+        // A television has no finger; leaving the responder off keeps the
+        // remote's path exactly as it was. `slide={false}` is a host saying
+        // the same about its own capsule.
+        {...(slide && !Platform.isTV ? pan.panHandlers : null)}
         row
         align="center"
-        gap={4}
+        // Tighter on a phone: six items and one open label have to share a
+        // screen the capsule must never outgrow.
+        gap={size === 'sm' ? 2 : 4}
         p={6}
         radius="pill"
         border="borderStrong"
@@ -132,7 +327,7 @@ function NavPill({ size = 'tv', backdrop, style, children }: Readonly<NavPillPro
             {backdrop}
           </Box>
         ) : null}
-        <Lens rect={lens?.rect ?? null} />
+        <Lens rect={previewRect ?? lens?.rect ?? null} chase={hover !== null} />
         {children}
       </Box>
     </Context.Provider>
@@ -146,14 +341,14 @@ function NavPill({ size = 'tv', backdrop, style, children }: Readonly<NavPillPro
  * when no item is active (a deep screen), keeping its last box so it can fade
  * back in place if the same section returns.
  */
-function Lens({ rect }: Readonly<{ rect: LensRect | null }>) {
+function Lens({ rect, chase }: Readonly<{ rect: LensRect | null; chase: boolean }>) {
   // Vertical inset matches the capsule's own padding, so the lens is exactly
   // the box the item used to paint for itself.
-  if (WEB) return <WebLens rect={rect} />;
-  return <NativeLens rect={rect} />;
+  if (WEB) return <WebLens rect={rect} chase={chase} />;
+  return <NativeLens rect={rect} chase={chase} />;
 }
 
-function WebLens({ rect }: Readonly<{ rect: LensRect | null }>) {
+function WebLens({ rect, chase }: Readonly<{ rect: LensRect | null; chase: boolean }>) {
   // The first box is taken without a transition: the style below only carries
   // `transitionProperty` once a box has already been committed.
   const placed = useRef(false);
@@ -176,7 +371,7 @@ function WebLens({ rect }: Readonly<{ rect: LensRect | null }>) {
           width: box.width,
           opacity: rect ? 1 : 0,
           transitionProperty: had ? 'left, width, opacity' : 'opacity',
-          transitionDuration: `${TRAVEL_MS}ms`,
+          transitionDuration: `${chase ? CHASE_MS : TRAVEL_MS}ms`,
           transitionTimingFunction: EASE_CSS,
         } as ViewStyle
       }
@@ -184,7 +379,7 @@ function WebLens({ rect }: Readonly<{ rect: LensRect | null }>) {
   );
 }
 
-function NativeLens({ rect }: Readonly<{ rect: LensRect | null }>) {
+function NativeLens({ rect, chase }: Readonly<{ rect: LensRect | null; chase: boolean }>) {
   const left = useRef(new Animated.Value(0)).current;
   const width = useRef(new Animated.Value(0)).current;
   const shown = useRef(new Animated.Value(0)).current;
@@ -201,7 +396,11 @@ function NativeLens({ rect }: Readonly<{ rect: LensRect | null }>) {
       shown.setValue(1);
       return;
     }
-    const eased = { duration: TRAVEL_MS, easing: EASE_NATIVE, useNativeDriver: false } as const;
+    const eased = {
+      duration: chase ? CHASE_MS : TRAVEL_MS,
+      easing: EASE_NATIVE,
+      useNativeDriver: false,
+    } as const;
     if (rect) {
       Animated.parallel([
         Animated.timing(left, { toValue: rect.x, ...eased }),
@@ -211,7 +410,7 @@ function NativeLens({ rect }: Readonly<{ rect: LensRect | null }>) {
       return;
     }
     Animated.timing(shown, { toValue: 0, ...eased }).start();
-  }, [rect, left, width, shown]);
+  }, [rect, chase, left, width, shown]);
 
   if (!last.current && !rect) return null;
   return <Animated.View style={[styles.lens, { left, width, opacity: shown }]} />;
@@ -242,7 +441,7 @@ function NavPillItem({
   ref,
   ...focus
 }: Readonly<NavPillItemProps>) {
-  const { size, claim, release } = useContext(Context);
+  const { size, labels, claim, release, enrol, withdraw, hover } = useContext(Context);
   const metrics = METRICS[size];
   const id = useId();
   /** Where this item sits, kept current by layout; CLAIMED only while active. */
@@ -260,6 +459,26 @@ function NavPillItem({
     if (!active) release(id);
   }, [active, claim, release, id]);
 
+  // A slide target for the root's finger, active or not - though never while
+  // disabled: an unenrolled item is invisible to the hit-test, so the lens
+  // skips over it to a neighbour and a slide cannot select it. `select` reads
+  // the live onPress through a ref so a host handing down a fresh closure each
+  // render never leaves the slide firing a stale one.
+  const select = useRef(onPress);
+  select.current = onPress;
+  useEffect(() => {
+    if (focus.disabled) return;
+    enrol(id, { label, rect: () => rect.current, select: () => select.current() });
+    return () => withdraw(id);
+  }, [enrol, withdraw, id, label, focus.disabled]);
+
+  // While a slide previews, the amber follows the finger instead of `active`:
+  // exactly one item reads as current at any moment, and because the preview
+  // held on release IS the item about to become active, the handoff never
+  // flickers. Only the ink moves - the label stays with `active`, so the
+  // geometry under the finger is stable by construction.
+  const lit = hover === null ? active : hover === id;
+
   return (
     <Box onLayout={onLayout}>
       <Focusable
@@ -272,7 +491,7 @@ function NavPillItem({
         focusedStyle={active ? null : FOCUSED}
       >
         {({ focused }) => {
-          const ink = inkOf(active, focused);
+          const ink = inkOf(lit, focused);
           return (
             <>
               {typeof icon === 'string' ? (
@@ -280,11 +499,12 @@ function NavPillItem({
               ) : (
                 icon(ink)
               )}
-              {/* `tv` keeps every label so the capsule holds its width under the
-                  travelling lens; `sm` gives the row to the icons and spends the
-                  width on the one label that orients. */}
-              {size === 'tv' || active ? (
-                <Txt style={metrics.label} color={ink}>
+              {/* The resolved policy: `all` holds the capsule's width under the
+                  travelling lens (the tv default); `active` gives the row to
+                  the icons and spends the width on the one label that orients
+                  (the sm default); `none` is all icon. */}
+              {labels === 'all' || (labels === 'active' && active) ? (
+                <Txt style={metrics.label} color={ink} lines={1}>
                   {label}
                 </Txt>
               ) : null}
@@ -296,11 +516,12 @@ function NavPillItem({
   );
 }
 
-/** The current section is amber; an idle one recedes, and comes up to full ink
- * under the ring. Icon and label always take the same ink, so an item reads as
- * one object rather than a glyph next to a word. */
-function inkOf(active: boolean, focused: boolean): string {
-  if (active) return colors.accentBright;
+/** The lit item - the current section, or the slide's preview while a finger
+ * is down - is amber; an idle one recedes, and comes up to full ink under the
+ * ring. Icon and label always take the same ink, so an item reads as one
+ * object rather than a glyph next to a word. */
+function inkOf(lit: boolean, focused: boolean): string {
+  if (lit) return colors.accentBright;
   return focused ? colors.text : colors.textMuted;
 }
 
@@ -327,13 +548,17 @@ const METRICS = {
     item: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
-      paddingHorizontal: 14,
+      gap: 6,
+      paddingHorizontal: 12,
       paddingVertical: 10,
       borderRadius: 999,
     },
     icon: 22,
-    label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
+    // CAPPED, because the label is whatever the locale makes it: five icon-only
+    // items plus one open lens have to fit a phone, and "Rechercher" was the
+    // lens swallowing the row. The cap truncates the rare too-long word; the
+    // common ones fit whole.
+    label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.2, maxWidth: 92, flexShrink: 1 },
   },
 } as const;
 
@@ -349,5 +574,5 @@ const styles = {
   },
 } as const;
 
-export type { NavPillIcon, NavPillItemProps, NavPillProps, NavPillSize };
+export type { NavPillIcon, NavPillItemProps, NavPillLabels, NavPillProps, NavPillSize };
 export { NavPill, NavPillItem };

@@ -28,6 +28,7 @@
     "@kroma/ui": "workspace:*",
     "@kroma/workbench": "workspace:*",
     "expo": "~57.0.8",
+    "expo-constants": "~57.0.6",
     "expo-font": "~57.0.1",
     "expo-keep-awake": "~57.0.1",
     "expo-system-ui": "~57.0.1",

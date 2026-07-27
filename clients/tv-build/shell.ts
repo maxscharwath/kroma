@@ -12,13 +12,12 @@
 //    Chromium 53-94). dist/index.html is rewritten into an ES5 loader that
 //    picks the tier at runtime. See legacy-css.ts / legacy-finalize.ts.
 
-import { readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
+import { collectBuildInfo, productVersion } from '../build-info/index.js';
 import { tvFrame } from '../tv-frame.vite';
 import { legacyFinalize } from './legacy-finalize';
 import { KROMA_SOURCE_PACKAGES, RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
@@ -26,8 +25,10 @@ import { KROMA_SOURCE_PACKAGES, RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } f
 export interface TvTarget {
   /** Which TV this shell is for (diagnostics label; playback wiring is runtime-detected).
    * `bench` is not a television: the perf bench reuses this exact build so it
-   * measures the shipping pipeline rather than an approximation of it. */
-  platform: 'tizen' | 'webos' | 'androidtv' | 'bench';
+   * measures the shipping pipeline rather than an approximation of it. `web` is
+   * the 10-foot experience served from an origin (tv.kroma.tv) rather than
+   * packaged - same build, no platform SDK. */
+  platform: 'tizen' | 'webos' | 'bench' | 'web';
   /** Vite dev-server port for this shell. */
   port: number;
   /** Chrome floor of the MODERN bundle's Lightning CSS down-level. Tailwind v4
@@ -56,27 +57,36 @@ function lanIp(): string | undefined {
     .find((a) => a.family === 'IPv4' && !a.internal)?.address;
 }
 
-/** The MODERN tier config. `shellUrl` is the calling vite.config's import.meta.url. */
-/** This client build's version, baked in as `__KROMA_VERSION__` for the
- * server-compatibility banner. CI stamps `KROMA_VERSION`; otherwise it reads the
- * repo's single source of truth (server/Cargo.toml), so a local build reports the
- * real version too rather than a placeholder. */
-export function clientVersion(repoRoot: string): string {
-  if (process.env.KROMA_VERSION) return process.env.KROMA_VERSION;
-  try {
-    const toml = readFileSync(join(repoRoot, 'server', 'Cargo.toml'), 'utf8');
-    return /^version\s*=\s*"([^"]+)"/m.exec(toml)?.[1] ?? 'dev';
-  } catch {
-    return 'dev';
-  }
+/**
+ * What a browser shell bakes in about its own build, as Vite `define` entries.
+ *
+ *   __KROMA_VERSION__  the version alone, which the server-compatibility banner
+ *                      compares (see @kroma/tv CompatBanner). It is the PRODUCT's
+ *                      version, not the shell package's - CI stamps
+ *                      `KROMA_VERSION`, else server/Cargo.toml, the repo's single
+ *                      source of truth - falling back to 'dev', which the compat
+ *                      check treats as always-compatible.
+ *   __KROMA_BUILD__    the whole identity (commit, branch, date, repository) the
+ *                      About screen shows. The native TV app gets the same object
+ *                      by the other road; see clients/build-info/index.js.
+ *
+ * `shellDir` is the shell's own directory, which is where git is asked.
+ */
+export function buildDefine(repoRoot: string, shellDir: string): Record<string, string> {
+  const info = collectBuildInfo(shellDir, { version: productVersion(repoRoot) ?? 'dev' });
+  return {
+    __KROMA_VERSION__: JSON.stringify(info.version),
+    __KROMA_BUILD__: JSON.stringify(info),
+  };
 }
 
 export function tvShellConfig(shellUrl: string, target: TvTarget) {
   const repoRoot = fileURLToPath(new URL('../..', shellUrl));
+  const shellDir = fileURLToPath(new URL('.', shellUrl));
   const deviceDev = target.deviceDev === true && process.env.KROMA_TV_DEVICE === '1';
   const floor = target.chromeFloor ?? 99;
   return ({ command }: ConfigEnv): UserConfig => ({
-    define: { __KROMA_VERSION__: JSON.stringify(clientVersion(repoRoot)), ...RNW_DEFINE },
+    define: { ...buildDefine(repoRoot, shellDir), ...RNW_DEFINE },
     // `tvFrame()` is dev-only (apply: 'serve'): letterboxes the app into a
     // 1920x1080 stage in a desktop browser; on a real TV the panel already is
     // that canvas, so device mode turns it off.
@@ -148,7 +158,13 @@ export function tvShellLegacyConfig(shellUrl: string, target: TvTarget): UserCon
       legacyFinalize({ distDir: fileURLToPath(new URL('dist', shellUrl)), chrome }),
     ],
     define: RNW_DEFINE,
-    resolve: webResolve({ '#tv': fileURLToPath(new URL('../../packages/tv/src', shellUrl)) }),
+    // `#tv/workbench` FIRST: Vite matches string aliases by prefix in order, so
+    // a bare `#tv` listed first would swallow it. See workbench-stub.tsx for why
+    // the legacy tier drops the workbench entirely.
+    resolve: webResolve({
+      '#tv/workbench': fileURLToPath(new URL('workbench-stub.tsx', import.meta.url)),
+      '#tv': fileURLToPath(new URL('../../packages/tv/src', shellUrl)),
+    }),
     base: './',
     // appinfo/manifest + icons are already copied into dist/ by the modern build.
     publicDir: false,

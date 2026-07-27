@@ -27,6 +27,7 @@ export default story({
     icon: 'player-play-filled' as IconName | '',
     iconRight: '' as IconName | '',
     disabled: false,
+    loading: false,
   },
   controls: { icon: 'icon', iconRight: 'icon' },
   render: ({ icon, iconRight, ...props }) => (

@@ -3,19 +3,20 @@ import { GEN_LANGS, GEN_QUALITIES } from '@kroma/core';
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Pressable } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { Button } from '#ui/components/atoms/button';
+import { IconButton } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
 import { useListFocus } from '#ui/components/organisms/player/hooks/useListFocus';
 import type { PanelHandle } from '#ui/components/organisms/player/lib/nav';
 import { FOCUS_SHADOW_SM } from '#ui/components/organisms/player/lib/style';
 import { VIRTUAL_FOCUS } from '#ui/components/organisms/player/lib/virtual-focus';
-import { IconAi, IconClose } from '#ui/components/organisms/player/parts/icons';
 import type { PlayerSub } from '#ui/components/organisms/player/types';
 import { gradient } from '#ui/lib/css';
 import { colors } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import type { SubtitleGenRequest } from './gen';
 import { panelEmpty } from './panelStyle';
-import { ActionButton, CycleField } from './WizardParts';
+import { CycleField } from './WizardParts';
 
 type Mode = 'transcribe' | 'translate';
 
@@ -123,16 +124,18 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
         <Txt variant="h2" style={{ fontSize: 24 }}>
           {t('player.subGenerate')}
         </Txt>
-        <Pressable
-          {...VIRTUAL_FOCUS}
+        {/* Pointer-only close: controlled at `false` so it never becomes a
+            platform / navigator focus target (see ../../lib/virtual-focus.ts);
+            the wizard's own field list does not include it. */}
+        <IconButton
+          variant="glass"
+          size={36}
+          icon="x"
+          glyph={17}
+          focused={false}
           onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel={t('player.subGenClose')}
-        >
-          <Box w={36} h={36} shrink={0} center radius="pill" bg="rgba(255, 255, 255, 0.1)">
-            <IconClose size={17} />
-          </Box>
-        </Pressable>
+          label={t('player.subGenClose')}
+        />
       </Box>
 
       {/* mode tabs (index 0): ◀▶ toggles, a press picks directly. */}
@@ -200,18 +203,26 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
         {t('player.subGenBackground')}
       </Txt>
 
-      <ActionButton
+      {/* Controlled kit button (`focused` is ALWAYS passed - the wizard's own
+          list focus drives it; see ../../lib/virtual-focus.ts). */}
+      <Button
+        block
+        variant="primary"
+        size="tv"
+        icon="sparkles"
         label={t('player.subGenStart')}
         focused={focus.index === at('start')}
         disabled={noSource}
-        onFocus={focus.hover(at('start'))}
+        onHoverIn={focus.hover(at('start'))}
         onPress={start}
-      >
-        <IconAi size={18} />
-      </ActionButton>
+        style={START_BUTTON}
+      />
     </Box>
   );
 });
+
+/** The wizard's roomy full-width action, spaced off the hint above it. */
+const START_BUTTON = { marginTop: 4 };
 
 const BACKGROUND_HINT = {
   marginHorizontal: 2,

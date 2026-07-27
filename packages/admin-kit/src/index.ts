@@ -4,7 +4,14 @@
 // needs for a full admin page from here, so it never reaches into app internals.
 
 export { AdminKitProvider, type AdminKitValue, resolveImageUrl, useAdminKit } from './context';
-export { Button, Disclosure, NumberField, SegmentedControl } from './controls';
+export {
+  Button,
+  Disclosure,
+  IconButton,
+  type IconButtonProps,
+  NumberField,
+  SegmentedControl,
+} from './controls';
 export { AddEngineModal, FieldForm, useEnabledEngines, useModuleEnabled } from './engines';
 export { CardSkeleton, Skeleton, TableSkeleton } from './feedback';
 export {

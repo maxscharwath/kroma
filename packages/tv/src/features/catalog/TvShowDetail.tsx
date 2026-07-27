@@ -1,12 +1,25 @@
 import { episodeTag, qualityBadgeForVideo, type ShowDetail, type UpNext } from '@kroma/core';
 import { useT, useThemeAudio } from '@kroma/ui';
-import { Box, Button, Chip, FocusRegion, FocusSlot, Rail, Txt, useFocusNav } from '@kroma/ui/kit';
+import {
+  Box,
+  Button,
+  Chip,
+  FocusRegion,
+  FocusSlot,
+  Hint,
+  Rail,
+  Row,
+  Spacer,
+  Txt,
+  useFocusNav,
+} from '@kroma/ui/kit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { TvDetailScaffold } from '#tv/features/catalog/detail/DetailScaffold';
 import { EpisodeGrid } from '#tv/features/catalog/detail/EpisodeGrid';
+import { EPISODE_COLUMN_W } from '#tv/features/catalog/detail/EpisodeRow';
 import {
   CastRow,
   EndsAtHint,
@@ -233,10 +246,28 @@ export function TvShowDetail() {
 
       <FocusSlot>
         {activeSeason ? (
-          <Box mt={32} gap={16}>
-            <Txt style={EPISODES_LABEL} color="rgba(244, 243, 240, 0.55)">
-              {t('content.episodesHeader')}
-            </Txt>
+          <Box mt={40} gap={18}>
+            {/* The design's header line: the label, how far through the season
+                you are, and the remote legend pushed to the column's far edge. */}
+            <Row gap={18} wrap maxW={EPISODE_COLUMN_W}>
+              <Txt style={EPISODES_LABEL} color="rgba(244, 243, 240, 0.55)">
+                {t('content.episodesHeader')}
+              </Txt>
+              <Txt style={EPISODES_PROGRESS} color="rgba(244, 243, 240, 0.34)">
+                {t('content.episodesWatched', {
+                  watched: activeSeason.episodes.filter((ep) => watched.has(ep.id)).length,
+                  count: activeSeason.episodes.length,
+                })}
+              </Txt>
+              <Spacer />
+              <Hint
+                text={t('content.episodesHint')}
+                size={14}
+                gap={4}
+                color="rgba(244, 243, 240, 0.3)"
+                textStyle={EPISODES_HINT}
+              />
+            </Row>
             <EpisodeGrid
               episodes={activeSeason.episodes}
               stillFor={(ep, w) => client.backdropFor(ep, w) ?? backdrop}
@@ -244,6 +275,13 @@ export function TvShowDetail() {
               progressOf={(id) => epProgress[id] ?? null}
               onPlay={(ep) => nav.go('player', { item: ep })}
               onToggleWatched={toggleEpisodeWatched}
+              onReport={(ep) =>
+                nav.go('report', {
+                  kind: 'episode',
+                  id: ep.id,
+                  title: [show.title, episodeTag(ep)].filter(Boolean).join(' · '),
+                })
+              }
             />
           </Box>
         ) : null}
@@ -261,4 +299,8 @@ const EPISODES_LABEL = {
   letterSpacing: 0.6,
   textTransform: 'uppercase' as const,
 };
+/** `font:500 15px;color:rgba(244,243,240,.34)` (design). */
+const EPISODES_PROGRESS = { fontSize: 15, fontWeight: '500' as const };
+/** `font:600 14px;color:rgba(244,243,240,.3)` (design). */
+const EPISODES_HINT = { fontWeight: '600' as const };
 const ACTION_ROW = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 16 };

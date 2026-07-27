@@ -33,8 +33,6 @@ function controller(): PlayerController {
     setSubtitle: vi.fn(),
     rate: 1,
     setRate: vi.fn(),
-    loop: false,
-    setLoop: vi.fn(),
   } as unknown as PlayerController;
 }
 

@@ -263,6 +263,26 @@ describe('Txt', () => {
     render(<Txt style={{ fontSize: 28, lineHeight: 30 }}>2</Txt>);
     expect(css(screen.getByText('2')).lineHeight).toBe('30px');
   });
+
+  it('rescales the tracking when a style overrides the font size', () => {
+    // The overline is authored in em; keeping 13px's absolute tracking at 14px
+    // is the drift that had every 10-foot screen writing the style by hand.
+    render(
+      <Txt variant="overlineTv" style={{ fontSize: 14 }}>
+        3
+      </Txt>,
+    );
+    expect(css(screen.getByText('3')).letterSpacing).toBe('3.08px');
+  });
+
+  it('leaves an explicit tracking alone', () => {
+    render(
+      <Txt variant="overlineTv" style={{ fontSize: 14, letterSpacing: 1 }}>
+        4
+      </Txt>,
+    );
+    expect(css(screen.getByText('4')).letterSpacing).toBe('1px');
+  });
 });
 
 describe('Dialog', () => {

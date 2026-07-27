@@ -157,6 +157,13 @@ function effectsCss(): string {
   ]);
 }
 
+/** A camelCase token key as its published custom-property name (`overlineTv` ->
+ * `overline-tv`). The colours need the explicit map above (`surface1` and `h265`
+ * do not kebab the same way); the type roles and the tracking keys are plain
+ * words, so the transform is enough - and it keeps a role added in TypeScript
+ * from publishing a camelCase property nothing else in the CSS looks like. */
+const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
 function typographyCss(): string {
   const role = (s: (typeof typeSpec)[keyof typeof typeSpec]) =>
     `${s.weight} ${s.size}px / ${s.ratio} var(--font-${s.family})`;
@@ -165,10 +172,9 @@ function typographyCss(): string {
     `  --font-display: "${fonts.display}", system-ui, sans-serif;`,
     `  --font-ui: "${fonts.ui}", system-ui, sans-serif;`,
     ...section('Roles (font shorthand: weight size/line family)'),
-    ...Object.entries(typeSpec).map(([k, v]) => `  --type-${k}: ${role(v)};`),
-    ...section('Overline modifier: letter-spacing .12em; text-transform:uppercase'),
-    `  --tracking-overline: ${tracking.overline}em;`,
-    `  --tracking-display: ${tracking.display}em;`,
+    ...Object.entries(typeSpec).map(([k, v]) => `  --type-${kebab(k)}: ${role(v)};`),
+    ...section('Tracking, in em. The overline roles are also text-transform:uppercase'),
+    ...Object.entries(tracking).map(([k, v]) => `  --tracking-${kebab(k)}: ${v}em;`),
   ]);
 }
 

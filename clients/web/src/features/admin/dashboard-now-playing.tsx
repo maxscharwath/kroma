@@ -1,7 +1,7 @@
 import { Image } from '@kroma/admin-kit';
 import type { PlaybackSession } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconPlayerStopFilled } from '@tabler/icons-react';
+import { Button, Icon, IconButton } from '@kroma/ui/kit';
 import { useId, useState } from 'react';
 import { createCallable } from 'react-call';
 import { Avatar, C, Card, Modal, ProgressBar } from '#web/features/admin/ui';
@@ -127,15 +127,10 @@ export function NowPlayingCard({
               </div>
             </div>
             <Avatar name={s.username} avatarUrl={avatarUrl} size={38} radius={10} />
-            <button
-              type="button"
-              onClick={onStop}
-              title={t('admin.stopStream')}
-              aria-label={t('admin.stopStream')}
-              className="flex h-9 w-9 items-center justify-center rounded-md border border-[#E8536A]/25 bg-[#E8536A]/10 text-[#E8536A] transition-colors hover:bg-[#E8536A]/20"
-            >
-              <IconPlayerStopFilled size={15} />
-            </button>
+            {/* The kit disc with a danger-tinted glyph: stop is destructive. */}
+            <IconButton size={36} radius={10} label={t('admin.stopStream')} onPress={onStop}>
+              <Icon name="player-stop-filled" size={15} color="danger" />
+            </IconButton>
           </div>
         </div>
 
@@ -254,21 +249,19 @@ export const StopStreamModal = createCallable<{ session: PlaybackSession }, bool
           className="mb-5 w-full resize-none rounded-lg border border-border-strong bg-surface-2 px-3 py-2.5 text-[14px] outline-none focus:border-accent/60"
         />
         <div className="flex justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={() => call.end(false)}
-            className="rounded-md px-4 py-2.5 text-[14px] font-semibold text-muted"
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={() => void stop()}
-            disabled={busy}
-            className="rounded-md bg-[#E8536A] px-5 py-2.5 text-[14px] font-bold text-white disabled:opacity-50"
-          >
-            {busy ? '…' : t('admin.stopStream')}
-          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            label={t('common.cancel')}
+            onPress={() => call.end(false)}
+          />
+          <Button
+            variant="danger"
+            size="sm"
+            label={t('admin.stopStream')}
+            onPress={() => void stop()}
+            loading={busy}
+          />
         </div>
       </Modal>
     );

@@ -1,10 +1,11 @@
 // The shared radial backdrop for the TV auth / connect / pin screens.
 
-import { Box, FocusScroll, gradient } from '@kroma/ui/kit';
+import { useT } from '@kroma/ui';
+import { BackButton, Box, colors, FocusScroll, gradient } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
-import { TvBackButton } from '#tv/shared/ui/BackButton';
+import { useNav } from '#tv/app/router';
 
-const BACKDROP = 'radial-gradient(120% 90% at 50% 0%, #15131C, #0A0A0C 68%)';
+const BACKDROP = `radial-gradient(120% 90% at 50% 0%, #15131C, ${colors.bg} 68%)`;
 
 /** The shared centred backdrop for the auth / connect / pin screens. Scrolling
  * lives on the outer element and the content centres in an inner wrapper that
@@ -13,14 +14,18 @@ const BACKDROP = 'radial-gradient(120% 90% at 50% 0%, #15131C, #0A0A0C 68%)';
  * pinned Back button (mouse users) sits top-left on any pushed screen; it
  * self-hides at the signed-out root (the profile picker). */
 export function AuthScreen({ children }: Readonly<{ children: ReactNode }>) {
+  const nav = useNav();
+  const t = useT();
   return (
     <Box fill z={10} style={gradient(BACKDROP)}>
       <FocusScroll style={AUTH_SCROLL} contentStyle={AUTH_CONTENT}>
         {children}
       </FocusScroll>
-      <Box absolute left={32} top={28} z={20}>
-        <TvBackButton />
-      </Box>
+      {nav.canGoBack ? (
+        <Box absolute left={32} top={28} z={20}>
+          <BackButton onPress={nav.back} label={t('common.back')} />
+        </Box>
+      ) : null}
     </Box>
   );
 }

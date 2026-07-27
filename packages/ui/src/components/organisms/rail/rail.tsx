@@ -24,11 +24,12 @@
 // has been reached, because the navigator can only move to a node that exists.
 
 import { Children, type ReactElement, type ReactNode, useMemo } from 'react';
-import type { StyleProp, TextStyle } from 'react-native';
+import { ScrollView, type StyleProp, type TextStyle } from 'react-native';
 import { SpatialNavigationNode, SpatialNavigationView } from 'react-tv-space-navigation';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { VirtualRail } from '#ui/components/organisms/virtual';
+import { useInsideFocusScope } from '#ui/lib/focus-presence';
 import { FocusRail } from '#ui/lib/focus-scroll';
 import { gutter } from '#ui/lib/tokens';
 import { useGrowingCount } from '#ui/lib/use-growing-count';
@@ -54,6 +55,18 @@ interface RailProps {
    * not all agree on a tile width anyway.
    */
   item?: { width: number; height: number };
+  /**
+   * Mount every child at once instead of a chunk at a time.
+   *
+   * The growing window is for a RAIL - dozens of posters, of which you only ever
+   * see six, and whose cost is worth deferring. A short strip of controls is not
+   * that: the browse screens' sort + genre chips are one `Rail`, and growing
+   * them meant the strip opened showing only its first `RAIL_CHUNK` children -
+   * four sort chips, a divider, "all genres" and then just TWO genres - with the
+   * rest appearing only once focus had walked to the end. A filter you cannot
+   * see is a filter that does not exist, so those pass `grow={false}`.
+   */
+  grow?: boolean;
   children: ReactNode;
 }
 
@@ -71,10 +84,19 @@ function Rail({
   gap = 24,
   inset = gutter.tv,
   item,
+  grow: growing = true,
   children,
 }: Readonly<RailProps>) {
   const tiles = useMemo(() => Children.toArray(children), [children]);
-  const { count, isNearEnd, grow } = useGrowingCount(tiles.length, RAIL_CHUNK);
+  // `grow={false}` asks for the whole strip up front: one chunk big enough to
+  // hold it, so `isNearEnd` never fires and nothing is ever deferred.
+  const { count, isNearEnd, grow } = useGrowingCount(
+    tiles.length,
+    growing ? RAIL_CHUNK : tiles.length,
+  );
+  // Same rule as <Focusable>: no navigator above means this is a thumb (or a
+  // bare web page), not a remote. See the unscoped return below.
+  const scoped = useInsideFocusScope();
   const heading = title ? (
     <Txt variant="h2" style={[{ paddingLeft: inset }, titleStyle]}>
       {title}
@@ -101,8 +123,32 @@ function Rail({
           renderItem={(tile) => tile as ReactElement}
           gap={gap}
           style={{ height: item.height + RING_ROOM * 2 }}
-          contentStyle={{ paddingLeft: inset, paddingVertical: RING_ROOM }}
+          // Both sides. The left is what keeps the focused tile off the edge
+          // (above); the right is what stops the LAST tile sitting flush against
+          // it once the row is walked to its end - the same gutter the unscoped
+          // and non-virtualised rails get from `paddingHorizontal`.
+          contentStyle={{ paddingLeft: inset, paddingRight: inset, paddingVertical: RING_ROOM }}
         />
+      </Box>
+    );
+  }
+
+  // No navigator: the rail is a plain scrolled row. Everything mounts at once -
+  // the growing window exists for the navigator's registration order and is
+  // driven by focus arriving near the end, neither of which exists here - and
+  // that is fine, because the unscoped rails are the short ones (chip strips,
+  // cast faces); a long uniform row should be passing `item` and virtualising.
+  if (!scoped) {
+    return (
+      <Box gap={16}>
+        {heading}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap, paddingHorizontal: inset, paddingVertical: 12 }}
+        >
+          {tiles}
+        </ScrollView>
       </Box>
     );
   }

@@ -15,6 +15,7 @@ import { WatchedProvider } from '#tv/app/providers/watched';
 import { TvClientProvider, TvNavProvider, TvOutlet, type TvScreens, useNav } from '#tv/app/router';
 import { onSearchRequest } from '#tv/app/searchRequest';
 import { useCatalogue } from '#tv/app/useCatalogue';
+import { TvAbout } from '#tv/features/accounts/TvAbout';
 import { TvAddProfile } from '#tv/features/accounts/TvAddProfile';
 import { TvConnect } from '#tv/features/accounts/TvConnect';
 import { TvDeviceSettings } from '#tv/features/accounts/TvDeviceSettings';
@@ -22,6 +23,8 @@ import { TvPin } from '#tv/features/accounts/TvPin';
 import { TvProfileMenu } from '#tv/features/accounts/TvProfileMenu';
 import { TvProfiles } from '#tv/features/accounts/TvProfiles';
 import { TvQuickConnect } from '#tv/features/accounts/TvQuickConnect';
+import { TvSettingsGroup } from '#tv/features/accounts/TvSettingsGroup';
+import { BROWSE_CHROME } from '#tv/features/catalog/home/chrome';
 import { TvGenreGrid } from '#tv/features/catalog/TvGenreGrid';
 import { TvGenres } from '#tv/features/catalog/TvGenres';
 import { TvGrid } from '#tv/features/catalog/TvGrid';
@@ -60,7 +63,7 @@ export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly
 
   return (
     <EnvProvider platform={platform} overrides={capabilities}>
-      <TvNavProvider screens={SCREENS}>
+      <TvNavProvider screens={SCREENS} chrome={BROWSE_CHROME}>
         <ConnectionProvider value={connection}>
           <TvClientProvider client={client}>
             <AuthProvider
@@ -97,8 +100,10 @@ const SCREENS: TvScreens = {
   addProfile: TvAddProfile,
   quick: TvQuickConnect,
   deviceSettings: TvDeviceSettings,
+  about: TvAbout,
   pin: TvPin,
   profileMenu: TvProfileMenu,
+  settingsGroup: TvSettingsGroup,
   home: TvHome,
   grid: TvGrid,
   genres: TvGenres,

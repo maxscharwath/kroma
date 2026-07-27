@@ -10,15 +10,18 @@
     "android": "EXPO_TV=1 expo run:android",
     "prebuild": "EXPO_TV=1 expo prebuild --clean",
     "pod": "cd ios && REACT_NATIVE_NODE_MODULES_DIR=\"$PWD/../node_modules\" pod install",
-    "bundle:check": "bun ../expo-build/bundle-check.ts . EXPO_TV=1",
+    "bundle:check": "bun ../expo-build/bundle-check.ts . EXPO_TV=1 --max 10",
     "typecheck": "tsgo --noEmit",
-    "focus:probe": "bun ./scripts/focus-probe.ts"
+    "focus:probe": "bun ./scripts/focus-probe.ts",
+    "perf:androidtv": "bun ./scripts/perf-androidtv.ts"
   },
   "dependencies": {
     "@kroma/core": "workspace:*",
     "@kroma/tv": "workspace:*",
     "@kroma/ui": "workspace:*",
     "expo": "~57.0.8",
+    "expo-blur": "~57.0.2",
+    "expo-constants": "~57.0.6",
     "expo-file-system": "~57.0.1",
     "expo-font": "~57.0.1",
     "expo-keep-awake": "~57.0.1",
@@ -34,6 +37,7 @@
     "@react-native-tvos/config-tv": "^0.1.6",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~57.0.0",
+    "expo-atlas": "^0.4.0",
     "typescript": "^7.0.2"
   }
 }

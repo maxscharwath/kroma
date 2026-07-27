@@ -6,7 +6,6 @@ import { useMemo } from 'react';
 import { useConnection } from '#tv/app/providers/connection';
 import { useClient, useNav, useParams } from '#tv/app/router';
 import { type GridCard, PosterGrid } from '#tv/features/catalog/home/PosterGrid';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { PersonHeader } from '#tv/features/catalog/person/PersonHeader';
 import { usePersonDetail } from '#tv/features/catalog/person/usePersonDetail';
 import { EMPTY } from '#tv/features/catalog/screenStyle';
@@ -70,12 +69,6 @@ export function TvPerson() {
 
   return (
     <Box fill bg="bg" overflow="hidden">
-      {/* The bar comes FIRST in the tree because the navigator moves in tree
-          order and the bar is visually at the top; it still paints above,
-          on its own z. Which control opens focused is said by `autoFocus`,
-          not by the order. */}
-      <TvTopNav />
-
       {/* Header sits below the persistent nav bar (its top padding clears it);
           Back is the remote key, so no separate hint. */}
       <PersonHeader

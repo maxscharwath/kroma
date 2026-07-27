@@ -23,7 +23,6 @@ import {
 } from '#tv/features/catalog/home/AmbientBackdrop';
 import { HintBar } from '#tv/features/catalog/home/HintBar';
 import { type GridCard, PosterGrid } from '#tv/features/catalog/home/PosterGrid';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 import { EMPTY } from '#tv/features/catalog/screenStyle';
 import { BrowseFilters, BrowseHeader } from '#tv/features/catalog/TvBrowseHeader';
 
@@ -130,12 +129,6 @@ export function TvGrid() {
 
   return (
     <Box fill bg="bg" overflow="hidden" style={{ isolation: 'isolate' }}>
-      {/* The bar comes FIRST in the tree because the navigator moves in tree
-          order and the bar is visually at the top; it still paints above,
-          on its own z. Which control opens focused is said by `autoFocus`,
-          not by the order. */}
-      <TvTopNav active={kind} />
-
       <AmbientBackdrop
         src={entryBackdrop(client, focused)}
         colors={focused ? posterColors(focused.item.id) : ['#1c1c22', '#0a0a0c']}

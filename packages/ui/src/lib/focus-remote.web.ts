@@ -54,3 +54,14 @@ export function configureRemote(): void {
 /** Nothing to mount: the listener above is not tied to a screen. Kept so
  * <FocusScope> can call it on every target. */
 export function useRemoteBridge(): void {}
+
+// No `useRemoteHostProps` here on purpose. Its only caller is the NATIVE focus
+// root, and focus-root is forked (focus-root.web.tsx renders no element at all),
+// so a web copy would be dead code pretending to be symmetry.
+
+/** Nothing to subscribe to: a browser shell already reads its hardware keyboard
+ * from `document` (see @kroma/tv's `usePhysicalTyping`), which is both older and
+ * better placed - it can see the real `<input>` the desktop shell renders and
+ * stay out of its way. This exists so the on-screen keyboard can call the same
+ * hook on every target. */
+export function useHardwareKeys(_handle: (key: string) => void): void {}

@@ -9,7 +9,8 @@
 // an inline style each frame, competing with React for the same main thread.
 // Two of those (this row's and the navigator library's) is what "laggy" was. A
 // transition hands the whole thing to the compositor: one style write, zero JS
-// per frame. Native keeps Animated, where the native driver is real.
+// per frame. Native keeps Animated, where the native driver is real. That is
+// <MovingRow>, below.
 //
 // THE OFFSET. Where the row sits is a rule the library cannot express: the
 // highlight travels across the middle and the row moves only when the selection
@@ -26,59 +27,38 @@
 // bounded by how far someone actually walks a row - a screenful to start with,
 // and a rail is not a 2000-item grid. <VirtualGrid> keeps the library's
 // virtualisation, where the window has to be a window.
+//
+// The ends of the row - the fades and the pointer's paging arrows - live in
+// `rail-edge.tsx`.
 
 import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Easing,
   type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
   type ViewStyle,
 } from 'react-native';
 import { SpatialNavigationView } from 'react-tv-space-navigation';
-import { Icon } from '#ui/components/atoms/icon';
-import { gradient, maskImage } from '#ui/lib/css';
+import { maskImage } from '#ui/lib/css';
 import { webDocument } from '#ui/lib/dom';
+import { useInsideFocusScope } from '#ui/lib/focus-presence';
 import { FocusReporter } from '#ui/lib/focus-report';
-import { colors, motion, radius, SHADE, shadow } from '#ui/lib/tokens';
 import { useWheelPan } from '#ui/lib/wheel-pan';
-import { clipStyles, FOCUS_BLEED, OVERSCAN } from './clip';
-import { edgeScrollOffset, fitPitch } from './edge-scroll';
+import { clipStyles, OVERSCAN } from './clip';
+import { edgeScrollOffset, fitPitch, horizontalInset, maxOffset } from './edge-scroll';
+import { edgeWidth, RailEdge, railMask } from './rail-edge';
+import { EASE_CSS, EASE_NATIVE, SETTLE_MS } from './rail-motion';
 
 const WEB = Platform.OS === 'web';
 /** A screen someone SCROLLS WITH A THUMB: the phones and the tablets, where the
  * row's other two inputs (a D-pad walking focus, a wheel under a pointer) do not
  * exist and the row would otherwise be frozen scenery. */
 const TOUCH = !WEB && !Platform.isTV;
-
-/**
- * The horizontal padding a content style spends, in pixels.
- *
- * Percentages and other non-numeric lengths are ignored rather than guessed at:
- * the pitch maths needs a number, and being wrong by an unknown amount is worse
- * than being wrong by a padding nobody used. Longhands win over the shorthand,
- * which is React Native's own precedence.
- */
-function horizontalInset(style: ViewStyle | undefined): number {
-  if (!style) return 0;
-  const both = typeof style.paddingHorizontal === 'number' ? style.paddingHorizontal : 0;
-  const left = typeof style.paddingLeft === 'number' ? style.paddingLeft : both;
-  const right = typeof style.paddingRight === 'number' ? style.paddingRight : both;
-  return left + right;
-}
-
-/** How the row settles. Short, because this is a cursor moving rather than a
- * transition, and long enough to read as movement rather than a cut. */
-const SETTLE_MS = motion.duration.fast;
-const [x1, y1, x2, y2] = motion.bezier.out;
-const EASE_CSS = `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
-const EASE_NATIVE = Easing.bezier(x1, y1, x2, y2);
 
 /** How long a press stays "the reason" for a focus change. Generous: the
  * navigator resolves the move, mounts what it needs and only then does the tile
@@ -92,151 +72,6 @@ const DIRECTIONS = new Set(['ArrowLeft', 'ArrowRight', 'Left', 'Right']);
  * enough to cover the gap between ticks of one gesture, short enough that a
  * click straight after a scroll still lands. */
 const PAN_SETTLE_MS = 180;
-
-/**
- * How long the fade at each end is, for a row of this width. The scrimmed strip
- * is that plus the bleed it holds opaque, and the control sits inside it.
- *
- * PROPORTIONAL, and that is the fix. It was a constant 92, which is 5% of a
- * 1920pt television row and quite invisible - but the workbench's `fit` stage
- * clamps this story to 560, where the same 92 is 17% of the row and lands as a
- * black slab across a sixth of it. A constant cannot be right for both, so it is
- * a fraction of the row, floored so it never gets too thin to read as a fade and
- * capped so a 4K row does not lose a hand's width at each end.
- */
-function edgeWidth(row: number): number {
-  if (row <= 0) return EDGE_MIN;
-  return Math.round(Math.min(EDGE_MAX, Math.max(EDGE_MIN, row * EDGE_SHARE)));
-}
-
-/** How far the row can travel: everything it holds, less what fits. One
- * definition, because a row whose clamp bound and whose snap bound disagree is
- * exactly how an offset drifts off the pitch grid - the failure the rest of this
- * file is written to prevent. */
-function maxOffset(count: number, pitch: number, room: number): number {
-  return Math.max(0, count * pitch - room);
-}
-
-/** A seventh of the row, and generous on purpose: an alpha ramp is only as soft
- *  as the distance it has to travel, and the short versions (5%, then 10%) both
- *  read as a band with an edge rather than as the row going quietly away. */
-const EDGE_SHARE = 0.15;
-const EDGE_MIN = 88;
-const EDGE_MAX = 300;
-/** How far the control sits from the row's very edge. */
-const EDGE_INSET = 8;
-/**
- * The shape of the fade: how VISIBLE the row is at each fraction of the fade's
- * length, from nothing at the outer edge to all of it inside.
- *
- * `smootherstep(t)`, sampled every eighth or so, and the samples are the whole
- * point - both a mask and a gradient interpolate LINEARLY between stops, so the
- * curve has to be drawn rather than described. Two stops of a straight ramp is
- * what "too sharp" was: it leaves the edge at its steepest, which the eye reads
- * as a boundary (it is far more sensitive to the first few percent of black than
- * to the last few) and which bands on a dark surface. A smootherstep leaves 0
- * flat and arrives at 1 flat, so there is nothing to see at either end - only in
- * the middle, where the row is already half gone and a fast change is invisible.
- */
-const FADE_CURVE = [
-  [0, 0],
-  [0.12, 0.01],
-  [0.25, 0.1],
-  [0.4, 0.32],
-  [0.55, 0.59],
-  [0.7, 0.84],
-  [0.85, 0.97],
-  [1, 1],
-] as const;
-
-/** A mask alpha at a distance from the START of the clip box. */
-function fadeIn(alpha: number, t: number, fade: number): string {
-  return `rgba(0, 0, 0, ${alpha}) ${Math.round(FOCUS_BLEED + t * fade)}px`;
-}
-
-/**
- * The row's ends, as a MASK on the box that clips it.
- *
- * A mask rather than a scrim, and that is the fix. The scrim was the page colour
- * painted OVER the row - which only disappears where the page is exactly that
- * colour, and the strip is not the row: it reaches `FOCUS_BLEED` past it on every
- * side (it has to, or the end tiles' focus rings are shaved), so it also lay over
- * the rail's own title and washed the first word of it out. A mask has neither
- * problem, because it removes the row's OWN pixels: nothing is painted, nothing
- * outside the clip box can be dimmed by it, and the tiles fade to whatever is
- * actually behind them rather than to one hardcoded colour.
- *
- * The bleed is masked out entirely: what is painted there is a tile sliced by the
- * clip, which is the artefact all of this exists to hide. The fade proper starts
- * at the row's own edge, where the tiles do, and stops are in PIXELS so the bleed
- * is a prefix rather than a stretch of the curve.
- *
- * An end that cannot scroll is NOT faded - the first tile's focus ring lives in
- * that bleed, and fading it is how the ring got shaved before `FOCUS_BLEED`
- * existed. It switches rather than transitions (mask images do not interpolate),
- * which is invisible in practice: the switch happens on the frame the row starts
- * or stops moving.
- */
-function railMask(fade: number, start: boolean, end: boolean): string {
-  const stops: string[] = [];
-  if (start) {
-    // Empty from the clip's edge to the row's, then the curve. The first sample
-    // IS the row's edge, at zero, so the flat part needs one stop of its own.
-    stops.push('rgba(0, 0, 0, 0) 0px');
-    for (const [t, alpha] of FADE_CURVE) stops.push(fadeIn(alpha, t, fade));
-  } else stops.push('rgba(0, 0, 0, 1) 0px');
-  if (end) {
-    // Mirrored: the same curve read from the far edge back, in `calc` so it does
-    // not need the row's width - which this string is written without.
-    for (let at = FADE_CURVE.length - 1; at >= 0; at--) {
-      const [t, alpha] = FADE_CURVE[at] ?? [0, 0];
-      stops.push(`rgba(0, 0, 0, ${alpha}) calc(100% - ${Math.round(FOCUS_BLEED + t * fade)}px)`);
-    }
-    stops.push('rgba(0, 0, 0, 0) 100%');
-  } else stops.push('rgba(0, 0, 0, 1) 100%');
-  return `linear-gradient(to right, ${stops.join(', ')})`;
-}
-
-/**
- * The same fade, painted, for native - where there is no mask (see `maskImage`).
- *
- * The page colour over the row rather than the row taken away, with the ends of
- * the curve swapped round: it is opaque where the mask is empty. Same geometry,
- * same samples, and the same reason for each of them.
- */
-function scrim(start: boolean, fade: number): string {
-  const stops = FADE_CURVE.map(
-    ([t, visible]) =>
-      `rgba(10, 10, 12, ${Number((1 - visible).toFixed(2))}) ${Math.round(FOCUS_BLEED + t * fade)}px`,
-  );
-  return `linear-gradient(to ${start ? 'right' : 'left'}, ${SHADE.full} 0px, ${stops.join(', ')})`;
-}
-/**
- * `gradient(scrim(...))` for a side and a fade length, built once.
- *
- * Native only, and the reason is the target: `RailEdge` is not memoised and is
- * mounted twice, so on a television every D-pad move that scrolls the row was
- * re-mapping the eight-sample curve and minting two style objects. The inputs
- * are a boolean and a width that only changes on resize, so the whole thing is a
- * two-entry lookup in practice.
- */
-const scrims = new Map<string, ViewStyle>();
-
-function scrimStyle(start: boolean, fade: number): ViewStyle {
-  const key = `${start}:${fade}`;
-  const hit = scrims.get(key);
-  if (hit) return hit;
-  const style = gradient(scrim(start, fade)) as ViewStyle;
-  scrims.set(key, style);
-  return style;
-}
-
-/** The arrows fade with the pointer rather than blinking in and out. */
-const FADE = {
-  transitionProperty: 'opacity',
-  transitionDuration: `${SETTLE_MS}ms`,
-  transitionTimingFunction: EASE_CSS,
-};
 
 interface VirtualRailProps<T> {
   data: readonly T[];
@@ -286,6 +121,13 @@ function VirtualRail<T>({
   arrows = true,
 }: Readonly<VirtualRailProps<T>>) {
   const viewport = useRef<View | null>(null);
+  // No <FocusScope> above means no navigator, and the navigator's own view
+  // THROWS when its root is missing. That is the correct outcome on a
+  // television (a dead remote should be loud) and the wrong one on a phone or
+  // a bare web page, which have no navigator on purpose - the same rule
+  // <Focusable> follows. Unscoped, the row keeps everything except the D-pad:
+  // the touch ScrollView, the wheel pan, the arrows, the fades, the window.
+  const scoped = useInsideFocusScope();
   const [offset, setOffset] = useState(0);
   /** The furthest tile mounted. Grows with what has been REACHED - by the
    *  selection or by a pan - and never shrinks. */
@@ -427,13 +269,10 @@ function VirtualRail<T>({
   );
 
   /** One arrow press moves a screenful less a tile, so the row overlaps itself
-   *  by one and nothing is skipped over. */
+   *  by one and nothing is skipped over. In PITCHES, not `itemWidth`: the pitch
+   *  is what a tile actually occupies, so paging by the authored width left the
+   *  row a fraction of a tile out of step on every press. */
   const page = useCallback(
-    // In PITCHES, not in `itemWidth`. The pitch is what a tile actually occupies
-    // (`fitPitch` stretches the authored width so a whole number of them fills the
-    // row), so paging by `itemWidth` left the row a fraction of a tile out of step
-    // on every press - and the dependency list said `pitch` while the body read
-    // `itemWidth`, so after the control changed it paged by a stale one.
     (direction: 1 | -1) => panBy(direction * Math.max(pitch, measured.current - pitch), false),
     [panBy, pitch],
   );
@@ -480,12 +319,12 @@ function VirtualRail<T>({
       const item = data[index];
       if (item === undefined) continue;
       out.push(
-        // The tile's own <Focusable> reports through this. It is the only signal
-        // that fires in BOTH directions: the navigator's `onActive` is monotone,
-        // so a row wired to that scrolls right and freezes going left.
-        // Every tile occupies exactly one PITCH, whatever it draws inside it.
-        // The offset maths counts in pitches, so a tile that takes its own width
-        // instead would drift a little further out of step on every step.
+        // The tile's own <Focusable> reports through <FocusReporter>. It is the
+        // only signal that fires in BOTH directions: the navigator's `onActive`
+        // is monotone, so a row wired to that scrolls right and freezes going
+        // left. Every tile occupies exactly one PITCH, whatever it draws inside
+        // it - the offset maths counts in pitches, so a tile that took its own
+        // width instead would drift a little further out of step on every step.
         <View key={index} style={cell}>
           <FocusReporter onFocus={() => selectRef.current(index)}>
             {renderItem(item, index)}
@@ -498,9 +337,16 @@ function VirtualRail<T>({
 
   const furthest = maxOffset(count, pitch, measured.current);
   const arrowsOn = WEB && arrows;
-  /** Which ends have something beyond them, and so are faded away. */
-  const fadeStart = offset > 1;
-  const fadeEnd = offset < furthest - 1;
+  /** Which ends have something beyond them, and so are faded away. Three
+   *  regimes, one per input: a D-pad row (scoped) fades whenever it is
+   *  scrolled - the fade is its only "there is more" hint, and no button can
+   *  ever appear to carry it. Under a pointer the fade comes and goes WITH the
+   *  paging buttons. On touch it never shows: a thumb pages the row itself,
+   *  and the fade was a slab of shade over the last posters. */
+  const buttonsUp = arrowsOn && hovered;
+  const fadeOn = scoped || buttonsUp;
+  const fadeStart = fadeOn && offset > 1;
+  const fadeEnd = fadeOn && offset < furthest - 1;
   /** A wheel gesture calls `setOffset` on every tick, and the mask is a dozen
    *  rounded template literals joined into a string wrapped in a fresh style
    *  object - so unmemoised it was rebuilt, and the clip box's CSS rewritten, on
@@ -508,6 +354,12 @@ function VirtualRail<T>({
   const clip = useMemo(
     () => [clipStyles.clip, WEB ? maskImage(railMask(edge, fadeStart, fadeEnd)) : null],
     [edge, fadeStart, fadeEnd],
+  );
+
+  const row = scoped ? (
+    <SpatialNavigationView direction="horizontal">{tiles}</SpatialNavigationView>
+  ) : (
+    <View style={styles.row}>{tiles}</View>
   );
 
   return (
@@ -523,8 +375,8 @@ function VirtualRail<T>({
           transition, and before this branch existed a swipe on a phone moved
           nothing at all. Elsewhere the row is translated: by the D-pad through
           the navigator on a television, by the wheel and the arrows on the web.
-          The fade is a MASK on the clip box on the web, and painted over the row
-          on native, which has no mask - see `railMask` and `scrim`. */}
+          The fade is a MASK on the clip box on the web and a painted scrim on
+          a native D-pad row - when it shows at all; see `fadeOn`. */}
       {TOUCH ? (
         <ScrollView
           horizontal
@@ -536,114 +388,39 @@ function VirtualRail<T>({
           // bounces off the end of what happened to be mounted.
           contentContainerStyle={[styles.row, contentStyle, { minWidth: count * pitch }]}
         >
-          <SpatialNavigationView direction="horizontal">{tiles}</SpatialNavigationView>
+          {row}
         </ScrollView>
       ) : (
         <View style={clip}>
           <MovingRow offset={offset} instant={panning} style={contentStyle} interactive={!panning}>
-            <SpatialNavigationView direction="horizontal">{tiles}</SpatialNavigationView>
+            {row}
           </MovingRow>
         </View>
       )}
-      {/* The edges are always mounted, so their control FADES rather than
-          appears: a row that can be scrolled says so at all times, and the
-          button arrives when the pointer does. */}
-      <RailEdge
-        side="start"
-        shown={fadeStart}
-        arrow={arrowsOn && hovered}
-        onPress={() => page(-1)}
-        width={edge}
-      />
-      <RailEdge
-        side="end"
-        shown={fadeEnd}
-        arrow={arrowsOn && hovered}
-        onPress={() => page(1)}
-        width={edge}
-      />
+      {/* The edges exist where a pointer does (the paging buttons, with the
+          fade framing them) and on a native D-pad row (the painted scrim - the
+          web fades with a mask instead). They stay mounted so their control
+          FADES rather than appears. A touch row mounts none: the fade never
+          shows there. */}
+      {arrowsOn || (scoped && !WEB && !TOUCH) ? (
+        <>
+          <RailEdge
+            side="start"
+            shown={fadeStart}
+            arrow={buttonsUp}
+            onPress={() => page(-1)}
+            width={edge}
+          />
+          <RailEdge
+            side="end"
+            shown={fadeEnd}
+            arrow={buttonsUp}
+            onPress={() => page(1)}
+            width={edge}
+          />
+        </>
+      ) : null}
     </View>
-  );
-}
-
-/**
- * One end of the row: the pointer's page control, and on native the fade behind
- * it (the web fades with a mask instead - `railMask`).
- *
- * The BUTTON is the kit's glass treatment at the size a pointer wants, centred on
- * the row rather than filling its height, because a full-height slab covers
- * artwork the viewer is trying to look at.
- *
- * It is a plain `Pressable`, deliberately: every other control in the kit is a
- * `<Focusable>` and therefore a node of the navigator, which is exactly what
- * this must not be. A remote pages the row by walking it; an arrow in that path
- * would be a stop the D-pad has to cross to reach the next tile.
- *
- * It fades rather than appears, and stays mounted while it can be used, so the
- * pointer never chases a control that pops into existence under it.
- */
-function RailEdge({
-  side,
-  shown,
-  arrow,
-  onPress,
-  width,
-}: Readonly<{
-  side: 'start' | 'end';
-  shown: boolean;
-  arrow: boolean;
-  onPress: () => void;
-  /** How long the FADE is, sized from the row - see `edgeWidth`. The strip is
-   *  that plus the focus bleed, which is where the tiles are cut off. */
-  width: number;
-}>) {
-  const start = side === 'start';
-  // The strip's own appearance ANIMATES on native too. `FADE` is a CSS
-  // transition, which only react-native-web understands - on a phone or a
-  // television the style is silently ignored and the painted gradient BLINKED
-  // in the frame the row started moving. Same value, same duration, through
-  // `Animated` where CSS is not available.
-  const fade = useRef(new Animated.Value(shown ? 1 : 0)).current;
-  useEffect(() => {
-    if (WEB) return;
-    Animated.timing(fade, {
-      toValue: shown ? 1 : 0,
-      duration: SETTLE_MS,
-      easing: EASE_NATIVE,
-      useNativeDriver: true,
-    }).start();
-  }, [shown, fade]);
-  return (
-    <Animated.View
-      pointerEvents={shown && arrow ? 'box-none' : 'none'}
-      style={[
-        styles.edge,
-        { width: width + FOCUS_BLEED },
-        start ? styles.edgeStart : styles.edgeEnd,
-        // Nothing is painted here on the web: the mask has already taken the
-        // row's own edge away, and a gradient on top of that would be the slab
-        // over the neighbouring content that the mask exists to stop being.
-        WEB ? null : scrimStyle(start, width),
-        WEB ? ({ opacity: shown ? 1 : 0 } as ViewStyle) : { opacity: fade },
-        WEB ? (FADE as ViewStyle) : null,
-      ]}
-    >
-      <Pressable
-        focusable={false}
-        accessibilityRole="button"
-        accessibilityLabel={start ? 'Scroll left' : 'Scroll right'}
-        onPress={onPress}
-        style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
-          styles.arrow,
-          { opacity: arrow ? 1 : 0 } as ViewStyle,
-          FADE as ViewStyle,
-          hovered ? styles.arrowHover : null,
-          pressed ? styles.arrowPressed : null,
-        ]}
-      >
-        <Icon name={start ? 'chevron-left' : 'chevron-right'} size={24} color="text" />
-      </Pressable>
-    </Animated.View>
   );
 }
 
@@ -719,58 +496,7 @@ function MovingRow({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  /** The strip at one end of the row, holding the control - and on native the
-   *  painted fade as well. Outside the clip box, so the button is never cut by
-   *  it, and reaching as far out sideways as the clip does, so the native scrim
-   *  covers the tile the clip cuts off in its own bleed instead of stopping just
-   *  short of it. See `scrim`.
-   *
-   *  The ROW's height, not the clip's: what a taller strip would cover is not
-   *  the row, it is whatever sits above and below it - and 32px above a rail is
-   *  its title, which the scrim duly washed out. The web has no such compromise
-   *  to make, because a mask can only take away the row's own pixels. */
-  edge: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  // The control sits AT the end of the row, not centred in the strip: the strip
-  // is as wide as the fade needs to be, and a button floating half a strip in
-  // reads as sitting on the tile it happens to be over rather than as the row's
-  // own edge control. A hair of padding keeps it off the very pixel.
-  // At the row's own edge, which is also where the tiles end: the pitch fits a
-  // whole number of them, so nothing is painted out in the focus bleed for the
-  // control to sit inside of.
-  // Pulled out by the bleed, and padded back in by it, so the strip covers the
-  // clip's edge while the control stays at the ROW's edge where the tiles end.
-  edgeStart: {
-    left: -FOCUS_BLEED,
-    alignItems: 'flex-start',
-    paddingLeft: FOCUS_BLEED + EDGE_INSET,
-  },
-  edgeEnd: {
-    right: -FOCUS_BLEED,
-    alignItems: 'flex-end',
-    paddingRight: FOCUS_BLEED + EDGE_INSET,
-  },
-  /** The kit's glass control: a translucent fill over a hairline, which reads on
-   *  artwork of any brightness. */
-  arrow: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    boxShadow: shadow.card,
-  },
-  arrowHover: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-  arrowPressed: { backgroundColor: 'rgba(255, 255, 255, 0.28)', transform: [{ scale: 0.94 }] },
 });
 
 export type { VirtualRailProps };
-export { edgeWidth, horizontalInset, railMask, VirtualRail };
+export { VirtualRail };

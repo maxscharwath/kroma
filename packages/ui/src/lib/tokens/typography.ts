@@ -16,8 +16,10 @@ export const fonts = {
   ui: 'Hanken Grotesk',
 } as const;
 
-/** Tracking as authored, in em. */
-export const tracking = { overline: 0.12, display: -0.02 } as const;
+/** Tracking as authored, in em. The eyebrow opens up at three metres: the same
+ * word has to read as a label rather than as a short line of text, and a
+ * television's own chrome tracks its section headings about this wide. */
+export const tracking = { overline: 0.12, overlineTv: 0.22, display: -0.02 } as const;
 
 /** A role exactly as the design states it. `family` picks the CSS var too. */
 export interface TypeSpec {
@@ -45,6 +47,19 @@ export const typeSpec = {
     size: 11,
     ratio: 1,
     em: tracking.overline,
+    uppercase: true,
+  },
+  /** The same eyebrow at 10-foot distance ("ACTEUR", "EN VEDETTE", "SAISON 2").
+   * A separate role rather than a size prop because the tracking is not the
+   * phone's scaled up: it is authored wider, and every TV screen that wrote this
+   * style by hand had wandered to a different value. Override `fontSize` on it
+   * freely - <Txt> re-derives the tracking from the authored em. */
+  overlineTv: {
+    family: 'ui',
+    weight: '700',
+    size: 13,
+    ratio: 1.23,
+    em: tracking.overlineTv,
     uppercase: true,
   },
 } as const satisfies Record<string, TypeSpec>;

@@ -11,8 +11,7 @@ import {
   entryPoster,
 } from '#tv/features/catalog/home/AmbientBackdrop';
 import { type GridCard, PosterGrid } from '#tv/features/catalog/home/PosterGrid';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
-import { EMPTY, SECTION, TITLE } from '#tv/features/catalog/screenStyle';
+import { EMPTY, TITLE } from '#tv/features/catalog/screenStyle';
 
 // Best-known titles first (rating, then year) the same ranking as the person grid.
 const SORT: SortMode = 'rating';
@@ -64,18 +63,12 @@ export function TvGenreGrid() {
 
   return (
     <Box fill bg="bg" overflow="hidden" style={{ isolation: 'isolate' }}>
-      {/* The bar comes FIRST in the tree because the navigator moves in tree
-          order and the bar is visually at the top; it still paints above,
-          on its own z. Which control opens focused is said by `autoFocus`,
-          not by the order. */}
-      <TvTopNav />
-
       <AmbientBackdrop
         src={backdrop}
         colors={focused ? posterColors(focused.item.id) : ['#1c1c22', '#0a0a0c']}
       />
       <Box px={64} pt={112} pb={24} gap={8}>
-        <Txt style={SECTION} color="accent">
+        <Txt variant="overlineTv" color="accent">
           {t('nav.genres')}
         </Txt>
         <Txt variant="hero" style={TITLE}>

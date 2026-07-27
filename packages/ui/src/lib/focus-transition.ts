@@ -4,11 +4,12 @@
 // and never crosses the bridge: the same compositor-only guarantee the web tier
 // gets from a CSS transition. See transition.web.ts for the web half.
 
-import { useEffect, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated } from 'react-native';
+import { ease } from './ease';
 import { motion } from './tokens';
 
-const EASE = Easing.bezier(...(motion.bezier.out as [number, number, number, number]));
+const EASE = ease.out.native;
 
 /** Nothing to animate: a ring-only focusable adds no style node at all. */
 const RING_ONLY: Record<string, unknown> = {};
@@ -32,4 +33,42 @@ export function useFocusScale(focused: boolean, to: number): Record<string, unkn
   }, [focused, to, value]);
 
   return to === 1 ? RING_ONLY : { transform: [{ scale: value }] };
+}
+
+interface PressScale {
+  pressed: boolean;
+  style: Record<string, unknown>;
+  onPressIn: () => void;
+  onPressOut: () => void;
+}
+
+/**
+ * The design's press dip (`motion.pressScale`): the control shrinks under the
+ * finger, then springs back with a touch of overshoot on release. The touch
+ * half of the focus scale above - a phone PRESSES where a television FOCUSES -
+ * wired by the kit's pressable paths so every control answers the finger the
+ * same way.
+ */
+export function usePressScale(): PressScale {
+  const [pressed, setPressed] = useState(false);
+  const value = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = useCallback(() => {
+    setPressed(true);
+    // The dip is immediate feedback, so it eases fast and never bounces.
+    Animated.timing(value, {
+      toValue: motion.pressScale,
+      duration: motion.duration.fast,
+      easing: EASE,
+      useNativeDriver: true,
+    }).start();
+  }, [value]);
+
+  const onPressOut = useCallback(() => {
+    setPressed(false);
+    // The release is where the life is: the house spring overshoot.
+    Animated.spring(value, { toValue: 1, speed: 30, bounciness: 9, useNativeDriver: true }).start();
+  }, [value]);
+
+  return { pressed, style: { transform: [{ scale: value }] }, onPressIn, onPressOut };
 }

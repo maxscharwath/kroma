@@ -17,6 +17,7 @@ import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { SpatialNavigationView } from 'react-tv-space-navigation';
 import { useFocusEntryScope } from './focus-entry';
+import { FocusPresenceProvider } from './focus-presence';
 import { useRemoteBridge } from './focus-remote';
 import { FocusRoot } from './focus-root';
 import { flat } from './nav-style';
@@ -28,17 +29,34 @@ interface FocusScopeProps {
   style?: StyleProp<ViewStyle>;
 }
 
+interface ScreenScopeProps extends FocusScopeProps {
+  /** Names the SCREEN inside a scope that outlives it. A scope holding
+   *  persistent chrome (a nav bar that must keep its instance across a section
+   *  change) cannot re-decide where focus opens from its own mount, because it
+   *  does not remount; changing this key is how it hears about the arrival.
+   *  Omit it for the usual case - one scope per screen, keyed by the router. */
+  entryKey?: string | number;
+}
+
 interface FocusColumnProps extends FocusScopeProps {
   /** Treat the rows inside as a grid: keep the column when moving between them.
    *  See <FocusColumn>. */
   grid?: boolean;
 }
 
-function FocusScope({ children, style }: Readonly<FocusScopeProps>) {
+function FocusScope({ children, style, entryKey }: Readonly<ScreenScopeProps>) {
   useRemoteBridge();
-  // A fresh scope decides where focus opens again: see lib/focus-entry.
-  useFocusEntryScope();
-  return <FocusRoot style={style}>{children}</FocusRoot>;
+  // A fresh scope - or a new screen inside one that persists - decides where
+  // focus opens again: see lib/focus-entry.
+  useFocusEntryScope(entryKey);
+  return (
+    // The presence flag is what lets a kit control exist OUTSIDE any scope (a
+    // phone screen, a plain web page) without registering with a navigator
+    // that was never mounted. See lib/focus-presence.
+    <FocusPresenceProvider value={true}>
+      <FocusRoot style={style}>{children}</FocusRoot>
+    </FocusPresenceProvider>
+  );
 }
 
 /**
@@ -79,5 +97,5 @@ function FocusColumn({ children, style, grid = false }: Readonly<FocusColumnProp
   );
 }
 
-export type { FocusColumnProps, FocusScopeProps };
+export type { FocusColumnProps, FocusScopeProps, ScreenScopeProps };
 export { FocusColumn, FocusRegion, FocusScope };

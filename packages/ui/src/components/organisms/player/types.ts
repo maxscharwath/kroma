@@ -192,11 +192,9 @@ export interface PlayerController {
   setVolume(v: number): void;
   toggleMute(): void;
 
-  // ---- rate + loop ----
+  // ---- rate ----
   rate: number;
   setRate(r: number): void;
-  loop: boolean;
-  setLoop(v: boolean): void;
 
   // ---- audio tracks ----
   audioTracks: AudioTrack[];

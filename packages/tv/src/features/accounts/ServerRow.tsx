@@ -1,6 +1,17 @@
 import type { Translate } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Badge, Box, Focusable, Icon, type IconName, Skeleton, Txt } from '@kroma/ui/kit';
+import {
+  Badge,
+  Box,
+  colors,
+  Focusable,
+  Icon,
+  type IconName,
+  IconWell,
+  ListRow,
+  Skeleton,
+  Txt,
+} from '@kroma/ui/kit';
 import type { ServerProbe } from '#tv/app/useServersHealth';
 import { ServerStatusPill } from '#tv/features/accounts/ServerStatus';
 
@@ -66,8 +77,11 @@ export function ServerRow({
   );
 }
 
-/** The list's non-server row ("Ajouter manuellement"): same shape, accent well,
- * no status (there is nothing to probe yet). */
+/** The list's non-server row ("Ajouter manuellement"): the kit's <ListRow>
+ * (icon well + label + hint + chevron), no status (there is nothing to probe
+ * yet). ServerRow above stays bespoke: it needs a TWO-line hint (address + the
+ * probe's meta line with its no-reflow placeholder), which ListRow's single
+ * `hint` cannot express. */
 export function ActionRow({
   icon,
   title,
@@ -81,28 +95,7 @@ export function ActionRow({
   autoFocus?: boolean;
   onPress: () => void;
 }>) {
-  return (
-    <Focusable
-      onPress={onPress}
-      label={title}
-      autoFocus={autoFocus}
-      focusScale={1.02}
-      ring={false}
-      style={ROW}
-      focusedStyle={FOCUSED}
-    >
-      <IconWell name={icon} accent />
-      <Box flex gap={3} style={MIN_0}>
-        <Txt lines={1} style={TITLE}>
-          {title}
-        </Txt>
-        <Txt lines={1} style={SUB} color="textDim">
-          {sub}
-        </Txt>
-      </Box>
-      <Icon name="chevron-right" size={22} color="textDim" />
-    </Focusable>
-  );
+  return <ListRow icon={icon} label={title} hint={sub} autoFocus={autoFocus} onPress={onPress} />;
 }
 
 /**
@@ -114,27 +107,12 @@ export function ActionRow({
 export function ServerRowSkeleton() {
   return (
     <Box style={[ROW, GHOST]}>
-      <Skeleton w={46} h={46} radius="xl" />
+      <Skeleton w={42} h={42} radius="xl" />
       <Box flex gap={8} style={MIN_0}>
         <Skeleton w={172} h={13} radius="pill" />
         <Skeleton w={108} h={10} radius="pill" />
       </Box>
       <Skeleton w={58} h={10} radius="pill" />
-    </Box>
-  );
-}
-
-function IconWell({ name, accent }: Readonly<{ name: IconName; accent?: boolean }>) {
-  return (
-    <Box
-      w={46}
-      h={46}
-      shrink={0}
-      center
-      radius="xl"
-      bg={accent ? 'accentSoft' : 'rgba(255, 255, 255, 0.06)'}
-    >
-      <Icon name={name} size={24} stroke={1.7} color={accent ? 'accent' : 'textMuted'} />
     </Box>
   );
 }
@@ -166,7 +144,7 @@ const TITLE = { fontSize: 19, fontWeight: '700' as const };
 const SUB = { fontSize: 14, fontWeight: '500' as const };
 const META = { fontSize: 12.5, fontWeight: '600' as const, letterSpacing: 0.2 };
 
-const FOCUSED = { borderColor: '#F4B642' };
+const FOCUSED = { borderColor: colors.accent };
 
 /** The ghost sits a notch behind the real rows: it is not a choice yet. */
 const GHOST = { opacity: 0.55 };

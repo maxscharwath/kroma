@@ -15,6 +15,7 @@ import {
   colors as kit,
   absoluteFill as kitAbsoluteFill,
   SHADE as kitShade,
+  shade as kitShadeAt,
   WHEEL_COLORS as kitWheel,
   mobileRadius,
   mobileSpace,
@@ -48,9 +49,29 @@ export const WHEEL_COLORS = kitWheel;
 /** Billboard / poster shade stops (transparent to page background). */
 export const SHADE = kitShade;
 
+/** The page background at an arbitrary alpha, for hand-tuned shade stops. */
+export const shade = kitShadeAt;
+
 export const radius = mobileRadius;
 export const spacing = mobileSpace;
-export const type = mobileType;
+/**
+ * The phone type ramp, INKED. The kit's `mobileType` deliberately bakes no
+ * colour (a role must be reusable on any surface), but this app's screens
+ * spread `...type.x` everywhere and mostly say nothing about colour - and
+ * React Native's silent default is BLACK, which on this app's near-black
+ * surfaces rendered every unlabelled heading invisible. So the app's own ramp
+ * carries the app's default ink; a style that wants another colour already
+ * spells it after the spread, where it still wins.
+ */
+export const type = {
+  display: { ...mobileType.display, color: kit.text },
+  title: { ...mobileType.title, color: kit.text },
+  heading: { ...mobileType.heading, color: kit.text },
+  section: { ...mobileType.section, color: kit.text },
+  body: { ...mobileType.body, color: kit.text },
+  caption: { ...mobileType.caption, color: kit.textMuted },
+  small: { ...mobileType.small, color: kit.textMuted },
+} as const;
 export const absoluteFill = kitAbsoluteFill;
 
 /** Height of the floating (translucent) tab bar; tab screens pad their scroll

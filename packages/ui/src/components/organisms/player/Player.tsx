@@ -8,17 +8,18 @@ import {
   type Dispatch,
   type ReactNode,
   type SetStateAction,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 import type { View, ViewStyle } from 'react-native';
-import { Animated, Easing, Pressable, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, useWindowDimensions } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Spinner } from '#ui/components/atoms/spinner';
 import { gradient } from '#ui/lib/css';
-import { motion } from '#ui/lib/tokens';
+import { ease } from '#ui/lib/ease';
 import { useLocale, useT } from '#ui/services/i18n';
 import type { StoryboardTile } from '#ui/services/storyboard';
 import { usePlayerCredits } from './hooks/usePlayerCredits';
@@ -28,7 +29,7 @@ import { useSeekNudge } from './hooks/useSeekNudge';
 import { currentChapter, normalizeChapters } from './lib/chapters';
 import { clamp01, endsAtClock, sliderToVolume, volumeToSlider } from './lib/fmt';
 import type { PanelHandle } from './lib/nav';
-import { injectKeyframes } from './lib/styles';
+import { injectStageStyles } from './lib/styles';
 import type { SubtitleAppearance } from './lib/subtitle-appearance';
 import { VIRTUAL_FOCUS } from './lib/virtual-focus';
 import { ControlCluster } from './parts/ControlCluster';
@@ -152,7 +153,7 @@ function useStageZoom(settingsShrink: boolean, card: { scale: number; x: number 
     const anim = Animated.timing(zoom, {
       toValue: settingsShrink ? 1 : 0,
       duration: ZOOM_MS,
-      easing: Easing.bezier(...(motion.bezier.out as [number, number, number, number])),
+      easing: ease.out.native,
       useNativeDriver: false,
     });
     anim.start();
@@ -286,7 +287,7 @@ function playerInputHandlers(
  * talks to an engine directly.
  */
 export function Player(props: Readonly<PlayerProps>) {
-  useEffect(injectKeyframes, []);
+  useEffect(injectStageStyles, []);
   const { controller: c, flags } = props;
   // The stage fills the screen, so the card is measured against this.
   const { width: stageWidth } = useWindowDimensions();
@@ -372,13 +373,25 @@ export function Player(props: Readonly<PlayerProps>) {
   // The buffering spinner + subtitle overlay ride into the card via their own
   // wrapper: on the CSS path they sit inside the (transformed) stage untouched; on
   // a native shrink the stage stays put, so the wrapper carries them down itself.
+  // The SAME geometry the plane gets, not a second hand-written guess: this rides
+  // the native path exclusively, where a percentage translate is uninterpretable
+  // (see useStageZoom) and the flat half-scale is the pre-cardGeometry shape the
+  // card stopped being.
   const contentShrink: ViewStyle | undefined = nativeShrink
-    ? { transformOrigin: '0 50%', transform: [{ translateX: '3%' }, { scale: 0.5 }] }
+    ? { transformOrigin: '0 50%', transform: [{ translateX: card.x }, { scale: card.scale }] }
     : undefined;
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
   // the chrome auto-hides (see `chromeShown`).
   const input = playerInputHandlers(nav, c, flags, locked);
+
+  // Hoisted for the memoized sheet: an inline closure would hand it a new prop
+  // every ~4 Hz tick and defeat the memo (nav's callbacks are stable).
+  const openSheet = useCallback(() => nav.openOverlay('sheet'), [nav.openOverlay]);
+  const playUpNextItem = useCallback(
+    (item: UpNextItem) => props.onPlayItem?.(item),
+    [props.onPlayItem],
+  );
 
   return (
     <Box
@@ -391,7 +404,7 @@ export function Player(props: Readonly<PlayerProps>) {
       {/* Stage: the video surface, its subtitles and the buffering spinner,
           transformed together to shrink into the settings card.
           Its id is what the injected stylesheet hooks to size the in-page
-          <video> a browser surface mounts here (see injectKeyframes); a native
+          <video> a browser surface mounts here (see injectStageStyles); a native
           surface sizes itself and never sees that rule. */}
       <AnimatedPressable
         {...VIRTUAL_FOCUS}
@@ -500,9 +513,9 @@ export function Player(props: Readonly<PlayerProps>) {
         data={props.upNext}
         open={sheetOpen}
         revealed={peekVisible || sheetOpen}
-        onOpen={() => nav.openOverlay('sheet')}
-        onClose={() => nav.closeOverlay()}
-        onPlay={(item) => props.onPlayItem?.(item)}
+        onOpen={openSheet}
+        onClose={nav.closeOverlay}
+        onPlay={playUpNextItem}
       />
 
       {/* bottom chrome: chapter bar + control cluster. The gradient stays anchored
@@ -521,7 +534,7 @@ export function Player(props: Readonly<PlayerProps>) {
         pb={peekVisible ? 146 : 28}
         opacity={chromeShown ? 1 : 0}
         pointerEvents={chromeShown ? 'box-none' : 'none'}
-        style={gradient(BOTTOM_SCRIM)}
+        style={BOTTOM_SCRIM}
       >
         <SeekBar
           cur={c.cur}
@@ -591,4 +604,4 @@ const STAGE = {
 const STAGE_SHADOW = '0 20px 50px rgba(0, 0, 0, 0.55)';
 /** A surround dark enough to read as "everything but the card is black". */
 const MASK_SURROUND = { boxShadow: '0 0 0 100vmax #000' };
-const BOTTOM_SCRIM = 'linear-gradient(0deg, rgba(0,0,0,0.82), transparent)';
+const BOTTOM_SCRIM = gradient('linear-gradient(0deg, rgba(0,0,0,0.82), transparent)');

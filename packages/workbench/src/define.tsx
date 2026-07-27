@@ -73,6 +73,9 @@ interface WorkbenchDefinition<T extends string = string> {
   brand?: ReactNode;
   /** The wordmark beside the mark. Defaults to naming the tool. */
   title?: string;
+  /** Pinned under the story tree: a build stamp, a link, whatever this host
+   * wants to say about itself. Nothing without it. */
+  footer?: ReactNode;
   /**
    * How this mount is routed. Defaults to the `?story=&view=` search-param
    * contract, which degrades to memory where there is no DOM - so a native mount
@@ -96,14 +99,21 @@ interface WorkbenchDefinition<T extends string = string> {
 function defineWorkbench<T extends string = string>(
   definition: WorkbenchDefinition<T>,
 ): () => ReactNode {
-  const { stories, brand, title, provider, lenses = [] } = definition;
+  const { stories, brand, title, footer, provider, lenses = [] } = definition;
   const router = definition.router ?? pathRouter();
 
   // No provider: nothing to hold, so the config really is just props.
   if (!provider) {
     return function ConfiguredWorkbench() {
       return (
-        <Workbench stories={stories} brand={brand} title={title} lenses={lenses} router={router} />
+        <Workbench
+          stories={stories}
+          brand={brand}
+          title={title}
+          footer={footer}
+          lenses={lenses}
+          router={router}
+        />
       );
     };
   }
@@ -135,7 +145,14 @@ function defineWorkbench<T extends string = string>(
     return provider.render(
       value,
       setValue,
-      <Workbench stories={stories} brand={brand} title={title} lenses={all} router={router} />,
+      <Workbench
+        stories={stories}
+        brand={brand}
+        title={title}
+        footer={footer}
+        lenses={all}
+        router={router}
+      />,
     );
   };
 }

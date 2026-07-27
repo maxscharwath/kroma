@@ -6,13 +6,13 @@ import {
   type User,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Avatar, Box, Icon, PinField, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
+import { Avatar, Box, Icon, Keypad, PinField, Spinner, Txt, useFocusNav } from '@kroma/ui/kit';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
 import { useNav, useParams } from '#tv/app/router';
-import { AuthScreen, artUrl, Keypad } from '#tv/shared/ui';
+import { AuthScreen, artUrl } from '#tv/shared/ui';
 
 /** PINs are a fixed 4 digits; the last digit auto-validates (no OK press). */
 const PIN_LENGTH = 4;

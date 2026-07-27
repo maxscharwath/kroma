@@ -17,6 +17,7 @@
     "tokens:gen": "bun run --filter '@kroma/ui' gen:css",
     "tokens:check": "bun run tokens:gen && git diff --exit-code -- packages/ui/src/styles/tokens",
     "shots": "bun run --filter '@kroma/ui' shots",
+    "store:art": "bun clients/tv-build/store-art.mjs .store-art && python3 clients/tv-build/store-art.py .store-art",
     "start": "bun run tizen:prepare && bun run dev",
     "dev": "concurrently -k -n server,web,tv -c yellow,cyan,magenta \"bun run server:watch\" \"bun run dev:web\" \"VITE_KROMA_SERVER=http://localhost:4040 bun run dev:tizen\"",
     "dev:webonly": "concurrently -k -n server,web -c yellow,cyan \"bun run server:watch\" \"bun run dev:web\"",
@@ -24,7 +25,7 @@
     "dev:tizen": "bun run --filter '@kroma/tizen' dev",
     "dev:tizen:device": "bash clients/tizen/scripts/dev-device.sh",
     "dev:webos": "bun run --filter '@kroma/webos' dev",
-    "dev:androidtv": "bun run --filter '@kroma/androidtv' dev",
+    "dev:tv-web": "bun run --filter '@kroma/tv-web' dev",
     "dev:desktop": "bun run --filter '@kroma/desktop' dev",
     "dev:mobile": "bun run --filter '@kroma/mobile' start",
     "dev:kit": "bun run --filter '@kroma/kit' dev",
@@ -34,12 +35,13 @@
     "kit:androidtv": "bun run --filter '@kroma/kit' android:tv",
     "build:kit": "bun run --filter '@kroma/kit' build",
     "deploy:kit": "bun run --filter '@kroma/kit' deploy",
+    "deploy:tv-web": "bun run --filter '@kroma/tv-web' deploy",
     "build": "bun run --filter '*' build",
     "build:web": "bun run --filter '@kroma/web' build",
     "build:tizen": "bun run --filter '@kroma/tizen' build",
     "build:webos": "bun run --filter '@kroma/webos' build",
-    "build:androidtv": "bun run --filter '@kroma/androidtv' build",
-    "build:tv": "bun run --filter '@kroma/tizen' --filter '@kroma/webos' --filter '@kroma/androidtv' build",
+    "build:tv-web": "bun run --filter '@kroma/tv-web' build",
+    "build:tv": "bun run --filter '@kroma/tizen' --filter '@kroma/webos' build",
     "build:tv-native": "bun run --filter '@kroma/tv-native' bundle:check",
     "build:mobile": "bun run --filter '@kroma/mobile' bundle:check",
     "build:desktop": "bun run --filter '@kroma/desktop' build",
@@ -88,6 +90,7 @@
   },
   "patchedDependencies": {
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
-    "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch"
+    "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
+    "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch"
   }
 }

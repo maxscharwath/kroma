@@ -1,29 +1,16 @@
 import type { CastMember } from '@kroma/core';
-import { useLocale, useT } from '@kroma/ui';
+import { endsAtClock, useLocale, useT } from '@kroma/ui';
 import {
   AVATAR_GRADIENTS,
-  Avatar,
   Box,
   Button,
-  Focusable,
   Icon,
   IconButton,
+  PersonCard,
   Rail,
-  radius,
   Txt,
 } from '@kroma/ui/kit';
 import { useClient, useNav } from '#tv/app/router';
-
-/** Wall-clock time `runtimeMs` from now, in the active locale: French 24-hour
- * "21h32", else a localised 12/24-hour time. Empty when the runtime is unknown. */
-export function endsAtClock(runtimeMs?: number | null, locale?: string): string {
-  if (!runtimeMs || runtimeMs <= 0) return '';
-  const d = new Date(Date.now() + runtimeMs);
-  if (locale === 'en') {
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  }
-  return `${d.getHours()}h${d.getMinutes().toString().padStart(2, '0')}`;
-}
 
 /** "Se termine à 21h32 si vous lancez maintenant", only when a runtime is known. */
 export function EndsAtHint({ runtimeMs }: Readonly<{ runtimeMs?: number | null }>) {
@@ -52,7 +39,8 @@ const SECTION_LABEL = {
 
 /** "Distribution": top-billed cast. Shows the real TMDB headshot when present,
  * else a per-position gradient with initials (varied by index so neighbours never
- * collide). Each face is focusable and opens that person's titles. */
+ * collide). Each face is the kit's <PersonCard>, focusable, and opens that
+ * person's titles. */
 export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
   const t = useT();
   const client = useClient();
@@ -65,10 +53,10 @@ export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
       </Txt>
       <Rail inset={6} gap={24}>
         {cast.slice(0, 16).map((p, i) => (
-          <CastFace
+          <PersonCard
             key={`${p.name}-${p.character ?? ''}`}
             name={p.name}
-            character={p.character}
+            role={p.character}
             photo={client.resolveArt(p.profileUrl, FACE_W)}
             gradient={CAST_GRADIENTS[i % CAST_GRADIENTS.length] as string}
             label={t('person.viewWorks', { name: p.name })}
@@ -79,59 +67,6 @@ export function CastRow({ cast }: Readonly<{ cast?: CastMember[] | null }>) {
     </Box>
   );
 }
-
-/** One cast face. The ring is drawn on the AVATAR, never as a square box around
- * the whole card, and the name tints amber alongside it: `ring={false}` on the
- * focusable is what lets the card own that treatment. */
-function CastFace({
-  name,
-  character,
-  photo,
-  gradient,
-  label,
-  onPress,
-}: Readonly<{
-  name: string;
-  character?: string | null;
-  photo: string | null;
-  gradient: string;
-  label: string;
-  onPress: () => void;
-}>) {
-  return (
-    <Focusable onPress={onPress} label={label} focusScale={1.06} ring={false} style={FACE}>
-      {({ focused }) => (
-        <>
-          <Box radius="pill" style={focused ? RING : null}>
-            <Avatar name={name} src={photo} gradient={gradient} size={120} circle shadow={false} />
-          </Box>
-          <Txt
-            lines={1}
-            style={{ fontSize: 16, fontWeight: '600', textAlign: 'center' }}
-            color={focused ? 'accent' : 'text'}
-          >
-            {name}
-          </Txt>
-          {character ? (
-            <Txt
-              lines={1}
-              style={{ fontSize: 14, fontWeight: '500', textAlign: 'center' }}
-              color="textDim"
-            >
-              {character}
-            </Txt>
-          ) : null}
-        </>
-      )}
-    </Focusable>
-  );
-}
-
-const FACE = { width: 120, flexShrink: 0, alignItems: 'center', gap: 6 } as const;
-const RING = {
-  boxShadow: '0 0 0 4px #F4B642, 0 10px 28px rgba(0, 0, 0, 0.5)',
-  borderRadius: radius.pill,
-} as const;
 
 /** My-list toggle. */
 export function ListButton({

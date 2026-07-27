@@ -1,6 +1,7 @@
 import {
   type DownloadedSub,
   GEN_LANGS,
+  LANG_OFF,
   langName,
   preferredSubIndex,
   type SubCapabilities,
@@ -15,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { kromaClient, type MovieView, type SubtitleView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
+import { useLangPrefs } from '#web/shared/lib/lang-pref';
 
 export interface WebSubtitles {
   subtitles: PlayerSub[];
@@ -178,11 +180,29 @@ export function useWebSubtitles(item: MovieView, t: Translate): WebSubtitles {
     onStart,
   };
 
+  // A pick is also a preference, the same rule the TV follows: turning subtitles
+  // OFF is a real choice and is remembered as such, while picking a track whose
+  // language the file never declared leaves the stored preference alone - there
+  // is nothing to learn from it.
+  const { setSubtitle } = useLangPrefs();
+  const setActive = useCallback(
+    (index: number | null) => {
+      setActiveIndex(index);
+      if (index == null) {
+        setSubtitle(LANG_OFF);
+        return;
+      }
+      const language = allSubs.find((s) => s.index === index)?.language;
+      if (language) setSubtitle(language);
+    },
+    [setSubtitle, allSubs],
+  );
+
   const active = activeIndex == null ? null : allSubs.find((s) => s.index === activeIndex);
   const label =
     activeIndex == null
       ? t('player.subtitlesOff')
       : active?.label || langName(t, active?.language) || t('player.langUnknown');
 
-  return { subtitles, activeIndex, setActive: setActiveIndex, subtitleGen, label };
+  return { subtitles, activeIndex, setActive, subtitleGen, label };
 }

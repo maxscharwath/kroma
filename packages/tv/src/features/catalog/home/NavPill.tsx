@@ -2,12 +2,9 @@
 // the metrics, the amber lens, the travelling ink - now lives in the kit
 // (@kroma/ui NavPill), where the iPhone's tab bar draws the same design at
 // thumb distance; see the kit story for the whole argument. What stays here is
-// this app's shape for it: the section list as DATA, and the focus wiring that
-// names the last item as the account avatar's left-hand neighbour.
+// this app's shape for it: the section list as DATA.
 
-import { type Crossings, type IconName, NavPill as KitNavPill, NavPillItem } from '@kroma/ui/kit';
-import type { ComponentRef, Ref } from 'react';
-import type { View } from 'react-native';
+import { Frost, type IconName, NavPill as KitNavPill, NavPillItem } from '@kroma/ui/kit';
 
 export interface NavItem {
   key: string;
@@ -20,32 +17,26 @@ export interface NavItem {
 export function NavPill({
   items,
   active,
-  lastRef,
-  lastNeighbours,
 }: Readonly<{
   items: readonly NavItem[];
   /** Key of the current section, or none on a deep screen (detail / person). */
   active?: string;
-  /** Named by the account avatar as its left-hand neighbour. */
-  lastRef?: Ref<ComponentRef<typeof View>>;
-  lastNeighbours?: Crossings;
 }>) {
   return (
-    <KitNavPill size="tv">
-      {items.map((item, index) => {
-        const last = index === items.length - 1;
-        return (
-          <NavPillItem
-            key={item.key}
-            icon={item.icon}
-            label={item.label}
-            active={item.key === active}
-            onPress={item.onPress}
-            ref={last ? lastRef : undefined}
-            neighbours={last ? lastNeighbours : undefined}
-          />
-        );
-      })}
+    // The capsule frosts the hero art scrolling under it - the same <Frost>
+    // the glass buttons and episode cards carry, in the slot the iPhone fills
+    // with its own BlurView. Platforms without a blur (legacy panels, an
+    // unregistered shell) keep the pill's solid fill.
+    <KitNavPill size="tv" backdrop={<Frost amount={16} />}>
+      {items.map((item) => (
+        <NavPillItem
+          key={item.key}
+          icon={item.icon}
+          label={item.label}
+          active={item.key === active}
+          onPress={item.onPress}
+        />
+      ))}
     </KitNavPill>
   );
 }

@@ -33,6 +33,9 @@ function resetFocusEntry(): void {
   settled = false;
 }
 
+/** Nothing can equal this, so the first render always counts as a change. */
+const FRESH = Symbol('fresh');
+
 /**
  * A fresh navigator scope has nothing focused yet, so its entry point wins.
  * `<FocusScope>` calls this; every app root and every test render mounts one.
@@ -40,11 +43,18 @@ function resetFocusEntry(): void {
  * Reset while the scope RENDERS rather than in an effect: a child's mount effect
  * is where an entry point asks for the focus, and children's effects run before
  * their parent's, so an effect here would arrive after the decision it governs.
+ *
+ * `entryKey` is for a scope that OUTLIVES its screen - one wrapping persistent
+ * chrome plus a swapping screen, which is how a nav bar keeps its instance (and
+ * so its travelling lens) across a section change. Such a scope must still
+ * re-decide where focus opens on every arrival, and it cannot learn that from
+ * its own mount, because it does not remount. A scope keyed the old way passes
+ * nothing and behaves exactly as before.
  */
-function useFocusEntryScope(): void {
-  const fresh = useRef(true);
-  if (fresh.current) {
-    fresh.current = false;
+function useFocusEntryScope(entryKey?: string | number): void {
+  const seen = useRef<string | number | symbol | undefined>(FRESH);
+  if (seen.current !== entryKey) {
+    seen.current = entryKey;
     resetFocusEntry();
   }
 }

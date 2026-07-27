@@ -3,7 +3,7 @@ import { personFacts } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
 import { Avatar, Box, Chip, Txt } from '@kroma/ui/kit';
 import { useState } from 'react';
-import { SECTION, TITLE } from '#tv/features/catalog/screenStyle';
+import { TITLE } from '#tv/features/catalog/screenStyle';
 
 /** How much biography fits above the filmography before it has to be asked for.
  * Four lines at this measure is roughly a paragraph's opening; the rest is one
@@ -55,7 +55,7 @@ export function PersonHeader({
       <Avatar name={name} src={photo} size={132} circle />
       <Box style={{ minWidth: 0, flex: 1 }} gap={8}>
         {roles.length ? (
-          <Txt style={SECTION} color="accent">
+          <Txt variant="overlineTv" color="accent">
             {roles.join(' · ')}
           </Txt>
         ) : null}
@@ -70,7 +70,7 @@ export function PersonHeader({
           <Box row wrap gap={40} mt={6}>
             {facts.map((f) => (
               <Box key={f.key} gap={3}>
-                <Txt style={FACT_LABEL} color="rgba(244, 243, 240, 0.45)">
+                <Txt variant="overlineTv" style={FACT_LABEL} color="rgba(244, 243, 240, 0.45)">
                   {f.label}
                 </Txt>
                 <Txt style={FACT_VALUE}>{f.value}</Txt>
@@ -105,12 +105,9 @@ export function PersonHeader({
   );
 }
 
-const FACT_LABEL = {
-  fontSize: 12,
-  fontWeight: '700' as const,
-  letterSpacing: 1.6,
-  textTransform: 'uppercase' as const,
-};
+/** A size down from the kit role: a fact label sits over its value, not over a
+ * hero title. */
+const FACT_LABEL = { fontSize: 12 };
 
 const FACT_VALUE = { fontSize: 17, fontWeight: '600' as const };
 

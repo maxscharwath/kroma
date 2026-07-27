@@ -14,6 +14,8 @@
 // where the row already is - it is hysteresis, not a formula on the index - which
 // is why this takes the offset as an input as well as returning one.
 
+import type { ViewStyle } from 'react-native';
+
 interface EdgeScrollInput {
   /** Where the row sits now, in px from the start (always ≥ 0). */
   offset: number;
@@ -69,20 +71,28 @@ function edgeScrollOffset({
   return Math.round(clamp(offset, atLeast, atMost));
 }
 
-/** The items worth rendering at an offset: everything on screen, plus a couple
- * either side so the next press always lands on a tile that exists - the
- * navigator can only move focus to something that is mounted. */
-function visibleRange(
-  offset: number,
-  itemSize: number,
-  viewport: number,
-  count: number,
-  overscan: number,
-): { start: number; end: number } {
-  if (itemSize <= 0 || count === 0) return { start: 0, end: 0 };
-  const first = Math.floor(offset / itemSize) - overscan;
-  const last = Math.ceil((offset + Math.max(viewport, itemSize)) / itemSize) + overscan;
-  return { start: clamp(first, 0, count - 1), end: clamp(last, 0, count - 1) };
+/** How far the row can travel: everything it holds, less what fits. One
+ * definition, because a row whose clamp bound and whose snap bound disagree is
+ * exactly how an offset drifts off the pitch grid - the failure this module is
+ * written to prevent. */
+function maxOffset(count: number, pitch: number, room: number): number {
+  return Math.max(0, count * pitch - room);
+}
+
+/**
+ * The horizontal padding a content style spends, in pixels.
+ *
+ * Percentages and other non-numeric lengths are ignored rather than guessed at:
+ * the pitch maths needs a number, and being wrong by an unknown amount is worse
+ * than being wrong by a padding nobody used. Longhands win over the shorthand,
+ * which is React Native's own precedence.
+ */
+function horizontalInset(style: ViewStyle | undefined): number {
+  if (!style) return 0;
+  const both = typeof style.paddingHorizontal === 'number' ? style.paddingHorizontal : 0;
+  const left = typeof style.paddingLeft === 'number' ? style.paddingLeft : both;
+  const right = typeof style.paddingRight === 'number' ? style.paddingRight : both;
+  return left + right;
 }
 
 /**
@@ -112,4 +122,4 @@ function fitPitch(itemWidth: number, viewport: number): number {
 }
 
 export type { EdgeScrollInput };
-export { edgeScrollOffset, fitPitch, visibleRange };
+export { edgeScrollOffset, fitPitch, horizontalInset, maxOffset };

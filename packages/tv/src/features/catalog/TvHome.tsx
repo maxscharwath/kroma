@@ -15,6 +15,7 @@ import {
   Badge,
   Box,
   Button,
+  colors,
   FocusRegion,
   FocusScroll,
   FocusSlot,
@@ -36,7 +37,6 @@ import { useRecommend } from '#tv/app/providers/recommend';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav } from '#tv/app/router';
 import { HintBar } from '#tv/features/catalog/home/HintBar';
-import { TvTopNav } from '#tv/features/catalog/home/TopNav';
 
 const RAIL_LIMIT = 20;
 
@@ -45,8 +45,8 @@ const ROW_CHUNK = 3;
 
 // Two layers rather than one comma-separated background-image: a multi-value
 // background is a CSS-only luxury React Native's gradient support lacks.
-const HERO_VEIL_HORIZONTAL = 'linear-gradient(90deg, #0A0A0C 5%, transparent 60%)';
-const HERO_VEIL_VERTICAL = 'linear-gradient(0deg, #0A0A0C 1%, transparent 48%)';
+const HERO_VEIL_HORIZONTAL = `linear-gradient(90deg, ${colors.bg} 5%, transparent 60%)`;
+const HERO_VEIL_VERTICAL = `linear-gradient(0deg, ${colors.bg} 1%, transparent 48%)`;
 
 // The design sizes the hero with viewport units (64vh, min 520px) and its title
 // with clamp(42px, 7.6vh, 82px). On the fixed 1920x1080 stage those resolve to
@@ -67,12 +67,9 @@ const HERO_TITLE = {
   letterSpacing: -1.64,
 };
 
-const FEATURED_LABEL = {
-  fontSize: 14,
-  fontWeight: '700' as const,
-  letterSpacing: 3.36,
-  textTransform: 'uppercase' as const,
-};
+/** The hero's eyebrow is a size up from the kit role: it sits under 66px of
+ * title, and the design opens it to match. Tracking follows the size. */
+const FEATURED_LABEL = { fontSize: 14 };
 
 /**
  * What one home tile occupies, so the row can be virtualised.
@@ -304,8 +301,6 @@ export function TvHome() {
 
   return (
     <Box fill bg="bg" overflow="hidden">
-      <TvTopNav active="home" />
-
       <FocusScroll style={PAGE_SCROLL} contentStyle={PAGE_CONTENT} offsetFromStart={120}>
         {/* A permanent slot for the hero row: it arrives from the server after
             the first rails have already mounted, and the navigator orders rows
@@ -323,7 +318,7 @@ export function TvHome() {
               <Box fill pointerEvents="none" style={gradient(HERO_VEIL_HORIZONTAL)} />
               <Box fill pointerEvents="none" style={gradient(HERO_VEIL_VERTICAL)} />
               <Box absolute left={64} bottom={36} z={2} maxW={820}>
-                <Txt style={FEATURED_LABEL} color="accent">
+                <Txt variant="overlineTv" style={FEATURED_LABEL} color="accent">
                   {t('content.featured')}
                 </Txt>
                 <Txt variant="hero" style={[HERO_TITLE, { marginTop: 16, marginBottom: 14 }]}>

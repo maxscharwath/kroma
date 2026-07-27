@@ -24,7 +24,7 @@ export function PlayerSurface({ pb, title }: Readonly<{ pb: Playback; title: str
       />
     );
   }
-  if (pb.surface === 'mpv' || pb.surface === 'exo') {
+  if (pb.surface === 'mpv') {
     return <div style={{ width: '100%', height: '100%' }} role="img" aria-label={title} />;
   }
   // Subtitles render through the shared SubtitleRenderer; the empty captions

@@ -19,6 +19,7 @@
 // settings list and a grid cell are.
 
 import {
+  type Context,
   createContext,
   type ReactNode,
   type RefObject,
@@ -36,6 +37,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SpatialNavigationNode } from 'react-tv-space-navigation';
+import { pointerDriving } from '#ui/lib/input-source';
 
 /** The browser targets (Tizen, webOS, desktop) resolve react-native to
  * react-native-web. */
@@ -108,12 +110,19 @@ interface FocusScrollProps {
   offsetFromStart?: number;
 }
 
-function FocusScroll({
+function AxisScroll({
   children,
   style,
   contentStyle,
   offsetFromStart = 0,
-}: Readonly<FocusScrollProps>) {
+  horizontal,
+  context: RevealContext,
+}: Readonly<
+  FocusScrollProps & {
+    horizontal: boolean;
+    context: Context<((anchor: Anchor) => void) | null>;
+  }
+>) {
   const scroller = useRef<ScrollView>(null);
   // The scroller's CONTENT view, which is what a row is measured against.
   //
@@ -126,8 +135,8 @@ function FocusScroll({
   const inner = useRef<View>(null);
   // Measured rather than assumed: the clamps need both, and a page grows as its
   // rails mount.
-  const page = useRef({ viewport: 0, content: 0 });
-  // The row the page was last asked to show, which is the one the focus is in.
+  const extent = useRef({ viewport: 0, content: 0 });
+  // The anchor last asked for, which is the one the focus is in.
   const showing = useRef<Anchor | null>(null);
 
   const reveal = useCallback(
@@ -142,41 +151,52 @@ function FocusScroll({
       if (!target || !measuredAgainst) return;
       target.measureLayout(
         measuredAgainst,
-        (_left, top) => {
-          const { viewport, content } = page.current;
-          scroller.current?.scrollTo({
-            y: pageOffset({ top, offsetFromStart, viewport, content }),
-            animated: true,
+        (left, top) => {
+          const { viewport, content } = extent.current;
+          const offset = pageOffset({
+            top: horizontal ? left : top,
+            offsetFromStart,
+            viewport,
+            content,
           });
+          scroller.current?.scrollTo(
+            horizontal ? { x: offset, animated: true } : { y: offset, animated: true },
+          );
         },
         // Measuring a view on its way out fails, and that is not an error: the
         // screen it belonged to is gone, and so is the scroll it asked for.
         () => {},
       );
     },
-    [offsetFromStart],
+    [horizontal, offsetFromStart],
   );
 
   return (
-    <PageScrollContext.Provider value={reveal}>
+    <RevealContext.Provider value={reveal}>
       <ScrollView
         ref={scroller}
+        horizontal={horizontal}
         // React 19 types a ref as nullable; React Native's prop does not.
         innerViewRef={inner as RefObject<View>}
         style={flat(style)}
         contentContainerStyle={flat(contentStyle)}
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
         onLayout={(e: LayoutChangeEvent) => {
-          page.current.viewport = e.nativeEvent.layout.height;
+          const { width, height } = e.nativeEvent.layout;
+          extent.current.viewport = horizontal ? width : height;
         }}
-        onContentSizeChange={(_width: number, height: number) => {
-          page.current.content = height;
-          // And show the focused row again, because until now the page may not
-          // have been long enough to bring it where it belongs: a screen mounts
-          // its rows as the focus comes down to them (see <FocusSlot>), so the
-          // row that is being scrolled to is regularly the one that just made
-          // the page taller.
-          if (showing.current) reveal(showing.current);
+        onContentSizeChange={(width: number, height: number) => {
+          extent.current.content = horizontal ? width : height;
+          // And show the focused anchor again, because until now the content may
+          // not have been long enough to bring it where it belongs: a screen
+          // mounts its rows as the focus comes down to them (see <FocusSlot>),
+          // and a rail grows as its tiles arrive, so the anchor being scrolled
+          // to is regularly the one that just made the content bigger. Not
+          // under the pointer, though: rows also mount as a wheel drives past
+          // them, and re-pinning the old anchor then is the scroller snatching
+          // the page back mid-scroll.
+          if (showing.current && !pointerDriving()) reveal(showing.current);
         }}
         // The focus drives this scroller. A human drives it too wherever there is
         // a wheel or a trackpad - a browser, the desktop shell - and a television
@@ -186,80 +206,28 @@ function FocusScroll({
       >
         {children}
       </ScrollView>
-    </PageScrollContext.Provider>
+    </RevealContext.Provider>
   );
+}
+
+function FocusScroll(props: Readonly<FocusScrollProps>) {
+  return <AxisScroll {...props} horizontal={false} context={PageScrollContext} />;
 }
 
 /**
  * <FocusRail>: one rail, scrolled sideways by the focus.
  *
- * The mirror of <FocusScroll> on the other axis, and deliberately the same
- * policy expressed twice rather than one component with a flag: what the two
- * scroll TO differs (a row versus a tile), and that is the interesting part.
+ * The mirror of <FocusScroll> on the other axis: the same policy, applied along
+ * the other dimension. What the two scroll TO differs (a row versus a tile), and
+ * that is the interesting part.
  *
  * A rail sits inside a page, so both are live at once: moving Right scrolls the
  * rail to the next tile, moving Down out of it scrolls the page to the next row.
  * Neither knows about the other; a control simply asks both (see
  * {@link useRevealOnFocus}).
  */
-function FocusRail({
-  children,
-  style,
-  contentStyle,
-  offsetFromStart = 0,
-}: Readonly<FocusScrollProps>) {
-  const scroller = useRef<ScrollView>(null);
-  const inner = useRef<View>(null);
-  const rail = useRef({ viewport: 0, content: 0 });
-  const showing = useRef<Anchor | null>(null);
-
-  const reveal = useCallback(
-    (anchor: Anchor) => {
-      showing.current = anchor;
-      const target = anchor.current;
-      const measuredAgainst = inner.current ?? scroller.current?.getInnerViewNode();
-      if (!target || !measuredAgainst) return;
-      target.measureLayout(
-        measuredAgainst,
-        (left) => {
-          const { viewport, content } = rail.current;
-          scroller.current?.scrollTo({
-            x: pageOffset({ top: left, offsetFromStart, viewport, content }),
-            animated: true,
-          });
-        },
-        () => {},
-      );
-    },
-    [offsetFromStart],
-  );
-
-  return (
-    <RailScrollContext.Provider value={reveal}>
-      <ScrollView
-        ref={scroller}
-        horizontal
-        // React 19 types a ref as nullable; React Native's prop does not.
-        innerViewRef={inner as RefObject<View>}
-        style={flat(style)}
-        contentContainerStyle={flat(contentStyle)}
-        showsHorizontalScrollIndicator={false}
-        onLayout={(e: LayoutChangeEvent) => {
-          rail.current.viewport = e.nativeEvent.layout.width;
-        }}
-        onContentSizeChange={(width: number) => {
-          rail.current.content = width;
-          // A rail grows as its tiles arrive, so the tile the focus is on is
-          // regularly the one that just made the row wider - and until it did,
-          // there was nowhere to scroll it to.
-          if (showing.current) reveal(showing.current);
-        }}
-        scrollEnabled={WEB}
-      >
-        {children}
-      </ScrollView>
-    </RailScrollContext.Provider>
-  );
+function FocusRail(props: Readonly<FocusScrollProps>) {
+  return <AxisScroll {...props} horizontal context={RailScrollContext} />;
 }
 
 /**
@@ -296,6 +264,30 @@ function FocusSlot({
 }
 
 /**
+ * <FocusLine>: one LINE of a taller row, for the page to scroll to.
+ *
+ * A <FocusSlot> fixes a section's place in the navigator's order, but it is
+ * also what the page scrolls to - and a section taller than the screen (a
+ * season of episodes) then pins its top once and never moves again while the
+ * focus walks down inside it. This wraps one visual line in a line-sized
+ * anchor INSIDE the slot: no navigator node, no change to the order, just
+ * "scroll to me" granularity. <Grid> wraps every line it lays out.
+ */
+function FocusLine({
+  children,
+  style,
+}: Readonly<{ children: ReactNode; style?: StyleProp<ViewStyle> }>) {
+  const row = useRef<View>(null);
+  return (
+    <RowContext.Provider value={row}>
+      <View ref={row} style={flat(style)}>
+        {children}
+      </View>
+    </RowContext.Provider>
+  );
+}
+
+/**
  * What a control uses to ask to be shown when it takes the focus.
  *
  * Both axes, and they want different things. The PAGE shows the ROW the control
@@ -310,10 +302,16 @@ function useRevealOnFocus(self: Anchor): () => void {
   const rail = useContext(RailScrollContext);
   const row = useContext(RowContext);
   return useCallback(() => {
+    // A focus the POINTER produced reveals nothing: the control is already
+    // under the cursor, so it is already in view, and scrolling it to the pin
+    // line moves the page under a cursor that has not moved - at the screen's
+    // edge that cascades into the page walking off on its own. The ring still
+    // follows the hover; the next key press reveals as always.
+    if (pointerDriving()) return;
     rail?.(self);
     page?.(row ?? self);
   }, [page, rail, row, self]);
 }
 
 export type { Anchor, FocusScrollProps, PageMetrics };
-export { FocusRail, FocusScroll, FocusSlot, pageOffset, useRevealOnFocus };
+export { FocusLine, FocusRail, FocusScroll, FocusSlot, pageOffset, useRevealOnFocus };

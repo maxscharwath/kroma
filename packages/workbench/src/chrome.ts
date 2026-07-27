@@ -8,8 +8,13 @@
 
 import { colors, radius } from '@kroma/ui/tokens';
 
-/** The hairline between two bands of chrome. */
+/** The hairline between two bands of chrome, on the band's bottom edge. */
 export const RULE = { borderBottomWidth: 1, borderBottomColor: colors.border } as const;
+
+/** The same hairline on the TOP edge, for a band that sits under what it divides
+ * itself from: the sidebar footer, the panel dock, the shell's code bar. Written
+ * out four separate times before it was named. */
+export const RULE_TOP = { borderTopWidth: 1, borderTopColor: colors.border } as const;
 
 /** The hover/focus wash. Every focusable piece of chrome takes it, which is what
  * makes "this responds to the pointer" one treatment rather than several. */

@@ -6,11 +6,11 @@
   "description": "KROMA 10-foot TV experience served from the web (tv.kroma.tv) thin shell over @kroma/tv.",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "preview:edge": "bunx wrangler@4 dev",
     "deploy": "bun run build && bunx wrangler@4 deploy",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@kroma/core": "workspace:*",

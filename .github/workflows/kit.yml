@@ -50,7 +50,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       # Hard gate on every trigger: typecheck + vite build (the `build` script
-      # runs tsgo --noEmit first).
+      # runs tsc --noEmit first).
       - name: Build the kit
         run: bun run build:kit
 

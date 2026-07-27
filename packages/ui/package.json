@@ -19,8 +19,8 @@
     "./src/assets/*": "./src/assets/*"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
-    "build": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
     "gen:css": "bun ./scripts/gen-token-css.ts",
     "shots": "bun ./scripts/shoot-stories.ts"
   },

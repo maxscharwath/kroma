@@ -13,7 +13,7 @@ const shellDir = fileURLToPath(new URL('.', import.meta.url));
 // down-levelling and a modern build target. The shared @kroma/tv CSS (Tailwind v4
 // cascade layers, color-mix, oklch) is emitted as-is and the browser handles it.
 // Return type pinned to UserConfig so the config resolves against a single
-// defineConfig overload (some tsgo builds otherwise report a spurious TS2769
+// defineConfig overload (some TypeScript builds otherwise report a spurious TS2769
 // "no overload matches" on the function form across platforms).
 export default defineConfig(
   ({ command }): UserConfig => ({

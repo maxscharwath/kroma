@@ -6,9 +6,9 @@
   "description": "Performance bench: the TV app's rendering path over generated data, driven by clients/tv-build/perf-bench.ts.",
   "scripts": {
     "dev": "vite",
-    "build": "tsgo --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@kroma/ui": "workspace:*",

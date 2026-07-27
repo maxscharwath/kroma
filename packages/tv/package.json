@@ -9,8 +9,8 @@
     "./tv.css": "./src/tv.css"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
-    "build": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
   },
   "dependencies": {
     "@kroma/core": "workspace:*",

@@ -9,8 +9,8 @@
     "./tanstack": "./src/tanstack.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
-    "build": "tsgo --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
   },
   "dependencies": {
     "@kroma/ui": "workspace:*"

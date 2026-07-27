@@ -61,6 +61,14 @@ export default defineConfig({
       'clients/web/src/**/*.test.ts',
       'clients/web/src/**/*.test.tsx',
       'clients/desktop/src/**/*.test.ts',
+      // The hosted 10-foot shell. A browser client like the two above, so its
+      // logic runs here the same way; without this line its tests are collected
+      // by nothing and its files can never be covered.
+      'clients/tv-web/src/**/*.test.ts',
+      // The phone client's pure logic (paths, manifests, the orphan sweep).
+      // Its React Native screens are not testable here, but the lib/ layer is
+      // plain TypeScript over a mocked expo-file-system.
+      'clients/mobile/src/lib/**/*.test.ts',
       // The kit site is where the workbench is COMPOSED - the tool, the design
       // system's stories, and the config that joins them - so the integration
       // test for all three lives with the config rather than in either package.

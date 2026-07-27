@@ -61,6 +61,62 @@ function docsFrom(memberText: string): string {
     .trim();
 }
 
+/** A declaring file's text, memoised by the caller. An inherited prop is
+ * declared in the file its own interface lives in, so this is keyed by the
+ * DECLARATION's path rather than the component's. */
+type TextOf = (path: string) => Promise<string>;
+
+type Snapshot = Awaited<ReturnType<API['updateSnapshot']>>;
+type Project = NonNullable<ReturnType<Snapshot['getProject']>>;
+type Checker = Project['checker'];
+type PropSymbol = Awaited<ReturnType<Checker['getPropertiesOfType']>>[number];
+
+/** One property, as the panel shows it - or null when it is noise, or has no
+ * declaration to read a written type and a doc comment out of. */
+async function propDocOf(symbol: PropSymbol, textOf: TextOf): Promise<PropDoc | null> {
+  if (NOISE.has(symbol.name)) return null;
+  const handle = symbol.declarations?.[0];
+  const node = (await handle?.resolve()) as
+    | { pos: number; end: number; type?: { pos: number; end: number } }
+    | undefined;
+  if (!handle || !node) return null;
+  const source = await textOf(handle.path);
+  // `pos` starts at the end of the previous token, so this span carries the
+  // member's leading trivia - which is where its JSDoc is.
+  const member = source.slice(node.pos, node.end);
+  const written = node.type ? source.slice(node.type.pos, node.type.end).trim() : 'unknown';
+  const docs = docsFrom(member);
+  return {
+    name: symbol.name,
+    type: written,
+    // Read off the declaration text: TS 7's node proxies do not surface
+    // `questionToken`, and `name?:` is unambiguous in a member.
+    optional: new RegExp(`\\b${symbol.name}\\s*\\?\\s*:`).test(member),
+    ...(docs ? { docs } : null),
+  };
+}
+
+/** `interface FooProps { ... }` -> `Foo` and its documented props. Null for any
+ * other statement, and for a `*Props` that turns out to document nothing. */
+async function componentPropsOf(
+  statement: unknown,
+  checker: Checker,
+  textOf: TextOf,
+): Promise<{ component: string; props: PropDoc[] } | null> {
+  const declared = (statement as { name?: { text?: string } }).name?.text;
+  if (!declared?.endsWith('Props')) return null;
+  const component = declared.slice(0, -'Props'.length);
+  if (!component) return null;
+  const type = await checker.getTypeAtLocation((statement as { name?: unknown }).name as never);
+  if (!type) return null;
+  const props: PropDoc[] = [];
+  for (const symbol of await checker.getPropertiesOfType(type)) {
+    const doc = await propDocOf(symbol, textOf);
+    if (doc) props.push(doc);
+  }
+  return props.length ? { component, props } : null;
+}
+
 /**
  * Read the props of every `interface <Name>Props` in the given project.
  *
@@ -96,39 +152,9 @@ export async function readPropDocs(
       if (!include(fileName)) continue;
       const file = await program.getSourceFile(fileName);
       if (!file) continue;
-
       for (const statement of file.statements ?? []) {
-        const declared = (statement as { name?: { text?: string } }).name?.text;
-        const component = declared?.endsWith('Props') ? declared.slice(0, -'Props'.length) : null;
-        if (!component) continue;
-        const nameNode = (statement as { name?: unknown }).name;
-        const type = await checker.getTypeAtLocation(nameNode as never);
-        if (!type) continue;
-
-        const props: PropDoc[] = [];
-        for (const symbol of await checker.getPropertiesOfType(type)) {
-          if (NOISE.has(symbol.name)) continue;
-          const handle = symbol.declarations?.[0];
-          const node = (await handle?.resolve()) as
-            | { pos: number; end: number; type?: { pos: number; end: number } }
-            | undefined;
-          if (!handle || !node) continue;
-          const source = await textOf(handle.path);
-          // `pos` starts at the end of the previous token, so this span carries
-          // the member's leading trivia - which is where its JSDoc is.
-          const member = source.slice(node.pos, node.end);
-          const written = node.type ? source.slice(node.type.pos, node.type.end).trim() : 'unknown';
-          const docs = docsFrom(member);
-          props.push({
-            name: symbol.name,
-            type: written,
-            // Read off the declaration text: TS 7's node proxies do not surface
-            // `questionToken`, and `name?:` is unambiguous in a member.
-            optional: new RegExp(`\\b${symbol.name}\\s*\\?\\s*:`).test(member),
-            ...(docs ? { docs } : null),
-          });
-        }
-        if (props.length) out[component] = props;
+        const found = await componentPropsOf(statement, checker, textOf);
+        if (found) out[found.component] = found.props;
       }
     }
     return out;

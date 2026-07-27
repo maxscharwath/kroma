@@ -43,21 +43,31 @@ export interface Extent {
  * rather than dividing by zero or slamming to an edge.
  */
 export function extentOf(series: readonly (readonly number[])[], reference?: number): Extent {
+  let { min, max } = spanOf(series);
+  // The reference line (the buffer's low-water mark) has to fit inside the
+  // scale, or it draws off the chart at exactly the moment it matters.
+  if (reference != null && Number.isFinite(reference)) {
+    min = Math.min(min, reference);
+    max = Math.max(max, reference);
+  }
+  if (min === Number.POSITIVE_INFINITY) return { min: 0, max: 1 };
+  if (max === min) return { min: min - 1, max: max + 1 };
+  return { min, max };
+}
+
+/** Min and max over every FINITE sample in every series; the infinities survive
+ * when there is nothing finite at all, which is what tells the caller apart from
+ * a genuine span of zero. */
+function spanOf(series: readonly (readonly number[])[]): { min: number; max: number } {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   for (const data of series) {
     for (const v of data) {
       if (!Number.isFinite(v)) continue;
-      if (v < min) min = v;
-      if (v > max) max = v;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
     }
   }
-  if (reference != null && Number.isFinite(reference)) {
-    if (reference < min) min = reference;
-    if (reference > max) max = reference;
-  }
-  if (min === Number.POSITIVE_INFINITY) return { min: 0, max: 1 };
-  if (max === min) return { min: min - 1, max: max + 1 };
   return { min, max };
 }
 

@@ -193,6 +193,21 @@ function compoundMatches(
   return Object.entries(when).every(([group, value]) => picked[group] === value);
 }
 
+/** Push one layer - a variant's slot styles, or a compound rule's - onto each
+ * slot's stack. The variant loop and the compound loop apply layers the same
+ * way, so they say it once. */
+function pushLayer(
+  out: Record<string, AnyStyle[]>,
+  names: readonly string[],
+  layer: Record<string, unknown> | undefined,
+): void {
+  if (!layer) return;
+  for (const name of names) {
+    const style = layer[name];
+    if (style) out[name]?.push(style as AnyStyle);
+  }
+}
+
 export function sv<V extends VariantGroups>(config: SvConfig<V>): SvFn<V>;
 export function sv<S extends Slots, const V extends SlotVariantGroups<S>>(
   config: SvSlotsConfig<S, V>,
@@ -273,18 +288,10 @@ function compileSlots(
     for (const group of groups) {
       const value = picked[group];
       if (value === undefined) continue;
-      const perSlot = variants?.[group]?.[value as string];
-      for (const name of names) {
-        const style = perSlot?.[name];
-        if (style) out[name]?.push(style as AnyStyle);
-      }
+      pushLayer(out, names, variants?.[group]?.[value as string]);
     }
     for (const rule of compound ?? []) {
-      if (!compoundMatches(rule.when, picked)) continue;
-      for (const name of names) {
-        const style = rule.style[name];
-        if (style) out[name]?.push(style as AnyStyle);
-      }
+      if (compoundMatches(rule.when, picked)) pushLayer(out, names, rule.style);
     }
     for (const name of names) Object.freeze(out[name]);
     const frozen = Object.freeze(out) as SlotStyles<Slots>;

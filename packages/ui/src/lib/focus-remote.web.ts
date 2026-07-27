@@ -53,7 +53,11 @@ export function configureRemote(): void {
 
 /** Nothing to mount: the listener above is not tied to a screen. Kept so
  * <FocusScope> can call it on every target. */
-export function useRemoteBridge(): void {}
+export function useRemoteBridge(): void {
+  // Intentionally nothing: the browser tier's key listener is installed at
+  // module scope above, not per screen. This half exists so <FocusScope> has
+  // the same call on every target.
+}
 
 // No `useRemoteHostProps` here on purpose. Its only caller is the NATIVE focus
 // root, and focus-root is forked (focus-root.web.tsx renders no element at all),

@@ -216,7 +216,7 @@ function importCer(cerPath: string, dir: string): void {
     .toString()
     .split('\n')
     .find((l) => l.includes('Developer ID Application'))
-    ?.replace(/.*"(.*)"/, '$1');
+    ?.replace(/^[^"]*"([^"]*)".*$/, '$1');
 
   console.log(`
 Installed.

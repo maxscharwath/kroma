@@ -154,8 +154,9 @@ export function EpisodeRow({
     episode.episode != null ? t('content.episodeN', { n: episode.episode }) : episodeTag(episode);
   const inProgress = progress != null && !watched;
   // "fin à 21h34": what is LEFT of the episode, since play resumes mid-way.
+  const watchedPct = inProgress ? progress : 0;
   const endsAt = endsAtClock(
-    episode.durationMs ? episode.durationMs * (1 - (inProgress ? progress : 0) / 100) : null,
+    episode.durationMs ? episode.durationMs * (1 - watchedPct / 100) : null,
     locale,
   );
 

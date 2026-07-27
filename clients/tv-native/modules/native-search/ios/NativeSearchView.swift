@@ -126,7 +126,9 @@ public final class NativeSearchView: ExpoView, UISearchResultsUpdating {
     content.insertSubview(childComponentView, at: min(index, content.subviews.count))
   }
 
-  public override func unmountChildComponentView(_ childComponentView: UIView, index: Int) {
+  // `index` is unused: a view removes itself from wherever it was mounted.
+  // The signature is UIKit's, so the parameter stays named for the override.
+  public override func unmountChildComponentView(_ childComponentView: UIView, index _: Int) {
     childComponentView.removeFromSuperview()
   }
 

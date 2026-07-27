@@ -8,9 +8,11 @@
 
 const { collectBuildInfo } = require('../build-info');
 
-module.exports = ({ config }) => ({
-  ...config,
-  // Spread what came in: `extra` also carries whatever the plugins and EAS put
-  // there, and replacing the object wholesale would drop it.
-  extra: { ...config.extra, buildInfo: collectBuildInfo(__dirname) },
-});
+module.exports = function mobileAppConfig({ config }) {
+  return {
+    ...config,
+    // Spread what came in: `extra` also carries whatever the plugins and EAS put
+    // there, and replacing the object wholesale would drop it.
+    extra: { ...config.extra, buildInfo: collectBuildInfo(__dirname) },
+  };
+};

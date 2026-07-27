@@ -138,8 +138,24 @@ export function boxStyle(p: Readonly<BoxStyleProps>): ViewStyle {
   // Longhands only, never the `padding`/`margin` shorthand: React Native
   // resolves shorthand vs longhand by declaration order inside one object, so a
   // `{ padding, paddingTop }` pair is order-dependent and surprising.
-  putEdges(out, 'padding', p.p, p.px, p.py, p.pt, p.pr, p.pb, p.pl);
-  putEdges(out, 'margin', p.m, p.mx, p.my, p.mt, p.mr, p.mb, p.ml);
+  putEdges(out, 'padding', {
+    all: p.p,
+    x: p.px,
+    y: p.py,
+    top: p.pt,
+    right: p.pr,
+    bottom: p.pb,
+    left: p.pl,
+  });
+  putEdges(out, 'margin', {
+    all: p.m,
+    x: p.mx,
+    y: p.my,
+    top: p.mt,
+    right: p.mr,
+    bottom: p.mb,
+    left: p.ml,
+  });
 
   if (p.bg !== undefined) out.backgroundColor = color(p.bg);
   if (p.radius !== undefined) out.borderRadius = radiusOf(p.radius);
@@ -193,21 +209,25 @@ export function sharedBoxStyle(key: string, p: Readonly<BoxStyleProps>): ViewSty
 }
 
 /** Expand all / axis / side into the four longhands, most specific winning. */
-function putEdges(
-  out: Record<string, unknown>,
-  prefix: 'padding' | 'margin',
-  all?: Spacing,
-  x?: Spacing,
-  y?: Spacing,
-  top?: Spacing,
-  right?: Spacing,
-  bottom?: Spacing,
-  left?: Spacing,
-): void {
-  const t = top ?? y ?? all;
-  const r = right ?? x ?? all;
-  const b = bottom ?? y ?? all;
-  const l = left ?? x ?? all;
+/** The four sides as written, from the least specific to the most: `p`, then
+ * `px`/`py`, then `pt`/`pr`/`pb`/`pl`. Named rather than positional because
+ * seven optional `Spacing`s in a row are seven chances to transpose two. */
+interface Edges {
+  all?: Spacing;
+  x?: Spacing;
+  y?: Spacing;
+  top?: Spacing;
+  right?: Spacing;
+  bottom?: Spacing;
+  left?: Spacing;
+}
+
+function putEdges(out: Record<string, unknown>, prefix: 'padding' | 'margin', edges: Edges): void {
+  const { all, x, y } = edges;
+  const t = edges.top ?? y ?? all;
+  const r = edges.right ?? x ?? all;
+  const b = edges.bottom ?? y ?? all;
+  const l = edges.left ?? x ?? all;
   put(out, `${prefix}Top`, t);
   put(out, `${prefix}Right`, r);
   put(out, `${prefix}Bottom`, b);

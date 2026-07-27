@@ -81,7 +81,8 @@ async function bundle(platform: (typeof platforms)[number]): Promise<string | nu
       { cwd: root, env: { ...process.env, ...extraEnv }, maxBuffer: 64 * 1024 * 1024 },
     );
     const size =
-      /[a-z]+-[a-f0-9]+\.hbc \(([^)]+)\)/.exec(`${stdout}${stderr}`)?.[1] ?? 'unknown size';
+      /[a-z]{1,32}-[a-f0-9]{1,64}\.hbc \(([^)]{1,32})\)/.exec(`${stdout}${stderr}`)?.[1] ??
+      'unknown size';
     const bytes = bytesOf(size);
     if (bytes > MAX_MB * 1e6) {
       console.log(`bundling ${platform}... ok (${size}) OVER BUDGET`);

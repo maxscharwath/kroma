@@ -64,6 +64,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -309,8 +310,15 @@ function NavPill({
    * box rather than the owner's, read live so a re-layout mid-flight lands. */
   const previewRect = hover === null ? null : (targets.get(hover)?.rect() ?? null);
 
+  // Memoised: a fresh object here re-renders every item in the pill on every
+  // render of the pill, which during a slide is every pointer move.
+  const context = useMemo(
+    () => ({ size, labels: labelPolicy, claim, release, enrol, withdraw, hover }),
+    [size, labelPolicy, claim, release, enrol, withdraw, hover],
+  );
+
   return (
-    <Context.Provider value={{ size, labels: labelPolicy, claim, release, enrol, withdraw, hover }}>
+    <Context.Provider value={context}>
       <Box
         ref={capsule}
         // A television has no finger; leaving the responder off keeps the

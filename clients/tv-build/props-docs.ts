@@ -91,7 +91,7 @@ async function propDocOf(symbol: PropSymbol, textOf: TextOf): Promise<PropDoc | 
     type: written,
     // Read off the declaration text: TS 7's node proxies do not surface
     // `questionToken`, and `name?:` is unambiguous in a member.
-    optional: new RegExp(`\\b${symbol.name}\\s*\\?\\s*:`).test(member),
+    optional: new RegExp(String.raw`\b${symbol.name}\s*\?\s*:`).test(member),
     ...(docs ? { docs } : null),
   };
 }

@@ -19,7 +19,7 @@
 // nothing measurable - and this stays correct if the upstream bug is ever fixed,
 // because a container that is still attached is left alone.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 
 /**
  * Call from the component that renders the `<Modal>` - the repair is a re-render
@@ -29,9 +29,11 @@ import { useEffect, useState } from 'react';
  * later is repaired when it opens rather than only on first mount.
  */
 function useModalPortalRepair(mounted: boolean): void {
-  const [, setRepairTick] = useState(0);
+  // useReducer, not useState: nothing reads the value, and a discarded state
+  // value reads as a mistake. This is a re-render request and says so.
+  const [, repair] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    if (mounted) setRepairTick((n) => n + 1);
+    if (mounted) repair();
   }, [mounted]);
 }
 

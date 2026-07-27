@@ -96,7 +96,11 @@ for (const { name, keys } of SCREENS) {
   for (const key of keys) await press(key);
   await page.waitForTimeout(400);
   writeFileSync(outPath(`${name}.png`), await page.screenshot({ type: 'png' }));
-  const seen = (await page.locator('body').innerText()).replace(/\s*\n+\s*/g, ' · ').slice(0, 160);
+  // Collapse the runs of blank space around newlines. Bounded: an unbounded
+  // `\s*` on both sides of `\n+` is three quantifiers competing for the same
+  // whitespace, over a whole page of text.
+  const text = await page.locator('body').innerText();
+  const seen = text.replace(/[^\S\n]{0,64}\n+[^\S\n]{0,64}/g, ' · ').slice(0, 160);
   console.log(`${name}.png  ${seen}`);
 }
 

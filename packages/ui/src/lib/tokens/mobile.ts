@@ -12,7 +12,6 @@
 // are read as-is with no stage in between.
 
 import type { TextStyle } from 'react-native';
-import { fonts } from './typography';
 
 /** Rounder than the 10-foot radii: a phone's chrome sits closer to the eye and
  * a tighter corner reads as sharp rather than crisp. */
@@ -49,4 +48,4 @@ export const mobileType = {
 export type MobileTypeRole = keyof typeof mobileType;
 
 /** The display family, for the few places a phone screen wants the title face. */
-export { fonts as mobileFonts };
+export { fonts as mobileFonts } from './typography';

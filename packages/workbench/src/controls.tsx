@@ -45,7 +45,7 @@ function SelectControl({
   value,
   onChange,
 }: Readonly<{ options: string[]; value: unknown; onChange: (next: string) => void }>) {
-  const current = String(value ?? '');
+  const current = typeof value === 'string' ? value : '';
   if (options.length <= MAX_CHIPS) {
     return (
       <Box row wrap gap={8}>

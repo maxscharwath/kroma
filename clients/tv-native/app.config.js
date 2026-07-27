@@ -25,32 +25,34 @@ const path = require('node:path');
 
 const repoRoot = path.join(__dirname, '..', '..');
 
-module.exports = ({ config }) => ({
-  ...config,
-  // The product version, for the same reason the About screen reports it: a
-  // build that calls itself 0.1.3 while its siblings are 0.2.0 is a support
-  // question nobody can answer. app.json's `version` is the fallback for a
-  // checkout with no server manifest to read.
-  version: productVersion(repoRoot) || config.version,
-  android: {
-    ...config.android,
-    // Monotonic across releases, supplied by the release workflow (minutes since
-    // 2020). Play and `adb install -r` both refuse a build whose code did not
-    // increase, so a local build keeps 1 and only CI mints real ones.
-    versionCode: Number(process.env.KROMA_VERSION_CODE) || 1,
-  },
-  ios: {
-    ...config.ios,
-    // The same number, for the same reason, spelled the way Apple spells it:
-    // App Store Connect rejects a (version, build) pair it has already seen, so
-    // a release that reuses one is refused AFTER the twenty minutes it took to
-    // archive it. tvOS and iOS count separately - a record's platforms do not
-    // share a build-number namespace - so this is free to be minted the same
-    // way `clients/mobile` mints its own.
-    buildNumber: String(Number(process.env.KROMA_VERSION_CODE) || 1),
-  },
-  extra: {
-    ...config.extra,
-    buildInfo: collectBuildInfo(__dirname, { version: productVersion(repoRoot) }),
-  },
-});
+module.exports = function tvNativeAppConfig({ config }) {
+  return {
+    ...config,
+    // The product version, for the same reason the About screen reports it: a
+    // build that calls itself 0.1.3 while its siblings are 0.2.0 is a support
+    // question nobody can answer. app.json's `version` is the fallback for a
+    // checkout with no server manifest to read.
+    version: productVersion(repoRoot) || config.version,
+    android: {
+      ...config.android,
+      // Monotonic across releases, supplied by the release workflow (minutes since
+      // 2020). Play and `adb install -r` both refuse a build whose code did not
+      // increase, so a local build keeps 1 and only CI mints real ones.
+      versionCode: Number(process.env.KROMA_VERSION_CODE) || 1,
+    },
+    ios: {
+      ...config.ios,
+      // The same number, for the same reason, spelled the way Apple spells it:
+      // App Store Connect rejects a (version, build) pair it has already seen, so
+      // a release that reuses one is refused AFTER the twenty minutes it took to
+      // archive it. tvOS and iOS count separately - a record's platforms do not
+      // share a build-number namespace - so this is free to be minted the same
+      // way `clients/mobile` mints its own.
+      buildNumber: String(Number(process.env.KROMA_VERSION_CODE) || 1),
+    },
+    extra: {
+      ...config.extra,
+      buildInfo: collectBuildInfo(__dirname, { version: productVersion(repoRoot) }),
+    },
+  };
+};

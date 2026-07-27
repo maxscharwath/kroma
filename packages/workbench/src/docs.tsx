@@ -118,7 +118,8 @@ function snippet(story: Story, args: Record<string, unknown>): string {
       // it does not process backslash escapes, so `label="Say \"hi\""` ends the
       // attribute at the second quote and the paste is a syntax error. The whole
       // promise of this drawer is a call site you can paste.
-      props.push(`${control.key}="${String(value).replaceAll('"', '&quot;')}"`);
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      props.push(`${control.key}="${text.replaceAll('"', '&quot;')}"`);
     }
   }
   const flat = props.length > 0 ? `<${name} ${props.join(' ')} />` : `<${name} />`;

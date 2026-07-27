@@ -133,8 +133,10 @@ function splitProps(props: Record<string, unknown>): {
   let key = '';
   for (const name of STYLE_PROPS) {
     const value = style[name];
-    if (value !== undefined)
-      key += `${name}:${typeof value === 'object' ? JSON.stringify(value) : value};`;
+    if (value === undefined) continue;
+    // A transform is an array of objects; everything else is a primitive.
+    const part = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    key += `${name}:${part};`;
   }
   return { view, layout: sharedBoxStyle(key, style as BoxStyleProps) };
 }

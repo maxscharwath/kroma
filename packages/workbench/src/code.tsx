@@ -81,15 +81,30 @@ const KEYWORDS = new Set([
  * scanner, whose match becomes `keyword` or `plain` depending on the word. */
 type ScanKind = TokenKind | 'word';
 
+// One pattern per thing, rather than one pattern per KIND: three quote styles
+// and two comment styles are five separate shapes, and an alternation of five
+// is where this stopped being readable in the first place. The string patterns
+// are the unrolled form (`"[^"\\]*(?:\\.[^"\\]*)*"`), which cannot backtrack.
 const SCANNERS: readonly (readonly [ScanKind, RegExp])[] = [
-  ['comment', /\/\/[^\n]*|\/\*[\s\S]*?\*\//y],
-  ['string', /"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|`[^`\\]*(?:\\.[^`\\]*)*`/y],
-  ['tag', /<\/?[A-Z][\w.]*|<\/?[a-z][\w.]*(?=[\s/>])/y],
+  ['comment', /\/\/[^\n]*/y],
+  ['comment', /\/\*[\s\S]*?\*\//y],
+  ['string', /"[^"\\]*(?:\\.[^"\\]*)*"/y],
+  ['string', /'[^'\\]*(?:\\.[^'\\]*)*'/y],
+  ['string', /`[^`\\]*(?:\\.[^`\\]*)*`/y],
+  ['tag', /<\/?[A-Z][\w.]*/y],
+  ['tag', /<\/?[a-z][\w.]*(?=[\s/>])/y],
   ['attr', /[A-Za-z_$][\w$]*(?=\s*=[^=])/y],
   ['number', /\d+(?:\.\d+)?\b/y],
   ['brace', /[{}[\]()]/y],
   ['word', /[A-Za-z_$][\w$]*/y],
 ];
+
+/** `word` is the fallback identifier scanner: whether its match is a keyword is
+ * the only thing the scanner list cannot say for itself. */
+function kindOf(scanner: ScanKind, text: string): TokenKind {
+  if (scanner !== 'word') return scanner;
+  return KEYWORDS.has(text) ? 'keyword' : 'plain';
+}
 
 /** The token starting at `from`, or null when nothing claims that position. */
 function scanAt(code: string, from: number): { text: string; kind: TokenKind } | null {
@@ -97,10 +112,7 @@ function scanAt(code: string, from: number): { text: string; kind: TokenKind } |
     pattern.lastIndex = from;
     const hit = pattern.exec(code);
     if (!hit?.[0]) continue;
-    // `word` is the fallback identifier scanner: a keyword is just one whose
-    // text is in the list.
-    const real = kind === 'word' ? (KEYWORDS.has(hit[0]) ? 'keyword' : 'plain') : kind;
-    return { text: hit[0], kind: real };
+    return { text: hit[0], kind: kindOf(kind, hit[0]) };
   }
   return null;
 }

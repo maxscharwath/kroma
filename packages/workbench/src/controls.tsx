@@ -106,7 +106,7 @@ function ControlRow({ name, control, value, onChange }: Readonly<ControlRowProps
       </Txt>
       {control.kind === 'text' ? (
         <Field
-          value={String(value ?? '')}
+          value={typeof value === 'string' ? value : ''}
           onChange={onChange}
           physicalKeyboard
           // A field on a form screen takes the caret on mount; a prop editor

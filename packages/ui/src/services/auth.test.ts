@@ -146,11 +146,8 @@ describe('activate', () => {
     });
     const { result } = renderHook(() => useAuthSession(client));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: { needsPin?: boolean } = {};
-    await act(async () => {
-      out = (await result.current.activate(stored())) as never;
-    });
-    expect(out.needsPin).toBe(true);
+    const out = await result.current.activate(stored());
+    expect(out).toMatchObject({ needsPin: true });
   });
 
   // A PIN added on another device leaves our cached `hasPin` stale, so the
@@ -163,11 +160,8 @@ describe('activate', () => {
     });
     const { result } = renderHook(() => useAuthSession(client));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: { needsPin?: boolean } = {};
-    await act(async () => {
-      out = (await result.current.activate(stored({ user: user({ hasPin: true }) }))) as never;
-    });
-    expect(out.needsPin).toBe(true);
+    const out = await result.current.activate(stored({ user: user({ hasPin: true }) }));
+    expect(out).toMatchObject({ needsPin: true });
   });
 
   // A dead token is NOT a PIN problem: asking for a PIN would loop the viewer
@@ -180,11 +174,8 @@ describe('activate', () => {
     });
     const { result } = renderHook(() => useAuthSession(client));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: { needsPin?: boolean } = {};
-    await act(async () => {
-      out = (await result.current.activate(stored({ user: user({ hasPin: true }) }))) as never;
-    });
-    expect(out.needsPin).toBe(false);
+    const out = await result.current.activate(stored({ user: user({ hasPin: true }) }));
+    expect(out).toMatchObject({ needsPin: false });
   });
 
   it('surfaces the cooldown when too many PINs have been tried', async () => {
@@ -195,10 +186,7 @@ describe('activate', () => {
     });
     const { result } = renderHook(() => useAuthSession(client));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: { needsPin?: boolean; retryAfter?: number } = {};
-    await act(async () => {
-      out = (await result.current.activate(stored())) as never;
-    });
+    const out = await result.current.activate(stored());
     expect(out).toMatchObject({ needsPin: true, retryAfter: 45 });
   });
 
@@ -210,20 +198,14 @@ describe('activate', () => {
     });
     const { result } = renderHook(() => useAuthSession(client));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: { retryAfter?: number } = {};
-    await act(async () => {
-      out = (await result.current.activate(stored())) as never;
-    });
-    expect(out.retryAfter).toBe(30);
+    const out = await result.current.activate(stored());
+    expect(out).toMatchObject({ retryAfter: 30 });
   });
 
   it('fails without a client', async () => {
     const { result } = renderHook(() => useAuthSession(null));
     await waitFor(() => expect(result.current.ready).toBe(true));
-    let out: unknown;
-    await act(async () => {
-      out = await result.current.activate(stored());
-    });
+    const out = await result.current.activate(stored());
     expect(out).toEqual({ ok: false, needsPin: false });
   });
 });

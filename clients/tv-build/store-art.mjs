@@ -15,8 +15,27 @@ import { resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 
 const REPO = new URL('../..', import.meta.url).pathname;
-if (!process.argv[2]) throw new Error('usage: store-art.mjs <out-dir>');
-const OUT_DIR = resolve(process.argv[2]);
+
+/** The output directory, proven to be inside the repo before anything is
+ * created in it.
+ *
+ * `resolve()` canonicalizes the CLI argument but validates nothing - it will
+ * hand back `/etc` just as readily as `.store-art`, and the next line is an
+ * `mkdirSync`. Every documented invocation writes inside the checkout
+ * (`.store-art`, `clients/tizen/store/shots`, `clients/webos/store/shots`), so
+ * that is the boundary: a build script has no business creating directories
+ * anywhere else on the machine that runs it. */
+function outDirIn(repo, arg, usage) {
+  if (!arg) throw new Error(usage);
+  const root = resolve(repo);
+  const dir = resolve(root, arg);
+  if (dir !== root && !dir.startsWith(`${root}${sep}`)) {
+    throw new Error(`refusing to write outside the repo: ${dir}`);
+  }
+  return dir;
+}
+
+const OUT_DIR = outDirIn(REPO, process.argv[2], 'usage: store-art.mjs <out-dir>');
 mkdirSync(OUT_DIR, { recursive: true });
 
 /** Resolve a file INTO the output directory, refusing anything that climbs out.

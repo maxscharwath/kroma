@@ -72,7 +72,9 @@ if (WIDTH) query.set('w', WIDTH);
 if (RAILS) query.set('rails', RAILS);
 if (TILES) query.set('tiles', TILES);
 if (LOADERS) query.set('loaders', LOADERS);
-const target = `${url || `http://localhost:${PORT}/`}${query.size ? `?${query}` : ''}`;
+const origin = url || `http://localhost:${PORT}/`;
+const search = query.size ? `?${query}` : '';
+const target = `${origin}${search}`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });

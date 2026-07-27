@@ -79,7 +79,7 @@ export function useSeekNudge(controller: PlayerController): (dir: -1 | 1) => voi
     const prev = burst.current;
     // A gap, or a change of direction, is a new gesture: the ramp restarts so
     // reversing out of a fast scrub is immediately precise again.
-    const holding = prev != null && prev.dir === dir && now - prev.lastAt <= REPEAT_MS;
+    const holding = prev?.dir === dir && now - prev.lastAt <= REPEAT_MS;
 
     let target: number;
     if (holding) {

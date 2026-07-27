@@ -35,7 +35,6 @@ import { fonts, SERIES_COLORS } from '#ui/lib/tokens';
 import {
   bandPath,
   type ChartBox,
-  type Extent,
   endPoint,
   extentOf,
   px,
@@ -238,7 +237,7 @@ function closeToBaseline(d: string, box: ChartBox): string {
 /** Exported for the panel, which sizes its chart band to match. */
 export const STATS_CHART_HEIGHT = PLOT_H;
 
-export type { Extent };
+export type { Extent } from '../lib/chart-geometry';
 
 const CHART_LABEL = {
   fontFamily: fonts.ui,

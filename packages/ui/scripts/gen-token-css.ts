@@ -49,8 +49,10 @@ const CSS_COLOR: Record<keyof typeof colors, string> = {
   wash: 'wash',
 };
 
-const color = (k: keyof typeof colors, note = '') =>
-  `  --kroma-${CSS_COLOR[k]}: ${colors[k].toLowerCase()};${note && ` /* ${note} */`}`;
+const color = (k: keyof typeof colors, note = '') => {
+  const trailing = note ? ` /* ${note} */` : '';
+  return `  --kroma-${CSS_COLOR[k]}: ${colors[k].toLowerCase()};${trailing}`;
+};
 
 /**
  * Guard: every colour in the TS tokens must actually reach the CSS.
@@ -140,7 +142,8 @@ function effectsCss(): string {
     '  /* Corner radii */',
     ...Object.entries(radius).map(([k, v]) => {
       const note = RADIUS_NOTE[k as keyof typeof radius];
-      return `  --radius-${k}: ${v}px;${note ? ` /* ${note} */` : ''}`;
+      const trailing = note ? ` /* ${note} */` : '';
+      return `  --radius-${k}: ${v}px;${trailing}`;
     }),
     ...section('Elevation'),
     ...Object.entries(shadow).map(([k, v]) => `  --shadow-${k}: ${v};`),

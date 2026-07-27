@@ -31,7 +31,7 @@ function searchInUrl(url: string | null): string | null {
     const [key, value = ''] = pair.split('=');
     if (key !== 'q') continue;
     try {
-      return decodeURIComponent(value.replace(/\+/g, ' '));
+      return decodeURIComponent(value.replaceAll('+', ' '));
     } catch {
       return value;
     }

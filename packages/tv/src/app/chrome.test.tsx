@@ -97,7 +97,7 @@ describe('browse chrome', () => {
   it('unmounts the bar on a screen that does not wear it', () => {
     mount();
     act(() => nav.reset('home'));
-    expect(screen.queryByText('bar')).toBeTruthy();
+    expect(screen.getByText('bar')).toBeTruthy();
     act(() => nav.reset('search'));
     expect(screen.queryByText('bar')).toBeNull();
   });

@@ -358,6 +358,7 @@ if (worst) {
     );
   }
 }
-console.log(`\n  written: ${join(OUT, `${stamp}.cpuprofile`)} (open in DevTools > Performance)\n`);
+const written = join(OUT, `${stamp}.cpuprofile`);
+console.log(`\n  written: ${written} (open in DevTools > Performance)\n`);
 
 await browser.close();

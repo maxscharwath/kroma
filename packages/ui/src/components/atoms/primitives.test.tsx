@@ -182,7 +182,7 @@ describe('Avatar', () => {
 
   it('shows the initials when there is no photo, and not when there is', () => {
     const { rerender } = render(<Avatar name="Marie Curie" />);
-    expect(screen.queryByText('MC')).toBeTruthy();
+    expect(screen.getByText('MC')).toBeTruthy();
     rerender(<Avatar name="Marie Curie" src="https://example.test/a.jpg" />);
     expect(screen.queryByText('MC')).toBeNull();
   });

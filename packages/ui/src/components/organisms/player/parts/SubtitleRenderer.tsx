@@ -140,7 +140,7 @@ export function SubtitleRenderer({
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
       .then((raw) => {
         const parsed = parseVtt(raw);
-        if (parsed.length === 0) return Promise.reject(new Error('empty track'));
+        if (parsed.length === 0) throw new Error('empty track');
         cache.current.set(activeUrl, parsed);
         if (!cancelled) setCues(parsed);
         return undefined;

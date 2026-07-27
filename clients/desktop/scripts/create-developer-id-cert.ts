@@ -183,7 +183,7 @@ function importCer(cerPath: string, dir: string): void {
   // to AES-256-CBC + PBKDF2 and needs `-legacy` to go back; 1.1.1 and LibreSSL
   // (what macOS ships) already emit it and reject the flag outright. So ask the
   // binary which it is rather than assuming - guessing wrong fails the export.
-  const openssl3 = /^OpenSSL 3\./.test(execFileSync('openssl', ['version']).toString());
+  const openssl3 = execFileSync('openssl', ['version']).toString().startsWith('OpenSSL 3.');
   execFileSync('openssl', [
     'pkcs12',
     '-export',

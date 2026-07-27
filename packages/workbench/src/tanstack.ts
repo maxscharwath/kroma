@@ -100,7 +100,7 @@ function tanstackRouter({
         // the gaps.
         const story = next.story ?? at.story;
         if (!story) return;
-        const view = viewPath(next.view === undefined ? at.view : next.view);
+        const view = viewPath(next.view ?? at.view);
         // `preview` is spelled by being ABSENT, which is what makes the shortest
         // URL the one for the state you are in nine times out of ten - and why
         // there are two routes rather than one with a placeholder segment.

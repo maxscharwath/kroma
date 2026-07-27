@@ -393,7 +393,7 @@ const TIER_ORDER = ['Foundations', 'Atoms', 'Molecules', 'Organisms', 'Templates
  * between levels and the workbench follows on the next reload.
  */
 function tierFor(path: string): string {
-  const at = path.match(/\/components\/(atoms|molecules|organisms|templates)\//);
+  const at = /\/components\/(atoms|molecules|organisms|templates)\//.exec(path);
   if (at?.[1]) return `${at[1].charAt(0).toUpperCase()}${at[1].slice(1)}`;
   if (path.includes('/foundations/')) return 'Foundations';
   return 'Other';

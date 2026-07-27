@@ -17,8 +17,8 @@ interface ProgressProps {
 }
 
 function clamp01(n: number): number {
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return n > 1 ? 1 : n;
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(Math.max(n, 0), 1);
 }
 
 function Progress({

@@ -154,6 +154,50 @@ function ChipGroup({ label, children }: Readonly<{ label: string; children: Reac
   );
 }
 
+/** One selectable audio track, as the sheet lists it. */
+interface AudioOption {
+  index: number;
+  prefCode: string | null;
+  label: string;
+}
+
+/**
+ * The audio tracks on offer, from whichever side knows about them.
+ *
+ * A downloaded file is described by the PLAYER (the native track list), a
+ * streamed one by the item's own metadata - and where the two line up, the
+ * item's richer label wins.
+ *
+ * `prefCode` is what a pick REMEMBERS: the language refined by the variant the
+ * track's title betrays ('fre' + "VFF …" -> 'fr-FR'), so choosing the France
+ * dub can never auto-pick the Quebec one on the next title.
+ */
+function audioOptions(engine: Engine, item: MediaItem, t: ReturnType<typeof useT>): AudioOption[] {
+  const itemAudio = audioTracksOf(item);
+  if (!engine.offline) {
+    return itemAudio.map((track, i) => ({
+      index: track.index,
+      prefCode: refineTrackLang(track.language, track.title),
+      label: audioTrackLabel(t, track) ?? `#${i + 1}`,
+    }));
+  }
+  const aligned = engine.localAudio.length === itemAudio.length;
+  return engine.localAudio.map((native, i) => ({
+    index: i,
+    prefCode: refineTrackLang(native.language, native.label),
+    label:
+      (aligned ? audioTrackLabel(t, itemAudio[i]) : undefined) ??
+      (native.label?.trim() || langName(t, native.language) || `#${i + 1}`),
+  }));
+}
+
+/** The subtitle row's value: Off, the track's own label, else its language. */
+function subtitleLabel(subs: Subtitles, t: ReturnType<typeof useT>): string {
+  if (subs.active === null) return t('player.subtitlesOff');
+  const track = subs.tracks.find((s) => s.index === subs.active);
+  return track?.label?.trim() ?? langName(t, track?.language) ?? `#${(subs.active ?? 0) + 1}`;
+}
+
 export function TrackSheet({
   visible,
   onClose,
@@ -225,34 +269,9 @@ export function TrackSheet({
       },
     ],
   };
-  const itemAudio = audioTracksOf(item);
-
-  // `prefCode` is what a pick REMEMBERS: the language refined by the variant
-  // the track's title betrays ('fre' + "VFF …" → 'fr-FR'), so choosing the
-  // France dub can never auto-pick the Quebec one on the next title.
-  const audio = engine.offline
-    ? engine.localAudio.map((native, i) => ({
-        index: i,
-        prefCode: refineTrackLang(native.language, native.label),
-        label:
-          (engine.localAudio.length === itemAudio.length
-            ? audioTrackLabel(t, itemAudio[i])
-            : undefined) ??
-          (native.label?.trim() || langName(t, native.language) || `#${i + 1}`),
-      }))
-    : itemAudio.map((track, i) => ({
-        index: track.index,
-        prefCode: refineTrackLang(track.language, track.title),
-        label: audioTrackLabel(t, track) ?? `#${i + 1}`,
-      }));
-
+  const audio = audioOptions(engine, item, t);
   const currentAudio = audio.find((a) => a.index === engine.audioIndex)?.label;
-  const currentSub =
-    subs.active === null
-      ? t('player.subtitlesOff')
-      : (subs.tracks.find((s) => s.index === subs.active)?.label?.trim() ??
-        langName(t, subs.tracks.find((s) => s.index === subs.active)?.language) ??
-        `#${(subs.active ?? 0) + 1}`);
+  const currentSub = subtitleLabel(subs, t);
   // Direct play has no ladder to climb: the one "quality" is the file itself,
   // which is exactly what the TV's row says too.
   const qualityLabel = `${t('player.qualityAuto')}${qualityBadge(item)}`;

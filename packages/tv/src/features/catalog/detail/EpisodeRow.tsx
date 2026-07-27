@@ -42,7 +42,7 @@ import {
   Txt,
   tintGradient,
 } from '@kroma/ui/kit';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 /** The still is drawn 240pt wide (design); served from the 480 bucket. */
 export const EPISODE_W = 480;
@@ -58,6 +58,70 @@ const PLAY_DISC = 54;
 
 /** The row's three focus stops, in D-pad order. */
 type RowAction = 'play' | 'seen' | 'report';
+
+/** The still: the artwork plus everything that sits ON it - the play disc, the
+ * episode chip, the runtime chip, the seen tick and the resume bar. Its own
+ * function because it is a self-contained picture with five overlays, and
+ * inlining it put five more conditionals in the row's body. */
+function episodeStill(at: {
+  episode: MediaItem;
+  still: string | null;
+  watched: boolean;
+  action: RowAction | null;
+  tag: string;
+  runtime: string | null;
+  progress: number | null;
+  inProgress: boolean;
+}): ReactNode {
+  return (
+    <Box w={STILL_W} aspect={16 / 9} center radius="lg" overflow="hidden" bg="surface2" shrink={0}>
+      {/* Every layer rounds itself and the parent still clips - the same
+              belt and braces as <MediaCard>, for the same Chrome clip bug. */}
+      <Img
+        src={at.still}
+        background={tintGradient(posterColors(at.episode.id))}
+        radius={radius.lg}
+        position="50% 30%"
+        fill
+        style={at.watched ? DIMMED : undefined}
+      />
+      <Box fill pointerEvents="none" radius="lg" style={gradient(CARD_SCRIM)} />
+      <Box
+        w={PLAY_DISC}
+        h={PLAY_DISC}
+        center
+        radius="pill"
+        bg={at.action === 'play' ? colors.accent : 'rgba(10, 10, 12, 0.5)'}
+      >
+        <Icon
+          name="player-play-filled"
+          size={20}
+          color={at.action === 'play' ? colors.accentInk : '#FFFFFF'}
+        />
+      </Box>
+      {at.tag ? (
+        <Box absolute top={10} left={10} px={9} py={4} radius={7} bg={CHIP_BG}>
+          <Txt style={TAG_CHIP}>{at.tag}</Txt>
+        </Box>
+      ) : null}
+      {at.runtime ? (
+        <Box absolute bottom={11} right={11} px={8} py={3} radius={6} bg={CHIP_BG}>
+          <Txt style={RUNTIME_CHIP}>{at.runtime}</Txt>
+        </Box>
+      ) : null}
+      {at.watched ? (
+        <Box absolute top={10} right={10} w={26} h={26} center radius="pill" bg={SEEN_BG}>
+          <Icon name="check" size={14} color={colors.success} stroke={3} />
+        </Box>
+      ) : null}
+      {at.inProgress ? (
+        <Box absolute left={0} right={0} bottom={0}>
+          <Progress value={(at.progress ?? 0) / 100} />
+        </Box>
+      ) : null}
+    </Box>
+  );
+}
 
 export function EpisodeRow({
   episode,
@@ -109,60 +173,7 @@ export function EpisodeRow({
     <Box style={[ROW, watched ? ROW_WATCHED : null, lit ? ROW_LIT : null]}>
       <Frost radius={20} />
       <Row gap={26}>
-        <Box
-          w={STILL_W}
-          aspect={16 / 9}
-          center
-          radius="lg"
-          overflow="hidden"
-          bg="surface2"
-          shrink={0}
-        >
-          {/* Every layer rounds itself and the parent still clips - the same
-              belt and braces as <MediaCard>, for the same Chrome clip bug. */}
-          <Img
-            src={still}
-            background={tintGradient(posterColors(episode.id))}
-            radius={radius.lg}
-            position="50% 30%"
-            fill
-            style={watched ? DIMMED : undefined}
-          />
-          <Box fill pointerEvents="none" radius="lg" style={gradient(CARD_SCRIM)} />
-          <Box
-            w={PLAY_DISC}
-            h={PLAY_DISC}
-            center
-            radius="pill"
-            bg={action === 'play' ? colors.accent : 'rgba(10, 10, 12, 0.5)'}
-          >
-            <Icon
-              name="player-play-filled"
-              size={20}
-              color={action === 'play' ? colors.accentInk : '#FFFFFF'}
-            />
-          </Box>
-          {tag ? (
-            <Box absolute top={10} left={10} px={9} py={4} radius={7} bg={CHIP_BG}>
-              <Txt style={TAG_CHIP}>{tag}</Txt>
-            </Box>
-          ) : null}
-          {runtime ? (
-            <Box absolute bottom={11} right={11} px={8} py={3} radius={6} bg={CHIP_BG}>
-              <Txt style={RUNTIME_CHIP}>{runtime}</Txt>
-            </Box>
-          ) : null}
-          {watched ? (
-            <Box absolute top={10} right={10} w={26} h={26} center radius="pill" bg={SEEN_BG}>
-              <Icon name="check" size={14} color={colors.success} stroke={3} />
-            </Box>
-          ) : null}
-          {inProgress ? (
-            <Box absolute left={0} right={0} bottom={0}>
-              <Progress value={progress / 100} />
-            </Box>
-          ) : null}
-        </Box>
+        {episodeStill({ episode, still, watched, action, tag, runtime, progress, inProgress })}
 
         <Box flex={1} gap={8}>
           <Row gap={12} wrap>

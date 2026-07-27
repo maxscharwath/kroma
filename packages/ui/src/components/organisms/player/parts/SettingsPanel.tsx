@@ -1,4 +1,4 @@
-import type { ReportCategory } from '@kroma/core';
+import type { AudioTrack, ReportCategory } from '@kroma/core';
 import { langName } from '@kroma/core';
 import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, ScrollView } from 'react-native';
@@ -12,7 +12,7 @@ import type { PanelHandle } from '../lib/nav';
 import { PANEL } from '../lib/style';
 import type { SubtitleAppearance } from '../lib/subtitle-appearance';
 import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
-import type { PlayerController, PlayerSub } from '../types';
+import type { AudioFilterMode, PlayerController, PlayerQuality, PlayerSub } from '../types';
 import {
   IconAppearance,
   IconAudioFilter,
@@ -86,6 +86,104 @@ function panelTitle(view: View, entries: Entry[], t: ReturnType<typeof useT>): s
   return entries.find((e) => e.id === view)?.label ?? '';
 }
 
+/** The menu, as rows. A pure table of what the panel offers, so which rows exist
+ * (an engine picker only where there is more than one engine, a filter row only
+ * where a DSP can deliver it, the report row only where the host takes reports)
+ * is one readable list rather than four conditionals inside a component body. */
+function menuEntries(at: {
+  t: ReturnType<typeof useT>;
+  c: PlayerController;
+  quality: PlayerQuality | undefined;
+  audio: AudioTrack | undefined;
+  subtitles: string;
+  filterLabels: Record<AudioFilterMode, string>;
+  statsOn: boolean;
+  onToggleStats: () => void;
+  onReport: boolean;
+  go: (view: View) => void;
+}): Entry[] {
+  return [
+    {
+      id: 'quality',
+      icon: <IconQuality />,
+      label: at.t('player.quality'),
+      value: at.quality?.label,
+      activate: () => at.go('quality'),
+    },
+    ...(at.c.engines?.length
+      ? [
+          {
+            id: 'engine' as const,
+            icon: <IconGear />,
+            label: at.t('playbackEngine.title'),
+            value: at.c.engines.find((e) => e.id === at.c.engineId)?.label,
+            activate: () => at.go('engine'),
+          },
+        ]
+      : []),
+    {
+      id: 'audio',
+      icon: <IconAudioTrack />,
+      label: at.t('player.audioTrack'),
+      value: at.audio
+        ? at.audio.title?.trim() || langName(at.t, at.audio.language) || at.t('player.langUnknown')
+        : undefined,
+      activate: () => at.go('audio'),
+    },
+    ...(at.c.audioFilterSupported
+      ? [
+          {
+            id: 'audioFilter' as const,
+            icon: <IconAudioFilter />,
+            label: at.t('player.audioFilters'),
+            value: at.filterLabels[at.c.audioFilter],
+            activate: () => at.go('audioFilter'),
+          },
+        ]
+      : []),
+    {
+      id: 'subtitles',
+      icon: <IconSubtitles />,
+      label: at.t('player.subtitles'),
+      value: at.subtitles,
+      activate: () => at.go('subtitles'),
+    },
+    {
+      id: 'appearance',
+      icon: <IconAppearance />,
+      label: at.t('player.subAppearance'),
+      activate: () => at.go('appearance'),
+    },
+    {
+      id: 'speed',
+      icon: <IconSpeed />,
+      label: at.t('player.speed'),
+      value: at.c.rate === 1 ? at.t('player.normalSpeed') : `${at.c.rate}×`,
+      activate: () => at.go('speed'),
+    },
+    {
+      id: 'stats',
+      icon: <IconStats />,
+      label: at.t('player.stats'),
+      toggle: true,
+      on: at.statsOn,
+      activate: at.onToggleStats,
+    },
+    // Last on purpose: it is the row nobody wants to need, and the one that must
+    // be there when they do.
+    ...(at.onReport
+      ? [
+          {
+            id: 'report' as const,
+            icon: <IconReport />,
+            label: at.t('report.action'),
+            activate: () => at.go('report'),
+          },
+        ]
+      : []),
+  ];
+}
+
 /**
  * The right-side settings panel (§5): a two-level surface over a click-to-close
  * scrim. A main menu lists every setting; OK opens a sub-view (or toggles
@@ -120,86 +218,18 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
 
   const subValue = subtitleValue(t, curSub);
 
-  const entries: Entry[] = [
-    {
-      id: 'quality',
-      icon: <IconQuality />,
-      label: t('player.quality'),
-      value: curQuality?.label,
-      activate: () => setView('quality'),
-    },
-    ...(c.engines?.length
-      ? [
-          {
-            id: 'engine' as const,
-            icon: <IconGear />,
-            label: t('playbackEngine.title'),
-            value: c.engines.find((e) => e.id === c.engineId)?.label,
-            activate: () => setView('engine'),
-          },
-        ]
-      : []),
-    {
-      id: 'audio',
-      icon: <IconAudioTrack />,
-      label: t('player.audioTrack'),
-      value: curAudio
-        ? curAudio.title?.trim() || langName(t, curAudio.language) || t('player.langUnknown')
-        : undefined,
-      activate: () => setView('audio'),
-    },
-    ...(c.audioFilterSupported
-      ? [
-          {
-            id: 'audioFilter' as const,
-            icon: <IconAudioFilter />,
-            label: t('player.audioFilters'),
-            value: filterLabels[c.audioFilter],
-            activate: () => setView('audioFilter'),
-          },
-        ]
-      : []),
-    {
-      id: 'subtitles',
-      icon: <IconSubtitles />,
-      label: t('player.subtitles'),
-      value: subValue,
-      activate: () => setView('subtitles'),
-    },
-    {
-      id: 'appearance',
-      icon: <IconAppearance />,
-      label: t('player.subAppearance'),
-      activate: () => setView('appearance'),
-    },
-    {
-      id: 'speed',
-      icon: <IconSpeed />,
-      label: t('player.speed'),
-      value: c.rate === 1 ? t('player.normalSpeed') : `${c.rate}×`,
-      activate: () => setView('speed'),
-    },
-    {
-      id: 'stats',
-      icon: <IconStats />,
-      label: t('player.stats'),
-      toggle: true,
-      on: statsOn,
-      activate: onToggleStats,
-    },
-    // Last on purpose: it is the row nobody wants to need, and the one that must
-    // be there when they do.
-    ...(onReport
-      ? [
-          {
-            id: 'report' as const,
-            icon: <IconReport />,
-            label: t('report.action'),
-            activate: () => setView('report'),
-          },
-        ]
-      : []),
-  ];
+  const entries = menuEntries({
+    t,
+    c,
+    quality: curQuality,
+    audio: curAudio,
+    subtitles: subValue,
+    filterLabels,
+    statsOn,
+    onToggleStats,
+    onReport: Boolean(onReport),
+    go: setView,
+  });
 
   const menuFocus = useListFocus({
     count: entries.length,

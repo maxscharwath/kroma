@@ -4,7 +4,13 @@
 // lives in engine/.
 
 import { audioTracksOf, type MediaItem } from '@kroma/core';
-import { audioFilterLabels, buildLeanStats, StatsPanel, type SubtitleAppearance } from '@kroma/ui';
+import {
+  audioFilterLabels,
+  buildLeanStats,
+  type PlayerStats,
+  StatsPanel,
+  type SubtitleAppearance,
+} from '@kroma/ui';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -18,6 +24,93 @@ import type { SheetView } from './TrackSheet';
 import type { StoryboardTile } from './useStoryboard';
 
 const HIDE_AFTER_MS = 4000;
+
+/**
+ * The "stats for nerds" snapshot: the shared lean builder (metadata + engine
+ * clock; AVPlayer and ExoPlayer expose no decode counters to JS) plus the
+ * phone's own playback rows.
+ *
+ * A hook of its own because none of it is chrome. It was all inline, so the
+ * bandwidth sampler, the label table and the whole snapshot closure were rebuilt
+ * on every render of the player - twice a second for the length of a film -
+ * while the panel that reads them is usually closed.
+ */
+function usePhoneStats(engine: Engine, item: MediaItem): () => PlayerStats {
+  const t = useT();
+  const filterLabels = audioFilterLabels(t);
+  let sourceMode = 'HLS';
+  if (engine.offline) sourceMode = 'Direct · local';
+  else if (engine.mode === 'direct') sourceMode = 'Direct';
+
+  // Download speed, estimated: AVPlayer exposes no network counters to JS, but
+  // the buffered edge advancing IS the download - content-seconds fetched per
+  // wall-second, times the stream's average bytes per content-second (file
+  // size / duration), is bytes per second. Sampled between the panel's polls
+  // and smoothed; a seek's buffer jump is clamped so it reads as a burst, not
+  // a thousand-megabit lie.
+  const net = useRef({ at: 0, bufEnd: 0, ema: 0 });
+  const file = item.files.find((f) => f.id === item.defaultFileId) ?? item.files[0];
+  const avgBytesPerSec =
+    file?.size && item.durationMs ? file.size / (item.durationMs / 1000) : null;
+  const bandwidthMbps = (): number | null => {
+    if (engine.offline || avgBytesPerSec == null) return null;
+    const now = Date.now();
+    const prev = net.current;
+    if (prev.at === 0) {
+      net.current = { at: now, bufEnd: engine.buffered, ema: 0 };
+      return 0;
+    }
+    const dt = (now - prev.at) / 1000;
+    if (dt < 0.2) return prev.ema;
+    const gained = Math.min(Math.max(0, engine.buffered - prev.bufEnd), dt * 50);
+    const inst = ((gained / dt) * avgBytesPerSec * 8) / 1e6;
+    const ema = prev.ema === 0 ? inst : prev.ema * 0.6 + inst * 0.4;
+    net.current = { at: now, bufEnd: engine.buffered, ema };
+    return ema;
+  };
+
+  return () => {
+    const mbps = bandwidthMbps();
+    return buildLeanStats({
+      item,
+      cur: engine.cur,
+      dur: engine.dur,
+      bufEnd: engine.buffered,
+      audioTracks: engine.offline ? [] : audioTracksOf(item),
+      audioIndex: engine.audioIndex,
+      video: null,
+      mode: sourceMode,
+      t,
+      meters:
+        mbps == null
+          ? undefined
+          : [
+              {
+                key: 'bandwidth',
+                label: t('stats.bandwidth'),
+                value: mbps,
+                display: `${mbps.toFixed(2)} Mb/s`,
+              },
+            ],
+      extra: [
+        {
+          label: t('stats.speed'),
+          value: engine.rate === 1 ? t('player.normalSpeed') : `${engine.rate}×`,
+          group: t('stats.playback'),
+        },
+        ...(engine.offline
+          ? []
+          : [
+              {
+                label: t('player.audioFilters'),
+                value: filterLabels[engine.filter],
+                group: t('stats.playback'),
+              },
+            ]),
+      ],
+    });
+  };
+}
 
 export function PlayerChrome({
   engine,
@@ -60,82 +153,8 @@ export function PlayerChrome({
   const [visible, setVisible] = useState(true);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // "Stats for nerds" snapshot for the kit's panel: the shared lean builder
-  // (metadata + engine clock; AVPlayer/ExoPlayer expose no decode counters)
-  // plus the phone's own playback rows.
-  const filterLabels = audioFilterLabels(t);
-  let sourceMode = 'HLS';
-  if (engine.offline) sourceMode = 'Direct · local';
-  else if (engine.mode === 'direct') sourceMode = 'Direct';
-
-  // Download speed, estimated: AVPlayer exposes no network counters to JS, but
-  // the buffered edge advancing IS the download - content-seconds fetched per
-  // wall-second, times the stream's average bytes per content-second (file
-  // size / duration), is bytes per second. Sampled between the panel's polls
-  // and smoothed; a seek's buffer jump is clamped so it reads as a burst, not
-  // a thousand-megabit lie.
-  const net = useRef({ at: 0, bufEnd: 0, ema: 0 });
-  const file = item.files.find((f) => f.id === item.defaultFileId) ?? item.files[0];
-  const avgBytesPerSec =
-    file?.size && item.durationMs ? file.size / (item.durationMs / 1000) : null;
-  const bandwidthMbps = (): number | null => {
-    if (engine.offline || avgBytesPerSec == null) return null;
-    const now = Date.now();
-    const prev = net.current;
-    if (prev.at === 0) {
-      net.current = { at: now, bufEnd: engine.buffered, ema: 0 };
-      return 0;
-    }
-    const dt = (now - prev.at) / 1000;
-    if (dt < 0.2) return prev.ema;
-    const gained = Math.min(Math.max(0, engine.buffered - prev.bufEnd), dt * 50);
-    const inst = ((gained / dt) * avgBytesPerSec * 8) / 1e6;
-    const ema = prev.ema === 0 ? inst : prev.ema * 0.6 + inst * 0.4;
-    net.current = { at: now, bufEnd: engine.buffered, ema };
-    return ema;
-  };
-
-  const stats = () => {
-    const mbps = bandwidthMbps();
-    return buildLeanStats({
-      item,
-      cur: engine.cur,
-      dur: engine.dur,
-      bufEnd: engine.buffered,
-      audioTracks: engine.offline ? [] : audioTracksOf(item),
-      audioIndex: engine.audioIndex,
-      video: null,
-      mode: sourceMode,
-      t,
-      meters:
-        mbps == null
-          ? undefined
-          : [
-              {
-                key: 'bandwidth',
-                label: t('stats.bandwidth'),
-                value: mbps,
-                display: `${mbps.toFixed(2)} Mb/s`,
-              },
-            ],
-      extra: [
-        {
-          label: t('stats.speed'),
-          value: engine.rate === 1 ? t('player.normalSpeed') : `${engine.rate}×`,
-          group: t('stats.playback'),
-        },
-        ...(engine.offline
-          ? []
-          : [
-              {
-                label: t('player.audioFilters'),
-                value: filterLabels[engine.filter],
-                group: t('stats.playback'),
-              },
-            ]),
-      ],
-    });
-  };
+  // Everything the stats panel needs, and nothing the chrome does.
+  const stats = usePhoneStats(engine, item);
 
   const poke = () => {
     setVisible(true);

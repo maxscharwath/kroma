@@ -108,6 +108,40 @@ function Workbench(props: Readonly<WorkbenchProps>) {
   );
 }
 
+/**
+ * The screenshot runner's view: the story alone on the page, with none of the
+ * workbench around it.
+ *
+ * Split out because it shares nothing with the shell - no tree, no panel, no
+ * toolbar, no keyboard - and its two branches were most of what made the shell's
+ * own body hard to follow.
+ */
+function shotStage(at: {
+  /** `?shot` with no story is the runner asking what exists. Answering from the
+   *  app itself means there is no second list of ids to keep in step. */
+  listOnly: boolean;
+  stories: readonly Story[];
+  story: Story;
+  body: ReactNode;
+  surface: ColorToken;
+  width: number;
+}): ReactNode {
+  if (at.listOnly) {
+    return <Txt>{`KROMA_STORY_IDS:${at.stories.map((entry) => entry.id).join(',')}`}</Txt>;
+  }
+  // A story that declares a width MEASURES itself and has to be given one - the
+  // same rule the canvas follows (see `stageWidth`), against the window rather
+  // than a stage card, because the shot has no stage. Without it a rail was
+  // captured as a single clipped tile: it asked how wide it was, was told
+  // nothing, and laid out one column.
+  const stage = stageWidth(at.story.width, at.width - SHOT_PAD * 2);
+  return (
+    <Box flex bg={at.surface} p={SHOT_PAD} align="flex-start" justify="flex-start">
+      <Box w={stage.width}>{at.body}</Box>
+    </Box>
+  );
+}
+
 function WorkbenchShell({
   stories,
   brand,
@@ -199,24 +233,8 @@ function WorkbenchShell({
   // the room to the docs instead.
   const showControls = !view.startsWith('demo:');
 
-  // `shot` with no story is the screenshot runner asking what exists. Answering
-  // from the app itself means there is no second list of ids to keep in step.
-  if (at.shot && !at.story) {
-    return <Txt>{`KROMA_STORY_IDS:${stories.map((entry) => entry.id).join(',')}`}</Txt>;
-  }
-
   if (at.shot) {
-    // A story that declares a width MEASURES itself and has to be given one -
-    // the same rule the canvas follows (see `stageWidth`), against the window
-    // rather than a stage card, because the shot has no stage. Without it a rail
-    // was captured as a single clipped tile: it asked how wide it was, was told
-    // nothing, and laid out one column.
-    const stage = stageWidth(story.width, layout.width - SHOT_PAD * 2);
-    return (
-      <Box flex bg={surface} p={SHOT_PAD} align="flex-start" justify="flex-start">
-        <Box w={stage.width}>{body}</Box>
-      </Box>
-    );
+    return shotStage({ listOnly: !at.story, stories, story, body, surface, width: layout.width });
   }
 
   const panel = (

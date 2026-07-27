@@ -134,7 +134,7 @@ jobs:
 
       # The JS gate: the Metro bundle must resolve on both platforms.
       - name: Bundle check
-        run: bun run bundle:tv-native
+        run: bun run build:tv-native
 
       - name: Prebuild the Android project
         run: bun run --filter '@kroma/tv-native' prebuild -- --platform android

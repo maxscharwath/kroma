@@ -11,19 +11,33 @@
 // deliverables from them. Run via `bun run store:art` at the repo root.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 
 const REPO = new URL('../..', import.meta.url).pathname;
-const OUT = process.argv[2];
-if (!OUT) throw new Error('usage: store-art.mjs <out-dir>');
-mkdirSync(OUT, { recursive: true });
+if (!process.argv[2]) throw new Error('usage: store-art.mjs <out-dir>');
+const OUT_DIR = resolve(process.argv[2]);
+mkdirSync(OUT_DIR, { recursive: true });
+
+/** Resolve a file INTO the output directory, refusing anything that climbs out.
+ *
+ * The directory is a CLI argument and the file names are literals below, so this
+ * is a guard on future edits as much as on today's input: `join()` will happily
+ * walk out of the directory it was handed, and a build script writing outside
+ * the place it was pointed at is the failure worth making impossible. */
+function outPath(name) {
+  const full = resolve(OUT_DIR, name);
+  if (full !== OUT_DIR && !full.startsWith(`${OUT_DIR}${sep}`)) {
+    throw new Error(`refusing to write outside ${OUT_DIR}: ${name}`);
+  }
+  return full;
+}
 
 /** Render an SVG file at an exact pixel size, on a transparent canvas. The SVG
  * is inlined into a bare page sized to match, so the screenshot is the artwork
  * and nothing else (no scrollbars, no default margin). */
 async function raster(page, svgPath, width, height, out) {
-  const svg = readFileSync(join(REPO, svgPath), 'utf8')
+  const svg = readFileSync(resolve(REPO, svgPath), 'utf8')
     .replace(/\swidth="[^"]*"/, ` width="${width}"`)
     .replace(/\sheight="[^"]*"/, ` height="${height}"`);
   await page.setViewportSize({ width, height });
@@ -33,7 +47,7 @@ async function raster(page, svgPath, width, height, out) {
     { waitUntil: 'load' },
   );
   const shot = await page.screenshot({ omitBackground: true, type: 'png' });
-  writeFileSync(join(OUT, out), shot);
+  writeFileSync(outPath(out), shot);
   console.log(`${out}  ${width}x${height}`);
 }
 

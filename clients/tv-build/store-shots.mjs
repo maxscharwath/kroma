@@ -17,13 +17,27 @@
 // on-screen text this prints after every step to see where focus actually is.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { chromium } from 'playwright';
 
 const port = process.argv[2];
-const out = process.argv[3];
-if (!port || !out) throw new Error('usage: store-shots.mjs <preview-port> <out-dir>');
-mkdirSync(out, { recursive: true });
+if (!port || !process.argv[3]) throw new Error('usage: store-shots.mjs <preview-port> <out-dir>');
+const OUT_DIR = resolve(process.argv[3]);
+mkdirSync(OUT_DIR, { recursive: true });
+
+/** Resolve a file INTO the output directory, refusing anything that climbs out.
+ *
+ * The directory is a CLI argument and the file names are literals below, so this
+ * is a guard on future edits as much as on today's input: `join()` will happily
+ * walk out of the directory it was handed, and a build script writing outside
+ * the place it was pointed at is the failure worth making impossible. */
+function outPath(name) {
+  const full = resolve(OUT_DIR, name);
+  if (full !== OUT_DIR && !full.startsWith(`${OUT_DIR}${sep}`)) {
+    throw new Error(`refusing to write outside ${OUT_DIR}: ${name}`);
+  }
+  return full;
+}
 
 /** The brand intro plays on a cold launch and cannot be skipped from outside the
  * app, so the first capture waits it out. */
@@ -60,7 +74,7 @@ await page.waitForTimeout(INTRO_MS);
 for (const { name, keys } of SCREENS) {
   for (const key of keys) await press(key);
   await page.waitForTimeout(400);
-  writeFileSync(join(out, `${name}.png`), await page.screenshot({ type: 'png' }));
+  writeFileSync(outPath(`${name}.png`), await page.screenshot({ type: 'png' }));
   const seen = (await page.locator('body').innerText()).replace(/\s*\n+\s*/g, ' · ').slice(0, 160);
   console.log(`${name}.png  ${seen}`);
 }

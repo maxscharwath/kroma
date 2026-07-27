@@ -93,28 +93,26 @@ const MIME: Record<string, string> = {
 // entry document, exactly as the packaged app does. node:http rather than
 // Bun.serve so the script typechecks against the @types/node the repo already
 // has, instead of pulling in a types package for one server.
-/**
- * The requested path resolved INSIDE `dist`, or null when it points outside.
- *
- * `join(dist, path)` is not containment: the path comes off the wire, and
- * `/../../../etc/passwd` walks straight out of the build directory. Leading
- * separators are stripped so the request is always relative, and the resolved
- * result is then proven to still sit under the root - which is the only check
- * that actually holds, since `..` can appear anywhere in the path, not just at
- * the front.
- */
-function insideDist(requestPath: string): string | null {
-  const full = resolve(dist, `.${sep}${requestPath.replace(/^[/\\]+/, '')}`);
-  return full === dist || full.startsWith(`${dist}${sep}`) ? full : null;
-}
-
 const server = createServer((request, response) => {
-  const path = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+  const requested = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
   const entry = join(dist, 'index.html');
-  // The shell is a SPA, so anything that is not a real file inside dist - a
-  // route, or an attempt to escape - falls through to the entry document.
-  let file = path === '/' ? entry : (insideDist(path) ?? entry);
+
+  // Containment, INLINE at the sink rather than behind a helper.
+  //
+  // `join(dist, requested)` is not containment: the path comes off the wire and
+  // `/../../../etc/passwd` walks straight out of the build directory. Leading
+  // separators are stripped so the request is always relative, and the resolved
+  // result is then proven to still sit under the root - which is the only check
+  // that holds, since `..` can appear anywhere in the path, not just at the
+  // front. The shell is a SPA, so anything that is not a real file inside dist -
+  // a route, or an attempt to escape - falls through to the entry document.
+  let file = entry;
+  if (requested !== '/') {
+    const candidate = resolve(dist, `.${sep}${requested.replace(/^[/\\]+/, '')}`);
+    if (candidate === dist || candidate.startsWith(`${dist}${sep}`)) file = candidate;
+  }
   if (!existsSync(file) || !statSync(file).isFile()) file = entry;
+
   response.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
   createReadStream(file).pipe(response);
 });

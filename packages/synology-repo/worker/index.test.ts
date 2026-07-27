@@ -39,8 +39,11 @@ function githubServing(releases: unknown) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.includes('api.github.com')) {
+      // Match on the HOST, not on a substring of the URL: `includes` would
+      // also accept https://api.github.com.evil.test/ and, in a stub that
+      // stands in for the real API, a sloppy match teaches a sloppy shape.
+      const { hostname } = new URL(String(input));
+      if (hostname === 'api.github.com') {
         return new Response(JSON.stringify(releases), { status: 200 });
       }
       return new Response('', { status: 404 });

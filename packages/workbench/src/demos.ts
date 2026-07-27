@@ -60,7 +60,7 @@ function demoKey(path: string): { story: string; slug: string } {
  * tab labels sitting next to `Preview` and `Matrix`, not headlines. Override it
  * with `@name` where the words need their own capitals or hyphens. */
 function titleFrom(slug: string): string {
-  const words = slug.replace(/-/g, ' ');
+  const words = slug.replaceAll('-', ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
@@ -78,6 +78,11 @@ function titleFrom(slug: string): string {
  * `*​/` inside the body pins the match to the LAST comment instead.
  */
 const DOC_ABOVE_EXPORT = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*export default/;
+
+/** A jsdoc tag opening a line: `@name`, `@see`, `@todo`. Matches the tag and the
+ * gap after it only - the VALUE is sliced off the line, so nothing here has two
+ * ways to consume the same characters. */
+const TAG_LINE = /^@(\w+)[^\S\n]*/;
 
 interface DemoMeta {
   docs?: string;
@@ -108,12 +113,19 @@ function metaFrom(source: string | undefined): DemoMeta {
   const prose: string[] = [];
   let name: string | undefined;
   for (const line of lines) {
-    const tag = line.match(/^@(\w+)\s*(.*)$/);
+    // The tag and its value are matched separately, and the value is taken by
+    // slicing rather than by a second capture: `\s*(.*)` lets the whitespace and
+    // the value both claim the same spaces, which is backtracking the scanner is
+    // right to flag on a line nobody bounds the length of.
+    const tag = TAG_LINE.exec(line);
     if (!tag) {
       prose.push(line);
       continue;
     }
-    if (tag[1] === 'name' && tag[2]) name = tag[2].trim();
+    if (tag[1] === 'name') {
+      const value = line.slice(tag[0].length).trim();
+      if (value) name = value;
+    }
   }
   // One paragraph: the panel renders a sentence or two under the tab, and a
   // comment is wrapped at whatever column the formatter chose.

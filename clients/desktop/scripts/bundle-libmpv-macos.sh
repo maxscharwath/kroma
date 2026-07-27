@@ -48,16 +48,18 @@ dylibbundler -cd -od -b \
 # it twice - libmpv is both a direct dependency of the executable and a
 # dependency of other bundled dylibs.
 rpaths_of() {
-  otool -l "$1" | awk '/cmd LC_RPATH/ { f = 1; next } f && /^ *path / { print $2; f = 0 }'
+  local binary="$1"
+  otool -l "$binary" | awk '/cmd LC_RPATH/ { f = 1; next } f && /^ *path / { print $2; f = 0 }'
 }
 
 prune_duplicate_rpaths() {
-  for dup in $(rpaths_of "$1" | sort | uniq -d); do
+  local binary="$1"
+  for dup in $(rpaths_of "$binary" | sort | uniq -d); do
     # -delete_rpath removes ONE occurrence per call, so loop until one is left.
-    while [ "$(rpaths_of "$1" | grep -cx -- "$dup" || true)" -gt 1 ]; do
-      install_name_tool -delete_rpath "$dup" "$1"
+    while [[ "$(rpaths_of "$binary" | grep -cx -- "$dup" || true)" -gt 1 ]]; do
+      install_name_tool -delete_rpath "$dup" "$binary"
     done
-    echo "bundle-libmpv-macos: collapsed duplicate rpath $dup in $(basename "$1")"
+    echo "bundle-libmpv-macos: collapsed duplicate rpath $dup in $(basename "$binary")"
   done
 }
 

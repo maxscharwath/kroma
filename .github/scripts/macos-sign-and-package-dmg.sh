@@ -102,13 +102,15 @@ fi
 # --- signing ---------------------------------------------------------------
 
 sign_one() {
+  local target="$1"
   codesign --force --timestamp --options runtime \
-    --sign "$APPLE_SIGNING_IDENTITY" "$1"
+    --sign "$APPLE_SIGNING_IDENTITY" "$target"
 }
 
 notarize() {
-  # $1 = the file to submit (.zip for an app, or the .dmg itself)
-  xcrun notarytool submit "$1" \
+  # the file to submit (.zip for an app, or the .dmg itself)
+  local submission="$1"
+  xcrun notarytool submit "$submission" \
     --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
     --team-id "$APPLE_TEAM_ID" --wait
 }

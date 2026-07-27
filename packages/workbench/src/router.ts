@@ -90,7 +90,7 @@ function parseView(raw: string | null | undefined): View | undefined {
   // where a colon is unremarkable, and `scene-1` in a PATH SEGMENT, where it
   // reads as a URL someone could have typed. Both parse, so a link written either
   // way opens the same tab.
-  const at = raw.match(/^(scene|demo)[:-](\d+)$/);
+  const at = /^(scene|demo)[:-](\d+)$/.exec(raw);
   return at ? (`${at[1]}:${Number(at[2])}` as View) : undefined;
 }
 

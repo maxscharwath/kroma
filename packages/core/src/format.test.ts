@@ -14,6 +14,7 @@ import {
   posterColors,
   qualityBadge,
   qualityBadgeForVideo,
+  safeImageUrl,
   sizedImageUrl,
 } from './format';
 import type { Translate } from './i18n';
@@ -304,5 +305,39 @@ describe('audioTrackLabel', () => {
   it('returns undefined for no track', () => {
     expect(audioTrackLabel(t, null)).toBeUndefined();
     expect(audioTrackLabel(t, undefined)).toBeUndefined();
+  });
+});
+
+// ----- safeImageUrl ----------------------------------------------------------
+
+describe('safeImageUrl', () => {
+  it('passes our own artwork paths through untouched', () => {
+    expect(safeImageUrl('/api/images/abc?w=200')).toBe('/api/images/abc?w=200');
+    expect(safeImageUrl('poster.jpg')).toBe('poster.jpg');
+    expect(safeImageUrl('//cdn.example.com/a.jpg')).toBe('//cdn.example.com/a.jpg');
+  });
+
+  it('allows the schemes that only ever paint', () => {
+    expect(safeImageUrl('https://image.tmdb.org/t/p/w780/x.jpg')).toBe(
+      'https://image.tmdb.org/t/p/w780/x.jpg',
+    );
+    expect(safeImageUrl('http://nas.local/a.png')).toBe('http://nas.local/a.png');
+    expect(safeImageUrl('blob:https://app/9f')).toBe('blob:https://app/9f');
+    expect(safeImageUrl('data:image/png;base64,iVBOR')).toBe('data:image/png;base64,iVBOR');
+  });
+
+  it('rejects a scheme that navigates or executes', () => {
+    expect(safeImageUrl('javascript:alert(1)')).toBeNull();
+    // Case and leading whitespace must not sneak one past the check.
+    expect(safeImageUrl('  JaVaScRiPt:alert(1)')).toBeNull();
+    // data: is narrowed to images - data:text/html is a payload, not artwork.
+    expect(safeImageUrl('data:text/html,<script>alert(1)</script>')).toBeNull();
+    expect(safeImageUrl('vbscript:msgbox')).toBeNull();
+  });
+
+  it('treats absent artwork as absent', () => {
+    expect(safeImageUrl(null)).toBeNull();
+    expect(safeImageUrl(undefined)).toBeNull();
+    expect(safeImageUrl('')).toBeNull();
   });
 });

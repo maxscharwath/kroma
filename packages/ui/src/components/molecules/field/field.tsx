@@ -66,7 +66,7 @@ interface FieldProps extends Omit<BoxProps, 'children' | 'onChange'> {
   /** True when the shell has a real keyboard. See <TextField>. */
   physicalKeyboard?: boolean;
   /** Explicit override; normally derived from `type`. */
-  keyboardType?: TextFieldProps['keyboardType'];
+  keyboardType?: NonNullable<TextFieldProps['keyboardType']>;
   /** Focus on mount. Off by default - a form that steals focus on render also
    *  summons the on-screen keyboard on a television. */
   autoFocus?: boolean;

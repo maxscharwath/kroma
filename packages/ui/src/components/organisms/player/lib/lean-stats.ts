@@ -30,10 +30,10 @@ export interface LeanStatsInput {
   t: Translate;
   /** Surface-specific rows appended after the shared ones (grouped rows land
    *  in the panel's column grid; see PlayerStats.extra). */
-  extra?: PlayerStats['extra'];
+  extra?: NonNullable<PlayerStats['extra']>;
   /** Surface-specific live series appended after the shared buffer meter (the
    *  phone's estimated bandwidth, for instance); each gets its own chart. */
-  meters?: PlayerStats['meters'];
+  meters?: NonNullable<PlayerStats['meters']>;
 }
 
 /** Video codec label, e.g. "HEVC 10-bit HDR" (empty parts dropped). */

@@ -373,10 +373,10 @@ export function Player(props: Readonly<PlayerProps>) {
   // The buffering spinner + subtitle overlay ride into the card via their own
   // wrapper: on the CSS path they sit inside the (transformed) stage untouched; on
   // a native shrink the stage stays put, so the wrapper carries them down itself.
-  // The SAME geometry the plane gets, not a second hand-written guess: this rides
-  // the native path exclusively, where a percentage translate is uninterpretable
-  // (see useStageZoom) and the flat half-scale is the pre-cardGeometry shape the
-  // card stopped being.
+  // The SAME geometry the plane gets, not a second hand-written guess. The
+  // spinner and subtitles have to land ON the shrunken picture, and the picture
+  // is placed by `card.rect` - so a flat 3%/0.5, which is the shape the card had
+  // before cardGeometry derived it, put them somewhere the video no longer was.
   const contentShrink: ViewStyle | undefined = nativeShrink
     ? { transformOrigin: '0 50%', transform: [{ translateX: card.x }, { scale: card.scale }] }
     : undefined;

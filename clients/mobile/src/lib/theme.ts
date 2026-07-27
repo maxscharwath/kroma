@@ -11,15 +11,17 @@
 // design system calls those `textMuted` and `textDim`. The mapping below keeps
 // the app's meaning and takes the system's values.
 
-import {
-  colors as kit,
-  absoluteFill as kitAbsoluteFill,
-  SHADE as kitShade,
-  shade as kitShadeAt,
-  WHEEL_COLORS as kitWheel,
-  mobileRadius,
-  mobileSpace,
-  mobileType,
+import { colors as kit, mobileType } from '@kroma/ui/kit';
+
+// Straight pass-throughs: re-exported rather than rebound, so no local name
+// stands between the screens and the token they are actually using.
+export {
+  absoluteFill,
+  mobileRadius as radius,
+  mobileSpace as spacing,
+  SHADE,
+  shade,
+  WHEEL_COLORS,
 } from '@kroma/ui/kit';
 
 export const colors = {
@@ -44,16 +46,6 @@ export const colors = {
   danger: kit.danger,
 } as const;
 
-export const WHEEL_COLORS = kitWheel;
-
-/** Billboard / poster shade stops (transparent to page background). */
-export const SHADE = kitShade;
-
-/** The page background at an arbitrary alpha, for hand-tuned shade stops. */
-export const shade = kitShadeAt;
-
-export const radius = mobileRadius;
-export const spacing = mobileSpace;
 /**
  * The phone type ramp, INKED. The kit's `mobileType` deliberately bakes no
  * colour (a role must be reusable on any surface), but this app's screens
@@ -72,7 +64,6 @@ export const type = {
   caption: { ...mobileType.caption, color: kit.textMuted },
   small: { ...mobileType.small, color: kit.textMuted },
 } as const;
-export const absoluteFill = kitAbsoluteFill;
 
 /** Height of the floating (translucent) tab bar; tab screens pad their scroll
  * content by this so the last row clears it. */

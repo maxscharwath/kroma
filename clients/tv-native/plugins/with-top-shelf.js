@@ -137,7 +137,7 @@ function withExtensionTarget(config) {
 
     // Prebuild without --clean re-runs every mod on the existing project; a
     // second addTarget would mint a duplicate, so presence is the guard.
-    const exists = Object.values(targets).some((t) => t?.name?.replace(/"/g, '') === TARGET);
+    const exists = Object.values(targets).some((t) => t?.name?.replaceAll('"', '') === TARGET);
     if (exists) return cfg;
 
     const appBundleId = cfg.ios?.bundleIdentifier;

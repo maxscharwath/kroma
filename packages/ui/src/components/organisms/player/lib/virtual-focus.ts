@@ -18,7 +18,5 @@
 // react-native-tvos gates a Pressable on exactly `focusable !== false &&
 // isTVSelectable !== false`.
 
-import { UNFOCUSABLE } from '#ui/lib/focus-types';
-
 /** Spread onto any player-chrome Pressable. See the file header for why. */
-export const VIRTUAL_FOCUS = UNFOCUSABLE;
+export { UNFOCUSABLE as VIRTUAL_FOCUS } from '#ui/lib/focus-types';

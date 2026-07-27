@@ -126,7 +126,7 @@ export function createI18n<
     // Handle display names (e.g. "Français", "English")
     for (const code of codes) {
       const template = catalogs[code]?.[`lang.${code}`];
-      if (template && template.toLowerCase() === lower) return code;
+      if (template?.toLowerCase() === lower) return code;
     }
     return null;
   };

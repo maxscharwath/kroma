@@ -10,8 +10,9 @@
 export function parsePosition(value: string): { x: number; y: number } {
   const parts = value.trim().split(/\s+/);
   const x = axis(parts[0], 0.5);
-  // A single value sets the horizontal axis and centres the vertical one.
-  const y = axis(parts[1], parts.length > 1 ? 0.5 : 0.5);
+  // A single value sets the horizontal axis and centres the vertical one - and
+  // an unparseable second value centres too, so the fallback is 0.5 either way.
+  const y = axis(parts[1], 0.5);
   return { x, y };
 }
 

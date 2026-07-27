@@ -132,7 +132,7 @@ export function endPoint(
   box: ChartBox,
 ): { x: number; y: number } | null {
   if (data.length < 2) return null;
-  const last = data[data.length - 1] as number;
+  const last = data.at(-1) as number;
   return {
     x: px(xAt(data.length - 1, data.length, box)),
     y: px(yAt(Number.isFinite(last) ? last : extent.min, extent, box)),

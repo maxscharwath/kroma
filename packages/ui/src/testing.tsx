@@ -14,7 +14,6 @@
 // Kept out of the kit's public surface: this is for tests, not for screens.
 
 import type { ReactElement } from 'react';
-import { focusSettled, markFocusSettled } from './lib/focus-entry';
 import { FocusScope } from './lib/focus-scope';
 import { I18nProvider } from './services/i18n';
 
@@ -22,7 +21,7 @@ import { I18nProvider } from './services/i18n';
  * arrived. An app can only assert "the new screen gets to choose again" through
  * these: `autoFocus` is honoured or ignored on the strength of that one flag
  * (see lib/focus-entry), and no rendered output shows it. */
-export { focusSettled, markFocusSettled };
+export { focusSettled, markFocusSettled } from './lib/focus-entry';
 
 /** Wrap a tree in the same navigator and locale a real screen runs inside.
  * English, because an assertion reads better against the words in the test. */

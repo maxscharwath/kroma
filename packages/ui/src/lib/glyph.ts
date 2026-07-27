@@ -8,7 +8,7 @@
 import { type Glyph, glyphFor, type IconName } from '#ui/lib/icons/glyphs';
 import { type ColorToken, colors } from './tokens';
 
-export type { Glyph, IconName, IconSlug } from '#ui/lib/icons/glyphs';
+export type { Glyph, IconName } from '#ui/lib/icons/glyphs';
 export { hasGlyph, iconNames } from '#ui/lib/icons/glyphs';
 
 export interface IconProps {

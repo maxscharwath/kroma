@@ -1,7 +1,7 @@
 // react-native-tvos ships its TV surface as a `declare module 'react-native'`
 // block INSIDE its own type package. TypeScript does not merge that: a package
 // cannot augment itself, so the block is parsed as a shadowing ambient
-// declaration and dropped (verified with both tsc and tsgo). We therefore
+// declaration and dropped (verified against tsc). We therefore
 // restate the slice of the TV API this kit actually uses.
 //
 // `hasTVPreferredFocus` is NOT here: core React Native already declares it on

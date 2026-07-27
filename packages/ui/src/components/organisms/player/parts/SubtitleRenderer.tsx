@@ -11,7 +11,20 @@ interface Cue {
   text: string;
 }
 
-const TAG = /<[^>]+>/g;
+const TAG = /<[^<>]*>/g;
+
+/** Strip VTT inline markup UNTIL STABLE, not in one pass: removing the inner tag
+ * of `<<i>>` leaves `<>` behind, so a single sweep can put the very markup this
+ * removes back on screen. Each pass strictly shortens the string. */
+function stripTags(text: string): string {
+  let out = text;
+  let previous: string;
+  do {
+    previous = out;
+    out = out.replace(TAG, '');
+  } while (out !== previous);
+  return out;
+}
 
 /** Parse an `HH:MM:SS.mmm` or `MM:SS.mmm` timestamp into seconds. */
 function toSeconds(v: string): number {
@@ -42,11 +55,7 @@ function parseVtt(raw: string): Cue[] {
     if (!endTok) continue;
     const endSec = toSeconds(endTok);
     if (!Number.isFinite(startSec) || !Number.isFinite(endSec)) continue;
-    const text = lines
-      .slice(arrow + 1)
-      .join('\n')
-      .replace(TAG, '')
-      .trim();
+    const text = stripTags(lines.slice(arrow + 1).join('\n')).trim();
     if (text) cues.push({ startSec, endSec, text });
   }
   return cues;

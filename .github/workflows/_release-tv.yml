@@ -130,9 +130,11 @@ jobs:
       - name: Install Tizen Studio CLI
         run: |
           if [ ! -f web-cli.bin ]; then
-            # --https-only: the installer is fetched over TLS and a redirect
-            # must not be allowed to downgrade that to plain http.
-            wget -q --https-only -O web-cli.bin "https://download.tizen.org/sdk/Installer/tizen-studio_${TIZEN_STUDIO_VER}/web-cli_Tizen_Studio_${TIZEN_STUDIO_VER}_ubuntu-64.bin"
+            # --max-redirect=0: the URL serves the installer directly (200, no
+            # hops), so nothing legitimate needs a redirect - and refusing them
+            # outright is what stops one being pointed somewhere else.
+            # --https-only backs it up: TLS cannot be downgraded to plain http.
+            wget -q --https-only --max-redirect=0 -O web-cli.bin "https://download.tizen.org/sdk/Installer/tizen-studio_${TIZEN_STUDIO_VER}/web-cli_Tizen_Studio_${TIZEN_STUDIO_VER}_ubuntu-64.bin"
           fi
           chmod +x web-cli.bin
           ./web-cli.bin --accept-license --no-java-check "$HOME/tizen-studio"

@@ -51,7 +51,7 @@ interface ProviderSpec<T extends string> {
   /** Names the lens: "Language: English". */
   name: string;
   /** Menu glyph. */
-  glyph?: ToolbarLens['glyph'];
+  glyph?: NonNullable<ToolbarLens['glyph']>;
   /** Unique among the toolbar's menus. Defaults to a slug of `name`. */
   id?: string;
   /** The values, with the labels the menu shows. The first is the default. */

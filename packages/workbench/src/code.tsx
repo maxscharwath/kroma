@@ -108,7 +108,7 @@ function lines(code: string): Token[][] {
     const parts = token.text.split('\n');
     parts.forEach((part, at) => {
       if (at > 0) out.push([]);
-      if (part) out[out.length - 1]?.push({ text: part, kind: token.kind });
+      if (part) out.at(-1)?.push({ text: part, kind: token.kind });
     });
   }
   return out;

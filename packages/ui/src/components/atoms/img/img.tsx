@@ -18,6 +18,7 @@
 // the placeholder, the cross-fade timing, the cover maths) is shared, which is
 // what keeps every target pixel-identical.
 
+import { safeImageUrl } from '@kroma/core';
 import { type CSSProperties, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -149,7 +150,7 @@ interface Size {
 const IS_WEB = Platform.OS === 'web';
 
 function Img({
-  src,
+  src: requested,
   alt = '',
   duration = IMG_FADE_MS,
   fit = 'cover',
@@ -163,6 +164,10 @@ function Img({
   onLoad,
   onError,
 }: Readonly<ImgProps>) {
+  // Checked HERE, once, rather than at each of the leaves below: artwork URLs
+  // come from whichever server the client is signed into, and `under` is just an
+  // earlier `src`, so sanitising ahead of the cross-fade covers both layers.
+  const src = safeImageUrl(requested);
   const cross = useCrossFade(src, duration);
   const { loaded, errored, markLoaded, markErrored } = cross;
   // Dropping the underlay is the whole of "no cross-fade": the new image still

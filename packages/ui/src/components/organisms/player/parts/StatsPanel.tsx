@@ -242,7 +242,7 @@ function sameGroups(
   if (a.length !== b.length) return false;
   return a.every(([title, rows], at) => {
     const other = b[at];
-    if (!other || other[0] !== title || other[1].length !== rows.length) return false;
+    if (other?.[0] !== title || other[1].length !== rows.length) return false;
     return rows.every(
       ([label, value], row) => other[1][row]?.[0] === label && other[1][row]?.[1] === value,
     );

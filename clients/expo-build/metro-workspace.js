@@ -102,7 +102,7 @@ function assertReactNativeMatches(projectRoot, reactNative) {
   const declared = require(path.join(projectRoot, 'package.json')).dependencies?.['react-native'];
   if (typeof declared !== 'string' || !declared.startsWith('npm:')) return;
   // "npm:react-native-tvos@0.86.0-2" -> "react-native-tvos"
-  const expected = declared.slice(4).split('@').filter(Boolean)[0];
+  const expected = declared.slice(4).split('@').find(Boolean);
   const actual = require(path.join(reactNative, 'package.json')).name;
   if (actual === expected) return;
   throw new Error(

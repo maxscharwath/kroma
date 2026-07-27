@@ -65,7 +65,7 @@ function msAtOffset(x: number, segs: readonly TrackSegment[], trackWidth: number
     }
     left += width + SEGMENT_GAP;
   }
-  return segs[segs.length - 1]?.endMs ?? 0;
+  return segs.at(-1)?.endMs ?? 0;
 }
 
 export type { TrackSegment };

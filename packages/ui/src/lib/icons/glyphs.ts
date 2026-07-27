@@ -100,9 +100,7 @@ type IconExport = Extract<keyof typeof Tabler, `Icon${string}`>;
  * manifest) crosses into the type through `hasGlyph`, which narrows it, and
  * `glyphFor` still falls back if it is wrong.
  */
-type IconSlug = IconExport extends `Icon${infer Rest}` ? Kebab<Rest> : never;
-
-type IconName = IconSlug;
+type IconName = IconExport extends `Icon${infer Rest}` ? Kebab<Rest> : never;
 
 const EXPORTS = Tabler as unknown as Record<string, Glyph | undefined>;
 
@@ -139,12 +137,12 @@ function glyphFor(name: string): Glyph {
 
 /**
  * True when the package really has this name — and a type guard, which is how a
- * runtime string becomes an `IconSlug` without a cast:
+ * runtime string becomes an `IconName` without a cast:
  *
  *   const raw = module.manifest.icon;
  *   if (hasGlyph(raw)) return <Icon name={raw} />;
  */
-function hasGlyph(name: string): name is IconSlug {
+function hasGlyph(name: string): name is IconName {
   return Boolean(EXPORTS[exportName(name)]);
 }
 
@@ -172,8 +170,8 @@ function slugOf(name: string): string {
  * and the workbench's icon control are the only callers, and an app that never
  * opens the workbench should not walk the namespace at startup.
  */
-let names: IconSlug[] | undefined;
-function iconNames(): IconSlug[] {
+let names: IconName[] | undefined;
+function iconNames(): IconName[] {
   if (!names) {
     // The cast is the one place the runtime transform is trusted to agree with
     // the compile-time one. It is not taken on faith: `slugOf` and the `Kebab`
@@ -181,10 +179,10 @@ function iconNames(): IconSlug[] {
     names = Object.keys(EXPORTS)
       .filter((key) => key.startsWith('Icon') && key !== 'IconProps')
       .map(slugOf)
-      .sort((a, b) => a.localeCompare(b)) as IconSlug[];
+      .sort((a, b) => a.localeCompare(b)) as IconName[];
   }
   return names;
 }
 
-export type { Glyph, IconName, IconSlug };
+export type { Glyph, IconName };
 export { exportName, FALLBACK, glyphFor, hasGlyph, iconNames, slugOf };

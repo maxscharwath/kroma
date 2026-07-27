@@ -41,13 +41,27 @@ export interface PlaybackHeartbeatParams {
   pingSignal?: unknown;
 }
 
+/** Sessions opened by this process so far, so two playbacks started in the same
+ * millisecond still get distinct ids. */
+let sessionSeq = 0;
+
+/**
+ * A session id keys ONE row in the server's live "now playing" registry. It is
+ * never an auth token: `/playback/stop` only ends a session the requesting
+ * account owns, so the id needs uniqueness, not unpredictability.
+ *
+ * Clock + counter gives that on every target. It replaced `Math.random()`, which
+ * bought no security (the value was six base-36 characters of a non-crypto PRNG)
+ * and read as though it did - the same reasoning, and the same shape, as the
+ * phone client's `newSessionId`.
+ */
 export function usePlaybackHeartbeat(params: PlaybackHeartbeatParams): void {
   const ref = useRef(params);
   ref.current = params;
 
   const sessionId = useRef('');
   if (!sessionId.current) {
-    sessionId.current = `${params.idPrefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionId.current = `${params.idPrefix}-${Date.now().toString(36)}-${(sessionSeq++).toString(36)}`;
   }
   // Once terminated we stop pinging and don't send a redundant stop on unmount.
   const terminated = useRef(false);

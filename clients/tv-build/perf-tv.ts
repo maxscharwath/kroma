@@ -108,8 +108,10 @@ await new Promise<void>((ready, fail) => {
 let nextId = 1;
 const pending = new Map<number, (result: unknown) => void>();
 socket.addEventListener('message', (event) => {
-  const message = JSON.parse(String(event.data)) as { id?: number; result?: unknown };
-  if (message.id == null) return; // an event, not an answer
+  const message = JSON.parse(String(event.data)) as { id?: unknown; result?: unknown };
+  // The id is asserted, not assumed: this is parsed off a socket, so the cast
+  // above is a claim about the wire rather than a fact about the value.
+  if (typeof message.id !== 'number') return; // an event, not an answer
   pending.get(message.id)?.(message.result);
   pending.delete(message.id);
 });

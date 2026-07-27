@@ -22,7 +22,7 @@ import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -93,10 +93,28 @@ const MIME: Record<string, string> = {
 // entry document, exactly as the packaged app does. node:http rather than
 // Bun.serve so the script typechecks against the @types/node the repo already
 // has, instead of pulling in a types package for one server.
+/**
+ * The requested path resolved INSIDE `dist`, or null when it points outside.
+ *
+ * `join(dist, path)` is not containment: the path comes off the wire, and
+ * `/../../../etc/passwd` walks straight out of the build directory. Leading
+ * separators are stripped so the request is always relative, and the resolved
+ * result is then proven to still sit under the root - which is the only check
+ * that actually holds, since `..` can appear anywhere in the path, not just at
+ * the front.
+ */
+function insideDist(requestPath: string): string | null {
+  const full = resolve(dist, `.${sep}${requestPath.replace(/^[/\\]+/, '')}`);
+  return full === dist || full.startsWith(`${dist}${sep}`) ? full : null;
+}
+
 const server = createServer((request, response) => {
   const path = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
-  let file = join(dist, path === '/' ? 'index.html' : path);
-  if (!existsSync(file) || !statSync(file).isFile()) file = join(dist, 'index.html');
+  const entry = join(dist, 'index.html');
+  // The shell is a SPA, so anything that is not a real file inside dist - a
+  // route, or an attempt to escape - falls through to the entry document.
+  let file = path === '/' ? entry : (insideDist(path) ?? entry);
+  if (!existsSync(file) || !statSync(file).isFile()) file = entry;
   response.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
   createReadStream(file).pipe(response);
 });

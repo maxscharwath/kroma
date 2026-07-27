@@ -8,7 +8,7 @@ import {
   FALLBACK,
   glyphFor,
   hasGlyph,
-  type IconSlug,
+  type IconName,
   iconNames,
   slugOf,
 } from './glyphs';
@@ -17,12 +17,12 @@ afterEach(cleanup);
 
 // ---- compile-time assertions ----
 //
-// `IconSlug` is DERIVED from the package's export names by a type-level copy of
+// `IconName` is DERIVED from the package's export names by a type-level copy of
 // `slugOf` (see glyphs.ts). These fail the typecheck rather than the test run,
 // which is the point: they guard the derivation itself.
 
 type Assert<T extends true> = T;
-type Has<N extends string> = N extends IconSlug ? true : false;
+type Has<N extends string> = N extends IconName ? true : false;
 
 /**
  * Exported as one tuple so the aliases are used (the package compiles with
@@ -35,7 +35,7 @@ type Has<N extends string> = N extends IconSlug ? true : false;
  * must NOT be in the union, since that is the whole reason to derive it.
  */
 export type IconSlugChecks = [
-  Assert<string extends IconSlug ? false : true>,
+  Assert<string extends IconName ? false : true>,
   Assert<Has<'wave-sine'>>,
   Assert<Has<'player-play-filled'>>,
   Assert<Has<'volume-2'>>,

@@ -34,6 +34,29 @@ export function sizedImageUrl(url: string | null | undefined, displayWidth: numb
   return `${url}?w=${Math.max(1, Math.round(displayWidth * artworkRatio()))}`;
 }
 
+/** Schemes an <img> may load. `data:` is narrowed to images: a bare `data:`
+ * allow-list would also admit `data:text/html`, which is a navigation payload
+ * rather than artwork. */
+const IMAGE_SCHEME = /^(?:https?:|blob:|data:image\/)/i;
+
+/**
+ * An artwork URL that is safe to hand to an `<img src>`, or null.
+ *
+ * Poster and backdrop URLs arrive from whichever server the client is signed
+ * into, so they are third-party input on every surface. A scheme-relative or
+ * relative path is ours and passes; anything with a scheme must be one that only
+ * ever paints (`javascript:` is the one that does not, and it is a DOM-sink
+ * finding on every <img> the taint reaches).
+ */
+export function safeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  // No scheme at all: a path on the current origin, which is where our own
+  // /api/images/ URLs land. `//host/x` is scheme-relative and inherits https.
+  if (trimmed.startsWith('/') || !/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return IMAGE_SCHEME.test(trimmed) ? trimmed : null;
+}
+
 /** The ONE hash behind every generated colour: a rolling 31x hash, unsigned.
  * Exposed raw for the pickers that need a modulus other than 360 (avatar
  * gradients, placeholder tilts), so every derived colour keys off the same

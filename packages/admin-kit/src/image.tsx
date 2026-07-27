@@ -1,3 +1,4 @@
+import { safeImageUrl } from '@kroma/core';
 import {
   type CSSProperties,
   type ImgHTMLAttributes,
@@ -168,7 +169,7 @@ function containerStyle(
  * The image fills it with `object-fit: cover` by default.
  */
 export function Image({
-  src = null,
+  src: requested = null,
   alt = '',
   duration = 400,
   fit = 'cover',
@@ -191,6 +192,10 @@ export function Image({
   onLoad,
   onError,
 }: Readonly<ImageProps>) {
+  // Checked HERE, once, rather than at the <img> below: artwork URLs come from
+  // the server the console is pointed at, and `under` is just an earlier `src`,
+  // so sanitising ahead of the cross-fade covers both layers.
+  const src = safeImageUrl(requested);
   const { loaded, errored, under, imgRef, markLoaded, markErrored } = useCrossFade(src, duration);
 
   const handleLoad = (e: SyntheticEvent<HTMLImageElement>) => {

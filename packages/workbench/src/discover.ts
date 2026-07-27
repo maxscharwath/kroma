@@ -103,11 +103,22 @@ interface Context {
 const STORY = '.stories.tsx';
 const DEMO = '.demo.tsx';
 
+/** Compares by UTF-16 code unit, which is what a bare `.sort()` does - stated
+ *  explicitly because the ordering has to be a property of the code rather than
+ *  of the machine. Deliberately NOT `localeCompare`: that orders by the host's
+ *  locale, so the same story tree would come out in a different order on a
+ *  developer's laptop than in CI, which is the exact instability the sort exists
+ *  to remove. These are ASCII file paths, not prose to be shown to anyone. */
+function byPath(a: string, b: string): number {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 /** Sorted, always: the bundler's enumeration order must not leak into the sidebar,
  *  and the atomic level of each story is read from its PATH (`tierFor`), so the
  *  paths and the stories have to stay lined up. */
 function pathsEnding(paths: readonly string[], suffix: string): string[] {
-  return paths.filter((path) => path.endsWith(suffix)).sort();
+  return paths.filter((path) => path.endsWith(suffix)).sort(byPath);
 }
 
 /** The last, shared step: level the stories by folder, order them, attach the

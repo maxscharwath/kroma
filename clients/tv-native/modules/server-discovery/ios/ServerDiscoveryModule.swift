@@ -40,18 +40,18 @@ private final class ServiceBrowse {
   private var answered = false
   /// The retain cycle is the point: nothing else holds this object, and it must
   /// outlive the call that made it. Broken in `finish`.
-  private var self_: ServiceBrowse?
+  private var retainedSelf: ServiceBrowse?
 
   func run(timeout: TimeInterval, promise: Promise) {
-    self_ = self
+    retainedSelf = self
     let descriptor = NWBrowser.Descriptor.bonjour(type: "_kroma._tcp", domain: nil)
     let browser = NWBrowser(for: descriptor, using: .tcp)
     self.browser = browser
 
     browser.browseResultsChangedHandler = { [weak self] results, _ in
       for result in results {
-        guard case let .service(name, type, domain, _) = result.endpoint else { continue }
-        self?.resolve(endpoint: result.endpoint, name: name, type: type, domain: domain)
+        guard case let .service(name, _, _, _) = result.endpoint else { continue }
+        self?.resolve(endpoint: result.endpoint, name: name)
       }
     }
     browser.stateUpdateHandler = { [weak self] state in
@@ -66,7 +66,7 @@ private final class ServiceBrowse {
   /// A Bonjour endpoint is a NAME, not an address. Opening a connection is what
   /// makes the system do the resolution, and `currentPath.remoteEndpoint` is
   /// where the answer lands.
-  private func resolve(endpoint: NWEndpoint, name: String, type: String, domain: String) {
+  private func resolve(endpoint: NWEndpoint, name: String) {
     let connection = NWConnection(to: endpoint, using: .tcp)
     connections.append(connection)
     connection.stateUpdateHandler = { [weak self] state in
@@ -112,6 +112,6 @@ private final class ServiceBrowse {
     for connection in connections { connection.cancel() }
     connections.removeAll()
     promise.resolve(found)
-    self_ = nil
+    retainedSelf = nil
   }
 }

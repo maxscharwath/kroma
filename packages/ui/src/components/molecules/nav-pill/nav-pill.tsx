@@ -200,7 +200,9 @@ function NavPill({
   // host hears nothing until the finger lifts on it.
   const targets = useRef(new Map<string, SlideTarget>()).current;
   const enrol = useCallback(
-    (id: string, target: SlideTarget) => void targets.set(id, target),
+    (id: string, target: SlideTarget) => {
+      targets.set(id, target);
+    },
     [targets],
   );
   const withdraw = useCallback((id: string) => void targets.delete(id), [targets]);

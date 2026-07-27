@@ -1,7 +1,7 @@
 import { story } from '@kroma/workbench/story';
 import type { ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
-import { fakeController, TV_STATS } from '../player.fixture';
+import { fakeController, liveMeters, TV_STATS } from '../player.fixture';
 import type { PlayerStats } from '../types';
 import { StatsPanel } from './StatsPanel';
 
@@ -147,31 +147,7 @@ function starvingStats(): () => PlayerStats {
         { group: 'Client', label: 'State', value: 'HAVE_FUTURE · NET_LOADING' },
         { group: 'Client', label: 'Connection', value: '3.1 Mb/s · 4g' },
       ],
-      meters: [
-        {
-          key: 'bandwidth',
-          label: 'Bandwidth',
-          value: bandwidth,
-          display: `${(bandwidth / 1000).toFixed(2)} Mb/s`,
-          chart: 'throughput',
-          chartLabel: 'Throughput',
-          band: true,
-        },
-        {
-          key: 'bitrate',
-          label: 'Stream bitrate',
-          value: bitrate,
-          display: `${(bitrate / 1000).toFixed(2)} Mb/s`,
-          chart: 'throughput',
-        },
-        {
-          key: 'buffer',
-          label: 'Buffer',
-          value: buffer,
-          display: `${buffer.toFixed(1)} s ahead`,
-          reference: { value: 10, label: '10 s ahead' },
-        },
-      ],
+      meters: liveMeters({ bandwidth, bitrate, buffer }),
     };
   };
 }

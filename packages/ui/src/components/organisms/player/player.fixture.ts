@@ -98,37 +98,52 @@ function fullStats(tick: number): PlayerStats {
       { group: 'Client', label: 'Volume', value: '100%' },
       { group: 'Client', label: 'Speed', value: '1.00×' },
     ],
-    // Shaped exactly as the web builder emits them (see web-stats.ts): the two
-    // kb/s series share one axis with bandwidth owning the band between them, and
-    // buffer gets its own chart plus the low-water line. No colours - the panel
-    // assigns those from the validated series palette, and a fixture that pinned
-    // its own would stop the workbench showing what ships.
-    meters: [
-      {
-        key: 'bandwidth',
-        label: 'Bandwidth',
-        value: bandwidth,
-        display: `${(bandwidth / 1000).toFixed(2)} Mb/s`,
-        chart: 'throughput',
-        chartLabel: 'Throughput',
-        band: true,
-      },
-      {
-        key: 'bitrate',
-        label: 'Stream bitrate',
-        value: bitrate,
-        display: `${(bitrate / 1000).toFixed(2)} Mb/s`,
-        chart: 'throughput',
-      },
-      {
-        key: 'buffer',
-        label: 'Buffer',
-        value: buffer,
-        display: `${buffer.toFixed(1)} s ahead`,
-        reference: { value: 10, label: '10 s ahead' },
-      },
-    ],
+    meters: liveMeters({ bandwidth, bitrate, buffer }),
   };
+}
+
+/**
+ * The three live series, shaped exactly as the web builder emits them (see
+ * web-stats.ts): the two kb/s series share one axis with bandwidth owning the
+ * band between them, and buffer gets its own chart plus the low-water line.
+ *
+ * No colours - the panel assigns those from the validated series palette, and a
+ * fixture that pinned its own would stop the workbench showing what ships.
+ *
+ * Shared with StatsPanel.stories, which had grown a byte-identical copy: two
+ * fixtures drifting apart is two different answers to "what does the panel
+ * actually look like", which is the one question a workbench exists to answer.
+ */
+function liveMeters(at: {
+  bandwidth: number;
+  bitrate: number;
+  buffer: number;
+}): NonNullable<PlayerStats['meters']> {
+  return [
+    {
+      key: 'bandwidth',
+      label: 'Bandwidth',
+      value: at.bandwidth,
+      display: `${(at.bandwidth / 1000).toFixed(2)} Mb/s`,
+      chart: 'throughput',
+      chartLabel: 'Throughput',
+      band: true,
+    },
+    {
+      key: 'bitrate',
+      label: 'Stream bitrate',
+      value: at.bitrate,
+      display: `${(at.bitrate / 1000).toFixed(2)} Mb/s`,
+      chart: 'throughput',
+    },
+    {
+      key: 'buffer',
+      label: 'Buffer',
+      value: at.buffer,
+      display: `${at.buffer.toFixed(1)} s ahead`,
+      reference: { value: 10, label: '10 s ahead' },
+    },
+  ];
 }
 
 /** `H:MM:SS`, for the fixture's position row. */
@@ -264,6 +279,7 @@ export {
   fakeController,
   fakeTileAt,
   fullStats,
+  liveMeters,
   livePlayerStats,
   QUALITIES,
   SUBTITLES,

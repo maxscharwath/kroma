@@ -32,11 +32,11 @@
     "expo-font": "~57.0.1",
     "expo-keep-awake": "~57.0.1",
     "expo-system-ui": "~57.0.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "react-native": "npm:react-native-tvos@0.86.0-2",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-svg": "15.15.4",
+    "react-native-svg": "15.15.5",
     "react-native-web": "^0.21.2"
   },
   "devDependencies": {

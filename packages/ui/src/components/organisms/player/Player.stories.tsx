@@ -76,12 +76,19 @@ export default story({
     do: [
       'Pass the platform `flags` (`WEB_FLAGS` / `TV_FLAGS`) rather than branching inside a screen.',
       'Hand it a controller: the chrome must never reach for the video element itself.',
+      'Give it the whole stage: it measures itself and sizes its chrome to what it gets.',
     ],
-    dont: ["Don't render two - it owns the remote, the key handling and the fullscreen element."],
+    dont: [
+      "Don't render two - it owns the remote, the key handling and the fullscreen element.",
+      "Don't wrap it in a fixed-width box: the chrome would size itself for a stage it isn't on.",
+    ],
   },
   matrix: false,
-  // Authored against the 1920x1080 stage, like every 10-foot screen: the story
-  // opens in the scaled TV frame rather than being cropped by a narrow canvas.
+  // Authored against the 1920x1080 stage, like every 10-foot screen, so the
+  // story OPENS in the scaled TV frame. It does not stay there: the chrome
+  // measures the stage it is drawn on, so the phone and tablet frames show the
+  // shrunken row, the stacked cluster and the full-width settings panel a
+  // browser window actually gets.
   viewport: 'tv',
   pad: 0,
   args: { playing: false as boolean, warn: '', tv: false as boolean },

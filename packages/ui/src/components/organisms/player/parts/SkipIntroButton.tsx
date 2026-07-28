@@ -2,6 +2,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { colors } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
+import { GUTTER, scaler } from '../lib/metrics';
 
 /**
  * Skip-intro pill (§13): a bottom-right "Passer l'intro" button shown only
@@ -15,14 +16,28 @@ import { useT } from '#ui/services/i18n';
 export interface SkipIntroButtonProps {
   visible: boolean;
   focused: boolean;
+  /** The chrome's scale (see ../lib/metrics). 1 on a television stage. */
+  scale?: number;
   onSkip: () => void;
 }
 
-export function SkipIntroButton({ visible, focused, onSkip }: Readonly<SkipIntroButtonProps>) {
+/** How high the pill sits: clear of the control bar it must never overlap. */
+const LIFT = 214;
+
+export function SkipIntroButton({
+  visible,
+  focused,
+  scale = 1,
+  onSkip,
+}: Readonly<SkipIntroButtonProps>) {
   const t = useT();
+  const px = scaler(scale);
   if (!visible) return null;
+  // Scaled with the rest of the chrome, and off the SAME gutter: unscaled, this
+  // sat on a 34px margin while the row beneath it had shrunk to 27, so the two
+  // right edges visibly disagreed in any window narrower than the design.
   return (
-    <Box absolute bottom={214} right={34} z={30}>
+    <Box absolute bottom={px(LIFT)} right={px(GUTTER)} z={30}>
       <Button
         variant={focused ? 'primary' : 'scrim'}
         focused={focused}

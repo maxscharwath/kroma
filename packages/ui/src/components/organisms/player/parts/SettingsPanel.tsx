@@ -3,11 +3,13 @@ import { langName } from '@kroma/core';
 import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, ScrollView } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { IconButton } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
 import { BackButton } from '#ui/components/molecules/back-button';
 import { useT } from '#ui/services/i18n';
 import { useListFocus } from '../hooks/useListFocus';
 import { audioFilterLabels } from '../lib/audio-filter';
+import { PANEL_MAX, scaler } from '../lib/metrics';
 import type { PanelHandle } from '../lib/nav';
 import { PANEL } from '../lib/style';
 import type { SubtitleAppearance } from '../lib/subtitle-appearance';
@@ -57,6 +59,14 @@ interface SettingsPanelProps {
    * problème" row only when the host provides this, so a surface with its own
    * reporting flow (or none) is unaffected. */
   onReport?: (category: ReportCategory) => Promise<void>;
+  /** The panel's width in px, from `panelGeometry` - the whole stage once a
+   *  44% panel would be too narrow to read. */
+  width?: number;
+  /** The panel covers the stage, so there is no scrim left to tap: the menu
+   *  grows its own close X (a finger has no Back key). */
+  covers?: boolean;
+  /** The chrome's scale (see ../lib/metrics). 1 on a television stage. */
+  scale?: number;
   /** Open straight into a sub-view (the Audio / Subtitles cluster quick-access). */
   initialView?: View;
   onClose: () => void;
@@ -200,12 +210,16 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     onToggleStats,
     subtitleGen,
     onReport,
+    width,
+    covers,
+    scale = 1,
     initialView,
     onClose,
   },
   ref,
 ) {
   const t = useT();
+  const px = scaler(scale);
   const [view, setView] = useState<View>(initialView ?? 'menu');
   const subRef = useRef<PanelHandle>(null);
   const backToMenu = () => setView('menu');
@@ -254,38 +268,64 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     <>
       {/* Press-to-close scrim; Back on the D-pad closes the panel and this
           mirrors it for a pointer (§15). */}
+      {/* The scrim is exactly what the panel leaves behind: `right` rather than
+          a 56% that only agreed with the panel at its design width. */}
       <Pressable
         {...VIRTUAL_FOCUS}
         accessibilityRole="button"
         accessibilityLabel={t('common.close')}
         onPress={onClose}
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: '56%', zIndex: 41 }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: width ?? '44%',
+          zIndex: 41,
+        }}
       />
       <ScrollView
-        style={[PANEL, { width: '44%', maxWidth: 720 }]}
-        contentContainerStyle={{ paddingHorizontal: 58, paddingVertical: 56 }}
+        style={[PANEL, { width: width ?? '44%', maxWidth: PANEL_MAX }]}
+        contentContainerStyle={{ paddingHorizontal: px(58), paddingVertical: px(56) }}
         showsVerticalScrollIndicator={false}
       >
-        <Box row align="center" gap={18} mb={30}>
+        <Box row align="center" gap={px(18)} mb={px(30)}>
           {view !== 'menu' ? (
             // Pointer-only (the remote leaves a sub-view with Back), controlled
             // at `false`: never a platform / navigator focus target - see
             // ../lib/virtual-focus.ts.
             <BackButton
               variant="glass"
-              size={46}
+              size={px(46)}
               focused={false}
               onPress={backToMenu}
               label={t('player.back')}
             />
           ) : null}
-          <Txt variant="h1" style={{ fontSize: 38 }}>
+          <Txt lines={1} variant="h1" style={{ fontSize: px(38), flexShrink: 1 }}>
             {title}
           </Txt>
+          {/* Covering the stage leaves no scrim to tap, and a phone has no Back
+              key - so the way out has to be on the panel. Pointer-only,
+              controlled at `false`: never a platform / navigator focus target
+              (the remote still leaves with Back). */}
+          {covers ? (
+            <IconButton
+              variant="ghost"
+              size={px(44)}
+              icon="x"
+              glyph={px(20)}
+              focused={false}
+              hitSlop={6}
+              style={CLOSE}
+              onPress={onClose}
+              label={t('common.close')}
+            />
+          ) : null}
         </Box>
 
         {view === 'menu' ? (
-          <Box gap={12}>
+          <Box gap={px(12)}>
             {entries.map((e, i) => (
               <MenuRow
                 key={e.id}
@@ -371,3 +411,6 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     </>
   );
 });
+
+/** The close X sits at the far end of the header, whatever the title's length. */
+const CLOSE = { marginLeft: 'auto' as const };

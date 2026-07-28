@@ -164,38 +164,44 @@ pub trait HostCtx: Send + Sync + 'static {
     /// Publish an event addressed to ONE user, for content that is personal
     /// (notifications: "your request was denied" names its recipient).
     ///
-    /// The default DROPS the event rather than falling back to [`Self::publish`]:
-    /// a host that cannot address its bus must not quietly broadcast personal
-    /// content to every connected client. The real app state overrides it.
-    fn publish_to(&self, user_id: &str, event: Event) {
-        let _ = (user_id, event);
-    }
+    /// Required, deliberately. This started out defaulted-to-drop, which meant a
+    /// host that forgot it still compiled and then silently swallowed every
+    /// addressed event including the `Arc` blanket impl below, and the
+    /// out-of-process `RemoteHost`. Keeping every method required is what makes
+    /// a missing forward a compile error instead of a silent hole.
+    fn publish_to(&self, user_id: &str, event: Event);
 
     /// Raise a durable notification: it lands in the recipients' notification
     /// centre and (once they've subscribed a device) is pushed to them.
     ///
     /// This is the module-facing half of the notifications domain. A module says
     /// WHAT happened and WHO cares the core resolves the audience, honours each
-    /// recipient's per-category preferences, and renders the i18n keys in their
-    /// language. A module never enumerates accounts or formats text itself.
+    /// recipient's per-category preferences, and delivers it.
     ///
-    /// Returns how many accounts were notified. The default is a no-op for hosts
-    /// without a notification store (mocks, bare test harnesses).
+    /// A module supplies its own WORDS. The core's catalogs hold the core's
+    /// events; "the VPN dropped" is the VPN module's concern, and a core that
+    /// spelled it would be shipping strings for a feature it does not have.
+    /// `NotificationSpec::custom` carries a module's own text through the same
+    /// pipeline - stored, rendered, pushed - and names the preference bucket it
+    /// answers to.
+    ///
+    /// Returns how many accounts were notified. Required for the same reason as
+    /// [`Self::publish_to`]: a silently-defaulted no-op is indistinguishable
+    /// from a working notifier until someone wonders why nothing arrives.
     ///
     /// ```ignore
     /// ctx.notify(
     ///     &Audience::permission(Permission::SettingsManage),
-    ///     &NotificationSpec::new(
-    ///         NotificationEvent::SystemVpnDown,
-    ///         "notifications.system.vpn.down.title",
-    ///         "notifications.system.vpn.down.body",
-    ///     ),
+    ///     &NotificationSpec::custom(
+    ///         NotificationCategory::System,
+    ///         // Translated by the module, in the module's own catalog.
+    ///         t("notifications.vpn.down.title"),
+    ///         t("notifications.vpn.down.body"),
+    ///     )
+    ///     .link("/admin/network"),
     /// );
     /// ```
-    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
-        let _ = (audience, spec);
-        0
-    }
+    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize;
     /// Trigger a background job by its key (e.g. `"acquisition.import"`), running
     /// against the app state. No-op if the key is unknown or already running.
     fn trigger_job(&self, key: &'static str, reason: &'static str);
@@ -344,10 +350,6 @@ impl<T: HostCtx + ?Sized> HostCtx for std::sync::Arc<T> {
     fn publish(&self, event: Event) {
         (**self).publish(event)
     }
-    // MUST be forwarded like everything else: both have a deliberately inert
-    // default (drop / no-op), so omitting them here would not fail to compile,
-    // it would silently swallow every addressed event and every notification the
-    // moment a call goes through `Arc<AppState>` (which is how the app calls it).
     fn publish_to(&self, user_id: &str, event: Event) {
         (**self).publish_to(user_id, event)
     }
@@ -485,6 +487,10 @@ mod tests {
         }
         fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
         fn publish(&self, _event: Event) {}
+        fn publish_to(&self, _user_id: &str, _event: Event) {}
+        fn notify(&self, _audience: &Audience, _spec: &NotificationSpec) -> usize {
+            0
+        }
         fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
         fn module_enabled(&self, _id: &str) -> bool {
             true
@@ -501,87 +507,6 @@ mod tests {
         fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
             self.svc.as_ref().filter(|(t, _)| *t == type_id).map(|(_, v)| v.clone())
         }
-    }
-
-    /// A host that records the two seam methods with an inert default, so the
-    /// `Arc` blanket impl can be checked for actually forwarding them.
-    #[derive(Default)]
-    struct RecordingHost {
-        addressed: std::sync::Mutex<Vec<String>>,
-        notified: std::sync::Mutex<Vec<String>>,
-    }
-    impl HostCtx for RecordingHost {
-        fn db(&self) -> &Pool {
-            unimplemented!()
-        }
-        fn data_dir(&self) -> &Path {
-            Path::new("/tmp")
-        }
-        fn require(&self, _user: &User, _perm: Permission) -> Result<(), Response> {
-            Ok(())
-        }
-        fn require_any_admin(&self, _user: &User) -> Result<(), Response> {
-            Ok(())
-        }
-        fn lerr(&self, _user: &User, _status: StatusCode, _key: &str) -> Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: Event) {}
-        fn publish_to(&self, user_id: &str, _event: Event) {
-            self.addressed.lock().unwrap().push(user_id.to_string());
-        }
-        fn notify(&self, _audience: &Audience, spec: &NotificationSpec) -> usize {
-            self.notified.lock().unwrap().push(spec.event.as_str().to_string());
-            1
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(&self, _type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
-            None
-        }
-    }
-
-    /// Regression guard. `publish_to` and `notify` have inert defaults (drop /
-    /// no-op), so leaving them out of the `Arc` blanket impl COMPILES FINE and
-    /// then silently swallows every notification the app raises — the app calls
-    /// through `Arc<AppState>`, never `AppState` directly. This asserts the
-    /// forwarding is real; any future defaulted method needs the same treatment.
-    #[test]
-    fn the_arc_blanket_impl_forwards_the_defaulted_methods() {
-        let host = Arc::new(RecordingHost::default());
-        let via_arc: &dyn HostCtx = &host;
-
-        via_arc.publish_to("ana", Event::new("notification.created", serde_json::json!({})));
-        let spec = NotificationSpec::new(
-            NotificationEvent::RequestApproved,
-            "notifications.request.approved.title",
-            "notifications.request.approved.body",
-        );
-        assert_eq!(via_arc.notify(&Audience::user("ana"), &spec), 1);
-
-        assert_eq!(host.addressed.lock().unwrap().as_slice(), ["ana"]);
-        assert_eq!(host.notified.lock().unwrap().as_slice(), ["request.approved"]);
     }
 
     #[test]

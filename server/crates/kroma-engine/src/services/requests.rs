@@ -1056,6 +1056,12 @@ mod tests {
         fn publish(&self, _e: Event) {
             self.published.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
+        fn publish_to(&self, _user: &str, _e: Event) {}
+        fn notify(&self, _a: &kroma_domain::Audience, _s: &kroma_domain::NotificationSpec) -> usize {
+            // These tests drive the availability matcher; the notifications it
+            // raises are covered in `services::notify`.
+            0
+        }
         fn trigger_job(&self, _k: &'static str, _r: &'static str) {}
         fn module_enabled(&self, _id: &str) -> bool {
             false

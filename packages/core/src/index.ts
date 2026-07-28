@@ -17,5 +17,6 @@ export * from './permissions';
 export * from './person-facts';
 export * from './platform';
 export * from './player';
+export * from './push-labels';
 export * from './remote';
 export * from './subtitles';

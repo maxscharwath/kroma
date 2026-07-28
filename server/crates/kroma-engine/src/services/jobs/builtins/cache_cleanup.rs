@@ -37,6 +37,13 @@ pub(super) fn run(ctx: &JobContext) -> Result<()> {
 /// Trim the poster/backdrop image cache to the configured `cacheLimit`, deleting
 /// oldest files first. "Illimité"/"Unlimited" (or any non-numeric value) disables
 /// trimming. A deleted poster is re-downloaded on the next enrichment.
+/// The file name a stored image URL points at, ignoring any `?w=` rendition
+/// suffix - the renditions are derived and may be trimmed freely.
+fn basename(url: &str) -> Option<String> {
+    let path = url.split('?').next()?;
+    path.rsplit('/').next().map(str::to_owned)
+}
+
 fn enforce_image_limit(ctx: &JobContext, images: &Path) {
     let label = ctx.state.settings.get_str("cacheLimit", "80 Go");
     let Some(limit) = parse_limit_bytes(&label) else {
@@ -49,14 +56,23 @@ fn enforce_image_limit(ctx: &JobContext, images: &Path) {
         return;
     }
 
-    // Uploaded avatars live in this same dir (image::store_upload) but are NOT
-    // regenerable art, so never trim a file an account still references it would
-    // 404 the avatar with no way to refetch.
-    let protected: HashSet<String> = crate::db::avatar_urls(&ctx.state.db)
+    // Uploaded images live in this same dir (image::store_upload) but are NOT
+    // regenerable art, so never trim a file something still references it would
+    // 404 with no way to refetch. Two sources: account avatars, and the images
+    // attached to notifications still sitting in someone's centre.
+    let mut protected: HashSet<String> = crate::db::avatar_urls(&ctx.state.db)
         .unwrap_or_default()
         .iter()
-        .filter_map(|u| u.rsplit('/').next().map(str::to_owned))
+        .filter_map(|u| basename(u))
         .collect();
+    if let Ok(conn) = ctx.state.db.get() {
+        protected.extend(
+            crate::db::notifications::referenced_images(&conn)
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|u| basename(u)),
+        );
+    }
 
     // Oldest-first by mtime: least-recently fetched art is evicted first.
     let mut files: Vec<(std::path::PathBuf, u64, std::time::SystemTime)> =

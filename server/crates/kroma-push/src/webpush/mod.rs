@@ -1,20 +1,14 @@
-//! Web Push from a self-hosted server: RFC 8291 message encryption + RFC 8292
-//! VAPID request signing.
+//! Web Push (RFC 8291 encryption + RFC 8292 VAPID request signing).
 //!
-//! This is the one push transport KROMA can offer with **no third party and no
-//! account**. The server mints its own VAPID keypair, the browser subscribes
+//! The one push transport KROMA can offer with **no third party and no
+//! account**: the server mints its own VAPID keypair, the browser subscribes
 //! with the public half, and messages go straight to whatever push service that
-//! browser uses (Mozilla's, Google's, Apple's). Nothing is registered anywhere,
-//! and no secret is shared with anyone.
-//!
-//! The crate does no I/O on purpose. [`build_request`] returns the URL, headers
-//! and body; the caller sends it with `kroma-http` (curl). That keeps every
-//! cryptographic claim here testable against the RFCs' published vectors without
-//! a network, and keeps this crate out of the async runtime.
+//! browser uses. Nothing is registered anywhere, no secret is shared.
 
-mod b64;
 mod encrypt;
 mod vapid;
+
+use crate::{b64, PushRequest, Urgency};
 
 use anyhow::{Context, Result};
 
@@ -38,37 +32,6 @@ pub struct Subscription {
     pub auth: String,
 }
 
-/// A ready-to-send push, produced by [`build_request`].
-#[derive(Debug, Clone)]
-pub struct PushRequest {
-    pub url: String,
-    /// Header name/value pairs, in the order they should be sent.
-    pub headers: Vec<(String, String)>,
-    /// The encrypted body (`aes128gcm`).
-    pub body: Vec<u8>,
-}
-
-/// How urgently the push service should wake the device.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Urgency {
-    /// Can wait for the device to be awake anyway (a media digest).
-    Low,
-    /// The default for user-visible notifications.
-    Normal,
-    /// Wake the device now (a request the user is waiting on).
-    High,
-}
-
-impl Urgency {
-    fn as_str(self) -> &'static str {
-        match self {
-            Urgency::Low => "low",
-            Urgency::Normal => "normal",
-            Urgency::High => "high",
-        }
-    }
-}
-
 /// Encrypt `payload` for `subscription` and sign the request with `key`.
 ///
 /// `subject` is the sender contact required by RFC 8292 (a `mailto:` or
@@ -89,6 +52,7 @@ pub fn build_request(
 
     Ok(PushRequest {
         url: subscription.endpoint.clone(),
+        http2: false,
         headers: vec![
             ("Authorization".into(), authorization),
             // The body is a single aes128gcm record; the header block inside it

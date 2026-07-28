@@ -93,6 +93,14 @@ mod tests {
         }
         fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
         fn publish(&self, _event: kroma_module_host::Event) {}
+        fn publish_to(&self, _user_id: &str, _event: kroma_module_host::Event) {}
+        fn notify(
+            &self,
+            _audience: &kroma_module_host::Audience,
+            _spec: &kroma_module_host::NotificationSpec,
+        ) -> usize {
+            0
+        }
         fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
         fn module_enabled(&self, _id: &str) -> bool {
             true

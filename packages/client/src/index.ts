@@ -5,5 +5,6 @@
 // the few hand-authored wire types the schemas don't express.
 export * from './api';
 export * from './events';
+export * from './push';
 export * from './session';
 export * from './types';

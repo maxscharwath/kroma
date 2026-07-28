@@ -13,7 +13,7 @@ import { IconBell, IconCheck, IconX } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
-import { usePanelState, useUnreadCount } from '#web/features/notifications/use-notifications';
+import { useUnreadCount } from '#web/features/notifications/use-notifications';
 import { kromaClient } from '#web/shared/lib/api';
 import { userQueries } from '#web/shared/lib/queries';
 
@@ -21,7 +21,7 @@ import { userQueries } from '#web/shared/lib/queries';
 export function NotificationBell({ className }: Readonly<{ className?: string }>) {
   const t = useT();
   const unread = useUnreadCount();
-  const { open, setOpen, everOpened } = usePanelState();
+  const [open, setOpen] = useState(false);
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -52,7 +52,7 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-border bg-surface-1 outline-none data-[state=open]:animate-[fade-in_.2s_var(--ease-out)] sm:w-[min(26rem,90vw)] sm:border-l"
         >
           <PanelHeader onClose={() => setOpen(false)} />
-          {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
+          <PanelBody onNavigate={() => setOpen(false)} />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

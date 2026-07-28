@@ -60,6 +60,7 @@ import type {
   JobDetail,
   JobLog,
   JobsView,
+  Notification as KromaNotification,
   Library,
   LlmAdminConfig,
   LogsView,
@@ -918,6 +919,21 @@ export class KromaClient {
   }
 
   // ----- admin: background jobs / scheduler -----------------------------------
+
+  /** Every notification kind this server can send, rendered for the console. */
+  notificationSamples(): Promise<{ events: KromaNotification[] }> {
+    return admin.notificationSamples(this.ctx);
+  }
+
+  /** Send one real notification: a sampled core event, or one written by hand. */
+  sendNotification(body: admin.SendNotificationBody): Promise<{ delivered: number }> {
+    return admin.sendNotification(this.ctx, body);
+  }
+
+  /** Store an image for a notification, returning its cached path. */
+  uploadNotificationImage(file: Blob): Promise<{ imageUrl: string }> {
+    return admin.uploadNotificationImage(this.ctx, file);
+  }
 
   adminJobs(): Promise<JobsView> {
     return admin.adminJobs(this.ctx);

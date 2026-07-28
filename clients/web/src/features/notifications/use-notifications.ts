@@ -8,7 +8,7 @@
 
 import { KromaEvents, type NotificationsView } from '@kroma/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { apiBase } from '#web/shared/lib/api';
 import { userQueries } from '#web/shared/lib/queries';
 
@@ -21,11 +21,17 @@ export function useNotificationStream(): void {
         if (e.type !== 'notification.created' && e.type !== 'notification.read') return;
         // Patch the badge straight from the event's own count first, so it is
         // right even when the panel is closed and the list is never refetched.
+        // The event carries the authoritative count, so the badge updates from
+        // it directly. The list itself is marked stale rather than refetched:
+        // an open panel refetches on mount, a closed one costs nothing.
         queryClient.setQueryData(
           userQueries.notifications().queryKey,
           (prev: NotificationsView | undefined) => (prev ? { ...prev, unread: e.unread } : prev),
         );
-        void queryClient.invalidateQueries({ queryKey: userQueries.notifications().queryKey });
+        void queryClient.invalidateQueries({
+          queryKey: userQueries.notifications().queryKey,
+          refetchType: 'active',
+        });
       },
     });
     ev.connect();
@@ -37,23 +43,4 @@ export function useNotificationStream(): void {
 export function useUnreadCount(): number {
   const { data } = useQuery({ ...userQueries.notifications(), select: (v) => v.unread });
   return data ?? 0;
-}
-
-/** Panel open-state that remembers whether it has ever been opened, so the inbox
- * is not fetched on every page load merely to render a bell. */
-export function usePanelState(): {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  everOpened: boolean;
-} {
-  const [open, setOpenRaw] = useState(false);
-  const [everOpened, setEverOpened] = useState(false);
-  return {
-    open,
-    setOpen: (next: boolean) => {
-      if (next) setEverOpened(true);
-      setOpenRaw(next);
-    },
-    everOpened,
-  };
 }

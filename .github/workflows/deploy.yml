@@ -61,7 +61,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RUN_ID: ${{ inputs.build_run_id }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - id: check
         name: The run is green, complete, and on main
@@ -90,7 +90,7 @@ jobs:
       SHA: ${{ needs.verify.outputs.sha }}
       PRERELEASE: ${{ inputs.prerelease }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # full history for the release notes
 
@@ -144,7 +144,7 @@ jobs:
       APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
       VERSION: ${{ needs.verify.outputs.version }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The SAME artifacts the Release carries, from the same run - so what
       # testers install is what was gated and approved, not a rebuild.

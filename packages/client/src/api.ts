@@ -105,8 +105,8 @@ import type {
   SettingsView,
   Show,
   ShowDetail,
-  SubscribeBody,
   StorageInfo,
+  SubscribeBody,
   SyncDefinitionsResult,
   TopUser,
   TorrentAnalysis,
@@ -206,6 +206,12 @@ export class KromaClient {
   /** Whether a bearer token is currently set (does not validate it). */
   get hasAuth(): boolean {
     return Boolean(this.authToken);
+  }
+
+  /** The bearer this client authenticates with, for the one caller that cannot
+   * send a header: the event socket, which carries it as a subprotocol. */
+  get sessionToken(): string | undefined {
+    return this.authToken;
   }
 
   /** Headers a RAW request must carry to authenticate as this session: for

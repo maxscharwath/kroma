@@ -3,13 +3,7 @@
 // (scan finished, metadata/art resolved). Auto-reconnects with backoff.
 
 import { sessionToken } from './session';
-import type {
-  CastClientMessage,
-  CastCommand,
-  CastReceiver,
-  CastState,
-  StageStat,
-} from './types';
+import type { CastClientMessage, CastCommand, CastReceiver, CastState, StageStat } from './types';
 
 export type ServerEvent =
   | { type: 'hello'; version: string }
@@ -71,6 +65,19 @@ export type ServerEvent =
   | { type: 'vpn.status'; connected: boolean; exitIp: string | null; paused: boolean };
 
 export interface KromaEventsOptions {
+  /**
+   * Where to read the session bearer from, when the shared in-memory one is not
+   * the right source.
+   *
+   * A browser cannot set a header on a WebSocket handshake, so the bearer rides
+   * as a subprotocol - and by default that is read from the shared session
+   * module, which the web and phone shells own. The TV keeps its bearer on its
+   * client instead (it is multi-server: one client per KROMA it remembers), so
+   * it passes that client's own token here. A socket authenticating with a
+   * different credential than the client it belongs to is how a TV ends up
+   * signed in over HTTP and refused on the socket.
+   */
+  token?: () => string | undefined;
   onEvent?: (event: ServerEvent) => void;
   onOpen?: () => void;
   onClose?: () => void;
@@ -129,7 +136,7 @@ export class KromaEvents {
     // headers on a WS handshake, so the bearer rides as a subprotocol the server
     // validates and echoes back (see server ws.rs). Read it fresh on each
     // (re)connect so a refreshed token is picked up automatically.
-    const token = sessionToken();
+    const token = this.opts.token?.() ?? sessionToken();
     try {
       ws = token ? new WS(this.url, `kroma.session.${token}`) : new WS(this.url);
     } catch {

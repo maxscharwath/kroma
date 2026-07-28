@@ -33,6 +33,9 @@ import { receiverId } from '#tv/features/cast/receiverId';
 const DRIFT_MS = 20_000;
 /** Fallback heartbeat, used only while the socket is down. */
 const FALLBACK_BEAT_MS = 10_000;
+/** How long to wait for the boot token exchange before opening the socket anyway. */
+const AUTH_TICK_MS = 100;
+const AUTH_WAIT_TICKS = 50;
 
 export function CastReceiverProvider({ children }: Readonly<{ children: ReactNode }>) {
   const client = useClient();
@@ -96,6 +99,9 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
     // so another household's orders never reach this socket; the receiver id then
     // picks this device among that account's own.
     const events = new KromaEvents(client.baseUrl, {
+      // The TV holds its bearer on the client (multi-server: one per remembered
+      // KROMA), not in the shared single-session module the web and phone use.
+      token: () => deps.current.client.sessionToken,
       // Re-hello on every (re)connect: the server forgot this receiver the moment
       // the previous socket closed.
       onOpen: () => {
@@ -111,7 +117,18 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
         if (e.type === 'cast.command' && e.receiverId === id) void apply(e.seq, e.command);
       },
     });
-    events.connect();
+    // Wait for the bearer before opening anything. The stored user hydrates
+    // synchronously on launch but the session token is minted a moment later, and
+    // a socket opened in that gap is refused - which costs two failed handshakes
+    // and the exponential backoff they earn. That is the difference between this
+    // TV being castable as its home screen appears and several seconds after.
+    // Capped, so a server that never mints one still gets the retry loop.
+    const whenAuthed = async () => {
+      for (let i = 0; i < AUTH_WAIT_TICKS && !stopped; i++) {
+        if (deps.current.client.hasAuth) return;
+        await new Promise((r) => setTimeout(r, AUTH_TICK_MS));
+      }
+    };
 
     // Push on change (the player re-renders ~4 Hz; only material changes send),
     // plus a slow position keepalive so a remote's scrubber cannot drift.
@@ -119,7 +136,12 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
     drift = setInterval(() => {
       if (castReport(deps.current.t)) pushState();
     }, DRIFT_MS);
-    void beat();
+
+    void whenAuthed().then(() => {
+      if (stopped) return;
+      events.connect();
+      void beat();
+    });
 
     return () => {
       stopped = true;

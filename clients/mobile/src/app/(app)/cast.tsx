@@ -155,9 +155,26 @@ export default function CastRemoteScreen() {
                   onPress={() => void send({ type: 'skipNext' })}
                 />
               ) : null}
+              {/* Two ENDINGS, said plainly. "Stop casting" was doing both of
+                  these at once, which is why nobody could tell what it would do
+                  to the television. */}
+              <Wide
+                icon="device-mobile"
+                label={t('cast.continueHere')}
+                onPress={() => {
+                  // Hand the film back at the exact position the TV is at, and
+                  // leave the set idle rather than playing to an empty room.
+                  const at = Math.round(positionMs / 1000);
+                  void send({ type: 'stop' });
+                  select(null);
+                  if (item) router.replace(`/player/${item.id}?start=${at}` as never);
+                  else goBack(router);
+                }}
+              />
               <Wide
                 icon="player-stop-filled"
                 label={t('cast.stop')}
+                value={t('cast.stopHint', { device: active.name })}
                 onPress={() => {
                   void send({ type: 'stop' });
                   select(null);

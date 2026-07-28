@@ -16,6 +16,7 @@ function makeActions(over: Partial<PlayerNavActions> = {}): PlayerNavActions {
     toggleMute: vi.fn(),
     togglePip: vi.fn(),
     toggleFullscreen: vi.fn(),
+    onCast: vi.fn(),
     onExit: vi.fn(),
     ...over,
   };
@@ -185,6 +186,21 @@ describe('usePlayerNav activate() maps every control', () => {
     expect(actions.toggleFullscreen).toHaveBeenCalled();
     act(() => result.current.activate('audio'));
     expect(result.current.overlay).toBe('audio');
+  });
+
+  it('offers the cast control only while a set is live, and hands the film over', () => {
+    const actions = makeActions();
+    const { result } = nav({ ...WEB_FLAGS, cast: true }, false, actions);
+    // Beside the gear, ahead of the window controls (pip / fullscreen).
+    expect(result.current.controls.indexOf('cast')).toBe(
+      result.current.controls.indexOf('settings') + 1,
+    );
+    act(() => result.current.activate('cast'));
+    expect(actions.onCast).toHaveBeenCalled();
+
+    // No receiver on the network: no button, and no focus stop to walk into.
+    const { result: none } = nav(WEB_FLAGS, false);
+    expect(none.current.controls).not.toContain('cast');
   });
 });
 

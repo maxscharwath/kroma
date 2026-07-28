@@ -60,6 +60,9 @@ type ListRowSize = keyof typeof GLYPH;
 interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'label'> {
   /** Leading glyph. Omit it and the row starts at the label. */
   icon?: IconName;
+  /** Something other than a glyph in the leading slot - an <Avatar>, say, on a
+   *  row that is about a PERSON. Wins over `icon`. */
+  leading?: ReactNode;
   label: string;
   /** A second line under the label, for the rows that need explaining. */
   hint?: string;
@@ -72,6 +75,7 @@ interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'labe
 
 function ListRow({
   icon,
+  leading,
   label,
   hint,
   size = 'tv',
@@ -91,7 +95,7 @@ function ListRow({
       style={[s.root, style]}
       focusedStyle={FOCUSED}
     >
-      {icon ? <IconWell name={icon} size={size} /> : null}
+      {leading ?? (icon ? <IconWell name={icon} size={size} /> : null)}
       <Box flex gap={2}>
         <Txt style={s.label}>{label}</Txt>
         {hint ? (

@@ -50,8 +50,9 @@ export interface Cast {
   playOn: (receiverId: string, itemId: ItemId, positionMs?: number) => Promise<boolean>;
   /** Send an order to the active receiver. False when it failed / went away. */
   send: (command: CastCommand) => Promise<boolean>;
-  /** The last failure, as a message key, or null. Cleared on the next success. */
-  error: 'cast.gone' | 'cast.failed' | null;
+  /** The last failure, as a message key, or null. Cleared on the next success.
+   * `cast.kicked` is not a failure exactly - the TV chose to let this remote go. */
+  error: 'cast.gone' | 'cast.failed' | 'cast.kicked' | null;
 }
 
 const CastCtx = createContext<Cast | null>(null);
@@ -78,10 +79,18 @@ export interface CastProviderProps {
   client: KromaClient | null;
   /** Gates everything on being signed in - the roster needs a session. */
   enabled: boolean;
+  /** What this device calls itself on the TV's list of remotes ("iPhone",
+   * "Chrome"). Shown across the room, so it should be a thing, not a session id. */
+  deviceName: string;
   children: ReactNode;
 }
 
-export function CastProvider({ client, enabled, children }: Readonly<CastProviderProps>) {
+export function CastProvider({
+  client,
+  enabled,
+  deviceName,
+  children,
+}: Readonly<CastProviderProps>) {
   const [receivers, setReceivers] = useState<CastReceiver[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<Cast['error']>(null);
@@ -91,6 +100,10 @@ export function CastProvider({ client, enabled, children }: Readonly<CastProvide
   // Bumped on a timer while a TV plays, purely to re-render the interpolated
   // position (which is computed from the clock, not from state).
   const [, setTick] = useState(0);
+  // The live socket, kept so selecting a TV can announce this remote on it.
+  const socket = useRef<KromaEvents | null>(null);
+  const name = useRef(deviceName);
+  name.current = deviceName;
 
   const refresh = useCallback(() => {
     if (!enabled || !client) return;
@@ -119,6 +132,11 @@ export function CastProvider({ client, enabled, children }: Readonly<CastProvide
           setReceivers((list) => upsert(list, e.receiver));
         } else if (e.type === 'cast.receiver.gone') {
           setReceivers((list) => list.filter((r) => r.id !== e.receiverId));
+        } else if (e.type === 'cast.kicked') {
+          // The television let this remote go. Stand down rather than keep
+          // showing a set we no longer drive.
+          setActiveId((id) => (id === e.receiverId ? null : id));
+          setError('cast.kicked');
         } else if (e.type === 'cast.position') {
           setBase({
             id: e.receiverId,
@@ -130,7 +148,11 @@ export function CastProvider({ client, enabled, children }: Readonly<CastProvide
       },
     });
     events.connect();
-    return () => events.close();
+    socket.current = events;
+    return () => {
+      socket.current = null;
+      events.close();
+    };
   }, [client, enabled, refresh]);
 
   const active = useMemo(
@@ -186,6 +208,7 @@ export function CastProvider({ client, enabled, children }: Readonly<CastProvide
       const ok = await sendTo(receiverId, { type: 'play', itemId, positionMs });
       if (ok) {
         setActiveId(receiverId);
+        socket.current?.send({ type: 'cast.control', receiverId, name: name.current });
         // Optimistic: the TV's own heartbeat corrects this within a beat, but the
         // remote should not sit at 0:00 while it starts.
         setBase({ id: receiverId, positionMs, playing: true, at: Date.now() });
@@ -206,6 +229,13 @@ export function CastProvider({ client, enabled, children }: Readonly<CastProvide
   const select = useCallback((receiverId: string | null) => {
     setActiveId(receiverId);
     setError(null);
+    // Tell the set it is being driven, so it can show this remote (and let it
+    // go). Presence rides the socket: closing the app releases it for us.
+    socket.current?.send(
+      receiverId
+        ? { type: 'cast.control', receiverId, name: name.current }
+        : { type: 'cast.release' },
+    );
     const next = receiverId ? receiversRef.current.find((r) => r.id === receiverId) : null;
     setBase(
       next?.nowPlaying

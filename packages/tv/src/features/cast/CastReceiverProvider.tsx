@@ -16,8 +16,9 @@
 // The HTTP path stays as the fallback for a socket that will not come up, and
 // orders arriving twice (live push AND fallback reply) are deduped by seq.
 
-import { type CastCommand, KromaEvents } from '@kroma/core';
+import { type CastCommand, type CastController, KromaEvents } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Avatar, toast } from '@kroma/ui/kit';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useEnv } from '#tv/app/providers/env';
@@ -26,6 +27,7 @@ import { useStoredPref } from '#tv/app/settings/store';
 import { applyCastCommand } from '#tv/features/cast/applyCommand';
 import { castReport, onCastReportChange } from '#tv/features/cast/castBridge';
 import { castReceiverPrefStore } from '#tv/features/cast/castPref';
+import { setCastControllers, setCastUplink } from '#tv/features/cast/controllers';
 import { receiverId } from '#tv/features/cast/receiverId';
 
 /** Position keepalive while playing. Nothing else is sent between changes, so
@@ -59,6 +61,12 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
     let stopped = false;
     let fallback: ReturnType<typeof setTimeout> | undefined;
     let drift: ReturnType<typeof setInterval> | undefined;
+    // Whether the SOCKET actually got us onto the roster. The server answers a
+    // `cast.hello` by broadcasting our row, so hearing our own id back is the
+    // acknowledgement. A server older than this client ignores the hello
+    // entirely - and since the socket is open and healthy, nothing would ever
+    // fall back and the TV would simply never appear in any picker.
+    let attached = false;
 
     /** Apply one order, then tell the server so it stops resending it. */
     const apply = async (seq: number, command: CastCommand) => {
@@ -68,14 +76,38 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
       events.send({ type: 'cast.ack', seq });
     };
 
+    /** Say hello on screen when a phone or a browser picks up this TV's remote.
+     *
+     * The notice names the PERSON and shows their face, because that is what
+     * somebody in the room needs to decide whether to let it happen - "Chrome
+     * connected" tells them nothing. The device is the second line. */
+    const announceJoins = (joined: CastController[]) => {
+      for (const who of joined) {
+        toast({
+          message: deps.current.t('cast.remoteJoined', { user: who.username }),
+          detail: who.name,
+          icon: (
+            <Avatar
+              name={who.username}
+              seed={who.username}
+              size={40}
+              roundness={0.35}
+              src={deps.current.client.resolveArt(who.avatarUrl ?? undefined)}
+            />
+          ),
+          tone: 'success',
+        });
+      }
+    };
+
     /** Push what the player is doing. Called on change, not on a clock. */
     const pushState = () =>
       events.send({ type: 'cast.state', playback: castReport(deps.current.t) });
 
-    /** The HTTP path: only while the socket is down. It re-registers this TV and
-     * collects anything the push could not deliver. */
+    /** The HTTP path: while the socket is down, or up but not carrying us. It
+     * re-registers this TV and collects anything the push could not deliver. */
     const beat = async () => {
-      if (stopped || events.open) {
+      if (stopped || (events.open && attached)) {
         if (!stopped) fallback = setTimeout(beat, FALLBACK_BEAT_MS);
         return;
       }
@@ -112,9 +144,25 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
           platform: deps.current.platform,
         });
         pushState();
+        // The top bar can now hang up on a remote: kicking one is a message on
+        // this very socket.
+        setCastUplink((message) => events.send(message));
+      },
+      onClose: () => {
+        attached = false;
+        // The remotes were driving us THROUGH that socket; with it gone the
+        // server has already dropped them, so the top bar must not keep
+        // advertising a list nothing can act on.
+        setCastUplink(null);
       },
       onEvent: (e) => {
-        if (e.type === 'cast.command' && e.receiverId === id) void apply(e.seq, e.command);
+        if (e.type === 'cast.receiver' && e.receiver.id === id) {
+          attached = true;
+          announceJoins(setCastControllers(e.receiver.controllers));
+        } else if (e.type === 'cast.receiver.gone' && e.receiverId === id) {
+          attached = false;
+          setCastControllers([]);
+        } else if (e.type === 'cast.command' && e.receiverId === id) void apply(e.seq, e.command);
       },
     });
     // Wait for the bearer before opening anything. The stored user hydrates
@@ -146,6 +194,7 @@ export function CastReceiverProvider({ children }: Readonly<{ children: ReactNod
     return () => {
       stopped = true;
       unsubscribe();
+      setCastUplink(null);
       clearTimeout(fallback);
       clearInterval(drift);
       // Closing the socket is what unregisters this TV; the HTTP delete only

@@ -80,6 +80,9 @@ pub async fn events(
         can_cast: user.can(Permission::Playback),
         id: user.id,
         username: user.username,
+        // So a television can show WHOSE remote just took it, not only what
+        // model of phone it is.
+        avatar_url: user.avatar_url,
     };
     // Echo the accepted subprotocol so the browser completes the handshake.
     ws.protocols([offered]).on_upgrade(move |socket| pump(socket, state, who))
@@ -89,6 +92,7 @@ pub async fn events(
 struct Viewer {
     id: String,
     username: String,
+    avatar_url: Option<String>,
     /// `LAN` | `WAN`, resolved once at the handshake.
     network: String,
     can_cast: bool,
@@ -117,6 +121,25 @@ enum ClientMessage {
     /// Everything up to `seq` has been applied.
     #[serde(rename = "cast.ack")]
     CastAck { seq: u64 },
+    /// This SENDER is now driving a receiver: it holds its remote, and the
+    /// television lists it until this socket goes away.
+    #[serde(rename = "cast.control")]
+    CastControl {
+        #[serde(rename = "receiverId")]
+        receiver_id: String,
+        #[serde(default)]
+        name: String,
+    },
+    /// It stopped driving (picked another device, or went back to playing here).
+    #[serde(rename = "cast.release")]
+    CastRelease,
+    /// The RECEIVER disconnects one of its remotes. Only a socket that owns the
+    /// receiver may do this - a remote cannot evict another remote.
+    #[serde(rename = "cast.kick")]
+    CastKick {
+        #[serde(rename = "controllerId")]
+        controller_id: String,
+    },
 }
 
 async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
@@ -143,6 +166,11 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
     // Set once this socket attaches a TV. Its lifetime IS the receiver's: the
     // roster entry goes when the loop below ends, whichever way it ends.
     let mut receiver: Option<String> = None;
+    // This socket's identity AS A REMOTE, minted here rather than taken from the
+    // client so the name a television shows cannot be forged. Only meaningful
+    // once the socket says `cast.control`.
+    let controller_id = crate::services::auth::random_token();
+    let mut controlling = false;
 
     loop {
         tokio::select! {
@@ -152,10 +180,12 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
                 // single broadcast channel, so the audience check is what keeps
                 // one user's notifications off everyone else's socket.
                 Ok(env) => {
-                    if !env.visible_to(&who.id) {
+                    // `payload_for` IS the audience check: an event addressed to
+                    // another account yields None and is dropped here.
+                    let Some(payload) = env.payload_for(&who.id) else {
                         continue;
-                    }
-                    if socket.send(Message::Text(env.json.to_string().into())).await.is_err() {
+                    };
+                    if socket.send(Message::Text(payload.to_string().into())).await.is_err() {
                         break; // client gone
                     }
                 }
@@ -169,7 +199,15 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
                     // A frame we don't understand is ignored, not fatal: an older
                     // server must not drop the socket of a newer client.
                     if let Ok(message) = serde_json::from_str::<ClientMessage>(&text) {
-                        handle_client(&state, &who, &mut receiver, message).await;
+                        handle_client(
+                            &state,
+                            &who,
+                            &mut receiver,
+                            &controller_id,
+                            &mut controlling,
+                            message,
+                        )
+                        .await;
                     }
                 }
                 _ => {}
@@ -194,6 +232,12 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
             state.events.publish(ServerEvent::CastReceiverGone { receiver_id: id });
         }
     }
+    // ...and a remote that walks out of the room leaves the television's list.
+    if controlling {
+        for row in state.cast.detach_controller(&controller_id) {
+            state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+        }
+    }
 }
 
 /// Apply one upward frame. `receiver` carries the id this socket attached, so a
@@ -202,6 +246,8 @@ async fn handle_client(
     state: &SharedState,
     who: &Viewer,
     receiver: &mut Option<String>,
+    controller_id: &str,
+    controlling: &mut bool,
     message: ClientMessage,
 ) {
     match message {
@@ -261,6 +307,50 @@ async fn handle_client(
             if let Some(id) = receiver.as_deref() {
                 state.cast.ack(id, seq);
             }
+        }
+        ClientMessage::CastControl { receiver_id, name } => {
+            if !who.can_cast {
+                return;
+            }
+            // One socket drives one set: picking another releases the first, so a
+            // television never lists a phone that has moved on.
+            for row in state.cast.detach_controller(controller_id) {
+                state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+            }
+            *controlling = true;
+            if let Some(row) =
+                state.cast.attach_controller(
+                    &receiver_id,
+                    controller_id,
+                    &name,
+                    &who.id,
+                    &who.username,
+                    who.avatar_url.as_deref(),
+                )
+            {
+                state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+            }
+        }
+        ClientMessage::CastRelease => {
+            *controlling = false;
+            for row in state.cast.detach_controller(controller_id) {
+                state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+            }
+        }
+        ClientMessage::CastKick { controller_id } => {
+            // Only the set itself may send its remotes away - and only its OWN,
+            // which is why the registry does the removal scoped to this receiver
+            // rather than by controller id alone.
+            let Some(id) = receiver.clone() else { return };
+            let Some((row, user_id)) = state.cast.kick_controller(&id, &controller_id) else {
+                return;
+            };
+            state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+            // Tell the remote it was let go, so it stops showing a set it no
+            // longer drives. Addressed: nobody else's phone hears it.
+            state
+                .events
+                .publish_to(&user_id, ServerEvent::CastKicked { receiver_id: id });
         }
     }
 }

@@ -25,6 +25,8 @@ export type ServerEvent =
   | { type: 'cast.receiver'; receiver: CastReceiver }
   /** A receiver left (socket closed, or it stopped announcing). */
   | { type: 'cast.receiver.gone'; receiverId: string }
+  /** A TV disconnected this account's remote; the sender stands down. */
+  | { type: 'cast.kicked'; receiverId: string }
   /** A receiver's scrub position moved. Fires on every heartbeat of a playing
    * TV, so it stays tiny: a remote moves its progress bar and refetches nothing. */
   | {

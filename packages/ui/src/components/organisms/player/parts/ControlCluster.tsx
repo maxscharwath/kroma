@@ -7,11 +7,23 @@ import { colors } from '#ui/lib/tokens';
 import { useT } from '#ui/services/i18n';
 import { useDragTrack } from '../hooks/useDragTrack';
 import { clamp01, sliderToVolume, volumeToSlider } from '../lib/fmt';
+import {
+  type ChromeMetrics,
+  CLUSTER_GAP,
+  CONTROL_SIZE,
+  isTransport,
+  type Px,
+  ROW_GAP,
+  scaler,
+  TRANSPORT_GAP,
+  VOLUME_RAIL,
+} from '../lib/metrics';
 import type { ControlId } from '../lib/nav';
 import { CTRL_OFF, CTRL_ON, FOCUS_SCALE, FOCUS_SHADOW } from '../lib/style';
 import {
   IconAudioTrack,
   IconBack10,
+  IconCast,
   IconFullscreen,
   IconFullscreenExit,
   IconFwd10,
@@ -26,7 +38,6 @@ import {
   IconVolLow,
 } from './icons';
 
-const TRANSPORT: ReadonlySet<ControlId> = new Set<ControlId>(['rewind', 'play', 'forward']);
 /** The focused control lifts and takes the amber ring; the fill brightens too.
  * (Kept for the volume pill, whose wrapper is not a kit atom: the pill holds a
  * button AND a slider, so the focus visuals live on the wrapper.) */
@@ -45,6 +56,9 @@ export interface ControlClusterProps {
   volume: number;
   pipActive: boolean;
   fullscreen: boolean;
+  /** How the row fits the stage it is drawn on (see ../lib/metrics): the scale
+   *  every size here is drawn at, and whether the cluster has to stack. */
+  metrics: ChromeMetrics;
   /** Run a control (mouse click shares this with D-pad OK). */
   onActivate: (id: ControlId) => void;
   /** Hover moves focus (§15). */
@@ -97,29 +111,32 @@ interface GlyphState {
 }
 
 /** Every control except play and volume is the SAME circular button, differing
- * only in diameter, accessible label and glyph, so they are a table rather than
- * eight near-identical JSX blocks. `pip` and `fullscreen` swap their glyph with
- * player state, which is why a glyph is a function of it. */
+ * only in accessible label and glyph, so they are a table rather than eight
+ * near-identical JSX blocks. Their diameters live in ../lib/metrics, which is
+ * also what sizes the row against the stage. `pip` and `fullscreen` swap their
+ * glyph with player state, and every glyph is drawn at the row's scale, which is
+ * why a glyph is a function of both. */
 const CIRCLES: Record<
   Exclude<ControlId, 'play' | 'volume'>,
-  { size: number; label: MessageKey; glyph: (s: GlyphState) => ReactNode }
+  { label: MessageKey; glyph: (s: GlyphState, px: Px) => ReactNode }
 > = {
-  rewind: { size: 62, label: 'player.back10', glyph: () => <IconBack10 size={27} /> },
-  forward: { size: 62, label: 'player.fwd10', glyph: () => <IconFwd10 size={27} /> },
-  next: { size: 56, label: 'player.nextEpisode', glyph: () => <IconNext size={24} /> },
-  subtitles: { size: 56, label: 'player.subtitles', glyph: () => <IconSubtitles size={25} /> },
-  audio: { size: 56, label: 'player.audioTrack', glyph: () => <IconAudioTrack size={24} /> },
-  settings: { size: 56, label: 'player.settings', glyph: () => <IconGear size={25} /> },
+  rewind: { label: 'player.back10', glyph: (_s, px) => <IconBack10 size={px(27)} /> },
+  forward: { label: 'player.fwd10', glyph: (_s, px) => <IconFwd10 size={px(27)} /> },
+  next: { label: 'player.nextEpisode', glyph: (_s, px) => <IconNext size={px(24)} /> },
+  subtitles: { label: 'player.subtitles', glyph: (_s, px) => <IconSubtitles size={px(25)} /> },
+  audio: { label: 'player.audioTrack', glyph: (_s, px) => <IconAudioTrack size={px(24)} /> },
+  settings: { label: 'player.settings', glyph: (_s, px) => <IconGear size={px(25)} /> },
+  cast: { label: 'cast.moveToTv', glyph: (_s, px) => <IconCast size={px(24)} /> },
   pip: {
-    size: 56,
     label: 'player.pip',
-    glyph: ({ pipActive }) => <IconPip size={23} color={pipActive ? colors.accent : '#FFFFFF'} />,
+    glyph: ({ pipActive }, px) => (
+      <IconPip size={px(23)} color={pipActive ? colors.accent : '#FFFFFF'} />
+    ),
   },
   fullscreen: {
-    size: 56,
     label: 'player.fullscreen',
-    glyph: ({ fullscreen }) =>
-      fullscreen ? <IconFullscreenExit size={23} /> : <IconFullscreen size={23} />,
+    glyph: ({ fullscreen }, px) =>
+      fullscreen ? <IconFullscreenExit size={px(23)} /> : <IconFullscreen size={px(23)} />,
   },
 };
 
@@ -127,12 +144,26 @@ const CIRCLES: Record<
  * The middle control row (§4): centered transport (rewind / play / forward) plus
  * the feature-flagged cluster on the right (next / volume / subtitles / audio /
  * settings / pip / fullscreen). The `controls` array is already filtered by the
- * feature flags, so this only renders what is present (no dead buttons). Matches
- * the 10-foot layout of the design (62 / 80 / 62 transport, 56 cluster circles).
+ * feature flags, so this only renders what is present (no dead buttons). At full
+ * size it is the 10-foot layout of the design (62 / 80 / 62 transport, 56
+ * cluster circles).
+ *
+ * It is also the row that has to survive a browser window, and it does so in
+ * three stages (`metrics`, from ../lib/metrics):
+ *
+ *  1. Full size, transport centred: the spacer and the cluster share the free
+ *     space equally, which is what puts play in the middle of the screen.
+ *  2. Tight: the cluster claims `clusterWidth` as its MINIMUM, so flexbox takes
+ *     the difference out of the spacer - the transport drifts left of centre
+ *     instead of the cluster drawing over it - and every size shrinks together.
+ *  3. Compact: below the point where a circle would stop being tappable, the
+ *     cluster moves under the transport and wraps within itself. Nothing is
+ *     dropped, so no control loses its D-pad stop (see ../lib/nav).
  *
  * Memoized: every prop is stable between playback ticks (the nav machine's
- * callbacks and `controls` array are referentially stable), so the row skips the
- * ~4 Hz timeupdate re-renders the rest of the chrome makes.
+ * callbacks and `controls` array are referentially stable, and `metrics` only
+ * changes when the stage is resized), so the row skips the ~4 Hz timeupdate
+ * re-renders the rest of the chrome makes.
  */
 export const ControlCluster = memo(function ControlCluster({
   controls,
@@ -142,13 +173,16 @@ export const ControlCluster = memo(function ControlCluster({
   volume,
   pipActive,
   fullscreen,
+  metrics,
   onActivate,
   onFocus,
   onVolume,
 }: Readonly<ControlClusterProps>) {
   const t = useT();
-  const transport = controls.filter((c) => TRANSPORT.has(c));
-  const cluster = controls.filter((c) => !TRANSPORT.has(c));
+  const { scale, compact, clusterWidth } = metrics;
+  const px = scaler(scale);
+  const transport = controls.filter(isTransport);
+  const cluster = controls.filter((c) => !isTransport(c));
 
   const glyphState: GlyphState = { pipActive, fullscreen };
 
@@ -161,7 +195,7 @@ export const ControlCluster = memo(function ControlCluster({
         <IconButton
           key={id}
           variant="primary"
-          size={80}
+          size={px(CONTROL_SIZE.play)}
           focused={on}
           focusedStyle={PLAY_BRIGHTEN}
           label={playing ? t('player.pause') : t('player.play')}
@@ -169,9 +203,9 @@ export const ControlCluster = memo(function ControlCluster({
           onHoverIn={() => onFocus(id)}
         >
           {playing ? (
-            <IconPause size={33} color={colors.accentInk} />
+            <IconPause size={px(33)} color={colors.accentInk} />
           ) : (
-            <IconPlay size={35} color={colors.accentInk} />
+            <IconPlay size={px(35)} color={colors.accentInk} />
           )}
         </IconButton>
       );
@@ -183,6 +217,7 @@ export const ControlCluster = memo(function ControlCluster({
           focused={on}
           muted={muted}
           volume={volume}
+          px={px}
           onFocus={() => onFocus(id)}
           onToggle={() => onActivate(id)}
           onVolume={onVolume}
@@ -191,29 +226,49 @@ export const ControlCluster = memo(function ControlCluster({
         />
       );
     }
-    const { size, label, glyph } = CIRCLES[id];
+    const { label, glyph } = CIRCLES[id];
     return (
       <Circle
         key={id}
         id={id}
-        size={size}
+        size={px(CONTROL_SIZE[id])}
         focused={on}
         label={t(label)}
         onActivate={onActivate}
         onFocus={onFocus}
       >
-        {glyph(glyphState)}
+        {glyph(glyphState, px)}
       </Circle>
     );
   };
 
+  // Compact: two centred rows. The cluster gets a definite width so it has
+  // something to wrap against, and wrapping is what guarantees that a phone-width
+  // browser still draws every control, side by side, none of them on top of
+  // another.
+  if (compact) {
+    return (
+      <Box align="center" gap={px(16)} pt={px(4)}>
+        <Box row align="center" gap={px(TRANSPORT_GAP)}>
+          {transport.map(render)}
+        </Box>
+        <Box row wrap w="100%" align="center" justify="center" gap={px(CLUSTER_GAP)}>
+          {cluster.map(render)}
+        </Box>
+      </Box>
+    );
+  }
+
   return (
-    <Box row align="center" pt={4}>
+    <Box row align="center" gap={px(ROW_GAP)} pt={px(4)}>
       <Box flex />
-      <Box row align="center" gap={20}>
+      <Box row align="center" gap={px(TRANSPORT_GAP)}>
         {transport.map(render)}
       </Box>
-      <Box row flex align="center" justify="flex-end" gap={14}>
+      {/* `minW`: the cluster's own content width. Without it the box takes half
+          the free space, its (non-shrinking) circles overflow to the LEFT, and
+          the cluster is drawn straight through the transport. */}
+      <Box row flex align="center" justify="flex-end" gap={px(CLUSTER_GAP)} minW={clusterWidth}>
         {cluster.map(render)}
       </Box>
     </Box>
@@ -225,6 +280,7 @@ function VolumeControl({
   focused,
   muted,
   volume,
+  px,
   onFocus,
   onToggle,
   onVolume,
@@ -234,6 +290,7 @@ function VolumeControl({
   focused: boolean;
   muted: boolean;
   volume: number;
+  px: Px;
   onFocus: () => void;
   onToggle: () => void;
   onVolume: (v: number) => void;
@@ -250,10 +307,11 @@ function VolumeControl({
   // amplitude, so the handle sits under the pointer while the audio follows the
   // loudness curve (a linear fader would look wrong against a tapered volume).
   const sliderPos = muted ? 0 : volumeToSlider(volume);
+  const glyph = px(24);
   let volIcon: ReactNode;
-  if (level === 0) volIcon = <IconMute size={24} />;
-  else if (level < 0.5) volIcon = <IconVolLow size={24} />;
-  else volIcon = <IconVolHigh size={24} />;
+  if (level === 0) volIcon = <IconMute size={glyph} />;
+  else if (level < 0.5) volIcon = <IconVolLow size={glyph} />;
+  else volIcon = <IconVolHigh size={glyph} />;
 
   const setAt = useCallback(
     (x: number) => {
@@ -278,12 +336,14 @@ function VolumeControl({
     [setAt, track.measure],
   );
 
+  const size = px(CONTROL_SIZE.volume);
+  const thumb = px(13);
   return (
     <Box
       row
       align="center"
       shrink={0}
-      h={56}
+      h={size}
       radius="pill"
       overflow="hidden"
       onPointerEnter={onFocus}
@@ -292,20 +352,25 @@ function VolumeControl({
       {/* Controlled at `false`: the PILL carries the focus visuals for the whole
           volume control, so the button itself never paints one - but it must
           still opt out of platform focus like everything else in the chrome. */}
-      <IconButton variant="ghost" size={56} focused={false} label={muteLabel} onPress={onToggle}>
+      <IconButton variant="ghost" size={size} focused={false} label={muteLabel} onPress={onToggle}>
         {volIcon}
       </IconButton>
       <View
         {...pan.panHandlers}
         accessibilityRole="adjustable"
         accessibilityLabel={label}
-        style={{ height: 56, width: 96, justifyContent: 'center', paddingRight: 20 }}
+        style={{
+          height: size,
+          width: px(VOLUME_RAIL),
+          justifyContent: 'center',
+          paddingRight: px(20),
+        }}
       >
         <Box
           ref={track.ref}
           onLayout={track.onLayout}
           pointerEvents="none"
-          h={6}
+          h={px(6)}
           w="100%"
           radius="pill"
           bg="rgba(255, 255, 255, 0.22)"
@@ -325,11 +390,19 @@ function VolumeControl({
           <Box
             absolute
             top="50%"
-            w={13}
-            h={13}
+            w={thumb}
+            h={thumb}
             radius="pill"
             bg="#FFFFFF"
-            style={[THUMB, { left: `${sliderPos * 100}%` }]}
+            style={[
+              THUMB,
+              // Half its own size, so the handle stays centred on the level at
+              // whatever scale the row is drawn.
+              {
+                left: `${sliderPos * 100}%`,
+                transform: [{ translateX: -thumb / 2 }, { translateY: -thumb / 2 }],
+              },
+            ]}
           />
         </Box>
       </View>
@@ -337,7 +410,4 @@ function VolumeControl({
   );
 }
 
-const THUMB = {
-  boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)',
-  transform: [{ translateX: -6.5 }, { translateY: -6.5 }],
-};
+const THUMB = { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)' };

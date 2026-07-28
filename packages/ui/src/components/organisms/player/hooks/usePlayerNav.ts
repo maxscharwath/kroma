@@ -27,6 +27,9 @@ export interface PlayerNavActions {
   toggleMute(): void;
   togglePip(): void;
   toggleFullscreen(): void;
+  /** Hand this film to a TV. Only reachable when `flags.cast` is on, which the
+   *  host sets while a receiver is live. */
+  onCast?(): void;
   /** Leave the player (Back at the top level, or the Stop media key). */
   onExit(): void;
 }
@@ -234,6 +237,8 @@ export function usePlayerNav(
         return setOverlay('audio');
       case 'settings':
         return setOverlay('settings');
+      case 'cast':
+        return a.onCast?.();
       case 'pip':
         return a.togglePip();
       case 'fullscreen':

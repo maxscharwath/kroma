@@ -11,8 +11,7 @@
     "preview:edge": "bunx wrangler@4 dev",
     "deploy": "bun run build && bunx wrangler@4 deploy",
     "generate-routes": "tsr generate",
-    "typecheck": "tsr generate && tsc --noEmit",
-    "og": "bun scripts/og.tsx"
+    "typecheck": "tsr generate && tsc --noEmit"
   },
   "dependencies": {
     "@kroma/ui": "workspace:*",
@@ -26,7 +25,6 @@
   "devDependencies": {
     "@inlang/paraglide-js": "^2.23.0",
     "@mdx-js/rollup": "^3.1.1",
-    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.21",
     "@tanstack/router-plugin": "^1.168.23",
@@ -39,9 +37,9 @@
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-mdx-frontmatter": "^5.2.0",
-    "satori": "^0.29.0",
     "shiki": "^4.3.1",
     "tailwindcss": "^4.3.3",
+    "takumi-js": "^2.5.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.5"
   }

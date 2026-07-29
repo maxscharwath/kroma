@@ -19,7 +19,7 @@ import { colors, WHEEL_COLORS } from '@kroma/ui/tokens';
 //     (see `title`), not negotiated by the layout engine.
 
 /** A `[bracketed]` run is the amber emphasis; everything else is plain. */
-function Headline({ text }: { text: string }) {
+function Headline({ text }: Readonly<{ text: string }>) {
   const runs = text.split(/(\[[^\]]+\])/).filter(Boolean);
   return (
     <div
@@ -51,7 +51,7 @@ function Headline({ text }: { text: string }) {
 }
 
 /** The chromatic wheel, from the official lockup's geometry, coloured by token. */
-function Wheel({ size }: { size: number }) {
+function Wheel({ size }: Readonly<{ size: number }>) {
   const paths = [
     'M209 32.96 L209 0 A50 50 0 0 1 252.3 25 L223.76 41.48 A17.045 17.045 0 0 0 209 32.96 Z',
     'M223.76 41.48 L252.3 25 A50 50 0 0 1 252.3 75 L223.76 58.52 A17.045 17.045 0 0 0 223.76 41.48 Z',
@@ -82,7 +82,7 @@ export interface OgCardProps {
   sub: string;
 }
 
-export function OgCard({ title, sub }: OgCardProps) {
+export function OgCard({ title, sub }: Readonly<OgCardProps>) {
   return (
     <div
       style={{

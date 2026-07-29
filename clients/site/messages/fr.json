@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "site_tagline": "Votre propre Netflix, sur du matériel que vous possédez.",
+  "site_description": "KROMA réunit l'indexeur, le moteur de téléchargement, le VPN, le serveur et le lecteur sous un seul serveur auto-hébergé. Direct-play, HEVC natif, sur le web, le mobile et toutes les télévisions.",
   "nav_features": "Fonctionnalités",
   "nav_platforms": "Plateformes",
   "nav_install": "Installer",

@@ -115,20 +115,23 @@ a[class] {
 }
 
 /* The fine charcoal grain that keeps large flat areas from banding. Two
-   low-opacity dot gradients pinned behind the page content, no image asset. */
-@utility page-grain {
-  &::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-      radial-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-      radial-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px);
-    background-size: 3px 3px, 4px 4px;
-    background-position: 0 0, 1px 2px;
-  }
+   low-opacity dot gradients pinned behind the page content, no image asset.
+
+   A plain class rather than an `@utility`, unlike the three above: it is applied once,
+   to <body>, so it never needs a variant - and a real selector gives its ::before an
+   explicit scoping root instead of a bare nesting `&`, which every CSS parser that
+   does not know Tailwind's `@utility` reads as a mistake. */
+.page-grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    radial-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-size: 3px 3px, 4px 4px;
+  background-position: 0 0, 1px 2px;
 }
 
 /* Long-form article body. Scoped to `.prose-kroma`, styling the raw elements MDX

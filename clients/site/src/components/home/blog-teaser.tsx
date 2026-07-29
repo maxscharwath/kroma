@@ -2,8 +2,8 @@ import { IconArrowRight } from '@tabler/icons-react';
 import { Container } from '#site/components/container';
 import { BandHeading } from '#site/components/home/heading';
 import { L } from '#site/components/localized-link';
-import { getAllPosts } from '#site/lib/blog';
 import { useLang } from '#site/lib/i18n';
+import { getAllPosts } from '#site/lib/posts';
 import { m } from '#site/paraglide/messages';
 
 // The two most recent posts, as editorial cards. Resolved at build time from the

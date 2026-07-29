@@ -1,5 +1,6 @@
 import { defaultLocale, type Lang, locales, localizePath } from '#site/lib/i18n';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 export interface SeoInput {
   /** The locale this head is for. Drives the canonical URL, the hreflang
@@ -39,9 +40,12 @@ const ogCard: Record<Lang, string> = { en: '/og.png', fr: '/og.fr.png' };
  * correctly cross-linked social + SEO head without repeating the boilerplate.
  */
 export function seo({ lang, title, description, path = '/', image, type = 'website' }: SeoInput) {
-  const tagline = lang === 'fr' ? site.tagline : site.taglineEn;
-  const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · ${tagline}`;
-  const desc = description ?? (lang === 'fr' ? site.description : site.descriptionEn);
+  // Straight from the catalog for the locale being rendered. It used to be
+  // `lang === 'fr' ? site.tagline : site.taglineEn`, which is the shape this package
+  // spent a refactor removing: a third language would silently have been served
+  // English here, in the two strings a search result actually shows.
+  const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · ${m.site_tagline()}`;
+  const desc = description ?? m.site_description();
   const url = `${site.url}${localizePath(path, lang)}`;
   const card = image ?? ogCard[lang];
   const cardUrl = card.startsWith('http') ? card : `${site.url}${card}`;

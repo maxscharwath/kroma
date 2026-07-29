@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
-import { type Lang, locales } from '#site/lib/i18n';
+import { CONTENT_FALLBACK_LANG, groupByName, pickLocale } from '#site/lib/content-locale';
+import type { Lang } from '#site/lib/i18n';
 
 // The blog is a folder of .mdx files with a smart per-file language convention:
 //
@@ -7,22 +8,18 @@ import { type Lang, locales } from '#site/lib/i18n';
 //   content/blog/my-post.fr.mdx     the French translation of that same post
 //
 // A post is keyed by its SLUG (`my-post`), shared across languages, so the URL
-// and the language switcher line up (/blog/my-post <-> /en/blog/my-post). For a
+// and the language switcher line up (/blog/my-post <-> /fr/blog/my-post). For a
 // requested locale we serve `<slug>.<lang>.mdx` when it exists and fall back to
 // `<slug>.mdx` otherwise: a reader ALWAYS gets the post, translated where a
 // translation was written, in the default language where it was not. Nothing is
 // ever hidden for lack of a translation.
 //
-// Everything is resolved from an eager glob at build time, so every post is
-// available to the prerender with no runtime fetch. Drop in a file and it appears.
-
-// The language of a `<slug>.mdx` file with no `.lang` suffix, and the fallback a
-// reader sees when their language has no translation. Deliberately ENGLISH, and
-// deliberately independent of the site's default UI locale (French, the clean
-// root): a post is authored once in English as `my-post.mdx`, then translated
-// as `my-post.fr.mdx`, and a French reader falls back to the English default
-// until that translation exists — never a missing page.
-const FALLBACK_LANG: Lang = 'en';
+// The filename convention and the fallback rule are lib/content-locale's, shared
+// with the legal pages; what stays here is the shape of a post.
+//
+// The files themselves are discovered by an eager glob, which lives in lib/posts - the
+// one line that needs a bundler. Everything here is a pure function of the module map
+// it is given, which is what makes the rules above testable without compiling MDX.
 
 interface RawFrontmatter {
   title?: string;
@@ -34,7 +31,7 @@ interface RawFrontmatter {
   draft?: boolean;
 }
 
-interface MdxModule {
+export interface MdxModule {
   default: ComponentType<{ components?: Record<string, ComponentType> }>;
   frontmatter?: RawFrontmatter;
   readingMinutes?: number;
@@ -61,65 +58,38 @@ export interface Post extends PostMeta {
   Component: MdxModule['default'];
 }
 
-const modules = import.meta.glob<MdxModule>('../../content/blog/*.mdx', { eager: true });
-
-const dateFmt: Record<Lang, Intl.DateTimeFormat> = {
-  fr: new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-  en: new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }),
-};
-
-const isLang = (s: string): s is Lang => (locales as readonly string[]).includes(s);
-
-/** Parse `content/blog/my-post.fr.mdx` -> `{ slug: 'my-post', lang: 'fr' }`, and
- *  `content/blog/my-post.mdx` -> `{ slug: 'my-post', lang: FALLBACK_LANG }`. */
-function parse(path: string): { slug: string; lang: Lang } {
-  const name =
-    path
-      .split('/')
-      .pop()
-      ?.replace(/\.mdx$/, '') ?? path;
-  const parts = name.split('.');
-  const last = parts.length > 1 ? parts[parts.length - 1] : undefined;
-  if (last && isLang(last)) {
-    return { slug: parts.slice(0, -1).join('.'), lang: last };
+// Our locale codes are valid BCP-47 tags, so Intl needs no per-language table and a
+// new language needs no entry here. Memoized because a formatter is not cheap to
+// build and every post in a list asks for one.
+const formatters = new Map<Lang, Intl.DateTimeFormat>();
+function formatDate(date: string, lang: Lang): string {
+  let fmt = formatters.get(lang);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'long', year: 'numeric' });
+    formatters.set(lang, fmt);
   }
-  return { slug: name, lang: FALLBACK_LANG };
+  return fmt.format(new Date(date));
 }
-
-// slug -> (lang -> module), the raw grouping the resolver reads from.
-interface Group {
-  slug: string;
-  byLang: Partial<Record<Lang, MdxModule>>;
-}
-
-const groups: Map<string, Group> = (() => {
-  const map = new Map<string, Group>();
-  for (const [path, mod] of Object.entries(modules)) {
-    const { slug, lang } = parse(path);
-    const group = map.get(slug) ?? { slug, byLang: {} };
-    group.byLang[lang] = mod;
-    map.set(slug, group);
-  }
-  return map;
-})();
 
 /** Resolve a slug for a language: the translation if present, else the fallback,
  *  else any version that exists. Missing frontmatter fields on a translation are
  *  inherited from the fallback file, so a `.fr.mdx` can carry only what changed. */
-function resolve(group: Group, lang: Lang): Post | undefined {
-  const translated = Boolean(group.byLang[lang]);
-  const mod = group.byLang[lang] ?? group.byLang[FALLBACK_LANG] ?? Object.values(group.byLang)[0];
+function resolve(
+  slug: string,
+  byLang: Partial<Record<Lang, MdxModule>>,
+  lang: Lang,
+): Post | undefined {
+  const mod = pickLocale(byLang, lang);
   if (!mod) return undefined;
-  const base = group.byLang[FALLBACK_LANG]?.frontmatter ?? {};
-  const fm = { ...base, ...(mod.frontmatter ?? {}) };
+  const fm = { ...byLang[CONTENT_FALLBACK_LANG]?.frontmatter, ...mod.frontmatter };
   const date = fm.date ?? '1970-01-01';
   return {
-    slug: group.slug,
+    slug,
     lang,
-    translated,
-    title: fm.title ?? group.slug,
+    translated: Boolean(byLang[lang]),
+    title: fm.title ?? slug,
     date,
-    dateLabel: dateFmt[lang].format(new Date(date)),
+    dateLabel: formatDate(date, lang),
     excerpt: fm.excerpt ?? '',
     author: fm.author ?? 'KROMA',
     tags: fm.tags ?? [],
@@ -129,22 +99,36 @@ function resolve(group: Group, lang: Lang): Post | undefined {
   };
 }
 
-/** Every post for a language (newest first). A post whose only version is a draft
- *  is hidden in the production build. */
-export function getAllPosts(lang: Lang): Post[] {
-  const posts: Post[] = [];
-  for (const group of groups.values()) {
-    const post = resolve(group, lang);
-    if (!post) continue;
-    const isDraft = (group.byLang[lang] ?? group.byLang[FALLBACK_LANG])?.frontmatter?.draft;
-    if (!import.meta.env.DEV && isDraft) continue;
-    posts.push(post);
-  }
-  return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
-}
+/**
+ * The blog, over any map of MDX modules.
+ *
+ * Separated from the glob below so the resolution logic - the translation fallback, the
+ * inherited frontmatter, the ordering, the draft rule - is unit-testable without the
+ * MDX pipeline. Discovering the files needs a bundler; deciding what to do with them
+ * does not, and that is the half worth testing.
+ */
+export function createBlog(modules: Record<string, MdxModule>, isDev = import.meta.env.DEV) {
+  // slug -> (lang -> module), the grouping the resolver reads from.
+  const groups = groupByName(modules);
 
-/** One post by slug for a language, with the same translation fallback. */
-export function getPost(slug: string, lang: Lang): Post | undefined {
-  const group = groups.get(slug);
-  return group ? resolve(group, lang) : undefined;
+  /** Every post for a language (newest first). A post whose served version is a draft
+   *  is hidden outside the dev server. */
+  function getAllPosts(lang: Lang): Post[] {
+    const posts: Post[] = [];
+    for (const [slug, byLang] of groups) {
+      const post = resolve(slug, byLang, lang);
+      if (!post) continue;
+      if (!isDev && pickLocale(byLang, lang)?.frontmatter?.draft) continue;
+      posts.push(post);
+    }
+    return posts.sort((a, b) => (a.date < b.date ? 1 : -1));
+  }
+
+  /** One post by slug for a language, with the same translation fallback. */
+  function getPost(slug: string, lang: Lang): Post | undefined {
+    const byLang = groups.get(slug);
+    return byLang ? resolve(slug, byLang, lang) : undefined;
+  }
+
+  return { getAllPosts, getPost };
 }

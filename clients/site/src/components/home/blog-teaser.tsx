@@ -1,23 +1,11 @@
 import { IconArrowRight } from '@tabler/icons-react';
 import { Container } from '#site/components/container';
+import { BandHeading } from '#site/components/home/heading';
 import { L } from '#site/components/localized-link';
 import { getAllPosts } from '#site/lib/blog';
 import { useLang } from '#site/lib/i18n';
-
-const copy = {
-  fr: {
-    eyebrow: 'Journal',
-    heading: 'Depuis le blog',
-    all: 'Tous les articles',
-    readingSuffix: 'min de lecture',
-  },
-  en: {
-    eyebrow: 'Journal',
-    heading: 'From the blog',
-    all: 'All articles',
-    readingSuffix: 'min read',
-  },
-} as const;
+import { useBlogCopy } from '#site/lib/messages/blog';
+import { useHome } from '#site/lib/messages/home';
 
 // The two most recent posts, as editorial cards. Resolved at build time from the
 // MDX glob, so this renders in the prerender with no fetch. Renders nothing at all
@@ -25,23 +13,18 @@ const copy = {
 // as unfinished, which is worse than absence.
 export function BlogTeaser() {
   const lang = useLang();
-  const t = copy[lang];
+  const t = useHome().blogTeaser;
+  // The reading-time suffix belongs to the blog, and is shared with its own pages.
+  const { readingSuffix } = useBlogCopy();
   const posts = getAllPosts(lang).slice(0, 2);
   if (posts.length === 0) return null;
-
-  const single = posts.length === 1;
 
   return (
     <section className="py-20 sm:py-28">
       <Container>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-              {t.eyebrow}
-            </p>
-            <h2 className="font-display text-3xl font-extrabold leading-[1.05] text-text sm:text-4xl">
-              {t.heading}
-            </h2>
+            <BandHeading eyebrow={t.eyebrow} heading={t.heading} />
           </div>
           <L
             to="/blog"
@@ -57,7 +40,7 @@ export function BlogTeaser() {
           </L>
         </div>
 
-        <div className={`mt-10 grid gap-4 ${single ? '' : 'md:grid-cols-2'}`}>
+        <div className={`mt-10 grid gap-4 ${posts.length === 1 ? '' : 'md:grid-cols-2'}`}>
           {posts.map((post) => (
             <L
               key={post.slug}
@@ -88,7 +71,7 @@ export function BlogTeaser() {
                 <time dateTime={post.date}>{post.dateLabel}</time>
                 <span aria-hidden>·</span>
                 <span>
-                  {post.readingMinutes} {t.readingSuffix}
+                  {post.readingMinutes} {readingSuffix}
                 </span>
               </div>
             </L>

@@ -4,6 +4,7 @@ import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getPost } from '#site/lib/blog';
 import { useLang } from '#site/lib/i18n';
+import { useBlogCopy } from '#site/lib/messages/blog';
 import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -34,17 +35,12 @@ export const Route = createFileRoute('/blog/$slug')({
   component: BlogPost,
 });
 
-const copy = {
-  fr: { back: 'Tous les articles', by: 'Par', readingSuffix: 'min de lecture' },
-  en: { back: 'All articles', by: 'By', readingSuffix: 'min read' },
-} as const;
-
 export function BlogPost() {
   // `strict: false` so the one component serves both /blog/$slug and
   // /en/blog/$slug without binding to a single route's params.
   const slug = useParams({ strict: false }).slug;
   const lang = useLang();
-  const t = copy[lang];
+  const t = useBlogCopy();
   const post = slug ? getPost(slug, lang) : undefined;
   // The loader already 404s on an unknown slug, so this is a type guard, not a
   // path a reader reaches.

@@ -5,6 +5,7 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { mdxPlugin } from './vite/mdx';
+import { ogPlugin } from './vite/og';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -16,6 +17,9 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     mdxPlugin(),
+    // The per-locale Open Graph cards, rendered into dist/client by the build and
+    // served from memory in dev. See vite/og.tsx for why they are not committed.
+    ogPlugin(),
     tanstackStart({
       // Crawl the link graph from the entry and write each reachable route to its
       // own HTML file (dist/client/index.html, /download/index.html, …). The blog
@@ -26,7 +30,44 @@ export default defineConfig({
       // the per-page HTML this content site needs for SEO. Cloudflare's
       // single-page-application fallback (wrangler.jsonc) serves the home HTML for
       // an unmatched path, which then client-renders the branded 404.
-      prerender: { enabled: true, crawlLinks: true },
+      prerender: {
+        enabled: true,
+        crawlLinks: true,
+        // The crawl follows every href, and two kinds of href are not a page: the
+        // header's in-page anchors (`/#fonctionnalites`) and the trailing-slash twin
+        // of a path already queued (`/blog/` beside `/blog`). The prerenderer strips
+        // the fragment before choosing a filename, so each one re-rendered a file
+        // another entry had already written - but the SITEMAP is built from the raw
+        // path, so it advertised `https://kroma.tv/#fonctionnalites` and a duplicate
+        // `/blog/` to crawlers. Keep the first spelling of each real page.
+        //
+        // The twins are compared with any trailing slash removed, and the FIRST
+        // spelling wins rather than the slashless one. That ordering is deliberate:
+        // the route tree spells a directory index `/blog/` and only a link spells it
+        // `/blog`, so preferring the slashless twin would drop any index route that
+        // nothing happens to link to. The cost is that one sitemap URL keeps a
+        // trailing slash its page's own canonical does not have, which a crawler
+        // resolves through that canonical.
+        //
+        // Returning false only skips the RENDER: the crawler appends a discovered page
+        // to the sitemap list before it consults this filter. It hands over the very
+        // object the sitemap is built from, though, so marking it excluded here is
+        // what actually keeps it out of sitemap.xml.
+        filter: (() => {
+          const seen = new Set<string>();
+          return (page: { path: string; sitemap?: { exclude?: boolean } }) => {
+            const drop = () => {
+              page.sitemap = { ...page.sitemap, exclude: true };
+              return false;
+            };
+            if (page.path.includes('#')) return drop();
+            const key = page.path.replace(/(.)\/+$/, '$1');
+            if (seen.has(key)) return drop();
+            seen.add(key);
+            return true;
+          };
+        })(),
+      },
       // A sitemap.xml for the prerendered pages, hosted at the apex.
       sitemap: { enabled: true, host: 'https://kroma.tv' },
     }),

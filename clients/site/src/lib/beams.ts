@@ -1,6 +1,12 @@
 // WebGL recreation of the KROMA intro film's radial neon burst: thin additive
 // beams, hashed per-cell for color, width, reach and flicker, on three slowly
-// counter-rotating layers. Falls back to the static film frame without WebGL.
+// counter-rotating layers.
+//
+// Without WebGL, or after a lost context, this draws NOTHING and says so by leaving
+// the canvas transparent - the hero paints a `glow-amber` div behind it precisely so
+// that a browser that cannot run this still gets the warm source rather than flat
+// charcoal. There is no fallback class to add: an earlier version set `.static` here,
+// which no stylesheet ever defined.
 //
 // mountBeams returns a disposer: on a client-side route change the hero unmounts,
 // so the caller (a useEffect cleanup) tears down the RAF loop, the observers and
@@ -102,10 +108,7 @@ export function mountBeams(canvas: HTMLCanvasElement, opts: BeamOptions = {}): (
     stencil: false,
     powerPreference: 'low-power',
   });
-  if (!gl) {
-    canvas.classList.add('static');
-    return () => {};
-  }
+  if (!gl) return () => {};
 
   const shader = (type: number, src: string) => {
     const s = gl.createShader(type);
@@ -127,7 +130,6 @@ export function mountBeams(canvas: HTMLCanvasElement, opts: BeamOptions = {}): (
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link');
   } catch {
-    canvas.classList.add('static');
     return () => {};
   }
   // `gl.useProgram` binds the linked program. It is the WebGL call, not a React
@@ -201,13 +203,17 @@ export function mountBeams(canvas: HTMLCanvasElement, opts: BeamOptions = {}): (
   });
   io.observe(canvas);
   document.addEventListener('visibilitychange', wake);
-  document.fonts?.ready.then(measure); // headline reflow can move the anchor
+  // A headline reflow can move the anchor, so re-measure once the faces land. Guarded:
+  // this resolves long after a fast route change, and measuring then would touch a
+  // detached canvas through a context the disposer has already given up on.
+  document.fonts?.ready.then(() => {
+    if (!dead) measure();
+  });
   const onLost = (e: Event) => {
     e.preventDefault();
     dead = true;
     cancelAnimationFrame(raf);
     raf = 0;
-    canvas.classList.add('static');
   };
   canvas.addEventListener('webglcontextlost', onLost, false);
   measure();

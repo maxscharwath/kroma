@@ -1,6 +1,4 @@
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -27,17 +25,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const bun = /bun(\.exe)?$/.test(process.execPath) ? process.execPath : 'bun';
 
 async function renderAll(): Promise<Map<string, Buffer>> {
-  const dir = await mkdtemp(join(tmpdir(), 'kroma-og-'));
-  try {
-    await run(bun, [join(here, 'og-render.tsx'), dir]);
-    const cards = Object.values(OG_CARDS);
-    const files = await Promise.all(cards.map((c) => readFile(join(dir, c.file))));
-    return new Map(cards.map((c, i) => [c.file, files[i] as Buffer]));
-  } finally {
-    // The renderer's scratch directory, not a cache: the PNGs are held in memory
-    // from here on, and a temp directory left behind would accumulate one per build.
-    await rm(dir, { recursive: true, force: true });
-  }
+  // Base64 over stdout, keyed by filename. Two 2400x1260 PNGs is a few hundred KB through
+  // a pipe, and the alternative - a temp directory for the child to write into - meant a
+  // filesystem path to hand over, validate and clean up for bytes that only ever needed to
+  // reach memory. `maxBuffer` because execFile's 1 MB default would truncate them.
+  const { stdout } = await run(bun, [join(here, 'og-render.tsx')], {
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  const cards: Record<string, string> = JSON.parse(stdout);
+  return new Map(
+    Object.entries(cards).map(([file, base64]) => [file, Buffer.from(base64, 'base64')]),
+  );
 }
 
 export function ogPlugin(): Plugin {

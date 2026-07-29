@@ -1,7 +1,7 @@
 /**
- * Renders every Open Graph card to PNG, into the directory given as the first
- * argument. Run by vite/og.ts during the build and on the first dev request, never
- * by hand.
+ * Renders every Open Graph card to PNG and writes them to stdout as base64, keyed by
+ * filename. Run by vite/og.ts during the build and on the first dev request, never by
+ * hand.
  *
  * A separate entry point run by BUN, rather than code the plugin calls directly, for
  * one reason: the card reads `@kroma/ui`'s design tokens through the package's public
@@ -17,8 +17,8 @@
  * the previous renderer could not, and needed static 400/600 instances of the kit's
  * variable Hanken committed beside it and regenerated with fontTools by hand.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { render } from 'takumi-js';
 import { Renderer } from 'takumi-js/node';
@@ -28,21 +28,6 @@ import { OG_CARDS } from './og-cards';
 const here = dirname(fileURLToPath(import.meta.url));
 /** The kit's own font files, the same two faces the pages load. */
 const kitFonts = join(here, '..', '..', '..', 'packages', 'ui', 'src', 'assets', 'fonts');
-
-// Resolved to an absolute path, and every file written is checked to land inside it. The
-// filenames come from a closed literal set in ./og-cards, so this can never actually
-// trip - but this reads an argv path and then writes through it, and a script that does
-// that should say out loud where it is allowed to write.
-const outDir = resolve(process.argv[2] ?? '');
-if (!process.argv[2]) throw new Error('og-render: an output directory is required');
-
-function targetIn(dir: string, file: string): string {
-  const target = resolve(dir, file);
-  if (target !== dir && !target.startsWith(dir + sep)) {
-    throw new Error(`og-render: refusing to write outside ${dir}: ${file}`);
-  }
-  return target;
-}
 
 const renderer = new Renderer();
 const [display, ui] = await Promise.all([
@@ -54,7 +39,12 @@ await renderer.registerFont({ name: 'Bricolage Grotesque', data: display, weight
 // 400 and 600 runs would then both render at that single weight.
 await renderer.registerFont({ name: 'Hanken Grotesk', data: ui });
 
-await mkdir(outDir, { recursive: true });
+// The cards go back over STDOUT, keyed by filename, and this script touches no path but
+// the two fonts it reads. It used to take an output directory as an argument and write
+// through it - which meant a filesystem path built from argv, and the plugin cleaning up a
+// temp directory afterwards. The caller already holds the bytes in memory to emit them as
+// build assets, so the file on disk in between was never needed.
+const cards: Record<string, string> = {};
 
 for (const card of Object.values(OG_CARDS)) {
   const png = await render(<OgCard title={card.title} sub={card.sub} />, {
@@ -70,5 +60,7 @@ for (const card of Object.values(OG_CARDS)) {
     // not all of them decode WebP.
     format: 'png',
   });
-  await writeFile(targetIn(outDir, card.file), png);
+  cards[card.file] = Buffer.from(png).toString('base64');
 }
+
+process.stdout.write(JSON.stringify(cards));

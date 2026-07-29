@@ -72,7 +72,7 @@ mdns-sd = "0.20"
 # Shared by kroma-primitives (and the binary). Unpinned now that the toolchain is
 # 1.96 (edition2024 is stable since 1.85, which >= 0.3.37 needs).
 time = { version = "0.3", features = ["formatting", "macros"] }
-sha2 = "0.10"
+sha2 = "0.11"
 hex = "0.4"
 # Embedded SQLite compiled from source. Shared by kroma-db + the binary.
 rusqlite = { version = "0.40", features = ["bundled"] }

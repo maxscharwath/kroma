@@ -25,8 +25,15 @@ export function usePlay() {
         const ok = await playOn(active.id, itemId as ItemId, positionMs);
         // Land on the remote: the viewer just started something on another
         // screen, and this is where they say what happens to it next.
-        if (ok) router.push('/cast' as never);
-        return;
+        if (ok) {
+          router.push('/cast' as never);
+          return;
+        }
+        // The set did not take it - switched off since the roster was drawn, or
+        // it let this remote go. Fall through and play here rather than leave
+        // the tap doing nothing at all, which is what it used to do: no
+        // navigation, no message, and no screen on the phone that reads
+        // `Cast.error`.
       }
       router.push(`/player/${itemId}` as never);
     },

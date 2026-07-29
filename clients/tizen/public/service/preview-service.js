@@ -1,3 +1,9 @@
+// biome-ignore-all lint/complexity/useOptionalChain: this file is NOT transpiled -
+// it ships verbatim from public/ and the platform loads it directly - and
+// config.xml offers the app from Tizen 6.0, whose engine is Chromium 76. `?.` is
+// Chrome 80, so the tidier form is a SyntaxError that silently kills the Smart
+// Hub carousel on every 2021 set. `check:legacy` does not look at this file.
+
 /**
  * KROMA Smart Hub preview background service.
  *
@@ -81,7 +87,8 @@ function publish(data) {
       return;
     }
     log(`read ${data.length} bytes from disk`);
-    const hasApi = typeof webapis !== 'undefined' && webapis.preview?.setPreviewData;
+    const hasApi =
+      typeof webapis !== 'undefined' && webapis.preview && webapis.preview.setPreviewData;
     log(`webapis.preview.setPreviewData present: ${!!hasApi}`);
     if (!hasApi) {
       reject(new Error('webapis.preview.setPreviewData unavailable'));
@@ -110,7 +117,7 @@ function refresh() {
       log('preview published OK');
     })
     .catch((err) => {
-      log(`skip: ${err?.message ? err.message : JSON.stringify(err)}`);
+      log(`skip: ${err && err.message ? err.message : JSON.stringify(err)}`);
     })
     .then(exit, exit);
 }
@@ -120,7 +127,7 @@ function safe(fn) {
     try {
       fn();
     } catch (e) {
-      log(`lifecycle error: ${e?.message ? e.message : e}`);
+      log(`lifecycle error: ${e && e.message ? e.message : e}`);
       exit();
     }
   };

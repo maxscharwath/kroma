@@ -13,7 +13,7 @@
 //     loads the flattened ES2015 IIFE bundle. One package serves every
 //     generation.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import cascadeLayers from '@csstools/postcss-cascade-layers';
 import { transform } from 'lightningcss';
@@ -47,6 +47,17 @@ function rewriteIndexHtml(distDir: string): void {
       'legacy-finalize: modern <script type=module> / stylesheet not found in dist/index.html',
     );
   }
+  // The modulepreloads have to move INSIDE the gate. Left in the document they
+  // are plain <link>s, so an old engine happily fetches every modern chunk it has
+  // no way to run - measured at 1.04 MiB on webOS, before the legacy bundle it
+  // actually needs even starts downloading, and silently: no console error, just
+  // a slower launch on the TVs least able to afford one. Re-emitted below on the
+  // modern branch, so that tier keeps the head start they were there to give.
+  const preloads = [...html.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"[^>]*>/g)].map(
+    (m) => m[1],
+  );
+  html = html.replace(/\s*<link rel="modulepreload"[^>]*>/g, '');
+
   // The loader itself must be ES5: it is the one script every engine parses.
   const loader = `<script>
       /* Engine gate: Chrome 99+ (cascade layers) takes the modern ESM bundle;
@@ -59,6 +70,14 @@ function rewriteIndexHtml(distDir: string): void {
         document.head.appendChild(link);
         var script = document.createElement('script');
         if (modern) {
+          var pre = ${JSON.stringify(preloads)};
+          for (var i = 0; i < pre.length; i++) {
+            var l = document.createElement('link');
+            l.rel = 'modulepreload';
+            l.crossOrigin = '';
+            l.href = pre[i];
+            document.head.appendChild(l);
+          }
           script.type = 'module';
           script.crossOrigin = '';
           script.src = '${js[1]}';
@@ -73,6 +92,56 @@ function rewriteIndexHtml(distDir: string): void {
   writeFileSync(path, html);
 }
 
+/**
+ * Drop every legacy asset that is byte-for-byte the modern tier's, and point the
+ * legacy bundle at the one remaining copy.
+ *
+ * The two tiers are separate Vite builds, so each emitted its own copy of the
+ * brand intro - and that film is 7.8 MB, which was **42% of the whole TV
+ * package** duplicated for nothing. Content hashes make this safe and cheap:
+ * both builds name a file from its contents, so identical bytes already carry
+ * identical names, and deduping is a delete plus a path rewrite.
+ *
+ * The two rewrites differ because the two files resolve URLs from different
+ * places: the legacy JS resolves against the document (dist/index.html), the
+ * legacy stylesheet against itself (dist/legacy/style.css).
+ */
+function dedupeAssets(distDir: string): number {
+  const legacyAssets = join(distDir, 'legacy', 'assets');
+  const modernAssets = join(distDir, 'assets');
+  if (!existsSync(legacyAssets) || !existsSync(modernAssets)) return 0;
+
+  let saved = 0;
+  const shared: string[] = [];
+  for (const name of readdirSync(legacyAssets)) {
+    const legacyFile = join(legacyAssets, name);
+    const modernFile = join(modernAssets, name);
+    if (!existsSync(modernFile)) continue;
+    // Size first: it rejects any genuine mismatch for the price of a stat, and
+    // the pair here includes an 8 MB video that would otherwise be read twice.
+    const size = statSync(legacyFile).size;
+    if (statSync(modernFile).size !== size) continue;
+    if (!readFileSync(legacyFile).equals(readFileSync(modernFile))) continue;
+    saved += size;
+    rmSync(legacyFile);
+    shared.push(name);
+  }
+  if (shared.length === 0) return 0;
+
+  // Each file has exactly ONE prefix, because of where its URLs resolve from:
+  // the JS against the document (dist/index.html), the stylesheet against itself.
+  const rewrite = (file: string, from: string, to: string) => {
+    const p = join(distDir, file);
+    if (!existsSync(p)) return;
+    let text = readFileSync(p, 'utf8');
+    for (const name of shared) text = text.split(from + name).join(to + name);
+    writeFileSync(p, text);
+  };
+  rewrite('legacy/index.js', './legacy/assets/', './assets/');
+  rewrite('legacy/style.css', './assets/', '../assets/');
+  return saved;
+}
+
 /** `distDir` = the shell's absolute dist dir; `chrome` = the legacy tier's floor. */
 export function legacyFinalize({ distDir, chrome }: { distDir: string; chrome: number }): Plugin {
   return {
@@ -82,6 +151,12 @@ export function legacyFinalize({ distDir, chrome }: { distDir: string; chrome: n
     async closeBundle() {
       await downlevelCss(distDir, chrome);
       rewriteIndexHtml(distDir);
+      const saved = dedupeAssets(distDir);
+      if (saved > 0) {
+        this.info?.(
+          `[legacy] deduped ${(saved / 1024 / 1024).toFixed(2)} MB shared with the modern tier`,
+        );
+      }
     },
   };
 }

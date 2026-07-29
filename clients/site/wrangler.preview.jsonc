@@ -1,8 +1,16 @@
-// Preview-only config for a throwaway verification deploy (no Cloudflare login,
-// no custom domain). `wrangler deploy --config wrangler.preview.jsonc --x-provision`
-// or `--temporary` lands this on a short-lived *.workers.dev URL so the site can
-// be looked at before the real deploy. The production config (custom domains
+// Preview-only config: a separate Worker on a *.workers.dev URL, so the built site can
+// be looked at (and shared) without touching the apex or provisioning a custom domain.
+//
+//   bun run build
+//   bunx wrangler@4 deploy --config wrangler.preview.jsonc
+//
+// That is the whole invocation - there is no `--temporary` or `--x-provision` flag in
+// wrangler 4, which an earlier version of this comment claimed. The separate `name` is
+// what keeps it off the production Worker; the production config (custom domains
 // kroma.tv / www.kroma.tv) lives in wrangler.jsonc.
+//
+// The asset options mirror wrangler.jsonc deliberately: a preview whose routing differs
+// from production is a preview of something else.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kroma-site-preview",
@@ -10,6 +18,7 @@
   "workers_dev": true,
   "assets": {
     "directory": "./dist/client",
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "404-page",
+    "html_handling": "drop-trailing-slash"
   }
 }

@@ -30,6 +30,22 @@ export default defineConfig({
       // the per-page HTML this content site needs for SEO. Cloudflare's
       // single-page-application fallback (wrangler.jsonc) serves the home HTML for
       // an unmatched path, which then client-renders the branded 404.
+      // A real 404 document per locale, so an unknown path is a 404 rather than the home
+      // page with a 200. Cloudflare's `404-page` handling serves the NEAREST 404.html
+      // walking up the path, which is what makes /fr/404.html the French one.
+      // `autoSubfolderIndex: false` is what writes `404.html` instead of `404/index.html`.
+      pages: [
+        {
+          path: '/404',
+          prerender: { enabled: true, autoSubfolderIndex: false },
+          sitemap: { exclude: true },
+        },
+        {
+          path: '/fr/404',
+          prerender: { enabled: true, autoSubfolderIndex: false },
+          sitemap: { exclude: true },
+        },
+      ],
       prerender: {
         enabled: true,
         crawlLinks: true,

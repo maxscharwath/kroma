@@ -44,7 +44,13 @@ export function canonicalPath(pathname: string): string {
  *  base locale stays unprefixed. */
 export function localizePath(path: string, lang: Lang): string {
   const clean = path.startsWith('/') ? path : `/${path}`;
-  return localizeUrl(new URL(clean, ORIGIN), { locale: lang }).pathname || '/';
+  const localized = localizeUrl(new URL(clean, ORIGIN), { locale: lang }).pathname || '/';
+  // Slashless, except at the site root. Cloudflare serves this site with
+  // `html_handling: drop-trailing-slash` (see wrangler.jsonc), so `/fr/download/`
+  // redirects to `/fr/download` - and this function is what builds the canonical URL and
+  // the hreflang set, which must not point at a redirect. Paraglide spells a locale ROOT
+  // `/fr/`, which is the only spelling this actually changes.
+  return localized === '/' ? '/' : localized.replace(/\/+$/, '');
 }
 
 /**

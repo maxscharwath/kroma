@@ -18,10 +18,20 @@
     // TanStack Start's client build output. The prerendered page HTML and the
     // hashed JS/CSS assets both land here.
     "directory": "./dist/client",
-    // Every marketing route is prerendered to its own index.html, so a matched
-    // path is served as static HTML. A stray path falls back to the app shell,
-    // which client-renders the branded 404 rather than an edge error page.
-    "not_found_handling": "single-page-application"
+    // A stray path gets the prerendered 404 document with a real 404 status, not the app
+    // shell with a 200. Cloudflare serves the NEAREST 404.html walking up the path, so
+    // /fr/anything gets the French one (see src/routes/404.tsx for why that document has
+    // to be a route). The SPA fallback was a soft 404: it answered every unknown URL with
+    // the home page's HTML and a 200, which is duplicate content at unlimited addresses.
+    "not_found_handling": "404-page",
+    // Serve `/download` itself rather than redirecting it to `/download/`.
+    //
+    // The default (`auto-trailing-slash`) picks the slashed spelling for a page stored
+    // as `download/index.html`, which is every page here - so every internal link and
+    // every URL in the sitemap took a 307 to a URL the page's own `<link
+    // rel="canonical">` disowns. `seo()` builds canonicals from `localizePath`, which is
+    // slashless, so this is the mode that agrees with what the HTML advertises.
+    "html_handling": "drop-trailing-slash"
   },
   // Served at https://kroma.tv/ and https://www.kroma.tv/. Requires the kroma.tv
   // zone on this Cloudflare account; wrangler provisions the custom domains + DNS

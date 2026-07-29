@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { CodeBlock } from '#site/components/download/code-block';
 import type { IconComponent } from '#site/components/download/icon';
 import { StepList } from '#site/components/download/step-list';
-import { useDownload } from '#site/lib/messages/download';
+import { m } from '#site/paraglide/messages';
 
 export interface PlatformEntryProps {
   icon: IconComponent;
@@ -14,8 +14,9 @@ export interface PlatformEntryProps {
   beta?: boolean;
   /** The one-time-setup / heads-up note, typically a <Callout>. */
   setup?: ReactNode;
-  /** A short numbered procedure, when clicking through beats a command. */
-  steps?: readonly ReactNode[];
+  /** A short numbered procedure, when clicking through beats a command. Messages
+   *  with their markers, rendered by the StepList. */
+  steps?: readonly string[];
   /** The representative command, verbatim. Optional (Apple TV needs none). */
   code?: string;
   /** Caption for that command; defaults to the CodeBlock's own `bash`. */
@@ -41,7 +42,6 @@ export function PlatformEntry({
   codeLabel,
   after,
 }: PlatformEntryProps) {
-  const t = useDownload().ui;
   return (
     <div className="border-t border-border/60 py-6 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start gap-4">
@@ -61,7 +61,7 @@ export function PlatformEntry({
             ))}
             {beta && (
               <span className="rounded-full border border-border-strong px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider text-dim">
-                {t.beta}
+                {m.download_ui_beta()}
               </span>
             )}
           </div>

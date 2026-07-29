@@ -4,33 +4,95 @@ import { Button } from '#site/components/button';
 import { ContactCard } from '#site/components/contact/contact-card';
 import { Faq } from '#site/components/contact/faq';
 import { PageShell } from '#site/components/contact/page-shell';
+import { L } from '#site/components/localized-link';
+import { Rich } from '#site/components/rich';
 import { getLocale } from '#site/lib/i18n';
-import { support, useSupport } from '#site/lib/messages/support';
 import { seo } from '#site/lib/seo';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/support')({
-  // `head` runs outside React, so it reads the English catalog directly rather
-  // than through the locale hook.
-  head: () => {
-    const lang = getLocale();
-    return seo({ lang, ...support[lang].head, path: '/support' });
-  },
+  // `head` runs outside React, but a message function resolves the ambient locale
+  // on its own, so the same `m.*()` calls work here.
+  head: () =>
+    seo({
+      lang: getLocale(),
+      title: m.support_head_title(),
+      description: m.support_head_description(),
+      path: '/support',
+    }),
   component: Support,
 });
 
-/** The glyph and destination of each secondary channel; its wording lives in the
- *  catalog under the same key. */
+/** The glyph and destination of each secondary channel, plus the messages that
+ *  word it. The message functions are referenced, not called: they resolve the
+ *  active locale when the component renders them. */
 const channels = [
-  { key: 'issues', icon: IconBrandGithub, href: `${site.repo}/issues` },
-  { key: 'install', icon: IconBook, href: `${site.repo}/blob/main/INSTALL.md` },
-  { key: 'docs', icon: IconBook, href: site.repo },
+  {
+    icon: IconBrandGithub,
+    href: `${site.repo}/issues`,
+    title: m.support_channel_issues_title,
+    description: m.support_channel_issues_description,
+    action: m.support_channel_issues_action,
+  },
+  {
+    icon: IconBook,
+    href: `${site.repo}/blob/main/INSTALL.md`,
+    title: m.support_channel_install_title,
+    description: m.support_channel_install_description,
+    action: m.support_channel_install_action,
+  },
+  {
+    icon: IconBook,
+    href: site.repo,
+    title: m.support_channel_docs_title,
+    description: m.support_channel_docs_description,
+    action: m.support_channel_docs_action,
+  },
 ] as const;
 
+/** The bug-report checklist, in order. Each item is its own message; the two that
+ *  name flags and codecs carry them as `` `mono` `` markers (see lib/rich). */
+const bugItems = [
+  m.support_bug_item1,
+  m.support_bug_item2,
+  m.support_bug_item3,
+  m.support_bug_item4,
+] as const;
+
+const installHref = `${site.repo}/blob/main/INSTALL.md`;
+
 export function Support() {
-  const t = useSupport();
+  // Built here rather than at module scope so every string resolves in the locale
+  // being rendered. The two answers that link out keep the link as its own label
+  // message, with the element around it in the component where the href belongs.
+  const faqItems = [
+    { question: m.support_faq_q1(), answer: m.support_faq_a1() },
+    { question: m.support_faq_q2(), answer: m.support_faq_a2() },
+    {
+      question: m.support_faq_q3(),
+      answer: (
+        <>
+          {m.support_faq_a3_before()}{' '}
+          <a href={installHref} target="_blank" rel="noreferrer noopener">
+            {m.support_faq_a3_link()}
+          </a>{' '}
+          {m.support_faq_a3_after()}
+        </>
+      ),
+    },
+    {
+      question: m.support_faq_q4(),
+      answer: (
+        <>
+          {m.support_faq_a4_before()} <L to="/privacy">{m.support_faq_a4_link()}</L>.
+        </>
+      ),
+    },
+  ];
+
   return (
-    <PageShell eyebrow={t.eyebrow} title={t.title} intro={t.intro}>
+    <PageShell eyebrow={m.support_eyebrow()} title={m.support_title()} intro={m.support_intro()}>
       {/* The primary channel, given its own weight rather than a slot in the
           grid: for a small self-hosted project, a real inbox beats a ticket
           queue. */}
@@ -39,8 +101,10 @@ export function Support() {
           <div className="flex size-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
             <IconMail size={24} stroke={1.75} aria-hidden />
           </div>
-          <h2 className="mt-5 font-display text-2xl font-bold text-text">{t.email.title}</h2>
-          <p className="mt-2 leading-relaxed text-muted">{t.email.body}</p>
+          <h2 className="mt-5 font-display text-2xl font-bold text-text">
+            {m.support_email_title()}
+          </h2>
+          <p className="mt-2 leading-relaxed text-muted">{m.support_email_body()}</p>
         </div>
         <div className="shrink-0">
           <Button href={`mailto:${site.email.support}`} size="lg">
@@ -53,8 +117,15 @@ export function Support() {
       {/* The other destinations, uniform because they are peers, each a
           distinct place, not a repeat of the same call to action. */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {channels.map(({ key, icon, href }) => (
-          <ContactCard key={key} icon={icon} href={href} {...t.channels[key]} />
+        {channels.map(({ icon, href, title, description, action }) => (
+          <ContactCard
+            key={href}
+            icon={icon}
+            href={href}
+            title={title()}
+            description={description()}
+            action={action()}
+          />
         ))}
       </div>
 
@@ -65,40 +136,44 @@ export function Support() {
             <IconBug size={22} stroke={1.75} aria-hidden />
           </div>
           <h2 className="mt-5 font-display text-2xl font-bold text-text sm:text-3xl">
-            {t.bug.title}
+            {m.support_bug_title()}
           </h2>
-          <p className="mt-3 leading-relaxed text-muted">{t.bug.intro}</p>
+          <p className="mt-3 leading-relaxed text-muted">{m.support_bug_intro()}</p>
         </div>
 
         <ul className="mt-8 flex max-w-2xl flex-col gap-4">
-          {t.bug.checklist.map((item, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: static, order-stable checklist
-            <li key={i} className="flex items-start gap-3">
-              <IconCircleCheck
-                size={22}
-                stroke={1.75}
-                className="mt-0.5 shrink-0 text-accent"
-                aria-hidden
-              />
-              <span className="leading-relaxed text-muted [&_code]:rounded-md [&_code]:border [&_code]:border-border [&_code]:bg-surface-2 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_code]:text-accent">
-                {item}
-              </span>
-            </li>
-          ))}
+          {bugItems.map((item) => {
+            const text = item();
+            return (
+              <li key={text} className="flex items-start gap-3">
+                <IconCircleCheck
+                  size={22}
+                  stroke={1.75}
+                  className="mt-0.5 shrink-0 text-accent"
+                  aria-hidden
+                />
+                <span className="leading-relaxed text-muted">
+                  <Rich>{text}</Rich>
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         <div className="mt-8">
           <Button href={`${site.repo}/issues`} variant="outline">
             <IconBrandGithub size={18} stroke={1.75} aria-hidden />
-            {t.bug.button}
+            {m.support_bug_button()}
           </Button>
         </div>
       </section>
 
       <section className="mt-20">
-        <h2 className="font-display text-2xl font-bold text-text sm:text-3xl">{t.faq.title}</h2>
+        <h2 className="font-display text-2xl font-bold text-text sm:text-3xl">
+          {m.support_faq_title()}
+        </h2>
         <div className="mt-8">
-          <Faq items={t.faq.items} />
+          <Faq items={faqItems} />
         </div>
       </section>
     </PageShell>

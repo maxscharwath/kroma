@@ -2,8 +2,8 @@ import { IconBrandGithub } from '@tabler/icons-react';
 import { L } from '#site/components/localized-link';
 import { WheelMark } from '#site/components/wheel-mark';
 import { localizePath, useLang } from '#site/lib/i18n';
-import { useCommon } from '#site/lib/messages/common';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 interface FLink {
   label: string;
@@ -35,45 +35,43 @@ function FooterLink({ label, to, href }: FLink) {
 }
 
 export function SiteFooter() {
-  const t = useCommon();
   const lang = useLang();
   const home = localizePath('/', lang);
-  const l = t.footer.links;
 
   const columns: { title: string; links: FLink[] }[] = [
     {
-      title: t.footer.cols.product,
+      title: m.footer_col_product(),
       links: [
-        { label: l.features, href: `${home}#fonctionnalites` },
-        { label: l.platforms, href: `${home}#plateformes` },
-        { label: l.install, to: '/download' },
-        { label: l.tvDemo, href: site.tvUrl },
-        { label: l.uiKit, href: site.uiUrl },
-        { label: l.modules, href: site.modulesUrl },
+        { label: m.footer_link_features(), href: `${home}#fonctionnalites` },
+        { label: m.footer_link_platforms(), href: `${home}#plateformes` },
+        { label: m.footer_link_install(), to: '/download' },
+        { label: m.footer_link_tv_demo(), href: site.tvUrl },
+        { label: m.footer_link_ui_kit(), href: site.uiUrl },
+        { label: m.footer_link_modules(), href: site.modulesUrl },
       ],
     },
     {
-      title: t.footer.cols.resources,
+      title: m.footer_col_resources(),
       links: [
-        { label: l.blog, to: '/blog' },
-        { label: l.source, href: site.repo },
-        { label: l.installGuide, href: `${site.repo}/blob/main/INSTALL.md` },
-        { label: l.contribute, href: `${site.repo}/blob/main/CONTRIBUTING.md` },
+        { label: m.footer_link_blog(), to: '/blog' },
+        { label: m.footer_link_source(), href: site.repo },
+        { label: m.footer_link_install_guide(), href: `${site.repo}/blob/main/INSTALL.md` },
+        { label: m.footer_link_contribute(), href: `${site.repo}/blob/main/CONTRIBUTING.md` },
       ],
     },
     {
-      title: t.footer.cols.contact,
+      title: m.footer_col_contact(),
       links: [
         { label: site.email.support, href: `mailto:${site.email.support}` },
         { label: site.email.privacy, href: `mailto:${site.email.privacy}` },
       ],
     },
     {
-      title: t.footer.cols.legal,
+      title: m.footer_col_legal(),
       links: [
-        { label: l.privacy, to: '/privacy' },
-        { label: l.support, to: '/support' },
-        { label: l.license, href: `${site.repo}/blob/main/LICENSE` },
+        { label: m.footer_link_privacy(), to: '/privacy' },
+        { label: m.footer_link_support(), to: '/support' },
+        { label: m.footer_link_license(), href: `${site.repo}/blob/main/LICENSE` },
       ],
     },
   ];
@@ -87,7 +85,7 @@ export function SiteFooter() {
               <WheelMark size={26} />
               <span className="font-display text-lg font-extrabold tracking-tight">KROMA</span>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-muted">{t.footer.blurb}</p>
+            <p className="mt-4 text-sm leading-relaxed text-muted">{m.footer_blurb()}</p>
             <a
               href={site.repo}
               target="_blank"
@@ -95,7 +93,7 @@ export function SiteFooter() {
               className="mt-5 inline-flex items-center gap-2 rounded-lg border border-border-strong px-3 py-2 text-sm text-muted transition-colors hover:border-accent hover:text-accent"
             >
               <IconBrandGithub size={18} stroke={1.75} aria-hidden />
-              {t.footer.star}
+              {m.footer_star()}
             </a>
           </div>
 
@@ -116,8 +114,8 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-8 text-sm text-dim sm:flex-row">
-          <p>{t.footer.rights}</p>
-          <p>{t.footer.tagline}</p>
+          <p>{m.footer_rights()}</p>
+          <p>{m.footer_tagline()}</p>
         </div>
       </div>
     </footer>

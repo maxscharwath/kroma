@@ -8,14 +8,39 @@ import {
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { BandHeading } from '#site/components/home/heading';
-import { type SelfHostPointId, useHome } from '#site/lib/messages/home';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
-const POINTS: readonly { id: SelfHostPointId; Icon: TablerIcon }[] = [
-  { id: 'free', Icon: IconLicense },
-  { id: 'private', Icon: IconLock },
-  { id: 'noCentral', Icon: IconWorldOff },
-  { id: 'offline', Icon: IconCloudOff },
+const POINTS: readonly {
+  id: string;
+  Icon: TablerIcon;
+  title: () => string;
+  sub: () => string;
+}[] = [
+  {
+    id: 'free',
+    Icon: IconLicense,
+    title: m.home_self_host_free_title,
+    sub: m.home_self_host_free_sub,
+  },
+  {
+    id: 'private',
+    Icon: IconLock,
+    title: m.home_self_host_private_title,
+    sub: m.home_self_host_private_sub,
+  },
+  {
+    id: 'noCentral',
+    Icon: IconWorldOff,
+    title: m.home_self_host_no_central_title,
+    sub: m.home_self_host_no_central_sub,
+  },
+  {
+    id: 'offline',
+    Icon: IconCloudOff,
+    title: m.home_self_host_offline_title,
+    sub: m.home_self_host_offline_sub,
+  },
 ];
 
 // The ownership argument, given the weight of a full-width panel. The four points
@@ -23,8 +48,6 @@ const POINTS: readonly { id: SelfHostPointId; Icon: TablerIcon }[] = [
 // than one command. Kept on-palette: the "window controls" are neutral, not the
 // decorative traffic lights that would drag a second colour in.
 export function SelfHostBand() {
-  const t = useHome().selfHost;
-
   return (
     <section className="py-20 sm:py-28">
       <Container>
@@ -32,11 +55,16 @@ export function SelfHostBand() {
           <div className="glow-amber pointer-events-none absolute inset-x-0 -top-24 h-56" />
           <div className="relative grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
             <div>
-              <BandHeading eyebrow={t.eyebrow} heading={t.heading} />
-              <p className="mt-4 text-pretty leading-relaxed text-muted">{t.lead}</p>
+              <BandHeading
+                eyebrow={m.home_self_host_eyebrow()}
+                heading={m.home_self_host_heading()}
+              />
+              <p className="mt-4 text-pretty leading-relaxed text-muted">
+                {m.home_self_host_lead()}
+              </p>
 
               <dl className="mt-8 grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-                {POINTS.map(({ id, Icon }) => (
+                {POINTS.map(({ id, Icon, title, sub }) => (
                   <div key={id} className="flex items-start gap-3">
                     <Icon
                       size={20}
@@ -45,10 +73,8 @@ export function SelfHostBand() {
                       className="mt-0.5 shrink-0 text-accent"
                     />
                     <div>
-                      <dt className="font-display text-sm font-bold text-text">
-                        {t.points[id].title}
-                      </dt>
-                      <dd className="mt-0.5 text-sm text-muted">{t.points[id].sub}</dd>
+                      <dt className="font-display text-sm font-bold text-text">{title()}</dt>
+                      <dd className="mt-0.5 text-sm text-muted">{sub()}</dd>
                     </div>
                   </div>
                 ))}
@@ -56,7 +82,7 @@ export function SelfHostBand() {
 
               <div className="mt-9">
                 <Button href={site.repo} variant="outline">
-                  {t.github}
+                  {m.home_self_host_github()}
                 </Button>
               </div>
             </div>
@@ -67,7 +93,9 @@ export function SelfHostBand() {
                 <span className="size-2.5 rounded-full border border-border-strong" aria-hidden />
                 <span className="size-2.5 rounded-full border border-border-strong" aria-hidden />
                 <span className="size-2.5 rounded-full border border-border-strong" aria-hidden />
-                <span className="ml-2 font-mono text-[0.7rem] text-dim">{t.terminal}</span>
+                <span className="ml-2 font-mono text-[0.7rem] text-dim">
+                  {m.home_self_host_terminal()}
+                </span>
               </div>
               <pre className="overflow-x-auto px-4 py-4 font-mono text-[0.82rem] leading-relaxed text-muted">
                 <code>

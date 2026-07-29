@@ -4,8 +4,7 @@ import { BandHeading } from '#site/components/home/heading';
 import { L } from '#site/components/localized-link';
 import { getAllPosts } from '#site/lib/blog';
 import { useLang } from '#site/lib/i18n';
-import { useBlogCopy } from '#site/lib/messages/blog';
-import { useHome } from '#site/lib/messages/home';
+import { m } from '#site/paraglide/messages';
 
 // The two most recent posts, as editorial cards. Resolved at build time from the
 // MDX glob, so this renders in the prerender with no fetch. Renders nothing at all
@@ -13,9 +12,6 @@ import { useHome } from '#site/lib/messages/home';
 // as unfinished, which is worse than absence.
 export function BlogTeaser() {
   const lang = useLang();
-  const t = useHome().blogTeaser;
-  // The reading-time suffix belongs to the blog, and is shared with its own pages.
-  const { readingSuffix } = useBlogCopy();
   const posts = getAllPosts(lang).slice(0, 2);
   if (posts.length === 0) return null;
 
@@ -24,13 +20,16 @@ export function BlogTeaser() {
       <Container>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <BandHeading eyebrow={t.eyebrow} heading={t.heading} />
+            <BandHeading
+              eyebrow={m.home_blog_teaser_eyebrow()}
+              heading={m.home_blog_teaser_heading()}
+            />
           </div>
           <L
             to="/blog"
             className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent"
           >
-            {t.all}
+            {m.home_blog_teaser_all()}
             <IconArrowRight
               size={16}
               stroke={2}
@@ -71,7 +70,7 @@ export function BlogTeaser() {
                 <time dateTime={post.date}>{post.dateLabel}</time>
                 <span aria-hidden>·</span>
                 <span>
-                  {post.readingMinutes} {readingSuffix}
+                  {post.readingMinutes} {m.blog_reading_suffix()}
                 </span>
               </div>
             </L>

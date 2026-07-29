@@ -94,6 +94,11 @@ const include = [
   // runs here the same way; without this line its tests are collected by nothing
   // and its files can never be covered.
   'clients/tv-web/src/**/*.test.ts',
+  // The showcase site (kroma.tv). Its pages are prose and layout, so what is worth
+  // testing is the pure logic underneath: the rich-text parser that carries markup
+  // through a translated string, and the resolver that turns content/blog into
+  // typed posts.
+  'clients/site/src/**/*.test.ts',
   // The phone client's pure logic - device storage and the session, the player's
   // capability model, the sign-in flow. Its React Native SCREENS are not
   // testable here, and they do not need excluding by path: a screen's test would

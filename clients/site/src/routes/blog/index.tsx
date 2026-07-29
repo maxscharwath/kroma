@@ -3,27 +3,24 @@ import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getAllPosts } from '#site/lib/blog';
 import { getLocale, useLang } from '#site/lib/i18n';
-import { blog, useBlogCopy } from '#site/lib/messages/blog';
 import { seo } from '#site/lib/seo';
+import { m } from '#site/paraglide/messages';
 
-// A route's head runs outside React, so it reads the ambient locale from Paraglide
-// and indexes the catalog directly instead of going through the hook.
+// A route's head runs outside React, but a message function resolves the ambient
+// locale from Paraglide on its own, so the same `m.*()` calls work here.
 export const Route = createFileRoute('/blog/')({
-  head: () => {
-    const lang = getLocale();
-    return seo({
-      lang,
-      title: blog[lang].index.head.title,
-      description: blog[lang].index.head.description,
+  head: () =>
+    seo({
+      lang: getLocale(),
+      title: m.blog_head_title(),
+      description: m.blog_head_description(),
       path: '/blog',
-    });
-  },
+    }),
   component: BlogIndex,
 });
 
 export function BlogIndex() {
   const lang = useLang();
-  const t = useBlogCopy();
   const posts = getAllPosts(lang);
 
   return (
@@ -31,16 +28,16 @@ export function BlogIndex() {
       <div className="py-20 sm:py-28">
         <header className="max-w-2xl">
           <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-            {t.index.eyebrow}
+            {m.blog_eyebrow()}
           </p>
           <h1 className="font-display text-4xl font-extrabold leading-[1.05] text-text sm:text-5xl">
-            {t.index.heading}
+            {m.blog_heading()}
           </h1>
-          <p className="mt-4 text-lg leading-relaxed text-muted">{t.index.intro}</p>
+          <p className="mt-4 text-lg leading-relaxed text-muted">{m.blog_intro()}</p>
         </header>
 
         {posts.length === 0 ? (
-          <p className="mt-16 text-muted">{t.index.empty}</p>
+          <p className="mt-16 text-muted">{m.blog_empty()}</p>
         ) : (
           <ul className="mt-14 flex flex-col divide-y divide-border/70 border-y border-border/70">
             {posts.map((post) => (
@@ -52,7 +49,7 @@ export function BlogIndex() {
                   <div className="text-sm text-dim">
                     <time dateTime={post.date}>{post.dateLabel}</time>
                     <p className="mt-1">
-                      {post.readingMinutes} {t.readingSuffix}
+                      {post.readingMinutes} {m.blog_reading_suffix()}
                     </p>
                   </div>
                   <div>
@@ -77,7 +74,7 @@ export function BlogIndex() {
                       </p>
                     )}
                     <p className="mt-3 text-sm text-dim">
-                      {t.by} {post.author}
+                      {m.blog_by()} {post.author}
                     </p>
                   </div>
                 </L>

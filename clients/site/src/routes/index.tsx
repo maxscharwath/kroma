@@ -9,11 +9,12 @@ import { Platforms } from '#site/components/home/platforms';
 import { SelfHostBand } from '#site/components/home/self-host-band';
 import { getLocale } from '#site/lib/i18n';
 import { seo } from '#site/lib/seo';
+import { m } from '#site/paraglide/messages';
 
-// The head takes its title and description from `site` (via seo), so the home
-// page has no head copy of its own to look up.
+// The meta description is the hero's own lead, read from the same message the
+// section renders, so the two can never drift apart.
 export const Route = createFileRoute('/')({
-  head: () => seo({ lang: getLocale(), path: '/' }),
+  head: () => seo({ lang: getLocale(), path: '/', description: m.home_hero_description() }),
   component: Home,
 });
 

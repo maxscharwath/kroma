@@ -2,7 +2,7 @@ import { IconExternalLink } from '@tabler/icons-react';
 import type { IconComponent } from '#site/components/download/icon';
 import { Panel } from '#site/components/download/panel';
 import { PlatformEntry, type PlatformEntryProps } from '#site/components/download/platform-entry';
-import { useDownload } from '#site/lib/messages/download';
+import { m } from '#site/paraglide/messages';
 
 export interface PlatformFamilyProps {
   icon: IconComponent;
@@ -29,7 +29,6 @@ export function PlatformFamily({
   docHref,
   entries,
 }: PlatformFamilyProps) {
-  const t = useDownload().ui;
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_1fr] lg:gap-10">
       <div className="lg:sticky lg:top-24 lg:self-start">
@@ -44,7 +43,7 @@ export function PlatformFamily({
           rel="noreferrer noopener"
           className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
         >
-          {t.detailedSteps}
+          {m.download_ui_detailed_steps()}
           <IconExternalLink size={14} stroke={1.75} aria-hidden />
         </a>
       </div>

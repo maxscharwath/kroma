@@ -4,21 +4,20 @@ import { LangSwitcher } from '#site/components/lang-switcher';
 import { L } from '#site/components/localized-link';
 import { Logo } from '#site/components/logo';
 import { localizePath, useLang } from '#site/lib/i18n';
-import { useCommon } from '#site/lib/messages/common';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 // The header's nav is built per-render from the active locale: the two in-page
 // anchors point at the localized home (`/#…` or `/en/#…`), and the two routes go
 // through <L>, which adds the `/en` prefix when English is active.
 function useNav() {
-  const t = useCommon();
   const lang = useLang();
   const home = localizePath('/', lang);
   return [
-    { kind: 'anchor', label: t.nav.features, href: `${home}#fonctionnalites` },
-    { kind: 'anchor', label: t.nav.platforms, href: `${home}#plateformes` },
-    { kind: 'route', label: t.nav.install, to: '/download' },
-    { kind: 'route', label: t.nav.blog, to: '/blog' },
+    { kind: 'anchor', label: m.nav_features(), href: `${home}#fonctionnalites` },
+    { kind: 'anchor', label: m.nav_platforms(), href: `${home}#plateformes` },
+    { kind: 'route', label: m.nav_install(), to: '/download' },
+    { kind: 'route', label: m.nav_blog(), to: '/blog' },
   ] as const;
 }
 
@@ -26,7 +25,6 @@ const linkCls =
   'text-sm font-medium text-muted transition-colors hover:text-text focus-visible:text-text';
 
 export function SiteHeader() {
-  const t = useCommon();
   const nav = useNav();
 
   return (
@@ -37,7 +35,7 @@ export function SiteHeader() {
       >
         <Logo />
 
-        <nav aria-label={t.header.home} className="hidden items-center gap-8 md:flex">
+        <nav aria-label={m.header_home()} className="hidden items-center gap-8 md:flex">
           {nav.map((l) =>
             l.kind === 'route' ? (
               <L key={l.label} to={l.to} className={linkCls} activeClassName="text-text">
@@ -57,14 +55,14 @@ export function SiteHeader() {
             href={site.repo}
             target="_blank"
             rel="noreferrer noopener"
-            aria-label={t.header.github}
+            aria-label={m.header_github()}
             className="hidden size-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-wash hover:text-text sm:flex"
           >
             <IconBrandGithub size={20} stroke={1.75} aria-hidden />
           </a>
           <div className="hidden sm:block">
             <Button to="/download" size="sm">
-              {t.header.install}
+              {m.header_install()}
             </Button>
           </div>
 
@@ -73,7 +71,7 @@ export function SiteHeader() {
           <details className="relative md:hidden">
             <summary
               className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-text transition-colors hover:bg-wash [&::-webkit-details-marker]:hidden"
-              aria-label={t.header.menu}
+              aria-label={m.header_menu()}
             >
               <IconMenu2 size={20} stroke={1.75} aria-hidden />
             </summary>

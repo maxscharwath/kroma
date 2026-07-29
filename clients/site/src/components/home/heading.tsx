@@ -1,18 +1,14 @@
-/** A heading whose amber span is marked inline in the catalog with brackets:
+import { Rich } from '#site/components/rich';
+
+/** A heading whose amber span is marked inline in the message with brackets:
  *  `Six conteneurs. [Un seul serveur.]`. Each language brackets its own words, so
  *  a translator writes one whole sentence and no component has to reassemble a
- *  heading from three fragments. Returns the inline content only; the call site
- *  owns the h1/h2 and its type scale. */
+ *  heading from three fragments. The bracket is read by <Rich>, the single parser
+ *  every marker in the messages goes through, so a heading's amber and a codec's
+ *  mono cannot drift apart. Returns the inline content only; the call site owns
+ *  the h1/h2 and its type scale. */
 export function AccentHeading({ text }: { text: string }) {
-  const [pre = '', accent = '', post = ''] = text.split(/[[\]]/);
-  if (!accent) return <>{pre}</>;
-  return (
-    <>
-      {pre}
-      <span className="text-gradient-amber">{accent}</span>
-      {post}
-    </>
-  );
+  return <Rich>{text}</Rich>;
 }
 
 /** The eyebrow + display heading pair the asymmetric home bands share, where the

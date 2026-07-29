@@ -23,9 +23,9 @@ TanStack Start) while giving a marketing site the SEO of real per-page HTML.
 - **Blog:** `.mdx` files in [`content/blog/`](./content/blog), compiled with
   `@mdx-js/rollup` (frontmatter, GFM, anchored headings, Shiki code). See the
   [authoring guide](./content/blog/README.md).
-- **Languages:** English at the root, every other locale under its own prefix
-  (`/fr`, `/fr/download`). The locale is a pure function of the URL, so each one
-  prerenders to its own HTML. See [Add a language](#add-a-language).
+- **i18n:** [Paraglide JS](https://paraglidejs.com) — English at the root, every
+  other locale under its own prefix (`/fr`, `/fr/download`). The locale is a pure
+  function of the URL, so each one prerenders to its own HTML. See [Languages](#languages).
 
 ## Develop
 
@@ -43,6 +43,7 @@ Other scripts (run with `bun run --filter '@kroma/site' <script>`):
 | `preview` | Serve the built output locally |
 | `preview:edge` | Serve it through `wrangler dev` (the real edge runtime) |
 | `typecheck` | `tsr generate` + `tsc --noEmit` |
+| `og` | Redraw the per-locale social cards (Satori) |
 | `deploy` | Build, then `wrangler deploy` |
 
 ## Add a page
@@ -60,39 +61,88 @@ block. That's the whole workflow — it's discovered, prerendered, dated and
 sorted automatically. Full details and the frontmatter fields are in the
 [authoring guide](./content/blog/README.md).
 
-## Add a language
+## Languages
 
-Strings never live in components — components read keys, catalogs hold the words.
-That is the whole reason a thirtieth language does not make a page unreadable:
-nothing in `src/routes` or `src/components` changes when you add one.
+i18n is [**Paraglide JS**](https://paraglidejs.com) (inlang). Strings never live in
+components: the words are in `messages/<locale>.json`, and a component calls a
+generated, typed function for the one it needs.
 
 ```
-src/lib/messages/
-  common.ts      the chrome: header, footer, 404, language switcher
-  home.tsx       one catalog per page, `{ en: {…}, fr: {…} } as const`
-  download.ts    …plus a `useDownload()` accessor beside it
+messages/
+  en.json      the base locale — 278 keys
+  fr.json      the same 278 keys, in French
+project.inlang/settings.json    the locale list
 ```
-
-A component asks for the active locale's words and nothing else:
 
 ```tsx
-const t = useHome();       // = home[useLang()]
-<h2>{t.features.title}</h2>
+import { m } from '#site/paraglide/messages';
+
+<h2>{m.home_features_title()}</h2>
 ```
 
-To add, say, German:
+Paraglide compiles those JSON files into one tree-shakeable module per message
+(`src/paraglide/`, generated and git-ignored), so a page only ships the strings it
+actually renders, and `tsc` knows every key.
 
-1. Add `'de'` to `locales` in [`src/lib/i18n.ts`](./src/lib/i18n.ts) and give it an
-   entry in `localeNames` / `localeShort`.
-2. Add a `de:` block to each catalog in `src/lib/messages/`. The catalogs are typed
-   from the English shape, so **the compiler lists every string you still owe** —
-   a missing key is a build error, not a blank spot in production.
-3. That's it. The routes, the `/de/*` URLs, the language switcher, the `hreflang`
-   tags and the per-locale prerender all follow from step 1.
+**Routes are not localized — URLs are.** The router carries a `rewrite` pair
+(`deLocalizeUrl` in, `localizeUrl` out), so `/download` is declared once and
+`/fr/download` resolves to it while every href the router generates keeps the
+reader's language. There is no `routes/fr/` mirror to maintain.
 
-Blog posts are translated per file rather than per key: `my-post.de.mdx` beside
-`my-post.mdx`, same slug. A locale with no translation falls back to the English
-post instead of 404ing — see the [authoring guide](./content/blog/README.md).
+The locale comes from the URL and nothing else (`strategy: ['url']`) — no cookie,
+no `Accept-Language`. That is a requirement, not a preference: the site is
+prerendered to static files, so a page must be one language per URL or the HTML on
+the CDN would contradict the address that served it.
+
+### Adding a language
+
+1. Add its code to `locales` in [`project.inlang/settings.json`](./project.inlang/settings.json),
+   its prefix to `urlPatterns` in [`vite.config.ts`](./vite.config.ts), and a name
+   to `localeNames` / `localeShort` in [`src/lib/i18n.ts`](./src/lib/i18n.ts).
+2. Copy `messages/en.json` to `messages/<locale>.json` and translate the values.
+3. Add its card to `CARDS` in [`scripts/og.tsx`](./scripts/og.tsx) and run
+   `bun run og`.
+
+The routes, the `/xx/*` URLs, the switcher, the `hreflang` set and the per-locale
+prerender all follow. No component changes.
+
+> Paraglide falls back to the base locale for a key a translation is missing, so a
+> forgotten string ships as English rather than as an error. Check parity by
+> diffing the two key sets before you publish.
+
+### Rich text in a message
+
+Messages are plain strings, so markup travels as three markers, parsed by
+[`src/lib/rich.ts`](./src/lib/rich.ts) and rendered by `<Rich>`:
+
+| Marker | Renders as |
+| --- | --- |
+| `[amber]` | the brand accent |
+| `` `mono` `` | inline code — a command, a codec, an env var |
+| `*bright*` | full-strength text, for an OS or product name |
+
+A heading therefore stays ONE translatable sentence (`'Six containers. [One
+server.]'`) instead of three fragments that only reassemble in English word order.
+
+### Long-form and blog content
+
+Prose is not a message catalog's job. The privacy policy is MDX per locale in
+[`content/legal/`](./content/legal), and blog posts are MDX per locale in
+[`content/blog/`](./content/blog) (`my-post.fr.mdx` beside `my-post.mdx`, same
+slug). Either falls back to the base-locale file when a translation is missing, so
+a reader gets the page rather than a 404 — see the
+[authoring guide](./content/blog/README.md).
+
+## Social cards
+
+`bun run og` renders `public/og.png` and `public/og.fr.png` from a **TSX
+component** ([`scripts/og-card.tsx`](./scripts/og-card.tsx)) with
+[Satori](https://github.com/vercel/satori) (JSX → SVG) and resvg (SVG → PNG). No
+browser and no network: the brand faces are read from `@kroma/ui`'s own font files,
+and the colours come from its tokens, so a card cannot drift from the design.
+
+A card is an image, so it cannot be translated at request time — one per locale is
+the only way a link shared in French previews in French.
 
 ## Deploy
 
@@ -112,12 +162,16 @@ cd clients/site && bunx wrangler@4 deploy
 ```
 clients/site/
 ├─ content/blog/       the blog, one .mdx per post + .<lang>.mdx translations
+├─ content/legal/      the privacy policy, as MDX per locale
+├─ messages/           the Paraglide catalogs, one .json per locale
+├─ scripts/og.tsx      the social-card generator (Satori, JSX -> SVG -> PNG)
 ├─ public/             static assets served as-is (favicon, og image, robots)
 ├─ src/
 │  ├─ components/      site chrome + per-page section components (Tailwind v4)
 │  ├─ lib/
-│  │  ├─ messages/     the translations, one catalog per page (see above)
-│  │  ├─ i18n.ts       locales, and the URL ⇄ locale mapping
+│  │  ├─ i18n.ts       the app-shaped adapter over Paraglide's runtime
+│  │  ├─ rich.ts       the [amber]/`mono`/*bright* marker parser
+│  │  ├─ legal.ts      resolves content/legal into a per-locale component
 │  │  ├─ blog.ts       resolves content/blog into typed posts
 │  │  ├─ seo.ts        the <head> helper (title, canonical, OG, hreflang)
 │  │  └─ site.ts       the domain, contact addresses and nav

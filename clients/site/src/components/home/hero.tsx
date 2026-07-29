@@ -3,8 +3,8 @@ import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { AccentHeading } from '#site/components/home/heading';
 import { HeroBeams } from '#site/components/home/hero-beams';
-import { useHome } from '#site/lib/messages/home';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 // Above the fold: the chromatic mark over the intro film's neon burst, the
 // promise, two actions, and three specifics that keep the "one binary" claim
@@ -14,7 +14,8 @@ import { site } from '#site/lib/site';
 export function Hero() {
   // The burst locks its origin onto the lockup; the ref hands the canvas that node.
   const markRef = useRef<HTMLSpanElement>(null);
-  const t = useHome().hero;
+  // The three specifics, as a list so the middot separators can sit between them.
+  const facts = [m.home_hero_fact_1(), m.home_hero_fact_2(), m.home_hero_fact_3()];
 
   return (
     <section className="relative overflow-hidden">
@@ -32,7 +33,7 @@ export function Hero() {
             <span ref={markRef} className="inline-block">
               <img
                 src="/kroma-lockup.svg"
-                alt={t.logoAlt}
+                alt={m.home_hero_logo_alt()}
                 width={458}
                 height={100}
                 className="h-11 w-auto drop-shadow-[0_2px_24px_rgba(0,0,0,0.5)] sm:h-14"
@@ -47,21 +48,21 @@ export function Hero() {
             style={{ animationDelay: '60ms' }}
           >
             <span className="inline-block size-1.5 rounded-full bg-accent" aria-hidden />
-            {t.pill}
+            {m.home_hero_pill()}
           </p>
 
           <h1
             className="max-w-4xl text-balance font-display text-5xl font-extrabold leading-[1.02] text-text motion-safe:animate-rise sm:text-6xl lg:text-7xl"
             style={{ animationDelay: '120ms' }}
           >
-            <AccentHeading text={t.heading} />
+            <AccentHeading text={m.home_hero_title()} />
           </h1>
 
           <p
             className="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted motion-safe:animate-rise sm:text-xl"
             style={{ animationDelay: '180ms' }}
           >
-            {t.description}
+            {m.home_hero_description()}
           </p>
 
           <div
@@ -69,10 +70,10 @@ export function Hero() {
             style={{ animationDelay: '240ms' }}
           >
             <Button to="/download" size="lg">
-              {t.install}
+              {m.home_hero_install()}
             </Button>
             <Button href={site.repo} variant="outline" size="lg">
-              {t.code}
+              {m.home_hero_code()}
             </Button>
           </div>
 
@@ -80,7 +81,7 @@ export function Hero() {
             className="mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-xs text-dim motion-safe:animate-rise"
             style={{ animationDelay: '320ms' }}
           >
-            {t.facts.map((fact, i) => (
+            {facts.map((fact, i) => (
               // Middot separators live between items only, so they map off the
               // same list and stay aria-hidden as pure punctuation.
               <Fragment key={fact}>

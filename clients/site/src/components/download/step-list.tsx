@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { Rich } from '#site/components/rich';
 
 export interface StepListProps {
-  /** Ordered steps; each renders beside an amber ordinal. */
-  steps: readonly ReactNode[];
+  /** Ordered steps, as catalog messages; each renders beside an amber ordinal,
+   *  with its `mono` / *bright* markers resolved here. */
+  steps: readonly string[];
 }
 
 /**
@@ -20,7 +21,9 @@ export function StepList({ steps }: StepListProps) {
           <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full border border-border-strong font-mono text-[0.7rem] font-bold text-accent">
             {i + 1}
           </span>
-          <span>{step}</span>
+          <span>
+            <Rich>{step}</Rich>
+          </span>
         </li>
       ))}
     </ol>

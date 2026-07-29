@@ -1,33 +1,43 @@
 import { IconArrowRight, IconDeviceTv, IconServer } from '@tabler/icons-react';
 import { Container } from '#site/components/container';
 import type { IconComponent } from '#site/components/download/icon';
-import { useDownload } from '#site/lib/messages/download';
+import { Rich } from '#site/components/rich';
+import { m } from '#site/paraglide/messages';
 
 /** The page opener: the model in one line, then a two-node "server → clients" strip. */
 export function DownloadHero() {
-  const t = useDownload().hero;
   return (
     <section className="relative overflow-hidden">
       <div className="glow-amber pointer-events-none absolute inset-x-0 top-0 h-[420px]" />
       <Container>
         <div className="relative max-w-3xl py-20 sm:py-24">
           <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-            {t.eyebrow}
+            {m.download_hero_eyebrow()}
           </p>
           <h1 className="text-balance font-display text-4xl font-extrabold leading-[1.03] text-text sm:text-5xl">
-            {t.h1}
+            <Rich>{m.download_hero_h1()}</Rich>
           </h1>
-          <p className="mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted">{t.lede}</p>
+          <p className="mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted">
+            {m.download_hero_lede()}
+          </p>
 
           <div className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-            <ModelNode icon={IconServer} label={t.server.label} detail={t.server.detail} />
+            <ModelNode
+              icon={IconServer}
+              label={m.download_hero_server_label()}
+              detail={m.download_hero_server_detail()}
+            />
             <IconArrowRight
               size={22}
               stroke={1.75}
               className="mx-auto shrink-0 rotate-90 text-dim sm:rotate-0"
               aria-hidden
             />
-            <ModelNode icon={IconDeviceTv} label={t.client.label} detail={t.client.detail} />
+            <ModelNode
+              icon={IconDeviceTv}
+              label={m.download_hero_client_label()}
+              detail={m.download_hero_client_detail()}
+            />
           </div>
         </div>
       </Container>

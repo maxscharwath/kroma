@@ -1,6 +1,6 @@
 import { Container } from '#site/components/container';
 import { BandHeading } from '#site/components/home/heading';
-import { useHome } from '#site/lib/messages/home';
+import { m } from '#site/paraglide/messages';
 
 // The codecs the clients decode themselves. Identifiers, not prose, so they stay
 // here. HEVC is lit in amber as the hero codec; the rest stay neutral, so the row
@@ -19,23 +19,26 @@ const CODECS: readonly { label: string; hero?: true }[] = [
 // clients decode themselves, and a NAS-CPU meter parked near zero because there is
 // no transcode to run.
 export function DirectPlay() {
-  const t = useHome().directPlay;
-
   return (
     <section className="py-20 sm:py-28">
       <Container>
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
           <div>
-            <BandHeading eyebrow={t.eyebrow} heading={t.heading} />
-            <p className="mt-5 text-pretty text-lg leading-relaxed text-muted">{t.lead}</p>
+            <BandHeading
+              eyebrow={m.home_direct_play_eyebrow()}
+              heading={m.home_direct_play_heading()}
+            />
+            <p className="mt-5 text-pretty text-lg leading-relaxed text-muted">
+              {m.home_direct_play_lead()}
+            </p>
             <p className="mt-4 max-w-md font-mono text-xs leading-relaxed text-dim">
-              {t.exception}
+              {m.home_direct_play_exception()}
             </p>
           </div>
 
           <div className="surface-hairline rounded-2xl border border-border bg-surface-1/50 p-6 shadow-card sm:p-8">
             <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-dim">
-              {t.decodedBy}
+              {m.home_direct_play_decoded_by()}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {CODECS.map((c) => (
@@ -58,13 +61,19 @@ export function DirectPlay() {
                 stays cold. A sliver of amber near the origin, not a full bar. */}
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-xs text-muted">{t.cpuLabel}</span>
-                <span className="font-mono text-xs text-accent">{t.cpuState}</span>
+                <span className="font-mono text-xs text-muted">
+                  {m.home_direct_play_cpu_label()}
+                </span>
+                <span className="font-mono text-xs text-accent">
+                  {m.home_direct_play_cpu_state()}
+                </span>
               </div>
               <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-3">
                 <div className="h-full w-[4%] rounded-full bg-accent" />
               </div>
-              <p className="mt-3 text-xs leading-relaxed text-dim">{t.cpuNote}</p>
+              <p className="mt-3 text-xs leading-relaxed text-dim">
+                {m.home_direct_play_cpu_note()}
+              </p>
             </div>
           </div>
         </div>

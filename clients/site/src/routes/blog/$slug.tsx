@@ -4,8 +4,8 @@ import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getPost } from '#site/lib/blog';
 import { getLocale, useLang } from '#site/lib/i18n';
-import { useBlogCopy } from '#site/lib/messages/blog';
 import { seo } from '#site/lib/seo';
+import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/blog/$slug')({
   // The loader validates the slug and returns only serializable metadata (for the
@@ -41,7 +41,6 @@ export function BlogPost() {
   // /en/blog/$slug without binding to a single route's params.
   const slug = useParams({ strict: false }).slug;
   const lang = useLang();
-  const t = useBlogCopy();
   const post = slug ? getPost(slug, lang) : undefined;
   // The loader already 404s on an unknown slug, so this is a type guard, not a
   // path a reader reaches.
@@ -56,7 +55,7 @@ export function BlogPost() {
           className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-text"
         >
           <IconArrowLeft size={16} stroke={2} aria-hidden />
-          {t.post.back}
+          {m.blog_post_back()}
         </L>
 
         <header className="mt-8">
@@ -77,13 +76,13 @@ export function BlogPost() {
           </h1>
           <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
             <span>
-              {t.by} {post.author}
+              {m.blog_by()} {post.author}
             </span>
             <span aria-hidden>·</span>
             <time dateTime={post.date}>{post.dateLabel}</time>
             <span aria-hidden>·</span>
             <span>
-              {post.readingMinutes} {t.readingSuffix}
+              {post.readingMinutes} {m.blog_reading_suffix()}
             </span>
           </div>
         </header>

@@ -1,6 +1,6 @@
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useDownload } from '#site/lib/messages/download';
+import { m } from '#site/paraglide/messages';
 
 export interface CopyButtonProps {
   /** The exact text placed on the clipboard, passed verbatim, no trimming. */
@@ -16,7 +16,6 @@ export interface CopyButtonProps {
  * over the always-selectable text in the code block.
  */
 export function CopyButton({ value }: CopyButtonProps) {
-  const t = useDownload().ui;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -33,7 +32,7 @@ export function CopyButton({ value }: CopyButtonProps) {
     <button
       type="button"
       onClick={handleCopy}
-      aria-label={copied ? t.copied : t.copyAria}
+      aria-label={copied ? m.download_ui_copied() : m.download_ui_copy_aria()}
       className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-sans text-xs font-medium text-dim transition-colors hover:bg-wash hover:text-text focus-visible:text-text focus-visible:outline-none"
     >
       {copied ? (
@@ -41,7 +40,7 @@ export function CopyButton({ value }: CopyButtonProps) {
       ) : (
         <IconCopy size={14} stroke={1.75} aria-hidden />
       )}
-      {copied ? t.copied : t.copy}
+      {copied ? m.download_ui_copied() : m.download_ui_copy()}
     </button>
   );
 }

@@ -13,60 +13,131 @@ import {
 } from '@tabler/icons-react';
 import { Button } from '#site/components/button';
 import { Section } from '#site/components/section';
-import { type PlatformGroupId, type PlatformId, useHome } from '#site/lib/messages/home';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 // Platforms grouped by where they live rather than dropped into one flat grid of
 // identical tiles, the grouping is the editorial choice. Each tile names the
 // underlying runtime in mono (Tizen, webOS, .spk…) so the list reads as fact, not
 // a logo wall. One codebase, one design language, every screen.
+interface Platform {
+  /** Stable, language-invariant id: the React key. */
+  id: string;
+  Icon: TablerIcon;
+  name: () => string;
+  /** The runtime under the name, set in mono. */
+  detail: () => string;
+}
+
 interface Group {
-  id: PlatformGroupId;
-  items: readonly { id: PlatformId; Icon: TablerIcon }[];
+  id: string;
+  label: () => string;
+  items: readonly Platform[];
 }
 
 const GROUPS: readonly Group[] = [
   {
     id: 'screens',
+    label: m.home_platforms_group_screens,
     items: [
-      { id: 'web', Icon: IconWorldWww },
-      { id: 'mobile', Icon: IconDeviceMobile },
-      { id: 'desktop', Icon: IconDeviceDesktop },
+      {
+        id: 'web',
+        Icon: IconWorldWww,
+        name: m.home_platforms_web_name,
+        detail: m.home_platforms_web_detail,
+      },
+      {
+        id: 'mobile',
+        Icon: IconDeviceMobile,
+        name: m.home_platforms_mobile_name,
+        detail: m.home_platforms_mobile_detail,
+      },
+      {
+        id: 'desktop',
+        Icon: IconDeviceDesktop,
+        name: m.home_platforms_desktop_name,
+        detail: m.home_platforms_desktop_detail,
+      },
     ],
   },
   {
     id: 'televisions',
+    label: m.home_platforms_group_televisions,
     items: [
-      { id: 'samsung', Icon: IconDeviceTv },
-      { id: 'lg', Icon: IconDeviceTv },
-      { id: 'androidTv', Icon: IconBrandAndroid },
-      { id: 'appleTv', Icon: IconBrandApple },
-      { id: 'cast', Icon: IconCast },
+      {
+        id: 'samsung',
+        Icon: IconDeviceTv,
+        name: m.home_platforms_samsung_name,
+        detail: m.home_platforms_samsung_detail,
+      },
+      {
+        id: 'lg',
+        Icon: IconDeviceTv,
+        name: m.home_platforms_lg_name,
+        detail: m.home_platforms_lg_detail,
+      },
+      {
+        id: 'androidTv',
+        Icon: IconBrandAndroid,
+        name: m.home_platforms_android_tv_name,
+        detail: m.home_platforms_android_tv_detail,
+      },
+      {
+        id: 'appleTv',
+        Icon: IconBrandApple,
+        name: m.home_platforms_apple_tv_name,
+        detail: m.home_platforms_apple_tv_detail,
+      },
+      {
+        id: 'cast',
+        Icon: IconCast,
+        name: m.home_platforms_cast_name,
+        detail: m.home_platforms_cast_detail,
+      },
     ],
   },
   {
     id: 'server',
+    label: m.home_platforms_group_server,
     items: [
-      { id: 'synology', Icon: IconServer },
-      { id: 'docker', Icon: IconBox },
-      { id: 'raspberryPi', Icon: IconCpu },
+      {
+        id: 'synology',
+        Icon: IconServer,
+        name: m.home_platforms_synology_name,
+        detail: m.home_platforms_synology_detail,
+      },
+      {
+        id: 'docker',
+        Icon: IconBox,
+        name: m.home_platforms_docker_name,
+        detail: m.home_platforms_docker_detail,
+      },
+      {
+        id: 'raspberryPi',
+        Icon: IconCpu,
+        name: m.home_platforms_raspberry_pi_name,
+        detail: m.home_platforms_raspberry_pi_detail,
+      },
     ],
   },
 ];
 
 export function Platforms() {
-  const t = useHome().platforms;
-
   return (
-    <Section id="plateformes" eyebrow={t.eyebrow} title={t.title} intro={t.intro}>
+    <Section
+      id="plateformes"
+      eyebrow={m.home_platforms_eyebrow()}
+      title={m.home_platforms_title()}
+      intro={m.home_platforms_intro()}
+    >
       <div className="flex flex-col gap-10">
         {GROUPS.map((group) => (
           <div key={group.id} className="grid gap-4 lg:grid-cols-[9rem_1fr] lg:gap-8">
             <p className="pt-1 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-dim">
-              {t.groups[group.id]}
+              {group.label()}
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {group.items.map(({ id, Icon }) => (
+              {group.items.map(({ id, Icon, name, detail }) => (
                 <div
                   key={id}
                   className="flex items-center gap-3.5 rounded-xl border border-border bg-surface-1/40 px-4 py-3.5 transition-colors duration-200 hover:border-border-strong hover:bg-surface-1"
@@ -76,11 +147,9 @@ export function Platforms() {
                   </span>
                   <div className="min-w-0">
                     <p className="font-display text-[0.95rem] font-semibold leading-tight text-text">
-                      {t.items[id].name}
+                      {name()}
                     </p>
-                    <p className="truncate font-mono text-[0.7rem] text-dim">
-                      {t.items[id].detail}
-                    </p>
+                    <p className="truncate font-mono text-[0.7rem] text-dim">{detail()}</p>
                   </div>
                 </div>
               ))}
@@ -90,9 +159,9 @@ export function Platforms() {
       </div>
 
       <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
-        <Button to="/download">{t.install}</Button>
+        <Button to="/download">{m.home_platforms_install()}</Button>
         <Button href={site.tvUrl} variant="outline">
-          {t.tvDemo}
+          {m.home_platforms_tv_demo()}
         </Button>
       </div>
     </Section>

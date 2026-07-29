@@ -3,21 +3,18 @@ import { AppPlatforms } from '#site/components/download/app-platforms';
 import { Closing } from '#site/components/download/closing';
 import { DownloadHero } from '#site/components/download/hero';
 import { InstallStep } from '#site/components/download/install-step';
+import { docs, ProseLink } from '#site/components/download/links';
 import { ServerOptions } from '#site/components/download/server-options';
+import { Rich } from '#site/components/rich';
 import { getLocale } from '#site/lib/i18n';
-import { download, useDownload } from '#site/lib/messages/download';
 import { seo } from '#site/lib/seo';
+import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/download')({
-  // `head` runs outside React, so it reads the catalog directly; the hook is
-  // unavailable here and this route is the English one.
-  // `head` runs outside React, so it reads the ambient locale straight from
-  // Paraglide rather than through the hook. One head, both languages - this is
-  // what the deleted src/routes/fr/* mirrors used to exist for.
-  head: () => {
-    const lang = getLocale();
-    return seo({ lang, title: download[lang].head.title, path: '/download' });
-  },
+  // `head` runs outside React, but a Paraglide message still resolves from the
+  // ambient locale there, so one head serves both languages - this is what the
+  // deleted src/routes/fr/* mirrors used to exist for.
+  head: () => seo({ lang: getLocale(), title: m.download_head_title(), path: '/download' }),
   component: Download,
 });
 
@@ -25,16 +22,30 @@ export const Route = createFileRoute('/download')({
  *  one-time setup exists. Shared with /fr/download, which renders this component
  *  under the French locale. */
 export function Download() {
-  const t = useDownload();
   return (
     <>
       <DownloadHero />
 
-      <InstallStep id="serveur" step="01" title={t.server.step.title} intro={t.server.step.intro}>
+      <InstallStep
+        id="serveur"
+        step="01"
+        title={m.download_server_step_title()}
+        intro={m.download_server_step_intro()}
+      >
         <ServerOptions />
       </InstallStep>
 
-      <InstallStep id="apps" step="02" title={t.apps.step.title} intro={t.apps.step.intro}>
+      <InstallStep
+        id="apps"
+        step="02"
+        title={m.download_apps_step_title()}
+        intro={
+          <>
+            <Rich>{m.download_apps_step_intro()}</Rich>{' '}
+            <ProseLink href={docs.releases}>{m.download_apps_step_link()}</ProseLink>
+          </>
+        }
+      >
         <AppPlatforms />
       </InstallStep>
 

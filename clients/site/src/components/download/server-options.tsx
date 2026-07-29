@@ -4,8 +4,9 @@ import { CodeBlock } from '#site/components/download/code-block';
 import type { IconComponent } from '#site/components/download/icon';
 import { Panel } from '#site/components/download/panel';
 import { StepList } from '#site/components/download/step-list';
-import { useDownload } from '#site/lib/messages/download';
+import { Rich } from '#site/components/rich';
 import { site } from '#site/lib/site';
+import { m } from '#site/paraglide/messages';
 
 /** The published multi-arch image. Kept in step with the repo's docker-compose.yml. */
 const IMAGE = 'ghcr.io/maxscharwath/kroma:latest';
@@ -63,18 +64,23 @@ function OptionHead({
  * beneath as a pair, an editorial hierarchy rather than three equal cards.
  */
 export function ServerOptions() {
-  const t = useDownload().server;
   return (
     <div className="space-y-5">
       <Panel>
-        <OptionHead icon={IconBrandDocker} title="Docker / Docker Compose" tag={t.docker.tag} />
-        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">{t.docker.body}</p>
+        <OptionHead
+          icon={IconBrandDocker}
+          title="Docker / Docker Compose"
+          tag={m.download_server_docker_tag()}
+        />
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+          <Rich>{m.download_server_docker_body()}</Rich>
+        </p>
         <div className="mt-5 grid gap-4 lg:grid-cols-[1.55fr_1fr]">
           <CodeBlock label="docker-compose.yml" code={COMPOSE} />
           <div className="flex flex-col gap-4">
             <CodeBlock label="bash" code="docker compose up -d" />
-            <Callout icon={IconInfoCircle} tag={t.docker.mediaTag}>
-              {t.docker.mediaBody}
+            <Callout icon={IconInfoCircle} tag={m.download_server_docker_media_tag()}>
+              <Rich>{m.download_server_docker_media_body()}</Rich>
             </Callout>
           </div>
         </div>
@@ -82,16 +88,26 @@ export function ServerOptions() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Panel>
-          <OptionHead icon={IconServer} title={t.synology.title} />
-          <p className="mt-4 text-sm leading-relaxed text-muted">{t.synology.body}</p>
+          <OptionHead icon={IconServer} title={m.download_server_synology_title()} />
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            {m.download_server_synology_body()}
+          </p>
           <div className="mt-5">
-            <StepList steps={t.synology.steps} />
+            <StepList
+              steps={[
+                m.download_server_synology_step_1(),
+                m.download_server_synology_step_2(),
+                m.download_server_synology_step_3(),
+              ]}
+            />
           </div>
         </Panel>
 
         <Panel>
-          <OptionHead icon={IconBrandRust} title={t.cargo.title} />
-          <p className="mt-4 text-sm leading-relaxed text-muted">{t.cargo.body}</p>
+          <OptionHead icon={IconBrandRust} title={m.download_server_cargo_title()} />
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            {m.download_server_cargo_body()}
+          </p>
           <div className="mt-5">
             <CodeBlock label="bash" code={CARGO} />
           </div>
@@ -101,7 +117,7 @@ export function ServerOptions() {
             rel="noreferrer noopener"
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
           >
-            {t.cargo.link}
+            {m.download_server_cargo_link()}
           </a>
         </Panel>
       </div>

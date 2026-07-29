@@ -1,6 +1,6 @@
 import { L } from '#site/components/localized-link';
 import { WheelMark } from '#site/components/wheel-mark';
-import { useCommon } from '#site/lib/messages/common';
+import { m } from '#site/paraglide/messages';
 
 export interface LogoProps {
   className?: string;
@@ -12,11 +12,10 @@ export interface LogoProps {
  *  A link to the localized home, so it works as the header brand in both
  *  languages. */
 export function Logo({ className, size = 30 }: LogoProps) {
-  const t = useCommon();
   return (
     <L
       to="/"
-      aria-label={t.header.home}
+      aria-label={m.header_home()}
       className={['group inline-flex items-center gap-2.5', className].filter(Boolean).join(' ')}
     >
       <WheelMark

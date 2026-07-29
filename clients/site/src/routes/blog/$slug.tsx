@@ -21,16 +21,14 @@ export const Route = createFileRoute('/blog/$slug')({
   head: ({ loaderData }) => {
     const meta = loaderData?.meta;
     if (!meta) return {};
-    return {
-      ...seo({
-        lang: 'en',
-        title: meta.title,
-        description: meta.excerpt,
-        path: `/blog/${meta.slug}`,
-        image: meta.cover,
-        type: 'article',
-      }),
-    };
+    return seo({
+      lang: 'en',
+      title: meta.title,
+      description: meta.excerpt,
+      path: `/blog/${meta.slug}`,
+      image: meta.cover,
+      type: 'article',
+    });
   },
   component: BlogPost,
 });
@@ -55,7 +53,7 @@ export function BlogPost() {
           className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-text"
         >
           <IconArrowLeft size={16} stroke={2} aria-hidden />
-          {t.back}
+          {t.post.back}
         </L>
 
         <header className="mt-8">

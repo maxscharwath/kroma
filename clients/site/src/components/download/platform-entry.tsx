@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
+import { CodeBlock } from '#site/components/download/code-block';
 import type { IconComponent } from '#site/components/download/icon';
+import { StepList } from '#site/components/download/step-list';
 import { useDownload } from '#site/lib/messages/download';
 
 export interface PlatformEntryProps {
@@ -12,15 +14,21 @@ export interface PlatformEntryProps {
   beta?: boolean;
   /** The one-time-setup / heads-up note, typically a <Callout>. */
   setup?: ReactNode;
-  /** Representative command(s), typically a <CodeBlock>. Optional (Web needs none). */
-  children?: ReactNode;
+  /** A short numbered procedure, when clicking through beats a command. */
+  steps?: readonly ReactNode[];
+  /** The representative command, verbatim. Optional (Apple TV needs none). */
+  code?: string;
+  /** Caption for that command; defaults to the CodeBlock's own `bash`. */
+  codeLabel?: string;
+  /** Trailing prose for this row only (Synology's manual-install fallback). */
+  after?: ReactNode;
 }
 
 /**
  * One device inside a family. A row, not a card: an icon tile, the name with its
- * artifact badges, then the one-time setup and a representative command stacked
- * beneath. Rows share a hairline divider within the family panel, which reads as
- * an edited list rather than a grid of look-alike tiles.
+ * artifact badges, then the one-time setup, the steps or command, and any closing
+ * note stacked beneath. Rows share a hairline divider within the family panel,
+ * which reads as an edited list rather than a grid of look-alike tiles.
  */
 export function PlatformEntry({
   icon: Icon,
@@ -28,7 +36,10 @@ export function PlatformEntry({
   artifacts,
   beta,
   setup,
-  children,
+  steps,
+  code,
+  codeLabel,
+  after,
 }: PlatformEntryProps) {
   const t = useDownload().ui;
   return (
@@ -55,7 +66,13 @@ export function PlatformEntry({
             )}
           </div>
           {setup && <div className="mt-3">{setup}</div>}
-          {children && <div className="mt-3">{children}</div>}
+          {(steps || code) && (
+            <div className="mt-3 space-y-4">
+              {steps && <StepList steps={steps} />}
+              {code && <CodeBlock label={codeLabel} code={code} />}
+            </div>
+          )}
+          {after}
         </div>
       </div>
     </div>

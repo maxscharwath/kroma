@@ -17,35 +17,13 @@ import {
 } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { Callout } from '#site/components/download/callout';
-import { CodeBlock } from '#site/components/download/code-block';
 import type { IconComponent } from '#site/components/download/icon';
-import { PlatformEntry } from '#site/components/download/platform-entry';
-import { PlatformFamily } from '#site/components/download/platform-family';
-import { StepList } from '#site/components/download/step-list';
+import {
+  PlatformFamily,
+  type PlatformFamilyProps,
+} from '#site/components/download/platform-family';
 import { docs, useDownload } from '#site/lib/messages/download';
 import { site } from '#site/lib/site';
-
-interface Entry {
-  icon: IconComponent;
-  /** Device / OS name, language-neutral unless the catalog carries it. */
-  name: string;
-  artifacts?: readonly string[];
-  beta?: boolean;
-  setup?: ReactNode;
-  steps?: readonly ReactNode[];
-  code?: string;
-  codeLabel?: string;
-  /** Trailing prose for this row only (Synology's manual-install fallback). */
-  after?: ReactNode;
-}
-
-interface Family {
-  icon: IconComponent;
-  title: string;
-  intro: string;
-  docHref: string;
-  entries: readonly Entry[];
-}
 
 /** The one-time-setup note: the icon is an editorial choice (a key for a setup, a
  *  triangle for a Gatekeeper prompt), the words come from the catalog. */
@@ -59,12 +37,14 @@ function note(icon: IconComponent, text: { tag: string; body: ReactNode }) {
 
 /**
  * Step 2's body: every screen KROMA runs on, grouped by family. The families are
- * data rather than four near-identical JSX blocks, so each device still gets the
- * note and the command that actually matters for it without the frame repeating.
+ * data, not four near-identical JSX blocks, so each device still gets the note and
+ * the command that actually matters for it without the frame repeating. Device
+ * names, extensions and commands are language-neutral and live here; every word a
+ * reader parses comes from the catalog.
  */
 export function AppPlatforms() {
   const t = useDownload().families;
-  const families: readonly Family[] = [
+  const families: readonly PlatformFamilyProps[] = [
     {
       icon: IconDeviceTv,
       title: t.tv.title,
@@ -187,37 +167,9 @@ adb install -r KROMA-androidtv.apk`,
 
   return (
     <div className="space-y-14">
-      {families.map(({ entries, ...family }) => (
-        <PlatformFamily key={family.title} {...family}>
-          {entries.map((entry) => (
-            <PlatformEntry
-              key={entry.name}
-              icon={entry.icon}
-              name={entry.name}
-              artifacts={entry.artifacts}
-              beta={entry.beta}
-              setup={entry.setup}
-            >
-              {entryBody(entry)}
-            </PlatformEntry>
-          ))}
-        </PlatformFamily>
+      {families.map((family) => (
+        <PlatformFamily key={family.title} {...family} />
       ))}
     </div>
-  );
-}
-
-/** Steps first, then the representative command, then any trailing prose. Stays
- *  undefined when a row has none of the three, so PlatformEntry skips its spacer. */
-function entryBody({ steps, code, codeLabel, after }: Entry): ReactNode {
-  if (!steps && !code && !after) return undefined;
-  return (
-    <>
-      <div className="space-y-4">
-        {steps && <StepList steps={steps} />}
-        {code && <CodeBlock label={codeLabel} code={code} />}
-      </div>
-      {after}
-    </>
   );
 }

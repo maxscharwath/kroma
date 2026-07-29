@@ -1,18 +1,18 @@
 import { IconExternalLink } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
 import type { IconComponent } from '#site/components/download/icon';
 import { Panel } from '#site/components/download/panel';
+import { PlatformEntry, type PlatformEntryProps } from '#site/components/download/platform-entry';
 import { useDownload } from '#site/lib/messages/download';
 
 export interface PlatformFamilyProps {
   icon: IconComponent;
   title: string;
   /** One line placing the family (who it is for). */
-  intro?: ReactNode;
-  /** Deep link to the full walkthrough for these devices (INSTALL.md). */
-  docHref?: string;
-  /** <PlatformEntry> rows. */
-  children: ReactNode;
+  intro: string;
+  /** Deep link to the full walkthrough for these devices (INSTALL.md, BETA.md). */
+  docHref: string;
+  /** The devices in this family, one row each. */
+  entries: readonly PlatformEntryProps[];
 }
 
 /**
@@ -27,7 +27,7 @@ export function PlatformFamily({
   title,
   intro,
   docHref,
-  children,
+  entries,
 }: PlatformFamilyProps) {
   const t = useDownload().ui;
   return (
@@ -37,20 +37,22 @@ export function PlatformFamily({
           <Icon size={22} stroke={1.75} className="text-accent" aria-hidden />
           <h3 className="font-display text-xl font-extrabold text-text">{title}</h3>
         </div>
-        {intro && <p className="mt-2 text-sm leading-relaxed text-muted">{intro}</p>}
-        {docHref && (
-          <a
-            href={docHref}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
-          >
-            {t.detailedSteps}
-            <IconExternalLink size={14} stroke={1.75} aria-hidden />
-          </a>
-        )}
+        <p className="mt-2 text-sm leading-relaxed text-muted">{intro}</p>
+        <a
+          href={docHref}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
+        >
+          {t.detailedSteps}
+          <IconExternalLink size={14} stroke={1.75} aria-hidden />
+        </a>
       </div>
-      <Panel>{children}</Panel>
+      <Panel>
+        {entries.map((entry) => (
+          <PlatformEntry key={entry.name} {...entry} />
+        ))}
+      </Panel>
     </div>
   );
 }

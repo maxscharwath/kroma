@@ -9,13 +9,16 @@ import { Platforms } from '#site/components/home/platforms';
 import { SelfHostBand } from '#site/components/home/self-host-band';
 import { seo } from '#site/lib/seo';
 
+// The head takes its title and description from `site` (via seo), so the home
+// page has no head copy of its own to look up.
 export const Route = createFileRoute('/')({
-  head: () => ({ ...seo({ lang: 'en', path: '/' }) }),
+  head: () => seo({ lang: 'en', path: '/' }),
   component: Home,
 });
 
 // The home page is a composition, not a wall of markup: each band is a single
-// self-contained section under components/home. The order tells the story, // promise, the one-binary differentiator, the full capability set, the playback
+// self-contained section under components/home. The order tells the story: the
+// promise, the one-binary differentiator, the full capability set, the playback
 // moment, where it runs, why you'd own it, what we're writing, then the ask.
 export function Home() {
   return (

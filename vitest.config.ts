@@ -29,6 +29,12 @@ const alias = [
   { find: /^#tv\//, replacement: dir('./packages/tv/src/') },
   { find: /^#ui\//, replacement: dir('./packages/ui/src/') },
   { find: /^#web\//, replacement: dir('./clients/web/src/') },
+  // The showcase site. Only its generated-code-free modules are tested (the rich-text
+  // parser, the content-locale convention, the blog and legal loaders), which is why
+  // this alias never has to resolve `#site/paraglide/*`: that directory is written by
+  // the vite plugin at build time and is not in the repo, so a test that needed it
+  // would pass or fail depending on whether someone had built the site first.
+  { find: /^#site\//, replacement: dir('./clients/site/src/') },
   // @kroma/ui is written against React Native. Under the test runner (as in
   // every browser target) that resolves to react-native-web, exactly the way the
   // Tizen / webOS / desktop bundles wire it. This holds for the native project

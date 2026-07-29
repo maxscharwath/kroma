@@ -8,7 +8,7 @@
 
 import { KromaEvents, type NotificationsView } from '@kroma/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { apiBase } from '#web/shared/lib/api';
 import { userQueries } from '#web/shared/lib/queries';
 
@@ -43,4 +43,26 @@ export function useNotificationStream(): void {
 export function useUnreadCount(): number {
   const { data } = useQuery({ ...userQueries.notifications(), select: (v) => v.unread });
   return data ?? 0;
+}
+
+/** Panel open-state that remembers whether it has ever been opened, so the inbox
+ * is not fetched on every page load merely to render a bell. */
+export function usePanelState(): {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  everOpened: boolean;
+} {
+  const [open, setOpen] = useState(false);
+  const [everOpened, setEverOpened] = useState(false);
+  return {
+    open,
+    everOpened,
+    // Wraps the setter so the latch flips on the same click that opens the
+    // panel. It only ever goes true: closing the panel must not unmount the
+    // inbox query, or every reopen would refetch from scratch.
+    setOpen: (next: boolean) => {
+      if (next) setEverOpened(true);
+      setOpen(next);
+    },
+  };
 }

@@ -17,6 +17,13 @@
 /// The shared-host-token guard used by every hop of the module IPC.
 pub mod host_token;
 
+/// Shared `HostCtx` test doubles, so a seam with ~25 methods is stubbed once
+/// rather than once per crate that tests against it. Behind the `testing`
+/// feature: dependents enable it as a dev-dependency, and no release build
+/// compiles it.
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
+
 use std::any::{Any, TypeId};
 use std::path::Path;
 use std::sync::Arc;
@@ -455,58 +462,34 @@ mod tests {
         assert_eq!((*back).hi(), "hi");
     }
 
-    // ----- test double: a HostCtx that only serves the service registry ----------
+    // The HostCtx doubles live in `crate::testing`, shared with every other
+    // crate that tests against this seam.
 
-    struct MockHost {
-        svc: Option<(TypeId, Arc<dyn Any + Send + Sync>)>,
-    }
-    impl HostCtx for MockHost {
-        fn db(&self) -> &Pool {
-            unimplemented!("db is not exercised by these tests")
-        }
-        fn data_dir(&self) -> &Path {
-            Path::new("/tmp")
-        }
-        fn require(&self, _user: &User, _perm: Permission) -> Result<(), Response> {
-            Ok(())
-        }
-        fn require_any_admin(&self, _user: &User) -> Result<(), Response> {
-            Ok(())
-        }
-        fn lerr(&self, _user: &User, _status: StatusCode, _key: &str) -> Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: Event) {}
-        fn publish_to(&self, _user_id: &str, _event: Event) {}
-        fn notify(&self, _audience: &Audience, _spec: &NotificationSpec) -> usize {
-            0
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
-            self.svc.as_ref().filter(|(t, _)| *t == type_id).map(|(_, v)| v.clone())
-        }
+    /// Regression guard on the `Arc` blanket impl. `publish_to` and `notify`
+    /// are required methods precisely so that a host which forgets one fails to
+    /// compile - but "implemented" and "forwarded to the inner host" are not the
+    /// same claim, and the app calls through `Arc<AppState>`, never `AppState`
+    /// directly. A blanket impl that answered from its own body rather than
+    /// delegating would still build and then silently swallow every addressed
+    /// event. This asserts the delegation is real.
+    #[test]
+    fn the_arc_blanket_impl_forwards_the_addressed_methods() {
+        let host = Arc::new(testing::StubHost::new());
+        let via_arc: &dyn HostCtx = &host;
+
+        via_arc.publish_to("ana", Event::new("notification.created", serde_json::json!({})));
+        let spec = NotificationSpec::new(
+            NotificationEvent::RequestApproved,
+            "notifications.request.approved.title",
+            "notifications.request.approved.body",
+        );
+        assert_eq!(via_arc.notify(&Audience::user("ana"), &spec), 1);
+
+        assert_eq!(host.published(), [(Some("ana".to_string()), "notification.created".to_string())]);
+        assert_eq!(
+            host.notifications().iter().map(|(_, s)| s.event.as_str()).collect::<Vec<_>>(),
+            ["request.approved"]
+        );
     }
 
     #[test]
@@ -521,21 +504,19 @@ mod tests {
             }
         }
         let port: Arc<dyn Greeter> = Arc::new(G);
-        let host = MockHost { svc: Some(port_service(port)) };
+        let host = testing::StubHost::new().with_service_raw(port_service(port));
         let resolved = resolve_port::<dyn Greeter>(&host).expect("port resolves");
         assert_eq!(resolved.hi(), "hi");
 
         // Nothing registered -> None.
-        let empty = MockHost { svc: None };
+        let empty = testing::StubHost::new();
         assert!(resolve_port::<dyn Greeter>(&empty).is_none());
     }
 
     #[test]
     fn service_resolves_a_concrete_type() {
         struct Manager(u32);
-        let host = MockHost {
-            svc: Some((TypeId::of::<Manager>(), Arc::new(Manager(42)) as Arc<dyn Any + Send + Sync>)),
-        };
+        let host = testing::StubHost::new().with_service(Arc::new(Manager(42)));
         let got = service::<Manager>(&host).expect("service resolves");
         assert_eq!(got.0, 42);
 
@@ -608,5 +589,215 @@ mod tests {
         .await;
         assert_eq!(n.unwrap(), 2);
         let _ = std::fs::remove_file(&path);
+    }
+    use serde_json::json;
+
+    #[test]
+    fn a_module_that_declares_nothing_gets_empty_defaults() {
+        // A lifecycle-only module (a download engine) declares no schema, no
+        // admin routes and no jobs. Any of these defaulting to something
+        // non-empty would run SQL or mount routes nobody asked for.
+        struct Bare;
+        #[async_trait]
+        impl ServerModule<Arc<testing::StubHost>> for Bare {
+            fn id(&self) -> &'static str {
+                "tv.kroma.bare"
+            }
+        }
+        assert_eq!(Bare.id(), "tv.kroma.bare");
+        assert_eq!(Bare.migrations(), "");
+        assert!(Bare.admin_routes(&Arc::new(testing::StubHost::new())).is_none());
+        assert!(Bare.jobs().is_empty());
+
+        // ...and its lifecycle hooks are no-ops that complete rather than panic.
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        rt.block_on(async {
+            let host: Arc<dyn HostCtx> = Arc::new(testing::StubHost::new());
+            Bare.on_enable(host.clone()).await;
+            Bare.on_disable(host).await;
+        });
+    }
+
+    // ----- the Arc blanket impl ---------------------------------------------------
+
+    /// Records which methods were reached through it.
+    #[derive(Default)]
+    struct Recorder {
+        calls: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl Recorder {
+        fn note(&self, what: &str) {
+            self.calls.lock().unwrap().push(what.to_string());
+        }
+        fn calls(&self) -> Vec<String> {
+            self.calls.lock().unwrap().clone()
+        }
+    }
+
+    impl HostCtx for Recorder {
+        fn db(&self) -> &Pool {
+            unimplemented!("not exercised")
+        }
+        fn data_dir(&self) -> &Path {
+            Path::new("/recorder")
+        }
+        fn require(&self, _user: &User, _perm: Permission) -> Result<(), Response> {
+            self.note("require");
+            Ok(())
+        }
+        fn require_any_admin(&self, _user: &User) -> Result<(), Response> {
+            self.note("require_any_admin");
+            Ok(())
+        }
+        fn lerr(&self, _user: &User, _status: StatusCode, _key: &str) -> Response {
+            unimplemented!("not exercised")
+        }
+        fn setting_str(&self, key: &str, _default: &str) -> String {
+            self.note("setting_str");
+            format!("str:{key}")
+        }
+        fn setting_bool(&self, _key: &str, _default: bool) -> bool {
+            self.note("setting_bool");
+            true
+        }
+        fn setting_i64(&self, _key: &str, _default: i64) -> i64 {
+            self.note("setting_i64");
+            42
+        }
+        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {
+            self.note("set_settings");
+        }
+        fn publish(&self, _event: Event) {
+            self.note("publish");
+        }
+        fn publish_to(&self, user_id: &str, _event: Event) {
+            self.note(&format!("publish_to:{user_id}"));
+        }
+        fn notify(&self, _audience: &Audience, _spec: &NotificationSpec) -> usize {
+            self.note("notify");
+            7
+        }
+        fn trigger_job(&self, key: &'static str, _reason: &'static str) {
+            self.note(&format!("trigger_job:{key}"));
+        }
+        fn module_enabled(&self, _id: &str) -> bool {
+            self.note("module_enabled");
+            false
+        }
+        fn library_folders(&self) -> Vec<LibraryFolders> {
+            self.note("library_folders");
+            Vec::new()
+        }
+        fn tmdb_api_key(&self) -> Option<String> {
+            self.note("tmdb_api_key");
+            Some("key".into())
+        }
+        fn metadata_language(&self) -> String {
+            self.note("metadata_language");
+            "fr-FR".into()
+        }
+        fn get_service(&self, _t: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
+            self.note("get_service");
+            None
+        }
+    }
+
+    #[test]
+    fn every_call_through_an_arc_reaches_the_host_inside_it() {
+        // The router state is `Arc<AppState>`, so EVERY call the app makes goes
+        // through this blanket impl. A method that forwarded to the trait
+        // DEFAULT instead of the inner host would silently lose behaviour - and
+        // for `publish_to` and `notify` that means dropped notifications, which
+        // nothing else would catch.
+        let inner = Arc::new(Recorder::default());
+        let host: Arc<Recorder> = inner.clone();
+
+        let user = User {
+            id: "u1".into(),
+            email: "u1@t.dev".into(),
+            username: "u1".into(),
+            avatar_url: None,
+            language: None,
+            audio_language: None,
+            subtitle_language: None,
+            permissions: Vec::new(),
+            created_at: "now".into(),
+            has_pin: false,
+        };
+
+        assert_eq!(host.data_dir(), Path::new("/recorder"));
+        host.require(&user, Permission::Playback).unwrap();
+        host.require_any_admin(&user).unwrap();
+        assert_eq!(host.setting_str("k", "d"), "str:k");
+        assert!(host.setting_bool("k", false));
+        assert_eq!(host.setting_i64("k", 0), 42);
+        host.set_settings(std::collections::BTreeMap::new());
+        host.publish(Event::new("t", json!({})));
+        host.publish_to("u1", Event::new("t", json!({})));
+        let spec = NotificationSpec::new(
+            NotificationEvent::RequestApproved,
+            "notifications.request.approved.title",
+            "notifications.request.approved.body",
+        );
+        assert_eq!(host.notify(&Audience::user("u1"), &spec), 7);
+        host.trigger_job("acquisition.search", "test");
+        assert!(!host.module_enabled("tv.kroma.indexer"));
+        assert!(host.library_folders().is_empty());
+        assert_eq!(host.tmdb_api_key().as_deref(), Some("key"));
+        assert_eq!(host.metadata_language(), "fr-FR");
+        assert!(host.get_service(TypeId::of::<u8>()).is_none());
+
+        assert_eq!(
+            inner.calls(),
+            [
+                "require",
+                "require_any_admin",
+                "setting_str",
+                "setting_bool",
+                "setting_i64",
+                "set_settings",
+                "publish",
+                "publish_to:u1",
+                "notify",
+                "trigger_job:acquisition.search",
+                "module_enabled",
+                "library_folders",
+                "tmdb_api_key",
+                "metadata_language",
+                "get_service",
+            ]
+        );
+    }
+
+    // ----- bearer extraction ------------------------------------------------------
+
+    #[test]
+    fn a_bearer_token_is_read_case_insensitively_and_trimmed() {
+        let header = |v: &str| {
+            let mut h = axum::http::HeaderMap::new();
+            h.insert(axum::http::header::AUTHORIZATION, v.parse().unwrap());
+            h
+        };
+        assert_eq!(bearer_from_headers(&header("Bearer abc123")).as_deref(), Some("abc123"));
+        // Some clients lowercase the scheme.
+        assert_eq!(bearer_from_headers(&header("bearer abc123")).as_deref(), Some("abc123"));
+        assert_eq!(bearer_from_headers(&header("Bearer   abc123  ")).as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn anything_that_is_not_a_bearer_token_is_no_token() {
+        // An empty token must not read as a valid one, or a request with
+        // `Authorization: Bearer ` would look authenticated to the lookup.
+        let header = |v: &str| {
+            let mut h = axum::http::HeaderMap::new();
+            h.insert(axum::http::header::AUTHORIZATION, v.parse().unwrap());
+            h
+        };
+        assert!(bearer_from_headers(&header("Bearer ")).is_none());
+        assert!(bearer_from_headers(&header("Bearer    ")).is_none());
+        assert!(bearer_from_headers(&header("Basic dXNlcjpwYXNz")).is_none());
+        assert!(bearer_from_headers(&header("abc123")).is_none(), "a bare token is not a bearer");
+        assert!(bearer_from_headers(&axum::http::HeaderMap::new()).is_none());
     }
 }

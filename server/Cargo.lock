@@ -2889,6 +2889,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "kroma-module-host",
  "kroma-module-runtime",
  "kroma-module-sdk",
  "kroma-port-bridge",
@@ -2896,6 +2897,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower",
  "tracing",
  "walkdir",
 ]
@@ -2985,6 +2987,7 @@ dependencies = [
  "axum",
  "chrono",
  "indexmap 2.14.0",
+ "kroma-module-host",
  "kroma-module-runtime",
  "kroma-module-sdk",
  "kroma-port-bridge",
@@ -3024,6 +3027,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower",
  "tracing",
 ]
 
@@ -3032,12 +3036,16 @@ name = "kroma-module-kernel"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "kroma-config",
+ "kroma-db",
  "kroma-engine",
  "kroma-module-host",
  "kroma-module-manifest",
  "kroma-module-supervisor",
  "kroma-modules-generated",
  "serde_json",
+ "tokio",
+ "tower",
  "tracing",
 ]
 
@@ -3077,6 +3085,7 @@ name = "kroma-module-sdk"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "kroma-db",
  "kroma-domain",
  "kroma-engine",
@@ -3246,6 +3255,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "kroma-module-host",
  "kroma-module-runtime",
  "kroma-module-sdk",
  "kroma-port-bridge",
@@ -3299,6 +3309,7 @@ dependencies = [
  "serde_json",
  "tokenizers 0.23.1",
  "tokio",
+ "tower",
  "tracing",
 ]
 

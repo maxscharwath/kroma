@@ -191,4 +191,87 @@ mod tests {
         assert_eq!(magnet_info_hash("magnet:?xt=urn:btih:short"), None);
         assert_eq!(magnet_info_hash("https://example.com/file.torrent"), None);
     }
+    // ----- the client-kind registry and the module lifecycle ----------------------
+
+    #[test]
+    fn only_the_kind_this_module_owns_registers() {
+        // transmission and qBittorrent are their OWN modules now. Claiming their
+        // kinds here would shadow the real factory and hand every download to a
+        // stub.
+        let mut reg = DownloadClientRegistry::default();
+        assert!(register_client_kind(&mut reg, "rqbit"));
+        assert!(!register_client_kind(&mut reg, "transmission"));
+        assert!(!register_client_kind(&mut reg, "qbittorrent"));
+        assert!(!register_client_kind(&mut reg, ""));
+    }
+
+    #[test]
+    fn the_builtin_registry_carries_exactly_the_embedded_engine() {
+        // The binary layers the external engine crates on top of this, so it
+        // starts with one kind - not zero (nothing would be downloadable) and
+        // not several (the layering would be silently overwritten).
+        let reg = builtin_download_clients();
+        assert!(reg.kinds().contains(&"rqbit"), "{:?}", reg.kinds());
+        assert_eq!(reg.kinds().len(), 1, "{:?}", reg.kinds());
+    }
+
+    #[test]
+    fn asking_for_the_engine_without_starting_it_fails_with_a_reason() {
+        // Whether or not `rqbit` is compiled in, constructing the client before
+        // the engine is up must say WHY rather than panic - one of the two
+        // messages, both actionable.
+        let reg = builtin_download_clients();
+        let def = ClientDef {
+            kind: "rqbit".into(),
+            url: String::new(),
+            username: String::new(),
+            password: String::new(),
+        };
+        let ctx = DownloadClientCtx { rqbit: None, state_dir: std::path::Path::new("/tmp") };
+        let Err(e) = reg.build(&def, &ctx) else { panic!("no engine is running in a test") };
+        let err = e.to_string();
+        assert!(
+            err.contains("not started") || err.contains("not compiled"),
+            "unhelpful error: {err}"
+        );
+
+        // An unknown kind names the kind, so a typo in a saved client row is
+        // diagnosable from the log alone.
+        let unknown = ClientDef { kind: "nope".into(), ..def };
+        let Err(e) = reg.build(&unknown, &ctx) else { panic!("an unknown kind must not build") };
+        assert!(e.to_string().contains("nope"), "{e}");
+    }
+
+    // ----- lifecycle against a host with no DownloadManager -----------------------
+
+    /// The shared stub. These hooks stop at the service lookup, so the neutral
+    /// host (no database, nothing registered) is the whole fixture.
+    type BareHost = kroma_module_sdk::host::testing::StubHost;
+
+    #[test]
+    fn the_module_declares_its_id_migrations_and_admin_routes() {
+        let module = server_module::<BareHost>();
+        assert_eq!(module.id(), MODULE_ID);
+        // The module owns its own tables; without this the host applies nothing
+        // and every download query fails at runtime rather than at install.
+        assert_eq!(module.migrations(), db::MIGRATIONS);
+        assert!(!db::MIGRATIONS.trim().is_empty());
+        assert!(module.admin_routes(&BareHost::new()).is_some());
+    }
+
+    #[test]
+    fn enabling_without_a_download_manager_is_a_no_op_rather_than_a_panic() {
+        // In the `.kmod` shape the manager is resolved from the host's service
+        // registry, and it is legitimately absent while the module boots. Both
+        // hooks are AWAITED by the kernel, so a panic here would take the whole
+        // enable/disable cycle down.
+        let module = server_module::<BareHost>();
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        rt.block_on(async {
+            let host: std::sync::Arc<dyn kroma_module_sdk::host::HostCtx> =
+                std::sync::Arc::new(BareHost::new());
+            module.on_enable(host.clone()).await;
+            module.on_disable(host).await;
+        });
+    }
 }

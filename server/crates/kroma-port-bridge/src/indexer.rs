@@ -280,75 +280,7 @@ mod tests {
 
     /// A `HostCtx` whose methods are never invoked by these bridge handlers (the
     /// mock ports ignore `host`); only the trait bound needs to be satisfied.
-    #[derive(Clone)]
-    struct MockHost;
-    impl HostCtx for MockHost {
-        fn db(&self) -> &kroma_module_sdk::db::Pool {
-            unimplemented!("db is not touched by the bridge handlers")
-        }
-        fn data_dir(&self) -> &std::path::Path {
-            std::path::Path::new("/tmp")
-        }
-        fn require(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _perm: kroma_module_sdk::domain::Permission,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn require_any_admin(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn lerr(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _status: axum::http::StatusCode,
-            _key: &str,
-        ) -> axum::response::Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: kroma_module_host::Event) {}
-        fn publish_to(&self, _user_id: &str, _event: kroma_module_host::Event) {}
-        fn notify(
-            &self,
-            _audience: &kroma_module_host::Audience,
-            _spec: &kroma_module_host::NotificationSpec,
-        ) -> usize {
-            0
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<kroma_module_host::LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(
-            &self,
-            _type_id: std::any::TypeId,
-        ) -> Option<Arc<dyn std::any::Any + Send + Sync>> {
-            None
-        }
-    }
+    use kroma_module_host::testing::StubHost;
 
     fn sample_row(id: &str) -> IndexerRow {
         IndexerRow {
@@ -462,21 +394,21 @@ mod tests {
     #[tokio::test]
     async fn list_handler_returns_rows() {
         let db: Arc<dyn IndexerDbPort> = Arc::new(OkDb);
-        let Json(res) = list_h::<MockHost>(State(MockHost), Extension(db)).await;
+        let Json(res) = list_h::<StubHost>(State(StubHost::new()), Extension(db)).await;
         assert_eq!(res.unwrap().len(), 2);
     }
 
     #[tokio::test]
     async fn list_handler_maps_error_into_envelope() {
         let db: Arc<dyn IndexerDbPort> = Arc::new(ErrDb);
-        let Json(res) = list_h::<MockHost>(State(MockHost), Extension(db)).await;
+        let Json(res) = list_h::<StubHost>(State(StubHost::new()), Extension(db)).await;
         assert_eq!(res.unwrap_err(), "boom");
     }
 
     #[tokio::test]
     async fn enabled_handler_returns_rows() {
         let db: Arc<dyn IndexerDbPort> = Arc::new(OkDb);
-        let Json(res) = enabled_h::<MockHost>(State(MockHost), Extension(db)).await;
+        let Json(res) = enabled_h::<StubHost>(State(StubHost::new()), Extension(db)).await;
         assert_eq!(res.unwrap().len(), 1);
     }
 
@@ -484,12 +416,12 @@ mod tests {
     async fn get_handler_hit_and_miss() {
         let db: Arc<dyn IndexerDbPort> = Arc::new(OkDb);
         let Json(hit) =
-            get_h::<MockHost>(State(MockHost), Extension(db.clone()), Json(IdReq { id: "a".into() }))
+            get_h::<StubHost>(State(StubHost::new()), Extension(db.clone()), Json(IdReq { id: "a".into() }))
                 .await;
         assert_eq!(hit.unwrap().unwrap().id, "a");
 
         let Json(miss) =
-            get_h::<MockHost>(State(MockHost), Extension(db), Json(IdReq { id: "z".into() })).await;
+            get_h::<StubHost>(State(StubHost::new()), Extension(db), Json(IdReq { id: "z".into() })).await;
         assert!(miss.unwrap().is_none());
     }
 
@@ -497,7 +429,7 @@ mod tests {
     async fn note_handler_acks() {
         let db: Arc<dyn IndexerDbPort> = Arc::new(OkDb);
         let req = NoteReq { id: "a".into(), ok: false, error: Some("nope".into()), now_ms: 5 };
-        let Json(res) = note_h::<MockHost>(State(MockHost), Extension(db), Json(req)).await;
+        let Json(res) = note_h::<StubHost>(State(StubHost::new()), Extension(db), Json(req)).await;
         assert!(res.is_ok());
     }
 
@@ -509,7 +441,7 @@ mod tests {
             query: Query::Movie { tmdb_id: Some(1), imdb_id: None, title: "T".into(), year: Some(2020) },
             categories: vec![2000],
         };
-        let Json(res) = search_h::<MockHost>(State(MockHost), Extension(search), Json(req)).await;
+        let Json(res) = search_h::<StubHost>(State(StubHost::new()), Extension(search), Json(req)).await;
         assert_eq!(res.unwrap().errors, vec!["partial".to_string()]);
     }
 
@@ -522,7 +454,7 @@ mod tests {
             details_url: None,
             magnet_or_url: "magnet:?xt=1".into(),
         };
-        let Json(res) = resolve_h::<MockHost>(State(MockHost), Extension(search), Json(req)).await;
+        let Json(res) = resolve_h::<StubHost>(State(StubHost::new()), Extension(search), Json(req)).await;
         match res.unwrap() {
             DownloadTarget::Magnet(m) => assert_eq!(m, "magnet:?xt=1"),
             other => panic!("expected magnet, got {other:?}"),
@@ -535,19 +467,19 @@ mod tests {
 
         // Not this port's indexer.
         let none: Arc<dyn TorrentFetchPort> = Arc::new(FetchMode(None));
-        let Json(resp) = fetch_h::<MockHost>(State(MockHost), Extension(none), Json(req())).await;
+        let Json(resp) = fetch_h::<StubHost>(State(StubHost::new()), Extension(none), Json(req())).await;
         assert!(!resp.found && resp.data.is_none() && resp.error.is_none());
 
         // Authenticated fetch succeeded.
         let ok: Arc<dyn TorrentFetchPort> = Arc::new(FetchMode(Some(Ok(vec![1, 2, 3]))));
-        let Json(resp) = fetch_h::<MockHost>(State(MockHost), Extension(ok), Json(req())).await;
+        let Json(resp) = fetch_h::<StubHost>(State(StubHost::new()), Extension(ok), Json(req())).await;
         assert!(resp.found);
         assert_eq!(resp.data, Some(vec![1, 2, 3]));
         assert!(resp.error.is_none());
 
         // Authenticated fetch itself failed.
         let err: Arc<dyn TorrentFetchPort> = Arc::new(FetchMode(Some(Err(()))));
-        let Json(resp) = fetch_h::<MockHost>(State(MockHost), Extension(err), Json(req())).await;
+        let Json(resp) = fetch_h::<StubHost>(State(StubHost::new()), Extension(err), Json(req())).await;
         assert!(resp.found && resp.data.is_none());
         assert_eq!(resp.error.as_deref(), Some("fetch failed"));
     }
@@ -578,23 +510,149 @@ mod tests {
     #[test]
     fn db_client_surfaces_offline_error() {
         let c = IndexerDbClient::new(offline());
-        assert!(c.list_indexers(&MockHost).is_err());
-        assert!(c.enabled_indexers(&MockHost).is_err());
-        assert!(c.get_indexer(&MockHost, "a").is_err());
-        assert!(c.note_indexer_result(&MockHost, "a", true, None, 0).is_err());
+        assert!(c.list_indexers(&StubHost::new()).is_err());
+        assert!(c.enabled_indexers(&StubHost::new()).is_err());
+        assert!(c.get_indexer(&StubHost::new(), "a").is_err());
+        assert!(c.note_indexer_result(&StubHost::new(), "a", true, None, 0).is_err());
     }
 
     #[test]
     fn search_client_surfaces_offline_error() {
         let c = IndexerSearchClient::new(offline());
         let q = Query::Season { tmdb_id: None, title: "T".into(), season: 1 };
-        assert!(c.search(&MockHost, &sample_row("a"), &q, &[2000]).is_err());
-        assert!(c.resolve_download(&MockHost, &sample_row("a"), "t", None, "mag").is_err());
+        assert!(c.search(&StubHost::new(), &sample_row("a"), &q, &[2000]).is_err());
+        assert!(c.resolve_download(&StubHost::new(), &sample_row("a"), "t", None, "mag").is_err());
     }
 
     #[test]
     fn fetch_client_returns_none_when_offline() {
         let c = TorrentFetchClient::new(offline());
-        assert!(c.fetch_torrent(&MockHost, "id", "http://x").is_none());
+        assert!(c.fetch_torrent(&StubHost::new(), "id", "http://x").is_none());
+    }
+    // --- A live round trip over the real bridge -----------------------------------
+    //
+    // Mounts the REAL router and points REAL clients at it, so the wire is under
+    // test: paths, the `Result<T, String>` envelope, and the JSON shape of every
+    // boundary type. Those only disagree at runtime, in a sidecar.
+
+    async fn serve<S: HostCtx + Clone + Send + Sync + 'static>(
+        router: Router<S>,
+        state: S,
+    ) -> Resolver {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = router.with_state(state);
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        let base = format!("http://{addr}");
+        Arc::new(move || Some((base.clone(), "test-token".to_string())))
+    }
+
+    async fn blocking<T: Send + 'static>(job: impl FnOnce() -> T + Send + 'static) -> T {
+        tokio::task::spawn_blocking(job).await.unwrap()
+    }
+
+    async fn live(fetch: FetchMode) -> Resolver {
+        let db: Arc<dyn IndexerDbPort> = Arc::new(OkDb);
+        let search: Arc<dyn IndexerSearchPort> = Arc::new(OkSearch);
+        let fetch: Arc<dyn TorrentFetchPort> = Arc::new(fetch);
+        serve(indexer_routes::<StubHost>(db, search, fetch), StubHost::new()).await
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_indexer_ledger_survives_the_round_trip() {
+        let resolve = live(FetchMode(None)).await;
+
+        let c = IndexerDbClient::new(resolve.clone());
+        let all = blocking(move || c.list_indexers(&StubHost::new())).await.unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].id, "a");
+
+        let c = IndexerDbClient::new(resolve.clone());
+        assert_eq!(blocking(move || c.enabled_indexers(&StubHost::new())).await.unwrap().len(), 1);
+
+        // A hit and a miss are different answers, and `None` must not arrive as
+        // an error - an unknown indexer id is a normal lookup result.
+        let c = IndexerDbClient::new(resolve.clone());
+        assert!(blocking(move || c.get_indexer(&StubHost::new(), "a")).await.unwrap().is_some());
+        let c = IndexerDbClient::new(resolve.clone());
+        assert!(blocking(move || c.get_indexer(&StubHost::new(), "ghost")).await.unwrap().is_none());
+
+        let c = IndexerDbClient::new(resolve);
+        blocking(move || c.note_indexer_result(&StubHost::new(), "a", false, Some("timeout"), 1))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_search_carries_its_partial_errors_across() {
+        // A search that half-worked returns releases AND the indexers that
+        // failed. Dropping the errors on the wire would hide a broken tracker.
+        let resolve = live(FetchMode(None)).await;
+        let c = IndexerSearchClient::new(resolve);
+        let outcome = blocking(move || {
+            let row = sample_row("a");
+            let q = Query::Movie {
+                tmdb_id: Some(603),
+                imdb_id: None,
+                title: "The Matrix".into(),
+                year: Some(1999),
+            };
+            c.search(&StubHost::new(), &row, &q, &[2000])
+        })
+        .await
+        .unwrap();
+        assert!(outcome.releases.is_empty());
+        assert_eq!(outcome.errors, ["partial"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_resolved_download_target_keeps_its_variant() {
+        // DownloadTarget is an enum on the wire; collapsing Magnet and
+        // TorrentUrl would hand the engine the wrong kind of link.
+        let resolve = live(FetchMode(None)).await;
+        let c = IndexerSearchClient::new(resolve);
+        let target = blocking(move || {
+            let row = sample_row("a");
+            c.resolve_download(&StubHost::new(), &row, "Some.Release", None, "magnet:?xt=urn:btih:AB")
+        })
+        .await
+        .unwrap();
+        assert!(matches!(target, DownloadTarget::Magnet(m) if m == "magnet:?xt=urn:btih:AB"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_three_torrent_fetch_answers_stay_distinct_across_the_wire() {
+        // None ("not mine, use a plain fetch"), Some(Ok(bytes)) and Some(Err)
+        // mean three different things to the caller. Flattening any pair of them
+        // silently changes what happens to a download.
+        let resolve = live(FetchMode(Some(Ok(vec![1, 2, 3])))).await;
+        let c = TorrentFetchClient::new(resolve);
+        let got = blocking(move || c.fetch_torrent(&StubHost::new(), "a", "http://x/f.torrent")).await;
+        assert_eq!(got.unwrap().unwrap(), vec![1, 2, 3]);
+
+        let resolve = live(FetchMode(None)).await;
+        let c = TorrentFetchClient::new(resolve);
+        assert!(blocking(move || c.fetch_torrent(&StubHost::new(), "a", "http://x/f.torrent"))
+            .await
+            .is_none());
+
+        let resolve = live(FetchMode(Some(Err(())))).await;
+        let c = TorrentFetchClient::new(resolve);
+        let got = blocking(move || c.fetch_torrent(&StubHost::new(), "a", "http://x/f.torrent")).await;
+        assert!(got.unwrap().is_err());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_provider_error_crosses_the_wire_as_an_error() {
+        let db: Arc<dyn IndexerDbPort> = Arc::new(ErrDb);
+        let search: Arc<dyn IndexerSearchPort> = Arc::new(OkSearch);
+        let fetch: Arc<dyn TorrentFetchPort> = Arc::new(FetchMode(None));
+        let resolve = serve(indexer_routes::<StubHost>(db, search, fetch), StubHost::new()).await;
+
+        let c = IndexerDbClient::new(resolve);
+        let err = blocking(move || c.list_indexers(&StubHost::new())).await.unwrap_err().to_string();
+        assert!(err.contains("boom"), "the provider's reason was lost: {err}");
     }
 }

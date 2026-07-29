@@ -19,14 +19,18 @@ import {
   KromaApiError,
   type KromaClient,
   KromaEvents,
+  type ServerEvent,
 } from '@kroma/core';
 import {
   createContext,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from 'react';
@@ -85,6 +89,42 @@ export interface CastProviderProps {
   children: ReactNode;
 }
 
+/** The state a [`applyCastEvent`] fold writes through. Grouped rather than
+ * passed positionally: four same-shaped setters in a row is an argument list
+ * nobody can read, and two of them are only touched by one event. */
+interface CastEventSetters {
+  receivers: Dispatch<SetStateAction<CastReceiver[]>>;
+  activeId: Dispatch<SetStateAction<string | null>>;
+  error: Dispatch<SetStateAction<Cast['error']>>;
+  base: Dispatch<SetStateAction<PositionBase | null>>;
+}
+
+/** Fold one bus event into the roster / position state.
+ *
+ * At module scope rather than inside the effect: rows arrive whole (a play or
+ * pause on one TV costs every sender a patch instead of a refetch), and keeping
+ * the fold here means the effect stays a flat wiring step.
+ */
+function applyCastEvent(e: ServerEvent, set: CastEventSetters): void {
+  if (e.type === 'cast.receiver') {
+    set.receivers((list) => upsert(list, e.receiver));
+  } else if (e.type === 'cast.receiver.gone') {
+    set.receivers((list) => list.filter((r) => r.id !== e.receiverId));
+  } else if (e.type === 'cast.kicked') {
+    // The television let this remote go. Stand down rather than keep showing a
+    // set we no longer drive.
+    set.activeId((id) => (id === e.receiverId ? null : id));
+    set.error('cast.kicked');
+  } else if (e.type === 'cast.position') {
+    set.base({
+      id: e.receiverId,
+      positionMs: e.positionMs,
+      playing: e.state === 'playing',
+      at: Date.now(),
+    });
+  }
+}
+
 export function CastProvider({
   client,
   enabled,
@@ -98,8 +138,9 @@ export function CastProvider({
   // interpolates from here, so a progress bar moves between heartbeats.
   const [base, setBase] = useState<PositionBase | null>(null);
   // Bumped on a timer while a TV plays, purely to re-render the interpolated
-  // position (which is computed from the clock, not from state).
-  const [, setTick] = useState(0);
+  // position (which is computed from the clock, not from state). A reducer
+  // rather than `useState`: the counter's VALUE is never read, and this says so.
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
   // The live socket, kept so selecting a TV can announce this remote on it.
   const socket = useRef<KromaEvents | null>(null);
   const name = useRef(deviceName);
@@ -125,27 +166,13 @@ export function CastProvider({
       // Only on (re)connect: a gap in the stream may have swallowed a change, and
       // the roster is the one thing worth resyncing wholesale.
       onOpen: refresh,
-      onEvent: (e) => {
-        // Rows arrive whole, so a play/pause on one TV costs every sender a
-        // patch instead of a refetch.
-        if (e.type === 'cast.receiver') {
-          setReceivers((list) => upsert(list, e.receiver));
-        } else if (e.type === 'cast.receiver.gone') {
-          setReceivers((list) => list.filter((r) => r.id !== e.receiverId));
-        } else if (e.type === 'cast.kicked') {
-          // The television let this remote go. Stand down rather than keep
-          // showing a set we no longer drive.
-          setActiveId((id) => (id === e.receiverId ? null : id));
-          setError('cast.kicked');
-        } else if (e.type === 'cast.position') {
-          setBase({
-            id: e.receiverId,
-            positionMs: e.positionMs,
-            playing: e.state === 'playing',
-            at: Date.now(),
-          });
-        }
-      },
+      onEvent: (e) =>
+        applyCastEvent(e, {
+          receivers: setReceivers,
+          activeId: setActiveId,
+          error: setError,
+          base: setBase,
+        }),
     });
     events.connect();
     socket.current = events;
@@ -173,7 +200,7 @@ export function CastProvider({
   const playing = active?.nowPlaying?.state === 'playing';
   useEffect(() => {
     if (!playing) return;
-    const iv = setInterval(() => setTick((n) => n + 1), TICK_MS);
+    const iv = setInterval(rerender, TICK_MS);
     return () => clearInterval(iv);
   }, [playing]);
 

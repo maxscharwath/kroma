@@ -51,7 +51,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useId, useState } from 'react';
-import { useUnreadCount } from '#web/features/notifications/use-notifications';
+import { usePanelState, useUnreadCount } from '#web/features/notifications/use-notifications';
 import { kromaClient } from '#web/shared/lib/api';
 import { userQueries } from '#web/shared/lib/queries';
 
@@ -59,7 +59,7 @@ import { userQueries } from '#web/shared/lib/queries';
 export function NotificationBell({ className }: Readonly<{ className?: string }>) {
   const t = useT();
   const unread = useUnreadCount();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, everOpened } = usePanelState();
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -91,7 +91,10 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[#101014] outline-none data-[state=open]:animate-[slide-in-right_.3s_var(--ease-out)] sm:w-[min(25rem,92vw)] sm:border-l sm:border-white/8"
         >
           <PanelHeader onClose={() => setOpen(false)} />
-          <PanelBody onNavigate={() => setOpen(false)} />
+          {/* Mounted on first open, and kept mounted after: rendering a bell
+              must not fetch an inbox nobody has asked for, and closing the
+              drawer must not throw away what reopening would refetch. */}
+          {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

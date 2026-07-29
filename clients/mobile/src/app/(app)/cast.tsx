@@ -29,6 +29,69 @@ import { ScrubBar } from '#mobile/player/ScrubBar';
 /** How far ±10 s buttons jump, in milliseconds. */
 const SKIP_MS = 10_000;
 
+/** The row of secondary controls under the transport.
+ *
+ * Its own component because three of them are conditional - a title with one
+ * audio track, no subtitles, or that is not an episode hides them - and those
+ * branches belong here rather than in the screen.
+ */
+type NowPlaying = NonNullable<NonNullable<ReturnType<typeof useCast>['active']>['nowPlaying']>;
+
+function RemoteActions({
+  playing,
+  isEpisode,
+  deviceName,
+  onAudio,
+  onSubtitles,
+  onNext,
+  onContinueHere,
+  onStop,
+}: Readonly<{
+  playing: NowPlaying;
+  isEpisode: boolean;
+  /** The set being driven, named in the stop button's hint. */
+  deviceName: string;
+  onAudio: () => void;
+  onSubtitles: () => void;
+  onNext: () => void;
+  onContinueHere: () => void;
+  onStop: () => void;
+}>) {
+  const t = useT();
+  return (
+    <View style={styles.actions}>
+      {playing.audioTracks.length > 1 ? (
+        <Wide
+          icon="wave-sine"
+          label={t('player.audioTrack')}
+          value={labelOf(playing.audioTracks, playing.audioIndex)}
+          onPress={onAudio}
+        />
+      ) : null}
+      {playing.subtitles.length > 0 ? (
+        <Wide
+          icon="badge-cc"
+          label={t('player.subtitles')}
+          value={labelOf(playing.subtitles, playing.subtitleIndex) ?? t('player.subtitlesOff')}
+          onPress={onSubtitles}
+        />
+      ) : null}
+      {isEpisode ? (
+        <Wide icon="player-track-next" label={t('player.nextEpisode')} onPress={onNext} />
+      ) : null}
+      {/* Two ENDINGS, said plainly. "Stop casting" was doing both of these at
+          once, which is why nobody could tell what it would do to the set. */}
+      <Wide icon="device-mobile" label={t('cast.continueHere')} onPress={onContinueHere} />
+      <Wide
+        icon="player-stop-filled"
+        label={t('cast.stop')}
+        value={t('cast.stopHint', { device: deviceName })}
+        onPress={onStop}
+      />
+    </View>
+  );
+}
+
 export default function CastRemoteScreen() {
   const t = useT();
   const router = useRouter();
@@ -130,59 +193,28 @@ export default function CastRemoteScreen() {
             />
           </View>
 
-          <View style={styles.actions}>
-            {playing.audioTracks.length > 1 ? (
-              <Wide
-                icon="wave-sine"
-                label={t('player.audioTrack')}
-                value={labelOf(playing.audioTracks, playing.audioIndex)}
-                onPress={() => audio.current?.present()}
-              />
-            ) : null}
-            {playing.subtitles.length > 0 ? (
-              <Wide
-                icon="badge-cc"
-                label={t('player.subtitles')}
-                value={
-                  labelOf(playing.subtitles, playing.subtitleIndex) ?? t('player.subtitlesOff')
-                }
-                onPress={() => subtitles.current?.present()}
-              />
-            ) : null}
-            {item?.kind === 'episode' ? (
-              <Wide
-                icon="player-track-next"
-                label={t('player.nextEpisode')}
-                onPress={() => void send({ type: 'skipNext' })}
-              />
-            ) : null}
-            {/* Two ENDINGS, said plainly. "Stop casting" was doing both of
-                these at once, which is why nobody could tell what it would do
-                to the television. */}
-            <Wide
-              icon="device-mobile"
-              label={t('cast.continueHere')}
-              onPress={() => {
-                // Hand the film back at the exact position the TV is at, and
-                // leave the set idle rather than playing to an empty room.
-                const at = Math.round(positionMs / 1000);
-                void send({ type: 'stop' });
-                select(null);
-                if (item) router.replace(`/player/${item.id}?start=${at}` as never);
-                else goBack(router);
-              }}
-            />
-            <Wide
-              icon="player-stop-filled"
-              label={t('cast.stop')}
-              value={t('cast.stopHint', { device: active.name })}
-              onPress={() => {
-                void send({ type: 'stop' });
-                select(null);
-                goBack(router);
-              }}
-            />
-          </View>
+          <RemoteActions
+            playing={playing}
+            isEpisode={item?.kind === 'episode'}
+            deviceName={active.name}
+            onAudio={() => audio.current?.present()}
+            onSubtitles={() => subtitles.current?.present()}
+            onNext={() => void send({ type: 'skipNext' })}
+            onContinueHere={() => {
+              // Hand the film back at the exact position the TV is at, and
+              // leave the set idle rather than playing to an empty room.
+              const at = Math.round(positionMs / 1000);
+              void send({ type: 'stop' });
+              select(null);
+              if (item) router.replace(`/player/${item.id}?start=${at}` as never);
+              else goBack(router);
+            }}
+            onStop={() => {
+              void send({ type: 'stop' });
+              select(null);
+              goBack(router);
+            }}
+          />
         </ScrollView>
       ) : (
         // Nothing on the set. There is no artwork to show, no position to

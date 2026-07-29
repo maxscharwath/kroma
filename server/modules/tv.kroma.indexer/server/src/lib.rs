@@ -500,75 +500,6 @@ search:
 
     /// A `HostCtx` whose methods are never invoked: the magnet fast-path in
     /// `resolve_download` returns before touching the host.
-    #[derive(Clone)]
-    struct MockHost;
-    impl kroma_module_sdk::host::HostCtx for MockHost {
-        fn db(&self) -> &kroma_module_sdk::db::Pool {
-            unimplemented!("db is not touched by the magnet fast-path")
-        }
-        fn data_dir(&self) -> &std::path::Path {
-            std::path::Path::new("/tmp")
-        }
-        fn require(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _perm: kroma_module_sdk::domain::Permission,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn require_any_admin(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn lerr(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _status: axum::http::StatusCode,
-            _key: &str,
-        ) -> axum::response::Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: kroma_module_sdk::host::Event) {}
-        fn publish_to(&self, _user_id: &str, _event: kroma_module_sdk::host::Event) {}
-        fn notify(
-            &self,
-            _audience: &kroma_module_sdk::host::Audience,
-            _spec: &kroma_module_sdk::host::NotificationSpec,
-        ) -> usize {
-            0
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<kroma_module_sdk::host::LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(
-            &self,
-            _type_id: std::any::TypeId,
-        ) -> Option<std::sync::Arc<dyn std::any::Any + Send + Sync>> {
-            None
-        }
-    }
 
     fn port_row() -> kroma_module_sdk::ports::IndexerRow {
         kroma_module_sdk::ports::IndexerRow {
@@ -593,7 +524,7 @@ search:
         use kroma_module_sdk::ports::{DownloadTarget, IndexerSearchPort};
         let magnet = "magnet:?xt=urn:btih:deadbeef";
         let out = IndexerSearch
-            .resolve_download(&MockHost, &port_row(), "Some Title", None, magnet)
+            .resolve_download(&DbHost::new(), &port_row(), "Some Title", None, magnet)
             .expect("magnet resolves without a session");
         match out {
             DownloadTarget::Magnet(m) => assert_eq!(m, magnet),
@@ -620,79 +551,12 @@ search:
         pool
     }
 
-    /// A `HostCtx` backed by a real pool, for the DB-touching port wrappers. Every
-    /// other capability is a stub (none of these tests exercise it).
-    #[derive(Clone)]
-    struct DbHost {
-        pool: kroma_module_sdk::db::Pool,
-    }
-    impl kroma_module_sdk::host::HostCtx for DbHost {
-        fn db(&self) -> &kroma_module_sdk::db::Pool {
-            &self.pool
-        }
-        fn data_dir(&self) -> &std::path::Path {
-            std::path::Path::new("/tmp")
-        }
-        fn require(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _perm: kroma_module_sdk::domain::Permission,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn require_any_admin(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn lerr(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _status: axum::http::StatusCode,
-            _key: &str,
-        ) -> axum::response::Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: kroma_module_sdk::host::Event) {}
-        fn publish_to(&self, _user_id: &str, _event: kroma_module_sdk::host::Event) {}
-        fn notify(
-            &self,
-            _audience: &kroma_module_sdk::host::Audience,
-            _spec: &kroma_module_sdk::host::NotificationSpec,
-        ) -> usize {
-            0
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<kroma_module_sdk::host::LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(
-            &self,
-            _type_id: std::any::TypeId,
-        ) -> Option<std::sync::Arc<dyn std::any::Any + Send + Sync>> {
-            None
-        }
-    }
+    /// The shared stub, over this module's own schema (the core migrations
+    /// `with_db` runs do not include the `indexers` table). `DbHost::new()`
+    /// keeps the other half of the old double's job: the magnet fast-path in
+    /// `resolve_download` returns before touching the host at all, and a `db()`
+    /// that panics is how that stays true.
+    type DbHost = kroma_module_sdk::host::testing::StubHost;
 
     fn seed_row(id: &str, kind: &str, enabled: bool, created_at: i64) -> kroma_module_sdk::ports::IndexerRow {
         let mut r = port_row();
@@ -709,7 +573,7 @@ search:
         let pool = db_pool();
         db::insert_indexer(&pool, &seed_row("a", admin::KIND_BUILTIN, true, 100)).unwrap();
         db::insert_indexer(&pool, &seed_row("b", "torznab", false, 200)).unwrap();
-        let host = DbHost { pool: pool.clone() };
+        let host = DbHost::with_pool(pool.clone());
 
         // list returns both rows.
         assert_eq!(IndexerDb.list_indexers(&host).unwrap().len(), 2);
@@ -730,10 +594,112 @@ search:
         use kroma_module_sdk::ports::TorrentFetchPort;
         let pool = db_pool();
         db::insert_indexer(&pool, &seed_row("tz", "torznab", true, 100)).unwrap();
-        let host = DbHost { pool };
+        let host = DbHost::with_pool(pool);
         // Unknown indexer id -> None (the caller falls back to a plain fetch).
         assert!(IndexerTorrentFetch.fetch_torrent(&host, "nope", "http://x/f.torrent").is_none());
         // A non-builtin (torznab) indexer is not cookie-gated here -> None.
         assert!(IndexerTorrentFetch.fetch_torrent(&host, "tz", "http://x/f.torrent").is_none());
+    }
+    // ----- the ServerModule surface + the port error paths -------------------------
+
+    /// Any well-formed query - these tests are about the paths a search takes
+    /// BEFORE the query matters.
+    fn port_query() -> kroma_module_sdk::ports::Query {
+        kroma_module_sdk::ports::Query::Movie {
+            tmdb_id: Some(603),
+            imdb_id: None,
+            title: "The Matrix".into(),
+            year: Some(1999),
+        }
+    }
+
+    #[test]
+    fn the_module_declares_its_id_migrations_and_admin_routes() {
+        let host = DbHost::with_pool(db_pool());
+        let module = server_module::<DbHost>();
+        // The id is the manifest id: the host keys enable/disable state on it, so
+        // a drift here silently detaches every stored setting.
+        assert_eq!(module.id(), MODULE_ID);
+        assert_eq!(module.id(), "tv.kroma.indexer");
+        // The module owns its own tables; without this the host applies nothing
+        // and every query fails at runtime rather than at install.
+        assert_eq!(module.migrations(), db::MIGRATIONS);
+        assert!(!db::MIGRATIONS.trim().is_empty());
+        assert!(module.admin_routes(&host).is_some(), "the admin UI has nowhere to talk to");
+    }
+
+    #[test]
+    fn a_torznab_search_without_the_torznab_engine_names_the_missing_piece() {
+        // The engine lives in a separate module. If it is disabled, the failure
+        // has to say so - and it has to be recorded ON the indexer row, because
+        // that is where the admin looks when an indexer stops returning results.
+        use kroma_module_sdk::ports::IndexerSearchPort;
+        let pool = db_pool();
+        let mut row = seed_row("tz-no-engine", "torznab", true, 100);
+        row.url = "http://tracker.invalid/api".into();
+        db::insert_indexer(&pool, &row).unwrap();
+        let host = DbHost::with_pool(pool.clone());
+
+        let err = IndexerSearch
+            .search(&host, &row, &port_query(), &[2000])
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("torznab search engine unavailable"), "{err}");
+
+        let stored = db::get_indexer(&pool.get().unwrap(), "tz-no-engine").unwrap().unwrap();
+        assert_eq!(stored.last_ok_at, None);
+        assert!(
+            stored.last_error.as_deref().unwrap_or_default().contains("torznab"),
+            "the failure was not recorded on the row: {:?}",
+            stored.last_error
+        );
+    }
+
+    #[test]
+    fn a_builtin_search_for_a_definition_that_is_not_installed_fails_loudly() {
+        // A row can outlive its Cardigann definition (a removed definitions
+        // bundle, a renamed tracker). Erroring beats searching an empty session
+        // and reporting "no results", which reads as "nothing to grab".
+        use kroma_module_sdk::ports::IndexerSearchPort;
+        let pool = db_pool();
+        let mut row = seed_row("builtin-gone", admin::KIND_BUILTIN, true, 100);
+        row.definition_id = Some("a-tracker-that-does-not-exist".into());
+        db::insert_indexer(&pool, &row).unwrap();
+        let host = DbHost::with_pool(pool);
+
+        assert!(IndexerSearch.search(&host, &row, &port_query(), &[2000]).is_err());
+    }
+
+    #[test]
+    fn resolving_a_plain_url_needs_the_indexers_session() {
+        // Unlike a magnet, an http link on a private tracker is cookie-gated:
+        // there is no fast path, so a session failure must surface rather than
+        // hand back an unauthenticated URL that downloads an HTML login page.
+        use kroma_module_sdk::ports::IndexerSearchPort;
+        let pool = db_pool();
+        let mut row = seed_row("builtin-nodef", admin::KIND_BUILTIN, true, 100);
+        row.definition_id = Some("also-missing".into());
+        db::insert_indexer(&pool, &row).unwrap();
+        let host = DbHost::with_pool(pool);
+
+        assert!(IndexerSearch
+            .resolve_download(&host, &row, "Some.Release", None, "http://tracker.invalid/dl/1")
+            .is_err());
+    }
+
+    #[test]
+    fn fetching_a_torrent_from_a_builtin_indexer_reports_a_session_failure() {
+        // Distinct from the `None` cases above: a built-in row IS cookie-gated,
+        // so the caller must not silently fall back to a plain fetch - it gets
+        // Some(Err) and can say why the grab failed.
+        use kroma_module_sdk::ports::TorrentFetchPort;
+        let pool = db_pool();
+        let mut row = seed_row("builtin-fetch", admin::KIND_BUILTIN, true, 100);
+        row.definition_id = Some("nowhere-to-be-found".into());
+        db::insert_indexer(&pool, &row).unwrap();
+        let host = DbHost::with_pool(pool);
+
+        let outcome = IndexerTorrentFetch.fetch_torrent(&host, "builtin-fetch", "http://x/f.torrent");
+        assert!(matches!(outcome, Some(Err(_))), "a built-in grab must not degrade to a plain fetch");
     }
 }

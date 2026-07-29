@@ -47,6 +47,36 @@ fn test_config(data_dir: PathBuf) -> Config {
     }
 }
 
+/// Like [`test_state`], but with a TMDB key in the config.
+///
+/// For services that refuse to start without one. It does NOT make the network
+/// reachable and no test may rely on it doing so: it only gets a service past
+/// its "TMDB is not configured" guard, so the paths that never reach a request
+/// (an empty library, an un-enriched show, a cancelled run) can be exercised.
+pub(crate) fn test_state_with_tmdb(key: &str) -> SharedState {
+    let data_dir = unique_data_dir();
+    let db = db::init(&data_dir.join("kroma.db")).expect("init db");
+    let mut config = test_config(data_dir);
+    config.tmdb_api_key = Some(key.to_string());
+    let settings = Settings::load(&db);
+    let embedder: Arc<dyn Embedder> = Arc::new(NoopEmbedder);
+    AppState::new(config, false, db, settings, embedder, HashMap::new(), &[])
+}
+
+/// Like [`test_state`], but with a real (if trivial) embedder.
+///
+/// [`NoopEmbedder`] reports dim 0 and returns empty vectors, which makes every
+/// dimension comparison vacuous - a pass that stored nothing looks identical to
+/// one that stored everything. This one produces a vector of the requested
+/// length so "already at the active dim" is actually distinguishable.
+pub(crate) fn test_state_with_embedder(embedder: Arc<dyn Embedder>) -> SharedState {
+    let data_dir = unique_data_dir();
+    let db = db::init(&data_dir.join("kroma.db")).expect("init db");
+    let config = test_config(data_dir);
+    let settings = Settings::load(&db);
+    AppState::new(config, false, db, settings, embedder, HashMap::new(), &[])
+}
+
 /// Build a minimal, real [`SharedState`]: fresh temp DB, loaded settings, a no-op
 /// embedder, empty module services, no module jobs, `ffprobe_available = false`.
 pub(crate) fn test_state() -> SharedState {
@@ -178,4 +208,216 @@ pub(crate) fn now_secs() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+/// A fake OpenAI-compatible chat endpoint, for the LLM-backed jobs.
+///
+/// The provider base URL is a plain setting and the transport shells out to
+/// curl, so nothing has to be stubbed: point `llmBaseUrl` at one of these and
+/// the real client speaks to it. Each request is recorded so a test can assert
+/// on the prompt that was actually sent.
+pub(crate) struct FakeLlm {
+    base: String,
+    seen: Arc<std::sync::Mutex<Vec<serde_json::Value>>>,
+}
+
+impl FakeLlm {
+    /// Answer every completion with `content`.
+    pub(crate) fn always(content: &str) -> Self {
+        let content = content.to_string();
+        Self::routed(move |_| (200, serde_json::json!({
+            "choices": [{ "message": { "content": content } }]
+        })))
+    }
+
+    /// Answer with `status` and a body that is not a completion at all.
+    pub(crate) fn failing(status: u16) -> Self {
+        Self::routed(move |_| (status, serde_json::json!({ "error": "nope" })))
+    }
+
+    /// Full control: map the request body to `(status, response body)`.
+    pub(crate) fn routed(
+        route: impl Fn(&serde_json::Value) -> (u16, serde_json::Value) + Send + 'static,
+    ) -> Self {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = Arc::clone(&seen);
+
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let Some(request) = read_json_request(&stream) else { continue };
+                let (status, reply) = route(&request);
+                log.lock().unwrap().push(request);
+                write_json_reply(&mut stream, status, &reply);
+            }
+        });
+
+        Self { base: format!("http://127.0.0.1:{port}"), seen }
+    }
+
+    /// The endpoint's base URL, for `llmBaseUrl`.
+    pub(crate) fn base(&self) -> &str {
+        &self.base
+    }
+
+    /// Every chat request this endpoint received, in order.
+    pub(crate) fn requests(&self) -> Vec<serde_json::Value> {
+        self.seen.lock().unwrap().clone()
+    }
+
+    /// Point a bare `Settings` at this endpoint (for services that take
+    /// `&Settings` rather than a whole state).
+    pub(crate) fn configure_settings(&self, settings: &Settings, pool: &db::Pool) {
+        settings.set_patch(
+            pool,
+            std::collections::BTreeMap::from([
+                ("llmEnabled".to_string(), serde_json::json!(true)),
+                ("llmProvider".to_string(), serde_json::json!("openai")),
+                ("llmBaseUrl".to_string(), serde_json::json!(self.base)),
+                ("llmModel".to_string(), serde_json::json!("test-model")),
+                ("llmApiKey".to_string(), serde_json::json!("test-key")),
+            ]),
+        );
+    }
+
+    /// Point a state's LLM settings at this endpoint.
+    pub(crate) fn configure(&self, state: &SharedState) {
+        use kroma_module_host::HostCtx as _;
+        state.set_settings(std::collections::BTreeMap::from([
+            ("llmEnabled".to_string(), serde_json::json!(true)),
+            ("llmProvider".to_string(), serde_json::json!("openai")),
+            ("llmBaseUrl".to_string(), serde_json::json!(self.base)),
+            ("llmModel".to_string(), serde_json::json!("test-model")),
+            ("llmApiKey".to_string(), serde_json::json!("test-key")),
+        ]));
+    }
+}
+
+/// Read one HTTP request off `stream` and parse its body as JSON. `None` when
+/// the peer sent nothing.
+fn read_json_request(stream: &std::net::TcpStream) -> Option<serde_json::Value> {
+    use std::io::{BufRead, BufReader, Read};
+
+    let mut reader = BufReader::new(stream.try_clone().ok()?);
+    let mut line = String::new();
+    if reader.read_line(&mut line).unwrap_or(0) == 0 {
+        return None;
+    }
+    let mut len = 0usize;
+    loop {
+        let mut header = String::new();
+        if reader.read_line(&mut header).unwrap_or(0) == 0 || header == "\r\n" {
+            break;
+        }
+        if let Some(v) = header.to_ascii_lowercase().strip_prefix("content-length:") {
+            len = v.trim().parse().unwrap_or(0);
+        }
+    }
+    let mut body = vec![0u8; len];
+    if len > 0 {
+        let _ = reader.read_exact(&mut body);
+    }
+    Some(serde_json::from_slice(&body).unwrap_or(serde_json::Value::Null))
+}
+
+/// Write a JSON reply with the given status.
+fn write_json_reply(stream: &mut std::net::TcpStream, status: u16, reply: &serde_json::Value) {
+    use std::io::Write;
+
+    let payload = reply.to_string();
+    let head = format!(
+        "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n",
+        payload.len()
+    );
+    let _ = stream.write_all(head.as_bytes());
+    let _ = stream.write_all(payload.as_bytes());
+    let _ = stream.flush();
+}
+
+/// A fake TMDB, for the services that go through it.
+///
+/// The base is a `#[cfg(test)]` override on `infra::metadata::client`, so the
+/// real client code runs - curl, the api_key param, the JSON decode - against a
+/// server on localhost. Points itself at the current thread on construction and
+/// releases it on drop, so parallel tests never share a base.
+pub(crate) struct FakeTmdb {
+    base: String,
+    seen: Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+impl FakeTmdb {
+    /// `route` maps a request path (e.g. `/movie/603`) to `(status, body)`.
+    pub(crate) fn start(
+        route: impl Fn(&str) -> (u16, serde_json::Value) + Send + 'static,
+    ) -> Self {
+        use std::io::Write;
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().unwrap().port();
+        let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let log = Arc::clone(&seen);
+
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                let Some(full) = read_request_target(&stream) else { continue };
+                // "/movie/603?api_key=x" -> "/movie/603"
+                let path = full.split('?').next().unwrap_or("").to_string();
+                log.lock().unwrap().push(full);
+
+                let (status, body) = route(&path);
+                let payload = body.to_string();
+                let head = format!(
+                    "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n",
+                    payload.len()
+                );
+                let _ = stream.write_all(head.as_bytes());
+                let _ = stream.write_all(payload.as_bytes());
+                let _ = stream.flush();
+            }
+        });
+
+        let base = format!("http://127.0.0.1:{port}");
+        crate::infra::metadata::test_override::set(&base);
+        Self { base, seen }
+    }
+
+    /// Every request path this fake received, query string included.
+    pub(crate) fn requests(&self) -> Vec<String> {
+        self.seen.lock().unwrap().clone()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn base(&self) -> &str {
+        &self.base
+    }
+}
+
+impl Drop for FakeTmdb {
+    fn drop(&mut self) {
+        crate::infra::metadata::test_override::clear();
+    }
+}
+
+/// Read one HTTP request and return its target (`"/movie/603?api_key=x"`).
+/// `None` when the peer sent nothing.
+fn read_request_target(stream: &std::net::TcpStream) -> Option<String> {
+    use std::io::{BufRead, BufReader};
+
+    let mut reader = BufReader::new(stream.try_clone().ok()?);
+    let mut request = String::new();
+    if reader.read_line(&mut request).unwrap_or(0) == 0 {
+        return None;
+    }
+    // Drain the headers so the client sees a clean close.
+    loop {
+        let mut header = String::new();
+        if reader.read_line(&mut header).unwrap_or(0) == 0 || header == "\r\n" {
+            break;
+        }
+    }
+    // "GET /movie/603?api_key=x HTTP/1.1" -> "/movie/603?api_key=x"
+    Some(request.split_whitespace().nth(1).unwrap_or("").to_string())
 }

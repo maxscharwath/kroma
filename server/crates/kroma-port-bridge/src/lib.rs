@@ -92,3 +92,4 @@ mod tests {
         assert!(err.to_string().contains("provider module not running"));
     }
 }
+

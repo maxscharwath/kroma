@@ -111,75 +111,7 @@ impl DownloadVpnPort for DownloadVpnClient {
 mod tests {
     use super::*;
 
-    #[derive(Clone)]
-    struct MockHost;
-    impl HostCtx for MockHost {
-        fn db(&self) -> &kroma_module_sdk::db::Pool {
-            unimplemented!()
-        }
-        fn data_dir(&self) -> &std::path::Path {
-            std::path::Path::new("/tmp")
-        }
-        fn require(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _perm: kroma_module_sdk::domain::Permission,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn require_any_admin(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-        ) -> Result<(), axum::response::Response> {
-            Ok(())
-        }
-        fn lerr(
-            &self,
-            _user: &kroma_module_sdk::domain::User,
-            _status: axum::http::StatusCode,
-            _key: &str,
-        ) -> axum::response::Response {
-            unimplemented!()
-        }
-        fn setting_str(&self, _key: &str, default: &str) -> String {
-            default.to_string()
-        }
-        fn setting_bool(&self, _key: &str, default: bool) -> bool {
-            default
-        }
-        fn setting_i64(&self, _key: &str, default: i64) -> i64 {
-            default
-        }
-        fn set_settings(&self, _patch: std::collections::BTreeMap<String, serde_json::Value>) {}
-        fn publish(&self, _event: kroma_module_host::Event) {}
-        fn publish_to(&self, _user_id: &str, _event: kroma_module_host::Event) {}
-        fn notify(
-            &self,
-            _audience: &kroma_module_host::Audience,
-            _spec: &kroma_module_host::NotificationSpec,
-        ) -> usize {
-            0
-        }
-        fn trigger_job(&self, _key: &'static str, _reason: &'static str) {}
-        fn module_enabled(&self, _id: &str) -> bool {
-            true
-        }
-        fn library_folders(&self) -> Vec<kroma_module_host::LibraryFolders> {
-            Vec::new()
-        }
-        fn tmdb_api_key(&self) -> Option<String> {
-            None
-        }
-        fn metadata_language(&self) -> String {
-            "en".into()
-        }
-        fn get_service(
-            &self,
-            _type_id: std::any::TypeId,
-        ) -> Option<Arc<dyn std::any::Any + Send + Sync>> {
-            None
-        }
-    }
+    use kroma_module_host::testing::StubHost;
 
     struct StubProxy(Option<String>);
     impl VpnProxyPort for StubProxy {
@@ -212,11 +144,11 @@ mod tests {
     #[tokio::test]
     async fn proxy_url_handler_some_and_none() {
         let some: Arc<dyn VpnProxyPort> = Arc::new(StubProxy(Some("socks5://127.0.0.1:1080".into())));
-        let Json(v) = proxy_url_h::<MockHost>(State(MockHost), Extension(some)).await;
+        let Json(v) = proxy_url_h::<StubHost>(State(StubHost::new()), Extension(some)).await;
         assert_eq!(v.as_deref(), Some("socks5://127.0.0.1:1080"));
 
         let none: Arc<dyn VpnProxyPort> = Arc::new(StubProxy(None));
-        let Json(v) = proxy_url_h::<MockHost>(State(MockHost), Extension(none)).await;
+        let Json(v) = proxy_url_h::<StubHost>(State(StubHost::new()), Extension(none)).await;
         assert!(v.is_none());
     }
 
@@ -224,24 +156,81 @@ mod tests {
     async fn download_vpn_handlers() {
         let vpn: Arc<dyn DownloadVpnPort> = Arc::new(StubVpn);
 
-        let Json(status) = status_h::<MockHost>(State(MockHost), Extension(vpn.clone())).await;
+        let Json(status) = status_h::<StubHost>(State(StubHost::new()), Extension(vpn.clone())).await;
         assert!(status.unwrap().connected);
 
-        let Json(seal) = seal_h::<MockHost>(State(MockHost), Extension(vpn.clone())).await;
+        let Json(seal) = seal_h::<StubHost>(State(StubHost::new()), Extension(vpn.clone())).await;
         assert!(seal.unwrap().sealed);
 
-        let Json(()) = restart_h::<MockHost>(State(MockHost), Extension(vpn)).await;
+        let Json(()) = restart_h::<StubHost>(State(StubHost::new()), Extension(vpn)).await;
     }
 
     #[tokio::test]
     async fn clients_offline_return_none() {
         let proxy = VpnProxyClient::new(offline());
-        assert!(proxy.proxy_url(&MockHost).is_none());
+        assert!(proxy.proxy_url(&StubHost::new()).is_none());
 
         let vpn = DownloadVpnClient::new(offline());
         assert!(vpn.vpn_status().is_none());
-        assert!(vpn.vpn_seal_check(&MockHost).is_none());
+        assert!(vpn.vpn_seal_check(&StubHost::new()).is_none());
         // Fire-and-forget restart must not panic when the provider is offline.
-        vpn.restart_engine(&MockHost).await;
+        vpn.restart_engine(&StubHost::new()).await;
+    }
+    // --- A live round trip over the real bridge -----------------------------------
+
+    async fn serve<S: HostCtx + Clone + Send + Sync + 'static>(
+        router: Router<S>,
+        state: S,
+    ) -> Resolver {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = router.with_state(state);
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, app).await;
+        });
+        let base = format!("http://{addr}");
+        Arc::new(move || Some((base.clone(), "test-token".to_string())))
+    }
+
+    async fn blocking<T: Send + 'static>(job: impl FnOnce() -> T + Send + 'static) -> T {
+        tokio::task::spawn_blocking(job).await.unwrap()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_proxy_url_survives_the_round_trip_and_so_does_its_absence() {
+        // `None` here means "no tunnel configured", which is a normal state -
+        // it must not arrive as a URL, and a URL must not arrive as None. Every
+        // torrent's traffic routing hangs off this one value.
+        let some: Arc<dyn VpnProxyPort> = Arc::new(StubProxy(Some("socks5://10.0.0.1:1080".into())));
+        let resolve = serve(vpnproxy_routes::<StubHost>(some), StubHost::new()).await;
+        let c = VpnProxyClient::new(resolve);
+        assert_eq!(
+            blocking(move || c.proxy_url(&StubHost::new())).await.as_deref(),
+            Some("socks5://10.0.0.1:1080")
+        );
+
+        let none: Arc<dyn VpnProxyPort> = Arc::new(StubProxy(None));
+        let resolve = serve(vpnproxy_routes::<StubHost>(none), StubHost::new()).await;
+        let c = VpnProxyClient::new(resolve);
+        assert!(blocking(move || c.proxy_url(&StubHost::new())).await.is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_vpn_status_and_seal_survive_the_round_trip() {
+        // These drive the kill switch. A field lost in transit reads as "not
+        // connected" / "not sealed", which pauses every download.
+        let vpn: Arc<dyn DownloadVpnPort> = Arc::new(StubVpn);
+        let resolve = serve(downloadvpn_routes::<StubHost>(vpn), StubHost::new()).await;
+
+        let c = DownloadVpnClient::new(resolve.clone());
+        let status = blocking(move || c.vpn_status()).await.unwrap();
+        assert!(status.connected);
+
+        let c = DownloadVpnClient::new(resolve.clone());
+        let seal = blocking(move || c.vpn_seal_check(&StubHost::new())).await.unwrap();
+        assert!(seal.sealed);
+
+        // Fire-and-forget: it must reach the provider without erroring.
+        DownloadVpnClient::new(resolve).restart_engine(&StubHost::new()).await;
     }
 }

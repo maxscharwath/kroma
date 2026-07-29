@@ -1,37 +1,10 @@
 import { Fragment, useRef } from 'react';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
+import { AccentHeading } from '#site/components/home/heading';
 import { HeroBeams } from '#site/components/home/hero-beams';
-import { useLang } from '#site/lib/i18n';
+import { useHome } from '#site/lib/messages/home';
 import { site } from '#site/lib/site';
-
-// Above-the-fold copy in both languages. The heading is split into three parts so
-// the amber gradient span keeps its exact place in each language rather than being
-// reconstructed with a fragile find-and-replace on a whole sentence. `description`
-// reuses the single source of truth in `site` (one per locale) so the hero lead
-// and the SEO meta can never drift apart.
-const copy = {
-  fr: {
-    pill: 'un seul binaire Rust · open source · GPL-2.0',
-    headingPre: 'Votre médiathèque, ',
-    headingAccent: 'chez vous',
-    headingPost: '.',
-    description: site.description,
-    install: 'Installer KROMA',
-    code: 'Voir le code',
-    facts: ['démarre en millisecondes', 'zéro conteneur', 'la vidéo n’est jamais ré-encodée'],
-  },
-  en: {
-    pill: 'a single Rust binary · open source · GPL-2.0',
-    headingPre: 'Your media library, ',
-    headingAccent: 'at home',
-    headingPost: '.',
-    description: site.descriptionEn,
-    install: 'Install KROMA',
-    code: 'View the code',
-    facts: ['starts in milliseconds', 'zero containers', 'video is never re-encoded'],
-  },
-} as const;
 
 // Above the fold: the chromatic mark over the intro film's neon burst, the
 // promise, two actions, and three specifics that keep the "one binary" claim
@@ -41,7 +14,7 @@ const copy = {
 export function Hero() {
   // The burst locks its origin onto the lockup; the ref hands the canvas that node.
   const markRef = useRef<HTMLSpanElement>(null);
-  const t = copy[useLang()];
+  const t = useHome().hero;
 
   return (
     <section className="relative overflow-hidden">
@@ -59,7 +32,7 @@ export function Hero() {
             <span ref={markRef} className="inline-block">
               <img
                 src="/kroma-lockup.svg"
-                alt="KROMA"
+                alt={t.logoAlt}
                 width={458}
                 height={100}
                 className="h-11 w-auto drop-shadow-[0_2px_24px_rgba(0,0,0,0.5)] sm:h-14"
@@ -81,9 +54,7 @@ export function Hero() {
             className="max-w-4xl text-balance font-display text-5xl font-extrabold leading-[1.02] text-text motion-safe:animate-rise sm:text-6xl lg:text-7xl"
             style={{ animationDelay: '120ms' }}
           >
-            {t.headingPre}
-            <span className="text-gradient-amber">{t.headingAccent}</span>
-            {t.headingPost}
+            <AccentHeading text={t.heading} />
           </h1>
 
           <p

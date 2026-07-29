@@ -1,13 +1,5 @@
-import type { ComponentType, ReactNode } from 'react';
-
-/** Structural type for a Tabler icon, so a caller passes the component directly
- *  (`icon={IconKey}`) without this file depending on Tabler's exported type. */
-type IconComponent = ComponentType<{
-  size?: number | string;
-  stroke?: number;
-  className?: string;
-  'aria-hidden'?: boolean;
-}>;
+import type { ReactNode } from 'react';
+import type { IconComponent } from '#site/components/download/icon';
 
 export interface CalloutProps {
   icon: IconComponent;

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export interface StepListProps {
   /** Ordered steps; each renders beside an amber ordinal. */
-  steps: ReactNode[];
+  steps: readonly ReactNode[];
 }
 
 /**

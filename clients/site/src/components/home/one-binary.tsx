@@ -4,77 +4,33 @@ import {
   IconCircleCheckFilled,
 } from '@tabler/icons-react';
 import { Container } from '#site/components/container';
+import { BandHeading } from '#site/components/home/heading';
 import { WheelMark } from '#site/components/wheel-mark';
-import { useLang } from '#site/lib/i18n';
+import { type ReplacedId, useHome } from '#site/lib/messages/home';
 
-// The differentiator, made literal: the stack a typical *arr setup bolts together
-// on the left, the single server that replaces it on the right. Product names on
-// the left are language-invariant; only the one-word job each used to own is
-// localized, so the collapse reads as "these six things, one server to install"
-// in either language. The right rail lists what that one server does natively.
-const copy = {
-  fr: {
-    eyebrow: 'Un seul serveur',
-    headingPre: 'Six conteneurs. ',
-    headingAccent: 'Un seul serveur.',
-    lead: 'Une installation classique boulonne ensemble une demi-douzaine de services, six configs, six choses qui cassent, jamais au même moment. KROMA les remplace par un seul serveur Rust qui démarre en millisecondes et ne garde aucune ferme de transcodage au chaud.',
-    beforeLabel: 'Avant · six conteneurs',
-    badge: '1 serveur',
-    replaces: [
-      { name: 'Sonarr · Radarr', role: 'acquisition' },
-      { name: 'Prowlarr / Jackett', role: 'indexeurs' },
-      { name: 'qBittorrent', role: 'téléchargement' },
-      { name: 'Gluetun', role: 'VPN + kill-switch' },
-      { name: 'Jellyfin', role: 'serveur + lecteur' },
-      { name: 'Overseerr', role: 'requêtes' },
-    ],
-    native: [
-      'Indexeurs Cardigann + Torznab',
-      'Moteur BitTorrent librqbit',
-      'Décision de qualité, import et renommage',
-      'Pont WireGuard → SOCKS5 avec kill-switch',
-      'Lecteur direct-play, HEVC natif',
-    ],
-  },
-  en: {
-    eyebrow: 'A single server',
-    headingPre: 'Six containers. ',
-    headingAccent: 'One server.',
-    lead: 'A typical setup bolts together half a dozen services: six configs, six things that break, never at the same time. KROMA replaces them with a single Rust server that starts in milliseconds and keeps no transcoding farm warm.',
-    beforeLabel: 'Before · six containers',
-    badge: '1 server',
-    replaces: [
-      { name: 'Sonarr · Radarr', role: 'acquisition' },
-      { name: 'Prowlarr / Jackett', role: 'indexers' },
-      { name: 'qBittorrent', role: 'downloading' },
-      { name: 'Gluetun', role: 'VPN + kill-switch' },
-      { name: 'Jellyfin', role: 'server + player' },
-      { name: 'Overseerr', role: 'requests' },
-    ],
-    native: [
-      'Cardigann + Torznab indexers',
-      'librqbit BitTorrent engine',
-      'Quality decisions, import and renaming',
-      'WireGuard → SOCKS5 bridge with kill-switch',
-      'Direct-play player, native HEVC',
-    ],
-  },
-} as const;
+// The stack a typical *arr setup bolts together, in the order the collapse reads
+// best. Product names are language-invariant; only the one-word job each used to
+// own is localized, so the block reads as "these six things, one server to
+// install" in either language.
+const REPLACED: readonly { id: ReplacedId; name: string }[] = [
+  { id: 'acquisition', name: 'Sonarr · Radarr' },
+  { id: 'indexers', name: 'Prowlarr / Jackett' },
+  { id: 'downloader', name: 'qBittorrent' },
+  { id: 'vpn', name: 'Gluetun' },
+  { id: 'server', name: 'Jellyfin' },
+  { id: 'requests', name: 'Overseerr' },
+];
 
+// The differentiator, made literal: the pile of parts on the left, the single
+// server that replaces it on the right, with what that one server does natively.
 export function OneBinary() {
-  const t = copy[useLang()];
+  const t = useHome().oneBinary;
 
   return (
     <section className="py-20 sm:py-28">
       <Container>
         <div className="max-w-2xl">
-          <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-            {t.eyebrow}
-          </p>
-          <h2 className="text-balance font-display text-3xl font-extrabold leading-[1.05] text-text sm:text-4xl">
-            {t.headingPre}
-            <span className="text-gradient-amber">{t.headingAccent}</span>
-          </h2>
+          <BandHeading eyebrow={t.eyebrow} heading={t.heading} />
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted">{t.lead}</p>
         </div>
 
@@ -86,12 +42,14 @@ export function OneBinary() {
               {t.beforeLabel}
             </p>
             <ul className="flex flex-col divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-surface-1/30">
-              {t.replaces.map((s) => (
-                <li key={s.name} className="flex items-baseline justify-between gap-4 px-4 py-3">
+              {REPLACED.map(({ id, name }) => (
+                <li key={id} className="flex items-baseline justify-between gap-4 px-4 py-3">
                   <span className="font-display text-[0.95rem] font-semibold text-muted line-through decoration-border-strong decoration-1">
-                    {s.name}
+                    {name}
                   </span>
-                  <span className="shrink-0 font-mono text-[0.68rem] text-dim">{s.role}</span>
+                  <span className="shrink-0 font-mono text-[0.68rem] text-dim">
+                    {t.replaces[id]}
+                  </span>
                 </li>
               ))}
             </ul>

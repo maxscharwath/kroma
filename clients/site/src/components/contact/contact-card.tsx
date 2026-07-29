@@ -1,36 +1,34 @@
 import { IconArrowRight, IconArrowUpRight, type TablerIcon } from '@tabler/icons-react';
-import { Link, type LinkProps } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
 
-export interface ContactCardProps {
+interface ContactCardProps {
   /** The tabler glyph for the channel (rendered, not an element, so the card
    *  controls its size/stroke to stay on the design grid). */
   icon: TablerIcon;
   title: string;
-  description: ReactNode;
+  description: string;
   /** The affordance line under the description, the address or destination the
    *  reader is about to reach (e.g. `support@kroma.tv`, `github.com/…/issues`). */
   action: string;
-  /** Internal router destination. Mutually exclusive with `href`. */
-  to?: LinkProps['to'];
   /** External URL or `mailto:` address. */
-  href?: string;
+  href: string;
 }
 
 /** A single support channel as one clickable card: glyph, title, a line of
  *  context, and the destination it resolves to. The whole surface is the link
- *  (one large target, not a card with a small button buried in it), and it
- *  renders as a router <Link> for internal paths or a plain <a> for mailto and
- *  external URLs, so a call site picks a destination, never an element. */
-export function ContactCard({ icon, title, description, action, to, href }: ContactCardProps) {
+ *  (one large target, not a card with a small button buried in it). */
+export function ContactCard({ icon, title, description, action, href }: ContactCardProps) {
   const Icon = icon;
-  // A mailto or in-page anchor is not an external site, so it must not open a new
-  // tab; only an http(s) URL does.
-  const external = href?.startsWith('http');
-  const Arrow = to || external ? IconArrowUpRight : IconArrowRight;
+  // A mailto is not another site, so it must not open a new tab; only an
+  // http(s) URL does, and only it gets the leaving-the-site arrow.
+  const external = href.startsWith('http');
+  const Arrow = external ? IconArrowUpRight : IconArrowRight;
 
-  const card = (
-    <>
+  return (
+    <a
+      href={href}
+      className="group flex h-full flex-col rounded-2xl border border-border bg-surface-1 p-6 transition-colors duration-200 hover:border-accent/60 hover:bg-surface-2 focus-visible:border-accent focus-visible:outline-none"
+      {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
+    >
       <span className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
         <Icon size={22} stroke={1.75} aria-hidden />
       </span>
@@ -47,28 +45,6 @@ export function ContactCard({ icon, title, description, action, to, href }: Cont
           aria-hidden
         />
       </span>
-    </>
-  );
-
-  const cls =
-    'group flex h-full flex-col rounded-2xl border border-border bg-surface-1 p-6 ' +
-    'transition-colors duration-200 hover:border-accent/60 hover:bg-surface-2 ' +
-    'focus-visible:outline-none focus-visible:border-accent';
-
-  if (to) {
-    return (
-      <Link to={to} className={cls}>
-        {card}
-      </Link>
-    );
-  }
-  return (
-    <a
-      href={href}
-      className={cls}
-      {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
-    >
-      {card}
     </a>
   );
 }

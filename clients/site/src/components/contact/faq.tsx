@@ -1,7 +1,7 @@
 import { IconChevronRight } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 
-export interface FaqEntry {
+interface FaqEntry {
   question: string;
   /** Rich answer, so a link (e.g. to the privacy page) can live inside. */
   answer: ReactNode;

@@ -4,132 +4,51 @@ import {
   IconPlayerPlay,
   IconShieldHalf,
   IconSparkles,
+  type TablerIcon,
   IconTargetArrow,
   IconUsers,
   IconWorldSearch,
 } from '@tabler/icons-react';
 import { Section } from '#site/components/section';
-import { useLang } from '#site/lib/i18n';
-
-// The section header, localized. The heading stays honest to the architecture:
-// KROMA is a single server, not a single OS process (the indexer, downloader and
-// VPN run as out-of-process modules), so it reads "un seul serveur" in both
-// languages rather than "un seul process".
-const copy = {
-  fr: {
-    eyebrow: 'Tout est inclus',
-    title: 'Toute la chaîne, dans un seul serveur',
-    intro:
-      'Trouvez, téléchargez, organisez, diffusez. Chaque maillon d’une médiathèque auto-hébergée, écrit une fois et partagé, sans rien à câbler entre eux.',
-  },
-  en: {
-    eyebrow: 'Everything included',
-    title: 'The whole chain, one server',
-    intro:
-      'Find, download, organize, stream. Every link of a self-hosted media library, written once and shared, with nothing to wire between them.',
-  },
-} as const;
+import { type FeatureId, useHome } from '#site/lib/messages/home';
 
 // Capabilities as a spec sheet, not eight identical gradient cards. The cells
 // share hairlines (a `gap-px` grid over a `bg-border` sheet) so the block reads
-// as one instrument panel; two cells span wider than the rest so the eye lands on
-// the acquisition brain and the VPN first. `Icon`, `span` and the mono `tag` are
-// language-invariant (the real name of the thing is what a developer trusts), so
-// only the prose title and body carry a per-locale pair.
-const FEATURES = [
+// as one instrument panel; the first two span wider than the rest so the eye
+// lands on the acquisition brain and the VPN first. The mono `tag` is the real
+// name of the thing, which is what a developer trusts, so it stays here with the
+// icon and the span; only the prose lives in the catalog.
+const FEATURES: readonly { id: FeatureId; Icon: TablerIcon; span: string; tag: string }[] = [
   {
+    id: 'acquisition',
     Icon: IconTargetArrow,
     span: 'lg:col-span-3 sm:col-span-2',
-    title: { fr: 'Acquisition automatique', en: 'Automatic acquisition' },
-    body: {
-      fr: 'Demandez un titre : KROMA cherche chez tous vos indexeurs, note chaque release sur la résolution, le codec, la taille, les seeders et vos mots-clés, récupère la meilleure, puis l’importe et la renomme façon Plex.',
-      en: 'Ask for a title: KROMA searches every one of your indexers, scores each release on resolution, codec, size, seeders and your keywords, grabs the best one, then imports and renames it Plex-style.',
-    },
-    tag: { fr: 'moteur de décision · wanted-list', en: 'decision engine · wanted-list' },
+    tag: 'decision engine · wanted-list',
   },
   {
+    id: 'vpn',
     Icon: IconShieldHalf,
     span: 'lg:col-span-3 sm:col-span-2',
-    title: { fr: 'VPN avec vrai kill-switch', en: 'VPN with a real kill-switch' },
-    body: {
-      fr: 'Collez une config WireGuard et tout le trafic torrent passe par un pont WireGuard→SOCKS5 managé. Un test de tunnel qui échoue met chaque téléchargement en pause à l’instant : pas de fuite, pas de Gluetun à câbler.',
-      en: 'Paste a WireGuard config and all torrent traffic goes through a managed WireGuard→SOCKS5 bridge. A failed tunnel check pauses every download on the spot: no leak, no Gluetun to wire up.',
-    },
-    tag: { fr: 'WireGuard → SOCKS5', en: 'WireGuard → SOCKS5' },
+    tag: 'WireGuard → SOCKS5',
   },
-  {
-    Icon: IconWorldSearch,
-    span: 'lg:col-span-2',
-    title: { fr: 'Indexeurs natifs', en: 'Native indexers' },
-    body: {
-      fr: 'Un moteur Cardigann réimplémenté exécute les définitions de trackers de Jackett et Prowlarr, directement.',
-      en: 'A reimplemented Cardigann engine runs the tracker definitions from Jackett and Prowlarr, directly.',
-    },
-    tag: { fr: 'Cardigann + Torznab', en: 'Cardigann + Torznab' },
-  },
-  {
-    Icon: IconDownload,
-    span: 'lg:col-span-2',
-    title: { fr: 'Moteur de téléchargement', en: 'Download engine' },
-    body: {
-      fr: 'Un client BitTorrent librqbit récupère les releases directement, piloté par KROMA. Transmission et qBittorrent restent supportés.',
-      en: 'A librqbit BitTorrent client fetches releases directly, driven by KROMA. Transmission and qBittorrent stay supported.',
-    },
-    tag: { fr: 'librqbit', en: 'librqbit' },
-  },
-  {
-    Icon: IconPlayerPlay,
-    span: 'lg:col-span-2',
-    title: { fr: 'Lecteur direct-play', en: 'Direct-play player' },
-    body: {
-      fr: 'Les fichiers originaux sont diffusés par plages d’octets et décodés par le client. La vidéo n’est jamais ré-encodée.',
-      en: 'Original files are streamed by byte range and decoded by the client. Video is never re-encoded.',
-    },
-    tag: { fr: 'HEVC/H.265 · range-streamed', en: 'HEVC/H.265 · range-streamed' },
-  },
-  {
-    Icon: IconSparkles,
-    span: 'lg:col-span-2',
-    title: { fr: 'IA embarquée', en: 'On-device AI' },
-    body: {
-      fr: 'Recommandations et recherche sémantique sur des embeddings locaux, sous-titres générés par Whisper. Sur votre machine, sans cloud.',
-      en: 'Recommendations and semantic search over local embeddings, subtitles generated by Whisper. On your machine, no cloud.',
-    },
-    tag: { fr: 'on-device · Whisper', en: 'on-device · Whisper' },
-  },
-  {
-    Icon: IconUsers,
-    span: 'lg:col-span-2',
-    title: { fr: 'Multi-utilisateur', en: 'Multi-user' },
-    body: {
-      fr: 'Comptes, profils, verrous PIN, passkeys WebAuthn, invitations et permissions par utilisateur. Partagez sans tout ouvrir.',
-      en: 'Accounts, profiles, PIN locks, WebAuthn passkeys, invitations and per-user permissions. Share without opening everything up.',
-    },
-    tag: { fr: 'profils · PIN · passkeys', en: 'profiles · PIN · passkeys' },
-  },
-  {
-    Icon: IconChartLine,
-    span: 'lg:col-span-2',
-    title: { fr: 'Statistiques en direct', en: 'Live statistics' },
-    body: {
-      fr: 'Téléchargements, scans de bibliothèque et lectures poussés en temps réel sur un bus WebSocket, vers les tableaux de bord et les clients.',
-      en: 'Downloads, library scans and playback pushed in real time over a WebSocket bus, to dashboards and clients.',
-    },
-    tag: { fr: 'bus WebSocket', en: 'WebSocket bus' },
-  },
-] as const;
+  { id: 'indexers', Icon: IconWorldSearch, span: 'lg:col-span-2', tag: 'Cardigann + Torznab' },
+  { id: 'downloader', Icon: IconDownload, span: 'lg:col-span-2', tag: 'librqbit' },
+  { id: 'player', Icon: IconPlayerPlay, span: 'lg:col-span-2', tag: 'HEVC/H.265 · range-streamed' },
+  { id: 'ai', Icon: IconSparkles, span: 'lg:col-span-2', tag: 'on-device · Whisper' },
+  { id: 'users', Icon: IconUsers, span: 'lg:col-span-2', tag: 'profiles · PIN · passkeys' },
+  { id: 'stats', Icon: IconChartLine, span: 'lg:col-span-2', tag: 'WebSocket bus' },
+];
 
 export function FeatureGrid() {
-  const lang = useLang();
-  const t = copy[lang];
+  const t = useHome().features;
 
   return (
     <Section id="fonctionnalites" eyebrow={t.eyebrow} title={t.title} intro={t.intro}>
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-6">
-          {FEATURES.map(({ Icon, title, body, tag, span }) => (
+          {FEATURES.map(({ id, Icon, span, tag }) => (
             <div
-              key={title.en}
+              key={id}
               className={`group flex flex-col bg-surface-1/40 p-6 transition-colors duration-200 hover:bg-surface-1 ${span}`}
             >
               <Icon
@@ -139,10 +58,10 @@ export function FeatureGrid() {
                 className="text-accent transition-transform duration-300 ease-out group-hover:-translate-y-0.5"
               />
               <h3 className="mt-4 font-display text-lg font-bold leading-snug text-text">
-                {title[lang]}
+                {t.items[id].title}
               </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{body[lang]}</p>
-              <p className="mt-4 font-mono text-[0.72rem] tracking-tight text-dim">{tag[lang]}</p>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{t.items[id].body}</p>
+              <p className="mt-4 font-mono text-[0.72rem] tracking-tight text-dim">{tag}</p>
             </div>
           ))}
         </div>

@@ -1,23 +1,13 @@
-import type { ComponentType, ReactNode } from 'react';
-import { useLang } from '#site/lib/i18n';
-
-type IconComponent = ComponentType<{
-  size?: number | string;
-  stroke?: number;
-  className?: string;
-  'aria-hidden'?: boolean;
-}>;
-
-// Only the beta badge is prose here; the name and artifact extensions are
-// language-neutral and passed in by the call site.
-const betaLabel = { fr: 'Bêta', en: 'Beta' } as const;
+import type { ReactNode } from 'react';
+import type { IconComponent } from '#site/components/download/icon';
+import { useDownload } from '#site/lib/messages/download';
 
 export interface PlatformEntryProps {
   icon: IconComponent;
   /** Device / OS name, e.g. "Samsung (Tizen)". */
   name: string;
   /** Artifact extensions rendered as monospace badges, e.g. ['.wgt']. */
-  artifacts?: string[];
+  artifacts?: readonly string[];
   /** Flag store/beta channels (TestFlight, Firebase) so expectations are set. */
   beta?: boolean;
   /** The one-time-setup / heads-up note, typically a <Callout>. */
@@ -40,7 +30,7 @@ export function PlatformEntry({
   setup,
   children,
 }: PlatformEntryProps) {
-  const lang = useLang();
+  const t = useDownload().ui;
   return (
     <div className="border-t border-border/60 py-6 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start gap-4">
@@ -60,7 +50,7 @@ export function PlatformEntry({
             ))}
             {beta && (
               <span className="rounded-full border border-border-strong px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider text-dim">
-                {betaLabel[lang]}
+                {t.beta}
               </span>
             )}
           </div>

@@ -1,16 +1,8 @@
 import { IconExternalLink } from '@tabler/icons-react';
-import type { ComponentType, ReactNode } from 'react';
-import { useLang } from '#site/lib/i18n';
-
-type IconComponent = ComponentType<{
-  size?: number | string;
-  stroke?: number;
-  className?: string;
-  'aria-hidden'?: boolean;
-}>;
-
-// The one bit of prose the frame owns; the family title and intro come in as props.
-const detailedSteps = { fr: 'Étapes détaillées', en: 'Detailed steps' } as const;
+import type { ReactNode } from 'react';
+import type { IconComponent } from '#site/components/download/icon';
+import { Panel } from '#site/components/download/panel';
+import { useDownload } from '#site/lib/messages/download';
 
 export interface PlatformFamilyProps {
   icon: IconComponent;
@@ -37,7 +29,7 @@ export function PlatformFamily({
   docHref,
   children,
 }: PlatformFamilyProps) {
-  const lang = useLang();
+  const t = useDownload().ui;
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_1fr] lg:gap-10">
       <div className="lg:sticky lg:top-24 lg:self-start">
@@ -53,14 +45,12 @@ export function PlatformFamily({
             rel="noreferrer noopener"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
           >
-            {detailedSteps[lang]}
+            {t.detailedSteps}
             <IconExternalLink size={14} stroke={1.75} aria-hidden />
           </a>
         )}
       </div>
-      <div className="surface-hairline rounded-2xl border border-border bg-surface-1/40 p-6 sm:p-7">
-        {children}
-      </div>
+      <Panel>{children}</Panel>
     </div>
   );
 }

@@ -1,9 +1,16 @@
 import { useLang } from '#site/lib/i18n';
 
-// The chrome dictionary: everything the header, footer and 404 say, in both
-// languages. Page-specific copy is colocated with each page (see each page's own
-// `copy` object); only the shared shell lives here. Authored as a `const` so the
-// French and English shapes are checked against each other by the type system.
+// The chrome dictionary: everything the header, footer, 404 and language switcher
+// say. Each PAGE has its own catalog beside this one (`home`, `download`,
+// `privacy`, `support`, `blog`); this file holds only what the shell says on every
+// one of them.
+//
+// No component anywhere carries a string. That is the rule the whole folder
+// exists to enforce: at thirty languages a component that colocated its copy
+// would be unreadable, while these stay flat and a page stays layout. Authored
+// `as const` so every locale is checked against the same shape - a key a new
+// language has not translated yet is a compile error, not a blank space in
+// production.
 
 export const common = {
   fr: {

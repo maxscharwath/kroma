@@ -1,0 +1,15 @@
+// Preview-only config for a throwaway verification deploy (no Cloudflare login,
+// no custom domain). `wrangler deploy --config wrangler.preview.jsonc --x-provision`
+// or `--temporary` lands this on a short-lived *.workers.dev URL so the site can
+// be looked at before the real deploy. The production config (custom domains
+// kroma.tv / www.kroma.tv) lives in wrangler.jsonc.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kroma-site-preview",
+  "compatibility_date": "2026-07-01",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}

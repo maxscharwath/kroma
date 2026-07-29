@@ -14,13 +14,14 @@ jamais au même moment.
 
 KROMA part d'un refus simple : **rien de tout ça ne devrait être votre problème.**
 
-## Un seul processus, écrit en Rust
+## Un seul serveur, écrit en Rust
 
 Là où une installation classique boulonne ensemble Sonarr, Radarr, Prowlarr,
-qBittorrent, Gluetun et Jellyfin, KROMA est **un seul binaire** qui démarre en
-quelques millisecondes et tient dans une poignée de mégaoctets de RAM. L'indexeur,
-le moteur de téléchargement, le pont VPN avec kill-switch, le serveur et le lecteur
-vivent dans le même processus et partagent le même état.
+qBittorrent, Gluetun et Jellyfin, KROMA est **un seul serveur** qui démarre en
+quelques millisecondes et reste sobre en mémoire. L'indexeur, le moteur de
+téléchargement, le pont VPN avec kill-switch et le lecteur sont orchestrés par ce
+serveur, que vous installez une seule fois : les capacités s'ajoutent comme des
+modules, sans un empilement de conteneurs à câbler entre eux.
 
 Pas de ferme de transcodage à garder au chaud non plus : la vidéo n'est jamais
 ré-encodée. Le serveur **diffuse les fichiers originaux** par plages d'octets, et

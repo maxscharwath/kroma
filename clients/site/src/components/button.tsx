@@ -1,5 +1,6 @@
 import { Link, type LinkProps } from '@tanstack/react-router';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
+import { localizePath, useLang } from '#site/lib/i18n';
 
 type Variant = 'primary' | 'outline' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
@@ -30,8 +31,9 @@ export interface ButtonProps {
   variant?: Variant;
   size?: Size;
   className?: string;
-  /** Internal router destination. Mutually exclusive with `href`. */
-  to?: LinkProps['to'];
+  /** Internal router destination as a CANONICAL path (e.g. `/download`); the
+   *  active locale prefix is added automatically. Mutually exclusive with `href`. */
+  to?: string;
   /** External / anchor destination (opens in a new tab when it leaves the site). */
   href?: string;
 }
@@ -47,11 +49,12 @@ export function Button({
   to,
   href,
 }: ButtonProps) {
+  const lang = useLang();
   const cls = [base, variants[variant], sizes[size], className].filter(Boolean).join(' ');
 
   if (to) {
     return (
-      <Link to={to} className={cls}>
+      <Link to={localizePath(to, lang) as LinkProps['to']} className={cls}>
         {children}
       </Link>
     );

@@ -12,6 +12,7 @@ import {
   IconDeviceTvOld,
   IconInfoCircle,
   IconKey,
+  IconRefresh,
   IconServer,
   IconWorld,
 } from '@tabler/icons-react';
@@ -35,11 +36,11 @@ const INSTALL_GUIDE = `${site.repo}/blob/main/INSTALL.md`;
 const BETA_GUIDE = `${site.repo}/blob/main/BETA.md`;
 
 export const Route = createFileRoute('/download')({
-  head: () => ({ ...seo({ title: 'Installer', path: '/download' }) }),
+  head: () => ({ ...seo({ lang: 'fr', title: 'Installer', path: '/download' }) }),
   component: Download,
 });
 
-function Download() {
+export function Download() {
   return (
     <>
       <Header />
@@ -48,7 +49,7 @@ function Download() {
         id="serveur"
         step="01"
         title="Installez le serveur"
-        intro="Un seul binaire Rust : sur un NAS, dans Docker, ou compilé à la main. Il sert l'API, l'app web et le flux vidéo sur le port 4040, direct-play, jamais de transcodage."
+        intro="Un seul serveur Rust : sur un NAS, dans Docker, ou compilé à la main. Il sert l'API, l'app web et le flux vidéo sur le port 4040 en direct-play : la vidéo n'est jamais transcodée."
       >
         <ServerOptions />
       </InstallStep>
@@ -341,7 +342,7 @@ function Mobile() {
         beta
         setup={
           <Callout icon={IconInfoCircle} tag="TestFlight">
-            Rejoignez la bêta iOS via TestFlight, {' '}
+            Rejoignez la bêta iOS via TestFlight,{' '}
             <a
               href={BETA_GUIDE}
               target="_blank"
@@ -360,7 +361,7 @@ function Mobile() {
         beta
         setup={
           <Callout icon={IconInfoCircle} tag="Firebase">
-            Distribuée via Firebase App Distribution, {' '}
+            Distribuée via Firebase App Distribution,{' '}
             <a
               href={BETA_GUIDE}
               target="_blank"
@@ -390,7 +391,8 @@ function NasAndWeb() {
         name="Navigateur web"
         setup={
           <Callout icon={IconInfoCircle} tag="Rien à installer">
-            Le serveur sert lui-même l'app web. Ouvrez son adresse dans n'importe quel navigateur,             ou laissez la découverte mDNS le trouver sur le réseau.
+            Le serveur sert lui-même l'app web. Ouvrez son adresse dans n'importe quel navigateur,
+            ou laissez la découverte mDNS le trouver sur le réseau.
           </Callout>
         }
       >
@@ -402,12 +404,49 @@ function NasAndWeb() {
         name="Synology"
         artifacts={['.spk']}
         setup={
-          <Callout icon={IconInfoCircle} tag="C'est le serveur">
-            Sur un NAS, le <code className="font-mono">.spk</code> installe le serveur lui-même,             voir <span className="text-text">l'Étape 1</span>. Il sert ensuite l'app web à tous les
-            appareils du foyer.
+          <Callout icon={IconRefresh} tag="Mises à jour automatiques">
+            La meilleure voie sur un NAS : ajoutez KROMA comme{' '}
+            <span className="text-text">source de paquets</span> dans le Centre de paquets. Le
+            serveur s'installe puis se met à jour tout seul, sans re-télécharger un{' '}
+            <code className="font-mono">.spk</code> à chaque version.
           </Callout>
         }
-      />
+      >
+        <StepList
+          steps={[
+            <>
+              Centre de paquets → <span className="text-text">Paramètres</span> →{' '}
+              <span className="text-text">Sources de paquets</span> →{' '}
+              <span className="text-text">Ajouter</span>.
+            </>,
+            <>
+              Collez l'URL de la source ci-dessous, puis validez le niveau de confiance{' '}
+              <span className="text-text">« N'importe quel éditeur »</span> (le paquet est
+              auto-signé).
+            </>,
+            <>
+              Installez <span className="text-text">KROMA</span> depuis la source ; les mises à jour
+              arrivent ensuite automatiquement.
+            </>,
+          ]}
+        />
+        <div className="mt-4">
+          <CodeBlock label="source de paquets" code={site.packagesUrl} />
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-dim">
+          Préférez une installation manuelle ? Téléchargez le{' '}
+          <code className="font-mono">.spk</code> depuis{' '}
+          <a
+            href={RELEASES}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+          >
+            les releases
+          </a>{' '}
+          et passez par Centre de paquets → Installation manuelle.
+        </p>
+      </PlatformEntry>
     </PlatformFamily>
   );
 }
@@ -426,8 +465,8 @@ function Closing() {
               Signé pour le développement, pas pour un store.
             </h2>
             <p className="mt-4 text-pretty leading-relaxed text-muted">
-              Les builds sont signés avec un certificat de développement, pas de certificat de
-              store payant. C'est toute la raison du réglage unique par appareil (mode développeur,
+              Les builds sont signés avec un certificat de développement, pas de certificat de store
+              payant. C'est toute la raison du réglage unique par appareil (mode développeur,
               quarantaine, SmartScreen) : une fois fait, les mises à jour passent sans friction.
               Tout reste auto-hébergé, votre médiathèque et votre activité ne quittent jamais votre
               réseau.

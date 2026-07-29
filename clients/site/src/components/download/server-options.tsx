@@ -133,7 +133,8 @@ export function ServerOptions() {
         <Panel>
           <OptionHead icon={IconBrandRust} title="Depuis les sources (cargo)" />
           <p className="mt-4 text-sm leading-relaxed text-muted">
-            Un seul binaire Rust, sans dépendance système : compilez-le vous-même.
+            Un seul binaire Rust : compilez-le vous-même. SQLite et TLS sont embarqués ;
+            ffmpeg/ffprobe restent requis pour les métadonnées et l’audio HLS.
           </p>
           <div className="mt-5">
             <CodeBlock label="bash" code={CARGO} />

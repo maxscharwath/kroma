@@ -8,6 +8,7 @@ import { site } from '#site/lib/site';
 export const Route = createFileRoute('/privacy')({
   head: () => ({
     ...seo({
+      lang: 'fr',
       title: 'Confidentialité',
       description:
         'Ce que collecte (ou non) kroma.tv et l’application KROMA : un site vitrine statique, un logiciel auto-hébergé, et le seul service que nous opérons, le relais de notifications push.',
@@ -22,7 +23,7 @@ export const Route = createFileRoute('/privacy')({
 // app. The one component that touches a service we operate (the push relay) is
 // named plainly rather than buried, because pretending it doesn't exist would be
 // the dishonest choice.
-function Privacy() {
+export function Privacy() {
   return (
     <Container size="prose">
       <article className="py-16 sm:py-20">
@@ -56,8 +57,8 @@ function Privacy() {
             </li>
             <li>
               Une seule exception, assumée : les notifications push transitent par un relais que
-              nous opérons sur Cloudflare, il transmet des notifications, jamais vos médias ni
-              votre bibliothèque.
+              nous opérons sur Cloudflare, il transmet des notifications, jamais vos médias ni votre
+              bibliothèque.
             </li>
           </ul>
 
@@ -85,8 +86,8 @@ function Privacy() {
             : il n’existe pas de service central vers lequel remonter quoi que ce soit.
           </p>
           <p>
-            Pour ces données, c’est vous, l’opérateur du serveur, qui en avez la maîtrise
-            complète. Vous décidez qui y accède, où elles résident et quand les effacer.
+            Pour ces données, c’est vous, l’opérateur du serveur, qui en avez la maîtrise complète.
+            Vous décidez qui y accède, où elles résident et quand les effacer.
           </p>
 
           <h2>Notifications push via le relais Cloudflare</h2>

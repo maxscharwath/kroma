@@ -2,7 +2,6 @@ import { useRef } from 'react';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { HeroBeams } from '#site/components/home/hero-beams';
-import { WheelMark } from '#site/components/wheel-mark';
 import { site } from '#site/lib/site';
 
 // Above the fold: the chromatic mark over the intro film's neon burst, the
@@ -11,25 +10,30 @@ import { site } from '#site/lib/site';
 // and no scroll observer, so it plays on the prerendered HTML too, and
 // `motion-safe:` drops it entirely for readers who ask for stillness.
 export function Hero() {
-  // The burst locks its origin onto the wheel; the ref hands the canvas that node.
-  const wheelRef = useRef<HTMLSpanElement>(null);
+  // The burst locks its origin onto the lockup; the ref hands the canvas that node.
+  const markRef = useRef<HTMLSpanElement>(null);
 
   return (
     <section className="relative overflow-hidden">
       {/* A faint amber source, painted behind the canvas so a browser without
           WebGL still gets warmth rather than flat charcoal. */}
       <div className="glow-amber pointer-events-none absolute inset-x-0 -top-24 h-[620px]" />
-      <HeroBeams anchorRef={wheelRef} />
+      <HeroBeams anchorRef={markRef} />
       {/* Fade the opaque burst into the page and keep the lower copy readable. */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
 
       <Container>
         <div className="relative z-10 flex flex-col items-center py-24 text-center sm:py-32">
-          {/* The rise lives on the wrapper, not the mark itself: the mark already
-              owns an `animation` (its slow spin), and two on one element collide. */}
-          <div className="mb-8 motion-safe:animate-rise">
-            <span ref={wheelRef} className="inline-block">
-              <WheelMark size={76} spin />
+          {/* The full KROMA lockup, standing in the burst it converges on. */}
+          <div className="mb-9 motion-safe:animate-rise">
+            <span ref={markRef} className="inline-block">
+              <img
+                src="/kroma-lockup.svg"
+                alt="KROMA"
+                width={458}
+                height={100}
+                className="h-11 w-auto drop-shadow-[0_2px_24px_rgba(0,0,0,0.5)] sm:h-14"
+              />
             </span>
           </div>
 

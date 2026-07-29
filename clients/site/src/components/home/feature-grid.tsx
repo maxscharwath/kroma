@@ -26,7 +26,7 @@ const FEATURES = [
   {
     Icon: IconShieldHalf,
     title: 'VPN avec vrai kill-switch',
-    body: 'Collez une config WireGuard et tout le trafic torrent passe par un pont WireGuard→SOCKS5 managé. Un test de tunnel qui échoue met chaque téléchargement en pause à l’instant, pas de fuite, pas de sidecar.',
+    body: 'Collez une config WireGuard et tout le trafic torrent passe par un pont WireGuard→SOCKS5 managé. Un test de tunnel qui échoue met chaque téléchargement en pause à l’instant : pas de fuite, pas de Gluetun à câbler.',
     tag: 'WireGuard → SOCKS5',
     span: 'lg:col-span-3 sm:col-span-2',
   },
@@ -40,8 +40,8 @@ const FEATURES = [
   {
     Icon: IconDownload,
     title: 'Moteur de téléchargement',
-    body: 'Un client BitTorrent embarqué récupère les releases dans le même process. Transmission et qBittorrent restent supportés.',
-    tag: 'librqbit · in-process',
+    body: 'Un client BitTorrent librqbit récupère les releases directement, piloté par KROMA. Transmission et qBittorrent restent supportés.',
+    tag: 'librqbit',
     span: 'lg:col-span-2',
   },
   {

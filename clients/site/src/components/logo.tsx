@@ -1,5 +1,6 @@
-import { Link } from '@tanstack/react-router';
+import { L } from '#site/components/localized-link';
 import { WheelMark } from '#site/components/wheel-mark';
+import { useCommon } from '#site/lib/messages/common';
 
 export interface LogoProps {
   className?: string;
@@ -8,12 +9,14 @@ export interface LogoProps {
 }
 
 /** The KROMA lockup: the chromatic wheel, then the wordmark in the display face.
- *  A link home, so it works as the header brand. */
+ *  A link to the localized home, so it works as the header brand in both
+ *  languages. */
 export function Logo({ className, size = 30 }: LogoProps) {
+  const t = useCommon();
   return (
-    <Link
+    <L
       to="/"
-      aria-label="KROMA, accueil"
+      aria-label={t.header.home}
       className={['group inline-flex items-center gap-2.5', className].filter(Boolean).join(' ')}
     >
       <WheelMark
@@ -26,6 +29,6 @@ export function Logo({ className, size = 30 }: LogoProps) {
       >
         KROMA
       </span>
-    </Link>
+    </L>
   );
 }

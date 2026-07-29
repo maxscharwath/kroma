@@ -7,9 +7,9 @@ import { Container } from '#site/components/container';
 import { WheelMark } from '#site/components/wheel-mark';
 
 // The differentiator, made literal: the stack a typical *arr setup bolts together
-// on the left, the single process that replaces it on the right. Each removed
+// on the left, the single server that replaces it on the right. Each removed
 // service is paired with the one job it used to own, so the collapse reads as
-// "these six things, done in-process" rather than a marketing arrow.
+// "these six things, one server to install" rather than a marketing arrow.
 const REPLACES = [
   { name: 'Sonarr · Radarr', role: 'acquisition' },
   { name: 'Prowlarr / Jackett', role: 'indexeurs' },
@@ -21,7 +21,7 @@ const REPLACES = [
 
 const NATIVE = [
   'Indexeurs Cardigann + Torznab',
-  'Moteur BitTorrent librqbit, in-process',
+  'Moteur BitTorrent librqbit',
   'Décision de qualité, import et renommage',
   'Pont WireGuard → SOCKS5 avec kill-switch',
   'Lecteur direct-play, HEVC natif',
@@ -33,14 +33,14 @@ export function OneBinary() {
       <Container>
         <div className="max-w-2xl">
           <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-            Un seul binaire
+            Un seul serveur
           </p>
           <h2 className="text-balance font-display text-3xl font-extrabold leading-[1.05] text-text sm:text-4xl">
-            Six conteneurs. <span className="text-gradient-amber">Un seul processus.</span>
+            Six conteneurs. <span className="text-gradient-amber">Un seul serveur.</span>
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted">
-            Une installation classique boulonne ensemble une demi-douzaine de services, six
-            configs, six choses qui cassent, jamais au même moment. KROMA les réunit dans un binaire
+            Une installation classique boulonne ensemble une demi-douzaine de services, six configs,
+            six choses qui cassent, jamais au même moment. KROMA les remplace par un seul serveur
             Rust qui démarre en millisecondes et ne garde aucune ferme de transcodage au chaud.
           </p>
         </div>
@@ -79,7 +79,7 @@ export function OneBinary() {
                 KROMA
               </span>
               <span className="ml-auto rounded-full border border-border-strong px-2.5 py-0.5 font-mono text-[0.68rem] text-muted">
-                1 processus
+                1 serveur
               </span>
             </div>
             <ul className="relative mt-5 flex flex-col gap-2.5">

@@ -1,6 +1,7 @@
 import { IconArrowLeft } from '@tabler/icons-react';
-import { createFileRoute, Link, notFound } from '@tanstack/react-router';
+import { createFileRoute, notFound, useParams } from '@tanstack/react-router';
 import { Container } from '#site/components/container';
+import { L } from '#site/components/localized-link';
 import { getPost } from '#site/lib/blog';
 import { seo } from '#site/lib/seo';
 
@@ -20,6 +21,7 @@ export const Route = createFileRoute('/blog/$slug')({
     if (!meta) return {};
     return {
       ...seo({
+        lang: 'fr',
         title: meta.title,
         description: meta.excerpt,
         path: `/blog/${meta.slug}`,
@@ -31,9 +33,11 @@ export const Route = createFileRoute('/blog/$slug')({
   component: BlogPost,
 });
 
-function BlogPost() {
-  const { slug } = Route.useParams();
-  const post = getPost(slug);
+export function BlogPost() {
+  // `strict: false` so the one component serves both /blog/$slug and
+  // /en/blog/$slug without binding to a single route's params.
+  const slug = useParams({ strict: false }).slug;
+  const post = slug ? getPost(slug) : undefined;
   // The loader already 404s on an unknown slug, so this is a type guard, not a
   // path a reader reaches.
   if (!post) return null;
@@ -42,13 +46,13 @@ function BlogPost() {
   return (
     <Container size="prose">
       <article className="py-16 sm:py-20">
-        <Link
+        <L
           to="/blog"
           className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-text"
         >
           <IconArrowLeft size={16} stroke={2} />
           Tous les articles
-        </Link>
+        </L>
 
         <header className="mt-8">
           {post.tags.length > 0 && (

@@ -10,14 +10,14 @@ import { SelfHostBand } from '#site/components/home/self-host-band';
 import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/')({
-  head: () => ({ ...seo({ path: '/' }) }),
+  head: () => ({ ...seo({ lang: 'fr', path: '/' }) }),
   component: Home,
 });
 
 // The home page is a composition, not a wall of markup: each band is a single
 // self-contained section under components/home. The order tells the story, // promise, the one-binary differentiator, the full capability set, the playback
 // moment, where it runs, why you'd own it, what we're writing, then the ask.
-function Home() {
+export function Home() {
   return (
     <>
       <Hero />

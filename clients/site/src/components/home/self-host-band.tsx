@@ -11,7 +11,7 @@ const POINTS = [
   { Icon: IconLicense, title: 'Libre', sub: 'Code ouvert, licence MIT' },
   { Icon: IconLock, title: 'Privé', sub: 'Rien ne quitte votre réseau' },
   { Icon: IconWorldOff, title: 'Sans central', sub: 'Aucun compte, aucun abonnement' },
-  { Icon: IconCloudOff, title: 'Hors-ligne', sub: 'Fonctionne sans internet' },
+  { Icon: IconCloudOff, title: 'Hors-ligne', sub: 'La lecture fonctionne sans internet' },
 ] as const;
 
 export function SelfHostBand() {

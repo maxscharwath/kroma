@@ -11,6 +11,7 @@ import { site } from '#site/lib/site';
 export const Route = createFileRoute('/support')({
   head: () => ({
     ...seo({
+      lang: 'fr',
       title: 'Support',
       description:
         'Où obtenir de l’aide pour KROMA : par e-mail, sur GitHub, dans le guide d’installation et la documentation. Plus comment bien signaler un bug.',
@@ -85,7 +86,7 @@ const faq: readonly FaqEntry[] = [
   },
 ];
 
-function Support() {
+export function Support() {
   return (
     <Container>
       <div className="py-16 sm:py-20">
@@ -97,8 +98,8 @@ function Support() {
             On est là pour vous aider.
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-muted">
-            KROMA est un projet libre et auto-hébergé. Selon votre besoin, une question, un bug,
-            une installation à démarrer, voici la bonne porte à laquelle frapper.
+            KROMA est un projet libre et auto-hébergé. Selon votre besoin, une question, un bug, une
+            installation à démarrer, voici la bonne porte à laquelle frapper.
           </p>
         </header>
 

@@ -11,6 +11,18 @@
 /* Tailwind v4 scans this app's own sources automatically; nothing outside
    clients/site contributes class names, so no extra @source is needed. */
 
+/* @kroma/ui ships an UNLAYERED `a { color: inherit }` (for the app shell), and
+   an unlayered rule outranks Tailwind's layered text-color utilities. On this
+   marketing site links ARE coloured with utilities (the amber CTA's dark ink,
+   the muted footer/nav links), so a bare `text-accent-ink` on an <a> was being
+   ignored and the primary button rendered ivory-on-amber. For any link that
+   carries a class, defer to the value its utility set (the layered one);
+   class-less links still inherit. `revert-layer` is the precise tool for exactly
+   this unlayered-vs-layered conflict. */
+a[class] {
+  color: revert-layer;
+}
+
 /* Site-only animations, layered on top of the shared theme. */
 @theme {
   --animate-wheel-spin: wheel-spin 28s linear infinite;

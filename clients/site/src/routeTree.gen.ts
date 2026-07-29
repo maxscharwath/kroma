@@ -8,76 +8,153 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as DownloadRouteImport } from './routes/download'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as SupportRouteImport } from './routes/support'
-import { Route as BlogIndexRouteImport } from './routes/blog/index'
-import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as DownloadRouteImport } from './routes/download';
+import { Route as PrivacyRouteImport } from './routes/privacy';
+import { Route as SupportRouteImport } from './routes/support';
+import { Route as BlogIndexRouteImport } from './routes/blog/index';
+import { Route as BlogSlugRouteImport } from './routes/blog/$slug';
+import { Route as EnIndexRouteImport } from './routes/en/index';
+import { Route as EnDownloadRouteImport } from './routes/en/download';
+import { Route as EnPrivacyRouteImport } from './routes/en/privacy';
+import { Route as EnSupportRouteImport } from './routes/en/support';
+import { Route as EnBlogIndexRouteImport } from './routes/en/blog/index';
+import { Route as EnBlogSlugRouteImport } from './routes/en/blog/$slug';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BlogIndexRoute = BlogIndexRouteImport.update({
   id: '/blog/',
   path: '/blog/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
+const EnIndexRoute = EnIndexRouteImport.update({
+  id: '/en/',
+  path: '/en/',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EnDownloadRoute = EnDownloadRouteImport.update({
+  id: '/en/download',
+  path: '/en/download',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EnPrivacyRoute = EnPrivacyRouteImport.update({
+  id: '/en/privacy',
+  path: '/en/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EnSupportRoute = EnSupportRouteImport.update({
+  id: '/en/support',
+  path: '/en/support',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EnBlogIndexRoute = EnBlogIndexRouteImport.update({
+  id: '/en/blog/',
+  path: '/en/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const EnBlogSlugRoute = EnBlogSlugRouteImport.update({
+  id: '/en/blog/$slug',
+  path: '/en/blog/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/download': typeof DownloadRoute
-  '/privacy': typeof PrivacyRoute
-  '/support': typeof SupportRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/blog/': typeof BlogIndexRoute
+  '/': typeof IndexRoute;
+  '/download': typeof DownloadRoute;
+  '/privacy': typeof PrivacyRoute;
+  '/support': typeof SupportRoute;
+  '/blog/$slug': typeof BlogSlugRoute;
+  '/en/download': typeof EnDownloadRoute;
+  '/en/privacy': typeof EnPrivacyRoute;
+  '/en/support': typeof EnSupportRoute;
+  '/blog/': typeof BlogIndexRoute;
+  '/en/': typeof EnIndexRoute;
+  '/en/blog/$slug': typeof EnBlogSlugRoute;
+  '/en/blog/': typeof EnBlogIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/download': typeof DownloadRoute
-  '/privacy': typeof PrivacyRoute
-  '/support': typeof SupportRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/blog': typeof BlogIndexRoute
+  '/': typeof IndexRoute;
+  '/download': typeof DownloadRoute;
+  '/privacy': typeof PrivacyRoute;
+  '/support': typeof SupportRoute;
+  '/blog/$slug': typeof BlogSlugRoute;
+  '/en/download': typeof EnDownloadRoute;
+  '/en/privacy': typeof EnPrivacyRoute;
+  '/en/support': typeof EnSupportRoute;
+  '/blog': typeof BlogIndexRoute;
+  '/en': typeof EnIndexRoute;
+  '/en/blog/$slug': typeof EnBlogSlugRoute;
+  '/en/blog': typeof EnBlogIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/download': typeof DownloadRoute
-  '/privacy': typeof PrivacyRoute
-  '/support': typeof SupportRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/blog/': typeof BlogIndexRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/download': typeof DownloadRoute;
+  '/privacy': typeof PrivacyRoute;
+  '/support': typeof SupportRoute;
+  '/blog/$slug': typeof BlogSlugRoute;
+  '/en/download': typeof EnDownloadRoute;
+  '/en/privacy': typeof EnPrivacyRoute;
+  '/en/support': typeof EnSupportRoute;
+  '/blog/': typeof BlogIndexRoute;
+  '/en/': typeof EnIndexRoute;
+  '/en/blog/$slug': typeof EnBlogSlugRoute;
+  '/en/blog/': typeof EnBlogIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    '/' | '/download' | '/privacy' | '/support' | '/blog/$slug' | '/blog/'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/download' | '/privacy' | '/support' | '/blog/$slug' | '/blog'
+    | '/'
+    | '/download'
+    | '/privacy'
+    | '/support'
+    | '/blog/$slug'
+    | '/en/download'
+    | '/en/privacy'
+    | '/en/support'
+    | '/blog/'
+    | '/en/'
+    | '/en/blog/$slug'
+    | '/en/blog/';
+  fileRoutesByTo: FileRoutesByTo;
+  to:
+    | '/'
+    | '/download'
+    | '/privacy'
+    | '/support'
+    | '/blog/$slug'
+    | '/en/download'
+    | '/en/privacy'
+    | '/en/support'
+    | '/blog'
+    | '/en'
+    | '/en/blog/$slug'
+    | '/en/blog';
   id:
     | '__root__'
     | '/'
@@ -85,62 +162,116 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/support'
     | '/blog/$slug'
+    | '/en/download'
+    | '/en/privacy'
+    | '/en/support'
     | '/blog/'
-  fileRoutesById: FileRoutesById
+    | '/en/'
+    | '/en/blog/$slug'
+    | '/en/blog/';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  DownloadRoute: typeof DownloadRoute
-  PrivacyRoute: typeof PrivacyRoute
-  SupportRoute: typeof SupportRoute
-  BlogSlugRoute: typeof BlogSlugRoute
-  BlogIndexRoute: typeof BlogIndexRoute
+  IndexRoute: typeof IndexRoute;
+  DownloadRoute: typeof DownloadRoute;
+  PrivacyRoute: typeof PrivacyRoute;
+  SupportRoute: typeof SupportRoute;
+  BlogSlugRoute: typeof BlogSlugRoute;
+  EnDownloadRoute: typeof EnDownloadRoute;
+  EnPrivacyRoute: typeof EnPrivacyRoute;
+  EnSupportRoute: typeof EnSupportRoute;
+  BlogIndexRoute: typeof BlogIndexRoute;
+  EnIndexRoute: typeof EnIndexRoute;
+  EnBlogSlugRoute: typeof EnBlogSlugRoute;
+  EnBlogIndexRoute: typeof EnBlogIndexRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/download': {
-      id: '/download'
-      path: '/download'
-      fullPath: '/download'
-      preLoaderRoute: typeof DownloadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/download';
+      path: '/download';
+      fullPath: '/download';
+      preLoaderRoute: typeof DownloadRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/privacy';
+      path: '/privacy';
+      fullPath: '/privacy';
+      preLoaderRoute: typeof PrivacyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/support': {
-      id: '/support'
-      path: '/support'
-      fullPath: '/support'
-      preLoaderRoute: typeof SupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/support';
+      path: '/support';
+      fullPath: '/support';
+      preLoaderRoute: typeof SupportRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/blog/': {
-      id: '/blog/'
-      path: '/blog'
-      fullPath: '/blog/'
-      preLoaderRoute: typeof BlogIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/blog/';
+      path: '/blog';
+      fullPath: '/blog/';
+      preLoaderRoute: typeof BlogIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/blog/$slug': {
-      id: '/blog/$slug'
-      path: '/blog/$slug'
-      fullPath: '/blog/$slug'
-      preLoaderRoute: typeof BlogSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/blog/$slug';
+      path: '/blog/$slug';
+      fullPath: '/blog/$slug';
+      preLoaderRoute: typeof BlogSlugRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/': {
+      id: '/en/';
+      path: '/en';
+      fullPath: '/en/';
+      preLoaderRoute: typeof EnIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/download': {
+      id: '/en/download';
+      path: '/en/download';
+      fullPath: '/en/download';
+      preLoaderRoute: typeof EnDownloadRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/privacy': {
+      id: '/en/privacy';
+      path: '/en/privacy';
+      fullPath: '/en/privacy';
+      preLoaderRoute: typeof EnPrivacyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/support': {
+      id: '/en/support';
+      path: '/en/support';
+      fullPath: '/en/support';
+      preLoaderRoute: typeof EnSupportRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/blog/': {
+      id: '/en/blog/';
+      path: '/en/blog';
+      fullPath: '/en/blog/';
+      preLoaderRoute: typeof EnBlogIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/en/blog/$slug': {
+      id: '/en/blog/$slug';
+      path: '/en/blog/$slug';
+      fullPath: '/en/blog/$slug';
+      preLoaderRoute: typeof EnBlogSlugRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -150,17 +281,14 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SupportRoute: SupportRoute,
   BlogSlugRoute: BlogSlugRoute,
+  EnDownloadRoute: EnDownloadRoute,
+  EnPrivacyRoute: EnPrivacyRoute,
+  EnSupportRoute: EnSupportRoute,
   BlogIndexRoute: BlogIndexRoute,
-}
+  EnIndexRoute: EnIndexRoute,
+  EnBlogSlugRoute: EnBlogSlugRoute,
+  EnBlogIndexRoute: EnBlogIndexRoute,
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
+  ._addFileTypes<FileRouteTypes>();

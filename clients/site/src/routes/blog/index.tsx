@@ -6,6 +6,7 @@ import { seo } from '#site/lib/seo';
 export const Route = createFileRoute('/blog/')({
   head: () => ({
     ...seo({
+      lang: 'fr',
       title: 'Blog',
       description: 'Notes de conception, choix techniques et coulisses du développement de KROMA.',
       path: '/blog',
@@ -14,7 +15,7 @@ export const Route = createFileRoute('/blog/')({
   component: BlogIndex,
 });
 
-function BlogIndex() {
+export function BlogIndex() {
   const posts = getAllPosts();
 
   return (

@@ -38,9 +38,13 @@ const iconButtonVariants = sv({
   defaults: { variant: 'glass' },
 });
 
+/** How the button is filled. Named once, because the pressed-state table below
+ * has to cover exactly these and a second spelling could drift from it. */
+export type IconButtonVariant = 'glass' | 'ghost' | 'primary' | 'scrim';
+
 /** The brightened fill a finger gets: the touch reading of the focus state
  * (the player cluster's CTRL_ON for glass, the hover amber for primary). */
-const PRESSED: Record<'glass' | 'ghost' | 'primary' | 'scrim', ViewStyle> = {
+const PRESSED: Record<IconButtonVariant, ViewStyle> = {
   glass: { backgroundColor: 'rgba(255, 255, 255, 0.22)' },
   ghost: { backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   primary: { backgroundColor: colors.accentHover },
@@ -83,7 +87,7 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
   size?: number;
   /** Glyph size. Defaults to 40% of the diameter. */
   glyph?: number;
-  variant?: 'glass' | 'ghost' | 'primary' | 'scrim';
+  variant?: IconButtonVariant;
   /** Pressed state of a toggle: the accent's soft fill, accent glyph. */
   active?: boolean;
   /** Fill solid accent while focused and flip the glyph to ink. */

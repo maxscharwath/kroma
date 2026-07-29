@@ -25,7 +25,7 @@ const der = Uint8Array.from(
       .replace(/-----END [^-]+-----/, '')
       .replace(/\s+/g, ''),
   ),
-  (c) => c.charCodeAt(0),
+  (c) => c.codePointAt(0) ?? 0,
 );
 
 const key = await crypto.subtle.importKey(
@@ -38,10 +38,13 @@ const key = await crypto.subtle.importKey(
 
 const b64url = (b: ArrayBuffer | Uint8Array) => {
   const v = b instanceof Uint8Array ? b : new Uint8Array(b);
-  return btoa(String.fromCharCode(...v))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  const b64 = btoa(String.fromCodePoint(...v))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_');
+  // Linear padding strip; `/=+$/` backtracks at every position (see worker/jwt).
+  let end = b64.length;
+  while (end > 0 && b64[end - 1] === '=') end--;
+  return b64.slice(0, end);
 };
 const enc = new TextEncoder();
 const now = Math.floor(Date.now() / 1000);

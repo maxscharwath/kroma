@@ -22,11 +22,10 @@
 
 import { useRef, useState } from 'react';
 import {
-  type NativeSyntheticEvent,
   Platform,
   type StyleProp,
   TextInput,
-  type TextInputContentSizeChangeEventData,
+  type TextInputContentSizeChangeEvent,
   type TextStyle,
 } from 'react-native';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
@@ -133,8 +132,7 @@ function TextArea({
           // every keystroke to reach the same layout.
           onContentSizeChange={
             autoSize && !WEB
-              ? (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) =>
-                  setContent(e.nativeEvent.contentSize.height)
+              ? (e: TextInputContentSizeChangeEvent) => setContent(e.nativeEvent.contentSize.height)
               : undefined
           }
           style={[

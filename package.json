@@ -53,6 +53,7 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check .",
+    "sonar:precheck": "bun scripts/sonar-precheck.ts",
     "check:fix": "biome check --write .",
     "server": "cd server && cargo run --features semantic-embeddings,whisper-metal",
     "server:watch": "cd server && cargo watch -x 'run --features semantic-embeddings,whisper-metal'",

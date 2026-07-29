@@ -240,7 +240,11 @@ export function TextArea({
     if (el.scrollHeight > el.clientHeight) el.style.height = `${el.scrollHeight}px`;
   }, [value, autoSize]);
 
-  const grip = (resize ?? (autoSize ? 'none' : 'y')) === 'none' ? 'resize-none' : 'resize-y';
+  // An auto-sizing box manages its own height, so it defaults to no grip; the
+  // caller can still ask for one. Spelled out rather than nested, so the default
+  // and the choice read as two decisions instead of one expression.
+  const defaultResize = autoSize ? 'none' : 'y';
+  const grip = (resize ?? defaultResize) === 'none' ? 'resize-none' : 'resize-y';
   return (
     <textarea
       {...rest}

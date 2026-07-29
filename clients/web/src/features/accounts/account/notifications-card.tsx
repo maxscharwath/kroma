@@ -7,12 +7,13 @@
 // mystery. When push can't work here at all, the row says which reason applies
 // instead of offering a switch that would silently do nothing.
 
-import type { CategoryPref, NotificationCategory } from '@kroma/core';
 import {
   blockerOf,
+  type CategoryPref,
   disablePush,
   enablePush,
   NOTIFICATION_CATEGORY_LABEL,
+  type NotificationCategory,
   PUSH_BLOCKER_LABEL,
   type PushBlocker,
 } from '@kroma/core';

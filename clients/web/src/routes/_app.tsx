@@ -73,7 +73,7 @@ function AppLayout() {
           button that did nothing at all. A sibling of the grid rather than a
           cell of it, so an empty wrapper is never a column. */}
       <div className="relative z-[70]">
-        <CastPicker.Root />
+        <CastPicker />
       </div>
     </CastProvider>
   );

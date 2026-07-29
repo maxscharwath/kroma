@@ -14,18 +14,24 @@
 export function b64url(bytes: ArrayBuffer | Uint8Array): string {
   const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   let binary = '';
-  for (const byte of view) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  for (const byte of view) binary += String.fromCodePoint(byte);
+  const b64 = btoa(binary).replaceAll('+', '-').replaceAll('/', '_');
+  // Strip the padding in one linear pass. A `/=+$/` regex is super-linear here:
+  // unanchored at the start, it retries and backtracks the run at every
+  // position. Same reasoning as `bytesToBase64Url` in the web client.
+  let end = b64.length;
+  while (end > 0 && b64[end - 1] === '=') end--;
+  return b64.slice(0, end);
 }
 
 /** Returns a view over a plain `ArrayBuffer` rather than `ArrayBufferLike`: the
  * WebCrypto signatures want the narrower one, and a `SharedArrayBuffer` could
  * never be the backing store here anyway. */
 export function fromB64url(s: string): Uint8Array<ArrayBuffer> {
-  const padded = s.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = s.replaceAll('-', '+').replaceAll('_', '/');
   const binary = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
   const bytes = new Uint8Array(new ArrayBuffer(binary.length));
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
   return bytes;
 }
 
@@ -38,7 +44,7 @@ function pemBody(pem: string): Uint8Array<ArrayBuffer> {
     .replace(/-----END [^-]+-----/, '')
     .replace(/\s+/g, '');
   if (!body) throw new Error('empty PEM');
-  return fromB64url(body.replace(/\+/g, '-').replace(/\//g, '_'));
+  return fromB64url(body.replaceAll('+', '-').replaceAll('/', '_'));
 }
 
 /**

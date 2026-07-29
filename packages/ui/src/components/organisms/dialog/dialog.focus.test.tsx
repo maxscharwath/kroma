@@ -170,7 +170,7 @@ describe('a dialog over a navigated screen', () => {
         </FocusScope>
       </OverlayHost>,
     );
-    expect(screen.queryByLabelText('Confirmer')).not.toBeNull();
+    expect(screen.getByLabelText('Confirmer')).toBeDefined();
 
     view.rerender(
       <OverlayHost>

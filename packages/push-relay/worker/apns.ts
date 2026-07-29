@@ -38,7 +38,7 @@ export interface AppleConfig {
 }
 
 async function bearer(config: AppleConfig, nowSecs: number): Promise<string> {
-  if (cached && cached.keyId === config.keyId && nowSecs - cached.mintedAt < TOKEN_LIFETIME_SECS) {
+  if (cached?.keyId === config.keyId && nowSecs - cached.mintedAt < TOKEN_LIFETIME_SECS) {
     return cached.token;
   }
   const key = await importEs256(config.p8);
@@ -53,7 +53,11 @@ async function bearer(config: AppleConfig, nowSecs: number): Promise<string> {
 
 function reasonOf(body: string): string {
   try {
-    return String((JSON.parse(body) as { reason?: unknown }).reason ?? '');
+    const { reason } = JSON.parse(body) as { reason?: unknown };
+    // Apple's `reason` is a string; anything else is not a reason we can act on,
+    // and stringifying it would put "[object Object]" in a log and in the
+    // `is_gone` comparison.
+    return typeof reason === 'string' ? reason : '';
   } catch {
     return '';
   }

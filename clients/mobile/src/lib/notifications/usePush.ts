@@ -103,7 +103,7 @@ let coldStartConsumed = false;
  * notification stream.
  *
  * Covers both entry points: a tap while the app is running, and the tap that
- * launched it from cold (`getLastNotificationResponseAsync`) — miss the second
+ * launched it from cold (`getLastNotificationResponse`) — miss the second
  * and a notification opened from a killed app lands on the home screen instead
  * of the film it was about.
  */
@@ -142,7 +142,7 @@ export function usePushTaps(): void {
 
       // The tap that cold-started the app, if any - and only once per launch.
       //
-      // `getLastNotificationResponseAsync` is STICKY: it keeps answering with
+      // `getLastNotificationResponse` is STICKY: it keeps answering with
       // the same response for the life of the JS context, and this effect
       // re-runs whenever `client` changes identity, which switching profile
       // does. So the launch tap was replayed on every switch - re-POSTing an
@@ -152,7 +152,7 @@ export function usePushTaps(): void {
       // fresh binding per run.
       if (!coldStartConsumed) {
         coldStartConsumed = true;
-        const initial = await push.getLastNotificationResponseAsync();
+        const initial = push.getLastNotificationResponse();
         if (initial && !cancelled) await go(initial);
       }
       if (cancelled) return;

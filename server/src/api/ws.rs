@@ -238,6 +238,72 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
     }
 }
 
+/// A television announcing itself on its socket.
+///
+/// Its own function, like [`cast_state`], because `handle_client` is a router:
+/// once an arm grows a guard, a fallible attach and a conditional broadcast, the
+/// routing stops being readable through it.
+fn cast_hello(
+    state: &SharedState,
+    who: &Viewer,
+    receiver: &mut Option<String>,
+    receiver_id: String,
+    name: String,
+    platform: String,
+) {
+    if !who.can_cast || !crate::services::cast::valid_receiver_id(&receiver_id) {
+        return;
+    }
+    let outcome = state.cast.attach(
+        Hello { receiver_id: receiver_id.clone(), name, platform },
+        &who.id,
+        &who.username,
+        who.network.clone(),
+    );
+    // `Taken` (another account already answers to this id) and `Full` both mean
+    // "not castable": the socket stays, it just carries no receiver.
+    if !matches!(outcome, Announced::Ok { .. }) {
+        return;
+    }
+    *receiver = Some(receiver_id.clone());
+    if let Some(row) = state.cast.row(&receiver_id) {
+        state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+    }
+}
+
+/// One heartbeat from a television: what it is playing, and how much of that
+/// senders need to be told about.
+async fn cast_state(state: &SharedState, id: String, playback: Option<CastPlayback>) {
+    // Resolve the title once per item, exactly as the HTTP path does: the
+    // receiver names an id, the catalog decides what it is.
+    let item = match playback.as_ref() {
+        Some(pb) if state.cast.wants_item(&id, &pb.item_id) => {
+            let pool = state.db.clone();
+            let wanted = pb.item_id.clone();
+            tokio::task::spawn_blocking(move || db::get_item(&pool, &wanted))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .flatten()
+        }
+        _ => None,
+    };
+    match state.cast.set_state(&id, playback, item) {
+        Some(StateChange::Row(row)) => {
+            state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
+        }
+        Some(StateChange::Position { position_ms, duration_ms, state: transport }) => {
+            state.events.publish(ServerEvent::CastPosition {
+                receiver_id: id,
+                position_ms,
+                duration_ms,
+                state: transport,
+            });
+        }
+        Some(StateChange::Nothing) | None => {}
+    }
+}
+
 /// Take this socket's remote off whatever set it was driving, and say so.
 ///
 /// The mutation and the broadcast are one act: a controller roster that changes
@@ -262,56 +328,11 @@ async fn handle_client(
 ) {
     match message {
         ClientMessage::CastHello { receiver_id, name, platform } => {
-            if !who.can_cast || !crate::services::cast::valid_receiver_id(&receiver_id) {
-                return;
-            }
-            let outcome = state.cast.attach(
-                Hello { receiver_id: receiver_id.clone(), name, platform },
-                &who.id,
-                &who.username,
-                who.network.clone(),
-            );
-            // `Taken` (another account already answers to this id) and `Full` both
-            // mean "not castable": the socket stays, it just carries no receiver.
-            if matches!(outcome, Announced::Ok { .. }) {
-                *receiver = Some(receiver_id.clone());
-                if let Some(row) = state.cast.row(&receiver_id) {
-                    state.events.publish(ServerEvent::CastReceiverChanged {
-                        receiver: Box::new(row),
-                    });
-                }
-            }
+            cast_hello(state, who, receiver, receiver_id, name, platform);
         }
         ClientMessage::CastState { playback } => {
             let Some(id) = receiver.clone() else { return };
-            // Resolve the title once per item, exactly as the HTTP path does: the
-            // receiver names an id, the catalog decides what it is.
-            let item = match playback.as_ref() {
-                Some(pb) if state.cast.wants_item(&id, &pb.item_id) => {
-                    let pool = state.db.clone();
-                    let wanted = pb.item_id.clone();
-                    tokio::task::spawn_blocking(move || db::get_item(&pool, &wanted))
-                        .await
-                        .ok()
-                        .and_then(|r| r.ok())
-                        .flatten()
-                }
-                _ => None,
-            };
-            match state.cast.set_state(&id, playback, item) {
-                Some(StateChange::Row(row)) => state.events.publish(ServerEvent::CastReceiverChanged {
-                    receiver: Box::new(row),
-                }),
-                Some(StateChange::Position { position_ms, duration_ms, state: transport }) => {
-                    state.events.publish(ServerEvent::CastPosition {
-                        receiver_id: id,
-                        position_ms,
-                        duration_ms,
-                        state: transport,
-                    });
-                }
-                Some(StateChange::Nothing) | None => {}
-            }
+            cast_state(state, id, playback).await;
         }
         ClientMessage::CastAck { seq } => {
             if let Some(id) = receiver.as_deref() {

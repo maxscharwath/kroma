@@ -23,7 +23,10 @@ function match<T extends string>(s: string, table: readonly (readonly [RegExp, T
  * a session list can read - iOS hands out `KROMA/1 CFNetwork/… Darwin/…` and
  * Android `okhttp/4.12.0`, neither of which carries a browser or an OS token. A
  * signed-in phone therefore listed itself as an unknown desktop. */
-const NATIVE_UA = /^kroma\/\S+\s+\(([^;()]+);\s*([^)]*)\)/i;
+// `[^\s(]` rather than `\S` for the version: `\S` also matches the `(` and
+// the space that follow it, so a user agent that starts `kroma/` and then does
+// not match re-tries the whole run at every position.
+const NATIVE_UA = /^kroma\/[^\s(]+\s+\(([^;()]+);\s*([^)]*)\)/i;
 
 const KINDS: [RegExp, DeviceKind][] = [
   [/tv|tizen|web0s|webos|smart-tv|crkey/, 'tv'],

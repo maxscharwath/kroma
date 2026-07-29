@@ -45,11 +45,7 @@ export function parseServiceAccount(json: string): ServiceAccount {
 }
 
 async function accessToken(account: ServiceAccount, nowSecs: number): Promise<string> {
-  if (
-    cached &&
-    cached.email === account.client_email &&
-    nowSecs - cached.mintedAt < TOKEN_LIFETIME_SECS
-  ) {
+  if (cached?.email === account.client_email && nowSecs - cached.mintedAt < TOKEN_LIFETIME_SECS) {
     return cached.token;
   }
   const key = await importRs256(account.private_key);

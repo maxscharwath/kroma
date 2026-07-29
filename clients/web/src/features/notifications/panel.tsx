@@ -18,11 +18,12 @@
 //     own buttons, so content and its actions stay one block;
 //   * rows are grouped by day, which is the only structure the list gets.
 
-import type { KNOWN_NOTIFICATION_EVENTS, NotificationEvent } from '@kroma/core';
 import {
   groupNotificationsByDay,
+  type KNOWN_NOTIFICATION_EVENTS,
   NOTIFICATION_DAY_LABEL,
   type Notification,
+  type NotificationEvent,
   sizedImageUrl,
 } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';

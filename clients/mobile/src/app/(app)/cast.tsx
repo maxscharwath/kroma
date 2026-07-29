@@ -10,7 +10,7 @@
 // dragging in the player: same anatomy, same commit-on-release.
 
 import type { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { formatTimecode, sizedImageUrl } from '@kroma/core';
+import { formatTimecode, type MediaItem, sizedImageUrl } from '@kroma/core';
 import { useCast } from '@kroma/ui';
 import { Icon, type IconName } from '@kroma/ui/kit';
 import { Image } from 'expo-image';
@@ -92,11 +92,43 @@ function RemoteActions({
   );
 }
 
+/** What is on the television, as this screen draws it: the backdrop, the title,
+ * and the show it belongs to.
+ *
+ * Its own component for the same reason as <RemoteActions>: every part of it is
+ * conditional - a set may be playing something with no art, no show, or (before
+ * the first heartbeat lands) no item at all - and those branches belong here
+ * rather than in a screen that is already deciding transport state. */
+function RemoteArtwork({ item }: Readonly<{ item?: MediaItem }>) {
+  const client = useClient();
+  const { width } = useWindowDimensions();
+  const art = item
+    ? sizedImageUrl(client.backdropFor(item) ?? client.posterFor(item), width)
+    : null;
+  return (
+    <>
+      {art ? (
+        <Image source={{ uri: art }} style={styles.art} contentFit="cover" transition={200} />
+      ) : (
+        <View style={[styles.art, styles.artFallback]}>
+          <Icon name="device-tv" size={40} stroke={1.4} color={colors.textFaint} />
+        </View>
+      )}
+      <Text numberOfLines={2} style={styles.title}>
+        {item?.metadata?.title ?? item?.title ?? ''}
+      </Text>
+      {item?.showTitle ? (
+        <Text numberOfLines={1} style={styles.subtitle}>
+          {item.showTitle}
+        </Text>
+      ) : null}
+    </>
+  );
+}
+
 export default function CastRemoteScreen() {
   const t = useT();
   const router = useRouter();
-  const client = useClient();
-  const { width } = useWindowDimensions();
   const { active, positionMs, send, select } = useCast();
   const devices = useRef<BottomSheetModal>(null);
   const audio = useRef<BottomSheetModal>(null);
@@ -117,10 +149,6 @@ export default function CastRemoteScreen() {
 
   const playing = active.nowPlaying;
   const item = playing?.item;
-  const title = item?.metadata?.title ?? item?.title ?? '';
-  const art = item
-    ? sizedImageUrl(client.backdropFor(item) ?? client.posterFor(item), width)
-    : null;
   const durationMs = playing?.durationMs ?? 0;
   const isPlaying = playing?.state === 'playing';
   const buffering = playing?.state === 'buffering';
@@ -140,22 +168,7 @@ export default function CastRemoteScreen() {
 
       {playing ? (
         <ScrollView contentContainerStyle={styles.body}>
-          {art ? (
-            <Image source={{ uri: art }} style={styles.art} contentFit="cover" transition={200} />
-          ) : (
-            <View style={[styles.art, styles.artFallback]}>
-              <Icon name="device-tv" size={40} stroke={1.4} color={colors.textFaint} />
-            </View>
-          )}
-
-          <Text numberOfLines={2} style={styles.title}>
-            {title}
-          </Text>
-          {item?.showTitle ? (
-            <Text numberOfLines={1} style={styles.subtitle}>
-              {item.showTitle}
-            </Text>
-          ) : null}
+          <RemoteArtwork item={item} />
 
           <View style={styles.scrub}>
             <ScrubBar

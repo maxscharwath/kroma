@@ -9,16 +9,12 @@
 // shows the right number - while the list is only marked stale, which an open
 // screen refetches and a closed one does not.
 
-import {
-  type KromaClient,
-  KromaEvents,
-  type Notification,
-  type NotificationsView,
-} from '@kroma/core';
+import { type KromaClient, KromaEvents, type NotificationsView } from '@kroma/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useClient, useSession } from '#mobile/lib/session';
 
+export type { Notification } from '@kroma/core';
 export { mobileRoute } from './route';
 
 const KEY = ['notifications'] as const;
@@ -75,5 +71,3 @@ export function useRefreshNotifications(): () => void {
   const queryClient = useQueryClient();
   return () => void queryClient.invalidateQueries({ queryKey: KEY });
 }
-
-export type { Notification };

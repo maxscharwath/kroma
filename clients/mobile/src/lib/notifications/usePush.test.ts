@@ -25,7 +25,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }));
 
 const notifications = vi.hoisted(() => ({
   setNotificationHandler: vi.fn(),
-  getLastNotificationResponseAsync: vi.fn(async () => null as unknown),
+  getLastNotificationResponse: vi.fn(() => null as unknown),
   addNotificationResponseReceivedListener: vi.fn(() => ({ remove: vi.fn() })),
 }));
 vi.mock('./native', () => ({ push: () => notifications }));
@@ -64,7 +64,7 @@ beforeEach(() => {
   refreshGrant.mockReset().mockResolvedValue(null);
   session.client.subscribePush.mockClear().mockResolvedValue(undefined);
   session.client.unsubscribePush.mockClear().mockResolvedValue(undefined);
-  notifications.getLastNotificationResponseAsync.mockClear().mockResolvedValue(null);
+  notifications.getLastNotificationResponse.mockClear().mockReturnValue(null);
   notifications.addNotificationResponseReceivedListener.mockClear();
 });
 
@@ -131,7 +131,7 @@ describe('keeping the grant alive', () => {
 
 describe('routing a tap', () => {
   it('acts on the tap that cold-started the app', async () => {
-    notifications.getLastNotificationResponseAsync.mockResolvedValue({ id: 'cold' });
+    notifications.getLastNotificationResponse.mockReturnValue({ id: 'cold' });
     const taps = await freshLaunch();
 
     renderHook(() => taps());
@@ -142,12 +142,12 @@ describe('routing a tap', () => {
   });
 
   it('does NOT act on it again when the hook re-runs', async () => {
-    // `getLastNotificationResponseAsync` is sticky for the life of the JS
+    // `getLastNotificationResponse` is sticky for the life of the JS
     // context, and this effect re-runs whenever the client changes identity -
     // which switching profile does. Replaying meant re-POSTing the tap's `api`
     // action as whichever account was just selected, or yanking the router to an
     // old notification's screen unprompted.
-    notifications.getLastNotificationResponseAsync.mockResolvedValue({ id: 'cold' });
+    notifications.getLastNotificationResponse.mockReturnValue({ id: 'cold' });
     const taps = await freshLaunch();
 
     const first = renderHook(() => taps());
@@ -173,7 +173,7 @@ describe('routing a tap', () => {
   it('does not navigate when the tap has no screen on this app', async () => {
     // An action that ran in the background, or a link the phone has no route
     // for - both are handled, neither is a navigation.
-    notifications.getLastNotificationResponseAsync.mockResolvedValue({ id: 'cold' });
+    notifications.getLastNotificationResponse.mockReturnValue({ id: 'cold' });
     handleTap.mockResolvedValue(null);
     const taps = await freshLaunch();
 

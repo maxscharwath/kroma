@@ -7,7 +7,7 @@
 // parallel lookup maps at the call site.
 
 import type { ReactNode } from 'react';
-import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
+import { type StyleProp, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
@@ -104,6 +104,9 @@ const ICON_SIZE = { sm: 16, md: 20, lg: 22, tv: 22 } satisfies Record<ButtonSize
 
 /** Ink colour per variant: amber fills carry the dark ink, everything else the
  * body text colour. */
+/** The token a button's glyph and label are drawn in. */
+type ButtonInk = (typeof INK)[ButtonVariant] | 'accent';
+
 const INK = {
   primary: 'accentInk',
   glass: 'text',
@@ -223,16 +226,65 @@ function Button({
       {FROSTED.has(variant) ? (
         <Frost radius={typeof frostRadius === 'number' ? frostRadius : radius.md} />
       ) : null}
-      {loading ? <Spinner size={glyph} color={colors[ink]} /> : null}
-      {!loading && icon ? <Icon name={icon} size={glyph} color={ink} /> : null}
+      <ButtonContent
+        ink={ink}
+        glyph={glyph}
+        icon={icon}
+        iconRight={iconRight}
+        label={label}
+        labelStyle={s.label}
+        loading={loading}
+      >
+        {children}
+      </ButtonContent>
+    </Focusable>
+  );
+}
+
+/** What sits inside the button: the leading glyph (or the spinner that replaces
+ * it), the label, whatever the caller nested, and the trailing glyph.
+ *
+ * Its own component because every part of it is optional, and four independent
+ * "draw this if you were given one" decisions belong somewhere that is only
+ * about them - `<Button>` above is already deciding variant, ink, hover, frost
+ * and press state. */
+function ButtonContent({
+  ink,
+  glyph,
+  icon,
+  iconRight,
+  label,
+  labelStyle,
+  loading,
+  children,
+}: Readonly<{
+  ink: ButtonInk;
+  glyph: number;
+  icon?: IconName;
+  iconRight?: IconName;
+  label?: string;
+  labelStyle: StyleProp<TextStyle>;
+  loading: boolean;
+  children?: ReactNode;
+}>) {
+  // A busy button shows the spinner INSTEAD of its leading glyph, so the row
+  // keeps its width and nothing shifts when the press resolves.
+  const leading = loading ? (
+    <Spinner size={glyph} color={colors[ink]} />
+  ) : (
+    icon && <Icon name={icon} size={glyph} color={ink} />
+  );
+  return (
+    <>
+      {leading}
       {label === undefined ? null : (
-        <Txt color={ink} style={s.label}>
+        <Txt color={ink} style={labelStyle}>
           {label}
         </Txt>
       )}
       {children}
       {iconRight ? <Icon name={iconRight} size={glyph} color={ink} /> : null}
-    </Focusable>
+    </>
   );
 }
 

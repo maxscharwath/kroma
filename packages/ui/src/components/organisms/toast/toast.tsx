@@ -30,9 +30,15 @@ export interface ToastOptions {
   message: string;
   /** A quieter second line: who, or what for. */
   detail?: string;
-  /** What sits in the leading well: a glyph by name, or anything at all - an
-   *  <Avatar>, say, when the notice is about a PERSON rather than an event. */
-  icon?: IconName | ReactNode;
+  /** What sits in the leading well: a glyph by name, or a node - an <Avatar>,
+   *  say, when the notice is about a PERSON rather than an event.
+   *
+   *  The node half excludes bare strings on purpose. `ReactNode` admits them,
+   *  which swallowed `IconName` into it (every glyph name IS a string) and left
+   *  the union meaning nothing more than `ReactNode` - no autocomplete, and a
+   *  typo'd glyph name rendered as literal text in the well instead of failing
+   *  to compile. */
+  icon?: IconName | Exclude<ReactNode, string>;
   /** Milliseconds on screen. Defaults to {@link DEFAULT_MS}. */
   duration?: number;
   /** `success` tints the well; `plain` is the default neutral. */

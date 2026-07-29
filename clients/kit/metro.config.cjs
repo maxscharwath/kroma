@@ -11,4 +11,7 @@
 
 const { expoWorkspaceConfig } = require('../expo-build/metro-workspace');
 
-module.exports = expoWorkspaceConfig(__dirname);
+// `icons: 'full'`: the kit IS the icon gallery. It renders `iconNames()`, which
+// answers from whatever set shipped, so the subset every product client gets
+// would cut the gallery to 243 of Tabler's 6167.
+module.exports = expoWorkspaceConfig(__dirname, {}, { icons: 'full' });

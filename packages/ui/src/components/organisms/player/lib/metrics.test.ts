@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TV_FLAGS, WEB_FLAGS } from '../types';
 import {
+  CARD_MARGIN,
   CLUSTER_GAP,
   CONTROL_SIZE,
   chromeMetrics,
@@ -192,6 +193,29 @@ describe('panelGeometry', () => {
     const phone = panelGeometry(390);
     expect(phone.width).toBe(390);
     expect(phone.covers).toBe(true);
+  });
+
+  it('covers the stage rather than leaving the card no width at all', () => {
+    // The band that used to make the picture DISAPPEAR when settings opened.
+    // The panel decided it did not need to cover (420 < 540 * 0.8) while the
+    // card, which pays 64px of margin on each side, was left 540 - 420 - 128 =
+    // -8 and clamped to a scale of 0. The two answers are now computed from the
+    // same numbers, so they cannot disagree.
+    for (const stage of [526, 540, 548, 600, 650]) {
+      const panel = panelGeometry(stage);
+      const card = stage - panel.width - CARD_MARGIN * 2;
+      expect(panel.covers || card > 0, `stage ${stage}`).toBe(true);
+    }
+  });
+
+  it('leaves a picture worth looking at whenever it does not cover', () => {
+    // Not merely non-zero: below a fifth of the stage it is a postage stamp.
+    for (const stage of [700, 834, 960, 1400, 1920, 2560]) {
+      const panel = panelGeometry(stage);
+      if (panel.covers) continue;
+      const card = stage - panel.width - CARD_MARGIN * 2;
+      expect(card / stage, `stage ${stage}`).toBeGreaterThanOrEqual(0.2);
+    }
   });
 
   it('covers rather than leaving a slit of film beside it', () => {

@@ -1012,7 +1012,7 @@ mod tests {
     /// resolved in the reader's own locale); every one asserted on here is
     /// `Text`, and resolving a key to itself keeps that visible if one changes.
     fn param(params: &std::collections::BTreeMap<String, ParamValue>, key: &str) -> Option<String> {
-        params.get(key).map(|v| v.resolve(str::to_string))
+        params.get(key).map(|v| v.resolve(|k| Some(k.to_string())))
     }
 
     fn test_host() -> TestHost {

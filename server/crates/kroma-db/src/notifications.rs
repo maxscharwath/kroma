@@ -106,7 +106,15 @@ pub fn insert_notification(
         params![
             n.id,
             user_id,
-            n.event.category().as_str(),
+            // The SPEC's category, not the event's default. They differ for
+            // exactly the case that needs them to: `Custom` reports `System`,
+            // while a module - or the console's composer - names the preference
+            // bucket its notification actually answers to. Writing the event's
+            // answer here filed every written notification under System, so a
+            // reader who muted System still got it and one who muted the chosen
+            // bucket did not, while `render` read the stored value and disagreed
+            // with the push that had already gone out.
+            n.category.as_str(),
             n.event.as_str(),
             n.title_key,
             n.body_key,

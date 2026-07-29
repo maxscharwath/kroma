@@ -143,6 +143,9 @@ export function CastProvider({
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   // The live socket, kept so selecting a TV can announce this remote on it.
   const socket = useRef<KromaEvents | null>(null);
+  // Read from the socket's `onOpen`, which is not re-created per render.
+  const drivingRef = useRef<string | null>(null);
+  drivingRef.current = activeId;
   const name = useRef(deviceName);
   name.current = deviceName;
 
@@ -165,7 +168,17 @@ export function CastProvider({
     const events = new KromaEvents(client.baseUrl, {
       // Only on (re)connect: a gap in the stream may have swallowed a change, and
       // the roster is the one thing worth resyncing wholesale.
-      onOpen: refresh,
+      onOpen: () => {
+        refresh();
+        // ...and say again what this remote is driving. The server destroys a
+        // controller entry the moment its socket closes, so after a reconnect
+        // the television has lost this phone from its remote list - and with it
+        // any way to disconnect it - while the phone carries on commanding over
+        // HTTP, with nothing on either side to reveal the split. The receiver
+        // half re-sends `cast.hello` on every open for exactly this reason.
+        const driving = drivingRef.current;
+        if (driving) events.send({ type: 'cast.control', receiverId: driving, name: name.current });
+      },
       onEvent: (e) =>
         applyCastEvent(e, {
           receivers: setReceivers,

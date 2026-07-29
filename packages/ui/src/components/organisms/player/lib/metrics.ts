@@ -284,6 +284,22 @@ export const PANEL_MAX = 720;
  */
 export const PANEL_MIN = 420;
 
+/**
+ * The gap kept on each side of the shrunken picture, beside the panel.
+ *
+ * Here rather than in `<Player>` because [`panelGeometry`] has to know it: the
+ * two used to be decided in different files, so "the panel leaves room" and "the
+ * room is enough for a card" could disagree - and did. Between 526 and 548 px
+ * the panel declined to cover while the card computed a width of zero, so
+ * opening settings made the picture vanish outright instead of shrinking.
+ */
+export const CARD_MARGIN = 64;
+
+/** The smallest picture worth shrinking to, as a fraction of the stage. Below
+ * this the panel takes the whole stage instead: a postage stamp of film down one
+ * side is not a picture anyone is watching. */
+const MIN_CARD_SCALE = 0.2;
+
 export interface PanelGeometry {
   /** The panel's width in px. */
   width: number;
@@ -300,9 +316,12 @@ export function panelGeometry(stageWidth: number): PanelGeometry {
   const share = Math.min(stageWidth * PANEL_FRACTION, PANEL_MAX);
   // Its share of the stage, but never narrower than it can be read at.
   const wanted = Math.max(share, PANEL_MIN);
-  // Four fifths of the stage: what is left beside it could not hold a picture
-  // worth looking at, so it takes the whole thing rather than leave a slit of
-  // film down one side - and the video stays where it is.
-  const covers = wanted >= stageWidth * 0.8;
+  // Whether what is left beside it could hold a picture worth looking at, ASKED
+  // IN THE SAME TERMS the card is laid out in - its margins included. A rule
+  // stated only as a fraction of the stage (this was `wanted >= stageWidth *
+  // 0.8`) does not know about them, which is how a stage could be wide enough
+  // to refuse to cover and still leave the card nothing to occupy.
+  const card = stageWidth - wanted - CARD_MARGIN * 2;
+  const covers = card < stageWidth * MIN_CARD_SCALE;
   return { width: covers ? stageWidth : wanted, covers };
 }

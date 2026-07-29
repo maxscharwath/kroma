@@ -62,6 +62,16 @@ pub fn normalize(tag: &str) -> Option<&'static str> {
     i18n().normalize_locale(tag)
 }
 
+/// Whether `key` names a real entry in the catalogs.
+///
+/// Only [`kroma_domain::ParamValue::Legacy`] asks - a bare string from a row
+/// written before params carried their own kind, where a key and a literal were
+/// indistinguishable on the wire. Anything stored since says which it is, so no
+/// amount of user text can be mistaken for a key any more.
+pub fn is_message_key(key: &str) -> bool {
+    i18n().is_message_key(key)
+}
+
 /// A user's account locale for server-rendered strings. Admin endpoints are
 /// always authenticated, so the (account-synced) preference is the right source;
 /// falls back to [`DEFAULT_LOCALE`] for an unset/unknown value. Shared by the

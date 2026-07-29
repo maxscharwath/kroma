@@ -61,16 +61,27 @@ export function usePushGrantRefresh(): void {
 
     void (async () => {
       try {
-        const grant = await refreshGrant();
+        const refreshed = await refreshGrant();
         // `null` = nothing stored, or not near expiry yet.
-        if (!grant || cancelled) return;
-        // The server keys subscriptions on the endpoint, so the new grant lands
-        // as a new row; the old one is dropped on its next failed delivery.
+        if (!refreshed || cancelled) return;
         await client.subscribePush({
           transport: 'relay',
-          endpoint: grant,
+          endpoint: refreshed.grant,
           device: deviceLabel(),
         });
+        // Only now is it this device's grant: until the server had it, the old
+        // one was the only thing that could be unregistered.
+        await refreshed.commit();
+        // The server keys subscriptions on the endpoint, so the new grant landed
+        // as a NEW row. The old one has up to a month left and will therefore
+        // never fail its way out of the table - so it has to be retired here, or
+        // every notification arrives twice.
+        try {
+          await client.unsubscribePush(refreshed.previous);
+        } catch {
+          // A duplicate is better than a lost registration; the stored grant is
+          // already correct either way.
+        }
       } catch {
         // Best effort: the grant that is already registered still works.
       }
@@ -81,6 +92,11 @@ export function usePushGrantRefresh(): void {
     };
   }, [signedIn, client]);
 }
+
+/** Whether this launch's cold-start tap has been acted on. Module scope on
+ * purpose: it must outlive the effect (which re-runs on a profile switch) and
+ * die with the JS context, which is exactly what the sticky response does. */
+let coldStartConsumed = false;
 
 /**
  * Route taps on pushes. Mounted once, near the root, alongside the in-app
@@ -124,9 +140,21 @@ export function usePushTaps(): void {
         if (route && !cancelled) router.push(route as never);
       };
 
-      // The tap that cold-started the app, if any.
-      const initial = await push.getLastNotificationResponseAsync();
-      if (initial && !cancelled) await go(initial);
+      // The tap that cold-started the app, if any - and only once per launch.
+      //
+      // `getLastNotificationResponseAsync` is STICKY: it keeps answering with
+      // the same response for the life of the JS context, and this effect
+      // re-runs whenever `client` changes identity, which switching profile
+      // does. So the launch tap was replayed on every switch - re-POSTing an
+      // `api` action (approving a request a second time, now as whichever
+      // account was just selected) or yanking the router to an old
+      // notification's screen unprompted. `cancelled` cannot help: it is a
+      // fresh binding per run.
+      if (!coldStartConsumed) {
+        coldStartConsumed = true;
+        const initial = await push.getLastNotificationResponseAsync();
+        if (initial && !cancelled) await go(initial);
+      }
       if (cancelled) return;
 
       subscription = push.addNotificationResponseReceivedListener((response) => {

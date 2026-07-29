@@ -185,7 +185,7 @@ pub fn build_request(
         .unwrap_or_else(|_| "[]".into()));
     }
 
-    let mut android = json!({
+    let android = json!({
         "priority": match urgency {
             Urgency::Low => "normal",
             Urgency::Normal | Urgency::High => "high",
@@ -200,10 +200,13 @@ pub fn build_request(
             // lets `expo-notifications` hand the tap to the router.
         },
     });
-    if let Some(thread) = alert.thread_id {
-        android["collapse_key"] = json!(thread);
-        android["notification"]["tag"] = json!(thread);
-    }
+    // Deliberately NOT mapped onto Android's `tag` or `collapse_key`, though the
+    // names invite it. `thread_id` means "group these together", which is what it
+    // does on Apple; on Android `tag` REPLACES the shade entry and `collapse_key`
+    // tells FCM to store-and-forward only the most recent - so a season drop of
+    // four episodes showed one row, and a phone that was offline received one
+    // notification instead of four. Grouping on Android is the client's job (a
+    // group key on the channel), not something the payload can ask for.
 
     let message = json!({
         "message": {

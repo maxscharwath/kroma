@@ -53,10 +53,15 @@ export function fcmMessage(n: Notification, deviceToken: string): Record<string,
       // nothing at all. Absent, Firebase builds the content intent from the
       // launcher activity, which is what opens the app and lets
       // `expo-notifications` hand the tap to the router.
-      ...(n.threadId ? { tag: n.threadId } : {}),
+      // `threadId` is deliberately NOT mapped onto `tag` or `collapse_key`,
+      // though the names invite it. It means "group these together", which is
+      // what it does on Apple; on Android `tag` REPLACES the shade entry and
+      // `collapse_key` tells FCM to store-and-forward only the most recent - so
+      // a season drop of four episodes showed one row, and a phone that was
+      // offline received one notification instead of four. Grouping on Android
+      // is the client's job (a group key on the channel).
     },
   };
-  if (n.threadId) android.collapse_key = n.threadId;
 
   return { message: { token: deviceToken, notification, data, android } };
 }

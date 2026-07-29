@@ -28,7 +28,14 @@ import { usePlayerNav } from './hooks/usePlayerNav';
 import { useSeekNudge } from './hooks/useSeekNudge';
 import { currentChapter, normalizeChapters } from './lib/chapters';
 import { clamp01, endsAtClock, sliderToVolume, volumeToSlider } from './lib/fmt';
-import { chromeMetrics, GUTTER, panelGeometry, scaler, TRANSPORT_HEIGHT } from './lib/metrics';
+import {
+  CARD_MARGIN,
+  chromeMetrics,
+  GUTTER,
+  panelGeometry,
+  scaler,
+  TRANSPORT_HEIGHT,
+} from './lib/metrics';
 import { type ControlId, controlOrder, type PanelHandle } from './lib/nav';
 import { injectStageStyles } from './lib/styles';
 import type { SubtitleAppearance } from './lib/subtitle-appearance';
@@ -103,7 +110,6 @@ function initialSettingsView(overlay: string | null): 'audio' | 'subtitles' | 'm
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /** Breathing room between the card and both the screen edge and the panel. */
-const CARD_MARGIN = 64;
 /** Air between the skip-intro pill and the transport it sits above. */
 const SKIP_GAP = 24;
 /** Where the pill rests with the chrome hidden: there is nothing to clear then,

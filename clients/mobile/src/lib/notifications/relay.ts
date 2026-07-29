@@ -126,19 +126,39 @@ export async function forgetGrant(): Promise<void> {
   await savePref(PREF_KEY, null);
 }
 
+/** A replacement grant, minted but not yet this device's. */
+export interface GrantRefresh {
+  /** The new grant, to register with the server. */
+  grant: string;
+  /** The one it replaces, still registered there. */
+  previous: string;
+  /** Adopt the new grant, once the server has accepted it. */
+  commit(): Promise<void>;
+}
+
 /**
- * Replace a grant that is approaching its expiry, returning the new one when it
- * changed and `null` when nothing needed doing.
+ * Replace a grant that is approaching its expiry, or `null` when nothing needed
+ * doing.
  *
  * A server cannot do this: it holds a sealed blob and has no idea which device
  * is behind it, so an expiring grant would simply start failing. Only the app
  * holds the device token the relay needs, which is why this runs on launch.
+ *
+ * The new grant is deliberately NOT stored yet. Storing it here overwrote the
+ * only copy of the old one, so a caller whose `subscribePush` then failed was
+ * left holding a grant the server had never seen: turning push off would send
+ * the server an endpoint it does not have, delete nothing, and leave a phone
+ * the reader believes is silent still buzzing. The caller commits once the
+ * server has actually taken it.
  */
-export async function refreshGrant(): Promise<string | null> {
+export async function refreshGrant(): Promise<GrantRefresh | null> {
   const stored = await read();
   if (!stored) return null;
   if (stored.expiresAt - Date.now() > REFRESH_BEFORE_MS) return null;
   const minted = await mint(stored.transport, stored.token);
-  await savePref(PREF_KEY, JSON.stringify(minted));
-  return minted.grant;
+  return {
+    grant: minted.grant,
+    previous: stored.grant,
+    commit: () => savePref(PREF_KEY, JSON.stringify(minted)),
+  };
 }

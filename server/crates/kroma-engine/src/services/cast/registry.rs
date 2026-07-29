@@ -1,7 +1,7 @@
 //! The receiver store: heartbeat upsert, the per-receiver command inbox with its
 //! ack/replay bookkeeping, and the TTL reaper.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -114,6 +114,15 @@ struct Receiver {
     next_seq: u64,
     /// The senders driving this set, keyed by their socket-scoped id.
     controllers: HashMap<String, ControllerEntry>,
+    /// Accounts this set has sent away, and which may not command it again until
+    /// they deliberately pick it up.
+    ///
+    /// `kick` used to be courtesy: it removed the roster entry and told the
+    /// remote to stand down, but nothing enforced it. A client that ignored the
+    /// message - a build predating it, or a second instance - kept pausing and
+    /// seeking the television, and was no longer LISTED, so it could not even be
+    /// kicked again. Refusing by account is what makes the button mean something.
+    kicked: HashSet<String>,
 }
 
 impl Receiver {
@@ -221,6 +230,7 @@ impl Registry {
             inbox: VecDeque::new(),
             next_seq: 1,
             controllers: HashMap::new(),
+            kicked: HashSet::new(),
         });
         entry.name = name;
         entry.platform = platform;
@@ -321,6 +331,10 @@ impl Registry {
     ) -> Option<CastReceiver> {
         let mut map = self.inner.write().unwrap();
         let entry = map.get_mut(receiver_id).filter(|r| r.live())?;
+        // Picking a set up again is a deliberate act by the person holding the
+        // phone, so it clears an earlier kick. The block is there to stop a
+        // client that ignored `cast.kicked` from carrying on, not to ban anyone.
+        entry.kicked.remove(user_id);
         let view = CastController {
             id: controller_id.to_string(),
             name: clean(name, MAX_NAME),
@@ -389,7 +403,19 @@ impl Registry {
         let mut map = self.inner.write().unwrap();
         let entry = map.get_mut(receiver_id)?;
         let gone = entry.controllers.remove(controller_id)?;
+        entry.kicked.insert(gone.user_id.clone());
         Some((entry.view(), gone.user_id))
+    }
+
+    /// Whether `user_id` may send this set an order.
+    ///
+    /// `None` when there is no such live receiver - the caller answers 404 for
+    /// that, exactly as [`Self::enqueue`] does, so this cannot be used to probe
+    /// the roster either.
+    pub fn may_command(&self, receiver_id: &str, user_id: &str) -> Option<bool> {
+        let map = self.inner.read().unwrap();
+        let entry = map.get(receiver_id).filter(|r| r.live())?;
+        Some(!entry.kicked.contains(user_id))
     }
 
     /// Drop everything the receiver has applied, by sequence number.
@@ -865,6 +891,31 @@ mod tests {
         reg.touch("tv-salon-01");
         assert!(reg.reap().is_empty());
         assert_eq!(reg.list().len(), 1);
+    }
+
+    #[test]
+    fn a_kicked_remote_stops_being_obeyed_until_it_picks_the_set_up_again() {
+        let reg = Registry::new();
+        announce_ok(&reg, beat("tv-salon-01", 0, None), "u1", None);
+        reg.attach_controller("tv-salon-01", "sock-b", "iPad", "u2", "bob", None).expect("attached");
+
+        // Driving it is fine until the set says otherwise.
+        assert_eq!(reg.may_command("tv-salon-01", "u2"), Some(true));
+        reg.kick_controller("tv-salon-01", "sock-b").expect("kicked");
+
+        // The point of the button: a client that ignores `cast.kicked` and keeps
+        // POSTing is refused, rather than carrying on unlisted and unkickable.
+        assert_eq!(reg.may_command("tv-salon-01", "u2"), Some(false));
+        // ...and only for the account that was sent away.
+        assert_eq!(reg.may_command("tv-salon-01", "u1"), Some(true));
+
+        // Picking the set up again is a deliberate act, so it is allowed.
+        reg.attach_controller("tv-salon-01", "sock-c", "iPad", "u2", "bob", None).expect("attached");
+        assert_eq!(reg.may_command("tv-salon-01", "u2"), Some(true));
+
+        // A set nobody has heard of is not a 403 - the caller answers 404, and
+        // this cannot be used to find out which ids exist.
+        assert_eq!(reg.may_command("tv-ghost-01", "u2"), None);
     }
 
     #[test]

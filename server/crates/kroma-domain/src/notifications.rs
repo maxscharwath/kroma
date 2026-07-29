@@ -279,14 +279,33 @@ pub enum ParamValue {
     /// `jobs.{key}.name`, so a failed-task notification names the task in the
     /// language the reader is actually using).
     Key(String),
+    /// A bare string from a row written BEFORE params were typed, where a key
+    /// and a literal were the same thing on the wire.
+    ///
+    /// It has to stay ambiguous. Calling it `Text` renders a stored
+    /// `system.job.failed` as "Job jobs.library.scan.name failed" - those rows
+    /// live until the 200-per-user retention pushes them out, and nothing
+    /// migrates them. Calling it `Key` re-introduces the collision this enum was
+    /// added to end, where a username or a moderator's free-text note that
+    /// happened to name a catalog entry was silently replaced by it.
+    ///
+    /// So it is resolved only when it names a REAL entry, and only for these old
+    /// rows: anything written since is tagged, and a tagged `Text` is never
+    /// looked up. See `services::notify::render`.
+    Legacy(String),
 }
 
 impl ParamValue {
-    /// The text to interpolate, given a resolver for the [`ParamValue::Key`] case.
-    pub fn resolve(&self, translate: impl FnOnce(&str) -> String) -> String {
+    /// The text to interpolate.
+    ///
+    /// `translate` answers `None` for a string the catalogs do not know, which is
+    /// what lets [`ParamValue::Legacy`] fall back to its own literal text while
+    /// [`ParamValue::Key`] keeps the key visible rather than rendering blank.
+    pub fn resolve(&self, translate: impl FnOnce(&str) -> Option<String>) -> String {
         match self {
             ParamValue::Text(text) => text.clone(),
-            ParamValue::Key(key) => translate(key),
+            ParamValue::Key(key) => translate(key).unwrap_or_else(|| key.clone()),
+            ParamValue::Legacy(text) => translate(text).unwrap_or_else(|| text.clone()),
         }
     }
 }
@@ -308,7 +327,7 @@ impl<'de> Deserialize<'de> for ParamValue {
         Ok(match Raw::deserialize(deserializer)? {
             Raw::Tagged { kind, value } if kind == "key" => ParamValue::Key(value),
             Raw::Tagged { value, .. } => ParamValue::Text(value),
-            Raw::Legacy(text) => ParamValue::Text(text),
+            Raw::Legacy(text) => ParamValue::Legacy(text),
         })
     }
 }
@@ -542,16 +561,26 @@ mod tests {
             ParamValue::Key("jobs.x.name".into())
         );
 
-        // Rows written before params were typed stored a bare string; those were
-        // all literal text, and must keep parsing rather than losing the whole map.
+        // Rows written before params were typed stored a bare string, and it is
+        // impossible to tell from the value alone whether it was a key or a
+        // literal - so they read back as `Legacy`, which `render` resolves only
+        // when the catalogs actually know it. Calling them Text here rendered a
+        // stored `system.job.failed` as "Job jobs.library.scan.name failed".
         assert_eq!(
             serde_json::from_str::<ParamValue>(r#""Dune""#).unwrap(),
-            ParamValue::Text("Dune".into())
+            ParamValue::Legacy("Dune".into())
         );
         let legacy: BTreeMap<String, ParamValue> =
-            serde_json::from_str(r#"{"title":"Dune","count":"3"}"#).unwrap();
-        assert_eq!(legacy.get("title"), Some(&ParamValue::Text("Dune".into())));
-        assert_eq!(legacy.get("count"), Some(&ParamValue::Text("3".into())));
+            serde_json::from_str(r#"{"title":"Dune","job":"jobs.library.scan.name"}"#).unwrap();
+        assert_eq!(legacy.get("title"), Some(&ParamValue::Legacy("Dune".into())));
+        assert_eq!(legacy.get("job"), Some(&ParamValue::Legacy("jobs.library.scan.name".into())));
+
+        // A tagged value is never ambiguous, whatever it spells.
+        assert_eq!(
+            serde_json::from_str::<ParamValue>(r#"{"kind":"text","value":"jobs.library.scan.name"}"#)
+                .unwrap(),
+            ParamValue::Text("jobs.library.scan.name".into())
+        );
     }
 
     #[test]

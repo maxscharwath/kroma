@@ -22,7 +22,11 @@ fn vars_for(stored: &StoredNotification, locale: &str) -> Vec<(String, String)> 
     stored
         .params
         .iter()
-        .map(|(k, v)| (k.clone(), v.resolve(|key| i18n::t(locale, key, &[]))))
+        .map(|(k, v)| {
+            // `None` for anything the catalogs do not know, which is what keeps a
+            // legacy bare string literal unless it really was a key.
+            (k.clone(), v.resolve(|key| i18n::is_message_key(key).then(|| i18n::t(locale, key, &[]))))
+        })
         .collect()
 }
 
@@ -159,6 +163,32 @@ mod tests {
         // Sanity: that key really does resolve to something else, so the test
         // would fail under the old value-shape heuristic.
         assert_ne!(crate::i18n::t("en", "reports.sheet", &[]), "reports.sheet");
+    }
+
+    #[test]
+    fn a_row_written_before_params_were_typed_still_resolves_its_key() {
+        // Rows from before the upgrade stored a key as a bare string, and there
+        // are up to 200 of them per user with nothing to migrate them. Read back
+        // as plain Text they rendered "Job jobs.library.scan.name failed".
+        let mut s = stored();
+        s.body_key = "notifications.report.submitted.body".into();
+        s.params = BTreeMap::from([
+            ("user".to_string(), ParamValue::Legacy("reports.sheet".into())),
+            ("title".to_string(), ParamValue::Text("Dune".into())),
+        ]);
+        let out = render(&s, "en");
+        let resolved = crate::i18n::t("en", "reports.sheet", &[]);
+        assert!(out.body.contains(&resolved), "legacy key left raw: {}", out.body);
+    }
+
+    #[test]
+    fn a_legacy_param_that_is_not_a_key_is_left_exactly_as_it_was() {
+        // The other half: most of those bare strings were ordinary text (a film
+        // title, a note), and resolving is only ever a lookup, never a guess.
+        let mut s = stored();
+        s.params = BTreeMap::from([("title".to_string(), ParamValue::Legacy("Dune".into()))]);
+        let out = render(&s, "en");
+        assert!(out.body.contains("Dune"), "{}", out.body);
     }
 
     #[test]

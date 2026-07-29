@@ -316,7 +316,11 @@ pub fn store_upload(data_dir: &Path, bytes: &[u8], max_width: Option<u32>) -> Op
 /// without the libwebp encoder (this one does), which would silently leave the
 /// master uncapped if it went first.
 fn encode_webp_capped(src: &Path, out: &Path, max_width: u32) -> bool {
-    let too_wide = probe_width(src).is_none_or(|w| w > max_width);
+    // `is_some_and`, not `is_none_or`: when the width cannot be read - no ffprobe
+    // in a slim container, or a format it does not know - the answer is "do not
+    // resize", never "resize anyway". The latter is the exact upscale the doc
+    // above says this measurement exists to prevent.
+    let too_wide = probe_width(src).is_some_and(|w| w > max_width);
     let mut cwebp = Command::new("cwebp");
     cwebp.args(["-quiet", "-q", WEBP_QUALITY, "-m", WEBP_EFFORT]);
     if too_wide {

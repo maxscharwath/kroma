@@ -18,7 +18,7 @@ export interface InstallStepProps {
  * lead line, the opposite of a centred, badge-stacked template intro. The route
  * stacks two of these (server, then apps).
  */
-export function InstallStep({ step, title, intro, id, children }: InstallStepProps) {
+export function InstallStep({ step, title, intro, id, children }: Readonly<InstallStepProps>) {
   return (
     <section id={id} className="scroll-mt-24 border-t border-border/60 py-16 sm:py-20">
       <Container>

@@ -11,7 +11,7 @@ interface FaqEntry {
  *  works from the prerendered HTML, before (and without) hydration, the same
  *  JS-free pattern the header's mobile menu uses, which keeps a static page
  *  genuinely static and SSR-safe. */
-export function Faq({ items }: { items: readonly FaqEntry[] }) {
+export function Faq({ items }: Readonly<{ items: readonly FaqEntry[] }>) {
   return (
     <div className="border-t border-border/70">
       {items.map((item) => (

@@ -11,7 +11,7 @@ export interface LogoProps {
 /** The KROMA lockup: the chromatic wheel, then the wordmark in the display face.
  *  A link to the localized home, so it works as the header brand in both
  *  languages. */
-export function Logo({ className, size = 30 }: LogoProps) {
+export function Logo({ className, size = 30 }: Readonly<LogoProps>) {
   return (
     <L
       to="/"

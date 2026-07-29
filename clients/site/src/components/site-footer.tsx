@@ -13,7 +13,7 @@ interface FLink {
   href?: string;
 }
 
-function FooterLink({ label, to, href }: FLink) {
+function FooterLink({ label, to, href }: Readonly<FLink>) {
   const cls = 'text-sm text-muted transition-colors hover:text-text';
   if (to) {
     return (

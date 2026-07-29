@@ -11,7 +11,7 @@ interface HeroBeamsProps {
 // canvas prerenders empty (SSR draws nothing), then this effect mounts the
 // animation on the client and tears it down on unmount, so a route change never
 // leaks the RAF loop. Marked aria-hidden: it is pure decoration.
-export function HeroBeams({ anchorRef }: HeroBeamsProps) {
+export function HeroBeams({ anchorRef }: Readonly<HeroBeamsProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

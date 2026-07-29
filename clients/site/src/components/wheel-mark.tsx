@@ -22,7 +22,7 @@ export interface WheelMarkProps {
   spin?: boolean;
 }
 
-export function WheelMark({ size = 40, className, spin = false }: WheelMarkProps) {
+export function WheelMark({ size = 40, className, spin = false }: Readonly<WheelMarkProps>) {
   return (
     <svg
       width={size}

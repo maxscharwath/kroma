@@ -49,11 +49,11 @@ function ModelNode({
   icon: Icon,
   label,
   detail,
-}: {
+}: Readonly<{
   icon: IconComponent;
   label: string;
   detail: string;
-}) {
+}>) {
   return (
     <div className="surface-hairline flex flex-1 items-start gap-3 rounded-xl border border-border bg-surface-1/50 p-4">
       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-accent">

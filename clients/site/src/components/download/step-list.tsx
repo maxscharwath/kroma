@@ -12,7 +12,7 @@ export interface StepListProps {
  * lines up under wrapping text. Used for the short "trust, then install" flows
  * where the full walkthrough lives in INSTALL.md.
  */
-export function StepList({ steps }: StepListProps) {
+export function StepList({ steps }: Readonly<StepListProps>) {
   return (
     <ol className="space-y-2.5">
       {steps.map((step, i) => (

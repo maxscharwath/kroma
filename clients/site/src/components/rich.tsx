@@ -22,7 +22,7 @@ export interface RichProps {
  * a heading into `before`/`accent`/`after` keys - made translators fill three
  * fragments that only reassembled correctly in English word order.
  */
-export function Rich({ children }: RichProps) {
+export function Rich({ children }: Readonly<RichProps>) {
   return (
     <>
       {parseRich(children).map((token, i) =>

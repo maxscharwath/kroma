@@ -16,7 +16,13 @@ interface ContactCardProps {
 /** A single support channel as one clickable card: glyph, title, a line of
  *  context, and the destination it resolves to. The whole surface is the link
  *  (one large target, not a card with a small button buried in it). */
-export function ContactCard({ icon, title, description, action, href }: ContactCardProps) {
+export function ContactCard({
+  icon,
+  title,
+  description,
+  action,
+  href,
+}: Readonly<ContactCardProps>) {
   const Icon = icon;
   // A mailto is not another site, so it must not open a new tab; only an
   // http(s) URL does, and only it gets the leaving-the-site arrow.

@@ -15,7 +15,7 @@ export interface CopyButtonProps {
  * Before hydration the button is inert markup; that is fine, copy is a bonus
  * over the always-selectable text in the code block.
  */
-export function CopyButton({ value }: CopyButtonProps) {
+export function CopyButton({ value }: Readonly<CopyButtonProps>) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {

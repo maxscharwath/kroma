@@ -27,7 +27,7 @@ export function Section({
   intro,
   className,
   align = 'center',
-}: SectionProps) {
+}: Readonly<SectionProps>) {
   const hasHeader = eyebrow || title || intro;
   return (
     <section

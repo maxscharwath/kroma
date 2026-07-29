@@ -22,7 +22,7 @@ export interface ProseLinkProps {
  * plain string, so the anchor cannot live in the middle of it. The sentence ends,
  * then this link carries its own label (its own message key, arrow included).
  */
-export function ProseLink({ href, children }: ProseLinkProps) {
+export function ProseLink({ href, children }: Readonly<ProseLinkProps>) {
   return (
     <a
       href={href}

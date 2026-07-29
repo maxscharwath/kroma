@@ -28,7 +28,7 @@ export function PlatformFamily({
   intro,
   docHref,
   entries,
-}: PlatformFamilyProps) {
+}: Readonly<PlatformFamilyProps>) {
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_1fr] lg:gap-10">
       <div className="lg:sticky lg:top-24 lg:self-start">

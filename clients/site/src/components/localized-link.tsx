@@ -24,7 +24,14 @@ export interface LProps {
  * What is left is the `activeClassName` shorthand over TanStack's `activeProps`,
  * which is the only reason this is still a component rather than a plain `Link`.
  */
-export function L({ to, className, activeClassName, children, onClick, ...rest }: LProps) {
+export function L({
+  to,
+  className,
+  activeClassName,
+  children,
+  onClick,
+  ...rest
+}: Readonly<LProps>) {
   return (
     <Link
       to={to as LinkProps['to']}

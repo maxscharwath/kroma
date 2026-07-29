@@ -26,7 +26,7 @@ export function PageShell({
   updated,
   size = 'default',
   children,
-}: PageShellProps) {
+}: Readonly<PageShellProps>) {
   const prose = size === 'prose';
   // A legal document is an <article>; a hub page like support is not.
   const Root = prose ? 'article' : 'div';

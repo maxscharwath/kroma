@@ -13,7 +13,7 @@ import { m } from '#site/paraglide/messages';
 // dropped /fr from the prerender. A real anchor is also a full document load,
 // which is what a locale change should be: the whole page, including the shell
 // that a soft navigation would leave mounted, re-renders in the new language.
-export function LangSwitcher({ className }: { className?: string }) {
+export function LangSwitcher({ className }: Readonly<{ className?: string }>) {
   const active = useLang();
   const path = useCanonicalPath();
 

@@ -18,7 +18,7 @@ export interface CodeBlockProps {
  * render time only, the copied `code` prop is untouched, which reads like a
  * lightly highlighted terminal without pulling in a syntax-highlighter.
  */
-export function CodeBlock({ code, label = 'bash' }: CodeBlockProps) {
+export function CodeBlock({ code, label = 'bash' }: Readonly<CodeBlockProps>) {
   const lines = code.split('\n');
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface-1 shadow-card">

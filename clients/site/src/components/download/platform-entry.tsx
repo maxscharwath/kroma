@@ -41,7 +41,7 @@ export function PlatformEntry({
   code,
   codeLabel,
   after,
-}: PlatformEntryProps) {
+}: Readonly<PlatformEntryProps>) {
   return (
     <div className="border-t border-border/60 py-6 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start gap-4">

@@ -48,7 +48,7 @@ export function Button({
   className,
   to,
   href,
-}: ButtonProps) {
+}: Readonly<ButtonProps>) {
   const lang = useLang();
   const cls = [base, variants[variant], sizes[size], className].filter(Boolean).join(' ');
 

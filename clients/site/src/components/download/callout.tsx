@@ -14,7 +14,7 @@ export interface CalloutProps {
  * triangle for a Gatekeeper/SmartScreen prompt), never on a second colour. Kept
  * inline and quiet so a section reads as prose, not a stack of alert boxes.
  */
-export function Callout({ icon: Icon, tag, children }: CalloutProps) {
+export function Callout({ icon: Icon, tag, children }: Readonly<CalloutProps>) {
   return (
     <div className="flex gap-2.5 rounded-lg border border-border bg-surface-2/40 px-3 py-2.5">
       <Icon size={16} stroke={1.75} className="mt-0.5 shrink-0 text-accent" aria-hidden />

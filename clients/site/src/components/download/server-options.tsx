@@ -38,11 +38,11 @@ function OptionHead({
   icon: Icon,
   title,
   tag,
-}: {
+}: Readonly<{
   icon: IconComponent;
   title: string;
   tag?: string;
-}) {
+}>) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-accent">

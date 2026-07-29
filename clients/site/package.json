@@ -11,7 +11,8 @@
     "preview:edge": "bunx wrangler@4 dev",
     "deploy": "bun run build && bunx wrangler@4 deploy",
     "generate-routes": "tsr generate",
-    "typecheck": "tsr generate && tsc --noEmit"
+    "typecheck": "bun run paraglide && tsr generate && tsc --noEmit",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url --emit-ts-declarations --silent"
   },
   "dependencies": {
     "@kroma/ui": "workspace:*",

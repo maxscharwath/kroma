@@ -50,7 +50,11 @@ export function localizePath(path: string, lang: Lang): string {
   // redirects to `/fr/download` - and this function is what builds the canonical URL and
   // the hreflang set, which must not point at a redirect. Paraglide spells a locale ROOT
   // `/fr/`, which is the only spelling this actually changes.
-  return localized === '/' ? '/' : localized.replace(/\/+$/, '');
+  //
+  // A plain `endsWith` rather than `/\/+$/`: an anchored `+` backtracks quadratically over
+  // a long run of slashes, and Paraglide never produces more than the one.
+  if (localized === '/' || !localized.endsWith('/')) return localized;
+  return localized.slice(0, -1);
 }
 
 /**

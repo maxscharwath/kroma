@@ -77,7 +77,10 @@ export default defineConfig({
               return false;
             };
             if (page.path.includes('#')) return drop();
-            const key = page.path.replace(/(.)\/+$/, '$1');
+            // `endsWith` rather than `/(.)\/+$/`, which backtracks quadratically over a
+            // long run of slashes.
+            const p = page.path;
+            const key = p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p;
             if (seen.has(key)) return drop();
             seen.add(key);
             return true;

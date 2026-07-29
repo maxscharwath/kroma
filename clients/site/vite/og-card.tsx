@@ -1,4 +1,5 @@
 import { colors, WHEEL_COLORS } from '@kroma/ui/tokens';
+import { parseRich } from '#site/lib/rich';
 
 // The social card, as a component.
 //
@@ -18,9 +19,14 @@ import { colors, WHEEL_COLORS } from '@kroma/ui/tokens';
 //   * There is no `text-wrap: balance`, so the headline's line break is authored
 //     (see `title`), not negotiated by the layout engine.
 
-/** A `[bracketed]` run is the amber emphasis; everything else is plain. */
+/** A `[bracketed]` run is the amber emphasis; everything else is plain.
+ *
+ *  Parsed by the site's OWN marker parser rather than a regex here, so the card and the
+ *  pages cannot disagree about what `[…]` means - and so the copy in ./og-cards.ts is
+ *  literally the convention its comment claims. `lib/rich` is dependency-free, which is
+ *  what makes it safe to pull into a renderer that runs outside the app. */
 function Headline({ text }: Readonly<{ text: string }>) {
-  const runs = text.split(/(\[[^\]]+\])/).filter(Boolean);
+  const runs = parseRich(text);
   return (
     <div
       style={{
@@ -36,14 +42,14 @@ function Headline({ text }: Readonly<{ text: string }>) {
       }}
     >
       {runs.map((run, i) =>
-        run.startsWith('[') ? (
+        run.kind === 'accent' ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: positional runs of one immutable string
           <span key={i} style={{ color: colors.accent }}>
-            {run.slice(1, -1)}
+            {run.value}
           </span>
         ) : (
           // biome-ignore lint/suspicious/noArrayIndexKey: positional runs of one immutable string
-          <span key={i}>{run}</span>
+          <span key={i}>{run.value}</span>
         ),
       )}
     </div>

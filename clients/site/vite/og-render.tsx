@@ -18,7 +18,7 @@
  * variable Hanken committed beside it and regenerated with fontTools by hand.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { render } from 'takumi-js';
 import { Renderer } from 'takumi-js/node';
@@ -29,8 +29,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** The kit's own font files, the same two faces the pages load. */
 const kitFonts = join(here, '..', '..', '..', 'packages', 'ui', 'src', 'assets', 'fonts');
 
-const outDir = process.argv[2];
-if (!outDir) throw new Error('og-render: an output directory is required');
+// Resolved to an absolute path, and every file written is checked to land inside it. The
+// filenames come from a closed literal set in ./og-cards, so this can never actually
+// trip - but this reads an argv path and then writes through it, and a script that does
+// that should say out loud where it is allowed to write.
+const outDir = resolve(process.argv[2] ?? '');
+if (!process.argv[2]) throw new Error('og-render: an output directory is required');
+
+function targetIn(dir: string, file: string): string {
+  const target = resolve(dir, file);
+  if (target !== dir && !target.startsWith(dir + sep)) {
+    throw new Error(`og-render: refusing to write outside ${dir}: ${file}`);
+  }
+  return target;
+}
 
 const renderer = new Renderer();
 const [display, ui] = await Promise.all([
@@ -58,5 +70,5 @@ for (const card of Object.values(OG_CARDS)) {
     // not all of them decode WebP.
     format: 'png',
   });
-  await writeFile(join(outDir, card.file), png);
+  await writeFile(targetIn(outDir, card.file), png);
 }

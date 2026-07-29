@@ -23,6 +23,9 @@ TanStack Start) while giving a marketing site the SEO of real per-page HTML.
 - **Blog:** `.mdx` files in [`content/blog/`](./content/blog), compiled with
   `@mdx-js/rollup` (frontmatter, GFM, anchored headings, Shiki code). See the
   [authoring guide](./content/blog/README.md).
+- **Languages:** English at the root, every other locale under its own prefix
+  (`/fr`, `/fr/download`). The locale is a pure function of the URL, so each one
+  prerenders to its own HTML. See [Add a language](#add-a-language).
 
 ## Develop
 
@@ -57,6 +60,40 @@ block. That's the whole workflow — it's discovered, prerendered, dated and
 sorted automatically. Full details and the frontmatter fields are in the
 [authoring guide](./content/blog/README.md).
 
+## Add a language
+
+Strings never live in components — components read keys, catalogs hold the words.
+That is the whole reason a thirtieth language does not make a page unreadable:
+nothing in `src/routes` or `src/components` changes when you add one.
+
+```
+src/lib/messages/
+  common.ts      the chrome: header, footer, 404, language switcher
+  home.tsx       one catalog per page, `{ en: {…}, fr: {…} } as const`
+  download.ts    …plus a `useDownload()` accessor beside it
+```
+
+A component asks for the active locale's words and nothing else:
+
+```tsx
+const t = useHome();       // = home[useLang()]
+<h2>{t.features.title}</h2>
+```
+
+To add, say, German:
+
+1. Add `'de'` to `locales` in [`src/lib/i18n.ts`](./src/lib/i18n.ts) and give it an
+   entry in `localeNames` / `localeShort`.
+2. Add a `de:` block to each catalog in `src/lib/messages/`. The catalogs are typed
+   from the English shape, so **the compiler lists every string you still owe** —
+   a missing key is a build error, not a blank spot in production.
+3. That's it. The routes, the `/de/*` URLs, the language switcher, the `hreflang`
+   tags and the per-locale prerender all follow from step 1.
+
+Blog posts are translated per file rather than per key: `my-post.de.mdx` beside
+`my-post.mdx`, same slug. A locale with no translation falls back to the English
+post instead of 404ing — see the [authoring guide](./content/blog/README.md).
+
 ## Deploy
 
 The site is an **assets-only Cloudflare Worker** ([`wrangler.jsonc`](./wrangler.jsonc)),
@@ -74,11 +111,16 @@ cd clients/site && bunx wrangler@4 deploy
 
 ```
 clients/site/
-├─ content/blog/       the blog, one .mdx per post (+ authoring guide)
-├─ public/             static assets served as-is (favicon, og image)
+├─ content/blog/       the blog, one .mdx per post + .<lang>.mdx translations
+├─ public/             static assets served as-is (favicon, og image, robots)
 ├─ src/
-│  ├─ components/      site chrome + section components (DOM + Tailwind v4)
-│  ├─ lib/             site config, SEO head helper, blog data layer
+│  ├─ components/      site chrome + per-page section components (Tailwind v4)
+│  ├─ lib/
+│  │  ├─ messages/     the translations, one catalog per page (see above)
+│  │  ├─ i18n.ts       locales, and the URL ⇄ locale mapping
+│  │  ├─ blog.ts       resolves content/blog into typed posts
+│  │  ├─ seo.ts        the <head> helper (title, canonical, OG, hreflang)
+│  │  └─ site.ts       the domain, contact addresses and nav
 │  ├─ routes/          file-based routes (home, download, blog, privacy, support)
 │  └─ styles.css       imports @kroma/ui/tailwind.css + site-only @utility/@theme
 ├─ vite.config.ts      TanStack Start (static prerender) + MDX pipeline

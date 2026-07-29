@@ -12,8 +12,10 @@ export function LangSwitcher({ className }: { className?: string }) {
   const t = useCommon();
 
   return (
-    <div
-      role="group"
+    // A <nav> rather than a div with role="group": this IS a set of navigation
+    // links (each locale is a real URL), so the semantic element carries the
+    // labelled grouping for a screen reader without an ARIA role to keep in step.
+    <nav
       aria-label={t.lang.label}
       className={[
         'inline-flex items-center rounded-lg border border-border p-0.5 text-xs font-semibold',
@@ -40,6 +42,6 @@ export function LangSwitcher({ className }: { className?: string }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

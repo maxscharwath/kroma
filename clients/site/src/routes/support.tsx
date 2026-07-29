@@ -21,7 +21,7 @@ export const Route = createFileRoute('/support')({
 });
 
 // The checklist is lifted straight from CONTRIBUTING.md so a bug report arrives
-// with what actually makes it reproducible — anything less and the first reply is
+// with what actually makes it reproducible, anything less and the first reply is
 // always the same round of questions.
 const bugChecklist: readonly { text: ReactNode }[] = [
   { text: 'Ce que vous attendiez, et ce qui s’est réellement passé.' },
@@ -52,7 +52,7 @@ const faq: readonly FaqEntry[] = [
     answer: (
       <>
         Oui. KROMA est un logiciel libre sous licence MIT : gratuit, sans abonnement et sans version
-        « pro » payante. Le code est ouvert — vous pouvez l’auditer, le modifier et le redistribuer.
+        « pro » payante. Le code est ouvert, vous pouvez l’auditer, le modifier et le redistribuer.
       </>
     ),
   },
@@ -97,8 +97,8 @@ function Support() {
             On est là pour vous aider.
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-muted">
-            KROMA est un projet libre et auto-hébergé. Selon votre besoin — une question, un bug,
-            une installation à démarrer — voici la bonne porte à laquelle frapper.
+            KROMA est un projet libre et auto-hébergé. Selon votre besoin, une question, un bug,
+            une installation à démarrer, voici la bonne porte à laquelle frapper.
           </p>
         </header>
 
@@ -124,7 +124,7 @@ function Support() {
           </div>
         </div>
 
-        {/* The other destinations, uniform because they are peers — each a
+        {/* The other destinations, uniform because they are peers, each a
             distinct place, not a repeat of the same call to action. */}
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <ContactCard
@@ -150,7 +150,7 @@ function Support() {
           />
         </div>
 
-        {/* Bug-report checklist — a helping panel, not a wall of cards. */}
+        {/* Bug-report checklist, a helping panel, not a wall of cards. */}
         <section className="mt-20">
           <div className="max-w-2xl">
             <div className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent">

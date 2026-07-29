@@ -15,8 +15,7 @@ export const Route = createFileRoute('/')({
 });
 
 // The home page is a composition, not a wall of markup: each band is a single
-// self-contained section under components/home. The order tells the story —
-// promise, the one-binary differentiator, the full capability set, the playback
+// self-contained section under components/home. The order tells the story, // promise, the one-binary differentiator, the full capability set, the playback
 // moment, where it runs, why you'd own it, what we're writing, then the ask.
 function Home() {
   return (

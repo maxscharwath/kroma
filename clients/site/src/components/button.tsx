@@ -9,7 +9,7 @@ const base =
   'transition-all duration-200 ease-out focus-visible:outline-none disabled:opacity-50';
 
 const variants: Record<Variant, string> = {
-  // The amber action: ink text on the warm fill, lifting on hover — the app's
+  // The amber action: ink text on the warm fill, lifting on hover, the app's
   // primary button, translated to a pointer.
   primary:
     'bg-accent text-accent-ink shadow-[0_6px_22px_rgba(242,180,66,0.32)] hover:bg-accent-hover hover:-translate-y-0.5',
@@ -38,7 +38,7 @@ export interface ButtonProps {
 
 /** One CTA that renders as a router <Link> for internal paths and a plain <a>
  *  for external URLs and in-page anchors, so a call site never has to pick the
- *  element — only the destination. */
+ *  element, only the destination. */
 export function Button({
   children,
   variant = 'primary',

@@ -1,7 +1,7 @@
 import { Container } from '#site/components/container';
 
-// The playback story gets its own focused moment. The claim is blunt — the server
-// never transcodes video — and the right rail proves it two ways: the codecs the
+// The playback story gets its own focused moment. The claim is blunt, the server
+// never transcodes video, and the right rail proves it two ways: the codecs the
 // clients decode themselves, and a NAS-CPU meter parked near zero because there is
 // no transcode to run. HEVC is lit in amber as the hero codec; the rest stay
 // neutral, so the row keeps to the single-accent rule.
@@ -28,7 +28,7 @@ export function DirectPlay() {
             </h2>
             <p className="mt-5 text-pretty text-lg leading-relaxed text-muted">
               KROMA diffuse les fichiers originaux par plages d’octets ; chaque client décode le
-              HEVC/H.265 lui-même — en 10-bit et en HDR, en matériel sur les téléviseurs Samsung et
+              HEVC/H.265 lui-même, en 10-bit et en HDR, en matériel sur les téléviseurs Samsung et
               LG. Pas de pipeline de transcodage, pas de ferme de CPU à garder au chaud.
             </p>
             <p className="mt-4 max-w-md font-mono text-xs leading-relaxed text-dim">

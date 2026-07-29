@@ -2,7 +2,7 @@ import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useState } from 'react';
 
 export interface CopyButtonProps {
-  /** The exact text placed on the clipboard — passed verbatim, no trimming. */
+  /** The exact text placed on the clipboard, passed verbatim, no trimming. */
   value: string;
 }
 
@@ -10,7 +10,7 @@ export interface CopyButtonProps {
  * The one interactive island on an otherwise static, prerendered page. It is
  * server-safe by construction: the clipboard API is touched ONLY inside the
  * click handler, which never runs during SSR/prerender, so there is no browser
- * global read at module scope or during render — no `useEffect` guard needed.
+ * global read at module scope or during render, no `useEffect` guard needed.
  * Before hydration the button is inert markup; that is fine, copy is a bonus
  * over the always-selectable text in the code block.
  */

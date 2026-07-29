@@ -13,7 +13,7 @@ export function Logo({ className, size = 30 }: LogoProps) {
   return (
     <Link
       to="/"
-      aria-label="KROMA — accueil"
+      aria-label="KROMA, accueil"
       className={['group inline-flex items-center gap-2.5', className].filter(Boolean).join(' ')}
     >
       <WheelMark

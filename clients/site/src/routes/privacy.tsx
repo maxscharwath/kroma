@@ -10,7 +10,7 @@ export const Route = createFileRoute('/privacy')({
     ...seo({
       title: 'Confidentialité',
       description:
-        'Ce que collecte (ou non) kroma.tv et l’application KROMA : un site vitrine statique, un logiciel auto-hébergé, et le seul service que nous opérons — le relais de notifications push.',
+        'Ce que collecte (ou non) kroma.tv et l’application KROMA : un site vitrine statique, un logiciel auto-hébergé, et le seul service que nous opérons, le relais de notifications push.',
       path: '/privacy',
     }),
   }),
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/privacy')({
 });
 
 // Kept short and honest on purpose: KROMA holds almost no personal data because
-// there is almost nothing to hold — no accounts on the site, no cloud behind the
+// there is almost nothing to hold, no accounts on the site, no cloud behind the
 // app. The one component that touches a service we operate (the push relay) is
 // named plainly rather than buried, because pretending it doesn't exist would be
 // the dishonest choice.
@@ -56,7 +56,7 @@ function Privacy() {
             </li>
             <li>
               Une seule exception, assumée : les notifications push transitent par un relais que
-              nous opérons sur Cloudflare — il transmet des notifications, jamais vos médias ni
+              nous opérons sur Cloudflare, il transmet des notifications, jamais vos médias ni
               votre bibliothèque.
             </li>
           </ul>
@@ -78,14 +78,14 @@ function Privacy() {
 
           <h2>Ce que l’application collecte (rien qui quitte votre réseau)</h2>
           <p>
-            L’application KROMA s’exécute sur du matériel que vous possédez — votre NAS, un hôte
+            L’application KROMA s’exécute sur du matériel que vous possédez, votre NAS, un hôte
             Docker, un Raspberry Pi. Votre bibliothèque, vos fichiers, vos comptes et profils, votre
             historique de lecture et vos statistiques y sont stockés <strong>localement</strong> et
             n’en sortent pas. Nous n’y avons aucun accès, et aucune télémétrie ne nous est renvoyée
             : il n’existe pas de service central vers lequel remonter quoi que ce soit.
           </p>
           <p>
-            Pour ces données, c’est vous — l’opérateur du serveur — qui en avez la maîtrise
+            Pour ces données, c’est vous, l’opérateur du serveur, qui en avez la maîtrise
             complète. Vous décidez qui y accède, où elles résident et quand les effacer.
           </p>
 
@@ -107,7 +107,7 @@ function Privacy() {
 
           <h2>Cookies</h2>
           <p>
-            Ce site n’utilise aucun cookie de mesure d’audience ou de publicité — il n’y a donc pas
+            Ce site n’utilise aucun cookie de mesure d’audience ou de publicité, il n’y a donc pas
             de bandeau de consentement, parce qu’il n’y a rien à consentir. Cloudflare peut poser un
             cookie strictement nécessaire à la sécurité (protection anti-abus) ; il ne sert pas à
             vous suivre d’un site à l’autre.
@@ -118,7 +118,7 @@ function Privacy() {
             <strong>Cloudflare</strong> héberge ce site et le relais de notifications ; à ce titre
             il traite les journaux techniques évoqués plus haut. Les métadonnées de films et séries
             proviennent de <strong>TMDB</strong>, mais c’est <em>votre</em> serveur qui les
-            interroge, sur votre réseau — pas nous.
+            interroge, sur votre réseau, pas nous.
           </p>
 
           <h2>Vos droits</h2>
@@ -145,7 +145,7 @@ function Privacy() {
         </div>
 
         {/* A real contact affordance to close on, rather than a bare mailto in a
-            paragraph — the same channel, made unmissable. */}
+            paragraph, the same channel, made unmissable. */}
         <div className="mt-14">
           <ContactCard
             icon={IconShieldLock}

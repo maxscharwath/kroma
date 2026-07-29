@@ -5,7 +5,7 @@ import { getAllPosts } from '#site/lib/blog';
 
 // The two most recent posts, as editorial cards. Resolved at build time from the
 // MDX glob, so this renders in the prerender with no fetch. Renders nothing at all
-// when the blog is empty — a "coming soon" placeholder on the home page would read
+// when the blog is empty, a "coming soon" placeholder on the home page would read
 // as unfinished, which is worse than absence.
 export function BlogTeaser() {
   const posts = getAllPosts().slice(0, 2);

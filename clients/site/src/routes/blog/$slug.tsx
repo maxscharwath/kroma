@@ -6,8 +6,8 @@ import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/blog/$slug')({
   // The loader validates the slug and returns only serializable metadata (for the
-  // <head>). The compiled MDX component is NOT returned — it is a function, which
-  // can't cross the SSR→client serialization boundary — the component below reads
+  // <head>). The compiled MDX component is NOT returned, it is a function, which
+  // can't cross the SSR→client serialization boundary, the component below reads
   // it straight from the static import instead.
   loader: ({ params }) => {
     const post = getPost(params.slug);

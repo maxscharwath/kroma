@@ -1,4 +1,4 @@
-/* KROMA showcase site — Tailwind v4.
+/* KROMA showcase site, Tailwind v4.
 
    The shared entry (`@kroma/ui/tailwind.css`) is the ENTIRE design system: the
    colour + type + effect tokens, the two brand families loaded from Google
@@ -70,7 +70,7 @@
   }
 }
 
-/* Custom utilities are declared with Tailwind v4's `@utility` API — so they are
+/* Custom utilities are declared with Tailwind v4's `@utility` API, so they are
    variant-aware (`hover:`, `md:`…) and ordered correctly against the generated
    utilities, unlike a plain class in `@layer utilities`. */
 
@@ -82,7 +82,7 @@
   color: transparent;
 }
 
-/* A hairline top-lit surface — the same trick the app's raised cards use, so a
+/* A hairline top-lit surface, the same trick the app's raised cards use, so a
    panel on the site reads as lifted off the charcoal rather than drawn on it. */
 @utility surface-hairline {
   background-image: linear-gradient(
@@ -92,7 +92,7 @@
   );
 }
 
-/* Radial amber glow behind the hero mark. Deliberately restrained — a single
+/* Radial amber glow behind the hero mark. Deliberately restrained, a single
    warm source, not the rainbow wash a generated hero reaches for. */
 @utility glow-amber {
   background: radial-gradient(
@@ -120,7 +120,7 @@
 }
 
 /* Long-form article body. Scoped to `.prose-kroma`, styling the raw elements MDX
-   emits so a post reads like an edited page — measured line length, a clear
+   emits so a post reads like an edited page, measured line length, a clear
    heading rhythm, amber links, and code blocks that sit in the charcoal surface
    rather than a bright card. rehype-slug puts ids on headings; rehype-pretty-code
    tokenises the code. */

@@ -10,7 +10,7 @@ type IconComponent = ComponentType<{ size?: number | string; stroke?: number; cl
 /** The published multi-arch image. Kept in step with the repo's docker-compose.yml. */
 const IMAGE = 'ghcr.io/maxscharwath/kroma:latest';
 
-// A trimmed but runnable copy of the repo's compose file — the same image, port,
+// A trimmed but runnable copy of the repo's compose file, the same image, port,
 // volume layout and KROMA_MEDIA_DIRS, without the optional HTTPS block so the
 // snippet stays scannable. The full commented version ships in the repo.
 const COMPOSE = `services:
@@ -75,7 +75,7 @@ function Panel({ children, className }: { children: ReactNode; className?: strin
 /**
  * Step 1's body: the three real ways to stand the server up. Docker leads
  * (featured, full width, with the actual compose file); Synology and cargo sit
- * beneath as a pair — an editorial hierarchy rather than three equal cards.
+ * beneath as a pair, an editorial hierarchy rather than three equal cards.
  */
 export function ServerOptions() {
   return (

@@ -7,7 +7,7 @@ export interface CodeBlockProps {
    * newlines for multi-line snippets.
    */
   code: string;
-  /** Caption in the header bar — a shell name (`bash`) or a filename. */
+  /** Caption in the header bar, a shell name (`bash`) or a filename. */
   label?: string;
 }
 
@@ -15,7 +15,7 @@ export interface CodeBlockProps {
  * A command in the app's charcoal treatment: a raised surface, a hairline header
  * carrying the caption + copy affordance, and a horizontally scrollable body so
  * a long one-liner never widens the page. Comment lines (`# …`) are dimmed at
- * render time only — the copied `code` prop is untouched — which reads like a
+ * render time only, the copied `code` prop is untouched, which reads like a
  * lightly highlighted terminal without pulling in a syntax-highlighter.
  */
 export function CodeBlock({ code, label = 'bash' }: CodeBlockProps) {

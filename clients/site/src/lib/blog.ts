@@ -4,7 +4,7 @@ import type { ComponentType } from 'react';
 // at build time: each post's compiled component, its frontmatter (lifted to
 // `export const frontmatter` by remark-mdx-frontmatter) and its `readingMinutes`
 // (injected by the remark plugin in vite.config). Because it is all resolved at
-// build, every post is available to the prerender with no runtime fetch — drop in
+// build, every post is available to the prerender with no runtime fetch, drop in
 // a file, and it appears.
 
 interface RawFrontmatter {

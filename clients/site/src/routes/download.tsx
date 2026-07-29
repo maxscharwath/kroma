@@ -48,7 +48,7 @@ function Download() {
         id="serveur"
         step="01"
         title="Installez le serveur"
-        intro="Un seul binaire Rust : sur un NAS, dans Docker, ou compilé à la main. Il sert l'API, l'app web et le flux vidéo sur le port 4040 — direct-play, jamais de transcodage."
+        intro="Un seul binaire Rust : sur un NAS, dans Docker, ou compilé à la main. Il sert l'API, l'app web et le flux vidéo sur le port 4040, direct-play, jamais de transcodage."
       >
         <ServerOptions />
       </InstallStep>
@@ -69,7 +69,7 @@ function Download() {
               GitHub Releases
             </a>{' '}
             (un tag <code className="font-mono">vX.Y.Z</code> porte tous les artefacts). Un réglage
-            unique par appareil — mode développeur ou levée de quarantaine — puis le client demande
+            unique par appareil, mode développeur ou levée de quarantaine, puis le client demande
             l'adresse du serveur au premier lancement.
           </>
         }
@@ -88,7 +88,7 @@ function Download() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Header — the model in one line, plus a two-node "server → clients" strip.  */
+/*  Header, the model in one line, plus a two-node "server → clients" strip.  */
 /* -------------------------------------------------------------------------- */
 
 function Header() {
@@ -105,14 +105,14 @@ function Header() {
           </h1>
           <p className="mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted">
             Le modèle tient en une phrase : on installe le serveur une seule fois, puis chaque
-            client — TV, ordinateur, mobile, navigateur — pointe vers lui et s'en souvient.
+            client, TV, ordinateur, mobile, navigateur, pointe vers lui et s'en souvient.
           </p>
 
           <div className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <ModelNode
               icon={IconServer}
               label="Le serveur"
-              detail="Installé une fois — NAS, Docker ou Raspberry Pi."
+              detail="Installé une fois, NAS, Docker ou Raspberry Pi."
             />
             <IconArrowRight
               size={22}
@@ -155,7 +155,7 @@ function ModelNode({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Step 2 families — authored by hand (not a data loop) so each device gets   */
+/*  Step 2 families, authored by hand (not a data loop) so each device gets   */
 /*  the note and command that actually matters for it.                         */
 /* -------------------------------------------------------------------------- */
 
@@ -175,7 +175,7 @@ function Televisions() {
           <Callout icon={IconKey} tag="Mode développeur">
             Panneau <span className="text-text">Apps</span> → tapez{' '}
             <code className="font-mono text-text">1 2 3 4 5</code>, activez-le et saisissez l'IP de
-            votre ordinateur. Le <code className="font-mono">.wgt</code> est déjà signé — aucun
+            votre ordinateur. Le <code className="font-mono">.wgt</code> est déjà signé, aucun
             certificat requis, juste le CLI de Tizen Studio.
           </Callout>
         }
@@ -294,7 +294,7 @@ function Computers() {
         setup={
           <Callout icon={IconInfoCircle} tag="Vidéo">
             mpv est embarqué (le sidecar <code className="font-mono">kroma-mpv</code> pilote le
-            décodage matériel) — rien à installer.
+            décodage matériel), rien à installer.
           </Callout>
         }
       >
@@ -341,7 +341,7 @@ function Mobile() {
         beta
         setup={
           <Callout icon={IconInfoCircle} tag="TestFlight">
-            Rejoignez la bêta iOS via TestFlight —{' '}
+            Rejoignez la bêta iOS via TestFlight, {' '}
             <a
               href={BETA_GUIDE}
               target="_blank"
@@ -360,7 +360,7 @@ function Mobile() {
         beta
         setup={
           <Callout icon={IconInfoCircle} tag="Firebase">
-            Distribuée via Firebase App Distribution —{' '}
+            Distribuée via Firebase App Distribution, {' '}
             <a
               href={BETA_GUIDE}
               target="_blank"
@@ -390,8 +390,7 @@ function NasAndWeb() {
         name="Navigateur web"
         setup={
           <Callout icon={IconInfoCircle} tag="Rien à installer">
-            Le serveur sert lui-même l'app web. Ouvrez son adresse dans n'importe quel navigateur —
-            ou laissez la découverte mDNS le trouver sur le réseau.
+            Le serveur sert lui-même l'app web. Ouvrez son adresse dans n'importe quel navigateur,             ou laissez la découverte mDNS le trouver sur le réseau.
           </Callout>
         }
       >
@@ -404,8 +403,7 @@ function NasAndWeb() {
         artifacts={['.spk']}
         setup={
           <Callout icon={IconInfoCircle} tag="C'est le serveur">
-            Sur un NAS, le <code className="font-mono">.spk</code> installe le serveur lui-même —
-            voir <span className="text-text">l'Étape 1</span>. Il sert ensuite l'app web à tous les
+            Sur un NAS, le <code className="font-mono">.spk</code> installe le serveur lui-même,             voir <span className="text-text">l'Étape 1</span>. Il sert ensuite l'app web à tous les
             appareils du foyer.
           </Callout>
         }
@@ -415,7 +413,7 @@ function NasAndWeb() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Closing — why the one-time setup exists, and where to go next.             */
+/*  Closing, why the one-time setup exists, and where to go next.             */
 /* -------------------------------------------------------------------------- */
 
 function Closing() {
@@ -428,10 +426,10 @@ function Closing() {
               Signé pour le développement, pas pour un store.
             </h2>
             <p className="mt-4 text-pretty leading-relaxed text-muted">
-              Les builds sont signés avec un certificat de développement — pas de certificat de
+              Les builds sont signés avec un certificat de développement, pas de certificat de
               store payant. C'est toute la raison du réglage unique par appareil (mode développeur,
               quarantaine, SmartScreen) : une fois fait, les mises à jour passent sans friction.
-              Tout reste auto-hébergé — votre médiathèque et votre activité ne quittent jamais votre
+              Tout reste auto-hébergé, votre médiathèque et votre activité ne quittent jamais votre
               réseau.
             </p>
             <p className="mt-4 text-sm leading-relaxed text-dim">

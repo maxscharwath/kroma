@@ -14,7 +14,7 @@ import { Section } from '#site/components/section';
 // share hairlines (a `gap-px` grid over a `bg-border` sheet) so the block reads
 // as one instrument panel; two cells span wider than the rest so the eye lands on
 // the acquisition brain and the VPN first. Every card carries a precise mono
-// footer — the real name of the thing — because that is what a developer trusts.
+// footer, the real name of the thing, because that is what a developer trusts.
 const FEATURES = [
   {
     Icon: IconTargetArrow,
@@ -26,7 +26,7 @@ const FEATURES = [
   {
     Icon: IconShieldHalf,
     title: 'VPN avec vrai kill-switch',
-    body: 'Collez une config WireGuard et tout le trafic torrent passe par un pont WireGuard→SOCKS5 managé. Un test de tunnel qui échoue met chaque téléchargement en pause à l’instant — pas de fuite, pas de sidecar.',
+    body: 'Collez une config WireGuard et tout le trafic torrent passe par un pont WireGuard→SOCKS5 managé. Un test de tunnel qui échoue met chaque téléchargement en pause à l’instant, pas de fuite, pas de sidecar.',
     tag: 'WireGuard → SOCKS5',
     span: 'lg:col-span-3 sm:col-span-2',
   },
@@ -80,7 +80,7 @@ export function FeatureGrid() {
       id="fonctionnalites"
       eyebrow="Tout est inclus"
       title="Toute la chaîne, dans un seul process"
-      intro="Trouvez, téléchargez, organisez, diffusez. Chaque maillon d’une médiathèque auto-hébergée, écrit une fois et partagé — sans rien à câbler entre eux."
+      intro="Trouvez, téléchargez, organisez, diffusez. Chaque maillon d’une médiathèque auto-hébergée, écrit une fois et partagé, sans rien à câbler entre eux."
     >
       <div className="overflow-hidden rounded-2xl border border-border">
         <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-6">

@@ -1,6 +1,6 @@
 import { WHEEL_COLORS } from '@kroma/ui/tokens';
 
-// The chromatic wheel — the "O" of the KROMA lockup, lifted from the official
+// The chromatic wheel, the "O" of the KROMA lockup, lifted from the official
 // mark (.github/assets/logo.svg) and recentred to a 100×100 box so it stands on
 // its own. Six donut segments, coloured from the WHEEL_COLORS token so the mark
 // can never drift from the app's. The paths are authored around centre (209,50);

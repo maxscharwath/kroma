@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Container } from '#site/components/container';
 
 export interface InstallStepProps {
-  /** Two-digit ordinal, e.g. "01" — set as the oversized display glyph. */
+  /** Two-digit ordinal, e.g. "01", set as the oversized display glyph. */
   step: string;
   title: ReactNode;
   /** One lead line under the title. */
@@ -14,8 +14,8 @@ export interface InstallStepProps {
 
 /**
  * One numbered chapter of the install flow. The header is left-aligned and
- * editorial — a big amber ordinal set against the display face, the title, one
- * lead line — the opposite of a centred, badge-stacked template intro. The route
+ * editorial, a big amber ordinal set against the display face, the title, one
+ * lead line, the opposite of a centred, badge-stacked template intro. The route
  * stacks two of these (server, then apps).
  */
 export function InstallStep({ step, title, intro, id, children }: InstallStepProps) {

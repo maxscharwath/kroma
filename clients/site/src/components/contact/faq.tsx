@@ -8,8 +8,8 @@ export interface FaqEntry {
 }
 
 /** A short FAQ built on native <details>/<summary>. No client JS: the disclosure
- *  works from the prerendered HTML, before (and without) hydration — the same
- *  JS-free pattern the header's mobile menu uses — which keeps a static page
+ *  works from the prerendered HTML, before (and without) hydration, the same
+ *  JS-free pattern the header's mobile menu uses, which keeps a static page
  *  genuinely static and SSR-safe. */
 export function Faq({ items }: { items: readonly FaqEntry[] }) {
   return (

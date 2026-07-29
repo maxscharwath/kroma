@@ -2,7 +2,7 @@ import { useRouterState } from '@tanstack/react-router';
 
 // The site ships in two languages. French is the default and lives at the clean
 // root (`/`, `/download`); English is prefixed (`/en`, `/en/download`). The locale
-// is therefore a pure function of the pathname — no cookie, no state — which is
+// is therefore a pure function of the pathname, no cookie, no state, which is
 // exactly what a prerendered static site needs: the language is known at build
 // time from the URL alone, so each locale gets its own HTML file.
 
@@ -39,7 +39,7 @@ export function useLang(): Lang {
   return useRouterState({ select: (s) => langFromPath(s.location.pathname) });
 }
 
-/** The current pathname, canonicalised (no locale prefix) — for the language
+/** The current pathname, canonicalised (no locale prefix), for the language
  *  switcher, which must swap the prefix while keeping the reader on the same page. */
 export function useCanonicalPath(): string {
   return useRouterState({ select: (s) => canonicalPath(s.location.pathname) });

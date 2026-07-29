@@ -16,8 +16,8 @@ export interface SectionProps {
 }
 
 /** A vertical band with the site's rhythm and an optional titled header. The
- *  header block is deliberately typographic — an eyebrow, a tight display
- *  heading, one lead line — rather than the stacked-badge intro a template
+ *  header block is deliberately typographic, an eyebrow, a tight display
+ *  heading, one lead line, rather than the stacked-badge intro a template
  *  reaches for. */
 export function Section({
   children,

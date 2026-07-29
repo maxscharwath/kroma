@@ -18,7 +18,7 @@ export interface SeoInput {
  * social preview without repeating the boilerplate.
  */
 export function seo({ title, description, path, image, type = 'website' }: SeoInput = {}) {
-  const fullTitle = title ? `${title} · ${site.name}` : `${site.name} — ${site.tagline}`;
+  const fullTitle = title ? `${title} · ${site.name}` : `${site.name}, ${site.tagline}`;
   const desc = description ?? site.description;
   const url = path ? `${site.url}${path}` : site.url;
   const card = image ?? '/og.png';

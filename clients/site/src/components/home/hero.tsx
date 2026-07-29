@@ -1,31 +1,42 @@
+import { useRef } from 'react';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
+import { HeroBeams } from '#site/components/home/hero-beams';
 import { WheelMark } from '#site/components/wheel-mark';
 import { site } from '#site/lib/site';
 
-// Above the fold: the chromatic mark, the promise, two actions, and three
-// specifics that keep the "one binary" claim from being a slogan. The entrance is
-// a pure-CSS staggered rise — it needs no JS and no scroll observer, so it plays
-// on the prerendered HTML too, and `motion-safe:` drops it entirely for readers
-// who ask for stillness.
+// Above the fold: the chromatic mark over the intro film's neon burst, the
+// promise, two actions, and three specifics that keep the "one binary" claim
+// from being a slogan. The entrance is a pure-CSS staggered rise: it needs no JS
+// and no scroll observer, so it plays on the prerendered HTML too, and
+// `motion-safe:` drops it entirely for readers who ask for stillness.
 export function Hero() {
+  // The burst locks its origin onto the wheel; the ref hands the canvas that node.
+  const wheelRef = useRef<HTMLSpanElement>(null);
+
   return (
     <section className="relative overflow-hidden">
-      {/* A single warm source behind the mark — not the rainbow wash a generated
-          hero reaches for. */}
+      {/* A faint amber source, painted behind the canvas so a browser without
+          WebGL still gets warmth rather than flat charcoal. */}
       <div className="glow-amber pointer-events-none absolute inset-x-0 -top-24 h-[620px]" />
+      <HeroBeams anchorRef={wheelRef} />
+      {/* Fade the opaque burst into the page and keep the lower copy readable. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
+
       <Container>
-        <div className="relative flex flex-col items-center py-24 text-center sm:py-32">
-          {/* The rise lives on the wrapper, not the mark itself — the mark already
+        <div className="relative z-10 flex flex-col items-center py-24 text-center sm:py-32">
+          {/* The rise lives on the wrapper, not the mark itself: the mark already
               owns an `animation` (its slow spin), and two on one element collide. */}
           <div className="mb-8 motion-safe:animate-rise">
-            <WheelMark size={76} spin />
+            <span ref={wheelRef} className="inline-block">
+              <WheelMark size={76} spin />
+            </span>
           </div>
 
-          {/* The factual, technical voice — set in mono, the way the app labels a
+          {/* The factual, technical voice, set in mono the way the app labels a
               codec or a build. */}
           <p
-            className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-border bg-surface-1/40 px-3.5 py-1.5 font-mono text-xs tracking-tight text-muted motion-safe:animate-rise"
+            className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-border bg-surface-1/60 px-3.5 py-1.5 font-mono text-xs tracking-tight text-muted backdrop-blur-sm motion-safe:animate-rise"
             style={{ animationDelay: '60ms' }}
           >
             <span className="inline-block size-1.5 rounded-full bg-accent" aria-hidden />

@@ -16,6 +16,8 @@ const columns: Col[] = [
       { label: 'Plateformes', href: '/#plateformes' },
       { label: 'Installer', to: '/download' },
       { label: 'Démo TV', href: site.tvUrl },
+      { label: 'UI Kit', href: site.uiUrl },
+      { label: 'Modules', href: site.modulesUrl },
     ],
   },
   {
@@ -76,7 +78,7 @@ export function SiteFooter() {
               <span className="font-display text-lg font-extrabold tracking-tight">KROMA</span>
             </div>
             <p className="mt-4 text-sm leading-relaxed text-muted">
-              Votre médiathèque, chez vous. Auto-hébergée, privée, sans abonnement — un seul binaire
+              Votre médiathèque, chez vous. Auto-hébergée, privée, sans abonnement, un seul binaire
               Rust, sur tous vos écrans.
             </p>
             <a
@@ -107,7 +109,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-8 text-sm text-dim sm:flex-row">
-          <p>© {2026} KROMA — Logiciel libre sous licence MIT.</p>
+          <p>© {2026} KROMA, Logiciel libre sous licence MIT.</p>
           <p>Conçu pour être possédé, pas loué.</p>
         </div>
       </div>

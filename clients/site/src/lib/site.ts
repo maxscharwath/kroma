@@ -9,10 +9,14 @@ export const site = {
   /** The app's own tagline, kept in step with the README. */
   tagline: 'Votre propre Netflix, sur du matériel que vous possédez.',
   description:
-    "KROMA réunit l'indexeur, le moteur de téléchargement, le VPN, le serveur et le lecteur en un seul binaire Rust. Auto-hébergé, direct-play, HEVC natif — sur le web, le mobile et toutes les télévisions.",
+    "KROMA réunit l'indexeur, le moteur de téléchargement, le VPN, le serveur et le lecteur en un seul binaire Rust. Auto-hébergé, direct-play, HEVC natif, sur le web, le mobile et toutes les télévisions.",
   repo: 'https://github.com/maxscharwath/kroma',
   /** The 10-foot experience, served on its own subdomain (clients/tv-web). */
   tvUrl: 'https://tv.kroma.tv',
+  /** The design system / component kit, on its own subdomain. */
+  uiUrl: 'https://ui.kroma.tv',
+  /** The backend module registry / catalogue. */
+  modulesUrl: 'https://modules.kroma.tv',
   email: {
     support: 'support@kroma.tv',
     privacy: 'privacy@kroma.tv',

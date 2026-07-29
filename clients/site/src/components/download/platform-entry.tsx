@@ -10,9 +10,9 @@ export interface PlatformEntryProps {
   artifacts?: string[];
   /** Flag store/beta channels (TestFlight, Firebase) so expectations are set. */
   beta?: boolean;
-  /** The one-time-setup / heads-up note — typically a <Callout>. */
+  /** The one-time-setup / heads-up note, typically a <Callout>. */
   setup?: ReactNode;
-  /** Representative command(s) — typically a <CodeBlock>. Optional (Web needs none). */
+  /** Representative command(s), typically a <CodeBlock>. Optional (Web needs none). */
   children?: ReactNode;
 }
 

@@ -15,7 +15,7 @@ import { Section } from '#site/components/section';
 import { site } from '#site/lib/site';
 
 // Platforms grouped by where they live rather than dropped into one flat grid of
-// identical tiles — the grouping is the editorial choice. Each tile names the
+// identical tiles, the grouping is the editorial choice. Each tile names the
 // underlying runtime in mono (Tizen, webOS, .spk…) so the list reads as fact, not
 // a logo wall. One codebase, one design language, every screen.
 const GROUPS = [
@@ -53,7 +53,7 @@ export function Platforms() {
       id="plateformes"
       eyebrow="Plateformes"
       title="Le même KROMA, sur chaque écran"
-      intro="Les composants et les jetons de design existent une seule fois, dans un kit partagé, et se rendent nativement — du navigateur au salon piloté à la télécommande."
+      intro="Les composants et les jetons de design existent une seule fois, dans un kit partagé, et se rendent nativement, du navigateur au salon piloté à la télécommande."
     >
       <div className="flex flex-col gap-10">
         {GROUPS.map((group) => (

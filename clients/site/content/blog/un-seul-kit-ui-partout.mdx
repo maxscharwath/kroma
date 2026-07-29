@@ -1,7 +1,7 @@
 ---
 title: "Un seul kit d'interface, six plateformes"
 date: "2026-02-03"
-excerpt: "Comment le même composant se rend sur un Apple TV, un panneau Samsung et dans un navigateur — sans jamais être réécrit."
+excerpt: "Comment le même composant se rend sur un Apple TV, un panneau Samsung et dans un navigateur, sans jamais être réécrit."
 author: "Maxime Scharwath"
 tags: ["Design système", "Technique"]
 ---
@@ -17,15 +17,15 @@ Le kit `@kroma/ui` est écrit contre **React Native**. Sur les cibles natives
 téléviseurs Tizen et webOS, l'app desktop Tauri et le client web, il passe par
 **react-native-web**. Le même fichier, deux moteurs de rendu.
 
-Les jetons de design — couleurs, typographie, élévations, focus — vivent aussi
+Les jetons de design, couleurs, typographie, élévations, focus, vivent aussi
 une seule fois, en TypeScript, et génèrent les variables CSS que consomment les
 cibles web :
 
 ```ts
 import { colors, type } from '@kroma/ui/tokens';
 
-colors.accent; // #F4B642 — l'unique ambre chaud
-colors.bg;     // #0A0A0C — le charbon profond
+colors.accent; // #F4B642, l'unique ambre chaud
+colors.bg;     // #0A0A0C, le charbon profond
 type.hero;     // 66px / 700, Bricolage Grotesque
 ```
 
@@ -36,12 +36,12 @@ et le même ambre que l'application.
 ## Le focus, la seule vraie fracture
 
 Ce qui diffère réellement entre un téléviseur et un navigateur, ce n'est pas
-l'apparence — c'est la **navigation**. Une télécommande n'a pas de curseur.
+l'apparence, c'est la **navigation**. Une télécommande n'a pas de curseur.
 
 - **En natif**, le moteur de focus de l'OS gère les déplacements directionnels
   (UIFocusEngine sur tvOS, résolution `nextFocus` sur Android TV).
 - **Sur le web**, il n'y a pas de moteur de focus : le déplacement est
-  géométrique — le prochain focusable dans la direction pressée, avec la dérive
+  géométrique, le prochain focusable dans la direction pressée, avec la dérive
   latérale pénalisée pour que les voisins en ligne droite gagnent.
 
 Cette fracture est isolée dans quelques fichiers `.web.ts`, et rien d'autre dans
@@ -51,7 +51,7 @@ le kit n'a à en connaître l'existence.
 
 Parce que « multi-plateforme » ne veut pas dire « réécrit N fois ». Chaque écran
 que KROMA touche parle le même langage visuel parce qu'il partage littéralement le
-même code — et une amélioration de design profite à toutes les plateformes d'un
+même code, et une amélioration de design profite à toutes les plateformes d'un
 coup, le jour même.
 
 > Les composants et les jetons existent une seule fois. Le reste n'est qu'une

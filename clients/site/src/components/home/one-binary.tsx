@@ -39,14 +39,14 @@ export function OneBinary() {
             Six conteneurs. <span className="text-gradient-amber">Un seul processus.</span>
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted">
-            Une installation classique boulonne ensemble une demi-douzaine de services — six
+            Une installation classique boulonne ensemble une demi-douzaine de services, six
             configs, six choses qui cassent, jamais au même moment. KROMA les réunit dans un binaire
             Rust qui démarre en millisecondes et ne garde aucune ferme de transcodage au chaud.
           </p>
         </div>
 
         <div className="mt-14 grid items-center gap-6 lg:grid-cols-[1fr_auto_1fr] lg:gap-8">
-          {/* AVANT — the pile of parts you no longer run. Dimmed and struck to
+          {/* AVANT, the pile of parts you no longer run. Dimmed and struck to
               read as "gone", not as a competing feature list. */}
           <div className="opacity-80">
             <p className="mb-3 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-dim">
@@ -70,7 +70,7 @@ export function OneBinary() {
             <IconArrowNarrowRight size={44} stroke={1.5} className="hidden lg:block" />
           </div>
 
-          {/* APRÈS — one panel, lit from the top like the app's raised cards. */}
+          {/* APRÈS, one panel, lit from the top like the app's raised cards. */}
           <div className="surface-hairline relative overflow-hidden rounded-2xl border border-accent/30 bg-surface-1 p-6 shadow-card">
             <div className="glow-amber pointer-events-none absolute inset-x-0 -top-20 h-44" />
             <div className="relative flex items-center gap-3">

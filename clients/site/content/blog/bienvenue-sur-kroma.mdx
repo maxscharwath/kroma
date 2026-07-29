@@ -1,7 +1,7 @@
 ---
 title: "Bienvenue sur KROMA"
 date: "2026-01-14"
-excerpt: "Pourquoi nous avons collapsé six conteneurs en un seul binaire Rust — et ce que ça change pour votre médiathèque."
+excerpt: "Pourquoi nous avons collapsé six conteneurs en un seul binaire Rust, et ce que ça change pour votre médiathèque."
 author: "Maxime Scharwath"
 tags: ["Annonce", "Coulisses"]
 ---
@@ -9,7 +9,7 @@ tags: ["Annonce", "Coulisses"]
 Monter une médiathèque auto-hébergée aujourd'hui, c'est assembler une demi-douzaine
 de services : un indexeur, un agrégateur de trackers, un client BitTorrent, un
 wrapper VPN, un serveur média, une interface de requêtes. Six conteneurs, six
-fichiers de configuration, six choses qui cassent — chacune à sa manière, et
+fichiers de configuration, six choses qui cassent, chacune à sa manière, et
 jamais au même moment.
 
 KROMA part d'un refus simple : **rien de tout ça ne devrait être votre problème.**
@@ -24,13 +24,13 @@ vivent dans le même processus et partagent le même état.
 
 Pas de ferme de transcodage à garder au chaud non plus : la vidéo n'est jamais
 ré-encodée. Le serveur **diffuse les fichiers originaux** par plages d'octets, et
-chaque client décode le HEVC/H.265 nativement — en matériel sur les téléviseurs
+chaque client décode le HEVC/H.265 nativement, en matériel sur les téléviseurs
 Samsung et LG. Votre NAS reste au repos.
 
 ## Le même design, partout
 
-L'autre parti-pris est visuel. KROMA parle un seul langage de design — charbon
-profond et ambre chaud, deux familles typographiques, aucun emoji — et le tient
+L'autre parti-pris est visuel. KROMA parle un seul langage de design, charbon
+profond et ambre chaud, deux familles typographiques, aucun emoji, et le tient
 sur chaque écran : le web, le mobile, et l'expérience « 10 pieds » pilotée à la
 télécommande sur le téléviseur du salon.
 

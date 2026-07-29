@@ -1,6 +1,6 @@
-import type { AudioTrack, ReportCategory } from '@kroma/core';
+import type { AudioTrack, MessageKey, ReportCategory } from '@kroma/core';
 import { langName } from '@kroma/core';
-import { forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
+import { Fragment, forwardRef, type ReactNode, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, ScrollView } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { IconButton } from '#ui/components/atoms/icon-button';
@@ -10,8 +10,8 @@ import { useT } from '#ui/services/i18n';
 import { useListFocus } from '../hooks/useListFocus';
 import { audioFilterLabels } from '../lib/audio-filter';
 import { PANEL_MAX, scaler } from '../lib/metrics';
-import type { PanelHandle } from '../lib/nav';
-import { PANEL } from '../lib/style';
+import type { ControlId, PanelHandle } from '../lib/nav';
+import { EYEBROW, PANEL } from '../lib/style';
 import type { SubtitleAppearance } from '../lib/subtitle-appearance';
 import { VIRTUAL_FOCUS } from '../lib/virtual-focus';
 import type { AudioFilterMode, PlayerController, PlayerQuality, PlayerSub } from '../types';
@@ -19,7 +19,13 @@ import {
   IconAppearance,
   IconAudioFilter,
   IconAudioTrack,
+  IconBack10,
+  IconCast,
+  IconFwd10,
   IconGear,
+  IconMute,
+  IconNext,
+  IconPip,
   IconQuality,
   IconReport,
   IconSpeed,
@@ -50,6 +56,14 @@ type View =
 
 interface SettingsPanelProps {
   controller: PlayerController;
+  /** Controls the transport row had no room for (see ../lib/metrics). The panel
+   *  grows a row for each, so a narrow window moves them here instead of losing
+   *  them; `audio` and `subtitles` are ignored because the menu already lists
+   *  them. Empty on any stage wide enough for the whole row. */
+  overflow?: readonly ControlId[];
+  /** Run one of those controls. The player closes the panel first: pip, cast
+   *  and the next episode all change what is on screen behind it. */
+  onControl?: (id: ControlId) => void;
   appearance: SubtitleAppearance;
   onAppearance: (p: Partial<SubtitleAppearance>) => void;
   statsOn: boolean;
@@ -72,15 +86,59 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-/** One main-menu entry: a navigable sub-panel or an in-place toggle. */
+/** One main-menu entry: a navigable sub-panel, an in-place toggle, or a control
+ * the transport row could not fit (see `OVERFLOW`). */
 interface Entry {
-  id: View | 'stats';
+  id: View | 'stats' | ControlId;
   icon: ReactNode;
   label: string;
   value?: ReactNode;
   toggle?: boolean;
   on?: boolean;
   activate: () => void;
+}
+
+/**
+ * The controls a narrow row hands to this panel, as menu rows.
+ *
+ * `audio` and `subtitles` are deliberately absent: the menu below already lists
+ * both, and a second row for the same thing would be the panel disagreeing with
+ * itself. Everything else the row can shed is here, which is what makes shedding
+ * safe - `chromeMetrics` may drop a button from the transport precisely because
+ * this exists.
+ */
+const OVERFLOW: Partial<Record<ControlId, { icon: ReactNode; label: MessageKey }>> = {
+  next: { icon: <IconNext />, label: 'player.nextEpisode' },
+  cast: { icon: <IconCast />, label: 'cast.moveToTv' },
+  pip: { icon: <IconPip />, label: 'player.pip' },
+  volume: { icon: <IconMute />, label: 'player.mute' },
+  rewind: { icon: <IconBack10 />, label: 'player.back10' },
+  forward: { icon: <IconFwd10 />, label: 'player.fwd10' },
+};
+
+/** The overflow section, in the row's own order. Volume is a toggle because
+ * that is what activating it does (mute), not a sub-view. */
+function overflowEntries(at: {
+  t: ReturnType<typeof useT>;
+  muted: boolean;
+  overflow: readonly ControlId[];
+  onControl: ((id: ControlId) => void) | undefined;
+}): Entry[] {
+  if (!at.onControl) return [];
+  return at.overflow.flatMap((id) => {
+    const row = OVERFLOW[id];
+    if (!row) return [];
+    return [
+      {
+        id,
+        icon: row.icon,
+        label: at.t(row.label),
+        toggle: id === 'volume',
+        on: id === 'volume' ? at.muted : undefined,
+        activate: () => at.onControl?.(id),
+      },
+    ];
+  });
 }
 
 /** The subtitles menu-row value: Off, an AI track's own label, else the language. */
@@ -210,6 +268,8 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
     onToggleStats,
     subtitleGen,
     onReport,
+    overflow,
+    onControl,
     width,
     covers,
     scale = 1,
@@ -232,18 +292,30 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
 
   const subValue = subtitleValue(t, curSub);
 
-  const entries = menuEntries({
+  // The controls this stage could not fit come FIRST: they are the reason the
+  // panel was opened on a narrow window, and burying them under the quality
+  // picker would make "the cast button disappeared" true in practice.
+  const moved = overflowEntries({
     t,
-    c,
-    quality: curQuality,
-    audio: curAudio,
-    subtitles: subValue,
-    filterLabels,
-    statsOn,
-    onToggleStats,
-    onReport: Boolean(onReport),
-    go: setView,
+    muted: Boolean(c.muted),
+    overflow: overflow ?? [],
+    onControl,
   });
+  const entries = [
+    ...moved,
+    ...menuEntries({
+      t,
+      c,
+      quality: curQuality,
+      audio: curAudio,
+      subtitles: subValue,
+      filterLabels,
+      statsOn,
+      onToggleStats,
+      onReport: Boolean(onReport),
+      go: setView,
+    }),
+  ];
 
   const menuFocus = useListFocus({
     count: entries.length,
@@ -327,17 +399,26 @@ export const SettingsPanel = forwardRef<PanelHandle, SettingsPanelProps>(functio
         {view === 'menu' ? (
           <Box gap={px(12)}>
             {entries.map((e, i) => (
-              <MenuRow
-                key={e.id}
-                icon={e.icon}
-                label={e.label}
-                value={e.value}
-                toggle={e.toggle}
-                on={e.on}
-                focused={menuFocus.index === i}
-                onActivate={e.activate}
-                onFocus={menuFocus.hover(i)}
-              />
+              <Fragment key={e.id}>
+                {/* The moved controls are their own group: an eyebrow over them
+                    and a gap under, so an action and a setting never read as one
+                    undifferentiated list. Both only exist when the transport row
+                    actually handed something over. */}
+                {moved.length > 0 && i === 0 ? (
+                  <Txt style={[EYEBROW, { fontSize: px(12) }]}>{t('player.movedControls')}</Txt>
+                ) : null}
+                <MenuRow
+                  icon={e.icon}
+                  label={e.label}
+                  value={e.value}
+                  toggle={e.toggle}
+                  on={e.on}
+                  focused={menuFocus.index === i}
+                  onActivate={e.activate}
+                  onFocus={menuFocus.hover(i)}
+                  style={i === moved.length && moved.length > 0 ? { marginTop: px(20) } : undefined}
+                />
+              </Fragment>
             ))}
           </Box>
         ) : null}

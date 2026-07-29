@@ -83,10 +83,21 @@ pub enum PushTransport {
     /// Browser / installed PWA, RFC 8291. Fully self-hosted: the server signs
     /// with its own VAPID key and posts straight to the browser's push endpoint.
     WebPush,
-    /// Raw APNs device token (iOS).
+    /// Raw APNs device token (iOS). Only usable by a server that holds the
+    /// published app's Apple credentials — which a self-hosted one cannot.
     Apns,
-    /// Raw FCM registration token (Android).
+    /// Raw FCM registration token (Android). Same restriction as [`Self::Apns`].
     Fcm,
+    /// A grant from the KROMA push relay, for iOS and Android alike.
+    ///
+    /// The normal case for a self-hosted server, and the reason it can notify a
+    /// phone at all. Apple and Google only accept credentials issued to the
+    /// account that publishes the app, so a server that is not that publisher
+    /// has nothing they will take. Instead the app trades its device token with
+    /// the relay for a sealed grant and registers THAT here — the endpoint is a
+    /// capability to notify one device, not a token, and the server never learns
+    /// which device it is.
+    Relay,
 }
 
 impl PushTransport {
@@ -95,6 +106,7 @@ impl PushTransport {
             PushTransport::WebPush => "webpush",
             PushTransport::Apns => "apns",
             PushTransport::Fcm => "fcm",
+            PushTransport::Relay => "relay",
         }
     }
 
@@ -103,6 +115,7 @@ impl PushTransport {
             "webpush" => Some(PushTransport::WebPush),
             "apns" => Some(PushTransport::Apns),
             "fcm" => Some(PushTransport::Fcm),
+            "relay" => Some(PushTransport::Relay),
             _ => None,
         }
     }

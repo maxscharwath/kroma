@@ -1,21 +1,33 @@
 // The notification centre on the phone: what happened while you were away.
 //
-// A row IS the action - tapping it marks it read and follows its link - with the
-// notification's own buttons underneath, so a moderator can approve a request
-// from the row instead of opening a console the phone does not have. The list is
-// live: the server pushes each arrival down the socket the app already holds
-// (see lib/notifications), so a notice raised while this screen is open slides
-// in without a pull.
+// The same list the browser draws, in the phone's own type and spacing ramp:
+//   * one 48pt tile leads every row, so titles, bodies and times line up down a
+//     single column whether or not a row carries artwork;
+//   * the `event` tints the glyph and nothing else — colour where the eye sorts,
+//     no tinted plates or coloured rows competing with it;
+//   * unread is one amber dot in a gutter that is always reserved, never an
+//     inline dot, which shifts every title it precedes;
+//   * the time sits at the end of the title line, not under the body;
+//   * rows are grouped by day, with the day label pinned while its run scrolls.
+//
+// The list is live: the server pushes each arrival down the socket the app
+// already holds (see lib/notifications), so a notice raised while this screen is
+// open slides in without a pull.
 //
 // Deliberately swipe-to-delete, matching Downloads: a phone list's destructive
 // action belongs under the thumb, not behind a trailing "x" that steals a tap
 // target from the row itself.
+//
+// Like the browser, the row draws no buttons: the whole card is the only
+// control. Approve / Deny live on the push notification itself, where the
+// system draws them (see lib/notifications/push) — this list stays a record of
+// what happened rather than a console.
 
-import type { Notification } from '@kroma/core';
-import { Icon, IconButton } from '@kroma/ui/kit';
+import type { MessageKey, Notification, NotificationEvent } from '@kroma/core';
+import { Icon, IconButton, type IconName } from '@kroma/ui/kit';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Pressable, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -23,7 +35,7 @@ import { FadeImage } from '#mobile/components/FadeImage';
 import { PageHeader } from '#mobile/components/PageHeader';
 import { EmptyState, Screen } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
-import { boxed } from '#mobile/lib/layout';
+import { boxed, contentWidth } from '#mobile/lib/layout';
 import { mobileRoute, useNotifications, useRefreshNotifications } from '#mobile/lib/notifications';
 import { useClient } from '#mobile/lib/session';
 import { colors, radius, spacing, type } from '#mobile/lib/theme';
@@ -37,6 +49,10 @@ export default function NotificationsScreen() {
 
   const unread = data?.unread ?? 0;
   const rows = data?.notifications ?? [];
+  const sections = useMemo(
+    () => groupByDay(rows).map((g) => ({ title: t(DAY_LABEL[g.day]), data: g.items })),
+    [rows, t],
+  );
 
   async function markAll() {
     setBusy(true);
@@ -79,10 +95,11 @@ export default function NotificationsScreen() {
           hint={t('notifications.emptyHint')}
         />
       ) : (
-        <FlatList
-          data={rows}
+        <SectionList
+          sections={sections}
           keyExtractor={(n) => n.id}
-          contentContainerStyle={[styles.list, boxed.style]}
+          contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -90,6 +107,9 @@ export default function NotificationsScreen() {
               tintColor={colors.textDim}
             />
           }
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.dayLabel}>{section.title}</Text>
+          )}
           renderItem={({ item }) => <NotificationRow row={item} />}
         />
       )}
@@ -103,17 +123,13 @@ function NotificationRow({ row }: Readonly<{ row: Notification }>) {
   const router = useRouter();
   const refresh = useRefreshNotifications();
   const swipe = useRef<SwipeableMethods>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
 
   // Through the client, not raw: art arrives as a server-relative path
   // (`/api/images/…`), which a phone cannot fetch without the server's origin.
   const poster = client.resolveArt(row.imageUrl, 96);
-  const route = mobileRoute(row.link);
-  // A button that goes nowhere is worse than no button: several notifications
-  // link into the admin console, which this app does not have, so those are
-  // dropped here rather than left to no-op under a thumb.
-  const actions = row.actions.filter((a) => a.kind !== 'link' || mobileRoute(a.href) !== null);
+  const route = destinationOf(row);
+  const glyph = eventGlyph(row.event);
+  const unread = !row.read;
 
   async function open() {
     if (!row.read) {
@@ -121,25 +137,6 @@ function NotificationRow({ row }: Readonly<{ row: Notification }>) {
       refresh();
     }
     if (route) router.push(route as never);
-  }
-
-  async function runAction(action: Notification['actions'][number]) {
-    if (action.kind === 'link') {
-      const target = mobileRoute(action.href);
-      if (target) router.push(target as never);
-      return;
-    }
-    setBusy(action.id);
-    try {
-      await client.runNotificationAction(action);
-      // Show the decision on the row rather than making someone hunt for
-      // whether it took.
-      setDone(true);
-      await client.markNotificationsRead([row.id]);
-      refresh();
-    } finally {
-      setBusy(null);
-    }
   }
 
   async function remove() {
@@ -168,63 +165,130 @@ function NotificationRow({ row }: Readonly<{ row: Notification }>) {
     >
       <Pressable
         onPress={() => void open()}
-        disabled={done}
-        style={({ pressed }) => [
-          styles.row,
-          !row.read && styles.rowUnread,
-          pressed && { opacity: 0.75 },
-        ]}
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       >
+        {/* The gutter is here on every row, empty or not, so nothing shifts. */}
+        <View style={styles.gutter}>{unread ? <View style={styles.dot} /> : null}</View>
+
         {poster ? (
-          <FadeImage uri={poster} seed={row.id} radius={radius.sm} style={styles.art} />
+          <FadeImage uri={poster} seed={row.id} radius={radius.md} style={styles.tile} />
         ) : (
-          <View style={[styles.art, styles.artGlyph]}>
-            <Icon name="bell" size={18} stroke={1.8} color={colors.textDim} />
+          <View style={[styles.tile, styles.tilePlate]}>
+            <Icon name={glyph.name} size={20} stroke={1.8} color={glyph.color} />
           </View>
         )}
 
         <View style={styles.body}>
           <View style={styles.titleRow}>
-            {!row.read ? <View style={styles.dot} /> : null}
-            <Text numberOfLines={1} style={styles.title}>
+            <Text numberOfLines={1} style={[styles.title, !unread && styles.titleRead]}>
               {row.title}
             </Text>
+            <Text style={styles.time}>{sinceLabel(t, row.createdAt)}</Text>
           </View>
           <Text numberOfLines={2} style={styles.text}>
             {row.body}
           </Text>
-          <Text style={styles.time}>{sinceLabel(t, row.createdAt)}</Text>
-
-          {actions.length > 0 && !done ? (
-            <View style={styles.actions}>
-              {actions.map((action) => (
-                <Pressable
-                  key={action.id}
-                  onPress={() => void runAction(action)}
-                  disabled={busy !== null}
-                  style={({ pressed }) => [
-                    styles.action,
-                    action.style === 'primary' && styles.actionPrimary,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.actionLabel,
-                      action.style === 'primary' && styles.actionLabelPrimary,
-                    ]}
-                  >
-                    {action.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          {done ? <Text style={styles.done}>{t('common.done')}</Text> : null}
         </View>
       </Pressable>
     </ReanimatedSwipeable>
   );
+}
+
+/** Where a row goes when it is tapped.
+ *
+ * The list draws no buttons, so the notification's own `link` is the
+ * destination, and a producer that attached navigation only to an action still
+ * has somewhere to send you — its first `link` action stands in. Everything is
+ * put through `mobileRoute`, which returns null for the screens this app does
+ * not have; a row with no phone equivalent stays a message rather than a tap
+ * that lands on an error. `api` actions — Approve, Deny — are not a destination
+ * and are not offered here at all. */
+function destinationOf(row: Notification): string | null {
+  const own = mobileRoute(row.link);
+  if (own) return own;
+  for (const action of row.actions) {
+    if (action.kind !== 'link') continue;
+    const target = mobileRoute(action.href);
+    if (target) return target;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Event vocabulary — the browser's, name for name (see features/notifications)
+// ---------------------------------------------------------------------------
+
+/** The palette's `danger` is a signal red meant for fills; as a 20pt outline on
+ * a near-black screen it goes muddy. The web panel lightens it the same way. */
+const DANGER_INK = '#F87171';
+
+/** The kit resolves any Tabler name, so these are the same glyphs the web panel
+ * imports as components, spelled as slugs. */
+const EVENT_GLYPH: Record<string, { name: IconName; color: string }> = {
+  'request.submitted': { name: 'inbox', color: colors.accent },
+  'request.approved': { name: 'circle-check', color: colors.success },
+  'request.denied': { name: 'circle-x', color: DANGER_INK },
+  'request.available': { name: 'sparkles', color: colors.accent },
+  'media.added': { name: 'player-play-filled', color: colors.info },
+  'media.episode': { name: 'device-tv', color: colors.info },
+  'report.submitted': { name: 'flag-3', color: colors.hdr },
+  'report.resolved': { name: 'circle-check', color: colors.success },
+  'report.dismissed': { name: 'circle-minus', color: colors.textDim },
+  'download.imported': { name: 'download', color: colors.h265 },
+  'download.failed': { name: 'alert-triangle', color: DANGER_INK },
+  'system.job.failed': { name: 'server-bolt', color: DANGER_INK },
+  'system.vpn.down': { name: 'plug-connected-x', color: DANGER_INK },
+  'system.disk.low': { name: 'database', color: colors.accent },
+  'system.test': { name: 'bell-ringing', color: colors.accent },
+  custom: { name: 'sparkles', color: colors.textDim },
+};
+
+/** `event` is an open union — a newer server may send one this build has never
+ * heard of, and it still has a title and a body worth reading. */
+function eventGlyph(event: NotificationEvent): { name: IconName; color: string } {
+  return EVENT_GLYPH[event] ?? { name: 'bell', color: colors.textDim };
+}
+
+// ---------------------------------------------------------------------------
+// Day grouping + time
+// ---------------------------------------------------------------------------
+
+type Day = 'today' | 'yesterday' | 'earlier';
+
+const DAY_LABEL: Record<Day, MessageKey> = {
+  today: 'notifications.groupToday',
+  yesterday: 'notifications.groupYesterday',
+  earlier: 'notifications.groupEarlier',
+};
+
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** Calendar days, not elapsed hours — "yesterday" has to mean yesterday at
+ * 23:50 too. Stepping back a day through `startOfDay` keeps it right across a
+ * DST boundary, where "now minus 24h" is off by an hour. */
+function dayOf(at: number, now: number): Day {
+  const day = startOfDay(at);
+  if (day >= startOfDay(now)) return 'today';
+  if (day >= startOfDay(now - 86_400_000)) return 'yesterday';
+  return 'earlier';
+}
+
+/** Runs of consecutive same-day rows, in the order the server sent them: the
+ * list stays newest-first and is never re-sorted underneath the reader. */
+function groupByDay(items: Notification[]): { day: Day; items: Notification[] }[] {
+  const now = Date.now();
+  const groups: { day: Day; items: Notification[] }[] = [];
+  for (const item of items) {
+    const day = dayOf(item.createdAt, now);
+    const last = groups.at(-1);
+    if (last?.day === day) last.items.push(item);
+    else groups.push({ day, items: [item] });
+  }
+  return groups;
 }
 
 /** Coarse relative time - a notification list wants "5 min ago", never seconds.
@@ -242,38 +306,46 @@ function sinceLabel(t: ReturnType<typeof useT>, createdAt: number): string {
 }
 
 const styles = StyleSheet.create({
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.xs },
+  list: {
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.xl,
+    ...boxed(contentWidth.reading),
+  },
+  dayLabel: {
+    ...type.small,
+    color: colors.textFaint,
+    fontWeight: '600',
+    // Opaque: it is pinned while its own run scrolls underneath it.
+    backgroundColor: colors.bg,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: 6,
+  },
   row: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.sm,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+    paddingRight: spacing.sm,
+    paddingLeft: 6,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
   },
-  rowUnread: { backgroundColor: colors.surfaceRaised },
-  art: { width: 44, height: 62, borderRadius: radius.sm },
-  artGlyph: {
+  // No unread wash: the dot carries it, and a tinted row under every unread
+  // notification turns a backlog into one solid block.
+  rowPressed: { backgroundColor: colors.surface },
+  gutter: { width: 6, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
+  tile: { width: 48, height: 48, borderRadius: radius.md, marginRight: 12 },
+  tilePlate: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  body: { flex: 1, minWidth: 0, gap: 2 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
-  title: { ...type.body, color: colors.text, fontWeight: '700', flexShrink: 1 },
-  text: { ...type.caption, color: colors.textDim, lineHeight: 18 },
-  time: { ...type.small, color: colors.textFaint, marginTop: 2 },
-  actions: { flexDirection: 'row', gap: 8, marginTop: spacing.xs },
-  action: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceHigh,
-  },
-  actionPrimary: { backgroundColor: colors.accent },
-  actionLabel: { ...type.small, color: colors.text, fontWeight: '700' },
-  actionLabelPrimary: { color: colors.accentInk },
-  done: { ...type.small, color: colors.success, fontWeight: '700', marginTop: spacing.xs },
+  body: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  title: { ...type.body, color: colors.text, fontWeight: '700', flex: 1, minWidth: 0 },
+  titleRead: { color: colors.textDim },
+  time: { ...type.small, color: colors.textFaint, fontWeight: '500', paddingTop: 2 },
+  text: { ...type.caption, color: colors.textDim, lineHeight: 18, marginTop: 1 },
   deleteAction: {
     width: 72,
     marginLeft: spacing.xs,

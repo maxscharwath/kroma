@@ -49,15 +49,16 @@ const circleFill = (focused: boolean) => ({
 const PLAY_BRIGHTEN = { backgroundColor: colors.accentHover };
 
 export interface ControlClusterProps {
-  controls: ControlId[];
   focused: ControlId | null;
   playing: boolean;
   muted: boolean;
   volume: number;
   pipActive: boolean;
   fullscreen: boolean;
-  /** How the row fits the stage it is drawn on (see ../lib/metrics): the scale
-   *  every size here is drawn at, and whether the cluster has to stack. */
+  /** How the row fits the stage it is drawn on (see ../lib/metrics): WHICH
+   *  controls there is room for, the scale they are drawn at, and whether the
+   *  volume rail survived. The list is not a separate prop because the row and
+   *  the nav machine must agree on it exactly - they read the same one. */
   metrics: ChromeMetrics;
   /** Run a control (mouse click shares this with D-pad OK). */
   onActivate: (id: ControlId) => void;
@@ -110,6 +111,15 @@ interface GlyphState {
   fullscreen: boolean;
 }
 
+/** The speaker glyph for a level, shared by the volume pill and the bare mute
+ * key a narrow row collapses it to - so the two never disagree about what
+ * "muted" looks like. */
+function volumeGlyph(level: number, size: number): ReactNode {
+  if (level === 0) return <IconMute size={size} />;
+  if (level < 0.5) return <IconVolLow size={size} />;
+  return <IconVolHigh size={size} />;
+}
+
 /** Every control except play and volume is the SAME circular button, differing
  * only in accessible label and glyph, so they are a table rather than eight
  * near-identical JSX blocks. Their diameters live in ../lib/metrics, which is
@@ -143,30 +153,33 @@ const CIRCLES: Record<
 /**
  * The middle control row (§4): centered transport (rewind / play / forward) plus
  * the feature-flagged cluster on the right (next / volume / subtitles / audio /
- * settings / pip / fullscreen). The `controls` array is already filtered by the
- * feature flags, so this only renders what is present (no dead buttons). At full
- * size it is the 10-foot layout of the design (62 / 80 / 62 transport, 56
- * cluster circles).
+ * settings / cast / pip / fullscreen). `metrics.controls` has already been
+ * filtered by the feature flags AND by the width there is, so this only renders
+ * what is present (no dead buttons). At full size it is the 10-foot layout of
+ * the design (62 / 80 / 62 transport, 56 cluster circles).
  *
  * It is also the row that has to survive a browser window, and it does so in
- * three stages (`metrics`, from ../lib/metrics):
+ * one line, always (`metrics`, from ../lib/metrics):
  *
  *  1. Full size, transport centred: the spacer and the cluster share the free
  *     space equally, which is what puts play in the middle of the screen.
  *  2. Tight: the cluster claims `clusterWidth` as its MINIMUM, so flexbox takes
  *     the difference out of the spacer - the transport drifts left of centre
  *     instead of the cluster drawing over it - and every size shrinks together.
- *  3. Compact: below the point where a circle would stop being tappable, the
- *     cluster moves under the transport and wraps within itself. Nothing is
- *     dropped, so no control loses its D-pad stop (see ../lib/nav).
+ *  3. Narrow: at the point where a circle would stop being tappable the row
+ *     gives something up instead of wrapping - first the volume rail, then one
+ *     control at a time - and grows back to a comfortable size without it.
+ *     Shedding happens in the fitter, so the shed control loses its D-pad stop
+ *     with it (see ../lib/nav) rather than becoming an invisible focus trap -
+ *     and it is handed to the settings panel as `metrics.overflow`, which is
+ *     what keeps a narrow window from LOSING the control it could not draw.
  *
  * Memoized: every prop is stable between playback ticks (the nav machine's
- * callbacks and `controls` array are referentially stable, and `metrics` only
- * changes when the stage is resized), so the row skips the ~4 Hz timeupdate
- * re-renders the rest of the chrome makes.
+ * callbacks are referentially stable, and `metrics` only changes when the stage
+ * is resized), so the row skips the ~4 Hz timeupdate re-renders the rest of the
+ * chrome makes.
  */
 export const ControlCluster = memo(function ControlCluster({
-  controls,
   focused,
   playing,
   muted,
@@ -179,7 +192,7 @@ export const ControlCluster = memo(function ControlCluster({
   onVolume,
 }: Readonly<ControlClusterProps>) {
   const t = useT();
-  const { scale, compact, clusterWidth } = metrics;
+  const { scale, controls, rail, clusterWidth } = metrics;
   const px = scaler(scale);
   const transport = controls.filter(isTransport);
   const cluster = controls.filter((c) => !isTransport(c));
@@ -211,6 +224,24 @@ export const ControlCluster = memo(function ControlCluster({
       );
     }
     if (id === 'volume') {
+      // Too narrow for the rail: the pill collapses to the mute key it is built
+      // around. The level is still the keyboard's (and, on the only stages this
+      // happens on, the device's own volume keys).
+      if (!rail) {
+        return (
+          <Circle
+            key={id}
+            id={id}
+            size={px(CONTROL_SIZE.volume)}
+            focused={on}
+            label={t('player.mute')}
+            onActivate={onActivate}
+            onFocus={onFocus}
+          >
+            {volumeGlyph(muted ? 0 : volume, px(24))}
+          </Circle>
+        );
+      }
       return (
         <VolumeControl
           key={id}
@@ -241,23 +272,6 @@ export const ControlCluster = memo(function ControlCluster({
       </Circle>
     );
   };
-
-  // Compact: two centred rows. The cluster gets a definite width so it has
-  // something to wrap against, and wrapping is what guarantees that a phone-width
-  // browser still draws every control, side by side, none of them on top of
-  // another.
-  if (compact) {
-    return (
-      <Box align="center" gap={px(16)} pt={px(4)}>
-        <Box row align="center" gap={px(TRANSPORT_GAP)}>
-          {transport.map(render)}
-        </Box>
-        <Box row wrap w="100%" align="center" justify="center" gap={px(CLUSTER_GAP)}>
-          {cluster.map(render)}
-        </Box>
-      </Box>
-    );
-  }
 
   return (
     <Box row align="center" gap={px(ROW_GAP)} pt={px(4)}>
@@ -307,11 +321,7 @@ function VolumeControl({
   // amplitude, so the handle sits under the pointer while the audio follows the
   // loudness curve (a linear fader would look wrong against a tapered volume).
   const sliderPos = muted ? 0 : volumeToSlider(volume);
-  const glyph = px(24);
-  let volIcon: ReactNode;
-  if (level === 0) volIcon = <IconMute size={glyph} />;
-  else if (level < 0.5) volIcon = <IconVolLow size={glyph} />;
-  else volIcon = <IconVolHigh size={glyph} />;
+  const volIcon = volumeGlyph(level, px(24));
 
   const setAt = useCallback(
     (x: number) => {

@@ -47,12 +47,25 @@ const PRESSED: Record<'glass' | 'ghost' | 'primary' | 'scrim', ViewStyle> = {
   scrim: { backgroundColor: 'rgba(40, 40, 48, 0.65)' },
 };
 
+/** The fill under a POINTER, one step short of `PRESSED` so hover → press reads
+ * as a single escalation. The web's own answer, and on a page that mounts no
+ * focus scope the only one a cursor gets - see <Focusable>'s `hoveredStyle`. */
+const HOVERED: Record<'glass' | 'ghost' | 'primary' | 'scrim', ViewStyle> = {
+  glass: { backgroundColor: 'rgba(255, 255, 255, 0.18)' },
+  ghost: { backgroundColor: 'rgba(255, 255, 255, 0.06)' },
+  primary: { backgroundColor: colors.accentHover },
+  scrim: { backgroundColor: 'rgba(28, 28, 34, 0.6)' },
+};
+
 /** The pressed state of a toggle (a watched check, a workbench tool): the
  * accent's soft wash, same recipe as <Button variant="outline" active>. */
 const ACTIVE: ViewStyle = {
   backgroundColor: colors.accentSoft,
   borderColor: 'rgba(242, 180, 66, 0.45)',
 };
+
+/** ...and that toggle under the cursor: still amber, one step up. */
+const ACTIVE_HOVERED: ViewStyle = { backgroundColor: colors.accentSoftHover };
 
 /** `focusFill`: while focused the control fills solid accent and the glyph
  * flips to ink - the 10-foot treatment for a bare corner control (a back
@@ -120,6 +133,7 @@ function IconButton({
       {...focusProps}
       focusScale={focusScale}
       pressedStyle={PRESSED[variant]}
+      hoveredStyle={active ? ACTIVE_HOVERED : HOVERED[variant]}
       focusedStyle={[focusedStyle, focusFill ? FOCUS_FILL : null]}
       style={iconButtonVariants(
         { variant },

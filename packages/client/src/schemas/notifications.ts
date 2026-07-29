@@ -110,14 +110,24 @@ export const NotificationPrefs = z.object({
 });
 export type NotificationPrefs = z.infer<typeof NotificationPrefs>;
 
-/** How a push subscription reaches its device. `webpush` is the self-hosted
- * path (the server signs with its own VAPID key); `apns`/`fcm` carry a raw
- * device token. */
-export const PushTransport = z.enum(['webpush', 'apns', 'fcm']);
+/**
+ * How a push subscription reaches its device.
+ *
+ * - `webpush` — the self-hosted path: the server signs with its own VAPID key.
+ * - `relay` — the normal path for phones. The endpoint is a GRANT from
+ *   push.kroma.tv, not a device token: Apple and Google only accept credentials
+ *   issued to whoever publishes the app, so a self-hosted server has nothing
+ *   they would take and asks the relay to sign instead. The server never learns
+ *   which device the grant reaches.
+ * - `apns` / `fcm` — a raw device token, usable only by a server that holds the
+ *   published app's own credentials. Not the self-hosted case.
+ */
+export const PushTransport = z.enum(['webpush', 'relay', 'apns', 'fcm']);
 export type PushTransport = z.infer<typeof PushTransport>;
 
 /** `POST /api/push/subscribe`. Web Push sends `endpoint` plus both keys; the
- * native transports send the device token as `endpoint` and omit the keys. */
+ * native transports send the device token (or relay grant) as `endpoint` and
+ * omit the keys. */
 export const SubscribeBody = z.object({
   transport: PushTransport,
   endpoint: z.string(),

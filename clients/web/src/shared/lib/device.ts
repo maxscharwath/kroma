@@ -13,11 +13,23 @@ function match(s: string, table: [RegExp, string][]): string | null {
   return null;
 }
 
+/** A KROMA app naming itself: `Kroma/<version> (<model>; <os> <version>)`.
+ *
+ * The native shells send this because the platform's own User-Agent says nothing
+ * a session list can read - iOS hands out `KROMA/1 CFNetwork/… Darwin/…` and
+ * Android `okhttp/4.12.0`, neither of which carries a browser or an OS token. A
+ * signed-in phone therefore listed itself as an unknown desktop. */
+const NATIVE_UA = /^kroma\/\S+\s+\(([^;()]+);\s*([^)]*)\)/i;
+
 const KINDS: [RegExp, DeviceKind][] = [
-  [/tv|tizen|web0?os|smart-tv|crkey/, 'tv'],
+  [/tv|tizen|web0s|webos|smart-tv|crkey/, 'tv'],
   [/mobi|iphone|ipad|ipod|android/, 'mobile'],
 ];
 const BROWSERS: [RegExp, string][] = [
+  // A native shell where a browser would be. Only reached by a build that
+  // predates NATIVE_UA (or a client yet to adopt it): the app name alone still
+  // beats "unknown device".
+  [/^kroma\//, 'Kroma'],
   [/firefox|fxios/, 'Firefox'],
   [/edg/, 'Edge'],
   [/chrome|crios|crmo/, 'Chrome'],
@@ -25,8 +37,15 @@ const BROWSERS: [RegExp, string][] = [
 ];
 const OSES: [RegExp, string][] = [
   [/windows/, 'Windows'],
-  [/iphone|ipad|ipod/, 'iOS'],
+  [/tvos/, 'tvOS'],
+  [/iphone|ipad|ipod|\bios\b/, 'iOS'],
   [/mac os x|macintosh/, 'macOS'],
+  // The television platforms, ahead of the systems they are built on: a Tizen
+  // set and a webOS set are Linux, and an Android TV says Android.
+  [/tizen/, 'Tizen'],
+  // Both spellings LG ships, as @kroma/core's `isWebOsRuntime` reads them.
+  [/web0s|webos/, 'webOS'],
+  [/android tv/, 'Android TV'],
   [/android/, 'Android'],
   [/cros/, 'ChromeOS'],
   [/linux/, 'Linux'],
@@ -38,9 +57,16 @@ export function deviceInfo(
   ua: string | null | undefined,
   unknown: string,
 ): { label: string; kind: DeviceKind } {
-  const s = (ua ?? '').toLowerCase();
-  if (!s) return { label: unknown, kind: 'desktop' };
+  const raw = (ua ?? '').trim();
+  if (!raw) return { label: unknown, kind: 'desktop' };
+  const s = raw.toLowerCase();
   const kind = (match(s, KINDS as [RegExp, string][]) as DeviceKind | null) ?? 'desktop';
-  const label = [match(s, BROWSERS), match(s, OSES)].filter(Boolean).join(' · ') || unknown;
-  return { label, kind };
+  // A native UA names the hardware ("iPhone 17 Pro"), which tells two phones on
+  // one account apart far better than the app name would; its platform still
+  // goes through the table so it is spelled like every other row.
+  const native = NATIVE_UA.exec(raw);
+  const parts = native
+    ? [native[1]?.trim(), match(native[2]?.toLowerCase() ?? '', OSES)]
+    : [match(s, BROWSERS), match(s, OSES)];
+  return { label: parts.filter(Boolean).join(' · ') || unknown, kind };
 }

@@ -94,6 +94,7 @@ function ListRow({
       ring={false}
       style={[s.root, style]}
       focusedStyle={FOCUSED}
+      hoveredStyle={onPress ? HOVERED : null}
     >
       {leading ?? (icon ? <IconWell name={icon} size={size} /> : null)}
       <Box flex gap={2}>
@@ -113,6 +114,14 @@ function ListRow({
 /** Focus is a solid amber edge rather than a fill: a row is wide, and a filled
  * one at the top of a list reads as "selected forever" instead of "focused". */
 const FOCUSED = { borderColor: colors.accent } as const;
+
+/** Hover is the step BEFORE that edge: the wash and the hairline both come up,
+ * but the amber stays the remote's. Only a row that actually does something on
+ * press lights - a settings list is full of rows that only display. */
+const HOVERED = {
+  backgroundColor: 'rgba(255, 255, 255, 0.07)',
+  borderColor: colors.borderStrong,
+} as const;
 
 export type { ListRowProps, ListRowSize };
 export { ListRow, listRowVariants };

@@ -11,6 +11,10 @@
 // receiver is two circles narrower, and gets to stay full-size for longer).
 // Every number below is at design scale; `chromeMetrics` returns the multiplier
 // the chrome draws them at.
+//
+// And when shrinking is no longer enough, the row SHEDS rather than wraps: a
+// control row that folds onto a second line stops reading as a transport (see
+// `SHED`). What it gives up first is what the player still offers elsewhere.
 
 import type { ControlId } from './nav';
 
@@ -36,6 +40,19 @@ export const TRANSPORT_GAP = 20;
 export const CLUSTER_GAP = 14;
 /** The chrome's side gutters (top bar and bottom chrome share them). */
 export const GUTTER = 34;
+/**
+ * What the transport (seek bar + control row) stands at design scale: the bar's
+ * 80 - timecodes, their 13 of air, the 18 track and its 20 margin - over the
+ * cluster's 84 (4 of top padding and the 80 play key).
+ *
+ * The player MEASURES the real thing to place the skip-intro pill above it, and
+ * this is the answer until that measurement lands. It is not belt-and-braces:
+ * `onLayout` is a ResizeObserver in react-native-web, which the legacy TV tier
+ * (Chromium 53-94, see clients/tv-build/polyfills.legacy.ts) does not have and
+ * does not polyfill - so on those televisions this number is the ONLY answer,
+ * and a zero here would draw the pill straight through the seek bar.
+ */
+export const TRANSPORT_HEIGHT = 164;
 /** The least space allowed between the transport and the cluster: the point at
  * which they stop being two groups and start being one crowded row. */
 export const ROW_GAP = 24;
@@ -49,7 +66,7 @@ export const isTransport = (id: ControlId): boolean => TRANSPORT.has(id);
  * The floor the chrome may shrink to.
  *
  * Set by the smallest control rather than by taste: 56 × 0.78 ≈ 44, the smallest
- * comfortable touch target. Below this the row stops shrinking and stacks
+ * comfortable touch target. Below this the row stops shrinking and sheds
  * instead - a smaller circle would be a button nobody can hit.
  */
 export const MIN_SCALE = 0.78;
@@ -66,23 +83,139 @@ const STEP = 0.02;
 export interface ChromeMetrics {
   /** Multiplier for every size in the chrome (1 = the design's own scale). */
   scale: number;
-  /** Too narrow for one row: the cluster stacks under the transport and wraps
-   *  within itself, so no control is ever dropped or drawn over another. */
-  compact: boolean;
+  /** The controls this stage has room for, in visual order - a prefix of the
+   *  row it was asked about, minus whatever had to be shed. This is the row the
+   *  player draws AND the row the nav machine steps through, so a control that
+   *  is not on screen never keeps a D-pad stop (see ./nav). */
+  controls: ControlId[];
+  /** The volume control keeps its inline rail. False = a bare mute key: the
+   *  first 96px the row gives up, and the only one that costs no control. */
+  rail: boolean;
+  /** The controls this stage had no room for, in the row's own order.
+   *
+   *  They are moved, not lost: the player lists them in the settings panel the
+   *  gear opens (which is why `settings` is never shed), so a 390px browser
+   *  window can still cast, open picture-in-picture or jump to the next
+   *  episode - two taps instead of one. Empty at every width that fits. */
+  overflow: ControlId[];
   /** The cluster's content width at `scale`. Handed to the cluster box as its
    *  minimum, so flexbox takes the space out of the centring spacer instead of
    *  out of the buttons - which is what made them overlap. */
   clusterWidth: number;
 }
 
-/** Width of one row of controls: their diameters (plus the volume rail, which
- * rides inside the volume pill) and the gaps between them. */
-function rowWidth(ids: readonly ControlId[], gap: number): number {
+/**
+ * What the row moves into the panel, in order, once shrinking would take a
+ * circle below the size of a fingertip.
+ *
+ * Nothing is lost by shedding: everything here is reported as `overflow` and
+ * the player lists it in the settings panel, so a narrow window trades one tap
+ * for two rather than losing a feature. The order is therefore about how often
+ * a control is reached for, not about what can be sacrificed:
+ *
+ *  - `pip` is the browser convenience nobody reaches for mid-film;
+ *  - `audio` and `subtitles` are already rows of that panel, so they cost
+ *    nothing at all to move;
+ *  - `next` is also the first card of the "À suivre" sheet;
+ *  - `volume` is the one the keyboard (and every phone's own volume keys) still
+ *    reaches, and its rail has already gone by then;
+ *  - `cast` is late, because handing the film to a television is the one thing
+ *    people do from a small window;
+ *  - the ±10 s keys go last, and together, or the transport reads lopsided.
+ *
+ * What is never shed: play, the gear (which is the way to everything above),
+ * and fullscreen. That is the row a 250px stage still draws.
+ */
+const SHED: readonly (readonly ControlId[])[] = [
+  ['pip'],
+  ['audio'],
+  ['subtitles'],
+  ['next'],
+  ['volume'],
+  ['cast'],
+  ['rewind', 'forward'],
+];
+
+/** One way the row can be drawn: which controls, and whether volume keeps its
+ * rail. */
+interface RowFit {
+  controls: ControlId[];
+  rail: boolean;
+}
+
+/** Width of one row of controls: their diameters (plus the volume rail, when it
+ * is still there to ride inside the volume pill) and the gaps between them. */
+function rowWidth(ids: readonly ControlId[], gap: number, rail: boolean): number {
   const controls = ids.reduce(
-    (sum, id) => sum + CONTROL_SIZE[id] + (id === 'volume' ? VOLUME_RAIL : 0),
+    (sum, id) => sum + CONTROL_SIZE[id] + (id === 'volume' && rail ? VOLUME_RAIL : 0),
     0,
   );
   return controls + Math.max(0, ids.length - 1) * gap;
+}
+
+/** Every way this row can be drawn, widest first: the design, the rail
+ * collapsed, then one {@link SHED} step after another. */
+function rowFits(row: readonly ControlId[]): [RowFit, ...RowFit[]] {
+  let controls = [...row];
+  const fits: [RowFit, ...RowFit[]] = [{ controls, rail: true }];
+  if (controls.includes('volume')) fits.push({ controls, rail: false });
+  for (const shed of SHED) {
+    const next = controls.filter((id) => !shed.includes(id));
+    // A control the flags already left out is not a step: shedding nothing
+    // would offer the fitter the same row twice.
+    if (next.length === controls.length) continue;
+    controls = next;
+    fits.push({ controls, rail: false });
+  }
+  return fits;
+}
+
+/**
+ * What this row costs at design scale: two gutters, the transport, a row gap on
+ * either side of it, and the cluster.
+ *
+ * Two row gaps, not one: the outer row's gap falls on both sides of the
+ * transport (spacer | transport | cluster), which is also what keeps the
+ * transport exactly centred while there is room for it to be.
+ */
+function designWidth({ controls, rail }: RowFit): number {
+  const transport = rowWidth(controls.filter(isTransport), TRANSPORT_GAP, rail);
+  const cluster = rowWidth(
+    controls.filter((id) => !isTransport(id)),
+    CLUSTER_GAP,
+    rail,
+  );
+  return GUTTER * 2 + transport + ROW_GAP * 2 + cluster;
+}
+
+/** The scale this fit would be drawn at on `stageWidth` - 1 when it has room to
+ * spare, and never above the design. An unmeasured stage (0) is treated as
+ * roomy: the first frame draws the full row rather than the floor. */
+function scaleFor(fit: RowFit, stageWidth: number): number {
+  const needed = designWidth(fit);
+  if (stageWidth <= 0 || needed <= 0) return 1;
+  const ratio = stageWidth / needed;
+  return ratio >= 1 ? 1 : quantize(ratio);
+}
+
+function measure(fit: RowFit, scale: number, row: readonly ControlId[]): ChromeMetrics {
+  const cluster = rowWidth(
+    fit.controls.filter((id) => !isTransport(id)),
+    CLUSTER_GAP,
+    fit.rail,
+  );
+  return {
+    scale,
+    controls: fit.controls,
+    rail: fit.rail,
+    // Whatever the flags allowed but this stage could not hold. Derived from the
+    // two lists rather than accumulated while shedding, so it cannot drift out
+    // of step with what was actually dropped.
+    overflow: row.filter((id) => !fit.controls.includes(id)),
+    // The cluster's width is ALWAYS reported at the scale it will be drawn at,
+    // so that rule lives in one place rather than once per outcome.
+    clusterWidth: Math.round(cluster * scale),
+  };
 }
 
 /** Round to the quantization step, and away from float noise (0.02 × 39 is not
@@ -92,32 +225,33 @@ function quantize(scale: number): number {
 }
 
 /**
- * What the control row costs at design scale, and therefore how much the chrome
- * has to give up to fit `stageWidth`.
+ * How the control row fits `stageWidth`: how large it is drawn, and what it is
+ * made of.
  *
- * Three outcomes, in order of how much room there is:
- *  - it fits: scale 1, and the transport sits dead centre while the spacer and
- *    the cluster share what is left equally;
- *  - it nearly fits: everything shrinks together, and the transport drifts left
- *    of centre as the cluster claims its minimum;
- *  - it does not fit at all (a phone-width browser): `compact`, where the
- *    cluster moves under the transport and wraps.
+ * One rule, applied to each way the row can be drawn in turn (see
+ * {@link rowFits}): draw it as large as the stage allows, and if that would take
+ * a circle below the touch-target floor, give something up and ask again. So a
+ * window loses, in order, a little size, the volume rail, then one control at a
+ * time - and what it never loses is the single line. The row used to wrap onto a
+ * second one instead, which put eight buttons in two ragged rows under the
+ * transport and read as a broken layout rather than a compact one.
+ *
+ * The returned `controls` is the row that is actually drawn, and the one the nav
+ * machine steps through: shedding a control takes its D-pad stop with it, so
+ * nothing focusable is ever off screen.
  */
-export function chromeMetrics(controls: readonly ControlId[], stageWidth: number): ChromeMetrics {
-  const transport = rowWidth(controls.filter(isTransport), TRANSPORT_GAP);
-  const cluster = rowWidth(
-    controls.filter((id) => !isTransport(id)),
-    CLUSTER_GAP,
-  );
-  // Two row gaps, not one: the outer row's gap falls on both sides of the
-  // transport (spacer | transport | cluster), which is also what keeps the
-  // transport exactly centred while there is room for it to be.
-  const needed = GUTTER * 2 + transport + ROW_GAP * 2 + cluster;
-  const fit = stageWidth > 0 && needed > 0 ? stageWidth / needed : 1;
-  const scale = fit >= 1 ? 1 : Math.max(MIN_SCALE, quantize(fit));
-  // The cluster's width is ALWAYS reported at the scale it will be drawn at, so
-  // that rule lives in one place rather than once per outcome.
-  return { scale, compact: fit < MIN_SCALE, clusterWidth: Math.round(cluster * scale) };
+export function chromeMetrics(row: readonly ControlId[], stageWidth: number): ChromeMetrics {
+  const fits = rowFits(row);
+  let last = fits[0];
+  for (const fit of fits) {
+    last = fit;
+    const scale = scaleFor(fit, stageWidth);
+    if (scale >= MIN_SCALE) return measure(fit, scale, row);
+  }
+  // Narrower than even the last row can be drawn in. Hold the floor rather than
+  // shed play itself: the row reaches into the gutters, and every key on it is
+  // still the size of a fingertip.
+  return measure(last, MIN_SCALE, row);
 }
 
 /** A size at the chrome's current scale. Integers: a 43.68px circle beside a

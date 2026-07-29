@@ -54,7 +54,7 @@ export default function CastRemoteScreen() {
 
   const playing = active.nowPlaying;
   const item = playing?.item;
-  const title = item ? (item.metadata?.title ?? item.title) : t('cast.idle');
+  const title = item?.metadata?.title ?? item?.title ?? '';
   const art = item
     ? sizedImageUrl(client.backdropFor(item) ?? client.posterFor(item), width)
     : null;
@@ -65,128 +65,141 @@ export default function CastRemoteScreen() {
   return (
     <Screen>
       <Header title={active.name} onBack={() => goBack(router)} />
-      <ScrollView contentContainerStyle={styles.body}>
-        <Pressable onPress={() => devices.current?.present()} style={styles.deviceRow}>
-          <Icon name="cast" size={18} stroke={1.8} color={colors.accent} />
-          <Text style={styles.deviceText}>
-            {t('cast.playingOn', { device: `${active.name} · ${active.username}` })}
-          </Text>
-          <Icon name="chevron-right" size={16} stroke={2} color={colors.textDim} />
-        </Pressable>
-
-        {art ? (
-          <Image source={{ uri: art }} style={styles.art} contentFit="cover" transition={200} />
-        ) : (
-          <View style={[styles.art, styles.artFallback]}>
-            <Icon name="device-tv" size={40} stroke={1.4} color={colors.textFaint} />
-          </View>
-        )}
-
-        <Text numberOfLines={2} style={styles.title}>
-          {title}
+      <Pressable onPress={() => devices.current?.present()} style={styles.deviceRow}>
+        <Icon name="cast" size={18} stroke={1.8} color={playing ? colors.accent : colors.textDim} />
+        <Text style={[styles.deviceText, !playing && styles.deviceTextIdle]}>
+          {t(playing ? 'cast.playingOn' : 'cast.connectedTo', {
+            device: `${active.name} · ${active.username}`,
+          })}
         </Text>
-        {item?.showTitle ? (
-          <Text numberOfLines={1} style={styles.subtitle}>
-            {item.showTitle}
+        <Icon name="chevron-right" size={16} stroke={2} color={colors.textDim} />
+      </Pressable>
+
+      {playing ? (
+        <ScrollView contentContainerStyle={styles.body}>
+          {art ? (
+            <Image source={{ uri: art }} style={styles.art} contentFit="cover" transition={200} />
+          ) : (
+            <View style={[styles.art, styles.artFallback]}>
+              <Icon name="device-tv" size={40} stroke={1.4} color={colors.textFaint} />
+            </View>
+          )}
+
+          <Text numberOfLines={2} style={styles.title}>
+            {title}
           </Text>
-        ) : null}
+          {item?.showTitle ? (
+            <Text numberOfLines={1} style={styles.subtitle}>
+              {item.showTitle}
+            </Text>
+          ) : null}
 
-        {playing ? (
-          <>
-            <View style={styles.scrub}>
-              <ScrubBar
-                cur={positionMs / 1000}
-                dur={durationMs / 1000}
-                buffered={0}
-                onSeek={(abs) => void send({ type: 'seek', positionMs: Math.round(abs * 1000) })}
-              />
-              <View style={styles.times}>
-                <Text style={styles.time}>{formatTimecode(positionMs / 1000)}</Text>
-                <Text style={styles.time}>
-                  {durationMs
-                    ? `-${formatTimecode(Math.max(0, (durationMs - positionMs) / 1000))}`
-                    : ''}
-                </Text>
-              </View>
+          <View style={styles.scrub}>
+            <ScrubBar
+              cur={positionMs / 1000}
+              dur={durationMs / 1000}
+              buffered={0}
+              onSeek={(abs) => void send({ type: 'seek', positionMs: Math.round(abs * 1000) })}
+            />
+            <View style={styles.times}>
+              <Text style={styles.time}>{formatTimecode(positionMs / 1000)}</Text>
+              <Text style={styles.time}>
+                {durationMs
+                  ? `-${formatTimecode(Math.max(0, (durationMs - positionMs) / 1000))}`
+                  : ''}
+              </Text>
             </View>
+          </View>
 
-            <View style={styles.transport}>
-              <Round
-                icon="rewind-backward-10"
-                label={t('player.back10')}
-                onPress={() => void send({ type: 'skip', deltaMs: -SKIP_MS })}
-              />
-              <Round
-                big
-                icon={isPlaying || buffering ? 'player-pause-filled' : 'player-play-filled'}
-                label={t(isPlaying ? 'player.pause' : 'player.play')}
-                onPress={() => void send({ type: 'togglePlay' })}
-              />
-              <Round
-                icon="rewind-forward-10"
-                label={t('player.fwd10')}
-                onPress={() => void send({ type: 'skip', deltaMs: SKIP_MS })}
-              />
-            </View>
+          <View style={styles.transport}>
+            <Round
+              icon="rewind-backward-10"
+              label={t('player.back10')}
+              onPress={() => void send({ type: 'skip', deltaMs: -SKIP_MS })}
+            />
+            <Round
+              big
+              icon={isPlaying || buffering ? 'player-pause-filled' : 'player-play-filled'}
+              label={t(isPlaying ? 'player.pause' : 'player.play')}
+              onPress={() => void send({ type: 'togglePlay' })}
+            />
+            <Round
+              icon="rewind-forward-10"
+              label={t('player.fwd10')}
+              onPress={() => void send({ type: 'skip', deltaMs: SKIP_MS })}
+            />
+          </View>
 
-            <View style={styles.actions}>
-              {playing.audioTracks.length > 1 ? (
-                <Wide
-                  icon="wave-sine"
-                  label={t('player.audioTrack')}
-                  value={labelOf(playing.audioTracks, playing.audioIndex)}
-                  onPress={() => audio.current?.present()}
-                />
-              ) : null}
-              {playing.subtitles.length > 0 ? (
-                <Wide
-                  icon="badge-cc"
-                  label={t('player.subtitles')}
-                  value={
-                    labelOf(playing.subtitles, playing.subtitleIndex) ?? t('player.subtitlesOff')
-                  }
-                  onPress={() => subtitles.current?.present()}
-                />
-              ) : null}
-              {item?.kind === 'episode' ? (
-                <Wide
-                  icon="player-track-next"
-                  label={t('player.nextEpisode')}
-                  onPress={() => void send({ type: 'skipNext' })}
-                />
-              ) : null}
-              {/* Two ENDINGS, said plainly. "Stop casting" was doing both of
-                  these at once, which is why nobody could tell what it would do
-                  to the television. */}
+          <View style={styles.actions}>
+            {playing.audioTracks.length > 1 ? (
               <Wide
-                icon="device-mobile"
-                label={t('cast.continueHere')}
-                onPress={() => {
-                  // Hand the film back at the exact position the TV is at, and
-                  // leave the set idle rather than playing to an empty room.
-                  const at = Math.round(positionMs / 1000);
-                  void send({ type: 'stop' });
-                  select(null);
-                  if (item) router.replace(`/player/${item.id}?start=${at}` as never);
-                  else goBack(router);
-                }}
+                icon="wave-sine"
+                label={t('player.audioTrack')}
+                value={labelOf(playing.audioTracks, playing.audioIndex)}
+                onPress={() => audio.current?.present()}
               />
+            ) : null}
+            {playing.subtitles.length > 0 ? (
               <Wide
-                icon="player-stop-filled"
-                label={t('cast.stop')}
-                value={t('cast.stopHint', { device: active.name })}
-                onPress={() => {
-                  void send({ type: 'stop' });
-                  select(null);
-                  goBack(router);
-                }}
+                icon="badge-cc"
+                label={t('player.subtitles')}
+                value={
+                  labelOf(playing.subtitles, playing.subtitleIndex) ?? t('player.subtitlesOff')
+                }
+                onPress={() => subtitles.current?.present()}
               />
-            </View>
-          </>
-        ) : (
-          <Text style={styles.idle}>{t('cast.idle')}</Text>
-        )}
-      </ScrollView>
+            ) : null}
+            {item?.kind === 'episode' ? (
+              <Wide
+                icon="player-track-next"
+                label={t('player.nextEpisode')}
+                onPress={() => void send({ type: 'skipNext' })}
+              />
+            ) : null}
+            {/* Two ENDINGS, said plainly. "Stop casting" was doing both of
+                these at once, which is why nobody could tell what it would do
+                to the television. */}
+            <Wide
+              icon="device-mobile"
+              label={t('cast.continueHere')}
+              onPress={() => {
+                // Hand the film back at the exact position the TV is at, and
+                // leave the set idle rather than playing to an empty room.
+                const at = Math.round(positionMs / 1000);
+                void send({ type: 'stop' });
+                select(null);
+                if (item) router.replace(`/player/${item.id}?start=${at}` as never);
+                else goBack(router);
+              }}
+            />
+            <Wide
+              icon="player-stop-filled"
+              label={t('cast.stop')}
+              value={t('cast.stopHint', { device: active.name })}
+              onPress={() => {
+                void send({ type: 'stop' });
+                select(null);
+                goBack(router);
+              }}
+            />
+          </View>
+        </ScrollView>
+      ) : (
+        // Nothing on the set. There is no artwork to show, no position to
+        // scrub and nothing to pause, so the screen says the one true thing
+        // and offers the only two moves left: pick another TV, or let go of
+        // this one.
+        <EmptyState
+          icon={<Icon name="device-tv" size={40} stroke={1.4} color={colors.textFaint} />}
+          title={t('cast.idleTitle')}
+          hint={t('cast.idleHint', { device: active.name })}
+          actionLabel={t('cast.disconnect')}
+          onAction={() => {
+            select(null);
+            goBack(router);
+          }}
+        />
+      )}
 
       <CastSheet
         ref={devices}
@@ -298,8 +311,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
   },
   deviceText: { ...type.caption, color: colors.accent, flex: 1 },
+  // Idle, the row is a fact about the connection rather than a live signal, so
+  // it drops out of the accent colour.
+  deviceTextIdle: { color: colors.textDim },
   art: {
     width: '100%',
     aspectRatio: 16 / 9,
@@ -340,10 +357,4 @@ const styles = StyleSheet.create({
   },
   wideLabel: { ...type.body, color: colors.text, flex: 1 },
   wideValue: { ...type.caption, color: colors.textDim, maxWidth: '45%' },
-  idle: {
-    ...type.caption,
-    color: colors.textDim,
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-  },
 });

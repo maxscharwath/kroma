@@ -124,6 +124,31 @@ const PRESSED = {
   scrim: { backgroundColor: 'rgba(40, 40, 48, 0.75)' },
 } as const;
 
+/**
+ * The fill while a POINTER rests on the control: the MOUSE's answer to the focus
+ * ring, and the only one the browser gets on a page with no navigator - the web
+ * client mounts no <FocusScope>, so a cursor crossing a button there produced
+ * exactly nothing before this map existed. See <Focusable>'s `hoveredStyle`.
+ *
+ * One step SHORT of `PRESSED` throughout, so hover → press reads as a single
+ * escalation rather than as two unrelated states. It lands on the frame the
+ * pointer arrives, deliberately: the kit does not transition background colour
+ * (see focus-transition.web.ts - it cost a third of the frame rate on a TV
+ * panel), and an instant answer is the right one for a cursor anyway.
+ */
+const HOVERED = {
+  primary: { backgroundColor: colors.accentHover },
+  glass: { backgroundColor: 'rgba(255, 255, 255, 0.16)' },
+  ghost: { backgroundColor: 'rgba(255, 255, 255, 0.06)' },
+  danger: { backgroundColor: colors.dangerHover },
+  outline: { backgroundColor: 'rgba(255, 255, 255, 0.17)' },
+  scrim: { backgroundColor: 'rgba(28, 28, 34, 0.72)' },
+} as const;
+
+/** An `outline` toggle that is already ON hovers AMBER, one step up from its
+ * `accentSoft` fill - see the token for why it cannot be the white wash. */
+const HOVERED_ACTIVE = { backgroundColor: colors.accentSoftHover } as const;
+
 interface ButtonProps
   extends Omit<FocusableProps, 'children' | 'style' | 'focusScale' | 'label' | 'ring'> {
   variant?: ButtonVariant;
@@ -165,8 +190,11 @@ function Button({
   onPress,
   ...focusProps
 }: Readonly<ButtonProps>) {
-  // An active toggle tints its glyph and label amber along with its fill.
-  const ink = variant === 'outline' && active ? 'accent' : INK[variant];
+  // An active toggle tints its glyph and label amber along with its fill - and
+  // hovers amber too, for the same reason.
+  const on = variant === 'outline' && active;
+  const ink = on ? 'accent' : INK[variant];
+  const hover = on ? HOVERED_ACTIVE : HOVERED[variant];
   const glyph = ICON_SIZE[size];
   const s = buttonVariants({
     variant,
@@ -185,6 +213,11 @@ function Button({
       focusScale={focusScale}
       label={label}
       pressedStyle={PRESSED[variant]}
+      // A busy button takes no press, so it lights for no pointer either: the
+      // spinner says what is happening and a highlight would promise a click
+      // that `onPress={undefined}` above has already dropped. (Disabled needs no
+      // such guard - <Focusable> paints none of the three states there.)
+      hoveredStyle={loading ? undefined : hover}
       style={[s.root, disabled && DISABLED, style]}
     >
       {FROSTED.has(variant) ? (

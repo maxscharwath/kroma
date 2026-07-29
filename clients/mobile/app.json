@@ -29,6 +29,7 @@
     },
     "android": {
       "package": "tv.kroma.mobile",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0A0A0C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

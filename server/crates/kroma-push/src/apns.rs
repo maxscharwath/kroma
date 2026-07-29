@@ -243,6 +243,43 @@ pub fn is_gone(status: u16, body: &str) -> bool {
     matches!(reason.as_str(), "BadDeviceToken" | "DeviceTokenNotForTopic" | "Unregistered")
 }
 
+/// Whether this rejection is the one that is indistinguishable from a dead
+/// device but usually isn't: the token was minted against the OTHER host.
+///
+/// Worth separating because the cost of confusing the two is asymmetric. A
+/// development token sent to production comes back `BadDeviceToken`, which
+/// [`is_gone`] reads as "uninstalled" and evicts — so a developer's phone
+/// silently unsubscribes itself on the first push, and nothing about the failure
+/// says why. Retrying against [`flip_environment`] before believing it costs one
+/// request and removes the single most common APNs misconfiguration.
+pub fn is_wrong_environment(status: u16, body: &str) -> bool {
+    if status != 400 {
+        return false;
+    }
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| v.get("reason").and_then(|r| r.as_str()).map(str::to_string))
+        .as_deref()
+        == Some("BadDeviceToken")
+}
+
+/// Point an already-built request at the other APNs host.
+///
+/// Only the host differs between the two: the JWT is signed over the key, team
+/// and topic, none of which are environment-specific, so the token and every
+/// header stay valid. Returns `false` when the URL is not one of ours.
+pub fn flip_environment(request: &mut PushRequest) -> bool {
+    let (from, to) = if request.url.starts_with(Environment::Production.host()) {
+        (Environment::Production.host(), Environment::Sandbox.host())
+    } else if request.url.starts_with(Environment::Sandbox.host()) {
+        (Environment::Sandbox.host(), Environment::Production.host())
+    } else {
+        return false;
+    };
+    request.url = format!("{to}{}", &request.url[from.len()..]);
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -406,5 +443,46 @@ mod tests {
         // A typo must not silently point a real server at the sandbox.
         assert_eq!(Environment::parse("prod-uction"), Environment::Production);
         assert_eq!(Environment::parse(""), Environment::Production);
+    }
+
+    #[test]
+    fn the_wrong_environment_is_told_apart_from_a_dead_device() {
+        // Both come back as a 400, and confusing them evicts a live phone.
+        let bad_token = r#"{"reason":"BadDeviceToken"}"#;
+        assert!(is_wrong_environment(400, bad_token));
+        // `DeviceTokenNotForTopic` is a genuinely wrong app, not a wrong host,
+        // and retrying it elsewhere would only waste a request.
+        assert!(!is_wrong_environment(400, r#"{"reason":"DeviceTokenNotForTopic"}"#));
+        assert!(!is_wrong_environment(400, r#"{"reason":"BadCollapseId"}"#));
+        // A 410 is Apple's unambiguous "gone"; there is nothing to retry.
+        assert!(!is_wrong_environment(410, bad_token));
+        assert!(!is_wrong_environment(503, ""));
+        // …and it stays a candidate for eviction if the retry fails too.
+        assert!(is_gone(400, bad_token));
+    }
+
+    #[test]
+    fn flipping_the_environment_moves_only_the_host() {
+        let key = test_key(Environment::Production);
+        let mut request = build_request(&key, "DEVICE-TOKEN", &alert(), Urgency::High, 0).unwrap();
+        let headers = request.headers.clone();
+        let body = request.body.clone();
+
+        assert!(flip_environment(&mut request));
+        assert_eq!(request.url, "https://api.sandbox.push.apple.com/3/device/DEVICE-TOKEN");
+        // The JWT is signed over the key, team and topic — none of them
+        // environment-specific — so nothing else may be rebuilt.
+        assert_eq!(request.headers, headers, "a flip must not re-sign or re-header");
+        assert_eq!(request.body, body);
+
+        // And it goes back, so the retry works in either direction.
+        assert!(flip_environment(&mut request));
+        assert_eq!(request.url, "https://api.push.apple.com/3/device/DEVICE-TOKEN");
+
+        // A request that is not ours is left alone rather than mangled.
+        let mut foreign = build_request(&key, "T", &alert(), Urgency::High, 0).unwrap();
+        foreign.url = "https://fcm.googleapis.com/v1/x".into();
+        assert!(!flip_environment(&mut foreign));
+        assert_eq!(foreign.url, "https://fcm.googleapis.com/v1/x");
     }
 }

@@ -14,7 +14,7 @@ import { I18nProvider, useI18n } from '#mobile/lib/i18n';
 import { expoImageBackend } from '#mobile/lib/image-backend';
 import { isTablet } from '#mobile/lib/layout';
 import { useNotificationStream } from '#mobile/lib/notifications';
-import { usePushTaps } from '#mobile/lib/notifications/usePush';
+import { usePushGrantRefresh, usePushLabels, usePushTaps } from '#mobile/lib/notifications/usePush';
 import { SessionProvider, useSession } from '#mobile/lib/session';
 import { colors } from '#mobile/lib/theme';
 
@@ -39,6 +39,12 @@ function NotificationStream() {
   // Taps on NATIVE pushes route from here too: the socket handles the app while
   // it is open, this handles the notification that opened it.
   usePushTaps();
+  // And the buttons iOS/Android draw ON those pushes are registered from here,
+  // in the app's language, whenever that language changes.
+  usePushLabels();
+  // The relay grant a server holds expires, and only this app can replace one -
+  // so a launch is the only chance to do it before push goes quiet.
+  usePushGrantRefresh();
   return null;
 }
 

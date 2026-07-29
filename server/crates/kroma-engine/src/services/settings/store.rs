@@ -284,18 +284,15 @@ fn defaults() -> BTreeMap<String, Value> {
     // subscribed. The private half never leaves the server.
     m.insert("notifications.vapid.publicKey".into(), json!(""));
     m.insert("notifications.vapid.privateKey".into(), json!(""));
-    // The RFC 8292 `sub` claim: who a push service operator contacts about this
-    // sender. Required to be present, not to be reachable.
-    m.insert("notifications.push.subject".into(), json!(""));
     // Native push credentials. These cannot be self-minted the way a VAPID key
-    // can: an APNs auth key and a Firebase service account belong to a developer
-    // account and are bound to the app, so a self-hosted server is given them
-    // (or later points at a relay). Empty = that platform's push stays off.
+    // can — Apple and Google only accept keys they issued — and they belong to
+    // whoever PUBLISHES the app, not to whoever hosts a server. So they arrive
+    // with the build (`KROMA_APNS_*` / `KROMA_FCM_SERVICE_ACCOUNT`) and these
+    // keys exist only as the fallback a fork shipping its own app writes to.
+    // Nothing in the admin UI edits them. Empty = that platform's push stays off.
     m.insert("notifications.apns.keyP8".into(), json!(""));
     m.insert("notifications.apns.keyId".into(), json!(""));
     m.insert("notifications.apns.teamId".into(), json!(""));
-    m.insert("notifications.apns.topic".into(), json!(""));
-    m.insert("notifications.apns.environment".into(), json!("production"));
     m.insert("notifications.fcm.serviceAccount".into(), json!(""));
     m
 }

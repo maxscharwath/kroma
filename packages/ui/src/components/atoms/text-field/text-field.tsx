@@ -174,6 +174,7 @@ function TextField({
               ring={false}
               onPress={() => setRevealed((prev) => !prev)}
               style={REVEAL}
+              hoveredStyle={REVEAL_HOVERED}
             >
               <Icon
                 name={revealed ? 'eye-off' : 'eye'}
@@ -226,6 +227,9 @@ const REVEAL_SIZE = 20;
 /** Centred on the field's right edge, inside its own padding. */
 const REVEAL_SLOT = { right: 22, top: 0, bottom: 0, justifyContent: 'center' } as const;
 const REVEAL = { padding: 4, margin: -4, borderRadius: radii.md } as const;
+/** The eye has no box of its own until the cursor gives it one: a wash inside
+ * the negative margin, so the glyph reads as a button before it is clicked. */
+const REVEAL_HOVERED = { backgroundColor: 'rgba(255, 255, 255, 0.1)' } as const;
 
 export type { TextFieldProps, TextFieldType };
 export { TextField };

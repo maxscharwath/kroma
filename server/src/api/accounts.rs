@@ -298,6 +298,7 @@ pub struct ExchangeBody {
 pub async fn exchange_token(
     State(state): State<SharedState>,
     ReqLocale(loc): ReqLocale,
+    headers: HeaderMap,
     Json(body): Json<ExchangeBody>,
 ) -> Response {
     let access = body.access_token.trim().to_string();
@@ -318,10 +319,16 @@ pub async fn exchange_token(
         }
     }
 
-    // Best-effort last-seen stamp, then mint a fresh session.
+    // Best-effort last-seen stamps - the account's, and the device credential's
+    // own, which also re-reads the device's label off this request. A phone is
+    // listed under the User-Agent it signed in with, and that was captured once,
+    // possibly by a build that sent nothing nameable.
     let uid = user.id.clone();
+    let ua = user_agent(&headers);
+    let seen = access.clone();
     let _ = query(&state.db, move |pool| {
         let _ = db::touch_last_seen(&pool, &uid);
+        let _ = db::touch_access_token(&pool, &seen, ua.as_deref());
         Ok(())
     })
     .await;

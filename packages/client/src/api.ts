@@ -8,6 +8,7 @@ import {
   type RequestContext,
   requestBlob,
   requestJson,
+  withUserAgent,
 } from './client/base';
 import * as cast from './client/cast';
 import type { DiscoverType } from './client/discovery';
@@ -174,7 +175,10 @@ export class KromaClient {
 
   constructor(options: KromaClientOptions) {
     this.baseUrl = options.baseUrl.replace(/(^|[^/])\/+$/, '$1');
-    this.fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+    const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
+    // Wrapped once here rather than per request, so EVERY route carries the
+    // device's name - including the ones that bypass `json`/`blob`.
+    this.fetchFn = options.userAgent ? withUserAgent(fetchFn, options.userAgent) : fetchFn;
     this.authToken = options.authToken;
     this.locale = options.locale;
     this.ctx = {

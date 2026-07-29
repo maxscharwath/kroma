@@ -14,12 +14,16 @@
 
 use anyhow::Result;
 use kroma_db::push_subs::PushSubscription;
-use kroma_push::{apns, fcm, webpush, PushRequest, Urgency};
+use kroma_push::{apns, fcm, relay, webpush, PushRequest, Urgency};
 
 use kroma_domain::Notification;
 
-/// The configured senders. Each is `None` until an operator supplies its
-/// credentials, so an unconfigured transport costs nothing at send time.
+/// The configured senders. `apns` and `fcm` are `None` until this build is given
+/// the published app's credentials, so an unconfigured transport costs nothing
+/// at send time.
+///
+/// `relay` has no `Option`: it needs no credentials by design, which is the
+/// whole reason it exists. A self-hosted server can always spend a grant.
 #[derive(Default)]
 pub struct Senders {
     pub web: Option<WebPush>,
@@ -28,10 +32,14 @@ pub struct Senders {
 }
 
 impl Senders {
-    /// Whether anything at all can be delivered. When false the whole push
-    /// branch is skipped before it queries a single subscription.
-    pub fn any(&self) -> bool {
-        self.web.is_some() || self.apns.is_some() || self.fcm.is_some()
+    /// Whether this server holds credentials of its own, and so can reach Apple
+    /// or Google without the relay.
+    ///
+    /// Not a precondition for sending — the relay covers every server, including
+    /// the ones this returns `false` for. It answers the admin console's "what
+    /// is this build capable of on its own".
+    pub fn has_own_credentials(&self) -> bool {
+        self.apns.is_some() || self.fcm.is_some()
     }
 }
 
@@ -130,6 +138,24 @@ pub fn build(
             fcm::build_request(&google.key, &google.access_token, &sub.endpoint, &alert, out.urgency)
                 .map(Some)
         }
+        // No `let Some(..) else` here: the relay needs no credentials, so unlike
+        // the two above it can never be "not configured on this server".
+        T::Relay => {
+            let n = out.notification;
+            let alert = relay::Alert {
+                id: &n.id,
+                title: &n.title,
+                body: &n.body,
+                link: n.link.as_deref(),
+                image_url: n.image_url.as_deref(),
+                category: push_category(n),
+                thread_id: Some(n.category.as_str()),
+                actions: &out.actions,
+            };
+            // `sub.endpoint` is a grant, not a device token — the server has
+            // never seen the token this will reach.
+            relay::build_request(&sub.endpoint, &alert, out.urgency).map(Some)
+        }
     }
 }
 
@@ -166,6 +192,9 @@ pub fn is_gone(sub: &PushSubscription, status: u16, body: &str) -> bool {
         T::WebPush => webpush::is_gone(status),
         T::Apns => apns::is_gone(status, body),
         T::Fcm => fcm::is_gone(status, body),
+        // The relay reports Apple's and Google's verdict as its own 410, so a
+        // dead device evicts identically whichever transport the row uses.
+        T::Relay => relay::is_gone(status),
     }
 }
 
@@ -218,7 +247,15 @@ mod tests {
             let built = build(&senders, &subscription(transport), &out, 0).unwrap();
             assert!(built.is_none(), "{transport:?} should be skipped");
         }
-        assert!(!senders.any());
+        assert!(!senders.has_own_credentials());
+
+        // …but the relay still builds, on that very same credential-less server.
+        // That is the whole point of it: a self-hosted install can never hold
+        // Apple's or Google's keys, so if this were skipped too, no self-hosted
+        // server could ever notify a phone.
+        let relayed = build(&senders, &subscription(PushTransport::Relay), &out, 0).unwrap();
+        let relayed = relayed.expect("the relay needs no credentials");
+        assert_eq!(relayed.url, "https://push.kroma.tv/v1/push");
     }
 
     #[test]

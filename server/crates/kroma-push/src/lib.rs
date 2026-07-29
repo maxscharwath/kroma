@@ -6,6 +6,9 @@
 //! - [`webpush`]  browsers + installed PWAs. Self-hosted end to end (RFC 8291/8292).
 //! - [`apns`]     iOS / tvOS, via an Apple auth key (ES256, same primitives as VAPID).
 //! - [`fcm`]      Android, via a Firebase service account (RS256 + OAuth2).
+//! - [`relay`]    iOS + Android from a server that holds NEITHER of the above —
+//!                which is every self-hosted one, since those credentials belong
+//!                to whoever publishes the app. The normal path in practice.
 //!
 //! Every transport does **no I/O**: each returns a URL, headers and a body, and
 //! the caller sends it with `kroma-http` (curl). That keeps every cryptographic
@@ -17,6 +20,7 @@ mod jwt;
 
 pub mod apns;
 pub mod fcm;
+pub mod relay;
 pub mod webpush;
 
 /// A ready-to-send push, whatever the transport.

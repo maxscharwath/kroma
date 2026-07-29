@@ -158,22 +158,40 @@ export function usePlayerNav(
   flags: PlayerFlags,
   playing: boolean,
   actions: PlayerNavActions,
+  /** The row as it is actually drawn, when the stage is too narrow for all of
+   *  it (see ../lib/metrics `chromeMetrics`). Defaults to everything the flags
+   *  allow. Given one, the machine steps through exactly the controls on
+   *  screen - a shed control must not keep a stop nobody can see. */
+  drawn?: readonly ControlId[],
 ): PlayerNav {
-  const controls = useMemo(() => controlOrder(flags, actions.hasNext), [flags, actions.hasNext]);
+  const full = useMemo(() => controlOrder(flags, actions.hasNext), [flags, actions.hasNext]);
+  const controls = useMemo(() => (drawn ? [...drawn] : full), [drawn, full]);
   const [revealed, setRevealed] = useState(true);
   const [zone, setZone] = useState<Zone>('controls');
   const [overlay, setOverlay] = useState<Overlay>(null);
-  // Start on Play so the first OK toggles playback.
-  const [controlIndex, setControlIndex] = useState(() => Math.max(0, controls.indexOf('play')));
+  // Focus is a CONTROL, not a slot. The row changes underneath it - a flag
+  // flips, a next episode appears, the window narrows until a control is shed -
+  // and the button the user was on should stay lit rather than whatever slid
+  // into its index (and a shed control should hand focus back rather than strand
+  // it past the end of the row). Play to start with, so the first OK plays.
+  const [focusedId, setFocusedId] = useState<ControlId>('play');
+  // ...but ◀ ▶ still move by position, because that is what they mean. The two
+  // views of the same focus meet here: the D-pad steps an index, the state
+  // remembers what that index landed on.
+  const controlIndex = Math.max(0, controls.indexOf(focusedId));
+  const setControlIndex = useCallback(
+    (update: SetStateAction<number>) => {
+      setFocusedId((id) => {
+        const from = Math.max(0, controls.indexOf(id));
+        const to = typeof update === 'function' ? update(from) : update;
+        return controls[Math.min(Math.max(0, to), controls.length - 1)] ?? id;
+      });
+    },
+    [controls],
+  );
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
-
-  // Keep the focused control valid as the row changes (a flag flips, next
-  // episode appears/disappears).
-  useEffect(() => {
-    setControlIndex((i) => Math.min(i, controls.length - 1));
-  }, [controls.length]);
 
   const clearHide = useCallback(() => {
     if (hideTimer.current) {
@@ -208,11 +226,9 @@ export function usePlayerNav(
 
   const focusControl = useCallback(
     (id: ControlId) => {
-      const i = controls.indexOf(id);
-      if (i >= 0) {
-        setZone('controls');
-        setControlIndex(i);
-      }
+      if (!controls.includes(id)) return;
+      setZone('controls');
+      setFocusedId(id);
     },
     [controls],
   );
@@ -288,6 +304,7 @@ export function usePlayerNav(
       openOverlay,
       closeOverlay,
       activate,
+      setControlIndex,
     ],
   );
 

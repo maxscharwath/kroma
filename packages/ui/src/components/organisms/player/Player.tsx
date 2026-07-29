@@ -28,8 +28,8 @@ import { usePlayerNav } from './hooks/usePlayerNav';
 import { useSeekNudge } from './hooks/useSeekNudge';
 import { currentChapter, normalizeChapters } from './lib/chapters';
 import { clamp01, endsAtClock, sliderToVolume, volumeToSlider } from './lib/fmt';
-import { chromeMetrics, GUTTER, panelGeometry, scaler } from './lib/metrics';
-import type { PanelHandle } from './lib/nav';
+import { chromeMetrics, GUTTER, panelGeometry, scaler, TRANSPORT_HEIGHT } from './lib/metrics';
+import { type ControlId, controlOrder, type PanelHandle } from './lib/nav';
 import { injectStageStyles } from './lib/styles';
 import type { SubtitleAppearance } from './lib/subtitle-appearance';
 import { VIRTUAL_FOCUS } from './lib/virtual-focus';
@@ -104,6 +104,11 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /** Breathing room between the card and both the screen edge and the panel. */
 const CARD_MARGIN = 64;
+/** Air between the skip-intro pill and the transport it sits above. */
+const SKIP_GAP = 24;
+/** Where the pill rests with the chrome hidden: there is nothing to clear then,
+ * so it drops to the corner it would otherwise float above. */
+const SKIP_REST = 56;
 /** Drawn at the card's scale, so the on-screen radius is a fraction of this. */
 const CARD_RADIUS = 72;
 /** The zoom between fullscreen and card. */
@@ -336,20 +341,38 @@ export function Player(props: Readonly<PlayerProps>) {
     if (credits.show) setCreditsFocus('play');
   }, [credits.show]);
 
+  // How the chrome fits this stage: one scale for the whole of it, and the row
+  // it actually has room for, derived from the controls the flags allow (see
+  // lib/metrics). At 1920 it is the design; in a browser window it is whatever
+  // keeps the row on ONE line - shrinking, then shedding the controls the player
+  // still offers elsewhere. Measured BEFORE the nav machine, which is then given
+  // the row that is drawn: a shed control must not keep a focus stop.
+  const row = useMemo(
+    () => controlOrder(flags, Boolean(props.onPlayNext)),
+    [flags, props.onPlayNext],
+  );
+  const metrics = useMemo(() => chromeMetrics(row, stageWidth), [row, stageWidth]);
+  const px = scaler(metrics.scale);
+
   const seekNudge = useSeekNudge(c);
-  const nav = usePlayerNav(flags, c.playing, {
-    togglePlay: c.togglePlay,
-    seekNudge,
-    onNext: () => props.onPlayNext?.(),
-    hasNext: Boolean(props.onPlayNext),
-    // Step in perceptual slider space so a nudge feels even across the range.
-    volumeNudge: (d) => c.setVolume(sliderToVolume(clamp01(volumeToSlider(c.volume) + d * 0.05))),
-    toggleMute: c.toggleMute,
-    togglePip: c.togglePip,
-    toggleFullscreen: c.toggleFullscreen,
-    onCast: props.onCast,
-    onExit: props.onClose,
-  });
+  const nav = usePlayerNav(
+    flags,
+    c.playing,
+    {
+      togglePlay: c.togglePlay,
+      seekNudge,
+      onNext: () => props.onPlayNext?.(),
+      hasNext: Boolean(props.onPlayNext),
+      // Step in perceptual slider space so a nudge feels even across the range.
+      volumeNudge: (d) => c.setVolume(sliderToVolume(clamp01(volumeToSlider(c.volume) + d * 0.05))),
+      toggleMute: c.toggleMute,
+      togglePip: c.togglePip,
+      toggleFullscreen: c.toggleFullscreen,
+      onCast: props.onCast,
+      onExit: props.onClose,
+    },
+    metrics.controls,
+  );
 
   const creditsKey = (key: RemoteKey): boolean =>
     handleCreditsKey(
@@ -370,14 +393,6 @@ export function Player(props: Readonly<PlayerProps>) {
     credits: { active: credits.show, onKey: creditsKey },
   });
 
-  // How the chrome fits this stage: one scale for the whole of it, derived from
-  // the controls that are actually present (see lib/metrics). At 1920 it is the
-  // design; in a browser window it is whatever keeps the row from overlapping.
-  const metrics = useMemo(
-    () => chromeMetrics(nav.controls, stageWidth),
-    [nav.controls, stageWidth],
-  );
-  const px = scaler(metrics.scale);
   // Where the settings panel lands on this stage - and, below a width where a
   // 44% panel would be unreadable, that it takes the whole of it.
   const panel = useMemo(() => panelGeometry(stageWidth), [stageWidth]);
@@ -411,6 +426,27 @@ export function Player(props: Readonly<PlayerProps>) {
     ? { transformOrigin: '0 50%', transform: [{ translateX: card.x }, { scale: card.scale }] }
     : undefined;
   const endsAt = c.dur ? endsAtClock(Math.max(0, c.dur - c.cur) * 1000, locale) : '';
+  // How tall the transport actually is, measured rather than assumed: the
+  // skip-intro pill sits on top of it, and every guess at that height was wrong
+  // the moment the row shrank, shed a control, or the up-next peek lifted it. It
+  // is measured on the seek bar + cluster alone, NOT on the scrim box around
+  // them, whose 80px of top padding is gradient rather than chrome.
+  //
+  // Seeded at the design's own height rather than at zero, and it falls back to
+  // it: `onLayout` is a ResizeObserver under react-native-web, and the legacy TV
+  // tier has none (see TRANSPORT_HEIGHT). There the measurement never arrives at
+  // all, and the pill still has to sit above the bar.
+  const [transportHeight, setTransportHeight] = useState(0);
+  const onTransportLayout = useCallback((e: LayoutChangeEvent) => {
+    const height = Math.round(e.nativeEvent.layout.height);
+    setTransportHeight((prev) => (prev === height || height <= 0 ? prev : height));
+  }, []);
+  const transport = transportHeight || px(TRANSPORT_HEIGHT);
+  // The bottom chrome's own foot: the up-next peek when it is showing, else the
+  // resting inset. The pill clears BOTH, which is what the old fixed 214 could
+  // not do - with the peek out it landed squarely on the seek bar.
+  const bottomInset = peekVisible ? PEEK_HEIGHT : px(28);
+  const introLift = chromeShown ? bottomInset + transport + px(SKIP_GAP) : px(SKIP_REST);
   // The top bar + transport hide while a panel / PiP owns the screen, and whenever
   // the chrome auto-hides (see `chromeShown`).
   const input = playerInputHandlers(nav, c, flags, locked);
@@ -418,6 +454,16 @@ export function Player(props: Readonly<PlayerProps>) {
   // Hoisted for the memoized sheet: an inline closure would hand it a new prop
   // every ~4 Hz tick and defeat the memo (nav's callbacks are stable).
   const openSheet = useCallback(() => nav.openOverlay('sheet'), [nav.openOverlay]);
+  // A control the row had no room for, run from the settings panel that now
+  // offers it. Close first: pip, cast and the next episode all change what is on
+  // screen, and leaving the panel over it would hide the thing just asked for.
+  const runOverflow = useCallback(
+    (id: ControlId) => {
+      nav.closeOverlay();
+      nav.activate(id);
+    },
+    [nav.closeOverlay, nav.activate],
+  );
   const playUpNextItem = useCallback(
     (item: UpNextItem) => props.onPlayItem?.(item),
     [props.onPlayItem],
@@ -501,6 +547,7 @@ export function Player(props: Readonly<PlayerProps>) {
           visible={props.intro.active}
           focused={props.intro.active && !nav.overlay && !credits.show}
           scale={metrics.scale}
+          lift={introLift}
           onSkip={props.intro.onSkip}
         />
       ) : null}
@@ -570,40 +617,44 @@ export function Player(props: Readonly<PlayerProps>) {
         // lifting the controls by less than the sheet actually shows would park
         // them under it, which is what a second, nearly-equal copy of this
         // number did.
-        pb={peekVisible ? PEEK_HEIGHT : px(28)}
+        pb={bottomInset}
         opacity={chromeShown ? 1 : 0}
         pointerEvents={chromeShown ? 'box-none' : 'none'}
         style={BOTTOM_SCRIM}
       >
-        <SeekBar
-          cur={c.cur}
-          dur={c.dur}
-          bufEnd={c.bufEnd}
-          seekPreview={c.seekPreview}
-          chapters={chapters}
-          tileAt={props.tileAt}
-          focused={nav.zone === 'progress'}
-          elapsed={fmtTime(shown)}
-          chapterLabel={curChapter?.title || undefined}
-          total={fmtTime(c.dur)}
-          endsAt={endsAt ? t('content.endsAtShort', { time: endsAt }) : ''}
-          scale={metrics.scale}
-          onScrub={c.scrubPreview}
-          onScrubCommit={c.scrubCommit}
-        />
-        <ControlCluster
-          controls={nav.controls}
-          focused={nav.focusedControl}
-          playing={c.playing}
-          muted={c.muted}
-          volume={c.volume}
-          pipActive={c.pipActive}
-          fullscreen={c.fullscreen}
-          metrics={metrics}
-          onActivate={nav.activate}
-          onFocus={nav.focusControl}
-          onVolume={c.setVolume}
-        />
+        {/* The transport proper, measured so the skip-intro pill can sit clear
+            of it. It keeps its layout while the chrome is faded out (opacity,
+            not display), so the height stays honest the whole time. */}
+        <Box onLayout={onTransportLayout}>
+          <SeekBar
+            cur={c.cur}
+            dur={c.dur}
+            bufEnd={c.bufEnd}
+            seekPreview={c.seekPreview}
+            chapters={chapters}
+            tileAt={props.tileAt}
+            focused={nav.zone === 'progress'}
+            elapsed={fmtTime(shown)}
+            chapterLabel={curChapter?.title || undefined}
+            total={fmtTime(c.dur)}
+            endsAt={endsAt ? t('content.endsAtShort', { time: endsAt }) : ''}
+            scale={metrics.scale}
+            onScrub={c.scrubPreview}
+            onScrubCommit={c.scrubCommit}
+          />
+          <ControlCluster
+            focused={nav.focusedControl}
+            playing={c.playing}
+            muted={c.muted}
+            volume={c.volume}
+            pipActive={c.pipActive}
+            fullscreen={c.fullscreen}
+            metrics={metrics}
+            onActivate={nav.activate}
+            onFocus={nav.focusControl}
+            onVolume={c.setVolume}
+          />
+        </Box>
       </Box>
 
       {/* settings / audio / subtitles panel (§5) */}
@@ -621,6 +672,8 @@ export function Player(props: Readonly<PlayerProps>) {
           onToggleStats={() => setStatsOn((s) => !s)}
           subtitleGen={props.subtitleGen}
           onReport={props.onReport}
+          overflow={metrics.overflow}
+          onControl={runOverflow}
           onClose={() => nav.closeOverlay()}
         />
       ) : null}

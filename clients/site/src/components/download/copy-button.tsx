@@ -1,5 +1,14 @@
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useLang } from '#site/lib/i18n';
+
+// Bilingual labels for the two states. `useLang` reads the locale from the URL,
+// which is stable during SSR/prerender, so the correct label ships in the static
+// HTML for each language before hydration.
+const copy = {
+  fr: { copy: 'Copier', copied: 'Copié', aria: 'Copier la commande' },
+  en: { copy: 'Copy', copied: 'Copied', aria: 'Copy command' },
+} as const;
 
 export interface CopyButtonProps {
   /** The exact text placed on the clipboard, passed verbatim, no trimming. */
@@ -15,9 +24,10 @@ export interface CopyButtonProps {
  * over the always-selectable text in the code block.
  */
 export function CopyButton({ value }: CopyButtonProps) {
+  const t = copy[useLang()];
   const [copied, setCopied] = useState(false);
 
-  const copy = () => {
+  const handleCopy = () => {
     // Older/embedded browsers (some TV webviews open these pages) expose no
     // clipboard; degrade to a no-op rather than throw.
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
@@ -30,16 +40,16 @@ export function CopyButton({ value }: CopyButtonProps) {
   return (
     <button
       type="button"
-      onClick={copy}
-      aria-label={copied ? 'Copié' : 'Copier la commande'}
+      onClick={handleCopy}
+      aria-label={copied ? t.copied : t.aria}
       className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-sans text-xs font-medium text-dim transition-colors hover:bg-wash hover:text-text focus-visible:text-text focus-visible:outline-none"
     >
       {copied ? (
-        <IconCheck size={14} stroke={2} className="text-accent" />
+        <IconCheck size={14} stroke={2} className="text-accent" aria-hidden />
       ) : (
-        <IconCopy size={14} stroke={1.75} />
+        <IconCopy size={14} stroke={1.75} aria-hidden />
       )}
-      {copied ? 'Copié' : 'Copier'}
+      {copied ? t.copied : t.copy}
     </button>
   );
 }

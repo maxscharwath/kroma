@@ -1,14 +1,32 @@
 import { IconArrowRight } from '@tabler/icons-react';
-import { Link } from '@tanstack/react-router';
 import { Container } from '#site/components/container';
+import { L } from '#site/components/localized-link';
 import { getAllPosts } from '#site/lib/blog';
+import { useLang } from '#site/lib/i18n';
+
+const copy = {
+  fr: {
+    eyebrow: 'Journal',
+    heading: 'Depuis le blog',
+    all: 'Tous les articles',
+    readingSuffix: 'min de lecture',
+  },
+  en: {
+    eyebrow: 'Journal',
+    heading: 'From the blog',
+    all: 'All articles',
+    readingSuffix: 'min read',
+  },
+} as const;
 
 // The two most recent posts, as editorial cards. Resolved at build time from the
 // MDX glob, so this renders in the prerender with no fetch. Renders nothing at all
 // when the blog is empty, a "coming soon" placeholder on the home page would read
 // as unfinished, which is worse than absence.
 export function BlogTeaser() {
-  const posts = getAllPosts().slice(0, 2);
+  const lang = useLang();
+  const t = copy[lang];
+  const posts = getAllPosts(lang).slice(0, 2);
   if (posts.length === 0) return null;
 
   const single = posts.length === 1;
@@ -19,31 +37,31 @@ export function BlogTeaser() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.18em] text-accent">
-              Journal
+              {t.eyebrow}
             </p>
             <h2 className="font-display text-3xl font-extrabold leading-[1.05] text-text sm:text-4xl">
-              Depuis le blog
+              {t.heading}
             </h2>
           </div>
-          <Link
+          <L
             to="/blog"
             className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-accent"
           >
-            Tous les articles
+            {t.all}
             <IconArrowRight
               size={16}
               stroke={2}
+              aria-hidden
               className="transition-transform duration-200 ease-out group-hover:translate-x-0.5"
             />
-          </Link>
+          </L>
         </div>
 
         <div className={`mt-10 grid gap-4 ${single ? '' : 'md:grid-cols-2'}`}>
           {posts.map((post) => (
-            <Link
+            <L
               key={post.slug}
-              to="/blog/$slug"
-              params={{ slug: post.slug }}
+              to={`/blog/${post.slug}`}
               className="group flex flex-col rounded-2xl border border-border bg-surface-1/40 p-6 transition-colors duration-200 hover:border-border-strong hover:bg-surface-1 sm:p-8"
             >
               {post.tags.length > 0 && (
@@ -69,9 +87,11 @@ export function BlogTeaser() {
                 <span aria-hidden>·</span>
                 <time dateTime={post.date}>{post.dateLabel}</time>
                 <span aria-hidden>·</span>
-                <span>{post.readingMinutes} min de lecture</span>
+                <span>
+                  {post.readingMinutes} {t.readingSuffix}
+                </span>
               </div>
-            </Link>
+            </L>
           ))}
         </div>
       </Container>

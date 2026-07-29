@@ -2,12 +2,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { seo } from '#site/lib/seo';
 import { BlogIndex } from '#site/routes/blog/index';
 
-export const Route = createFileRoute('/en/blog/')({
+export const Route = createFileRoute('/fr/blog/')({
   head: () => ({
     ...seo({
-      lang: 'en',
+      lang: 'fr',
       title: 'Blog',
-      description: 'Design notes, technical choices and the making of KROMA.',
+      description: 'Notes de conception, choix techniques et coulisses du développement de KROMA.',
       path: '/blog',
     }),
   }),

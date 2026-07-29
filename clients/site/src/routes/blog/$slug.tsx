@@ -3,6 +3,7 @@ import { createFileRoute, notFound, useParams } from '@tanstack/react-router';
 import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getPost } from '#site/lib/blog';
+import { useLang } from '#site/lib/i18n';
 import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/blog/$slug')({
   // can't cross the SSR→client serialization boundary, the component below reads
   // it straight from the static import instead.
   loader: ({ params }) => {
-    const post = getPost(params.slug);
+    const post = getPost(params.slug, 'en');
     if (!post) throw notFound();
     const { Component: _Component, ...meta } = post;
     return { meta };
@@ -21,7 +22,7 @@ export const Route = createFileRoute('/blog/$slug')({
     if (!meta) return {};
     return {
       ...seo({
-        lang: 'fr',
+        lang: 'en',
         title: meta.title,
         description: meta.excerpt,
         path: `/blog/${meta.slug}`,
@@ -33,11 +34,18 @@ export const Route = createFileRoute('/blog/$slug')({
   component: BlogPost,
 });
 
+const copy = {
+  fr: { back: 'Tous les articles', by: 'Par', readingSuffix: 'min de lecture' },
+  en: { back: 'All articles', by: 'By', readingSuffix: 'min read' },
+} as const;
+
 export function BlogPost() {
   // `strict: false` so the one component serves both /blog/$slug and
   // /en/blog/$slug without binding to a single route's params.
   const slug = useParams({ strict: false }).slug;
-  const post = slug ? getPost(slug) : undefined;
+  const lang = useLang();
+  const t = copy[lang];
+  const post = slug ? getPost(slug, lang) : undefined;
   // The loader already 404s on an unknown slug, so this is a type guard, not a
   // path a reader reaches.
   if (!post) return null;
@@ -50,8 +58,8 @@ export function BlogPost() {
           to="/blog"
           className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-text"
         >
-          <IconArrowLeft size={16} stroke={2} />
-          Tous les articles
+          <IconArrowLeft size={16} stroke={2} aria-hidden />
+          {t.back}
         </L>
 
         <header className="mt-8">
@@ -71,11 +79,15 @@ export function BlogPost() {
             {post.title}
           </h1>
           <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
-            <span>{post.author}</span>
+            <span>
+              {t.by} {post.author}
+            </span>
             <span aria-hidden>·</span>
             <time dateTime={post.date}>{post.dateLabel}</time>
             <span aria-hidden>·</span>
-            <span>{post.readingMinutes} min de lecture</span>
+            <span>
+              {post.readingMinutes} {t.readingSuffix}
+            </span>
           </div>
         </header>
 

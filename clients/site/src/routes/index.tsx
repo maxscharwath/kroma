@@ -10,7 +10,7 @@ import { SelfHostBand } from '#site/components/home/self-host-band';
 import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/')({
-  head: () => ({ ...seo({ lang: 'fr', path: '/' }) }),
+  head: () => ({ ...seo({ lang: 'en', path: '/' }) }),
   component: Home,
 });
 

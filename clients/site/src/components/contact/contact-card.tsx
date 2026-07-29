@@ -32,7 +32,7 @@ export function ContactCard({ icon, title, description, action, to, href }: Cont
   const card = (
     <>
       <span className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
-        <Icon size={22} stroke={1.75} />
+        <Icon size={22} stroke={1.75} aria-hidden />
       </span>
       <div className="mt-5">
         <h3 className="font-display text-lg font-bold text-text">{title}</h3>
@@ -44,6 +44,7 @@ export function ContactCard({ icon, title, description, action, to, href }: Cont
           size={16}
           stroke={2}
           className="transition-transform duration-200 ease-out group-hover:translate-x-0.5"
+          aria-hidden
         />
       </span>
     </>

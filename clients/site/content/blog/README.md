@@ -1,59 +1,66 @@
-# Écrire un article
+# Writing a post
 
-Le blog est un **dossier de fichiers `.mdx`**. Pour publier, il suffit d'en
-déposer un ici. Rien d'autre à toucher : pas de route à créer, pas d'index à
-mettre à jour, pas de configuration.
+The blog is a **folder of `.mdx` files**. To publish, drop one in. Nothing else
+to touch: no route to add, no index to update, no config.
 
 ```bash
-# 1. Créez le fichier, son nom EST l'URL (le « slug »).
-#    content/blog/mon-article.mdx  ->  https://kroma.tv/blog/mon-article
-touch content/blog/mon-article.mdx
+# The file name IS the URL (the "slug").
+# content/blog/my-post.mdx  ->  https://kroma.tv/blog/my-post
+touch content/blog/my-post.mdx
 ```
 
-Au prochain `bun run build`, l'article est :
+At the next `bun run build` the post is **discovered**, **prerendered** to static
+HTML, dated, sorted (newest first), and its **reading time** is computed for you.
 
-- **découvert** automatiquement (un glob lit le dossier) ;
-- **prérendu** en HTML statique (le crawler suit le lien depuis `/blog`) ;
-- daté, trié (plus récent d'abord) et son **temps de lecture calculé** tout seul.
+## Two languages, one naming convention
 
-## Le frontmatter
+English is the default language, so the base file is English and other languages
+are `.<lang>.mdx` overrides of the **same slug**:
 
-Chaque fichier commence par un bloc YAML entre `---`. Un seul champ est
-réellement requis (`title`), mais remplissez-les : ils alimentent la liste, la
-page de l'article et l'aperçu social (Open Graph).
+```
+my-post.mdx        the default version (English) — the fallback
+my-post.fr.mdx     the French translation of the same post
+```
+
+- A reader always gets the post: the translation for their language if it exists,
+  otherwise the **English default** (never a missing page).
+- Both `/blog/my-post` and `/fr/blog/my-post` resolve, and the language switcher
+  lines up because the slug is shared.
+- A translation's frontmatter is **optional and inherits** from the default file,
+  so `my-post.fr.mdx` can carry just `title` + `excerpt` + the prose and reuse the
+  default's `date`, `tags` and `cover`.
+
+## Frontmatter
+
+A YAML block between `---`. Only `title` is truly required, but fill them in —
+they feed the list, the article page and the social (Open Graph) card.
 
 ```mdx
 ---
-title: "Le titre de l'article"          # requis
-date: "2026-01-14"                        # AAAA-MM-JJ, sert au tri et à l'affichage
-excerpt: "Une phrase de résumé, montrée dans la liste et la carte sociale."
-author: "Votre nom"                       # défaut : « L'équipe KROMA »
-tags: ["Annonce", "Coulisses"]           # optionnel
-cover: "/blog/mon-article/cover.jpg"     # optionnel, image de la carte sociale
-draft: false                              # true = visible en dev, masqué au build
+title: "The post title"                 # required
+date: "2026-01-14"                        # YYYY-MM-DD, drives sorting + display
+excerpt: "One sentence, shown in the list and the social card."
+author: "Your name"
+tags: ["Announcement", "Behind the scenes"]
+cover: "/blog/my-post/cover.jpg"          # optional social-card image
+draft: false                              # true = visible in dev, hidden in the build
 ---
 
-Votre contenu commence ici. C'est du **Markdown**, plus tout le MDX si besoin.
+Your content starts here. It is **Markdown**, plus MDX when you need it.
 ```
 
-## Ce que vous pouvez écrire
+## What you can write
 
-Du Markdown standard, plus les extras déjà câblés :
+Standard Markdown, plus the extras already wired: GFM (tables, task lists),
+anchored headings (`rehype-slug`), Shiki-highlighted code blocks in the charcoal
+theme, and React components (it is MDX). Article styling comes from the
+`.prose-kroma` wrapper, so just write the content.
 
-- **GFM** : tableaux, listes de tâches, texte barré (`remark-gfm`).
-- **Titres ancrés** : chaque `##` reçoit un `id` (`rehype-slug`), liens profonds gratuits.
-- **Blocs de code colorés** : Shiki met en forme les ``` ```ts ``` etc. dans le thème charbon.
-- **Composants React** : importez et utilisez des composants dans le `.mdx` si un
-  article a besoin de quelque chose d'interactif (c'est tout l'intérêt du MDX).
-
-La mise en forme de l'article (typographie, liens ambre, code, citations) vient
-de la classe `.prose-kroma`, vous n'avez rien à styliser, écrivez juste le fond.
-
-## Prévisualiser
+## Preview
 
 ```bash
 bun run --filter '@kroma/site' dev      # http://localhost:3100/blog
 ```
 
-En développement, les brouillons (`draft: true`) sont visibles ; le build de
-production les masque. Voilà, écrire un article, c'est écrire un fichier.
+Drafts are visible in dev and hidden in the production build. That's it: writing
+a post is writing a file.

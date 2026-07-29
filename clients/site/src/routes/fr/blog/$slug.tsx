@@ -3,9 +3,9 @@ import { getPost } from '#site/lib/blog';
 import { seo } from '#site/lib/seo';
 import { BlogPost } from '#site/routes/blog/$slug';
 
-export const Route = createFileRoute('/en/blog/$slug')({
+export const Route = createFileRoute('/fr/blog/$slug')({
   loader: ({ params }) => {
-    const post = getPost(params.slug);
+    const post = getPost(params.slug, 'fr');
     if (!post) throw notFound();
     const { Component: _Component, ...meta } = post;
     return { meta };
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/en/blog/$slug')({
     if (!meta) return {};
     return {
       ...seo({
-        lang: 'en',
+        lang: 'fr',
         title: meta.title,
         description: meta.excerpt,
         path: `/blog/${meta.slug}`,

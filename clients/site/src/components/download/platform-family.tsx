@@ -1,7 +1,16 @@
 import { IconExternalLink } from '@tabler/icons-react';
 import type { ComponentType, ReactNode } from 'react';
+import { useLang } from '#site/lib/i18n';
 
-type IconComponent = ComponentType<{ size?: number | string; stroke?: number; className?: string }>;
+type IconComponent = ComponentType<{
+  size?: number | string;
+  stroke?: number;
+  className?: string;
+  'aria-hidden'?: boolean;
+}>;
+
+// The one bit of prose the frame owns; the family title and intro come in as props.
+const detailedSteps = { fr: 'Étapes détaillées', en: 'Detailed steps' } as const;
 
 export interface PlatformFamilyProps {
   icon: IconComponent;
@@ -28,11 +37,12 @@ export function PlatformFamily({
   docHref,
   children,
 }: PlatformFamilyProps) {
+  const lang = useLang();
   return (
     <div className="grid gap-6 lg:grid-cols-[15rem_1fr] lg:gap-10">
       <div className="lg:sticky lg:top-24 lg:self-start">
         <div className="flex items-center gap-2.5">
-          <Icon size={22} stroke={1.75} className="text-accent" />
+          <Icon size={22} stroke={1.75} className="text-accent" aria-hidden />
           <h3 className="font-display text-xl font-extrabold text-text">{title}</h3>
         </div>
         {intro && <p className="mt-2 text-sm leading-relaxed text-muted">{intro}</p>}
@@ -43,8 +53,8 @@ export function PlatformFamily({
             rel="noreferrer noopener"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent transition-opacity hover:opacity-80"
           >
-            Étapes détaillées
-            <IconExternalLink size={14} stroke={1.75} />
+            {detailedSteps[lang]}
+            <IconExternalLink size={14} stroke={1.75} aria-hidden />
           </a>
         )}
       </div>

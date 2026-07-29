@@ -8,5 +8,5 @@
     },
     "noEmit": true
   },
-  "include": ["src", "vite.config.ts", "content"]
+  "include": ["src", "vite.config.ts", "vite", "content"]
 }

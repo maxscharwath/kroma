@@ -1,6 +1,16 @@
 import type { ComponentType, ReactNode } from 'react';
+import { useLang } from '#site/lib/i18n';
 
-type IconComponent = ComponentType<{ size?: number | string; stroke?: number; className?: string }>;
+type IconComponent = ComponentType<{
+  size?: number | string;
+  stroke?: number;
+  className?: string;
+  'aria-hidden'?: boolean;
+}>;
+
+// Only the beta badge is prose here; the name and artifact extensions are
+// language-neutral and passed in by the call site.
+const betaLabel = { fr: 'Bêta', en: 'Beta' } as const;
 
 export interface PlatformEntryProps {
   icon: IconComponent;
@@ -30,11 +40,12 @@ export function PlatformEntry({
   setup,
   children,
 }: PlatformEntryProps) {
+  const lang = useLang();
   return (
     <div className="border-t border-border/60 py-6 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-start gap-4">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-accent">
-          <Icon size={20} stroke={1.75} />
+          <Icon size={20} stroke={1.75} aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
@@ -49,7 +60,7 @@ export function PlatformEntry({
             ))}
             {beta && (
               <span className="rounded-full border border-border-strong px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wider text-dim">
-                Bêta
+                {betaLabel[lang]}
               </span>
             )}
           </div>

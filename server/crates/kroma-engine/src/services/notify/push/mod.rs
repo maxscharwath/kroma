@@ -117,14 +117,19 @@ pub fn public_key<S: HostCtx>(state: &S) -> anyhow::Result<String> {
 /// What it must never be is EMPTY: an empty `sub` is not the same as an absent
 /// one, and FCM rejects the token outright.
 fn subject_of<S: HostCtx>(state: &S) -> String {
-    // The same `remoteUrl` the share and Quick Connect links are built from
-    // (`settings::public_url`), read through the one accessor `HostCtx` offers.
+    public_url_of(state).unwrap_or_else(|| DEFAULT_SUBJECT.to_string())
+}
+
+/// The address this server answers on, when it has a public one.
+///
+/// The same `remoteUrl` the share and Quick Connect links are built from
+/// (`settings::public_url`), read through the one accessor `HostCtx` offers.
+/// `None` for a NAS with nothing but a LAN address, which is the normal case.
+fn public_url_of<S: HostCtx>(state: &S) -> Option<String> {
     let public = state.setting_str("remoteUrl", "");
     let public = public.trim().trim_end_matches('/');
-    if public.starts_with("https://") || public.starts_with("http://") {
-        return public.to_string();
-    }
-    DEFAULT_SUBJECT.to_string()
+    let usable = public.starts_with("https://") || public.starts_with("http://");
+    usable.then(|| public.to_string())
 }
 
 /// Everything a push needs that is per-SERVER rather than per-recipient: the
@@ -345,6 +350,7 @@ pub fn deliver<S: HostCtx>(
         web_payload: &payload,
         urgency: urgency_of(notification),
         actions: transports::native_actions(notification),
+        native_image: super::art::native_image_url(notification, public_url_of(state).as_deref()),
     };
 
     let mut sent = 0;
@@ -418,11 +424,40 @@ fn send_one<S: HostCtx>(
         let _ = push_subs::drop_subscription(state.db(), &sub.id);
         return Ok(false);
     }
+    if is_transient(response.status) {
+        // Not this endpoint's fault, so it earns no strike. See [`is_transient`].
+        anyhow::bail!("push service is unavailable ({}): {body}", response.status)
+    }
     if push_subs::record_failure(state.db(), &sub.id).unwrap_or(false) {
         tracing::info!(endpoint = %sub.endpoint, "dropping push endpoint after repeated failures");
         let _ = push_subs::drop_subscription(state.db(), &sub.id);
     }
     anyhow::bail!("push service returned {} {body}", response.status)
+}
+
+/// Whether a rejection is the SERVICE's problem rather than this endpoint's.
+///
+/// The failure streak exists to evict endpoints that quietly stop working
+/// without ever saying so — a token that is dead but answers 400, say. A 429 or
+/// a 5xx says nothing about the endpoint: it says the service is busy or down,
+/// and it will say the same thing to every device on this server at once.
+///
+/// Counting those was how one digest could unsubscribe a household. The relay
+/// rate-limits per device (30 a minute), and `digest::run` announces every
+/// followed show in one pass with no pacing, so a big scan earns 429s in bulk;
+/// eight in a row hit [`MAX_FAILURES`] and the row is deleted. Nothing
+/// re-registers it — the app only ever subscribes from the settings toggle, and
+/// its grant refresh is a no-op while the grant it holds is still valid — so the
+/// reader's push stays off until they notice and toggle it themselves.
+///
+/// [`kroma_push::relay::is_gone`] states this rule already; this is the half of
+/// it the delivery loop owes.
+///
+/// [`MAX_FAILURES`]: kroma_db::push_subs::MAX_FAILURES
+fn is_transient(status: u16) -> bool {
+    // 408 for completeness: no transport sends it today, but a proxy in front of
+    // one can, and it means the same thing.
+    status == 408 || status == 429 || (500..600).contains(&status)
 }
 
 /// Perform one built request over the curl transport.
@@ -701,11 +736,43 @@ mod tests {
     }
 
     #[test]
-    fn a_service_having_a_bad_night_is_kept_until_it_has_had_several() {
-        // A 500 is transient. Dropping on the first one would unsubscribe every
-        // device during a push-service outage, and they would not come back
-        // until each user re-granted permission.
+    fn a_service_having_a_bad_night_never_costs_the_reader_their_registration() {
+        // A 500 says the SERVICE is down, never that this device is gone - and it
+        // says it to every device on the server at once. This used to earn a
+        // strike, so an outage (or one digest outrunning the relay's 30-a-minute
+        // rate limit) walked every endpoint to MAX_FAILURES and deleted it. The
+        // reader would not come back until they re-granted permission by hand,
+        // which is the outcome the streak exists to avoid, not to cause.
         let service = FakeService::answering(500);
+        let (state, user) = state_with_endpoint(&service.endpoint, PushTransport::WebPush, true);
+        let note = notification(NotificationCategory::Requests);
+
+        for attempt in 1..=push_subs::MAX_FAILURES + 2 {
+            assert_eq!(deliver(&state, &sender(&state), &user, &note), 0);
+            assert_eq!(subscription_count(&state, &user), 1, "dropped after {attempt}");
+        }
+    }
+
+    #[test]
+    fn a_rate_limited_push_is_not_the_devices_fault_either() {
+        // The one the relay actually produces: `digest::run` announces every
+        // followed show in one pass, so a big scan earns 429s in bulk.
+        let service = FakeService::answering(429);
+        let (state, user) = state_with_endpoint(&service.endpoint, PushTransport::WebPush, true);
+        let note = notification(NotificationCategory::Media);
+
+        for _ in 0..push_subs::MAX_FAILURES + 2 {
+            assert_eq!(deliver(&state, &sender(&state), &user, &note), 0);
+        }
+        assert_eq!(subscription_count(&state, &user), 1);
+    }
+
+    #[test]
+    fn an_endpoint_that_keeps_being_refused_is_still_retired() {
+        // The streak still does its job: a 400 is about THIS request reaching
+        // THIS endpoint, so an endpoint that answers it forever is dead in every
+        // way except saying so, and keeping it costs a request per notification.
+        let service = FakeService::answering(400);
         let (state, user) = state_with_endpoint(&service.endpoint, PushTransport::WebPush, true);
         let note = notification(NotificationCategory::Requests);
 
@@ -713,7 +780,6 @@ mod tests {
             assert_eq!(deliver(&state, &sender(&state), &user, &note), 0);
             assert_eq!(subscription_count(&state, &user), 1, "dropped after only {attempt}");
         }
-        // The failure that reaches the ceiling retires it.
         assert_eq!(deliver(&state, &sender(&state), &user, &note), 0);
         assert_eq!(subscription_count(&state, &user), 0);
     }

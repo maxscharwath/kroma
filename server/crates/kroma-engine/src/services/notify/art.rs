@@ -34,6 +34,30 @@ pub fn sized_for_push(mut n: Notification) -> Notification {
     n
 }
 
+/// The URL a NATIVE push should name for this notification's art, if any.
+///
+/// Apple, Google and the relay each fetch the picture from the DEVICE, off this
+/// server's network entirely, so a server-relative `/api/images/…` reaches
+/// nothing. FCM answers 400 to one, which is not `gone` and so used to cost the
+/// device a failure strike on every notification that carried a poster.
+///
+/// Web Push is the exception and keeps the relative form: the service worker
+/// resolves it against the origin it was installed from, which is us.
+///
+/// `None` when the art is ours and the server has no public address to build an
+/// absolute URL from. Sending the notification without its picture is the honest
+/// outcome — a NAS on a home LAN genuinely cannot be reached by Apple's or
+/// Google's fetchers, and naming a URL they will fail on costs the reader their
+/// registration rather than just the image.
+pub fn native_image_url(n: &Notification, public_url: Option<&str>) -> Option<String> {
+    let url = n.image_url.as_deref()?;
+    if !url.starts_with(PUBLIC_PREFIX) {
+        // Someone else's, and already absolute (a TMDB poster).
+        return Some(url.to_string());
+    }
+    public_url.map(|base| format!("{base}{url}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -72,5 +96,37 @@ mod tests {
         assert_eq!(sized_for_push(with_image(Some(sized))).image_url.as_deref(), Some(sized));
 
         assert!(sized_for_push(with_image(None)).image_url.is_none());
+    }
+
+    #[test]
+    fn a_native_push_names_art_the_device_can_actually_reach() {
+        // The device fetches this itself, from wherever it is: a path that only
+        // means something on our own network names nothing at all.
+        let n = sized_for_push(with_image(Some("/api/images/abc.webp")));
+        assert_eq!(
+            native_image_url(&n, Some("https://kroma.example.com")).as_deref(),
+            Some("https://kroma.example.com/api/images/abc.webp?w=780"),
+        );
+    }
+
+    #[test]
+    fn a_server_with_no_public_address_sends_no_picture_rather_than_a_broken_one() {
+        // The normal case for a NAS on a home LAN. FCM answers 400 to an image
+        // URL it cannot fetch, and a 400 is not `gone` - so naming one used to
+        // spend a failure strike per notification until the device was dropped.
+        let n = sized_for_push(with_image(Some("/api/images/abc.webp")));
+        assert_eq!(native_image_url(&n, None), None);
+    }
+
+    #[test]
+    fn someone_elses_art_needs_no_help_and_travels_either_way() {
+        let n = with_image(Some("https://image.tmdb.org/t/p/w500/x.jpg"));
+        for base in [Some("https://kroma.example.com"), None] {
+            assert_eq!(
+                native_image_url(&n, base).as_deref(),
+                Some("https://image.tmdb.org/t/p/w500/x.jpg"),
+            );
+        }
+        assert_eq!(native_image_url(&with_image(None), Some("https://k.example")), None);
     }
 }

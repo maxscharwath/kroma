@@ -76,6 +76,14 @@ pub struct Outgoing<'a> {
     /// payloads. Only these can be acted on without opening the app; a `link`
     /// action is just navigation and the tap handler covers it.
     pub actions: Vec<(String, String, String)>,
+    /// Where the NATIVE transports should tell the device to fetch the art.
+    ///
+    /// Deliberately not `notification.image_url`: that one is server-relative for
+    /// our own art, which is right for Web Push (the service worker resolves it
+    /// against our origin) and useless to Apple and Google, who fetch from the
+    /// device. `None` when there is no reachable URL to name (see
+    /// [`super::super::art::native_image_url`]).
+    pub native_image: Option<String>,
 }
 
 /// Flatten a notification's actionable buttons for the native payloads.
@@ -149,7 +157,7 @@ fn alert<'a>(out: &'a Outgoing<'a>) -> kroma_push::Alert<'a> {
         title: &n.title,
         body: &n.body,
         link: n.link.as_deref(),
-        image_url: n.image_url.as_deref(),
+        image_url: out.native_image.as_deref(),
         category: push_category(n),
         // Group by category so a run of "new episode" notifications collapses
         // into one thread in the shade instead of a wall of separate rows.
@@ -245,6 +253,7 @@ mod tests {
             web_payload: b"{}",
             urgency: Urgency::High,
             actions: Vec::new(),
+            native_image: n.image_url.clone(),
         };
         for transport in [PushTransport::WebPush, PushTransport::Apns, PushTransport::Fcm] {
             let built = build(&senders, &subscription(transport), &out, 0).unwrap();
@@ -274,6 +283,7 @@ mod tests {
             web_payload: b"{}",
             urgency: Urgency::High,
             actions: Vec::new(),
+            native_image: n.image_url.clone(),
         };
         assert_eq!(alert(&out).category, Some("media_available"));
         // And related notifications thread together by category.

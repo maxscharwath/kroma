@@ -48,7 +48,11 @@ export function fcmMessage(n: Notification, deviceToken: string): Record<string,
     notification: {
       // Android 8+ requires a channel; the app creates one per category.
       channel_id: n.category ?? 'default',
-      click_action: 'KROMA_NOTIFICATION_CLICK',
+      // No `click_action`: it names an intent action an activity must declare an
+      // <intent-filter> for, and the app declares none - so a tap resolved to
+      // nothing at all. Absent, Firebase builds the content intent from the
+      // launcher activity, which is what opens the app and lets
+      // `expo-notifications` hand the tap to the router.
       ...(n.threadId ? { tag: n.threadId } : {}),
     },
   };

@@ -46,6 +46,38 @@ use crate::state::SharedState;
 
 /// Cap on an attached image, matching the avatar upload's.
 const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+
+/// The relay's own limits on a push, from `packages/push-relay/worker/schemas.ts`.
+///
+/// Enforced HERE, and stated in the same units, because the relay is the last
+/// thing in the chain and rejects with a 400 - which is not `gone`, so an
+/// over-long announcement did not merely fail to arrive: it spent a delivery
+/// failure on every phone on the server, and eight sends would have unsubscribed
+/// the household. Meanwhile the endpoint answered `{"delivered": N}`, because
+/// that counts in-app rows, so the admin was told it had worked.
+///
+/// Refusing at the console turns all of that into one 400 the composer can show.
+const MAX_TITLE: usize = 256;
+const MAX_BODY: usize = 1024;
+const MAX_LINK: usize = 1024;
+const MAX_IMAGE_URL: usize = 2048;
+
+/// Length as the relay counts it.
+///
+/// zod's `.max()` measures a JS string's `length`, which is UTF-16 code units -
+/// so an emoji counts twice there and once under `chars()`. Counting the same
+/// way is what keeps "accepted here" and "accepted there" the same sentence.
+fn wire_len(s: &str) -> usize {
+    s.encode_utf16().count()
+}
+
+/// Refuse anything the relay would, naming the field.
+fn within(value: &str, max: usize, too_long: &'static str) -> Result<(), &'static str> {
+    if wire_len(value) > max {
+        return Err(too_long);
+    }
+    Ok(())
+}
 /// Widest the stored master needs to be. A notification's image is drawn at
 /// ~44 px in a list row and at most a phone's width in a rich push, so a master
 /// past this is bytes nobody ever sees - and the `?w=` renditions come off it.
@@ -172,12 +204,19 @@ fn compose(body: &SendBody, admin: &str) -> Result<NotificationSpec, &'static st
                 NotificationCategory::parse(raw).ok_or("unknown notification category")?
             }
         };
-        let mut spec =
-            NotificationSpec::custom(category, title, body.body.clone().unwrap_or_default());
+        let text = body.body.clone().unwrap_or_default();
+        within(title, MAX_TITLE, "title is too long")?;
+        within(&text, MAX_BODY, "body is too long")?;
+
+        let mut spec = NotificationSpec::custom(category, title, text);
         if let Some(link) = body.link.as_deref().map(str::trim).filter(|l| !l.is_empty()) {
+            within(link, MAX_LINK, "link is too long")?;
             spec = spec.link(link);
         }
         let image = body.image_url.as_deref().map(str::trim).filter(|u| !u.is_empty());
+        if let Some(image) = image {
+            within(image, MAX_IMAGE_URL, "image URL is too long")?;
+        }
         return Ok(spec.image(image.map(str::to_string)));
     }
     let event = body

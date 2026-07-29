@@ -507,6 +507,51 @@ async fn the_bench_sends_a_real_notification_to_the_admin_who_asked() {
 }
 
 #[tokio::test]
+async fn the_bench_refuses_a_notification_the_relay_would_reject() {
+    // The relay caps a push title at 256 and a body at 1024 and answers 400 to
+    // anything longer. A 400 is not `gone`, so before this check an over-long
+    // announcement cost every phone on the server a delivery failure - while the
+    // endpoint still answered `delivered`, because that counts in-app rows.
+    let t = test_app();
+
+    let (status, body) = send(
+        &t.app,
+        "POST",
+        "/api/admin/notifications",
+        Some(&t.token),
+        Some(json!({ "title": "x".repeat(257), "target": "me" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(body["error"].as_str().unwrap_or_default().contains("title"), "{body}");
+
+    let (status, _) = send(
+        &t.app,
+        "POST",
+        "/api/admin/notifications",
+        Some(&t.token),
+        Some(json!({ "title": "Fine", "body": "y".repeat(1025), "target": "me" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // Nothing was written for either attempt.
+    let (_, inbox) = get(&t.app, "/api/notifications", Some(&t.token)).await;
+    assert_eq!(inbox["unread"], json!(0));
+
+    // ...and one right at the limit still goes out.
+    let (status, _) = send(
+        &t.app,
+        "POST",
+        "/api/admin/notifications",
+        Some(&t.token),
+        Some(json!({ "title": "z".repeat(256), "target": "me" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
 async fn the_bench_can_reach_everyone_and_refuses_an_unknown_event() {
     let t = test_app();
     let (_id, member) = member(&t, "everybody");

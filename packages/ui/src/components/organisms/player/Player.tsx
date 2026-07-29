@@ -356,7 +356,6 @@ export function Player(props: Readonly<PlayerProps>) {
 
   const seekNudge = useSeekNudge(c);
   const nav = usePlayerNav(
-    flags,
     c.playing,
     {
       togglePlay: c.togglePlay,

@@ -7,10 +7,10 @@
  */
 
 import { z } from 'zod';
-import type { Delivery } from './apns';
 import { importRs256, sign } from './jwt';
 import type { Notification } from './notification';
 import { fcmMessage } from './notification';
+import type { Delivery } from './schemas';
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -32,8 +32,16 @@ type ServiceAccount = z.infer<typeof ServiceAccount>;
 
 let cached: { token: string; mintedAt: number; email: string } | null = null;
 
+/** The last service-account JSON parsed, and what it parsed to. The binding is
+ * a constant for the isolate's life, so re-parsing it per push was a JSON parse
+ * plus a schema validation to read three fields that never change. */
+let parsed: { json: string; account: ServiceAccount } | null = null;
+
 export function parseServiceAccount(json: string): ServiceAccount {
-  return ServiceAccount.parse(JSON.parse(json));
+  if (parsed?.json === json) return parsed.account;
+  const account = ServiceAccount.parse(JSON.parse(json));
+  parsed = { json, account };
+  return account;
 }
 
 async function accessToken(account: ServiceAccount, nowSecs: number): Promise<string> {

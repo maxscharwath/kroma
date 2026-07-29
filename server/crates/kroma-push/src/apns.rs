@@ -140,29 +140,7 @@ impl ApnsKey {
     }
 }
 
-/// What a push carries beyond its text. Mirrors the fields the other transports
-/// send, so the app reads one shape whatever delivered it.
-#[derive(Debug, Clone, Default)]
-pub struct Alert<'a> {
-    pub id: &'a str,
-    pub title: &'a str,
-    pub body: &'a str,
-    /// In-app route a tap opens.
-    pub link: Option<&'a str>,
-    pub image_url: Option<&'a str>,
-    /// A `UNNotificationCategory` the app registered at launch. This is what
-    /// puts action buttons on the notification: APNs cannot carry arbitrary
-    /// buttons, only the name of a set the app already knows.
-    pub category: Option<&'a str>,
-    /// Groups related notifications in the shade (per show, per request…).
-    pub thread_id: Option<&'a str>,
-    /// What each registered button actually does, as `(id, method, href)`.
-    ///
-    /// The category names the buttons; this says what they call. Without it the
-    /// app would have to reverse-engineer an id out of `link`, which breaks the
-    /// moment a link shape changes.
-    pub actions: &'a [(String, String, String)],
-}
+pub use crate::Alert;
 
 /// Build the request that delivers `alert` to one device token.
 pub fn build_request(

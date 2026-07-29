@@ -27,19 +27,28 @@
  * pile of device tokens.
  */
 
+import { z } from 'zod';
 import { b64url, fromB64url } from './jwt';
+import { Transport } from './schemas';
 
-/** Which service the sealed device token belongs to. */
-export type Transport = 'apns' | 'fcm';
+export type { Transport };
 
-export interface GrantPayload {
+/**
+ * What a sealed grant contains.
+ *
+ * A schema rather than an interface because the plaintext is only trusted once
+ * GCM has vouched for it — and even then it may be a grant from an older format
+ * version. Parsing is what makes the fields below safe to read.
+ */
+export const GrantPayload = z.object({
   /** Transport. */
-  t: Transport;
+  t: Transport,
   /** The raw device token. Never leaves the relay in readable form. */
-  d: string;
+  d: z.string().min(1),
   /** Expiry, epoch seconds. */
-  e: number;
-}
+  e: z.number(),
+});
+export type GrantPayload = z.infer<typeof GrantPayload>;
 
 /**
  * How long a grant stays valid.
@@ -60,27 +69,50 @@ const utf8 = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
+ * The derived key, kept for the isolate's life.
+ *
+ * Both hot routes need it — every `/v1/grant` seals and every `/v1/push` opens —
+ * and the derivation is two WebCrypto calls that produce the same key every time
+ * for a given secret. Safe to hold: it is non-extractable, so this is a handle
+ * rather than key material, the same argument `apns.ts` makes for its imported
+ * `.p8`. Keyed on the secret so a rotated `GRANT_SECRET` re-derives rather than
+ * serving a stale key.
+ */
+let derived: { secret: string; key: Promise<CryptoKey> } | null = null;
+
+/**
  * The AES key, derived from the configured secret rather than used directly, so
  * that `GRANT_SECRET` can be any string an operator pastes in without its length
  * or entropy layout mattering to AES.
  */
-async function sealingKey(secret: string): Promise<CryptoKey> {
+function sealingKey(secret: string): Promise<CryptoKey> {
   if (!secret) throw new Error('GRANT_SECRET is not configured');
-  const material = await crypto.subtle.importKey('raw', utf8.encode(secret), 'HKDF', false, [
-    'deriveKey',
-  ]);
-  return crypto.subtle.deriveKey(
-    {
-      name: 'HKDF',
-      hash: 'SHA-256',
-      salt: utf8.encode('kroma.push.relay'),
-      info: utf8.encode(PREFIX),
-    },
-    material,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  );
+  if (derived?.secret === secret) return derived.key;
+  const key = (async () => {
+    const material = await crypto.subtle.importKey('raw', utf8.encode(secret), 'HKDF', false, [
+      'deriveKey',
+    ]);
+    return crypto.subtle.deriveKey(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: utf8.encode('kroma.push.relay'),
+        info: utf8.encode(PREFIX),
+      },
+      material,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+  })();
+  // Cache the promise, not the resolved key: two concurrent requests on a cold
+  // isolate then share one derivation instead of racing to do it twice.
+  derived = { secret, key };
+  // A failed derivation must not be remembered as this secret's answer.
+  key.catch(() => {
+    if (derived?.key === key) derived = null;
+  });
+  return key;
 }
 
 /** Mint a grant for one device. */
@@ -129,11 +161,9 @@ export async function open(
       key,
       bytes.subarray(IV_BYTES),
     );
-    const payload = JSON.parse(decoder.decode(plain)) as GrantPayload;
-    if (payload.t !== 'apns' && payload.t !== 'fcm') return null;
-    if (typeof payload.d !== 'string' || !payload.d) return null;
-    if (typeof payload.e !== 'number' || payload.e <= nowSecs) return null;
-    return payload;
+    const payload = GrantPayload.safeParse(JSON.parse(decoder.decode(plain)));
+    if (!payload.success || payload.data.e <= nowSecs) return null;
+    return payload.data;
   } catch {
     return null;
   }

@@ -11,16 +11,16 @@ export function CastPanel({
   visible,
   onClose,
   onPick,
-  offerLocal = false,
 }: Readonly<{
   visible: boolean;
   onClose(): void;
   onPick(receiverId: string | null): void;
-  offerLocal?: boolean;
 }>) {
   return (
     <PlayerPanel visible={visible} onClose={onClose}>
-      <CastDeviceList onPick={onPick} offerLocal={offerLocal} />
+      {/* Never "this device": the player IS this device, so the row would offer
+          the screen the viewer is already looking at. */}
+      <CastDeviceList onPick={onPick} offerLocal={false} />
     </PlayerPanel>
   );
 }

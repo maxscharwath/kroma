@@ -234,9 +234,19 @@ async fn pump(mut socket: WebSocket, state: SharedState, who: Viewer) {
     }
     // ...and a remote that walks out of the room leaves the television's list.
     if controlling {
-        for row in state.cast.detach_controller(&controller_id) {
-            state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
-        }
+        release_controller(&state, &controller_id);
+    }
+}
+
+/// Take this socket's remote off whatever set it was driving, and say so.
+///
+/// The mutation and the broadcast are one act: a controller roster that changes
+/// without the event leaves every phone's picker and every television's remote
+/// list stale until the TTL sweep notices. Writing the pair once is what stops
+/// the next caller from doing only half of it.
+fn release_controller(state: &SharedState, controller_id: &str) {
+    for row in state.cast.detach_controller(controller_id) {
+        state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
     }
 }
 
@@ -314,9 +324,7 @@ async fn handle_client(
             }
             // One socket drives one set: picking another releases the first, so a
             // television never lists a phone that has moved on.
-            for row in state.cast.detach_controller(controller_id) {
-                state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
-            }
+            release_controller(state, controller_id);
             *controlling = true;
             if let Some(row) =
                 state.cast.attach_controller(
@@ -333,9 +341,7 @@ async fn handle_client(
         }
         ClientMessage::CastRelease => {
             *controlling = false;
-            for row in state.cast.detach_controller(controller_id) {
-                state.events.publish(ServerEvent::CastReceiverChanged { receiver: Box::new(row) });
-            }
+            release_controller(state, controller_id);
         }
         ClientMessage::CastKick { controller_id } => {
             // Only the set itself may send its remotes away - and only its OWN,

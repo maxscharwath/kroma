@@ -14,6 +14,7 @@
 import { importEs256, sign } from './jwt';
 import type { Notification } from './notification';
 import { apnsPayload } from './notification';
+import type { Delivery } from './schemas';
 
 const HOSTS = {
   production: 'https://api.push.apple.com',
@@ -48,15 +49,6 @@ async function bearer(config: AppleConfig, nowSecs: number): Promise<string> {
   );
   cached = { token, mintedAt: nowSecs, keyId: config.keyId };
   return token;
-}
-
-export interface Delivery {
-  /** Whether Apple accepted it. */
-  ok: boolean;
-  /** Whether this device is permanently gone and should be dropped. */
-  gone: boolean;
-  status: number;
-  reason?: string;
 }
 
 function reasonOf(body: string): string {

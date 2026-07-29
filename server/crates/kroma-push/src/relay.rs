@@ -26,21 +26,7 @@ use crate::{PushRequest, Urgency};
 /// notifications at an arbitrary host is a phishing route, not a feature.
 pub const RELAY_URL: &str = "https://push.kroma.tv";
 
-/// What the relay needs to render a notification for either platform.
-///
-/// Structure, not a finished Apple or Google payload — the relay owns the topic,
-/// the push type and the priority, so the shape here is deliberately narrower
-/// than what `apns::Alert` can express.
-pub struct Alert<'a> {
-    pub id: &'a str,
-    pub title: &'a str,
-    pub body: &'a str,
-    pub link: Option<&'a str>,
-    pub image_url: Option<&'a str>,
-    pub category: Option<&'a str>,
-    pub thread_id: Option<&'a str>,
-    pub actions: &'a [(String, String, String)],
-}
+pub use crate::Alert;
 
 /// Build the request that asks the relay to deliver `alert` to `grant`'s device.
 pub fn build_request(grant: &str, alert: &Alert<'_>, urgency: Urgency) -> Result<PushRequest> {
@@ -52,11 +38,7 @@ pub fn build_request(grant: &str, alert: &Alert<'_>, urgency: Urgency) -> Result
         "id": alert.id,
         "title": alert.title,
         "body": alert.body,
-        "urgency": match urgency {
-            Urgency::Low => "low",
-            Urgency::Normal => "normal",
-            Urgency::High => "high",
-        },
+        "urgency": urgency.as_str(),
     });
     if let Some(link) = alert.link {
         notification["link"] = json!(link);

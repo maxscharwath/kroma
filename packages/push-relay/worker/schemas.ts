@@ -69,6 +69,21 @@ export const PushRequest = z.object({
 export type PushRequest = z.infer<typeof PushRequest>;
 
 /**
+ * What one transport made of one send. Transport-neutral on purpose: `index.ts`
+ * dispatches to Apple or Google and then answers the caller identically, so this
+ * belongs beside the other shared wire types rather than inside whichever
+ * transport happened to define it first.
+ */
+export interface Delivery {
+  /** Whether the service accepted it. */
+  ok: boolean;
+  /** Whether this device is permanently gone and should be dropped. */
+  gone: boolean;
+  status: number;
+  reason?: string;
+}
+
+/**
  * The first problem zod found, as an error body: it names the offending field
  * and nothing else. Deliberately not `z.treeifyError` or the raw issue list —
  * those echo the received value back, which for this Worker means reflecting an

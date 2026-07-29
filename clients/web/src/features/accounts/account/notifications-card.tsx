@@ -7,11 +7,12 @@
 // mystery. When push can't work here at all, the row says which reason applies
 // instead of offering a switch that would silently do nothing.
 
-import type { CategoryPref, MessageKey, NotificationCategory } from '@kroma/core';
+import type { CategoryPref, NotificationCategory } from '@kroma/core';
 import {
   blockerOf,
   disablePush,
   enablePush,
+  NOTIFICATION_CATEGORY_LABEL,
   PUSH_BLOCKER_LABEL,
   type PushBlocker,
 } from '@kroma/core';
@@ -24,14 +25,6 @@ import { kromaClient } from '#web/shared/lib/api';
 import { pushBlocker, webPush } from '#web/shared/lib/push';
 import { userQueries } from '#web/shared/lib/queries';
 import { Button } from '#web/shared/ui';
-
-const CATEGORY_LABEL: Record<NotificationCategory, MessageKey> = {
-  requests: 'notifications.category.requests',
-  media: 'notifications.category.media',
-  reports: 'notifications.category.reports',
-  downloads: 'notifications.category.downloads',
-  system: 'notifications.category.system',
-};
 
 export function NotificationsCard() {
   return (
@@ -176,7 +169,7 @@ function CategoryMatrix() {
         {data.categories.map((pref) => (
           <div key={pref.category} className="flex items-center justify-between gap-4 py-2.5">
             <span className="min-w-0 truncate text-[13.5px] text-text">
-              {t(CATEGORY_LABEL[pref.category])}
+              {t(NOTIFICATION_CATEGORY_LABEL[pref.category])}
             </span>
             <div className="flex shrink-0 gap-4">
               <Toggle

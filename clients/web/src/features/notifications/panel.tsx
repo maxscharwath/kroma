@@ -18,8 +18,13 @@
 //     own buttons, so content and its actions stay one block;
 //   * rows are grouped by day, which is the only structure the list gets.
 
-import type { KNOWN_NOTIFICATION_EVENTS, MessageKey, NotificationEvent } from '@kroma/core';
-import { type Notification, sizedImageUrl } from '@kroma/core';
+import type { KNOWN_NOTIFICATION_EVENTS, NotificationEvent } from '@kroma/core';
+import {
+  groupNotificationsByDay,
+  NOTIFICATION_DAY_LABEL,
+  type Notification,
+  sizedImageUrl,
+} from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
@@ -45,7 +50,7 @@ import {
 } from '@tabler/icons-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 import { useUnreadCount } from '#web/features/notifications/use-notifications';
 import { kromaClient } from '#web/shared/lib/api';
 import { userQueries } from '#web/shared/lib/queries';
@@ -192,14 +197,14 @@ function PanelBody({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
 
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] [scrollbar-width:thin]">
-      {groupByDay(items).map((group) => (
+      {groupNotificationsByDay(items).map((group) => (
         // Keyed on the run's first row, not on the day: an unsorted inbox can
         // open a second "Earlier" run and two sections must not share a key.
         <section key={group.items[0]?.id}>
           {/* h3, not h2: Radix renders <Dialog.Title> as the h2, and a day label
               is a level below the drawer's own name. */}
           <h3 className="sticky top-0 z-10 bg-[#101014] px-2 pb-1.5 pt-3 text-[11px] font-semibold text-dim">
-            {t(DAY_LABEL[group.day])}
+            {t(NOTIFICATION_DAY_LABEL[group.day])}
           </h3>
           <ul>
             {group.items.map((n) => (
@@ -252,40 +257,80 @@ function NotificationRow({
         aria-labelledby={`${labelId}-title ${labelId}-body`}
         className="absolute inset-0 rounded-xl"
       />
-      <div className="pointer-events-none relative flex items-start p-2.5 pl-2">
-        {/* The gutter is here on every row, empty or not, so nothing shifts. */}
-        <span className="mr-2 flex h-12 w-1.5 shrink-0 items-center">
-          {unread && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
-        </span>
-        <NotificationTile
-          event={notification.event}
-          src={notification.imageUrl ? sizedImageUrl(notification.imageUrl, 96) : null}
-          className="mr-3"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            <p
-              id={`${labelId}-title`}
-              className={`min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-5 ${
-                unread ? 'text-text' : 'text-text/70'
-              }`}
-            >
-              {notification.title}
-            </p>
-            <time
-              dateTime={new Date(notification.createdAt).toISOString()}
-              className="shrink-0 pt-[3px] text-[11px] tabular-nums text-dim"
-            >
-              <RelativeTime at={notification.createdAt} />
-            </time>
-          </div>
+      <NotificationCard
+        className="pointer-events-none relative"
+        event={notification.event}
+        src={notification.imageUrl ? sizedImageUrl(notification.imageUrl, 96) : null}
+        unread={unread}
+        title={notification.title}
+        titleTone={unread ? 'text-text' : 'text-text/70'}
+        titleId={`${labelId}-title`}
+        body={notification.body}
+        bodyId={`${labelId}-body`}
+        time={
+          <time dateTime={new Date(notification.createdAt).toISOString()} className="tabular-nums">
+            <RelativeTime at={notification.createdAt} />
+          </time>
+        }
+      />
+    </div>
+  );
+}
+
+/** A notification row's CONTENTS: the gutter, the tile, the title/time line and
+ * the clamped body — every metric that makes a row look like a row.
+ *
+ * Exported, and the reason the admin composer's preview is trustworthy: a
+ * preview that re-typed these class strings would stop being a preview the first
+ * time one of them changed. The caller supplies the shell around it (the drawer
+ * lays a hit target under it, the composer draws a card) and the text tones,
+ * which is the only thing that legitimately differs between them.
+ */
+export function NotificationCard({
+  className = '',
+  event,
+  src,
+  unread,
+  title,
+  titleTone = 'text-text',
+  titleId,
+  body,
+  bodyTone = 'text-muted',
+  bodyId,
+  time,
+}: Readonly<{
+  className?: string;
+  event: NotificationEvent;
+  src: string | null;
+  unread: boolean;
+  title: ReactNode;
+  titleTone?: string;
+  titleId?: string;
+  body: ReactNode;
+  bodyTone?: string;
+  bodyId?: string;
+  time: ReactNode;
+}>) {
+  return (
+    <div className={`flex items-start p-2.5 pl-2 ${className}`}>
+      {/* The gutter is here on every row, empty or not, so nothing shifts. */}
+      <span className="mr-2 flex h-12 w-1.5 shrink-0 items-center">
+        {unread && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
+      </span>
+      <NotificationTile event={event} src={src} className="mr-3" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-2">
           <p
-            id={`${labelId}-body`}
-            className="mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] text-muted"
+            id={titleId}
+            className={`min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-5 ${titleTone}`}
           >
-            {notification.body}
+            {title}
           </p>
+          <span className="shrink-0 pt-[3px] text-[11px] text-dim">{time}</span>
         </div>
+        <p id={bodyId} className={`mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] ${bodyTone}`}>
+          {body}
+        </p>
       </div>
     </div>
   );
@@ -387,46 +432,8 @@ function eventMeta(event: NotificationEvent): EventMeta {
 }
 
 // ---------------------------------------------------------------------------
-// Day grouping + time
+// Relative time
 // ---------------------------------------------------------------------------
-
-type Day = 'today' | 'yesterday' | 'earlier';
-
-const DAY_LABEL: Record<Day, MessageKey> = {
-  today: 'notifications.groupToday',
-  yesterday: 'notifications.groupYesterday',
-  earlier: 'notifications.groupEarlier',
-};
-
-function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-/** Calendar days, not elapsed hours — "yesterday" has to mean yesterday at
- * 23:50 too. Stepping back a day through `startOfDay` keeps it right across a
- * DST boundary, where "now minus 24h" is off by an hour. */
-function dayOf(at: number, now: number): Day {
-  const day = startOfDay(at);
-  if (day >= startOfDay(now)) return 'today';
-  if (day >= startOfDay(now - 86_400_000)) return 'yesterday';
-  return 'earlier';
-}
-
-/** Runs of consecutive same-day rows, in the order the server sent them: the
- * list stays newest-first and is never re-sorted underneath the reader. */
-function groupByDay(items: Notification[]): { day: Day; items: Notification[] }[] {
-  const now = Date.now();
-  const groups: { day: Day; items: Notification[] }[] = [];
-  for (const item of items) {
-    const day = dayOf(item.createdAt, now);
-    const last = groups.at(-1);
-    if (last?.day === day) last.items.push(item);
-    else groups.push({ day, items: [item] });
-  }
-  return groups;
-}
 
 /** Coarse relative time — a notification list needs "5 min ago", not seconds —
  * and a plain date once "N days ago" stops meaning anything.

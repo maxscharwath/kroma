@@ -4,12 +4,10 @@ import {
   type SetStateAction,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { type ControlId, controlOrder, type Overlay, type Zone } from '../lib/nav';
-import type { PlayerFlags } from '../types';
+import type { ControlId, Overlay, Zone } from '../lib/nav';
 
 /** Auto-hide the chrome after this long idle while playing (§16). */
 const HIDE_MS = 3500;
@@ -38,7 +36,7 @@ export interface PlayerNav {
   revealed: boolean;
   zone: Zone;
   overlay: Overlay;
-  controls: ControlId[];
+  controls: readonly ControlId[];
   /** The focused control id, or null when the progress zone / a panel is active. */
   focusedControl: ControlId | null;
   /** Route a logical key. The shell calls this after giving any open panel first
@@ -155,17 +153,14 @@ function handleDpadKey(key: RemoteKey, ctx: DpadContext): void {
  * the open panel first.
  */
 export function usePlayerNav(
-  flags: PlayerFlags,
   playing: boolean,
   actions: PlayerNavActions,
-  /** The row as it is actually drawn, when the stage is too narrow for all of
-   *  it (see ../lib/metrics `chromeMetrics`). Defaults to everything the flags
-   *  allow. Given one, the machine steps through exactly the controls on
-   *  screen - a shed control must not keep a stop nobody can see. */
-  drawn?: readonly ControlId[],
+  /** The row as it is actually drawn (see ../lib/metrics `chromeMetrics`), which
+   *  on a narrow stage is less than the flags allow. Required, and the single
+   *  source of truth for the row: the machine steps through exactly the controls
+   *  on screen, because a shed control must not keep a stop nobody can see. */
+  controls: readonly ControlId[],
 ): PlayerNav {
-  const full = useMemo(() => controlOrder(flags, actions.hasNext), [flags, actions.hasNext]);
-  const controls = useMemo(() => (drawn ? [...drawn] : full), [drawn, full]);
   const [revealed, setRevealed] = useState(true);
   const [zone, setZone] = useState<Zone>('controls');
   const [overlay, setOverlay] = useState<Overlay>(null);

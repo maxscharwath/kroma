@@ -16,10 +16,11 @@
 
 import { Card, Field, OptionSelect, TextArea, TextInput, useAsyncAction } from '@kroma/admin-kit';
 import type { MessageKey, Notification } from '@kroma/core';
+import { NOTIFICATION_CATEGORY_LABEL } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Button } from '@kroma/ui/kit';
 import { useRef, useState } from 'react';
-import { NotificationTile } from '#web/features/notifications/panel';
+import { NotificationCard } from '#web/features/notifications/panel';
 import { kromaClient } from '#web/shared/lib/api';
 
 type Target = 'me' | 'admins' | 'everyone';
@@ -30,15 +31,6 @@ const TARGETS: { value: Target; label: MessageKey }[] = [
   { value: 'admins', label: 'admin.notifTargetAdmins' },
   { value: 'everyone', label: 'admin.notifTargetEveryone' },
 ];
-
-/** The five preference buckets, named as a reader sees them in their settings. */
-const CATEGORY_LABEL: Record<Category, MessageKey> = {
-  requests: 'notifications.category.requests',
-  media: 'notifications.category.media',
-  reports: 'notifications.category.reports',
-  downloads: 'notifications.category.downloads',
-  system: 'notifications.category.system',
-};
 
 /** What the form holds — and, one to one, what the server is asked to send. */
 interface Draft {
@@ -123,9 +115,9 @@ export function NotificationBench() {
               value={draft.category}
               onChange={(v) => edit({ category: v as Category })}
               ariaLabel={t('admin.notifFieldCategory')}
-              options={(Object.keys(CATEGORY_LABEL) as Category[]).map((c) => ({
+              options={(Object.keys(NOTIFICATION_CATEGORY_LABEL) as Category[]).map((c) => ({
                 value: c,
-                label: t(CATEGORY_LABEL[c]),
+                label: t(NOTIFICATION_CATEGORY_LABEL[c]),
               }))}
             />
           </Field>
@@ -270,30 +262,16 @@ function PreviewRow({ draft, empty }: Readonly<{ draft: Draft; empty: string }>)
   const t = useT();
   const art = draft.imageUrl ? kromaClient().resolveArt(draft.imageUrl) : null;
   return (
-    <div className="flex items-start rounded-xl bg-surface-2 p-2.5 pl-2">
-      <span className="mr-2 flex h-12 w-1.5 shrink-0 items-center">
-        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-      </span>
-      <NotificationTile event="custom" src={art} className="mr-3" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <p
-            className={`min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-5 ${
-              draft.title ? 'text-text' : 'text-dim'
-            }`}
-          >
-            {draft.title || empty}
-          </p>
-          <span className="shrink-0 pt-[3px] text-[11px] text-dim">
-            {t('notifications.justNow')}
-          </span>
-        </div>
-        <p
-          className={`mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] ${draft.body ? 'text-muted' : 'text-dim'}`}
-        >
-          {draft.body || t('admin.notifBodyPlaceholder')}
-        </p>
-      </div>
-    </div>
+    <NotificationCard
+      className="rounded-xl bg-surface-2"
+      event="custom"
+      src={art}
+      unread
+      title={draft.title || empty}
+      titleTone={draft.title ? 'text-text' : 'text-dim'}
+      body={draft.body || t('admin.notifBodyPlaceholder')}
+      bodyTone={draft.body ? 'text-muted' : 'text-dim'}
+      time={t('notifications.justNow')}
+    />
   );
 }

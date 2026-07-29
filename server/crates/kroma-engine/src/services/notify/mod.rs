@@ -83,7 +83,7 @@ pub fn emit_to<S: HostCtx>(state: &S, recipients: &[User], spec: &NotificationSp
     let push = push::sender(state);
     let mut sent = 0;
     for user in recipients {
-        match deliver(state, user, spec, push.as_ref()) {
+        match deliver(state, user, spec, &push) {
             Ok(true) => sent += 1,
             Ok(false) => {}
             Err(e) => {
@@ -102,11 +102,12 @@ fn deliver<S: HostCtx>(
     state: &S,
     user: &User,
     spec: &NotificationSpec,
-    push: Option<&push::Sender>,
+    push: &push::Sender,
 ) -> anyhow::Result<bool> {
     let category = spec.category();
-    // One connection for the whole delivery: the checks, the insert and the push
-    // bookkeeping all run on it instead of taking five from the pool.
+    // One connection for the whole DB half of the delivery: the checks and the
+    // insert run on it instead of taking two from the pool. It is released
+    // before the push, which is blocking network I/O with bookkeeping of its own.
     let conn = state.db().get()?;
     let (in_app, push_allowed) = db::notifications::allows(&conn, &user.id, category)?;
     if !in_app {
@@ -151,13 +152,12 @@ fn deliver<S: HostCtx>(
     // already written, so a push service being down costs a push, not the
     // notification.
     if push_allowed {
-        if let Some(push) = push {
-            // Sized on the way out: the device fetches this URL itself, over
-            // its own network, and a lock-screen thumbnail has no use for the
-            // master (see `art`).
-            let rendered = art::sized_for_push(render::render(&stored, render::locale_of(user)));
-            push::deliver(state, push, &conn, &user.id, &rendered);
-        }
+        // Sized on the way out: the device fetches this URL itself, over its own
+        // network, and a lock-screen thumbnail has no use for the master (see
+        // `art`).
+        let rendered = art::sized_for_push(render::render(&stored, render::locale_of(user)));
+        drop(conn);
+        push::deliver(state, push, &user.id, &rendered);
     }
     Ok(true)
 }

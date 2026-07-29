@@ -13,18 +13,19 @@ import { StyleSheet } from 'react-native';
 import { CastDeviceList, type CastDeviceListProps } from '#mobile/components/cast/CastDeviceList';
 import { SheetBody, sheetChrome } from '#mobile/components/ui';
 
-export const CastSheet = forwardRef<BottomSheetModal, CastDeviceListProps>(function CastSheet(
-  { onPick, offerLocal = true },
-  ref,
-) {
-  return (
-    <BottomSheetModal ref={ref} {...sheetChrome}>
-      <SheetBody style={styles.body}>
-        <CastDeviceList onPick={onPick} offerLocal={offerLocal} />
-      </SheetBody>
-    </BottomSheetModal>
-  );
-});
+export const CastSheet = forwardRef<BottomSheetModal, CastDeviceListProps>(
+  function CastSheet(props, ref) {
+    return (
+      <BottomSheetModal ref={ref} {...sheetChrome}>
+        <SheetBody style={styles.body}>
+          {/* Passed through rather than re-defaulted: the list owns what its own
+            props mean, and a second default here can only drift from it. */}
+          <CastDeviceList {...props} />
+        </SheetBody>
+      </BottomSheetModal>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   body: { gap: 2 },

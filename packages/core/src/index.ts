@@ -12,6 +12,7 @@ export * from './hevc';
 export * from './i18n';
 export * from './lang';
 export * from './match';
+export * from './notification-labels';
 export * from './people';
 export * from './permissions';
 export * from './person-facts';

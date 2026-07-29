@@ -1,16 +1,19 @@
 //! The per-transport half of a push.
 //!
-//! Each service answers only the two questions the shared delivery loop cannot:
-//! how to turn this notification into a request for THIS device, and which HTTP
-//! failures mean the device is permanently gone. The loop in the parent module
-//! owns everything else, so adding a transport never duplicates the health
-//! bookkeeping that decides when a device is evicted.
+//! Each service answers only the three questions the shared delivery loop
+//! cannot: how to turn this notification into a request for THIS device, which
+//! HTTP failures are worth one adjusted retry, and which mean the device is
+//! permanently gone. The loop in the parent module owns everything else, so
+//! adding a transport never duplicates the health bookkeeping that decides when
+//! a device is evicted.
 //!
 //! "Gone" is deliberately per-transport and deliberately narrow. Each service
 //! has its own vocabulary for it (410, `BadDeviceToken`, `UNREGISTERED`), and
 //! each also has 400s that mean *we* sent something wrong — treating those as
 //! the device's fault would quietly evict every registered device the first time
 //! a payload or a topic was mis-set.
+
+use std::sync::Arc;
 
 use anyhow::Result;
 use kroma_db::push_subs::PushSubscription;
@@ -45,7 +48,7 @@ impl Senders {
 
 /// Self-hosted Web Push: the server's own VAPID identity.
 pub struct WebPush {
-    pub key: VapidKey,
+    pub key: Arc<VapidKey>,
     pub subject: String,
 }
 
@@ -53,13 +56,13 @@ pub use kroma_push::webpush::VapidKey;
 
 /// Apple, via a `.p8` auth key.
 pub struct Apns {
-    pub key: apns::ApnsKey,
+    pub key: Arc<apns::ApnsKey>,
 }
 
-/// Google, via a service account. `token` is the OAuth2 access token, fetched
+/// Google, via a service account. `access_token` is the OAuth2 token, fetched
 /// lazily and cached inside [`fcm::FcmKey`].
 pub struct Fcm {
-    pub key: fcm::FcmKey,
+    pub key: Arc<fcm::FcmKey>,
     pub access_token: String,
 }
 
@@ -99,6 +102,9 @@ pub fn build(
     now_secs: i64,
 ) -> Result<Option<PushRequest>> {
     use kroma_domain::PushTransport as T;
+    // One alert for every native transport: they read the same shape, so
+    // building it per arm only created three places for a field to be forgotten.
+    let alert = alert(out);
     match sub.transport {
         T::WebPush => {
             let Some(web) = senders.web.as_ref() else { return Ok(None) };
@@ -119,50 +125,26 @@ pub fn build(
         }
         T::Apns => {
             let Some(apns) = senders.apns.as_ref() else { return Ok(None) };
-            apns::build_request(&apns.key, &sub.endpoint, &alert(out), out.urgency, now_secs)
-                .map(Some)
+            apns::build_request(&apns.key, &sub.endpoint, &alert, out.urgency, now_secs).map(Some)
         }
         T::Fcm => {
             let Some(google) = senders.fcm.as_ref() else { return Ok(None) };
-            let n = out.notification;
-            let alert = fcm::Alert {
-                id: &n.id,
-                title: &n.title,
-                body: &n.body,
-                link: n.link.as_deref(),
-                image_url: n.image_url.as_deref(),
-                category: push_category(n),
-                thread_id: Some(n.category.as_str()),
-                actions: &out.actions,
-            };
             fcm::build_request(&google.key, &google.access_token, &sub.endpoint, &alert, out.urgency)
                 .map(Some)
         }
         // No `let Some(..) else` here: the relay needs no credentials, so unlike
         // the two above it can never be "not configured on this server".
-        T::Relay => {
-            let n = out.notification;
-            let alert = relay::Alert {
-                id: &n.id,
-                title: &n.title,
-                body: &n.body,
-                link: n.link.as_deref(),
-                image_url: n.image_url.as_deref(),
-                category: push_category(n),
-                thread_id: Some(n.category.as_str()),
-                actions: &out.actions,
-            };
-            // `sub.endpoint` is a grant, not a device token — the server has
-            // never seen the token this will reach.
-            relay::build_request(&sub.endpoint, &alert, out.urgency).map(Some)
-        }
+        //
+        // `sub.endpoint` is a grant, not a device token — the server has never
+        // seen the token this will reach.
+        T::Relay => relay::build_request(&sub.endpoint, &alert, out.urgency).map(Some),
     }
 }
 
-/// The APNs view of a notification.
-fn alert<'a>(out: &'a Outgoing<'a>) -> apns::Alert<'a> {
+/// The transport-facing view of a notification.
+fn alert<'a>(out: &'a Outgoing<'a>) -> kroma_push::Alert<'a> {
     let n = out.notification;
-    apns::Alert {
+    kroma_push::Alert {
         id: &n.id,
         title: &n.title,
         body: &n.body,
@@ -183,6 +165,27 @@ fn alert<'a>(out: &'a Outgoing<'a>) -> apns::Alert<'a> {
 /// launch, so the notification names one and the client supplies the buttons.
 fn push_category(n: &Notification) -> Option<&'static str> {
     n.push_category.map(kroma_domain::PushCategory::as_str)
+}
+
+/// Whether this failure is worth one immediate second attempt, having adjusted
+/// `request` so the retry differs from what just failed.
+///
+/// The third question a transport answers for the shared loop, and here for the
+/// same reason as the other two: only APNs has such a case today, but keeping it
+/// on this seam is what stops the next one (a stale FCM access token, a rotated
+/// relay key) from landing as another `if sub.transport == …` in the middle of
+/// delivery.
+pub fn retry(sub: &PushSubscription, request: &mut PushRequest, status: u16, body: &str) -> bool {
+    use kroma_domain::PushTransport as T;
+    match sub.transport {
+        // Which APNs host a token belongs to is a fact about the DEVICE, not a
+        // server-wide preference: one server can hold a TestFlight token and an
+        // Xcode build's token at the same time, so no single setting can be
+        // right for both. Rather than ask an admin to choose wrong, discover it —
+        // the rejection is unambiguous, and the other host is one retry away.
+        T::Apns => apns::is_wrong_environment(status, body) && apns::flip_environment(request),
+        T::WebPush | T::Fcm | T::Relay => false,
+    }
 }
 
 /// Whether a response means this device is permanently gone.

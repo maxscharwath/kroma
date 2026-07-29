@@ -9,7 +9,12 @@
 // shows the right number - while the list is only marked stale, which an open
 // screen refetches and a closed one does not.
 
-import { KromaEvents, type Notification, type NotificationsView } from '@kroma/core';
+import {
+  type KromaClient,
+  KromaEvents,
+  type Notification,
+  type NotificationsView,
+} from '@kroma/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useClient, useSession } from '#mobile/lib/session';
@@ -41,23 +46,25 @@ export function useNotificationStream(): void {
   }, [signedIn, baseUrl, queryClient]);
 }
 
-/** The inbox, newest first, with its unread tally. */
-export function useNotifications() {
-  const client = useClient();
-  return useQuery({
+/** The one query behind both hooks below, so the list and the badge cannot end
+ * up on different cache policies. */
+function inbox(client: KromaClient) {
+  return {
     queryKey: KEY,
     queryFn: () => client.listNotifications(),
     staleTime: 30_000,
-  });
+  };
+}
+
+/** The inbox, newest first, with its unread tally. */
+export function useNotifications() {
+  return useQuery(inbox(useClient()));
 }
 
 /** Just the badge number, for the bell. */
 export function useUnreadCount(): number {
-  const client = useClient();
   const { data } = useQuery({
-    queryKey: KEY,
-    queryFn: () => client.listNotifications(),
-    staleTime: 30_000,
+    ...inbox(useClient()),
     select: (v: NotificationsView) => v.unread,
   });
   return data ?? 0;

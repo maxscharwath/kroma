@@ -7,8 +7,12 @@
 
 export type DeviceKind = 'tv' | 'mobile' | 'desktop';
 
-/** First matching label for `s` from `[regex, label]` pairs, or `null`. */
-function match(s: string, table: [RegExp, string][]): string | null {
+/** First matching label for `s` from `[regex, label]` pairs, or `null`.
+ *
+ * Generic so a table of `DeviceKind`s answers with a `DeviceKind`: widening to
+ * `string` here meant every caller cast the result back, which would have
+ * silently accepted a typo'd kind in the table below. */
+function match<T extends string>(s: string, table: readonly (readonly [RegExp, T])[]): T | null {
   for (const [re, label] of table) if (re.test(s)) return label;
   return null;
 }
@@ -60,7 +64,7 @@ export function deviceInfo(
   const raw = (ua ?? '').trim();
   if (!raw) return { label: unknown, kind: 'desktop' };
   const s = raw.toLowerCase();
-  const kind = (match(s, KINDS as [RegExp, string][]) as DeviceKind | null) ?? 'desktop';
+  const kind = match(s, KINDS) ?? 'desktop';
   // A native UA names the hardware ("iPhone 17 Pro"), which tells two phones on
   // one account apart far better than the app name would; its platform still
   // goes through the table so it is spelled like every other row.

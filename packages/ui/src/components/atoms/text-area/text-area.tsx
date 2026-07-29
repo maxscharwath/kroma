@@ -33,6 +33,7 @@ import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { Caret } from '#ui/lib/caret';
 import { fieldSizing } from '#ui/lib/css';
+import { CONTENT_LINE, edgeColor, NO_OUTLINE, PLACEHOLDER } from '#ui/lib/field-shell';
 import { colors } from '#ui/lib/tokens';
 import { useControllable } from '#ui/lib/use-controllable';
 
@@ -174,20 +175,10 @@ function growth(autoSize: boolean, min: number, grown: number): StyleProp<TextSt
   return WEB ? (fieldSizing() as unknown as TextStyle) : { height: grown };
 }
 
-/** The field's edge. Focus wins over invalid: while you are fixing the value,
- * the field should look like the thing you are working in, not like a failure.
- * (The same rule, and the same colours, as <TextField>.) */
-function edgeColor(focused: boolean, invalid: boolean): string {
-  if (focused) return colors.accent;
-  return invalid ? colors.danger : colors.borderStrong;
-}
-
-const PLACEHOLDER = 'rgba(244, 243, 240, 0.3)';
-
-/** One line of the entry, which is the unit `rows` and `maxRows` count in. It
- * is <TextField>'s content row: a one-line TextArea and a TextField are the
- * same height, so a form can put them side by side. */
-const LINE = 24;
+/** One line of the entry, which is the unit `rows` and `maxRows` count in - the
+ * very same content row <TextField> uses, which is what makes a one-line
+ * TextArea and a TextField the same height. */
+const LINE = CONTENT_LINE;
 const lines = (n: number) => n * LINE;
 
 const ENTRY = {
@@ -205,13 +196,6 @@ const ENTRY = {
   // Text starts at the top of the box on Android, where the default is centred.
   textAlignVertical: 'top',
 } as const;
-
-/** Web only, and `none` rather than width 0: Chrome's own focus ring is
- * `outline-style: auto`, which ignores the width - the field kept its blue
- * browser ring inside the kit's amber one until the STYLE was cleared. React
- * Native's types don't know `none` (native has no outline at all), hence the
- * cast. */
-const NO_OUTLINE = { outlineStyle: 'none', outlineWidth: 0 } as unknown as TextStyle;
 
 export type { TextAreaProps };
 export { TextArea };

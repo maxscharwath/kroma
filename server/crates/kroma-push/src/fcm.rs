@@ -143,24 +143,7 @@ impl FcmKey {
     }
 }
 
-/// What a push carries. Same fields as the APNs [`crate::apns::Alert`], so the
-/// app reads one shape whichever service delivered it.
-#[derive(Debug, Clone, Default)]
-pub struct Alert<'a> {
-    pub id: &'a str,
-    pub title: &'a str,
-    pub body: &'a str,
-    pub link: Option<&'a str>,
-    pub image_url: Option<&'a str>,
-    /// Maps to the Android notification channel AND to the click action set the
-    /// app registered; the same value APNs sends as its category.
-    pub category: Option<&'a str>,
-    /// Groups related notifications in the shade.
-    pub thread_id: Option<&'a str>,
-    /// What each registered button does, as `(id, method, href)`. See the APNs
-    /// module for why this rides in the payload.
-    pub actions: &'a [(String, String, String)],
-}
+pub use crate::Alert;
 
 /// Build the send request for one device token. `access_token` comes from
 /// [`FcmKey::cached_token`] or a fresh [`FcmKey::token_request`].

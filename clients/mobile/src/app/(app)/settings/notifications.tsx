@@ -5,8 +5,14 @@
 // quiet but my laptop isn't" is otherwise a mystery: a push subscription belongs
 // to one device, while the categories below travel with the account.
 
-import type { CategoryPref, MessageKey, NotificationCategory, PushBlocker } from '@kroma/core';
-import { blockerOf, disablePush, enablePush, PUSH_BLOCKER_LABEL } from '@kroma/core';
+import type { CategoryPref, NotificationCategory, PushBlocker } from '@kroma/core';
+import {
+  blockerOf,
+  disablePush,
+  enablePush,
+  NOTIFICATION_CATEGORY_LABEL,
+  PUSH_BLOCKER_LABEL,
+} from '@kroma/core';
 import { Switch } from '@kroma/ui/kit';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -18,14 +24,6 @@ import { boxed, contentWidth } from '#mobile/lib/layout';
 import { nativePush } from '#mobile/lib/notifications/push';
 import { useClient } from '#mobile/lib/session';
 import { colors, radius, spacing, type } from '#mobile/lib/theme';
-
-const CATEGORY_LABEL: Record<NotificationCategory, MessageKey> = {
-  requests: 'notifications.category.requests',
-  media: 'notifications.category.media',
-  reports: 'notifications.category.reports',
-  downloads: 'notifications.category.downloads',
-  system: 'notifications.category.system',
-};
 
 export default function NotificationSettings() {
   const t = useT();
@@ -115,7 +113,7 @@ export default function NotificationSettings() {
           </View>
           {prefs.data?.categories.map((pref) => (
             <View key={pref.category} style={styles.row}>
-              <Text style={styles.rowLabel}>{t(CATEGORY_LABEL[pref.category])}</Text>
+              <Text style={styles.rowLabel}>{t(NOTIFICATION_CATEGORY_LABEL[pref.category])}</Text>
               <View style={styles.cell}>
                 <Switch
                   checked={pref.inApp}

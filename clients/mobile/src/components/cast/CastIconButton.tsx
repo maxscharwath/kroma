@@ -38,12 +38,7 @@ export function CastIconButton({
         label={active ? t('cast.playingOn', { device: active.name }) : t('cast.title')}
         onPress={() => devices.current?.present()}
       >
-        <Icon
-          name={active ? 'cast' : 'cast'}
-          size={glyph}
-          stroke={2}
-          color={active ? colors.accent : colors.text}
-        />
+        <Icon name="cast" size={glyph} stroke={2} color={active ? colors.accent : colors.text} />
       </IconButton>
       <CastSheet
         ref={devices}

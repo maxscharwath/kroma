@@ -18,6 +18,8 @@
 
 mod transports;
 
+use std::sync::{Arc, Mutex, OnceLock};
+
 use kroma_db::push_subs::{self, PushSubscription};
 use kroma_module_host::HostCtx;
 use kroma_push::webpush::VapidKey;
@@ -90,7 +92,7 @@ fn from_env_or_setting<S: HostCtx>(state: &S, var: &str, key: &str) -> String {
 /// never needs one, and generating it on demand keeps the key out of fresh
 /// installs that will never use it.
 pub fn public_key<S: HostCtx>(state: &S) -> anyhow::Result<String> {
-    if let Some(key) = stored_key(state) {
+    if let Some(key) = keys_for(&credentials(state)).web.as_ref() {
         return Ok(key.public_base64url());
     }
     let key = VapidKey::generate();
@@ -125,104 +127,178 @@ fn subject_of<S: HostCtx>(state: &S) -> String {
     DEFAULT_SUBJECT.to_string()
 }
 
-fn stored_key<S: HostCtx>(state: &S) -> Option<VapidKey> {
-    let private = state.setting_str(VAPID_PRIVATE_KEY, "");
-    if private.is_empty() {
-        return None;
-    }
-    match VapidKey::from_base64url(&private) {
-        Ok(key) => Some(key),
-        Err(e) => {
-            // A corrupted key would otherwise fail every push forever with no
-            // clue why; say so loudly and let the caller mint a fresh one.
-            tracing::error!(error = %e, "stored VAPID key is unusable");
-            None
-        }
-    }
-}
-
 /// Everything a push needs that is per-SERVER rather than per-recipient: the
 /// configured transports and their credentials.
 ///
 /// Built once per emission by [`sender`]. Resolving it per recipient meant a
-/// settings read and a key parse each time, and `None` (nothing is configured)
-/// short-circuits the whole branch before it queries a single subscription.
+/// settings read and a key parse each time.
 pub type Sender = transports::Senders;
 
-/// The server's push identity, or `None` when no transport is configured at all
-/// which is the normal state until someone subscribes a device.
-pub fn sender<S: HostCtx>(state: &S) -> Option<Sender> {
-    let senders = transports::Senders {
-        web: stored_key(state)
+/// The credential material the cached [`Keys`] were parsed from.
+///
+/// Kept only to be compared: a `.p8` pasted into the admin console must take
+/// effect on the next push rather than after a restart, and equality on the raw
+/// strings is the whole test for that.
+#[derive(Clone, PartialEq, Eq)]
+struct Credentials {
+    vapid_private: String,
+    apns_p8: String,
+    apns_key_id: String,
+    apns_team_id: String,
+    apns_topic: String,
+    fcm_service_account: String,
+}
+
+/// The parsed credentials, kept between emissions.
+///
+/// [`ApnsKey`] and [`FcmKey`] each cache a bearer token good for the better part
+/// of an hour, and that cache lives INSIDE the key. Parsing them fresh per
+/// emission therefore threw the cache away every time: every notification
+/// re-signed Apple's JWT — which Apple rate-limits to one per 20 minutes per key
+/// — and re-traded Google's assertion over the network, before a single
+/// subscription had even been queried.
+///
+/// [`Sender`] is still assembled per emission on top of these, because the FCM
+/// access token and the push subject are cheap to re-resolve and must be allowed
+/// to change without a restart.
+///
+/// [`ApnsKey`]: kroma_push::apns::ApnsKey
+/// [`FcmKey`]: kroma_push::fcm::FcmKey
+#[derive(Default)]
+struct Keys {
+    web: Option<Arc<VapidKey>>,
+    apns: Option<Arc<kroma_push::apns::ApnsKey>>,
+    fcm: Option<Arc<kroma_push::fcm::FcmKey>>,
+}
+
+/// What the cache holds: the credentials last seen, and the keys parsed from
+/// them.
+type Cached = Mutex<Option<(Credentials, Arc<Keys>)>>;
+
+/// One server per process, so a single slot is the whole cache.
+static PARSED: OnceLock<Cached> = OnceLock::new();
+
+/// What this server was configured with, read fresh so a settings change is
+/// noticed. Cheap: these are settings reads and env lookups, no parsing.
+fn credentials<S: HostCtx>(state: &S) -> Credentials {
+    Credentials {
+        vapid_private: state.setting_str(VAPID_PRIVATE_KEY, ""),
+        apns_p8: from_env_or_setting(state, "KROMA_APNS_KEY_P8", APNS_KEY_P8),
+        apns_key_id: from_env_or_setting(state, "KROMA_APNS_KEY_ID", APNS_KEY_ID),
+        apns_team_id: from_env_or_setting(state, "KROMA_APNS_TEAM_ID", APNS_TEAM_ID),
+        apns_topic: match std::env::var("KROMA_APNS_TOPIC") {
+            Ok(v) if !v.trim().is_empty() => v.trim().to_string(),
+            _ => APNS_TOPIC.to_string(),
+        },
+        fcm_service_account: from_env_or_setting(
+            state,
+            "KROMA_FCM_SERVICE_ACCOUNT",
+            FCM_SERVICE_ACCOUNT,
+        ),
+    }
+}
+
+/// The parsed keys for `credentials`, from cache when they have not changed.
+fn keys_for(credentials: &Credentials) -> Arc<Keys> {
+    let slot = PARSED.get_or_init(|| Mutex::new(None));
+    let mut slot = slot.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((known, keys)) = slot.as_ref() {
+        if known == credentials {
+            return Arc::clone(keys);
+        }
+    }
+    let keys = Arc::new(parse(credentials));
+    *slot = Some((credentials.clone(), Arc::clone(&keys)));
+    keys
+}
+
+/// Parse whatever is configured. Each transport is independent: an unusable
+/// Apple key must not take Web Push down with it.
+///
+/// Nothing here is asked of the operator for APNs. The key, its id and the team
+/// come as one bundle from whoever publishes the app, and the topic is a
+/// constant because every KROMA server pushes to that same published app. The
+/// environment is deliberately absent: it is a property of each device TOKEN,
+/// not of the server (see [`transports::retry`]).
+fn parse(credentials: &Credentials) -> Keys {
+    let web = if credentials.vapid_private.is_empty() {
+        None
+    } else {
+        match VapidKey::from_base64url(&credentials.vapid_private) {
+            Ok(key) => Some(Arc::new(key)),
+            Err(e) => {
+                // A corrupted key would otherwise fail every push forever with
+                // no clue why; say so loudly and let `public_key` mint a fresh
+                // one.
+                tracing::error!(error = %e, "stored VAPID key is unusable");
+                None
+            }
+        }
+    };
+
+    let apns = if credentials.apns_p8.is_empty() {
+        None
+    } else {
+        let key = kroma_push::apns::ApnsKey::new(
+            &credentials.apns_p8,
+            credentials.apns_key_id.clone(),
+            credentials.apns_team_id.clone(),
+            credentials.apns_topic.clone(),
+            // Where the FIRST attempt goes. A production token is the
+            // overwhelming majority — every App Store and TestFlight install —
+            // so trying it first means the fallback costs a wasted request only
+            // while developing.
+            kroma_push::apns::Environment::Production,
+        );
+        match key {
+            Ok(key) => Some(Arc::new(key)),
+            Err(e) => {
+                tracing::error!(error = %e, "APNs credentials are unusable; iOS push disabled");
+                None
+            }
+        }
+    };
+
+    let fcm = if credentials.fcm_service_account.is_empty() {
+        None
+    } else {
+        match kroma_push::fcm::FcmKey::new(&credentials.fcm_service_account) {
+            Ok(key) => Some(Arc::new(key)),
+            Err(e) => {
+                tracing::error!(error = %e, "FCM credentials are unusable; Android push disabled");
+                None
+            }
+        }
+    };
+
+    Keys { web, apns, fcm }
+}
+
+/// The server's push identity for this emission.
+///
+/// Never `None`: the relay needs no credentials, so every server can reach a
+/// phone even when it holds nothing of Apple's or Google's.
+pub fn sender<S: HostCtx>(state: &S) -> Sender {
+    let keys = keys_for(&credentials(state));
+    transports::Senders {
+        web: keys
+            .web
+            .clone()
             .map(|key| transports::WebPush { key, subject: subject_of(state) }),
-        apns: apns_sender(state),
-        fcm: fcm_sender(state),
-    };
-    // Always `Some`: the relay needs no credentials, so every server can reach a
-    // phone even when it holds nothing of Apple's or Google's. The `Option`
-    // remains because Web Push still depends on a key that may not exist yet.
-    Some(senders)
-}
-
-/// The Apple sender, when this build was given an auth key.
-///
-/// Nothing here is asked of the operator. The key, its id and the team come as
-/// one bundle from whoever publishes the app, and the topic is a constant
-/// because every KROMA server pushes to that same published app.
-///
-/// The environment is deliberately absent: it is a property of each device
-/// TOKEN, not of the server (see [`send_one`]).
-fn apns_sender<S: HostCtx>(state: &S) -> Option<transports::Apns> {
-    let p8 = from_env_or_setting(state, "KROMA_APNS_KEY_P8", APNS_KEY_P8);
-    if p8.is_empty() {
-        return None;
-    }
-    let topic = match std::env::var("KROMA_APNS_TOPIC") {
-        Ok(v) if !v.trim().is_empty() => v.trim().to_string(),
-        _ => APNS_TOPIC.to_string(),
-    };
-    let key = kroma_push::apns::ApnsKey::new(
-        &p8,
-        from_env_or_setting(state, "KROMA_APNS_KEY_ID", APNS_KEY_ID),
-        from_env_or_setting(state, "KROMA_APNS_TEAM_ID", APNS_TEAM_ID),
-        topic,
-        // Where the FIRST attempt goes. A production token is the overwhelming
-        // majority — every App Store and TestFlight install — so trying it first
-        // means the fallback below costs a wasted request only while developing.
-        kroma_push::apns::Environment::Production,
-    );
-    match key {
-        Ok(key) => Some(transports::Apns { key }),
-        Err(e) => {
-            // Misconfigured credentials would otherwise fail every push with no
-            // clue why; say it once per emission rather than per device.
-            tracing::error!(error = %e, "APNs credentials are unusable; iOS push disabled");
-            None
-        }
-    }
-}
-
-/// The Google sender, when a service account is configured AND an access token
-/// can be obtained. The token exchange is a network call, so it happens here,
-/// once per emission, rather than per device.
-fn fcm_sender<S: HostCtx>(state: &S) -> Option<transports::Fcm> {
-    let json = from_env_or_setting(state, "KROMA_FCM_SERVICE_ACCOUNT", FCM_SERVICE_ACCOUNT);
-    if json.is_empty() {
-        return None;
-    }
-    let key = match kroma_push::fcm::FcmKey::new(&json) {
-        Ok(key) => key,
-        Err(e) => {
-            tracing::error!(error = %e, "FCM credentials are unusable; Android push disabled");
-            return None;
-        }
-    };
-    match fcm_access_token(&key) {
-        Ok(access_token) => Some(transports::Fcm { key, access_token }),
-        Err(e) => {
-            tracing::warn!(error = %e, "could not obtain an FCM access token; Android push skipped");
-            None
-        }
+        apns: keys.apns.clone().map(|key| transports::Apns { key }),
+        // The token exchange is a network call, so it happens here, once per
+        // emission, rather than per device — and now genuinely hits the key's
+        // own cache instead of re-trading every time.
+        fcm: keys.fcm.clone().and_then(|key| match fcm_access_token(&key) {
+            Ok(access_token) => Some(transports::Fcm { key, access_token }),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "could not obtain an FCM access token; Android push skipped"
+                );
+                None
+            }
+        }),
     }
 }
 
@@ -247,11 +323,19 @@ fn fcm_access_token(key: &kroma_push::fcm::FcmKey) -> anyhow::Result<String> {
 pub fn deliver<S: HostCtx>(
     state: &S,
     sender: &Sender,
-    conn: &kroma_db::PooledConn,
     user_id: &str,
     notification: &Notification,
 ) -> usize {
-    let subs = push_subs::subscriptions_for_user(conn, user_id).unwrap_or_default();
+    // Scoped deliberately. Everything below this is blocking network I/O, and
+    // the per-endpoint health bookkeeping takes connections of its own, so a
+    // connection held across the sends pins a pool slot for the length of every
+    // round trip and contends with the very pool it is about to ask again.
+    let subs = {
+        let Ok(conn) = state.db().get() else {
+            return 0;
+        };
+        push_subs::subscriptions_for_user(&conn, user_id).unwrap_or_default()
+    };
     if subs.is_empty() {
         return 0;
     }
@@ -283,9 +367,7 @@ pub fn deliver<S: HostCtx>(
 /// Deliberately bypasses the category preferences: the user just pressed the
 /// button, so a muted category is not a reason to stay silent.
 pub fn send_test<S: HostCtx>(state: &S, user: &User) -> anyhow::Result<usize> {
-    let Some(sender) = sender(state) else {
-        return Ok(0);
-    };
+    let sender = sender(state);
     let locale = crate::i18n::user_locale(user);
     let notification = Notification {
         id: "test".into(),
@@ -300,8 +382,7 @@ pub fn send_test<S: HostCtx>(state: &S, user: &User) -> anyhow::Result<usize> {
         read: false,
         created_at: now_ms(),
     };
-    let conn = state.db().get()?;
-    Ok(deliver(state, &sender, &conn, &user.id, &notification))
+    Ok(deliver(state, &sender, &user.id, &notification))
 }
 
 /// Deliver to one endpoint, updating its health. `Ok(false)` = not delivered but
@@ -317,16 +398,8 @@ fn send_one<S: HostCtx>(
     };
     let mut response = send(&request)?;
 
-    // Which APNs host a token belongs to is a fact about the DEVICE, not a
-    // server-wide preference: one server can hold a TestFlight token and an
-    // Xcode build's token at the same time, so no single setting can be right
-    // for both. Rather than ask an admin to choose wrong, discover it — the
-    // rejection is unambiguous, and the other host is one retry away.
-    if sub.transport == kroma_domain::PushTransport::Apns
-        && kroma_push::apns::is_wrong_environment(response.status, &response.text())
-        && kroma_push::apns::flip_environment(&mut request)
-    {
-        tracing::debug!(endpoint = %sub.endpoint, "retrying push against the other APNs host");
+    if transports::retry(sub, &mut request, response.status, &response.text()) {
+        tracing::debug!(endpoint = %sub.endpoint, "retrying push after an adjustable rejection");
         response = send(&request)?;
     }
 

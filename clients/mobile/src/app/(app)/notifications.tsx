@@ -23,7 +23,8 @@
 // system draws them (see lib/notifications/push) — this list stays a record of
 // what happened rather than a console.
 
-import type { MessageKey, Notification, NotificationEvent } from '@kroma/core';
+import type { Notification, NotificationEvent } from '@kroma/core';
+import { groupNotificationsByDay, NOTIFICATION_DAY_LABEL } from '@kroma/core';
 import { Icon, IconButton, type IconName } from '@kroma/ui/kit';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
@@ -50,7 +51,11 @@ export default function NotificationsScreen() {
   const unread = data?.unread ?? 0;
   const rows = data?.notifications ?? [];
   const sections = useMemo(
-    () => groupByDay(rows).map((g) => ({ title: t(DAY_LABEL[g.day]), data: g.items })),
+    () =>
+      groupNotificationsByDay(rows).map((g) => ({
+        title: t(NOTIFICATION_DAY_LABEL[g.day]),
+        data: g.items,
+      })),
     [rows, t],
   );
 
@@ -250,46 +255,8 @@ function eventGlyph(event: NotificationEvent): { name: IconName; color: string }
 }
 
 // ---------------------------------------------------------------------------
-// Day grouping + time
+// Relative time
 // ---------------------------------------------------------------------------
-
-type Day = 'today' | 'yesterday' | 'earlier';
-
-const DAY_LABEL: Record<Day, MessageKey> = {
-  today: 'notifications.groupToday',
-  yesterday: 'notifications.groupYesterday',
-  earlier: 'notifications.groupEarlier',
-};
-
-function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-/** Calendar days, not elapsed hours — "yesterday" has to mean yesterday at
- * 23:50 too. Stepping back a day through `startOfDay` keeps it right across a
- * DST boundary, where "now minus 24h" is off by an hour. */
-function dayOf(at: number, now: number): Day {
-  const day = startOfDay(at);
-  if (day >= startOfDay(now)) return 'today';
-  if (day >= startOfDay(now - 86_400_000)) return 'yesterday';
-  return 'earlier';
-}
-
-/** Runs of consecutive same-day rows, in the order the server sent them: the
- * list stays newest-first and is never re-sorted underneath the reader. */
-function groupByDay(items: Notification[]): { day: Day; items: Notification[] }[] {
-  const now = Date.now();
-  const groups: { day: Day; items: Notification[] }[] = [];
-  for (const item of items) {
-    const day = dayOf(item.createdAt, now);
-    const last = groups.at(-1);
-    if (last?.day === day) last.items.push(item);
-    else groups.push({ day, items: [item] });
-  }
-  return groups;
-}
 
 /** Coarse relative time - a notification list wants "5 min ago", never seconds.
  *

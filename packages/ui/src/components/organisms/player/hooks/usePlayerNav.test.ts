@@ -3,6 +3,7 @@
 import type { RemoteKey } from '@kroma/core';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { controlOrder } from '../lib/nav';
 import { TV_FLAGS, WEB_FLAGS } from '../types';
 import { type PlayerNavActions, usePlayerNav } from './usePlayerNav';
 
@@ -22,9 +23,15 @@ function makeActions(over: Partial<PlayerNavActions> = {}): PlayerNavActions {
   };
 }
 
-/** Render the nav machine; `key` presses a logical remote key inside `act`. */
+/** Render the nav machine; `key` presses a logical remote key inside `act`.
+ *
+ * The control row is passed in the way `<Player>` passes it - through
+ * `controlOrder` - because the hook now takes the row as drawn rather than
+ * deriving a second one from the flags. */
 function nav(flags = WEB_FLAGS, playing = false, actions: PlayerNavActions = makeActions()) {
-  const view = renderHook(() => usePlayerNav(flags, playing, actions));
+  const view = renderHook(() =>
+    usePlayerNav(playing, actions, controlOrder(flags, actions.hasNext)),
+  );
   const key = (k: RemoteKey) => act(() => view.result.current.handleKey(k));
   return { ...view, actions, key };
 }
@@ -41,9 +48,10 @@ describe('usePlayerNav initial state', () => {
     expect(result.current.focusedControl).toBe('play');
   });
 
-  it('exposes the flag-computed control row and recomputes on hasNext', () => {
+  it('exposes the control row it was given and follows it when hasNext appears', () => {
     const { result, rerender } = renderHook(
-      ({ hasNext }) => usePlayerNav(WEB_FLAGS, false, makeActions({ hasNext })),
+      ({ hasNext }) =>
+        usePlayerNav(false, makeActions({ hasNext }), controlOrder(WEB_FLAGS, hasNext)),
       { initialProps: { hasNext: false } },
     );
     expect(result.current.controls).not.toContain('next');

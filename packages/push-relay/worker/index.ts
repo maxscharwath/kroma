@@ -35,6 +35,7 @@ import { Hono } from 'hono';
 import * as apns from './apns';
 import * as fcm from './fcm';
 import { deviceKey, GRANT_TTL_SECS, open, seal } from './grant';
+import type { Delivery } from './schemas';
 import { firstIssue, GrantRequest, PushRequest } from './schemas';
 
 /** The rate-limit binding's shape. Declared locally rather than pulled from
@@ -157,7 +158,7 @@ app.post('/v1/push', validate(PushRequest), async (c) => {
   const { success } = await c.env.PUSH_LIMIT.limit({ key: await deviceKey(payload.d) });
   if (!success) return c.json({ error: 'too many notifications for this device' }, 429);
 
-  let delivery: apns.Delivery;
+  let delivery: Delivery;
   try {
     if (payload.t === 'apns') {
       const config = appleConfig(c.env);

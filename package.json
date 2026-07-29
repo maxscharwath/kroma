@@ -53,6 +53,7 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check .",
+    "deadcode": "bun x knip@5 --no-progress",
     "sonar:precheck": "git diff --name-only --diff-filter=ACMR origin/main...HEAD | bun scripts/sonar-precheck.ts",
     "check:fix": "biome check --write .",
     "server": "cd server && cargo run --features semantic-embeddings,whisper-metal",

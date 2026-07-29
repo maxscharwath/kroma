@@ -2,20 +2,22 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getAllPosts } from '#site/lib/blog';
-import { useLang } from '#site/lib/i18n';
+import { getLocale, useLang } from '#site/lib/i18n';
 import { blog, useBlogCopy } from '#site/lib/messages/blog';
 import { seo } from '#site/lib/seo';
 
-// A route's head runs outside React, so it reads the catalog directly instead of
-// through the hook.
+// A route's head runs outside React, so it reads the ambient locale from Paraglide
+// and indexes the catalog directly instead of going through the hook.
 export const Route = createFileRoute('/blog/')({
-  head: () =>
-    seo({
-      lang: 'en',
-      title: blog.en.index.head.title,
-      description: blog.en.index.head.description,
+  head: () => {
+    const lang = getLocale();
+    return seo({
+      lang,
+      title: blog[lang].index.head.title,
+      description: blog[lang].index.head.description,
       path: '/blog',
-    }),
+    });
+  },
   component: BlogIndex,
 });
 

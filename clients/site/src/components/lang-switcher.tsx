@@ -1,11 +1,18 @@
-import { Link, type LinkProps } from '@tanstack/react-router';
 import { localeShort, locales, localizePath, useCanonicalPath, useLang } from '#site/lib/i18n';
 import { useCommon } from '#site/lib/messages/common';
 
-// A compact FR | EN segmented control. Each side links to the SAME page in the
+// A compact EN | FR segmented control. Each side points at the SAME page in the
 // other language: it keeps the reader's canonical path and only swaps the locale
-// prefix, so switching language on /download lands on /en/download rather than
+// prefix, so switching language on /download lands on /fr/download rather than
 // bouncing home.
+//
+// A plain <a>, not a router <Link>, and that is load-bearing twice over. The
+// router localizes every href it generates to the ACTIVE locale (see the `output`
+// rewrite in router.tsx), so a <Link> aiming at another language would be
+// rewritten straight back to the current one - which is exactly what silently
+// dropped /fr from the prerender. A real anchor is also a full document load,
+// which is what a locale change should be: the whole page, including the shell
+// that a soft navigation would leave mounted, re-renders in the new language.
 export function LangSwitcher({ className }: { className?: string }) {
   const active = useLang();
   const path = useCanonicalPath();
@@ -27,9 +34,10 @@ export function LangSwitcher({ className }: { className?: string }) {
       {locales.map((l) => {
         const isActive = l === active;
         return (
-          <Link
+          <a
             key={l}
-            to={localizePath(path, l) as LinkProps['to']}
+            href={localizePath(path, l)}
+            hrefLang={l}
             aria-current={isActive ? 'true' : undefined}
             className={[
               'rounded-md px-2 py-1 transition-colors',
@@ -39,7 +47,7 @@ export function LangSwitcher({ className }: { className?: string }) {
             ].join(' ')}
           >
             {localeShort[l]}
-          </Link>
+          </a>
         );
       })}
     </nav>

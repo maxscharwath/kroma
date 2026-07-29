@@ -3,7 +3,7 @@ import { createFileRoute, notFound, useParams } from '@tanstack/react-router';
 import { Container } from '#site/components/container';
 import { L } from '#site/components/localized-link';
 import { getPost } from '#site/lib/blog';
-import { useLang } from '#site/lib/i18n';
+import { getLocale, useLang } from '#site/lib/i18n';
 import { useBlogCopy } from '#site/lib/messages/blog';
 import { seo } from '#site/lib/seo';
 
@@ -12,8 +12,11 @@ export const Route = createFileRoute('/blog/$slug')({
   // <head>). The compiled MDX component is NOT returned, it is a function, which
   // can't cross the SSR→client serialization boundary, the component below reads
   // it straight from the static import instead.
+  // The loader resolves the post in the AMBIENT locale, so /fr/blog/x gets the
+  // French translation's title and excerpt in its <head> (and falls back to the
+  // default-language file when that post has no translation - see lib/blog).
   loader: ({ params }) => {
-    const post = getPost(params.slug, 'en');
+    const post = getPost(params.slug, getLocale());
     if (!post) throw notFound();
     const { Component: _Component, ...meta } = post;
     return { meta };
@@ -22,7 +25,7 @@ export const Route = createFileRoute('/blog/$slug')({
     const meta = loaderData?.meta;
     if (!meta) return {};
     return seo({
-      lang: 'en',
+      lang: getLocale(),
       title: meta.title,
       description: meta.excerpt,
       path: `/blog/${meta.slug}`,

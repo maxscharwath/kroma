@@ -4,6 +4,7 @@ import { Button } from '#site/components/button';
 import { ContactCard } from '#site/components/contact/contact-card';
 import { Faq } from '#site/components/contact/faq';
 import { PageShell } from '#site/components/contact/page-shell';
+import { getLocale } from '#site/lib/i18n';
 import { support, useSupport } from '#site/lib/messages/support';
 import { seo } from '#site/lib/seo';
 import { site } from '#site/lib/site';
@@ -11,7 +12,10 @@ import { site } from '#site/lib/site';
 export const Route = createFileRoute('/support')({
   // `head` runs outside React, so it reads the English catalog directly rather
   // than through the locale hook.
-  head: () => ({ ...seo({ lang: 'en', ...support.en.head, path: '/support' }) }),
+  head: () => {
+    const lang = getLocale();
+    return seo({ lang, ...support[lang].head, path: '/support' });
+  },
   component: Support,
 });
 

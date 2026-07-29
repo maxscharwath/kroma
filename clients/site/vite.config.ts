@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -30,6 +31,36 @@ export default defineConfig({
       sitemap: { enabled: true, host: 'https://kroma.tv' },
     }),
     react(),
+    // Paraglide compiles messages/{locale}.json into tree-shakeable message
+    // functions under src/paraglide (generated, git-ignored). It runs AFTER
+    // tanstackStart so the generated module exists before the app graph is built.
+    //
+    // `strategy: ['url']` only, deliberately. A cookie or an Accept-Language
+    // sniff would make the locale a function of the REQUEST, and this site is
+    // prerendered to static files: a page must be one language per URL or the
+    // HTML on the CDN would contradict itself. The URL is the single source of
+    // truth, which is also what makes /fr indexable.
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      strategy: ['url'],
+      // The generated output is JavaScript, so without this `tsc` sees `any` for
+      // every message function and the runtime - which would quietly undo the
+      // typesafety that is half the reason for choosing a compiler-based i18n.
+      emitTsDeclarations: true,
+      // English (the base locale) at the clean root, every other locale under its
+      // own prefix. Listing `fr` FIRST matters: the patterns are matched in order
+      // and the `en` entry is a catch-all that would otherwise swallow /fr/*.
+      urlPatterns: [
+        {
+          pattern: '/:path(.*)?',
+          localized: [
+            ['fr', '/fr/:path(.*)?'],
+            ['en', '/:path(.*)?'],
+          ],
+        },
+      ],
+    }),
   ],
   resolve: {
     alias: [{ find: '#site', replacement: fileURLToPath(new URL('./src', import.meta.url)) }],

@@ -7,12 +7,13 @@ import { Hero } from '#site/components/home/hero';
 import { OneBinary } from '#site/components/home/one-binary';
 import { Platforms } from '#site/components/home/platforms';
 import { SelfHostBand } from '#site/components/home/self-host-band';
+import { getLocale } from '#site/lib/i18n';
 import { seo } from '#site/lib/seo';
 
 // The head takes its title and description from `site` (via seo), so the home
 // page has no head copy of its own to look up.
 export const Route = createFileRoute('/')({
-  head: () => seo({ lang: 'en', path: '/' }),
+  head: () => seo({ lang: getLocale(), path: '/' }),
   component: Home,
 });
 

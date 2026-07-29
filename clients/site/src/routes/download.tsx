@@ -4,13 +4,20 @@ import { Closing } from '#site/components/download/closing';
 import { DownloadHero } from '#site/components/download/hero';
 import { InstallStep } from '#site/components/download/install-step';
 import { ServerOptions } from '#site/components/download/server-options';
+import { getLocale } from '#site/lib/i18n';
 import { download, useDownload } from '#site/lib/messages/download';
 import { seo } from '#site/lib/seo';
 
 export const Route = createFileRoute('/download')({
   // `head` runs outside React, so it reads the catalog directly; the hook is
   // unavailable here and this route is the English one.
-  head: () => ({ ...seo({ lang: 'en', title: download.en.head.title, path: '/download' }) }),
+  // `head` runs outside React, so it reads the ambient locale straight from
+  // Paraglide rather than through the hook. One head, both languages - this is
+  // what the deleted src/routes/fr/* mirrors used to exist for.
+  head: () => {
+    const lang = getLocale();
+    return seo({ lang, title: download[lang].head.title, path: '/download' });
+  },
   component: Download,
 });
 

@@ -2,6 +2,7 @@ import { IconShieldLock } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { ContactCard } from '#site/components/contact/contact-card';
 import { PageShell } from '#site/components/contact/page-shell';
+import { getLocale } from '#site/lib/i18n';
 import { privacy, usePrivacy } from '#site/lib/messages/privacy';
 import { seo } from '#site/lib/seo';
 import { site } from '#site/lib/site';
@@ -9,7 +10,10 @@ import { site } from '#site/lib/site';
 export const Route = createFileRoute('/privacy')({
   // `head` runs outside React, so it reads the English catalog directly rather
   // than through the locale hook.
-  head: () => ({ ...seo({ lang: 'en', ...privacy.en.head, path: '/privacy' }) }),
+  head: () => {
+    const lang = getLocale();
+    return seo({ lang, ...privacy[lang].head, path: '/privacy' });
+  },
   component: Privacy,
 });
 

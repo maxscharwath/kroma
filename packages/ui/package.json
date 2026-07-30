@@ -14,6 +14,7 @@
     "./bundler": "./bundler/index.ts",
     "./workbench-config": "./src/workbench-config.tsx",
     "./tokens": "./src/lib/tokens/index.ts",
+    "./tokens/colors": "./src/lib/tokens/colors.ts",
     "./fonts": "./src/assets/fonts.ts",
     "./styles.css": "./src/styles/styles.css",
     "./fonts.css": "./src/styles/fonts.css",

@@ -91,8 +91,8 @@ export function TvPin() {
     setShake((s) => s + 1);
   };
 
-  // The exchange takes the PIN so a not-yet-pin-verified token doesn't 401
-  // before `pinVerify`, which is the authoritative gate, can run.
+  // The exchange takes the PIN so a not-yet-verified token doesn't 401
+  // before `pinVerify`, the authoritative gate, can run.
   const runVerify = async (pin: string) => {
     if (!verifyClient || !account) return;
     const sess = await verifyClient.exchangeToken(account.accessToken, pin);

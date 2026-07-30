@@ -1,7 +1,6 @@
 // Registers this TV as a cast receiver: announces itself over the event
-// socket and applies remote commands, with an HTTP polling fallback for when
-// the socket won't come up. Renders nothing; reads the player via the cast
-// bridge.
+// socket and applies remote commands, with an HTTP polling fallback for
+// when the socket won't come up. Renders nothing.
 
 import { type CastCommand, type CastController, type KromaClient, KromaEvents } from '@kroma/core';
 import { useT } from '@kroma/ui';
@@ -148,12 +147,10 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
         } else if (e.type === 'cast.command' && e.receiverId === id) void apply(e.seq, e.command);
       },
     });
-    // Wait for the bearer before opening anything. The stored user hydrates
-    // synchronously on launch but the session token is minted a moment later, and
-    // a socket opened in that gap is refused - which costs two failed handshakes
-    // and the exponential backoff they earn. That is the difference between this
-    // TV being castable as its home screen appears and several seconds after.
-    // Capped, so a server that never mints one still gets the retry loop.
+    // Wait for the bearer before opening anything: the stored user hydrates
+    // synchronously but the session token is minted a moment later, and a
+    // socket opened in that gap is refused. Capped, so a server that never
+    // mints one still gets the retry loop.
     const whenAuthed = async () => {
       for (let i = 0; i < AUTH_WAIT_TICKS && !stopped; i++) {
         if (deps.current.client.hasAuth) return;
@@ -190,9 +187,8 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
   return null;
 }
 
-/** What this TV calls itself in a picker. The platform label is the honest
- * default: TVs have no name to read, and typing one on a D-pad is a chore. The
- * profile it is signed into is shown next to it by the sender. */
+// TVs have no name to read and typing one on a D-pad is a chore, so the
+// platform label is the honest default.
 function deviceName(platform: string): string {
   return platform && platform !== 'TV' ? platform : 'TV';
 }

@@ -25,9 +25,8 @@ export function setEnginePref(p: EnginePref): void {
 /** Engines choosable on THIS platform, always starting with `auto`. A
  * single-entry list hides the row. */
 export function availableEngines(): EnginePref[] {
-  // The native clients have ONE player (expo-video: AVPlayer / Media3); the only
-  // choice left is the original file or the server's remux. Everything below
-  // names a browser engine that does not exist here.
+  // Native clients have one player (expo-video: AVPlayer / Media3); the only
+  // choice is the original file or the server's remux.
   if (Platform.OS !== 'web') return ['auto', 'remux'];
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   if (isTizenRuntime(ua)) return ['auto', 'avplay', 'remux'];

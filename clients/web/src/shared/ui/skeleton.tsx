@@ -45,7 +45,7 @@ export function RailSkeleton({ count = 7 }: Readonly<{ count?: number }>) {
   return (
     <section>
       <Skeleton className="mb-5 mt-10 h-6 w-52" />
-      <div className="flex gap-[18px] overflow-hidden py-4">
+      <div className="flex gap-4.5 overflow-hidden py-4">
         {Array.from({ length: count }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rail
           <PosterSkeleton key={i} />

@@ -4,9 +4,7 @@
 
 #[derive(Debug, Clone, Default)]
 pub struct VpnCheck {
-    /// `None` = the proxy is unreachable.
     pub proxied_ip: Option<String>,
-    /// Best-effort; boxes with VPN-only egress legitimately have none.
     pub direct_ip: Option<String>,
     pub error: Option<String>,
 }

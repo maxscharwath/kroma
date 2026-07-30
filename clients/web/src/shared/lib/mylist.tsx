@@ -15,7 +15,6 @@ import { useAuth } from '#web/shared/lib/auth';
 
 interface MyListValue {
   ready: boolean;
-  /** Newest first. */
   ids: readonly string[];
   inList: (id: string) => boolean;
   setInList: (id: string, inList: boolean) => void;

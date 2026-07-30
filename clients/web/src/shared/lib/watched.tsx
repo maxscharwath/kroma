@@ -14,7 +14,6 @@ import {
 import { useAuth } from '#web/shared/lib/auth';
 
 interface WatchedValue {
-  /** True once the watched set has been hydrated (or there's no user). */
   ready: boolean;
   isWatched: (id: string) => boolean;
   setWatched: (id: string, watched: boolean) => void;

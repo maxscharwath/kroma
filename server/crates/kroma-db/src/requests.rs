@@ -5,7 +5,7 @@ use rusqlite::OptionalExtension;
 use super::*;
 use kroma_domain::{CalendarEntry, EpisodeRef, MediaRequest, RequestKind, RequestStatus};
 
-/// New columns must be appended, never inserted: callers read rows by position.
+// New columns must be appended, never inserted: callers read rows by position.
 const REQUEST_COLS: &str = "r.id, r.kind, r.tmdb_id, r.title, r.year, r.poster_url, r.seasons, \
     r.status, r.requested_by, u.username, r.reviewed_by, r.note, r.created_at, r.updated_at, \
     r.episodes, r.air_status, r.next_air_date, r.last_refresh_at";
@@ -211,18 +211,16 @@ pub fn delete_request(pool: &Pool, id: &str) -> Result<bool> {
 pub struct WantedRow {
     pub id: String,
     pub request_id: String,
-    /// `"movie"` | `"episode"`.
     pub kind: String,
-    /// The movie's TMDB id, or the SHOW's TMDB id for episodes.
+    // The movie's TMDB id, or the SHOW's TMDB id for episodes.
     pub tmdb_id: u64,
     pub imdb_id: Option<String>,
     pub title: String,
     pub year: Option<u32>,
     pub season: Option<u32>,
     pub episode: Option<u32>,
-    /// `YYYY-MM-DD`; unaired episodes are skipped by search until the date passes.
+    // Unaired episodes (YYYY-MM-DD) are skipped by search until the date passes.
     pub air_date: Option<String>,
-    /// `"wanted"` | `"grabbed"` | `"available"`.
     pub status: String,
     pub last_search_at: Option<i64>,
 }
@@ -247,7 +245,7 @@ fn row_to_wanted(r: &Row) -> rusqlite::Result<WantedRow> {
 const WANTED_COLS: &str =
     "id, request_id, kind, tmdb_id, imdb_id, title, year, season, episode, air_date, status, last_search_at";
 
-/// Append after an `INSERT INTO` / `INSERT OR IGNORE INTO` verb.
+// Append after an `INSERT INTO` / `INSERT OR IGNORE INTO` verb.
 const WANTED_INSERT_TAIL: &str =
     "wanted (id, request_id, kind, tmdb_id, imdb_id, title, year, season, episode, air_date, status, last_search_at, updated_at) \
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
@@ -316,8 +314,7 @@ pub fn wanted_for_request(conn: &Connection, request_id: &str) -> rusqlite::Resu
     rows.collect()
 }
 
-/// Callers append their own `WHERE`/`ORDER BY`/`LIMIT` and map rows with
-/// [`row_to_calendar_entry`].
+// Callers append their own `WHERE`/`ORDER BY`/`LIMIT` and map rows with `row_to_calendar_entry`.
 const CALENDAR_SELECT: &str = "SELECT w.request_id, w.tmdb_id, r.kind, w.title, w.year, r.poster_url, \
                 w.season, w.episode, w.air_date, w.status \
          FROM wanted w JOIN requests r ON r.id = w.request_id";

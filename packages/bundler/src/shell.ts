@@ -19,18 +19,10 @@ import react from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
 
 export interface TvTarget {
-  /** `bench` reuses this build for the perf bench rather than being a real TV;
-   * `web` is the browser-served 10-foot UI (tv.kroma.tv), not a packaged app. */
   platform: 'tizen' | 'webos' | 'bench' | 'web';
   port: number;
-  /** Lightning CSS down-level floor for the modern bundle; Tailwind v4's cascade
-   * layers make 99 (the default) the practical minimum. */
   chromeFloor?: number;
-  /** Also emit the legacy ES2015 tier down to this Chrome major; omit for
-   * modern-only shells. */
   legacyChrome?: number;
-  /** Honor KROMA_TV_DEVICE=1 for on-device dev: LAN HMR, no letterbox frame,
-   * console.* kept for the platform log collector. */
   deviceDev?: boolean;
 }
 

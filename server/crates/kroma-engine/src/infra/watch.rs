@@ -59,7 +59,7 @@ fn watch_loop(state: &SharedState, handle: &Handle, rx: &mpsc::Receiver<()>, bas
     }
 }
 
-/// Seconds; `0` disables the periodic tick (FS events still fire).
+// Seconds; `0` disables the periodic tick (FS events still fire).
 fn watch_interval(state: &SharedState) -> u64 {
     match state.settings.get_i64("watchIntervalSecs", -1) {
         n if n >= 0 => n as u64,

@@ -244,8 +244,8 @@ fn browse_dirs(raw: String) -> Result<Value, BrowseErr> {
     Ok(json!({ "path": canon.to_string_lossy(), "parent": parent, "entries": entries }))
 }
 
-/// Confines the browse to the volume roots; with none (a dev box, not a DSM
-/// one) anywhere is allowed.
+// Confines the browse to the volume roots; with none (a dev box, not a DSM
+// one) anywhere is allowed.
 fn within_roots(path: &Path, roots: &[PathBuf]) -> bool {
     roots.is_empty() || roots.iter().any(|r| path.starts_with(r))
 }
@@ -266,7 +266,7 @@ fn volume_roots() -> Vec<PathBuf> {
         .collect()
 }
 
-/// Skips hidden and DSM system names (`@eaDir`, `#recycle`).
+// Skips hidden and DSM system names (`@eaDir`, `#recycle`).
 fn read_subdirs(dir: &Path) -> Result<Vec<Value>, BrowseErr> {
     let rd = std::fs::read_dir(dir).map_err(|_| BrowseErr::NotFound)?;
     let mut dirs: Vec<PathBuf> = Vec::new();
@@ -305,8 +305,8 @@ fn clean_folders(folders: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-/// Goes through the job manager so it shares the `library.scan` single-flight
-/// guard and its follow-up pipeline; a no-op when a scan is already running.
+// Goes through the job manager so it shares the `library.scan` single-flight
+// guard and its follow-up pipeline; a no-op when a scan is already running.
 fn spawn_rescan(state: SharedState) {
     let _ = state.jobs.trigger(state.clone(), crate::services::jobs::JobKey("library.scan"), "library-edit");
 }

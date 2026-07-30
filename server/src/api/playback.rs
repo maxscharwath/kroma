@@ -50,10 +50,8 @@ pub struct PingBody {
     pub position_ms: i64,
     #[serde(rename = "durationMs", default)]
     pub duration_ms: Option<i64>,
-    /// `playing` | `paused`.
     #[serde(default = "default_state")]
     pub state: String,
-    /// `direct` | `transcode`.
     #[serde(default = "default_mode")]
     pub mode: String,
     #[serde(default)]

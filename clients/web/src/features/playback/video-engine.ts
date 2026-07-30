@@ -1,11 +1,9 @@
-// The imperative playback engine for the player: the `<video>` element event
-// wiring and the source decision (direct-play vs the HLS remux master).
-// `useVideoPlayback` owns the React state/effects and drives these helpers.
+// The `<video>` element event wiring and source decision (direct-play vs the
+// HLS remux master); `useVideoPlayback` owns the React state/effects that
+// drive these helpers.
 //
-// The HLS master is remuxed from an anchor (input `-ss`); hls.js plays it from
-// RELATIVE 0, so the hook reports the absolute position as `anchor + currentTime`
-// (see `baseSec`). A seek outside the produced range re-anchors: the parent
-// remounts the <video> with a fresh remux at the target.
+// The HLS master is remuxed from an anchor; hls.js plays it from relative 0,
+// so the absolute position is `anchor + currentTime` (see `baseSec`).
 
 import type { AudioTrack, EngineDecision } from '@kroma/core';
 import type { WebEnginePref } from '#web/features/playback/engine-pref';
@@ -13,15 +11,12 @@ import { kromaClient, type MovieView } from '#web/shared/lib/api';
 
 export type HlsInstance = import('hls.js').default;
 
-// Forward-buffer tuning, shared intent across the MSE engines: buffer well ahead
-// so playback rides out network dips instead of stalling. The engine defaults are
-// stingy - hls.js caps at 30s AND 60 MB (the byte cap is what stops high-bitrate
-// streams at ~15-30s), and Shaka's `bufferingGoal` is only 10s. The server remux
-// produces ahead (readrate 1.5 + burst), so a bigger client goal actually fills.
+// hls.js defaults cap at 30s/60MB and Shaka's bufferingGoal is only 10s, both
+// too stingy for the server's readrate-1.5 remux, which produces well ahead.
 const FORWARD_BUFFER_SEC = 120;
 const MAX_FORWARD_BUFFER_SEC = 600;
 const BACK_BUFFER_SEC = 60;
-const MAX_BUFFER_BYTES = 500 * 1000 * 1000; // 500 MB (vs hls.js's 60 MB default)
+const MAX_BUFFER_BYTES = 500 * 1000 * 1000;
 
 /** The subset of Shaka's live `getStats()` snapshot the stats panel reads; bandwidth
  * is bits/s, times are seconds. */
@@ -66,13 +61,10 @@ export interface VideoPlayback {
   fs: boolean;
   useHls: boolean;
   enginePref: WebEnginePref;
-  /** Persists the choice and re-anchors playback to apply it live. */
   setEnginePref: (p: WebEnginePref) => void;
   audioTracks: AudioTrack[];
   audioIndex: number;
   setAudio: (index: number) => void;
-  /** The remux anchor (s), used as the `<video>` React key so a resume/seek
-   * remounts the element rather than re-attaching hls.js. */
   anchor: number;
   baseSec: number;
   aac: boolean;
@@ -83,8 +75,6 @@ export interface VideoPlayback {
   scrubPreview: number | null;
   scrubToClientX: (clientX: number) => void;
   commitScrub: () => void;
-  /** `x`: px from the bar's left; `t`: the time there (s); `w`: the bar's pixel
-   * width. */
   hover: { x: number; t: number; w: number } | null;
   setHover: (h: { x: number; t: number; w: number } | null) => void;
   togglePlay: () => void;
@@ -99,7 +89,6 @@ export interface VideoPlayback {
   onBarMove: (e: React.PointerEvent) => void;
 }
 
-/** State setters the media-event listeners feed into. */
 export interface MediaEventSetters {
   setCur: (n: number) => void;
   setDur: (n: number) => void;
@@ -119,10 +108,8 @@ export function bindMediaEvents(
   item: MovieView,
   setters: MediaEventSetters,
   baseSec = 0,
-  /** Total length (ms) from the catalog or the server's `X-Media-Duration`
-   * header; preferred over the element's `duration`, which for a growing HLS
-   * EVENT playlist is only the produced edge, not the whole movie. 0 = unknown,
-   * fall back to the element clock. */
+  // Preferred over the element's `duration`, which for a growing HLS EVENT
+  // playlist is only the produced edge, not the whole movie. 0 = unknown.
   knownDurationMs = 0,
 ): () => void {
   const {
@@ -154,8 +141,7 @@ export function bindMediaEvents(
   };
   const onRate = () => setRate(v.playbackRate);
 
-  // Ready-gated, resilient autoplay: retry on the media-ready events until
-  // playback actually starts, then stop so we never fight a real user pause.
+  // Stop retrying once playback actually starts, so we never fight a real user pause.
   let started = false;
   const onReady = () => {
     setReady(true);
@@ -196,33 +182,20 @@ export function bindMediaEvents(
   };
 }
 
-/** Inputs for {@link attachMediaSource}. */
 export interface AttachSourceOptions {
   v: HTMLVideoElement;
   item: MovieView;
   decision: EngineDecision;
-  /** Use the browser's native HLS (Safari/iOS) instead of hls.js. */
   useNativeHls: boolean;
-  /** Play the HLS master through Shaka Player instead of hls.js / native HLS.
-   * Set when the user picks the `shaka` engine override; wins over `useNativeHls`
-   * so an explicit Shaka choice is honoured even on Safari. */
   useShaka: boolean;
-  /** Anchor position (s): the HLS stream is remuxed from here (input `-ss`); the
-   * hook adds it back for the absolute position. For direct-play it is a plain
-   * absolute start seek. 0 = from the start. */
   startSec: number;
-  /** Audio-relative track index to MUX into the stream (the chosen language). */
   audioRel: number;
   hlsRef: { current: HlsInstance | null };
-  /** The live Shaka Player instance (or null), so the stats panel can read its
-   * `getStats()` transport metrics. Only set on the `useShaka` path. */
   shakaRef: { current: ShakaPlayerLike | null };
   setUseHls: (b: boolean) => void;
   setReady: (b: boolean) => void;
 }
 
-/** Direct-play resume: seek to the absolute `startSec` once the element has
- * metadata (direct-play is one continuous, fully-seekable file). */
 function seekToAnchor(v: HTMLVideoElement, startSec: number): void {
   if (startSec <= 0.5) return;
   const apply = () => {
@@ -230,7 +203,7 @@ function seekToAnchor(v: HTMLVideoElement, startSec: number): void {
       try {
         v.currentTime = startSec;
       } catch {
-        /* not ready yet retried below */
+        // Not ready yet; retried by the loadedmetadata listener below.
       }
     }
   };
@@ -272,17 +245,15 @@ export function attachMediaSource(opts: AttachSourceOptions): () => void {
   }
 
   setUseHls(true);
-  // The HLS session is remuxed from `startSec` (server input -ss) with `audioRel`
-  // muxed in. hls.js plays it from RELATIVE 0, and the hook adds `startSec` back
-  // to report the absolute position (bindMediaEvents `baseSec`). No client seek.
+  // Remuxed from `startSec`; hls.js plays it from relative 0 and the hook adds
+  // `startSec` back to report the absolute position (see `baseSec` above).
   const url = kromaClient().hlsMasterUrl(item.id, decision.aacMaster, startSec, audioRel);
   let destroyed = false;
 
+  // Checked before `useNativeHls`: an explicit Shaka override wins, so the choice
+  // is honoured even on Safari, where native HLS would otherwise take it.
   if (useShaka) {
-    // Shaka plays the same anchored master over MSE (like hls.js). It reports the
-    // stream's own relative clock, so the hook still adds `startSec` back for the
-    // absolute position (bindMediaEvents `baseSec`). The chosen audio is muxed in
-    // via the URL, so there is no in-place rendition switch here either.
+    // Shaka reports the same relative clock as hls.js, so `baseSec` applies here too.
     void import('shaka-player/dist/shaka-player.compiled.js').then((mod) => {
       if (destroyed) return;
       const shaka = (mod as unknown as { default: ShakaStatic }).default;
@@ -330,9 +301,7 @@ export function attachMediaSource(opts: AttachSourceOptions): () => void {
       v.src = url;
       return;
     }
-    // startPosition 0 = the start of the (relative) anchored stream. The buffer
-    // caps are raised well above hls.js's stingy 30s / 60 MB defaults so playback
-    // buffers far ahead (see FORWARD_BUFFER_SEC).
+    // startPosition 0 is relative to the anchored stream, not absolute.
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,

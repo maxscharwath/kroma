@@ -22,16 +22,16 @@ const SEGMENT_SECONDS: &str = "6";
 const IDLE_TIMEOUT: Duration = Duration::from_secs(180);
 const REAP_INTERVAL: Duration = Duration::from_secs(30);
 const FILE_WAIT: Duration = Duration::from_secs(20);
-/// Multiple of realtime ffmpeg may read at, so concurrent sessions don't thrash
-/// the mount; above 1.0 so clients can still build a forward buffer.
+// Multiple of realtime ffmpeg may read at, so concurrent sessions don't
+// thrash the mount; above 1.0 so clients can still build a forward buffer.
 const READRATE: &str = "2.0";
-/// Seconds read at full speed before [`READRATE`] throttling starts (ffmpeg >= 6.1).
+// Seconds read at full speed before READRATE throttling starts (ffmpeg >= 6.1).
 const READRATE_BURST: &str = "60";
-/// Under this age a session counts as actively playing: never evicted to reclaim
-/// disk, and dropped under the concurrency cap only as a last resort.
+// Under this age a session counts as actively playing: never evicted to
+// reclaim disk, dropped under the concurrency cap only as a last resort.
 const BUDGET_GRACE: Duration = Duration::from_secs(45);
-/// Segments kept behind the furthest one requested. Must exceed the client's
-/// forward+back buffer in segments (~30) or a backward seek stalls.
+// Must exceed the client's forward+back buffer in segments (~30) or a
+// backward seek stalls.
 const KEEP_BEHIND_SEGS: u64 = 45;
 
 struct Session {
@@ -40,8 +40,8 @@ struct Session {
     last_access: Mutex<Instant>,
     max_seg: AtomicU64,
     pruned: AtomicU64,
-    /// Real stream start (s): the keyframe at-or-before the requested anchor, which
-    /// the client uses as `baseSec`.
+    // Real stream start (s): the keyframe at-or-before the requested anchor,
+    // which the client uses as `baseSec`.
     start: f64,
 }
 
@@ -58,7 +58,7 @@ impl Session {
 pub struct Sessions {
     root: PathBuf,
     cap: usize,
-    /// On-disk byte budget for the whole cache; 0 = unlimited.
+    // On-disk byte budget for the whole cache; 0 = unlimited.
     budget: AtomicU64,
     burst: bool,
     inner: Mutex<HashMap<String, Arc<Session>>>,
@@ -174,9 +174,9 @@ impl Sessions {
         Ok(session)
     }
 
-    /// Victim order under the concurrency cap: a session that has gone quiet, else
-    /// a sibling of `key` (almost certainly the arriving client's own superseded
-    /// stream, so no other viewer is cut off), else the plain LRU.
+    // Victim order under the concurrency cap: a session that has gone quiet, else
+    // a sibling of `key` (almost certainly the arriving client's own superseded
+    // stream, so no other viewer is cut off), else the plain LRU.
     async fn make_room(&self, map: &mut HashMap<String, Arc<Session>>, key: &str) {
         while map.len() >= self.cap {
             let Some((oldest, la)) = lru(map.iter()).await else { break };
@@ -190,8 +190,8 @@ impl Sessions {
         self.enforce_budget(map).await;
     }
 
-    /// A sibling still being read is left alone: the HLS routes are anonymous, so a
-    /// warm sibling could equally be a second viewer on the same title.
+    // A sibling still being read is left alone: the HLS routes are anonymous, so
+    // a warm sibling could equally be a second viewer on the same title.
     async fn reap_superseded(&self, map: &mut HashMap<String, Arc<Session>>, key: &str) {
         let now = Instant::now();
         let mut stale = Vec::new();
@@ -206,9 +206,9 @@ impl Sessions {
         }
     }
 
-    /// Evict idle sessions oldest-first until the cache is under [`Self::budget`]
-    /// (0 disables trimming). A session younger than [`BUDGET_GRACE`] is left alone
-    /// even if that briefly exceeds the budget: dropping its segments would stall it.
+    // Evict idle sessions oldest-first until the cache is under budget (0
+    // disables trimming). A session younger than BUDGET_GRACE is left alone
+    // even if that briefly exceeds the budget: dropping its segments would stall it.
     async fn enforce_budget(&self, map: &mut HashMap<String, Arc<Session>>) {
         let budget = self.budget.load(Ordering::Relaxed);
         if budget == 0 {

@@ -217,7 +217,6 @@ export function PipelinePage() {
         accentLabel={t('pipeline.needActionLabel')}
       />
 
-      {/* paused banner */}
       {paused ? (
         <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-[#F4B642]/30 bg-[#F4B642]/10 px-4 py-2.5 text-[13.5px] font-semibold text-[#F4B642]">
           <IconPlayerPause size={15} stroke={2} />
@@ -225,7 +224,6 @@ export function PipelinePage() {
         </div>
       ) : null}
 
-      {/* filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <Chip
           label={t('pipeline.filter.attention')}
@@ -274,7 +272,7 @@ export function PipelinePage() {
           tone="accent"
           onClick={() => pick(setStatus)('all')}
         />
-        <span className="mx-1 h-[22px] w-px bg-white/12" />
+        <span className="mx-1 h-5.5 w-px bg-white/12" />
         <Chip
           label={t('pipeline.filter.allTypes')}
           count={total}
@@ -305,7 +303,6 @@ export function PipelinePage() {
         />
       </div>
 
-      {/* table */}
       <div className="overflow-hidden rounded-2xl border border-white/8 bg-[#121216] shadow-[0_10px_28px_rgba(0,0,0,.3)]">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-white/6 bg-[#15151A] px-5 py-3 md:grid-cols-[minmax(0,1fr)_150px_132px_46px]">
           <Head>{t('pipeline.colElement')}</Head>

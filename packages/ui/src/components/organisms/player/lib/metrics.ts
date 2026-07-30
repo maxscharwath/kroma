@@ -21,13 +21,9 @@ export const VOLUME_RAIL = 96;
 export const TRANSPORT_GAP = 20;
 export const CLUSTER_GAP = 14;
 export const GUTTER = 34;
-/**
- * Fallback for the measured transport height, used to place the skip-intro pill.
- * `onLayout` is a ResizeObserver in react-native-web, which the legacy TV tier
- * (Chromium 53-94, see clients/tv-build/polyfills.legacy.ts) lacks and does not
- * polyfill, so there this number is the only answer and a zero would draw the
- * pill straight through the seek bar.
- */
+// Fallback for the measured transport height: legacy TV Chromium (53-94, see
+// clients/tv-build/polyfills.legacy.ts) has no ResizeObserver polyfill for
+// `onLayout`, so a zero here would draw the skip-intro pill through the seek bar.
 export const TRANSPORT_HEIGHT = 164;
 export const ROW_GAP = 24;
 
@@ -35,8 +31,8 @@ const TRANSPORT: ReadonlySet<ControlId> = new Set<ControlId>(['rewind', 'play', 
 
 export const isTransport = (id: ControlId): boolean => TRANSPORT.has(id);
 
-/** The floor the chrome may shrink to: 56 × 0.78 ≈ 44px, the smallest
- * comfortable touch target. Below this the row sheds instead of shrinking. */
+// The floor the chrome may shrink to: 56 × 0.78 ≈ 44px, the smallest
+// comfortable touch target. Below this the row sheds instead of shrinking.
 export const MIN_SCALE = 0.78;
 
 // Quantized so a window drag neither mints a <Box> style-cache entry per pixel
@@ -166,14 +162,12 @@ export const scaler =
 
 export const PANEL_FRACTION = 0.44;
 export const PANEL_MAX = 720;
-/** The width below which the panel covers the whole stage instead: 44% of a
- * phone-width browser is 170px, which sets every row label one letter per line. */
+// The width below which the panel covers the whole stage instead: 44% of a
+// phone-width browser is 170px, which sets every row label one letter per line.
 export const PANEL_MIN = 420;
 
-/** The gap kept on each side of the shrunken picture. Shared with
- * {@link panelGeometry}: deciding it in two places let "the panel leaves room"
- * and "the room fits a card" disagree, and between 526 and 548 px the picture
- * vanished outright instead of shrinking. */
+// The gap kept on each side of the shrunken picture. Shared with panelGeometry
+// rather than duplicated, so the two constraints can't disagree on it.
 export const CARD_MARGIN = 64;
 
 const MIN_CARD_SCALE = 0.2;

@@ -41,7 +41,6 @@ interface Auth {
   accounts: StoredSession[];
   login: (res: AuthResult, serverUrl: string) => void;
   activate: (account: StoredSession) => void;
-  /** Back to the picker without signing out; re-arms every PIN lock. */
   switchProfile: () => void;
   forget: (userId: string, serverUrl: string) => void;
   logout: () => Promise<void>;
@@ -66,7 +65,6 @@ export function AuthProvider({
 }>) {
   const [session, setSession] = useState<StoredSession | null>(() => loadSession());
   const [accounts, setAccounts] = useState<StoredSession[]>(() => loadAccounts());
-  // Profiles that have already cleared their PIN this session.
   const unlocked = useRef<Set<string>>(new Set(session ? [keyOf(session)] : []));
   // The access token already exchanged for a bearer: the success path mints a
   // new `session`, which would otherwise re-run the effect forever.

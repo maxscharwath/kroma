@@ -38,12 +38,9 @@ impl Value {
 pub struct Context {
     pub keywords: String,
     pub categories: Vec<String>,
-    /// Checkbox settings are [`Value::Bool`] so `eq .Config.x .False` behaves;
-    /// everything else is a string.
     pub config: HashMap<String, Value>,
     pub query: HashMap<String, String>,
     pub result: HashMap<String, String>,
-    /// The current item inside a `{{ range }}` (bare `.`).
     pub dot: Option<Value>,
 }
 

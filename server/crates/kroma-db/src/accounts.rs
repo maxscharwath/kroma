@@ -92,11 +92,9 @@ pub fn get_invite(pool: &Pool, token: &str) -> Result<Option<Invite>> {
 pub fn consume_invite(pool: &Pool, token: &str) -> Result<Option<Vec<Permission>>> {
     let conn = pool.get()?;
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
-    // The `used_at IS NULL` guard lives in the same statement that stamps
-    // `used_at`, and `RETURNING` only yields permissions to the caller that
-    // flipped the row, so two concurrent registrations can't both win a
-    // single-use invite. A SELECT-then-UPDATE has a real TOCTOU window here:
-    // the pool hands each caller its own WAL connection.
+    // `used_at IS NULL` is checked in the same statement that stamps it, and
+    // `RETURNING` only yields to the caller that flipped the row, so two
+    // concurrent registrations can't both win a single-use invite.
     let perms: Option<String> = conn
         .query_row(
             "UPDATE invites SET used_at = ?2 \
@@ -385,7 +383,6 @@ pub fn create_access_token(
 }
 
 pub struct AccessTokenRow {
-    /// A non-secret `short_hash` of the token: safe to expose and to revoke by.
     pub id: String,
     pub user_agent: Option<String>,
     pub created_at: String,

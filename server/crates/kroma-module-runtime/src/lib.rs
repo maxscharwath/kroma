@@ -52,7 +52,6 @@ struct Inner {
     core_url: String,
     host_token: String,
     services: RwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>,
-    /// Memoized `/_host/tmdb` response; avoids a round trip on every request.
     tmdb: RwLock<Option<serde_json::Value>>,
 }
 

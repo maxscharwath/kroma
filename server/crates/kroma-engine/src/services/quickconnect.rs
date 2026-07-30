@@ -10,9 +10,9 @@ use crate::model::User;
 
 pub const CODE_TTL_SECS: i64 = 300;
 const CODE_DIGITS: u32 = 4;
-/// `initiate` is unauthenticated by design, so this bounds the map against a
-/// flood. It also keeps the map sparse against the 10^CODE_DIGITS keyspace, so
-/// the code-generation loop below stays collision-free.
+// `initiate` is unauthenticated by design, so this bounds the map against a
+// flood. It also keeps the map sparse against the 10^CODE_DIGITS keyspace, so
+// the code-generation loop below stays collision-free.
 const MAX_PENDING: usize = 256;
 
 struct Pending {
@@ -24,7 +24,7 @@ struct Pending {
 }
 
 pub struct QuickConnectInner {
-    /// Keyed by the human-facing code.
+    // Keyed by the human-facing code.
     map: Mutex<HashMap<String, Pending>>,
 }
 

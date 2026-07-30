@@ -10,10 +10,6 @@ import { I18nProvider } from '#ui/services/i18n';
 
 type Locale = 'en' | 'fr';
 
-/** The KROMA half of a workbench definition:
- *
- *   export const Kit = defineWorkbench({ ...KROMA_WORKBENCH, stories: STORIES });
- */
 export const KROMA_WORKBENCH: {
   title: string;
   brand: ReactNode;

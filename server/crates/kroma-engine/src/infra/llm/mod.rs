@@ -29,17 +29,17 @@ pub fn build_http(
 pub trait LlmClient: Send + Sync {
     fn available(&self) -> bool;
 
-    /// Blocking call; must be made from a blocking context.
+    // Blocking call; must be made from a blocking context.
     fn complete(&self, system: &str, user: &str, max_tokens: u32) -> anyhow::Result<String>;
 
-    /// `false` clients only do [`complete`]; tool-driven features must check this
-    /// and fall back to a prompt path.
+    // `false` clients only do [`complete`]; tool-driven features must check this
+    // and fall back to a prompt path.
     fn supports_tools(&self) -> bool {
         false
     }
 
-    /// Dispatches each requested call through `toolbox` and feeds results back, up
-    /// to `max_steps`, until the model produces a final answer. Blocking.
+    // Dispatches each requested call through `toolbox` and feeds results back, up
+    // to `max_steps`, until the model produces a final answer. Blocking.
     fn run_tools(
         &self,
         system: &str,

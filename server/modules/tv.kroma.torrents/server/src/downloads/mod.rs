@@ -510,7 +510,7 @@ impl DownloadManager {
         }
     }
 
-    /// The engine returns the same ref for identical content from another URL.
+    // The engine returns the same ref for identical content from another URL.
     fn reconcile_dedup(&self, host: &dyn HostCtx, row: &DownloadRow, client_ref: &str) {
         let dup = host
             .db()
@@ -712,8 +712,8 @@ fn fetch_torrent_for(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8
     Err(last.unwrap_or_else(|| anyhow!("torrent fetch failed")))
 }
 
-/// Private trackers cookie-gate the download, so a built-in indexer is fetched
-/// through its authenticated Cardigann session rather than plainly.
+// Private trackers cookie-gate the download, so a built-in indexer is fetched
+// through its authenticated Cardigann session rather than plainly.
 fn fetch_torrent_once(host: &dyn HostCtx, row: &db::DownloadRow) -> Result<Vec<u8>> {
     if let Some(indexer_id) = &row.indexer_id {
         if let Some(port) =

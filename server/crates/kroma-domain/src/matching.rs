@@ -6,7 +6,7 @@
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Candidate {
     pub tmdb_id: u64,
-    /// Localized title (`title` for movies, `name` for shows).
+    // Localized title (`title` for movies, `name` for shows).
     pub title: String,
     pub original_title: String,
     pub year: Option<u32>,
@@ -19,25 +19,25 @@ pub struct Query<'a> {
     pub year: Option<u32>,
 }
 
-/// Below this we record a miss rather than store a wrong poster: nothing
-/// downstream re-questions a bad match.
+// Below this we record a miss rather than store a wrong poster: nothing
+// downstream re-questions a bad match.
 pub const MIN_SCORE: f32 = 0.35;
 
 const SIM_WEIGHT: f32 = 0.75;
-/// Same year rescues a partial title match, e.g. a foreign filename resolving to
-/// an English `title`/`original_title` pair.
+// Same year rescues a partial title match, e.g. a foreign filename resolving to
+// an English `title`/`original_title` pair.
 const YEAR_EXACT: f32 = 0.25;
-/// Off by one: release year vs. festival/production year, extremely common.
+// Off by one: release year vs. festival/production year, extremely common.
 const YEAR_NEAR: f32 = 0.10;
-/// Years that genuinely disagree: almost always a different title entirely.
+// Years that genuinely disagree: almost always a different title entirely.
 const YEAR_FAR: f32 = -0.35;
-/// Tiny nudge so a well-known title outranks an obscure namesake; capped low
-/// enough that it can never overturn a title or year signal.
+// Tiny nudge so a well-known title outranks an obscure namesake; capped low
+// enough that it can never overturn a title or year signal.
 const VOTES_WEIGHT: f32 = 0.03;
 const VOTES_CAP: u32 = 2000;
-/// An article-dropped match ("Matrix" vs "The Matrix") must never tie a literal
-/// title, or "A Scary Movie" outranks the real "Scary Movie" on TMDB's ordering
-/// alone. Cap it just below a perfect score.
+// An article-dropped match ("Matrix" vs "The Matrix") must never tie a literal
+// title, or "A Scary Movie" outranks the real "Scary Movie" on TMDB's ordering
+// alone. Cap it just below a perfect score.
 const ARTICLE_MATCH_CEIL: f32 = 0.97;
 
 /// Score one candidate in `0.0..=1.0`. See [`MIN_SCORE`] for the accept cutoff.
@@ -58,21 +58,21 @@ fn score_parts(query: &Query, candidate: &Candidate) -> (f32, bool) {
     ((SIM_WEIGHT * sim + year_adj + votes).clamp(0.0, 1.0), exact)
 }
 
-/// Best title similarity in `0.0..=1.0` across the candidate's localized and
-/// original titles, plus whether that best was a *literal* match. A literal match
-/// is reserved the perfect 1.0; a match that only holds once a leading article is
-/// dropped is capped at [`ARTICLE_MATCH_CEIL`], so an exact title always outranks a
-/// namesake that merely folds onto it.
+// Best title similarity in `0.0..=1.0` across the candidate's localized and
+// original titles, plus whether that best was a *literal* match. A literal match
+// is reserved the perfect 1.0; a match that only holds once a leading article is
+// dropped is capped at [`ARTICLE_MATCH_CEIL`], so an exact title always outranks a
+// namesake that merely folds onto it.
 fn title_match(query: &str, candidate: &Candidate) -> (f32, bool) {
     let (sim_t, exact_t) = title_similarity(query, &candidate.title);
     let (sim_o, exact_o) = title_similarity(query, &candidate.original_title);
     (sim_t.max(sim_o), exact_t || exact_o)
 }
 
-/// Similarity of one title to the query, and whether it was literal. `strict`
-/// keeps articles so an exact title scores a true 1.0; the article-tolerant
-/// `loose` path only rescues an article difference ("Matrix" vs "The Matrix") and
-/// is capped below 1.0 so it can never tie the literal form.
+// Similarity of one title to the query, and whether it was literal. `strict`
+// keeps articles so an exact title scores a true 1.0; the article-tolerant
+// `loose` path only rescues an article difference ("Matrix" vs "The Matrix") and
+// is capped below 1.0 so it can never tie the literal form.
 fn title_similarity(query: &str, title: &str) -> (f32, bool) {
     let q = normalize_core(query);
     let t = normalize_core(title);
@@ -113,9 +113,9 @@ pub fn similarity(a: &str, b: &str) -> f32 {
     dice(&normalize(a), &normalize(b))
 }
 
-/// Sorensen-Dice coefficient over two already-normalized strings. Split out from
-/// [`similarity`] so title scoring can run it over both the article-stripped and
-/// the article-preserving forms without re-folding.
+// Sorensen-Dice coefficient over two already-normalized strings. Split out from
+// [`similarity`] so title scoring can run it over both the article-stripped and
+// the article-preserving forms without re-folding.
 fn dice(a: &str, b: &str) -> f32 {
     if a.is_empty() || b.is_empty() {
         return 0.0;
@@ -145,9 +145,9 @@ pub fn normalize(raw: &str) -> String {
     strip_article(&normalize_core(raw))
 }
 
-/// [`normalize`] without dropping a leading article. Used where the article is
-/// signal rather than noise: telling a literal title match ("Scary Movie") apart
-/// from one that only holds once the article is stripped ("A Scary Movie").
+// [`normalize`] without dropping a leading article. Used where the article is
+// signal rather than noise: telling a literal title match ("Scary Movie") apart
+// from one that only holds once the article is stripped ("A Scary Movie").
 fn normalize_core(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for ch in raw.chars() {
@@ -166,9 +166,9 @@ fn normalize_core(raw: &str) -> String {
     out.trim().to_string()
 }
 
-/// Lowercase + de-accent one non-ASCII-alphanumeric char; `None` for anything
-/// that is not a letter. Only Latin-1 / Latin-A is folded, which covers every
-/// language the catalog realistically carries with no unicode dependency.
+// Lowercase + de-accent one non-ASCII-alphanumeric char; `None` for anything
+// that is not a letter. Only Latin-1 / Latin-A is folded, which covers every
+// language the catalog realistically carries with no unicode dependency.
 fn fold(ch: char) -> Option<&'static str> {
     Some(match ch {
         'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' => "a",
@@ -200,9 +200,9 @@ pub fn strip_combining(s: &str) -> String {
     s.chars().filter(|c| !matches!(c, '\u{0300}'..='\u{036F}')).collect()
 }
 
-/// Articles a catalog title may or may not carry ("The Matrix" vs "Matrix", "Le
-/// Fabuleux destin..." vs "Fabuleux destin..."). Dropping a leading one makes the
-/// two forms comparable. Both sides are normalized first, so `l'` is already `l `.
+// Articles a catalog title may or may not carry ("The Matrix" vs "Matrix", "Le
+// Fabuleux destin..." vs "Fabuleux destin..."). Both sides are normalized first,
+// so `l'` is already `l `.
 const ARTICLES: [&str; 12] =
     ["the ", "a ", "an ", "le ", "la ", "les ", "l ", "un ", "une ", "der ", "die ", "das "];
 

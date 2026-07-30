@@ -10,8 +10,8 @@ use crate::i18n;
 
 use super::store::Settings;
 
-/// Must come from the server binary: `env!("CARGO_PKG_VERSION")` here would be the
-/// engine crate's stale version, not the released server's.
+// Must come from the server binary: `env!("CARGO_PKG_VERSION")` here would be the
+// engine crate's stale version, not the released server's.
 static BUILD_INFO: OnceLock<(String, String, String)> = OnceLock::new();
 
 /// Call once from the server binary; later calls are ignored.
@@ -36,14 +36,14 @@ pub struct SettingRow {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub desc: Option<String>,
-    /// `toggle` | `select` | `text` | `value`.
+    // `toggle` | `select` | `text` | `value`.
     pub kind: &'static str,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
     pub value: Value,
     pub applied: bool,
-    /// `secret` rows only: whether a value is stored. The value itself never
-    /// leaves the server.
+    // `secret` rows only: whether a value is stored. The value itself never
+    // leaves the server.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configured: Option<bool>,
 }

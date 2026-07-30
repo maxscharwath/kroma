@@ -87,11 +87,10 @@ export function Head({
   );
 }
 
-/** Kit-chip label metrics; the console renders its own `Txt` children so the
- * status dot can lead and the count can trail inside the same pill. */
+// The console renders its own `Txt` children so the status dot can lead and
+// the count can trail inside the same pill.
 const CHIP_LABEL = { fontSize: 13, fontWeight: '600' } as const;
 const CHIP_COUNT = { fontSize: 13, fontWeight: '600', opacity: 0.6 } as const;
-/** The blue filter family (element type), painted over the kit's active fill. */
 const BLUE_ACTIVE = { backgroundColor: '#86A8FF' } as const;
 
 /** A filter chip on the kit pill. `tone` picks the active fill (defaults to the
@@ -114,7 +113,7 @@ export function Chip({
   const ink = on ? 'accentInk' : 'textMuted';
   return (
     <KitChip active={on} onPress={onClick} style={on && tone === 'blue' ? BLUE_ACTIVE : null}>
-      {dot ? <span className="h-[7px] w-[7px] rounded-full" style={{ background: dot }} /> : null}
+      {dot ? <span className="h-1.75 w-1.75 rounded-full" style={{ background: dot }} /> : null}
       <Txt style={CHIP_LABEL} color={ink}>
         {label}
       </Txt>
@@ -137,7 +136,7 @@ export function ConsoleToast({ toast }: Readonly<{ toast: { text: string; on: bo
         transform: `translateX(-50%) translateY(${toast.on ? 0 : 12}px)`,
       }}
     >
-      <div className="inline-flex items-center gap-2.5 rounded-full border border-white/12 bg-[#1C1C22] px-[18px] py-2.5 shadow-pop">
+      <div className="inline-flex items-center gap-2.5 rounded-full border border-white/12 bg-[#1C1C22] px-4.5 py-2.5 shadow-pop">
         <span className="h-2 w-2 flex-[0_0_8px] rounded-full bg-accent" />
         <span className="text-[13.5px] font-semibold text-white">{toast.text}</span>
       </div>

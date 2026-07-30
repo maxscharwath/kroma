@@ -11,13 +11,13 @@ import type { MatrixRow, StoryWidth } from './story';
 interface Viewport {
   label: string;
   glyph: IconName;
-  /** `null` on `fit`: the component at its authored size. */
+  // `null` on `fit`: the component at its authored size.
   size: { width: number; height: number } | null;
   rotatable: boolean;
 }
 
-/** The frames a story can be viewed in; the toolbar menu, the frame and its
- * caption all read from here. */
+// The frames a story can be viewed in; the toolbar menu, the frame and its
+// caption all read from here.
 const VIEWPORTS: Record<string, Viewport> = {
   fit: { label: 'Fit', glyph: 'frame', size: null, rotatable: false },
   tv: {
@@ -55,14 +55,10 @@ function canRotate(viewport: ViewportName): boolean {
   return VIEWPORTS[viewport]?.rotatable === true;
 }
 
-/**
- * The width to give a story and whether the stage has to scroll to fit it.
- *
- * A story that declares a width is never scaled: react-native-web implements
- * `onLayout` with `getBoundingClientRect`, which is post-transform, so a
- * self-measuring component inside a `scale(0.8)` reads 0.8 of its real width
- * while its children lay out against the full one.
- */
+// The width to give a story and whether the stage has to scroll to fit it. A story that
+// declares a width is never scaled: react-native-web implements `onLayout` with
+// `getBoundingClientRect`, which is post-transform, so a self-measuring component inside a
+// `scale(0.8)` reads 0.8 of its real width while its children lay out against the full one.
 function stageWidth(
   spec: StoryWidth | undefined,
   available: number,
@@ -112,8 +108,7 @@ function captionText(parts: readonly (string | null | false)[]): string {
   return parts.filter(Boolean).join('  ·  ');
 }
 
-/** Renders children inside the chosen device frame, scaled to fit the space
- * available. */
+// Renders children inside the chosen device frame, scaled to fit the space available.
 function ViewportFrame({
   viewport,
   surface,
@@ -200,8 +195,8 @@ function ViewportFrame({
 
 const BEZEL = 10;
 
-/** A border width that comes out one real pixel after the stage's scale
- * transform, clamped so a very small stage does not ask for a 6px border. */
+// A border width that comes out one real pixel after the stage's scale transform, clamped so a
+// very small stage does not ask for a 6px border.
 function hairline(scale: number): number {
   return Math.min(3, 1 / Math.max(scale, 0.2));
 }
@@ -253,14 +248,13 @@ function Caption({
   );
 }
 
-/**
- * Scales its child down to fit the width available, and says by how much.
- *
- * Must not be used on a component that measures itself: react-native-web's
- * `onLayout` is `getBoundingClientRect`, which is post-transform, so inside a
- * `scale(0.8)` it reads 0.8 of its real width while its children lay out against
- * the full one. Those stories declare `width` and the stage scrolls them instead.
- */
+// Scales its child down to fit the width available, and says by how much.
+//
+// Must not be used on a component that measures itself: react-native-web's
+// `onLayout` is `getBoundingClientRect`, which is post-transform, so inside a
+// `scale(0.8)` it reads 0.8 of its real width while its children lay out
+// against the full one. Those stories declare `width` and the stage scrolls
+// them instead.
 function Fit({ available, children }: Readonly<{ available: number; children: React.ReactNode }>) {
   const [natural, measure] = useMeasuredSize();
 
@@ -321,8 +315,8 @@ interface MatrixProps {
   render: (args: Record<string, unknown>) => React.ReactNode;
 }
 
-/** One labelled row per variant group, every other axis held at its current
- * value — deliberately not the full cartesian product. */
+// One labelled row per variant group, every other axis held at its current value — deliberately
+// not the full cartesian product.
 function Matrix({ rows, args, render }: Readonly<MatrixProps>) {
   if (rows.length === 0) {
     return (

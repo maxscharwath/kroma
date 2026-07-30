@@ -54,7 +54,6 @@ export const DEFAULT_SUB_APPEARANCE: SubtitleAppearance = {
   windowOpacity: 0,
 };
 
-/** The eight CEA-708 colours, used for text, background and window alike. */
 export const SUB_COLORS = [
   '#FFFFFF',
   '#000000',
@@ -112,10 +111,8 @@ const LEGACY_FONT: Record<string, SubFont> = {
   serif: 'propSerif',
   mono: 'monoSans',
 };
-/** Retired brand palette, mapped onto its nearest CEA-708 neighbour. Without
- * this a stored swatch survives outside `SUB_COLORS`, so the row highlights
- * nothing and `step()`'s `indexOf` returns -1 — no way back to the colour that
- * was chosen. */
+/** Retired brand palette, mapped onto its nearest CEA-708 neighbour: an
+ * unmapped swatch would fall outside `SUB_COLORS` and become unselectable. */
 const LEGACY_COLOR: Record<string, string> = {
   '#F5E050': '#FFFF00',
   '#6FA8FF': '#00FFFF',
@@ -211,9 +208,8 @@ export function subtitleWindowStyle(style: SubtitleAppearance): ViewStyle {
   };
 }
 
-/** Interned, because the default appearance has no window and the cue re-renders
- * at playback cadence - a fresh `{}` each time is exactly what Box's own style
- * caching exists to avoid. */
+// Interned: the default appearance has no window, and the cue re-renders at
+// playback cadence — a fresh `{}` each time defeats Box's own style caching.
 const NO_WINDOW: ViewStyle = Object.freeze({});
 
 /** The text style for a subtitle line, from the viewer's appearance choice.
@@ -223,10 +219,9 @@ export function subtitleStyle(style: SubtitleAppearance): TextStyle {
   const size = SIZE_PX[style.size];
   const hasBg = clampPct(style.bgOpacity) > 0;
   return {
-    // Folded into the colour, not set as node opacity: the node also carries the
-    // background box, so `opacity` would dim a background set to 100% — and the
-    // window, a separate View, would not dim at all. CEA-708 gives each layer
-    // its own opacity.
+    // Folded into the colour, not node opacity: the node also carries the
+    // background box, so `opacity` would dim it too — and the window (a
+    // separate View) wouldn't dim at all. CEA-708 gives each layer its own opacity.
     color: withOpacity(style.color, Math.max(20, style.opacity)),
     fontSize: size,
     fontWeight: '600',

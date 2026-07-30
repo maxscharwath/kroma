@@ -18,7 +18,6 @@ const REFRESH_BEFORE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const GrantResponse = z.object({
   grant: z.string().min(1),
-  /** Epoch millis. */
   expiresAt: z.number(),
 });
 
@@ -43,13 +42,9 @@ async function read(): Promise<StoredGrant | null> {
   }
 }
 
-/**
- * Exchange a raw device token for a relay grant.
- *
- * Throws on anything that is not a usable grant — the caller turns that into
- * "push could not be enabled" rather than registering something that will never
- * deliver.
- */
+// Throws on anything that is not a usable grant, so the caller reports "push
+// could not be enabled" rather than registering something that will never
+// deliver.
 async function mint(transport: 'apns' | 'fcm', token: string): Promise<StoredGrant> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -100,28 +95,19 @@ export async function forgetGrant(): Promise<void> {
 
 /** A replacement grant, minted but not yet this device's. */
 export interface GrantRefresh {
-  /** The new grant, to register with the server. */
   grant: string;
-  /** The one it replaces, still registered there. */
   previous: string;
-  /** Adopt the new grant, once the server has accepted it. */
+  // Call only once the server has actually accepted the new grant.
   commit(): Promise<void>;
 }
 
 /**
- * Replace a grant that is approaching its expiry, or `null` when nothing needed
- * doing.
+ * Replace a grant nearing its expiry, or `null` when nothing needed doing.
  *
- * A server cannot do this: it holds a sealed blob and has no idea which device
- * is behind it, so an expiring grant would simply start failing. Only the app
- * holds the device token the relay needs, which is why this runs on launch.
- *
- * The new grant is deliberately NOT stored yet. Storing it here overwrote the
- * only copy of the old one, so a caller whose `subscribePush` then failed was
- * left holding a grant the server had never seen: turning push off would send
- * the server an endpoint it does not have, delete nothing, and leave a phone
- * the reader believes is silent still buzzing. The caller commits once the
- * server has actually taken it.
+ * The new grant is deliberately not stored until the caller commits: storing
+ * it eagerly would overwrite the only copy of the old one before the server
+ * has accepted the replacement, leaving a phone that still buzzes with no way
+ * to unregister it.
  */
 export async function refreshGrant(): Promise<GrantRefresh | null> {
   const stored = await read();

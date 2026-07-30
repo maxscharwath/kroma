@@ -13,8 +13,8 @@ use serde_json::json;
 
 use crate::{jwt, PushRequest, Urgency};
 
-/// Refresh this long before the token expires, so a send never races the
-/// boundary and gets a 401.
+// Refresh this long before the token expires, so a send never races the
+// boundary and gets a 401.
 const REFRESH_MARGIN_SECS: i64 = 5 * 60;
 
 const SCOPE: &str = "https://www.googleapis.com/auth/firebase.messaging";
@@ -39,12 +39,11 @@ pub struct FcmKey {
     client_email: String,
     token_uri: String,
     private_key: RsaPrivateKey,
-    /// Access token and the unix second it stops being usable.
     cached: Mutex<Option<(String, i64)>>,
 }
 
 impl std::fmt::Debug for FcmKey {
-    /// Never renders the private key.
+    // Never renders the private key.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FcmKey")
             .field("project_id", &self.project_id)

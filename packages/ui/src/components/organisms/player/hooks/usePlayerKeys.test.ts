@@ -94,7 +94,7 @@ function setup(over: Partial<Params> = {}) {
         new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
       );
     });
-    return notPrevented; // false when the handler called preventDefault
+    return notPrevented;
   };
   return { ...view, params, press };
 }

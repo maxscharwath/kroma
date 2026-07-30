@@ -329,8 +329,6 @@ mod tests {
         assert!(t.session_id.lock().unwrap().is_empty());
     }
 
-    // --- A fake Transmission RPC server -------------------------------------
-    //
     // `Fetch` shells out to curl, so a socket is the only seam there is: these
     // drive the connector's real requests, CSRF handshake included.
 
@@ -338,8 +336,6 @@ mod tests {
     use std::net::TcpListener;
     use std::sync::Arc;
 
-    /// One request as the fake saw it: the RPC method, its arguments, and the
-    /// two headers the connector is responsible for setting.
     #[derive(Clone)]
     struct Call {
         method: String,
@@ -348,16 +344,13 @@ mod tests {
         auth: Option<String>,
     }
 
-    /// One canned answer.
     struct Reply {
         status: u16,
-        /// Sets the CSRF header, i.e. what the 409 handshake hands out.
         session: Option<String>,
         body: String,
     }
 
     impl Reply {
-        /// The envelope Transmission wraps every successful answer in.
         fn ok(arguments: Value) -> Self {
             Self {
                 status: 200,
@@ -366,12 +359,12 @@ mod tests {
             }
         }
 
-        /// 200 with a non-"success" result: how Transmission reports most errors.
+        // 200 with a non-"success" result: how Transmission reports most errors.
         fn refuses(result: &str) -> Self {
             Self { status: 200, session: None, body: json!({ "result": result }).to_string() }
         }
 
-        /// The CSRF challenge: 409 carrying the session id to replay with.
+        // The CSRF challenge: 409 carrying the session id to replay with.
         fn challenge(sid: &str) -> Self {
             Self { status: 409, session: Some(sid.to_string()), body: "Conflict".into() }
         }
@@ -386,8 +379,6 @@ mod tests {
         calls: Arc<Mutex<Vec<Call>>>,
     }
 
-    /// The request headers this fake cares about: the body length plus the two
-    /// the connector is responsible for setting.
     #[derive(Default)]
     struct Headers {
         len: usize,
@@ -395,7 +386,6 @@ mod tests {
         auth: Option<String>,
     }
 
-    /// Read the request line and headers, stopping at the blank line.
     fn read_headers(reader: &mut impl BufRead) -> Option<Headers> {
         let mut request_line = String::new();
         if reader.read_line(&mut request_line).unwrap_or(0) == 0 {
@@ -419,7 +409,6 @@ mod tests {
         }
     }
 
-    /// Serialize one reply onto the wire.
     fn write_reply(stream: &mut impl Write, reply: Reply) {
         let handshake =
             reply.session.map(|s| format!("{SESSION_HEADER}: {s}\r\n")).unwrap_or_default();
@@ -435,8 +424,8 @@ mod tests {
     }
 
     impl FakeTransmission {
-        /// `route` maps an RPC method plus the call count for that method (1-based)
-        /// to a reply.
+        // `route` maps an RPC method plus the 1-based call count for that method to
+        // a reply.
         fn start(route: impl Fn(&str, &Value, usize) -> Reply + Send + 'static) -> Self {
             let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
             let port = listener.local_addr().unwrap().port();
@@ -486,7 +475,6 @@ mod tests {
             })
         }
 
-        /// A client for a server left open on the LAN, i.e. no credentials set.
         fn anonymous(&self) -> Transmission {
             Transmission::new(&ClientDef {
                 kind: KIND.into(),
@@ -501,7 +489,6 @@ mod tests {
         }
     }
 
-    /// A torrent-add request with the fields callers usually leave alone.
     fn add_req<'a>(magnet: &'a str, label: &'a str) -> AddTorrentReq<'a> {
         AddTorrentReq {
             magnet_or_url: magnet,

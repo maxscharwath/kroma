@@ -15,7 +15,6 @@ import {
 } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
 
-/** The secondary line: on failure/run it names the stage(s); otherwise metadata. */
 function subLine(t: Translate, el: ElementRow): { text: string; color: string } {
   const names = (pred: (x: Treatment) => boolean) =>
     el.treatments
@@ -63,7 +62,7 @@ function Poster({
   return (
     <div
       style={{ background: posterGrad(seed) }}
-      className="relative h-[46px] w-8 flex-[0_0_32px] overflow-hidden rounded-[6px] shadow-[0_5px_14px_rgba(0,0,0,.45)]"
+      className="relative h-11.5 w-8 flex-[0_0_32px] overflow-hidden rounded-[6px] shadow-[0_5px_14px_rgba(0,0,0,.45)]"
     >
       <Image src={src} fit="cover" fill />
     </div>
@@ -83,13 +82,13 @@ function FlowDots({ treatments }: Readonly<{ treatments: Treatment[] }>) {
           <span key={tr.key} className="flex items-center">
             {i > 0 ? (
               <span
-                className="h-0.5 w-3 flex-[0_0_12px] rounded-[2px]"
+                className="h-0.5 w-3 flex-[0_0_12px] rounded-xs"
                 style={{ background: prevDone ? '#46D08D' : 'rgba(255,255,255,.12)' }}
               />
             ) : null}
             <span
               title={`${treatmentName} - ${treatmentState}`}
-              className="flex h-[19px] w-[19px] flex-[0_0_19px] items-center justify-center rounded-full border"
+              className="flex h-4.75 w-4.75 flex-[0_0_19px] items-center justify-center rounded-full border"
               style={{ background: m.bg, borderColor: m.ring, color: m.color }}
             >
               {tr.status === 'done' ? <IconCheck size={11} stroke={3.2} /> : null}
@@ -130,13 +129,13 @@ export function ElementRowView({
           <div className="flex items-center gap-2.5">
             <span className="truncate text-[14.5px] font-bold">{el.title}</span>
             <span
-              className="flex-[0_0_auto] rounded-full px-[7px] py-0.5 text-[8px] font-bold uppercase tracking-[.08em]"
+              className="flex-[0_0_auto] rounded-full px-1.75 py-0.5 text-[8px] font-bold uppercase tracking-[.08em]"
               style={{ color: km.color, background: km.bg }}
             >
               {t(`pipeline.type.${km.typeKey}` as MessageKey)}
             </span>
           </div>
-          <div className="mt-[3px] truncate text-[12px] font-medium" style={{ color: sub.color }}>
+          <div className="mt-0.75 truncate text-[12px] font-medium" style={{ color: sub.color }}>
             {sub.text}
           </div>
         </div>
@@ -146,7 +145,7 @@ export function ElementRowView({
 
       <div className="max-md:hidden">
         <span
-          className="inline-flex items-center gap-1.5 rounded-full px-[11px] py-[5px] text-[11.5px] font-bold"
+          className="inline-flex items-center gap-1.5 rounded-full px-2.75 py-1.25 text-[11.5px] font-bold"
           style={{ color: om.color, background: om.bg }}
         >
           <span
@@ -158,8 +157,6 @@ export function ElementRowView({
       </div>
 
       <div className="flex justify-end">
-        {/* This row is itself a <button>, and a <button> can't be nested inside a
-            button, so the reprocess control is a role="button" span instead. */}
         {/* biome-ignore lint/a11y/useSemanticElements: cannot be a native <button> because it lives inside the row's <button> */}
         <span
           role="button"

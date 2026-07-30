@@ -1,10 +1,8 @@
-/** KROMA module registry (modules.kroma.tv): serves the `modules.json` catalog,
- * read live from the latest GitHub Release and edge-cached, plus a landing page.
- */
+// KROMA module registry (modules.kroma.tv): serves the `modules.json` catalog, read live from
+// the latest GitHub Release and edge-cached, plus a landing page.
 import { KROMA_MARK_DATA_URI, KROMA_MARK_SVG } from './brand';
 
 export type Env = {
-  /** owner/repo the catalog is published on. */
   GITHUB_REPO?: string;
   GITHUB_TOKEN?: string;
 };

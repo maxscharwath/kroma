@@ -1,12 +1,8 @@
 // "Fix the TMDB match" modal: the ranked TMDB candidates for one catalog
-// element, shown as a scannable poster grid with the confidence the server's
-// matcher gave each, so an operator can see why the automatic pick went wrong
-// and choose the right title.
-//
-// Gated on `library.manage` by the caller AND by the server. Applying a choice
-// re-runs the metadata stage in the background, so the modal closes on an ack
-// rather than waiting for the new art (the fiche live-refreshes on the update
-// event).
+// element, as a scannable poster grid with the matcher's confidence for each.
+// Applying a choice re-runs the metadata stage in the background, so the modal
+// closes on an ack rather than waiting for the new art (the fiche live-refreshes
+// on the update event). Gated on `library.manage` by the caller AND the server.
 
 import { Image, TextInput } from '@kroma/admin-kit';
 import { apiErrorText, type MatchCandidate } from '@kroma/core';
@@ -20,10 +16,8 @@ import { useAuth } from '#web/shared/lib/auth';
 
 type Kind = 'movie' | 'show';
 
-// Open with `await RematchDialog.call({ kind, id, title })`, where `title` is the
-// catalog title shown as the thing being corrected. Resolves `true` once a
-// correction is queued (the caller re-pulls the fresh treatments + art after a
-// beat) or `false` on dismiss. Its root is mounted once by `CatalogModalHosts`.
+// Open with `await RematchDialog.call({ kind, id, title })`. Resolves `true`
+// once a correction is queued, `false` on dismiss. Mounted by `CatalogModalHosts`.
 export const RematchDialog = createCallable<{ kind: Kind; id: string; title: string }, boolean>(
   ({ call, kind, id, title }) => {
     const t = useT();
@@ -96,10 +90,9 @@ export const RematchDialog = createCallable<{ kind: Kind; id: string; title: str
                   onChange={setTyped}
                   placeholder={t('rematch.searchPlaceholder')}
                   aria-label={t('rematch.searchPlaceholder')}
-                  className="w-[220px] max-w-[42vw]"
+                  className="w-55 max-w-[42vw]"
                 />
-                {/* The form's Enter-key submit still works: a single-field form
-                    implicitly submits, so the kit button only mirrors it. */}
+                {/* Mirrors the form's implicit Enter-key submit. */}
                 <IconButton
                   size={41}
                   glyph={16}
@@ -171,7 +164,6 @@ export const RematchDialog = createCallable<{ kind: Kind; id: string; title: str
   },
 );
 
-/** One candidate as a poster tile: art, identity, and the matcher's confidence. */
 function CandidateCard({
   candidate,
   busy,
@@ -194,11 +186,11 @@ function CandidateCard({
       onClick={onPick}
       className={`group flex flex-col overflow-hidden rounded-xl border text-left transition-colors disabled:opacity-60 ${
         current
-          ? 'border-accent/50 bg-accent/[0.08]'
+          ? 'border-accent/50 bg-accent/8'
           : 'border-white/8 bg-[#15151A] hover:border-white/20 hover:bg-[#1a1a20]'
       }`}
     >
-      <div className="relative aspect-[2/3] w-full bg-white/5">
+      <div className="relative aspect-2/3 w-full bg-white/5">
         {posterUrl ? (
           <Image src={posterUrl} fit="cover" fill />
         ) : (
@@ -240,7 +232,6 @@ function CandidateCard({
   );
 }
 
-/** Confidence chip, coloured by how much the server trusts the match. */
 function Confidence({ score }: Readonly<{ score: number }>) {
   const t = useT();
   const pct = Math.round(score * 100);

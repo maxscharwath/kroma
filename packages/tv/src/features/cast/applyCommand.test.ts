@@ -127,8 +127,6 @@ describe('skipNext / stop', () => {
   });
 
   it('stop only leaves a player that is actually up', async () => {
-    // A stale stop must not yank the viewer out of a screen they browsed to
-    // after the cast ended.
     const idle = deps();
     await applyCastCommand({ type: 'stop' }, idle);
     expect(idle.nav.home).not.toHaveBeenCalled();

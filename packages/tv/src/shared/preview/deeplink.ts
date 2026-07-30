@@ -30,9 +30,9 @@ function parsePayload(raw: string): DeepLink | null {
   return null;
 }
 
-// A link pushed by a shell before anyone is listening is KEPT (a launcher tile
-// cold-starts the app) and read once the catalogue mounts. With a listener there
-// it is delivered and not kept, or a remount would replay an old tile.
+// A link pushed before anyone is listening is kept and read once the catalogue
+// mounts (a launcher tile cold-starts the app); with a listener it is delivered
+// and not kept, or a remount would replay an old tile.
 let pending: DeepLink | null = null;
 const listeners = new Set<(link: DeepLink) => void>();
 

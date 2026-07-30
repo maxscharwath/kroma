@@ -277,8 +277,8 @@ mod tests {
 
     static SEQ: AtomicU32 = AtomicU32::new(0);
 
-    /// Seed three movies a/b/c (with genres for the guard) + their unit vectors.
-    /// a=[1,0], b=[0.8,0.6], c=[0,1]: a is nearest b, orthogonal to c.
+    // Seed three movies a/b/c (with genres for the guard) + their unit vectors.
+    // a=[1,0], b=[0.8,0.6], c=[0,1]: a is nearest b, orthogonal to c.
     fn seeded() -> Pool {
         let n = SEQ.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!("kroma-vec-{}-{n}.db", std::process::id()));

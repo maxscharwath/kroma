@@ -61,8 +61,6 @@ export function testIndexer(ctx: RequestContext, id: string): Promise<IndexerTes
   });
 }
 
-// ----- built-in definition catalog ------------------------------------------------
-
 /** Browse the cached Cardigann definition catalog (built-in indexers). */
 export function adminIndexerDefinitions(ctx: RequestContext): Promise<IndexerDefinitionsView> {
   return ctx.json<IndexerDefinitionsView>('/admin/indexers/definitions');
@@ -82,8 +80,6 @@ export function indexerDefinitionDetail(
 export function syncIndexerDefinitions(ctx: RequestContext): Promise<SyncDefinitionsResult> {
   return ctx.json<SyncDefinitionsResult>('/admin/indexers/definitions/sync', { method: 'POST' });
 }
-
-// ----- download clients ---------------------------------------------------------
 
 export function adminDownloadClients(ctx: RequestContext): Promise<DownloadClientsView> {
   return ctx.json<DownloadClientsView>('/admin/download-clients');
@@ -121,8 +117,6 @@ export function testDownloadClient(ctx: RequestContext, id: string): Promise<Cli
     method: 'POST',
   });
 }
-
-// ----- downloads queue ------------------------------------------------------------
 
 export function adminDownloads(ctx: RequestContext): Promise<DownloadsView> {
   return ctx.json<DownloadsView>('/admin/downloads');
@@ -201,8 +195,6 @@ export function manualAdd(ctx: RequestContext, body: ManualAddBody): Promise<{ i
     body: JSON.stringify(body),
   });
 }
-
-// ----- VPN (managed WireGuard bridge, Proton-friendly) ----------------------------
 
 export function adminVpn(ctx: RequestContext): Promise<VpnAdminView> {
   return ctx.json<VpnAdminView>('/admin/vpn');

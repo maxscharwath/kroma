@@ -83,8 +83,8 @@ mod tests {
     use crate::state::SharedState;
     use crate::test_support::{seed_movie, test_state_with_embedder};
 
-    /// Stamps a call counter into every vector, so a re-embed is distinguishable
-    /// from a skip.
+    // Stamps a call counter into every vector, so a re-embed is distinguishable
+    // from a skip.
     struct FixedDim {
         dim: usize,
         calls: std::sync::atomic::AtomicUsize,
@@ -199,8 +199,8 @@ mod tests {
         assert_eq!(stored_dims(&bigger), vec![16], "the 4-dim vector was left behind");
     }
 
-    /// A missing sidecar: `embed_batch` answers with no vectors at all, rather
-    /// than with one empty vector per document.
+    // A missing sidecar: `embed_batch` answers with no vectors at all, rather
+    // than with one empty vector per document.
     struct SilentBatch;
 
     impl Embedder for SilentBatch {

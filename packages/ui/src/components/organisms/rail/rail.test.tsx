@@ -5,7 +5,7 @@ import { Txt } from '#ui/components/atoms/text';
 import { onScreen } from '#ui/testing';
 import { Rail } from './rail';
 
-/** More children than one chunk (RAIL_CHUNK = 8). */
+// More children than one chunk (RAIL_CHUNK = 8).
 const CHIPS = Array.from({ length: 14 }, (_, at) => `Chip ${at + 1}`).map((label) => (
   <Txt key={label}>{label}</Txt>
 ));

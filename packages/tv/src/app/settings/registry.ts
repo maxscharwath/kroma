@@ -124,8 +124,6 @@ export const perfHudSetting: SettingsItem = toggleItem({
   },
 });
 
-/** Whether this TV joins the cast roster. Turning it off unregisters the
- * receiver at once. */
 export const castReceiverSetting: SettingsItem = toggleItem({
   id: 'castReceiver',
   level: 'device',
@@ -137,7 +135,6 @@ export const castReceiverSetting: SettingsItem = toggleItem({
   },
 });
 
-/** Desktop + Android TV shells only (fullscreen, no window chrome). */
 export const quitAppItem: SettingsItem = actionItem({
   id: 'quitApp',
   label: 'profileMenu.quitApp',
@@ -169,9 +166,8 @@ export const PROFILE_SETTINGS: readonly SettingsItem[] = [
   perfHudSetting,
 ];
 
-// Signed in, the flat settings block plus account rows is twelve rows - taller
-// than a 1080 screen - so it collapses into three rows that each open a group
-// screen. A group is just a name and a list; items are unchanged.
+// Signed in, the flat settings block plus account rows is taller than a 1080
+// screen, so it collapses into three rows that each open a group screen.
 
 export type SettingsGroupId = 'languages' | 'playback' | 'device';
 

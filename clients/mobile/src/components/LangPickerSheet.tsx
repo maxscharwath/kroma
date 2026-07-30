@@ -1,10 +1,7 @@
 // Playback-language picker sheet: searches across ~200 languages in a
-// virtualized list.
-//
-// Sized to a fixed screen share rather than to content. @gorhom/bottom-sheet's
-// `enableDynamicSizing` defaults true and measures the sheet against its
-// <BottomSheetView>, which here is only the header, so it must be forced off
-// alongside snapPoints; otherwise the list is drawn over the search field.
+// virtualized list. Sized to a fixed screen share, not to content —
+// @gorhom/bottom-sheet's dynamic sizing measures only the header, so the list
+// would draw over the search field otherwise.
 
 import {
   BottomSheetFlatList,
@@ -21,8 +18,8 @@ import { SheetTitle, sheetChrome } from '#mobile/components/ui';
 import { useI18n, useT } from '#mobile/lib/i18n';
 import { colors, radius, spacing, type } from '#mobile/lib/theme';
 
-/** Must equal every row's actual rendered height — `getItemLayout` assumes a
- * constant row height and scrolls to the wrong place otherwise. */
+// Must equal every row's actual rendered height: `getItemLayout` assumes a
+// constant row height and scrolls to the wrong place otherwise.
 const ROW_HEIGHT = 52;
 
 const SNAP_POINTS = ['85%'];
@@ -88,9 +85,8 @@ export const LangPickerSheet = forwardRef<BottomSheetModal, LangPickerSheetProps
       return rows.filter((row) => row.search.includes(q));
     }, [rows, query]);
 
-    // Scrolls to the current choice on each present rather than using
-    // `initialScrollIndex`, which is read once at mount and the sheet stays
-    // mounted for the screen's whole life.
+    // Scrolls to the current choice on each present, not via
+    // `initialScrollIndex` (read once at mount; the sheet stays mounted for the screen's life).
     const onChange = useCallback(
       (index: number) => {
         if (index < 0) return;
@@ -151,9 +147,8 @@ export const LangPickerSheet = forwardRef<BottomSheetModal, LangPickerSheetProps
 
         <BottomSheetFlatList
           ref={list}
-          // @gorhom/bottom-sheet only applies its own flex on Android
-          // (ScrollableContainer.android); iOS needs it explicit or the list
-          // takes its content height and overflows the sheet.
+          // @gorhom only applies its own flex on Android (ScrollableContainer.android);
+          // iOS needs it explicit or the list overflows the sheet.
           style={styles.listBox}
           data={shown}
           keyExtractor={(row) => row.value ?? 'none'}

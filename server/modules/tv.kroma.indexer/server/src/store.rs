@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::definition::{self, Definition};
 
-/// The `master` tarball, in one request instead of ~600 per-file fetches.
-/// Overridable so a deployment can pin a fork/mirror.
+// The `master` tarball, in one request instead of ~600 per-file fetches.
+// Overridable so a deployment can pin a fork/mirror.
 pub const DEFAULT_SOURCE: &str =
     "https://codeload.github.com/Prowlarr/Indexers/tar.gz/refs/heads/master";
 
@@ -202,8 +202,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
-    /// Live end-to-end sync against the real upstream repo; run with
-    /// `cargo test -p kroma-indexer -- --ignored`.
+    // Live end-to-end sync against the real upstream repo; run with
+    // `cargo test -p kroma-indexer -- --ignored`.
     #[test]
     #[ignore]
     fn real_sync_downloads_and_loads() {
@@ -430,8 +430,8 @@ search:
   rows: {}
 ";
 
-    /// Builds a `.tar.gz` laid out the way the upstream repo is; `layout` maps a
-    /// path inside the archive to its contents.
+    // Builds a `.tar.gz` laid out the way the upstream repo is; `layout` maps a
+    // path inside the archive to its contents.
     fn tarball(layout: &[(&str, &str)]) -> Vec<u8> {
         let root = scratch("tar");
         for (path, body) in layout {

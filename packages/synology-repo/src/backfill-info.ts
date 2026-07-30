@@ -1,10 +1,7 @@
 #!/usr/bin/env bun
-/**
- * One-time backfill: attach a `<spk>.info.json` sidecar to every existing GitHub
- * release that has a .spk but no sidecar yet. Needs an authenticated `gh`.
- *
- * Usage: bun packages/synology-repo/src/backfill-info.ts [--limit N] [--repo owner/name]
- */
+// One-time backfill: attach a `<spk>.info.json` sidecar to every existing GitHub release that
+// has a .spk but no sidecar yet. Needs an authenticated `gh`. Usage: bun
+// packages/synology-repo/src/backfill-info.ts [--limit N] [--repo owner/name]
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

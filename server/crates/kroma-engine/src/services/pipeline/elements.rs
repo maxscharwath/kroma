@@ -12,9 +12,9 @@ use crate::model::{ElementCounts, ElementRow, EpStats, PipelineElements, Treatme
 use crate::state::SharedState;
 
 pub struct Filter {
-    /// `"all" | "attention" | "ok" | "pending" | "running" | "failed"`.
+    // `"all" | "attention" | "ok" | "pending" | "running" | "failed"`.
     pub status: String,
-    /// `"all" | "film" | "series" | "episode"`.
+    // `"all" | "film" | "series" | "episode"`.
     pub kind: String,
     pub query: String,
     pub page: i64,
@@ -287,7 +287,7 @@ fn tally_counts(all: &[ElementRow]) -> ElementCounts {
     counts
 }
 
-/// `q` is already trimmed + lowercased.
+// `q` is already trimmed + lowercased.
 fn matches_filter(el: &ElementRow, f: &Filter, q: &str) -> bool {
     if !q.is_empty() && !el.title.to_lowercase().contains(q) {
         return false;

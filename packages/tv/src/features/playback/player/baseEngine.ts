@@ -36,7 +36,6 @@ export abstract class BaseTvEngine implements TvEngine {
   protected destroyed = false;
   protected rendition: number;
   protected filter: AudioFilterMode;
-  /** The master is open only because the audio filter needs the server's DSP. */
   protected filterMaster = false;
   protected forceAac = false;
   protected resumeOnLoad = false;
@@ -62,8 +61,8 @@ export abstract class BaseTvEngine implements TvEngine {
       : this.client.hlsMasterUrl(this.item.id, this.forceAac, this.baseSec, this.rendition);
   }
 
-  /** `audioUnsupported` = the device cannot decode the source audio track, so
-   * the master must transcode it to AAC. Each fallback below fires once. */
+  // `audioUnsupported`: the device can't decode the source audio track, so
+  // the master must transcode it to AAC. Each fallback below fires once.
   protected fail(audioUnsupported = false): void {
     if (this.destroyed) return;
     const pos = this.position();

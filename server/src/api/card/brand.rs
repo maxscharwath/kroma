@@ -17,7 +17,7 @@ fn font() -> &'static Font {
     })
 }
 
-/// Wheel segment colours, in paint order: clockwise from 12 o'clock.
+// Wheel segment colours, in paint order: clockwise from 12 o'clock.
 const WHEEL: [(u8, u8, u8); 6] = [
     (242, 104, 92),
     (244, 182, 66),

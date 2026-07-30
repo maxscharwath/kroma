@@ -69,13 +69,11 @@ interface Env {
   hasPush?: boolean;
   permission?: NotificationPermission;
   standalone?: boolean;
-  /** The active registration, or `undefined` for "the worker is not registered". */
   registration?: unknown;
 }
 
 const noWindow = Symbol('no window');
 
-/** Install a browser. Returns the handles a test asserts on. */
 function browser(env: Env = {}) {
   const {
     ua = MAC_CHROME,
@@ -105,7 +103,6 @@ function browser(env: Env = {}) {
   return { requestPermission, register, getRegistration, serviceWorker };
 }
 
-/** A push subscription with the two keys the server needs to encrypt. */
 function subscription(endpoint = 'https://push.test/abc', keys = true) {
   return {
     endpoint,
@@ -115,7 +112,6 @@ function subscription(endpoint = 'https://push.test/abc', keys = true) {
   };
 }
 
-/** A registration whose pushManager already holds `existing`. */
 function registration(existing: unknown = null) {
   const subscribe = vi.fn();
   return {

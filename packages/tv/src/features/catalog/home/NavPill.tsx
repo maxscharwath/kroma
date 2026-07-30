@@ -15,7 +15,6 @@ export function NavPill({
   active,
 }: Readonly<{
   items: readonly NavItem[];
-  /** Key of the current section, or none on a deep screen (detail / person). */
   active?: string;
 }>) {
   return (

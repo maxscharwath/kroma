@@ -20,9 +20,8 @@ export function sizedImageUrl(url: string | null | undefined, displayWidth: numb
   return `${url}?w=${Math.max(1, Math.round(displayWidth * artworkRatio()))}`;
 }
 
-/** Schemes an <img> may load. `data:` is narrowed to images: a bare `data:`
- * allow-list would also admit `data:text/html`, which is a navigation payload
- * rather than artwork. */
+// Schemes an <img> may load. `data:` is narrowed to images: a bare `data:` allow-list would
+// also admit `data:text/html`, which is a navigation payload rather than artwork.
 const IMAGE_SCHEME = /^(?:https?:|blob:|data:image\/)/i;
 
 /** An artwork URL safe to hand to an `<img src>`, or null. Server-supplied poster

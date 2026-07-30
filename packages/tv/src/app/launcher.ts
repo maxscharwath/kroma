@@ -4,11 +4,11 @@
 // so a provider's `lastPushed` guard can compare two of them with `===`.
 
 export interface LauncherBackend {
-  /** Watch Next row. JSON array of `{id,title,subtitle?,imageUrl?,backdropUrl?,
-   * progressMs,durationMs,kind,showId?,updatedAtMs}`; `[]` clears it. */
+  // JSON array of `{id,title,subtitle?,imageUrl?,backdropUrl?,progressMs,
+  // durationMs,kind,showId?,updatedAtMs}`; `[]` clears it.
   setContinueWatching(json: string): void;
-  /** Named preview channels. JSON array of `{title, items:[{id,title,subtitle?,
-   * imageUrl?,backdropUrl?,kind}]}` in display order; `[]` clears them. */
+  // JSON array of `{title, items:[{id,title,subtitle?,imageUrl?,backdropUrl?,
+  // kind}]}` in display order; `[]` clears them.
   setHomeChannel(json: string): void;
 }
 

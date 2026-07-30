@@ -10,8 +10,7 @@ import type {
 } from '#tv/app/settings/items';
 import { ChoicePicker } from './ChoicePicker';
 
-/** Renders a settings menu from a declarative item list (settings/items.ts).
- * Each row is its own component so an item's `use()` hook sits in a stable
+/** Each row is its own component so an item's `use()` hook sits in a stable
  * instance and an early return cannot break hook order (React #300). */
 export function SettingsRows({ items }: Readonly<{ items: readonly SettingsEntry[] }>) {
   const visible = items.filter(
@@ -21,9 +20,8 @@ export function SettingsRows({ items }: Readonly<{ items: readonly SettingsEntry
   return (
     <>
       {visible.map((item, index) => {
-        // The first rendered row is the focus entry point: unnamed, tvOS picks
-        // by its own geometry and the web engine takes whatever is first in the
-        // DOM.
+        // First rendered row is the focus entry point: tvOS picks by geometry,
+        // the web engine by DOM order.
         const first = index === 0;
         if (item.kind === 'choice') return <ChoiceRow key={item.id} item={item} first={first} />;
         if (item.kind === 'toggle') return <ToggleRow key={item.id} item={item} first={first} />;

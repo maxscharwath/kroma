@@ -11,11 +11,9 @@ const CAPACITY: usize = 5000;
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     pub ts: i64,
-    /// `trace` | `debug` | `info` | `warn` | `error`.
     pub level: String,
-    /// Empty for module lines: their target stays in the message.
+    // Empty for module lines: their target stays in the message.
     pub target: String,
-    /// `core` or the module id (`tv.kroma.vpn`).
     pub source: String,
     pub message: String,
 }

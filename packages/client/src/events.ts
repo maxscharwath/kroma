@@ -56,8 +56,6 @@ export type ServerEvent =
   | { type: 'vpn.status'; connected: boolean; exitIp: string | null; paused: boolean };
 
 export interface KromaEventsOptions {
-  /** Session bearer source. Defaults to the shared session module; a multi-server
-   * client (the TV) must pass its own, or it authenticates as another server. */
   token?: () => string | undefined;
   onEvent?: (event: ServerEvent) => void;
   onOpen?: () => void;
@@ -104,7 +102,9 @@ export class KromaEvents {
     let ws: WebSocket;
     // A browser can't set headers on a WS handshake, so the bearer rides as a
     // subprotocol the server validates and echoes back (see server ws.rs). Read
-    // fresh on each (re)connect so a refreshed token is picked up.
+    // fresh on each (re)connect so a refreshed token is picked up. A
+    // multi-server client (the TV) must supply `token`: the fallback reads the
+    // default store, which would authenticate it against the wrong server.
     const token = this.opts.token?.() ?? sessionToken();
     try {
       ws = token ? new WS(this.url, `kroma.session.${token}`) : new WS(this.url);

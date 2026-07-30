@@ -1,9 +1,7 @@
 // The design system's workbench on the phone. Not linked from any screen: reach
 // it at `/workbench` (deep link `kroma://workbench`).
-//
-// `memoryRouter` is explicit: this screen is mounted inside Expo Router, which
-// already owns the history, and two routers writing one history send Back
-// somewhere neither of them meant.
+// `memoryRouter` is explicit: Expo Router already owns navigation history, and
+// two routers writing one history send Back somewhere neither of them meant.
 
 import { KROMA_WORKBENCH } from '@kroma/ui/workbench-config';
 import { type Context, defineWorkbench, discoverMetro, memoryRouter } from '@kroma/workbench';

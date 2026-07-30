@@ -7,9 +7,8 @@ import { localizePath, useLang } from '#site/lib/i18n';
 import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
-// The header's nav is built per-render from the active locale: the two in-page
-// anchors point at the localized home (`/#…` or `/en/#…`), and the two routes go
-// through <L>, which adds the `/en` prefix when English is active.
+// Built per-render from the active locale: the anchors point at the localized
+// home, and the routes go through <L>, which adds the `/en` prefix itself.
 function useNav() {
   const lang = useLang();
   const home = localizePath('/', lang);
@@ -30,7 +29,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-xl backdrop-saturate-150">
       <div
-        className="mx-auto flex h-16 max-w-[75rem] items-center justify-between gap-6"
+        className="mx-auto flex h-16 max-w-300 items-center justify-between gap-6"
         style={{ paddingInline: 'var(--gutter-web)' }}
       >
         <Logo />
@@ -66,8 +65,7 @@ export function SiteHeader() {
             </Button>
           </div>
 
-          {/* Mobile: a JS-free disclosure. The checkbox-free <details> holds open
-              state so the menu works even before hydration. */}
+          {/* JS-free: <details> holds open state, so the menu works pre-hydration. */}
           <details className="relative md:hidden">
             <summary
               className="flex size-9 cursor-pointer list-none items-center justify-center rounded-lg text-text transition-colors hover:bg-wash [&::-webkit-details-marker]:hidden"

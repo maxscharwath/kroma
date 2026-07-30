@@ -20,8 +20,7 @@ use crate::model::{Kind, MediaItem, Metadata, Show};
 use crate::services::search::SearchEngine;
 use crate::state::SharedState;
 
-/// Max concurrent TMDB lookups: TMDB allows ~50 rps, and SQLite write
-/// contention grows with writers.
+// TMDB allows ~50 rps; SQLite write contention also grows with writers.
 const WORKERS: usize = 8;
 
 struct Job {
@@ -30,10 +29,10 @@ struct Job {
     title: String,
     year: Option<u32>,
     is_show: bool,
-    /// Set means "already enriched": skip the rate-limited title re-lookup.
+    // Set means "already enriched": skip the rate-limited title re-lookup.
     resolved_tmdb: Option<u64>,
-    /// Set means "fetch THIS id" (operator correction or acquisition import);
-    /// checked before `resolved_tmdb` and always performs the detail fetch.
+    // Set means "fetch THIS id" (operator correction or acquisition import);
+    // checked before `resolved_tmdb` and always performs the detail fetch.
     pin: Option<u64>,
 }
 
@@ -58,9 +57,9 @@ struct Counters {
     finished: AtomicUsize,
 }
 
-/// Counts a worker done on every exit path, including an unwinding panic in
-/// `process_job`: `run_tracked` polls for `finished == worker_count`, so a bare
-/// `fetch_add` after the loop would hang the (uncancellable) job forever.
+// Counts a worker done on every exit path, including an unwinding panic in
+// `process_job`: `run_tracked` polls for `finished == worker_count`, so a bare
+// `fetch_add` after the loop would hang the (uncancellable) job forever.
 struct FinishGuard<'a>(&'a Counters);
 impl Drop for FinishGuard<'_> {
     fn drop(&mut self) {
@@ -198,7 +197,7 @@ fn blank_metadata() -> Metadata {
     }
 }
 
-/// The per-episode still travels in `backdrop_url`, where `backdropFor` finds it.
+// The per-episode still travels in `backdrop_url`, where `backdropFor` finds it.
 fn episode_metadata(art: &metadata::EpisodeArt) -> Metadata {
     Metadata {
         title: art.name.clone(),
@@ -292,8 +291,8 @@ fn store_episode_translations(
     }
 }
 
-/// Per-language character names are aligned by index to the stored cast, which
-/// works because TMDB keeps cast order across languages.
+// Per-language character names are aligned by index to the stored cast, which
+// works because TMDB keeps cast order across languages.
 #[allow(clippy::too_many_arguments)]
 fn store_season_cast(
     pool: &Pool,
@@ -380,8 +379,8 @@ fn process_job(eng: &Engine, counters: &Counters, total: usize, activity: Option
     bump(eng, counters, total, activity);
 }
 
-/// Every secondary write here is best-effort: a failure must not drop the
-/// blob/art already stored.
+// Every secondary write here is best-effort: a failure must not drop the
+// blob/art already stored.
 #[allow(clippy::too_many_arguments)]
 fn on_write_ok(
     eng: &Engine,
@@ -414,8 +413,8 @@ fn on_write_ok(
     });
 }
 
-/// Only a pinned (trusted) match renames the row; a plain auto-search match keeps
-/// its parsed title, which is the safer label for a low-confidence guess.
+// Only a pinned (trusted) match renames the row; a plain auto-search match
+// keeps its parsed title, which is the safer label for a low-confidence guess.
 fn rename_if_pinned(eng: &Engine, job: &Job, meta: &Metadata) {
     if job.pin.is_none() {
         return;

@@ -8,8 +8,8 @@ import { useMemo } from 'react';
 import { PrefRow } from '#web/features/accounts/account/ui';
 import { Select } from '#web/shared/ui';
 
-/** Radix Select forbids an empty value, so "no preference" uses this sentinel and
- * is mapped back to `null` on the way to the server. */
+// Radix Select forbids an empty value, so "no preference" uses this sentinel
+// and is mapped back to `null` on the way to the server.
 export const NONE = LANG_NO_PREF;
 
 const TRIGGER = 'min-w-[min(188px,45vw)]';

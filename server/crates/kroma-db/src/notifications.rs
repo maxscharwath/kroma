@@ -206,14 +206,12 @@ pub fn followers_of_show(conn: &Connection, show_id: &str) -> rusqlite::Result<V
 #[derive(Debug, Clone)]
 pub struct AddedTitle {
     pub id: String,
-    /// `movie` | `episode` (rarely `video`); shows are reached via `show_id`.
     pub kind: String,
     pub title: String,
     pub show_id: Option<String>,
     pub show_title: Option<String>,
     pub season: Option<u32>,
     pub episode: Option<u32>,
-    /// ISO-8601, ordered lexicographically.
     pub added_at: String,
 }
 

@@ -23,15 +23,14 @@ pub fn routes() -> Router<SharedState> {
     Router::new().route("/items/{id}/ai-suggest", get(ai_suggest))
 }
 
-/// Seeds currently generating: de-dupes the client's polling while the LLM runs.
+// Seeds currently generating: de-dupes the client's polling while the LLM runs.
 fn in_flight() -> &'static Mutex<HashSet<String>> {
     static IN_FLIGHT: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
     IN_FLIGHT.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
-/// Last hard-failure time per seed. A failure caches nothing so it can retry,
-/// but the page keeps polling, so without this every poll would launch a fresh
-/// (possibly paid) generation.
+// Last hard-failure time per seed: without it, every poll after a failure would
+// launch a fresh (possibly paid) generation instead of backing off.
 fn cooldowns() -> &'static Mutex<HashMap<String, Instant>> {
     static COOLDOWNS: OnceLock<Mutex<HashMap<String, Instant>>> = OnceLock::new();
     COOLDOWNS.get_or_init(|| Mutex::new(HashMap::new()))
@@ -95,8 +94,6 @@ fn spawn_generation(state: SharedState, id: String) {
     });
 }
 
-/// Caches a terminal result (possibly empty) on success; leaves nothing cached
-/// on a hard LLM failure so a later view retries.
 fn generate(state: &SharedState, id: &str) {
     let llm = crate::infra::llm::from_settings(&state.settings);
     if !llm.available() {

@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-/**
- * Generate a Synology "package source" repository (catalog.json + icon + landing
- * page) for static hosting. Env-driven; see `.env.example`.
- */
+// Generate a Synology "package source" repository (catalog.json + icon + landing page) for
+// static hosting. Env-driven; see `.env.example`.
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { channelSubs, renderLanding, type Subs } from './render-landing';

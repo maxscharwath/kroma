@@ -130,7 +130,6 @@ export interface BackupImportResult {
 
 export interface BackupImportOptions {
   password?: string;
-  /** Wipes this server's portable tables before importing (clean A→B clone). */
   reset?: boolean;
 }
 
@@ -473,7 +472,6 @@ export interface RemoteConnectorStatus {
   lastError?: string | null;
   binaryFound: boolean;
   binaryVersion?: string | null;
-  /** Oldest first. */
   logs: string[];
 }
 

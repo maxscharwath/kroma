@@ -43,9 +43,8 @@ function audioCtx(): AudioContext | null {
   if (!sharedCtx) {
     // biome-ignore lint/style/noRestrictedGlobals: audited - inside audioCtx(), which returns null when AudioContext is absent; the native engines level audio themselves.
     sharedCtx = new AudioContext();
-    // Hydrating a persisted filter is not a user gesture, so the context can be
-    // born suspended - and an element routed into a suspended one is MUTED. Any
-    // interaction un-sticks it.
+    // Hydrating a persisted filter isn't a user gesture, so the context can be
+    // born suspended (a suspended context MUTES routed audio); any interaction un-sticks it.
     const resume = () => {
       if (sharedCtx?.state === 'suspended') void sharedCtx.resume();
     };
@@ -70,9 +69,8 @@ interface FilterDebugHandle {
   mode: AudioFilterMode;
 }
 
-// DEV only: the handle hard-references the <video> through `graph.source`, and
-// shipping it would pin a detached element's decoder buffers on a TV with very
-// little RAM, defeating the WeakMap below.
+// DEV only: the handle hard-references the <video> via `graph.source`; shipping
+// it would pin a detached element's decoder buffers, defeating the WeakMap below.
 function publishDebugHandle(handle: FilterDebugHandle): void {
   // Cast rather than `vite/client` types: @kroma/ui is also consumed outside a
   // Vite build (module SDK, admin-kit), where `import.meta.env` is undefined.
@@ -81,7 +79,7 @@ function publishDebugHandle(handle: FilterDebugHandle): void {
 }
 
 // `createMediaElementSource` throws on a second call for the same element, and
-// the player remounts its <video> on re-anchor / audio switch, so graphs are
+// the player remounts its <video> on re-anchor/audio switch, so graphs are
 // keyed by element rather than by player instance.
 const graphs = new WeakMap<HTMLMediaElement, Graph>();
 

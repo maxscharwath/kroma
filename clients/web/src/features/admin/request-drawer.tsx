@@ -23,7 +23,7 @@ import { RequestStatusChip } from '#web/features/requests/request-status-chip';
 import { seasonsSummary } from '#web/features/requests/status';
 import { useAuth } from '#web/shared/lib/auth';
 
-/** RN style for a kit button that shares the row like the old `flex-1` CTAs. */
+// Shares the row like the old `flex-1` CTAs.
 const FLEX_1 = { flex: 1 } as const;
 
 interface SearchState {
@@ -36,7 +36,7 @@ type GrabbedState = { title: string; error: boolean } | null;
 function DrawerPoster({ req }: Readonly<{ req: MediaRequest }>) {
   return (
     <div
-      className="relative h-[104px] w-[70px] flex-[0_0_70px] overflow-hidden rounded-md shadow-[0_10px_24px_rgba(0,0,0,.5)]"
+      className="relative h-26 w-17.5 flex-[0_0_70px] overflow-hidden rounded-md shadow-[0_10px_24px_rgba(0,0,0,.5)]"
       style={{ background: posterGrad(req.title) }}
     >
       <Image src={req.posterUrl} fit="cover" fill />
@@ -73,7 +73,7 @@ function DrawerHeader({ req, onClose }: Readonly<{ req: MediaRequest; onClose: (
         <DrawerPoster req={req} />
         <div className="min-w-0 pt-1">
           <span
-            className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
+            className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
             style={{ color: km.color, background: km.bg }}
           >
             {t(`pipeline.type.${km.typeKey}` as MessageKey)}
@@ -113,7 +113,7 @@ function RequesterCard({ req }: Readonly<{ req: MediaRequest }>) {
       </div>
 
       {req.note ? (
-        <div className="mt-4 rounded-lg border border-[#E8536A]/18 bg-[#E8536A]/8 px-[11px] py-2.5 text-[12.5px] leading-[1.45] text-[#EF8091]">
+        <div className="mt-4 rounded-lg border border-[#E8536A]/18 bg-[#E8536A]/8 px-2.75 py-2.5 text-[12.5px] leading-[1.45] text-[#EF8091]">
           {req.note}
         </div>
       ) : null}
@@ -261,16 +261,9 @@ function ModerationButtons({
   );
 }
 
-/**
- * The moderation drawer, as an imperative callable: open it with
- * `RequestDrawer.call({ req, canReview, onApprove, onDeny, onDelete })`. Its root
- * is mounted once by `AdminModalHosts`, so the queue page carries no open-state.
- * The displayed request stays live off the shared requests query (same key as
- * the queue), so WS/action-driven reloads refresh the open drawer; the drawer
- * closes itself when its request leaves the list (e.g. after a delete). The
- * caller's actions run through the `onApprove`/`onDeny`/`onDelete` callbacks so
- * the queue's toast + list refresh keep working while the drawer is open.
- */
+// Open with `RequestDrawer.call({ req, canReview, onApprove, onDeny, onDelete })`.
+// Actions run through those callbacks so the queue's toast + list refresh keep
+// working while the drawer is open; it closes itself when the request leaves the list.
 export const RequestDrawer = createCallable<
   {
     req: MediaRequest;
@@ -297,9 +290,8 @@ export const RequestDrawer = createCallable<
   const [search, setSearch] = useState<SearchState>({ busy: false, view: null, error: null });
   const [grabbed, setGrabbed] = useState<GrabbedState>(null);
 
-  // Slide in on mount, slide out on close: mount at the off-screen transform,
-  // flip to `open` on the next frame, and (via the 300ms unmounting delay) keep
-  // the node mounted while `call.ended` animates it back out.
+  // Mount at the off-screen transform, flip to `open` next frame; the 300ms
+  // unmounting delay keeps the node mounted while `call.ended` animates it out.
   const [entered, setEntered] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setEntered(true));
@@ -368,7 +360,7 @@ export const RequestDrawer = createCallable<
         className={`fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <aside
-        className="fixed right-0 top-0 z-61 flex h-screen w-[460px] max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
+        className="fixed right-0 top-0 z-61 flex h-screen w-115 max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
         style={{ transform: open ? 'translateX(0)' : 'translateX(105%)' }}
       >
         {req ? (

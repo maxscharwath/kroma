@@ -12,7 +12,7 @@ fn pool() -> Pool {
     crate::init(&path).unwrap()
 }
 
-/// `(pending, running, done, failed, blocked)` for the test stage.
+// `(pending, running, done, failed, blocked)` for the test stage.
 fn c(p: &Pool) -> (i64, i64, i64, i64, i64) {
     counts(p, "s").unwrap()
 }

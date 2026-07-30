@@ -105,15 +105,15 @@ struct ScheduleState {
 pub struct JobManager {
     order: Vec<JobKey>,
     jobs: HashMap<JobKey, &'static Builtin>,
-    /// Interior-mutable because a sidecar registers (and re-registers on every
-    /// respawn) long after startup, unlike the `'static` built-in `jobs` map.
+    // Interior-mutable because a sidecar registers (and re-registers on every
+    // respawn) long after startup, unlike the `'static` built-in `jobs` map.
     remote: RwLock<HashMap<&'static str, RemoteJob>>,
     remote_order: RwLock<Vec<JobKey>>,
     schedules: RwLock<HashMap<JobKey, ScheduleState>>,
     running: RwLock<HashMap<JobKey, Arc<RunHandle>>>,
     counter: AtomicU64,
-    /// Global "hold all pipeline stages" switch, separate from the per-stage
-    /// playback pause. Seeded from the persisted `pipelinePaused` setting at boot.
+    // Global "hold all pipeline stages" switch, separate from the per-stage
+    // playback pause. Seeded from the persisted `pipelinePaused` setting at boot.
     pipeline_paused: AtomicBool,
 }
 

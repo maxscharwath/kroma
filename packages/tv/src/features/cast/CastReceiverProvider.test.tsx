@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-//
-// Mounted above the router, so it also renders on the signed-out picker, where a
-// fresh install has no client at all.
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';

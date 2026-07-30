@@ -39,7 +39,6 @@ export interface ModuleManifestInput {
 
 export interface DefineModuleOptions<Exports = unknown> {
   manifest?: ModuleManifestInput;
-  /** Accepts a plain `{ en, fr }` map or a path-keyed `import.meta.glob` result. */
   locales?: Record<string, Record<string, string>>;
   pages?: ModulePage[];
   settingsPanels?: SettingsPanel[];

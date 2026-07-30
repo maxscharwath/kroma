@@ -131,7 +131,6 @@ export function AiPage() {
         action={<StatusChip enabled={cfg.enabled} />}
       />
 
-      {/* Global enable */}
       <Card className="mt-6 flex items-center justify-between gap-4 px-5.5 py-4.5">
         <div className="flex items-center gap-3.5">
           <span
@@ -148,7 +147,6 @@ export function AiPage() {
         <Toggle on={cfg.enabled} onChange={(v) => update({ enabled: v })} />
       </Card>
 
-      {/* Providers */}
       <Section
         title={t('admin.aiProviders')}
         right={<Button label={t('admin.aiAddProvider')} icon={IconPlus} onClick={addProvider} />}
@@ -181,7 +179,6 @@ export function AiPage() {
         )}
       </Section>
 
-      {/* Save */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button
           label={busy === 'save' ? t('admin.aiSaving') : t('common.save')}

@@ -30,7 +30,6 @@ export interface DownloadEntry {
 
 export type DownloadState =
   | { status: 'none' }
-  /** progress is 0..1, or -1 when the total size is unknown (server remux). */
   | { status: 'downloading'; progress: number }
   | { status: 'paused'; progress: number }
   | { status: 'queued' }
@@ -58,9 +57,9 @@ export async function writeIndex(entries: DownloadEntry[]): Promise<void> {
   await FileSystem.writeAsStringAsync(INDEX, JSON.stringify(entries));
 }
 
-/** Titles the user asked for that are not yet in the index. Persisted because
- * iOS cancels background tasks on force-quit, so they must be requeued at the
- * next launch instead of being silently forgotten. */
+/** Titles the user asked for that are not yet in the index; persisted because
+ * iOS cancels background tasks on force-quit and they must be requeued at the
+ * next launch. */
 export async function readWanted(): Promise<MediaItem[]> {
   try {
     const raw = await FileSystem.readAsStringAsync(WANTED);
@@ -75,9 +74,8 @@ export async function writeWanted(items: MediaItem[]): Promise<void> {
   await FileSystem.writeAsStringAsync(WANTED, JSON.stringify(items));
 }
 
-/** Deletes everything in the download directory that no index entry claims (a
- * transfer killed with the app leaves a partial file nothing points at). Must
- * run after the still-running platform transfers are re-adopted, so their
+/** Deletes everything in the download directory that no index entry claims.
+ * Must run after still-running platform transfers are re-adopted, so their
  * in-flight files can be passed in as `live` rather than swept. */
 export async function sweepOrphans(
   entries: DownloadEntry[],

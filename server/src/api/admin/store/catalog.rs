@@ -29,7 +29,7 @@ pub struct CatalogModule {
     pub min_server: Option<String>,
     pub library: bool,
     pub icon: Option<String>,
-    /// `(module id, optional semver range)`.
+    // `(module id, optional semver range)`.
     pub depends_on: Vec<(String, Option<String>)>,
     pub artifacts: Vec<Artifact>,
 }

@@ -2,8 +2,8 @@ import type { ComponentType } from 'react';
 import { CONTENT_FALLBACK_LANG, groupByName, pickLocale } from '#site/lib/content-locale';
 import type { Lang } from '#site/lib/i18n';
 
-// Posts are keyed by slug (`content/blog/my-post.mdx`, `my-post.fr.mdx`) and
-// are never hidden for lack of a translation; see lib/content-locale for the fallback rule.
+// Posts are keyed by slug (`content/blog/my-post.mdx`, `my-post.fr.mdx`); see
+// lib/content-locale for the fallback rule.
 
 interface RawFrontmatter {
   title?: string;
@@ -23,7 +23,6 @@ export interface MdxModule {
 
 export interface PostMeta {
   slug: string;
-  /** The language actually served (the requested one, or the fallback). */
   lang: Lang;
   translated: boolean;
   title: string;

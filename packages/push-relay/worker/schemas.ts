@@ -1,6 +1,5 @@
-/** The relay's wire contract. Every byte reaching this Worker is untrusted, so
- * nothing is read off a request until a schema here has agreed to its shape.
- */
+// The relay's wire contract. Every byte reaching this Worker is untrusted, so nothing is read
+// off a request until a schema here has agreed to its shape.
 
 import { z } from 'zod';
 
@@ -41,8 +40,8 @@ export type Notification = z.infer<typeof Notification>;
 /** `POST /v1/grant` — the app trades its device token for a capability. */
 export const GrantRequest = z.object({
   transport: Transport,
-  /** Bounded: a real token is far shorter, and an unbounded string is a free
-   * way to make the relay do work. */
+  // Bounded: a real token is far shorter, and an unbounded string is a free
+  // way to make the relay do work.
   token: z.string().trim().min(1).max(1024),
 });
 export type GrantRequest = z.infer<typeof GrantRequest>;
@@ -58,7 +57,6 @@ export type PushRequest = z.infer<typeof PushRequest>;
  * Google. */
 export interface Delivery {
   ok: boolean;
-  /** The device is permanently gone and should be dropped. */
   gone: boolean;
   status: number;
   reason?: string;

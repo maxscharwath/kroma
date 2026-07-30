@@ -17,7 +17,7 @@ pub struct ProbeResult {
     pub duration_ms: Option<u64>,
     pub video: Option<VideoStream>,
     pub audio: Option<AudioStream>,
-    /// In container order: an audio-relative index is a position in here.
+    // In container order: an audio-relative index is a position in here.
     pub audio_tracks: Vec<AudioStream>,
     pub subtitles: Vec<SubtitleTrack>,
     pub chapters: Vec<Chapter>,

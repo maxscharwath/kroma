@@ -1,12 +1,7 @@
 #!/usr/bin/env bun
-// Captures one screenshot per story, for visual review. Serves the already-built
-// browser shell (real build, same components the TVs ship) and drives the
-// system Chrome — no Playwright, no test runner. It captures; it does not
-// compare, these are for a human to look at, not to gate on.
-//
-//   bun run shots                 capture every story
-//   bun run shots -- --matrix     capture the variant matrices too
-//   bun run shots -- --only=button,chip
+// Captures one screenshot per story, for visual review, against the built
+// browser shell. Drives system Chrome directly — no Playwright, no test
+// runner — and captures only; it does not compare.
 
 import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
@@ -87,15 +82,10 @@ const server = createServer((request, response) => {
   const requested = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
   const entry = join(dist, 'index.html');
 
-  // Containment, INLINE at the sink rather than behind a helper.
-  //
-  // `join(dist, requested)` is not containment: the path comes off the wire and
-  // `/../../../etc/passwd` walks straight out of the build directory. Leading
-  // separators are stripped so the request is always relative, and the resolved
-  // result is then proven to still sit under the root - which is the only check
-  // that holds, since `..` can appear anywhere in the path, not just at the
-  // front. The shell is a SPA, so anything that is not a real file inside dist -
-  // a route, or an attempt to escape - falls through to the entry document.
+  // Containment check inline at the sink: `join(dist, requested)` alone lets
+  // `/../../../etc/passwd` walk out of the build directory. Strip leading
+  // separators, then require the resolved path to still sit under `dist` -
+  // the only check that holds, since `..` can appear anywhere in the path.
   let file = entry;
   if (requested !== '/') {
     const candidate = resolve(dist, `.${sep}${requested.replace(/^[/\\]+/, '')}`);
@@ -108,22 +98,13 @@ const server = createServer((request, response) => {
 });
 server.listen(PORT);
 
-/** How long to let one Chrome run before giving up on it entirely. */
 const DEADLINE_MS = 20_000;
 
-/**
- * Runs Chrome and resolves as soon as `isDone` says the result has arrived,
- * killing the process at that point.
- *
- * Two things are deliberate. It is ASYNCHRONOUS, and that is not a style choice:
- * the static server above runs on this process's event loop, so a synchronous
- * spawn would block it and Chrome would wait forever for a page that can never
- * be served. And it does not wait for Chrome to EXIT, because headless Chrome
- * reliably writes its screenshot and then keeps running: react-native-web drives
- * its animations from timers, and a page that always has one pending is a page
- * Chrome never considers finished. Waiting on the artefact instead of on the
- * process turns a 20-second hang per story into about two seconds.
- */
+// Async, not sync: the static server above runs on this process's event loop,
+// so a synchronous spawn would block it and Chrome would wait forever for a
+// page that can never be served. Resolves when `isDone` says the screenshot
+// landed rather than when Chrome exits, since headless Chrome keeps running as
+// long as react-native-web has a pending animation timer.
 function chrome(extraArgs: string[], isDone: (out: string) => boolean): Promise<string> {
   return new Promise((resolve) => {
     const child = spawn(CHROME as string, [...CHROME_FLAGS, ...extraArgs]);
@@ -148,9 +129,9 @@ function chrome(extraArgs: string[], isDone: (out: string) => boolean): Promise<
   });
 }
 
-/** Ask the app itself what there is to capture: `?shot` with no story renders
- * the id list and nothing else. No generated manifest, and no second source of
- * truth that could fall behind the stories on disk. */
+// Ask the app itself what there is to capture: `?shot` with no story renders
+// the id list, so there is no generated manifest to fall out of sync with the
+// stories on disk.
 const ID_MARKER = /KROMA_STORY_IDS:([a-z0-9,-]*)/;
 
 async function discoverIds(): Promise<string[]> {

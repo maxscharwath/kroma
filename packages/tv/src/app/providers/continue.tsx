@@ -13,7 +13,7 @@ import { launcherBackend } from '#tv/app/launcher';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 
-/** A public endpoint, so a launcher can fetch it without the app's auth. */
+// A public endpoint, so a launcher can fetch it without the app's auth.
 function cardArt(c: ContinueItem, client: KromaClient): string {
   const progress = c.durationMs ? c.positionMs / c.durationMs : 0;
   const params = new URLSearchParams({ label: 'Reprendre', v: c.item.addedAt });
@@ -21,8 +21,8 @@ function cardArt(c: ContinueItem, client: KromaClient): string {
   return `${client.baseUrl}/api/items/${encodeURIComponent(c.item.id)}/card?${params}`;
 }
 
-/** `backdropUrl` is the clean art for Top Shelf, which draws its own title and
- * progress bar and would otherwise show two. */
+// `backdropUrl` is the clean art for Top Shelf, which draws its own title and
+// progress bar and would otherwise show two.
 function toWatchNext(items: ContinueItem[], client: KromaClient) {
   return items.map((c) => {
     const it = c.item;

@@ -2,7 +2,6 @@ import { Link, type LinkProps } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 export interface LProps {
-  /** A canonical, UNLOCALIZED path, e.g. `/download`. */
   to: string;
   className?: string;
   activeClassName?: string;

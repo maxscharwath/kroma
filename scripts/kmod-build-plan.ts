@@ -17,16 +17,14 @@ for (const dir of packableModules()) {
   const { pkg, bin, features: feats } = crateAndBin(dir);
   if (!bin) continue; // library module: nothing to compile
   packages.push(`-p ${pkg}`);
-  // PACKAGE-QUALIFIED: one invocation builds all nine, and cargo rejects a bare
-  // `--features local` as ambiguous across them.
+  // Package-qualified: cargo rejects a bare `--features local` as ambiguous
+  // across packages.
   features.push(...feats.map((f) => `${pkg}/${f}`));
 }
 
 // ONE invocation, not one per module: `lto = true` with `codegen-units = 1`
-// makes each link single-threaded, and separate cargo commands run them
-// sequentially. Selecting every package lets cargo link them in parallel. The
-// tradeoff is resolver-v2 feature unification across shared dependencies, which
-// is a size question rather than a behaviour one.
+// makes each link single-threaded, so separate cargo commands would run
+// sequentially; selecting every package lets cargo link them in parallel.
 const feat = features.length ? ` --features ${features.join(',')}` : '';
 process.stdout.write(
   `cargo build --profile release-kmod ${packages.join(' ')}${feat}${targetArg}\n`,

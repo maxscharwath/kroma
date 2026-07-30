@@ -13,10 +13,10 @@ use sha2::Sha256;
 
 const RECORD_SIZE: u32 = 4096;
 
-/// An uncompressed P-256 point: `0x04 || X(32) || Y(32)`.
+// An uncompressed P-256 point: `0x04 || X(32) || Y(32)`.
 const P256_POINT_LEN: usize = 65;
 
-/// GCM tag (16) + the one-byte padding delimiter this encoding appends.
+// GCM tag (16) + the one-byte padding delimiter this encoding appends.
 const OVERHEAD: usize = 17;
 
 pub const MAX_PAYLOAD: usize = RECORD_SIZE as usize - OVERHEAD;

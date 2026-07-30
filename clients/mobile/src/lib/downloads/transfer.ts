@@ -14,10 +14,10 @@ import { canRawDownload, downloadCopyCodecs, downloadVideoCodecs } from '#mobile
 import { fetchSidecars } from './sidecars';
 import { type DownloadEntry, ensureDir, mediaPath } from './store';
 
-/** Below this, it's a failure response that happened to answer with media headers. */
+// Below this, it's a failure response that happened to answer with media headers.
 const MIN_PLAUSIBLE_BYTES = 512 * 1024;
 
-/** Thrown for a user-initiated cancel, which must stay silent. */
+// A user-initiated cancel, which must stay silent.
 export const CANCELLED = 'cancelled';
 
 /** A network-shaped failure: the connection died, not the content. The caller
@@ -49,9 +49,7 @@ export interface TransferHandle {
 }
 
 export interface TransferHooks {
-  /** Return false to abort: a cancel that arrived before there was anything to cancel. */
   onTask(handle: TransferHandle): boolean;
-  /** 0..1, or -1 while the total size is unknown (the server remux is chunked). */
   onProgress(frac: number): void;
 }
 
@@ -60,7 +58,6 @@ export interface TransferHooks {
 export interface TransferMeta {
   item: MediaItem;
   fileUri: string;
-  /** Byte-identical original vs server remux; only the raw size is exact. */
   raw: boolean;
   estimatedTotal: number | null;
 }

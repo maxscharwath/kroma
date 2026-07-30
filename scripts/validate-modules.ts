@@ -15,9 +15,8 @@ const schema = JSON.parse(readFileSync(join(ROOT, 'modules', 'module.schema.json
 
 type Json = Record<string, unknown>;
 
-/** Minimal JSON Schema (draft-07 subset) validator: the keywords our schema
- *  uses - type, required, properties, additionalProperties, pattern, minLength,
- *  enum, items. */
+// Minimal JSON Schema (draft-07 subset) validator: covers type, required,
+// properties, additionalProperties, pattern, minLength, enum, items.
 function checkNoExtraProps(
   obj: Json,
   props: Record<string, Json>,
@@ -135,7 +134,6 @@ function validate(node: Json, value: unknown, path: string, errors: string[]): v
 
 const errors: string[] = [];
 
-/** List a directory (sorted for stable output), returning [] when absent. */
 function optionalReaddir(dir: string): string[] {
   try {
     return readdirSync(dir).sort(byCodeUnit);
@@ -148,7 +146,6 @@ function optionalReaddir(dir: string): string[] {
 // generated mirror, so they are checked at codegen time, not here.
 const compiledWasmIds: { id: string; label: string }[] = [];
 
-/** Read + parse + schema-check one `module.json`, skipping absent dirs. */
 function validateManifestFile(manifestPath: string, label: string): void {
   try {
     if (!statSync(manifestPath).isFile()) return;
@@ -167,14 +164,13 @@ function validateManifestFile(manifestPath: string, label: string): void {
   if (typeof id === 'string') compiledWasmIds.push({ id, label });
 }
 
-// Module manifests (each module's server + shared module.json).
 for (const [root, prefix] of [[join(ROOT, 'server', 'modules'), 'server/modules']] as const) {
   for (const id of optionalReaddir(root)) {
     validateManifestFile(join(root, id, 'module.json'), `${prefix}/${id}/module.json`);
   }
 }
 
-// 3) Single-file sources (the frontmatter is the manifest).
+// Single-file sources: the frontmatter is the manifest.
 const srcDir = join(ROOT, 'modules');
 for (const file of optionalReaddir(srcDir).filter((f) => f.endsWith('.module.md'))) {
   const fm = frontmatter(readFileSync(join(srcDir, file), 'utf8'));
@@ -185,7 +181,6 @@ for (const file of optionalReaddir(srcDir).filter((f) => f.endsWith('.module.md'
   validate(schema, fm, `modules/${file}`, errors);
 }
 
-// Report any id that appears in more than one of the compiled/WASM manifests.
 const byId = new Map<string, string[]>();
 for (const { id, label } of compiledWasmIds) {
   const labels = byId.get(id) ?? [];

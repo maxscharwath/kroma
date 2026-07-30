@@ -1,6 +1,6 @@
-// One cast order, executed on this TV. Orders reach the running player through
-// the cast bridge rather than props, so one that arrives while the TV sits on its
-// home screen is a no-op instead of a crash.
+// One cast order, executed on this TV. Orders reach the running player
+// through the cast bridge rather than props, so one arriving while the TV
+// sits on its home screen is a no-op instead of a crash.
 
 import type { CastCommand, KromaClient, MediaItem } from '@kroma/core';
 import { castTarget, requestCastSeek } from '#tv/features/cast/castBridge';

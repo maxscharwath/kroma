@@ -2,8 +2,8 @@ import { type KromaClient, type MediaItem, type Show, sizedImageUrl } from '@kro
 import { Box, gradient, Img, promote, SHADE, shade, tintGradient } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 
-/** `value`, but only after it has held still for `delayMs`, so a fast D-pad
- * sweep does not make the TV decode a backdrop per focus step. */
+// `value`, but only after it has held still for `delayMs`, so a fast D-pad
+// sweep does not make the TV decode a backdrop per focus step.
 function useSettled<T>(value: T, delayMs: number): T {
   const [settled, setSettled] = useState(value);
   useEffect(() => {
@@ -22,11 +22,9 @@ const FADE_MS = 500;
 const VEIL_HORIZONTAL = `linear-gradient(90deg, ${shade(0.8)} 0%, ${shade(0.38)} 48%, ${shade(0.12)} 100%)`;
 const VEIL_VERTICAL = `linear-gradient(0deg, ${SHADE.full} 0%, ${shade(0.78)} 30%, ${shade(0.35)} 68%, ${shade(0.12)} 100%)`;
 
-/**
- * Full-screen ambient art for the browse screens: the focused title's backdrop,
- * debounced then faded, dimmed by a veil so the poster grid stays legible.
- * Renders at `zIndex: -1` under the screen's own content.
- */
+/** Full-screen ambient art for the browse screens: the focused title's
+ * backdrop, debounced then faded, dimmed by a veil so the poster grid stays
+ * legible. Renders at `zIndex: -1` under the screen's own content. */
 export function AmbientBackdrop({
   src,
   colors,
@@ -46,9 +44,8 @@ export function AmbientBackdrop({
         noCrossFade
         fill
       />
-      {/* Each veil on its OWN compositing layer (`translateZ(0)`): a full-screen
-          gradient is expensive to rasterize on a TV GPU, and without this both
-          1920x1080 gradients re-rasterize on every frame of the backdrop fade. */}
+      {/* Each veil on its own compositing layer (`translateZ(0)`): without it
+          both 1920x1080 gradients re-rasterize on every frame of the fade. */}
       <Box fill pointerEvents="none" style={VEIL_H} />
       <Box fill pointerEvents="none" style={VEIL_V} />
     </Box>

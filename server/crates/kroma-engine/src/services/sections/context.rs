@@ -14,12 +14,11 @@ pub enum PartOfDay {
 }
 
 pub struct Context {
-    /// 1–12, UTC.
     pub month: u8,
     pub weekday: Weekday,
     pub part_of_day: PartOfDay,
     pub last_played: Option<String>,
-    /// Recent distinct watched ids: the taste window for the "For You" centroid.
+    // Recent distinct watched ids: the taste window for the "For You" centroid.
     pub watched: Vec<String>,
 }
 

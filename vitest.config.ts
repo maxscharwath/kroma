@@ -47,10 +47,9 @@ const dedupe = ['react', 'react-dom', 'react-native-web'];
 
 // zod: force Vite's `import` condition (built index.js) over Bun's
 // `@zod/source` condition (raw TS, whose `z` export is undefined here).
-// Every React Native package must be inlined, not externalised: an
-// externalised dep is loaded by Node directly, bypassing the
-// `react-native` -> `react-native-web` alias and hitting Flow source
-// ("SyntaxError: Unexpected token 'typeof'").
+// React Native packages must be inlined, not externalised: an externalised
+// dep is loaded by Node directly, bypassing the `react-native` ->
+// `react-native-web` alias and hitting Flow source.
 const server = { deps: { inline: ['zod', /react-native/, /@tabler\/icons-react-native/] } };
 
 // jsdom only provides localStorage on a real origin; on the default
@@ -86,8 +85,8 @@ const include = [
   'clients/kit/src/**/*.test.tsx',
 ];
 
-/** Same roots, spelled `*.native.test.*`; derived rather than duplicated so the
- * two projects cannot drift apart in coverage. */
+// Same roots, spelled `*.native.test.*`; derived rather than duplicated so
+// the two projects cannot drift apart in coverage.
 const nativeInclude = include.map((p) => p.replace('*.test.', '*.native.test.'));
 
 export default defineConfig({

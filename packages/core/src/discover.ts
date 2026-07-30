@@ -9,8 +9,6 @@ export interface DiscoverOptions {
   concurrency?: number;
   localIp?: string;
   fetch?: typeof globalThis.fetch;
-  /** DNS-SD browse for `_kroma._tcp`; injected rather than imported because it
-   * is native-only and this package must stay importable by a browser shell. */
   browse?: (timeoutMs: number) => Promise<Array<{ host: string; port: number; name?: string }>>;
   browseMs?: number;
 }
@@ -78,12 +76,9 @@ export interface ResolvedOrigin {
   secure: boolean;
 }
 
-/**
- * Resolves which scheme a typed address actually speaks: an address without one
- * is probed https first, so a server answering on either is reported secure. An
- * explicit scheme is honoured as typed. Null means nothing answered, which is
- * not the same as insecure.
- */
+/** Resolves which scheme a typed address actually speaks: an address without
+ * one is probed https first; an explicit scheme is honoured as typed. Null
+ * means nothing answered, which is not the same as insecure. */
 export async function resolveServerOrigin(
   address: string,
   opts: { fetch?: typeof globalThis.fetch; timeoutMs?: number; port?: number } = {},

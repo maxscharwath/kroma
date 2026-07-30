@@ -35,7 +35,6 @@ export function Privacy() {
 
       <div className="prose-kroma mt-12">{Policy ? <Policy /> : null}</div>
 
-      {/* The same mailto channel, made unmissable. */}
       <div className="mt-14">
         <ContactCard
           icon={IconShieldLock}

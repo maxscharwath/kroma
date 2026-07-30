@@ -23,8 +23,8 @@ export function edgeWidth(row: number): number {
   return Math.round(Math.min(EDGE_MAX, Math.max(EDGE_MIN, row * EDGE_SHARE)));
 }
 
-/** Smootherstep curve, sampled as stops: masks and gradients only interpolate
- *  linearly between them, so the curve has to be drawn rather than described. */
+// Smootherstep curve, sampled as stops: masks and gradients only interpolate
+// linearly between them, so the curve has to be drawn rather than described.
 const FADE_CURVE = [
   [0, 0],
   [0.12, 0.01],
@@ -69,8 +69,8 @@ function scrim(start: boolean, fade: number): string {
   return `linear-gradient(to ${start ? 'right' : 'left'}, ${SHADE.full} 0px, ${stops.join(', ')})`;
 }
 
-/** Cache of computed scrim styles: `RailEdge` isn't memoised and mounts twice,
- *  so recomputing on every D-pad scroll would remap the curve needlessly. */
+// `RailEdge` isn't memoised and mounts twice, so recomputing on every D-pad
+// scroll would remap the curve needlessly.
 const scrims = new Map<string, ViewStyle>();
 
 function scrimStyle(start: boolean, fade: number): ViewStyle {
@@ -147,8 +147,8 @@ export function RailEdge({
 }
 
 const styles = StyleSheet.create({
-  /** Sized to the row's own height, not the clip's, so a native scrim doesn't
-   *  bleed into the title above the rail. */
+  // Sized to the row's own height, not the clip's, so a native scrim doesn't
+  // bleed into the title above the rail.
   edge: {
     position: 'absolute',
     top: 0,

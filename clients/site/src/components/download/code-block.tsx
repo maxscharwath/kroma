@@ -1,7 +1,6 @@
 import { CopyButton } from '#site/components/download/copy-button';
 
 export interface CodeBlockProps {
-  /** Copied verbatim, so it must stay paste-ready: no leading `$` prompts. */
   code: string;
   label?: string;
 }

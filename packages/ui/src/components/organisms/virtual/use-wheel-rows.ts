@@ -9,7 +9,7 @@ import type { View } from 'react-native';
 import type { SpatialNavigationVirtualizedListRef } from 'react-tv-space-navigation';
 import { useWheelPan } from '#ui/lib/wheel-pan';
 
-/** Long enough that an inertia tail's sparse final events don't each snap. */
+// Long enough that an inertia tail's sparse final events don't each snap.
 const SNAP_AFTER_MS = 160;
 
 /**

@@ -3,13 +3,9 @@ import { Box, Icon, Txt } from '@kroma/ui/kit';
 import { CLIENT_BUILD } from '#tv/app/clientBuild';
 import { useConnection } from '#tv/app/providers/connection';
 
-// Passive banner (no D-pad focus, no pointer events) shown when the connected
-// server is older than this client build requires.
-//
 // Drawn with the KIT, not a DOM element: React Native has no `<output>` host
-// component and no `position: fixed`, so this would red-box the native TV
-// clients. The warning sign is a GLYPH, not the "⚠" character, which tvOS
-// renders with emoji presentation.
+// component or `position: fixed`, which would red-box the native TV clients.
+// The warning sign is a glyph, not "⚠", which tvOS renders as emoji.
 
 export function CompatBanner() {
   const { compat, serverVersion } = useConnection();

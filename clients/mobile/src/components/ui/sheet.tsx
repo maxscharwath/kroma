@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
   title: { ...type.title, color: colors.text, marginBottom: spacing.md },
 });
 
-/** What every `<BottomSheetModal>` in the app spreads. */
 export const sheetChrome = {
   backdropComponent: SheetBackdrop,
   backgroundStyle: styles.surface,

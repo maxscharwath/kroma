@@ -30,18 +30,18 @@ pub struct Metadata {
     pub backdrop_url: Option<String>,
     #[serde(rename = "logoUrl", skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
-    /// A local path, not a provider URL. TV shows only.
+    // A local path, not a provider URL. TV shows only.
     #[serde(rename = "themeUrl", default, skip_serializing_if = "Option::is_none")]
     pub theme_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cast: Vec<CastMember>,
-    /// Directors first, then writers; TV creators folded in.
+    // Directors first, then writers; TV creators folded in.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub crew: Vec<CrewMember>,
-    /// Internal: consumed by [`build_doc`] during enrichment, never persisted.
+    // Internal: consumed by `build_doc` during enrichment, never persisted.
     #[serde(default, skip_serializing)]
     pub keywords: Vec<String>,
-    /// Internal: looks up the theme song, then dropped.
+    // Internal: looks up the theme song, then dropped.
     #[serde(default, skip_serializing)]
     pub tvdb_id: Option<u64>,
     #[serde(rename = "tmdbUrl")]
@@ -53,7 +53,7 @@ pub struct CastMember {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub character: Option<String>,
-    /// A TMDB URL until `crate::image::localize` rewrites it to a local path.
+    // A TMDB URL until `crate::image::localize` rewrites it to a local path.
     #[serde(rename = "profileUrl", default, skip_serializing_if = "Option::is_none")]
     pub profile_url: Option<String>,
 }
@@ -76,14 +76,14 @@ pub struct PersonDetail {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub biography: Option<String>,
-    /// `YYYY-MM-DD`.
+    // `YYYY-MM-DD`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub birthday: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deathday: Option<String>,
     #[serde(rename = "placeOfBirth", skip_serializing_if = "Option::is_none")]
     pub place_of_birth: Option<String>,
-    /// TMDB's `known_for_department` (`"Acting"`, …), translated client-side.
+    // TMDB's `known_for_department` (`"Acting"`, …), translated client-side.
     #[serde(rename = "knownFor", skip_serializing_if = "Option::is_none")]
     pub known_for: Option<String>,
     #[serde(rename = "profileUrl", skip_serializing_if = "Option::is_none")]
@@ -136,7 +136,7 @@ pub struct MatchCandidate {
     pub poster_url: Option<String>,
     pub overview: Option<String>,
     pub rating: Option<f32>,
-    /// Confidence in `0.0..=1.0` that this is the title on disk.
+    // Confidence in `0.0..=1.0` that this is the title on disk.
     pub score: f32,
     pub current: bool,
 }
@@ -146,12 +146,12 @@ pub struct MatchCandidate {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchCandidates {
-    /// The operator's query if they typed one, else the parsed filename title.
+    // The operator's query if they typed one, else the parsed filename title.
     pub query: String,
-    /// Parsed from the filename; what scoring compares against.
+    // Parsed from the filename; what scoring compares against.
     pub year: Option<u32>,
     pub current_tmdb_id: Option<u64>,
-    /// The current match was chosen by an operator, not resolved automatically.
+    // The current match was chosen by an operator, not resolved automatically.
     pub pinned: bool,
     pub results: Vec<MatchCandidate>,
 }

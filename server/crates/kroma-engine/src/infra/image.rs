@@ -14,7 +14,7 @@ static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
 /// Served by `GET /api/images/:name`.
 pub const PUBLIC_PREFIX: &str = "/api/images/";
 
-/// 80/6 keeps posters crisp at a fraction of JPEG's size.
+// 80/6 keeps posters crisp at a fraction of JPEG's size.
 const WEBP_QUALITY: &str = "80";
 const WEBP_EFFORT: &str = "6";
 

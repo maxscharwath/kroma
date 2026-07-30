@@ -108,10 +108,9 @@ export function usePushTaps(): void {
         if (route && !cancelled) router.push(route as never);
       };
 
-      // `getLastNotificationResponse` is STICKY — same response for the life of
-      // the JS context — and this effect re-runs on a profile switch, so without
-      // this guard the launch tap replays on every switch (re-POSTing an action,
-      // or navigating, under the wrong account).
+      // `getLastNotificationResponse` is STICKY for the life of the JS context,
+      // and this effect re-runs on a profile switch — without this guard the
+      // launch tap would replay under the new account.
       if (!coldStartConsumed) {
         coldStartConsumed = true;
         const initial = push.getLastNotificationResponse();

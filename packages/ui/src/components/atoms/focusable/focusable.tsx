@@ -279,10 +279,10 @@ function Focusable({
     onBlur?.();
   }, [onBlur]);
 
-  // The OK guard lives here rather than in the navigator: this is the single
-  // choke point that can swallow the tail of the press that opened the screen.
-  // On native, Select reaches a focused control through the platform, not
-  // through the navigator, so an overlay cannot keep it out any other way.
+  // The OK guard lives here, not in the navigator: on native, Select reaches a
+  // focused control through the platform rather than the navigator, so this is
+  // the only choke point that can swallow the tail of the press that opened
+  // the screen.
   const press = useCallback(() => {
     if (disabled || inputHeld() || pressGuardActive()) return;
     onPress?.();
@@ -345,9 +345,9 @@ function Focusable({
     );
   }
 
-  // Unscoped on a television is deliberately not handled here: registering with
-  // a navigator that is not there throws at render, which is the correct
-  // outcome - an unscoped TV screen is a screen the remote cannot reach.
+  // Unscoped on a television is deliberately not handled here: an unscoped TV
+  // screen is one the remote cannot reach, and registering with a navigator
+  // that isn't there should throw at render.
   if (controlled || (!scoped && !Platform.isTV)) {
     return touchForm({
       boxRef: setBox,
@@ -404,10 +404,9 @@ function Focusable({
 // device at all, so it keeps the plain view and none of the Pressable's cost.
 const TV_HAS_POINTER = Platform.isTV && Platform.OS === 'android';
 
-// On a television the Pressable must be `unfocusable`: a view the PLATFORM can
+// On a television the Pressable must be `unfocusable`: a view the platform can
 // focus swallows the directional presses and the remote goes dead (see
-// lib/focus-root). `UNFOCUSABLE` is `focusable: false, isTVSelectable: false`,
-// so the box still takes clicks.
+// lib/focus-root).
 function Painted({
   painted,
   pressedStyle,

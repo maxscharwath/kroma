@@ -11,7 +11,7 @@ import { createCallable } from 'react-call';
 import { categoryMeta, kindLabelKey, soft, statusMeta } from '#web/features/admin/report-meta';
 import { Avatar } from '#web/features/admin/ui';
 
-/** RN style for a kit button that shares the row like the old `flex-1` CTAs. */
+// Shares the row like the old `flex-1` CTAs.
 const FLEX_1 = { flex: 1 } as const;
 
 function Header({ report, onClose }: Readonly<{ report: Report; onClose: () => void }>) {
@@ -35,13 +35,13 @@ function Header({ report, onClose }: Readonly<{ report: Report; onClose: () => v
       </div>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <span
-          className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
+          className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
           style={{ color: cat.color, background: soft(cat.color) }}
         >
           {t(cat.labelKey)}
         </span>
         <span
-          className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
+          className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
           style={{ color: st.color, background: soft(st.color) }}
         >
           {t(st.labelKey)}
@@ -55,14 +55,9 @@ function Header({ report, onClose }: Readonly<{ report: Report; onClose: () => v
   );
 }
 
-/**
- * Slide-in triage drawer, as an imperative callable: open it with
- * `await ReportDrawer.call({ report, canManage, onResolve, ... })`. The action
- * callbacks (each performs the mutation + parent list refresh + toast) are
- * passed in so the queue keeps updating live while the drawer stays open; the
- * drawer owns its own busy + report state and resolves `void` when it closes.
- * Its root is mounted once by `AdminModalHosts`; no open-state at the call site.
- */
+// Open with `await ReportDrawer.call({ report, canManage, onResolve, ... })`.
+// The action callbacks perform the mutation + parent list refresh + toast, so
+// the queue keeps updating live while the drawer stays open.
 export const ReportDrawer = createCallable<
   {
     report: Report;
@@ -91,9 +86,8 @@ export const ReportDrawer = createCallable<
     window.setTimeout(() => call.end(), 300);
   };
 
-  // A triage action: disable the drawer while it runs, then reflect the new
-  // status locally (the parent reloads the list behind us). Failures leave the
-  // report untouched (the callback already surfaced the error toast).
+  // Reflect the new status locally; the parent reloads the list behind us.
+  // Failures leave the report untouched (the callback surfaced its own toast).
   const run = (fn: (r: Report) => Promise<void>, next: ReportStatus) => {
     setBusy(true);
     fn(report)
@@ -122,7 +116,7 @@ export const ReportDrawer = createCallable<
         className={`fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <aside
-        className="fixed right-0 top-0 z-61 flex h-screen w-[460px] max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
+        className="fixed right-0 top-0 z-61 flex h-screen w-115 max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
         style={{ transform: open ? 'translateX(0)' : 'translateX(105%)' }}
       >
         <Header report={report} onClose={close} />
@@ -148,7 +142,7 @@ export const ReportDrawer = createCallable<
           </div>
 
           {report.message ? (
-            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5 text-[13.5px] leading-[1.5] text-white/80">
+            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5 text-[13.5px] leading-normal text-white/80">
               {report.message}
             </div>
           ) : (

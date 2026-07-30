@@ -20,7 +20,6 @@ export interface Connection {
   activeServerUrl: string | null;
   activeServerName: string | null;
   error: string;
-  /** `true` until a server is active, then driven by the `/api/health` heartbeat. */
   online: boolean;
   serverVersion: string | null;
   compat: CompatVerdict;
@@ -32,10 +31,8 @@ export interface Connection {
   discovered: string[];
   deepLink: DeepLink | null;
   addServer: (url: string, name?: string | null) => void;
-  /** Switch the active server (rebuilds the client; clears the active session). */
   setActiveServer: (url: string) => void;
   discover: () => void;
-  /** Forget a server and every remembered account on it. */
   forgetServer: (url: string) => void;
   clearDeepLink: () => void;
 }

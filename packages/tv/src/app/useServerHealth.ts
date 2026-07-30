@@ -8,11 +8,9 @@ const OFFLINE_MS = 3000;
 // A dead server never refuses the TCP connection cleanly, so a bare fetch hangs.
 const TIMEOUT_MS = 4000;
 
-/**
- * Polls the active server's `/api/health` to keep an `online` flag, calling
+/** Polls the active server's `/api/health` to keep an `online` flag, calling
  * `onReconnect` on every offline→online edge. Gated on `enabled` (a live
- * session), and `recheck()` forces a probe without waiting for the next tick.
- */
+ * session). */
 export function useServerHealth(
   client: KromaClient | null,
   enabled: boolean,

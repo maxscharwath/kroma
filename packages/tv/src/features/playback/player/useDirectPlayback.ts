@@ -41,19 +41,14 @@ export interface Playback {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   engineRef: React.RefObject<TvEngine | null>;
   objectRef: React.RefObject<HTMLObjectElement | null>;
-  /** `mpv` renders nothing in-page (native plane behind). */
   surface: Surface;
   enginePref: EnginePref;
   setEngine: (p: EnginePref) => void;
-  /** `null` restores fullscreen. */
   setPlaneRect: (rect: PlaneRect | null) => void;
-  /** No-op on the HTML engine, whose `<video>` goes through the Web Audio graph. */
   setAudioFilter: (mode: AudioFilterMode) => void;
-  /** Whether {@link setAudioFilter} reaches a real DSP here. */
   audioFilterSupported: boolean;
   verdict: DirectPlayVerdict | null;
   error: MessageKey | null;
-  /** A custom message, `''` for the localized default, `null` while the session is live. */
   terminated: string | null;
   ready: boolean;
   playing: boolean;

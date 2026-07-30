@@ -1,7 +1,6 @@
-// A season's episodes, one to a line. Rendered in growing chunks: what costs
-// frames on a television is the number of MOUNTED controls, and a 100-episode
-// season at three controls a row is 300 of them. The window never shrinks — the
-// navigator can only move to a node that exists.
+// A season's episodes, one to a line, rendered in growing chunks: what costs
+// frames on a television is the number of mounted controls, and a 100-episode
+// season at three controls a row is 300 of them.
 
 import type { MediaItem } from '@kroma/core';
 import { Grid, useGrowingCount } from '@kroma/ui/kit';
@@ -29,7 +28,6 @@ export function EpisodeGrid({
   episodes: readonly MediaItem[];
   stillFor: (episode: MediaItem, width: number) => string | null;
   isWatched: (id: string) => boolean;
-  /** Resume progress in percent, or null when the episode is untouched. */
   progressOf: (id: string) => number | null;
   onPlay: (episode: MediaItem) => void;
   onToggleWatched: (id: string) => void;

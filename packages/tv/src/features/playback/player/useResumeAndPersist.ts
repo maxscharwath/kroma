@@ -6,7 +6,6 @@ export interface PersistPort {
   getPosition: () => number;
   getDuration: () => number;
   paused: boolean;
-  /** Increments each time playback reaches the end. */
   endedNonce: number;
 }
 

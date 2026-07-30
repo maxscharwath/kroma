@@ -1,10 +1,9 @@
-// Which build this is - commit, date, repository - collected once in Node and
-// carried into the bundle, since there is no git and no filesystem on a phone
-// or a television.
+// Build metadata (commit, date, repo) collected in Node and baked into the bundle,
+// since a TV or phone has no git and no filesystem to read at runtime.
 //
-// Loaded by an Expo `app.config.js` through Node's own type stripping (Expo's
-// TypeScript path is unavailable here), so it must stay erasable-syntax-only:
-// no enums, no namespaces, no parameter properties.
+// Loaded by an Expo `app.config.js` via Node's own type stripping, not Expo's
+// TypeScript path — keep this file erasable-syntax-only: no enums, no namespaces,
+// no parameter properties.
 
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';

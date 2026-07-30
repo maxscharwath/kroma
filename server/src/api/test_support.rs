@@ -26,7 +26,6 @@ use crate::state::{AppState, SharedState};
 
 static SEQ: AtomicU32 = AtomicU32::new(0);
 
-/// Far-future expiry, in unix seconds.
 const FUTURE: i64 = 9_999_999_999;
 
 /// A fully wired app under test plus the handles a test needs to drive + assert.
@@ -35,8 +34,8 @@ pub struct TestApp {
     pub state: SharedState,
     pub token: String,
     pub user_id: String,
-    /// Owns the temp `data_dir`: dropping the harness removes it. Keep this last
-    /// so the DB pool and the router let go of the files before the dir goes.
+    // Owns the temp `data_dir`: dropping the harness removes it. Keep this last
+    // so the DB pool and the router let go of the files before the dir goes.
     _data_dir: TempDir,
 }
 

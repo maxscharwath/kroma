@@ -56,10 +56,9 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     const tracks = audioTracksOf(item);
     return (tracks.find((t) => t.default) ?? tracks[0])?.index ?? 0;
   });
-  // The HLS master starts at `?t=anchor` (input -ss); a resume/far/backward seek
-  // changes the anchor, which remounts the <video> (keyed by anchor). `bootAnchor
-  // === null` means resume hasn't resolved yet, so the source effect waits for it
-  // rather than attaching at 0 and re-anchoring.
+  // The HLS master starts at `?t=anchor`; a resume/far/backward seek changes it,
+  // remounting the <video>. `bootAnchor === null` means resume hasn't resolved
+  // yet, so the source effect waits rather than attaching at 0 and re-anchoring.
   const { client, user } = useAuth();
   const [anchor, setAnchor] = useState(0);
   const [bootAnchor, setBootAnchor] = useState<number | null>(null);
@@ -101,9 +100,8 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
 
   const audioTracks = audioTracksOf(item);
 
-  // Applies the account's preferred audio language once `user` hydrates, before
-  // the source attaches. Uses the raw setter, not `setAudio`, so it doesn't
-  // re-anchor like a manual switch would.
+  // Applies the account's preferred audio language once `user` hydrates. Uses
+  // the raw setter, not `setAudio`, so it doesn't re-anchor like a manual switch.
   const audioPrefApplied = useRef(false);
   useEffect(() => {
     if (audioPrefApplied.current || !user) return;
@@ -136,14 +134,12 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
   );
 
   // `-noaccurate_seek` starts the HLS stream at the keyframe at-or-before the
-  // anchor, so the real start can be earlier than requested; the server reports
-  // it via `X-Hls-Start`, read before attaching so the clock + subtitles line up
-  // with the A/V. `srcReady` gates the attach until that offset is known.
+  // anchor, so the real start can be earlier than requested; the server reports it
+  // via `X-Hls-Start`. `srcReady` gates the attach until that offset is known.
   const [baseSec, setBaseSec] = useState(0);
   const [srcReady, setSrcReady] = useState(false);
-  // `X-Media-Duration`: the server's true duration, used when the catalog row was
-  // never probed. Without it an unprobed file's growing HLS playlist would cap
-  // the shown total at its live edge.
+  // `X-Media-Duration`: the server's true duration for an unprobed catalog row,
+  // whose growing HLS playlist would otherwise cap the shown total at its live edge.
   const [serverDurSec, setServerDurSec] = useState(0);
   useEffect(() => {
     if (bootAnchor === null) return; // wait until resume has picked the anchor
@@ -213,8 +209,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     const v = videoRef.current;
     if (!v || bootAnchor === null || !srcReady) return;
     // Shaka is the default MSE engine; hls.js only on the explicit `remux`
-    // override. Safari keeps native HLS (surround via stream-copy) unless the
-    // user picks Shaka.
+    // override. Safari keeps native HLS unless the user picks Shaka.
     const safariNative = env.safari && enginePref !== 'shaka';
     return attachMediaSource({
       v,
@@ -263,9 +258,8 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     } else v.pause();
   }, []);
 
-  // Seeks to an absolute position. A target inside the anchored stream's
-  // produced range is a native seek; otherwise it re-anchors, remounting the
-  // <video> with a fresh remux at the target.
+  // A target inside the anchored stream's produced range is a native seek;
+  // otherwise it re-anchors, remounting the <video> with a fresh remux.
   const seekTo = useCallback(
     (absSec: number) => {
       const v = videoRef.current;

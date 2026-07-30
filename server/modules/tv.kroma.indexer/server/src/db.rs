@@ -7,7 +7,7 @@ use rusqlite::{params, Connection, Row};
 
 use kroma_module_sdk::db::Pool;
 
-/// `IF NOT EXISTS` DDL only: it runs on every boot.
+// `IF NOT EXISTS` DDL only: it runs on every boot.
 pub const MIGRATIONS: &str = "
     -- Torznab indexers (Jackett / Prowlarr endpoints). `categories` is a comma
     -- list; `priority` is a flat score tiebreak in the decision engine.

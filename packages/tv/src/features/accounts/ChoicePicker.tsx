@@ -1,6 +1,5 @@
-// <ChoicePicker>: the settings dialog for a choice with too many answers to
-// cycle on OK. Virtualised, because a TV's cost follows the number of mounted
-// focusables and these lists run to hundreds of rows.
+// Settings dialog for a choice with too many answers to cycle on OK.
+// Virtualised: a TV's cost follows the number of mounted focusables.
 
 import { useT } from '@kroma/ui';
 import { Box, Dialog, Icon, ListRow, VirtualGrid } from '@kroma/ui/kit';
@@ -10,9 +9,8 @@ const ROW_HEIGHT = 68;
 const ROW_GAP = 8;
 const LIST_HEIGHT = ROW_HEIGHT * 7 + ROW_GAP * 6;
 
-// Rows need a width in pixels: <ListRow> is `width: '100%'` and a virtualised
-// row container has no width of its own for that to resolve against, so the row
-// collapses to its trailing glyph.
+// <ListRow> is `width: '100%'`, and a virtualised row container has no width
+// of its own to resolve against, so the row collapses to its trailing glyph.
 const PANEL_WIDTH = 620;
 // Must match <Dialog>'s own panel padding.
 const PANEL_PADDING = 40;
@@ -63,9 +61,8 @@ export function ChoicePicker({
               onPick(option);
               onClose();
             }}
-            // Always a box, never a bare conditional: <ListRow> falls back to a
-            // chevron with `trailing ?? …`, which neither `null` nor
-            // `undefined` survives, so "no tick" would draw a chevron instead.
+            // <ListRow> falls back to a chevron with `trailing ?? …`, which
+            // neither `null` nor `undefined` survives — always render a box.
             trailing={
               <Box w={TICK} align="center">
                 {option === value ? (

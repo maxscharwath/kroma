@@ -64,12 +64,12 @@ pub enum AudioVerdict {
 pub struct AudioAnalysis {
     #[serde(rename = "lufsI")]
     pub lufs_i: f64,
-    /// Loudness range (LU); > ~15 is the classic "quiet dialogue, loud
-    /// explosions" mix.
+    // Loudness range (LU); > ~15 is the classic "quiet dialogue, loud
+    // explosions" mix.
     pub lra: f64,
     #[serde(rename = "truePeak")]
     pub true_peak: f64,
-    /// Centre-channel loudness (LUFS), measured for 5.1+ tracks only.
+    // Centre-channel loudness (LUFS), measured for 5.1+ tracks only.
     #[serde(rename = "dialogLufs", default, skip_serializing_if = "Option::is_none")]
     pub dialog_lufs: Option<f64>,
     pub verdict: AudioVerdict,
@@ -80,7 +80,7 @@ pub struct AudioAnalysis {
 /// the same logical item id but each maps to a distinct file on disk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MediaFile {
-    /// `short_hash(abs_path)`, stable per physical file.
+    // `short_hash(abs_path)`, stable per physical file.
     pub id: String,
     #[serde(rename = "relPath")]
     pub rel_path: Option<String>,
@@ -95,8 +95,8 @@ pub struct MediaFile {
     pub size: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edition: Option<String>,
-    /// `false` until ffprobe has run (phase 2); the stream fields above are
-    /// null until then.
+    // `false` until ffprobe has run (phase 2); the stream fields above are
+    // null until then.
     pub probed: bool,
     #[serde(skip)]
     pub abs_path: Option<String>,
@@ -130,7 +130,6 @@ pub struct MediaItem {
     pub show_title: Option<String>,
     pub season: Option<u32>,
     pub episode: Option<u32>,
-    /// Last episode number for multi-episode files (e.g. `S01E02-E03`).
     #[serde(rename = "episodeEnd")]
     pub episode_end: Option<u32>,
     #[serde(rename = "episodeTitle")]
@@ -139,24 +138,24 @@ pub struct MediaItem {
     pub rel_path: Option<String>,
     #[serde(rename = "addedAt")]
     pub added_at: String,
-    /// `None` until the background enrichment pass resolves it. Movies only;
-    /// episodes inherit their show's metadata.
+    // `None` until the background enrichment pass resolves it. Movies only;
+    // episodes inherit their show's metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Metadata>,
-    /// Mirrors the representative file's path so `/stream` keeps working.
+    // Mirrors the representative file's path so `/stream` keeps working.
     #[serde(skip)]
     pub abs_path: Option<String>,
     #[serde(default)]
     pub files: Vec<MediaFile>,
-    /// Id of the representative file `/stream` serves and whose stream info
-    /// populates the top-level fields above. `None` until a file exists.
+    // Id of the representative file `/stream` serves and whose stream info
+    // populates the top-level fields above. `None` until a file exists.
     #[serde(rename = "defaultFileId", default, skip_serializing_if = "Option::is_none")]
     pub default_file_id: Option<String>,
-    /// Episodes only. Empty until resolved from chapters or the
-    /// audio-fingerprint job.
+    // Episodes only. Empty until resolved from chapters or the
+    // audio-fingerprint job.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<Marker>,
-    /// `None` until the `pipeline.loudness` stage has measured it.
+    // `None` until the `pipeline.loudness` stage has measured it.
     #[serde(rename = "audioAnalysis", default, skip_serializing_if = "Option::is_none")]
     pub audio_analysis: Option<AudioAnalysis>,
 }
@@ -188,15 +187,15 @@ pub struct Show {
     pub season_count: u32,
     #[serde(rename = "episodeCount")]
     pub episode_count: u32,
-    /// From a representative episode, for quality badges.
+    // From a representative episode, for quality badges.
     pub video: Option<VideoStream>,
     #[serde(rename = "addedAt")]
     pub added_at: String,
-    /// `None` until the background enrichment pass resolves it.
+    // `None` until the background enrichment pass resolves it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Metadata>,
-    /// Series-completion percent (0-100) when the request is authenticated;
-    /// `None` for anonymous requests or shows with no progress.
+    // Series-completion percent (0-100) when the request is authenticated;
+    // `None` for anonymous requests or shows with no progress.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progress: Option<u8>,
 }
@@ -206,7 +205,7 @@ pub struct Show {
 pub struct Season {
     pub number: u32,
     pub episodes: Vec<MediaItem>,
-    /// Empty until enriched, or when the provider returned none.
+    // Empty until enriched, or when the provider returned none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cast: Vec<CastMember>,
 }

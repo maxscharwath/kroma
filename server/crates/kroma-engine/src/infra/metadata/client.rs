@@ -83,8 +83,7 @@ impl Target {
 const MAX_CAST: usize = 12;
 const MAX_CREW: usize = 8;
 
-/// Bounds how much thematic text feeds the embedding doc (TMDB returns keywords
-/// unordered).
+// TMDB returns keywords unordered; this bounds how much feeds the embedding doc.
 const MAX_KEYWORDS: usize = 20;
 
 pub fn curl_available() -> bool {
@@ -105,8 +104,8 @@ fn detail_key(target: Target, language: &str, title: &str, year: Option<u32>) ->
     )
 }
 
-/// The `#` prefix can't collide with a title-keyed entry (titles are lowercased
-/// text, the year slot is numeric).
+// The `#` prefix can't collide with a title-keyed entry (titles are
+// lowercased text, the year slot is numeric).
 fn detail_key_id(target: Target, language: &str, id: u64) -> String {
     format!("{}|{}|#{id}", target.detail_path(), language)
 }
@@ -214,8 +213,8 @@ fn details_by_lang(
     by_lang
 }
 
-/// `Ok(Some)` = resolved, `Ok(None)` = no match (cacheable), `Err(())` =
-/// transient request failure the caller must not cache.
+// `Ok(Some)` = resolved, `Ok(None)` = no match (cacheable), `Err(())` =
+// transient request failure the caller must not cache.
 fn fetch(
     api_key: &str,
     language: &str,
@@ -374,9 +373,9 @@ struct RawEpisode {
     vote_average: Option<f32>,
 }
 
-/// First TMDB failure logs at WARN (so a bad `KROMA_TMDB_API_KEY` or dead
-/// network is visible); later ones drop to DEBUG to avoid spamming a bulk
-/// enrichment pass.
+// First TMDB failure logs at WARN (so a bad `KROMA_TMDB_API_KEY` or dead
+// network is visible); later ones drop to DEBUG to avoid spamming a bulk
+// enrichment pass.
 static FAILURE_WARNED: AtomicBool = AtomicBool::new(false);
 
 fn note_curl_failure(reason: &str, detail: &str) {
@@ -436,8 +435,8 @@ pub(super) fn curl_json<T: for<'de> Deserialize<'de>>(
     })
 }
 
-/// A TMDB v4 read token is a JWT (`header.payload.signature`); v3 keys are
-/// 32-char hex with no dots.
+// A TMDB v4 read token is a JWT (`header.payload.signature`); v3 keys are
+// 32-char hex with no dots.
 fn is_bearer_token(key: &str) -> bool {
     key.split('.').count() == 3
 }
@@ -479,8 +478,7 @@ struct Details {
     keywords: Option<Keywords>, // appended (thematic tags)
 }
 
-/// Movies nest under `keywords`, TV under `results`; only one is ever
-/// populated.
+// Movies nest under `keywords`, TV under `results`; only one is ever populated.
 #[derive(Debug, Deserialize)]
 struct Keywords {
     #[serde(default)]
@@ -495,7 +493,6 @@ struct KeywordEntry {
     name: String,
 }
 
-/// Flatten a TMDB keywords block into a capped list of non-empty tag names.
 fn collect_keywords(k: Keywords) -> Vec<String> {
     k.keywords
         .into_iter()
@@ -527,8 +524,8 @@ struct ImageEntry {
     vote_average: Option<f32>,
 }
 
-/// Best title logo `file_path`: PNG only, preferring the configured language,
-/// then English, then language-neutral; ties broken by TMDB vote.
+// Best title logo `file_path`: PNG only, preferring the configured language,
+// then English, then language-neutral; ties broken by TMDB vote.
 fn pick_logo(logos: &[ImageEntry], lang2: &str) -> Option<String> {
     let rank = |l: &ImageEntry| -> u8 {
         match l.lang.as_deref() {
@@ -556,9 +553,8 @@ fn pick_logo(logos: &[ImageEntry], lang2: &str) -> Option<String> {
 struct ExternalIds {
     #[serde(default)]
     imdb_id: Option<String>,
-    /// TheTVDB series id (present on TV external_ids; absent for movies).
     #[serde(default)]
-    tvdb_id: Option<u64>,
+    tvdb_id: Option<u64>, // present on TV external_ids; absent for movies
 }
 
 #[cfg(test)]

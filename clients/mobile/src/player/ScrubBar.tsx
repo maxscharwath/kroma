@@ -30,7 +30,6 @@ export function ScrubBar({
   buffered: number;
   onSeek(abs: number): void;
   tileFor?: (abs: number) => StoryboardTile | null;
-  /** Chapter starts, in absolute seconds. */
   markers?: number[];
 }>) {
   const [preview, setPreview] = useState<number | null>(null);
@@ -103,7 +102,6 @@ export function ScrubBar({
         ) : null}
         <View style={styles.track}>
           <View style={[styles.buffered, { width: `${bufFrac * 100}%` }]} />
-          {/* The played span is a gradient, not a flat fill. */}
           <LinearGradient
             colors={SEEK_BAR.played}
             start={{ x: 0, y: 0.5 }}
@@ -158,7 +156,7 @@ const styles = StyleSheet.create({
     width: 2.5,
     backgroundColor: 'rgba(10, 10, 12, 0.9)',
   },
-  /** The border stands in for a box-shadow ring, which native cannot spread. */
+  // The border stands in for a box-shadow ring, which native cannot spread.
   knob: {
     position: 'absolute',
     backgroundColor: '#FFFFFF',

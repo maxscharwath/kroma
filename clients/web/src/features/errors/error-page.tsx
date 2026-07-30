@@ -17,7 +17,6 @@ const COPY: Record<Kind, { code: string; title: MessageKey; body: MessageKey }> 
   server: { code: '500', title: 'error.serverTitle', body: 'error.serverBody' },
 };
 
-/** Map a thrown value to a screen variant via its HTTP status (if any). */
 function kindOf(error: unknown): Kind {
   const status = error instanceof KromaApiError ? error.status : undefined;
   if (status === 404) return 'notFound';
@@ -48,12 +47,11 @@ function ErrorScreen({
       className="flex min-h-screen w-full flex-col items-center justify-center px-6 py-16 text-center"
       style={{ background: RADIAL }}
     >
-      <div className="flex w-full max-w-[440px] flex-col items-center">
+      <div className="flex w-full max-w-110 flex-col items-center">
         <div className="mb-8 opacity-90">
           <Logo size={20} />
         </div>
 
-        {/* Big cinematic status number with an amber-tinted glow. */}
         <div
           className="font-display text-[104px] font-extrabold leading-none tracking-[-.04em] text-transparent"
           style={{
@@ -66,10 +64,10 @@ function ErrorScreen({
         </div>
 
         <h1 className="mt-6 font-display text-[24px] font-bold tracking-[-.02em]">{t(title)}</h1>
-        <p className="mt-3 max-w-[380px] text-[14.5px] leading-relaxed text-muted">{t(body)}</p>
+        <p className="mt-3 max-w-95 text-[14.5px] leading-relaxed text-muted">{t(body)}</p>
 
         {detail ? (
-          <p className="mt-4 max-w-[380px] wrap-break-word rounded-md border border-border bg-surface-1 px-3.5 py-2.5 text-[12.5px] font-medium text-dim">
+          <p className="mt-4 max-w-95 wrap-break-word rounded-md border border-border bg-surface-1 px-3.5 py-2.5 text-[12.5px] font-medium text-dim">
             {detail}
           </p>
         ) : null}
@@ -119,8 +117,7 @@ export function RouteError({ error, reset }: Readonly<{ error: Error; reset: () 
       : undefined;
 
   // 401: the session is gone but `user` may still be cached locally, so the
-  // ambient gate won't show. Send them to /login (which drops the stale session
-  // and shows the picker); it returns here once they sign back in.
+  // ambient gate won't show. Send them to /login instead, which returns here.
   const onSignIn =
     kind === 'unauthorized'
       ? () => void navigate({ to: '/login', search: { redirect: href } })

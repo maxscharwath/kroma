@@ -9,11 +9,11 @@
 import { type NativeModule, requireOptionalNativeModule } from 'expo';
 
 declare class TvLauncherNativeModule extends NativeModule {
-  /** JSON array of `{id,title,subtitle?,imageUrl?,backdropUrl?,progressMs,
-   * durationMs,kind,showId?,updatedAtMs}`; `[]` clears the row. */
+  // JSON array of `{id,title,subtitle?,imageUrl?,backdropUrl?,progressMs,
+  // durationMs,kind,showId?,updatedAtMs}`; `[]` clears the row.
   setContinueWatching(json: string): void;
-  /** JSON array of `{title, items:[{id,title,subtitle?,imageUrl?,backdropUrl?,
-   * kind}]}` in display order; `[]` clears them. */
+  // JSON array of `{title, items:[{id,title,subtitle?,imageUrl?,backdropUrl?,
+  // kind}]}` in display order; `[]` clears them.
   setHomeChannel(json: string): void;
   clear(): void;
 }

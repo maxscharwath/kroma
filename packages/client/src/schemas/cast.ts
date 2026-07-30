@@ -28,7 +28,6 @@ export const CastNowPlaying = z.object({
   audioTracks: z.array(CastTrack).default([]),
   audioIndex: z.number().optional(),
   subtitles: z.array(CastTrack).default([]),
-  /** Absent = subtitles off. */
   subtitleIndex: z.number().optional(),
 });
 export type CastNowPlaying = z.infer<typeof CastNowPlaying>;

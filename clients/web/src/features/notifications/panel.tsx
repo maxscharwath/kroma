@@ -76,8 +76,7 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[#101014] outline-none data-[state=open]:animate-[slide-in-right_.3s_var(--ease-out)] sm:w-[min(25rem,92vw)] sm:border-l sm:border-white/8"
         >
           <PanelHeader onClose={() => setOpen(false)} />
-          {/* Mounted on first open and kept mounted after, so reopening the
-              drawer doesn't refetch. */}
+          {/* Mounted on first open and kept mounted after, so reopening doesn't refetch. */}
           {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
         </Dialog.Content>
       </Dialog.Portal>
@@ -184,8 +183,8 @@ function PanelBody({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
   return (
     <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] scrollbar-thin">
       {groupNotificationsByDay(items).map((group) => (
-        // Keyed on the run's first row, not the day: an unsorted inbox can open
-        // a second "Earlier" run, and two sections must not share a key.
+        // Keyed on the run's first row, not the day: an unsorted inbox can open a
+        // second "Earlier" run, and two sections must not share a key.
         <section key={group.items[0]?.id}>
           {/* h3, not h2: Radix renders <Dialog.Title> as the h2. */}
           <h3 className="sticky top-0 z-10 bg-[#101014] px-2 pb-1.5 pt-3 text-[11px] font-semibold text-dim">
@@ -361,9 +360,9 @@ interface EventMeta {
   fg: string;
 }
 
-/** One glyph + tint per event the schema knows. Keyed on the KNOWN list, not on
- * `NotificationEvent` (an open union a newer server may extend): a known event
- * missing an entry is a type error, an unknown one just falls back. */
+// Keyed on the KNOWN list, not on `NotificationEvent` (an open union a newer
+// server may extend): a known event missing an entry is a type error, an
+// unknown one just falls back.
 const EVENT_META: Record<(typeof KNOWN_NOTIFICATION_EVENTS)[number], EventMeta> = {
   'request.submitted': { icon: IconInbox, fg: 'text-accent' },
   'request.approved': { icon: IconCircleCheck, fg: 'text-success' },
@@ -390,22 +389,9 @@ function eventMeta(event: NotificationEvent): EventMeta {
   return (EVENT_META as Record<string, EventMeta | undefined>)[event] ?? FALLBACK_META;
 }
 
-// ---------------------------------------------------------------------------
-// Relative time
-// ---------------------------------------------------------------------------
-
-/** Coarse relative time — a notification list needs "5 min ago", not seconds —
- * and a plain date once "N days ago" stops meaning anything.
- *
- * `Intl` localizes itself from the active locale, so the middle of the range
- * needs no catalog keys and stays correct for any language added later. The
- * `short` style is the one that reads as prose: `narrow` renders French as
- * "-47 min", a minus sign and all.
- *
- * The zero case is the exception, and it is the one every arriving notification
- * hits: `Intl` renders it as the CURRENT unit rather than an elapsed one — "this
- * minute", French "cette minute-ci" — which reads like a calendar and is the
- * longest string in the column. A key of our own says "just now" instead. */
+// `Intl.RelativeTimeFormat` renders the zero case as the CURRENT unit rather
+// than an elapsed one ("this minute"), so it's special-cased to "just now".
+// `short` style is used over `narrow`, which renders French as "-47 min".
 function RelativeTime({ at }: Readonly<{ at: number }>) {
   const t = useT();
   const locale = useLocale();

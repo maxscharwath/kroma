@@ -23,10 +23,8 @@ public class TvLauncherModule: Module {
   }
 }
 
-/**
- The three constants MUST match targets/top-shelf/ContentProvider.swift, and
- the group id plugins/with-top-shelf.js; the extension builds outside this pod.
- */
+// The three constants MUST match targets/top-shelf/ContentProvider.swift, and
+// the group id plugins/with-top-shelf.js; the extension builds outside this pod.
 enum TopShelfStore {
   static let appGroup = "group.tv.kroma"
   static let continueWatchingKey = "continueWatching"

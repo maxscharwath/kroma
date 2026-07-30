@@ -12,11 +12,11 @@ interface WorkbenchLocation {
   shot?: boolean;
 }
 
-/** `replace` defaults to true: a tab change is not a page to press Back out of. */
+// `replace` defaults to true: a tab change is not a page to press Back out of.
 type Navigate = (next: WorkbenchLocation, options?: { replace?: boolean }) => void;
 
-/** A hook rather than a function, so a host that navigates from outside can
- * re-render the workbench. */
+// A hook rather than a function, so a host that navigates from outside can re-render the
+// workbench.
 type WorkbenchRouter = () => readonly [WorkbenchLocation, Navigate];
 
 function parseView(raw: string | null | undefined): View | undefined {
@@ -29,15 +29,15 @@ function parseView(raw: string | null | undefined): View | undefined {
   return at ? (`${at[1]}:${Number(at[2])}` as View) : undefined;
 }
 
-/** A view as a path segment (`scene-1`), or null when it is the default and
- * should be absent from the URL. */
+// A view as a path segment (`scene-1`), or null when it is the default and should be absent
+// from the URL.
 function viewPath(view: View | undefined): string | null {
   if (!view || view === 'preview') return null;
   return view.replace(':', '-');
 }
 
-/** Routing that stays in memory, never reading or writing an address bar: the
- * adapter for a mount nested in a host router, for native, and for tests. */
+// Routing that stays in memory, never reading or writing an address bar: the adapter for a
+// mount nested in a host router, for native, and for tests.
 function memoryRouter(start: WorkbenchLocation = {}): WorkbenchRouter {
   return function useMemoryRoute() {
     const [at, setAt] = useState(start);
@@ -46,11 +46,9 @@ function memoryRouter(start: WorkbenchLocation = {}): WorkbenchRouter {
   };
 }
 
-/**
- * The `?story=&view=` contract, on whatever path the host already sits at. The
- * path is never touched, so a TV shell can keep its own routing and open the
- * workbench over the top of it; off the web it degrades to memory.
- */
+// The `?story=&view=` contract, on whatever path the host already sits at. The path is never
+// touched, so a TV shell can keep its own routing and open the workbench over the top of it;
+// off the web it degrades to memory.
 function searchParamsRouter(): WorkbenchRouter {
   return function useSearchParamsRoute() {
     // Read once: the workbench is the only writer of these params and writes with
@@ -64,11 +62,9 @@ function searchParamsRouter(): WorkbenchRouter {
   };
 }
 
-/**
- * Real paths (`/story/button/matrix`) on the History API alone, mounted at `base`.
- * Needs a server that falls back to index.html for unknown paths; a TV app loaded
- * from the filesystem wants `searchParamsRouter` instead.
- */
+// Real paths (`/story/button/matrix`) on the History API alone, mounted at `base`. Needs a
+// server that falls back to index.html for unknown paths; a TV app loaded from the filesystem
+// wants `searchParamsRouter` instead.
 function pathRouter({ base = '/' }: { base?: string } = {}): WorkbenchRouter {
   const prefix = base.endsWith('/') ? base : `${base}/`;
   return function usePathRoute() {

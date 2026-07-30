@@ -64,7 +64,7 @@ export function SecurityCard() {
             onChange={(e) => setNext(e.target.value)}
           />
           <div className="flex items-center gap-2.5">
-            <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-white/10">
+            <div className="h-1.25 flex-1 overflow-hidden rounded-full bg-white/10">
               <div
                 className="h-full rounded-full transition-[width,background-color] duration-200"
                 style={{ width: strength.width, background: strength.color }}
@@ -72,7 +72,7 @@ export function SecurityCard() {
             </div>
             {strength.labelKey ? (
               <span
-                className="min-w-[54px] text-right text-[11px] font-bold"
+                className="min-w-13.5 text-right text-[11px] font-bold"
                 style={{ color: strength.color }}
               >
                 {t(strength.labelKey)}

@@ -4,7 +4,7 @@ import type { WebAuthnOptions } from '@kroma/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPasskey, getPasskey, passkeysSupported } from './webauthn';
 
-/** Bytes whose base64 spelling contains both characters base64url replaces. */
+// Bytes whose base64 spelling contains both characters base64url replaces.
 const TRICKY = new Uint8Array([0xfb, 0xff, 0xbf, 0x00, 0x10, 0x83]);
 const TRICKY_B64URL = '-_-_ABCD';
 

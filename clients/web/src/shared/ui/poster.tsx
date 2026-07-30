@@ -10,10 +10,8 @@ export interface PosterProps {
   colors?: [string, string];
   poster?: string | null;
   progress?: number | null;
-  /** Omit to hide the watched marker entirely. */
   watched?: boolean | null;
   onToggleWatched?: () => void;
-  /** Fixed tile width in px; omit for the fluid `--card-w` default. */
   width?: number;
   onClick?: () => void;
 }
@@ -24,9 +22,7 @@ const RAIL_PAD = 12;
 
 export interface PosterRailProps<T> {
   data: readonly T[];
-  /** The cell stretches the tile to its own width, so tiles need no width prop. */
   renderItem: (item: T, index: number) => ReactElement;
-  /** Extra tile height below the 2:3 artwork (a caption strip). */
   extra?: number;
   onEndReached?: () => void;
 }

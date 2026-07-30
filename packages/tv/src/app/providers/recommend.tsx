@@ -79,9 +79,8 @@ interface Recommend {
 
 const Ctx = createContext<Recommend | null>(null);
 
-/** Home-screen recommendations for the active server, assembled server-side by
- * `/api/home`. Bearer-scoped, so it must be mounted inside auth + connection and
- * stays empty until there is a session and a reachable server. */
+/** Bearer-scoped, so it must be mounted inside auth + connection; stays empty
+ * until there is a session and a reachable server. */
 export function RecommendProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { user } = useAuth();
   const { client } = useConnection();

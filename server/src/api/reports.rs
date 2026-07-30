@@ -22,7 +22,6 @@ use crate::services::jobs::now_ms;
 use crate::services::scan::short_hash;
 use crate::state::SharedState;
 
-/// Free-text message cap (chars), so a report note can't balloon the row.
 const MAX_MESSAGE: usize = 2000;
 
 pub fn routes() -> Router<SharedState> {

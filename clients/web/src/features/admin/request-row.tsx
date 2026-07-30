@@ -14,7 +14,7 @@ function Poster({ req }: Readonly<{ req: MediaRequest }>) {
   return (
     <div
       style={{ background: posterGrad(req.title) }}
-      className="relative h-[46px] w-8 flex-[0_0_32px] overflow-hidden rounded-[6px] shadow-[0_5px_14px_rgba(0,0,0,.45)]"
+      className="relative h-11.5 w-8 flex-[0_0_32px] overflow-hidden rounded-[6px] shadow-[0_5px_14px_rgba(0,0,0,.45)]"
     >
       <Image src={req.posterUrl} fit="cover" fill />
     </div>
@@ -56,13 +56,13 @@ export function RequestRowView({
           <div className="flex items-center gap-2.5">
             <span className="truncate text-[14.5px] font-bold">{req.title}</span>
             <span
-              className="flex-[0_0_auto] rounded-full px-[7px] py-0.5 text-[8px] font-bold uppercase tracking-[.08em]"
+              className="flex-[0_0_auto] rounded-full px-1.75 py-0.5 text-[8px] font-bold uppercase tracking-[.08em]"
               style={{ color: km.color, background: km.bg }}
             >
               {t(`pipeline.type.${km.typeKey}` as MessageKey)}
             </span>
           </div>
-          <div className="mt-[3px] truncate text-[12px] font-medium text-white/50">{sub}</div>
+          <div className="mt-0.75 truncate text-[12px] font-medium text-white/50">{sub}</div>
         </div>
       </div>
 
@@ -82,8 +82,6 @@ export function RequestRowView({
       </div>
 
       <div className="flex justify-end gap-1.5">
-        {/* This row is itself a <button>, and a <button> can't be nested inside a
-            button, so the quick approve/deny controls are role="button" spans. */}
         {canReview && req.status === 'pending' ? (
           <>
             {/* biome-ignore lint/a11y/useSemanticElements: cannot be a native <button> because it lives inside the row's <button> */}

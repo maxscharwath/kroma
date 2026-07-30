@@ -13,8 +13,6 @@ use crate::state::SharedState;
 
 pub const DEFAULT_LOCALE: &str = "fr";
 
-/// The single source of truth for which languages KROMA supports: i18n
-/// resolution, TMDB translation fetch, and LLM section-title fan-out.
 pub const SUPPORTED_LOCALES: &[&str] = &["fr", "en"];
 
 // Path anchored to this crate's manifest dir, so `../../../` reaches the repo root.

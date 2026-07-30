@@ -33,8 +33,8 @@ fn publish<S: HostCtx>(state: &S, req_id: &str, status: RequestStatus) {
     ));
 }
 
-/// Only call on a real state change: [`publish`] fires on every touch, but a
-/// notification must mark a transition.
+// Only call on a real state change: [`publish`] fires on every touch, but a
+// notification must mark a transition.
 fn notify_requester<S: HostCtx>(state: &S, req: &MediaRequest, status: RequestStatus, link: &str) {
     let Some(user_id) = req.requested_by.as_deref() else {
         return;
@@ -270,9 +270,9 @@ fn is_whole_show(seasons: &Option<Vec<u32>>, episodes: &Option<Vec<EpisodeRef>>)
     seasons.is_none() && episodes.is_none()
 }
 
-/// Union of two Show targets. A whole-show side absorbs everything; otherwise a
-/// `None` set means the EMPTY set, not "all", so a narrow ask never shrinks a
-/// broader request.
+// Union of two Show targets. A whole-show side absorbs everything; otherwise a
+// `None` set means the EMPTY set, not "all", so a narrow ask never shrinks a
+// broader request.
 fn merge_target(
     ex_seasons: Option<Vec<u32>>,
     ex_episodes: Option<Vec<EpisodeRef>>,
@@ -503,8 +503,8 @@ fn refresh_one<S: HostCtx>(state: &S, req: &MediaRequest) -> Result<()> {
     Ok(())
 }
 
-/// Additive only: inserts missing (season, episode) rows and backfills air dates.
-/// Never deletes a row and never changes a row's status.
+// Additive only: inserts missing (season, episode) rows and backfills air dates.
+// Never deletes a row and never changes a row's status.
 fn refresh_wanted<S: HostCtx>(
     state: &S,
     req: &MediaRequest,
@@ -877,7 +877,6 @@ mod tests {
             None => host,
         }
     }
-
 
     fn exec(host: &TestHost, sql: &str) {
         host.db().get().unwrap().execute(sql, []).unwrap();

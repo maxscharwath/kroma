@@ -1,7 +1,6 @@
-/** FCM v1 does not take the service account directly: the key signs a
- * JWT-bearer assertion, which Google's token endpoint trades for the
- * short-lived OAuth2 access token that authorises the send.
- */
+// FCM v1 does not take the service account directly: the key signs a JWT-bearer assertion,
+// which Google's token endpoint trades for the short-lived OAuth2 access token that authorises
+// the send.
 
 import { z } from 'zod';
 import { importRs256, sign } from './jwt';
@@ -11,10 +10,10 @@ import type { Delivery } from './schemas';
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-/** Google issues these for an hour; refresh early so a send never races expiry. */
+// Google issues these for an hour; refresh early so a send never races expiry.
 const TOKEN_LIFETIME_SECS = 50 * 60;
 
-/** `.loose()` so a key Google adds to the service-account file later is kept, not rejected. */
+// `.loose()` so a key Google adds to the service-account file later is kept, not rejected.
 const ServiceAccount = z
   .object({
     project_id: z.string().min(1),

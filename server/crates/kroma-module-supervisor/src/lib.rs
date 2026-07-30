@@ -31,10 +31,8 @@ pub struct SupervisorConfig {
     pub host_token: String,
     pub db_path: PathBuf,
     pub data_dir: PathBuf,
-    /// Ids compiled into this server; a `.kmod` reusing one is rejected.
     pub reserved_ids: Vec<String>,
     pub server_version: String,
-    /// `None` inherits the core's stdio; `Some` pipes it, forwarding each line as `(module_id, line)`.
     pub log_line: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
 }
 

@@ -53,7 +53,6 @@ export const MediaRequest = z.object({
   updatedAt: z.number(),
   progress: z.number().nullable(),
   airStatus: z.string().nullable(),
-  /** `YYYY-MM-DD`. */
   nextAirDate: z.string().nullable(),
 });
 export type MediaRequest = z.infer<typeof MediaRequest>;
@@ -78,7 +77,6 @@ export const CalendarEntry = z.object({
   season: z.number().nullable(),
   episode: z.number().nullable(),
   airDate: z.string().nullable(),
-  /** `wanted` or `grabbed`. */
   status: z.string(),
 });
 export type CalendarEntry = z.infer<typeof CalendarEntry>;
@@ -143,7 +141,6 @@ export const DiscoverDetail = z.object({
   requestStatus: RequestStatus.nullable(),
   requestProgress: z.number().nullable(),
   airStatus: z.string().nullable(),
-  /** `YYYY-MM-DD`. */
   nextAirDate: z.string().nullable(),
 });
 export type DiscoverDetail = z.infer<typeof DiscoverDetail>;
@@ -178,11 +175,9 @@ export const PersonDetail = z.object({
   tmdbId: z.number(),
   name: z.string(),
   biography: z.string().nullish(),
-  /** `YYYY-MM-DD`. */
   birthday: z.string().nullish(),
   deathday: z.string().nullish(),
   placeOfBirth: z.string().nullish(),
-  /** TMDB's department vocabulary ("Acting", "Directing", …). */
   knownFor: z.string().nullish(),
   profileUrl: z.string().nullish(),
   tmdbUrl: z.string(),

@@ -43,7 +43,6 @@ pub async fn for_you(
     }
 }
 
-/// `GET /api/items/{id}/similar`.
 pub async fn similar(
     State(state): State<SharedState>,
     ReqLocale(locale): ReqLocale,

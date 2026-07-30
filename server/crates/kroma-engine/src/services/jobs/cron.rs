@@ -18,7 +18,7 @@ pub struct Cron {
     dow_star: bool,
 }
 
-/// A hard stop for an unsatisfiable spec like `0 0 30 2 *` (Feb 30th).
+// A hard stop for an unsatisfiable spec like `0 0 30 2 *` (Feb 30th).
 const MAX_STEPS: usize = 100_000;
 
 impl Cron {

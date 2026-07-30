@@ -15,8 +15,8 @@ export const VIDEO_SOURCES = [
   },
 ] as const;
 
-/** Fallback when the audio is blocked: past the 4.992 s sting, so a sting that
- * does play always reaches its own `ended`. */
+// Fallback when the audio is blocked: past the 4.992s sting, so a sting that
+// does play always reaches its own `ended`.
 export const SAFETY_MS = 5400;
 export const EXIT_MS = 850;
 export const SAFETY_SLACK_MS = 1500;

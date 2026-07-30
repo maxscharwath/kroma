@@ -115,7 +115,6 @@ export function masterNeedsAac(
  * `item.audioTracks` in a different order than the player last saw.
  */
 export interface AudioTrackId {
-  /** Audio-relative stream index (`-map 0:a:<index>`). */
   index: number;
   language: string | null;
   title: string | null;
@@ -246,9 +245,8 @@ export interface PlayEnv {
   platform: 'web' | 'tizen' | 'webos' | 'desktop';
   safari: boolean;
   runtimeCaps?: PlaybackCapabilities;
-  /** Prefer the platform's native HLS pipeline over MSE/hls.js: legacy webOS
-   * (Chromium < 99) cannot decode HEVC through MSE but plays the master
-   * natively, surround included. */
+  // Legacy webOS (Chromium < 99) cannot decode HEVC through MSE but plays the
+  // master natively; prefer the platform's HLS pipeline over MSE/hls.js there.
   nativeHls?: boolean;
 }
 

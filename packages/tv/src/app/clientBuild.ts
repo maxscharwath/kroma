@@ -17,7 +17,6 @@ export interface BuildInfo {
   repository: string | null;
 }
 
-/** Bump when the client starts relying on a server API older servers lack. */
 const MIN_SERVER_VERSION = '0.1.0';
 
 // Read through `typeof`: under Metro the name is not declared at all and

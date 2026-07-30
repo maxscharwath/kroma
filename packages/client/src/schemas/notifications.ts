@@ -44,7 +44,6 @@ export const NotificationAction = z.object({
   id: z.string(),
   label: z.string(),
   kind: ActionKind,
-  /** Client route for `link`, API path for `api`. */
   href: z.string(),
   method: z.string().optional(),
   style: ActionStyle.default('default'),

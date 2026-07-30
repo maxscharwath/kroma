@@ -196,8 +196,8 @@ export function SeekBar({
             const buffed = clamp01((bufMs - seg.startMs) / span);
             return (
               // `flex={span}`: a segment is as wide as its chapter is long, so the
-              // playhead agrees with its own fill. `h="100%"` rather than the scaled
-              // height mints one shared style instead of one per chapter per scale.
+              // playhead agrees with its fill. `h="100%"` mints one shared style,
+              // not one per chapter per scale.
               <Box
                 key={seg.startMs}
                 flex={span}

@@ -7,13 +7,13 @@ import type { Plugin } from 'vite';
 import { OgCard } from './og-card';
 import { OG_CARDS } from './og-cards';
 
-// The Open Graph social cards, one PNG per locale, emitted into `dist/client` by the
-// client build and served from memory in dev. JSX -> PNG with Takumi (a Rust renderer)
-// in this process: no browser, no network, no subprocess. The card is ./og-card.tsx.
+// The Open Graph social cards, one PNG per locale, emitted into `dist/client`
+// by the client build and served from memory in dev. JSX -> PNG with Takumi
+// (a Rust renderer) in this process: no browser, no network, no subprocess.
 
-// Resolved through the package NAME rather than by walking up out of this package.
-// The require is based on this package's own package.json rather than `import.meta.url`,
-// which the config loader rewrites to a binding it defines only for the config file.
+// Resolved through the package name rather than by walking up out of this
+// package. Based on this package's own package.json rather than
+// `import.meta.url`, which the config loader rewrites for the config file only.
 const kitFont = (root: string, file: string) =>
   createRequire(join(root, 'package.json')).resolve(`@kroma/ui/src/assets/fonts/${file}`);
 

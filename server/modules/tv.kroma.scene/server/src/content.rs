@@ -33,7 +33,6 @@ impl ContentKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentFile {
-    /// Index in the torrent's file list, which is what `only_files` selects on.
     pub index: usize,
     pub path: String,
     pub size_bytes: u64,
@@ -45,9 +44,7 @@ pub struct ContentFile {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TorrentContent {
     pub kind: ContentKind,
-    /// Distinct seasons present, ascending.
     pub seasons: Vec<u32>,
-    /// Every file, video and extras, in torrent order.
     pub files: Vec<ContentFile>,
 }
 

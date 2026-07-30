@@ -2,7 +2,6 @@
 declare module 'virtual:build-info' {
   export interface BuildInfo {
     version: string;
-    /** Short commit hash, or 'unknown' when built outside a git checkout. */
     commit: string;
     commitFull: string;
     branch: string;

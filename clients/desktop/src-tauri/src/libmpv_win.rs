@@ -20,9 +20,8 @@ pub type MpvState = MpvSlot;
 /// or an early no-op `mpv_load` strands playback instead of using `<video>`.
 pub fn init(app: &AppHandle, hwnd: i64) -> bool {
     let mpv = match Mpv::with_initializer(|init| {
-        // With a `wid` mpv renders into a child surface instead of its own window.
         init.set_property("wid", hwnd)?;
-        // gpu output + hardware decode: d3d11va for HEVC/H264, dav1d for AV1.
+        // d3d11va for HEVC/H264, dav1d for AV1.
         init.set_property("vo", "gpu")?;
         init.set_property("hwdec", "auto-safe")?;
         libmpv_shared::apply_common_options(&init)

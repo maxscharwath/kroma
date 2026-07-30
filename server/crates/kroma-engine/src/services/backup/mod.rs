@@ -18,7 +18,7 @@ use archive::Assets;
 #[derive(Debug)]
 pub enum ImportError {
     PasswordRequired,
-    /// Wrong password or corrupted ciphertext (the AEAD tag failed).
+    // Also covers a corrupted ciphertext (the AEAD tag failed to verify).
     WrongPassword,
     Invalid(anyhow::Error),
     Db(anyhow::Error),
@@ -106,7 +106,6 @@ fn local_image_name(url: &str) -> Option<&str> {
     url.strip_prefix(PUBLIC_PREFIX).filter(|n| is_safe_name(n))
 }
 
-/// A bare cache filename: no separators, no `..` traversal.
 fn is_safe_name(name: &str) -> bool {
     !name.is_empty() && !name.contains('/') && !name.contains('\\') && !name.contains("..")
 }

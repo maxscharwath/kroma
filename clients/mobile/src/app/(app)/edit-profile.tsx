@@ -186,7 +186,6 @@ export default function EditProfile() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          {/* The photo is the control; the badge is the affordance. */}
           <View style={styles.identity}>
             <Pressable
               onPress={() => void pickPhoto()}

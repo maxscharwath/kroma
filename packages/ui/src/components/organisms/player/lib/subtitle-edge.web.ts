@@ -1,7 +1,6 @@
-// The CEA-708 subtitle edge treatments, web: each drawn as the standard
-// describes it, with a comma-separated list of text shadows. The background is
-// its own CEA-708 layer, not an edge treatment; it lives in
-// subtitle-appearance.ts.
+// The CEA-708 subtitle edge treatments, web: drawn as the standard describes,
+// via comma-separated text shadows. The background is a separate CEA-708 layer
+// (subtitle-appearance.ts), not an edge treatment.
 
 import type { TextStyle } from 'react-native';
 import type { SubEdge } from './subtitle-appearance';

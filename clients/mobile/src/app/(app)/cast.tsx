@@ -63,7 +63,6 @@ function RemoteActions({
       {isEpisode ? (
         <Wide icon="player-track-next" label={t('player.nextEpisode')} onPress={onNext} />
       ) : null}
-      {/* Two distinct endings: keep watching here, or leave the set idle. */}
       <Wide icon="device-mobile" label={t('cast.continueHere')} onPress={onContinueHere} />
       <Wide
         icon="player-stop-filled"

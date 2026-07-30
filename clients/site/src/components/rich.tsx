@@ -7,7 +7,6 @@ const CLASS: Record<Exclude<RichToken['kind'], 'text'>, string> = {
 };
 
 export interface RichProps {
-  /** A catalog message, with `[amber]`, `` `mono` `` and `*bright*` markers. */
   children: string;
 }
 

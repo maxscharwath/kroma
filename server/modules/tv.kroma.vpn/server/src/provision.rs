@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 
 use tokio::process::Command;
 
-/// Never track `latest`: an upstream change (e.g. v1.1.3's SNI-proxy rework) can
-/// break the opaque BitTorrent TCP the bridge carries while HTTPS keeps working,
-/// which looks like "VPN green but downloads dead". Bump only after verifying
-/// peer flows (`cargo run -p kroma-torrent --example engine_probe --features rqbit`).
+// Never track `latest`: an upstream change (e.g. v1.1.3's SNI-proxy rework) can
+// break the opaque BitTorrent TCP the bridge carries while HTTPS keeps working,
+// which looks like "VPN green but downloads dead". Bump only after verifying
+// peer flows (`cargo run -p kroma-torrent --example engine_probe --features rqbit`).
 const VERSION: &str = "v1.1.2";
 const RELEASE: &str = "https://github.com/windtf/wireproxy/releases/download";
 

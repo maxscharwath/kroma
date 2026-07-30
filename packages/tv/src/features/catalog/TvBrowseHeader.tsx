@@ -90,8 +90,6 @@ function FocusEcho({ entry }: Readonly<{ entry: CatalogEntry }>) {
   );
 }
 
-/** Memoised: the browse screen re-renders on every focus move (so, with a
- * pointer, on every hover), and this strip depends on none of that. */
 const BrowseFiltersImpl = function BrowseFilters({
   sort,
   onSort,
@@ -155,4 +153,6 @@ const BrowseFiltersImpl = function BrowseFilters({
   );
 };
 
+// Memoised: the browse screen re-renders on every focus move (so, with a
+// pointer, on every hover), and this strip depends on none of that.
 export const BrowseFilters = memo(BrowseFiltersImpl);

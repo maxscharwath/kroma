@@ -20,7 +20,7 @@ pub enum NotificationCategory {
     Media,
     Reports,
     Downloads,
-    /// Admin-only (`settings.manage`).
+    // Admin-only (`settings.manage`).
     System,
 }
 
@@ -86,7 +86,7 @@ pub enum NotificationEvent {
     SystemJobFailed,
     #[serde(rename = "system.disk.low")]
     SystemDiskLow,
-    /// A "push is working" message from settings. Never persisted.
+    // A "push is working" message from settings. Never persisted.
     #[serde(rename = "system.test")]
     SystemTest,
     #[serde(rename = "custom")]
@@ -203,7 +203,7 @@ pub struct NotificationAction {
     pub id: String,
     pub label: String,
     pub kind: ActionKind,
-    /// Client route for [`ActionKind::Link`], API path for [`ActionKind::Api`].
+    // Client route for `ActionKind::Link`, API path for `ActionKind::Api`.
     pub href: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
@@ -233,10 +233,10 @@ pub struct ActionSpec {
 pub enum ParamValue {
     Text(String),
     Key(String),
-    /// A bare string from a row written before params were typed, where a key
-    /// and a literal were the same thing on the wire. It stays ambiguous on
-    /// purpose: resolved only when it names a REAL catalog entry, and only for
-    /// these old rows. See `services::notify::render`.
+    // A bare string from a row written before params were typed, where a key
+    // and a literal were the same thing on the wire. It stays ambiguous on
+    // purpose: resolved only when it names a REAL catalog entry, and only for
+    // these old rows. See `services::notify::render`.
     Legacy(String),
 }
 
@@ -254,8 +254,8 @@ impl ParamValue {
 }
 
 impl<'de> Deserialize<'de> for ParamValue {
-    /// Accepts the tagged form AND a bare string: without the latter an existing
-    /// row's whole `params` map fails to parse and renders unsubstituted.
+    // Accepts the tagged form AND a bare string: without the latter an existing
+    // row's whole `params` map fails to parse and renders unsubstituted.
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         #[serde(untagged)]
@@ -289,8 +289,8 @@ pub struct NotificationSpec {
     pub actions: Vec<ActionSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub push_category: Option<PushCategory>,
-    /// Only a [`NotificationEvent::Custom`] may set this; a core event's
-    /// category is not the producer's to override.
+    // Only a `NotificationEvent::Custom` may set this; a core event's category
+    // is not the producer's to override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<NotificationCategory>,
 }
@@ -383,8 +383,8 @@ pub struct Notification {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_url: Option<String>,
     pub actions: Vec<NotificationAction>,
-    /// APNs and Android can only show buttons from a set the app registered at
-    /// launch, so this names one. Ignored by the web client, which uses `actions`.
+    // APNs and Android can only show buttons from a set the app registered at
+    // launch, so this names one. Ignored by the web client, which uses `actions`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub push_category: Option<PushCategory>,
     pub read: bool,

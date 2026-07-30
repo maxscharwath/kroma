@@ -61,11 +61,11 @@ pub struct AnnounceBody {
     pub playback: Option<CastPlayback>,
 }
 
+/// `POST /api/cast/announce` response: pending commands (oldest first) and the
+/// heartbeat interval after which the receiver drops off the roster.
 #[derive(Debug, Serialize)]
 pub struct AnnounceReply {
-    /// Oldest first.
     pub commands: Vec<CastCommandEnvelope>,
-    /// After this long without a beat, the receiver drops off the roster.
     #[serde(rename = "ttlSecs")]
     pub ttl_secs: u64,
 }

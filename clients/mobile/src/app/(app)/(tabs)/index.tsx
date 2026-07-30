@@ -75,7 +75,6 @@ function HomeHeader() {
         >
           <DownloadsGlyph />
         </IconButton>
-        {/* Beside the avatar: the account anchors the right edge of the row. */}
         <NotificationBell />
         <IconButton
           variant="ghost"

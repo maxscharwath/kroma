@@ -39,15 +39,12 @@ pub enum ServerEvent {
     PlaybackUpdated { count: usize },
     #[serde(rename = "playback.stopped")]
     PlaybackStopped { count: usize },
-    /// The owning client must stop and show `message` (empty → localized default).
     #[serde(rename = "playback.terminate")]
     PlaybackTerminate {
         #[serde(rename = "sessionId")]
         session_id: String,
         message: String,
     },
-    /// Carries the whole receiver row so every sender patches its list in place,
-    /// avoiding an HTTP refetch by every client on every change.
     #[serde(rename = "cast.receiver")]
     CastReceiverChanged {
         receiver: Box<crate::model::CastReceiver>,
@@ -57,8 +54,6 @@ pub enum ServerEvent {
         #[serde(rename = "receiverId")]
         receiver_id: String,
     },
-    /// Deliberately tiny and separate from `cast.receiver`: fires on every
-    /// heartbeat of a playing TV.
     #[serde(rename = "cast.position")]
     CastPosition {
         #[serde(rename = "receiverId")]
@@ -69,8 +64,6 @@ pub enum ServerEvent {
         duration_ms: Option<i64>,
         state: crate::model::CastState,
     },
-    /// Addressed to the receiver's own account ([`Audience::User`]) so a command
-    /// is never fanned out to other households' sockets.
     #[serde(rename = "cast.command")]
     CastCommandIssued {
         #[serde(rename = "receiverId")]
@@ -91,7 +84,6 @@ pub enum ServerEvent {
         #[serde(rename = "runId")]
         run_id: String,
     },
-    /// `total == 0` means indeterminate progress.
     #[serde(rename = "job.progress")]
     JobProgress {
         key: String,
@@ -107,7 +99,6 @@ pub enum ServerEvent {
         level: &'static str,
         message: String,
     },
-    /// `status`: success | failed | cancelled.
     #[serde(rename = "job.finished")]
     JobFinished {
         key: String,
@@ -115,8 +106,6 @@ pub enum ServerEvent {
         run_id: String,
         status: String,
     },
-    /// Throttled, carrying only aggregate per-stage counts, so the admin
-    /// dashboard updates live without polling the ledger.
     #[serde(rename = "pipeline.stats")]
     PipelineStats {
         stages: Vec<crate::model::StageStat>,
@@ -130,28 +119,18 @@ pub enum ServerEvent {
     // no module event type.
 }
 
-/// Who an event is for.
-///
-/// Most of the bus is server-wide activity every signed-in client may see (scans,
-/// jobs, playback counts). Notifications are not: "your request was denied" names
-/// its recipient, so it is addressed and the socket pump drops it for everyone
-/// else. Without this the bus would leak one user's notifications to every other
-/// connected client.
+/// Who an event is for. Most of the bus is server-wide activity every
+/// signed-in client may see; a notification names its recipient instead, so it
+/// is addressed and the socket pump drops it for everyone else.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Audience {
-    /// Any authenticated socket.
     Everyone,
-    /// Only sockets authenticated as this user id.
     User(std::sync::Arc<str>),
 }
 
-/// One bus message: the pre-serialized event plus who may see it.
-///
-/// The payload is deliberately NOT reachable without naming a viewer. This type
-/// exists to stop one user's notifications reaching another's socket, and a
-/// `Deref<Target = str>` (or a public field) would make `socket.send(&*env)`
-/// compile and silently do exactly that. [`Self::payload_for`] is the only way
-/// in, so the routing decision cannot be skipped by accident.
+/// One bus message: the pre-serialized event plus who may see it. The payload
+/// is deliberately unreachable without naming a viewer via [`Self::payload_for`],
+/// so the routing decision can't be skipped by accident.
 #[derive(Clone, Debug)]
 pub struct Envelope {
     audience: Audience,
@@ -221,9 +200,6 @@ impl Bus {
         self.send(Audience::User(user_id.into()), &value);
     }
 
-    /// Serialize once and hand the envelope to the channel. Skipped entirely
-    /// while nobody is subscribed, so publishing costs nothing on a headless
-    /// server.
     fn send<T: Serialize>(&self, audience: Audience, payload: &T) {
         if self.tx.receiver_count() == 0 {
             return;
@@ -258,7 +234,6 @@ mod tests {
         let mut a = bus.subscribe();
         let mut b = bus.subscribe();
         bus.publish(item("x"));
-        // Server-wide activity: both sockets see it, whoever they are.
         for rx in [&mut a, &mut b] {
             let env = rx.try_recv().expect("published to all subscribers");
             assert!(env.visible_to("alice"));

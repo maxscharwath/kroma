@@ -26,12 +26,10 @@ import { imageUrl } from '#web/shared/lib/api';
 export interface TitleSeason {
   number: number;
   name: string | null;
-  /** TMDB count; 0 when unknown or local-only. */
   episodeCount: number;
   episodesAvailable: number;
   available: boolean;
   requested: boolean;
-  /** YYYY-MM-DD, `null` for owned-only / undated seasons. */
   airDate: string | null;
   episodes: MediaItem[];
   cast: CastMember[];
@@ -65,7 +63,6 @@ export interface TitleView {
   cast: CastMember[];
   themeUrl: string | null;
   video: VideoTrack | null;
-  /** The item Play targets: a movie, or a show's up-next / first episode. */
   playable: MediaItem | null;
   playLabel: string | null;
   seasons: TitleSeason[];

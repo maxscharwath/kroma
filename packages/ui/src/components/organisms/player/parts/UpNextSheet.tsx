@@ -37,7 +37,7 @@ export interface UpNextSheetProps {
   onPlay: (item: UpNextItem) => void;
 }
 
-/** The player's bottom chrome has to clear exactly this much (see Player.tsx). */
+// The player's bottom chrome has to clear exactly this much (see Player.tsx).
 export const PEEK_HEIGHT = 150;
 const SHEET_FRACTION = 0.82;
 

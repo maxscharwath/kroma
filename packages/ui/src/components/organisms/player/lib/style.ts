@@ -7,11 +7,10 @@ import type { TextStyle, ViewStyle } from 'react-native';
 import { colors, fonts, glow, radius, ring } from '#ui/lib/tokens';
 
 export const FOCUS_SHADOW = `${ring.focus}, ${glow.accent}`;
-/** Thinner ring, for dense rows. */
 export const FOCUS_SHADOW_SM = `${ring.focusSm}, ${glow.accent}`;
 export const FOCUS_SCALE = 1.07;
 
-/** Shared with the mobile touch scrub bar so both draw the identical track. */
+// Shared with the mobile touch scrub bar so both draw the identical track.
 export const SEEK_BAR = {
   track: 'rgba(255, 255, 255, 0.2)',
   buffered: 'rgba(255, 255, 255, 0.28)',

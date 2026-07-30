@@ -35,7 +35,7 @@ const WEB = Platform.OS === 'web';
 
 const TRAVEL_MS = 260;
 const CHASE_MS = 160;
-/** Inside the slop a touch is a tap and belongs to the item's own pressable. */
+// Inside the slop a touch is a tap and belongs to the item's own pressable.
 const SLIDE_SLOP = 8;
 const EASE_CSS = ease.spring.css;
 const EASE_NATIVE = ease.spring.native;

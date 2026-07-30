@@ -1,7 +1,6 @@
-/** Live catalog assembly for the dynamic Synology package source: the GitHub
- * Releases list plus the `<spk>.info.json` sidecars CI attaches to every .spk,
- * turned into channel-aware catalog entries. Publishing a release IS the deploy.
- */
+// Live catalog assembly for the dynamic Synology package source: the GitHub Releases list plus
+// the `<spk>.info.json` sidecars CI attaches to every .spk, turned into channel-aware catalog
+// entries. Publishing a release IS the deploy.
 
 export type Env = {
   GITHUB_REPO?: string;

@@ -26,8 +26,7 @@ pub struct TransData {
     pub overview: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub genres: Vec<String>,
-    /// Aligned by index to the subject's core `cast` (or the season cast for
-    /// `season_cast`).
+    // Aligned by index to the subject's core `cast` (or the season cast for `season_cast`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub characters: Vec<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

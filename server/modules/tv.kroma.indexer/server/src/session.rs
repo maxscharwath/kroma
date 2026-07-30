@@ -15,7 +15,7 @@ use crate::definition::{Definition, Download, Login};
 use crate::selector;
 use crate::{engine, template, IndexerConfig, Query, Release};
 
-/// A desktop-browser User-Agent: many trackers 403 the default curl UA.
+// A desktop-browser User-Agent: many trackers 403 the default curl UA.
 const USER_AGENT: &str =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
@@ -26,9 +26,7 @@ pub struct Session {
     def: Definition,
     cfg: IndexerConfig,
     cookie_jar: PathBuf,
-    /// `socks5://127.0.0.1:port` - the VPN bridge.
     socks5: Option<String>,
-    /// `http://host:8191`, when the tracker sits behind Cloudflare.
     flaresolverr: Option<String>,
     state: Mutex<SessionState>,
 }
@@ -51,8 +49,6 @@ pub struct SearchOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DownloadTarget {
     Magnet(String),
-    /// Needs the session cookie for private trackers - fetch via
-    /// [`Session::fetch_torrent`] rather than requesting the bare URL.
     TorrentUrl(String),
 }
 
@@ -332,7 +328,6 @@ impl Session {
                 return;
             }
         };
-        // Preprocessing filters run on the raw body before parsing.
         let body = engine::preprocess(&self.def, &self.cfg, &body);
         let parsed = match req.response_kind.as_str() {
             "json" => engine::parse_json(&self.def, &self.cfg, &body),
@@ -356,8 +351,6 @@ impl Session {
         self.ensure_login()?;
         Ok(self.def.name.clone())
     }
-
-    // ----- download resolution ----------------------------------------------------
 
     /// Turn a search result into something grabbable: its magnet if present,
     /// else the `.torrent` link, else by fetching the details page and applying
@@ -392,7 +385,8 @@ impl Session {
         bail!("release has no magnet, link, or download rule")
     }
 
-    /// First non-empty `download` selector match on the fetched details page.
+    // Tries selectors in order and skips an empty match, rather than stopping
+    // at the first selector that merely exists.
     fn download_from_selectors(
         &self,
         download: &Download,
@@ -416,7 +410,6 @@ impl Session {
         None
     }
 
-    /// Synthesize a magnet from an `infohash` rule on the details page, if any.
     fn download_from_infohash(
         &self,
         download: &Download,
@@ -441,9 +434,7 @@ impl Session {
     }
 }
 
-// ----- pure helpers ---------------------------------------------------------------
-
-/// One jar per indexer id so two configs never share a session.
+// One jar per indexer id so two configs never share a session.
 fn cookie_jar_path(data_dir: &Path, indexer_id: &str) -> PathBuf {
     let safe: String = indexer_id.chars().map(|c| if c.is_alphanumeric() { c } else { '_' }).collect();
     data_dir.join("indexers").join(format!("{safe}.cookies"))
@@ -462,7 +453,6 @@ struct ScrapedForm {
     fields: Vec<(String, String)>,
 }
 
-/// Scrape a login form: its resolved action URL and existing named inputs.
 fn scrape_form(html: &str, form_sel: &str, page_url: &str, base_url: &str) -> ScrapedForm {
     let doc = selector::parse_document(html);
     let root = doc.root_element();
@@ -495,7 +485,7 @@ fn set_field(fields: &mut Vec<(String, String)>, name: &str, value: String) {
     }
 }
 
-/// The FlareSolverr `/v1` request body (`postData` set only for `request.post`).
+// The FlareSolverr `/v1` request body (`postData` set only for `request.post`).
 fn flaresolverr_body(cmd: &str, url: &str, post_data: Option<String>) -> serde_json::Value {
     let mut body = serde_json::json!({ "cmd": cmd, "url": url, "maxTimeout": 60000 });
     if let Some(pd) = post_data {
@@ -504,7 +494,6 @@ fn flaresolverr_body(cmd: &str, url: &str, post_data: Option<String>) -> serde_j
     body
 }
 
-/// Append url-encoded query params to a URL (respecting an existing `?`).
 fn append_query(url: &str, query: &[(String, String)]) -> String {
     if query.is_empty() {
         return url.to_string();
@@ -513,7 +502,6 @@ fn append_query(url: &str, query: &[(String, String)]) -> String {
     format!("{url}{sep}{}", form_encode(query))
 }
 
-/// `k=v&k=v` url-encoded form body.
 fn form_encode(fields: &[(String, String)]) -> String {
     fields
         .iter()

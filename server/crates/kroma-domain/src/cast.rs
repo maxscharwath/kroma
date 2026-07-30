@@ -14,8 +14,8 @@ pub enum CastState {
     Playing,
     Paused,
     Buffering,
-    /// Anything a newer client invents, so an older server never rejects a
-    /// heartbeat it merely doesn't recognize.
+    // Anything a newer client invents, so an older server never rejects a
+    // heartbeat it merely doesn't recognize.
     #[serde(other)]
     Unknown,
 }
@@ -42,7 +42,7 @@ pub struct CastPlayback {
     pub audio_tracks: Vec<CastTrack>,
     #[serde(rename = "audioIndex", default)]
     pub audio_index: Option<i64>,
-    /// A `None` index means subtitles off.
+    // A `None` subtitle_index means subtitles off.
     #[serde(default)]
     pub subtitles: Vec<CastTrack>,
     #[serde(rename = "subtitleIndex", default)]
@@ -70,8 +70,8 @@ pub struct CastNowPlaying {
 /// a device that walks out of the room leaves the list on its own.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CastController {
-    /// Server-minted and socket-scoped, never client-supplied, so one sender
-    /// cannot impersonate another in the list a television shows.
+    // Server-minted and socket-scoped, never client-supplied, so one sender
+    // cannot impersonate another in the list a television shows.
     pub id: String,
     pub name: String,
     pub username: String,
@@ -84,10 +84,9 @@ pub struct CastReceiver {
     pub id: String,
     pub name: String,
     pub platform: String,
-    /// Deliberately the only identity here: no account id and no per-reader
-    /// "mine" flag, so one row can be pushed unchanged to every viewer.
+    // Deliberately the only identity here: no account id and no per-reader
+    // "mine" flag, so one row can be pushed unchanged to every viewer.
     pub username: String,
-    /// `LAN` | `WAN`, from the same classifier the playback dashboard uses.
     pub network: String,
     #[serde(rename = "nowPlaying", skip_serializing_if = "Option::is_none")]
     pub now_playing: Option<CastNowPlaying>,
@@ -112,7 +111,7 @@ pub enum CastCommand {
         #[serde(rename = "positionMs")]
         position_ms: i64,
     },
-    /// Relative jump in milliseconds; negative goes back.
+    // Relative jump in milliseconds; negative goes back.
     Skip {
         #[serde(rename = "deltaMs")]
         delta_ms: i64,
@@ -120,7 +119,7 @@ pub enum CastCommand {
     SkipNext,
     Stop,
     SetAudio { index: usize },
-    /// `null` turns subtitles off.
+    // `null` turns subtitles off.
     SetSubtitle { index: Option<usize> },
 }
 

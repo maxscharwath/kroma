@@ -13,7 +13,7 @@ use crate::model::MediaItem;
 
 use super::snapshot::snapshot;
 
-/// Clients heartbeat every ~10s, so this tolerates a couple of missed beats.
+// Clients heartbeat every ~10s, so this tolerates a couple of missed beats.
 const SESSION_TTL: Duration = Duration::from_secs(30);
 const REAP_INTERVAL: Duration = Duration::from_secs(10);
 
@@ -51,29 +51,29 @@ pub struct Session {
     #[serde(rename = "audioLabel")]
     pub audio_label: String,
     pub subtitle: String,
-    /// Mb/s, approximated from file size ÷ duration.
+    // Mb/s, approximated from file size ÷ duration.
     pub bitrate: f64,
-    /// `direct` | `transcode`.
+    // `direct` | `transcode`.
     pub mode: String,
     pub player: String,
     pub device: String,
-    /// `LAN` | `WAN`.
+    // `LAN` | `WAN`.
     pub network: String,
     pub ip: String,
-    /// `playing` | `paused`.
+    // `playing` | `paused`.
     pub state: String,
     #[serde(rename = "positionMs")]
     pub position_ms: i64,
     #[serde(rename = "durationMs")]
     pub duration_ms: Option<i64>,
-    /// Unix seconds, server clock.
+    // Unix seconds, server clock.
     #[serde(rename = "startedAt")]
     pub started_at: i64,
     #[serde(skip)]
     last_seen: Instant,
 }
 
-/// Long enough that in-flight heartbeats can't re-register a terminated session.
+// Long enough that in-flight heartbeats can't re-register a terminated session.
 const TERMINATE_GRACE: Duration = Duration::from_secs(60);
 
 /// Shared, cheap-to-clone handle to the live-session map.

@@ -34,9 +34,7 @@ impl std::str::FromStr for Category {
 pub struct JobRun {
     pub id: String,
     pub job_key: String,
-    /// `"manual"` | `"schedule"`.
     pub trigger: String,
-    /// `"running"` | `"success"` | `"failed"` | `"cancelled"`.
     pub status: String,
     pub started_at: i64,
     pub finished_at: Option<i64>,
@@ -49,7 +47,6 @@ pub struct JobRun {
 #[derive(Debug, Clone, Serialize)]
 pub struct JobLog {
     pub ts: i64,
-    /// `"info" | "warn" | "error"`.
     pub level: String,
     pub message: String,
 }
@@ -57,14 +54,14 @@ pub struct JobLog {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobInfo {
-    /// Stable dotted key (`"library.scan"`): the DB key, the
-    /// `/api/admin/jobs/:key` segment, and the i18n base for `name` /
-    /// `description` (`jobs.{key}.name` / `.desc`).
+    // Stable dotted key (`"library.scan"`): the DB key, the
+    // `/api/admin/jobs/:key` segment, and the i18n base for `name` /
+    // `description` (`jobs.{key}.name` / `.desc`).
     pub key: String,
     pub name: String,
     pub description: String,
     pub category: Category,
-    /// Cron expression; `None` means manual-only.
+    // Cron expression; `None` means manual-only.
     pub schedule: Option<String>,
     pub default_schedule: Option<String>,
     pub customized: bool,

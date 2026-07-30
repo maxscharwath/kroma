@@ -12,7 +12,7 @@ pub const PUBLIC_PREFIX: &str = "/api/themes/";
 
 const ARCHIVE: &str = "http://tvthemes.plexapp.com";
 
-/// Anything smaller is an error body, not a theme.
+// Anything smaller is an error body, not a theme.
 const MIN_BYTES: u64 = 8 * 1024;
 
 static TMP_SEQ: AtomicU64 = AtomicU64::new(0);

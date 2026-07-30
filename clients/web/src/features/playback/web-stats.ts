@@ -37,7 +37,6 @@ export interface WebStatsInput {
   audioIndex: number;
   fps?: number;
   engine?: EngineLiveStats | null;
-  /** Total stream size, for the average bitrate. */
   bytes: number;
   t: Translate;
 }
@@ -161,9 +160,8 @@ function statsRows(s: WebStatsInput, m: StatsMetrics): ExtraRow[] {
 // Shaka's own default `bufferingGoal`.
 const LOW_BUFFER_SEC = 10;
 
-// Bandwidth and bitrate share one chart - the gap between them is the
-// diagnostic. Colours are the panel's to assign, from a palette validated as a
-// set for colourblind separation.
+// Bandwidth and bitrate share one chart: the gap between them is the
+// diagnostic. Colours are the panel's to assign, from a colourblind-safe palette.
 function buildMeters(s: WebStatsInput, m: StatsMetrics): PlayerMeter[] {
   const meters: PlayerMeter[] = [];
   const eng = s.engine;

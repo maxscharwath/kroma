@@ -314,8 +314,8 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Skips the sync on `mount_outage`: `sync_all` would treat every real library
-/// as vanished and cascade-delete it along with its probed metadata.
+// Skips the sync on `mount_outage`: `sync_all` would treat every real library
+// as vanished and cascade-delete it along with its probed metadata.
 fn persist_startup_scan(
     db: &db::Pool,
     data: &services::scan::ScanData,
@@ -407,9 +407,9 @@ fn cert_download_route(cert_pem: std::sync::Arc<String>) -> axum::routing::Metho
     })
 }
 
-/// Keeps the cert download on plain HTTP so a device can trust the self-signed
-/// cert first. 307 (not 303) so non-GET calls keep their method + body, and
-/// temporary so browsers don't cache it past a later toggle-off.
+// Keeps the cert download on plain HTTP so a device can trust the self-signed
+// cert first. 307 (not 303) so non-GET calls keep their method + body, and
+// temporary so browsers don't cache it past a later toggle-off.
 fn https_redirect_router(
     https_port: u16,
     cert_pem: Option<std::sync::Arc<String>>,
@@ -438,7 +438,7 @@ fn https_redirect_router(
     })
 }
 
-/// `None` when disabled or when cert/config setup fails (logged; HTTP still serves).
+// `None` when disabled or when cert/config setup fails (logged; HTTP still serves).
 async fn build_https(
     state: &state::SharedState,
 ) -> Option<(std::path::PathBuf, axum_server::tls_rustls::RustlsConfig, std::net::SocketAddr)> {
@@ -529,7 +529,6 @@ async fn shutdown_signal() {
     info!("shutdown signal received");
 }
 
-/// The returned guard must be held for the process lifetime so buffered lines flush.
 fn init_tracing(log_dir: &std::path::Path) -> Option<tracing_appender::non_blocking::WorkerGuard> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new("kroma_server=info,tower_http=info,axum=info,librqbit=info")

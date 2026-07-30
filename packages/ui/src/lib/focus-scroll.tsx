@@ -30,8 +30,8 @@ const PageScrollContext = createContext<((anchor: Anchor) => void) | null>(null)
 
 const RowContext = createContext<Anchor | null>(null);
 
-/** react-tv-space-navigation's own rail scroller is unusable: React 19 spreads
- *  `ref` like any prop and <Focusable>'s wins, so the library's ref is null. */
+// react-tv-space-navigation's own rail scroller is unusable: React 19 spreads
+// `ref` like any prop and <Focusable>'s wins, so the library's ref is null.
 const RailScrollContext = createContext<((anchor: Anchor) => void) | null>(null);
 
 // The tvos react-native fork's ViewStyle and mainline's are not assignable to

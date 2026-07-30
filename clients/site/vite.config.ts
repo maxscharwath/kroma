@@ -17,12 +17,12 @@ export default defineConfig({
     mdxPlugin(),
     ogPlugin(),
     tanstackStart({
-      // No `spa` mode: it would mask `/` as a content-agnostic shell and suppress
-      // the per-page HTML this content site needs for SEO.
+      // No `spa` mode: it would mask `/` as a content-agnostic shell and
+      // suppress the per-page HTML this content site needs for SEO.
       //
-      // Cloudflare's `404-page` handling serves the NEAREST 404.html walking up the
-      // path, which is what makes /fr/404.html the French one, and
-      // `autoSubfolderIndex: false` writes `404.html` instead of `404/index.html`.
+      // Cloudflare's `404-page` handling serves the nearest 404.html walking
+      // up the path (so /fr/404.html is the French one); `autoSubfolderIndex:
+      // false` writes `404.html` instead of `404/index.html`.
       pages: [
         {
           path: '/404',
@@ -38,14 +38,12 @@ export default defineConfig({
       prerender: {
         enabled: true,
         crawlLinks: true,
-        // Two kinds of crawled href are not a page: in-page anchors
-        // (`/#fonctionnalites`) and the trailing-slash twin of a path already queued.
-        // The FIRST spelling of a twin wins, not the slashless one: the route tree
-        // spells a directory index `/blog/` and only a link spells it `/blog`, so
-        // preferring the slashless twin would drop an index route nothing links to.
+        // Two kinds of crawled href are not a page: in-page anchors and the
+        // trailing-slash twin of a path already queued. The FIRST spelling of
+        // a twin wins, not the slashless one: the route tree spells a
+        // directory index `/blog/`, and only a link spells it `/blog`.
         //
-        // Returning false only skips the render - the crawler appends the page to the
-        // sitemap list before consulting this filter, so marking the object excluded
+        // Returning false only skips the render; marking `sitemap.exclude`
         // is what keeps it out of sitemap.xml.
         filter: (() => {
           const seen = new Set<string>();

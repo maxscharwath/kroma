@@ -16,10 +16,8 @@ export function SeasonPicker({
   seasons: TitleSeason[];
   title: string;
   busy: boolean;
-  /** Seasons ticked when the sheet opens; omit to preselect every open season. */
   initial?: number[];
   onClose: () => void;
-  /** `null` = all seasons. */
   onRequest: (seasons: number[] | null) => void;
 }>) {
   const t = useT();
@@ -52,7 +50,7 @@ export function SeasonPicker({
         onClick={onClose}
         className="fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px]"
       />
-      <aside className="fixed right-0 top-0 z-61 flex h-screen w-[420px] max-w-[92vw] flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)]">
+      <aside className="fixed right-0 top-0 z-61 flex h-screen w-105 max-w-[92vw] flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)]">
         <div className="flex items-center justify-between border-b border-white/[0.07] px-6 py-5">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">

@@ -103,12 +103,12 @@ fn audio_codec_args(spec: &str, copy: bool) -> Vec<String> {
     ]
 }
 
+/// `?copy=` and `?video=` name codecs the client decodes natively. Absent means
+/// the default (`copy` → `aac,ac3,eac3`; `video` → stream-copy the source);
+/// present but empty (`?copy=`) means none, so transcode every track.
 #[derive(Debug, Deserialize)]
 pub struct DownloadQuery {
-    /// Audio codecs the client decodes natively. Absent = `aac,ac3,eac3`;
-    /// present but empty (`?copy=`) = none of them, transcode every track.
     pub copy: Option<String>,
-    /// Video codecs the client decodes natively. Absent = stream-copy the source.
     pub video: Option<String>,
 }
 
@@ -189,10 +189,9 @@ pub async fn download_item(
     let mut stderr = child.stderr.take();
 
     // Wait for the first bytes before committing to a `200`: every structural
-    // failure (an unmuxable codec, a mapped track no longer in the file) is decided
-    // in the muxer's init, and past the status line a truncated body would be stored
-    // as a finished download. One read only - `ftyp` lands the moment init succeeds,
-    // while the first fragment can be minutes away on a long-GOP title.
+    // failure is decided in the muxer's init, and past the status line a
+    // truncated body would be stored as a finished download. One read only —
+    // `ftyp` lands the moment init succeeds, the first fragment can be minutes away.
     let mut head = vec![0u8; 64 * 1024];
     let filled = stdout.read(&mut head).await.unwrap_or(0);
     if filled == 0 {

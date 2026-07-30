@@ -20,8 +20,8 @@ public final class NativeSearchView: ExpoView, UISearchResultsUpdating {
     controller.obscuresBackgroundDuringPresentation = false
     return controller
   }()
-  /// The navigation controller is required, not cosmetic: presented bare, tvOS
-  /// lays the search out in its compact form instead of the full-screen one.
+  // The navigation controller is required, not cosmetic: presented bare, tvOS
+  // lays the search out in its compact form instead of the full-screen one.
   private lazy var containerViewController: UINavigationController = {
     let search = UISearchContainerViewController(searchController: searchController)
     let navigation = UINavigationController(rootViewController: search)
@@ -30,8 +30,8 @@ public final class NativeSearchView: ExpoView, UISearchResultsUpdating {
   }()
 
   private var attached = false
-  /// Guards the round trip through `updateSearchResults` so text set by React is
-  /// not reported back as if the user had typed it.
+  // Guards the round trip through `updateSearchResults` so text set by React is
+  // not reported back as if the user had typed it.
   private var textFromReact: String?
   private var reportedSize: CGSize = .zero
 
@@ -48,7 +48,7 @@ public final class NativeSearchView: ExpoView, UISearchResultsUpdating {
     didSet { searchController.searchBar.placeholder = placeholder }
   }
 
-  /// Ignored when the field already says this, so typing is never fought over.
+  // Ignored when the field already says this, so typing is never fought over.
   func setText(_ text: String) {
     guard searchController.searchBar.text != text else { return }
     textFromReact = text

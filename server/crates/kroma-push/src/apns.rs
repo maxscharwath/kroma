@@ -10,8 +10,8 @@ use serde_json::json;
 
 use crate::{jwt, PushRequest, Urgency};
 
-/// Apple allows one new token per 20 minutes and rejects one older than an
-/// hour; 45 minutes stays inside the expiry and outside the rate limit.
+// Apple allows one new token per 20 minutes and rejects one older than an
+// hour; 45 minutes stays inside the expiry and outside the rate limit.
 const TOKEN_LIFETIME_SECS: i64 = 45 * 60;
 
 /// Which APNs host a device token belongs to. A development-build token only
@@ -59,8 +59,8 @@ pub struct ApnsKey {
 }
 
 impl std::fmt::Debug for ApnsKey {
-    /// Never includes the key material: a `.p8` in a log or panic message is a
-    /// leaked Apple credential.
+    // Never includes the key material: a `.p8` in a log or panic message is a
+    // leaked Apple credential.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ApnsKey")
             .field("key_id", &self.key_id)

@@ -3,7 +3,7 @@
 use super::*;
 use kroma_domain::{Report, ReportCategory, ReportStatus, ReportSubjectKind};
 
-/// Positional order must match [`row_to_report`].
+// Positional order must match [`row_to_report`].
 const REPORT_COLS: &str = "r.id, r.subject_kind, r.subject_id, r.subject_title, r.category, \
     r.message, r.status, r.reported_by, u.username, r.resolved_by, r.resolved_at, \
     r.created_at, r.updated_at";

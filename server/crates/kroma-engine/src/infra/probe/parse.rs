@@ -95,7 +95,7 @@ fn build_audio(stream: &FfStream, index: u32) -> AudioStream {
     }
 }
 
-/// PQ / HLG transfer, or 10-bit+ with a wide-gamut primary.
+// PQ / HLG transfer, or 10-bit+ with a wide-gamut primary.
 fn is_hdr(stream: &FfStream, bit_depth: Option<u32>) -> bool {
     let transfer = stream.color_transfer.as_deref().unwrap_or("");
     if matches!(transfer, "smpte2084" | "arib-std-b67") {
@@ -108,7 +108,6 @@ fn is_hdr(stream: &FfStream, bit_depth: Option<u32>) -> bool {
     bit_depth.map(|b| b >= 10).unwrap_or(false) && wide_gamut
 }
 
-/// Fallback for when `bits_per_raw_sample` is absent.
 fn pixel_format_bit_depth(pix_fmt: Option<&str>) -> Option<u32> {
     let pix_fmt = pix_fmt?;
     if pix_fmt.contains("p10") || pix_fmt.contains("10le") || pix_fmt.contains("10be") {
@@ -161,7 +160,7 @@ pub(super) struct FfprobeOutput {
     chapters: Vec<FfChapter>,
 }
 
-/// `start_time`/`end_time` are seconds, as strings.
+// `start_time`/`end_time` are seconds, as strings.
 #[derive(Debug, Deserialize)]
 struct FfChapter {
     start_time: Option<String>,

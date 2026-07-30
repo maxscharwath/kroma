@@ -6,7 +6,6 @@ import { Animated } from 'react-native';
 import { useLoop } from '#ui/lib/loop';
 import { colors, radius as radii } from '#ui/lib/tokens';
 
-/** A full on/off cycle. */
 export const BLINK_MS = 1100;
 
 export interface CaretProps {

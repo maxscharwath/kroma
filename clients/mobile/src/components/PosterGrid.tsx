@@ -34,8 +34,6 @@ export function PosterGrid({
   empty?: React.ReactElement;
   refreshing?: boolean;
   onRefresh?: () => void;
-  /** Pages sitting on the raw window pass `useGutters()` so landscape clears
-   * the notch. */
   gutters?: { left: number; right: number };
 }>) {
   const [listW, setListW] = useState<number | null>(null);

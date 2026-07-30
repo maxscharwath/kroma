@@ -2,8 +2,8 @@
 
 use super::prelude::*;
 
-/// Chained after the `metadata` stage, which rewrites the fields the index is
-/// built from; without it a corrected title stays unsearchable.
+// Chained after the `metadata` stage, which rewrites the fields the index is
+// built from; without it a corrected title stays unsearchable.
 pub(super) const SPEC: Builtin = Builtin {
     key: JobKey("search.reindex"),
     category: Category::Library,

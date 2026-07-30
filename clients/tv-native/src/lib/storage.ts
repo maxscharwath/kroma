@@ -27,9 +27,8 @@ function handleIn(base: Directory): File {
   return new File(dir, FILE_NAME);
 }
 
-/** The first location this device actually accepts a write in. Resolved by
- * writing rather than asking: `exists` can report success on tvOS even where
- * the bytes never land. */
+// Resolved by writing rather than asking: `exists` can report success on tvOS
+// even where the bytes never land.
 function pickLocation(): File | null {
   for (const location of LOCATIONS) {
     try {

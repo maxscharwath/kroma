@@ -65,7 +65,6 @@ export function CredentialsPhase({
   onSubmit,
   onBack,
 }: Readonly<{
-  /** Null renders the full credentials form instead of password-only. */
   identity: Identity | null;
   serverLabel: string | null;
   identifier: string;

@@ -19,7 +19,7 @@ pub struct LlmProvider {
     pub id: String,
     #[serde(default)]
     pub name: String,
-    /// `openai` (OpenAI-compatible / Ollama) | `anthropic` | `openrouter`.
+    // `openai` (OpenAI-compatible / Ollama) | `anthropic` | `openrouter`.
     #[serde(default = "default_kind")]
     pub provider: String,
     #[serde(default)]

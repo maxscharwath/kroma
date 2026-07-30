@@ -1,9 +1,7 @@
-/**
- * The OG card's wording, per locale. Deliberately not read from the page's
- * message catalogs: this copy is fitted to the 1200x630 crop. `[…]` marks the
- * amber words, as in lib/rich.ts. The base locale keeps the unsuffixed filename
- * so links shared before the site was bilingual still resolve.
- */
+// Deliberately not read from the page's message catalogs: this copy is
+// fitted to the 1200x630 crop. `[…]` marks the amber words, as in lib/rich.ts.
+// The base locale keeps the unsuffixed filename so links shared before the
+// site was bilingual still resolve.
 export const OG_CARDS = {
   en: {
     file: 'og.png',

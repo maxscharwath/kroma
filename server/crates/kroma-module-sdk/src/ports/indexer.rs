@@ -16,11 +16,8 @@ pub struct IndexerRow {
     pub categories: Vec<u32>,
     pub enabled: bool,
     pub priority: i32,
-    /// `torznab` (external Jackett/Prowlarr) or `builtin` (native Cardigann).
     pub kind: String,
-    /// The Cardigann definition file stem, for `builtin` rows.
     pub definition_id: Option<String>,
-    /// JSON map of per-indexer settings (credentials + toggles).
     pub settings: String,
     pub last_ok_at: Option<i64>,
     pub last_error: Option<String>,
@@ -59,7 +56,7 @@ pub struct SearchOutcome {
 
 /// Implemented by the indexer module, which owns the Cardigann sessions.
 pub trait IndexerSearchPort: Send + Sync {
-    /// Native Cardigann or external Torznab, dispatched internally.
+    // Native Cardigann or external Torznab, dispatched internally.
     fn search(
         &self,
         host: &dyn HostCtx,

@@ -68,12 +68,12 @@ impl Quality {
 /// subtitle text.
 pub struct GenSpec {
     pub mode: GenMode,
-    /// Display label, e.g. "Français" - not a language code.
+    // Display label, e.g. "Français" - not a language code.
     pub target_lang: String,
-    /// Spoken language to force (name or code); `None` auto-detects.
+    // Spoken language to force (name or code); `None` auto-detects.
     pub spoken_lang: Option<String>,
     pub quality: Quality,
-    /// Audio-relative track index.
+    // Audio-relative track index.
     pub audio_track: u32,
     pub source_vtt: Option<String>,
 }

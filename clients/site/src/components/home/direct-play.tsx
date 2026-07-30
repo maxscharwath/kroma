@@ -51,7 +51,6 @@ export function DirectPlay() {
 
             <div className="mt-8 h-px bg-border" />
 
-            {/* A sliver of amber near the origin, not a full bar. */}
             <div className="mt-6">
               <div className="flex items-baseline justify-between">
                 <span className="font-mono text-xs text-muted">

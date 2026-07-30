@@ -31,9 +31,8 @@ export function TvConnect() {
     }
   }, [discovered]);
 
-  // The scheme is optional to type, but must never be invisible: only one of
-  // http and https is safe to put a password into, so the address is probed and
-  // the answer shown.
+  // Only one of http and https is safe to put a password into, so the
+  // address is probed and the scheme shown rather than left implicit.
   const [resolved, setResolved] = useState<ResolvedOrigin | null>(null);
   const [probing, setProbing] = useState(false);
 
@@ -45,8 +44,7 @@ export function TvConnect() {
       return;
     }
     let cancelled = false;
-    // Debounced: the address arrives one remote press at a time, and each
-    // keystroke would otherwise cost a pair of requests.
+    // Debounced: each keystroke would otherwise cost a pair of requests.
     const timer = setTimeout(() => {
       setProbing(true);
       resolveServerOrigin(address)
@@ -68,8 +66,8 @@ export function TvConnect() {
   const submit = () => {
     const address = value.trim();
     if (!address) return;
-    // Whatever actually answered wins; the fallback lets a server that is not up
-    // yet still be saved, just without a promise that it is secure.
+    // Fallback lets a server that isn't up yet still be saved, without a
+    // promise that it's secure.
     const url = resolved?.url ?? (/^https?:\/\//i.test(address) ? address : `http://${address}`);
     addServer(url);
     nav.go('quick');
@@ -153,9 +151,8 @@ export function TvConnect() {
 const DETECT = { flexShrink: 0, backgroundColor: 'transparent', paddingHorizontal: 16 } as const;
 const SCHEME_TEXT = { fontSize: 14, fontWeight: '600' } as const;
 
-// While nothing has answered, this says so rather than showing a padlock it has
-// not earned. Plain HTTP is `accent`, not `danger`: an unencrypted server on a
-// home LAN is the normal case here.
+// Plain HTTP is `accent`, not `danger`: an unencrypted server on a home LAN
+// is the normal case here.
 function SchemeBadge({
   probing,
   resolved,

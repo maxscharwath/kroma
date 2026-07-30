@@ -19,25 +19,25 @@ use kroma_domain::{
 use crate::db;
 use crate::services::jobs::now_ms;
 
-/// Rotating these invalidates every existing browser subscription.
+// Rotating these invalidates every existing browser subscription.
 pub const VAPID_PUBLIC_KEY: &str = "notifications.vapid.publicKey";
 pub const VAPID_PRIVATE_KEY: &str = "notifications.vapid.privateKey";
 
-/// Apple only accepts a JWT signed by a `.p8` key THEY issued, so unlike Web
-/// Push this cannot be self-minted; absent = iOS push is off.
+// Apple only accepts a JWT signed by a `.p8` key THEY issued, so unlike Web
+// Push this cannot be self-minted; absent = iOS push is off.
 pub const APNS_KEY_P8: &str = "notifications.apns.keyP8";
 pub const APNS_KEY_ID: &str = "notifications.apns.keyId";
 pub const APNS_TEAM_ID: &str = "notifications.apns.teamId";
 
 pub const FCM_SERVICE_ACCOUNT: &str = "notifications.fcm.serviceAccount";
 
-/// Sent as `apns-topic`; mirrors `bundleIdentifier` in `clients/mobile/app.json`.
+// Sent as `apns-topic`; mirrors `bundleIdentifier` in `clients/mobile/app.json`.
 const APNS_TOPIC: &str = "tv.kroma.mobile";
 
 const DEFAULT_SUBJECT: &str = "mailto:admin@kroma.invalid";
 
-/// Env is read first so a distribution can carry the app's own Apple and Google
-/// keys; the stored setting is the fallback a fork writes to.
+// Env is read first so a distribution can carry the app's own Apple and Google
+// keys; the stored setting is the fallback a fork writes to.
 fn from_env_or_setting<S: HostCtx>(state: &S, var: &str, key: &str) -> String {
     match std::env::var(var) {
         Ok(v) if !v.trim().is_empty() => v.trim().to_string(),
@@ -60,8 +60,8 @@ pub fn public_key<S: HostCtx>(state: &S) -> anyhow::Result<String> {
     Ok(public)
 }
 
-/// The RFC 8292 `sub` claim. Must be a `mailto:` or `https:` URL and must never
-/// be empty — an empty `sub` is not an absent one, and FCM rejects the token.
+// The RFC 8292 `sub` claim. Must be a `mailto:` or `https:` URL and must never
+// be empty — an empty `sub` is not an absent one, and FCM rejects the token.
 fn subject_of<S: HostCtx>(state: &S) -> String {
     public_url_of(state).unwrap_or_else(|| DEFAULT_SUBJECT.to_string())
 }
@@ -76,8 +76,8 @@ fn public_url_of<S: HostCtx>(state: &S) -> Option<String> {
 /// The configured transports and their credentials, built once per emission.
 pub type Sender = transports::Senders;
 
-/// Compared raw so a `.p8` pasted into the admin console takes effect on the
-/// next push rather than after a restart.
+// Compared raw so a `.p8` pasted into the admin console takes effect on the
+// next push rather than after a restart.
 #[derive(Clone, PartialEq, Eq)]
 struct Credentials {
     vapid_private: String,
@@ -88,8 +88,8 @@ struct Credentials {
     fcm_service_account: String,
 }
 
-/// Parsed credentials, kept between emissions: each key caches its bearer token
-/// internally, and Apple rate-limits JWT signing to one per 20 minutes per key.
+// Parsed credentials, kept between emissions: each key caches its bearer token
+// internally, and Apple rate-limits JWT signing to one per 20 minutes per key.
 #[derive(Default)]
 struct Keys {
     web: Option<Arc<VapidKey>>,
@@ -132,8 +132,8 @@ fn keys_for(credentials: &Credentials) -> Arc<Keys> {
     keys
 }
 
-/// Each transport is independent: an unusable Apple key must not take Web Push
-/// down with it.
+// Each transport is independent: an unusable Apple key must not take Web Push
+// down with it.
 fn parse(credentials: &Credentials) -> Keys {
     let web = if credentials.vapid_private.is_empty() {
         None
@@ -280,8 +280,8 @@ pub fn send_test<S: HostCtx>(state: &S, user: &User) -> anyhow::Result<usize> {
     Ok(deliver(state, &sender, &user.id, &notification))
 }
 
-/// `Ok(false)` = not delivered but handled (dropped as gone, or a transport
-/// this server has no credentials for).
+// `Ok(false)` = not delivered but handled (dropped as gone, or a transport
+// this server has no credentials for).
 fn send_one<S: HostCtx>(
     state: &S,
     sender: &Sender,
@@ -322,15 +322,15 @@ fn send_one<S: HostCtx>(
     anyhow::bail!("push service returned {} {body}", response.status)
 }
 
-/// Whether a rejection is the SERVICE's problem rather than this endpoint's. A
-/// 429 or 5xx hits every device at once, so counting it towards
-/// `push_subs::MAX_FAILURES` unsubscribes a whole household on one outage.
+// Whether a rejection is the SERVICE's problem rather than this endpoint's. A
+// 429 or 5xx hits every device at once, so counting it towards
+// `push_subs::MAX_FAILURES` unsubscribes a whole household on one outage.
 fn is_transient(status: u16) -> bool {
     // 408: no transport sends it today, but a proxy in front of one can.
     status == 408 || status == 429 || (500..600).contains(&status)
 }
 
-/// `http2` is not a preference: APNs refuses HTTP/1.1 outright.
+// `http2` is not a preference: APNs refuses HTTP/1.1 outright.
 fn send(request: &kroma_push::PushRequest) -> anyhow::Result<kroma_http::Response> {
     let mut fetch = kroma_http::Fetch::new().max_time(15);
     if request.http2 {
@@ -351,14 +351,14 @@ fn send(request: &kroma_push::PushRequest) -> anyhow::Result<kroma_http::Respons
     fetch.post_bytes(&request.url, content_type, &request.body)
 }
 
-/// Serialized straight from [`Notification`] rather than rebuilt field-by-field,
-/// so a push and the notification-centre row it mirrors cannot drift apart.
+// Serialized straight from `Notification` rather than rebuilt field-by-field,
+// so a push and the notification-centre row it mirrors cannot drift apart.
 fn payload_of(n: &Notification) -> Vec<u8> {
     serde_json::to_vec(n).unwrap_or_else(|_| b"{}".to_vec())
 }
 
-/// How hard to wake the device: something the user is waiting for is worth a
-/// radio wake, a media digest is not.
+// How hard to wake the device: something the user is waiting for is worth a
+// radio wake, a media digest is not.
 fn urgency_of(n: &Notification) -> Urgency {
     use kroma_domain::NotificationCategory as C;
     match n.category {

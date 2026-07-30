@@ -21,8 +21,8 @@ import { push as loadPush } from './native';
 import { forgetGrant, grantFor, storedGrant } from './relay';
 
 // OS-facing labels (category buttons, channel names) are handed to iOS/Android
-// imperatively, once — not rendered by React — so the live translator is
-// pushed in here instead of read from context.
+// imperatively, once, so the live translator is pushed in here rather than
+// read from context.
 let translate: Translate = createTranslator(DEFAULT_LOCALE);
 
 /** Point the OS labels at the reader's language. Re-registering is the caller's
@@ -31,9 +31,8 @@ export function setPushTranslator(next: Translate): void {
   translate = next;
 }
 
-// APNs/Android only show actions from a category registered up front, so this
-// is the contract the server's `push_category` picks from — add a variant on
-// both sides (kroma-domain's `PushCategory`) when adding one.
+// APNs/Android only show actions from a category registered up front; add a
+// variant on both sides (kroma-domain's `PushCategory`) when adding one.
 const CATEGORIES: Record<
   string,
   { identifier: string; titleKey: MessageKey; opensApp: boolean }[]
@@ -105,11 +104,10 @@ export async function registerAndroidChannels(): Promise<void> {
   );
 }
 
-/** The native half of the shared push flow. */
 export const nativePush: PushCapability = {
-  /** Does not reject a simulator: it shows the permission dialog fine and can
-   * often register for real; only minting a token may fail, which `subscribe`
-   * reports once it actually tries. */
+  // Does not reject a simulator: it shows the permission dialog fine and can
+  // often register for real; only minting a token may fail, which `subscribe`
+  // reports once it actually tries.
   async blocker(): Promise<PushBlocker | null> {
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'unsupported';
     const Notifications = loadPush();
@@ -143,10 +141,8 @@ export const nativePush: PushCapability = {
     const transport = transportFor(token.type);
     if (!transport) throw new Error('unsupported');
 
-    // The raw token stops here. What the server gets is a grant — see
-    // `./relay`. Registering the token itself would be pointless as well as
-    // careless: a self-hosted server holds no credential Apple or Google would
-    // accept, so it could never spend one.
+    // The raw token stops here; the server gets a grant instead (see ./relay)
+    // — a self-hosted server holds no Apple/Google credential to spend it.
     return {
       transport: 'relay',
       endpoint: await grantFor(transport, String(token.data)),
@@ -154,28 +150,16 @@ export const nativePush: PushCapability = {
     };
   },
 
-  /**
-   * The endpoint a server has on file for this device — the GRANT, not the
-   * device token.
-   *
-   * This is what `disablePush` names when asking the server to forget the
-   * device, so it has to be the exact string `subscribe` registered. Minting a
-   * fresh grant here would return a different blob and the server would delete
-   * nothing, leaving a phone the reader believes is silent still buzzing.
-   */
+  // The grant, not the device token: `disablePush` names this exact string
+  // when asking the server to forget the device, so minting a fresh grant
+  // here instead would leave the server unable to find the row to delete.
   async endpoint() {
     return storedGrant();
   },
 
+  // `disablePush` reads `endpoint()` before calling this, so the grant must
+  // still be on file when the server is told what to remove.
   async unsubscribe() {
-    // An APNs/FCM token is not "unsubscribed" — it simply stops being sent to
-    // once the server drops the row. The grant is dropped here so the next
-    // enable mints a fresh one rather than re-registering a blob whose server
-    // row is gone.
-    //
-    // Order matters and belongs to the shared flow: `disablePush` reads
-    // `endpoint()` BEFORE calling this, so the server is told what to remove
-    // while the grant is still on file.
     await forgetGrant();
   },
 };

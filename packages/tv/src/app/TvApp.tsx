@@ -42,15 +42,12 @@ import { TvReport } from '#tv/features/reports/TvReport';
 export interface TvAppProps {
   platform?: string;
   capabilities?: TvEnvOverrides;
-  /** The Tauri desktop shell passes a 1080p grade: its transparent window costs
-   * <video> the compositor fast path, so 4K frames downscale the slow way. */
   introVideoSrc?: string;
 }
 
 // Module scope, so the remote is wired before the first screen renders.
 configureRemote();
 
-/** The top bar's own gutter (64) horizontally, and below its 144px band. */
 const TOAST_INSET = { x: 64, y: 132 } as const;
 
 export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly<TvAppProps>) {

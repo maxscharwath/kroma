@@ -23,7 +23,7 @@ pub struct Definition {
     pub links: Vec<String>,
     #[serde(default)]
     pub legacylinks: Vec<String>,
-    /// Minimum delay between requests to this indexer, in seconds.
+    // Minimum delay between requests to this indexer, in seconds.
     #[serde(default)]
     pub request_delay: Option<f64>,
     pub caps: Caps,
@@ -56,7 +56,7 @@ pub struct Caps {
 pub struct CategoryMapping {
     #[serde(deserialize_with = "de_scalar_string")]
     pub id: String,
-    /// The Newznab category name, e.g. `Movies/HD`, `TV/Anime`.
+    // The Newznab category name, e.g. `Movies/HD`, `TV/Anime`.
     pub cat: String,
     #[serde(default)]
     pub desc: Option<String>,
@@ -68,7 +68,7 @@ pub struct CategoryMapping {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Setting {
     pub name: String,
-    /// `text` | `password` | `checkbox` | `select` | `info` | `info_*`.
+    // `text` | `password` | `checkbox` | `select` | `info` | `info_*`.
     #[serde(rename = "type", default)]
     pub kind: String,
     #[serde(default)]
@@ -81,7 +81,7 @@ pub struct Setting {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Login {
-    /// `form` | `post` | `get` | `cookie` | `oneurl` | `getpost`.
+    // `form` | `post` | `get` | `cookie` | `oneurl` | `getpost`.
     #[serde(default)]
     pub method: Option<String>,
     #[serde(default)]
@@ -151,7 +151,7 @@ pub struct Search {
     #[serde(default)]
     pub preprocessingfilters: Vec<Filter>,
     pub rows: Rows,
-    /// Ordered: a field's `text` may reference an earlier `.Result.<name>`.
+    // Ordered: a field's `text` may reference an earlier `.Result.<name>`.
     #[serde(default)]
     pub fields: IndexMap<String, Field>,
 }
@@ -173,7 +173,7 @@ pub struct SearchPath {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ResponseSpec {
-    /// `html` (default) | `json` | `xml`.
+    // `html` (default) | `json` | `xml`.
     #[serde(rename = "type", default)]
     pub kind: String,
     #[serde(default)]
@@ -186,7 +186,7 @@ pub struct ResponseSpec {
 pub struct Rows {
     #[serde(default)]
     pub selector: Option<String>,
-    /// Rows to merge upward into the previous one (multi-line row layouts).
+    // Rows to merge upward into the previous one (multi-line row layouts).
     #[serde(default)]
     pub after: i64,
     #[serde(default)]
@@ -215,10 +215,10 @@ pub struct Field {
     pub text: Option<String>,
     #[serde(default)]
     pub attribute: Option<String>,
-    /// CSS selector of descendant nodes to strip before reading text.
+    // CSS selector of descendant nodes to strip before reading text.
     #[serde(default)]
     pub remove: Option<String>,
-    /// First match wins; `*` is the default.
+    // First match wins; `*` is the default.
     #[serde(default)]
     pub case: IndexMap<String, String>,
     #[serde(default)]
@@ -266,7 +266,7 @@ pub struct InfoHash {
     pub hash: Option<Selector>,
     #[serde(default)]
     pub title: Option<Selector>,
-    /// Some definitions inline the selector on the infohash block itself.
+    // Some definitions inline the selector on the infohash block itself.
     #[serde(default)]
     pub selector: Option<String>,
     #[serde(default)]

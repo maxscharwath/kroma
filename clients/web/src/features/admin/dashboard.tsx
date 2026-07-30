@@ -62,9 +62,8 @@ export function DashboardScreen() {
     () => client.playHistory(historyDays),
     60000,
   );
-  // The authenticated roster, not the public `/users` list the `publicUserList`
-  // setting can hide. Needs `users.manage`; without it cards fall back to
-  // name-based avatars.
+  // The authenticated roster, not the public list `publicUserList` can hide.
+  // Needs `users.manage`; without it cards fall back to name-based avatars.
   const { data: usersData } = usePoll(['admin', 'users'], () => client.adminUsers(), 60000);
 
   const sessions = sessionsData?.sessions ?? [];

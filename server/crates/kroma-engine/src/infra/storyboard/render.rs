@@ -12,7 +12,7 @@ use super::extract::{extract_tiles, use_hwaccel};
 use super::proc::{finalize, run_capturing, unique_tmp, Cancel, TMP_SEQ};
 use super::{Manifest, Plan, Storyboard, TILE_H, TILE_W, playable};
 
-/// Low on purpose: the tiles are tiny and only previewed on hover.
+// Low on purpose: the tiles are tiny and only previewed on hover.
 const WEBP_QUALITY: &str = "58";
 const TIMEOUT: Duration = Duration::from_secs(600);
 
@@ -141,9 +141,8 @@ impl Storyboard {
 mod tests {
     use super::*;
 
-    /// End-to-end generation against a real clip. Ignored by default (needs
-    /// ffmpeg + writes temp files); run with
-    /// `cargo test --bin kroma-server -- --ignored storyboard_generates`.
+    // Needs ffmpeg + writes temp files; run with
+    // `cargo test --bin kroma-server -- --ignored storyboard_generates`.
     #[test]
     #[ignore]
     fn storyboard_generates_a_consistent_sheet() {

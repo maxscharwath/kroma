@@ -40,7 +40,6 @@ export function Player({
 }: Readonly<{
   item: MovieView;
   next?: MediaItem | null;
-  /** Upcoming episodes in sequence order; `next` is [0]. */
   following?: MediaItem[];
   onPlayNext?: () => void;
   onPlayItem?: (id: string) => void;

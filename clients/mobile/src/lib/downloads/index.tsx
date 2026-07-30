@@ -1,11 +1,7 @@
 // Offline downloads live in the app's documents directory, indexed in a JSON
-// manifest, and play back straight from disk. Direct-playable files download
-// RAW; everything else is remuxed server-side via /download to fragmented MP4,
-// so every title is downloadable on every platform.
-//
-// Transfers run in the platform downloader and survive backgrounding or a
-// kill. On launch the provider re-adopts what survived (iOS drops background
-// tasks on force-quit, so those are requeued) and retries on network drops.
+// manifest, and play back from disk. Transfers run in the platform downloader
+// and survive backgrounding or a kill; iOS drops background tasks on
+// force-quit, so those are requeued on launch.
 
 import {
   getExistingDownloadTasks,
@@ -48,13 +44,12 @@ import {
 export type { DownloadEntry, DownloadState, OfflineSub } from './store';
 export { formatBytes } from './store';
 
-/** One transfer at a time: a season enqueued in bulk must not spawn a remux
- * ffmpeg per episode on the server. */
+// One transfer at a time: a season enqueued in bulk must not spawn a remux
+// ffmpeg per episode on the server.
 const MAX_CONCURRENT = 1;
 
 interface DownloadsApi {
   entries: DownloadEntry[];
-  /** progress -1 means size unknown. */
   downloading: { item: MediaItem; progress: number }[];
   paused: { item: MediaItem; progress: number }[];
   queuedItems: MediaItem[];
@@ -96,9 +91,7 @@ export function DownloadsProvider({
   const handlesRef = useRef<Map<string, TransferHandle>>(new Map());
   const pausedRef = useRef<Set<string>>(new Set());
   const queueRef = useRef<string[]>([]);
-  /** Cancels that arrive before the transfer has a handle to cancel. */
   const cancelledRef = useRef<Set<string>>(new Set());
-  /** Consecutive network-interrupt count per title, for retry backoff. */
   const attemptsRef = useRef<Map<string, number>>(new Map());
   const retryTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 

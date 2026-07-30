@@ -40,8 +40,8 @@ pub struct AppState {
     pub jobs: Arc<JobManager>,
     pub subtitle_gen: Arc<GenRegistry>,
     pub instance_id: String,
-    /// Semaphore for offline-download remuxes; a full gate returns `503`
-    /// rather than queueing, since a permit is held for the whole transfer.
+    // Semaphore for offline-download remuxes; a full gate returns `503`
+    // rather than queueing, since a permit is held for the whole transfer.
     pub downloads: Arc<tokio::sync::Semaphore>,
     me: std::sync::Weak<AppState>,
     pub(crate) services:

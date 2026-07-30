@@ -111,63 +111,50 @@ pub trait HostCtx: Send + Sync + 'static {
 
     fn data_dir(&self) -> &Path;
 
-    /// A failure is a localized `403` response.
+    // A failure is a localized `403` response.
     fn require(&self, user: &User, perm: Permission) -> Result<(), Response>;
 
-    /// Gate on holding ANY management capability (unlocks the console shell).
+    // Gate on holding ANY management capability (unlocks the console shell).
     fn require_any_admin(&self, user: &User) -> Result<(), Response>;
 
-    /// A localized JSON error for `user`'s account locale, from a message `key`.
+    // A localized JSON error for `user`'s account locale, from a message `key`.
     fn lerr(&self, user: &User, status: StatusCode, key: &str) -> Response;
 
     fn setting_str(&self, key: &str, default: &str) -> String;
     fn setting_bool(&self, key: &str, default: bool) -> bool;
     fn setting_i64(&self, key: &str, default: i64) -> i64;
-    /// Persist a batch of settings atomically (one write).
+    // Persist a batch of settings atomically (one write).
     fn set_settings(&self, patch: std::collections::BTreeMap<String, serde_json::Value>);
 
     fn publish(&self, event: Event);
-    /// Publish an event addressed to ONE user. Required rather than defaulted: a
-    /// host that forgot it would silently swallow every addressed event.
+    // Publish an event addressed to ONE user. Required rather than defaulted: a
+    // host that forgot it would silently swallow every addressed event.
     fn publish_to(&self, user_id: &str, event: Event);
 
-    /// Raise a durable notification: it lands in the recipients' notification
-    /// centre and, once they've subscribed a device, is pushed to them. Returns
-    /// how many accounts were notified. A module supplies its own words through
-    /// `NotificationSpec::custom`; the core resolves the audience and honours
-    /// each recipient's per-category preferences.
-    ///
-    /// ```ignore
-    /// ctx.notify(
-    ///     &Audience::permission(Permission::SettingsManage),
-    ///     &NotificationSpec::custom(
-    ///         NotificationCategory::System,
-    ///         // Translated by the module, in the module's own catalog.
-    ///         t("notifications.vpn.down.title"),
-    ///         t("notifications.vpn.down.body"),
-    ///     )
-    ///     .link("/admin/network"),
-    /// );
-    /// ```
+    // Raise a durable notification: it lands in the recipients' notification
+    // centre and, once they've subscribed a device, is pushed to them. Returns
+    // how many accounts were notified. A module supplies its own words through
+    // `NotificationSpec::custom`; the core resolves the audience and honours
+    // each recipient's per-category preferences.
     fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize;
-    /// Trigger a background job by its key (e.g. `"acquisition.import"`). No-op if
-    /// the key is unknown or already running.
+    // Trigger a background job by its key (e.g. `"acquisition.import"`). No-op if
+    // the key is unknown or already running.
     fn trigger_job(&self, key: &'static str, reason: &'static str);
 
     fn module_enabled(&self, id: &str) -> bool;
 
-    /// Resolved core-side from the persisted `libraries` setting, falling back to
-    /// the env-configured media dirs on first run. Empty when none configured.
+    // Resolved core-side from the persisted `libraries` setting, falling back to
+    // the env-configured media dirs on first run. Empty when none configured.
     fn library_folders(&self) -> Vec<LibraryFolders>;
 
-    /// The TMDB v3 API key, from the app's env config rather than settings.
-    /// `None` when TMDB is not set up.
+    // The TMDB v3 API key, from the app's env config rather than settings.
+    // `None` when TMDB is not set up.
     fn tmdb_api_key(&self) -> Option<String>;
 
-    /// The metadata language tag (e.g. `"fr-FR"`) for TMDB lookups.
+    // The metadata language tag (e.g. `"fr-FR"`) for TMDB lookups.
     fn metadata_language(&self) -> String;
 
-    /// Prefer the typed [`service`] helper.
+    // Prefer the typed [`service`] helper.
     fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>>;
 }
 
@@ -179,12 +166,12 @@ pub fn service<T: Any + Send + Sync>(host: &dyn HostCtx) -> Option<Arc<T>> {
 /// executes in-process on the sidecar, which serves the `/_job/run/{key}`
 /// endpoint the core scheduler calls.
 pub struct ModuleJob<S> {
-    /// Dotted key (`"acquisition.import"`): DB key, URL segment, i18n base.
+    // `key` is dotted (`"acquisition.import"`) and doubles as DB key, URL segment
+    // and i18n base. `category` is one of `maintenance`, `library`,
+    // `recommendations`, `pipeline`, `acquisition`. `schedule` is cron,
+    // admin-overridable, `None` for manual-only.
     pub key: &'static str,
-    /// Lowercase wire string: `"maintenance" | "library" | "recommendations" |
-    /// "pipeline" | "acquisition"`.
     pub category: &'static str,
-    /// Cron, admin-overridable; `None` for manual-only.
     pub schedule: Option<&'static str>,
     pub run: fn(&S) -> anyhow::Result<()>,
 }
@@ -197,17 +184,17 @@ pub trait ServerModule<S>: Send + Sync
 where
     S: HostCtx + Clone + Send + Sync + 'static,
 {
-    /// Matches its `module.json` and frontend package.
+    // Matches its `module.json` and frontend package.
     fn id(&self) -> &'static str;
 
-    /// SQL run at DB init, after the core schema. `IF NOT EXISTS` DDL only; runs
-    /// on every boot.
+    // SQL run at DB init, after the core schema. `IF NOT EXISTS` DDL only; runs
+    // on every boot.
     fn migrations(&self) -> &'static str {
         ""
     }
 
-    /// Routes served under `/api/admin`. Mounted behind the module's enabled-gate
-    /// by the host, so they 404 while it is disabled.
+    // Routes served under `/api/admin`. Mounted behind the module's enabled-gate
+    // by the host, so they 404 while it is disabled.
     fn admin_routes(&self, _host: &S) -> Option<axum::Router<S>> {
         None
     }
@@ -216,19 +203,19 @@ where
         Vec::new()
     }
 
-    /// Called when the module is enabled at runtime AND at boot for an
-    /// already-enabled module. Awaited, not detached, so a slow start completes
-    /// before a following disable can race it.
+    // Called when the module is enabled at runtime AND at boot for an
+    // already-enabled module. Awaited, not detached, so a slow start completes
+    // before a following disable can race it.
     async fn on_enable(&self, _host: Arc<dyn HostCtx>) {}
 
-    /// Called when the module is disabled at runtime AND at boot for a disabled
-    /// module, so nothing is left running. Awaited.
+    // Called when the module is disabled at runtime AND at boot for a disabled
+    // module, so nothing is left running. Awaited.
     async fn on_disable(&self, _host: Arc<dyn HostCtx>) {}
 }
 
-/// The router state is `Arc<AppState>`, but the orphan rule forbids
-/// `impl HostCtx for Arc<AppState>` in the app crate. This blanket impl - legal
-/// here because the trait is local - lifts any `T: HostCtx` to `Arc<T>`.
+// The router state is `Arc<AppState>`, but the orphan rule forbids
+// `impl HostCtx for Arc<AppState>` in the app crate. This blanket impl - legal
+// here because the trait is local - lifts any `T: HostCtx` to `Arc<T>`.
 impl<T: HostCtx + ?Sized> HostCtx for std::sync::Arc<T> {
     fn db(&self) -> &Pool {
         (**self).db()

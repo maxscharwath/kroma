@@ -12,7 +12,6 @@ import { useState } from 'react';
 import { relativeAirDate } from '#web/features/requests/airdate';
 
 export interface MissingGroup {
-  /** The parent request, or null for a library-scan gap (never requested). */
   requestId: string | null;
   tmdbId: number;
   kind: CalendarEntry['kind'];
@@ -28,12 +27,11 @@ export function epKey(e: CalendarEntry): string {
   return `${groupKey}:${e.season ?? 0}:${e.episode ?? 0}`;
 }
 
-/** Episode lists longer than this collapse behind a "show more" toggle. */
+// Episode lists longer than this collapse behind a "show more" toggle.
 const COLLAPSE_OVER = 12;
-/** How many rows a collapsed list keeps visible. */
+// How many rows a collapsed list keeps visible.
 const COLLAPSED_ROWS = 10;
 
-/** The group's missing EPISODE rows (a movie group has none of its own). */
 function episodesOf(group: MissingGroup): CalendarEntry[] {
   if (group.kind === 'movie') return [];
   return group.items.filter((i) => i.season != null && i.episode != null);
@@ -74,7 +72,7 @@ export function MissingGroupCard({
         {canAct ? (
           <Check on={allPicked} onClick={() => onToggleGroup(!allPicked)} />
         ) : (
-          <span className="w-[18px]" />
+          <span className="w-4.5" />
         )}
         <button
           type="button"
@@ -82,7 +80,7 @@ export function MissingGroupCard({
           className="group/head flex min-w-0 flex-1 items-center gap-3.5 text-left"
         >
           <div
-            className="relative h-[52px] w-[36px] flex-[0_0_36px] overflow-hidden rounded-md"
+            className="relative h-13 w-9 flex-[0_0_36px] overflow-hidden rounded-md"
             style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
           >
             <Image src={poster} fit="cover" fill />
@@ -119,8 +117,6 @@ export function MissingGroupCard({
   );
 }
 
-/** The header's second line: a movie's release info, or the series' missing
- * count (a movie group has no rows, so it carries its date here). */
 function GroupMeta({
   group,
   episodeCount,
@@ -142,8 +138,6 @@ function GroupMeta({
   );
 }
 
-/** The group's missing-episode rows. A long list keeps only its first
- * {@link COLLAPSED_ROWS} rows until the "show more" toggle expands it. */
 function EpisodeList({
   entries,
   canAct,
@@ -217,8 +211,8 @@ function EpisodeRow({
 
   return (
     <li className="flex items-center gap-3.5 px-3.5 py-2.5 transition-colors hover:bg-white/3">
-      {canAct ? <Check on={picked} onClick={onToggle} /> : <span className="w-[18px]" />}
-      <span className="w-[62px] flex-[0_0_62px] font-mono text-[13px] font-bold text-accent tabular-nums">
+      {canAct ? <Check on={picked} onClick={onToggle} /> : <span className="w-4.5" />}
+      <span className="w-15.5 flex-[0_0_62px] font-mono text-[13px] font-bold text-accent tabular-nums">
         {episodeTag(entry)}
       </span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-dim">
@@ -254,7 +248,7 @@ function Check({ on, onClick }: Readonly<{ on: boolean; onClick: () => void }>) 
       onClick={onClick}
       aria-pressed={on}
       aria-label={t('requests.select')}
-      className={`flex h-[18px] w-[18px] flex-[0_0_18px] items-center justify-center rounded-[5px] border transition-colors ${
+      className={`flex h-4.5 w-4.5 flex-[0_0_18px] items-center justify-center rounded-[5px] border transition-colors ${
         on ? 'border-accent bg-accent text-accent-ink' : 'border-white/25 hover:border-white/50'
       }`}
     >

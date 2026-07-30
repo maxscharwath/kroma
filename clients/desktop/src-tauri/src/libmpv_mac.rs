@@ -1,11 +1,9 @@
-// In-process libmpv engine for macOS.
-//
-// Mirrors mpv.rs's Tauri surface (`mpv_load` / `mpv_command` + `mpv://…` events) so the
-// frontend `MpvEngine` drives it unchanged. mpv renders into its own borderless window
-// (`--wid` embedding only attaches to a standalone key window on macOS, not a
-// subview/child), pinned behind the transparent KROMA window as a child so it moves and
-// composites with it while the React player chrome sits on top - the same "video plane
-// behind the page" model as the Deck / Tizen.
+// In-process libmpv engine for macOS. Mirrors mpv.rs's Tauri surface (`mpv_load` /
+// `mpv_command` + `mpv://…` events) so the frontend `MpvEngine` drives it unchanged.
+// mpv renders into its own borderless window (`--wid` embedding only attaches to a
+// standalone key window on macOS, not a subview/child), pinned behind the transparent
+// KROMA window as a child so it moves and composites with it while the React player
+// chrome sits on top.
 //
 // Only the NSWindow/GL-shim wiring and the macOS media-key bridge live here; the engine
 // itself is in libmpv_shared.rs, shared with the Windows and Linux engines.

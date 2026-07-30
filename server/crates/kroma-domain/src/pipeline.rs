@@ -8,11 +8,10 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StageStat {
-    /// Short key (`"probe"`); i18n base `pipeline.stage.{stage}`.
+    // Short key (`"probe"`); i18n base `pipeline.stage.{stage}`.
     pub stage: String,
-    /// Full key of the stage's drain job (`"pipeline.probe"`).
+    // Full key of the stage's drain job (`"pipeline.probe"`).
     pub key: String,
-    /// `"file" | "item" | "show" | "season"`.
     pub subject_kind: String,
     pub pending: i64,
     pub running: i64,
@@ -33,7 +32,6 @@ pub struct PipelineView {
 #[serde(rename_all = "camelCase")]
 pub struct Treatment {
     pub key: String,
-    /// `"done" | "missing" | "pending" | "running" | "failed"`.
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -55,7 +53,6 @@ pub struct EpStats {
 #[serde(rename_all = "camelCase")]
 pub struct ElementRow {
     pub id: String,
-    /// `"film" | "series" | "episode"`.
     pub kind: String,
     pub title: String,
     pub poster: Option<String>,
@@ -64,7 +61,6 @@ pub struct ElementRow {
     pub duration_ms: Option<u64>,
     pub season_count: Option<u32>,
     pub treatments: Vec<Treatment>,
-    /// `"ok" | "pending" | "running" | "failed"`.
     pub overall: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ep_stats: Option<EpStats>,

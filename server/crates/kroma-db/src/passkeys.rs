@@ -6,7 +6,7 @@ use super::*;
 use rusqlite::OptionalExtension;
 
 pub struct PasskeyRow {
-    /// Credential id, base64url.
+    // Credential id, base64url.
     pub id: String,
     pub name: String,
     pub created_at: String,

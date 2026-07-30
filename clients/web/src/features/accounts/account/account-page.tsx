@@ -37,9 +37,8 @@ function ProfileEditor() {
 
   const [username, setUsername] = useState(user?.username ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
-  // Through `prefValue`, always: the server lower-cases a playback language
-  // (`fr-ca`) while the picker's option is `fr-CA`, so a raw seed matches no
-  // option and the form loads dirty.
+  // The server lower-cases a playback language (`fr-ca`) while the picker's
+  // option is `fr-CA`; `prefValue` normalizes so a raw seed still matches.
   const [audio, setAudio] = useState(prefValue(user?.audioLanguage ?? null));
   const [subtitle, setSubtitle] = useState(prefValue(user?.subtitleLanguage ?? null));
   const save = useSave();
@@ -93,7 +92,7 @@ function ProfileEditor() {
       <header className="mb-2 flex items-start gap-4">
         <div className="min-w-0 flex-1">
           <h1 className={PAGE_TITLE}>{t('account.title')}</h1>
-          <p className={`max-w-[560px] ${PAGE_SUBTITLE}`}>{t('account.subtitle')}</p>
+          <p className={`max-w-140 ${PAGE_SUBTITLE}`}>{t('account.subtitle')}</p>
         </div>
         <Button
           variant="ghost"
@@ -197,7 +196,7 @@ function SaveStatusLabel({
   if (dirty)
     return (
       <span className="inline-flex items-center gap-2.5 text-[13.5px] font-semibold text-muted">
-        <span className="size-[7px] rounded-full bg-accent" />
+        <span className="size-1.75 rounded-full bg-accent" />
         {t('account.unsaved')}
       </span>
     );

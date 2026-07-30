@@ -21,7 +21,7 @@ import {
 import { userQueries } from '#web/shared/lib/queries';
 import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE, Skeleton } from '#web/shared/ui';
 
-/** Releases at most this many days out get the accent "imminent" date. */
+// Releases at most this many days out get the accent "imminent" date.
 const IMMINENT_DAYS = 7;
 
 export function ComingSoonPage() {
@@ -33,9 +33,8 @@ export function ComingSoonPage() {
     refetchInterval: 60_000,
   });
 
-  // Group the (already date-sorted) entries by month, preserving order. Calendar
-  // entries are always dated (the server filters to future dates); the guard is
-  // for the shared, nullable-airDate type.
+  // Group the (already date-sorted) entries by month, preserving order. The
+  // airDate guard is for the shared, nullable type; the server filters to future dates.
   const groups: Array<{ key: string; label: string; items: CalendarEntry[] }> = [];
   for (const e of entries ?? []) {
     if (!e.airDate) continue;
@@ -57,7 +56,7 @@ export function ComingSoonPage() {
         <div className="mt-6 flex flex-col gap-2.5">
           {Array.from({ length: 5 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} className="h-[76px] rounded-2xl" />
+            <Skeleton key={i} className="h-19 rounded-2xl" />
           ))}
         </div>
       ) : null}
@@ -125,7 +124,7 @@ function CalendarRow({
       className="group flex items-center gap-4 rounded-2xl border border-border bg-surface-1 p-3 text-left transition-colors hover:border-white/20 hover:bg-white/2"
     >
       <div
-        className="relative h-[60px] w-[40px] flex-[0_0_40px] overflow-hidden rounded-lg"
+        className="relative h-15 w-10 flex-[0_0_40px] overflow-hidden rounded-lg"
         style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
       >
         <Image src={poster} fit="cover" fill />

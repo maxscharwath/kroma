@@ -30,11 +30,9 @@ pub fn routes() -> Router<SharedState> {
 }
 
 /// A browser can't set request headers on a WS handshake, so the client passes
-/// its session bearer as a WebSocket subprotocol (`kroma.session.<token>`),
-/// validated against the `sessions` table. An unauthenticated bus would stream
-/// job logs, library/playback activity and download/VPN status to anyone who
-/// can reach the server, and (being exempt from same-origin policy) would be
-/// open to cross-site WebSocket hijacking.
+/// its session bearer as a WebSocket subprotocol (`kroma.session.<token>`).
+/// Without it the bus would leak activity to anyone reaching the server, and
+/// (being exempt from same-origin policy) be open to cross-site WS hijacking.
 pub async fn events(
     State(state): State<SharedState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
@@ -76,7 +74,6 @@ struct Viewer {
     id: String,
     username: String,
     avatar_url: Option<String>,
-    /// `LAN` | `WAN`, resolved once at the handshake.
     network: String,
     can_cast: bool,
 }
@@ -109,7 +106,6 @@ enum ClientMessage {
     },
     #[serde(rename = "cast.release")]
     CastRelease,
-    /// Only a socket that owns the receiver may kick a remote from it.
     #[serde(rename = "cast.kick")]
     CastKick {
         #[serde(rename = "controllerId")]

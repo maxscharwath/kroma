@@ -62,9 +62,8 @@ export class ExpoVideoEngine extends BaseTvEngine implements TvEngine {
   }
 
   // `autoplay` is what playback should be doing afterwards, not always
-  // "playing": a seek in master mode opens a new player, and starting it
-  // unconditionally meant nudging the scrub bar while paused silently resumed
-  // the film.
+  // "playing" — starting it unconditionally meant a scrub while paused silently
+  // resumed the film.
   private open(url: string, seekSec: number, autoplay: boolean): void {
     this.teardown();
     if (this.destroyed) return;

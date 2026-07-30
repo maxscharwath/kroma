@@ -14,10 +14,8 @@ import {
 import type { SettingsGroupId } from '#tv/app/settings/registry';
 import { perfHudPrefStore, useStoredPref } from '#tv/app/settings/store';
 
-/**
- * The screen registry of the in-memory router: a TV has no address bar, so
- * history is a stack. Adding a key here type-checks `go` / `reset` / `<TvOutlet>`.
- */
+// The screen registry of the in-memory router: a TV has no address bar, so
+// history is a stack. Adding a key here type-checks `go` / `reset` / `<TvOutlet>`.
 export interface TvRoutes {
   connect: undefined;
   profiles: undefined;
@@ -63,11 +61,8 @@ export interface TvNav {
   canGoBack: boolean;
   go: <K extends RouteName>(...args: GoArgs<K>) => void;
   back: () => void;
-  /** Replaces the whole stack with home → screen (deep-link entry point). */
   reset: <K extends RouteName>(...args: GoArgs<K>) => void;
-  /** Replaces the whole stack with a single screen, so there is nothing to go back to. */
   replace: <K extends RouteName>(...args: GoArgs<K>) => void;
-  /** Replaces just the current screen, keeping the history below it. */
   swap: <K extends RouteName>(...args: GoArgs<K>) => void;
   home: () => void;
 }
@@ -98,12 +93,9 @@ function loadDevStack(): TvRoute[] | null {
 export type TvScreens = { [K in RouteName]: ComponentType };
 const ScreensCtx = createContext<TvScreens | null>(null);
 
-/**
- * Chrome that outlives the screen under it (the browse top bar). The outlet
- * renders it so one instance survives a section change (the nav pill's lens has
- * to travel from the old box), inside the screen's <FocusScope> so the remote
- * can reach it - which is why the routes sharing it share one scope.
- */
+// Chrome that outlives the screen under it (the browse top bar): the outlet
+// renders one instance across a section change, inside the shared <FocusScope>,
+// which is why the routes sharing it share one scope.
 export interface TvChrome {
   routes: readonly RouteName[];
   render: ComponentType;
@@ -203,7 +195,6 @@ export function useClient(): KromaClient {
   return c;
 }
 
-/** Renders the component registered for the route on top of the stack. */
 export function TvOutlet() {
   const { route } = useNav();
   const screens = useContext(ScreensCtx);
@@ -211,13 +202,12 @@ export function TvOutlet() {
   if (!screens) throw new Error('<TvOutlet> must be inside <TvNavProvider screens={…}>');
   const Screen = screens[route.name];
   const Chrome = chrome?.routes.includes(route.name) ? chrome.render : null;
-  // Keying the player by item id remounts it on an "up next" swap, which keeps the
-  // same route on top, so the new title starts from clean engine/resume state.
+  // Keyed by item id so an "up next" swap remounts the player into clean
+  // engine/resume state even though the route itself doesn't change.
   const key = route.name === 'player' ? `player:${route.params.item.id}` : route.name;
-  // <FocusScope> is what gives a screen its entry point on Apple TV and Android TV:
-  // the OS focus engine will not invent one, so without it a screen whose controls
-  // do not declare `autoFocus` mounts with focus nowhere and the remote does nothing.
-  // Screens sharing the chrome share one scope so the bar keeps its instance.
+  // The focus engine on Apple TV / Android TV invents no entry point on its own;
+  // without <FocusScope> a screen with no `autoFocus` control mounts with focus
+  // nowhere and the remote does nothing.
   const scopeKey = Chrome ? 'chrome' : key;
   return (
     <PageMain>

@@ -25,9 +25,7 @@ pub use registry::{ModuleRegistration, Registry, ResolveError};
 /// module's `module.json`, embedded at build time via `include_bytes!` and
 /// served at `GET /api/modules/<id>/icon`.
 pub struct ModuleIcon {
-    /// MIME type, e.g. "image/svg+xml" or "image/png".
     pub content_type: &'static str,
-    /// The image bytes.
     pub bytes: &'static [u8],
 }
 
@@ -38,18 +36,18 @@ pub struct ModuleIcon {
 /// [`manifest`](Module::manifest) and record the capabilities they provide in
 /// [`register`](Module::register).
 pub trait Module: Send + Sync {
-    /// Static self-description: id, version, and declared dependencies.
-    ///
-    /// The `provides` field is filled in by the registry from
-    /// [`register`](Module::register); implementors may leave it empty.
+    // Static self-description: id, version, and declared dependencies.
+    //
+    // The `provides` field is filled in by the registry from
+    // [`register`](Module::register); implementors may leave it empty.
     fn manifest(&self) -> ModuleManifest;
 
-    /// Record the capabilities this module contributes. Called once at startup
-    /// with a fresh [`ModuleRegistration`]. The default registers nothing.
+    // Record the capabilities this module contributes. Called once at startup
+    // with a fresh [`ModuleRegistration`]. The default registers nothing.
     fn register(&self, _reg: &mut ModuleRegistration) {}
 
-    /// The module's packaged icon (`icon.svg` / `icon.png` next to its
-    /// `module.json`), embedded at build time. Default: none.
+    // The module's packaged icon (`icon.svg` / `icon.png` next to its
+    // `module.json`), embedded at build time. Default: none.
     fn icon(&self) -> Option<ModuleIcon> {
         None
     }

@@ -57,7 +57,7 @@ pub enum Announced {
     Full,
 }
 
-/// The account is kept off the wire type: the roster is readable by every viewer.
+// The account is kept off the wire type: the roster is readable by every viewer.
 struct ControllerEntry {
     view: CastController,
     user_id: String,
@@ -67,21 +67,21 @@ struct Receiver {
     id: String,
     name: String,
     platform: String,
-    /// Sticky for the receiver's lifetime; gates re-announce and unregister,
-    /// never who may command it.
+    // Sticky for the receiver's lifetime; gates re-announce and unregister,
+    // never who may command it.
     user_id: String,
     username: String,
-    /// `LAN` | `WAN`, never the IP: the roster is readable by every viewer.
+    // `LAN` | `WAN`, never the IP: the roster is readable by every viewer.
     network: String,
     playback: Option<CastPlayback>,
-    /// Resolved server-side, so senders render a title they cannot spoof.
+    // Resolved server-side, so senders render a title they cannot spoof.
     item: Option<MediaItem>,
     last_seen: Instant,
     inbox: VecDeque<CastCommandEnvelope>,
     next_seq: u64,
     controllers: HashMap<String, ControllerEntry>,
-    /// Accounts this set sent away, refused until they pick it up again; without
-    /// it a client ignoring `cast.kicked` keeps commanding the television.
+    // Accounts this set sent away, refused until they pick it up again;
+    // without it a client ignoring `cast.kicked` keeps commanding the TV.
     kicked: HashSet<String>,
 }
 

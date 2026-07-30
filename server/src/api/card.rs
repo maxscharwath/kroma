@@ -40,9 +40,8 @@ fn font() -> &'static Font {
 pub struct Card<'a> {
     pub base_png: &'a [u8],
     pub label: &'a str,
-    /// Pre-scaled alpha PNG. Drawn only when present - deliberately no text fallback.
+    // Drawn only when present - deliberately no text fallback.
     pub logo_png: Option<&'a [u8]>,
-    /// Resume fraction, 0.0-1.0.
     pub progress: Option<f32>,
 }
 
@@ -119,7 +118,6 @@ fn paint_scrims(pm: &mut Pixmap) {
     );
 }
 
-/// Top-left category pill: translucent dark rounded rect + amber uppercase label.
 fn paint_badge(pm: &mut Pixmap, text: &str, s: f32) {
     let f = font();
     let (size, tracking) = (BADGE_SIZE * s, BADGE_TRACKING * s);
@@ -159,8 +157,6 @@ fn paint_progress(pm: &mut Pixmap, frac: f32, s: f32) {
     }
 }
 
-// ---- primitives ------------------------------------------------------------
-
 fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia::Path> {
     let mut pb = PathBuilder::new();
     pb.move_to(x + r, y);
@@ -176,7 +172,6 @@ fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<tiny_skia::Pat
     pb.finish()
 }
 
-/// Glyph rendering style: size, RGB colour, and inter-letter tracking.
 #[derive(Clone, Copy)]
 struct TextStyle {
     size: f32,
@@ -194,9 +189,6 @@ fn draw_text(pm: &mut Pixmap, font: &Font, text: &str, x: f32, baseline: f32, st
     }
 }
 
-/// Tint one rasterised glyph coverage `bitmap` by `color` and blit it at the pen
-/// position. No-op for empty glyphs (e.g. spaces) or when the scratch pixmap can't
-/// be allocated.
 fn blit_glyph(
     pm: &mut Pixmap,
     m: &fontdue::Metrics,
@@ -232,8 +224,6 @@ fn text_width(font: &Font, text: &str, size: f32, tracking: f32) -> f32 {
     }
     (w - tracking).max(0.0)
 }
-
-// ---- output ----------------------------------------------------------------
 
 fn encode_jpeg(pm: &Pixmap) -> Vec<u8> {
     let data = pm.data();

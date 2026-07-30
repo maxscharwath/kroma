@@ -4,8 +4,7 @@ use super::*;
 
 use kroma_domain::{Season, Show, ShowDetail};
 
-/// Callers append their own `WHERE`/`ORDER BY` and map rows with
-/// [`row_to_show_counted`].
+// Callers append their own `WHERE`/`ORDER BY` and map rows with `row_to_show_counted`.
 const SHOWS_COUNTED_SELECT: &str = "SELECT s.id,s.title,s.year,s.library,s.added_at,\
     (SELECT COUNT(DISTINCT i.season) FROM items i WHERE i.show_id=s.id),\
     (SELECT COUNT(*) FROM items i WHERE i.show_id=s.id),\

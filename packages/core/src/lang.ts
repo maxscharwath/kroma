@@ -547,7 +547,6 @@ function byLabel(locale?: string): (a: LangOption, b: LangOption) => number {
 }
 
 export interface AudioCandidate {
-  /** Audio-relative stream index. */
   index: number;
   language?: string | null;
   title?: string | null;
@@ -592,7 +591,6 @@ export function refineTrackLang(language?: string | null, title?: string | null)
 export interface SubtitleCandidate {
   index: number;
   language?: string | null;
-  /** WebVTT url; absent = a picture sub, not renderable as text. */
   url?: string | null;
   generated?: boolean;
 }

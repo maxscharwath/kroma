@@ -26,8 +26,8 @@ const ENTER = 'enter';
 
 type Direction = typeof UP | typeof DOWN | typeof LEFT | typeof RIGHT | typeof ENTER;
 
-/** Both Siri Remote input paths: clickpad (`up`/`down`/...) and touch-surface
- * swipes (`swipeUp`/...) never fire for the same gesture. */
+// Both Siri Remote input paths, clickpad and touch-surface swipes, land here:
+// they never fire for the same gesture.
 const REMOTE: Record<string, Direction> = {
   up: UP,
   down: DOWN,
@@ -40,9 +40,9 @@ const REMOTE: Record<string, Direction> = {
   select: ENTER,
 };
 
-/** A SET, not a single slot: screens stack, so two navigators can be subscribed
- * for a moment, and React tears the old subscription down AFTER the new one is
- * up — one slot would let that teardown null the live handler. */
+// A SET, not a single slot: screens stack, so two navigators can be subscribed
+// for a moment, and React tears the old subscription down AFTER the new one is
+// up — one slot would let that teardown null the live handler.
 const handlers = new Set<(direction: Direction) => void>();
 
 /** Call once at startup, before the first screen renders; calling it twice is

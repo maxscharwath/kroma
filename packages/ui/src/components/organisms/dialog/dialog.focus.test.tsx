@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 const host = (label: string) => screen.getByLabelText(label);
-/** A control wears the focus ring as a box shadow. */
+// A control wears the focus ring as a box shadow.
 function lit(label: string, at: { rendered: boolean } = { rendered: true }): boolean {
   const el = at.rendered ? host(label) : screen.queryByLabelText(label);
   return el instanceof HTMLElement && el.style.boxShadow !== '';

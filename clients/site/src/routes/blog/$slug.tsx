@@ -9,8 +9,7 @@ import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/blog/$slug')({
   // Returns only serializable metadata: the compiled MDX component is a
-  // function and cannot cross the SSR→client boundary. Resolved in the ambient
-  // locale, so /fr/blog/x gets the French title and excerpt in its <head>.
+  // function and cannot cross the SSR→client boundary.
   loader: ({ params }) => {
     const post = getPost(params.slug, getLocale());
     if (!post) throw notFound();

@@ -24,10 +24,7 @@ export function OnboardingScreen({
   onBack,
   children,
 }: Readonly<{
-  // Android only; iOS always pads.
   keyboardBehavior?: NonNullable<KeyboardAvoidingViewProps['behavior']>;
-  // The top-left chevron, for screens that keep the keyboard up and would hide
-  // a bottom-pinned <BackLink> behind it.
   onBack?: () => void;
   children: ReactNode;
 }>) {

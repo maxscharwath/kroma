@@ -1,7 +1,8 @@
-// Under the test runner `require('expo-network')` genuinely fails (the resolver
-// reaches the package's TypeScript source and refuses it), so this runs the same
-// path an unlinked binary runs. The device-has-the-module half is not reachable
-// here: the require is CommonJS, so neither `vi.mock` nor a global stub is in it.
+// Under the test runner, `require('expo-network')` genuinely fails (the
+// resolver reaches the package's TypeScript source and refuses it), so this
+// exercises the same path an unlinked binary runs. The module-present half is
+// not reachable here: the require is CommonJS, so neither `vi.mock` nor a
+// global stub is in it.
 
 import { describe, expect, it } from 'vitest';
 import { getDeviceLocalIp } from './localIp';

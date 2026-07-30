@@ -5,8 +5,8 @@
  * classic script rather than a module, so these tests evaluate it against a
  * fake `self` and then drive the listeners it registered.
  */
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildSync } from 'esbuild';
 import { describe, expect, it, vi } from 'vitest';
 
 type Listener = (event: unknown) => void;
@@ -25,7 +25,20 @@ interface Harness {
   setFetch: (impl: (url: string, init?: RequestInit) => Promise<unknown>) => void;
 }
 
-const SOURCE = readFileSync(join(import.meta.dirname, '../public/sw.js'), 'utf8');
+// Bundled from source rather than read out of public/: the worker there is
+// generated (by the Vite plugin in ../service-worker.ts), so a test that read
+// the artefact would pass or fail on whether somebody had run a build. It has to
+// be a real bundle and not a bare transpile because the worker imports zod to
+// validate the push payload.
+const [output] = buildSync({
+  entryPoints: [join(import.meta.dirname, 'sw.ts')],
+  bundle: true,
+  format: 'iife',
+  target: 'chrome90',
+  write: false,
+}).outputFiles;
+if (!output) throw new Error('esbuild produced no service worker to test');
+const SOURCE = output.text;
 
 /** Evaluate `sw.js` against a fake worker global and return a driver for it. */
 function load(clientList: Array<Record<string, unknown>> = []): Harness {
@@ -212,6 +225,31 @@ describe('push', () => {
     const sw = load();
     await sw.fire('push', pushEvent(payload({ actions: 'not an array' })));
     expect(shownAt(sw, 0).options.actions).toEqual([]);
+  });
+
+  it('degrades one bad field instead of losing the whole notification', async () => {
+    // A server sending the wrong type for a field must not cost the user the
+    // notification: each field falls back on its own. This is what the schema
+    // buys over reading the JSON straight off the wire.
+    const sw = load();
+    await sw.fire(
+      'push',
+      pushEvent(payload({ title: 42, body: 'the body survived', imageUrl: { nope: true } })),
+    );
+
+    expect(shownAt(sw, 0).title).toBe('KROMA');
+    expect(shownAt(sw, 0).options.body).toBe('the body survived');
+    expect(shownAt(sw, 0).options.image).toBeUndefined();
+  });
+
+  it('does not collapse unrelated notifications under an empty tag', async () => {
+    // `tag` groups notifications: an empty string is a tag every push shares,
+    // which would silently overwrite each one with the next.
+    const sw = load();
+    await sw.fire('push', pushEvent(payload({ id: '' })));
+
+    expect(shownAt(sw, 0).options.tag).toBeUndefined();
+    expect(shownAt(sw, 0).options.renotify).toBe(false);
   });
 });
 

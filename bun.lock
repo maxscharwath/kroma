@@ -273,6 +273,7 @@
         "react-dom": "^19.2.0",
         "react-native-web": "^0.21.2",
         "shaka-player": "^5.2.3",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@babel/core": "^8.0.1",
@@ -287,6 +288,7 @@
         "@types/react-dom": "^19",
         "@vitejs/plugin-react": "^6.0.3",
         "babel-plugin-react-compiler": "^1.0.0",
+        "esbuild": "^0.28.1",
         "react-native": "npm:react-native-tvos@0.86.0-2",
         "tailwindcss": "^4",
         "typescript": "^7.0.2",

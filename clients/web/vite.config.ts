@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, RNW_SSR_NO_EXTERNAL, webResolve } from '../tv-build/rnw';
 import { buildInfoPlugin } from './build-info';
+import { serviceWorkerPlugin } from './service-worker';
 
 // `vite build` used to sit idle for exactly 5 minutes after the prerender: the
 // TanStack Start shell-prerender's render server leaks a handle that only Node's
@@ -48,6 +49,8 @@ export default defineConfig({
     kromaModule(),
     // Exposes `virtual:build-info` (version, commit, branch, build date).
     buildInfoPlugin(),
+    // Emits /sw.js (Web Push) from src/sw.ts; not an app entry, so Vite needs telling.
+    serviceWorkerPlugin(),
     tailwindcss(),
     tanstackStart({ spa: { enabled: true } }),
     react(),

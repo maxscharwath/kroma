@@ -93,3 +93,7 @@ __pycache__/
 # (vcs.useIgnoreFile) and knows nothing about global excludes - without the
 # line, `bun run check` fails on a file nobody wrote and nobody can commit.
 .claude/settings.local.json
+
+# Emitted from clients/web/src/sw.ts by the Vite plugin in
+# clients/web/service-worker.ts, on both `dev` and `build`.
+clients/web/public/sw.js

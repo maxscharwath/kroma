@@ -1,6 +1,5 @@
 import { execSync } from 'node:child_process';
 import type { Plugin } from 'vite';
-import pkg from './package.json' with { type: 'json' };
 
 /** Build metadata exposed to the app through the virtual module `virtual:build-info`
  * (resolved by {@link buildInfoPlugin}). Collected once at build time / dev-server
@@ -25,8 +24,7 @@ const git = (cmd: string): string | null => {
   }
 };
 
-const buildInfo: BuildInfo = {
-  version: pkg.version,
+const gitInfo = {
   commit: git('rev-parse --short HEAD') ?? 'unknown',
   commitFull: git('rev-parse HEAD') ?? 'unknown',
   branch: git('rev-parse --abbrev-ref HEAD') ?? 'unknown',
@@ -37,10 +35,10 @@ const buildInfo: BuildInfo = {
 /** Serves `virtual:build-info` (a "fake" module with no on-disk file) so any
  * component can `import buildInfo from 'virtual:build-info'` — nothing ships to
  * prod but the resolved constants, matching the static-SPA model (no Node). */
-export function buildInfoPlugin(): Plugin {
+export function buildInfoPlugin({ version }: { version: string }): Plugin {
   const virtualId = 'virtual:build-info';
   const resolvedId = `\0${virtualId}`;
-  const json = JSON.stringify(buildInfo);
+  const json = JSON.stringify({ version, ...gitInfo } satisfies BuildInfo);
   // Default export + named exports so both import styles work.
   const code = `export default ${json};\nexport const { version, commit, commitFull, branch, dirty, buildDate } = ${json};\n`;
   return {

@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
+import { kromaUi } from '@kroma/ui/bundler';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type UserConfig } from 'vite';
-import { kromaUi } from '@kroma/ui/bundler';
 import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from '../tv-build/rnw';
 import { buildDefine } from '../tv-build/shell';
 

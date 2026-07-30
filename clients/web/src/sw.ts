@@ -153,16 +153,16 @@ sw.addEventListener('pushsubscriptionchange', (event) => {
   );
 });
 
+/** base64url (RFC 4648 §5) — how the Push API's keys have to reach the server. */
 function base64Url(buffer: ArrayBuffer | null) {
   if (!buffer) return null;
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (const b of bytes) binary += String.fromCodePoint(b);
-  const b64 = btoa(binary).replaceAll('+', '-').replaceAll('/', '_');
-  // Strip the padding in one linear pass. A `/=+$/` regex is super-linear here:
-  // unanchored at the start, it retries and backtracks the run at every
-  // position (same reasoning as stripTrailingSlash in the Synology generator).
-  let end = b64.length;
-  while (end > 0 && b64[end - 1] === '=') end--;
-  return b64.slice(0, end);
+  // Spreading is safe at this size: p256dh is 65 bytes and auth is 16, nowhere
+  // near the argument limit that makes this a footgun on arbitrary buffers.
+  const b64 = btoa(String.fromCodePoint(...new Uint8Array(buffer)));
+  // btoa pads to a multiple of 4, so there is never more than `==`, and only at
+  // the end — which is what keeps this bounded rather than a backtracking `=+$`.
+  return b64
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/={1,2}$/, '');
 }

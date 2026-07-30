@@ -23,7 +23,7 @@ const RESOLVED = `\0${VIRTUAL}`;
 
 /** The plugin's hooks, as Rollup will call them. */
 function hooks() {
-  const plugin = buildInfoPlugin() as {
+  const plugin = buildInfoPlugin({ version: '9.9.9' }) as {
     name: string;
     resolveId: (source: string) => string | null;
     load: (id: string) => string | null;
@@ -107,10 +107,10 @@ describe('the stamp it serves', () => {
     );
   });
 
-  it('names a version', () => {
-    // From the client's own package.json, so the settings panel always has one.
-    expect(stamp().version).toBeTypeOf('string');
-    expect(stamp().version).not.toBe('');
+  it('stamps the version its caller passed', () => {
+    // The plugin is shared, so the version comes from the client mounting it
+    // rather than from a package.json it reaches for itself.
+    expect(stamp().version).toBe('9.9.9');
   });
 
   it('carries a real ISO build date', () => {

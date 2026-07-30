@@ -1,0 +1,21 @@
+{
+  "name": "@kroma/bundler",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "KROMA shared Vite plugins: build-info stamping, post-build process exit, and bundling for scripts that live outside a client's module graph.",
+  "exports": {
+    "./build-info": "./src/build-info.ts",
+    "./exit-after-build": "./src/exit-after-build.ts",
+    "./standalone-script": "./src/standalone-script.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "esbuild": "^0.28.1"
+  },
+  "peerDependencies": {
+    "vite": ">=6"
+  }
+}

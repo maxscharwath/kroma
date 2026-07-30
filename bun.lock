@@ -277,6 +277,7 @@
       },
       "devDependencies": {
         "@babel/core": "^8.0.1",
+        "@kroma/bundler": "workspace:*",
         "@rolldown/plugin-babel": "^0.2.3",
         "@tailwindcss/vite": "^4",
         "@tanstack/react-query-devtools": "^5.101.4",
@@ -288,7 +289,6 @@
         "@types/react-dom": "^19",
         "@vitejs/plugin-react": "^6.0.3",
         "babel-plugin-react-compiler": "^1.0.0",
-        "esbuild": "^0.28.1",
         "react-native": "npm:react-native-tvos@0.86.0-2",
         "tailwindcss": "^4",
         "typescript": "^7.0.2",
@@ -337,6 +337,16 @@
       "peerDependencies": {
         "react": ">=18",
         "react-dom": ">=18",
+      },
+    },
+    "packages/bundler": {
+      "name": "@kroma/bundler",
+      "version": "0.1.0",
+      "dependencies": {
+        "esbuild": "^0.28.1",
+      },
+      "peerDependencies": {
+        "vite": ">=6",
       },
     },
     "packages/client": {
@@ -1036,6 +1046,8 @@
     "@kroma/admin-kit": ["@kroma/admin-kit@workspace:packages/admin-kit"],
 
     "@kroma/build-info": ["@kroma/build-info@workspace:clients/build-info"],
+
+    "@kroma/bundler": ["@kroma/bundler@workspace:packages/bundler"],
 
     "@kroma/client": ["@kroma/client@workspace:packages/client"],
 

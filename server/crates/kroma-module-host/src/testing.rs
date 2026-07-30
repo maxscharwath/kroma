@@ -1,23 +1,6 @@
-//! Shared [`HostCtx`] test doubles.
-//!
-//! `HostCtx` has ~25 methods, and any test that drives a module route or a
-//! service needs all of them implemented. Four crates had grown their own
-//! near-identical double (`MockHost`, `TestHost`, `DbHost`, `RecordingHost`),
-//! which meant every method added to the seam had to be stubbed five times, and
-//! each copy quietly disagreed with the others about what an unset setting or a
-//! disabled module should look like.
-//!
-//! Two shapes cover every existing use:
-//!
-//! * [`StubHost`] a host that is not backed by an app at all. Its answers are
-//!   the neutral ones (settings return the caller's default, gates allow, the
-//!   bus records rather than delivers) and each is overridable.
-//! * [`Recording`] a decorator over a REAL host, forwarding everything but
-//!   capturing the bus traffic. For tests that need the app's true behaviour and
-//!   only want to see what it published.
-//!
-//! Gated on the `testing` feature so it never reaches a release build; the
-//! crates that use it enable it as a dev-dependency.
+//! Shared [`HostCtx`] test doubles: [`StubHost`], a host with no app behind it
+//! whose answers are all neutral, and [`Recording`], a decorator over a real
+//! host that captures bus traffic instead of delivering it.
 
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
@@ -36,16 +19,10 @@ use crate::{Event, HostCtx, LibraryFolders};
 /// broadcast) and the event's topic.
 pub type Published = (Option<String>, String);
 
-/// A host service, as the registry stores it: keyed by the `TypeId` the caller
-/// will look it up with.
 type Service = (TypeId, Arc<dyn Any + Send + Sync>);
 
-/// A stand-in for the app's real settings store: `(key, caller's default) ->
-/// value`, the exact shape of [`HostCtx::setting_str`].
 type StringSettings = Arc<dyn Fn(&str, &str) -> String + Send + Sync>;
 
-/// What a [`StubHost`] or [`Recording`] saw. Shared behind an `Arc` so a clone
-/// of the host - axum takes its state by value - observes the same traffic.
 #[derive(Default)]
 struct Log {
     published: Mutex<Vec<Published>>,
@@ -72,24 +49,34 @@ impl Log {
     }
 }
 
-/// A unique temp path, so two tests running in parallel threads of one process
-/// never share a database. The pid alone is not enough for that.
+// Generated rather than shared, because these are `HostCtx` methods: they must
+// appear inside each `impl HostCtx for ...` block. Both doubles hold a `log` field.
+macro_rules! tapped_bus {
+    () => {
+        fn publish(&self, event: Event) {
+            self.log.published.lock().unwrap().push((None, event.topic));
+        }
+        fn publish_to(&self, user_id: &str, event: Event) {
+            self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
+        }
+        fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
+            self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
+            1
+        }
+    };
+}
+
+// The pid alone is not unique: tests run in parallel threads of one process.
 fn temp_db_path(tag: &str) -> PathBuf {
     static SEQ: AtomicU32 = AtomicU32::new(0);
     let n = SEQ.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("kroma-{tag}-{}-{n}.db", std::process::id()))
 }
 
-/// A [`HostCtx`] with no app behind it.
-///
-/// Every answer is the neutral one until configured: settings hand back the
-/// caller's own default, both gates allow, the module is enabled, there are no
-/// libraries and no TMDB key. The bus methods record instead of delivering, so
-/// a test asserts on [`published`](Self::published) /
-/// [`notifications`](Self::notifications) / [`jobs`](Self::jobs).
-///
-/// `db()` panics unless the host was built with [`with_db`](Self::with_db) -
-/// louder than handing out a pool to a test that did not ask for one.
+/// A [`HostCtx`] with no app behind it: every answer is the neutral one until
+/// configured (settings hand back the caller's own default, both gates allow),
+/// and the bus methods record instead of delivering. `db()` panics unless the
+/// host was built with [`with_db`](Self::with_db).
 #[derive(Clone)]
 pub struct StubHost {
     db: Option<Pool>,
@@ -111,7 +98,6 @@ impl Default for StubHost {
 }
 
 impl StubHost {
-    /// A host with no database. `db()` panics if reached.
     pub fn new() -> Self {
         Self {
             db: None,
@@ -128,51 +114,42 @@ impl StubHost {
     }
 
     /// A host over a real, empty, migrated SQLite database in a temp file unique
-    /// to this call. `tag` only shapes the filename, to make a stray one
-    /// identifiable.
+    /// to this call. `tag` only shapes the filename.
     pub fn with_db(tag: &str) -> Self {
         let path = temp_db_path(tag);
         let _ = std::fs::remove_file(&path);
         Self { db: Some(kroma_db::init(&path).expect("init test db")), ..Self::new() }
     }
 
-    /// A host over a pool the caller already built. For a module whose tests
-    /// need their OWN migrations applied on top of the core schema, which
-    /// [`with_db`](Self::with_db) does not know about.
+    /// For a module whose tests need their OWN migrations applied on top of the
+    /// core schema, which [`with_db`](Self::with_db) does not know about.
     pub fn with_pool(pool: Pool) -> Self {
         Self { db: Some(pool), ..Self::new() }
     }
 
-    /// Answer `tmdb_api_key()` with `key`.
     pub fn with_tmdb_key(mut self, key: &str) -> Self {
         self.tmdb_key = Some(key.into());
         self
     }
 
-    /// Answer `metadata_language()` with `tag` (default `"en"`).
     pub fn with_metadata_language(mut self, tag: &str) -> Self {
         self.metadata_language = tag.into();
         self
     }
 
-    /// Answer `module_enabled()` with `on` for every id (default `true`).
+    /// Answer `module_enabled()` with `on` for every id.
     pub fn with_module_enabled(mut self, on: bool) -> Self {
         self.module_enabled = on;
         self
     }
 
-    /// Answer `library_folders()` with `libraries` (default empty).
     pub fn with_libraries(mut self, libraries: Vec<LibraryFolders>) -> Self {
         self.libraries = libraries;
         self
     }
 
-    /// Answer every `setting_str` through `f` instead of the seeded map.
-    ///
-    /// For the one shape the map cannot imitate: a test whose SUBJECT is a real
-    /// settings store read through the seam, where the store's own registered
-    /// defaults - not the caller's - are what the assertion is about. `f` gets
-    /// the key and the caller's default, exactly as `setting_str` does.
+    /// Answer every `setting_str` through `f` instead of the seeded map; `f`
+    /// gets the key and the caller's default, exactly as `setting_str` does.
     pub fn with_string_settings(
         mut self,
         f: impl Fn(&str, &str) -> String + Send + Sync + 'static,
@@ -181,8 +158,7 @@ impl StubHost {
         self
     }
 
-    /// Seed a persisted setting. Unseeded keys still return the caller's default,
-    /// which is what makes the un-configured host neutral.
+    /// Seed a persisted setting. Unseeded keys still return the caller's default.
     pub fn with_setting(self, key: &str, value: serde_json::Value) -> Self {
         self.settings.lock().unwrap().insert(key.into(), value);
         self
@@ -194,27 +170,22 @@ impl StubHost {
         self
     }
 
-    /// Register an already-built `(TypeId, value)` pair, as
-    /// [`port_service`](crate::port_service) produces for a `dyn` port - its key
-    /// is `TypeId::of::<Arc<dyn P>>()`, which the generic method above cannot
-    /// name.
+    /// For a `dyn` port entry from [`port_service`](crate::port_service), whose
+    /// key is `TypeId::of::<Arc<dyn P>>()` and cannot be named generically.
     pub fn with_service_raw(self, entry: Service) -> Self {
         self.services.lock().unwrap().push(entry);
         self
     }
 
-    /// Everything published, as `(addressee, topic)`; the addressee is `None`
-    /// for a broadcast and `Some(user_id)` for a `publish_to`.
+    /// Everything published, as `(addressee, topic)`.
     pub fn published(&self) -> Vec<Published> {
         self.log.published()
     }
 
-    /// Published topics, in order, ignoring who they were addressed to.
     pub fn topics(&self) -> Vec<String> {
         self.log.topics()
     }
 
-    /// Every `notify()` call, with its audience.
     pub fn notifications(&self) -> Vec<(Audience, NotificationSpec)> {
         self.log.notifications()
     }
@@ -224,7 +195,6 @@ impl StubHost {
         self.log.jobs()
     }
 
-    /// Every `set_settings()` patch, in order.
     pub fn settings_written(&self) -> Vec<BTreeMap<String, serde_json::Value>> {
         self.log.settings_written()
     }
@@ -266,16 +236,7 @@ impl HostCtx for StubHost {
         self.settings.lock().unwrap().extend(patch.clone());
         self.log.settings_written.lock().unwrap().push(patch);
     }
-    fn publish(&self, event: Event) {
-        self.log.published.lock().unwrap().push((None, event.topic));
-    }
-    fn publish_to(&self, user_id: &str, event: Event) {
-        self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
-    }
-    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
-        self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
-        1
-    }
+    tapped_bus!();
     fn trigger_job(&self, key: &'static str, reason: &'static str) {
         self.log.jobs.lock().unwrap().push((key, reason));
     }
@@ -302,12 +263,8 @@ impl HostCtx for StubHost {
 }
 
 /// A REAL host with its bus tapped: every method forwards to `inner`, except
-/// `publish` / `publish_to` / `notify`, which are recorded and go no further.
-///
-/// For tests that need the app's genuine settings, gating and database, and
-/// whose actual subject is what the code under test announced. Holding the event
-/// back is deliberate - delivering it would fan out to whatever the real bus is
-/// wired to, which is not what the test is about.
+/// `publish` / `publish_to` / `notify`, which are recorded and go no further -
+/// delivering them would fan out to whatever the real bus is wired to.
 pub struct Recording<H: HostCtx> {
     inner: H,
     log: Arc<Log>,
@@ -318,7 +275,6 @@ impl<H: HostCtx> Recording<H> {
         Self { inner, log: Arc::new(Log::default()) }
     }
 
-    /// The host underneath, for a test that also needs to drive it directly.
     pub fn inner(&self) -> &H {
         &self.inner
     }
@@ -328,12 +284,10 @@ impl<H: HostCtx> Recording<H> {
         self.log.published()
     }
 
-    /// Published topics, in order, ignoring who they were addressed to.
     pub fn topics(&self) -> Vec<String> {
         self.log.topics()
     }
 
-    /// Every `notify()` call, with its audience.
     pub fn notifications(&self) -> Vec<(Audience, NotificationSpec)> {
         self.log.notifications()
     }
@@ -367,16 +321,7 @@ impl<H: HostCtx> HostCtx for Recording<H> {
     fn set_settings(&self, patch: BTreeMap<String, serde_json::Value>) {
         self.inner.set_settings(patch);
     }
-    fn publish(&self, event: Event) {
-        self.log.published.lock().unwrap().push((None, event.topic));
-    }
-    fn publish_to(&self, user_id: &str, event: Event) {
-        self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
-    }
-    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
-        self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
-        1
-    }
+    tapped_bus!();
     fn trigger_job(&self, key: &'static str, reason: &'static str) {
         self.inner.trigger_job(key, reason);
     }
@@ -427,23 +372,15 @@ mod tests {
         }
     }
 
-    // Every crate that tests against the seam now leans on these answers, so a
-    // change to any of them shifts behaviour in tests that never mention this
-    // file. That is what makes pinning them worth doing.
-
     #[test]
     fn an_unconfigured_stub_answers_neutrally() {
         let host = StubHost::new();
 
-        // Settings hand back the CALLER'S default, so code under test sees its
-        // own fallback rather than a value this file invented.
         assert_eq!(host.setting_str("anything", "fallback"), "fallback");
         assert!(host.setting_bool("anything", true));
         assert!(!host.setting_bool("anything", false));
         assert_eq!(host.setting_i64("anything", -7), -7);
 
-        // Gates allow: a test about a handler's behaviour should not have to
-        // grant permissions first. Tests about GATING use a real host.
         assert!(host.require(&user(), Permission::LibraryManage).is_ok());
         assert!(host.require_any_admin(&user()).is_ok());
 
@@ -479,29 +416,22 @@ mod tests {
         assert!(host.setting_bool("flag", false));
         assert_eq!(host.setting_i64("num", 0), 42);
 
-        // An unseeded key still falls back, next to the seeded ones.
         assert_eq!(host.setting_str("other", "fallback"), "fallback");
     }
 
     #[test]
     fn a_string_settings_source_takes_over_from_the_seeded_map() {
-        // The source sees the CALLER'S default, so a store with its own
-        // registered defaults can answer through the seam exactly as it would
-        // directly - which is the only reason this hook exists.
         let host = StubHost::new()
             .with_setting("k", json!("from the map"))
             .with_string_settings(|key, default| format!("{key}/{default}"));
 
         assert_eq!(host.setting_str("k", "fallback"), "k/fallback");
         assert_eq!(host.setting_str("other", "d"), "other/d");
-        // Only strings route through it; the map still answers the rest.
         assert!(host.setting_bool("flag", true));
     }
 
     #[test]
     fn a_seeded_setting_that_is_not_a_string_still_reads_as_one() {
-        // Settings are stored as JSON, and a caller asking for a string should
-        // get the value rather than an empty default that hides the mismatch.
         let host = StubHost::new().with_setting("num", json!(42));
         assert_eq!(host.setting_str("num", "fallback"), "42");
     }
@@ -528,9 +458,7 @@ mod tests {
 
     #[test]
     fn a_clone_sees_the_same_traffic_as_the_original() {
-        // axum takes router state BY VALUE, so a handler always works on a clone.
-        // If the log were not shared, every assertion after a request would read
-        // an empty vec.
+        // axum takes router state by value, so a handler always works on a clone.
         let host = StubHost::new();
         let clone = host.clone();
         clone.publish(Event::new("download.progress", json!({})));
@@ -574,10 +502,8 @@ mod tests {
     fn with_db_hands_out_a_migrated_pool_and_never_the_same_file_twice() {
         let a = StubHost::with_db("selftest");
         let b = StubHost::with_db("selftest");
-        // Migrated: a core table is queryable.
         a.db().get().unwrap().execute("SELECT 1 FROM users LIMIT 0", []).unwrap();
-        // Separate: a row in one is not in the other. Two tests running in
-        // parallel threads of one process must not share a database.
+        // Two tests in parallel threads of one process must not share a database.
         a.db()
             .get()
             .unwrap()
@@ -598,14 +524,11 @@ mod tests {
         assert_eq!(host.lerr(&user(), StatusCode::NOT_FOUND, "k").status(), StatusCode::NOT_FOUND);
     }
 
-    // ----- the decorator -------------------------------------------------------
-
     #[test]
     fn recording_forwards_everything_but_the_bus() {
         let inner = StubHost::new().with_tmdb_key("k").with_metadata_language("fr-FR");
         let host = Recording::new(inner);
 
-        // Forwarded, so the test still sees the real host's answers.
         assert_eq!(host.tmdb_api_key().as_deref(), Some("k"));
         assert_eq!(host.metadata_language(), "fr-FR");
         assert_eq!(host.setting_str("k", "fallback"), "fallback");
@@ -619,7 +542,6 @@ mod tests {
         assert!(!host.setting_bool("k", false));
         assert_eq!(host.setting_i64("k", 3), 3);
 
-        // Writes and jobs go THROUGH to the host underneath.
         host.set_settings(BTreeMap::from([("w".to_string(), json!(1))]));
         host.trigger_job("library.scan", "test");
         assert_eq!(host.inner().settings_written().len(), 1);
@@ -628,8 +550,6 @@ mod tests {
 
     #[test]
     fn recording_holds_the_bus_back_rather_than_passing_it_on() {
-        // Delivering would fan the event out to whatever the real host is wired
-        // to, which is never what a test asserting on it wants.
         let host = Recording::new(StubHost::new());
         host.publish(Event::new("scan.finished", json!({})));
         host.publish_to("ana", Event::new("notification.created", json!({})));
@@ -638,7 +558,6 @@ mod tests {
         assert_eq!(host.topics(), ["scan.finished", "notification.created"]);
         assert_eq!(host.published()[1].0.as_deref(), Some("ana"));
         assert_eq!(host.notifications().len(), 1);
-        // Nothing reached the host underneath.
         assert!(host.inner().published().is_empty());
         assert!(host.inner().notifications().is_empty());
     }
@@ -649,13 +568,8 @@ mod tests {
         host.db().get().unwrap().execute("SELECT 1 FROM users LIMIT 0", []).unwrap();
     }
 
-    // ----- the stub's required surface -------------------------------------------
-
     #[test]
     fn the_stub_answers_every_required_method_neutrally() {
-        // The seam has ~25 methods and a double is only useful if the ones a
-        // test is NOT about stay out of the way: settings hand back the caller's
-        // own default, gates allow, and the optional capabilities are absent.
         let host = StubHost::new();
         host.publish(Event::new("scan.finished", json!({})));
         assert_eq!(host.topics(), ["scan.finished"]);
@@ -679,10 +593,8 @@ mod tests {
 
     #[test]
     fn an_addressed_send_does_not_leak_into_the_broadcast_channel() {
-        // `publish_to` carries personal content ("your request was denied" names
-        // its recipient), so it must never reach the channel every client reads.
-        // The trait makes implementing it mandatory; this is the other half -
-        // that an implementation keeps the two buses apart.
+        // `publish_to` carries personal content, so it must never reach the
+        // channel every client reads.
         let host = StubHost::new();
         host.publish_to("ana", Event::new("notification.created", json!({})));
         assert_eq!(host.published(), [(Some("ana".to_string()), "notification.created".to_string())]);
@@ -694,8 +606,6 @@ mod tests {
 
     #[test]
     fn the_stub_defaults_to_something_usable() {
-        // `Default` exists so a double can be dropped into a `#[derive(Default)]`
-        // harness; it must not differ from `new()`.
         assert_eq!(StubHost::default().metadata_language(), StubHost::new().metadata_language());
         assert!(StubHost::default().published().is_empty());
     }

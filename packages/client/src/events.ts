@@ -1,6 +1,4 @@
-// Live server events over WebSocket (`/api/events`). The client holds this open
-// and updates its UI in place no relaunch/refresh when the library changes
-// (scan finished, metadata/art resolved). Auto-reconnects with backoff.
+// Live server events over WebSocket (`/api/events`), with reconnect backoff.
 
 import { sessionToken } from './session';
 import type { CastClientMessage, CastCommand, CastReceiver, CastState, StageStat } from './types';
@@ -20,15 +18,9 @@ export type ServerEvent =
   | { type: 'playback.updated'; count: number }
   | { type: 'playback.stopped'; count: number }
   | { type: 'playback.terminate'; sessionId: string; message: string }
-  /** A receiver appeared, or something a picker draws about it changed. Carries
-   * the whole row, so a sender patches its list in place and fetches nothing. */
   | { type: 'cast.receiver'; receiver: CastReceiver }
-  /** A receiver left (socket closed, or it stopped announcing). */
   | { type: 'cast.receiver.gone'; receiverId: string }
-  /** A TV disconnected this account's remote; the sender stands down. */
   | { type: 'cast.kicked'; receiverId: string }
-  /** A receiver's scrub position moved. Fires on every heartbeat of a playing
-   * TV, so it stays tiny: a remote moves its progress bar and refetches nothing. */
   | {
       type: 'cast.position';
       receiverId: string;
@@ -36,8 +28,6 @@ export type ServerEvent =
       durationMs?: number;
       state: CastState;
     }
-  /** An order for one receiver. Addressed by the server to the account the TV is
-   * signed into, so only that household's sockets ever see it. */
   | { type: 'cast.command'; receiverId: string; seq: number; command: CastCommand }
   | { type: 'settings.updated' }
   | { type: 'job.started'; key: string; runId: string }
@@ -47,9 +37,8 @@ export type ServerEvent =
   | { type: 'pipeline.stats'; stages: StageStat[] }
   | { type: 'request.updated'; id: string; status: string }
   | { type: 'report.updated'; id: string; status: string }
-  // Notification events are ADDRESSED: the server sends them only to the sockets
-  // signed in as the recipient, so receiving one always means "this is yours".
-  // Both carry the new unread total so a bell badge updates without a refetch.
+  // Addressed: the server sends these only to sockets signed in as the
+  // recipient, so receiving one always means "this is yours".
   | { type: 'notification.created'; id: string; unread: number }
   | { type: 'notification.read'; unread: number }
   | {
@@ -67,29 +56,16 @@ export type ServerEvent =
   | { type: 'vpn.status'; connected: boolean; exitIp: string | null; paused: boolean };
 
 export interface KromaEventsOptions {
-  /**
-   * Where to read the session bearer from, when the shared in-memory one is not
-   * the right source.
-   *
-   * A browser cannot set a header on a WebSocket handshake, so the bearer rides
-   * as a subprotocol - and by default that is read from the shared session
-   * module, which the web and phone shells own. The TV keeps its bearer on its
-   * client instead (it is multi-server: one client per KROMA it remembers), so
-   * it passes that client's own token here. A socket authenticating with a
-   * different credential than the client it belongs to is how a TV ends up
-   * signed in over HTTP and refused on the socket.
-   */
+  /** Session bearer source. Defaults to the shared session module; a multi-server
+   * client (the TV) must pass its own, or it authenticates as another server. */
   token?: () => string | undefined;
   onEvent?: (event: ServerEvent) => void;
   onOpen?: () => void;
   onClose?: () => void;
-  /** Override the WebSocket implementation (e.g. in tests/SSR). */
   WebSocketImpl?: typeof WebSocket;
-  /** Max reconnect backoff (ms). Default 15000. */
   maxBackoffMs?: number;
 }
 
-/** Reconnecting client for the KROMA server's event stream. */
 export class KromaEvents {
   private readonly url: string;
   private readonly opts: KromaEventsOptions;
@@ -99,19 +75,12 @@ export class KromaEvents {
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(baseUrl: string, opts: KromaEventsOptions = {}) {
-    // http→ws, https→wss.
     this.url = `${baseUrl.replace(/^http/i, 'ws').replace(/(^|[^/])\/+$/, '$1')}/api/events`;
     this.opts = opts;
   }
 
-  /**
-   * Send a frame UP the socket. The only upward traffic is a TV attaching itself
-   * as a cast receiver and reporting what it plays - which is why this exists at
-   * all: that used to be an HTTP heartbeat every ten seconds.
-   *
-   * Returns false when the socket isn't open, so the caller can fall back to the
-   * HTTP path rather than silently dropping the message.
-   */
+  /** Returns false when the socket isn't open, so the caller can fall back to
+   * the HTTP path rather than silently dropping the message. */
   send(message: CastClientMessage): boolean {
     const ws = this.ws;
     if (ws?.readyState !== 1 /* OPEN */) return false;
@@ -123,7 +92,6 @@ export class KromaEvents {
     }
   }
 
-  /** Whether the socket is currently open (the live path is available). */
   get open(): boolean {
     return this.ws?.readyState === 1;
   }
@@ -134,10 +102,9 @@ export class KromaEvents {
     if (!WS) return;
 
     let ws: WebSocket;
-    // The server gates the event bus on a valid session. A browser can't set
-    // headers on a WS handshake, so the bearer rides as a subprotocol the server
-    // validates and echoes back (see server ws.rs). Read it fresh on each
-    // (re)connect so a refreshed token is picked up automatically.
+    // A browser can't set headers on a WS handshake, so the bearer rides as a
+    // subprotocol the server validates and echoes back (see server ws.rs). Read
+    // fresh on each (re)connect so a refreshed token is picked up.
     const token = this.opts.token?.() ?? sessionToken();
     try {
       ws = token ? new WS(this.url, `kroma.session.${token}`) : new WS(this.url);

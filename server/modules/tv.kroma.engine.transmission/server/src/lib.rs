@@ -60,7 +60,6 @@ impl Transmission {
         f
     }
 
-    /// One RPC call, replaying once on the 409 session-id handshake.
     fn rpc(&self, method: &str, arguments: Value) -> Result<Value> {
         let body = json!({ "method": method, "arguments": arguments });
         let mut resp = self.fetch().post_json(&self.url, &body)?;
@@ -200,7 +199,6 @@ impl DownloadClient for Transmission {
     }
 }
 
-/// Dependency-free base64 (standard alphabet, padded) for HTTP Basic auth.
 fn base64(input: &[u8]) -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
@@ -222,28 +220,23 @@ fn base64(input: &[u8]) -> String {
     out
 }
 
-/// The download-client registry kind this engine provides.
 pub const KIND: &str = "transmission";
 
-/// Register the Transmission factory into a download-client registry (called by
-/// the engine module's ServerModule on enable).
+/// Registers the Transmission factory (called by the engine module's ServerModule on enable).
 pub fn register(reg: &mut kroma_module_sdk::ports::DownloadClientRegistry) {
     reg.register(KIND, |def, _ctx| {
         Ok(Box::new(Transmission::new(def)) as Box<dyn DownloadClient>)
     });
 }
 
-/// This module's id (matches its `module.json`).
 pub const MODULE_ID: &str = "tv.kroma.engine.transmission";
 
-/// This module's registry entry (manifest + packaged icon embedded at compile time).
 use kroma_module_sdk::EmbeddedModule;
 pub const MODULE: EmbeddedModule = kroma_module_sdk::embedded_module!();
 
-/// The Transmission engine sub-module: a lifecycle-only [`ServerModule`] that
-/// registers / unregisters its download-client kind on the Downloads module's
-/// shared registry as it is enabled / disabled. It reaches the `DownloadManager`
-/// through the host's service registry, so the binary wires nothing.
+/// Lifecycle-only [`ServerModule`]: registers/unregisters the Transmission
+/// download-client kind on enable/disable, reaching the host's registry so the
+/// binary itself wires nothing.
 pub struct TransmissionModule;
 
 #[kroma_module_sdk::host::async_trait]

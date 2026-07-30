@@ -1,31 +1,6 @@
-//! The KROMA server module contract.
-//!
-//! A *module* is a self-contained domain (torrent downloading, indexing,
-//! transcription) that describes itself and declares what it needs and what it
-//! provides. This crate is the shared vocabulary every module and the host
-//! agree on:
-//!
-//! - [`Module`] - the trait a module crate implements.
-//! - [`ModuleManifest`] / [`Capability`] - the serde wire shape the server
-//!   publishes at `GET /api/modules`, and the frontend `@kroma/module-sdk`
-//!   registry mirrors, so a module's backend crate and frontend package are
-//!   joined by one `id`.
-//! - [`Registry`] - gathers modules, resolves the dependency graph
-//!   (topological order, missing-dep and cycle detection), and exposes the
-//!   manifests + the capability -> provider index.
-//! - [`ModuleEvent`] - an open, module-authored event envelope, the loose-
-//!   coupling counterpart to direct capability lookups.
-//!
-//! ## Compile-time today, runtime-loadable later
-//!
-//! This is deliberately a *compile-time* contract: a module is a crate linked
-//! into the binary, and "add a module at runtime" means enabling it via config
-//! (the same mental model the `torrent-rqbit` feature + `RQBIT_COMPILED` flag
-//! already use). Whether a `Box<dyn Module>` is constructed by a compiled-in
-//! crate (now), a WASM component (the only mechanism that hot-loads on the
-//! fully-static musl build), or a native dylib (glibc / macOS dev) is a
-//! property of *how the box is produced*, not of this trait. The same registry
-//! and manifests serve every tier, so the runtime-load path is additive.
+//! The KROMA server module contract: a module describes itself and declares
+//! what it needs and provides. [`Registry`] resolves the dependency graph;
+//! [`ModuleManifest`]/[`Capability`] is the wire shape the frontend `@kroma/module-sdk` mirrors.
 
 mod compat;
 mod embedded;

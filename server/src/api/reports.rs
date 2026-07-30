@@ -1,8 +1,5 @@
-//! `/api/reports` user-submitted problem reports (the "signaler un probleme"
-//! flow). Any authenticated user (`playback`) can file a report on a movie / show
-//! / episode; the admin triage queue lives under `/api/admin/reports`
-//! (`crate::api::admin::reports`). The reported title is resolved + snapshotted
-//! server-side, so a client can't spoof it and a since-deleted title still 404s.
+//! `/api/reports` user-submitted problem reports. The reported title is resolved
+//! and snapshotted server-side, so a client cannot spoof it.
 
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -46,8 +43,6 @@ fn require(user: &User, perm: Permission) -> Result<(), Response> {
     }
 }
 
-/// A human-readable snapshot label for the reported subject. Episodes get a
-/// `Show S01E02 - Episode title` line; movies use their own title.
 fn subject_label(item: &MediaItem) -> String {
     if item.kind == Kind::Episode {
         let show = item.show_title.as_deref().unwrap_or(item.title.as_str());
@@ -59,9 +54,8 @@ fn subject_label(item: &MediaItem) -> String {
     item.title.clone()
 }
 
-/// `POST /api/reports` file a problem report. Open to any user with `playback`
-/// (the default). The subject title is resolved from the catalog (404 when the
-/// movie/show/episode is unknown), never trusted from the client.
+/// The subject title is resolved from the catalog (404 when unknown), never
+/// trusted from the client.
 pub async fn create(
     State(state): State<SharedState>,
     AuthUser(user): AuthUser,
@@ -113,7 +107,6 @@ pub async fn create(
                 id: report.id.clone(),
                 status: report.status.as_str().into(),
             });
-            // Tell the triage queue's owners there is something to look at.
             let spec = NotificationSpec::new(
                 NotificationEvent::ReportSubmitted,
                 "notifications.report.submitted.title",
@@ -139,7 +132,6 @@ pub async fn create(
     }
 }
 
-/// `GET /api/reports/mine` the caller's own reports, newest-first.
 pub async fn list_mine(
     State(state): State<SharedState>,
     AuthUser(user): AuthUser,

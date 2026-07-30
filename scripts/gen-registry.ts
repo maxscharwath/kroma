@@ -31,6 +31,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { byCodeUnit } from './lib/sort';
 
 const root = join(import.meta.dir, '..');
 const modulesDir = join(root, 'dist/modules');
@@ -128,10 +129,14 @@ function tarRead(tar: Uint8Array, wanted: string): Uint8Array | null {
   return null;
 }
 
-const kmods = readdirSync(modulesDir).filter((f) => f.endsWith('.kmod'));
+// Sorted here rather than in the loop header: the catalog's entry order follows
+// this walk, so it has to be the same everywhere the registry is built.
+const kmods = readdirSync(modulesDir)
+  .filter((f) => f.endsWith('.kmod'))
+  .sort(byCodeUnit);
 const entries = new Map<string, Entry>();
 
-for (const file of kmods.sort()) {
+for (const file of kmods) {
   const path = join(modulesDir, file);
   const bytes = readFileSync(path);
   const tar = toTar(bytes);

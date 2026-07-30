@@ -22,6 +22,7 @@
 
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { byCodeUnit } from './lib/sort';
 import { fenced, frontmatter, REVERSE_DNS, slug } from './module-format';
 
 const ROOT = join(import.meta.dir, '..');
@@ -55,7 +56,7 @@ const tsHeader = (file: string) =>
 // (readdir order is otherwise OS-dependent, producing spurious diffs).
 const files = readdirSync(SRC_DIR)
   .filter((f) => f.endsWith('.module.md'))
-  .sort();
+  .sort(byCodeUnit);
 
 interface Gen {
   id: string;

@@ -1,23 +1,7 @@
-// This phone's push capability.
-//
-// Only what is genuinely native: whether the binary can do push at all, the
-// permission prompt, the device token, and the action sets / channels the system
-// needs registered up front. The flow around it — check, then prompt, then
-// register with the server — is shared with the web client in `@kroma/core`'s
-// `enablePush` / `disablePush`.
-//
-// The token is the RAW APNs/FCM one (`getDevicePushTokenAsync`), not an Expo
-// push token: nothing goes through expo.dev and no Expo project exists.
-//
-// That raw token is never handed to a server. It is traded at push.kroma.tv for
-// a grant (see `./relay`), and the grant is what gets registered — because a
-// self-hosted server holds no credential Apple or Google would accept, so a
-// token would be useless to it, and because a grant is scoped to this one device
-// and unreadable even to the server storing it.
-//
-// Note what is NOT here: rendering. When a push arrives the system draws it, and
-// the in-app centre (`./index`) is the source of truth for the list — a push is
-// a nudge toward a row that already exists on the server.
+// This phone's native push capability: permission, device token, and the
+// action sets/channels registered up front. The token is raw APNs/FCM (not
+// an Expo push token) and is traded at push.kroma.tv for a grant before it's
+// ever registered with the server.
 
 import type {
   MessageKey,
@@ -36,16 +20,9 @@ import { deviceLabel } from '#mobile/lib/device';
 import { push as loadPush } from './native';
 import { forgetGrant, grantFor, storedGrant } from './relay';
 
-/**
- * The translator the OS-facing labels use.
- *
- * Every other string in the app is rendered by React inside the i18n provider.
- * These are not: a category's buttons and a channel's name are handed to iOS and
- * Android imperatively, once, and the system keeps whatever text it was given.
- * So the app pushes the live translator in here instead (see `usePushLabels`),
- * and the default locale stands in until it does — a wrong language is better
- * than English hardcoded for everyone.
- */
+// OS-facing labels (category buttons, channel names) are handed to iOS/Android
+// imperatively, once — not rendered by React — so the live translator is
+// pushed in here instead of read from context.
 let translate: Translate = createTranslator(DEFAULT_LOCALE);
 
 /** Point the OS labels at the reader's language. Re-registering is the caller's
@@ -54,36 +31,22 @@ export function setPushTranslator(next: Translate): void {
   translate = next;
 }
 
-/**
- * The action sets the server may name in `push_category`.
- *
- * APNs and Android cannot carry arbitrary buttons: they can only display
- * actions belonging to a category the app registered up front. So this list is
- * the contract — the server picks a name from it, and the buttons come from
- * here. Adding one means adding it on both sides (`kroma-domain`'s
- * `PushCategory`).
- *
- * The labels are the SAME catalogue keys the server renders in-app actions
- * from, so "Approve" on the lock screen and "Approve" in the list are one
- * string in two places rather than two strings that can drift.
- */
+// APNs/Android only show actions from a category registered up front, so this
+// is the contract the server's `push_category` picks from — add a variant on
+// both sides (kroma-domain's `PushCategory`) when adding one.
 const CATEGORIES: Record<
   string,
   { identifier: string; titleKey: MessageKey; opensApp: boolean }[]
 > = {
-  /** A moderator can approve or deny without opening the app. */
   request_review: [
     { identifier: 'approve', titleKey: 'notifications.action.approve', opensApp: false },
     { identifier: 'deny', titleKey: 'notifications.action.deny', opensApp: false },
   ],
-  /** Something the user asked for is ready. */
   media_available: [
     { identifier: 'watch', titleKey: 'notifications.action.watch', opensApp: true },
   ],
 };
 
-/** Which service issued this device's token. Not what gets registered — that is
- * always `relay` — but the relay has to be told which one it is sealing. */
 function transportFor(type: string): 'apns' | 'fcm' | null {
   if (type === 'ios') return 'apns';
   if (type === 'android') return 'fcm';
@@ -109,19 +72,15 @@ export async function registerCategories(): Promise<void> {
   );
 }
 
-/**
- * Android requires every notification to name a channel, and the channel — not
- * the payload — owns the importance and the sound. One per category the server
- * sends, so a user can silence "new titles" in the system settings while
- * keeping "your request is ready" loud.
- */
+/** Android requires every notification to name a channel, which — not the
+ * payload — owns importance and sound; one per category so a user can silence
+ * one kind of alert while keeping another loud. */
 export async function registerAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
   const Notifications = loadPush();
   if (!Notifications) return;
-  // The name is what a user reads in Android's own notification settings, so it
-  // is translated too. `default` keeps the brand, which is not a word to
-  // translate.
+  // Translated: the name shows in Android's own settings. `default` keeps the
+  // brand untranslated.
   const channels: [string, string, ExpoNotifications.AndroidImportance][] = [
     ['default', 'KROMA', Notifications.AndroidImportance.DEFAULT],
     [
@@ -148,22 +107,16 @@ export async function registerAndroidChannels(): Promise<void> {
 
 /** The native half of the shared push flow. */
 export const nativePush: PushCapability = {
-  /**
-   * Deliberately does NOT reject a simulator. A simulator shows the permission
-   * dialog perfectly well, and on iOS 16+ it can register for real pushes; only
-   * minting a token may fail, which `subscribe` reports precisely once it has
-   * actually tried. Refusing up front would hide the prompt from exactly the
-   * devices most testing happens on.
-   */
+  /** Does not reject a simulator: it shows the permission dialog fine and can
+   * often register for real; only minting a token may fail, which `subscribe`
+   * reports once it actually tries. */
   async blocker(): Promise<PushBlocker | null> {
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') return 'unsupported';
     const Notifications = loadPush();
-    // The JS is here but the native module is not: this build predates the
-    // dependency and needs `expo prebuild` + a native rebuild.
+    // Native module missing: this build predates the dependency, needs `expo prebuild`.
     if (!Notifications) return 'needs-rebuild';
     const { status } = await Notifications.getPermissionsAsync();
-    // `denied` is terminal from inside the app: iOS only ever prompts once, so
-    // the user has to change it in Settings.
+    // iOS only prompts once; `denied` can only be undone in Settings.
     return status === 'denied' ? 'denied' : null;
   },
 

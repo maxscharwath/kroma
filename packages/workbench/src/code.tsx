@@ -1,15 +1,5 @@
-// Code, rendered by the kit.
-//
-// The workbench shows TSX in three places (a story's `usage`, the live call
-// site under the canvas, a demo's source), and a wall of one-colour monospace
-// is close to unreadable in all three. A syntax highlighter is normally a
-// dependency - Shiki, Prism, highlight.js - and every one of them emits HTML,
-// which rules them out: this has to render on Apple TV too. So the tokenizer
-// below is ~40 lines over the subset TSX snippets actually use, and the colours
-// come from the design's own palette rather than from an imported theme.
-//
-// Everything is <Txt> and <Box>, so the same code block renders in a browser,
-// on a television and in a screenshot.
+// A small TSX syntax highlighter and code block: renders via <Txt>/<Box> so
+// it works on web and Apple TV without an HTML-emitting dependency.
 
 import { Box, Icon, IconButton, type IconName, Txt } from '@kroma/ui/kit';
 import { type ColorToken, colors, radius } from '@kroma/ui/tokens';

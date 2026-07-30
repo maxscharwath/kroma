@@ -1,22 +1,8 @@
 // The notification centre: a bell with an unread badge, opening a drawer of
-// notifications.
-//
-// A row is a whole little card — event glyph or artwork, title, body, relative
-// time — and the card itself is the only control: opening it marks it read and
-// follows its link. The list draws no buttons at all; a notification that came
-// with Approve / Deny sends you to the queue those decisions belong to, which
-// keeps the drawer a list of what happened rather than a console.
-//
-// The list is deliberately plain. Everything here earns its place:
-//   * one 48px tile leads every row, so titles, bodies and buttons line up down
-//     a single column whether or not a row carries artwork;
-//   * unread is one amber dot in a gutter that is always reserved — a dot in
-//     the text flow shifts every title it precedes;
-//   * the `event` tints the glyph and nothing else: colour where the eye sorts,
-//     no coloured plates, washes or edges competing with it;
-//   * the time sits at the end of the title line, not between the body and its
-//     own buttons, so content and its actions stay one block;
-//   * rows are grouped by day, which is the only structure the list gets.
+// notifications. A row is a whole card — the card itself is the only control:
+// opening it marks it read and follows its link. There are no per-row buttons;
+// a notification with Approve/Deny sends you to the queue those decisions
+// belong to, so the drawer stays a list of what happened, not a console.
 
 import {
   groupNotificationsByDay,
@@ -70,15 +56,13 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           aria-label={
             unread > 0 ? `${t('notifications.title')} (${unread})` : t('notifications.title')
           }
-          className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text data-[state=open]:bg-white/8 data-[state=open]:text-text ${className ?? ''}`}
+          className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text data-[state=open]:bg-white/8 ${className ?? ''}`}
         >
           <IconBell size={20} />
           {unread > 0 && (
             <span
-              // Count to 9+: past that the exact number stops being useful and
-              // the badge would outgrow the bell. The ring punches the badge out
-              // of the rail/topbar fill so it reads as a separate object.
-              className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-[18px] tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
+              // Caps at 9+ so the badge doesn't outgrow the bell.
+              className="absolute -right-0.5 -top-0.5 min-w-4.5 rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4.5 tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -92,9 +76,8 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[#101014] outline-none data-[state=open]:animate-[slide-in-right_.3s_var(--ease-out)] sm:w-[min(25rem,92vw)] sm:border-l sm:border-white/8"
         >
           <PanelHeader onClose={() => setOpen(false)} />
-          {/* Mounted on first open, and kept mounted after: rendering a bell
-              must not fetch an inbox nobody has asked for, and closing the
-              drawer must not throw away what reopening would refetch. */}
+          {/* Mounted on first open and kept mounted after, so reopening the
+              drawer doesn't refetch. */}
           {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
         </Dialog.Content>
       </Dialog.Portal>
@@ -124,8 +107,7 @@ function PanelHeader({ onClose }: Readonly<{ onClose: () => void }>) {
         {t('notifications.title')}
       </Dialog.Title>
       <div className="ml-auto flex items-center gap-0.5">
-        {/* Icon-only: "Mark all as read" is a long label in every language and it
-            crowded the title out of its own header. */}
+        {/* Icon-only: the label is long in every language and crowded the title. */}
         <IconAction
           icon={IconChecks}
           label={t('notifications.markAllRead')}
@@ -200,13 +182,12 @@ function PanelBody({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] [scrollbar-width:thin]">
+    <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] scrollbar-thin">
       {groupNotificationsByDay(items).map((group) => (
-        // Keyed on the run's first row, not on the day: an unsorted inbox can
-        // open a second "Earlier" run and two sections must not share a key.
+        // Keyed on the run's first row, not the day: an unsorted inbox can open
+        // a second "Earlier" run, and two sections must not share a key.
         <section key={group.items[0]?.id}>
-          {/* h3, not h2: Radix renders <Dialog.Title> as the h2, and a day label
-              is a level below the drawer's own name. */}
+          {/* h3, not h2: Radix renders <Dialog.Title> as the h2. */}
           <h3 className="sticky top-0 z-10 bg-[#101014] px-2 pb-1.5 pt-3 text-[11px] font-semibold text-dim">
             {t(NOTIFICATION_DAY_LABEL[group.day])}
           </h3>
@@ -231,9 +212,8 @@ function NotificationRow({
   const queryClient = useQueryClient();
   const labelId = useId();
 
-  /** Opening a notification marks it read — that is what "seen" means here. The
-   * navigation does not wait on the write: a read receipt is not worth a frame
-   * of dead click. */
+  // Navigation doesn't wait on the read-write — a receipt isn't worth a frame
+  // of dead click.
   function open() {
     if (!notification.read) {
       void kromaClient()
@@ -252,9 +232,8 @@ function NotificationRow({
 
   const unread = !notification.read;
   return (
-    <div className="relative rounded-xl transition-colors hover:bg-white/[0.04]">
-      {/* One hit target for the whole card, laid under the content so a click
-          lands anywhere on it. */}
+    <div className="relative rounded-xl transition-colors hover:bg-white/4">
+      {/* One hit target for the whole card, laid under the content. */}
       <button
         type="button"
         onClick={open}
@@ -281,15 +260,9 @@ function NotificationRow({
   );
 }
 
-/** A notification row's CONTENTS: the gutter, the tile, the title/time line and
- * the clamped body — every metric that makes a row look like a row.
- *
- * Exported, and the reason the admin composer's preview is trustworthy: a
- * preview that re-typed these class strings would stop being a preview the first
- * time one of them changed. The caller supplies the shell around it (the drawer
- * lays a hit target under it, the composer draws a card) and the text tones,
- * which is the only thing that legitimately differs between them.
- */
+/** A notification row's contents: gutter, tile, title/time line, clamped body.
+ * Exported so the admin composer's preview renders the real row markup rather
+ * than a hand-copied approximation; the caller supplies the shell and tones. */
 export function NotificationCard({
   className = '',
   event,
@@ -317,7 +290,7 @@ export function NotificationCard({
 }>) {
   return (
     <div className={`flex items-start p-2.5 pl-2 ${className}`}>
-      {/* The gutter is here on every row, empty or not, so nothing shifts. */}
+      {/* The gutter is reserved on every row, empty or not, so nothing shifts. */}
       <span className="mr-2 flex h-12 w-1.5 shrink-0 items-center">
         {unread && <span className="h-1.5 w-1.5 rounded-full bg-accent" />}
       </span>
@@ -330,7 +303,7 @@ export function NotificationCard({
           >
             {title}
           </p>
-          <span className="shrink-0 pt-[3px] text-[11px] text-dim">{time}</span>
+          <span className="shrink-0 pt-0.75 text-[11px] text-dim">{time}</span>
         </div>
         <p id={bodyId} className={`mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] ${bodyTone}`}>
           {body}
@@ -340,7 +313,6 @@ export function NotificationCard({
   );
 }
 
-/** The event's glyph, in the event's colour. */
 function NotificationGlyph({
   event,
   size = 20,
@@ -349,14 +321,9 @@ function NotificationGlyph({
   return <meta.icon size={size} stroke={1.8} className={meta.fg} />;
 }
 
-/** The 48px leading tile — the column every row's text hangs off. Artwork when
- * the notification carries some, otherwise the event glyph on a neutral plate.
- * The plate stays neutral on purpose: the glyph's colour is the signal, and a
- * tinted block behind every row drowns it.
- *
- * `src` arrives already resolved: the drawer sizes artwork off the media API and
- * the admin console resolves a half-typed path, and neither belongs in here.
- * Exported so the composer's preview is this row, not a drawing of one. */
+/** The 48px leading tile: artwork when the notification carries some, else the
+ * event glyph on a neutral plate (kept neutral so the glyph's colour is the
+ * signal). `src` arrives already resolved by the caller. */
 export function NotificationTile({
   event,
   src,
@@ -381,33 +348,22 @@ export function NotificationTile({
   );
 }
 
-/** Where a row goes when it is tapped.
- *
- * The list draws no buttons, so a notification's own `link` is the destination;
- * a producer that attached navigation only to an action (rather than to the
- * notification) still has somewhere to send you, so its first `link` action
- * stands in. `api` actions — Approve, Deny — have no destination and are simply
- * not offered here: their notification links to the queue where the decision
- * belongs. */
+// The notification's own `link`, else its first `link`-kind action. `api`
+// actions (Approve, Deny) have no destination — deliberately not offered here,
+// since their notification links to the queue where the decision belongs.
 function destinationOf(notification: Notification): string | undefined {
   if (notification.link) return notification.link;
   return notification.actions.find((a) => a.kind === 'link')?.href;
 }
 
-// ---------------------------------------------------------------------------
-// Event vocabulary
-// ---------------------------------------------------------------------------
-
 interface EventMeta {
   icon: TablerIcon;
-  /** Glyph colour. The only colour a row gets. */
   fg: string;
 }
 
 /** One glyph + tint per event the schema knows. Keyed on the KNOWN list, not on
- * `NotificationEvent` (which is an open union — a newer server may send an event
- * this build has never heard of): adding a known event without deciding what it
- * looks like is a type error, while an unknown one falls back. */
+ * `NotificationEvent` (an open union a newer server may extend): a known event
+ * missing an entry is a type error, an unknown one just falls back. */
 const EVENT_META: Record<(typeof KNOWN_NOTIFICATION_EVENTS)[number], EventMeta> = {
   'request.submitted': { icon: IconInbox, fg: 'text-accent' },
   'request.approved': { icon: IconCircleCheck, fg: 'text-success' },
@@ -424,8 +380,7 @@ const EVENT_META: Record<(typeof KNOWN_NOTIFICATION_EVENTS)[number], EventMeta> 
   'system.vpn.down': { icon: IconPlugConnectedX, fg: 'text-red-400' },
   'system.disk.low': { icon: IconDatabase, fg: 'text-accent' },
   'system.test': { icon: IconBellRinging, fg: 'text-accent' },
-  // A module's own event: no vocabulary this app can read, so it stays neutral
-  // and lets its (already rendered) text speak.
+  // A module's own event has no vocabulary this app can read, so it stays neutral.
   custom: { icon: IconSparkles, fg: 'text-muted' },
 };
 

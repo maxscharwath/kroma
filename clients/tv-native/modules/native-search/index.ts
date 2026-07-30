@@ -1,15 +1,11 @@
-// JS face of the local Apple TV search module.
-//
-// Optional, like the Siri module: it is declared for Apple only, so an Android
-// TV build does not ship it and asking for it must return null rather than
-// throw.
+// JS face of the local Apple TV search module. Optional like Siri: absent on
+// Android TV, where requesting it must return null rather than throw.
 
 import { requireNativeView, requireOptionalNativeModule } from 'expo';
 import type { ComponentType, ReactNode } from 'react';
 import type { ViewProps } from 'react-native';
 
 export interface NativeSearchViewProps extends ViewProps {
-  /** Placeholder for the platform's search field. */
   placeholder: string;
   /** The query, pushed in (Siri, a recent search). Typing comes back out
    * through `onChangeText`, so this must not be re-sent on every keystroke. */

@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { $ } from 'bun';
+import { byCodeUnit } from './sort';
 
 export interface StagedBundle {
   /** The module id from its `module.json`. */
@@ -43,7 +44,7 @@ export async function buildModuleBundle(moduleDir: string): Promise<StagedBundle
   const wasmCandidates = existsSync(wasmOutDir)
     ? readdirSync(wasmOutDir)
         .filter((f) => f.endsWith('.wasm'))
-        .sort()
+        .sort(byCodeUnit)
     : [];
   // A module that ships a backend but produced no .wasm did not actually build
   // (e.g. the guest crate is not `crate-type = ["cdylib"]`). Fail loudly rather

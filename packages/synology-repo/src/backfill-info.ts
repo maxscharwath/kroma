@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
 /**
- * One-time backfill: attach a `<spk>.info.json` sidecar to every existing
- * GitHub release that has a .spk but no sidecar yet (new releases get theirs
- * from CI). Downloads each .spk to a temp dir to read INFO + md5, uploads the
- * sidecar, deletes the download. Needs an authenticated `gh`.
+ * One-time backfill: attach a `<spk>.info.json` sidecar to every existing GitHub
+ * release that has a .spk but no sidecar yet. Needs an authenticated `gh`.
  *
  * Usage: bun packages/synology-repo/src/backfill-info.ts [--limit N] [--repo owner/name]
  */

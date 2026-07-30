@@ -1,7 +1,5 @@
 //! SQLite DDL: connection pragmas, the table/index schema, the canonical column
-//! lists for item/file SELECTs, and the `init`/`migrate` that apply them. Moved
-//! out of [`super`] (the directory root) verbatim to keep that file focused on
-//! the connection pool and the shared row-mappers.
+//! lists for item/file SELECTs, and the `init`/`migrate` that apply them.
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -19,8 +17,8 @@ pub(crate) const PRAGMAS: &str = "
     PRAGMA busy_timeout = 5000;
     PRAGMA mmap_size = 268435456;
     PRAGMA cache_size = -16000;
-    -- Checkpoint every ~40 MB instead of the 4 MB default: scan/probe bursts
-    -- write thousands of rows, and frequent checkpoints stall readers on HDD.
+    -- ~40 MB checkpoints instead of the 4 MB default: frequent checkpoints
+    -- stall readers on HDD during scan/probe bursts.
     PRAGMA wal_autocheckpoint = 10000;
 ";
 
@@ -93,17 +91,14 @@ pub(crate) const SCHEMA: &str = "
     CREATE INDEX IF NOT EXISTS idx_items_library ON items(library);
     CREATE INDEX IF NOT EXISTS idx_items_kind    ON items(kind);
     CREATE INDEX IF NOT EXISTS idx_items_show    ON items(show_id, season, episode);
-    -- Home 'recently added' rows sort the whole table by added_at; without this
-    -- index that is a full scan + sort on every home load.
     CREATE INDEX IF NOT EXISTS idx_items_added   ON items(added_at DESC);
     CREATE INDEX IF NOT EXISTS idx_shows_library ON shows(library);
     CREATE INDEX IF NOT EXISTS idx_files_item    ON files(item_id);
     CREATE INDEX IF NOT EXISTS idx_files_abs     ON files(abs_path);
     CREATE INDEX IF NOT EXISTS idx_files_probed  ON files(probed);
 
-    -- Segment markers per episode (skip-intro + next-up at credits). One row per
-    -- (item, kind); kind is 'intro' | 'credits' | …; bounds in ms. Populated from
-    -- embedded chapters and the audio-fingerprint job.
+    -- Skip-intro / next-up markers. One row per (item, kind); kind is
+    -- 'intro' | 'credits' | …; bounds in ms.
     CREATE TABLE IF NOT EXISTS markers (
         item_id    TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
         kind       TEXT NOT NULL,

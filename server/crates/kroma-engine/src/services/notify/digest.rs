@@ -1,16 +1,8 @@
-//! The media digest: "what's new in the library", batched.
-//!
-//! Per-item notification would be a disaster here a first import or a big
-//! re-scan inserts thousands of rows, and nobody wants four thousand pushes. So
-//! new media is the one event that is NOT emitted at its source. Instead a
-//! watermark in `settings` records how far we have reported, and this collapses
-//! everything since into one notification per audience:
-//!
-//! - new films → a single "N new titles" to everyone,
-//! - new episodes → one per show, and only to that show's followers.
-//!
-//! The watermark is seeded (not reported) on the first run, so adopting this
-//! feature on an existing library is silent.
+//! The media digest: "what's new in the library", batched via a watermark in
+//! `settings` rather than emitted per-item (a big re-scan would mean thousands
+//! of pushes). New films become one "N new titles" to everyone; new episodes
+//! become one per show, to that show's followers. The watermark is seeded, not
+//! reported, on the first run, so adopting this on an existing library is silent.
 
 use std::collections::BTreeMap;
 
@@ -26,21 +18,16 @@ use crate::db;
 /// Setting holding the ISO-8601 `added_at` we have already reported through.
 pub const WATERMARK_KEY: &str = "notifications.digest.since";
 
-/// Most rows one digest run will look at. A bigger burst than this still gets
-/// reported (the count is capped, the watermark still advances), it just doesn't
-/// come into memory all at once.
+/// Rows per run; a bigger burst still gets reported across multiple runs
+/// (the watermark still advances) rather than loaded into memory at once.
 const MAX_SCAN: usize = 5_000;
 
 /// What a run did, for the job log.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct DigestSummary {
-    /// New movies rolled into the "N new titles" notification.
     pub movies: usize,
-    /// Shows that gained at least one episode.
     pub shows: usize,
-    /// Notifications actually delivered (audiences x preferences).
     pub sent: usize,
-    /// True when this run only seeded the watermark and deliberately stayed quiet.
     pub seeded: bool,
 }
 

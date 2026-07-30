@@ -1,6 +1,5 @@
-// Admin acquisition config: Torznab indexers (Jackett / Prowlarr), download
-// clients (embedded engine + Transmission / qBittorrent) and the downloads
-// queue.
+// Admin acquisition config: indexers, download clients, the downloads queue and
+// the VPN bridge.
 
 import type {
   ClientTestResult,
@@ -38,8 +37,7 @@ export function createIndexer(ctx: RequestContext, body: SaveIndexerBody): Promi
   });
 }
 
-/** Partial update; omitted fields keep their values (an omitted apiKey keeps
- * the stored secret). */
+/** Partial update: an omitted field keeps its value, apiKey included. */
 export function updateIndexer(
   ctx: RequestContext,
   id: string,

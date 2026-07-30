@@ -1,46 +1,19 @@
-// Trading this phone's push token for a grant, and remembering the result.
-//
-// A KROMA server is self-hosted by anybody; this app is published by the KROMA
-// team. Apple and Google only accept credentials issued to the account that
-// publishes an app, so the server a reader signs into has nothing either service
-// would accept — handing it the raw APNs/FCM token would be handing it something
-// it cannot use.
-//
-// So the token never leaves the phone. It goes to the relay, which holds the
-// app's real credentials, and comes back as a GRANT: an opaque capability to
-// notify THIS device and nothing else. That is what gets registered with the
-// server, and it is all the server ever sees.
-//
-// The grant is then STORED, for two reasons that are easy to miss:
-//
-//   - Unsubscribing names the endpoint to remove. Since what was registered is
-//     the grant and not the token, `endpoint()` has to hand back that same
-//     string — re-minting would produce a different blob and the server would
-//     delete nothing.
-//   - A grant expires. Only the app can mint a replacement (a server has no way
-//     to refresh one it holds), so it refreshes on launch; see `refreshGrant`.
-//
-// See `packages/push-relay/worker/grant.ts` for the other half.
+// A KROMA server is self-hosted and holds no Apple/Google push credentials, so
+// the raw device token never leaves the phone: it is exchanged with the relay
+// for an opaque GRANT (a capability to notify this device only), and the grant
+// is all the server ever registers or sees.
 
 import { z } from 'zod';
 import { loadPref, savePref } from '#mobile/lib/storage';
 
-/** Where grants are minted. A constant, not a setting: pointing a phone's
- * notifications at an arbitrary host is a phishing route, not a feature. */
+// Hard-coded, not a setting: pointing push at an arbitrary host is phishing.
 const RELAY_URL = 'https://push.kroma.tv';
 
-/** Give up rather than hang the settings toggle on a slow network. */
 const TIMEOUT_MS = 10_000;
 
 const PREF_KEY = 'push.grant';
 
-/**
- * Re-mint once a grant is within this of expiring.
- *
- * Generous because the refresh only gets a chance to run when the app is opened:
- * a reader who opens KROMA once a month must still cross the window comfortably
- * before the grant dies and their notifications go quiet.
- */
+// Generous: refresh only runs on app open, and a reader might open KROMA once a month.
 const REFRESH_BEFORE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const GrantResponse = z.object({
@@ -49,9 +22,8 @@ const GrantResponse = z.object({
   expiresAt: z.number(),
 });
 
-/** What is kept on the device. The token is stored alongside so a REPLACED
- * token — a reinstall, a restore onto another handset — is spotted and re-minted
- * rather than silently notifying whatever the old grant pointed at. */
+// The token is stored alongside the grant so a replaced token (reinstall, new
+// handset) is detected and re-minted rather than silently notifying the wrong device.
 const StoredGrant = z.object({
   transport: z.enum(['apns', 'fcm']),
   token: z.string().min(1),

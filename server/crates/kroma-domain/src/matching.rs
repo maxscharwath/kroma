@@ -1,14 +1,5 @@
 //! Pure TMDB candidate matching: normalize titles, score search hits against the
-//! `(title, year)` a filename parsed to, and pick the best one *or reject them
-//! all*.
-//!
-//! TMDB search is fuzzy and orders by its own popularity heuristic, so the first
-//! result is regularly the wrong title (generic names like "It" or "Frozen"), and
-//! a year-filtered search returns nothing at all when the filename carries the
-//! production year instead of the release year. Scoring here lets the client
-//! widen the search and still pick sensibly, and lets the "fix the match" UI show
-//! *why* a candidate ranked where it did.
-//!
+//! `(title, year)` a filename parsed to, and pick the best one or reject them all.
 //! Zero I/O: the HTTP half lives in the engine's `infra::metadata::search`.
 
 /// One TMDB search hit, reduced to what scoring needs.
@@ -17,30 +8,24 @@ pub struct Candidate {
     pub tmdb_id: u64,
     /// Localized title (`title` for movies, `name` for shows).
     pub title: String,
-    /// Original-language title, often the only one that matches a scene release.
     pub original_title: String,
     pub year: Option<u32>,
-    /// TMDB `vote_count`: the tiebreaker between two equally-titled candidates
-    /// (a remake vs. the well-known original).
     pub votes: u32,
 }
 
-/// What the filename parsed to, i.e. what we are trying to match.
 #[derive(Debug, Clone, Copy)]
 pub struct Query<'a> {
     pub title: &'a str,
     pub year: Option<u32>,
 }
 
-/// Below this, we would rather record a miss than store a wrong poster: a bad
-/// match is worse than none, because nothing downstream re-questions it.
+/// Below this we record a miss rather than store a wrong poster: nothing
+/// downstream re-questions a bad match.
 pub const MIN_SCORE: f32 = 0.35;
 
-/// Title similarity carries most of the weight; the rest is the year signal.
 const SIM_WEIGHT: f32 = 0.75;
-/// Same year: near-conclusive when the title also roughly matches, and the thing
-/// that rescues a correct hit TMDB found through an alternative title we cannot
-/// see (a French filename resolving to an English `title`/`original_title` pair).
+/// Same year rescues a partial title match, e.g. a foreign filename resolving to
+/// an English `title`/`original_title` pair.
 const YEAR_EXACT: f32 = 0.25;
 /// Off by one: release year vs. festival/production year, extremely common.
 const YEAR_NEAR: f32 = 0.10;
@@ -50,11 +35,9 @@ const YEAR_FAR: f32 = -0.35;
 /// enough that it can never overturn a title or year signal.
 const VOTES_WEIGHT: f32 = 0.03;
 const VOTES_CAP: u32 = 2000;
-/// A match that only holds after dropping a leading article ("Matrix" onto "The
-/// Matrix") is still a match, but it must never *tie* a literally-exact title:
-/// otherwise "A Scary Movie" folds onto "Scary Movie" and outranks the real
-/// "Scary Movie" on nothing but TMDB's result ordering. Cap what the
-/// article-tolerant path can award just below a perfect score.
+/// An article-dropped match ("Matrix" vs "The Matrix") must never tie a literal
+/// title, or "A Scary Movie" outranks the real "Scary Movie" on TMDB's ordering
+/// alone. Cap it just below a perfect score.
 const ARTICLE_MATCH_CEIL: f32 = 0.97;
 
 /// Score one candidate in `0.0..=1.0`. See [`MIN_SCORE`] for the accept cutoff.
@@ -62,17 +45,13 @@ pub fn score(query: &Query, candidate: &Candidate) -> f32 {
     score_parts(query, candidate).0
 }
 
-/// [`score`] plus the tiebreak signal `pick_best` needs beyond the clamped
-/// number: whether the title matched *literally* (equal without dropping an
-/// article), so an exact hit beats an article-variant even when both clamp to 1.0.
 fn score_parts(query: &Query, candidate: &Candidate) -> (f32, bool) {
     let (sim, exact) = title_match(query.title, candidate);
     let year_adj = match (query.year, candidate.year) {
         (Some(a), Some(b)) if a == b => YEAR_EXACT,
         (Some(a), Some(b)) if a.abs_diff(b) <= 1 => YEAR_NEAR,
         (Some(_), Some(_)) => YEAR_FAR,
-        // One side has no year: no evidence either way, so neither bonus nor
-        // penalty (the title then has to carry the match on its own).
+        // One side has no year: no evidence either way.
         _ => 0.0,
     };
     let votes = VOTES_WEIGHT * (candidate.votes.min(VOTES_CAP) as f32 / VOTES_CAP as f32);

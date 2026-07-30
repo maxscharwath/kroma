@@ -51,11 +51,11 @@ export function crateAndBin(moduleDir: string): {
   const cargoPath = join(moduleDir, 'server/Cargo.toml');
   // A module may have no server crate at all (pure FE); then it's library-only.
   const cargo = existsSync(cargoPath) ? readFileSync(cargoPath, 'utf8') : '';
-  const pkg = cargo.match(/\[package\][\s\S]*?name\s*=\s*"([^"]+)"/)?.[1] ?? '';
+  const pkg = /\[package\][\s\S]*?name\s*=\s*"([^"]+)"/.exec(cargo)?.[1] ?? '';
   // A `[[bin]]` means a native sidecar; its absence => a library module (no binary).
-  const bin = cargo.match(/\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/)?.[1] ?? null;
+  const bin = /\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/.exec(cargo)?.[1] ?? null;
   const featBlock =
-    cargo.match(/\[package\.metadata\.kmod\][\s\S]*?features\s*=\s*\[([^\]]*)\]/)?.[1] ?? '';
+    /\[package\.metadata\.kmod\][\s\S]*?features\s*=\s*\[([^\]]*)\]/.exec(cargo)?.[1] ?? '';
   const features = [...featBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   return { pkg, bin, features };
 }

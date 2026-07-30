@@ -2,13 +2,10 @@
 // wiring and the source decision (direct-play vs the HLS remux master).
 // `useVideoPlayback` owns the React state/effects and drives these helpers.
 //
-// The HLS master is ONE continuous ffmpeg remux (video copied once, every audio
-// track an alternate rendition), started at an anchor (input `-ss`). hls.js plays
-// it from RELATIVE 0, so the hook reports the absolute position as
-// `anchor + currentTime` (see `baseSec`). Language switches happen IN PLACE (no
-// reload). A seek inside the produced range is native; a seek before the anchor
-// or past the produced edge re-anchors (the parent remounts the <video> with a
-// fresh remux at the target, ready in ~1s).
+// The HLS master is remuxed from an anchor (input `-ss`); hls.js plays it from
+// RELATIVE 0, so the hook reports the absolute position as `anchor + currentTime`
+// (see `baseSec`). A seek outside the produced range re-anchors: the parent
+// remounts the <video> with a fresh remux at the target.
 
 import type { AudioTrack, EngineDecision } from '@kroma/core';
 import type { WebEnginePref } from '#web/features/playback/engine-pref';
@@ -26,28 +23,21 @@ const MAX_FORWARD_BUFFER_SEC = 600;
 const BACK_BUFFER_SEC = 60;
 const MAX_BUFFER_BYTES = 500 * 1000 * 1000; // 500 MB (vs hls.js's 60 MB default)
 
-/** The subset of Shaka's live `getStats()` snapshot the stats panel reads. Shaka
- * reports bandwidth in bits/s and times in seconds. */
+/** The subset of Shaka's live `getStats()` snapshot the stats panel reads; bandwidth
+ * is bits/s, times are seconds. */
 export interface ShakaStatsLike {
-  /** Bitrate of the currently-playing variant (video+audio), bits/s. */
   streamBandwidth: number;
-  /** Rolling bandwidth estimate the ABR uses, bits/s. */
   estimatedBandwidth: number;
-  /** Rebuffering events detected this session. */
   stallsDetected: number;
-  /** Total time spent buffering/stalled this session, seconds. */
   bufferingTime: number;
-  /** Bytes fetched over the network this session. */
   bytesDownloaded: number;
-  /** Active codec string, e.g. "avc1.640028,mp4a.40.2". */
   currentCodecs: string;
   droppedFrames: number;
   decodedFrames: number;
 }
 
-/** The slice of the Shaka Player API this engine touches. We type it structurally
- * rather than pulling Shaka's (large, generated) namespace types into the hook,
- * and cast the dynamically-imported module to it. */
+/** The slice of the Shaka Player API this engine touches, typed structurally
+ * rather than pulling Shaka's generated namespace types into the hook. */
 export interface ShakaPlayerLike {
   attach(media: HTMLMediaElement): Promise<void>;
   load(uri: string, startTime?: number | null): Promise<void>;
@@ -66,7 +56,6 @@ export interface VideoPlayback {
   barRef: React.RefObject<HTMLDivElement | null>;
   playing: boolean;
   waiting: boolean;
-  /** True once the element can play (canplay/loadedmetadata). */
   ready: boolean;
   cur: number;
   dur: number;
@@ -75,52 +64,32 @@ export interface VideoPlayback {
   muted: boolean;
   rate: number;
   fs: boolean;
-  /** True when audio/video is delivered via the HLS master (hls.js / native HLS)
-   * rather than a plain direct-play `<video src>`. */
   useHls: boolean;
-  /** The manual engine override (Settings): `auto` | `direct` | `remux` | `shaka`. */
   enginePref: WebEnginePref;
-  /** Set the engine override (persists + re-anchors to apply it live). */
+  /** Persists the choice and re-anchors playback to apply it live. */
   setEnginePref: (p: WebEnginePref) => void;
-  /** Every audio track, for the picker. */
   audioTracks: AudioTrack[];
-  /** Index of the currently-selected audio track (audio-relative). */
   audioIndex: number;
-  /** Switch to the audio track with this audio-relative index. */
   setAudio: (index: number) => void;
-  /** The HLS remux anchor (s). Used as the `<video>` React key so a resume / far
-   * seek REMOUNTS the element (a guaranteed-fresh hls.js attach, not a flaky
-   * re-attach). 0 = from the start. */
+  /** The remux anchor (s), used as the `<video>` React key so a resume/seek
+   * remounts the element rather than re-attaching hls.js. */
   anchor: number;
-  /** Absolute-position offset: `absolute = baseSec + video.currentTime`. Equals
-   * the anchor for HLS (hls.js reports relative time), 0 for direct-play. Needed
-   * by overlays that read the raw element clock (e.g. subtitles). */
   baseSec: number;
-  /** HLS audio is re-encoded to stereo AAC (vs stream-copied). For the stats panel. */
   aac: boolean;
-  /** The live hls.js instance (or null), so the stats panel can read the actually
-   * -playing audio rendition to diagnose selection-vs-playback mismatches. */
   hlsRef: { current: HlsInstance | null };
-  /** The live Shaka Player instance (or null) when the Shaka engine is active, so
-   * the stats panel can read its `getStats()` transport metrics. */
   shakaRef: { current: ShakaPlayerLike | null };
   scrubbing: boolean;
   setScrubbing: (v: boolean) => void;
-  /** Previewed absolute position (s) while dragging the bar, else null. */
   scrubPreview: number | null;
-  /** Preview the scrub position at a client X (no seek yet). */
   scrubToClientX: (clientX: number) => void;
-  /** Commit the previewed scrub position (actually seeks). */
   commitScrub: () => void;
-  /** Cursor position on the scrub bar: `x` px from the bar's left, `t` the time
-   * there (s), `w` the bar's pixel width (so a hover preview can clamp to it). */
+  /** `x`: px from the bar's left; `t`: the time there (s); `w`: the bar's pixel
+   * width. */
   hover: { x: number; t: number; w: number } | null;
   setHover: (h: { x: number; t: number; w: number } | null) => void;
   togglePlay: () => void;
   skip: (delta: number) => void;
-  /** Seek to an absolute position in seconds. */
   seekTo: (absSec: number) => void;
-  /** Read the absolute current position in seconds. */
   getPosition: () => number;
   setVol: (val: number) => void;
   toggleMute: () => void;
@@ -140,29 +109,20 @@ export interface MediaEventSetters {
   setVolume: (n: number) => void;
   setMuted: (b: boolean) => void;
   setRate: (n: number) => void;
-  /** Flipped true once the element can actually play (canplay/loadedmetadata),
-   * gating autoplay so we never `play()` an unready/unplayable source. */
   setReady: (b: boolean) => void;
 }
 
-/**
- * Subscribe the media element's events to the hook's state setters and drive a
- * resilient, ready-gated autoplay. Returns the unsubscribe cleanup.
- *
- * `baseSec` is the remux anchor: the HLS session is started with input `-ss
- * baseSec`, and hls.js NORMALIZES that anchored stream's `currentTime` to start
- * at 0, so the real (absolute) position is `baseSec + currentTime`. Direct-play
- * passes 0 (its timeline is already absolute).
- */
+/** Subscribes the media element's events to the state setters and drives a
+ * resilient, ready-gated autoplay. Returns the unsubscribe cleanup. */
 export function bindMediaEvents(
   v: HTMLVideoElement,
   item: MovieView,
   setters: MediaEventSetters,
   baseSec = 0,
-  /** True total length (ms) from the catalog OR the server's `X-Media-Duration`
-   * header. Preferred over the element's `duration`, which for the growing HLS
-   * EVENT playlist is only the produced (live) edge, not the whole movie. 0 =
-   * unknown, then fall back to the element clock. */
+  /** Total length (ms) from the catalog or the server's `X-Media-Duration`
+   * header; preferred over the element's `duration`, which for a growing HLS
+   * EVENT playlist is only the produced edge, not the whole movie. 0 = unknown,
+   * fall back to the element clock. */
   knownDurationMs = 0,
 ): () => void {
   const {

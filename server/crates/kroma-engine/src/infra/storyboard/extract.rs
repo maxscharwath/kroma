@@ -1,6 +1,5 @@
-//! Tile extraction: the parallel keyframe-seek workers that grab each thumbnail,
-//! the black-tile gap fill, and the one-time hardware-decode probe that decides
-//! whether `-hwaccel auto` is worth it on this box.
+//! Tile extraction: parallel keyframe-seek workers, black-tile gap fill, and the
+//! one-time hardware-decode probe for `-hwaccel auto`.
 
 use std::path::Path;
 use std::process::Command;

@@ -7,6 +7,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { byCodeUnit } from './lib/sort';
 import { frontmatter } from './module-format';
 
 const ROOT = join(import.meta.dir, '..');
@@ -137,7 +138,7 @@ const errors: string[] = [];
 /** List a directory (sorted for stable output), returning [] when absent. */
 function optionalReaddir(dir: string): string[] {
   try {
-    return readdirSync(dir).sort();
+    return readdirSync(dir).sort(byCodeUnit);
   } catch {
     return [];
   }

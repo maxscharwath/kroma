@@ -1,18 +1,5 @@
-// The cinematic brand intro, native (Apple TV / Android TV).
-//
-// The same film the browser shells play through @kroma/ui's <KromaIntro>, on the
-// one player a native TV has: expo-video, which is AVPlayer on tvOS and
-// Media3/ExoPlayer on Android TV. What is deliberately NOT ported is that
-// component's pure-CSS fallback scene. It exists for browsers with no HEVC
-// decoder, and a native television always has one, so a film that fails to open
-// here simply hands off to the app instead of playing a second intro.
-//
-// An overlay, not a gate: the app tree is already mounted and fetching behind
-// it, exactly as on the web. That is also why the intro HOLDS the remote for its
-// lifetime (see holdInput): native has no capture phase, so without it the press
-// that skips the film would also activate the card focused underneath, and the
-// intro would fade out onto a screen nobody chose.
-//
+// Native (Apple TV / Android TV) brand intro, played via expo-video. No CSS
+// fallback: unlike the browser shells, a native TV always has an HEVC decoder.
 // See BrandIntro.web.tsx for the browser half.
 
 import { colors, holdInput } from '@kroma/ui/kit';
@@ -22,36 +9,28 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, type HWEvent, StyleSheet, useTVEventHandler, View } from 'react-native';
 
 export interface BrandIntroProps {
-  /** Shell-bundled override for the brand-intro film. */
   videoSrc?: string;
 }
 
-/** The bundled film: the 4K60 HEVC master, the same file the browser shells
- * carry. `require` rather than an import because Metro turns an asset into a
- * registry entry, and that entry is what expo-video takes as a source. */
+// `require`, not an import: Metro turns the asset into a registry entry, which
+// is what expo-video expects as a source.
 const FILM: number = require('@kroma/ui/src/assets/kroma-intro-hevc.mp4');
 
-/** Stall safety: how long the intro may hold the screen before handing off on
- * its own. Replaced by the film's real length as soon as the player reports one,
- * so this only ever covers a film that never becomes ready at all. */
+// Fallback hold time, used only until the player reports the film's real
+// duration.
 const SAFETY_MS = 15_000;
-/** Steps the film's sound is ramped down in while the picture fades out. */
 const AUDIO_FADE_STEPS = 8;
 
-/** Remote buttons that skip. The four directions are not among them: an arrow
- * during the intro is a hand finding the remote, not a request to navigate a
- * screen the user cannot see. */
+// The four directions are deliberately excluded: an arrow during the intro is
+// a hand finding the remote, not a request to navigate a screen it can't see.
 const SKIP_EVENTS = new Set(['select', 'longSelect', 'playPause', 'play', 'pause', 'menu', 'back']);
 
-/** The intro plays once per LAUNCH, not once per mount, so a re-render of the
- * root (or a fast refresh in dev) never replays it. The web half keeps the same
- * flag in sessionStorage; a native app has no such thing, and module scope
- * outlives every remount of the tree. */
+// Module scope, not React state: the intro must play once per launch, not once
+// per mount (a fast refresh must not replay it), and outlives every remount.
 let introSeen = false;
 
-/** `useTVEventHandler` where the running React Native ships it (the tvOS fork),
- * a no-op hook where it does not. Bound at module scope so React never sees the
- * hook count change between builds. */
+// `useTVEventHandler` exists only on the tvOS RN fork; bound once at module
+// scope so the hook count never changes between builds.
 const HAS_TV_EVENTS = typeof useTVEventHandler === 'function';
 const useRemoteEvents: (handler: (event: HWEvent) => void) => void = HAS_TV_EVENTS
   ? useTVEventHandler

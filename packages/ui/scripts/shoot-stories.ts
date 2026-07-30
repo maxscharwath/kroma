@@ -1,22 +1,12 @@
 #!/usr/bin/env bun
-// Captures one screenshot per story, for visual review.
-//
-// No new dependency: it serves the already-built browser shell and drives the
-// Chrome that is on the machine anyway. Storybook's equivalent pulls in
-// Playwright plus a test runner plus a manager protocol; this is a static
-// server and a subprocess, and it captures the SAME components the TVs ship
-// because it points at a real build rather than at a bespoke dev server.
-//
-// The `?shot` mode of the workbench renders the story alone, with no sidebar,
-// no header and no panel, so what lands in the PNG is the component.
+// Captures one screenshot per story, for visual review. Serves the already-built
+// browser shell (real build, same components the TVs ship) and drives the
+// system Chrome — no Playwright, no test runner. It captures; it does not
+// compare, these are for a human to look at, not to gate on.
 //
 //   bun run shots                 capture every story
 //   bun run shots -- --matrix     capture the variant matrices too
 //   bun run shots -- --only=button,chip
-//
-// It captures; it does not compare. A pixel diff across Chrome versions is
-// noise, so these are made to be LOOKED AT (and dropped into a review), not
-// gated on. Behaviour is what the unit tests are for.
 
 import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';

@@ -56,13 +56,13 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
           aria-label={
             unread > 0 ? `${t('notifications.title')} (${unread})` : t('notifications.title')
           }
-          className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text data-[state=open]:bg-white/8 ${className ?? ''}`}
+          className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text data-[state=open]:bg-white/8 data-[state=open]:text-text ${className ?? ''}`}
         >
           <IconBell size={20} />
           {unread > 0 && (
             <span
               // Caps at 9+ so the badge doesn't outgrow the bell.
-              className="absolute -right-0.5 -top-0.5 min-w-4.5 rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4.5 tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
+              className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-[18px] tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
             >
               {unread > 9 ? '9+' : unread}
             </span>
@@ -181,7 +181,7 @@ function PanelBody({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] scrollbar-thin">
+    <div className="flex-1 overflow-y-auto overscroll-contain px-2 pb-3 [scrollbar-color:rgba(255,255,255,0.16)_transparent] [scrollbar-width:thin]">
       {groupNotificationsByDay(items).map((group) => (
         // Keyed on the run's first row, not the day: an unsorted inbox can open a
         // second "Earlier" run, and two sections must not share a key.
@@ -231,7 +231,7 @@ function NotificationRow({
 
   const unread = !notification.read;
   return (
-    <div className="relative rounded-xl transition-colors hover:bg-white/4">
+    <div className="relative rounded-xl transition-colors hover:bg-white/[0.04]">
       {/* One hit target for the whole card, laid under the content. */}
       <button
         type="button"
@@ -302,7 +302,7 @@ export function NotificationCard({
           >
             {title}
           </p>
-          <span className="shrink-0 pt-0.75 text-[11px] text-dim">{time}</span>
+          <span className="shrink-0 pt-[3px] text-[11px] text-dim">{time}</span>
         </div>
         <p id={bodyId} className={`mt-0.5 line-clamp-2 text-[12.5px] leading-[1.45] ${bodyTone}`}>
           {body}

@@ -24,7 +24,7 @@ export function HeroBeams({ anchorRef }: Readonly<HeroBeamsProps>) {
       aria-hidden
       // Radial mask fades the opaque canvas into the page charcoal at the
       // edges, so there is no visible seam where the hero ends.
-      className="pointer-events-none absolute inset-0 size-full mask-[radial-gradient(115%_80%_at_50%_28%,black_45%,transparent_85%)]"
+      className="pointer-events-none absolute inset-0 size-full [mask-image:radial-gradient(115%_80%_at_50%_28%,black_45%,transparent_85%)]"
     />
   );
 }

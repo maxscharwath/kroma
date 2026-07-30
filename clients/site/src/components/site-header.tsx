@@ -29,7 +29,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-xl backdrop-saturate-150">
       <div
-        className="mx-auto flex h-16 max-w-300 items-center justify-between gap-6"
+        className="mx-auto flex h-16 max-w-[75rem] items-center justify-between gap-6"
         style={{ paddingInline: 'var(--gutter-web)' }}
       >
         <Logo />

@@ -23,7 +23,7 @@ export function FileCard({
 }: Readonly<{ file: MediaFile; index: number; multi: boolean }>) {
   const t = useT();
   return (
-    <div className="overflow-hidden rounded-xl border border-white/8 bg-white/2">
+    <div className="overflow-hidden rounded-xl border border-white/8 bg-white/[0.02]">
       <FileHeader file={file} index={index} multi={multi} />
 
       <dl className="grid grid-cols-2 gap-x-5 gap-y-2.5 px-4 py-3.5 sm:grid-cols-3">
@@ -51,7 +51,7 @@ function FileHeader({
   const t = useT();
   const name = file.relPath?.split('/').pop() ?? t('mediaInfo.unknownFile');
   return (
-    <div className="flex items-start gap-3 border-b border-white/6 px-4 py-3">
+    <div className="flex items-start gap-3 border-b border-white/[0.06] px-4 py-3">
       <IconFileInfo size={18} stroke={1.9} className="mt-0.5 shrink-0 text-white/40" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -70,7 +70,7 @@ function FileHeader({
 function Unprobed() {
   const t = useT();
   return (
-    <p className="border-t border-white/6 px-4 py-3 text-[12px] text-amber-300/80">
+    <p className="border-t border-white/[0.06] px-4 py-3 text-[12px] text-amber-300/80">
       {t('mediaInfo.unprobed')}
     </p>
   );
@@ -152,7 +152,7 @@ function Section({
   children,
 }: Readonly<{ label: string; last?: boolean; children: React.ReactNode }>) {
   return (
-    <div className={`px-4 py-3 ${last ? '' : 'border-b border-white/6'}`}>
+    <div className={`px-4 py-3 ${last ? '' : 'border-b border-white/[0.06]'}`}>
       <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[.12em] text-white/35">
         {label}
       </div>
@@ -177,7 +177,7 @@ function TrackLine({
 function Field({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] font-bold uppercase tracking-widest text-white/35">{label}</dt>
+      <dt className="text-[10px] font-bold uppercase tracking-[.1em] text-white/35">{label}</dt>
       <dd className="mt-0.5 truncate text-[13px] text-white/85">{value}</dd>
     </div>
   );

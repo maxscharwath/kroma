@@ -56,7 +56,7 @@ export function ComingSoonPage() {
         <div className="mt-6 flex flex-col gap-2.5">
           {Array.from({ length: 5 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} className="h-19 rounded-2xl" />
+            <Skeleton key={i} className="h-[76px] rounded-2xl" />
           ))}
         </div>
       ) : null}
@@ -124,7 +124,7 @@ function CalendarRow({
       className="group flex items-center gap-4 rounded-2xl border border-border bg-surface-1 p-3 text-left transition-colors hover:border-white/20 hover:bg-white/2"
     >
       <div
-        className="relative h-15 w-10 flex-[0_0_40px] overflow-hidden rounded-lg"
+        className="relative h-[60px] w-[40px] flex-[0_0_40px] overflow-hidden rounded-lg"
         style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
       >
         <Image src={poster} fit="cover" fill />

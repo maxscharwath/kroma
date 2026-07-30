@@ -254,9 +254,9 @@ export function GateBody() {
         {t('auth.whoWatchingHint')}
       </p>
 
-      <div className="flex w-full max-w-275 flex-wrap content-start items-start justify-center gap-x-7 gap-y-9 px-6 py-4">
+      <div className="flex w-full max-w-[1100px] flex-wrap content-start items-start justify-center gap-x-7 gap-y-9 px-6 py-4">
         {tiles.map((p) => (
-          <div key={p.id} className="flex w-37.5 flex-col items-center gap-3">
+          <div key={p.id} className="flex w-[150px] flex-col items-center gap-3">
             <button
               type="button"
               onClick={async () => {
@@ -301,7 +301,7 @@ export function GateBody() {
                 />
                 {p.locked ? (
                   <span
-                    className="absolute right-2 bottom-2 flex h-7.25 w-7.25 items-center justify-center rounded-full bg-[rgba(10,10,12,0.8)] text-accent"
+                    className="absolute right-2 bottom-2 flex h-[29px] w-[29px] items-center justify-center rounded-full bg-[rgba(10,10,12,0.8)] text-accent"
                     title={t('auth.passwordRequired')}
                   >
                     <IconLock size={16} stroke={2} />
@@ -322,7 +322,7 @@ export function GateBody() {
           </div>
         ))}
 
-        <div className="flex w-37.5 flex-col items-center gap-3">
+        <div className="flex w-[150px] flex-col items-center gap-3">
           <button
             type="button"
             onClick={() => {
@@ -331,7 +331,7 @@ export function GateBody() {
             }}
             className="group flex flex-col items-center gap-3.5 focus:outline-none"
           >
-            <div className="flex h-36.5 w-36.5 items-center justify-center rounded-3xl border-2 border-dashed border-white/18 text-white/35 transition-transform duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
+            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-[24px] border-2 border-dashed border-white/18 text-white/35 transition-transform duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
               <IconPlus size={46} stroke={1.6} />
             </div>
             <span className="text-[18px] font-medium text-text/50">{t('auth.addProfile')}</span>

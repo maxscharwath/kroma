@@ -79,7 +79,7 @@ export function RequestStatusChip({
   if (size === 'card') {
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.75 text-[9.5px] font-bold uppercase tracking-[.06em] backdrop-blur-[6px]"
+        className="inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-[9.5px] font-bold uppercase tracking-[.06em] backdrop-blur-[6px]"
         style={{ color: m.color, background: m.bg }}
       >
         {lead}
@@ -103,7 +103,7 @@ export function RequestStatusChip({
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.75 py-1.25 text-[11.5px] font-bold"
+      className="inline-flex items-center gap-1.5 rounded-full px-[11px] py-[5px] text-[11.5px] font-bold"
       style={{ color: m.color, background: m.bg }}
     >
       {lead}

@@ -72,7 +72,7 @@ export function MissingGroupCard({
         {canAct ? (
           <Check on={allPicked} onClick={() => onToggleGroup(!allPicked)} />
         ) : (
-          <span className="w-4.5" />
+          <span className="w-[18px]" />
         )}
         <button
           type="button"
@@ -80,7 +80,7 @@ export function MissingGroupCard({
           className="group/head flex min-w-0 flex-1 items-center gap-3.5 text-left"
         >
           <div
-            className="relative h-13 w-9 flex-[0_0_36px] overflow-hidden rounded-md"
+            className="relative h-[52px] w-[36px] flex-[0_0_36px] overflow-hidden rounded-md"
             style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
           >
             <Image src={poster} fit="cover" fill />
@@ -211,8 +211,8 @@ function EpisodeRow({
 
   return (
     <li className="flex items-center gap-3.5 px-3.5 py-2.5 transition-colors hover:bg-white/3">
-      {canAct ? <Check on={picked} onClick={onToggle} /> : <span className="w-4.5" />}
-      <span className="w-15.5 flex-[0_0_62px] font-mono text-[13px] font-bold text-accent tabular-nums">
+      {canAct ? <Check on={picked} onClick={onToggle} /> : <span className="w-[18px]" />}
+      <span className="w-[62px] flex-[0_0_62px] font-mono text-[13px] font-bold text-accent tabular-nums">
         {episodeTag(entry)}
       </span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-dim">
@@ -248,7 +248,7 @@ function Check({ on, onClick }: Readonly<{ on: boolean; onClick: () => void }>) 
       onClick={onClick}
       aria-pressed={on}
       aria-label={t('requests.select')}
-      className={`flex h-4.5 w-4.5 flex-[0_0_18px] items-center justify-center rounded-[5px] border transition-colors ${
+      className={`flex h-[18px] w-[18px] flex-[0_0_18px] items-center justify-center rounded-[5px] border transition-colors ${
         on ? 'border-accent bg-accent text-accent-ink' : 'border-white/25 hover:border-white/50'
       }`}
     >

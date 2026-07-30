@@ -51,26 +51,27 @@ export function crateAndBin(moduleDir: string): {
   const cargoPath = join(moduleDir, 'server/Cargo.toml');
   // A module may have no server crate at all (pure FE); then it's library-only.
   const cargo = existsSync(cargoPath) ? readFileSync(cargoPath, 'utf8') : '';
-  const pkg = /\[package\][\s\S]*?name\s*=\s*"([^"]+)"/.exec(cargo)?.[1] ?? '';
+  const pkg = cargo.match(/\[package\][\s\S]*?name\s*=\s*"([^"]+)"/)?.[1] ?? '';
   // A `[[bin]]` means a native sidecar; its absence => a library module (no binary).
-  const bin = /\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/.exec(cargo)?.[1] ?? null;
+  const bin = cargo.match(/\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/)?.[1] ?? null;
   const featBlock =
-    /\[package\.metadata\.kmod\][\s\S]*?features\s*=\s*\[([^\]]*)\]/.exec(cargo)?.[1] ?? '';
+    cargo.match(/\[package\.metadata\.kmod\][\s\S]*?features\s*=\s*\[([^\]]*)\]/)?.[1] ?? '';
   const features = [...featBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   return { pkg, bin, features };
 }
 
-// Uses the `release-kmod` profile (release + panic=abort): a sidecar aborts
-// on panic and the supervisor respawns it, which drops the unwinding tables
-// for ~11% smaller binaries at no speed cost.
-//
-// KMOD_TARGET cross-compiles (e.g. x86_64-unknown-linux-musl); the bundle is
-// then suffixed with the triple, since a .kmod carries a native binary that
-// must match the server's platform.
-//
-// KMOD_SKIP_BUILD skips `cargo build` and reads a prebuilt artifact: the
-// sidecar binaries were already cross-compiled out of band (CI, inside the
-// musl cross-toolchain image), and this script just stages + packs them.
+// 1) Build the module's native binary, with any declared features. Uses the
+//    `release-kmod` profile (release + panic=abort): a sidecar aborts on panic
+//    and the supervisor respawns it, which drops the unwinding tables for ~11%
+//    smaller binaries at no speed cost (opt-level stays 3). Library modules (no
+//    [[bin]]) skip this: their code is co-linked, not spawned.
+// Optional cross-target (KMOD_TARGET, e.g. x86_64-unknown-linux-musl). A .kmod
+// carries a NATIVE binary, so the platform must match the server; when set, the
+// bundle is suffixed with the triple (see the output name below). Unset = host.
+// KMOD_SKIP_BUILD: the sidecar binaries were already cross-compiled out of band
+// (CI builds them inside the musl cross-toolchain image the Synology build uses,
+// which is proven to link candle / librqbit; this script then just stages +
+// packs them). Skips the `cargo build` and reads the prebuilt artifact.
 async function buildModuleBinary(
   bin: string,
   pkg: string,
@@ -98,6 +99,7 @@ async function buildModuleBinary(
   return binPath;
 }
 
+// 2) Build the frontend remote if the module ships one.
 async function buildFrontend(uiDir: string): Promise<void> {
   if (existsSync(uiDir) && existsSync(join(uiDir, 'vite.config.ts'))) {
     console.log('  - vite build (frontend remote)');
@@ -105,7 +107,8 @@ async function buildFrontend(uiDir: string): Promise<void> {
   }
 }
 
-// The FE remote is added by the caller once it knows the build produced a `dist/`.
+// 3) Stage the bundle (manifest + native binary + icons; the FE remote is added
+//    by the caller once it knows the build produced a `dist/`).
 function stageBundle(
   moduleDir: string,
   binPath: string | null,
@@ -157,9 +160,10 @@ async function packOne(moduleDir: string): Promise<string> {
     entries.push('fe');
   }
 
-  // zstd is ~20-25% smaller than gzip for these native binaries; the
-  // supervisor decompresses it with pure-Rust ruzstd. Sidecar bundles are
-  // suffixed with the build target; library modules (no binary) stay unsuffixed.
+  // 4) tar + zstd it into a .kmod (zstd is ~20-25% smaller than gzip for these
+  //    native binaries; the supervisor decompresses it with pure-Rust ruzstd).
+  //    Sidecar bundles are suffixed with the build target so a consumer can tell
+  //    which platform they run on; library modules (no binary) stay unsuffixed.
   mkdirSync(outDir, { recursive: true });
   const suffix = bin && target ? `-${target}` : '';
   const kmod = join(outDir, `${id}${suffix}.kmod`);

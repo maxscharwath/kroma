@@ -90,7 +90,7 @@ export const RematchDialog = createCallable<{ kind: Kind; id: string; title: str
                   onChange={setTyped}
                   placeholder={t('rematch.searchPlaceholder')}
                   aria-label={t('rematch.searchPlaceholder')}
-                  className="w-55 max-w-[42vw]"
+                  className="w-[220px] max-w-[42vw]"
                 />
                 {/* Mirrors the form's implicit Enter-key submit. */}
                 <IconButton
@@ -186,11 +186,11 @@ function CandidateCard({
       onClick={onPick}
       className={`group flex flex-col overflow-hidden rounded-xl border text-left transition-colors disabled:opacity-60 ${
         current
-          ? 'border-accent/50 bg-accent/8'
+          ? 'border-accent/50 bg-accent/[0.08]'
           : 'border-white/8 bg-[#15151A] hover:border-white/20 hover:bg-[#1a1a20]'
       }`}
     >
-      <div className="relative aspect-2/3 w-full bg-white/5">
+      <div className="relative aspect-[2/3] w-full bg-white/5">
         {posterUrl ? (
           <Image src={posterUrl} fit="cover" fill />
         ) : (

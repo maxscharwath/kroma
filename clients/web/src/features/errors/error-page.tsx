@@ -47,7 +47,7 @@ function ErrorScreen({
       className="flex min-h-screen w-full flex-col items-center justify-center px-6 py-16 text-center"
       style={{ background: RADIAL }}
     >
-      <div className="flex w-full max-w-110 flex-col items-center">
+      <div className="flex w-full max-w-[440px] flex-col items-center">
         <div className="mb-8 opacity-90">
           <Logo size={20} />
         </div>
@@ -64,10 +64,10 @@ function ErrorScreen({
         </div>
 
         <h1 className="mt-6 font-display text-[24px] font-bold tracking-[-.02em]">{t(title)}</h1>
-        <p className="mt-3 max-w-95 text-[14.5px] leading-relaxed text-muted">{t(body)}</p>
+        <p className="mt-3 max-w-[380px] text-[14.5px] leading-relaxed text-muted">{t(body)}</p>
 
         {detail ? (
-          <p className="mt-4 max-w-95 wrap-break-word rounded-md border border-border bg-surface-1 px-3.5 py-2.5 text-[12.5px] font-medium text-dim">
+          <p className="mt-4 max-w-[380px] wrap-break-word rounded-md border border-border bg-surface-1 px-3.5 py-2.5 text-[12.5px] font-medium text-dim">
             {detail}
           </p>
         ) : null}

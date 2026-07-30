@@ -272,7 +272,7 @@ export function PipelinePage() {
           tone="accent"
           onClick={() => pick(setStatus)('all')}
         />
-        <span className="mx-1 h-5.5 w-px bg-white/12" />
+        <span className="mx-1 h-[22px] w-px bg-white/12" />
         <Chip
           label={t('pipeline.filter.allTypes')}
           count={total}

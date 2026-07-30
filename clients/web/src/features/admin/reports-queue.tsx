@@ -41,7 +41,7 @@ function ReportRow({ report, onOpen }: Readonly<{ report: Report; onOpen: () => 
     >
       <div className="min-w-0">
         <div className="truncate text-[14.5px] font-bold">{report.subjectTitle}</div>
-        <div className="mt-0.75 truncate text-[12px] font-medium text-white/50">
+        <div className="mt-[3px] truncate text-[12px] font-medium text-white/50">
           {t(kindLabelKey(report.subjectKind))}
           {report.message ? ` · ${report.message}` : ''}
         </div>
@@ -49,7 +49,7 @@ function ReportRow({ report, onOpen }: Readonly<{ report: Report; onOpen: () => 
 
       <span className="max-md:hidden">
         <span
-          className="rounded-full px-2.25 py-1 text-[10px] font-bold uppercase tracking-wide"
+          className="rounded-full px-[9px] py-1 text-[10px] font-bold uppercase tracking-wide"
           style={{ color: cat.color, background: soft(cat.color) }}
         >
           {t(cat.labelKey)}
@@ -69,10 +69,10 @@ function ReportRow({ report, onOpen }: Readonly<{ report: Report; onOpen: () => 
 
       <span className="max-md:hidden">
         <span
-          className="inline-flex items-center gap-1.5 rounded-full px-2.25 py-1 text-[11px] font-bold"
+          className="inline-flex items-center gap-1.5 rounded-full px-[9px] py-1 text-[11px] font-bold"
           style={{ color: st.color, background: soft(st.color) }}
         >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.color }} />
+          <span className="h-[6px] w-[6px] rounded-full" style={{ background: st.color }} />
           {t(st.labelKey)}
         </span>
       </span>

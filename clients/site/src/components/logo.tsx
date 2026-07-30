@@ -17,7 +17,10 @@ export function Logo({ className, size = 30 }: Readonly<LogoProps>) {
       aria-label={m.header_home()}
       className={['group inline-flex items-center gap-2.5', className].filter(Boolean).join(' ')}
     >
-      <WheelMark size={size} className="transition-transform duration-500 group-hover:rotate-30" />
+      <WheelMark
+        size={size}
+        className="transition-transform duration-500 group-hover:rotate-[30deg]"
+      />
       <span
         className="font-display text-[1.35rem] font-extrabold leading-none tracking-tight text-text"
         style={{ letterSpacing: '0.01em' }}

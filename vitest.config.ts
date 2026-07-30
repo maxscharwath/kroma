@@ -1,10 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { propDocs } from '@kroma/bundler/props-docs';
 import { WEB_EXTENSIONS } from '@kroma/bundler/rnw';
-import { configDefaults, defineConfig } from 'vitest/config';
-// The root workspace does not depend on @kroma/module-sdk, so its published
-// specifier is not resolvable from here.
 import { kromaModule } from '@kroma/module-sdk/vite';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 const dir = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 

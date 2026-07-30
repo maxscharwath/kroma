@@ -64,7 +64,7 @@ export function MyRequestsPage() {
         <div className="mt-6 flex flex-col gap-2.5">
           {Array.from({ length: 4 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} className="h-23 rounded-2xl" />
+            <Skeleton key={i} className="h-[92px] rounded-2xl" />
           ))}
         </div>
       ) : null}
@@ -146,7 +146,7 @@ function RequestRow({
         className="flex min-w-0 flex-1 items-center gap-4 text-left"
       >
         <div
-          className="relative h-17 w-11.5 flex-[0_0_46px] overflow-hidden rounded-lg"
+          className="relative h-[68px] w-[46px] flex-[0_0_46px] overflow-hidden rounded-lg"
           style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
         >
           <Image src={poster} fit="cover" fill />

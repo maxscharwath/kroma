@@ -35,13 +35,13 @@ function Header({ report, onClose }: Readonly<{ report: Report; onClose: () => v
       </div>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <span
-          className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
+          className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
           style={{ color: cat.color, background: soft(cat.color) }}
         >
           {t(cat.labelKey)}
         </span>
         <span
-          className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
+          className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
           style={{ color: st.color, background: soft(st.color) }}
         >
           {t(st.labelKey)}
@@ -116,7 +116,7 @@ export const ReportDrawer = createCallable<
         className={`fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <aside
-        className="fixed right-0 top-0 z-61 flex h-screen w-115 max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
+        className="fixed right-0 top-0 z-61 flex h-screen w-[460px] max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
         style={{ transform: open ? 'translateX(0)' : 'translateX(105%)' }}
       >
         <Header report={report} onClose={close} />
@@ -142,7 +142,7 @@ export const ReportDrawer = createCallable<
           </div>
 
           {report.message ? (
-            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5 text-[13.5px] leading-normal text-white/80">
+            <div className="mt-4 whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5 text-[13.5px] leading-[1.5] text-white/80">
               {report.message}
             </div>
           ) : (

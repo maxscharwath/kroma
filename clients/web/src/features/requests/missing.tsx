@@ -149,7 +149,7 @@ export function MissingPage() {
         <div className="mt-6 flex flex-col gap-2.5">
           {Array.from({ length: 4 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} className="h-30 rounded-2xl" />
+            <Skeleton key={i} className="h-[120px] rounded-2xl" />
           ))}
         </div>
       ) : null}

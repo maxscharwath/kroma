@@ -75,7 +75,7 @@ export function NotificationBench() {
 
   return (
     // Capped width: a five-field form shouldn't stretch full-bleed on a wide display.
-    <div className="mt-6 grid max-w-232 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
+    <div className="mt-6 grid max-w-[58rem] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_21rem]">
       <Card className="min-w-0 px-5.5 pb-1.5 pt-5">
         <Field label={t('admin.notifFieldTitle')}>
           <TextInput
@@ -175,7 +175,7 @@ export function NotificationBench() {
               {TARGETS.map((o) => (
                 <label
                   key={o.value}
-                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors has-focus-visible:ring-1 has-focus-visible:ring-accent/50 ${
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold transition-colors has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-accent/50 ${
                     target === o.value
                       ? 'text-accent'
                       : 'text-muted hover:bg-white/4 hover:text-text'

@@ -63,7 +63,7 @@ function AppLayout() {
       {/* Above the player (z-60): the picker opens from INSIDE it ("play this on
           a TV"), and at the shared modal z-index it mounted behind the opaque
           player, reading as a cast button that did nothing. */}
-      <div className="relative z-70">
+      <div className="relative z-[70]">
         <CastPicker />
       </div>
     </CastProvider>

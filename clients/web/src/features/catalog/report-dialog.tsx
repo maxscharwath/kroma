@@ -143,7 +143,7 @@ export const ReportDialog = createCallable<
                         aria-pressed={on}
                         className={`flex items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors ${
                           on
-                            ? 'border-accent/45 bg-accent/12'
+                            ? 'border-accent/45 bg-accent/[0.12]'
                             : 'border-white/8 bg-[#15151A] hover:bg-[#1a1a20]'
                         }`}
                       >

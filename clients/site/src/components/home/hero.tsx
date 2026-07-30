@@ -20,7 +20,7 @@ export function Hero() {
       {/* A browser without WebGL still gets warmth rather than flat charcoal. */}
       <div className="glow-amber pointer-events-none absolute inset-x-0 -top-24 h-[620px]" />
       <HeroBeams anchorRef={markRef} />
-      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-transparent to-bg" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg" />
 
       <Container>
         <div className="relative z-10 flex flex-col items-center py-24 text-center sm:py-32">

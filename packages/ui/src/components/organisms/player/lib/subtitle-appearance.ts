@@ -170,8 +170,7 @@ export function useSubtitleAppearance(): [
     try {
       const raw = deviceStorage()?.getItem(KEY) ?? null;
       if (raw) setStyle(migrateAppearance(JSON.parse(raw)));
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const update = useCallback((next: Partial<SubtitleAppearance>) => {
@@ -179,8 +178,7 @@ export function useSubtitleAppearance(): [
       const merged = { ...prev, ...next };
       try {
         deviceStorage()?.setItem(KEY, JSON.stringify(merged));
-      } catch {
-      }
+      } catch {}
       return merged;
     });
   }, []);

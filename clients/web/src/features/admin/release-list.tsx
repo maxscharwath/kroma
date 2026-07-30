@@ -142,7 +142,7 @@ function targetLabel(r: ScoredReleaseView): string {
 function ReleaseMeta({ r }: Readonly<{ r: ScoredReleaseView }>) {
   const t = useT();
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-5.75 text-[11px] font-semibold text-white/45">
+    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-[23px] text-[11px] font-semibold text-white/45">
       <span className="inline-flex items-center gap-1">
         {r.indexerName}
         {r.detailsUrl ? (
@@ -169,7 +169,7 @@ function ReleaseMeta({ r }: Readonly<{ r: ScoredReleaseView }>) {
 
 function ScoreBreakdown({ breakdown }: Readonly<{ breakdown: ScoredReleaseView['breakdown'] }>) {
   return (
-    <div className="mt-2 flex flex-col gap-1 border-t border-white/5 pl-5.75 pt-2">
+    <div className="mt-2 flex flex-col gap-1 border-t border-white/5 pl-[23px] pt-2">
       {breakdown.map((l) => (
         <div
           key={`${l.rule}-${l.note}`}

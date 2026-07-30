@@ -14,7 +14,7 @@ function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
     (el.kind === 'series' ? client.showPosterUrl(el.id) : client.posterUrl(el.id));
   return (
     <div
-      className="relative h-26 w-17.5 flex-[0_0_70px] overflow-hidden rounded-md shadow-[0_10px_24px_rgba(0,0,0,.5)]"
+      className="relative h-[104px] w-[70px] flex-[0_0_70px] overflow-hidden rounded-md shadow-[0_10px_24px_rgba(0,0,0,.5)]"
       style={{ background: posterGrad(el.title) }}
     >
       <Image src={src} fit="cover" fill />
@@ -64,7 +64,7 @@ export const PipelineDrawer = createCallable<
         className={`fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
       <aside
-        className="fixed right-0 top-0 z-61 flex h-screen w-115 max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
+        className="fixed right-0 top-0 z-61 flex h-screen w-[460px] max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
         style={{ transform: open ? 'translateX(0)' : 'translateX(105%)' }}
       >
         <div className="border-b border-white/[0.07] px-6 py-5">
@@ -85,7 +85,7 @@ export const PipelineDrawer = createCallable<
             <DrawerPoster el={el} />
             <div className="min-w-0 pt-1">
               <span
-                className="rounded-full px-2.25 py-0.75 text-[9.5px] font-bold uppercase tracking-widest"
+                className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-widest"
                 style={{ color: km.color, background: km.bg }}
               >
                 {t(`pipeline.type.${km.typeKey}` as MessageKey)}
@@ -119,7 +119,7 @@ export const PipelineDrawer = createCallable<
                     </span>
                     <div className="flex items-center gap-2">
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-full px-2.75 py-1 text-[11.5px] font-bold"
+                        className="inline-flex items-center gap-1.5 rounded-full px-[11px] py-1 text-[11.5px] font-bold"
                         style={{ color: m.color, background: m.bg }}
                       >
                         <span
@@ -142,7 +142,7 @@ export const PipelineDrawer = createCallable<
                     </div>
                   </div>
                   {failed && tr.error ? (
-                    <div className="mt-2.5 rounded-lg border border-[#E8536A]/18 bg-[#E8536A]/8 px-2.75 py-2.5 text-[12px] leading-[1.4] text-[#EF8091]">
+                    <div className="mt-2.5 rounded-lg border border-[#E8536A]/18 bg-[#E8536A]/8 px-[11px] py-2.5 text-[12px] leading-[1.4] text-[#EF8091]">
                       {tr.error}
                     </div>
                   ) : null}

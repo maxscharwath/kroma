@@ -76,7 +76,7 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t border-border/70 bg-surface-1/40">
-      <div className="mx-auto max-w-300 py-16" style={{ paddingInline: 'var(--gutter-web)' }}>
+      <div className="mx-auto max-w-[75rem] py-16" style={{ paddingInline: 'var(--gutter-web)' }}>
         <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div className="max-w-xs">
             <div className="flex items-center gap-2.5">

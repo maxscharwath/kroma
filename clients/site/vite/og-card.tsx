@@ -1,11 +1,13 @@
-// Both imports reach the SOURCE file directly, with its extension, rather than going
-// through `@kroma/ui/tokens` and `#site/lib/rich`. That is not a style choice: this module
-// is loaded by the Vite config's own loader, which externalizes bare specifiers and hands
-// them to Node - and Node cannot resolve the extensionless re-exports inside the kit's
-// token barrel, nor a tsconfig path alias. Reaching the leaf keeps the card renderable
-// IN-PROCESS by the build. `colors.ts` and `rich.ts` are both dependency-free, so nothing
+// `@kroma/ui/tokens/colors`, not `@kroma/ui/tokens`: this module is loaded by the Vite
+// config's own loader, which externalizes bare specifiers and hands them to Node, and Node
+// cannot resolve the extensionless re-exports inside that barrel. The kit exports the token
+// leaf as its own subpath for exactly this, so the card still reaches the real tokens by
+// package NAME and stays renderable in-process by the build.
+//
+// `rich.ts` keeps its extension because Node needs one and it is inside this package (see
+// `allowImportingTsExtensions` in tsconfig.json). Both files are dependency-free, so nothing
 // else comes along with them.
-import { colors, WHEEL_COLORS } from '../../../packages/ui/src/lib/tokens/colors.ts';
+import { colors, WHEEL_COLORS } from '@kroma/ui/tokens/colors';
 import { parseRich } from '../src/lib/rich.ts';
 
 // The social card, as a component.

@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { render } from 'takumi-js';
 import { Renderer } from 'takumi-js/node';
@@ -22,22 +23,28 @@ import { OG_CARDS } from './og-cards';
 // instances of the kit's variable Hanken committed here and regenerated with fontTools by
 // hand. The card is a component, ./og-card.tsx.
 
-/** The kit's own font files, the same two faces the pages load. Derived from Vite's
- *  resolved root (this package) rather than from `import.meta.url`, which the config
- *  loader rewrites to a binding it only defines for the config file itself. */
-const kitFontsFrom = (root: string) =>
-  join(root, '..', '..', 'packages', 'ui', 'src', 'assets', 'fonts');
+/**
+ * The kit's own font files, the same two faces the pages load.
+ *
+ * Resolved through the package NAME, never by walking up out of this package: @kroma/ui is
+ * a dependency of @kroma/site and exports `./src/assets/*`, so this asks Node where that
+ * dependency's file is and gets an answer that survives the package moving. The require is
+ * based on this package's own package.json rather than `import.meta.url`, which the config
+ * loader rewrites to a binding it defines only for the config file itself.
+ */
+const kitFont = (root: string, file: string) =>
+  createRequire(join(root, 'package.json')).resolve(`@kroma/ui/src/assets/fonts/${file}`);
 
 /** One renderer per process, both faces registered once. */
 function rendererFactory(getRoot: () => string) {
   let ready: Promise<Renderer> | undefined;
   return () => {
     ready ??= (async () => {
-      const kitFonts = kitFontsFrom(getRoot());
+      const root = getRoot();
       const renderer = new Renderer();
       const [display, ui] = await Promise.all([
-        readFile(join(kitFonts, 'BricolageGrotesque-ExtraBold.ttf')),
-        readFile(join(kitFonts, 'HankenGrotesk.ttf')),
+        readFile(kitFont(root, 'BricolageGrotesque-ExtraBold.ttf')),
+        readFile(kitFont(root, 'HankenGrotesk.ttf')),
       ]);
       await renderer.registerFont({ name: 'Bricolage Grotesque', data: display, weight: 800 });
       // No `weight` on the variable file: pinning one collapses its axes, and the card's

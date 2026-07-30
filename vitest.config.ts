@@ -93,6 +93,10 @@ const include = [
   'packages/*/src/**/*.test.ts',
   'packages/*/src/**/*.test.tsx',
   'packages/*/worker/**/*.test.ts',
+  // @kroma/ui's bundler plugin sits beside src/ rather than in it, and was
+  // therefore collected by nothing - which is how it reached five clients'
+  // builds without a test.
+  'packages/*/bundler/**/*.test.ts',
   'clients/web/src/**/*.test.ts',
   'clients/web/src/**/*.test.tsx',
   'clients/desktop/src/**/*.test.ts',

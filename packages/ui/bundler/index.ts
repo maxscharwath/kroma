@@ -157,7 +157,6 @@ function* sourceFiles(dir: string): Generator<string> {
  * processes; within one process it must happen at most once per package. */
 const CACHE = new Map<string, { code: string; note: string }>();
 
-/** What the swapped `glyph-source` module says, and how much it left out. */
 /**
  * Deliberately NOT `localeCompare`: this ordering ends up in generated source,
  * so it has to be identical on every machine rather than following whatever
@@ -168,6 +167,7 @@ function byCodeUnit(a: string, b: string): number {
   return a < b ? -1 : 1;
 }
 
+/** What the swapped `glyph-source` module says, and how much it left out. */
 function iconSubset(repoRoot: string, pkg: TablerPkg): { code: string; note: string } {
   const key = `${repoRoot}|${pkg}`;
   const hit = CACHE.get(key);

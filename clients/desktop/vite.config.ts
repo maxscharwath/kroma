@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
+import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from '@kroma/bundler/rnw';
+import { buildDefine } from '@kroma/bundler/shell';
 import { kromaUi } from '@kroma/ui/bundler';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type UserConfig } from 'vite';
-import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from '../tv-build/rnw';
-import { buildDefine } from '../tv-build/shell';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const shellDir = fileURLToPath(new URL('.', import.meta.url));

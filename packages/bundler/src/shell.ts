@@ -14,14 +14,19 @@
 
 import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { collectBuildInfo, productVersion } from '@kroma/build-info';
+import { legacyFinalize } from '@kroma/bundler/legacy-finalize';
+import {
+  KROMA_SOURCE_PACKAGES,
+  RNW_DEFINE,
+  RNW_OPTIMIZE_INCLUDE,
+  webResolve,
+} from '@kroma/bundler/rnw';
+import { tvFrame } from '@kroma/bundler/tv-frame';
 import { kromaUi } from '@kroma/ui/bundler';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
-import { collectBuildInfo, productVersion } from '../build-info/index.js';
-import { tvFrame } from '../tv-frame.vite';
-import { legacyFinalize } from './legacy-finalize';
-import { KROMA_SOURCE_PACKAGES, RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, webResolve } from './rnw';
 
 export interface TvTarget {
   /** Which TV this shell is for (diagnostics label; playback wiring is runtime-detected).
@@ -69,7 +74,7 @@ function lanIp(): string | undefined {
  *                      check treats as always-compatible.
  *   __KROMA_BUILD__    the whole identity (commit, branch, date, repository) the
  *                      About screen shows. The native TV app gets the same object
- *                      by the other road; see clients/build-info/index.js.
+ *                      by the other road; see @kroma/build-info.
  *
  * `shellDir` is the shell's own directory, which is where git is asked.
  */

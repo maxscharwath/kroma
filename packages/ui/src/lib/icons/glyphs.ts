@@ -11,7 +11,7 @@
 // Tabler ships the same icons twice, with the same export names: `@tabler/
 // icons-react` draws DOM <svg>, `@tabler/icons-react-native` draws through
 // react-native-svg. This file imports the React Native one; every web bundler
-// aliases that specifier to the DOM one (clients/tv-build/rnw.ts, the same trick
+// aliases that specifier to the DOM one (packages/bundler/src/rnw.ts, the same trick
 // as `react-native` -> `react-native-web`). So a browser gets native SVG and
 // never loads react-native-svg's runtime, and native gets react-native-svg,
 // where it is the only way to draw at all. The one prop they spell differently

@@ -1,6 +1,12 @@
 import { fileURLToPath } from 'node:url';
 import { buildInfoPlugin } from '@kroma/bundler/build-info';
 import { exitAfterBuild } from '@kroma/bundler/exit-after-build';
+import {
+  RNW_DEFINE,
+  RNW_OPTIMIZE_INCLUDE,
+  RNW_SSR_NO_EXTERNAL,
+  webResolve,
+} from '@kroma/bundler/rnw';
 import { standaloneScript } from '@kroma/bundler/standalone-script';
 import { kromaModule } from '@kroma/module-sdk/vite';
 import babel from '@rolldown/plugin-babel';
@@ -8,7 +14,6 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import { RNW_DEFINE, RNW_OPTIMIZE_INCLUDE, RNW_SSR_NO_EXTERNAL, webResolve } from '../tv-build/rnw';
 import pkg from './package.json' with { type: 'json' };
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -55,7 +60,7 @@ export default defineConfig({
   // `#web/*` → this app's src (mirrors tsconfig.base paths; Vite needs it
   // explicitly), plus the react-native → react-native-web redirect, the `.web.*`
   // precedence and the single-React dedupe every browser target shares
-  // (clients/tv-build/rnw.ts). This app is DOM React, but the shared player
+  // (packages/bundler/src/rnw.ts). This app is DOM React, but the shared player
   // chrome it mounts comes from @kroma/ui, which is written once against React
   // Native so it can also run on a TV.
   //

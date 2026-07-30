@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
+import { propDocs } from '@kroma/bundler/props-docs';
+import { WEB_EXTENSIONS } from '@kroma/bundler/rnw';
 import { configDefaults, defineConfig } from 'vitest/config';
-import { propDocs } from './clients/tv-build/props-docs';
-import { WEB_EXTENSIONS } from './clients/tv-build/rnw';
 // By relative path, like propDocs above: the root workspace does not depend on
 // @kroma/module-sdk, so its published specifier is not resolvable from here.
 import { kromaModule } from './packages/module-sdk/vite';
@@ -38,7 +38,7 @@ const alias = [
   { find: /^react-native$/, replacement: 'react-native-web' },
   // The icons resolve the way they do in every browser target: the kit imports
   // @tabler/icons-react-native, and the web half of that pair is
-  // @tabler/icons-react (DOM svg). Mirrors clients/tv-build/rnw.ts.
+  // @tabler/icons-react (DOM svg). Mirrors packages/bundler/src/rnw.ts.
   { find: /^@tabler\/icons-react-native$/, replacement: '@tabler/icons-react' },
   // The spatial navigator ships a webpack UMD bundle whose `require`s Node
   // resolves itself, which walks straight past the alias above and lands on

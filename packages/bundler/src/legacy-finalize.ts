@@ -16,10 +16,10 @@
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import cascadeLayers from '@csstools/postcss-cascade-layers';
+import { kromaLegacyCss } from '@kroma/bundler/legacy-css';
 import { transform } from 'lightningcss';
 import postcss from 'postcss';
 import type { Plugin } from 'vite';
-import { kromaLegacyCss } from './legacy-css';
 
 async function downlevelCss(distDir: string, chrome: number): Promise<void> {
   const path = join(distDir, 'legacy', 'style.css');

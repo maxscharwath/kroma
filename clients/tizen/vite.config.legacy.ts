@@ -1,4 +1,4 @@
-import { tvShellLegacyConfig } from '../tv-build/shell';
+import { tvShellLegacyConfig } from '@kroma/bundler/shell';
 import { target } from './tv.target';
 
 // LEGACY tier (Chromium 53-94, i.e. Tizen 6.0-7.0): built AFTER the modern tier;

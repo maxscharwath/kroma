@@ -14,7 +14,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import pkg from './package.json' with { type: 'json' };
+import { swScript } from './sw.build';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -35,17 +35,11 @@ export default defineConfig({
     // convention (must precede the transforms that expand import.meta.glob).
     kromaModule(),
     // Exposes `virtual:build-info` (version, commit, branch, build date).
-    buildInfoPlugin({ version: pkg.version }),
+    buildInfoPlugin({ projectRoot: fileURLToPath(new URL('.', import.meta.url)) }),
     // The Web Push service worker: fetched by the browser at /sw.js, so nothing
     // imports it and Vite has to be told it exists. Emitted into public/, which
     // the dev server serves and the build copies.
-    standaloneScript({
-      entry: fileURLToPath(new URL('./src/sw.ts', import.meta.url)),
-      outfile: fileURLToPath(new URL('./public/sw.js', import.meta.url)),
-      // A service worker only ever runs in a browser new enough to have one, so
-      // the floor is what those engines parse rather than anything about TVs.
-      esbuild: { target: ['chrome90', 'firefox90', 'safari15'] },
-    }),
+    standaloneScript(swScript),
     tailwindcss(),
     tanstackStart({ spa: { enabled: true } }),
     react(),

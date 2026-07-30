@@ -1,10 +1,15 @@
-import { execSync } from 'node:child_process';
+import { collectBuildInfo } from '@kroma/build-info';
 import type { Plugin } from 'vite';
 
-/** Build metadata exposed to the app through the virtual module `virtual:build-info`
- * (resolved by {@link buildInfoPlugin}). Collected once at build time / dev-server
- * start; the git fields degrade to `'unknown'` when building outside a checkout
- * (e.g. from a source tarball). */
+/**
+ * Build metadata as the browser sees it, served as `virtual:build-info`.
+ *
+ * Collecting it is `@kroma/build-info`'s job — the same one the TV shells and
+ * the mobile app config use, so every client answers "which build is this?" the
+ * same way. The only difference here is that git's absent fields become
+ * `'unknown'` rather than `null`: this ends up on a settings screen, and a build
+ * from a source tarball still has to show something.
+ */
 export interface BuildInfo {
   version: string;
   commit: string;
@@ -12,35 +17,32 @@ export interface BuildInfo {
   branch: string;
   dirty: boolean;
   buildDate: string;
+  repository: string | null;
 }
 
-const git = (cmd: string): string | null => {
-  try {
-    return execSync(`git ${cmd}`, { stdio: ['ignore', 'pipe', 'ignore'] })
-      .toString()
-      .trim();
-  } catch {
-    return null;
-  }
-};
-
-const gitInfo = {
-  commit: git('rev-parse --short HEAD') ?? 'unknown',
-  commitFull: git('rev-parse HEAD') ?? 'unknown',
-  branch: git('rev-parse --abbrev-ref HEAD') ?? 'unknown',
-  dirty: Boolean(git('status --porcelain')),
-  buildDate: new Date().toISOString(),
-};
-
-/** Serves `virtual:build-info` (a "fake" module with no on-disk file) so any
- * component can `import buildInfo from 'virtual:build-info'` — nothing ships to
- * prod but the resolved constants, matching the static-SPA model (no Node). */
-export function buildInfoPlugin({ version }: { version: string }): Plugin {
+/**
+ * Serves `virtual:build-info` — a module with no on-disk file, so a component
+ * can `import buildInfo from 'virtual:build-info'` and nothing but the resolved
+ * constants ships.
+ *
+ * `projectRoot` is the client being built: it is where the package version is
+ * read and where git runs, so the answer does not depend on the directory the
+ * build happened to be launched from.
+ */
+export function buildInfoPlugin({ projectRoot }: { projectRoot: string }): Plugin {
   const virtualId = 'virtual:build-info';
   const resolvedId = `\0${virtualId}`;
-  const json = JSON.stringify({ version, ...gitInfo } satisfies BuildInfo);
-  // Default export + named exports so both import styles work.
-  const code = `export default ${json};\nexport const { version, commit, commitFull, branch, dirty, buildDate } = ${json};\n`;
+  const collected = collectBuildInfo(projectRoot);
+  const info: BuildInfo = {
+    ...collected,
+    commit: collected.commit ?? 'unknown',
+    commitFull: collected.commitFull ?? 'unknown',
+    branch: collected.branch ?? 'unknown',
+  };
+  const json = JSON.stringify(info);
+  // Default export plus named exports, so both import styles work.
+  const names = 'version, commit, commitFull, branch, dirty, buildDate, repository';
+  const code = `export default ${json};\nexport const { ${names} } = ${json};\n`;
   return {
     name: 'kroma-build-info',
     resolveId: (source) => (source === virtualId ? resolvedId : null),

@@ -93,8 +93,9 @@
         // Expo config plugins, named as strings in app.config - never imported.
         "plugins/with-*.{js,ts}",
         "scripts/*.ts",
-        // Loaded by the platform, not by the bundle: the web app's service
-        // worker and Tizen's background preview service.
+        // Loaded by the platform rather than by the bundle. Both sources are
+        // TypeScript now and their build output is git-ignored, so this only
+        // still covers anything a client drops into public/ by hand.
         "public/**/*.js"
       ]
     },

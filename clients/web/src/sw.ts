@@ -1,22 +1,23 @@
 // KROMA service worker: the half of Web Push that runs when the app is closed.
 import * as z from 'zod/mini';
+import { bytesToBase64Url } from './shared/lib/base64url';
 
-const sw = self as unknown as SwGlobalScope;
+// lib.webworker types `self` as the generic WorkerGlobalScope, which has no
+// clients/registration/skipWaiting. Narrowing it here is the standard idiom.
+declare const self: ServiceWorkerGlobalScope;
 
-// Take over as soon as an updated worker is installed, rather than waiting for
+// Take over as soon as an updated worker is installed rather than waiting for
 // every tab to close: a stale worker showing the old notification format is
 // worse than a momentary swap.
-sw.addEventListener('install', () => sw.skipWaiting());
-sw.addEventListener('activate', (event) => event.waitUntil(sw.clients.claim()));
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 /**
- * A field that is only useful when it is a non-empty string.
- *
  * Every field degrades on its own rather than failing the whole payload: a push
- * that shows nothing breaches the "must be user-visible" rule that gets a
- * site's push permission revoked, so one bad field must not cost the
- * notification. `catch` is what buys that — absent, wrong type, or empty all
- * land on `undefined`, and the caller's fallback takes over.
+ * that shows nothing breaches the "must be user-visible" rule that gets a site's
+ * push permission revoked, so one bad field must not cost the notification.
+ * `catch` is what buys that — absent, wrong type and empty all land on
+ * `undefined`, and the caller's fallback takes over.
  */
 const text = z.catch(z.optional(z.string().check(z.minLength(1))), undefined);
 
@@ -28,13 +29,9 @@ const Action = z.object({
   method: text,
 });
 
-/** Anything that is not a list of actions is no actions at all. */
 const actions = z.catch(z.array(Action), []);
 
-/**
- * The decrypted push body — the same JSON the server builds in
- * `services/notify/push.rs::payload_of`.
- */
+/** The decrypted push body — what the server builds in `notify/push.rs`. */
 const Payload = z.object({
   title: text,
   body: text,
@@ -45,46 +42,57 @@ const Payload = z.object({
 });
 
 /** What we put in `notification.data`, read back after a structured clone. */
-const NotificationData = z.object({ link: text, actions });
+const NotificationData = z.pick(Payload, { link: true, actions: true });
 
+/** Also covers a payload that is valid JSON but not an object (`"hi"`, `[]`). */
 const EMPTY = Payload.parse({});
 
 type PushAction = z.infer<typeof Action>;
 
-sw.addEventListener('push', (event) => {
-  // A push with no payload still deserves a notification: browsers may strip the
-  // body under storage pressure, and showing nothing would breach the
-  // "must be user-visible" rule that gets a site's push permission revoked.
-  let raw: unknown;
-  try {
-    raw = event.data ? event.data.json() : {};
-  } catch {
-    raw = {};
-  }
-  const data = Payload.safeParse(raw).data ?? EMPTY;
+/** Three fields lib.dom omits because they are only specified for persistent
+ * (service-worker) notifications, which is exactly what these are: `image` is
+ * the big-picture poster — the whole point of a film notification — `renotify`
+ * re-alerts when a `tag` replaces an existing notification instead of swapping
+ * it silently, and `actions` is the buttons. Engines that lack them ignore them. */
+interface KromaNotificationOptions extends NotificationOptions {
+  image?: string;
+  renotify?: boolean;
+  actions?: { action: string; title: string; icon?: string }[];
+}
 
-  const options = {
+function payloadOf(event: PushEvent) {
+  try {
+    return Payload.safeParse(event.data?.json()).data ?? EMPTY;
+  } catch {
+    // Browsers may strip the body under storage pressure; still show something.
+    return EMPTY;
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const data = payloadOf(event);
+  const options: KromaNotificationOptions = {
     body: data.body ?? '',
     icon: '/apple-touch-icon.png',
     badge: '/favicon-32.png',
     // The poster, when there is one — a film's artwork is the point.
     image: data.imageUrl,
-    // Collapse repeats of the same notification (a retried delivery) instead of
-    // stacking duplicates.
+    // Collapse a retried delivery instead of stacking duplicates.
     tag: data.id,
     renotify: Boolean(data.id),
-    data: { link: data.link ?? '/', actions: data.actions },
+    data: { link: data.link, actions: data.actions },
     // Chrome shows at most two; the server orders them most-useful-first.
     actions: data.actions.slice(0, 2).map((a) => ({ action: a.id, title: a.label })),
   };
-  event.waitUntil(sw.registration.showNotification(data.title ?? 'KROMA', options));
+  event.waitUntil(self.registration.showNotification(data.title ?? 'KROMA', options));
 });
 
-sw.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const clicked = NotificationData.safeParse(event.notification.data).data;
+  // Guarded on `event.action`: a body click passes `''`, which would otherwise
+  // match an action whose id failed validation and caught to `''`.
   const chosen = event.action ? clicked?.actions.find((a) => a.id === event.action) : undefined;
-
   event.waitUntil(handleClick(chosen, clicked?.link));
 });
 
@@ -97,8 +105,8 @@ sw.addEventListener('notificationclick', (event) => {
 async function handleClick(action: PushAction | undefined, link: string | undefined) {
   if (action?.kind === 'api' && action.href) {
     try {
-      // Same-origin: the session cookie/bearer is not available here, but the
-      // API is on this origin and the request carries the browser's credentials.
+      // The session cookie is not readable here, but the API is on this origin
+      // and the request carries the browser's credentials.
       await fetch(action.href, { method: action.method ?? 'POST', credentials: 'include' });
       return;
     } catch {
@@ -110,34 +118,32 @@ async function handleClick(action: PushAction | undefined, link: string | undefi
 
 /** Focus an existing KROMA tab and navigate it, or open a new one. */
 async function openApp(path: string) {
-  const url = new URL(path, sw.location.origin).href;
-  const clientList = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  for (const client of clientList) {
-    // Reuse a tab that is already on this origin rather than piling up windows.
-    if (new URL(client.url).origin === sw.location.origin && 'focus' in client) {
-      await client.focus();
-      if ('navigate' in client) {
-        try {
-          await client.navigate(url);
-        } catch {
-          /* cross-origin or unsupported: the focus alone is still useful */
-        }
-      }
-      return;
-    }
+  const url = new URL(path, self.location.origin).href;
+  const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  const existing = open.find((client) => new URL(client.url).origin === self.location.origin);
+  if (!existing) {
+    await self.clients.openWindow(url);
+    return;
   }
-  if (sw.clients.openWindow) await sw.clients.openWindow(url);
+  await existing.focus();
+  try {
+    await existing.navigate(url);
+  } catch {
+    // Cross-origin or unsupported: the focus alone is still useful.
+  }
 }
 
 // The browser can rotate a subscription without asking. Re-register with the
 // server, or that device silently stops receiving anything.
-sw.addEventListener('pushsubscriptionchange', (event) => {
+self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     (async () => {
       const subscription = event.newSubscription;
-      if (!subscription) return;
-      const key = subscription.getKey ? subscription.getKey.bind(subscription) : null;
-      if (!key) return;
+      // `getKey` is optional-called: an older engine may hand back a
+      // subscription object that does not implement it at all.
+      const p256dh = subscription?.getKey?.('p256dh');
+      const auth = subscription?.getKey?.('auth');
+      if (!subscription || !p256dh || !auth) return;
       await fetch('/api/push/subscribe', {
         method: 'POST',
         credentials: 'include',
@@ -145,24 +151,10 @@ sw.addEventListener('pushsubscriptionchange', (event) => {
         body: JSON.stringify({
           transport: 'webpush',
           endpoint: subscription.endpoint,
-          p256dh: base64Url(key('p256dh')),
-          auth: base64Url(key('auth')),
+          p256dh: bytesToBase64Url(p256dh),
+          auth: bytesToBase64Url(auth),
         }),
       });
     })(),
   );
 });
-
-/** base64url (RFC 4648 §5) — how the Push API's keys have to reach the server. */
-function base64Url(buffer: ArrayBuffer | null) {
-  if (!buffer) return null;
-  // Spreading is safe at this size: p256dh is 65 bytes and auth is 16, nowhere
-  // near the argument limit that makes this a footgun on arbitrary buffers.
-  const b64 = btoa(String.fromCodePoint(...new Uint8Array(buffer)));
-  // btoa pads to a multiple of 4, so there is never more than `==`, and only at
-  // the end — which is what keeps this bounded rather than a backtracking `=+$`.
-  return b64
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/={1,2}$/, '');
-}

@@ -158,6 +158,16 @@ function* sourceFiles(dir: string): Generator<string> {
 const CACHE = new Map<string, { code: string; note: string }>();
 
 /** What the swapped `glyph-source` module says, and how much it left out. */
+/**
+ * Deliberately NOT `localeCompare`: this ordering ends up in generated source,
+ * so it has to be identical on every machine rather than following whatever
+ * locale the build happens to run under.
+ */
+function byCodeUnit(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
 function iconSubset(repoRoot: string, pkg: TablerPkg): { code: string; note: string } {
   const key = `${repoRoot}|${pkg}`;
   const hit = CACHE.get(key);
@@ -175,7 +185,7 @@ function iconSubset(repoRoot: string, pkg: TablerPkg): { code: string; note: str
     }
   }
 
-  const names = [...used].sort();
+  const names = [...used].sort(byCodeUnit);
   // Each icon from its own module, by absolute path, as the DEFAULT export -
   // which is how Tabler writes them (`export { IconHome as default }`). Per-icon
   // so the result does not depend on the barrel being shakeable.

@@ -56,7 +56,9 @@ function rewriteIndexHtml(distDir: string): void {
   const preloads = [...html.matchAll(/<link rel="modulepreload"[^>]*href="([^"]+)"[^>]*>/g)].map(
     (m) => m[1],
   );
-  html = html.replace(/\s*<link rel="modulepreload"[^>]*>/g, '');
+  // Whitespace AFTER the tag, not before it: a leading `\s*` backtracks through
+  // the whole indent run at every position the literal then fails to match.
+  html = html.replace(/<link rel="modulepreload"[^>]*>\s*/g, '');
 
   // The loader itself must be ES5: it is the one script every engine parses.
   const loader = `<script>

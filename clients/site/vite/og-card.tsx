@@ -1,5 +1,12 @@
-import { colors, WHEEL_COLORS } from '@kroma/ui/tokens';
-import { parseRich } from '#site/lib/rich';
+// Both imports reach the SOURCE file directly, with its extension, rather than going
+// through `@kroma/ui/tokens` and `#site/lib/rich`. That is not a style choice: this module
+// is loaded by the Vite config's own loader, which externalizes bare specifiers and hands
+// them to Node - and Node cannot resolve the extensionless re-exports inside the kit's
+// token barrel, nor a tsconfig path alias. Reaching the leaf keeps the card renderable
+// IN-PROCESS by the build. `colors.ts` and `rich.ts` are both dependency-free, so nothing
+// else comes along with them.
+import { colors, WHEEL_COLORS } from '../../../packages/ui/src/lib/tokens/colors.ts';
+import { parseRich } from '../src/lib/rich.ts';
 
 // The social card, as a component.
 //

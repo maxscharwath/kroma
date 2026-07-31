@@ -14,7 +14,7 @@ export const fonts = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface FontRegistry {}
 
-export type FontToken = keyof typeof fonts | keyof FontRegistry;
+export type FontToken = keyof (typeof fonts & FontRegistry);
 
 /** Tracking as authored, in em. */
 export const tracking = { overline: 0.12, overlineTv: 0.22, display: -0.02 } as const;
@@ -62,7 +62,7 @@ export const typeSpec = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface TypeRoleRegistry {}
 
-export type TypeRole = keyof typeof typeSpec | keyof TypeRoleRegistry;
+export type TypeRole = keyof (typeof typeSpec & TypeRoleRegistry);
 
 const px = (n: number) => Math.round(n * 100) / 100;
 

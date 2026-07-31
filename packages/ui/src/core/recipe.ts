@@ -10,7 +10,6 @@ import { themeVersion } from '#ui/core/theme';
 import type {
   CompoundVariant,
   FlatVariantGroups,
-  Layer,
   SlotShapes,
   StyleDecl,
   StyleSlots,
@@ -24,6 +23,53 @@ import type {
 // The key is built from the raw pick, so an undeclared variant value still mints
 // an entry. Past the cap the recipe stops caching and behaves as before.
 const CACHE_LIMIT = 1024;
+
+interface Compiled {
+  bases: Split[];
+  options: Record<string, Record<string, (Split | undefined)[]>>;
+  rules: { when: [string, PropertyKey | undefined][]; layers: (Split | undefined)[] }[];
+  mask: number;
+  cache: Map<string, Record<string, object>>;
+}
+
+type PickOf = (group: string) => PropertyKey | undefined;
+
+// Cascade order, decided once for every slot rather than per slot: the base,
+// then each picked variant's layer, then every compound whose condition holds.
+function cascadeOf(
+  compiled: Compiled,
+  groups: readonly string[],
+  pickOf: PickOf,
+): (Split | undefined)[][] {
+  const layers: (Split | undefined)[][] = [compiled.bases];
+  for (const group of groups) {
+    const pick = pickOf(group);
+    const layer = pick === undefined ? undefined : compiled.options[group]?.[String(pick)];
+    if (layer) layers.push(layer);
+  }
+  for (const rule of compiled.rules) {
+    if (rule.when.every(([group, value]) => pickOf(group) === value)) layers.push(rule.layers);
+  }
+  return layers;
+}
+
+// Each active state sweeps every layer again, so a variant's `_hover` beats the
+// base's.
+function mergeSlot(
+  layers: (Split | undefined)[][],
+  slot: number,
+  state: SvState | undefined,
+  stateful: boolean,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const layer of layers) Object.assign(merged, layer[slot]?.rest);
+  if (!stateful || !state) return merged;
+  for (const name of SV_STATES) {
+    if (state[name] !== true) continue;
+    for (const layer of layers) Object.assign(merged, layer[slot]?.states[name]);
+  }
+  return merged;
+}
 
 /** Single slot: `base` plus flat variant options, which is most components. */
 export function sv<const V extends FlatVariantGroups = Record<string, never>>(
@@ -52,14 +98,6 @@ export function sv(
   const defaults = (config.defaults ?? {}) as Record<string, PropertyKey | undefined>;
   const groups = variants ? Object.keys(variants) : [];
   const names = Object.keys(slots);
-
-  interface Compiled {
-    bases: Split[];
-    options: Record<string, Record<string, (Split | undefined)[]>>;
-    rules: { when: [string, PropertyKey | undefined][]; layers: (Split | undefined)[] }[];
-    mask: number;
-    cache: Map<string, Record<string, object>>;
-  }
 
   // Tokens resolve during `split`, so the compiled form belongs to one theme:
   // it is built on first use and rebuilt when the theme version moves, which is
@@ -108,45 +146,24 @@ export function sv(
       compiled = build();
       builtAt = at;
     }
-    const { bases, options, rules, mask, cache } = compiled as Compiled;
-    const stateful = mask !== 0;
-    const pickOf = (group: string): PropertyKey | undefined => picks?.[group] ?? defaults[group];
+    const active = compiled as Compiled;
+    const pickOf: PickOf = (group) => picks?.[group] ?? defaults[group];
 
     let key = '';
     for (const group of groups) key += `${String(pickOf(group))}|`;
-    key += stateSuffix(state, mask);
+    key += stateSuffix(state, active.mask);
 
-    const hit = cache.get(key);
+    const hit = active.cache.get(key);
     if (hit) return hit;
 
-    // Cascade order, decided once for every slot rather than per slot.
-    const layers: (Split | undefined)[][] = [bases];
-    for (const group of groups) {
-      const pick = pickOf(group);
-      const layer = pick === undefined ? undefined : options[group]?.[String(pick)];
-      if (layer) layers.push(layer);
-    }
-    for (const rule of rules) {
-      if (rule.when.every(([group, value]) => pickOf(group) === value)) layers.push(rule.layers);
-    }
-
+    const layers = cascadeOf(active, groups, pickOf);
     const out: Record<string, unknown> = {};
     for (let i = 0; i < names.length; i++) {
-      const merged: Record<string, unknown> = {};
-      for (const layer of layers) Object.assign(merged, layer[i]?.rest);
-      if (stateful) {
-        // Each state sweeps every layer again, so a variant's `_hover` beats the
-        // base's.
-        for (const name of SV_STATES) {
-          if (state?.[name] !== true) continue;
-          for (const layer of layers) Object.assign(merged, layer[i]?.states[name]);
-        }
-      }
-      out[names[i] as string] = stabilise(merged);
+      out[names[i] as string] = stabilise(mergeSlot(layers, i, state, active.mask !== 0));
     }
 
     const frozen = Object.freeze(out) as Record<string, object>;
-    if (cache.size < CACHE_LIMIT) cache.set(key, frozen);
+    if (active.cache.size < CACHE_LIMIT) active.cache.set(key, frozen);
     return frozen;
   }) as unknown as SvFn<SlotShapes, VariantGroups<SlotShapes>> & Record<string, unknown>;
 
@@ -174,4 +191,5 @@ export function svFor<P extends SlotShapes>() {
   ): SvFn<P, V> => sv(config as never) as SvFn<P, V>;
 }
 
-export type { Layer, SvConfig, SvFlatConfig, SvFn };
+export type { Layer } from '#ui/core/types';
+export type { SvConfig, SvFlatConfig, SvFn };

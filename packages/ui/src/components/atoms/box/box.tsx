@@ -88,7 +88,8 @@ function splitProps(props: Record<string, unknown>): {
     parts.push(`${key}:${primitive ? String(value) : JSON.stringify(value)}`);
   }
   if (parts.length === 0) return { view, layout: EMPTY };
-  return { view, layout: sharedBoxStyle(parts.sort().join(';'), style as BoxStyleProps) };
+  parts.sort((a, b) => (a < b ? -1 : 1));
+  return { view, layout: sharedBoxStyle(parts.join(';'), style as BoxStyleProps) };
 }
 
 // A box with no shorthand at all still must not mint an object per render.

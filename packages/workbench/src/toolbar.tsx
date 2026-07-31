@@ -1,9 +1,9 @@
 // The canvas toolbar: one menu per lens (viewport, surface, host-added) that
 // applies to whatever story is open.
 
-import type { ColorValue } from '@kroma/ui/kit';
 import {
   Box,
+  type ColorValue,
   Focusable,
   Icon,
   IconButton,

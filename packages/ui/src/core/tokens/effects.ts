@@ -17,7 +17,7 @@ export const shadow = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface ShadowRegistry {}
 
-export type ShadowToken = keyof typeof shadow | keyof ShadowRegistry;
+export type ShadowToken = keyof (typeof shadow & ShadowRegistry);
 
 /** The 10-foot focus treatment: a CLEAN solid amber ring plus a dark drop
  * shadow for lift, never an amber bloom, so the ring reads as a crisp border. */

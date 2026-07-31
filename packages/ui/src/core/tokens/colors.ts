@@ -67,7 +67,7 @@ export const colors = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface ColorRegistry {}
 
-export type ColorToken = keyof typeof colors | keyof ColorRegistry;
+export type ColorToken = keyof (typeof colors & ColorRegistry);
 
 /**
  * Chart series colours, in assignment order.

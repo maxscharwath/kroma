@@ -12,6 +12,13 @@ export const shadow = {
   hero: '0 20px 50px rgba(0, 0, 0, 0.6)',
 } as const;
 
+/** Shadows a theme adds. Augment it and the name is legal wherever an elevation
+ *  is written — the `shadow:` shorthand, <Box shadow> (see `ColorRegistry`). */
+// biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
+export interface ShadowRegistry {}
+
+export type ShadowToken = keyof typeof shadow | keyof ShadowRegistry;
+
 /** The 10-foot focus treatment: a CLEAN solid amber ring plus a dark drop
  * shadow for lift, never an amber bloom, so the ring reads as a crisp border. */
 export const ring = {

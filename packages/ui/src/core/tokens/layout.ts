@@ -28,6 +28,13 @@ export const radius = {
   pill: 999,
 } as const;
 
+/** Radii a theme adds. Augment it and the name is legal wherever a radius is
+ *  written — the `radius:` shorthand, <Box radius> (see `ColorRegistry`). */
+// biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
+export interface RadiusRegistry {}
+
+export type RadiusToken = keyof typeof radius | keyof RadiusRegistry;
+
 /** Layout gutters. `tv` is the 10-foot side padding (overscan-safe on every
  * panel we ship to). */
 export const gutter = {

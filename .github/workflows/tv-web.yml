@@ -1,48 +1,51 @@
-name: Kit site
+name: TV demo
 
-# Builds the @kroma/ui workbench as a standalone site and deploys it to
-# ui.kroma.tv (the `kroma-ui` assets-only Worker, clients/kit/wrangler.jsonc).
+# Builds the browser TV app and deploys it to tv.kroma.tv (the `kroma-tv`
+# assets-only Worker, clients/tv-web/wrangler.jsonc). Until now the demo only
+# updated when someone ran `bun run deploy:tv-web` by hand, so it silently
+# drifted behind main.
 #
-# The build runs on PRs too, so a change that breaks the showcase fails before
-# it lands; only pushes to main deploy.
+# The build runs on PRs too, so a change that breaks the demo fails before it
+# lands; only pushes to main deploy. Same stance as kit.yml in every respect.
 #
 # Deploying needs the CLOUDFLARE_API_TOKEN repo secret (Workers Scripts: Edit).
-# WITHOUT it the deploy SKIPS with a notice instead of failing red - the site
-# can always be shipped by hand with `bun run deploy:kit`.
+# WITHOUT it the deploy SKIPS with a notice instead of failing red - the demo
+# can always be shipped by hand with `bun run deploy:tv-web`.
 #
 # A push whose tree over these paths is IDENTICAL to the last successful run's
-# (a re-run, a revert-of-a-revert, a merge that only touched other files after
-# the filter matched) skips the whole build+deploy: the live site already
-# serves those bytes. A manual dispatch always ships - it is the escape hatch
-# when the Worker itself needs re-pushing.
+# skips the whole build+deploy: the live demo already serves those bytes. A
+# manual dispatch always ships - the escape hatch when the Worker itself needs
+# re-pushing. Same delta gate as kit.yml.
 on:
   push:
     branches: [main]
     paths:
-      - 'clients/kit/**'
+      - 'clients/tv-web/**'
+      - 'packages/tv/**'
       - 'packages/ui/**'
       - 'packages/core/**'
-      - 'clients/tv-build/rnw.ts'
-      - '.github/workflows/kit.yml'
+      - 'packages/bundler/**'
+      - '.github/workflows/tv-web.yml'
   pull_request:
     paths:
-      - 'clients/kit/**'
+      - 'clients/tv-web/**'
+      - 'packages/tv/**'
       - 'packages/ui/**'
       - 'packages/core/**'
-      - 'clients/tv-build/rnw.ts'
-      - '.github/workflows/kit.yml'
+      - 'packages/bundler/**'
+      - '.github/workflows/tv-web.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: kit-${{ github.ref }}
+  group: tv-web-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Build + deploy (ui.kroma.tv)
+    name: Build + deploy (tv.kroma.tv)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -57,7 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/kit.yml/runs?branch=main&status=success&per_page=1" \
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/tv-web.yml/runs?branch=main&status=success&per_page=1" \
             --jq '.workflow_runs[0].head_sha' 2>/dev/null || true)
           if [ -z "$last" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -65,8 +68,8 @@ jobs:
           fi
           git fetch --no-tags --depth=1 origin "$last" 2>/dev/null || true
           # An unfetchable sha (force-push, expired) errors the diff -> deploy.
-          if git diff --quiet "$last" HEAD -- clients/kit packages/ui packages/core clients/tv-build/rnw.ts .github/workflows/kit.yml 2>/dev/null; then
-            echo "::notice::ui.kroma.tv is already serving this tree (last deployed $last); skipping."
+          if git diff --quiet "$last" HEAD -- clients/tv-web packages/tv packages/ui packages/core packages/bundler .github/workflows/tv-web.yml 2>/dev/null; then
+            echo "::notice::tv.kroma.tv is already serving this tree (last deployed $last); skipping."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -83,9 +86,9 @@ jobs:
 
       # Hard gate on every trigger: typecheck + vite build (the `build` script
       # runs tsc --noEmit first).
-      - name: Build the kit
+      - name: Build the TV app
         if: steps.delta.outputs.changed != 'false'
-        run: bun run build:kit
+        run: bun run build:tv-web
 
       # Soft gate: no token -> skip (not fail). secrets can't be read in a job-
       # level if, so surface it as a step output the deploy step depends on.
@@ -96,7 +99,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::notice::CLOUDFLARE_API_TOKEN not set; skipping the ui.kroma.tv deploy (deploy by hand with 'bun run deploy:kit')."
+            echo "::notice::CLOUDFLARE_API_TOKEN not set; skipping the tv.kroma.tv deploy (deploy by hand with 'bun run deploy:tv-web')."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=true" >> "$GITHUB_OUTPUT"
@@ -104,9 +107,9 @@ jobs:
 
       # dist/ is already built above, so deploy directly rather than via the
       # workspace `deploy` script (which would rebuild it).
-      - name: Deploy the kit site (ui.kroma.tv)
+      - name: Deploy the TV demo (tv.kroma.tv)
         if: steps.guard.outputs.has_token == 'true'
-        working-directory: clients/kit
+        working-directory: clients/tv-web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bunx wrangler@4 deploy

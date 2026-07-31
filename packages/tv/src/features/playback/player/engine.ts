@@ -147,6 +147,16 @@ export function getTauri(): TauriBridge | null {
   return t?.core?.invoke && t?.event?.listen ? (t as TauriBridge) : null;
 }
 
+declare const __KROMA_LEGACY_TIER__: boolean | undefined;
+
+/** Whether this bundle ships Shaka Player. The legacy tier is built with
+ * `__KROMA_LEGACY_TIER__` defined so the html engine's shaka import is dropped:
+ * the engines that tier serves fail Shaka's own support check, and the inlined
+ * IIFE would carry the whole library anyway. */
+export function shakaAvailable(): boolean {
+  return typeof __KROMA_LEGACY_TIER__ === 'undefined' || !__KROMA_LEGACY_TIER__;
+}
+
 /** Only the Linux desktop shell spawns mpv (the Deck's VA-API path); on macOS
  * the WKWebView decodes HEVC via VideoToolbox, so we use the in-page
  * `<video>` engine there instead of a second window. */

@@ -7,6 +7,34 @@ import { HtmlEngine } from './htmlEngine';
 // Driven against a hand-rolled fake media element. The master path is forced onto
 // the native-HLS branch so no hls.js dynamic import is needed.
 
+const shakaMock = vi.hoisted(() => ({
+  supported: true,
+  installAll: vi.fn(),
+  attach: vi.fn(() => Promise.resolve()),
+  load: vi.fn(() => Promise.resolve()),
+  configure: vi.fn(),
+  destroy: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('shaka-player/dist/shaka-player.compiled.js', () => ({
+  default: {
+    polyfill: { installAll: shakaMock.installAll },
+    Player: class {
+      static isBrowserSupported() {
+        return shakaMock.supported;
+      }
+      attach = shakaMock.attach;
+      load = shakaMock.load;
+      configure = shakaMock.configure;
+      destroy = shakaMock.destroy;
+    },
+  },
+}));
+// Only reached by the Shaka-rejects fallback; unsupported hls.js means the
+// engine hands the master straight to the element (and never constructs it).
+vi.mock('hls.js', () => ({
+  default: { isSupported: () => false },
+}));
+
 interface FakeVideo {
   el: HTMLVideoElement;
   fire(type: string): void;
@@ -107,6 +135,7 @@ function makeEngine(opts: {
   startSec?: number;
   rendition?: number;
   masterAac?: boolean;
+  masterShaka?: boolean;
   forceNativeHls?: boolean;
   durationSec?: number;
   listeners?: EngineListeners;
@@ -119,6 +148,7 @@ function makeEngine(opts: {
     item,
     direct: opts.direct,
     masterAac: opts.masterAac ?? false,
+    masterShaka: opts.masterShaka ?? false,
     forceNativeHls: opts.forceNativeHls ?? true,
     initialRendition: opts.rendition ?? 0,
     durationSec: opts.durationSec ?? 120,
@@ -155,6 +185,48 @@ describe('HtmlEngine master construction', () => {
     await tick();
     fv.set('currentTime', 0);
     expect(engine.position()).toBe(7.5);
+  });
+});
+
+describe('HtmlEngine Shaka master', () => {
+  beforeEach(() => {
+    shakaMock.supported = true;
+    shakaMock.installAll.mockClear();
+    shakaMock.attach.mockClear();
+    shakaMock.load.mockClear();
+    shakaMock.destroy.mockClear();
+  });
+
+  it('drives the MSE master through Shaka with the anchored URL', async () => {
+    const fv = fakeVideo();
+    makeEngine({ fv, direct: false, masterShaka: true, forceNativeHls: false, rendition: 2 });
+    await tick();
+    await tick();
+    expect(shakaMock.installAll).toHaveBeenCalled();
+    expect(shakaMock.attach).toHaveBeenCalledWith(fv.el);
+    await tick();
+    expect(shakaMock.load).toHaveBeenCalledWith('master:vid1:false:0:2');
+    expect(fv.get('src')).toBe('');
+  });
+
+  it('falls back to hls.js when Shaka rejects the engine', async () => {
+    shakaMock.supported = false;
+    const fv = fakeVideo();
+    makeEngine({ fv, direct: false, masterShaka: true, forceNativeHls: false });
+    await tick();
+    await tick();
+    expect(shakaMock.attach).not.toHaveBeenCalled();
+    // The mocked hls.js reports unsupported, so the fallback lands on the element.
+    expect(fv.get('src')).toBe('master:vid1:false:0:0');
+  });
+
+  it('destroy tears the Shaka player down', async () => {
+    const fv = fakeVideo();
+    const { engine } = makeEngine({ fv, direct: false, masterShaka: true, forceNativeHls: false });
+    await tick();
+    await tick();
+    engine.destroy();
+    expect(shakaMock.destroy).toHaveBeenCalled();
   });
 });
 

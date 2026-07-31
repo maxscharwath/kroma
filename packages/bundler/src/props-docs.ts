@@ -200,9 +200,9 @@ async function fingerprint(tsconfig: string, include: (fileName: string) => bool
   const sources = entries
     .map((entry) => join(src, entry))
     .filter((path) => /\.tsx?$/.test(path) && include(path))
-    .sort();
+    .sort((a, b) => (a < b ? -1 : 1));
   const lines = await Promise.all([tsconfig, await lockfileOf(root), ...sources].map(statLine));
-  return createHash('sha1')
+  return createHash('sha256')
     .update(`${CACHE_VERSION}\n${lines.join('\n')}`)
     .digest('hex');
 }

@@ -3,6 +3,7 @@
 // needs, rather than storing px and dividing back (which round-trips lossily).
 
 import type { TextStyle } from 'react-native';
+import type { TokenOf } from './registry';
 
 export const fonts = {
   display: 'Bricolage Grotesque',
@@ -14,7 +15,7 @@ export const fonts = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface FontRegistry {}
 
-export type FontToken = keyof (typeof fonts & FontRegistry);
+export type FontToken = TokenOf<typeof fonts, FontRegistry>;
 
 /** Tracking as authored, in em. */
 export const tracking = { overline: 0.12, overlineTv: 0.22, display: -0.02 } as const;
@@ -62,7 +63,7 @@ export const typeSpec = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface TypeRoleRegistry {}
 
-export type TypeRole = keyof (typeof typeSpec & TypeRoleRegistry);
+export type TypeRole = TokenOf<typeof typeSpec, TypeRoleRegistry>;
 
 const px = (n: number) => Math.round(n * 100) / 100;
 

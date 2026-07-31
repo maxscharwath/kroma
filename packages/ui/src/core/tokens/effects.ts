@@ -5,6 +5,7 @@
 // react-native-web maps it straight to CSS. One value, three renderers.
 
 import { colors } from './colors';
+import type { TokenOf } from './registry';
 
 export const shadow = {
   card: '0 10px 28px rgba(0, 0, 0, 0.45)',
@@ -17,7 +18,7 @@ export const shadow = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface ShadowRegistry {}
 
-export type ShadowToken = keyof (typeof shadow & ShadowRegistry);
+export type ShadowToken = TokenOf<typeof shadow, ShadowRegistry>;
 
 /** The 10-foot focus treatment: a CLEAN solid amber ring plus a dark drop
  * shadow for lift, never an amber bloom, so the ring reads as a crisp border. */

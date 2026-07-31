@@ -6,6 +6,7 @@
 // and into CSS alike. No color-mix()/oklch(): those cannot be expressed in RN,
 // and the old webOS tier could not parse them either.
 
+import type { TokenOf } from './registry';
 export const colors = {
   /* Surfaces: deep cinematic charcoal */
   bg: '#0A0A0C',
@@ -67,7 +68,7 @@ export const colors = {
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design
 export interface ColorRegistry {}
 
-export type ColorToken = keyof (typeof colors & ColorRegistry);
+export type ColorToken = TokenOf<typeof colors, ColorRegistry>;
 
 /**
  * Chart series colours, in assignment order.

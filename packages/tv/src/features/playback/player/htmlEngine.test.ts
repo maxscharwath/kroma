@@ -29,10 +29,21 @@ vi.mock('shaka-player/dist/shaka-player.compiled.js', () => ({
     },
   },
 }));
-// Only reached by the Shaka-rejects fallback; unsupported hls.js means the
-// engine hands the master straight to the element (and never constructs it).
+const hlsMock = vi.hoisted(() => ({
+  supported: false,
+  loadSource: vi.fn(),
+  attachMedia: vi.fn(),
+  destroy: vi.fn(),
+}));
 vi.mock('hls.js', () => ({
-  default: { isSupported: () => false },
+  default: class {
+    static isSupported() {
+      return hlsMock.supported;
+    }
+    loadSource = hlsMock.loadSource;
+    attachMedia = hlsMock.attachMedia;
+    destroy = hlsMock.destroy;
+  },
 }));
 
 interface FakeVideo {
@@ -195,6 +206,9 @@ describe('HtmlEngine Shaka master', () => {
     shakaMock.attach.mockClear();
     shakaMock.load.mockClear();
     shakaMock.destroy.mockClear();
+    hlsMock.supported = false;
+    hlsMock.loadSource.mockClear();
+    hlsMock.attachMedia.mockClear();
   });
 
   it('drives the MSE master through Shaka with the anchored URL', async () => {
@@ -218,6 +232,17 @@ describe('HtmlEngine Shaka master', () => {
     expect(shakaMock.attach).not.toHaveBeenCalled();
     // The mocked hls.js reports unsupported, so the fallback lands on the element.
     expect(fv.get('src')).toBe('master:vid1:false:0:0');
+  });
+
+  it('the remux preference drives the master through hls.js', async () => {
+    hlsMock.supported = true;
+    const fv = fakeVideo();
+    makeEngine({ fv, direct: false, masterShaka: false, forceNativeHls: false });
+    await tick();
+    await tick();
+    expect(hlsMock.loadSource).toHaveBeenCalledWith('master:vid1:false:0:0');
+    expect(hlsMock.attachMedia).toHaveBeenCalledWith(fv.el);
+    expect(shakaMock.attach).not.toHaveBeenCalled();
   });
 
   it('destroy tears the Shaka player down', async () => {

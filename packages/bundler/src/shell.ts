@@ -118,13 +118,16 @@ export function tvShellLegacyConfig(shellUrl: string, target: TvTarget): UserCon
     // `document.baseURI` resolves the same as the modern tier and exists on
     // every engine this tier targets.
     //
-    // `__KROMA_LEGACY_TIER__` folds the html engine's Shaka Player branch to a
-    // constant false, so `inlineDynamicImports` below does not bake the whole
+    // The legacy-tier marker folds the html engine's Shaka Player branch to a
+    // constant, so `inlineDynamicImports` below does not bake the whole
     // library into a bundle whose engines fail Shaka's support check anyway.
+    // The member-expression key (like `import.meta.url` above) matches the
+    // `globalThis` property read the player uses - a bare global would throw
+    // in the runtimes that never define it.
     define: {
       ...RNW_DEFINE,
       'import.meta.url': 'document.baseURI',
-      __KROMA_LEGACY_TIER__: 'true',
+      'globalThis.__KROMA_LEGACY_TIER__': 'true',
     },
     // `#tv/workbench` must come first: Vite matches string aliases by prefix in
     // order, and a bare `#tv` listed first would swallow it.

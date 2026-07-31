@@ -27,8 +27,6 @@ interface ShakaStatic {
   polyfill: { installAll(): void };
 }
 
-declare const __KROMA_LEGACY_TIER__: boolean | undefined;
-
 export interface HtmlOptions {
   video: HTMLVideoElement;
   client: KromaClient;
@@ -164,7 +162,7 @@ export class HtmlEngine implements TvEngine {
     // defines the global and inlines dynamic imports, folds this to `if (true)`
     // and drops the unreachable import below: Shaka never reaches a bundle
     // whose engines cannot run it.
-    if (typeof __KROMA_LEGACY_TIER__ !== 'undefined' && __KROMA_LEGACY_TIER__) {
+    if ((globalThis as { __KROMA_LEGACY_TIER__?: boolean }).__KROMA_LEGACY_TIER__) {
       this.attachHls(url);
       return;
     }

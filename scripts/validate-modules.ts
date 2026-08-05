@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Validate every module manifest against modules/module.schema.json:
-//   - each server/modules/<id>/module.json  (packable modules)
+//   - each modules/<id>/module.json  (packable modules)
 //   - the YAML frontmatter of each modules/*.module.md source
 // Enforces the reverse-DNS `id` pattern (among the rest of the schema). Exits
 // non-zero with a report on any violation, so it can gate CI / the build.
@@ -164,7 +164,7 @@ function validateManifestFile(manifestPath: string, label: string): void {
   if (typeof id === 'string') compiledWasmIds.push({ id, label });
 }
 
-for (const [root, prefix] of [[join(ROOT, 'server', 'modules'), 'server/modules']] as const) {
+for (const [root, prefix] of [[join(ROOT, 'modules'), 'modules']] as const) {
   for (const id of optionalReaddir(root)) {
     validateManifestFile(join(root, id, 'module.json'), `${prefix}/${id}/module.json`);
   }

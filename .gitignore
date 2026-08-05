@@ -19,12 +19,17 @@ build/
 
 # Rust
 server/target/
-# Standalone wasm-module crates build into their own target/ (they are their own
-# cargo workspaces), which the root server/target/ rule does not cover. Plus the
-# built frontend remote (fe/dist), the staging dir, and assembled bundles.
-wasm-modules/*/server/target/
-wasm-modules/*/ui/dist/
-wasm-modules/*/.bundle/
+# The shared build dir modules:pack / kmod-build-plan point every module
+# workspace at (see scripts/pack-module.ts KMOD_TARGET_DIR).
+/target/
+# Each module under modules/<id> is its own cargo workspace, so it builds into
+# its OWN target/ which the rule above does not cover. Its Cargo.lock IS
+# committed: a module ships as a native binary in a `.kmod`, and a lock is what
+# makes that artifact reproducible. Plus the built frontend remote and the
+# staging dir modules:pack assembles bundles in.
+modules/*/server/target/
+modules/*/ui/dist/
+modules/*/.bundle/
 server/data/
 # ts-rs generated TypeScript bindings (regenerated from #[derive(TS)], not committed)
 server/bindings/

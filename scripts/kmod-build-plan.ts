@@ -1,31 +1,38 @@
 #!/usr/bin/env bun
 
 // Emit the `cargo build` commands that produce every sidecar module's native
-// binary, one per line, derived from each module's Cargo.toml. CI runs them
-// inside the musl cross-toolchain image, then packs the results on the host.
+// binary, derived from each module's Cargo.toml. CI runs them inside the musl
+// cross-toolchain image, then packs the results on the host.
 //
 //   KMOD_TARGET=x86_64-unknown-linux-musl bun run scripts/kmod-build-plan.ts
+//
+// Run the emitted script from the REPO ROOT (the manifest paths are relative
+// to it), not from server/.
 
-import { crateAndBin, packableModules } from './pack-module';
+import { relative } from 'node:path';
+import { crateAndBin, KMOD_TARGET_DIR, packableModules, root } from './pack-module';
 
 const target = process.env.KMOD_TARGET?.trim();
 const targetArg = target ? ` --target ${target}` : '';
 
-const packages: string[] = [];
-const features: string[] = [];
+// Each module is its own cargo workspace now, so there is no single invocation
+// that can select them all. They share ONE target dir instead: the dep graph
+// (axum, tokio, candle, librqbit...) is then compiled once and reused across
+// modules, which is what the old single-invocation build really bought. Cargo
+// takes an exclusive lock on that dir, so these must run in sequence — the
+// residual cost versus one invocation is that the final links no longer overlap.
+const lines = [`export CARGO_TARGET_DIR=${KMOD_TARGET_DIR}`];
+
 for (const dir of packableModules()) {
-  const { pkg, bin, features: feats } = crateAndBin(dir);
+  const { bin, features } = crateAndBin(dir);
   if (!bin) continue; // library module: nothing to compile
-  packages.push(`-p ${pkg}`);
-  // Package-qualified: cargo rejects a bare `--features local` as ambiguous
-  // across packages.
-  features.push(...feats.map((f) => `${pkg}/${f}`));
+  // Bare feature names: inside its own single-package workspace, `pkg/feat`
+  // would mean "feature `feat` of DEPENDENCY `pkg`" and fails to resolve.
+  const feat = features.length ? ` --features ${features.join(',')}` : '';
+  const manifest = relative(root, `${dir}/server/Cargo.toml`);
+  lines.push(
+    `cargo build --profile release-kmod --manifest-path ${manifest} --bin ${bin}${feat}${targetArg}`,
+  );
 }
 
-// ONE invocation, not one per module: `lto = true` with `codegen-units = 1`
-// makes each link single-threaded, so separate cargo commands would run
-// sequentially; selecting every package lets cargo link them in parallel.
-const feat = features.length ? ` --features ${features.join(',')}` : '';
-process.stdout.write(
-  `cargo build --profile release-kmod ${packages.join(' ')}${feat}${targetArg}\n`,
-);
+process.stdout.write(`${lines.join('\n')}\n`);

@@ -1,6 +1,6 @@
 # Modules as `.kmod` — out-of-process module architecture
 
-Goal: every module in `server/modules/*` ships as an installable `.kmod` file and
+Goal: every module in `modules/*` ships as an installable `.kmod` file and
 runs **out of the base `kroma-server` build** — native, fast, simple to author, and
 easy to fetch from a registry.
 

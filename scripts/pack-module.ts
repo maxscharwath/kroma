@@ -23,9 +23,13 @@ import {
 import { join } from 'node:path';
 import { $ } from 'bun';
 
-const root = join(import.meta.dir, '..');
+export const root = join(import.meta.dir, '..');
 const outDir = join(root, 'dist/modules');
-const modulesRoot = join(root, 'server/modules');
+const modulesRoot = join(root, 'modules');
+
+/** Shared build dir for every module workspace, so the dep graph they have in
+ * common is compiled once instead of once per module. */
+export const KMOD_TARGET_DIR = join(root, 'target/kmod');
 
 const crateName = /\[package\][\s\S]*?name\s*=\s*"([^"]+)"/;
 const binName = /\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/;
@@ -75,22 +79,27 @@ export function crateAndBin(moduleDir: string): {
 // (CI builds them inside the musl cross-toolchain image the Synology build uses,
 // which is proven to link candle / librqbit; this script then just stages +
 // packs them). Skips the `cargo build` and reads the prebuilt artifact.
+// The build runs in the MODULE's own workspace (each module is one now) against
+// the shared KMOD_TARGET_DIR, so scripts/kmod-build-plan.ts and this path leave
+// their artifacts in the same place and either can produce what the other packs.
 async function buildModuleBinary(
+  moduleDir: string,
   bin: string,
-  pkg: string,
   features: string[],
   target: string | null,
   skipBuild: boolean,
 ): Promise<string> {
   // cargo nests the artifact under target/<triple>/ when --target is given.
-  const outRoot = target ? `server/target/${target}/release-kmod` : 'server/target/release-kmod';
-  const binPath = join(root, outRoot, bin);
+  const outRoot = target ? join(KMOD_TARGET_DIR, target, 'release-kmod') : join(KMOD_TARGET_DIR, 'release-kmod');
+  const binPath = join(outRoot, bin);
   if (!skipBuild) {
+    // Bare feature names, and no `-p`: the module is its own single-package
+    // workspace, so `pkg/feat` would resolve against a DEPENDENCY named `pkg`.
     const featArgs = features.length ? ['--features', features.join(',')] : [];
     const targetArgs = target ? ['--target', target] : [];
-    await $`cargo build --profile release-kmod -p ${pkg} --bin ${bin} ${featArgs} ${targetArgs}`.cwd(
-      join(root, 'server'),
-    );
+    await $`cargo build --profile release-kmod --bin ${bin} ${featArgs} ${targetArgs}`
+      .cwd(join(moduleDir, 'server'))
+      .env({ ...process.env, CARGO_TARGET_DIR: KMOD_TARGET_DIR });
   }
   if (!existsSync(binPath)) {
     throw new Error(
@@ -151,7 +160,7 @@ async function packOne(moduleDir: string): Promise<string> {
 
   const target = process.env.KMOD_TARGET?.trim() || null;
   const skipBuild = process.env.KMOD_SKIP_BUILD === '1';
-  const binPath = bin ? await buildModuleBinary(bin, pkg, features, target, skipBuild) : null;
+  const binPath = bin ? await buildModuleBinary(moduleDir, bin, features, target, skipBuild) : null;
 
   const uiDir = join(moduleDir, 'ui');
   await buildFrontend(uiDir);

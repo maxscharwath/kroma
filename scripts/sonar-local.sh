@@ -66,8 +66,8 @@ scan() {
     clients/build-info clients/desktop/src clients/desktop/scripts clients/expo-build
     clients/mobile/src clients/synology clients/tizen clients/tv-build clients/tv-frame.vite.ts
     clients/tv-native clients/tv-web clients/web/src clients/webos
-    packages scripts
-    server/src server/crates server/modules server/xtask server/build.rs
+    modules packages scripts
+    server/src server/crates server/xtask server/build.rs
     sonar-project.properties vitest.config.ts vitest.setup.ts package.json
   )
   local sources=""

@@ -6,14 +6,14 @@
   "workspaces": [
     "packages/*",
     "clients/*",
-    "server/modules/*/ui"
+    "modules/*/ui"
   ],
   "scripts": {
     "modules:gen": "bun scripts/gen-modules.ts",
     "modules:new": "bun scripts/new-module.ts",
     "modules:validate": "bun scripts/validate-modules.ts",
     "modules:pack": "bun scripts/pack-module.ts",
-    "modules:check": "bun run modules:validate && bun run modules:gen && git diff --exit-code -- server/modules server/crates/kroma-modules-generated packages/modules-generated",
+    "modules:check": "bun run modules:validate && bun run modules:gen && git diff --exit-code -- modules server/crates/kroma-modules-generated packages/modules-generated",
     "tokens:gen": "bun run --filter '@kroma/ui' gen:css",
     "tokens:check": "bun run tokens:gen && git diff --exit-code -- packages/ui/src/styles/tokens",
     "shots": "bun run --filter '@kroma/ui' shots",

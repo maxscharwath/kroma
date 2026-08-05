@@ -9,8 +9,9 @@
 //   - ```sql  : OPTIONAL migrations, written to server/migrations.sql.
 //   - ```locale.en / ```locale.fr : OPTIONAL message catalogs -> locales/*.json.
 //
-// Expanded into `server/modules/<id>/{module.json, icon.svg, server/*, ui/*,
-// locales/*}`, and maintains two aggregator rosters so modules register with
+// Expanded into `modules/<id>/{module.json, icon.svg, server/*, ui/*,
+// locales/*}` — the source file and the module it expands to sit side by side
+// under modules/, and maintains two aggregator rosters so modules register with
 // zero manual wiring: crate `kroma-modules-generated` and package
 // `@kroma/modules-generated`.
 //
@@ -24,7 +25,7 @@ import { fenced, frontmatter, REVERSE_DNS, slug } from './module-format';
 
 const ROOT = join(import.meta.dir, '..');
 const SRC_DIR = join(ROOT, 'modules');
-const OUT_ROOT = join(ROOT, 'server', 'modules');
+const OUT_ROOT = join(ROOT, 'modules');
 const BE_ROSTER = join(ROOT, 'server', 'crates', 'kroma-modules-generated');
 const FE_ROSTER = join(ROOT, 'packages', 'modules-generated');
 
@@ -178,7 +179,7 @@ serde_json = { workspace = true }
   console.log(`module ${id}  ->  ${crate} + ${pkg}${svg ? ' + icon.svg' : ''}`);
 }
 
-// Hand-authored crates under server/modules/<id>/server (modules/roster.yaml).
+// Hand-authored crates under modules/<id>/server (modules/roster.yaml).
 // Unlike the single-file modules above they are NOT generated, only
 // enumerated here so the aggregator wires them in without any Rust crate
 // hand-naming the set.

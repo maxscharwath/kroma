@@ -30,10 +30,15 @@ bun run test             # vitest (two projects: web + native)
 bun run tokens:check     # generated token CSS matches the TS tokens
 bun run check            # biome format + lint  (check:fix to write)
 cd server && cargo clippy --workspace --all-targets && cargo test --workspace
+bun run modules:clippy && bun run modules:test   # the module workspaces
 ```
 
-Other gates that run on the paths they cover: `bun run modules:check` (manifests
-valid + generated module output in sync), `bun run deadcode` (knip).
+The last line is not redundant: modules are separate cargo workspaces, so
+`--workspace` from `server/` does not reach them (see below).
+
+`bun run modules:check` (manifests valid + generated output in sync) and
+`bun run deadcode` (knip) are **not** wired into any workflow today — run them by
+hand after touching a module or a generator.
 
 Rust is pinned by `rust-toolchain.toml` (1.96.1, with clippy + rustfmt); the
 workspace `rust-version` floor is 1.88. `cargo fmt --check` is non-blocking — the

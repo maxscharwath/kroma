@@ -96,7 +96,9 @@ jobs:
       # the cross legs) so a re-run doesn't rebuild candle from scratch.
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
-          workspaces: server
+          workspaces: |
+            server
+            . -> target/kmod
           key: kmod-${{ matrix.target }}
 
       # Cross legs: compile every sidecar binary in the proven musl toolchain

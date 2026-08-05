@@ -1,16 +1,11 @@
 #!/usr/bin/env bun
 
-// Run one cargo subcommand across every module workspace.
-//
-// Modules are not members of the server workspace (each is its own, at
-// modules/<id>/server), so `cargo test --workspace` from server/ does not reach
-// them. This is what keeps them covered.
+// Run one cargo subcommand across every module workspace. Modules are not
+// members of the server workspace, so `cargo test --workspace` never reaches
+// them. They share one target dir, so common deps compile once.
 //
 //   bun run scripts/modules-cargo.ts test
 //   bun run scripts/modules-cargo.ts clippy --all-targets
-//
-// Every module builds into the SHARED target dir, so the dependency graph they
-// have in common is compiled once rather than once per module.
 
 import { existsSync } from 'node:fs';
 import { $ } from 'bun';
@@ -19,12 +14,9 @@ import { KMOD_TARGET_DIR, packableModules } from './pack-module';
 const args = process.argv.slice(2);
 if (args.length === 0) throw new Error('usage: modules-cargo.ts <cargo-subcommand> [args...]');
 
-// Default features, NOT the `[package.metadata.kmod]` ones: those pull the heavy
-// optional backends (candle for whisper/vector, librqbit for torrents), and
-// compiling them here would roughly double this job for the five tests that sit
-// behind them (whisper 1, torrents 2, vector 2). Everything else runs. The
-// shipped feature set is still compiled by modules:pack in the release job.
-// Pass features explicitly to cover those five: `modules-cargo.ts test --features local`.
+// Default features: the `[package.metadata.kmod]` ones pull candle and librqbit,
+// which would roughly double this job for the five tests behind them (whisper 1,
+// torrents 2, vector 2). Pass `--features` explicitly to include those.
 const failed: string[] = [];
 for (const dir of packableModules()) {
   const id = dir.split('/').pop() ?? dir;

@@ -15,13 +15,14 @@ import { crateAndBin, KMOD_TARGET_DIR, packableModules, root } from './pack-modu
 const target = process.env.KMOD_TARGET?.trim();
 const targetArg = target ? ` --target ${target}` : '';
 
-// Each module is its own cargo workspace now, so there is no single invocation
-// that can select them all. They share ONE target dir instead: the dep graph
-// (axum, tokio, candle, librqbit...) is then compiled once and reused across
-// modules, which is what the old single-invocation build really bought. Cargo
-// takes an exclusive lock on that dir, so these must run in sequence — the
-// residual cost versus one invocation is that the final links no longer overlap.
-const lines = [`export CARGO_TARGET_DIR=${KMOD_TARGET_DIR}`];
+// One invocation per module: each is its own workspace, so none can select them
+// all. They share a target dir so the common dep graph compiles once; cargo
+// locks that dir, so the builds run in sequence.
+// Relative to the repo root, resolved by the shell that runs the plan: the
+// cross legs execute it inside a container where the checkout is mounted at a
+// different absolute path, so a host path would silently write to the
+// container's own filesystem and vanish with it.
+const lines = [`export CARGO_TARGET_DIR="$PWD/${relative(root, KMOD_TARGET_DIR)}"`];
 
 for (const dir of packableModules()) {
   const { bin, features } = crateAndBin(dir);

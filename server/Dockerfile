@@ -64,7 +64,6 @@ RUN mkdir -p src && echo 'fn main() {}' > src/main.rs \
 # compile time (crates/kroma-engine/src/i18n.rs -> ../../../packages/core/src/locales/*.json).
 WORKDIR /src
 COPY packages ./packages
-COPY modules ./modules
 COPY server ./server
 WORKDIR /src/server
 RUN touch src/main.rs && cargo build --locked --release

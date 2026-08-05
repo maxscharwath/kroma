@@ -3,9 +3,9 @@
 // list is admin-only and every artifact is still https + sha256 verified
 // server-side — adding a registry lists modules, it does not trust them.
 
-import { Button, Card, Pill, TextInput, Toggle } from '@kroma/admin-kit';
+import { Button, Card, Pill, TextInput, Toggle, useAsyncAction } from '@kroma/admin-kit';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
 
 /** One operator-added registry, as stored in the `moduleRegistries` setting. */
@@ -23,6 +23,7 @@ export interface RegistryStatus {
   url: string;
   official: boolean;
   enabled: boolean;
+  skipped?: string | null;
   error?: string | null;
   moduleCount: number;
   shadowed: string[];
@@ -37,8 +38,13 @@ function saveRegistries(extras: ExtraRegistry[]): Promise<unknown> {
   });
 }
 
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// Identity of a saved list, for telling a stale prop from the refreshed one.
+const urlsOf = (rows: readonly { url: string }[]) => rows.map((r) => r.url).join('\n');
+
 function StatusLine({ status }: Readonly<{ status: RegistryStatus }>) {
-  if (!status.enabled) return <p className="text-xs text-dim">Disabled — not consulted.</p>;
+  if (status.skipped) return <p className="text-xs text-dim">{status.skipped}</p>;
   if (status.error) {
     return <p className="break-all text-xs text-danger">{status.error}</p>;
   }
@@ -60,20 +66,16 @@ function OfficialRow({
   onSaved,
 }: Readonly<{ url: string; status: RegistryStatus; onSaved: () => void }>) {
   const [value, setValue] = useState(url);
-  const [saving, setSaving] = useState(false);
+  const { busy, error, run } = useAsyncAction();
   const dirty = value.trim() !== url;
-  const save = async () => {
-    setSaving(true);
-    try {
+  const save = () =>
+    void run(async () => {
       await adminApi('/settings', {
         method: 'PUT',
         body: JSON.stringify({ moduleRegistryUrl: value.trim() }),
       });
       onSaved();
-    } finally {
-      setSaving(false);
-    }
-  };
+    }, message);
   return (
     <Card className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
@@ -94,12 +96,13 @@ function OfficialRow({
         />
         <Button
           variant="secondary"
-          label={saving ? 'Saving...' : 'Save'}
-          onClick={() => void save()}
-          loading={saving}
+          label={busy ? 'Saving...' : 'Save'}
+          onClick={save}
+          loading={busy}
           disabled={!dirty}
         />
       </div>
+      {error && <p className="text-xs font-semibold text-danger">{error}</p>}
       <StatusLine status={status} />
     </Card>
   );
@@ -201,31 +204,49 @@ export function RegistriesSection({
   onReload,
 }: Readonly<{ registries: RegistryStatus[]; onReload: () => void }>) {
   const [draft, setDraft] = useState<ExtraRegistry[] | null>(null);
-  const [saving, setSaving] = useState(false);
+  const { busy: saving, error, run } = useAsyncAction();
+  const pendingSave = useRef<string | null>(null);
   const official = registries.find((r) => r.official);
   const extras = registries.filter((r) => !r.official);
   const list: ExtraRegistry[] =
     draft ?? extras.map(({ name, url, enabled }) => ({ name, url, enabled }));
   const byUrl = new Map(extras.map((r) => [r.url, r]));
 
+  // `reload` only invalidates the query, so the saved list arrives later as a
+  // new prop. Hold the draft until the incoming rows match what was saved, or
+  // they would snap back to the pre-save data for as long as the refetch takes.
+  useEffect(() => {
+    if (pendingSave.current === null) return;
+    if (urlsOf(registries.filter((r) => !r.official)) !== pendingSave.current) return;
+    pendingSave.current = null;
+    setDraft(null);
+  }, [registries]);
+
   // Saved as typed, including an entry whose URL is not (yet) valid: the server
-  // skips those when fetching but stores them verbatim, so a typo stays on
-  // screen to be corrected instead of vanishing on save.
-  const commit = async (next: ExtraRegistry[]) => {
+  // keeps those and reports why it skipped them, so a typo stays on screen to be
+  // corrected instead of vanishing on save.
+  const commit = (next: ExtraRegistry[]) => {
     setDraft(next);
-    setSaving(true);
-    try {
+    void run(async () => {
       await saveRegistries(next);
+      pendingSave.current = urlsOf(next);
       onReload();
-      setDraft(null);
-    } finally {
-      setSaving(false);
-    }
+    }, message);
   };
+
+  if (registries.length === 0) {
+    return (
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Registries</h2>
+        <p className="text-xs text-muted">Loading the registry list...</p>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Registries</h2>
+      {error && <p className="text-xs font-semibold text-danger">{error}</p>}
       {official && <OfficialRow url={official.url} status={official} onSaved={onReload} />}
       {list.map((registry, i) => (
         <ExtraRow
@@ -237,7 +258,7 @@ export function RegistriesSection({
           status={byUrl.get(registry.url) ?? { ...registry, official: false, ...NO_STATUS }}
           busy={saving}
           onChange={(next) => setDraft(list.map((r, j) => (i === j ? next : r)))}
-          onRemove={() => void commit(list.filter((_, j) => j !== i))}
+          onRemove={() => commit(list.filter((_, j) => j !== i))}
         />
       ))}
       {draft !== null && (
@@ -245,7 +266,7 @@ export function RegistriesSection({
           <Button
             variant="primary"
             label={saving ? 'Saving...' : 'Save changes'}
-            onClick={() => void commit(list)}
+            onClick={() => commit(list)}
             loading={saving}
           />
           <Button
@@ -256,7 +277,7 @@ export function RegistriesSection({
           />
         </div>
       )}
-      <AddRegistry busy={saving} onAdd={(r) => void commit([...list, r])} />
+      <AddRegistry busy={saving} onAdd={(r) => commit([...list, r])} />
     </section>
   );
 }

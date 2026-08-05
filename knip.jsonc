@@ -100,7 +100,7 @@
       ]
     },
 
-    "server/modules/*/ui": {
+    "modules/*/ui": {
       "entry": ["src/index.{ts,tsx}"]
     }
   }

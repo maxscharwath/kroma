@@ -27,11 +27,13 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Returns `(id, from, to)` for each module actually updated.
 pub async fn auto_update(state: &SharedState, sup: &Supervisor) -> Vec<(String, String, String)> {
     let mut updated = Vec::new();
-    let modules = registries::fetch_merged(state, sup).await;
-    if modules.is_empty() {
-        tracing::warn!("module auto-update: no registry returned a catalog");
-        return updated;
-    }
+    let modules = match registries::fetch_merged(state, sup).await {
+        Ok(modules) => modules,
+        Err(e) => {
+            tracing::warn!(error = %format!("{e:#}"), "module auto-update: catalog fetch failed");
+            return updated;
+        }
+    };
     let by_id: HashMap<&str, &CatalogModule> =
         modules.iter().map(|m| (m.id.as_str(), m)).collect();
     for manifest in sup.installed_manifests() {
@@ -75,7 +77,7 @@ pub async fn install_with_deps(
     sup: &Supervisor,
     root_id: &str,
 ) -> Result<Value> {
-    let modules = registries::fetch_merged(state, sup).await;
+    let modules = registries::fetch_merged(state, sup).await?;
     let by_id: HashMap<&str, &CatalogModule> =
         modules.iter().map(|m| (m.id.as_str(), m)).collect();
     // Everything already on this server (compiled-in roster + installed .kmod),
@@ -108,7 +110,7 @@ pub async fn install_with_deps(
                 anyhow!("'{}' has no published sha256 checksum; refusing to install", entry.id)
             })?;
         let manifest = sup
-            .install_from_url(&artifact.url, Some(sha))
+            .install_from_url(&artifact.url, Some(sha), Some(&entry.id))
             .await
             .map_err(|e| anyhow!("installing '{}' failed: {e:#}", entry.id))?;
         installed.push(json!({

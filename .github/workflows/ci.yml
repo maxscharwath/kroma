@@ -80,6 +80,8 @@ jobs:
             fleet:
               - 'clients/**'
               - 'packages/**'
+              # clients/web bundles the modules/*/ui workspaces at build time.
+              - 'modules/*/ui/**'
               # bun patches change what an install produces.
               - 'patches/**'
               - 'bun.lock'

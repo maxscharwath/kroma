@@ -4,8 +4,9 @@
 //! code is an admin-trust action.
 //!
 //! A "registry" is any static host serving a catalog index (see [`catalog`])
-//! plus the `.kmod` files it points at; the default is this repo's GitHub
-//! Releases, overridable via the `moduleRegistryUrl` setting.
+//! plus the `.kmod` files it points at. The Store reads a list of them (see
+//! [`registries`]): one pinned official catalog, whose URL the
+//! `moduleRegistryUrl` setting overrides, plus any the operator added.
 
 mod catalog;
 pub mod install;
@@ -60,7 +61,7 @@ async fn install_url(
 ) -> Result<Response, Response> {
     super::require(&user, Permission::SettingsManage)?;
     let manifest = sup
-        .install_from_url(&body.url, body.sha256.as_deref())
+        .install_from_url(&body.url, body.sha256.as_deref(), None)
         .await
         .map_err(|e| bad(&format!("install failed: {e:#}")))?;
     Ok(Json(json!({
@@ -89,10 +90,10 @@ async fn install_id(
     Ok(Json(report).into_response())
 }
 
-// Fetched server-side (no CORS, one registry URL) and enriched per module with
-// this server's verdict. An unreachable registry is NOT an HTTP error: the
-// response carries `registryUrl` + `error` and an empty module list, so the
-// Store UI can show what failed and offer to fix the URL.
+// Fetched server-side (no CORS) across every configured registry and enriched
+// per module with this server's verdict. An unreachable registry is NOT an HTTP
+// error: its failure is reported on its own row in `registries`, so one dead
+// host leaves the rest of the catalog usable.
 async fn catalog_view(
     State(state): State<SharedState>,
     Extension(sup): Extension<Arc<Supervisor>>,
@@ -115,7 +116,7 @@ async fn install_upload(
         return Err(bad("empty bundle"));
     }
     // Unpack + spawn is blocking; keep it off the async runtime.
-    let manifest: Value = tokio::task::spawn_blocking(move || sup.install(&body))
+    let manifest: Value = tokio::task::spawn_blocking(move || sup.install(&body, None))
         .await
         .map_err(|_| bad("install task panicked"))?
         .map_err(|e| bad(&format!("install failed: {e:#}")))?;

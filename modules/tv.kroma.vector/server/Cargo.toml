@@ -53,6 +53,16 @@ tower = "0.5"
 # speed cost (opt-level stays 3). Safe for a sidecar: a panic aborts the module
 # process and the supervisor respawns it. Defined per module because a profile is
 # only honoured at a workspace root, and each module is now its own workspace.
+# Mirrors server/Cargo.toml's [profile.release]. A profile is only honoured at a
+# workspace root, and this module is its own workspace, so `inherits = "release"`
+# below would otherwise pick up cargo's DEFAULT release: no LTO, 16 codegen
+# units, unstripped.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
 [profile.release-kmod]
 inherits = "release"
 panic = "abort"

@@ -46,6 +46,50 @@ pub struct Supervisor {
 // anything approaching this is a misconfigured or hostile host, not a catalog.
 const MAX_CATALOG_BYTES: u64 = 4 * 1024 * 1024;
 const CATALOG_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+// A sidecar binary plus a small frontend bundle. Matches the upload route's limit.
+const MAX_BUNDLE_BYTES: u64 = 64 * 1024 * 1024;
+const ARTIFACT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// Read a response body with a hard ceiling, enforced as it arrives.
+///
+/// Content-Length is advisory (absent under chunked encoding), so the header
+/// check is only an early exit — the running total is what actually bounds it.
+async fn fetch_bounded(
+    client: &reqwest::Client,
+    url: &str,
+    max_bytes: u64,
+) -> anyhow::Result<Vec<u8>> {
+    let mut response = client.get(url).send().await?.error_for_status()?;
+    if let Some(len) = response.content_length() {
+        if len > max_bytes {
+            anyhow::bail!("response is {len} bytes (max {max_bytes})");
+        }
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        body.extend_from_slice(&chunk);
+        if body.len() as u64 > max_bytes {
+            anyhow::bail!("response exceeds {max_bytes} bytes");
+        }
+    }
+    Ok(body)
+}
+
+/// Follow redirects, but never from https down to http: the catalog carries
+/// both an artifact URL and the checksum that vouches for it, so a downgrade
+/// would hand an on-path attacker each half and make the verification empty.
+fn no_downgrade() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        let came_from_https = attempt.previous().iter().any(|u| u.scheme() == "https");
+        if came_from_https && attempt.url().scheme() != "https" {
+            return attempt.error("redirect from https to http refused");
+        }
+        if attempt.previous().len() > 10 {
+            return attempt.stop();
+        }
+        attempt.follow()
+    })
+}
 
 impl Supervisor {
     pub fn new(cfg: SupervisorConfig) -> Arc<Self> {
@@ -201,7 +245,12 @@ impl Supervisor {
 
     /// Unpack a `.kmod` bundle under `<modules_dir>/<id>/` and spawn it,
     /// returning the module's manifest JSON.
-    pub fn install(&self, bytes: &[u8]) -> anyhow::Result<Value> {
+    ///
+    /// `expected_id` must be set whenever the bundle was chosen through a
+    /// catalog: the id inside the bundle decides which directory is REPLACED,
+    /// so without this a registry could advertise one id and ship a bundle that
+    /// overwrites another — including a module the official registry owns.
+    pub fn install(&self, bytes: &[u8], expected_id: Option<&str>) -> anyhow::Result<Value> {
         // `.kmod` is a zstd tar; gzip (legacy) and raw tar are also accepted,
         // dispatched by magic bytes.
         let mut decompressed = Vec::new();
@@ -231,6 +280,13 @@ impl Supervisor {
                 .ok_or_else(|| anyhow::anyhow!("module.json has no id"))?
                 .to_string();
             validate_id(&id)?;
+            if let Some(expected) = expected_id {
+                if expected != id {
+                    anyhow::bail!(
+                        "bundle declares id '{id}' but it was offered as '{expected}'; refusing to install"
+                    );
+                }
+            }
             if self.cfg.reserved_ids.iter().any(|r| r == &id) {
                 anyhow::bail!(
                     "'{id}' is built into this server and can't be installed as a module (this build compiles it in)"
@@ -277,12 +333,17 @@ impl Supervisor {
         &self,
         url: &str,
         expected_sha256: Option<&str>,
+        expected_id: Option<&str>,
     ) -> anyhow::Result<Value> {
-        let bytes = reqwest::get(url).await?.error_for_status()?.bytes().await?;
+        // https_only: the artifact produces an executable, and a redirect from
+        // https to http would otherwise undo the caller's scheme check.
+        let client =
+            reqwest::Client::builder().timeout(ARTIFACT_TIMEOUT).https_only(true).build()?;
+        let bytes = fetch_bounded(&client, url, MAX_BUNDLE_BYTES).await?;
         if let Some(expected) = expected_sha256.map(str::trim).filter(|s| !s.is_empty()) {
             verify_sha256(&bytes, expected)?;
         }
-        self.install(&bytes)
+        self.install(&bytes, expected_id)
     }
 
     /// Fetch and parse a registry catalog.
@@ -292,28 +353,11 @@ impl Supervisor {
     /// host must not hang the admin page) and a size cap read BEFORE parsing (a
     /// schema cannot reject bytes it has not read).
     pub async fn fetch_catalog(&self, url: &str) -> anyhow::Result<Value> {
-        let response = reqwest::Client::builder()
+        let client = reqwest::Client::builder()
             .timeout(CATALOG_TIMEOUT)
-            .build()?
-            .get(url)
-            .send()
-            .await?
-            .error_for_status()?;
-        if let Some(len) = response.content_length() {
-            if len > MAX_CATALOG_BYTES {
-                anyhow::bail!("catalog is {len} bytes (max {MAX_CATALOG_BYTES})");
-            }
-        }
-        // Content-Length is advisory (absent under chunked encoding), so cap the
-        // body as it arrives rather than trusting the header alone.
-        let mut body = Vec::new();
-        let mut stream = response;
-        while let Some(chunk) = stream.chunk().await? {
-            body.extend_from_slice(&chunk);
-            if body.len() as u64 > MAX_CATALOG_BYTES {
-                anyhow::bail!("catalog exceeds {MAX_CATALOG_BYTES} bytes");
-            }
-        }
+            .redirect(no_downgrade())
+            .build()?;
+        let body = fetch_bounded(&client, url, MAX_CATALOG_BYTES).await?;
         Ok(serde_json::from_slice(&body)?)
     }
 

@@ -27,8 +27,8 @@ use crate::api::extract::AuthUser;
 use crate::model::Permission;
 use crate::state::SharedState;
 
-// Max bundle size (a native module binary + a small frontend bundle).
-const MAX_BUNDLE_BYTES: usize = 64 * 1024 * 1024;
+// One ceiling for both install paths: the supervisor applies it to a URL fetch.
+const MAX_BUNDLE_BYTES: usize = kroma_module_supervisor::MAX_BUNDLE_BYTES as usize;
 
 // Default module registry: the machine-readable index of `.kmod` bundles the
 // release workflow attaches to every GitHub Release of this repo.

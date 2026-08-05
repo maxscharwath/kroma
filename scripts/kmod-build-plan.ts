@@ -6,34 +6,28 @@
 //
 //   KMOD_TARGET=x86_64-unknown-linux-musl bun run scripts/kmod-build-plan.ts
 //
-// Run the emitted script from the REPO ROOT (the manifest paths are relative
-// to it), not from server/.
+// Run the emitted script from the REPO ROOT (its paths are relative to it), not
+// from server/. That is also what lets a container mounting the repo elsewhere
+// run it unchanged — an absolute host path would write into the container's own
+// filesystem and vanish with it.
 
 import { relative } from 'node:path';
-import { crateAndBin, KMOD_TARGET_DIR, packableModules, root } from './pack-module';
+import { cargoBuild, crateAndBin, KMOD_TARGET_DIR, packableModules, root } from './pack-module';
 
-const target = process.env.KMOD_TARGET?.trim();
-const targetArg = target ? ` --target ${target}` : '';
+const target = process.env.KMOD_TARGET?.trim() || null;
 
 // One invocation per module: each is its own workspace, so none can select them
-// all. They share a target dir so the common dep graph compiles once; cargo
-// locks that dir, so the builds run in sequence.
-// Relative to the repo root, resolved by the shell that runs the plan: the
-// cross legs execute it inside a container where the checkout is mounted at a
-// different absolute path, so a host path would silently write to the
-// container's own filesystem and vanish with it.
+// all. They share a target dir, which cargo locks, so the builds run in sequence.
 const lines = [`export CARGO_TARGET_DIR="$PWD/${relative(root, KMOD_TARGET_DIR)}"`];
 
 for (const dir of packableModules()) {
   const { bin, features } = crateAndBin(dir);
   if (!bin) continue; // library module: nothing to compile
-  // Bare feature names: inside its own single-package workspace, `pkg/feat`
-  // would mean "feature `feat` of DEPENDENCY `pkg`" and fails to resolve.
-  const feat = features.length ? ` --features ${features.join(',')}` : '';
+  // The packer's own argv, so a `KMOD_SKIP_BUILD=1` pack finds the artifact
+  // exactly where this plan put it.
+  const { args } = cargoBuild(bin, features, target);
   const manifest = relative(root, `${dir}/server/Cargo.toml`);
-  lines.push(
-    `cargo build --profile release-kmod --manifest-path ${manifest} --bin ${bin}${feat}${targetArg}`,
-  );
+  lines.push(`cargo ${args.join(' ')} --manifest-path ${manifest}`);
 }
 
 process.stdout.write(`${lines.join('\n')}\n`);

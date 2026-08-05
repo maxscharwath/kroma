@@ -31,7 +31,6 @@ const modulesRoot = join(root, 'modules');
  * common is compiled once instead of once per module. */
 export const KMOD_TARGET_DIR = join(root, 'target/kmod');
 
-const crateName = /\[package\][\s\S]*?name\s*=\s*"([^"]+)"/;
 const binName = /\[\[bin\]\][\s\S]*?name\s*=\s*"([^"]+)"/;
 const kmodFeatures = /\[package\.metadata\.kmod\][\s\S]*?features\s*=\s*\[([^\]]*)\]/;
 
@@ -46,25 +45,46 @@ export function packableModules(): string[] {
 }
 
 /**
- * The crate (package) name, its `[[bin]]` name, and any cargo features the
- * `.kmod` build should enable, from a module's server Cargo.toml. Features are
- * declared as `[package.metadata.kmod] features = ["rqbit"]` so the build stays
- * declarative (e.g. torrents bundles the embedded librqbit engine).
+ * A module's `[[bin]]` name and any cargo features the `.kmod` build should
+ * enable, from its server Cargo.toml. Features are declared as
+ * `[package.metadata.kmod] features = ["rqbit"]` so the build stays declarative
+ * (e.g. torrents bundles the embedded librqbit engine).
  */
 export function crateAndBin(moduleDir: string): {
-  pkg: string;
   bin: string | null;
   features: string[];
 } {
   const cargoPath = join(moduleDir, 'server/Cargo.toml');
   // A module may have no server crate at all (pure FE); then it's library-only.
   const cargo = existsSync(cargoPath) ? readFileSync(cargoPath, 'utf8') : '';
-  const pkg = crateName.exec(cargo)?.[1] ?? '';
   // A `[[bin]]` means a native sidecar; its absence => a library module (no binary).
   const bin = binName.exec(cargo)?.[1] ?? null;
   const featBlock = kmodFeatures.exec(cargo)?.[1] ?? '';
   const features = [...featBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  return { pkg, bin, features };
+  return { bin, features };
+}
+
+/**
+ * The `cargo build` arguments for a module's sidecar, and where cargo will put
+ * the binary. Shared with `scripts/kmod-build-plan.ts`: CI builds with the plan
+ * and packs with `KMOD_SKIP_BUILD=1`, so the two must agree on both.
+ *
+ * Bare feature names, and no `-p`: a module is its own single-package workspace,
+ * so `pkg/feat` would resolve against a DEPENDENCY named `pkg`.
+ */
+export function cargoBuild(
+  bin: string,
+  features: string[],
+  target: string | null,
+): { args: string[]; binPath: string } {
+  const args = ['build', '--profile', 'release-kmod', '--bin', bin];
+  if (features.length) args.push('--features', features.join(','));
+  if (target) args.push('--target', target);
+  // cargo nests the artifact under target/<triple>/ when --target is given.
+  const outRoot = target
+    ? join(KMOD_TARGET_DIR, target, 'release-kmod')
+    : join(KMOD_TARGET_DIR, 'release-kmod');
+  return { args, binPath: join(outRoot, bin) };
 }
 
 // 1) Build the module's native binary, with any declared features. Uses the
@@ -89,17 +109,9 @@ async function buildModuleBinary(
   target: string | null,
   skipBuild: boolean,
 ): Promise<string> {
-  // cargo nests the artifact under target/<triple>/ when --target is given.
-  const outRoot = target
-    ? join(KMOD_TARGET_DIR, target, 'release-kmod')
-    : join(KMOD_TARGET_DIR, 'release-kmod');
-  const binPath = join(outRoot, bin);
+  const { args, binPath } = cargoBuild(bin, features, target);
   if (!skipBuild) {
-    // Bare feature names, and no `-p`: the module is its own single-package
-    // workspace, so `pkg/feat` would resolve against a DEPENDENCY named `pkg`.
-    const featArgs = features.length ? ['--features', features.join(',')] : [];
-    const targetArgs = target ? ['--target', target] : [];
-    await $`cargo build --profile release-kmod --bin ${bin} ${featArgs} ${targetArgs}`
+    await $`cargo ${args}`
       .cwd(join(moduleDir, 'server'))
       .env({ ...process.env, CARGO_TARGET_DIR: KMOD_TARGET_DIR });
   }
@@ -146,10 +158,9 @@ function stageBundle(
   return { staging, entries };
 }
 
-function describeBuild(pkg: string, bin: string | null, features: string[]): string {
+function describeBuild(bin: string | null, features: string[]): string {
   if (!bin) return 'library (no binary)';
-  const featSuffix = features.length ? ` [+${features.join(',')}]` : '';
-  return `${pkg} -> bin ${bin}${featSuffix}`;
+  return `bin ${bin}${features.length ? ` [+${features.join(',')}]` : ''}`;
 }
 
 async function packOne(moduleDir: string): Promise<string> {
@@ -157,8 +168,8 @@ async function packOne(moduleDir: string): Promise<string> {
     id: string;
   };
   const { id } = manifest;
-  const { pkg, bin, features } = crateAndBin(moduleDir);
-  console.log(`\npacking ${id} (${describeBuild(pkg, bin, features)})`);
+  const { bin, features } = crateAndBin(moduleDir);
+  console.log(`\npacking ${id} (${describeBuild(bin, features)})`);
 
   const target = process.env.KMOD_TARGET?.trim() || null;
   const skipBuild = process.env.KMOD_SKIP_BUILD === '1';

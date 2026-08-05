@@ -5,7 +5,7 @@
 
 import { Button, Card, Pill, TextInput, Toggle, useAsyncAction } from '@kroma/admin-kit';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
 
 /** One operator-added registry, as stored in the `moduleRegistries` setting. */
@@ -40,9 +40,6 @@ function saveRegistries(extras: ExtraRegistry[]): Promise<unknown> {
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-// Identity of a saved list, for telling a stale prop from the refreshed one.
-const urlsOf = (rows: readonly { url: string }[]) => rows.map((r) => r.url).join('\n');
-
 function StatusLine({ status }: Readonly<{ status: RegistryStatus }>) {
   if (status.skipped) return <p className="text-xs text-dim">{status.skipped}</p>;
   if (status.error) {
@@ -61,10 +58,10 @@ function StatusLine({ status }: Readonly<{ status: RegistryStatus }>) {
 // still editable: that is the long-standing escape hatch for pointing the Store
 // at a mirror or a private build of the first-party catalog.
 function OfficialRow({
-  url,
   status,
   onSaved,
-}: Readonly<{ url: string; status: RegistryStatus; onSaved: () => void }>) {
+}: Readonly<{ status: RegistryStatus; onSaved: () => Promise<void> }>) {
+  const url = status.url;
   const [value, setValue] = useState(url);
   const { busy, error, run } = useAsyncAction();
   const dirty = value.trim() !== url;
@@ -74,7 +71,7 @@ function OfficialRow({
         method: 'PUT',
         body: JSON.stringify({ moduleRegistryUrl: value.trim() }),
       });
-      onSaved();
+      await onSaved();
     }, message);
   return (
     <Card className="flex flex-col gap-2 p-4">
@@ -193,44 +190,29 @@ function AddRegistry({
   );
 }
 
-const NO_STATUS: Omit<RegistryStatus, 'name' | 'url' | 'official' | 'enabled'> = {
-  moduleCount: 0,
-  shadowed: [],
-};
-
 /** The registry list: the pinned official catalog plus operator-added ones. */
 export function RegistriesSection({
   registries,
   onReload,
-}: Readonly<{ registries: RegistryStatus[]; onReload: () => void }>) {
+}: Readonly<{ registries: RegistryStatus[]; onReload: () => Promise<void> }>) {
   const [draft, setDraft] = useState<ExtraRegistry[] | null>(null);
   const { busy: saving, error, run } = useAsyncAction();
-  const pendingSave = useRef<string | null>(null);
   const official = registries.find((r) => r.official);
   const extras = registries.filter((r) => !r.official);
   const list: ExtraRegistry[] =
     draft ?? extras.map(({ name, url, enabled }) => ({ name, url, enabled }));
   const byUrl = new Map(extras.map((r) => [r.url, r]));
 
-  // `reload` only invalidates the query, so the saved list arrives later as a
-  // new prop. Hold the draft until the incoming rows match what was saved, or
-  // they would snap back to the pre-save data for as long as the refetch takes.
-  useEffect(() => {
-    if (pendingSave.current === null) return;
-    if (urlsOf(registries.filter((r) => !r.official)) !== pendingSave.current) return;
-    pendingSave.current = null;
-    setDraft(null);
-  }, [registries]);
-
   // Saved as typed, including an entry whose URL is not (yet) valid: the server
   // keeps those and reports why it skipped them, so a typo stays on screen to be
-  // corrected instead of vanishing on save.
+  // corrected instead of vanishing on save. The draft is dropped only once the
+  // refetch has landed, or the rows would snap back to the pre-save data.
   const commit = (next: ExtraRegistry[]) => {
     setDraft(next);
     void run(async () => {
       await saveRegistries(next);
-      pendingSave.current = urlsOf(next);
-      onReload();
+      await onReload();
+      setDraft(null);
     }, message);
   };
 
@@ -247,7 +229,7 @@ export function RegistriesSection({
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Registries</h2>
       {error && <p className="text-xs font-semibold text-danger">{error}</p>}
-      {official && <OfficialRow url={official.url} status={official} onSaved={onReload} />}
+      {official && <OfficialRow status={official} onSaved={onReload} />}
       {list.map((registry, i) => (
         <ExtraRow
           // Position, not URL: the URL is an edited field, and keying on it
@@ -255,7 +237,14 @@ export function RegistriesSection({
           // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
           key={i}
           registry={registry}
-          status={byUrl.get(registry.url) ?? { ...registry, official: false, ...NO_STATUS }}
+          status={
+            byUrl.get(registry.url) ?? {
+              ...registry,
+              official: false,
+              moduleCount: 0,
+              shadowed: [],
+            }
+          }
           busy={saving}
           onChange={(next) => setDraft(list.map((r, j) => (i === j ? next : r)))}
           onRemove={() => commit(list.filter((_, j) => j !== i))}

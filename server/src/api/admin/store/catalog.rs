@@ -152,11 +152,10 @@ pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
 pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> Value {
     let installed: std::collections::HashMap<String, String> =
         kroma_module_kernel::manifests(state).into_iter().map(|m| (m.id, m.version)).collect();
-    let sources = super::registries::sources(fetched);
-    let modules: Vec<&CatalogModule> = fetched.iter().flat_map(|f| f.modules.iter()).collect();
-    let entries: Vec<Value> = modules
+    let entries: Vec<Value> = fetched
         .iter()
-        .map(|m| {
+        .flat_map(|f| f.modules.iter().map(move |m| (m, f.registry.name.as_str())))
+        .map(|(m, source)| {
             let artifact = pick_artifact(m);
             let installed_version = installed.get(&m.id);
             let (compatible, reason) = compat_verdict(m);
@@ -181,7 +180,7 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
                 "updateAvailable": update_available,
                 "compatible": compatible,
                 "reason": reason,
-                "source": sources.get(&m.id),
+                "source": source,
             })
         })
         .collect();
@@ -192,7 +191,7 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
         "target": BUILD_TARGET,
         "registryUrl": official.map(|f| f.registry.url.as_str()).unwrap_or_default(),
         "error": official.and_then(|f| f.error.clone()),
-        "registries": super::registries::status(state, fetched),
+        "registries": super::registries::status(fetched),
         "modules": entries,
     })
 }

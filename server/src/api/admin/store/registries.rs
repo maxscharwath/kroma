@@ -22,10 +22,15 @@ const MAX_URL_LEN: usize = 512;
 
 pub const OFFICIAL_NAME: &str = "Official";
 
+/// One registry after normalization, with the reason it will not be consulted
+/// when there is one. Fetching and the admin editor read the same list, so the
+/// rows on screen can never disagree with what was actually fetched.
 pub struct Registry {
     pub name: String,
     pub url: String,
     pub official: bool,
+    pub enabled: bool,
+    pub skipped: Option<&'static str>,
 }
 
 /// One registry's fetch outcome. A failure is per-registry: the others still
@@ -52,7 +57,7 @@ fn enabled_default() -> bool {
 }
 
 /// The list exactly as saved, including disabled and malformed entries. The
-/// admin editor needs all of them; only [`configured`] is actually fetched.
+/// admin editor needs all of them; only the vetted ones are fetched.
 ///
 /// Parsed per element: one unreadable entry must not take the rest of the list
 /// with it, or a single bad row would blank the editor and the next save would
@@ -73,54 +78,35 @@ pub fn stored(state: &SharedState) -> Vec<StoredRegistry> {
         .collect()
 }
 
-// `moduleRegistryUrl` says WHERE the official catalog lives, so an operator who
-// pointed the Store at their own keeps exactly that one rather than gaining the
-// built-in catalog back underneath it.
-fn official(state: &SharedState) -> Registry {
-    Registry { name: OFFICIAL_NAME.to_string(), url: catalog::registry_url(state), official: true }
-}
-
-/// One stored entry after normalization, with the reason it will not be
-/// consulted when there is one. Every consumer reads this, so the editor can
-/// never disagree with what was actually fetched.
-pub struct Considered {
-    pub name: String,
-    pub url: String,
-    pub enabled: bool,
-    pub skipped: Option<&'static str>,
-}
-
-/// Every registry to consult, official first.
-pub fn configured(state: &SharedState) -> Vec<Registry> {
-    let official = official(state);
-    let mut out = vec![Registry { name: official.name.clone(), url: official.url.clone(), official: true }];
-    for entry in considered(&official.url, stored(state)) {
-        if entry.skipped.is_none() {
-            out.push(Registry { name: entry.name, url: entry.url, official: false });
-        }
-    }
-    out
-}
-
-/// Normalize and vet each stored entry in order.
+/// Every registry in precedence order: the official slot, then each stored entry
+/// normalized and vetted.
 ///
-/// An extra must be https: its catalog names the artifact URL *and* the checksum
-/// that vouches for it, so fetching it in cleartext hands an on-path attacker
-/// both halves. The official slot keeps its tolerance for any scheme — it is one
-/// deliberate override, and the test harness points it at a loopback server.
-pub fn considered(official_url: &str, stored: Vec<StoredRegistry>) -> Vec<Considered> {
+/// `moduleRegistryUrl` says WHERE the official catalog lives, so an operator who
+/// pointed the Store at their own keeps exactly that one rather than gaining the
+/// built-in catalog back underneath it. An extra must be https: its catalog names
+/// the artifact URL *and* the checksum that vouches for it, so fetching it in
+/// cleartext hands an on-path attacker both halves. The official slot keeps its
+/// tolerance for any scheme — it is one deliberate override, and the test harness
+/// points it at a loopback server.
+pub fn considered(official_url: String, stored: Vec<StoredRegistry>) -> Vec<Registry> {
     let mut seen: HashSet<String> = [official_url.trim().to_string()].into_iter().collect();
     let mut accepted = 0usize;
-    stored
-        .into_iter()
-        .map(|entry| {
+    let official = Registry {
+        name: OFFICIAL_NAME.to_string(),
+        url: official_url,
+        official: true,
+        enabled: true,
+        skipped: None,
+    };
+    std::iter::once(official)
+        .chain(stored.into_iter().map(|entry| {
             let url = entry.url.trim().to_string();
             let name: String = entry.name.trim().chars().take(MAX_NAME_LEN).collect();
             let name = if name.is_empty() { url.clone() } else { name };
             let skipped = if !entry.enabled {
                 Some("disabled")
             } else if url.len() > MAX_URL_LEN {
-                Some("URL is too long")
+                Some("not consulted: the URL is too long")
             } else if !url.starts_with("https://") {
                 Some("not consulted: a registry URL must be https")
             } else if !seen.insert(url.clone()) {
@@ -131,8 +117,8 @@ pub fn considered(official_url: &str, stored: Vec<StoredRegistry>) -> Vec<Consid
                 accepted += 1;
                 None
             };
-            Considered { name, url, enabled: entry.enabled, skipped }
-        })
+            Registry { name, url, official: false, enabled: entry.enabled, skipped }
+        }))
         .collect()
 }
 
@@ -155,14 +141,20 @@ fn merge_one(
     Fetched { registry, modules, error, shadowed }
 }
 
-/// Fetch every configured registry and resolve id clashes in precedence order
-/// (official first, then configured order). Sequential: the list is short and
-/// each fetch is bounded by the supervisor's catalog timeout, so this costs a
-/// round trip per registry rather than an unbounded stall.
+/// Fetch every registry and resolve id clashes in precedence order. Skipped rows
+/// come back too, carrying their reason, so one pass produces both the merged
+/// catalog and every row the editor shows.
+///
+/// Sequential: each fetch is bounded by the supervisor's catalog timeout, so this
+/// costs a round trip per consulted registry rather than an unbounded stall.
 pub async fn fetch_all(state: &SharedState, sup: &Supervisor) -> Vec<Fetched> {
     let mut claimed: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
-    for registry in configured(state) {
+    for registry in considered(catalog::registry_url(state), stored(state)) {
+        if registry.skipped.is_some() {
+            out.push(Fetched { registry, modules: Vec::new(), error: None, shadowed: Vec::new() });
+            continue;
+        }
         let (modules, error) = match catalog::fetch(sup, &registry.url).await {
             Ok(modules) => (modules, None),
             Err(e) => (Vec::new(), Some(format!("{e:#}"))),
@@ -190,39 +182,26 @@ pub async fn fetch_merged(state: &SharedState, sup: &Supervisor) -> anyhow::Resu
     Ok(fetched.into_iter().flat_map(|f| f.modules).collect())
 }
 
-/// Every registry row the admin editor shows: the official one, then the stored
-/// list verbatim — disabled and malformed entries included, so the editor can
-/// display and fix them — each merged with its fetch outcome when it had one.
-pub fn status(state: &SharedState, fetched: &[Fetched]) -> Value {
-    // Only a CONSULTED registry may claim a fetch outcome; matching on URL alone
-    // would let a skipped duplicate borrow the stats of the row that won it.
-    let row = |name: &str, url: &str, official: bool, enabled: bool, skipped: Option<&str>| {
-        let f = skipped.is_none().then(|| fetched.iter().find(|f| f.registry.url == url)).flatten();
-        json!({
-            "name": name,
-            "url": url,
-            "official": official,
-            "enabled": enabled,
-            "skipped": skipped,
-            "error": f.and_then(|f| f.error.clone()),
-            "moduleCount": f.map(|f| f.modules.len()).unwrap_or(0),
-            "shadowed": f.map(|f| f.shadowed.clone()).unwrap_or_default(),
-        })
-    };
-    let official_url = catalog::registry_url(state);
-    let mut rows = vec![row(OFFICIAL_NAME, &official_url, true, true, None)];
-    for entry in considered(&official_url, stored(state)) {
-        rows.push(row(&entry.name, &entry.url, false, entry.enabled, entry.skipped));
-    }
-    Value::Array(rows)
-}
-
-/// Which registry each id came from, so a card can show its source.
-pub fn sources(fetched: &[Fetched]) -> std::collections::HashMap<String, String> {
-    fetched
+/// Every registry row the admin editor shows, straight off the one pass that
+/// fetched them — disabled and malformed entries included, each carrying the
+/// reason it was skipped, so the editor can display and fix them.
+pub fn status(fetched: &[Fetched]) -> Value {
+    let rows: Vec<Value> = fetched
         .iter()
-        .flat_map(|f| f.modules.iter().map(|m| (m.id.clone(), f.registry.name.clone())))
-        .collect()
+        .map(|f| {
+            json!({
+                "name": f.registry.name,
+                "url": f.registry.url,
+                "official": f.registry.official,
+                "enabled": f.registry.enabled,
+                "skipped": f.registry.skipped,
+                "error": f.error,
+                "moduleCount": f.modules.len(),
+                "shadowed": f.shadowed,
+            })
+        })
+        .collect();
+    Value::Array(rows)
 }
 
 #[cfg(test)]
@@ -230,7 +209,7 @@ mod tests {
     use super::*;
 
     fn reg(name: &str, url: &str, official: bool) -> Registry {
-        Registry { name: name.into(), url: url.into(), official }
+        Registry { name: name.into(), url: url.into(), official, enabled: true, skipped: None }
     }
 
     fn module(id: &str, version: &str) -> CatalogModule {
@@ -280,7 +259,7 @@ mod tests {
     #[test]
     fn every_rejected_entry_is_kept_with_the_reason_it_was_skipped() {
         let out = considered(
-            "https://official",
+            "https://official".into(),
             vec![
                 stored_entry("Cleartext", "http://insecure/modules.json", true),
                 stored_entry("Disabled", "https://off/modules.json", false),
@@ -290,12 +269,15 @@ mod tests {
                 stored_entry("", "https://unnamed/modules.json", true),
             ],
         );
+        assert!(out[0].official, "official is first, so it claims ids first");
+        assert!(out[0].skipped.is_none());
         // Nothing is dropped: the editor must be able to show and fix each one.
-        assert_eq!(out.len(), 6);
-        let skipped: Vec<bool> = out.iter().map(|c| c.skipped.is_some()).collect();
+        let extras = &out[1..];
+        assert_eq!(extras.len(), 6);
+        let skipped: Vec<bool> = extras.iter().map(|c| c.skipped.is_some()).collect();
         assert_eq!(skipped, vec![true, true, false, true, true, false]);
-        assert_eq!(out[2].url, "https://good/modules.json", "url is trimmed");
-        assert_eq!(out[5].name, "https://unnamed/modules.json", "empty name falls back to url");
+        assert_eq!(extras[2].url, "https://good/modules.json", "url is trimmed");
+        assert_eq!(extras[5].name, "https://unnamed/modules.json", "empty name falls back to url");
     }
 
     #[test]
@@ -303,15 +285,19 @@ mod tests {
         let many = (0..MAX_EXTRA_REGISTRIES + 5)
             .map(|i| stored_entry("r", &format!("https://r{i}/modules.json"), true))
             .collect();
-        let out = considered("https://official", many);
-        assert_eq!(out.iter().filter(|c| c.skipped.is_none()).count(), MAX_EXTRA_REGISTRIES);
-        assert_eq!(out.len(), MAX_EXTRA_REGISTRIES + 5, "over-cap entries are still listed");
+        let out = considered("https://official".into(), many);
+        let extras = &out[1..];
+        assert_eq!(extras.iter().filter(|c| c.skipped.is_none()).count(), MAX_EXTRA_REGISTRIES);
+        assert_eq!(extras.len(), MAX_EXTRA_REGISTRIES + 5, "over-cap entries are still listed");
     }
 
     #[test]
     fn a_long_name_is_truncated_once_for_both_the_fetch_and_the_editor() {
-        let out = considered("https://official", vec![stored_entry(&"x".repeat(200), "https://a", true)]);
-        assert_eq!(out[0].name.chars().count(), MAX_NAME_LEN);
+        let out = considered(
+            "https://official".into(),
+            vec![stored_entry(&"x".repeat(200), "https://a", true)],
+        );
+        assert_eq!(out[1].name.chars().count(), MAX_NAME_LEN);
     }
 
     #[test]

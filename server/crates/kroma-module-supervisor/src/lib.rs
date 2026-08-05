@@ -40,14 +40,20 @@ pub struct Supervisor {
     cfg: SupervisorConfig,
     procs: RwLock<HashMap<String, Proc>>,
     manifests_cache: RwLock<Option<Vec<Value>>>,
+    // Built once each: constructing a client parses the whole root certificate
+    // store, and the catalog path builds one per registry in the list.
+    catalog_client: std::sync::OnceLock<reqwest::Client>,
+    artifact_client: std::sync::OnceLock<reqwest::Client>,
 }
 
 // A registry catalog is a small JSON index (the first-party one is a few kB);
 // anything approaching this is a misconfigured or hostile host, not a catalog.
 const MAX_CATALOG_BYTES: u64 = 4 * 1024 * 1024;
 const CATALOG_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
-// A sidecar binary plus a small frontend bundle. Matches the upload route's limit.
-const MAX_BUNDLE_BYTES: u64 = 64 * 1024 * 1024;
+/// Ceiling on an installable `.kmod`: a sidecar binary plus a small frontend
+/// bundle. The upload route bounds its body with this too, so a bundle that can
+/// be uploaded can also be fetched by URL.
+pub const MAX_BUNDLE_BYTES: u64 = 64 * 1024 * 1024;
 const ARTIFACT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// Read a response body with a hard ceiling, enforced as it arrives.
@@ -97,6 +103,8 @@ impl Supervisor {
             cfg,
             procs: RwLock::new(HashMap::new()),
             manifests_cache: RwLock::new(None),
+            catalog_client: std::sync::OnceLock::new(),
+            artifact_client: std::sync::OnceLock::new(),
         })
     }
 
@@ -335,11 +343,7 @@ impl Supervisor {
         expected_sha256: Option<&str>,
         expected_id: Option<&str>,
     ) -> anyhow::Result<Value> {
-        // https_only: the artifact produces an executable, and a redirect from
-        // https to http would otherwise undo the caller's scheme check.
-        let client =
-            reqwest::Client::builder().timeout(ARTIFACT_TIMEOUT).https_only(true).build()?;
-        let bytes = fetch_bounded(&client, url, MAX_BUNDLE_BYTES).await?;
+        let bytes = fetch_bounded(self.artifact_client(), url, MAX_BUNDLE_BYTES).await?;
         if let Some(expected) = expected_sha256.map(str::trim).filter(|s| !s.is_empty()) {
             verify_sha256(&bytes, expected)?;
         }
@@ -353,12 +357,30 @@ impl Supervisor {
     /// host must not hang the admin page) and a size cap read BEFORE parsing (a
     /// schema cannot reject bytes it has not read).
     pub async fn fetch_catalog(&self, url: &str) -> anyhow::Result<Value> {
-        let client = reqwest::Client::builder()
-            .timeout(CATALOG_TIMEOUT)
-            .redirect(no_downgrade())
-            .build()?;
-        let body = fetch_bounded(&client, url, MAX_CATALOG_BYTES).await?;
+        let body = fetch_bounded(self.catalog_client(), url, MAX_CATALOG_BYTES).await?;
         Ok(serde_json::from_slice(&body)?)
+    }
+
+    fn catalog_client(&self) -> &reqwest::Client {
+        self.catalog_client.get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(CATALOG_TIMEOUT)
+                .redirect(no_downgrade())
+                .build()
+                .unwrap_or_default()
+        })
+    }
+
+    // https_only: the artifact produces an executable, and a redirect from https
+    // to http would otherwise undo the caller's scheme check.
+    fn artifact_client(&self) -> &reqwest::Client {
+        self.artifact_client.get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(ARTIFACT_TIMEOUT)
+                .https_only(true)
+                .build()
+                .unwrap_or_default()
+        })
     }
 
     /// Sidecars are plain child processes that survive their parent, so a

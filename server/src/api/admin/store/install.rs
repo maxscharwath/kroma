@@ -56,7 +56,7 @@ pub async fn auto_update(state: &SharedState, sup: &Supervisor) -> Vec<(String, 
             continue;
         }
         let to = entry.version.clone();
-        match install_with_deps(state, sup, id).await {
+        match install_planned(state, sup, id, &modules).await {
             Ok(_) => {
                 tracing::info!(module = id, from = cur, to = %to, "auto-updated module");
                 updated.push((id.to_string(), cur.to_string(), to));
@@ -78,6 +78,18 @@ pub async fn install_with_deps(
     root_id: &str,
 ) -> Result<Value> {
     let modules = registries::fetch_merged(state, sup).await?;
+    install_planned(state, sup, root_id, &modules).await
+}
+
+/// The install itself, against a catalog the caller already has. `auto_update`
+/// walks many modules off ONE fetch instead of re-downloading every registry per
+/// module.
+async fn install_planned(
+    state: &SharedState,
+    sup: &Supervisor,
+    root_id: &str,
+    modules: &[CatalogModule],
+) -> Result<Value> {
     let by_id: HashMap<&str, &CatalogModule> =
         modules.iter().map(|m| (m.id.as_str(), m)).collect();
     // Everything already on this server (compiled-in roster + installed .kmod),

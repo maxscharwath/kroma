@@ -42,6 +42,11 @@ pub struct Supervisor {
     manifests_cache: RwLock<Option<Vec<Value>>>,
 }
 
+// A registry catalog is a small JSON index (the first-party one is a few kB);
+// anything approaching this is a misconfigured or hostile host, not a catalog.
+const MAX_CATALOG_BYTES: u64 = 4 * 1024 * 1024;
+const CATALOG_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
 impl Supervisor {
     pub fn new(cfg: SupervisorConfig) -> Arc<Self> {
         Arc::new(Self {
@@ -280,8 +285,36 @@ impl Supervisor {
         self.install(&bytes)
     }
 
+    /// Fetch and parse a registry catalog.
+    ///
+    /// A catalog URL is operator-supplied and may point at a third-party host,
+    /// so the request is bounded on both axes: a total timeout (an unresponsive
+    /// host must not hang the admin page) and a size cap read BEFORE parsing (a
+    /// schema cannot reject bytes it has not read).
     pub async fn fetch_catalog(&self, url: &str) -> anyhow::Result<Value> {
-        Ok(reqwest::get(url).await?.error_for_status()?.json().await?)
+        let response = reqwest::Client::builder()
+            .timeout(CATALOG_TIMEOUT)
+            .build()?
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?;
+        if let Some(len) = response.content_length() {
+            if len > MAX_CATALOG_BYTES {
+                anyhow::bail!("catalog is {len} bytes (max {MAX_CATALOG_BYTES})");
+            }
+        }
+        // Content-Length is advisory (absent under chunked encoding), so cap the
+        // body as it arrives rather than trusting the header alone.
+        let mut body = Vec::new();
+        let mut stream = response;
+        while let Some(chunk) = stream.chunk().await? {
+            body.extend_from_slice(&chunk);
+            if body.len() as u64 > MAX_CATALOG_BYTES {
+                anyhow::bail!("catalog exceeds {MAX_CATALOG_BYTES} bytes");
+            }
+        }
+        Ok(serde_json::from_slice(&body)?)
     }
 
     /// Sidecars are plain child processes that survive their parent, so a

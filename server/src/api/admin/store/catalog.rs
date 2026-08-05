@@ -50,18 +50,6 @@ pub async fn fetch(sup: &Supervisor, url: &str) -> anyhow::Result<Vec<CatalogMod
     Ok(modules)
 }
 
-/// Same shape as [`enriched`] with no modules and the failure in `error`, so
-/// the Store UI can show what URL failed instead of a bare 400.
-pub fn unreachable(url: &str, err: &anyhow::Error) -> Value {
-    json!({
-        "schema": 2,
-        "serverVersion": SERVER_VERSION,
-        "target": BUILD_TARGET,
-        "registryUrl": url,
-        "error": format!("{err:#}"),
-        "modules": [],
-    })
-}
 
 fn parse_module(m: &Value) -> Option<CatalogModule> {
     let id = m.get("id")?.as_str()?.to_string();
@@ -157,11 +145,15 @@ pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
     (true, None)
 }
 
-/// The `GET /api/admin/store/catalog` response. Field names stay a superset of
-/// the legacy schema-1 passthrough, so an older client keeps working.
-pub fn enriched(state: &SharedState, modules: &[CatalogModule], registry_url: &str) -> Value {
+/// The `GET /api/admin/store/catalog` response, merged across every configured
+/// registry. Field names stay a superset of the legacy schema-1 passthrough, so
+/// an older client keeps working: `registryUrl` and a top-level `error` still
+/// describe the OFFICIAL registry, which is the only one such a client knew.
+pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> Value {
     let installed: std::collections::HashMap<String, String> =
         kroma_module_kernel::manifests(state).into_iter().map(|m| (m.id, m.version)).collect();
+    let sources = super::registries::sources(fetched);
+    let modules: Vec<&CatalogModule> = fetched.iter().flat_map(|f| f.modules.iter()).collect();
     let entries: Vec<Value> = modules
         .iter()
         .map(|m| {
@@ -189,14 +181,18 @@ pub fn enriched(state: &SharedState, modules: &[CatalogModule], registry_url: &s
                 "updateAvailable": update_available,
                 "compatible": compatible,
                 "reason": reason,
+                "source": sources.get(&m.id),
             })
         })
         .collect();
+    let official = fetched.iter().find(|f| f.registry.official);
     json!({
         "schema": 2,
         "serverVersion": SERVER_VERSION,
         "target": BUILD_TARGET,
-        "registryUrl": registry_url,
+        "registryUrl": official.map(|f| f.registry.url.as_str()).unwrap_or_default(),
+        "error": official.and_then(|f| f.error.clone()),
+        "registries": super::registries::status(state, fetched),
         "modules": entries,
     })
 }

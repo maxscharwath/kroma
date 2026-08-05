@@ -99,7 +99,7 @@ server/
     kroma-http kroma-i18n kroma-push
     kroma-module-*    the module host: kernel, manifest, macros, sdk, runtime,
                       host, supervisor, port-bridge, modules-generated
-  modules/<id>/     first-party modules: server/ (Rust) + ui/ (React) + locales/
+modules/<id>/       NOT in this workspace — see below
 ```
 
 `api/` translates HTTP↔services and holds no business logic; `main.rs` and the
@@ -122,13 +122,26 @@ its own process on a free localhost port, and reverse-proxies
 (WAL = multi-process). See [`docs/modules-as-kmod.md`](docs/modules-as-kmod.md) —
 it also tracks the remaining cross-module port conversions.
 
+**Each module at `modules/<id>` is its own cargo workspace** — explicit package
+metadata, its own `Cargo.lock`, its own `release-kmod` profile — so it builds and
+tests standalone (`cd modules/<id>/server && cargo build`). Cargo members must be
+hierarchically below their workspace root, which is exactly why modules cannot be
+members of `server/`. The server reaches the only three it still links (scene via
+the SDK, whisper and vector behind their features) as path deps across the
+workspace boundary, which cargo *does* allow.
+
+Consequences worth knowing: features are **bare** (`--features local`, never
+`kroma-whisper/local` — inside its own single-package workspace that names a
+dependency); one `cargo build` can no longer select every module, so
+`scripts/kmod-build-plan.ts` emits one per module against a shared
+`CARGO_TARGET_DIR` (`target/kmod`); and any container that builds the server or a
+module must mount the **whole repo**, not `server/`.
+
 Authoring paths (`modules/README.md`): a **single-file** `modules/<name>.module.md`
 (YAML frontmatter + fenced `tsx`/`rust`/`sql`/`svg` blocks) expanded by
-`bun run modules:gen`, or a **hand-written crate** under `server/modules/<id>/`.
+`bun run modules:gen` into `modules/<id>/` beside it, or a **hand-written crate**.
 Generated output is committed — re-run `modules:gen` after editing the source and
 commit the result, or `modules:check` fails. Never hand-edit generated files.
-(The WASM shape documented in `modules/README.md` §3 has no `wasm-modules/`
-directory in the tree today.)
 
 ```bash
 bun run modules:new tv.kroma.notes   # scaffold
@@ -136,6 +149,11 @@ bun run modules:gen                  # expand + regenerate the aggregators
 bun run modules:validate             # schema-check every manifest
 bun run modules:pack                 # build the native .kmod
 ```
+
+Modules install from **registries**: one pinned official catalog plus any the
+operator adds under Admin → Modules → Registries. Official always wins an id
+clash, an added catalog must be https, and every artifact is sha256-verified
+before it is unpacked. See [`docs/module-registries.md`](docs/module-registries.md).
 
 ### Frontend — one component library, thin shells
 

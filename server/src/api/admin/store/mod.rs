@@ -9,6 +9,7 @@
 
 mod catalog;
 pub mod install;
+mod registries;
 
 use std::sync::Arc;
 
@@ -98,12 +99,8 @@ async fn catalog_view(
     AuthUser(user): AuthUser,
 ) -> Result<Response, Response> {
     super::require(&user, Permission::SettingsManage)?;
-    let url = catalog::registry_url(&state);
-    let body = match catalog::fetch(&sup, &url).await {
-        Ok(modules) => catalog::enriched(&state, &modules, &url),
-        Err(e) => catalog::unreachable(&url, &e),
-    };
-    Ok(Json(body).into_response())
+    let fetched = registries::fetch_all(&state, &sup).await;
+    Ok(Json(catalog::enriched(&state, &fetched)).into_response())
 }
 
 // The manual escape hatch: no registry, no checksum to verify against - the

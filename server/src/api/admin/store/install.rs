@@ -12,6 +12,7 @@ use kroma_module_supervisor::Supervisor;
 use serde_json::{json, Value};
 
 use super::catalog::{self, CatalogModule};
+use super::registries;
 use crate::state::SharedState;
 
 // This server's version, checked against each entry's `minServer`.
@@ -26,13 +27,11 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Returns `(id, from, to)` for each module actually updated.
 pub async fn auto_update(state: &SharedState, sup: &Supervisor) -> Vec<(String, String, String)> {
     let mut updated = Vec::new();
-    let modules = match catalog::fetch(sup, &catalog::registry_url(state)).await {
-        Ok(m) => m,
-        Err(e) => {
-            tracing::warn!(error = %format!("{e:#}"), "module auto-update: catalog fetch failed");
-            return updated;
-        }
-    };
+    let modules = registries::fetch_merged(state, sup).await;
+    if modules.is_empty() {
+        tracing::warn!("module auto-update: no registry returned a catalog");
+        return updated;
+    }
     let by_id: HashMap<&str, &CatalogModule> =
         modules.iter().map(|m| (m.id.as_str(), m)).collect();
     for manifest in sup.installed_manifests() {
@@ -76,7 +75,7 @@ pub async fn install_with_deps(
     sup: &Supervisor,
     root_id: &str,
 ) -> Result<Value> {
-    let modules = catalog::fetch(sup, &catalog::registry_url(state)).await?;
+    let modules = registries::fetch_merged(state, sup).await;
     let by_id: HashMap<&str, &CatalogModule> =
         modules.iter().map(|m| (m.id.as_str(), m)).collect();
     // Everything already on this server (compiled-in roster + installed .kmod),

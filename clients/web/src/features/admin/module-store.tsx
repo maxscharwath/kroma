@@ -8,6 +8,7 @@ import { Button } from '@kroma/ui/kit';
 import { IconSearch } from '@tabler/icons-react';
 import { type ReactNode, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
+import type { RegistryStatus } from '#web/features/admin/module-registries';
 import { Card } from '#web/features/admin/ui';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/input-group';
 
@@ -27,16 +28,20 @@ export interface RegistryModule {
   updateAvailable?: boolean;
   compatible: boolean;
   reason?: string | null;
+  /** Name of the registry this entry came from. */
+  source?: string | null;
 }
 
-/** The enriched catalog response. `error` is set (with an empty module list)
- *  when the registry could not be fetched; `registryUrl` is always present. */
+/** The enriched catalog, merged across every configured registry. `error` and
+ *  `registryUrl` describe the OFFICIAL registry only (both predate the list and
+ *  are kept so an older client still works); `registries` carries the rest. */
 export interface StoreCatalog {
   schema: number;
   serverVersion: string;
   target: string;
   registryUrl: string;
   error?: string | null;
+  registries?: RegistryStatus[];
   modules: RegistryModule[];
 }
 
@@ -93,6 +98,7 @@ function StoreCard({
         <div className="text-[11px] text-dim">
           {m.id} · v{m.version}
           {m.size ? <> · {Math.trunc(m.size / 1024)} KB</> : null}
+          {m.source ? <> · {m.source}</> : null}
         </div>
         {m.description && <p className="mt-1 text-xs text-muted">{m.description}</p>}
         {!m.compatible && m.reason && (
@@ -109,63 +115,19 @@ function matches(m: RegistryModule, query: string): boolean {
   return [m.id, m.name, m.description ?? ''].some((s) => s.toLowerCase().includes(q));
 }
 
-// Also the escape hatch to point the Store at any other catalog (a GitHub
-// release, gh-pages, a NAS...). Saves the `moduleRegistryUrl` setting then refetches.
-function RegistryUrlEditor({
-  current,
-  onSaved,
-}: Readonly<{ current: string; onSaved: () => void }>) {
-  const [url, setUrl] = useState(current);
-  const [saving, setSaving] = useState(false);
-  const save = async () => {
-    setSaving(true);
-    try {
-      await adminApi('/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ moduleRegistryUrl: url.trim() }),
-      });
-      onSaved();
-    } finally {
-      setSaving(false);
-    }
-  };
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <InputGroup className="h-9 min-w-72 flex-1">
-        <InputGroupInput
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://.../modules.json"
-          className="text-[12px]"
-        />
-      </InputGroup>
-      <Button
-        variant="outline"
-        active
-        size="sm"
-        label={saving ? 'Saving...' : 'Save & retry'}
-        onPress={() => void save()}
-        loading={saving}
-        disabled={!url.trim()}
-      />
-    </div>
-  );
-}
-
-/** Always visible so the registry state is never a mystery: the catalog grid
- * with a search box when reachable, an error card with a URL editor when not. */
+/** Always visible so the registry state is never a mystery: the merged catalog
+ * grid with a search box, or an explanation when nothing could be fetched.
+ * Per-registry status lives in the Registries section above. */
 export function StoreSection({
   catalog,
   installedIds,
   busy,
   onInstall,
-  onReload,
 }: Readonly<{
   catalog: StoreCatalog | null | undefined;
   installedIds: Set<string>;
   busy: boolean;
   onInstall: (id: string) => void;
-  onReload: () => void;
 }>) {
   const [query, setQuery] = useState('');
   if (!catalog) {
@@ -176,20 +138,22 @@ export function StoreSection({
       </section>
     );
   }
-  if (catalog.error) {
+  // Only a total blackout is an error here: with several registries configured,
+  // one unreachable host still leaves a usable catalog, and its failure is
+  // already reported against that registry in the Registries section.
+  if (catalog.modules.length === 0 && catalog.error) {
     return (
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Registry</h2>
         <Card className="flex flex-col gap-3 p-4">
-          <p className="text-sm font-semibold text-danger">Module registry unreachable</p>
+          <p className="text-sm font-semibold text-danger">No module catalog could be fetched</p>
           <p className="break-all text-xs text-muted">{catalog.error}</p>
           <p className="text-xs text-muted">
             The default registry is the <code className="text-dim">modules.json</code> attached to
             this project's GitHub Releases; it exists once a release is published (tag{' '}
-            <code className="text-dim">vX.Y.Z</code>). You can also point the Store at any other
-            catalog URL:
+            <code className="text-dim">vX.Y.Z</code>). Point the Store elsewhere, or add another
+            registry, in the Registries section above.
           </p>
-          <RegistryUrlEditor current={catalog.registryUrl} onSaved={onReload} />
         </Card>
       </section>
     );

@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import { type AdminModule, adminApi } from '#web/features/admin/module-api';
 import { ModuleConfigForm } from '#web/features/admin/module-config-form';
 import { ModuleDeps } from '#web/features/admin/module-deps';
+import { RegistriesSection } from '#web/features/admin/module-registries';
 import {
   installFromStore,
   installSummary,
@@ -151,12 +152,13 @@ export function ModulesAdminPage() {
         </p>
       )}
 
+      <RegistriesSection registries={catalog?.registries ?? []} onReload={() => reloadCatalog()} />
+
       <StoreSection
         catalog={catalog}
         installedIds={installedIds}
         busy={busy}
         onInstall={(id) => void installFromRegistry(id)}
-        onReload={() => reloadCatalog()}
       />
 
       <section className="flex flex-col gap-3">

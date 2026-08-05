@@ -20,9 +20,11 @@ const args = process.argv.slice(2);
 if (args.length === 0) throw new Error('usage: modules-cargo.ts <cargo-subcommand> [args...]');
 
 // Default features, NOT the `[package.metadata.kmod]` ones: those pull the heavy
-// optional backends (candle for whisper, librqbit for torrents) that a unit test
-// does not reach, and the shipped feature set is compiled by modules:pack in the
-// release job anyway.
+// optional backends (candle for whisper/vector, librqbit for torrents), and
+// compiling them here would roughly double this job for the five tests that sit
+// behind them (whisper 1, torrents 2, vector 2). Everything else runs. The
+// shipped feature set is still compiled by modules:pack in the release job.
+// Pass features explicitly to cover those five: `modules-cargo.ts test --features local`.
 const failed: string[] = [];
 for (const dir of packableModules()) {
   const id = dir.split('/').pop() ?? dir;

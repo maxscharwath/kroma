@@ -77,8 +77,12 @@ generic `ServerModule<S: HostCtx>` behind `RemoteHost`.
 3. **Core → module direct calls** — `api/requests.rs`, `discover.rs`,
    `online_subs.rs` call module functions in-process (active downloads, transcribe,
    interactive search); these become proxied/port calls.
-4. **Zero-module base build** — drop every module from `roster.yaml` / the
-   generated aggregator / the binary deps once each is converted.
+4. **Zero-module base build** — `roster.yaml` and the generated aggregator are
+   empty, and modules now live at `modules/<id>`, each its own cargo workspace
+   outside `server/`. Three are still linked into the binary and are what is
+   left of this item: `kroma-scene` (a pure library the SDK re-exports) and
+   `kroma-whisper` / `kroma-vector` (behind the `whisper-*` and
+   `semantic-embeddings` features).
 5. **More per-platform binaries**: the release matrix currently packs
    `x86_64-unknown-linux-musl` (static: covers the .spk, Docker and any x86_64
    Linux host) and the store picks per-target artifacts from the catalog;

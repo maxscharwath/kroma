@@ -34,6 +34,21 @@ function write(path: string, content: string): void {
   writeFileSync(path, content);
 }
 
+// Written literally rather than via JSON.stringify: biome keeps a short array
+// on one line and JSON.stringify always expands it, so the generated file and
+// the formatted one disagreed and `modules:check` could never be clean.
+function uiTsconfig(base: string): string {
+  return `{
+  "extends": "${base}",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["react"]
+  },
+  "include": ["src"]
+}
+`;
+}
+
 // `embedded_module!()` discovers the packaged `module.json` (+ `icon.<ext>`,
 // or none) at compile time, so this is one line regardless of whether the
 // module ships an icon.
@@ -162,18 +177,7 @@ serde_json = { workspace = true }
       2,
     )}\n`,
   );
-  write(
-    join(dir, 'ui', 'tsconfig.json'),
-    `${JSON.stringify(
-      {
-        extends: '../../../../tsconfig.base.json',
-        compilerOptions: { noEmit: true, types: ['react'] },
-        include: ['src'],
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  write(join(dir, 'ui', 'tsconfig.json'), uiTsconfig('../../../tsconfig.base.json'));
   write(join(dir, 'ui', 'src', 'index.tsx'), `${tsHeader(file)}\n${tsx.trim()}\n`);
 
   console.log(`module ${id}  ->  ${crate} + ${pkg}${svg ? ' + icon.svg' : ''}`);
@@ -303,16 +307,18 @@ write(
     2,
   )}\n`,
 );
-write(
-  join(FE_ROSTER, 'tsconfig.json'),
-  `${JSON.stringify({ extends: '../../tsconfig.base.json', compilerOptions: { noEmit: true, types: ['react'] }, include: ['src'] }, null, 2)}\n`,
-);
+write(join(FE_ROSTER, 'tsconfig.json'), uiTsconfig('../../tsconfig.base.json'));
+// The per-module imports are their own paragraph only when there ARE any; with
+// an empty roster the join yields '' and would leave a stray blank line that
+// the formatter then strips, so `modules:check` reported drift forever.
+const moduleImports = generated
+  .map((g) => `import { module as ${g.aliasIdent} } from '${g.pkg}';\n`)
+  .join('');
 write(
   join(FE_ROSTER, 'src', 'index.ts'),
   `${tsHeader('*.module.md')}
 import type { KromaModule } from '@kroma/module-sdk';
-${generated.map((g) => `import { module as ${g.aliasIdent} } from '${g.pkg}';`).join('\n')}
-
+${moduleImports}
 /** Every single-file (codegen) module, for the host registry to register. */
 export const generatedModules: KromaModule[] = [${generated.map((g) => g.aliasIdent).join(', ')}];
 `,

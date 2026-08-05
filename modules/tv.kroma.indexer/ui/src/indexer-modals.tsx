@@ -6,12 +6,12 @@
 import {
   apiErrorText,
   Button,
+  FIELD_GROUP,
   Field,
   type IndexerDefinitionDetailView,
   type IndexerDefinitionView,
   type IndexerView,
   Modal,
-  FIELD_GROUP,
   ModalActions,
   type SaveIndexerBody,
   TextInput,

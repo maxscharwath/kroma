@@ -6,12 +6,12 @@
 import {
   apiErrorText,
   Button,
+  FIELD_GROUP,
   Field,
   formatBytes,
   type ManualReleaseView,
   Modal,
   ModalActions,
-  FIELD_GROUP,
   SegmentedControl,
   TextInput,
   type TorrentAnalysis,

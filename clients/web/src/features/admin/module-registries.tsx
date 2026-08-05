@@ -46,9 +46,7 @@ function StatusLine({ status }: Readonly<{ status: RegistryStatus }>) {
   return (
     <p className="text-xs text-muted">
       {status.moduleCount} module{status.moduleCount === 1 ? '' : 's'}
-      {shadowed > 0 && (
-        <> · {shadowed} hidden (already provided by a higher-priority registry)</>
-      )}
+      {shadowed > 0 && <> · {shadowed} hidden (already provided by a higher-priority registry)</>}
     </p>
   );
 }
@@ -150,7 +148,10 @@ function ExtraRow({
   );
 }
 
-function AddRegistry({ onAdd, busy }: Readonly<{ onAdd: (r: ExtraRegistry) => void; busy: boolean }>) {
+function AddRegistry({
+  onAdd,
+  busy,
+}: Readonly<{ onAdd: (r: ExtraRegistry) => void; busy: boolean }>) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const valid = HTTPS.test(url.trim());
@@ -247,7 +248,12 @@ export function RegistriesSection({
             onClick={() => void commit(list)}
             loading={saving}
           />
-          <Button variant="quiet" label="Discard" onClick={() => setDraft(null)} disabled={saving} />
+          <Button
+            variant="quiet"
+            label="Discard"
+            onClick={() => setDraft(null)}
+            disabled={saving}
+          />
         </div>
       )}
       <AddRegistry busy={saving} onAdd={(r) => void commit([...list, r])} />

@@ -90,7 +90,9 @@ async function buildModuleBinary(
   skipBuild: boolean,
 ): Promise<string> {
   // cargo nests the artifact under target/<triple>/ when --target is given.
-  const outRoot = target ? join(KMOD_TARGET_DIR, target, 'release-kmod') : join(KMOD_TARGET_DIR, 'release-kmod');
+  const outRoot = target
+    ? join(KMOD_TARGET_DIR, target, 'release-kmod')
+    : join(KMOD_TARGET_DIR, 'release-kmod');
   const binPath = join(outRoot, bin);
   if (!skipBuild) {
     // Bare feature names, and no `-p`: the module is its own single-package

@@ -67,6 +67,12 @@ jobs:
           filters: |
             rust:
               - 'server/**'
+              # Modules are their own cargo workspaces at the repo root now, so
+              # they are NOT covered by `server/**` — without this a module-only
+              # change would skip clippy and its tests entirely.
+              - 'modules/**'
+              - 'scripts/modules-cargo.ts'
+              - 'scripts/pack-module.ts'
               # kroma-engine include_str!s these catalogs at compile time.
               - 'packages/core/src/locales/**'
               - 'rust-toolchain.toml'
@@ -281,13 +287,23 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      # Only to drive the per-module cargo runs below (scripts/modules-cargo.ts);
+      # no `bun install` needed, the script imports nothing from node_modules.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
       # One stable entry (shared-key), written only from main: PRs used to save a
       # ~1.4 GB copy each, and four of them alone exceeded half the 10 GB repo
       # cache quota - which evicted the .spk/module/desktop caches and forced
       # cold builds everywhere. See the same pattern in sonar.yml/release.yml.
+      # `workspaces` lists every cargo tree to cache: server/ plus the shared
+      # build dir the module workspaces compile into (see scripts/pack-module.ts).
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
-          workspaces: server
+          workspaces: |
+            server
+            . -> target/kmod
           shared-key: server
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
@@ -303,6 +319,18 @@ jobs:
 
       - name: test
         run: cargo test --workspace
+
+      # Modules are NOT members of the workspace above (each is its own, at
+      # modules/<id>/server), so the two gates above do not reach them. These
+      # run the same checks per module against one shared target dir. Run from
+      # the repo root, not server/.
+      - name: clippy (modules)
+        working-directory: ${{ github.workspace }}
+        run: bun run modules:clippy
+
+      - name: test (modules)
+        working-directory: ${{ github.workspace }}
+        run: bun run modules:test
 
       # Domain purity is now enforced by the compiler, not a grep: the entities +
       # pure rules live in the `kroma-domain` crate (crates/kroma-domain), which

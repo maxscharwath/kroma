@@ -13,5 +13,15 @@ export const torrentsModule = defineModule({
       component: lazy(() => import('./DownloadsPage')),
       nav: { label: 'nav.downloads', icon: 'download', section: 'acquisition' },
     },
+    {
+      path: 'naming',
+      component: lazy(() => import('./NamingPage')),
+      nav: {
+        label: 'admin.navNaming',
+        icon: 'file-text',
+        section: 'media',
+        requires: 'library.manage',
+      },
+    },
   ],
 });

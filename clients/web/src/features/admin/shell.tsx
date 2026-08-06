@@ -21,7 +21,6 @@ import {
   IconChevronRight,
   IconClockBolt,
   IconDatabase,
-  IconFileText,
   IconFlag,
   IconInbox,
   IconLayoutDashboard,
@@ -153,12 +152,6 @@ const NAV_GROUPS: { labelKey: MessageKey; section: string; items: NavItem[] }[] 
         labelKey: 'admin.navLibraries',
         cap: 'library.manage',
         icon: IconLibrary,
-      },
-      {
-        to: '/admin/naming',
-        labelKey: 'admin.navNaming',
-        cap: 'library.manage',
-        icon: IconFileText,
       },
       {
         to: '/admin/transcoder',

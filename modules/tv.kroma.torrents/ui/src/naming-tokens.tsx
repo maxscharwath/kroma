@@ -3,13 +3,11 @@
 // full-filename presets and a separator helper. Clicking a token inserts it at
 // the cursor of the field being edited; clicking a preset replaces the field.
 
-import { TextInput } from '@kroma/admin-kit';
-import type { NamingTemplatesView } from '@kroma/core';
-import { useT } from '@kroma/ui';
-import { Button, IconButton } from '@kroma/ui/kit';
+import { Button, IconButton, OptionSelect as Select, TextInput, useT } from '@kroma/module-sdk';
+import { IconX } from '@tabler/icons-react';
 import { useRef, useState } from 'react';
 import { createCallable } from 'react-call';
-import { Select } from '#web/shared/ui';
+import type { NamingTemplatesView } from './schemas';
 
 type FieldKey = keyof Omit<NamingTemplatesView, 'case'>;
 
@@ -174,10 +172,10 @@ export const NamingTokenModal = createCallable<
           <IconButton
             variant="ghost"
             size={30}
-            glyph={18}
-            icon="x"
+            iconSize={18}
+            icon={IconX}
             label={t('common.close')}
-            onPress={() => call.end()}
+            onClick={() => call.end()}
           />
         </div>
 
@@ -236,7 +234,7 @@ export const NamingTokenModal = createCallable<
 
         <div className="flex items-center gap-3 border-t border-white/[0.07] px-6 py-4">
           <TextInput ref={inputRef} mono value={value} onChange={onChange} className="flex-1" />
-          <Button size="sm" label={t('common.close')} onPress={() => call.end()} />
+          <Button size="sm" label={t('common.close')} onClick={() => call.end()} />
         </div>
       </div>
     </div>

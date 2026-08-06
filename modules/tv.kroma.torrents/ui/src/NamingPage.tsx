@@ -1,16 +1,24 @@
 // Admin naming: edit the naming templates with a live sample, then preview and
 // apply a library-wide rename.
 
-import { apiErrorText, type NamingTemplatesView, type OrganizePlan } from '@kroma/core';
-import { useT } from '@kroma/ui';
-import { Button } from '@kroma/ui/kit';
-import { IconArrowRight } from '@tabler/icons-react';
+import {
+  apiErrorText,
+  Button,
+  Card,
+  confirmDialog,
+  Denied,
+  PageHeader,
+  Section,
+  OptionSelect as Select,
+  TextInput,
+  useCap,
+  useT,
+} from '@kroma/module-sdk';
+import { IconArrowRight, IconBraces, IconWand } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
-import { NamingTokenModal } from '#web/features/admin/naming-tokens';
-import { Denied, PageHeader, useCap } from '#web/features/admin/shell';
-import { Card, Section, TextInput } from '#web/features/admin/ui';
-import { useAuth } from '#web/shared/lib/auth';
-import { confirmDialog, Select } from '#web/shared/ui';
+import { useTorrentsApi } from './api';
+import { NamingTokenModal } from './naming-tokens';
+import type { NamingTemplatesView, OrganizePlan } from './schemas';
 
 type FieldKey = Exclude<keyof NamingTemplatesView, 'case'>;
 
@@ -28,10 +36,10 @@ const CASES: { value: string; labelKey: string }[] = [
   { value: 'lower', labelKey: 'naming.caseLower' },
 ];
 
-export function NamingPage() {
+export default function NamingPage() {
   const t = useT();
   const fieldIds = useId();
-  const { client } = useAuth();
+  const torrents = useTorrentsApi();
   const canManage = useCap('library.manage');
 
   const [tpl, setTpl] = useState<NamingTemplatesView | null>(null);
@@ -40,27 +48,27 @@ export function NamingPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    client
-      .adminNaming()
+    torrents
+      .naming()
       .then((v) => {
         setTpl(v.templates);
         setSample(v.sample);
       })
       .catch(() => undefined);
-  }, [client]);
+  }, [torrents]);
 
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const refreshSample = useCallback(
     (next: NamingTemplatesView) => {
       clearTimeout(debounce.current);
       debounce.current = setTimeout(() => {
-        client
+        torrents
           .namingSample(next)
           .then(setSample)
           .catch(() => undefined);
       }, 250);
     },
-    [client],
+    [torrents],
   );
 
   const set = (key: keyof NamingTemplatesView, value: string) => {
@@ -87,7 +95,7 @@ export function NamingPage() {
   const save = () => {
     if (!tpl) return;
     setSaving(true);
-    client
+    torrents
       .saveNaming(tpl)
       .then(() => {
         setSaved(true);
@@ -119,11 +127,11 @@ export function NamingPage() {
                     className="w-full"
                   />
                   <Button
-                    variant="glass"
+                    variant="secondary"
                     size="sm"
-                    icon="braces"
+                    icon={IconBraces}
                     label={t('naming.tokens')}
-                    onPress={() => openTokens(f.key)}
+                    onClick={() => openTokens(f.key)}
                   />
                 </div>
               </label>
@@ -161,9 +169,10 @@ export function NamingPage() {
 
         <div className="mt-5 flex items-center gap-3">
           <Button
+            variant="primary"
             size="sm"
             label={t('common.save')}
-            onPress={save}
+            onClick={save}
             loading={saving}
             disabled={!tpl}
           />
@@ -174,6 +183,8 @@ export function NamingPage() {
       </Card>
 
       <RenameSection />
+      {/* The token picker's react-call root: the page that calls it hosts it. */}
+      <NamingTokenModal />
     </>
   );
 }
@@ -189,7 +200,7 @@ function SampleLine({ label, value }: Readonly<{ label: string; value: string }>
 
 function RenameSection() {
   const t = useT();
-  const { client } = useAuth();
+  const torrents = useTorrentsApi();
   const [plan, setPlan] = useState<OrganizePlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -197,7 +208,7 @@ function RenameSection() {
   const preview = () => {
     setBusy(true);
     setResult(null);
-    client
+    torrents
       .organizePreview()
       .then(setPlan)
       .catch((e) => setResult(apiErrorText(e, t('naming.previewFailed'))))
@@ -205,7 +216,7 @@ function RenameSection() {
   };
   const apply = () => {
     setBusy(true);
-    client
+    torrents
       .organizeApply()
       .then((r) => {
         setResult(t('naming.applied', { moved: String(r.moved), failed: String(r.failed) }));
@@ -229,11 +240,11 @@ function RenameSection() {
       title={t('naming.renameTitle')}
       right={
         <Button
-          variant="glass"
+          variant="secondary"
           size="sm"
-          icon="wand"
+          icon={IconWand}
           label={t('naming.preview2')}
-          onPress={preview}
+          onClick={preview}
           loading={busy}
         />
       }
@@ -264,9 +275,10 @@ function RenameSection() {
               </div>
               <div className="mt-4 flex">
                 <Button
+                  variant="primary"
                   size="sm"
                   label={t('naming.apply', { n: String(plan.moves.length) })}
-                  onPress={() => void askApply()}
+                  onClick={() => void askApply()}
                   disabled={busy}
                 />
               </div>

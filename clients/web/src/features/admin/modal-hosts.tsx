@@ -5,7 +5,6 @@ import { ExportModal, ImportModal } from '#web/features/admin/backup-modals';
 import { StopStreamModal } from '#web/features/admin/dashboard-now-playing';
 import { ScheduleModal } from '#web/features/admin/jobs-schedule';
 import { AddLibraryModal, ManageLibraryModal } from '#web/features/admin/libraries-modals';
-import { NamingTokenModal } from '#web/features/admin/naming-tokens';
 import { PipelineDrawer } from '#web/features/admin/pipeline-drawer';
 import { ReportDrawer } from '#web/features/admin/report-drawer';
 import { RequestDrawer } from '#web/features/admin/request-drawer';
@@ -22,7 +21,6 @@ export function AdminModalHosts() {
       <AddLibraryModal />
       <ManageLibraryModal />
       <ScheduleModal />
-      <NamingTokenModal />
       <PipelineDrawer />
       <ReportDrawer />
       <RequestDrawer />

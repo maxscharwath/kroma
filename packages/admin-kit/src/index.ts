@@ -1,6 +1,7 @@
 // The admin UI contract: everything a module's ui/ package needs to render a full
 // admin page without reaching into app internals.
 
+export { ConfirmDialog, type ConfirmProps, confirmDialog } from './confirm';
 export { AdminKitProvider, type AdminKitValue, resolveImageUrl, useAdminKit } from './context';
 export {
   Button,

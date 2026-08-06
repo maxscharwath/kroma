@@ -72,6 +72,9 @@ clients/*/data/
 
 # Test coverage (vitest -> lcov for SonarCloud)
 coverage/
+# cargo-llvm-cov output: the server workspace's, plus one per module workspace
+# (they are their own workspaces, so `--workspace` from server/ misses them).
+lcov.info
 
 # Brand generator intermediate (input to `bunx tauri icon`, not a shipped asset).
 scripts/brand/tauri-source-1024.png

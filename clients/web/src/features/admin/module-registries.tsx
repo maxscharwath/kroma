@@ -5,7 +5,7 @@
 
 import { Button, Card, Pill, TextInput, Toggle, useAsyncAction } from '@kroma/admin-kit';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
 
 /** One operator-added registry, as stored in the `moduleRegistries` setting. */
@@ -30,6 +30,12 @@ export interface RegistryStatus {
 }
 
 const HTTPS = /^https:\/\/\S+$/;
+
+// A row's React key is minted once and then carried through every edit. Keying
+// on the URL itself would remount the row on each keystroke, dropping focus.
+interface DraftRegistry extends ExtraRegistry {
+  key: string;
+}
 
 function saveRegistries(extras: ExtraRegistry[]): Promise<unknown> {
   return adminApi('/settings', {
@@ -195,22 +201,23 @@ export function RegistriesSection({
   registries,
   onReload,
 }: Readonly<{ registries: RegistryStatus[]; onReload: () => Promise<void> }>) {
-  const [draft, setDraft] = useState<ExtraRegistry[] | null>(null);
+  const [draft, setDraft] = useState<DraftRegistry[] | null>(null);
+  const nextKey = useRef(0);
   const { busy: saving, error, run } = useAsyncAction();
   const official = registries.find((r) => r.official);
   const extras = registries.filter((r) => !r.official);
-  const list: ExtraRegistry[] =
-    draft ?? extras.map(({ name, url, enabled }) => ({ name, url, enabled }));
+  const list: DraftRegistry[] =
+    draft ?? extras.map(({ name, url, enabled }) => ({ name, url, enabled, key: url }));
   const byUrl = new Map(extras.map((r) => [r.url, r]));
 
   // Saved as typed, including an entry whose URL is not (yet) valid: the server
   // keeps those and reports why it skipped them, so a typo stays on screen to be
   // corrected instead of vanishing on save. The draft is dropped only once the
   // refetch has landed, or the rows would snap back to the pre-save data.
-  const commit = (next: ExtraRegistry[]) => {
+  const commit = (next: DraftRegistry[]) => {
     setDraft(next);
     void run(async () => {
-      await saveRegistries(next);
+      await saveRegistries(next.map(({ name, url, enabled }) => ({ name, url, enabled })));
       await onReload();
       setDraft(null);
     }, message);
@@ -230,12 +237,9 @@ export function RegistriesSection({
       <h2 className="text-sm font-bold uppercase tracking-wide text-dim">Registries</h2>
       {error && <p className="text-xs font-semibold text-danger">{error}</p>}
       {official && <OfficialRow status={official} onSaved={onReload} />}
-      {list.map((registry, i) => (
+      {list.map(({ key, ...registry }) => (
         <ExtraRow
-          // Position, not URL: the URL is an edited field, and keying on it
-          // remounts the row on every keystroke, which drops input focus.
-          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no stable id
-          key={i}
+          key={key}
           registry={registry}
           status={
             byUrl.get(registry.url) ?? {
@@ -246,8 +250,8 @@ export function RegistriesSection({
             }
           }
           busy={saving}
-          onChange={(next) => setDraft(list.map((r, j) => (i === j ? next : r)))}
-          onRemove={() => commit(list.filter((_, j) => j !== i))}
+          onChange={(next) => setDraft(list.map((r) => (r.key === key ? { ...next, key } : r)))}
+          onRemove={() => commit(list.filter((r) => r.key !== key))}
         />
       ))}
       {draft !== null && (
@@ -266,7 +270,10 @@ export function RegistriesSection({
           />
         </div>
       )}
-      <AddRegistry busy={saving} onAdd={(r) => commit([...list, r])} />
+      <AddRegistry
+        busy={saving}
+        onAdd={(r) => commit([...list, { ...r, key: `added-${nextKey.current++}` }])}
+      />
     </section>
   );
 }

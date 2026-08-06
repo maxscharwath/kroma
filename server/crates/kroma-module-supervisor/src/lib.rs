@@ -1,8 +1,9 @@
 //! The core side of the out-of-process module system: spawns each installed
 //! module's binary, reverse-proxies to it, and serves the `/api/_host/*` callback API.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, RwLock};
 
@@ -251,6 +252,42 @@ impl Supervisor {
         }
     }
 
+    fn staged_manifest(
+        &self,
+        staging: &Path,
+        expected_id: Option<&str>,
+    ) -> anyhow::Result<(String, Value)> {
+        let manifest: Value =
+            serde_json::from_str(&std::fs::read_to_string(staging.join("module.json"))?)?;
+        let id = manifest
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("module.json has no id"))?
+            .to_string();
+        validate_id(&id)?;
+        if let Some(expected) = expected_id {
+            if expected != id {
+                anyhow::bail!(
+                    "bundle declares id '{id}' but it was offered as '{expected}'; refusing to install"
+                );
+            }
+        }
+        if self.cfg.reserved_ids.iter().any(|r| r == &id) {
+            anyhow::bail!(
+                "'{id}' is built into this server and can't be installed as a module (this build compiles it in)"
+            );
+        }
+        let min_server = manifest.get("minServer").and_then(Value::as_str);
+        if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
+            anyhow::bail!(
+                "'{id}' requires KROMA server {} but this server is {}; update the server first",
+                min_server.unwrap_or("?"),
+                self.cfg.server_version,
+            );
+        }
+        Ok((id, manifest))
+    }
+
     /// Unpack a `.kmod` bundle under `<modules_dir>/<id>/` and spawn it,
     /// returning the module's manifest JSON.
     ///
@@ -259,55 +296,13 @@ impl Supervisor {
     /// so without this a registry could advertise one id and ship a bundle that
     /// overwrites another — including a module the official registry owns.
     pub fn install(&self, bytes: &[u8], expected_id: Option<&str>) -> anyhow::Result<Value> {
-        // `.kmod` is a zstd tar; gzip (legacy) and raw tar are also accepted,
-        // dispatched by magic bytes.
-        let mut decompressed = Vec::new();
-        let tar_bytes: &[u8] = if bytes.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]) {
-            let mut dec = ruzstd::StreamingDecoder::new(bytes)?;
-            std::io::Read::read_to_end(&mut dec, &mut decompressed)?;
-            &decompressed
-        } else if bytes.starts_with(&[0x1f, 0x8b]) {
-            std::io::Read::read_to_end(
-                &mut flate2::read::GzDecoder::new(bytes),
-                &mut decompressed,
-            )?;
-            &decompressed
-        } else {
-            bytes
-        };
+        let tar_bytes = decompressed_tar(bytes)?;
 
         let staging = self.cfg.modules_dir.join(format!(".staging-{}", rand::random::<u32>()));
         std::fs::create_dir_all(&staging)?;
         let result = (|| {
-            unpack_validated(tar_bytes, &staging)?;
-            let manifest: Value =
-                serde_json::from_str(&std::fs::read_to_string(staging.join("module.json"))?)?;
-            let id = manifest
-                .get("id")
-                .and_then(Value::as_str)
-                .ok_or_else(|| anyhow::anyhow!("module.json has no id"))?
-                .to_string();
-            validate_id(&id)?;
-            if let Some(expected) = expected_id {
-                if expected != id {
-                    anyhow::bail!(
-                        "bundle declares id '{id}' but it was offered as '{expected}'; refusing to install"
-                    );
-                }
-            }
-            if self.cfg.reserved_ids.iter().any(|r| r == &id) {
-                anyhow::bail!(
-                    "'{id}' is built into this server and can't be installed as a module (this build compiles it in)"
-                );
-            }
-            let min_server = manifest.get("minServer").and_then(Value::as_str);
-            if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
-                anyhow::bail!(
-                    "'{id}' requires KROMA server {} but this server is {}; update the server first",
-                    min_server.unwrap_or("?"),
-                    self.cfg.server_version,
-                );
-            }
+            unpack_validated(&tar_bytes, &staging)?;
+            let (id, manifest) = self.staged_manifest(&staging, expected_id)?;
             self.stop(&id);
             let dest = self.dir(&id);
             let _ = std::fs::remove_dir_all(&dest);
@@ -477,6 +472,21 @@ fn sanitized_entry(raw: &std::path::Path) -> Option<PathBuf> {
     let allowed = matches!(rel.as_ref(), "module.json" | "module" | "icon.svg" | "icon.png")
         || rel.starts_with("fe/");
     allowed.then_some(safe)
+}
+
+// `.kmod` is a zstd tar; gzip (legacy) and raw tar are also accepted,
+// dispatched by magic bytes.
+fn decompressed_tar(bytes: &[u8]) -> anyhow::Result<Cow<'_, [u8]>> {
+    let mut out = Vec::new();
+    if bytes.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]) {
+        std::io::Read::read_to_end(&mut ruzstd::StreamingDecoder::new(bytes)?, &mut out)?;
+        return Ok(Cow::Owned(out));
+    }
+    if bytes.starts_with(&[0x1f, 0x8b]) {
+        std::io::Read::read_to_end(&mut flate2::read::GzDecoder::new(bytes), &mut out)?;
+        return Ok(Cow::Owned(out));
+    }
+    Ok(Cow::Borrowed(bytes))
 }
 
 fn unpack_validated(tar_bytes: &[u8], dest: &std::path::Path) -> anyhow::Result<()> {

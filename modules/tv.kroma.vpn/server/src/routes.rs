@@ -1,4 +1,4 @@
-//! The managed WireGuard bridge admin API (`/api/admin/vpn`), generic over any
+//! The managed WireGuard bridge admin API (`/vpn`), generic over any
 //! [`HostCtx`] state. Moved out of the binary so the VPN module owns its whole
 //! vertical: status for the downloads-page card, write-only config upload, and a
 //! live seal test. Gated on `settings.manage`. The endpoint owns only the
@@ -31,7 +31,7 @@ where
         .route("/vpn/test", post(test::<S>))
 }
 
-// `GET /api/admin/vpn`
+// `GET /vpn`
 async fn status<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -50,7 +50,7 @@ async fn status<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(view).into_response())
 }
 
-// `PUT /api/admin/vpn` store the WireGuard config ("" removes it) and/or the
+// `PUT /vpn` store the WireGuard config ("" removes it) and/or the
 // local bridge port, then restart the bridge + the embedded engine so the new
 // tunnel applies immediately.
 async fn save<S: HostCtx + Clone + Send + Sync + 'static>(
@@ -78,7 +78,7 @@ async fn save<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(json!({ "ok": true, "wgConfigured": wg_configured(&state) })).into_response())
 }
 
-// `POST /api/admin/vpn/test` run the seal probe now (also drives the gate).
+// `POST /vpn/test` run the seal probe now (also drives the gate).
 async fn test<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,

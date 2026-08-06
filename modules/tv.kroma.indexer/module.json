@@ -4,7 +4,6 @@
   "version": "0.1.1",
   "minServer": "0.1.4",
   "dependsOn": [],
-  "adminPrefixes": ["indexers"],
   "provides": [
     { "kind": "indexer-engine", "id": "builtin", "label": "indexers.builtin", "flow": "definition" }
   ],

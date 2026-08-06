@@ -173,23 +173,6 @@ impl Supervisor {
         &self.cfg.host_token
     }
 
-    /// The port of the running module claiming the admin-route segment `seg`
-    /// (via its manifest's `adminPrefixes`).
-    pub fn admin_route_port(&self, seg: &str) -> Option<u16> {
-        for m in self.installed_manifests() {
-            let owns = m
-                .get("adminPrefixes")
-                .and_then(Value::as_array)
-                .is_some_and(|a| a.iter().any(|p| p.as_str() == Some(seg)));
-            if owns {
-                if let Some(id) = m.get("id").and_then(Value::as_str) {
-                    return self.port_of(id);
-                }
-            }
-        }
-        None
-    }
-
     /// Spawn a module process on a free localhost port; a no-op if already
     /// running, an error if the module ships no binary.
     pub fn spawn(&self, id: &str) -> anyhow::Result<u16> {

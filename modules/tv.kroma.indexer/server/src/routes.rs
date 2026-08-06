@@ -1,4 +1,4 @@
-//! `/api/admin/indexers` indexer management, for both kinds: external Torznab
+//! `/indexers` indexer management, for both kinds: external Torznab
 //! (Jackett / Prowlarr) endpoints and native `builtin` Cardigann definitions.
 //! CRUD + a test call, plus the definition catalog (browse + sync). Gated on
 //! `settings.manage`. Secrets (api key, per-indexer passwords) are write-only and
@@ -72,7 +72,7 @@ fn view_of(row: &IndexerRow) -> IndexerView {
     }
 }
 
-/// `GET /api/admin/indexers`
+/// `GET /indexers`
 pub async fn list<S: HostCtx>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -87,7 +87,7 @@ pub async fn list<S: HostCtx>(
     Ok(Json(view).into_response())
 }
 
-/// `POST /api/admin/indexers` create. `kind: "builtin"` creates a native
+/// `POST /indexers` create. `kind: "builtin"` creates a native
 /// Cardigann indexer (needs `definitionId`); otherwise a Torznab endpoint
 /// (needs `name` + `url`).
 pub async fn create<S: HostCtx + Clone>(
@@ -195,7 +195,7 @@ fn default_cats() -> Vec<u32> {
     vec![2000, 5000]
 }
 
-/// `PUT /api/admin/indexers/:id` partial update. For built-in rows the `settings`
+/// `PUT /indexers/:id` partial update. For built-in rows the `settings`
 /// map is merged into the stored one (an omitted/empty password keeps its value).
 pub async fn update<S: HostCtx + Clone>(
     State(state): State<S>,
@@ -279,7 +279,7 @@ fn merge_settings<S: HostCtx>(
     Ok(serde_json::to_string(&current)?)
 }
 
-/// `DELETE /api/admin/indexers/:id`
+/// `DELETE /indexers/:id`
 pub async fn remove<S: HostCtx + Clone>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -295,7 +295,7 @@ pub async fn remove<S: HostCtx + Clone>(
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
-/// `POST /api/admin/indexers/:id/test`. Torznab: a live `t=caps` round-trip.
+/// `POST /indexers/:id/test`. Torznab: a live `t=caps` round-trip.
 /// Built-in: derive caps from the definition and verify login/reachability.
 pub async fn test<S: HostCtx + Clone>(
     State(state): State<S>,
@@ -344,7 +344,7 @@ pub async fn test<S: HostCtx + Clone>(
     }
 }
 
-/// `GET /api/admin/indexers/definitions` the browsable Cardigann catalog.
+/// `GET /indexers/definitions` the browsable Cardigann catalog.
 pub async fn list_definitions<S: HostCtx + Clone>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -372,7 +372,7 @@ pub async fn list_definitions<S: HostCtx + Clone>(
     Ok(Json(view).into_response())
 }
 
-/// `GET /api/admin/indexers/definitions/:defId` the settings schema for the form.
+/// `GET /indexers/definitions/:defId` the settings schema for the form.
 pub async fn definition_detail<S: HostCtx + Clone>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -409,7 +409,7 @@ pub async fn definition_detail<S: HostCtx + Clone>(
     }
 }
 
-/// `POST /api/admin/indexers/definitions/sync` fetch the current definition set.
+/// `POST /indexers/definitions/sync` fetch the current definition set.
 pub async fn sync_definitions<S: HostCtx + Clone>(
     State(state): State<S>,
     AuthUser(user): AuthUser,

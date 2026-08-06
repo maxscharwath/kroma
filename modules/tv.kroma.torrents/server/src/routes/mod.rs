@@ -1,4 +1,4 @@
-//! The Downloads module's admin API (`/api/admin/*`): torrent engines
+//! The Downloads module's admin API (served under its `/api/admin/m/<id>` mount): torrent engines
 //! ([`clients`]), the download queue ([`queue`]), the file-organize tool
 //! ([`organize`]). Every handler is generic over the host state `S: HostCtx`, so
 //! the module runs both in-process and out-of-process in its `.kmod` form.

@@ -1,4 +1,4 @@
-//! The Acquisition module's admin API (`/api/admin/acquisition/*`): the
+//! The Acquisition module's admin API (`/acquisition/*`): the
 //! free-text manual indexer search, the torrent analysis (file list + kind),
 //! and the manual add (grab a pasted magnet / .torrent and import it). Mounted
 //! behind the module's enabled-gate by the host, so the whole surface 404s while
@@ -33,7 +33,7 @@ fn require_acquisition<S: HostCtx>(state: &S, user: &User) -> Result<(), Respons
     }
 }
 
-/// `POST /api/admin/acquisition/search` free-text sweep of every indexer,
+/// `POST /acquisition/search` free-text sweep of every indexer,
 /// returning parsed releases best-first for the admin to pick from.
 pub async fn manual_search<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
@@ -52,7 +52,7 @@ pub async fn manual_search<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(view).into_response())
 }
 
-/// `POST /api/admin/acquisition/analyze` fetch the torrent's file list (metadata
+/// `POST /acquisition/analyze` fetch the torrent's file list (metadata
 /// only, no download) and classify what it holds, so the admin can select
 /// episodes / confirm the entity before grabbing.
 pub async fn analyze<S: HostCtx + Clone + Send + Sync + 'static>(
@@ -95,7 +95,7 @@ pub async fn analyze<S: HostCtx + Clone + Send + Sync + 'static>(
         .into_response())
 }
 
-/// `POST /api/admin/acquisition/add` grab a pasted magnet / `.torrent` URL (or a
+/// `POST /acquisition/add` grab a pasted magnet / `.torrent` URL (or a
 /// manual-search result) and import it as the given kind into the right library.
 pub async fn manual_add<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,

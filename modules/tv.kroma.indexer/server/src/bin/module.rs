@@ -1,5 +1,5 @@
 //! The Indexers module as a standalone process (its `.kmod` entrypoint). Serves
-//! IndexerDbPort / IndexerSearchPort / TorrentFetchPort plus `/api/admin/indexers/*`,
+//! IndexerDbPort / IndexerSearchPort / TorrentFetchPort plus `/indexers/*`,
 //! and consumes TorznabPort + VpnProxyPort from the sibling sidecars.
 
 use std::sync::Arc;

@@ -29,13 +29,13 @@ pub struct IndexerView {
     pub created_at: i64,
 }
 
-/// `GET /api/admin/indexers`.
+/// `GET /indexers`.
 #[derive(Debug, Clone, Serialize)]
 pub struct IndexersView {
     pub indexers: Vec<IndexerView>,
 }
 
-/// `POST /api/admin/indexers` / `PUT /api/admin/indexers/:id` body. Omitted
+/// `POST /indexers` / `PUT /indexers/:id` body. Omitted
 /// fields keep their current value on update; an omitted `api_key` keeps the
 /// stored secret.
 #[derive(Debug, Clone, Deserialize)]
@@ -71,7 +71,7 @@ pub struct IndexerDefinitionView {
     pub links: Vec<String>,
 }
 
-/// `GET /api/admin/indexers/definitions`.
+/// `GET /indexers/definitions`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexerDefinitionsView {
@@ -91,7 +91,7 @@ pub struct IndexerDefinitionSettingView {
     pub options: Vec<(String, String)>,
 }
 
-/// `GET /api/admin/indexers/definitions/:id` - the schema needed to add it.
+/// `GET /indexers/definitions/:id` - the schema needed to add it.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexerDefinitionDetailView {
@@ -103,7 +103,7 @@ pub struct IndexerDefinitionDetailView {
     pub settings: Vec<IndexerDefinitionSettingView>,
 }
 
-/// `POST /api/admin/indexers/definitions/sync` result.
+/// `POST /indexers/definitions/sync` result.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncDefinitionsResult {
@@ -111,7 +111,7 @@ pub struct SyncDefinitionsResult {
     pub version: String,
 }
 
-/// `POST /api/admin/indexers/:id/test` result (a `t=caps` round-trip).
+/// `POST /indexers/:id/test` result (a `t=caps` round-trip).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexerTestResult {

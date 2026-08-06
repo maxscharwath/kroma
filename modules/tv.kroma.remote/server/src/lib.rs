@@ -324,7 +324,7 @@ async fn status_value(host: &dyn HostCtx, remote: &RemoteAccess) -> serde_json::
     })
 }
 
-// `GET /api/admin/remote` -> current config (token masked) + live status.
+// `GET /remote` -> current config (token masked) + live status.
 async fn get_remote<S: HostCtx>(
     State(state): State<S>,
     Extension(remote): Extension<Arc<RemoteAccess>>,
@@ -342,7 +342,7 @@ struct RemoteSaveBody {
     token: Option<String>,
 }
 
-// `PUT /api/admin/remote` -> persist config, then kick one reconcile so the
+// `PUT /remote` -> persist config, then kick one reconcile so the
 // connector starts/stops immediately (non-blocking). Returns the fresh status.
 async fn save_remote<S: HostCtx>(
     State(state): State<S>,

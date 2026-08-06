@@ -25,7 +25,7 @@ pub struct DownloadClientView {
     pub builtin: bool,
 }
 
-/// `GET /api/admin/download-clients`.
+/// `GET /download-clients`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadClientsView {
@@ -46,7 +46,7 @@ pub struct SaveDownloadClientBody {
     pub priority: Option<i32>,
 }
 
-/// `POST /api/admin/download-clients/:id/test` result.
+/// `POST /download-clients/:id/test` result.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientTestResult {
@@ -92,7 +92,7 @@ pub struct DownloadView {
     pub local_id: Option<String>,
 }
 
-/// `GET /api/admin/downloads`.
+/// `GET /downloads`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadsView {
@@ -114,7 +114,7 @@ pub struct NamingTemplatesView {
     pub case: String,
 }
 
-/// `GET /api/admin/organize/naming` current templates + a rendered sample.
+/// `GET /organize/naming` current templates + a rendered sample.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NamingView {
@@ -130,7 +130,7 @@ pub struct SampleNames {
     pub episode: String,
 }
 
-/// `POST /api/admin/organize/sample` body (render as the admin types).
+/// `POST /organize/sample` body (render as the admin types).
 pub type SampleBody = NamingTemplatesView;
 
 /// One file the rename tool would move.
@@ -143,7 +143,7 @@ pub struct OrganizeMove {
     pub to: String,
 }
 
-/// `GET /api/admin/organize/preview`.
+/// `GET /organize/preview`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizePlan {
@@ -152,7 +152,7 @@ pub struct OrganizePlan {
     pub matching: u32,
 }
 
-/// `POST /api/admin/organize/apply` result.
+/// `POST /organize/apply` result.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrganizeResult {

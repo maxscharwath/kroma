@@ -1,7 +1,7 @@
 //! The VPN module as a standalone process (its `.kmod` entrypoint).
 //!
 //! It provides `VpnProxyPort` (served over the port bridge for the indexer /
-//! torrents consumers) and its admin page (`/api/admin/vpn/*`, reverse-proxied
+//! torrents consumers) and its admin page (`/vpn/*`, reverse-proxied
 //! by the core). It consumes `DownloadVpnPort` (the download engine's kill-switch
 //! status/restart) from the torrents sidecar, sibling-to-sibling via the core proxy.
 

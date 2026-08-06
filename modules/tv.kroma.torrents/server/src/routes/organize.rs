@@ -1,4 +1,4 @@
-//! `/api/admin/organize/*` file naming templates + the library rename tool.
+//! `/organize/*` file naming templates + the library rename tool.
 //! Gated on `library.manage` (it moves library files). The naming templates
 //! are stored as settings; this exposes them with a live sample and drives the
 //! preview + apply of a bulk rename.
@@ -60,7 +60,7 @@ fn templates_of(body: &NamingTemplatesView) -> NamingTemplates {
     }
 }
 
-/// `GET /api/admin/organize/naming` current templates + a sample.
+/// `GET /organize/naming` current templates + a sample.
 pub async fn get_naming<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -70,7 +70,7 @@ pub async fn get_naming<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(NamingView { templates: view_of(&tpl), sample: organize::sample(&tpl) }).into_response())
 }
 
-/// `POST /api/admin/organize/sample` render the sample for the given (unsaved)
+/// `POST /organize/sample` render the sample for the given (unsaved)
 /// templates, for the live preview as the admin types.
 pub async fn sample<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
@@ -81,7 +81,7 @@ pub async fn sample<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(organize::sample(&templates_of(&body))).into_response())
 }
 
-/// `PUT /api/admin/organize/naming` persist the templates.
+/// `PUT /organize/naming` persist the templates.
 pub async fn save_naming<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -99,7 +99,7 @@ pub async fn save_naming<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
-/// `GET /api/admin/organize/preview` the non-destructive rename plan.
+/// `GET /organize/preview` the non-destructive rename plan.
 pub async fn preview<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -109,7 +109,7 @@ pub async fn preview<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(plan).into_response())
 }
 
-/// `POST /api/admin/organize/apply` execute the rename (destructive).
+/// `POST /organize/apply` execute the rename (destructive).
 pub async fn apply<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,

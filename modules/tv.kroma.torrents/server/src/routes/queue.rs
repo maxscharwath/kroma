@@ -1,4 +1,4 @@
-//! `/api/admin/downloads` the download queue + history, with pause / resume
+//! `/downloads` the download queue + history, with pause / resume
 //! / remove (optionally deleting data). Readable and drivable by either
 //! `requests.manage` (the moderator who grabbed) or `settings.manage`.
 

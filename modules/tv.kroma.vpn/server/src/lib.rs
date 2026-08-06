@@ -262,7 +262,7 @@ impl kroma_module_sdk::ports::VpnProxyPort for VpnProxy {
     }
 }
 
-/// `GET /api/admin/vpn` the VPN configuration card's state. VPN routing is
+/// `GET /vpn` the VPN configuration card's state. VPN routing is
 /// WireGuard-only: a stored config runs a managed wireproxy bridge the embedded
 /// engine routes through.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -276,7 +276,7 @@ pub struct VpnAdminView {
     pub status: Option<kroma_module_sdk::ports::VpnStatusView>,
 }
 
-/// `PUT /api/admin/vpn` body. `wgConfig` is write-only: pass the full WireGuard
+/// `PUT /vpn` body. `wgConfig` is write-only: pass the full WireGuard
 /// config text from any provider (Mullvad, Proton, AirVPN, a self-hosted peer),
 /// or an empty string to remove it.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -286,7 +286,7 @@ pub struct SaveVpnBody {
     pub local_port: Option<u16>,
 }
 
-/// `POST /api/admin/vpn/test` a live probe through (and around) the proxy.
+/// `POST /vpn/test` a live probe through (and around) the proxy.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VpnTestResult {

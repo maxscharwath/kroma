@@ -78,7 +78,7 @@ pub struct ManualReleaseView {
     pub details_url: Option<String>,
 }
 
-/// `POST /api/admin/acquisition/search`.
+/// `POST /acquisition/search`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManualSearchView {
@@ -86,13 +86,13 @@ pub struct ManualSearchView {
     pub indexer_errors: Vec<String>,
 }
 
-/// `POST /api/admin/acquisition/search` body.
+/// `POST /acquisition/search` body.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ManualSearchBody {
     pub query: String,
 }
 
-/// `POST /api/admin/acquisition/add` body: grab a magnet / `.torrent` URL (pasted
+/// `POST /acquisition/add` body: grab a magnet / `.torrent` URL (pasted
 /// or from a manual search) and import it as `kind` into the right library.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -122,7 +122,7 @@ pub struct TorrentFileView {
     pub episode: Option<u32>,
 }
 
-/// `POST /api/admin/acquisition/analyze` the torrent's file list + what it holds,
+/// `POST /acquisition/analyze` the torrent's file list + what it holds,
 /// so the admin can pick episodes / confirm the kind before grabbing.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -132,7 +132,7 @@ pub struct TorrentAnalysis {
     pub files: Vec<TorrentFileView>,
 }
 
-/// `POST /api/admin/acquisition/analyze` body.
+/// `POST /acquisition/analyze` body.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyzeBody {

@@ -1,4 +1,4 @@
-//! `/api/admin/download-clients` torrent engine management: the seeded
+//! `/download-clients` torrent engine management: the seeded
 //! embedded engine row plus external Transmission / qBittorrent connectors,
 //! with a live connection test. Gated on `settings.manage`; passwords are
 //! write-only.
@@ -48,7 +48,7 @@ fn view_of(row: &DownloadClientRow) -> DownloadClientView {
     }
 }
 
-/// `GET /api/admin/download-clients`
+/// `GET /download-clients`
 pub async fn list<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -63,7 +63,7 @@ pub async fn list<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(view).into_response())
 }
 
-/// `POST /api/admin/download-clients` add an external engine.
+/// `POST /download-clients` add an external engine.
 pub async fn create<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -100,7 +100,7 @@ pub async fn create<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(view).into_response())
 }
 
-/// `PUT /api/admin/download-clients/:id` partial update (kind is immutable;
+/// `PUT /download-clients/:id` partial update (kind is immutable;
 /// empty password keeps the stored secret).
 pub async fn update<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
@@ -163,7 +163,7 @@ pub async fn update<S: HostCtx + Clone + Send + Sync + 'static>(
     }
 }
 
-/// `DELETE /api/admin/download-clients/:id` (the embedded row is permanent).
+/// `DELETE /download-clients/:id` (the embedded row is permanent).
 pub async fn remove<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,
@@ -180,7 +180,7 @@ pub async fn remove<S: HostCtx + Clone + Send + Sync + 'static>(
     Ok(Json(json!({ "ok": true })).into_response())
 }
 
-/// `POST /api/admin/download-clients/:id/test` live reachability probe.
+/// `POST /download-clients/:id/test` live reachability probe.
 pub async fn test<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,

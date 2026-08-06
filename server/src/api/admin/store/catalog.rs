@@ -31,6 +31,13 @@ pub struct CatalogModule {
     pub icon: Option<String>,
     // `(module id, optional semver range)`.
     pub depends_on: Vec<(String, Option<String>)>,
+    // Same shape; offered as an opt-in at install time, never auto-pulled.
+    pub optional_depends_on: Vec<(String, Option<String>)>,
+    // `(kind, id)` capabilities this module provides (e.g. download-client).
+    pub provides: Vec<(String, String)>,
+    // `(kind, optional provider id)` capabilities it needs SOMEONE to provide;
+    // the install planner suggests providers for the unsatisfied ones.
+    pub requires: Vec<(String, Option<String>)>,
     pub artifacts: Vec<Artifact>,
 }
 
@@ -42,11 +49,21 @@ pub fn registry_url(state: &SharedState) -> String {
 
 pub async fn fetch(sup: &Supervisor, url: &str) -> anyhow::Result<Vec<CatalogModule>> {
     let raw = sup.fetch_catalog(url).await?;
-    let modules = raw
+    let modules: Vec<CatalogModule> = raw
         .get("modules")
         .and_then(Value::as_array)
         .map(|mods| mods.iter().filter_map(parse_module).collect())
         .unwrap_or_default();
+    // A registry proxy (the first-party worker) degrades to an EMPTY catalog
+    // carrying an `error` field when its upstream is down. That must count as
+    // a fetch failure, not a catalog that offers nothing: an official outage
+    // reported as "0 modules" would let a lower-priority registry claim
+    // first-party ids, and auto-update would install its copies unattended.
+    if modules.is_empty() {
+        if let Some(error) = raw.get("error").and_then(Value::as_str) {
+            anyhow::bail!("registry reports: {error}");
+        }
+    }
     Ok(modules)
 }
 
@@ -69,18 +86,32 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
             .into_iter()
             .collect(),
     };
-    let depends_on = m
-        .get("dependsOn")
-        .and_then(Value::as_object)
-        .map(|deps| {
-            deps.iter()
-                .map(|(dep_id, range)| {
-                    let range = range
-                        .as_str()
-                        .map(str::trim)
-                        .filter(|r| !r.is_empty() && *r != "*")
-                        .map(str::to_string);
-                    (dep_id.clone(), range)
+    let depends_on = parse_deps(m, "dependsOn");
+    let optional_depends_on = parse_deps(m, "optionalDependsOn");
+    let provides = m
+        .get("provides")
+        .and_then(Value::as_array)
+        .map(|caps| {
+            caps.iter()
+                .filter_map(|c| {
+                    Some((
+                        c.get("kind")?.as_str()?.to_string(),
+                        c.get("id")?.as_str()?.to_string(),
+                    ))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let requires = m
+        .get("requires")
+        .and_then(Value::as_array)
+        .map(|reqs| {
+            reqs.iter()
+                .filter_map(|r| {
+                    Some((
+                        r.get("kind")?.as_str()?.to_string(),
+                        r.get("id").and_then(Value::as_str).map(str::to_string),
+                    ))
                 })
                 .collect()
         })
@@ -101,8 +132,30 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
         icon,
         depends_on,
+        optional_depends_on,
+        provides,
+        requires,
         artifacts,
     })
+}
+
+// A `{ "<id>": "<range>" }` dependency map; `"*"`/blank ranges normalize away.
+fn parse_deps(m: &Value, key: &str) -> Vec<(String, Option<String>)> {
+    m.get(key)
+        .and_then(Value::as_object)
+        .map(|deps| {
+            deps.iter()
+                .map(|(dep_id, range)| {
+                    let range = range
+                        .as_str()
+                        .map(str::trim)
+                        .filter(|r| !r.is_empty() && *r != "*")
+                        .map(str::to_string);
+                    (dep_id.clone(), range)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn parse_artifact(a: &Value) -> Option<Artifact> {
@@ -134,6 +187,14 @@ fn pick_for<'a>(artifacts: &'a [Artifact], host: &str) -> Option<&'a Artifact> {
     None
 }
 
+
+fn dep_rows(deps: &[(String, Option<String>)]) -> Vec<Value> {
+    deps.iter().map(|(id, range)| json!({ "id": id, "version": range })).collect()
+}
+
+fn cap_rows<I: serde::Serialize>(caps: &[(String, I)]) -> Vec<Value> {
+    caps.iter().map(|(kind, id)| json!({ "kind": kind, "id": id })).collect()
+}
 pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
     if !kroma_module_manifest::server_satisfies(m.min_server.as_deref(), SERVER_VERSION) {
         let needs = m.min_server.as_deref().unwrap_or("?");
@@ -169,9 +230,10 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
                 "library": m.library,
                 "icon": m.icon,
                 "minServer": m.min_server,
-                "dependsOn": m.depends_on.iter()
-                    .map(|(dep, range)| json!({ "id": dep, "version": range }))
-                    .collect::<Vec<_>>(),
+                "dependsOn": dep_rows(&m.depends_on),
+                "optionalDependsOn": dep_rows(&m.optional_depends_on),
+                "provides": cap_rows(&m.provides),
+                "requires": cap_rows(&m.requires),
                 "target": artifact.and_then(|a| a.target.clone()),
                 "url": artifact.map(|a| a.url.clone()),
                 "size": artifact.and_then(|a| a.size),
@@ -231,6 +293,9 @@ mod tests {
             r#"{ "id": "a.b", "name": "AB", "version": "0.2.0", "minServer": "0.1.4",
                  "library": false,
                  "dependsOn": { "c.d": "^0.1.0", "e.f": "*" },
+                 "optionalDependsOn": { "g.h": "^0.2.0" },
+                 "provides": [{ "kind": "download-client", "id": "qbittorrent", "label": "qBittorrent" }],
+                 "requires": [{ "kind": "indexer-engine" }, { "kind": "download-client", "id": "rqbit" }],
                  "artifacts": [{ "target": "x86_64-unknown-linux-musl",
                                  "url": "https://x/a.b-x86_64-unknown-linux-musl.kmod",
                                  "size": 5, "sha256": "ab" }] }"#,
@@ -242,6 +307,15 @@ mod tests {
         assert_eq!(
             m.depends_on,
             vec![("c.d".to_string(), Some("^0.1.0".to_string())), ("e.f".to_string(), None)]
+        );
+        assert_eq!(m.optional_depends_on, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
+        assert_eq!(m.provides, vec![("download-client".to_string(), "qbittorrent".to_string())]);
+        assert_eq!(
+            m.requires,
+            vec![
+                ("indexer-engine".to_string(), None),
+                ("download-client".to_string(), Some("rqbit".to_string())),
+            ]
         );
         assert_eq!(m.artifacts.len(), 1);
         assert_eq!(m.artifacts[0].target.as_deref(), Some("x86_64-unknown-linux-musl"));

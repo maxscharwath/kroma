@@ -49,6 +49,9 @@ interface Manifest {
   minServer?: string;
   library?: boolean;
   dependsOn?: Record<string, string> | unknown[];
+  optionalDependsOn?: Record<string, string> | unknown[];
+  provides?: unknown[];
+  requires?: unknown[];
 }
 
 interface Artifact {
@@ -67,6 +70,9 @@ interface Entry {
   minServer?: string;
   library?: boolean;
   dependsOn?: Record<string, string> | unknown[];
+  optionalDependsOn?: Record<string, string> | unknown[];
+  provides?: unknown[];
+  requires?: unknown[];
   icon?: string;
   artifacts: Artifact[];
   // Schema-1 compatibility mirror of artifacts[0].
@@ -169,6 +175,9 @@ for (const file of kmods) {
       minServer: manifest.minServer,
       library: manifest.library,
       dependsOn: manifest.dependsOn,
+      optionalDependsOn: manifest.optionalDependsOn,
+      provides: manifest.provides,
+      requires: manifest.requires,
       icon: iconDataUri(tar),
       artifacts: [artifact],
       file: artifact.file,

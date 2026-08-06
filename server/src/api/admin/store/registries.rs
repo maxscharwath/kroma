@@ -222,6 +222,9 @@ mod tests {
             library: false,
             icon: None,
             depends_on: Vec::new(),
+            optional_depends_on: Vec::new(),
+            provides: Vec::new(),
+            requires: Vec::new(),
             artifacts: Vec::new(),
         }
     }

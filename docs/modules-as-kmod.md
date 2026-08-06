@@ -41,7 +41,10 @@ it, supervises it, and reverse-proxies its HTTP.**
   (schema 2: per-target `artifacts` with `sha256`, `dependsOn`, `minServer`);
   the release workflow packs every target, attaches the `.kmod`s + the catalog
   (`modules.json`) to the GitHub Release, and the server's default registry is
-  `releases/latest/download/modules.json` (overridable via `moduleRegistryUrl`).
+  `https://modules.kroma.tv/modules.json`, the registry worker
+  (`packages/module-registry`) that serves the release catalog with edge
+  caching, a browsable page, and a `<link rel="kroma-modules">` autodiscovery
+  tag (overridable via `moduleRegistryUrl`).
   The in-app Store (Admin -> Modules) browses the catalog enriched with this
   server's verdict (matching artifact, installed version, update flag,
   compatibility + reason), installs/updates by id with automatic hard-dependency

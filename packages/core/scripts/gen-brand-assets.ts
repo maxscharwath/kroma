@@ -225,8 +225,10 @@ function markSvg(): string {
 }
 
 const MARK = markSvg();
-await Bun.write(`${REPO}/clients/web/public/favicon.svg`, `${MARK}\n`);
-console.log('wrote', `${REPO}/clients/web/public/favicon.svg`);
+for (const site of ['clients/web', 'packages/module-registry']) {
+  await Bun.write(`${REPO}/${site}/public/favicon.svg`, `${MARK}\n`);
+  console.log('wrote', `${REPO}/${site}/public/favicon.svg`);
+}
 
 // Workers deploy standalone, so they can't share an import. Inlined as a data
 // URI, not fetched: a fetched icon behind an edge cache once kept a stale

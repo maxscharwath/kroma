@@ -27,6 +27,7 @@ export { createEventBus } from './bus';
 export type { KromaEvents, ModuleApiRegistry } from './contracts';
 export type { DefineModuleOptions, ModuleManifestInput, ModulePage } from './define';
 export { defineModule, pageHref } from './define';
+export { useServerEvents } from './events';
 export type { HostApi, HostAuth, HostBase, HostI18n, HostNav, KromaHost } from './host';
 export { moduleIconUrl } from './icon';
 export type {

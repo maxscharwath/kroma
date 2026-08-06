@@ -71,7 +71,13 @@ export function AdminProvider({ children }: Readonly<{ children: ReactNode }>) {
   // an enrich pass emits one item.updated per title. Compared as plain strings:
   // download.progress is a module's frame, not part of core's union.
   useEffect(() => {
-    const highFrequency = new Set(['job.log', 'job.progress', 'download.progress']);
+    const highFrequency = new Set([
+      'job.log',
+      'job.progress',
+      'download.progress',
+      'module.op.progress',
+      'module.op.done',
+    ]);
     let pending: ReturnType<typeof setTimeout> | null = null;
     const ev = new KromaEvents(apiBase(), {
       onEvent: (e) => {

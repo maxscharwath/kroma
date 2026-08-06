@@ -11,6 +11,7 @@ export {
   NumberField,
   SegmentedControl,
 } from './controls';
+export { Drawer } from './drawer';
 export { AddEngineModal, FieldForm, useEnabledEngines, useModuleEnabled } from './engines';
 export { CardSkeleton, Skeleton, TableSkeleton } from './feedback';
 export {

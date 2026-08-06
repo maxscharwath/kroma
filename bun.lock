@@ -453,6 +453,7 @@
       "dependencies": {
         "@kroma/core": "workspace:*",
         "@kroma/ui": "workspace:*",
+        "@radix-ui/react-dialog": "^1.1.23",
         "@radix-ui/react-select": "^2.3.7",
         "@tabler/icons-react": "^3.44.0",
         "@tanstack/react-query": "^5.101.2",
@@ -518,6 +519,26 @@
       "optionalPeers": [
         "react",
       ],
+    },
+    "packages/module-registry": {
+      "name": "@kroma/module-registry",
+      "version": "0.1.0",
+      "dependencies": {
+        "hono": "^4.12.32",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@tailwindcss/vite": "^4",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "@vitejs/plugin-react": "^6.0.3",
+        "tailwindcss": "^4",
+        "typescript": "^7.0.2",
+        "vite": "^8.1.4",
+        "wrangler": "^4.42.0",
+      },
     },
     "packages/module-sdk": {
       "name": "@kroma/module-sdk",
@@ -1150,6 +1171,8 @@
     "@kroma/module-acquisition": ["@kroma/module-acquisition@workspace:modules/tv.kroma.acquisition/ui"],
 
     "@kroma/module-indexer": ["@kroma/module-indexer@workspace:modules/tv.kroma.indexer/ui"],
+
+    "@kroma/module-registry": ["@kroma/module-registry@workspace:packages/module-registry"],
 
     "@kroma/module-remote": ["@kroma/module-remote@workspace:modules/tv.kroma.remote/ui"],
 

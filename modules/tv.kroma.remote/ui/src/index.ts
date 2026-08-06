@@ -3,7 +3,7 @@ import { lazy } from 'react';
 
 // The Remote access module (frontend half). Contributes the Remote access admin
 // page into the System sidebar group; the paired RemoteModule ServerModule gates
-// the /api/admin/remote routes, so disabling the module removes the page and its
+// its admin routes, so disabling the module removes the page and its
 // routes together.
 export const remoteModule = defineModule({
   pages: [

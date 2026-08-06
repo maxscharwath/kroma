@@ -2,21 +2,30 @@
 // real file list (Sonarr/Radarr-style), pick which episodes/files to download,
 // and set the target so import lands them in the right library. The detected
 // entity pre-fills the form; the admin can override when detection is unsure.
+//
+// NOTE an inversion: the backend graph has acquisition dependsOn torrents, yet
+// this file (torrents) drives acquisition's search/analyze/add. The entangle-
+// ment is real — a manual grab needs both halves — and predates this layout; it
+// used to hide inside the monolithic client. If it ever needs untangling, the
+// manual-grab flow moves INTO acquisition and reaches this page via module
+// exports (`getModuleApi`), not by a package import in this direction.
 
+import { useAcquisitionApi } from '@kroma/module-acquisition/api';
+import type {
+  ManualReleaseView,
+  TorrentAnalysis,
+  TorrentFileView,
+} from '@kroma/module-acquisition/schemas';
 import {
   apiErrorText,
   Button,
   FIELD_GROUP,
   Field,
   formatBytes,
-  type ManualReleaseView,
   Modal,
   ModalActions,
   SegmentedControl,
   TextInput,
-  type TorrentAnalysis,
-  type TorrentFileView,
-  useAdminKit,
   useAsyncAction,
   useT,
 } from '@kroma/module-sdk';
@@ -95,7 +104,7 @@ export function ManualGrabModal({
   onAdded,
 }: Readonly<{ onClose: () => void; onAdded: () => void }>) {
   const t = useT();
-  const { client } = useAdminKit();
+  const acquisition = useAcquisitionApi();
   const { busy, error, run } = useAsyncAction();
 
   // Search sub-panel
@@ -130,8 +139,8 @@ export function ManualGrabModal({
     if (!q) return;
     setSearching(true);
     setSearchErr(null);
-    client
-      .manualSearch(q)
+    acquisition
+      .search(q)
       .then((v) => {
         setResults(v.releases);
         if (v.indexerErrors.length) setSearchErr(v.indexerErrors.join(' · '));
@@ -153,8 +162,8 @@ export function ManualGrabModal({
     if (!m) return;
     setAnalyzing(true);
     setAnalyzeErr(null);
-    client
-      .analyzeTorrent(m)
+    acquisition
+      .analyze(m)
       .then((a) => {
         setAnalysis(a);
         // Default selection = all video files.
@@ -184,7 +193,7 @@ export function ManualGrabModal({
   const add = () =>
     run(
       async () => {
-        await client.manualAdd(
+        await acquisition.add(
           buildManualAddBody({
             magnet,
             kind,

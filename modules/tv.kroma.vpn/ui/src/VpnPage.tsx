@@ -15,15 +15,15 @@ import {
   Pill,
   SettingsView,
   TextArea,
-  useAdminKit,
   useAsyncAction,
   useCap,
   usePoll,
   useT,
-  type VpnTestResult,
 } from '@kroma/module-sdk';
 import { IconShield, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useVpnApi } from './api';
+import type { VpnTestResult } from './schemas';
 
 // The VPN is global to several flows (torrent downloads and, optionally, indexer
 // searches), so it lives on its own page: the WireGuard config card + the
@@ -43,15 +43,15 @@ export default function VpnPage() {
 
 export function VpnCard() {
   const t = useT();
-  const { client } = useAdminKit();
+  const vpn = useVpnApi();
   const [modal, setModal] = useState(false);
   const [test, setTest] = useState<{ busy?: boolean; result?: VpnTestResult; error?: string }>({});
-  const { data, reload } = usePoll(['admin', 'vpn'], () => client.adminVpn(), 30000);
+  const { data, reload } = usePoll(['admin', 'vpn'], () => vpn.status(), 30000);
 
   const runTest = () => {
     setTest({ busy: true });
-    client
-      .testVpn()
+    vpn
+      .test()
       .then((result) => setTest({ result }))
       .catch((e) => setTest({ error: apiErrorText(e, t('vpn.testFailed')) }));
   };
@@ -166,14 +166,14 @@ function VpnConfigModal({
   onSaved,
 }: Readonly<{ configured: boolean; onClose: () => void; onSaved: () => void }>) {
   const t = useT();
-  const { client } = useAdminKit();
+  const vpn = useVpnApi();
   const { busy, error, run } = useAsyncAction();
   const [config, setConfig] = useState('');
 
   const save = (wgConfig: string) =>
     run(
       async () => {
-        await client.saveVpn({ wgConfig, localPort: null });
+        await vpn.save({ wgConfig, localPort: null });
         onSaved();
         onClose();
       },

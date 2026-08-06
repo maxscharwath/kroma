@@ -1,11 +1,4 @@
-import {
-  type DownloadView,
-  formatBytes,
-  IconButton,
-  type MessageKey,
-  ProgressBar,
-  useT,
-} from '@kroma/module-sdk';
+import { formatBytes, IconButton, type MessageKey, ProgressBar, useT } from '@kroma/module-sdk';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   IconDotsVertical,
@@ -21,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import type { DownloadView } from './schemas';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
 export interface LiveDl {

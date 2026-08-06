@@ -6,25 +6,24 @@
 
 import {
   apiErrorText,
-  type DownloadClientView,
   Field,
   Modal,
   ModalActions,
-  type SaveDownloadClientBody,
   TextInput,
-  useAdminKit,
   useAsyncAction,
   useT,
 } from '@kroma/module-sdk';
 import { useState } from 'react';
 import { createCallable } from 'react-call';
+import { useTorrentsApi } from './api';
+import type { DownloadClientView, SaveDownloadClientBody } from './schemas';
 
 export const DownloadClientModal = createCallable<
   { /** The external client being edited (kind is fixed). */ client: DownloadClientView },
   boolean
 >(({ call, client }) => {
   const t = useT();
-  const { client: api } = useAdminKit();
+  const torrents = useTorrentsApi();
   const { busy, error, run } = useAsyncAction();
   const [name, setName] = useState(client.name);
   const [url, setUrl] = useState(client.url);
@@ -43,7 +42,7 @@ export const DownloadClientModal = createCallable<
           enabled: null,
           priority: null,
         };
-        await api.updateDownloadClient(client.id, body);
+        await torrents.updateClient(client.id, body);
         call.end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),
@@ -52,7 +51,7 @@ export const DownloadClientModal = createCallable<
   const remove = () =>
     run(
       async () => {
-        await api.deleteDownloadClient(client.id);
+        await torrents.deleteClient(client.id);
         call.end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),

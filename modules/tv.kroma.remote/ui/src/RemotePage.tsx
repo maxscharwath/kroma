@@ -1,7 +1,7 @@
 // Admin "Remote access" page: configure the public URL used for share / Quick
 // Connect links, and (optionally) let KROMA run + supervise a Cloudflare Tunnel
 // `cloudflared` connector so a box with no existing tunnel gets a public HTTPS
-// endpoint without port-forwarding. Backed by /api/admin/remote.
+// endpoint without port-forwarding. Backed by this module's `/remote` admin route.
 //
 // One control drives the connector: the enable toggle (auto-saved). The server
 // reconciles the running connector to match it, so disabling always stops it.
@@ -13,16 +13,16 @@ import {
   Field,
   PageHeader,
   Pill,
-  type RemoteAccessView,
   Section,
   TextInput,
   Toggle,
-  useAdminKit,
   useCap,
   useT,
 } from '@kroma/module-sdk';
 import { IconCloud, IconDeviceFloppy, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
+import { useRemoteApi } from './api';
+import type { RemoteAccessView } from './schemas';
 
 // Deep link to the Zero Trust "Tunnels" page (`:account` auto-resolves to the
 // signed-in account) where a tunnel's connector token is created and shown in the
@@ -31,7 +31,7 @@ const CF_TUNNELS_URL = 'https://one.dash.cloudflare.com/?to=/:account/networks/t
 
 export default function RemotePage() {
   const t = useT();
-  const { client } = useAdminKit();
+  const remote = useRemoteApi();
   const canManage = useCap('settings.manage');
 
   // Server view is the source of truth for live status + `hasToken`; the form
@@ -45,8 +45,8 @@ export default function RemotePage() {
   const loaded = useRef(false);
 
   useEffect(() => {
-    client
-      .adminRemote()
+    remote
+      .status()
       .then((v) => {
         setView(v);
         if (!loaded.current) {
@@ -56,18 +56,18 @@ export default function RemotePage() {
         }
       })
       .catch(() => undefined);
-  }, [client]);
+  }, [remote]);
 
   // Poll live status (running / logs) without touching the form fields.
   useEffect(() => {
     const id = setInterval(() => {
-      client
-        .adminRemote()
+      remote
+        .status()
         .then(setView)
         .catch(() => undefined);
     }, 4000);
     return () => clearInterval(id);
-  }, [client]);
+  }, [remote]);
 
   if (!canManage) return <Denied />;
   if (!view) return null;
@@ -78,7 +78,7 @@ export default function RemotePage() {
     setBusy(true);
     setSaved(false);
     try {
-      const v = await client.saveRemote({ enabled: en, url, ...(token ? { token } : {}) });
+      const v = await remote.save({ enabled: en, url, ...(token ? { token } : {}) });
       setView(v);
       if (token) setToken('');
       setSaved(true);

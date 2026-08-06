@@ -8,22 +8,24 @@ import {
   Button,
   FIELD_GROUP,
   Field,
-  type IndexerDefinitionDetailView,
-  type IndexerDefinitionView,
-  type IndexerView,
   Modal,
   ModalActions,
-  type SaveIndexerBody,
   TextInput,
   Toggle,
   OptionSelect as UiSelect,
-  useAdminKit,
   useAsyncAction,
   useT,
 } from '@kroma/module-sdk';
 import { IconSearch } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createCallable } from 'react-call';
+import { useIndexerApi } from './api';
+import type {
+  IndexerDefinitionDetailView,
+  IndexerDefinitionView,
+  IndexerView,
+  SaveIndexerBody,
+} from './schemas';
 
 /** Parse a comma-separated Newznab category list into positive category ids. */
 export function parseCats(text: string): number[] {
@@ -58,7 +60,7 @@ function TorznabIndexerForm({
   end: (saved: boolean) => void;
 }>) {
   const t = useT();
-  const { client } = useAdminKit();
+  const indexerApi = useIndexerApi();
   const { busy, error, run } = useAsyncAction();
   const [name, setName] = useState(indexer.name);
   const [url, setUrl] = useState(indexer.url);
@@ -77,7 +79,7 @@ function TorznabIndexerForm({
           enabled: null,
           priority: Number.parseInt(priority, 10) || 0,
         };
-        await client.updateIndexer(indexer.id, body);
+        await indexerApi.update(indexer.id, body);
         end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),
@@ -86,7 +88,7 @@ function TorznabIndexerForm({
   const remove = () =>
     run(
       async () => {
-        await client.deleteIndexer(indexer.id);
+        await indexerApi.remove(indexer.id);
         end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),
@@ -137,7 +139,7 @@ function TorznabIndexerForm({
  * to add. Resolves the picked definition id, or `null` on dismiss. */
 export const DefinitionPickerModal = createCallable<void, string | null>(({ call }) => {
   const t = useT();
-  const { client } = useAdminKit();
+  const indexerApi = useIndexerApi();
   const [defs, setDefs] = useState<IndexerDefinitionView[] | null>(null);
   const [synced, setSynced] = useState(true);
   const [q, setQ] = useState('');
@@ -145,8 +147,8 @@ export const DefinitionPickerModal = createCallable<void, string | null>(({ call
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
-    client
-      .adminIndexerDefinitions()
+    indexerApi
+      .definitions()
       .then((v) => {
         setDefs(v.definitions);
         setSynced(v.synced);
@@ -159,8 +161,8 @@ export const DefinitionPickerModal = createCallable<void, string | null>(({ call
   const sync = () => {
     setSyncing(true);
     setError(null);
-    client
-      .syncIndexerDefinitions()
+    indexerApi
+      .syncDefinitions()
       .then(() => load())
       .catch((e) => setError(apiErrorText(e, t('indexers.syncFailed'))))
       .finally(() => setSyncing(false));
@@ -259,7 +261,7 @@ function BuiltinIndexerForm({
   end: (saved: boolean) => void;
 }>) {
   const t = useT();
-  const { client } = useAdminKit();
+  const indexerApi = useIndexerApi();
   const { busy, error, run } = useAsyncAction();
   const [detail, setDetail] = useState<IndexerDefinitionDetailView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -270,8 +272,8 @@ function BuiltinIndexerForm({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: load once per definition id
   useEffect(() => {
-    client
-      .indexerDefinitionDetail(definitionId)
+    indexerApi
+      .definition(definitionId)
       .then((d) => {
         setDetail(d);
         // Seed the form from the definition defaults (secrets stay blank; on
@@ -303,8 +305,8 @@ function BuiltinIndexerForm({
           definitionId,
           settings,
         };
-        if (indexer) await client.updateIndexer(indexer.id, body);
-        else await client.createIndexer(body);
+        if (indexer) await indexerApi.update(indexer.id, body);
+        else await indexerApi.create(body);
         end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),
@@ -314,7 +316,7 @@ function BuiltinIndexerForm({
     run(
       async () => {
         if (!indexer) return;
-        await client.deleteIndexer(indexer.id);
+        await indexerApi.remove(indexer.id);
         end(true);
       },
       (e) => apiErrorText(e, t('requests.actionFailed')),

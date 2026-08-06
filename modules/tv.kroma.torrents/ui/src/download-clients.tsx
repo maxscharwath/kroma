@@ -7,35 +7,30 @@ import {
   apiErrorText,
   Button,
   Card,
-  type ClientTestResult,
-  type DownloadClientView,
   EmptyState,
   IconButton,
   Pill,
   Section,
   TableSkeleton,
   Toggle,
-  useAdminKit,
   useEnabledEngines,
   usePoll,
   useT,
 } from '@kroma/module-sdk';
 import { IconCpu, IconPencil, IconPlus, IconServer } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useTorrentsApi } from './api';
 import { DownloadClientModal } from './download-client-modals';
+import type { ClientTestResult, DownloadClientView } from './schemas';
 
 type TestState = { busy?: boolean; result?: ClientTestResult; error?: string };
 
 export function DownloadClientsSection() {
   const t = useT();
-  const { client: api } = useAdminKit();
+  const torrents = useTorrentsApi();
   const engines = useEnabledEngines('download-client');
   const [tests, setTests] = useState<Record<string, TestState>>({});
-  const { data, reload } = usePoll(
-    ['admin', 'downloadClients'],
-    () => api.adminDownloadClients(),
-    30000,
-  );
+  const { data, reload } = usePoll(['admin', 'downloadClients'], () => torrents.clients(), 30000);
   const clients = data?.clients ?? [];
 
   const openAdd = async () => {
@@ -43,7 +38,7 @@ export function DownloadClientsSection() {
       engines,
       title: t('dlclients.addTitle'),
       onSubmit: async (kind, v) => {
-        await api.createDownloadClient({
+        await torrents.createClient({
           kind,
           name: v.name ?? null,
           url: v.url ?? null,
@@ -61,8 +56,8 @@ export function DownloadClientsSection() {
   };
 
   const toggle = (c: DownloadClientView, enabled: boolean) => {
-    api
-      .updateDownloadClient(c.id, {
+    torrents
+      .updateClient(c.id, {
         kind: null,
         name: null,
         url: null,
@@ -76,8 +71,8 @@ export function DownloadClientsSection() {
   };
   const test = (c: DownloadClientView) => {
     setTests((s) => ({ ...s, [c.id]: { busy: true } }));
-    api
-      .testDownloadClient(c.id)
+    torrents
+      .testClient(c.id)
       .then((result) => setTests((s) => ({ ...s, [c.id]: { result } })))
       .catch((e) =>
         setTests((s) => ({ ...s, [c.id]: { error: apiErrorText(e, t('dlclients.testFailed')) } })),

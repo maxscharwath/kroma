@@ -12,14 +12,11 @@ import {
   type EngineCapability,
   HeaderAction,
   IconButton,
-  type IndexerTestResult,
-  type IndexerView,
   type MessageKey,
   PageHeader,
   Pill,
   TableSkeleton,
   Toggle,
-  useAdminKit,
   useCap,
   useEnabledEngines,
   usePoll,
@@ -27,30 +24,32 @@ import {
 } from '@kroma/module-sdk';
 import { IconAntenna, IconPencil } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useIndexerApi } from './api';
 import {
   BuiltinIndexerModal,
   DefinitionPickerModal,
   IndexerModal,
   parseCats,
 } from './indexer-modals';
+import type { IndexerTestResult, IndexerView } from './schemas';
 
 type TestState = { busy?: boolean; result?: IndexerTestResult; error?: string };
 
 export default function IndexersPage() {
   const t = useT();
-  const { client } = useAdminKit();
+  const indexerApi = useIndexerApi();
   const canManage = useCap('settings.manage');
   const engines = useEnabledEngines('indexer-engine');
   const [tests, setTests] = useState<Record<string, TestState>>({});
 
-  const { data, reload } = usePoll(['admin', 'indexers'], () => client.adminIndexers(), 30000);
+  const { data, reload } = usePoll(['admin', 'indexers'], () => indexerApi.list(), 30000);
 
   if (!canManage) return <Denied />;
   const indexers = data?.indexers ?? [];
 
   const toggle = (ix: IndexerView, enabled: boolean) => {
-    client
-      .updateIndexer(ix.id, {
+    indexerApi
+      .update(ix.id, {
         name: null,
         url: null,
         apiKey: null,
@@ -64,8 +63,8 @@ export default function IndexersPage() {
 
   const test = (ix: IndexerView) => {
     setTests((s) => ({ ...s, [ix.id]: { busy: true } }));
-    client
-      .testIndexer(ix.id)
+    indexerApi
+      .test(ix.id)
       .then((result) => setTests((s) => ({ ...s, [ix.id]: { result } })))
       .catch((e) =>
         setTests((s) => ({ ...s, [ix.id]: { error: apiErrorText(e, t('indexers.testFailed')) } })),
@@ -90,8 +89,8 @@ export default function IndexersPage() {
       engines: [engine],
       title: t('indexers.addTitle'),
       onSubmit: (kind, v) =>
-        client
-          .createIndexer({
+        indexerApi
+          .create({
             kind,
             name: v.name ?? null,
             url: v.url ?? null,

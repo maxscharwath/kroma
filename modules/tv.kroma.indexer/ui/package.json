@@ -4,7 +4,8 @@
   "type": "module",
   "description": "KROMA Indexers module (frontend half): the Indexers admin page. Paired with the kroma-indexer backend at ../server via the shared module.json.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./schemas": "./src/schemas.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -13,7 +14,8 @@
   "dependencies": {
     "@kroma/module-sdk": "workspace:*",
     "@tabler/icons-react": "^3.44.0",
-    "react-call": "^2.0.2"
+    "react-call": "^2.0.2",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "react": ">=18"

@@ -4,21 +4,20 @@
 
 import {
   Button,
-  type DownloadView,
   EmptyState,
   formatBytes,
   HeaderAction,
-  KromaEventStream,
   Modal,
   ModalActions,
   PageHeader,
   StatCard,
   TableSkeleton,
-  useAdminKit,
   useCap,
   usePoll,
+  useServerEvents,
   useT,
 } from '@kroma/module-sdk';
+import type { VpnStatusEvent } from '@kroma/module-vpn/schemas';
 import {
   IconDownload,
   IconPlayerPause,
@@ -27,25 +26,19 @@ import {
   IconShieldX,
   IconUsersPlus,
 } from '@tabler/icons-react';
-import {
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { useTorrentsApi } from './api';
 import { DownloadClientsSection } from './download-clients';
 import { DownloadRowView, type LiveDl } from './download-row';
 import { ManualGrabModal } from './manual-grab';
+import type { DownloadCompletedEvent, DownloadProgressEvent, DownloadView } from './schemas';
 
 /** The Downloads module page (`/admin/downloads`): the live download queue,
  *  VPN status banner, aggregate stats, and the download-clients section. Default
  *  export so the module runtime can `React.lazy` it into its own chunk. */
 export default function DownloadsPage() {
   const t = useT();
-  const { client, apiBase } = useAdminKit();
+  const torrents = useTorrentsApi();
   const canSettings = useCap('settings.manage');
   const canQueue = useCap('requests.manage') || canSettings;
 
@@ -56,7 +49,7 @@ export default function DownloadsPage() {
   const [manual, setManual] = useState(false);
 
   // Slow poll = reconnect/missed-event safety net; progress rides the WS.
-  const { data, reload } = usePoll(['admin', 'downloads'], () => client.adminDownloads(), 10000);
+  const { data, reload } = usePoll(['admin', 'downloads'], () => torrents.downloads(), 10000);
 
   const lastReloadRef = useRef(0);
   const throttledReload = useCallback(() => {
@@ -66,7 +59,29 @@ export default function DownloadsPage() {
     reload();
   }, [reload]);
 
-  useDownloadEventStream(apiBase, setLive, throttledReload);
+  // `download.progress` frames feed the per-row overlay; terminal events
+  // trigger a throttled reload (safety net beside the slow poll).
+  useServerEvents<DownloadProgressEvent | DownloadCompletedEvent | VpnStatusEvent>((e) => {
+    if (e.type === 'download.progress') {
+      setLive((s) => ({
+        ...s,
+        [e.id]: {
+          progress: e.progress,
+          downBps: e.downBps,
+          upBps: e.upBps,
+          peers: e.peers,
+          peersSeen: e.peersSeen,
+          state: e.state,
+        },
+      }));
+    } else if (
+      e.type === 'download.completed' ||
+      e.type === 'request.updated' ||
+      e.type === 'vpn.status'
+    ) {
+      throttledReload();
+    }
+  });
 
   const act = (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -126,7 +141,7 @@ export default function DownloadsPage() {
             size="sm"
             icon={IconPlayerPause}
             label={t('downloads.pauseAll')}
-            onClick={() => act(() => client.pauseAllDownloads())}
+            onClick={() => act(() => torrents.pauseAll())}
             disabled={busy}
           />
           <Button
@@ -134,7 +149,7 @@ export default function DownloadsPage() {
             size="sm"
             icon={IconPlayerPlay}
             label={t('downloads.resumeAll')}
-            onClick={() => act(() => client.resumeAllDownloads())}
+            onClick={() => act(() => torrents.resumeAll())}
             disabled={busy}
           />
           <Button
@@ -142,7 +157,7 @@ export default function DownloadsPage() {
             size="sm"
             icon={IconUsersPlus}
             label={t('downloads.askPeers')}
-            onClick={() => act(() => client.reannounceDownloads())}
+            onClick={() => act(() => torrents.reannounceAll())}
             disabled={busy}
           />
         </div>
@@ -162,10 +177,10 @@ export default function DownloadsPage() {
             dl={dl}
             live={live[dl.id]}
             busy={busy}
-            onPause={() => act(() => client.pauseDownload(dl.id))}
-            onResume={() => act(() => client.resumeDownload(dl.id))}
-            onRetry={() => act(() => client.retryDownload(dl.id))}
-            onAskPeers={() => act(() => client.reannounceDownload(dl.id))}
+            onPause={() => act(() => torrents.pause(dl.id))}
+            onResume={() => act(() => torrents.resume(dl.id))}
+            onRetry={() => act(() => torrents.retry(dl.id))}
+            onAskPeers={() => act(() => torrents.reannounce(dl.id))}
             onRemove={() => {
               setWipeData(true);
               setConfirm(dl);
@@ -202,7 +217,7 @@ export default function DownloadsPage() {
             onConfirm={() => {
               const dl = confirm;
               setConfirm(null);
-              act(() => client.removeDownload(dl.id, { deleteData: wipeData }));
+              act(() => torrents.remove(dl.id, { deleteData: wipeData }));
             }}
             confirmLabel={t('downloads.removeConfirm')}
             busy={busy}
@@ -213,42 +228,6 @@ export default function DownloadsPage() {
       {manual ? <ManualGrabModal onClose={() => setManual(false)} onAdded={reload} /> : null}
     </>
   );
-}
-
-/** Subscribe to the live download event stream: `download.progress` frames feed
- *  the per-row overlay, terminal events trigger a throttled reload (safety net). */
-function useDownloadEventStream(
-  apiBase: string,
-  setLive: Dispatch<SetStateAction<Record<string, LiveDl>>>,
-  throttledReload: () => void,
-) {
-  useEffect(() => {
-    const ev = new KromaEventStream(apiBase, {
-      onEvent: (e) => {
-        if (e.type === 'download.progress') {
-          setLive((s) => ({
-            ...s,
-            [e.id]: {
-              progress: e.progress,
-              downBps: e.downBps,
-              upBps: e.upBps,
-              peers: e.peers,
-              peersSeen: e.peersSeen,
-              state: e.state,
-            },
-          }));
-        } else if (
-          e.type === 'download.completed' ||
-          e.type === 'request.updated' ||
-          e.type === 'vpn.status'
-        ) {
-          throttledReload();
-        }
-      },
-    });
-    ev.connect();
-    return () => ev.close();
-  }, [throttledReload, apiBase, setLive]);
 }
 
 function VpnBanner({

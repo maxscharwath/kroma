@@ -18,6 +18,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -158,6 +159,85 @@ function stageBundle(
   return { staging, entries };
 }
 
+// Deterministic ustar writer. A universal (no-binary) bundle is packed by
+// EVERY CI matrix leg under the same filename, and the release pipeline merges
+// those directories twice (catalog job, then deploy) with last-write-wins,
+// so the catalog's published sha256 only stays true if every leg's copy is
+// byte-identical. Host `tar` cannot promise that (bsdtar vs GNU tar, mtimes,
+// uids); this writer can: fixed epoch, uid/gid 0, sorted entries.
+const TAR_BLOCK = 512;
+
+function tarOctal(value: number, width: number): string {
+  return `${value.toString(8).padStart(width - 1, '0')}\0`;
+}
+
+function tarHeader(name: string, size: number, mode: number, dir: boolean): Uint8Array {
+  if (name.length > 100) {
+    throw new Error(`tar entry name too long for a ustar header: ${name}`);
+  }
+  const buf = new Uint8Array(TAR_BLOCK);
+  const put = (s: string, off: number) => buf.set(new TextEncoder().encode(s), off);
+  put(name, 0);
+  put(tarOctal(mode, 8), 100);
+  put(tarOctal(0, 8), 108); // uid
+  put(tarOctal(0, 8), 116); // gid
+  put(tarOctal(dir ? 0 : size, 12), 124);
+  put(tarOctal(0, 12), 136); // mtime: fixed epoch, see above
+  put('        ', 148); // checksum is computed over spaces
+  put(dir ? '5' : '0', 156);
+  put('ustar\0', 257);
+  put('00', 263);
+  let sum = 0;
+  for (const b of buf) sum += b;
+  put(`${sum.toString(8).padStart(6, '0')}\0 `, 148);
+  return buf;
+}
+
+function tarEntryList(
+  staging: string,
+  entries: string[],
+): { name: string; dir: boolean; mode: number }[] {
+  const out: { name: string; dir: boolean; mode: number }[] = [];
+  const walk = (rel: string) => {
+    if (statSync(join(staging, rel)).isDirectory()) {
+      out.push({ name: `${rel}/`, dir: true, mode: 0o755 });
+      for (const child of readdirSync(join(staging, rel)).sort()) {
+        walk(`${rel}/${child}`);
+      }
+    } else {
+      // The runtime entrypoint must stay executable; the supervisor re-chmods
+      // it on install anyway, but the tar should already be right.
+      out.push({ name: rel, dir: false, mode: rel === 'module' ? 0o755 : 0o644 });
+    }
+  };
+  for (const entry of [...entries].sort()) {
+    walk(entry);
+  }
+  return out;
+}
+
+function deterministicTar(staging: string, entries: string[]): Uint8Array {
+  const parts: Uint8Array[] = [];
+  for (const e of tarEntryList(staging, entries)) {
+    if (e.dir) {
+      parts.push(tarHeader(e.name, 0, e.mode, true));
+      continue;
+    }
+    const data = readFileSync(join(staging, e.name));
+    parts.push(tarHeader(e.name, data.length, e.mode, false), data);
+    const pad = data.length % TAR_BLOCK;
+    if (pad) parts.push(new Uint8Array(TAR_BLOCK - pad));
+  }
+  parts.push(new Uint8Array(TAR_BLOCK * 2));
+  const buf = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let off = 0;
+  for (const p of parts) {
+    buf.set(p, off);
+    off += p.length;
+  }
+  return buf;
+}
+
 function describeBuild(bin: string | null, features: string[]): string {
   if (!bin) return 'library (no binary)';
   const extras = features.length ? ` [+${features.join(',')}]` : '';
@@ -193,19 +273,16 @@ async function packOne(moduleDir: string): Promise<string> {
   mkdirSync(outDir, { recursive: true });
   const suffix = bin && target ? `-${target}` : '';
   const kmod = join(outDir, `${id}${suffix}.kmod`);
-  const tarPath = `${kmod}.tar`;
-  await $`tar -cf ${tarPath} -C ${staging} ${entries}`;
-  const bytes = Bun.zstdCompressSync(readFileSync(tarPath), { level: 19 });
+  const bytes = Bun.zstdCompressSync(deterministicTar(staging, entries), { level: 19 });
   writeFileSync(kmod, bytes);
   // A SHA-256 sidecar file so a release/registry consumer can verify integrity.
   writeFileSync(`${kmod}.sha256`, `${Bun.SHA256.hash(bytes, 'hex')}  ${id}${suffix}.kmod\n`);
-  rmSync(tarPath, { force: true });
   rmSync(staging, { recursive: true, force: true });
   console.log(`  packed: ${kmod}`);
   return kmod;
 }
 
-/** `modules pack [dir]` — every packable module, or just the one given. */
+/** `modules pack [dir]`: every packable module, or just the one given. */
 export async function main(args: string[]): Promise<void> {
   const arg = args[0];
   const dirs = arg ? [join(root, arg)] : packableModules();

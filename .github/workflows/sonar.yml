@@ -159,7 +159,7 @@ jobs:
         run: |
           # Not `set -e`: a module that fails to instrument must still leave the
           # ones that succeeded (and the server's own report) in place.
-          bun run scripts/modules-cargo.ts llvm-cov --lcov --output-path lcov.info || true
+          bun run modules cargo llvm-cov --lcov --output-path lcov.info || true
           for f in modules/*/server/lcov.info; do
             if [ -s "$f" ]; then cat "$f" >> server/lcov.info; fi
           done

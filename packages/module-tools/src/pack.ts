@@ -22,8 +22,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { $ } from 'bun';
+import { root } from './root';
 
-export const root = join(import.meta.dir, '..');
 const outDir = join(root, 'dist/modules');
 const modulesRoot = join(root, 'modules');
 
@@ -60,13 +60,13 @@ export function crateAndBin(moduleDir: string): {
   // A `[[bin]]` means a native sidecar; its absence => a library module (no binary).
   const bin = binName.exec(cargo)?.[1] ?? null;
   const featBlock = kmodFeatures.exec(cargo)?.[1] ?? '';
-  const features = [...featBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const features = [...featBlock.matchAll(/"([^"]+)"/g)].flatMap((m) => m[1] ?? []);
   return { bin, features };
 }
 
 /**
  * The `cargo build` arguments for a module's sidecar, and where cargo will put
- * the binary. Shared with `scripts/kmod-build-plan.ts`: CI builds with the plan
+ * the binary. Shared with the `plan` command: CI builds with the plan
  * and packs with `KMOD_SKIP_BUILD=1`, so the two must agree on both.
  *
  * Bare feature names, and no `-p`: a module is its own single-package workspace,
@@ -100,7 +100,7 @@ export function cargoBuild(
 // which is proven to link candle / librqbit; this script then just stages +
 // packs them). Skips the `cargo build` and reads the prebuilt artifact.
 // The build runs in the MODULE's own workspace (each module is one now) against
-// the shared KMOD_TARGET_DIR, so scripts/kmod-build-plan.ts and this path leave
+// the shared KMOD_TARGET_DIR, so the `plan` command and this path leave
 // their artifacts in the same place and either can produce what the other packs.
 async function buildModuleBinary(
   moduleDir: string,
@@ -160,7 +160,8 @@ function stageBundle(
 
 function describeBuild(bin: string | null, features: string[]): string {
   if (!bin) return 'library (no binary)';
-  return `bin ${bin}${features.length ? ` [+${features.join(',')}]` : ''}`;
+  const extras = features.length ? ` [+${features.join(',')}]` : '';
+  return `bin ${bin}${extras}`;
 }
 
 async function packOne(moduleDir: string): Promise<string> {
@@ -204,10 +205,9 @@ async function packOne(moduleDir: string): Promise<string> {
   return kmod;
 }
 
-// Only run as a CLI when invoked directly (`bun run modules:pack`); when
-// imported (e.g. by scripts/kmod-build-plan.ts) just expose the helpers above.
-if (import.meta.main) {
-  const arg = process.argv[2];
+/** `modules pack [dir]` — every packable module, or just the one given. */
+export async function main(args: string[]): Promise<void> {
+  const arg = args[0];
   const dirs = arg ? [join(root, arg)] : packableModules();
   if (dirs.length === 0) {
     throw new Error('no packable modules (none have a [[bin]] yet)');

@@ -4,7 +4,7 @@
 // binary, derived from each module's Cargo.toml. CI runs them inside the musl
 // cross-toolchain image, then packs the results on the host.
 //
-//   KMOD_TARGET=x86_64-unknown-linux-musl bun run scripts/kmod-build-plan.ts
+//   KMOD_TARGET=x86_64-unknown-linux-musl bun run modules plan
 //
 // Run the emitted script from the REPO ROOT (its paths are relative to it), not
 // from server/. That is also what lets a container mounting the repo elsewhere
@@ -12,7 +12,8 @@
 // filesystem and vanish with it.
 
 import { relative } from 'node:path';
-import { cargoBuild, crateAndBin, KMOD_TARGET_DIR, packableModules, root } from './pack-module';
+import { cargoBuild, crateAndBin, KMOD_TARGET_DIR, packableModules } from './pack';
+import { root } from './root';
 
 const target = process.env.KMOD_TARGET?.trim() || null;
 

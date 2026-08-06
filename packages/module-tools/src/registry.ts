@@ -6,9 +6,9 @@
 // matching the server's build target, verifies its sha256, and resolves
 // `dependsOn` before installing.
 //
-//   bun run scripts/gen-registry.ts                             # from dist/modules/*.kmod
-//   bun run scripts/gen-registry.ts --base https://mods.example.com
-//   bun run scripts/gen-registry.ts --base .../releases/download/v0.1.5
+//   bun run modules registry                             # from dist/modules/*.kmod
+//   bun run modules registry --base https://mods.example.com
+//   bun run modules registry --base .../releases/download/v0.1.5
 //
 // Output: dist/registry/{catalog.json, <id>[-<target>].kmod, ...}
 //
@@ -27,14 +27,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { byCodeUnit } from './lib/sort';
+import { root } from './root';
+import { byCodeUnit } from './sort';
 
-const root = join(import.meta.dir, '..');
 const modulesDir = join(root, 'dist/modules');
 const outDir = join(root, 'dist/registry');
 
 const baseIdx = process.argv.indexOf('--base');
-const baseUrl = baseIdx >= 0 ? process.argv[baseIdx + 1].replace(/\/$/, '') : '';
+const baseUrl = (baseIdx >= 0 ? (process.argv[baseIdx + 1] ?? '') : '').replace(/\/$/, '');
 
 if (!existsSync(modulesDir)) {
   throw new Error(`no packed modules at ${modulesDir}; run \`bun run modules:pack\` first`);
@@ -78,7 +78,9 @@ interface Entry {
 
 // Dispatched by magic bytes, like the server's installer: zstd today, gzip/raw
 // also accepted.
-function toTar(bytes: Buffer): Uint8Array {
+function toTar(buf: Buffer): Uint8Array {
+  // A view, not a copy: Bun's decompressors want an ArrayBuffer-backed array.
+  const bytes = new Uint8Array(buf.buffer as ArrayBuffer, buf.byteOffset, buf.byteLength);
   if (bytes[0] === 0x28 && bytes[1] === 0xb5 && bytes[2] === 0x2f && bytes[3] === 0xfd) {
     return Bun.zstdDecompressSync(bytes);
   }
@@ -107,7 +109,7 @@ function iconDataUri(tar: Uint8Array): string | undefined {
 // octal at 124..136.
 function tarRead(tar: Uint8Array, wanted: string): Uint8Array | null {
   const field = (start: number, len: number) =>
-    new TextDecoder().decode(tar.subarray(start, start + len)).split('\0')[0];
+    new TextDecoder().decode(tar.subarray(start, start + len)).split('\0')[0] ?? '';
   let off = 0;
   while (off + 512 <= tar.length) {
     const name = field(off, 100);

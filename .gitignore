@@ -20,7 +20,7 @@ build/
 # Rust
 server/target/
 # The shared build dir modules:pack / kmod-build-plan point every module
-# workspace at (see scripts/pack-module.ts KMOD_TARGET_DIR).
+# workspace at (see @kroma/module-tools KMOD_TARGET_DIR).
 /target/
 # Each module under modules/<id> is its own cargo workspace, so it builds into
 # its OWN target/ which the rule above does not cover. Its Cargo.lock IS
@@ -77,7 +77,7 @@ coverage/
 lcov.info
 
 # Brand generator intermediate (input to `bunx tauri icon`, not a shipped asset).
-scripts/brand/tauri-source-1024.png
+packages/core/scripts/tauri-source-1024.png
 
 # Workbench screenshots (bun run shots): review artefacts, not sources.
 .shots/

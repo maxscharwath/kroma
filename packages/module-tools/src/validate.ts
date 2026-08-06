@@ -7,10 +7,10 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { byCodeUnit } from './lib/sort';
-import { frontmatter } from './module-format';
+import { frontmatter } from './format';
+import { root as ROOT } from './root';
+import { byCodeUnit } from './sort';
 
-const ROOT = join(import.meta.dir, '..');
 const schema = JSON.parse(readFileSync(join(ROOT, 'modules', 'module.schema.json'), 'utf8'));
 
 type Json = Record<string, unknown>;

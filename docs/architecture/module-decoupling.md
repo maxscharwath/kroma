@@ -159,7 +159,7 @@ recommended), vs each module publishing its own tiny `*-contract` crate.
   manifest-only / server-module / lifecycle-only). Compile-time Rust crates link
   at build time, so this is a BUILD-time manifest, not a runtime data file (only
   WASM/`.tar` modules load from the data dir at runtime, which already works).
-- `scripts/gen-modules.ts` reads `modules.toml` and generates, into
+- `bun run modules gen` reads `modules.toml` and generates, into
   `kroma-modules-generated`: the manifest `register_all`, the `server_modules<S>()`
   roster, and the crate's Cargo deps.
 - The generic kernel drivers (`mount_admin`, `apply_enabled_states`, resolve/order)

@@ -178,7 +178,7 @@ dispatch is a sub-engine registry (`DownloadClientRegistry` and friends).
 `bun run modules:pack` output is directly installable — upload the `.kmod` in
 Admin → Modules.
 
-To serve modules to others, host a catalog: `scripts/gen-registry.ts` emits a
+To serve modules to others, host a catalog: `bun run modules registry` emits a
 `modules.json` index of per-target artifacts with checksums, which any static
 host can serve. Operators add it under Admin → Modules → Registries. See
 [`docs/module-registries.md`](../docs/module-registries.md).

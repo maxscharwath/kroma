@@ -111,7 +111,7 @@ jobs:
         if: matrix.image != ''
         run: |
           set -euo pipefail
-          bun run scripts/kmod-build-plan.ts > /tmp/kmod-build.sh
+          bun run modules plan > /tmp/kmod-build.sh
           echo "=== build plan ==="; cat /tmp/kmod-build.sh
           mkdir -p "$HOME/.cargo/registry"
           docker run --rm \
@@ -143,7 +143,7 @@ jobs:
         if: matrix.image == ''
         run: |
           set -euo pipefail
-          bun run scripts/kmod-build-plan.ts > /tmp/kmod-build.sh
+          bun run modules plan > /tmp/kmod-build.sh
           echo "=== build plan ==="; cat /tmp/kmod-build.sh
           bash -euo pipefail /tmp/kmod-build.sh
 
@@ -200,7 +200,7 @@ jobs:
           else
             REF="v${{ inputs.version }}"
           fi
-          bun run scripts/gen-registry.ts \
+          bun run modules registry \
             --base "https://github.com/${{ github.repository }}/releases/download/$REF"
           cp dist/registry/catalog.json dist/registry/modules.json
 

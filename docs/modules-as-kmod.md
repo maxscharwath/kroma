@@ -37,7 +37,7 @@ it, supervises it, and reverse-proxies its HTTP.**
   `module.json` + `module` (the binary) + `icon` + `fe/` into a zstd `.kmod`
   (per-target via `KMOD_TARGET`; sidecar bundles are suffixed with the triple)
   plus a `.sha256` sidecar.
-- **Registry + Store (shipped)**: `scripts/gen-registry.ts` builds a catalog
+- **Registry + Store (shipped)**: `bun run modules registry` builds a catalog
   (schema 2: per-target `artifacts` with `sha256`, `dependsOn`, `minServer`);
   the release workflow packs every target, attaches the `.kmod`s + the catalog
   (`modules.json`) to the GitHub Release, and the server's default registry is

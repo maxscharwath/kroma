@@ -44,12 +44,12 @@ its own row and the others still contribute.
 
 ## Publishing one
 
-`scripts/gen-registry.ts` turns the packed `.kmod` files into a publishable
+`bun run modules registry` turns the packed `.kmod` files into a publishable
 tree — the catalog plus the bundles it points at:
 
 ```bash
 bun run modules:pack                                             # -> dist/modules/*.kmod
-bun run scripts/gen-registry.ts --base https://mods.example.com  # -> dist/registry/
+bun run modules registry --base https://mods.example.com         # -> dist/registry/
 ```
 
 `--base` is the URL the files will be served from; it becomes each artifact's

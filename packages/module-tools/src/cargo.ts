@@ -4,15 +4,15 @@
 // members of the server workspace, so `cargo test --workspace` never reaches
 // them. They share one target dir, so common deps compile once.
 //
-//   bun run scripts/modules-cargo.ts test
-//   bun run scripts/modules-cargo.ts clippy --all-targets
+//   bun run modules cargo test
+//   bun run modules cargo clippy --all-targets
 
 import { existsSync } from 'node:fs';
 import { $ } from 'bun';
-import { KMOD_TARGET_DIR, packableModules } from './pack-module';
+import { KMOD_TARGET_DIR, packableModules } from './pack';
 
 const args = process.argv.slice(2);
-if (args.length === 0) throw new Error('usage: modules-cargo.ts <cargo-subcommand> [args...]');
+if (args.length === 0) throw new Error('usage: bun run modules cargo <cargo-subcommand> [args...]');
 
 // Default features: the `[package.metadata.kmod]` ones pull candle and librqbit,
 // which would roughly double this job for the five tests behind them (whisper 1,

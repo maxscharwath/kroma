@@ -5,10 +5,10 @@
 # runs the SAME analyzers against a SonarQube Community container, so a rule
 # that would fire in CI fires here first.
 #
-#   scripts/sonar-local.sh up       start the container (first run pulls ~1GB)
-#   scripts/sonar-local.sh scan     analyse the working tree
-#   scripts/sonar-local.sh issues   list what it found, newest analysis
-#   scripts/sonar-local.sh down     stop and remove the container
+#   packages/sonar-tools/local.sh up       start the container (first run pulls ~1GB)
+#   packages/sonar-tools/local.sh scan     analyse the working tree
+#   packages/sonar-tools/local.sh issues   list what it found, newest analysis
+#   packages/sonar-tools/local.sh down     stop and remove the container
 #
 # Differences from SonarCloud:
 #   * Community edition has no PULL REQUEST analysis, so this scans the whole
@@ -24,7 +24,11 @@ CONTAINER=kroma-sonarqube
 HOST_URL=http://localhost:9000
 TOKEN_FILE="${HOME}/.kroma/sonarqube-local-token"
 PROJECT_KEY=kroma-local
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Two levels: this lives at packages/sonar-tools/. It used to sit one level down
+# in scripts/, and the move left the `..` behind - REPO_ROOT became `packages`,
+# so the source list found nothing and the container would have been handed
+# packages/ as the whole repo.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 die() { echo "error: $*" >&2; exit 1; }
 

@@ -49,7 +49,7 @@ const IS_TEST = /\.(test|spec)\.[cm]?tsx?$/;
 
 // This file necessarily contains every pattern it hunts for, so it cannot
 // scan itself.
-const SELF = 'scripts/sonar-precheck.ts';
+const SELF = 'packages/sonar-tools/src/precheck.ts';
 
 // Read from stdin rather than derived, so this spawns nothing: shelling out
 // to `git` was itself two Sonar findings. The caller passes CHANGED files

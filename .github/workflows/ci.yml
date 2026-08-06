@@ -71,8 +71,7 @@ jobs:
               # they are NOT covered by `server/**` — without this a module-only
               # change would skip clippy and its tests entirely.
               - 'modules/**'
-              - 'scripts/modules-cargo.ts'
-              - 'scripts/pack-module.ts'
+              - 'packages/module-tools/**'
               # kroma-engine include_str!s these catalogs at compile time.
               - 'packages/core/src/locales/**'
               - 'rust-toolchain.toml'
@@ -289,7 +288,7 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      # Only to drive the per-module cargo runs below (scripts/modules-cargo.ts);
+      # Only to drive the per-module cargo runs below (`bun run modules cargo`);
       # no `bun install` needed, the script imports nothing from node_modules.
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -300,7 +299,7 @@ jobs:
       # cache quota - which evicted the .spk/module/desktop caches and forced
       # cold builds everywhere. See the same pattern in sonar.yml/release.yml.
       # `workspaces` lists every cargo tree to cache: server/ plus the shared
-      # build dir the module workspaces compile into (see scripts/pack-module.ts).
+      # build dir the module workspaces compile into (see @kroma/module-tools).
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
           workspaces: |

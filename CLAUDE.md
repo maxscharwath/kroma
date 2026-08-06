@@ -138,7 +138,7 @@ workspace boundary, which cargo *does* allow.
 Consequences worth knowing: features are **bare** (`--features local`, never
 `kroma-whisper/local` — inside its own single-package workspace that names a
 dependency); one `cargo build` can no longer select every module, so
-`scripts/kmod-build-plan.ts` emits one per module against a shared
+`bun run modules plan` emits one per module against a shared
 `CARGO_TARGET_DIR` (`target/kmod`); and any container that builds the server or a
 module must mount the **whole repo**, not `server/`.
 

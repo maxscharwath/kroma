@@ -1,4 +1,4 @@
-//! Registry catalog: normalize the index `scripts/gen-registry.ts` emits, pick
+//! Registry catalog: normalize the index `bun run modules registry` emits, pick
 //! the artifact for this build target, enrich with installed/update state.
 //! Legacy schema 1 (a flat `url`/`size`/`sha256`) still parses as one artifact.
 

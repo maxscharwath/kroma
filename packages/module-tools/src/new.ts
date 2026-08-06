@@ -4,7 +4,8 @@
 
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { REVERSE_DNS, slug as toSlug } from './module-format';
+import { REVERSE_DNS, slug as toSlug } from './format';
+import { root } from './root';
 
 const id = process.argv[2];
 if (!id || !REVERSE_DNS.test(id)) {
@@ -15,7 +16,7 @@ if (!id || !REVERSE_DNS.test(id)) {
 }
 
 const slug = toSlug(id);
-const file = join(import.meta.dir, '..', 'modules', `${slug}.module.md`);
+const file = join(root, 'modules', `${slug}.module.md`);
 if (existsSync(file)) {
   console.error(`already exists: modules/${slug}.module.md`);
   process.exit(1);

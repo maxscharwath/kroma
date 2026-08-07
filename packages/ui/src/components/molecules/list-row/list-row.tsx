@@ -20,6 +20,7 @@ import { IconWell } from '#ui/components/atoms/icon-well';
 import { Txt } from '#ui/components/atoms/text';
 import { radius, type StyleDecl, svFor } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
+import { ListGroup, useInListGroup } from './list-group';
 
 type ListRowSize = 'sm' | 'tv';
 
@@ -30,23 +31,7 @@ const listRowVariants = svFor<{
   chevron: Pick<IconProps, 'color' | 'size'>;
 }>()({
   slots: {
-    root: {
-      w: '100%',
-      row: true,
-      align: 'center',
-      radius: 'xl',
-      border: 'border',
-      // THE SAME WELL A FIELD SITS IN, taken from the one table
-      // (lib/field-shell) so a row and an input can never drift apart. It is
-      // translucent, so the <Frost> below blurs what shows through and the
-      // lift here keeps the row off the artwork behind it.
-      bg: CONTROL.md.bg,
-      shadow: 'card',
-      // A solid amber edge rather than a fill, which is why the row draws no
-      // ring: a row is wide, and a filled one at the top of a list reads as
-      // "selected forever" instead of "focused".
-      _focus: { border: 'accent' },
-    },
+    root: { w: '100%', row: true, align: 'center' },
     label: { fontWeight: '700' },
     hint: {},
     chevron: { color: 'textDim' },
@@ -66,14 +51,38 @@ const listRowVariants = svFor<{
         chevron: { size: 20 },
       },
     },
+    /** Its own object, or one member of a <ListRow.Group>'s single card. A
+     *  member draws no surface: the group carries the well, the blur, the
+     *  edge and the lift for the whole list. */
+    standalone: {
+      true: {
+        root: {
+          radius: 'xl',
+          border: 'border',
+          // THE SAME WELL A FIELD SITS IN, taken from the one table
+          // (lib/field-shell) so a row and an input can never drift apart.
+          // Translucent, so <Frost> blurs what shows through and the lift
+          // keeps the row off the artwork behind it.
+          bg: CONTROL.md.bg,
+          shadow: 'card',
+          // A solid amber edge rather than a fill, which is why the row draws
+          // no ring: a row is wide, and a filled one at the top of a list
+          // reads as "selected forever" instead of "focused".
+          _focus: { border: 'accent' },
+        },
+      },
+      // Inside a card there is no edge to recolour, so a focused member takes
+      // the wash instead.
+      false: { root: { _focus: { bg: 'accentSoft' } } },
+    },
     /** Whether the row leads anywhere. The step before the amber edge, and only
      *  a row that does something on press takes it: a settings list is full of
      *  rows that only display. */
     pressable: {
-      true: { root: { _hover: { bg: 'surface3', border: 'borderStrong' } } },
+      true: { root: { _hover: { bg: 'surface3' } } },
     },
   },
-  defaults: { size: 'tv', pressable: false },
+  defaults: { size: 'tv', pressable: false, standalone: true },
 });
 
 interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'label'> {
@@ -108,6 +117,9 @@ function ListRow({
   style,
   ...focusProps
 }: Readonly<ListRowProps>) {
+  // A member of a <ListRow.Group> sits in the group's card, so it draws no
+  // surface of its own.
+  const standalone = !useInListGroup();
   return (
     <Focusable
       {...focusProps}
@@ -116,14 +128,15 @@ function ListRow({
       focusScale={1.02}
       ring={false}
       sv={listRowVariants}
-      vars={{ size, pressable: onPress !== undefined }}
+      vars={{ size, pressable: onPress !== undefined, standalone }}
       style={style}
     >
       {(state) => (
         <>
           {/* Blur what shows through the translucent fill: the row reads as
-              one glass surface rather than a window on the artwork. */}
-          <Frost radius={radius.xl} />
+              one glass surface rather than a window on the artwork. A member
+              of a group is inside the card that already did this. */}
+          {standalone ? <Frost radius={radius.xl} /> : null}
           {leading ?? (icon ? <IconWell name={icon} size={size} /> : null)}
           <Box flex gap={2}>
             {children ?? (
@@ -144,5 +157,9 @@ function ListRow({
   );
 }
 
+// Radix's shape: the row is the common case and stays one line, and the
+// grouped list is reached by name (see components/README.md).
+const ListRowNamespace = Object.assign(ListRow, { Group: ListGroup });
+
 export type { ListRowProps, ListRowSize };
-export { ListRow, listRowVariants };
+export { ListRowNamespace as ListRow, listRowVariants };

@@ -17,7 +17,7 @@ describe('<InputGroup>', () => {
   it('names the whole assembly, not the entry inside it', () => {
     render(
       <InputGroup.Root label="Amount">
-        <InputGroup.Input placeholder="0.00" physicalKeyboard autoFocus={false} />
+        <InputGroup.Input placeholder="0.00" physicalKeyboard />
       </InputGroup.Root>,
     );
     expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Amount');
@@ -32,7 +32,7 @@ describe('<InputGroup>', () => {
     // and its text another.
     render(
       <InputGroup.Root label="Amount" size={size}>
-        <InputGroup.Input placeholder="0.00" physicalKeyboard autoFocus={false} />
+        <InputGroup.Input placeholder="0.00" physicalKeyboard />
       </InputGroup.Root>,
     );
     expect(screen.getByPlaceholderText('0.00').style.fontSize).toBe(fontSize);
@@ -46,7 +46,7 @@ describe('<InputGroup>', () => {
         <InputGroup.Addon align="inline-end">
           <Txt>USD</Txt>
         </InputGroup.Addon>
-        <InputGroup.Input placeholder="0.00" physicalKeyboard autoFocus={false} />
+        <InputGroup.Input placeholder="0.00" physicalKeyboard />
         <InputGroup.Addon>
           <Txt>$</Txt>
         </InputGroup.Addon>
@@ -55,13 +55,22 @@ describe('<InputGroup>', () => {
     expect(positionOf('$')).toBeLessThan(positionOf('USD'));
   });
 
+  it('does not take the focus on mount', () => {
+    render(
+      <InputGroup.Root label="Image">
+        <InputGroup.Input readOnly placeholder="Choisir une image" physicalKeyboard />
+      </InputGroup.Root>,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('types into the entry when the padding beside it is pressed', () => {
     render(
       <InputGroup.Root label="Search">
         <InputGroup.Addon>
           <Txt>@</Txt>
         </InputGroup.Addon>
-        <InputGroup.Input placeholder="Search" physicalKeyboard autoFocus={false} />
+        <InputGroup.Input placeholder="Search" physicalKeyboard />
       </InputGroup.Root>,
     );
     const entry = screen.getByPlaceholderText('Search');
@@ -74,7 +83,7 @@ describe('<InputGroup>', () => {
     const onPress = vi.fn();
     render(
       <InputGroup.Root label="Search">
-        <InputGroup.Input placeholder="Search" physicalKeyboard autoFocus={false} />
+        <InputGroup.Input placeholder="Search" physicalKeyboard />
         <InputGroup.Addon align="inline-end" onPress={onPress}>
           <Txt>go</Txt>
         </InputGroup.Addon>

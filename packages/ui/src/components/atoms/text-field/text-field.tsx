@@ -88,7 +88,7 @@ function TextField({
   icon,
   trailing,
   physicalKeyboard = entryDefaultPhysicalKeyboard(),
-  autoFocus = true,
+  autoFocus = false,
   keyboardType,
   autoComplete,
   invalid = false,

@@ -86,6 +86,17 @@ describe('a kit control on a web page', () => {
     expect(screen.getByTestId('row').contains(screen.getByRole('listbox'))).toBe(false);
   });
 
+  it('pins the panel to the trigger box, never narrower', () => {
+    render(<Select label="Source" options={OPTIONS} value="all" onChange={() => {}} block />);
+    const trigger = screen.getByRole('combobox');
+    trigger.getBoundingClientRect = () =>
+      ({ left: 70, right: 508, top: 100, bottom: 140, width: 438, height: 40 }) as DOMRect;
+    press(trigger);
+    const panel = screen.getByRole('listbox');
+    expect(panel.style.left).toBe('70px');
+    expect(panel.style.minWidth).toBe('438px');
+  });
+
   it('sizes the panel to its content, with the trigger as the floor', () => {
     render(<Select label="Source" options={OPTIONS} value="all" onChange={() => {}} />);
     const trigger = screen.getByRole('combobox');

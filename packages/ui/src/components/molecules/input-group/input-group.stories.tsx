@@ -45,7 +45,7 @@ export default story({
       <InputGroup.Addon>
         <Icon name="search" size={18} color="textDim" />
       </InputGroup.Addon>
-      <InputGroup.Input placeholder="Search" physicalKeyboard autoFocus={false} />
+      <InputGroup.Input placeholder="Search" physicalKeyboard />
       <InputGroup.Addon align="inline-end">
         <InputGroup.Text>12 results</InputGroup.Text>
       </InputGroup.Addon>
@@ -60,7 +60,7 @@ export default story({
           <InputGroup.Addon>
             <InputGroup.Text>$</InputGroup.Text>
           </InputGroup.Addon>
-          <InputGroup.Input type="number" placeholder="0.00" physicalKeyboard autoFocus={false} />
+          <InputGroup.Input type="number" placeholder="0.00" physicalKeyboard />
           <InputGroup.Addon align="inline-end">
             <InputGroup.Text>USD</InputGroup.Text>
           </InputGroup.Addon>
@@ -73,11 +73,7 @@ export default story({
       render: () => (
         <Box gap={16}>
           <InputGroup.Root label="Share link">
-            <InputGroup.Input
-              defaultValue="https://kroma.tv/invite/9f2a"
-              physicalKeyboard
-              autoFocus={false}
-            />
+            <InputGroup.Input defaultValue="https://kroma.tv/invite/9f2a" physicalKeyboard />
             <InputGroup.Addon align="inline-end">
               <InputGroup.IconButton icon="copy" label="Copy" />
             </InputGroup.Addon>
@@ -86,7 +82,7 @@ export default story({
             <InputGroup.Addon>
               <Icon name="search" size={18} color="textDim" />
             </InputGroup.Addon>
-            <InputGroup.Input placeholder="Blade Runner" physicalKeyboard autoFocus={false} />
+            <InputGroup.Input placeholder="Blade Runner" physicalKeyboard />
             <InputGroup.Addon align="inline-end">
               <InputGroup.Button variant="primary" label="Search" />
             </InputGroup.Addon>
@@ -103,12 +99,7 @@ export default story({
             <InputGroup.Addon>
               <Icon name="photo" size={16} color="textDim" />
             </InputGroup.Addon>
-            <InputGroup.Input
-              readOnly
-              placeholder="Choisir une image"
-              physicalKeyboard
-              autoFocus={false}
-            />
+            <InputGroup.Input readOnly placeholder="Choisir une image" physicalKeyboard />
             <InputGroup.Addon align="inline-end">
               <InputGroup.Button label="Choisir" />
             </InputGroup.Addon>
@@ -117,12 +108,7 @@ export default story({
             <InputGroup.Addon>
               <Icon name="photo" size={16} color="textDim" />
             </InputGroup.Addon>
-            <InputGroup.Input
-              readOnly
-              defaultValue="notif-9f2a11c0-w1280.webp"
-              physicalKeyboard
-              autoFocus={false}
-            />
+            <InputGroup.Input readOnly defaultValue="notif-9f2a11c0-w1280.webp" physicalKeyboard />
             <InputGroup.Addon align="inline-end">
               <InputGroup.IconButton icon="x" label="Effacer" />
               <InputGroup.Button label="Choisir" />
@@ -136,12 +122,7 @@ export default story({
       docs: 'What `block-end` is for: a bar the width of the shell, under a paragraph rather than beside it. Written first or last in the JSX makes no difference, because `align` decides where it lands.',
       render: () => (
         <InputGroup.Root label="Comment">
-          <InputGroup.Textarea
-            rows={3}
-            placeholder="Write a comment"
-            physicalKeyboard
-            autoFocus={false}
-          />
+          <InputGroup.Textarea rows={3} placeholder="Write a comment" physicalKeyboard />
           <InputGroup.Addon align="block-end" divider>
             <InputGroup.Text>0/280</InputGroup.Text>
             <Box flex />
@@ -161,12 +142,7 @@ export default story({
             <Box flex />
             <InputGroup.Button icon="refresh" label="Reload" />
           </InputGroup.Addon>
-          <InputGroup.Textarea
-            rows={4}
-            defaultValue="console.log('hello');"
-            physicalKeyboard
-            autoFocus={false}
-          />
+          <InputGroup.Textarea rows={4} defaultValue="console.log('hello');" physicalKeyboard />
           <InputGroup.Addon align="block-end" divider>
             <InputGroup.Text>Line 1, Column 1</InputGroup.Text>
             <Box flex />

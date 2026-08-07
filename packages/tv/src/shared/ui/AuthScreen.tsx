@@ -1,3 +1,4 @@
+import { KromaClient } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   BackButton,
@@ -9,7 +10,7 @@ import {
   type SplashCover,
   styles,
 } from '@kroma/ui/kit';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useConnectionMaybe } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 
@@ -20,28 +21,48 @@ const BACKDROP = `radial-gradient(120% 90% at 50% 0%, #15131C, ${colors.bg} 68%)
  * the server answers (or when it has no artwork), which keeps the radial. */
 function useSplashCovers(): SplashCover[] {
   const t = useT();
-  const client = useConnectionMaybe()?.client ?? null;
+  const connection = useConnectionMaybe();
+  // `/api/splash` is public and these screens run BEFORE a server is active,
+  // so the art comes from whichever server this device knows: the active one
+  // first, then the saved list, then whatever discovery just found.
+  const urls = useMemo(() => {
+    const all = [
+      connection?.activeServerUrl,
+      ...(connection?.servers ?? []).map((s) => s.url),
+      ...(connection?.discovered ?? []),
+    ];
+    return [...new Set(all.filter((u): u is string => Boolean(u)))];
+  }, [connection?.activeServerUrl, connection?.servers, connection?.discovered]);
+
   const [covers, setCovers] = useState<SplashCover[]>([]);
   useEffect(() => {
-    if (!client) return;
     let cancelled = false;
-    client
-      .splash()
-      .then((entries) => {
-        if (cancelled) return;
-        setCovers(
-          entries.map((e) => ({
-            url: e.backdropUrl,
-            caption: [e.title, e.year].filter(Boolean).join(' · '),
-            eyebrow: t(e.kind === 'show' ? 'content.series' : 'content.film'),
-          })),
-        );
-      })
-      .catch(() => undefined);
+    // Each candidate in turn, stopping at the first that answers: a household
+    // can hold a server too old to know this route, and it serves the SPA's
+    // index.html for it rather than a 404, which is not artwork.
+    void (async () => {
+      for (const url of urls) {
+        try {
+          const entries = await new KromaClient({ baseUrl: url }).splash();
+          if (cancelled) return;
+          if (entries.length === 0) continue;
+          setCovers(
+            entries.map((e) => ({
+              url: e.backdropUrl,
+              caption: [e.title, e.year].filter(Boolean).join(' · '),
+              eyebrow: t(e.kind === 'show' ? 'content.series' : 'content.film'),
+            })),
+          );
+          return;
+        } catch {
+          /* try the next server */
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [client, t]);
+  }, [urls, t]);
   return covers;
 }
 

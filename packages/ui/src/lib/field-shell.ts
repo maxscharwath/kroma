@@ -20,8 +20,13 @@ type ControlSize = 'sm' | 'md';
 interface ControlMetrics {
   /** The well's fill. Every control wears it: a filled segmented control
    *  beside a transparent select is the difference that reads as "these are
-   *  two different kinds of thing". */
-  bg: 'surface2';
+   *  two different kinds of thing".
+   *
+   *  Very slightly translucent, so a control over artwork (the sign-in
+   *  screens over their splash) takes a hint of what is behind it without
+   *  sampling it: at this alpha the colour underneath moves the fill by less
+   *  than a shade, so a keyboard is still ONE colour rather than one per key. */
+  bg: `${ControlFill}`;
   /** Corner, in px (a raw number so a class-string consumer can spell it too). */
   radius: number;
   px: number;
@@ -39,9 +44,30 @@ interface ControlMetrics {
 
 /** The shape of every input, per size. Read it rather than re-deriving it:
  *  this table IS the design. */
+const CONTROL_FILL = 'surface2/94' as const;
+type ControlFill = typeof CONTROL_FILL;
+
 export const CONTROL: Record<ControlSize, ControlMetrics> = {
-  sm: { bg: 'surface2', radius: 10, px: 14, py: 9, line: 20, height: 40, fontSize: 13.5, gap: 10 },
-  md: { bg: 'surface2', radius: 22, px: 22, py: 12, line: 24, height: 50, fontSize: 16, gap: 14 },
+  sm: {
+    bg: CONTROL_FILL,
+    radius: 10,
+    px: 14,
+    py: 9,
+    line: 20,
+    height: 40,
+    fontSize: 13.5,
+    gap: 10,
+  },
+  md: {
+    bg: CONTROL_FILL,
+    radius: 22,
+    px: 22,
+    py: 12,
+    line: 24,
+    height: 50,
+    fontSize: 16,
+    gap: 14,
+  },
 };
 
 /** The field's edge. Focus wins over invalid: while you are fixing the value,

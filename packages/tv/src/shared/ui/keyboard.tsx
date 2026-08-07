@@ -24,5 +24,6 @@ export function OnScreenKeyboard(props: Readonly<OnScreenKeyboardProps>) {
   // webviews. The layout picker is a separate screen, so a changed value
   // still lands on the keyboard's next mount.
   const [letters] = useState(getKeyboardLayoutPref);
-  return <KitKeyboard {...props} letters={letters} physicalKeyboard={physicalKeyboard} />;
+  // `tv`: these keys are read and aimed at from across a room.
+  return <KitKeyboard {...props} size="tv" letters={letters} physicalKeyboard={physicalKeyboard} />;
 }

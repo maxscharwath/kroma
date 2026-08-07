@@ -18,6 +18,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, styles, svFor } from '#ui/core';
+import { CONTROL } from '#ui/lib/field-shell';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
 import { useTDefault } from '#ui/services/i18n';
 
@@ -36,10 +37,13 @@ const keypadVariants = svFor<{ root: StyleDecl; label: StyleDecl }>()({
       h: 72,
       center: true,
       radius: '2xl',
-      bg: 'white/6',
+      // The same well a field and a keyboard key sit in (lib/field-shell),
+      // opaque: a keypad is a grid of controls, and over artwork a wash let
+      // every key sample whatever was behind it.
+      bg: CONTROL.md.bg,
       // A key under the cursor lifts its own wash rather than borrowing the
       // amber: on a PIN pad, amber says "this is where Enter goes".
-      _hover: { bg: 'white/12' },
+      _hover: { bg: 'surface3' },
       _focus: { bg: 'accentSoft' },
     },
     label: { fontWeight: '700', color: 'text', _focus: { color: 'accent' } },

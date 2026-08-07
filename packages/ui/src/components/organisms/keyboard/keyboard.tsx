@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { webWindow } from '#ui/lib/dom';
 import { useHardwareKeys } from '#ui/lib/focus-remote';
+import type { KeyboardSize } from './key';
 import type { KeyboardLayout } from './keyboard-layouts';
 import { SearchKeyboard } from './search-keyboard';
 import { UrlKeyboard } from './url-keyboard';
@@ -70,6 +71,8 @@ interface OnScreenKeyboardProps {
   /** Whether a real keyboard is attached, so typing bypasses the keys. Never
    *  true on a TV shell; a browser workbench passes it. */
   physicalKeyboard?: boolean;
+  /** The key scale: `sm` for arm's length, `tv` for across a room. */
+  size?: KeyboardSize;
 }
 
 /** The caller owns the text value; each key mutates it through `onChange`, and
@@ -84,11 +87,18 @@ function OnScreenKeyboard({
   submitLabel,
   letters = 'abc',
   physicalKeyboard = false,
+  size = 'sm',
 }: Readonly<OnScreenKeyboardProps>) {
   usePhysicalTyping(value, onChange, physicalKeyboard);
 
   return layout === 'search' ? (
-    <SearchKeyboard value={value} onChange={onChange} onClose={onClose} layout={letters} />
+    <SearchKeyboard
+      value={value}
+      onChange={onChange}
+      onClose={onClose}
+      layout={letters}
+      size={size}
+    />
   ) : (
     <UrlKeyboard
       value={value}
@@ -96,6 +106,7 @@ function OnScreenKeyboard({
       onSubmit={onSubmit}
       submitLabel={submitLabel}
       layout={letters}
+      size={size}
     />
   );
 }

@@ -1,4 +1,4 @@
-export type { KeyProps, KeyTone } from './key';
+export type { KeyboardSize, KeyProps, KeyTone } from './key';
 export { Key, keyFace } from './key';
 export type { OnScreenKeyboardProps } from './keyboard';
 export { OnScreenKeyboard } from './keyboard';

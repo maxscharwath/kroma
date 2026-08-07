@@ -2,10 +2,9 @@
 // specials, and a submit button on the tail row.
 
 import { Button } from '#ui/components/atoms/button';
-import { styles } from '#ui/core';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
 import { useTDefault } from '#ui/services/i18n';
-import { KEY, KEY_ROW_W, Key } from './key';
+import { Key, type KeyboardSize, keyMetrics, keyRowWidth } from './key';
 import { DELETE_KEY, type KeyboardLayout, urlRows } from './keyboard-layouts';
 
 interface UrlKeyboardProps {
@@ -14,6 +13,7 @@ interface UrlKeyboardProps {
   onSubmit?: () => void;
   submitLabel?: string;
   layout: KeyboardLayout;
+  size: KeyboardSize;
 }
 
 function UrlKeyboard({
@@ -22,7 +22,19 @@ function UrlKeyboard({
   onSubmit,
   submitLabel,
   layout,
+  size,
 }: Readonly<UrlKeyboardProps>) {
+  const m = keyMetrics(size);
+  // Built per size, not at module scope: the box is the size's, and both
+  // grids read it from the one table in ./key.
+  const s = {
+    column: { gap: m.gap, width: keyRowWidth(size), alignSelf: 'center' },
+    key: { height: m.height, flex: 1 },
+    keyText: { fontSize: m.fontSize },
+    clearKey: { height: m.height, flex: 2 },
+    submit: { height: m.height, flex: 3 },
+    keyRow: { flexDirection: 'row', gap: m.gap },
+  } as const;
   // The keyboard is kit chrome: it must not make <I18nProvider> a mount
   // requirement for every screen that shows a keyboard.
   const t = useTDefault();
@@ -42,7 +54,7 @@ function UrlKeyboard({
               key={k}
               label={k === DELETE_KEY ? t('common.delete') : k}
               icon={k === DELETE_KEY ? 'backspace' : undefined}
-              iconSize={26}
+              iconSize={m.glyph}
               autoFocus={rowIndex === 0 && keyIndex === 0}
               onPress={() => press(k)}
               style={s.key}
@@ -60,7 +72,7 @@ function UrlKeyboard({
         <Key
           label={t('common.clear')}
           icon="eraser"
-          iconSize={24}
+          iconSize={m.glyph - 2}
           onPress={() => onChange('')}
           style={s.clearKey}
           tone="url"
@@ -79,18 +91,6 @@ function UrlKeyboard({
     </FocusColumn>
   );
 }
-
-const s = styles({
-  // The column measures itself off the ten-key row, so the grid is the same
-  // object in a workbench story and on a 4K stage, and the flex keys below
-  // always have a width to divide.
-  column: { gap: KEY.gap, w: KEY_ROW_W, self: 'center' },
-  key: { h: KEY.height, flex: 1 },
-  keyText: { fontSize: 19 },
-  clearKey: { h: KEY.height, flex: 2 },
-  submit: { h: KEY.height, flex: 3 },
-  keyRow: { row: true, gap: KEY.gap },
-});
 
 export type { UrlKeyboardProps };
 export { UrlKeyboard };

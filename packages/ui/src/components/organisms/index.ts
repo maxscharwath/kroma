@@ -7,6 +7,7 @@ export type { DrawerProps, DrawerSide } from './drawer';
 export { Drawer } from './drawer';
 export type {
   KeyboardLayout,
+  KeyboardSize,
   KeyProps,
   KeyTone,
   OnScreenKeyboardProps,

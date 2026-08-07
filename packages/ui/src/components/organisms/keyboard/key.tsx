@@ -8,17 +8,30 @@ import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, styles, svFor } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
 
+/** A keyboard's scale: `sm` is arm's length, `tv` is across a room. */
+type KeyboardSize = 'sm' | 'tv';
+
 /**
- * One key box and one gap for BOTH grids, so a keyboard is the same object
- * whichever layout it is showing. Fixed rather than flex: every grid has a
- * ten-key digits row, so a flex-sized key made the letters of a shorter row
- * wider than the digits above them, and a grid with no parent width to
+ * One key box and one gap per size, for BOTH grids, so a keyboard is the same
+ * object whichever layout it is showing. Fixed rather than flex: every grid
+ * has a ten-key digits row, so a flex-sized key made the letters of a shorter
+ * row wider than the digits above them, and a grid with no parent width to
  * divide collapsed to its glyphs.
  */
-export const KEY = { width: 44, height: 48, gap: 8 } as const;
+const KEY_SIZES = {
+  sm: { width: 44, height: 48, gap: 8, fontSize: 19, glyph: 22 },
+  tv: { width: 78, height: 74, gap: 12, fontSize: 30, glyph: 34 },
+} as const satisfies Record<KeyboardSize, Readonly<Record<string, number>>>;
+
+function keyMetrics(size: KeyboardSize) {
+  return KEY_SIZES[size];
+}
 
 /** The width of a ten-key row: what a grid measures itself against. */
-export const KEY_ROW_W = KEY.width * 10 + KEY.gap * 9;
+function keyRowWidth(size: KeyboardSize): number {
+  const { width, gap } = KEY_SIZES[size];
+  return width * 10 + gap * 9;
+}
 
 // The focused key: the URL keyboard tints amber, the search keyboard fills solid
 // for a stronger 10-foot cue at its larger size.
@@ -102,5 +115,5 @@ const keyStyles = styles({
   label: { fontWeight: '700' },
 });
 
-export type { KeyProps, KeyTone };
-export { Key, keyFace };
+export type { KeyboardSize, KeyProps, KeyTone };
+export { Key, keyFace, keyMetrics, keyRowWidth };

@@ -2,7 +2,7 @@
 
 use super::*;
 
-use kroma_domain::{Season, Show, ShowDetail};
+use kroma_domain::{Season, Show, ShowDetail, SplashEntry};
 
 // Callers append their own `WHERE`/`ORDER BY` and map rows with `row_to_show_counted`.
 const SHOWS_COUNTED_SELECT: &str = "SELECT s.id,s.title,s.year,s.library,s.added_at,\
@@ -318,6 +318,61 @@ fn query_items(pool: &Pool, base: &str, library: Option<&str>, tail: &str) -> Re
     };
     attach_files_batch(&conn, &mut items)?;
     Ok(items)
+}
+
+
+/// A random sample of backdrop-carrying titles for the anonymous sign-in
+/// splash, captions overlaid in `locale`. A fixed-size random sample, never a
+/// listing: the one catalogue read served without a session.
+pub fn splash_entries(pool: &Pool, limit: u32, locale: &str) -> Result<Vec<SplashEntry>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        // The scan only knows a year when the file name carried one (shows
+        // rarely do); the enriched release date fills the gap.
+        "SELECT kind, id, title, year, backdrop_url, rating FROM (\
+            SELECT 'movie' AS kind, i.id AS id, i.title AS title, \
+                   COALESCE(i.year, NULLIF(CAST(substr(mc.release_date,1,4) AS INTEGER),0)) AS year, \
+                   mc.backdrop_url AS backdrop_url, mc.rating AS rating \
+              FROM items i JOIN metadata_core mc \
+                ON mc.subject_kind='item' AND mc.subject_id=i.id \
+             WHERE i.kind='movie' AND mc.backdrop_url IS NOT NULL \
+            UNION ALL \
+            SELECT 'show', s.id, s.title, \
+                   COALESCE(s.year, NULLIF(CAST(substr(mc.release_date,1,4) AS INTEGER),0)), \
+                   mc.backdrop_url, mc.rating \
+              FROM shows s JOIN metadata_core mc \
+                ON mc.subject_kind='show' AND mc.subject_id=s.id \
+             WHERE mc.backdrop_url IS NOT NULL) \
+         ORDER BY RANDOM() LIMIT ?1",
+    )?;
+    let mut entries: Vec<(String, SplashEntry)> = stmt
+        .query_map([limit], |r| {
+            Ok((
+                r.get::<_, String>(1)?,
+                SplashEntry {
+                    kind: r.get(0)?,
+                    title: r.get(2)?,
+                    year: r.get(3)?,
+                    backdrop_url: r.get(4)?,
+                    rating: r.get(5)?,
+                },
+            ))
+        })?
+        .collect::<rusqlite::Result<_>>()?;
+
+    for (subject, kind) in [(metadata_core::ITEM, "movie"), (metadata_core::SHOW, "show")] {
+        let ids: Vec<&str> =
+            entries.iter().filter(|(_, e)| e.kind == kind).map(|(id, _)| id.as_str()).collect();
+        let tr = translations::resolve_many(&conn, subject, &ids, locale)?;
+        for (id, entry) in entries.iter_mut() {
+            if entry.kind == kind {
+                if let Some(title) = tr.get(id).and_then(|d| d.title.clone()) {
+                    entry.title = title;
+                }
+            }
+        }
+    }
+    Ok(entries.into_iter().map(|(_, e)| e).collect())
 }
 
 #[cfg(test)]

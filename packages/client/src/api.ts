@@ -88,6 +88,7 @@ import type {
   SettingsView,
   Show,
   ShowDetail,
+  SplashEntry,
   StorageInfo,
   SubscribeBody,
   TopUser,
@@ -225,6 +226,11 @@ export class KromaClient {
 
   health(init?: RequestInit): Promise<Health> {
     return media.health(this.ctx, init);
+  }
+
+  /** Anonymous sign-in splash art (`GET /api/splash`), usable before login. */
+  splash(): Promise<SplashEntry[]> {
+    return media.splash(this.ctx);
   }
   /** Modules on this server with their enabled flag + capabilities; drives the admin's data-driven ADD flows. */
   modules(): Promise<ModuleInfo[]> {

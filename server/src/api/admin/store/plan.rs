@@ -143,6 +143,31 @@ impl<'a> Planner<'a> {
     /// The second list is the requirements no available module can satisfy.
     fn optional(&self) -> (Vec<Value>, Vec<Value>) {
         let mut seen = HashSet::new();
+        let mut rows = self.declared_optional_rows(&mut seen);
+        let provided = self.provided_after_plan();
+        let mut missing = Vec::new();
+        for p in &self.plan {
+            for (kind, want) in &p.entry.requires {
+                if let Some(gap) = self.requirement_rows(
+                    kind,
+                    want.as_deref(),
+                    &p.entry.name,
+                    &provided,
+                    &mut seen,
+                    &mut rows,
+                ) {
+                    missing.push(gap);
+                }
+            }
+        }
+        // HashMap iteration order would otherwise reshuffle the dialog per call.
+        rows.sort_by(|a, b| {
+            a.get("name").and_then(Value::as_str).cmp(&b.get("name").and_then(Value::as_str))
+        });
+        (rows, missing)
+    }
+
+    fn declared_optional_rows(&self, seen: &mut HashSet<String>) -> Vec<Value> {
         let mut rows = Vec::new();
         for p in &self.plan {
             for (dep_id, _) in &p.entry.optional_depends_on {
@@ -154,47 +179,50 @@ impl<'a> Planner<'a> {
                 }
             }
         }
-        // What the server will provide once this plan lands: the present
-        // capabilities plus everything the planned modules declare.
-        let provided: Vec<(String, String)> = self
-            .present_provides
+        rows
+    }
+
+    // What the server will provide once this plan lands: the present
+    // capabilities plus everything the planned modules declare.
+    fn provided_after_plan(&self) -> Vec<(String, String)> {
+        self.present_provides
             .iter()
             .cloned()
             .chain(self.plan.iter().flat_map(|p| p.entry.provides.iter().cloned()))
+            .collect()
+    }
+
+    fn requirement_rows(
+        &self,
+        kind: &str,
+        want: Option<&str>,
+        for_name: &str,
+        provided: &[(String, String)],
+        seen: &mut HashSet<String>,
+        rows: &mut Vec<Value>,
+    ) -> Option<Value> {
+        let matches = |k: &str, id: &str| k == kind && want.is_none_or(|w| w == id);
+        if provided.iter().any(|(k, id)| matches(k, id)) {
+            return None;
+        }
+        let candidates: Vec<&CatalogModule> = self
+            .by_id
+            .values()
+            .filter(|e| e.provides.iter().any(|(k, id)| matches(k, id)))
+            .filter_map(|e| self.offerable(&e.id))
             .collect();
-        let mut missing = Vec::new();
-        for p in &self.plan {
-            for (kind, want) in &p.entry.requires {
-                let matches =
-                    |k: &str, id: &str| k == kind && want.as_deref().is_none_or(|w| w == id);
-                if provided.iter().any(|(k, id)| matches(k, id)) {
-                    continue;
-                }
-                let candidates: Vec<&CatalogModule> = self
-                    .by_id
-                    .values()
-                    .filter(|e| e.provides.iter().any(|(k, id)| matches(k, id)))
-                    .filter_map(|e| self.offerable(&e.id))
-                    .collect();
-                if candidates.is_empty() {
-                    missing.push(json!({ "kind": kind, "id": want, "for": p.entry.name }));
-                    continue;
-                }
-                // A lone candidate arrives pre-checked in the dialog: it is the
-                // only way to satisfy the requirement.
-                let suggested = candidates.len() == 1;
-                for entry in candidates {
-                    if seen.insert(entry.id.clone()) {
-                        rows.push(optional_row(entry, Some(kind), &p.entry.name, suggested));
-                    }
-                }
+        if candidates.is_empty() {
+            return Some(json!({ "kind": kind, "id": want, "for": for_name }));
+        }
+        // A lone candidate arrives pre-checked in the dialog: it is the
+        // only way to satisfy the requirement.
+        let suggested = candidates.len() == 1;
+        for entry in candidates {
+            if seen.insert(entry.id.clone()) {
+                rows.push(optional_row(entry, Some(kind), for_name, suggested));
             }
         }
-        // HashMap iteration order would otherwise reshuffle the dialog per call.
-        rows.sort_by(|a, b| {
-            a.get("name").and_then(Value::as_str).cmp(&b.get("name").and_then(Value::as_str))
-        });
-        (rows, missing)
+        None
     }
 }
 
@@ -281,23 +309,13 @@ mod tests {
 
     fn module(id: &str, version: &str) -> CatalogModule {
         CatalogModule {
-            id: id.into(),
-            name: id.into(),
-            version: version.into(),
-            description: String::new(),
-            min_server: None,
-            library: false,
-            icon: None,
-            depends_on: Vec::new(),
-            optional_depends_on: Vec::new(),
-            provides: Vec::new(),
-            requires: Vec::new(),
             artifacts: vec![Artifact {
                 target: None,
                 url: format!("https://x/{id}.kmod"),
                 size: Some(10),
                 sha256: Some("00".into()),
             }],
+            ..catalog::test_module(id, version)
         }
     }
 

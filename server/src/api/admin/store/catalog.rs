@@ -258,6 +258,26 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
     })
 }
 
+// Bare catalog entry for the store tests; each test sets what it needs via
+// struct update.
+#[cfg(test)]
+pub(super) fn test_module(id: &str, version: &str) -> CatalogModule {
+    CatalogModule {
+        id: id.into(),
+        name: id.into(),
+        version: version.into(),
+        description: String::new(),
+        min_server: None,
+        library: false,
+        icon: None,
+        depends_on: Vec::new(),
+        optional_depends_on: Vec::new(),
+        provides: Vec::new(),
+        requires: Vec::new(),
+        artifacts: Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

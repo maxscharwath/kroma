@@ -213,20 +213,7 @@ mod tests {
     }
 
     fn module(id: &str, version: &str) -> CatalogModule {
-        CatalogModule {
-            id: id.into(),
-            name: id.into(),
-            version: version.into(),
-            description: String::new(),
-            min_server: None,
-            library: false,
-            icon: None,
-            depends_on: Vec::new(),
-            optional_depends_on: Vec::new(),
-            provides: Vec::new(),
-            requires: Vec::new(),
-            artifacts: Vec::new(),
-        }
+        catalog::test_module(id, version)
     }
 
     // Drives `merge_one`, the same step `fetch_all` walks the registry list with.

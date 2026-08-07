@@ -88,20 +88,33 @@ pub fn sample(tpl: &NamingTemplates) -> SampleNames {
     }
 }
 
+// Everything both walks below read: templates, library roots, show titles and
+// the item list.
+struct OrganizeInputs {
+    tpl: NamingTemplates,
+    folders: HashMap<String, Vec<PathBuf>>,
+    shows_by_id: HashMap<String, (String, Option<u32>)>,
+    items: Vec<MediaItem>,
+}
+
+fn inputs<S: HostCtx>(state: &S) -> Result<OrganizeInputs> {
+    let shows = db::list_shows(state.db(), None)?;
+    Ok(OrganizeInputs {
+        tpl: NamingTemplates::from_host(state),
+        folders: state
+            .library_folders()
+            .into_iter()
+            .map(|d| (d.id, d.folders.into_iter().map(PathBuf::from).collect()))
+            .collect(),
+        shows_by_id: show_info(&shows),
+        items: db::list_items(state.db(), None)?,
+    })
+}
+
 /// Compute the rename plan: every library file whose current path doesn't match
 /// the configured templates. Non-destructive.
 pub fn plan<S: HostCtx>(state: &S) -> Result<OrganizePlan> {
-    let tpl = NamingTemplates::from_host(state);
-    let folders: HashMap<String, Vec<PathBuf>> = state
-        .library_folders()
-        .into_iter()
-        .map(|d| (d.id, d.folders.into_iter().map(PathBuf::from).collect()))
-        .collect();
-
-    let shows = db::list_shows(state.db(), None)?;
-    let shows_by_id = show_info(&shows);
-    let items = db::list_items(state.db(), None)?;
-
+    let OrganizeInputs { tpl, folders, shows_by_id, items } = inputs(state)?;
     let mut moves = Vec::new();
     let (mut total, mut matching) = (0u32, 0u32);
     for item in &items {
@@ -135,16 +148,7 @@ pub fn plan<S: HostCtx>(state: &S) -> Result<OrganizePlan> {
 /// rename preserves the inode; item ids are title/year-based so watched/progress
 /// survive). Emptied source folders are pruned; a scan is chained afterward.
 pub fn apply<S: HostCtx>(state: &S, log: &dyn Fn(String)) -> Result<OrganizeResult> {
-    let tpl = NamingTemplates::from_host(state);
-    let folders: HashMap<String, Vec<PathBuf>> = state
-        .library_folders()
-        .into_iter()
-        .map(|d| (d.id, d.folders.into_iter().map(PathBuf::from).collect()))
-        .collect();
-    let shows = db::list_shows(state.db(), None)?;
-    let shows_by_id = show_info(&shows);
-    let items = db::list_items(state.db(), None)?;
-
+    let OrganizeInputs { tpl, folders, shows_by_id, items } = inputs(state)?;
     let mut result = OrganizeResult { moved: 0, failed: 0, errors: Vec::new() };
     for item in &items {
         for file in &item.files {

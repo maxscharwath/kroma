@@ -24,6 +24,7 @@ import {
 import { join } from 'node:path';
 import { $ } from 'bun';
 import { root } from './root';
+import { byCodeUnit } from './sort';
 
 const outDir = join(root, 'dist/modules');
 const modulesRoot = join(root, 'modules');
@@ -201,7 +202,7 @@ function tarEntryList(
   const walk = (rel: string) => {
     if (statSync(join(staging, rel)).isDirectory()) {
       out.push({ name: `${rel}/`, dir: true, mode: 0o755 });
-      for (const child of readdirSync(join(staging, rel)).sort()) {
+      for (const child of readdirSync(join(staging, rel)).sort(byCodeUnit)) {
         walk(`${rel}/${child}`);
       }
     } else {
@@ -210,7 +211,7 @@ function tarEntryList(
       out.push({ name: rel, dir: false, mode: rel === 'module' ? 0o755 : 0o644 });
     }
   };
-  for (const entry of [...entries].sort()) {
+  for (const entry of [...entries].sort(byCodeUnit)) {
     walk(entry);
   }
   return out;

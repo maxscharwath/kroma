@@ -97,7 +97,7 @@ export function InvitePage() {
     <main className={PAGE_MAIN}>
       <PageHeader title={t('nav.inviteUser')} subtitle={t('admin.inviteIntro')} />
 
-      <div className="mt-6 grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]">
+      <div className="mt-6">
         <Surface elevated pad="none" radius={16} px={22} py={20} gap={18} minW={0}>
           <Box gap={10}>
             <Txt variant="label">{t('admin.permissions')}</Txt>
@@ -146,23 +146,16 @@ export function InvitePage() {
               </Txt>
             ) : null}
           </Row>
+          {created ? (
+            <>
+              <Divider />
+              <Box gap={14}>
+                <Txt variant="label">{t('admin.inviteLink')}</Txt>
+                <CreatedLink link={created.link} expiresAt={created.expiresAt} />
+              </Box>
+            </>
+          ) : null}
         </Surface>
-
-        <div className="xl:sticky xl:top-5">
-          <Surface elevated pad="none" radius={16} p={20} gap={14}>
-            <Txt variant="label">{t('admin.inviteLink')}</Txt>
-            {created ? (
-              <CreatedLink link={created.link} expiresAt={created.expiresAt} />
-            ) : (
-              <EmptyState
-                icon="mail-forward"
-                title={t('admin.inviteNoLink')}
-                hint={t('admin.inviteNoLinkHint')}
-                fill
-              />
-            )}
-          </Surface>
-        </div>
       </div>
 
       {pending ? (

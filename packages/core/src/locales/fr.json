@@ -958,8 +958,6 @@
   "admin.inviteExpiryDays": "{count} jours",
   "admin.inviteExpiryDays_one": "{count} jour",
   "admin.inviteShareHint": "Envoie ce lien à la personne invitée. Il ne peut être utilisé qu'une seule fois.",
-  "admin.inviteNoLink": "Le lien apparaîtra ici",
-  "admin.inviteNoLinkHint": "Choisis les permissions, puis crée le lien d'invitation.",
   "admin.inviteDaysLeft": "{count} jours restants",
   "admin.inviteDaysLeft_one": "{count} jour restant",
   "admin.inviteBy": "Créée par {name}",

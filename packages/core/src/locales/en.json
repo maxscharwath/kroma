@@ -957,8 +957,6 @@
   "admin.inviteExpiryDays": "{count} days",
   "admin.inviteExpiryDays_one": "{count} day",
   "admin.inviteShareHint": "Send this link to the person you're inviting. It can only be used once.",
-  "admin.inviteNoLink": "The link will appear here",
-  "admin.inviteNoLinkHint": "Pick the permissions, then create the invitation link.",
   "admin.inviteDaysLeft": "{count} days left",
   "admin.inviteDaysLeft_one": "{count} day left",
   "admin.inviteBy": "Created by {name}",

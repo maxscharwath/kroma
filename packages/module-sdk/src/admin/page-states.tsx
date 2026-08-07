@@ -49,6 +49,7 @@ export function ModuleFailed({ retry }: Readonly<{ retry?: () => void }>) {
   const t = useT();
   return (
     <EmptyState
+      fill
       icon="alert-triangle"
       title={t('modules.loadFailed')}
       hint={t('modules.loadFailedHint')}

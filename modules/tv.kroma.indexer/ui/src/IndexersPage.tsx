@@ -8,6 +8,8 @@ import {
   Denied,
   type EngineCapability,
   type MessageKey,
+  ModuleFailed,
+  ModuleLoading,
   useCap,
   useEnabledEngines,
   usePoll,
@@ -43,10 +45,18 @@ export default function IndexersPage() {
   const engines = useEnabledEngines('indexer-engine');
   const [tests, setTests] = useState<Record<string, TestState>>({});
 
-  const { data, reload } = usePoll(['admin', 'indexers'], () => indexerApi.list(), 30000);
+  const { data, loading, failed, reload } = usePoll(
+    ['admin', 'indexers'],
+    () => indexerApi.list(),
+    30000,
+  );
 
   if (!canManage) return <Denied />;
-  const indexers = data?.indexers ?? [];
+  // Before the first answer there is no list to be empty: an empty state here
+  // would read as "you have no indexers", which is a claim we cannot make yet.
+  if (!data) return failed ? <ModuleFailed retry={reload} /> : <ModuleLoading />;
+  const indexers = data.indexers;
+  void loading;
 
   const toggle = (ix: IndexerView, enabled: boolean) => {
     indexerApi

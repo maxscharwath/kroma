@@ -7,6 +7,8 @@
 import {
   apiErrorText,
   Denied,
+  ModuleFailed,
+  ModuleLoading,
   SettingsView,
   useAsyncAction,
   useCap,
@@ -40,7 +42,7 @@ export function VpnCard() {
   const vpn = useVpnApi();
   const [modal, setModal] = useState(false);
   const [test, setTest] = useState<{ busy?: boolean; result?: VpnTestResult; error?: string }>({});
-  const { data, reload } = usePoll(['admin', 'vpn'], () => vpn.status(), 30000);
+  const { data, failed, reload } = usePoll(['admin', 'vpn'], () => vpn.status(), 30000);
 
   const runTest = () => {
     setTest({ busy: true });
@@ -50,9 +52,12 @@ export function VpnCard() {
       .catch((e) => setTest({ error: apiErrorText(e, t('vpn.testFailed')) }));
   };
 
+  // Before the first answer, `wgConfigured: false` would paint the whole
+  // not-configured card - a claim about the server we cannot make yet.
+  if (!data) return failed ? <ModuleFailed retry={reload} /> : <ModuleLoading panels={1} />;
   const state = data;
-  const configured = state?.wgConfigured ?? false;
-  const connected = state?.status?.connected ?? false;
+  const configured = state.wgConfigured;
+  const connected = state.status?.connected ?? false;
 
   return (
     <Surface elevated border="border" pad="none" p={18} mb={20}>

@@ -1,7 +1,7 @@
 // Admin naming: edit the naming templates with a live sample, then preview and
 // apply a library-wide rename.
 
-import { apiErrorText, Denied, useCap, useT } from '@kroma/module-sdk';
+import { apiErrorText, Denied, ModuleFailed, ModuleLoading, useCap, useT } from '@kroma/module-sdk';
 import { Button, confirm, Field, PageHeader, Section, Select, Surface } from '@kroma/ui/kit';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
@@ -33,6 +33,7 @@ export default function NamingPage() {
   const canManage = useCap('library.manage');
 
   const [tpl, setTpl] = useState<NamingTemplatesView | null>(null);
+  const [failed, setFailed] = useState(false);
   const [sample, setSample] = useState<{ movie: string; episode: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -44,7 +45,7 @@ export default function NamingPage() {
         setTpl(v.templates);
         setSample(v.sample);
       })
-      .catch(() => undefined);
+      .catch(() => setFailed(true));
   }, [torrents]);
 
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -95,6 +96,7 @@ export default function NamingPage() {
   };
 
   if (!canManage) return <Denied />;
+  if (!tpl) return failed ? <ModuleFailed /> : <ModuleLoading />;
 
   return (
     <>

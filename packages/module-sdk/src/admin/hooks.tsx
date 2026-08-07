@@ -6,14 +6,17 @@ import { useCallback, useRef, useState } from 'react';
 import { useAdminHost } from './context';
 
 /** Polls `fn` every `intervalMs` through TanStack Query. Prefix `key` with `'admin'`
- * so `invalidateQueries(['admin'])` refreshes it, and put varying inputs in `key`. */
+ * so `invalidateQueries(['admin'])` refreshes it, and put varying inputs in `key`.
+ *
+ * `loading` is true only until the FIRST answer; a later poll that fails leaves
+ * the last good `data` in place and raises `failed`. */
 export function usePoll<T>(
   key: QueryKey,
   fn: () => Promise<T>,
   intervalMs: number,
-): { data: T | null; reload: () => Promise<void> } {
+): { data: T | null; loading: boolean; failed: boolean; reload: () => Promise<void> } {
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: key,
     queryFn: fn,
     refetchInterval: intervalMs,
@@ -29,7 +32,10 @@ export function usePoll<T>(
     () => queryClient.invalidateQueries({ queryKey: keyRef.current }),
     [queryClient],
   );
-  return { data: data ?? null, reload };
+  // `loading` and `failed` are what a page needs to avoid answering with a
+  // LIE while the first fetch is out: an empty list and "not configured" are
+  // both statements about the data, and neither is true yet.
+  return { data: data ?? null, loading: isPending, failed: isError, reload };
 }
 
 /** `run(fn, onError?)` flips `busy` while `fn` runs and, on failure, sets `error` to `onError(e)`. */

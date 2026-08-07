@@ -7,6 +7,7 @@ import type { MessageKey, SettingGroup, SettingRow } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,
+  CardSkeleton,
   Divider,
   Field,
   Focusable,
@@ -20,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { useAdminHost } from './context';
 import { Denied } from './denied';
 import { useCap } from './hooks';
+import { ModuleFailed, ModuleLoading } from './page-states';
 
 interface SettingsViewProps {
   view: string;
@@ -50,22 +52,29 @@ export function SettingsView(props: Readonly<SettingsViewProps>) {
 function SettingsViewInner({ view, titleKey, subtitleKey, embedded }: Readonly<SettingsViewProps>) {
   const t = useT();
   const { client } = useAdminHost();
-  const [groups, setGroups] = useState<SettingGroup[]>([]);
+  // `null` is "not answered yet"; an empty array is a view with no groups.
+  const [groups, setGroups] = useState<SettingGroup[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // One fetch, reused as the retry: a view that failed offers to ask again
+  // rather than stranding the page on an empty panel.
+  const [attempt, setAttempt] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is an intentional re-run key (the retry), not something the effect reads
   useEffect(() => {
     let active = true;
+    setFailed(false);
     client
       .adminSettings(view)
       .then((r) => active && setGroups(r.groups))
-      .catch(() => undefined);
+      .catch(() => active && setFailed(true));
     return () => {
       active = false;
     };
-  }, [client, view]);
+  }, [client, view, attempt]);
 
   function set(key: string, value: unknown) {
-    setGroups((gs) => applySetting(gs, key, value));
+    setGroups((gs) => (gs ? applySetting(gs, key, value) : gs));
     client
       .updateSettings({ [key]: value })
       .then(() => {
@@ -73,6 +82,13 @@ function SettingsViewInner({ view, titleKey, subtitleKey, embedded }: Readonly<S
         setTimeout(() => setSaved(false), 1500);
       })
       .catch(() => undefined);
+  }
+
+  // Before the first answer there is nothing to show and nothing to claim: an
+  // empty page would read as a settings view with no settings in it.
+  if (!groups) {
+    if (failed) return <ModuleFailed retry={() => setAttempt((n) => n + 1)} />;
+    return embedded ? <CardSkeleton fields={3} /> : <ModuleLoading panels={2} />;
   }
 
   return (

@@ -3,7 +3,15 @@
 // status banner, aggregate stat cards and the download-clients section.
 
 import { formatBytes } from '@kroma/core';
-import { useCap, usePoll, useServerEvents, useT } from '@kroma/module-sdk';
+import {
+  Denied,
+  ModuleFailed,
+  ModuleLoading,
+  useCap,
+  usePoll,
+  useServerEvents,
+  useT,
+} from '@kroma/module-sdk';
 import type { VpnStatusEvent } from '@kroma/module-vpn/schemas';
 import {
   Button,
@@ -38,7 +46,11 @@ export default function DownloadsPage() {
   const [manual, setManual] = useState(false);
 
   // Slow poll = reconnect/missed-event safety net; progress rides the WS.
-  const { data, reload } = usePoll(['admin', 'downloads'], () => torrents.downloads(), 10000);
+  const { data, failed, reload } = usePoll(
+    ['admin', 'downloads'],
+    () => torrents.downloads(),
+    10000,
+  );
 
   const lastReloadRef = useRef(0);
   const throttledReload = useCallback(() => {
@@ -95,7 +107,8 @@ export default function DownloadsPage() {
   const totalUp = activeRows.reduce((sum, d) => sum + (live[d.id]?.upBps ?? d.upBps), 0);
   const vpn = data?.vpn ?? null;
 
-  if (!canQueue) return null;
+  if (!canQueue) return <Denied />;
+  if (!data) return failed ? <ModuleFailed retry={reload} /> : <ModuleLoading />;
 
   return (
     <>

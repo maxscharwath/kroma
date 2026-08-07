@@ -53,7 +53,10 @@ export function AuthScreen({ children }: Readonly<{ children: ReactNode }>) {
   const covers = useSplashCovers();
   return (
     <Box fill z={10} style={gradient(BACKDROP)}>
-      <SplashBackdrop covers={covers} />
+      {/* Auth content (lists, keyboards, hints) descends into the ribbon
+          zone on a TV, so the splash carries a wash over the ribbons here:
+          muted ink stays AA-readable and the colour still comes through. */}
+      <SplashBackdrop covers={covers} dim={0.45} />
       <FocusScroll style={s.scroll} contentStyle={s.content}>
         {children}
       </FocusScroll>

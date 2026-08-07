@@ -79,6 +79,11 @@ interface SplashBackdropProps {
   holdMs?: number;
   /** The stacked wheel ribbons; a host with a busy screen can turn them off. */
   bands?: boolean;
+  /** 0..1 wash drawn OVER the ribbons. A gate whose content stays in the
+   *  upper half leaves it at 0; a host whose lists, keyboards or hints
+   *  descend into the ribbon zone (the TV auth screens) raises it, so muted
+   *  ink keeps AA contrast without giving up the colour. */
+  dim?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -143,6 +148,7 @@ function SplashBackdrop({
   covers,
   holdMs = HOLD_MS,
   bands = true,
+  dim = 0,
   style,
 }: Readonly<SplashBackdropProps>) {
   const [slide, setSlide] = useState(0);
@@ -205,14 +211,17 @@ function SplashBackdrop({
       ) : null}
       {WEB ? null : <Box absolute top={0} right={0} bottom={0} left={0} bg="rgba(8, 8, 10, 0.5)" />}
       {bands ? <BandStack /> : null}
+      {dim > 0 ? (
+        <Box absolute top={0} right={0} bottom={0} left={0} bg={`rgba(8, 8, 10, ${dim})`} />
+      ) : null}
       {cover.caption ? (
         <Box absolute right={20} bottom={14} row align="center" gap={8}>
           {cover.eyebrow ? (
-            <Txt variant="overline" color="white/40" style={s.eyebrow}>
+            <Txt variant="overline" color="white/55" style={s.eyebrow}>
               {cover.eyebrow}
             </Txt>
           ) : null}
-          <Txt color="white/65" style={s.caption}>
+          <Txt color="white/80" style={s.caption}>
             {cover.caption}
           </Txt>
         </Box>

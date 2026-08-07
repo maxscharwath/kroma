@@ -34,6 +34,7 @@ export default story({
   guidelines: {
     do: [
       'Give the host screen its own readable ground for text the grade alone cannot carry (fields and buttons already bring their fills).',
+      'Raise `dim` when lists, keyboards or hints descend into the ribbon zone (the TV auth screens pass 0.45): muted ink keeps AA contrast and the colour still comes through.',
       'Turn `bands` off when the screen above is itself busy; the artwork alone still reads as KROMA.',
     ],
     dont: [

@@ -124,6 +124,9 @@ jobs:
         if: steps.rustgate.outputs.run == 'true'
         with:
           workspaces: server
+          # The module workspaces' instrumented artifacts (they build into the
+          # shared target/kmod dir; see @kroma/module-tools).
+          cache-directories: ${{ github.workspace }}/target/kmod
           shared-key: server-coverage
           save-if: ${{ github.ref == 'refs/heads/main' }}
 

@@ -17,6 +17,7 @@ import {
   Platform,
   Image as RNImage,
   type StyleProp,
+  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
@@ -48,6 +49,20 @@ const WHEEL_BANDS = [
   { color: 'rgba(99, 102, 241, .30)', top: '80%', height: '30%', drift: 0.8 },
   { color: 'rgba(168, 85, 247, .30)', top: '94%', height: '42%', drift: -0.4 },
 ] as const;
+
+// A portrait phone is mostly HEIGHT: the desktop proportions bury the
+// artwork under two thirds of ribbon, so compact screens take a tighter
+// stack pinned to the lower quarter, same order and tilt.
+const COMPACT_BANDS = [
+  { color: 'rgba(242, 104, 92, .30)', top: '66%', height: '4%', drift: 1 },
+  { color: 'rgba(244, 182, 66, .30)', top: '69%', height: '6%', drift: -0.7 },
+  { color: 'rgba(95, 191, 143, .30)', top: '73%', height: '8%', drift: 0.5 },
+  { color: 'rgba(79, 157, 224, .30)', top: '78%', height: '11%', drift: -1 },
+  { color: 'rgba(99, 102, 241, .30)', top: '84%', height: '15%', drift: 0.8 },
+  { color: 'rgba(168, 85, 247, .30)', top: '91%', height: '26%', drift: -0.4 },
+] as const;
+
+const COMPACT_MAX_W = 600;
 
 interface SplashCover {
   /** Full artwork URL, already resolved against the server. */
@@ -89,9 +104,11 @@ function useLoop(duration: number): Animated.Value {
 
 function BandStack() {
   const clock = useLoop(DRIFT_MS);
+  const { width } = useWindowDimensions();
+  const bands = width > 0 && width < COMPACT_MAX_W ? COMPACT_BANDS : WHEEL_BANDS;
   return (
     <Box absolute style={s.stack}>
-      {WHEEL_BANDS.map((band) => (
+      {bands.map((band) => (
         <Animated.View
           key={band.color}
           style={[

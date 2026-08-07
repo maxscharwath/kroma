@@ -168,7 +168,7 @@ packages/
   core/     re-exports @kroma/client, plus HEVC detection, direct-play, i18n, remote map
   ui/       @kroma/ui — the design system, authored against React Native
   tv/       the whole 10-foot experience (spatial focus nav, home, detail, player)
-  admin-kit module-sdk module-registry bundler workbench push-relay ...
+  module-sdk module-registry bundler workbench push-relay ...
 clients/    thin shells only: web · tizen · webos · tv-web · tv-native · mobile ·
             desktop (Tauri+mpv) · kit · site · synology · tv-build (shared TV pipeline)
 ```

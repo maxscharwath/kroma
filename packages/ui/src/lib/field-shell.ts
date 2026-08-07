@@ -22,10 +22,11 @@ interface ControlMetrics {
    *  beside a transparent select is the difference that reads as "these are
    *  two different kinds of thing".
    *
-   *  Very slightly translucent, so a control over artwork (the sign-in
-   *  screens over their splash) takes a hint of what is behind it without
-   *  sampling it: at this alpha the colour underneath moves the fill by less
-   *  than a shade, so a keyboard is still ONE colour rather than one per key. */
+   *  Translucent, so a control over artwork (the sign-in screens over their
+   *  splash) takes a hint of what is behind it. Every control that wears this
+   *  fill also lays a <Frost> under it, so what shows through is BLURRED: the
+   *  hint is depth, not a legible picture, and a grid of keys still reads as
+   *  one surface rather than one colour per key. */
   bg: `${ControlFill}`;
   /** Corner, in px (a raw number so a class-string consumer can spell it too). */
   radius: number;
@@ -44,7 +45,7 @@ interface ControlMetrics {
 
 /** The shape of every input, per size. Read it rather than re-deriving it:
  *  this table IS the design. */
-const CONTROL_FILL = 'surface2/94' as const;
+const CONTROL_FILL = 'surface2/72' as const;
 type ControlFill = typeof CONTROL_FILL;
 
 export const CONTROL: Record<ControlSize, ControlMetrics> = {

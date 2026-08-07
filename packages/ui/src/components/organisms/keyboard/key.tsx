@@ -3,6 +3,7 @@
 
 import type { TextStyle, ViewStyle } from 'react-native';
 import { Focusable } from '#ui/components/atoms/focusable';
+import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, styles, svFor } from '#ui/core';
@@ -44,7 +45,15 @@ const keyFace = svFor<{
     // The same well the field above sits in (lib/field-shell), opaque: a key
     // is a control, not a wash. Over artwork a translucent tint let every key
     // sample whatever was behind it, so one keyboard arrived in six colours.
-    root: { center: true, radius: 16, bg: CONTROL.md.bg },
+    // A hairline edge and a lift: the fill is translucent, so without them a
+    // key dissolves into whatever artwork it is sitting on.
+    root: {
+      center: true,
+      radius: 16,
+      bg: CONTROL.md.bg,
+      border: 'border',
+      shadow: 'card',
+    },
     glyph: { color: 'text', stroke: 1.8 },
     label: { color: 'text' },
   },
@@ -98,13 +107,18 @@ function Key({
       vars={{ tone }}
       style={style}
     >
-      {({ slots }) =>
-        icon ? (
-          <Icon name={icon} size={iconSize ?? 24} {...slots.glyph} />
-        ) : (
-          <Txt style={[slots.label, keyStyles.label, textStyle]}>{label}</Txt>
-        )
-      }
+      {({ slots }) => (
+        <>
+          {/* The fill is translucent (lib/field-shell), so blur what shows
+              through: a key reads as glass, not as a window on the artwork. */}
+          <Frost radius={16} />
+          {icon ? (
+            <Icon name={icon} size={iconSize ?? 24} {...slots.glyph} />
+          ) : (
+            <Txt style={[slots.label, keyStyles.label, textStyle]}>{label}</Txt>
+          )}
+        </>
+      )}
     </Focusable>
   );
 }

@@ -14,10 +14,11 @@ import type { ReactNode } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
+import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { IconWell } from '#ui/components/atoms/icon-well';
 import { Txt } from '#ui/components/atoms/text';
-import { type StyleDecl, svFor } from '#ui/core';
+import { radius, type StyleDecl, svFor } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
 
 type ListRowSize = 'sm' | 'tv';
@@ -35,12 +36,12 @@ const listRowVariants = svFor<{
       align: 'center',
       radius: 'xl',
       border: 'border',
-      // THE SAME WELL A FIELD SITS IN (lib/field-shell), opaque and taken
-      // from the one table so the two can never drift. A list can sit over
-      // artwork (the signed-out TV screens over the splash): a translucent
-      // fill let each row sample whatever was behind it, so a column of
-      // identical rows arrived in a different colour each.
+      // THE SAME WELL A FIELD SITS IN, taken from the one table
+      // (lib/field-shell) so a row and an input can never drift apart. It is
+      // translucent, so the <Frost> below blurs what shows through and the
+      // lift here keeps the row off the artwork behind it.
       bg: CONTROL.md.bg,
+      shadow: 'card',
       // A solid amber edge rather than a fill, which is why the row draws no
       // ring: a row is wide, and a filled one at the top of a list reads as
       // "selected forever" instead of "focused".
@@ -120,6 +121,9 @@ function ListRow({
     >
       {(state) => (
         <>
+          {/* Blur what shows through the translucent fill: the row reads as
+              one glass surface rather than a window on the artwork. */}
+          <Frost radius={radius.xl} />
           {leading ?? (icon ? <IconWell name={icon} size={size} /> : null)}
           <Box flex gap={2}>
             {children ?? (

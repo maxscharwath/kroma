@@ -6,6 +6,7 @@ import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import { type StyleProp, TextInput, type TextInputProps, type TextStyle } from 'react-native';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
+import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { styles, useTheme } from '#ui/core';
@@ -125,6 +126,8 @@ function TextField({
       radius={metrics.radius}
       bg={metrics.bg}
       borderWidth={1}
+      // The fill is translucent: a lift keeps the field off the artwork.
+      shadow="card"
       {...box}
       // The whole field is the caret's landing zone: tapping the icon or the
       // padding focuses the entry. Only presses no inner control claimed reach
@@ -140,6 +143,9 @@ function TextField({
         box.style,
       ]}
     >
+      {/* The fill is translucent (lib/field-shell), so blur what shows
+          through: a field over artwork reads as glass, not as a window. */}
+      <Frost radius={metrics.radius} />
       {/* The well is fixed at the entry's content height so a leading icon can
           never set the row height. */}
       {icon ? (

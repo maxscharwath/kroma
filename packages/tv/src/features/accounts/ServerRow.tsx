@@ -5,10 +5,12 @@ import {
   Box,
   CONTROL,
   Focusable,
+  Frost,
   Icon,
   type IconName,
   IconWell,
   ListRow,
+  radius,
   Skeleton,
   styles,
   sv,
@@ -50,6 +52,9 @@ export function ServerRow({
       ring={false}
       sv={serverRow}
     >
+      {/* The shell's fill is translucent, so blur what shows through: the row
+          reads as one glass surface, like the <ListRow> under it. */}
+      <Frost radius={radius.xl} />
       <IconWell name="server-2" />
       <Box flex gap={3} style={s.min0}>
         <Box row align="center" gap={9}>
@@ -147,6 +152,7 @@ const serverRow = sv({
     radius: 'xl',
     bg: CONTROL.md.bg,
     border: 'border',
+    shadow: 'card',
     _focus: { border: 'accent' },
   },
   variants: {

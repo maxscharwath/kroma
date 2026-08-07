@@ -15,9 +15,10 @@
 import { SpatialNavigationNode } from 'react-tv-space-navigation';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
+import { Frost } from '#ui/components/atoms/frost';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
-import { type StyleDecl, styles, svFor } from '#ui/core';
+import { radius, type StyleDecl, styles, svFor } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
 import { useTDefault } from '#ui/services/i18n';
@@ -41,6 +42,10 @@ const keypadVariants = svFor<{ root: StyleDecl; label: StyleDecl }>()({
       // opaque: a keypad is a grid of controls, and over artwork a wash let
       // every key sample whatever was behind it.
       bg: CONTROL.md.bg,
+      // A hairline edge and a lift: the fill is translucent, so without them
+      // a key dissolves into whatever artwork it is sitting on.
+      border: 'border',
+      shadow: 'card',
       // A key under the cursor lifts its own wash rather than borrowing the
       // amber: on a PIN pad, amber says "this is where Enter goes".
       _hover: { bg: 'surface3' },
@@ -84,13 +89,18 @@ function Keypad({ onDigit, onDelete, autoFocus = true, disabled }: Readonly<Keyp
       sv={keypadVariants}
       vars={{ kind }}
     >
-      {(state) =>
-        kind === 'delete' ? (
-          <Icon name="backspace" size={30} stroke={1.8} color="textMuted" />
-        ) : (
-          <Txt style={state.slots.label}>{label}</Txt>
-        )
-      }
+      {(state) => (
+        <>
+          {/* The fill is translucent (lib/field-shell), so blur what shows
+              through: the pad reads as glass over the artwork behind it. */}
+          <Frost radius={radius['2xl']} />
+          {kind === 'delete' ? (
+            <Icon name="backspace" size={30} stroke={1.8} color="textMuted" />
+          ) : (
+            <Txt style={state.slots.label}>{label}</Txt>
+          )}
+        </>
+      )}
     </Focusable>
   );
   return (

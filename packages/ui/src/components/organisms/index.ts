@@ -12,6 +12,8 @@ export { Menu } from './menu';
 export { PerfHud } from './perf-hud';
 export type { RailProps } from './rail';
 export { Rail } from './rail';
+export type { SplashBackdropProps, SplashCover } from './splash-backdrop';
+export { SplashBackdrop } from './splash-backdrop';
 export type { ToasterProps, ToastOptions, ToastPosition } from './toast';
 export { Toaster, toast } from './toast';
 export type { VirtualGridProps, VirtualRailProps } from './virtual';

@@ -13,6 +13,8 @@ import { Button, Logo, OtpField } from '@kroma/ui/kit';
 import { IconLock, IconPlus } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { LoginForm, RegisterForm } from '#web/features/accounts/auth-forms';
+import { LoginBackdrop } from '#web/features/accounts/login-backdrop';
+import { LoginSettings } from '#web/features/accounts/login-settings';
 import { UserAvatar } from '#web/features/accounts/user-avatar';
 import { useAuth } from '#web/shared/lib/auth';
 import { passkeysSupported } from '#web/shared/lib/webauthn';
@@ -29,11 +31,20 @@ export function LoginGate() {
   const { ready } = useAuth();
   return (
     <div
-      className="flex min-h-screen w-full flex-col items-center justify-center overflow-y-auto px-6 py-12"
+      className="relative flex min-h-screen w-full overflow-x-hidden"
       style={{ background: RADIAL }}
     >
-      <Brand />
-      {ready ? <GateBody /> : <Spinner />}
+      <LoginBackdrop />
+      <LoginSettings />
+      {/* Centred via the child's auto margins, not justify-center: a centred
+          scroll container clips overflow ABOVE the fold out of reach on short
+          viewports, while my-auto degrades to a normal scroll from the top. */}
+      <div className="relative z-10 flex min-h-screen w-full flex-col items-center overflow-y-auto px-6 py-12">
+        <div className="my-auto flex w-full flex-col items-center">
+          <Brand />
+          {ready ? <GateBody /> : <Spinner />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -41,7 +52,7 @@ export function LoginGate() {
 export function Brand() {
   return (
     <div className="mb-12">
-      <Logo size={24} />
+      <Logo size={38} />
     </div>
   );
 }
@@ -246,7 +257,7 @@ export function GateBody() {
   ];
   return (
     <div className="flex w-full max-w-4xl flex-col items-center">
-      <h1 className="text-center font-display text-[clamp(44px,8vw,76px)] font-bold tracking-[-.02em]">
+      <h1 className="text-center font-display text-[clamp(38px,6vw,58px)] font-bold tracking-[-.02em]">
         {t('auth.whoWatching')}
       </h1>
       <p className="mt-3 mb-12 max-w-xl text-center text-[15px] text-muted">
@@ -289,21 +300,26 @@ export function GateBody() {
               className="group flex flex-col items-center gap-3.5 focus:outline-none"
             >
               <div className="relative w-fit transition-transform duration-200 group-hover:scale-[1.06] group-focus-visible:scale-[1.06]">
-                {/* Shadow/ring live on the avatar itself, not a wrapper, so they trace its rounded box. */}
+                {/* Shadow/ring live on the avatar itself, not a wrapper, so they trace its
+                    rounded box. The ring is an outline rather than a second shadow in the
+                    list: shadows interpolate item by item, so the drop shadow used to melt
+                    into the ring's slot and the ring appeared as a blur first. */}
                 <UserAvatar
                   name={p.username}
                   avatarUrl={p.avatarUrl}
                   seed={p.id}
                   size={146}
                   radius={22}
-                  className="shadow-[0_10px_25px_-8px_rgba(0,0,0,0.6)] transition-shadow duration-200 group-hover:shadow-[0_0_0_4px_var(--kroma-accent),0_10px_25px_-8px_rgba(0,0,0,0.6)] group-focus-visible:shadow-[0_0_0_4px_var(--kroma-accent),0_10px_25px_-8px_rgba(0,0,0,0.6)]"
+                  className="shadow-[0_10px_25px_-8px_rgba(0,0,0,0.6)] outline-4 outline-transparent transition-[outline-color] duration-200 group-hover:outline-accent group-focus-visible:outline-accent"
                 />
                 {p.locked ? (
+                  // Solid surface, never a translucent one: an alpha background
+                  // lets the avatar gradient bleed through and muddies the icon.
                   <span
-                    className="absolute right-2 bottom-2 flex h-[29px] w-[29px] items-center justify-center rounded-full bg-[rgba(10,10,12,0.8)] text-accent"
+                    className="absolute right-2 bottom-2 flex h-[30px] w-[30px] items-center justify-center rounded-full border border-white/12 bg-surface-2 text-accent shadow-[0_3px_10px_rgba(0,0,0,0.5)]"
                     title={t('auth.passwordRequired')}
                   >
-                    <IconLock size={16} stroke={2} />
+                    <IconLock size={15} stroke={2.2} />
                   </span>
                 ) : null}
               </div>
@@ -330,10 +346,14 @@ export function GateBody() {
             }}
             className="group flex flex-col items-center gap-3.5 focus:outline-none"
           >
-            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-2xl border-2 border-dashed border-white/18 text-white/35 transition-transform duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
+            {/* A real glass tile, not a ghost outline: over the splash art and
+                the band stack a bare dashed border disappears. Solid icon
+                colour (flattened): alpha strokes double-paint where an icon's
+                paths overlap. */}
+            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-2xl border-2 border-dashed border-white/35 bg-[rgba(12,12,16,.55)] text-[#BDBCC4] shadow-[0_10px_30px_-12px_rgba(0,0,0,.55)] backdrop-blur-md transition-[transform,border-color,color] duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
               <IconPlus size={46} stroke={1.6} />
             </div>
-            <span className="text-[18px] font-medium text-text/50">{t('auth.addProfile')}</span>
+            <span className="text-[18px] font-medium text-text/80">{t('auth.addProfile')}</span>
           </button>
         </div>
       </div>

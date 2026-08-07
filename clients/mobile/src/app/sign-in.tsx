@@ -3,6 +3,7 @@
 // components; this file owns state, effects and auth calls.
 
 import { apiErrorText, KromaApiError } from '@kroma/core';
+import type { SplashCover } from '@kroma/ui/kit';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { CredentialsPhase, PinPhase } from '#mobile/components/authPhases';
@@ -64,6 +65,31 @@ export default function SignIn() {
   const rosterOnly = roster.filter(
     (u) => !accounts.some((a) => a.serverUrl === serverUrl && a.user.id === u.id),
   );
+
+  // The gate's splash artwork: the current server's public `/api/splash`
+  // sample, the same dressing the web and TV gates wear. No server picked
+  // yet means no covers, and the screen keeps its plain wash.
+  const [covers, setCovers] = useState<SplashCover[]>([]);
+  useEffect(() => {
+    if (!serverUrl) return;
+    let cancelled = false;
+    clientFor(serverUrl)
+      .splash()
+      .then((entries) => {
+        if (cancelled) return;
+        setCovers(
+          entries.map((e) => ({
+            url: e.backdropUrl,
+            caption: [e.title, e.year].filter(Boolean).join(' · '),
+            eyebrow: t(e.kind === 'show' ? 'content.series' : 'content.film'),
+          })),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [serverUrl, clientFor, t]);
 
   const backToGate = () => {
     setPhase({ kind: 'gate' });
@@ -149,7 +175,7 @@ export default function SignIn() {
   ];
 
   return (
-    <OnboardingScreen>
+    <OnboardingScreen covers={covers}>
       {phase.kind === 'gate' && (
         <ProfileGate
           tiles={gateTiles}

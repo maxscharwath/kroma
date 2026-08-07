@@ -91,13 +91,19 @@ export function LoginForm({
 
       {error ? <p className="text-[13px] font-medium text-danger">{error}</p> : null}
 
-      <button
-        type="submit"
+      {/* Hidden native submit keeps Enter-to-submit working; the visible
+          control is the kit Button, so it matches the passkey one below. */}
+      <input type="submit" hidden />
+      <Button
+        block
+        label={busy ? t('auth.loggingIn') : t('auth.login')}
+        loading={busy}
         disabled={busy || !password}
-        className="mt-1 w-full rounded-md bg-accent py-3.5 text-[15px] font-bold text-accent-ink transition-colors hover:bg-accent-hover disabled:opacity-50"
-      >
-        {busy ? t('auth.loggingIn') : t('auth.login')}
-      </button>
+        onPress={() => {
+          if (identifier.trim() && password) onSubmit(identifier.trim(), password);
+        }}
+        style={{ marginTop: 4 }}
+      />
       {canUsePasskey && onPasskey ? (
         <Button
           block

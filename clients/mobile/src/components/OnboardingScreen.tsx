@@ -1,7 +1,7 @@
 // Shared scaffold for the onboarding/login surfaces. The lockup is the one
 // anchor: same size and position on every phase, with content swapping beneath.
 
-import { BackButton, styles } from '@kroma/ui/kit';
+import { BackButton, SplashBackdrop, type SplashCover, styles } from '@kroma/ui/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import {
@@ -21,10 +21,14 @@ import { KromaLockup } from './KromaLockup';
 export function OnboardingScreen({
   keyboardBehavior,
   onBack,
+  covers,
   children,
 }: Readonly<{
   keyboardBehavior?: NonNullable<KeyboardAvoidingViewProps['behavior']>;
   onBack?: () => void;
+  /** Splash artwork behind the phase (see the kit's SplashBackdrop); phases
+   *  without a known server pass nothing and keep the plain wash. */
+  covers?: readonly SplashCover[];
   children: ReactNode;
 }>) {
   const t = useT();
@@ -32,6 +36,7 @@ export function OnboardingScreen({
   const wide = useIsWide();
   return (
     <View style={s.screen}>
+      {covers && covers.length > 0 ? <SplashBackdrop covers={covers} /> : null}
       <LinearGradient
         colors={[colors.accentSoft, SHADE.transparent]}
         style={s.wash}

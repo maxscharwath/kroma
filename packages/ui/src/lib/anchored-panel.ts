@@ -4,7 +4,7 @@
 // roving-highlight keyboard. The panels themselves stay in their components;
 // this file is only what was being written three times.
 
-import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { type AnchorPlacement, placeUnder } from '#ui/lib/anchor';
 import { webWindow } from '#ui/lib/dom';
 import { armEscapeGuard } from '#ui/lib/escape-guard';
@@ -33,9 +33,15 @@ export const PANEL_SHELL = { position: FIXED, zIndex: 100 } as const;
  */
 export function useAnchoredPlacement(
   anchor: RefObject<unknown>,
-  at: { minWidth: number; matchWidth?: boolean; maxHeight: number; align?: 'start' | 'end' },
+  at: {
+    minWidth: number;
+    matchWidth?: boolean;
+    maxHeight: number;
+    align?: 'start' | 'end';
+    grow?: boolean;
+  },
 ): AnchorPlacement | null {
-  const { minWidth, matchWidth = false, maxHeight, align = 'start' } = at;
+  const { minWidth, matchWidth = false, maxHeight, align = 'start', grow = false } = at;
   const [placement, setPlacement] = useState<AnchorPlacement | null>(null);
   // Measured before paint so the panel never flashes at 0,0.
   useLayoutEffect(() => {
@@ -45,7 +51,7 @@ export function useAnchoredPlacement(
     let frame = 0;
     const settle = () => {
       frame = 0;
-      setPlacement(placeUnder(trigger, { minWidth, matchWidth, maxHeight, align }));
+      setPlacement(placeUnder(trigger, { minWidth, matchWidth, maxHeight, align, grow }));
     };
     const queue = () => {
       if (frame === 0) frame = view.requestAnimationFrame(settle);
@@ -58,17 +64,19 @@ export function useAnchoredPlacement(
       view.removeEventListener('resize', queue);
       view.removeEventListener('scroll', queue, true);
     };
-  }, [anchor, minWidth, matchWidth, maxHeight, align]);
+  }, [anchor, minWidth, matchWidth, maxHeight, align, grow]);
   return placement;
 }
 
-/** The panel owns the DOM focus while open; the trigger takes it back after. */
-export function usePanelFocus(panel: RefObject<unknown>, anchor: RefObject<unknown>): void {
+/** Keeps the DOM focus on the trigger for the panel's whole life: the trigger
+ *  owns the keyboard and names the active row, so a portalled panel never
+ *  fights a <Modal>'s focus trap for it. */
+export function useTriggerFocus(anchor: RefObject<unknown>): void {
   useEffect(() => {
-    (panel.current as HTMLElement | null)?.focus?.();
     const trigger = anchor.current as HTMLElement | null;
+    trigger?.focus?.();
     return () => trigger?.focus?.();
-  }, [panel, anchor]);
+  }, [anchor]);
 }
 
 export interface ListKeysAt {
@@ -85,6 +93,9 @@ export interface ListKeysAt {
 export interface PanelKeyEvent {
   nativeEvent: { key: string };
   preventDefault: () => void;
+  /** The DOM event's own. A key the panel answers must not also reach the
+   *  trigger, whose press responder would reopen what it just closed. */
+  stopPropagation?: () => void;
 }
 
 /**
@@ -101,7 +112,7 @@ export function useListKeys(at: ListKeysAt): {
   const live = useRef(at);
   live.current = at;
 
-  const move = (from: number, delta: -1 | 1) => {
+  const move = useCallback((from: number, delta: -1 | 1) => {
     const { count, disabledAt, setActive } = live.current;
     for (let i = from + delta; i >= 0 && i < count; i += delta) {
       if (!disabledAt?.(i)) {
@@ -109,9 +120,9 @@ export function useListKeys(at: ListKeysAt): {
         return;
       }
     }
-  };
+  }, []);
 
-  const typeahead = (key: string) => {
+  const typeahead = useCallback((key: string) => {
     const { count, disabledAt, labelAt, setActive } = live.current;
     if (!labelAt) return;
     const now = Date.now();
@@ -124,34 +135,42 @@ export function useListKeys(at: ListKeysAt): {
         return;
       }
     }
-  };
+  }, []);
 
-  const onKeyDown = (event: PanelKeyEvent) => {
-    const key = event.nativeEvent.key;
-    const { count, active, disabledAt, onPick, onClose } = live.current;
-    if (key === 'ArrowDown') {
-      event.preventDefault();
-      move(active, 1);
-    } else if (key === 'ArrowUp') {
-      event.preventDefault();
-      move(active, -1);
-    } else if (key === 'Home') {
-      event.preventDefault();
-      move(-1, 1);
-    } else if (key === 'End') {
-      event.preventDefault();
-      move(count, -1);
-    } else if (key === 'Enter' || key === ' ') {
-      event.preventDefault();
-      if (!disabledAt?.(active)) onPick(active);
-    } else if (key === 'Escape' || key === 'Tab') {
-      event.preventDefault();
-      if (key === 'Escape') armEscapeGuard();
-      onClose();
-    } else if (key.length === 1) {
-      typeahead(key);
-    }
-  };
+  const onKeyDown = useCallback(
+    (event: PanelKeyEvent) => {
+      const key = event.nativeEvent.key;
+      const { count, active, disabledAt, onPick, onClose } = live.current;
+      const claim = () => {
+        event.preventDefault();
+        event.stopPropagation?.();
+      };
+      if (key === 'ArrowDown') {
+        claim();
+        move(active, 1);
+      } else if (key === 'ArrowUp') {
+        claim();
+        move(active, -1);
+      } else if (key === 'Home') {
+        claim();
+        move(-1, 1);
+      } else if (key === 'End') {
+        claim();
+        move(count, -1);
+      } else if (key === 'Enter' || key === ' ') {
+        claim();
+        if (!disabledAt?.(active)) onPick(active);
+      } else if (key === 'Escape' || key === 'Tab') {
+        claim();
+        if (key === 'Escape') armEscapeGuard();
+        onClose();
+      } else if (key.length === 1) {
+        claim();
+        typeahead(key);
+      }
+    },
+    [move, typeahead],
+  );
 
   return { move, onKeyDown };
 }

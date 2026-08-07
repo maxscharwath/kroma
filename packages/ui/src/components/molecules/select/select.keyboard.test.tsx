@@ -86,6 +86,18 @@ describe('a kit control on a web page', () => {
     expect(screen.getByTestId('row').contains(screen.getByRole('listbox'))).toBe(false);
   });
 
+  it('sizes the panel to its content, with the trigger as the floor', () => {
+    render(<Select label="Source" options={OPTIONS} value="all" onChange={() => {}} />);
+    const trigger = screen.getByRole('combobox');
+    press(trigger);
+    const panel = screen.getByRole('listbox');
+    // A row is the trigger's own label plus a tick and its padding, so a panel
+    // held to the trigger's width truncates what the trigger shows in full.
+    expect(panel.style.width).toBe('');
+    expect(panel.style.minWidth).not.toBe('');
+    expect(Number.parseInt(panel.style.maxWidth, 10)).toBeGreaterThan(0);
+  });
+
   it('walks the options and picks one, all from the trigger', () => {
     const onChange = vi.fn();
     render(<Select label="Source" options={OPTIONS} value="all" onChange={onChange} />);

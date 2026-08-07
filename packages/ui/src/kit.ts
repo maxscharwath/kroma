@@ -46,7 +46,7 @@ export {
   PANEL_SHELL,
   useAnchoredPlacement,
   useListKeys,
-  usePanelFocus,
+  useTriggerFocus,
 } from './lib/anchored-panel';
 export type { Rect } from './lib/cover-rect';
 export { coverRect, parsePosition } from './lib/cover-rect';

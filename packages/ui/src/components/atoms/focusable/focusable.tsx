@@ -202,8 +202,16 @@ function usePair(a: StyleProp<ViewStyle>, b: StyleProp<ViewStyle>): StyleProp<Vi
 // keys its cache on the object, and the ring follows the theme's accent.
 const focusRing = () => sharedStyle('focusable:ring', { boxShadow: activeTheme().ring.focusLift });
 
+/** Tab reachability, plus whichever activation keys the form underneath does
+ *  not already answer, on the web; null elsewhere. */
+type WebKeys = {
+  tabIndex: number;
+  onKeyDown: (event: { nativeEvent: { key: string }; preventDefault: () => void }) => void;
+} | null;
+
 function touchForm(at: {
   boxRef: (view: View | null) => void;
+  webKeys: WebKeys;
   label: string | undefined;
   role: FocusRole;
   a11yState: A11yState;
@@ -241,6 +249,7 @@ function touchForm(at: {
   return (
     <TouchPressable
       boxRef={at.boxRef}
+      webKeys={at.webKeys}
       label={at.label}
       role={at.role}
       a11yState={at.a11yState}
@@ -269,6 +278,7 @@ function touchForm(at: {
 
 function navigatorForm(at: {
   entry: RefObject<SpatialNavigationNodeRef | null>;
+  webKeys: WebKeys;
   layers: ReturnType<typeof splitBoxLayers> | null;
   style: FocusableProps['style'];
   focusedStyle: ViewStyle | undefined;
@@ -316,6 +326,7 @@ function navigatorForm(at: {
         {
           accessibilityRole: platformRole(at.role),
           ...(at.a11yState as object | undefined),
+          ...(at.webKeys ?? null),
           accessibilityLabel: at.label,
           ref: at.setBox,
           // Browser targets only: this view is a plain <View>, so there is no
@@ -379,6 +390,7 @@ function Focusable<R extends AnySv = AnySv>({
   ref,
 }: Readonly<FocusableProps<R>>) {
   const [selfFocused, setSelfFocused] = useState(false);
+  const pressRef = useRef<() => void>(() => {});
   // Whether the focus is one the viewer asked for, in the browser's own
   // `:focus-visible` sense. The navigator focuses on mouse-enter once a pointer
   // has moved (react-tv-space-navigation FocusableView.tsx) and never blurs on
@@ -406,6 +418,23 @@ function Focusable<R extends AnySv = AnySv>({
     }
     return { accessibilityState: { checked, selected, expanded } };
   }, [checked, selected, expanded]);
+
+  const webKeys = useMemo(() => {
+    if (!WEB) return null;
+    if (disabled || inert || !onPress) return null;
+    const answering = (owns: (key: string) => boolean): WebKeys => ({
+      tabIndex: 0,
+      onKeyDown: (event) => {
+        if (!owns(event.nativeEvent.key)) return;
+        event.preventDefault();
+        pressRef.current();
+      },
+    });
+    return {
+      pressable: answering((key) => key === ' ' && role !== 'button'),
+      view: answering((key) => key === 'Enter' || key === ' '),
+    };
+  }, [disabled, inert, onPress, role]);
 
   const [hovered, setHovered] = useState(false);
   const hoverIn = useCallback(() => {
@@ -454,6 +483,9 @@ function Focusable<R extends AnySv = AnySv>({
     if (disabled || inputHeld() || pressGuardActive()) return;
     onPress?.();
   }, [disabled, onPress]);
+  // The keyboard handler is built before `press` exists and must never hold a
+  // stale one.
+  pressRef.current = press;
 
   // Decided once, at mount: `autoFocus` asks for the focus a screen opens with,
   // and a control that mounts while focus already has an owner is not that.
@@ -575,6 +607,7 @@ function Focusable<R extends AnySv = AnySv>({
   if (controlled || (!scoped && !Platform.isTV)) {
     return touchForm({
       boxRef: setBox,
+      webKeys: webKeys?.pressable ?? null,
       label,
       role,
       a11yState,
@@ -603,6 +636,7 @@ function Focusable<R extends AnySv = AnySv>({
   // pay for a SpatialNavigationFocusableView it could not use.
   const node = navigatorForm({
     entry,
+    webKeys: webKeys?.view ?? null,
     layers,
     style: painted,
     role,
@@ -691,6 +725,7 @@ function TouchPressable({
   label,
   role = 'button',
   a11yState,
+  webKeys,
   boxRef,
   children,
 }: Readonly<{
@@ -705,6 +740,7 @@ function TouchPressable({
   label?: string;
   role?: FocusRole;
   a11yState?: A11yState;
+  webKeys?: WebKeys;
   boxRef?: Ref<View>;
   children: (pressed: boolean) => ReactNode;
 }>) {
@@ -712,7 +748,7 @@ function TouchPressable({
   return (
     <AnimatedPressable
       ref={boxRef}
-      {...(unfocusable ? (UNFOCUSABLE as object) : null)}
+      {...(unfocusable ? (UNFOCUSABLE as object) : (webKeys ?? null))}
       accessibilityRole={platformRole(role)}
       {...a11yState}
       accessibilityLabel={label}

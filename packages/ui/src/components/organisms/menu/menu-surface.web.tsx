@@ -3,11 +3,8 @@
 // the menu keyboard: arrows move the active item, Enter fires it, printable
 // keys type ahead, Esc returns to the trigger. DOM focus stays on the panel
 // and `aria-activedescendant` names the active row.
-//
-// In place, not portalled: fixed positioning already escapes clipping, and a
-// body portal would sit outside react-native-web's <Modal> focus trap.
 
-import { useCallback, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Pressable, ScrollView, type View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Divider } from '#ui/components/atoms/divider';
@@ -19,9 +16,11 @@ import {
   PANEL_SHELL,
   useAnchoredPlacement,
   useListKeys,
-  usePanelFocus,
+  useTriggerFocus,
 } from '#ui/lib/anchored-panel';
+import { CONTROL } from '#ui/lib/field-shell';
 import { useInsideFocusScope } from '#ui/lib/focus-presence';
+import { Portal } from '#ui/lib/portal';
 import { useTDefault } from '#ui/services/i18n';
 import type { MenuItem } from './menu';
 import { MenuSurfaceDialog, type MenuSurfaceProps, menuItemVariants } from './menu-surface-dialog';
@@ -34,6 +33,9 @@ function MenuSurface(props: Readonly<MenuSurfaceProps>) {
 
 const MIN_WIDTH = 184;
 const MAX_HEIGHT = 400;
+const PANEL_PAD = 6;
+const ROW_RADIUS = CONTROL.sm.radius;
+const PANEL_RADIUS = ROW_RADIUS + PANEL_PAD;
 
 function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfaceProps>) {
   const t = useTDefault();
@@ -47,8 +49,13 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
     ),
   );
 
-  const at = useAnchoredPlacement(anchor, { minWidth: MIN_WIDTH, maxHeight: MAX_HEIGHT, align });
-  usePanelFocus(panel, anchor);
+  const at = useAnchoredPlacement(anchor, {
+    minWidth: MIN_WIDTH,
+    maxHeight: MAX_HEIGHT,
+    align,
+    grow: align !== 'end',
+  });
+  useTriggerFocus(anchor);
 
   const fire = useCallback(
     (row: MenuItem | undefined) => {
@@ -69,11 +76,39 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
     onClose,
   });
 
+  // The trigger keeps the focus and therefore the keyboard; see <Select>.
+  useEffect(() => {
+    const trigger = anchor.current as HTMLElement | null;
+    if (!trigger) return;
+    const onKey = (event: KeyboardEvent) => {
+      onKeyDown({
+        nativeEvent: { key: event.key },
+        preventDefault: () => event.preventDefault(),
+        stopPropagation: () => event.stopPropagation(),
+      });
+    };
+    trigger.addEventListener('keydown', onKey);
+    trigger.setAttribute('aria-controls', `${baseId}-list`);
+    trigger.setAttribute('aria-haspopup', 'menu');
+    return () => {
+      trigger.removeEventListener('keydown', onKey);
+      trigger.removeAttribute('aria-controls');
+      trigger.removeAttribute('aria-haspopup');
+    };
+  }, [anchor, baseId, onKeyDown]);
+
+  useEffect(() => {
+    const trigger = anchor.current as HTMLElement | null;
+    if (!trigger) return;
+    trigger.setAttribute('aria-activedescendant', `${baseId}-${active}`);
+    return () => trigger.removeAttribute('aria-activedescendant');
+  }, [anchor, baseId, active]);
+
   if (!at) return null;
 
   let rowIndex = -1;
   return (
-    <>
+    <Portal>
       <Pressable
         accessibilityLabel={t('common.close')}
         tabIndex={-1}
@@ -82,20 +117,27 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
       />
       <Box
         ref={panel}
-        tabIndex={-1}
+        nativeID={`${baseId}-list`}
         role="menu"
         accessibilityLabel={label}
-        aria-activedescendant={`${baseId}-${active}`}
-        onKeyDown={onKeyDown}
-        radius={12}
+        radius={PANEL_RADIUS}
         border="borderStrong"
         bg="surface2"
         shadow="pop"
         overflow="hidden"
-        style={[PANEL_SHELL, { left: at.left, top: at.top, bottom: at.bottom, minWidth: at.width }]}
+        style={[
+          PANEL_SHELL,
+          {
+            left: at.left,
+            top: at.top,
+            bottom: at.bottom,
+            minWidth: at.width,
+            maxWidth: at.maxWidth,
+          },
+        ]}
       >
         <ScrollView style={{ maxHeight: at.maxHeight }}>
-          <Box p={6}>
+          <Box p={PANEL_PAD}>
             {items.map((entry, index) => {
               if (entry === 'separator') {
                 // biome-ignore lint/suspicious/noArrayIndexKey: separators carry no identity
@@ -117,7 +159,7 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
           </Box>
         </ScrollView>
       </Box>
-    </>
+    </Portal>
   );
 }
 
@@ -145,6 +187,7 @@ function PanelItem({
       onHoverIn={onHover}
       style={[
         slots.root,
+        s.row,
         active && item.danger ? s.activeDanger : null,
         active && !item.danger ? s.active : null,
         item.disabled ? s.disabled : null,
@@ -161,6 +204,7 @@ function PanelItem({
 }
 
 const s = styles({
+  row: { radius: ROW_RADIUS },
   active: { bg: 'white/7' },
   activeDanger: { bg: 'danger/14' },
   disabled: { opacity: 0.4 },

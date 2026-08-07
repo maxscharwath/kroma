@@ -5,11 +5,6 @@
 // Home/End jump, printable keys type ahead, Enter picks, Esc returns to the
 // trigger. DOM focus stays on the list and `aria-activedescendant` names the
 // active row, so the pattern reads to assistive tech the way it looks.
-//
-// Rendered in place, NOT portalled to the body: `position: fixed` already
-// escapes overflow clipping, and a body portal would put the panel outside
-// react-native-web's <Modal> focus trap, which yanks focus straight back
-// into the dialog and leaves the popover keyboard-dead.
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { Pressable, ScrollView, type View } from 'react-native';
@@ -22,9 +17,11 @@ import {
   PANEL_SHELL,
   useAnchoredPlacement,
   useListKeys,
-  usePanelFocus,
+  useTriggerFocus,
 } from '#ui/lib/anchored-panel';
+import { CONTROL } from '#ui/lib/field-shell';
 import { useInsideFocusScope } from '#ui/lib/focus-presence';
+import { Portal } from '#ui/lib/portal';
 import { useTDefault } from '#ui/services/i18n';
 import type { SelectOption } from './select';
 import { optionVariants, SelectOptionsDialog } from './select-options-dialog';
@@ -36,9 +33,16 @@ function SelectOptions(props: Readonly<SelectSurfaceProps>) {
   return props.open ? <SelectPopover {...props} /> : null;
 }
 
+function element(ref: { current: unknown }): HTMLElement | null {
+  return ref.current as HTMLElement | null;
+}
+
 const MIN_WIDTH = 160;
 const MAX_HEIGHT = 320;
 const ROW_GUESS = 44;
+const PANEL_PAD = 6;
+const ROW_RADIUS = CONTROL.sm.radius;
+const PANEL_RADIUS = ROW_RADIUS + PANEL_PAD;
 
 function firstEnabled(options: readonly SelectOption[], value: string): number {
   const chosen = options.findIndex((option) => option.value === value && !option.disabled);
@@ -67,8 +71,9 @@ function SelectPopover({
     minWidth: MIN_WIDTH,
     matchWidth: true,
     maxHeight: MAX_HEIGHT,
+    grow: true,
   });
-  usePanelFocus(list, anchor);
+  useTriggerFocus(anchor);
   const { onKeyDown } = useListKeys({
     count: options.length,
     active,
@@ -81,6 +86,33 @@ function SelectPopover({
     },
     onClose,
   });
+
+  useEffect(() => {
+    const trigger = element(anchor);
+    if (!trigger) return;
+    const onKey = (event: KeyboardEvent) => {
+      onKeyDown({
+        nativeEvent: { key: event.key },
+        preventDefault: () => event.preventDefault(),
+        stopPropagation: () => event.stopPropagation(),
+      });
+    };
+    trigger.addEventListener('keydown', onKey);
+    trigger.setAttribute('aria-controls', `${baseId}-list`);
+    trigger.setAttribute('aria-haspopup', LISTBOX);
+    return () => {
+      trigger.removeEventListener('keydown', onKey);
+      trigger.removeAttribute('aria-controls');
+      trigger.removeAttribute('aria-haspopup');
+    };
+  }, [anchor, baseId, onKeyDown]);
+
+  useEffect(() => {
+    const trigger = element(anchor);
+    if (!trigger) return;
+    trigger.setAttribute('aria-activedescendant', `${baseId}-${active}`);
+    return () => trigger.removeAttribute('aria-activedescendant');
+  }, [anchor, baseId, active]);
 
   // Keep the active row in sight as the keyboard walks the list.
   const scroller = useRef<ScrollView>(null);
@@ -98,7 +130,7 @@ function SelectPopover({
   if (!at) return null;
 
   return (
-    <>
+    <Portal>
       {/* The world behind the panel: one press anywhere out there closes it. */}
       <Pressable
         accessibilityLabel={t('common.close')}
@@ -108,20 +140,27 @@ function SelectPopover({
       />
       <Box
         ref={list}
-        tabIndex={-1}
+        nativeID={`${baseId}-list`}
         role={LISTBOX}
         accessibilityLabel={label}
-        aria-activedescendant={`${baseId}-${active}`}
-        onKeyDown={onKeyDown}
-        radius={11}
+        radius={PANEL_RADIUS}
         border="borderStrong"
         bg="surface2"
         shadow="pop"
         overflow="hidden"
-        style={[PANEL_SHELL, { left: at.left, top: at.top, bottom: at.bottom, width: at.width }]}
+        style={[
+          PANEL_SHELL,
+          {
+            left: at.left,
+            top: at.top,
+            bottom: at.bottom,
+            minWidth: at.width,
+            maxWidth: at.maxWidth,
+          },
+        ]}
       >
         <ScrollView ref={scroller} style={{ maxHeight: at.maxHeight }}>
-          <Box p={6}>
+          <Box p={PANEL_PAD}>
             {options.map((option, index) => (
               <PopoverOption
                 key={option.value}
@@ -139,7 +178,7 @@ function SelectPopover({
           </Box>
         </ScrollView>
       </Box>
-    </>
+    </Portal>
   );
 }
 
@@ -170,7 +209,7 @@ function PopoverOption({
       onPress={onPress}
       onHoverIn={onHover}
       onLayout={(event) => onLayout(event.nativeEvent.layout.y)}
-      style={[slots.root, active ? s.active : null, option.disabled ? s.disabled : null]}
+      style={[slots.root, s.row, active ? s.active : null, option.disabled ? s.disabled : null]}
     >
       {option.icon ? <Icon name={option.icon} size={18} color="textMuted" /> : null}
       <Txt variant="body" lines={1} style={slots.ink}>
@@ -194,6 +233,7 @@ function PopoverOption({
 const LISTBOX = 'listbox' as import('react-native').Role;
 
 const s = styles({
+  row: { radius: ROW_RADIUS },
   active: { bg: 'white/8' },
   disabled: { opacity: 0.4 },
 });

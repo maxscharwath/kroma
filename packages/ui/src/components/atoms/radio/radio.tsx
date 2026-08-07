@@ -20,7 +20,6 @@ const radioVariants = sv({
       radius: 'pill',
       border: 'borderStrong',
       bg: 'white/6',
-      _hover: { bg: 'white/12', border: 'white/32' },
       _disabled: { opacity: 0.5 },
     },
     // The dot is a layer rather than a glyph: a circle inside a circle stays
@@ -32,7 +31,16 @@ const radioVariants = sv({
       sm: { root: { w: BOX.sm, h: BOX.sm }, dot: { w: 8, h: 8 } },
       tv: { root: { w: BOX.tv, h: BOX.tv }, dot: { w: 11, h: 11 } },
     },
-    checked: { true: { root: { bg: 'accent', border: 'accent' } } },
+    checked: {
+      true: {
+        root: {
+          bg: 'accent',
+          border: 'accent',
+          _hover: { bg: 'accentHover', border: 'accentHover' },
+        },
+      },
+      false: { root: { _hover: { bg: 'white/12', border: 'white/32' } } },
+    },
   },
   defaults: { size: 'sm', checked: false },
 });

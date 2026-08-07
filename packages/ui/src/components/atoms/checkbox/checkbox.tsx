@@ -21,7 +21,6 @@ const checkboxVariants = sv({
     radius: 6,
     border: 'borderStrong',
     bg: 'white/6',
-    _hover: { bg: 'white/12', border: 'white/32' },
     _disabled: { opacity: 0.5 },
   },
   variants: {
@@ -30,8 +29,17 @@ const checkboxVariants = sv({
       tv: { w: BOX.tv, h: BOX.tv, radius: 8 },
     },
     /** Checked and mixed both paint the amber fill: a parent row of a partly
-     *  selected group is as much "acted on" as a fully selected one. */
-    checked: { true: { bg: 'accent', border: 'accent' } },
+     *  selected group is as much "acted on" as a fully selected one. The hover
+     *  lives per state so a filled box hovers up the amber ladder rather than
+     *  back down to the white wash under its near-black mark (see <Chip>). */
+    checked: {
+      true: {
+        bg: 'accent',
+        border: 'accent',
+        _hover: { bg: 'accentHover', border: 'accentHover' },
+      },
+      false: { _hover: { bg: 'white/12', border: 'white/32' } },
+    },
   },
   defaults: { size: 'sm', checked: false },
 });

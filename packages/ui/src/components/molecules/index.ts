@@ -1,3 +1,5 @@
+export type { AlphabetRailProps, LetterRange } from './alphabet-rail';
+export { AlphabetRail } from './alphabet-rail';
 export type { BackButtonProps } from './back-button';
 export { BackButton } from './back-button';
 export type {

@@ -155,7 +155,7 @@ function SeasonSwitcher({
 }: Readonly<{ seasons: TitleSeason[]; current: number; onPick: (n: number) => void }>) {
   const t = useT();
   return (
-    <div className="scrollbar-none flex gap-2 overflow-x-auto px-(--gutter-web)">
+    <div className="flex gap-2 overflow-x-auto px-(--gutter-web) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {seasons.map((s) => (
         <Chip
           key={s.number}

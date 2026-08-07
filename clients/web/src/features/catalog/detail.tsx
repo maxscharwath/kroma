@@ -357,7 +357,7 @@ export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
       {/* A named <section> for assistive tech. */}
       <section
         aria-label={t('content.cast')}
-        className="flex gap-5.5 overflow-x-auto px-(--gutter-web) py-4 [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5.5 overflow-x-auto px-(--gutter-web) py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {cast.map((p) => {
           const [g1, g2] = posterColors(p.name);

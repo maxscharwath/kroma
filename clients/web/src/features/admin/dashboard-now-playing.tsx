@@ -25,7 +25,7 @@ function NowPlayingThumb({ s }: Readonly<{ s: PlaybackSession }>) {
 
   return (
     <div
-      className="relative aspect-video shrink-0 self-start overflow-hidden rounded-[9px] shadow-[0_8px_20px_rgba(0,0,0,.45)]"
+      className="relative aspect-video shrink-0 self-start overflow-hidden rounded-md shadow-[0_8px_20px_rgba(0,0,0,.45)]"
       style={{ width: THUMB_W, background: posterGradient(s.title) }}
     >
       {posterFailed ? null : (
@@ -125,7 +125,7 @@ export function NowPlayingCard({
               size={38}
               roundness={10 / 38}
             />
-            <IconButton size={36} radius={10} label={t('admin.stopStream')} onPress={onStop}>
+            <IconButton control="sm" label={t('admin.stopStream')} onPress={onStop}>
               <Icon name="player-stop-filled" size={15} color="danger" />
             </IconButton>
           </div>
@@ -146,7 +146,7 @@ export function NowPlayingCard({
         <div className="flex flex-wrap gap-x-6.5 gap-y-2.5 border-t border-border pt-3">
           <Stat label={t('admin.statPlayback')}>
             <span
-              className="inline-flex items-center gap-1.5 rounded-[7px] px-2.25 py-0.75 text-[13px] font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-sm px-2.25 py-0.75 text-[13px] font-semibold"
               style={{ color: pipe.color, background: pipe.bg }}
             >
               {pipe.label}
@@ -175,7 +175,7 @@ export function NowPlayingCard({
           </Stat>
           <Stat label={t('admin.statNetwork')}>
             <span
-              className="inline-flex items-center gap-1.5 rounded-[7px] px-2.25 py-0.75 text-[13px] font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-sm px-2.25 py-0.75 text-[13px] font-semibold"
               style={{
                 color: lan ? C.green : C.blue,
                 background: lan ? 'rgba(70,208,141,.12)' : 'rgba(92,141,246,.12)',

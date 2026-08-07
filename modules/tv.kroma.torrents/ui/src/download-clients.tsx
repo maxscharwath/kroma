@@ -129,7 +129,6 @@ export function DownloadClientsSection() {
                   <IconButton
                     icon="pencil"
                     label={t('dlclients.edit')}
-                    size={30}
                     onPress={() => void openEdit(c)}
                   />
                 ) : null}

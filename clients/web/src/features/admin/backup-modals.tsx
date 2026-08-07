@@ -3,11 +3,10 @@
 // and only then asks for a password, always confirming before it overwrites.
 
 import { useT } from '@kroma/ui';
-import { Dialog, DialogActions, Field, Switch } from '@kroma/ui/kit';
+import { Box, controlMetrics, Dialog, DialogActions, Field, Switch, Txt } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { createCallable } from 'react-call';
 import { useAuth } from '#web/shared/lib/auth';
-import { FIELD } from '#web/shared/ui/field-classes';
 
 // "KROMABK1\n": the encrypted-backup envelope magic (see services/backup/crypto).
 const KROMA_MAGIC = [0x4b, 0x52, 0x4f, 0x4d, 0x41, 0x42, 0x4b, 0x31, 0x0a];
@@ -30,6 +29,25 @@ function errMessage(e: unknown, fallback: string): string {
 
 function ErrorLine({ text }: Readonly<{ text: string }>) {
   return <p className="text-[13px] font-semibold text-[#E8536A]">{text}</p>;
+}
+
+function ChosenFile({ name }: Readonly<{ name: string }>) {
+  const control = controlMetrics();
+  return (
+    <Box
+      px={control.px}
+      py={control.py}
+      minH={control.height}
+      justify="center"
+      radius={control.radius}
+      bg={control.bg}
+      border="borderStrong"
+    >
+      <Txt lines={1} style={{ fontSize: control.fontSize }}>
+        {name}
+      </Txt>
+    </Box>
+  );
 }
 
 function ToggleRow({
@@ -101,6 +119,7 @@ export const ExportModal = createCallable<void, boolean>(({ call }) => {
           label={t('admin.backupPassword')}
           hint={t('admin.backupPasswordHint')}
           type="password"
+          icon="lock"
           value={password}
           onChange={setPassword}
         />
@@ -153,13 +172,14 @@ export const ImportModal = createCallable<{ file: File; encrypted: boolean }, st
         onClose={busy ? () => {} : () => call.end(null)}
       >
         <Field label={t('admin.backupFile')}>
-          <div className={`${FIELD} truncate`}>{file.name}</div>
+          <ChosenFile name={file.name} />
         </Field>
         {encrypted ? (
           <Field
             label={t('admin.backupPassword')}
             hint={t('admin.backupEncryptedFile')}
             type="password"
+            icon="lock"
             value={password}
             onChange={setPassword}
           />

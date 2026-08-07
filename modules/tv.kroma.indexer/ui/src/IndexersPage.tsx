@@ -228,7 +228,7 @@ function IndexerCard({
             onPress={onTest}
             loading={test?.busy}
           />
-          <IconButton icon="pencil" label={t('indexers.edit')} size={34} onPress={onEdit} />
+          <IconButton icon="pencil" label={t('indexers.edit')} onPress={onEdit} />
         </div>
       </div>
     </Surface>

@@ -8,8 +8,17 @@
 // arrows/Enter/Escape drive it while typing filters.
 
 import { useT } from '@kroma/ui';
-import { armEscapeGuard, useAnchoredPlacement } from '@kroma/ui/kit';
-import { IconCheck, IconChevronDown, IconSearch } from '@tabler/icons-react';
+import {
+  armEscapeGuard,
+  Box,
+  entryDefaultSize,
+  Focusable,
+  Icon,
+  selectTriggerVariants,
+  Txt,
+  useAnchoredPlacement,
+} from '@kroma/ui/kit';
+import { IconCheck, IconSearch } from '@tabler/icons-react';
 import {
   type KeyboardEvent,
   type RefObject,
@@ -19,7 +28,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FIELD } from '#web/shared/ui/field-classes';
+import type { StyleProp, View, ViewStyle } from 'react-native';
 
 export function SearchSelect({
   value,
@@ -27,36 +36,47 @@ export function SearchSelect({
   onChange,
   placeholder,
   searchPlaceholder,
-  className = '',
+  style,
 }: Readonly<{
   value: string;
   options: string[];
   onChange?: (v: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
-  className?: string;
+  style?: StyleProp<ViewStyle>;
 }>) {
   const [open, setOpen] = useState(false);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const trigger = useRef<View>(null);
+  const label = value || placeholder || '';
 
   const close = () => {
     setOpen(false);
-    trigger.current?.focus();
+    // react-native-web hands back the DOM node, which is what takes the focus.
+    (trigger.current as unknown as HTMLElement | null)?.focus?.();
   };
 
   return (
     <>
-      <button
+      <Focusable
         ref={trigger}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
-        className={`${FIELD} inline-flex items-center gap-2 ${className}`}
+        role="combobox"
+        expanded={open}
+        label={label}
+        onPress={() => setOpen(true)}
+        sv={selectTriggerVariants}
+        vars={{ size: entryDefaultSize(), filled: value !== '' }}
+        style={style}
       >
-        <span className={`truncate ${value ? '' : 'text-dim'}`}>{value || placeholder}</span>
-        <IconChevronDown size={13} stroke={2.5} className="shrink-0 text-dim" />
-      </button>
+        {(state) => (
+          <>
+            <Txt variant="body" lines={1} style={state.slots.ink}>
+              {label}
+            </Txt>
+            <Box flex />
+            <Icon name="chevron-down" size={16} color="textDim" />
+          </>
+        )}
+      </Focusable>
       {open ? (
         <SearchPanel
           anchor={trigger}
@@ -82,7 +102,7 @@ function SearchPanel({
   onPick,
   onClose,
 }: Readonly<{
-  anchor: RefObject<HTMLButtonElement | null>;
+  anchor: RefObject<View | null>;
   value: string;
   options: string[];
   searchPlaceholder?: string;
@@ -152,7 +172,7 @@ function SearchPanel({
         className="fixed inset-0 z-50 cursor-default"
       />
       <div
-        className="fixed z-50 min-w-60 overflow-hidden rounded-[11px] border border-border-strong bg-[#121216] shadow-pop"
+        className="fixed z-50 min-w-60 overflow-hidden rounded-md border border-border-strong bg-[#121216] shadow-pop"
         style={{ left: at.left, top: at.top, bottom: at.bottom, width: at.width }}
       >
         {/* The popup itself is the box, so this row takes no field ring (see styles.css). */}
@@ -190,7 +210,7 @@ function SearchPanel({
                 onMouseEnter={() => setActive(i)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onPick(o)}
-                className={`relative flex cursor-pointer select-none items-center rounded-[7px] py-2 pl-3 pr-8 text-[13px] font-medium outline-none ${i === active ? 'bg-white/6' : ''} ${o === value ? 'text-accent' : 'text-text'}`}
+                className={`relative flex cursor-pointer select-none items-center rounded-[4px] py-2 pl-3 pr-8 text-[13px] font-medium outline-none ${i === active ? 'bg-white/6' : ''} ${o === value ? 'text-accent' : 'text-text'}`}
               >
                 {o}
                 {o === value ? (

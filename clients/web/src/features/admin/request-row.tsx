@@ -14,7 +14,7 @@ function Poster({ req }: Readonly<{ req: MediaRequest }>) {
   return (
     <div
       style={{ background: posterGrad(req.title) }}
-      className="relative h-[46px] w-8 flex-[0_0_32px] overflow-hidden rounded-[6px] shadow-[0_5px_14px_rgba(0,0,0,.45)]"
+      className="relative h-[46px] w-8 flex-[0_0_32px] overflow-hidden rounded-sm shadow-[0_5px_14px_rgba(0,0,0,.45)]"
     >
       <Image src={req.posterUrl} fit="cover" fill />
     </div>

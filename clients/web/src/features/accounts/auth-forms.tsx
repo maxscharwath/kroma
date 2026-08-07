@@ -67,6 +67,7 @@ export function LoginForm({
           w="100%"
           label={t('auth.emailOrUsername')}
           hideLabel
+          icon="user"
           placeholder={t('auth.emailOrUsername')}
           value={identifier}
           onChange={setIdentifier}
@@ -80,6 +81,7 @@ export function LoginForm({
         label={t('auth.password')}
         hideLabel
         type="password"
+        icon="lock"
         placeholder={t('auth.password')}
         value={password}
         onChange={setPassword}

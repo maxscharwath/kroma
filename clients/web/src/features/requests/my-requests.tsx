@@ -181,9 +181,7 @@ function RequestRow({
       <RequestStatusChip status={req.status} progress={progress ?? req.progress ?? null} />
       {req.status === 'pending' ? (
         <IconButton
-          size={36}
-          glyph={15}
-          radius={8}
+          control="sm"
           icon="x"
           label={t('requests.cancel')}
           onPress={onCancel}

@@ -84,8 +84,6 @@ export const RegistriesDrawer = createCallable<Record<string, never>, boolean>((
           </div>
           <IconButton
             variant="ghost"
-            size={32}
-            glyph={20}
             icon="x"
             label={t('common.close')}
             onPress={() => call.end(changed.current)}

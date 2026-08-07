@@ -90,6 +90,7 @@ export const RematchDialog = createCallable<{ kind: Kind; id: string; title: str
                     label={t('rematch.searchPlaceholder')}
                     hideLabel
                     type="search"
+                    icon="search"
                     value={query}
                     onChange={setTyped}
                     onSubmit={() => setSubmitted(query.trim() || undefined)}
@@ -98,18 +99,14 @@ export const RematchDialog = createCallable<{ kind: Kind; id: string; title: str
                 </div>
                 {/* Mirrors the form's implicit Enter-key submit. */}
                 <IconButton
-                  size={41}
-                  glyph={16}
-                  radius={12}
+                  control="sm"
                   icon="search"
                   label={t('rematch.search')}
                   onPress={() => setSubmitted(query.trim() || undefined)}
                   disabled={isPending}
                 />
                 <IconButton
-                  size={36}
-                  glyph={18}
-                  radius={12}
+                  control="sm"
                   icon="x"
                   label={t('common.close')}
                   onPress={() => call.end(false)}

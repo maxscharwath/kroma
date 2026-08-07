@@ -80,6 +80,7 @@ export function RegisterFields({
         label={t('auth.email')}
         hideLabel
         type="email"
+        icon="mail"
         placeholder={t('auth.email')}
         value={email}
         onChange={(v) => onChange({ ...values, email: v })}
@@ -88,6 +89,7 @@ export function RegisterFields({
         w="100%"
         label={t('auth.username')}
         hideLabel
+        icon="user"
         placeholder={t('auth.username')}
         value={username}
         onChange={(v) => onChange({ ...values, username: v })}
@@ -98,6 +100,7 @@ export function RegisterFields({
         label={t('auth.passwordHint')}
         hideLabel
         type="password"
+        icon="lock"
         placeholder={t('auth.passwordHint')}
         value={password}
         onChange={(v) => onChange({ ...values, password: v })}

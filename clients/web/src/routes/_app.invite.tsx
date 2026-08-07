@@ -1,11 +1,10 @@
 import { hasPermission, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button, EmptyState, Txt } from '@kroma/ui/kit';
+import { Button, EmptyState, InputGroup, Txt } from '@kroma/ui/kit';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
-import { FIELD } from '#web/shared/ui/field-classes';
 
 const DANGER_LABEL = { fontSize: 13, fontWeight: '600' } as const;
 
@@ -123,21 +122,16 @@ function InvitePage() {
             <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-accent">
               {t('admin.inviteLink')}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                readOnly
-                value={link}
-                aria-label={t('admin.inviteLink')}
-                onFocus={(e) => e.currentTarget.select()}
-                className={`${FIELD} flex-1`}
-              />
-              <Button
-                variant="glass"
-                size="sm"
-                label={copied ? t('common.copied') : t('common.copy')}
-                onPress={() => void copy()}
-              />
-            </div>
+            <InputGroup.Root label={t('admin.inviteLink')}>
+              <InputGroup.Input value={link} autoFocus={false} />
+              <InputGroup.Addon align="inline-end">
+                <InputGroup.Button
+                  icon="copy"
+                  label={copied ? t('common.copied') : t('common.copy')}
+                  onPress={() => void copy()}
+                />
+              </InputGroup.Addon>
+            </InputGroup.Root>
           </div>
         ) : null}
       </div>

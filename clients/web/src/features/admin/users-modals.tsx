@@ -1,13 +1,11 @@
 import { type AdminUser, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button, Dialog, DialogActions, Field } from '@kroma/ui/kit';
+import { Button, confirm, Dialog, DialogActions, Field, InputGroup } from '@kroma/ui/kit';
 import { IconMail } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { createCallable } from 'react-call';
 import { useAsyncAction } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
-import { confirmDialog } from '#web/shared/ui';
-import { FIELD } from '#web/shared/ui/field-classes';
 
 export function PendingInvite({ inv, onChange }: Readonly<{ inv: Invite; onChange: () => void }>) {
   const t = useT();
@@ -125,7 +123,7 @@ export const EditUserModal = createCallable<{ user: AdminUser }, boolean>(({ cal
     );
 
   const remove = async () => {
-    const ok = await confirmDialog({
+    const ok = await confirm({
       title: t('admin.deleteAccount'),
       message: t('admin.confirmDeleteUser', { name: user.username }),
       confirmLabel: t('common.delete'),
@@ -149,7 +147,7 @@ export const EditUserModal = createCallable<{ user: AdminUser }, boolean>(({ cal
       onClose={() => call.end(false)}
       width={460}
     >
-      <Field label={t('admin.name')} value={name} onChange={setName} />
+      <Field label={t('admin.name')} icon="user" value={name} onChange={setName} />
       <div>
         <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-dim">
           {t('admin.permissions')}
@@ -195,6 +193,18 @@ export const InviteModal = createCallable<void, boolean>(({ call }) => {
       setLink(res.url ?? `${origin}/join?invite=${res.token}`);
     });
 
+  // `navigator.clipboard` is undefined outside a secure context, so on a
+  // plain-http LAN address this throws synchronously, not via rejection.
+  async function copy(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable (insecure context) or blocked */
+    }
+  }
+
   return (
     <Dialog open title={t('nav.inviteUser')} onClose={close} width={460}>
       <div>
@@ -206,32 +216,16 @@ export const InviteModal = createCallable<void, boolean>(({ call }) => {
           <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-accent">
             {t('admin.inviteLink')}
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              value={link}
-              aria-label={t('admin.inviteLink')}
-              onFocus={(e) => e.currentTarget.select()}
-              className={`${FIELD} flex-1`}
-            />
-            <button
-              type="button"
-              // `navigator.clipboard` is undefined outside a secure context, so on a
-              // plain-http LAN address this throws synchronously, not via rejection.
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(link);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1500);
-                } catch {
-                  /* clipboard unavailable (insecure context) or blocked */
-                }
-              }}
-              className="shrink-0 rounded-lg bg-white/10 px-3.5 py-2.5 text-[13px] font-semibold"
-            >
-              {copied ? t('common.copied') : t('common.copy')}
-            </button>
-          </div>
+          <InputGroup.Root label={t('admin.inviteLink')}>
+            <InputGroup.Input value={link} autoFocus={false} />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button
+                icon="copy"
+                label={copied ? t('common.copied') : t('common.copy')}
+                onPress={() => void copy(link)}
+              />
+            </InputGroup.Addon>
+          </InputGroup.Root>
         </div>
       ) : (
         <DialogActions

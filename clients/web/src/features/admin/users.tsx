@@ -127,8 +127,6 @@ function UsersPageInner() {
                 <div className="flex justify-end">
                   <IconButton
                     variant="ghost"
-                    size={32}
-                    glyph={18}
                     icon="dots"
                     label={t('admin.editUserAction')}
                     onPress={() => void openEdit(u)}

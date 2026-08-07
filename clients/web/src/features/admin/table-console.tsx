@@ -3,7 +3,7 @@
 // chips, column heads, a count summary, a floating toast and an event-driven,
 // throttled reload. These live here once instead of being copy/pasted per page.
 
-import { Field, IconButton, Chip as KitChip, Txt } from '@kroma/ui/kit';
+import { type ColorValue, Field, IconButton, Chip as KitChip } from '@kroma/ui/kit';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
 
 /** Coalesce event-driven reloads to at most one call per 1.5 s. */
@@ -91,10 +91,6 @@ export function Head({
   );
 }
 
-// The console renders its own `Txt` children so the status dot can lead and
-// the count can trail inside the same pill.
-const CHIP_LABEL = { fontSize: 13, fontWeight: '600' } as const;
-const CHIP_COUNT = { fontSize: 13, fontWeight: '600', opacity: 0.6 } as const;
 const BLUE_ACTIVE = { backgroundColor: '#86A8FF' } as const;
 
 /** A filter chip on the kit pill. `tone` picks the active fill (defaults to the
@@ -109,24 +105,20 @@ export function Chip({
 }: Readonly<{
   label: string;
   count?: number;
-  dot?: string;
+  dot?: ColorValue;
   on: boolean;
   tone?: 'accent' | 'blue';
   onClick: () => void;
 }>) {
-  const ink = on ? 'accentInk' : 'textMuted';
   return (
-    <KitChip active={on} onPress={onClick} style={on && tone === 'blue' ? BLUE_ACTIVE : null}>
-      {dot ? <span className="h-[7px] w-[7px] rounded-full" style={{ background: dot }} /> : null}
-      <Txt style={CHIP_LABEL} color={ink}>
-        {label}
-      </Txt>
-      {count != null ? (
-        <Txt style={CHIP_COUNT} color={ink}>
-          {count.toLocaleString()}
-        </Txt>
-      ) : null}
-    </KitChip>
+    <KitChip
+      active={on}
+      label={label}
+      dot={dot}
+      count={count}
+      onPress={onClick}
+      style={on && tone === 'blue' ? BLUE_ACTIVE : null}
+    />
   );
 }
 

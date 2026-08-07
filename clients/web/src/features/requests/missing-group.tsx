@@ -225,9 +225,7 @@ function EpisodeRow({
       {canAct ? (
         <IconButton
           variant="ghost"
-          size={32}
-          glyph={15}
-          radius={8}
+          control="sm"
           icon="search"
           label={t('requests.searchTitle')}
           onPress={onSearch}
@@ -248,7 +246,7 @@ function Check({ on, onClick }: Readonly<{ on: boolean; onClick: () => void }>) 
       onClick={onClick}
       aria-pressed={on}
       aria-label={t('requests.select')}
-      className={`flex h-[18px] w-[18px] flex-[0_0_18px] items-center justify-center rounded-[5px] border transition-colors ${
+      className={`flex h-[18px] w-[18px] flex-[0_0_18px] items-center justify-center rounded-sm border transition-colors ${
         on ? 'border-accent bg-accent text-accent-ink' : 'border-white/25 hover:border-white/50'
       }`}
     >

@@ -67,6 +67,7 @@ export function OfficialRow({
           label="URL"
           hideLabel
           type="url"
+          icon="world"
           value={value}
           onChange={setValue}
           placeholder="https://.../modules.json"
@@ -108,6 +109,7 @@ export function ExtraRow({
         <Field
           label={t('admin.registriesName')}
           hideLabel
+          icon="tag"
           value={registry.name}
           onChange={(name) => onChange({ ...registry, name })}
           placeholder={t('admin.registriesName')}
@@ -124,8 +126,6 @@ export function ExtraRow({
         <div className="flex-1" />
         <IconButton
           variant="ghost"
-          size={32}
-          glyph={17}
           icon="trash"
           label={t('admin.registriesRemove')}
           onPress={busy ? () => {} : onRemove}
@@ -135,6 +135,7 @@ export function ExtraRow({
         label="URL"
         hideLabel
         type="url"
+        icon="world"
         value={registry.url}
         onChange={(url) => onChange({ ...registry, url })}
         placeholder="https://.../modules.json"
@@ -203,6 +204,7 @@ export function AddRegistry({
         <Field
           label={t('admin.registriesName')}
           hideLabel
+          icon="tag"
           value={name}
           onChange={setName}
           placeholder={t('admin.registriesName')}
@@ -212,6 +214,7 @@ export function AddRegistry({
           label="URL"
           hideLabel
           type="url"
+          icon="world"
           value={url}
           onChange={setUrl}
           placeholder="https://.../modules.json"

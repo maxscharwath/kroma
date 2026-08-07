@@ -163,8 +163,6 @@ function JobActions({
       )}
       <IconButton
         variant="ghost"
-        size={30}
-        glyph={18}
         icon={open ? 'chevron-up' : 'chevron-down'}
         label={t('jobs.history')}
         onPress={onToggleOpen}

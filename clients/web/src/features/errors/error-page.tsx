@@ -5,8 +5,8 @@
 
 import { apiErrorText, KromaApiError, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Button, Logo } from '@kroma/ui/kit';
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
-import { Button, Logo } from '#web/shared/ui';
 
 type Kind = 'notFound' | 'unauthorized' | 'forbidden' | 'server';
 

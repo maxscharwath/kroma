@@ -1,7 +1,7 @@
 import buildInfo from 'virtual:build-info';
 import { hasPermission, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Drawer, Menu, type MenuEntry } from '@kroma/ui/kit';
+import { Drawer, Logo, Menu, type MenuEntry } from '@kroma/ui/kit';
 import {
   IconAlertTriangle,
   IconCalendarClock,
@@ -29,10 +29,9 @@ import { useModuleNav } from '#web/modules/ModuleHostProvider';
 import { resolveModuleIcon } from '#web/modules/module-icons';
 import { useAuth } from '#web/shared/lib/auth';
 import { serverQueries } from '#web/shared/lib/queries';
-import { Logo } from '#web/shared/ui';
 
 const itemCls =
-  'flex items-center gap-3.5 rounded-[11px] px-3.5 py-3 text-[15px] max-lg:text-[16px] font-semibold text-muted no-underline transition-colors duration-200 hover:bg-white/4 hover:text-text aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent';
+  'flex items-center gap-3.5 rounded-md px-3.5 py-3 text-[15px] max-lg:text-[16px] font-semibold text-muted no-underline transition-colors duration-200 hover:bg-white/4 hover:text-text aria-[current=page]:bg-accent-soft aria-[current=page]:text-accent';
 
 const NAV: { labelKey: MessageKey; to: string; icon: TablerIcon; exact?: boolean }[] = [
   { labelKey: 'nav.home', to: '/', icon: IconHome, exact: true },
@@ -120,7 +119,7 @@ export function MobileTopbar() {
           aria-label={t('nav.menu')}
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/4 hover:text-text"
+          className="flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-white/4 hover:text-text"
         >
           <IconMenu2 size={22} />
         </button>
@@ -141,7 +140,7 @@ export function MobileTopbar() {
               type="button"
               aria-label={t('common.close')}
               onClick={() => setOpen(false)}
-              className="flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/4 hover:text-text"
+              className="flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-white/4 hover:text-text"
             >
               <IconX size={20} />
             </button>
@@ -298,7 +297,7 @@ function UserChip() {
           aria-haspopup="menu"
           aria-expanded={expanded}
           onClick={open}
-          className={`mt-2 flex items-center gap-3 rounded-[11px] p-2.5 text-left transition-colors hover:bg-white/4 focus:outline-none ${expanded ? 'bg-white/4' : ''}`}
+          className={`mt-2 flex items-center gap-3 rounded-md p-2.5 text-left transition-colors hover:bg-white/4 focus:outline-none ${expanded ? 'bg-white/4' : ''}`}
           title={t('nav.account')}
         >
           <UserAvatar
@@ -306,7 +305,7 @@ function UserChip() {
             avatarUrl={user.avatarUrl}
             seed={user.id}
             size={36}
-            radius={9}
+            radius={10}
           />
           <div className="min-w-0">
             <div className="truncate text-[14px] font-semibold text-text">{user.username}</div>

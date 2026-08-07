@@ -176,8 +176,6 @@ export const NamingTokenModal = createCallable<
           </div>
           <IconButton
             variant="ghost"
-            size={30}
-            glyph={18}
             icon="x"
             label={t('common.close')}
             onPress={() => call.end()}

@@ -144,7 +144,7 @@ export function AiPage() {
         mt={24}
       >
         <div className="flex items-center gap-3.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-accent-soft text-accent">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
             <IconSparkles size={20} stroke={1.8} />
           </span>
           <div>

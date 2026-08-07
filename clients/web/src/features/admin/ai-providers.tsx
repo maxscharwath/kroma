@@ -22,6 +22,7 @@ import { SearchSelect } from './search-select';
 
 const DANGER_LABEL = { fontSize: 13, fontWeight: '600' } as const;
 const MONO = { fontFamily: 'monospace' } as const;
+const MODEL_PICKER = { width: 288, maxWidth: '100%' } as const;
 
 // `apiKey` is a transient field ('' = keep the stored secret); `hasApiKey`
 // reports whether one is stored server-side.
@@ -169,12 +170,13 @@ function ModelField({
             onChange={onModel}
             placeholder={modelPlaceholder}
             searchPlaceholder={t('admin.aiSearchModels')}
-            className="w-72 max-w-full"
+            style={MODEL_PICKER}
           />
         ) : (
           <Field
             label={t('admin.aiModel')}
             hideLabel
+            icon="brain"
             value={p.model}
             onChange={onModel}
             placeholder={modelPlaceholder}
@@ -339,6 +341,7 @@ function ProviderBody({
     <Field
       label={t('admin.aiBaseUrl')}
       hint={t(BASE_HINT_KEY[p.provider] ?? 'admin.aiBaseUrlHint')}
+      icon="world"
       value={p.baseUrl}
       onChange={(v) => set({ baseUrl: v })}
       placeholder={PROVIDER_BASE[p.provider] || 'http://localhost:11434/v1'}
@@ -354,6 +357,7 @@ function ProviderBody({
     <div className="border-t border-border px-5 pt-5">
       <Field
         label={t('admin.aiProviderName')}
+        icon="tag"
         value={p.name}
         onChange={(v) => set({ name: v })}
         placeholder={t('admin.aiProviderNamePlaceholder')}
@@ -379,6 +383,7 @@ function ProviderBody({
         label={`${t('admin.aiApiKey')} · ${apiKeyRequirement}`}
         hint={t('admin.aiApiKeyHint')}
         type="password"
+        icon="key"
         value={p.apiKey}
         onChange={(v) => set({ apiKey: v })}
         placeholder={p.hasApiKey ? t('admin.aiApiKeyKeep') : 'sk-…'}

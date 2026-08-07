@@ -91,6 +91,7 @@ export function FieldForm({
             key={f.key}
             label={label}
             type={f.secret ? 'password' : 'text'}
+            icon={f.secret ? 'lock' : undefined}
             value={values[f.key] ?? ''}
             onChange={(v) => onChange(f.key, v)}
             placeholder={f.placeholder}
@@ -215,7 +216,7 @@ function AddEngineDialog({
         />
       ) : null}
       <Box gap={16}>
-        <Field label={t('field.name')} value={name} onChange={setName} />
+        <Field label={t('field.name')} icon="tag" value={name} onChange={setName} />
         <FieldForm fields={fields} values={values} onChange={setField} />
         {error ? (
           <Txt variant="meta" color="danger">

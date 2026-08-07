@@ -85,7 +85,7 @@
    drift apart. An OUTLINE rather than a box-shadow, unlike the 10-foot ring:
    it does not evict a shadow the field already carries. */
 :root {
-  --ring-field: 3px solid color-mix(in srgb, var(--kroma-accent) 32%, transparent);
+  --ring-field: var(--ring-width) solid color-mix(in srgb, var(--kroma-accent) 32%, transparent);
 }
 
 /* THE FIELD FOCUS VISUAL, for every text entry on the web.

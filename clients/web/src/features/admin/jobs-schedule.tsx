@@ -43,6 +43,7 @@ export const ScheduleModal = createCallable<{ job: JobInfo }, boolean>(({ call, 
     <Dialog open title={t('jobs.editSchedule')} width={520} onClose={() => call.end(false)}>
       <Field
         label={t('jobs.cronExpr')}
+        icon="clock"
         value={value}
         onChange={setValue}
         placeholder="0 4 * * *"

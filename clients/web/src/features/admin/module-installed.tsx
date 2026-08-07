@@ -72,8 +72,6 @@ function InstalledRow({
         <div className="flex justify-end">
           <IconButton
             variant="ghost"
-            size={32}
-            glyph={18}
             icon="chevron-right"
             label={t('admin.modulesDetails')}
             onPress={onOpen}

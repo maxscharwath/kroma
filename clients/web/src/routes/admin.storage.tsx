@@ -1,13 +1,21 @@
 import type { Volume } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button, EmptyState, Progress, Section, Select, StatCard, Surface } from '@kroma/ui/kit';
+import {
+  Button,
+  confirm,
+  EmptyState,
+  Progress,
+  Section,
+  Select,
+  StatCard,
+  Surface,
+} from '@kroma/ui/kit';
 import { IconDatabase } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { PageHeader, usePoll } from '#web/features/admin/shell';
 import { formatBytes } from '#web/shared/lib/adminFormat';
 import { useAuth } from '#web/shared/lib/auth';
-import { confirmDialog } from '#web/shared/ui';
 
 export const Route = createFileRoute('/admin/storage')({
   component: StoragePage,
@@ -35,7 +43,7 @@ function StoragePage() {
   }
 
   async function resetMetadata() {
-    const ok = await confirmDialog({
+    const ok = await confirm({
       title: t('admin.resetMetadata'),
       message: t('admin.resetMetadataConfirm'),
       confirmLabel: t('admin.resetMetadataBtn'),
@@ -118,7 +126,7 @@ function StoragePage() {
             title={t('admin.transcodeCacheFolder')}
             desc={t('admin.transcodeCacheFolderDesc')}
             right={
-              <span className="rounded-[9px] border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-text">
+              <span className="rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-[13px] font-semibold text-text">
                 {data?.cache.dir ?? '-'}
               </span>
             }
@@ -210,7 +218,7 @@ function VolumeCard({ v }: Readonly<{ v: Volume }>) {
     <Surface elevated pad="none" radius={16} border="border" px={22} py={18}>
       <div className="mb-3 flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3.5">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-accent-soft text-accent">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
             <IconDatabase size={20} stroke={1.8} />
           </span>
           <div className="min-w-0">

@@ -73,8 +73,8 @@ export function DetailSkeleton() {
           <Skeleton shape="text" lines={3} />
         </div>
         <div className="mt-8 flex gap-3">
-          <Skeleton h={48} w={144} radius={12} />
-          <Skeleton h={48} w={48} radius={12} />
+          <Skeleton h={48} w={144} radius="lg" />
+          <Skeleton h={48} w={48} radius="lg" />
         </div>
         <RailSkeleton count={6} />
       </div>

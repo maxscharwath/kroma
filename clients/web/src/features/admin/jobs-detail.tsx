@@ -59,7 +59,7 @@ function RunRow({
     <button
       type="button"
       onClick={onClick}
-      className={`mb-1 flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left transition-colors ${
+      className={`mb-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors ${
         active ? 'bg-white/6' : 'hover:bg-white/3'
       }`}
     >

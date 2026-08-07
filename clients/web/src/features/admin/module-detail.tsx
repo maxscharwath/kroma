@@ -209,14 +209,7 @@ export const ModuleDetailDrawer = createCallable<{ id: string }, boolean>(({ cal
           <span className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
             {t('admin.modulesSheet')}
           </span>
-          <IconButton
-            variant="ghost"
-            size={32}
-            glyph={20}
-            icon="x"
-            label={t('common.close')}
-            onPress={close}
-          />
+          <IconButton variant="ghost" icon="x" label={t('common.close')} onPress={close} />
         </div>
         <div className="flex items-start gap-4">
           <HeaderIcon id={id} installed={!!installed} icon={entry?.icon} />

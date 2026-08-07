@@ -1,12 +1,11 @@
 import type { AdminLibrary } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Dialog, DialogActions, Field, SegmentedControl, Switch } from '@kroma/ui/kit';
+import { confirm, Dialog, DialogActions, Field, SegmentedControl, Switch } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { createCallable } from 'react-call';
 import { FolderField } from '#web/features/admin/folder-picker';
 import { useAsyncAction } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
-import { confirmDialog } from '#web/shared/ui';
 
 /** Library kind as accepted by the create/update API: `""` = Auto. */
 export type LibKind = '' | 'movies' | 'shows' | 'mixed';
@@ -89,6 +88,7 @@ export const AddLibraryModal = createCallable<void, boolean>(({ call }) => {
     <Dialog open title={t('admin.addLibrary')} width={600} onClose={() => call.end(false)}>
       <Field
         label={t('admin.name')}
+        icon="tag"
         value={name}
         onChange={setName}
         placeholder={t('admin.kindMovies')}
@@ -134,7 +134,7 @@ export const ManageLibraryModal = createCallable<{ lib: AdminLibrary }, boolean>
         call.end(true);
       });
     const remove = async () => {
-      const ok = await confirmDialog({
+      const ok = await confirm({
         title: t('common.delete'),
         message: t('admin.confirmDeleteLibrary', { name: lib.name }),
         confirmLabel: t('common.delete'),
@@ -155,7 +155,7 @@ export const ManageLibraryModal = createCallable<{ lib: AdminLibrary }, boolean>
         width={600}
         onClose={() => call.end(false)}
       >
-        <Field label={t('admin.name')} value={name} onChange={setName} />
+        <Field label={t('admin.name')} icon="tag" value={name} onChange={setName} />
         <Field label={t('admin.libraryType')}>
           <LibraryTypeSelect value={kind} onChange={setKind} />
         </Field>

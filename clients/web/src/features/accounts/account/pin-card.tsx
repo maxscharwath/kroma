@@ -2,12 +2,11 @@
 // into this profile on a shared device. It is not the login credential.
 
 import { useT } from '@kroma/ui';
-import { OtpField } from '@kroma/ui/kit';
+import { Button, OtpField } from '@kroma/ui/kit';
 import { IconLock } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, StatusText, useSave } from '#web/features/accounts/account/ui';
 import { useAuth } from '#web/shared/lib/auth';
-import { Button } from '#web/shared/ui';
 
 function PinRow({
   label,
@@ -77,7 +76,7 @@ export function PinCard() {
   return (
     <Panel className="p-5.5">
       <div className="mb-4 flex items-center gap-3.5">
-        <span className="flex size-10 flex-none items-center justify-center rounded-[11px] bg-accent-soft text-accent">
+        <span className="flex size-10 flex-none items-center justify-center rounded-md bg-accent-soft text-accent">
           <IconLock size={20} stroke={1.8} />
         </span>
         <div className="min-w-0">

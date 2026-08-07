@@ -3,10 +3,10 @@
 
 import { LANG_NO_PREF, LOCALES, langName, langOptions } from '@kroma/core';
 import { useLocale, useSetLocale, useT } from '@kroma/ui';
+import { Select } from '@kroma/ui/kit';
 import { IconBadgeCc, IconLanguage, IconVolume } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { PrefRow } from '#web/features/accounts/account/ui';
-import { Select } from '#web/shared/ui';
 
 // Radix Select forbids an empty value, so "no preference" uses this sentinel
 // and is mapped back to `null` on the way to the server.

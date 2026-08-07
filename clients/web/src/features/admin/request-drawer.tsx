@@ -60,14 +60,7 @@ function DrawerHeader({ req, onClose }: Readonly<{ req: MediaRequest; onClose: (
         <span className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
           {t('requests.sheet')}
         </span>
-        <IconButton
-          variant="ghost"
-          size={32}
-          glyph={20}
-          icon="x"
-          label={t('common.close')}
-          onPress={onClose}
-        />
+        <IconButton variant="ghost" icon="x" label={t('common.close')} onPress={onClose} />
       </div>
       <div className="flex gap-4">
         <DrawerPoster req={req} />
@@ -196,6 +189,7 @@ function DenyForm({
       <Field
         label={t('requests.denyNote')}
         hideLabel
+        icon="note"
         value={note}
         onChange={onNote}
         placeholder={t('requests.denyNote')}
@@ -250,9 +244,7 @@ function ModerationButtons({
         />
       ) : null}
       <IconButton
-        size={46}
-        glyph={16}
-        radius={12}
+        control="md"
         icon="trash"
         label={t('requests.delete')}
         onPress={onDelete}

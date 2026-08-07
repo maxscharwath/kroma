@@ -1,7 +1,6 @@
 import { type GenreCount, type MessageKey, SORT_MODES, type SortMode } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Chip } from '@kroma/ui/kit';
-import { Select } from '#web/shared/ui';
+import { Chip, Select } from '@kroma/ui/kit';
 
 const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
   added: 'browse.sort.added',

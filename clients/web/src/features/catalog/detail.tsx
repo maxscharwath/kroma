@@ -11,13 +11,13 @@ import {
   type VideoTrack,
 } from '@kroma/core';
 import { useT, useThemeAudio } from '@kroma/ui';
-import { BackButton, Badge, IconButton, radius } from '@kroma/ui/kit';
+import { BackButton, Badge, Button, IconButton, radius } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { HeroBackdrop } from '#web/features/catalog/hero-backdrop';
 import { CastButton } from '#web/features/playback/cast/cast-button';
 import { imageUrl } from '#web/shared/lib/api';
-import { Button, Image, Poster, PosterRail } from '#web/shared/ui';
+import { Image, Poster, PosterRail } from '#web/shared/ui';
 
 export type QualityTone = '4K' | 'HDR' | 'H.265';
 
@@ -160,7 +160,7 @@ export function DetailHero({
       <div className="relative flex flex-wrap items-end gap-6 px-(--gutter-web) pb-9 pt-12 sm:gap-10 sm:pt-22.5">
         {/* Hidden on phones: a side column would crush the text into a sliver. */}
         <div
-          className="relative hidden aspect-2/3 shrink-0 overflow-hidden rounded-[14px] shadow-hero sm:block sm:w-48 md:w-60"
+          className="relative hidden aspect-2/3 shrink-0 overflow-hidden rounded-lg shadow-hero sm:block sm:w-48 md:w-60"
           style={{ background: `linear-gradient(158deg, ${c1}, ${c2})` }}
         >
           <Image src={art.poster} fit="cover" fill />

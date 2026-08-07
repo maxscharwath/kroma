@@ -295,7 +295,7 @@ export function GateBody() {
                   avatarUrl={p.avatarUrl}
                   seed={p.id}
                   size={146}
-                  radius={24}
+                  radius={22}
                   className="shadow-[0_10px_25px_-8px_rgba(0,0,0,0.6)] transition-shadow duration-200 group-hover:shadow-[0_0_0_4px_var(--kroma-accent),0_10px_25px_-8px_rgba(0,0,0,0.6)] group-focus-visible:shadow-[0_0_0_4px_var(--kroma-accent),0_10px_25px_-8px_rgba(0,0,0,0.6)]"
                 />
                 {p.locked ? (
@@ -330,7 +330,7 @@ export function GateBody() {
             }}
             className="group flex flex-col items-center gap-3.5 focus:outline-none"
           >
-            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-[24px] border-2 border-dashed border-white/18 text-white/35 transition-transform duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
+            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-2xl border-2 border-dashed border-white/18 text-white/35 transition-transform duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
               <IconPlus size={46} stroke={1.6} />
             </div>
             <span className="text-[18px] font-medium text-text/50">{t('auth.addProfile')}</span>

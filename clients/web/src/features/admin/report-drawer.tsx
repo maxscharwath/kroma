@@ -23,14 +23,7 @@ function Header({ report, onClose }: Readonly<{ report: Report; onClose: () => v
         <span className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
           {t('reports.sheet')}
         </span>
-        <IconButton
-          variant="ghost"
-          size={32}
-          glyph={20}
-          icon="x"
-          label={t('common.close')}
-          onPress={onClose}
-        />
+        <IconButton variant="ghost" icon="x" label={t('common.close')} onPress={onClose} />
       </div>
       <div className="mb-2.5 flex flex-wrap items-center gap-2">
         <span
@@ -179,9 +172,7 @@ export const ReportDrawer = createCallable<
             />
           )}
           <IconButton
-            size={46}
-            glyph={16}
-            radius={12}
+            control="md"
             icon="trash"
             label={t('reports.actionDelete')}
             onPress={del}

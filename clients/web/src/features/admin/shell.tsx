@@ -234,7 +234,7 @@ function AdminBrand() {
   return (
     <div className="flex items-center gap-2.5">
       <Logo size={19} />
-      <span className="rounded-[5px] bg-accent px-1.5 py-0.75 text-[8.5px] font-bold tracking-[.13em] text-accent-ink">
+      <span className="rounded-sm bg-accent px-1.5 py-0.75 text-[8.5px] font-bold tracking-[.13em] text-accent-ink">
         {t('admin.badge')}
       </span>
     </div>
@@ -263,7 +263,7 @@ function AdminSidebarBody() {
       <div className="shrink-0 px-3.5 pb-2">
         <Link
           to="/"
-          className="flex items-center justify-between rounded-[11px] border border-border-strong bg-surface-2 px-3.5 py-2.5 no-underline"
+          className="flex items-center justify-between rounded-md border border-border-strong bg-surface-2 px-3.5 py-2.5 no-underline"
         >
           <span className="inline-flex items-center gap-2.5 text-[14px] font-bold text-accent">
             <Logo markOnly size={17} />
@@ -334,7 +334,7 @@ function AdminMobileTopbar() {
         aria-label={t('nav.menu')}
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/4 hover:text-text"
+        className="flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-white/4 hover:text-text"
       >
         <IconMenu2 size={22} />
       </button>
@@ -353,7 +353,7 @@ function AdminMobileTopbar() {
             type="button"
             aria-label={t('common.close')}
             onClick={() => setOpen(false)}
-            className="flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/4 hover:text-text"
+            className="flex h-10 w-10 items-center justify-center rounded-md text-muted transition-colors hover:bg-white/4 hover:text-text"
           >
             <IconX size={20} />
           </button>

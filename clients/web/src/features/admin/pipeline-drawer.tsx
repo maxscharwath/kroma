@@ -61,14 +61,7 @@ export const PipelineDrawer = createCallable<
           <span className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
             {t('pipeline.elementSheet')}
           </span>
-          <IconButton
-            variant="ghost"
-            size={32}
-            glyph={20}
-            icon="x"
-            label={t('common.close')}
-            onPress={close}
-          />
+          <IconButton variant="ghost" icon="x" label={t('common.close')} onPress={close} />
         </div>
         <div className="flex gap-4">
           <DrawerPoster el={el} />
@@ -117,9 +110,7 @@ export const PipelineDrawer = createCallable<
                     </span>
                     {/* Run just this stage now, at top priority (also acts as a retry on failure). */}
                     <IconButton
-                      size={28}
-                      glyph={13}
-                      radius={8}
+                      control="sm"
                       icon="refresh"
                       active={failed}
                       label={failed ? t('pipeline.retryStage') : t('pipeline.runStage')}

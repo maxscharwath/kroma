@@ -342,6 +342,7 @@ pub async fn serve(
     if !job_fns.is_empty() {
         app = app.merge(job_router(job_fns, env.host_token.clone()));
     }
+    let shutdown_host = Arc::new(host.clone()) as Arc<dyn HostCtx>;
     let app = app.with_state(host);
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], env.port));
@@ -360,8 +361,46 @@ pub async fn serve(
         });
     }
 
-    axum::serve(listener, app).await?;
+    let module_id = env.module_id.clone();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            stop_signal().await;
+            // The hooks run BEFORE the connection drain, not after: draining can
+            // take as long as the slowest in-flight request, and the supervisor
+            // only waits so long before killing us. Whatever a module owns
+            // outside this process (the remote module's `cloudflared` child)
+            // must be released while we still have a process to release it from.
+            tracing::info!(module = %module_id, "stopping: releasing module resources");
+            for module in &modules {
+                module.on_disable(shutdown_host.clone()).await;
+            }
+        })
+        .await?;
     Ok(())
+}
+
+/// Resolves when the supervisor asks this process to stop. A sidecar is a plain
+/// child process, so SIGTERM is the only notice it gets before SIGKILL.
+async fn stop_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let mut term = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(error = %e, "cannot listen for SIGTERM; no clean shutdown");
+                return std::future::pending().await;
+            }
+        };
+        tokio::select! {
+            _ = term.recv() => {}
+            _ = tokio::signal::ctrl_c() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }
 
 type JobFn = fn(&RemoteHost) -> anyhow::Result<()>;

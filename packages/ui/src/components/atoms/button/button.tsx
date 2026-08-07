@@ -14,6 +14,7 @@ import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { Spinner } from '#ui/components/atoms/spinner';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
+import { CONTROL } from '#ui/lib/field-shell';
 
 const buttonVariants = svFor<{
   root: StyleDecl;
@@ -77,13 +78,13 @@ const buttonVariants = svFor<{
     active: { true: {} },
     size: {
       sm: {
-        root: { py: 9, px: 16 },
-        label: { fontSize: 13, fontWeight: '600' },
+        root: { py: CONTROL.sm.py, px: 16, minH: CONTROL.sm.height, radius: CONTROL.sm.radius },
+        label: { fontSize: 13, fontWeight: '600', lineHeight: CONTROL.sm.line },
         icon: { size: 16 },
       },
       md: {
-        root: { py: 14, px: 28 },
-        label: { fontSize: 16, fontWeight: '700' },
+        root: { py: CONTROL.md.py, px: 28, minH: CONTROL.md.height, radius: CONTROL.md.radius },
+        label: { fontSize: 16, fontWeight: '700', lineHeight: CONTROL.md.line },
         icon: { size: 20 },
       },
       lg: {

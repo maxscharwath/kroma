@@ -88,6 +88,7 @@ function TextArea({
       px={metrics.px}
       py={metrics.py}
       radius={metrics.radius}
+      bg={metrics.bg}
       borderWidth={1}
       {...box}
       // The whole field is the caret's landing zone, padding included. A drag a

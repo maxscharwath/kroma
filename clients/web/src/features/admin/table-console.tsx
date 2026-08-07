@@ -3,10 +3,8 @@
 // chips, column heads, a count summary, a floating toast and an event-driven,
 // throttled reload. These live here once instead of being copy/pasted per page.
 
-import { IconButton, Chip as KitChip, Txt } from '@kroma/ui/kit';
-import { IconSearch } from '@tabler/icons-react';
+import { Field, IconButton, Chip as KitChip, Txt } from '@kroma/ui/kit';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
-import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/input-group';
 
 /** Coalesce event-driven reloads to at most one call per 1.5 s. */
 export function useThrottledReload(reload: () => void): () => void {
@@ -40,20 +38,26 @@ export function ConsoleSearch({
 }: Readonly<{ value: string; onChange: (v: string) => void; placeholder: string }>) {
   return (
     <div className="w-80 max-w-full">
-      <InputGroup className="h-11">
-        <InputGroupAddon>
-          <IconSearch size={17} />
-        </InputGroupAddon>
-        <InputGroupInput
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="text-[14px] font-semibold"
-        />
-        {value ? (
-          <IconButton variant="ghost" size={28} glyph={16} icon="x" onPress={() => onChange('')} />
-        ) : null}
-      </InputGroup>
+      <Field
+        label={placeholder}
+        hideLabel
+        type="search"
+        icon="search"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        trailing={
+          value ? (
+            <IconButton
+              variant="ghost"
+              size={28}
+              glyph={16}
+              icon="x"
+              onPress={() => onChange('')}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }

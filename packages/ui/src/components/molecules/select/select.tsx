@@ -19,7 +19,13 @@ import { SelectOptions } from './select-options';
 // entry on one row are the same shape and height (see lib/field-shell).
 const triggerVariants = sv({
   slots: {
-    root: { row: true, align: 'center', border: 'borderStrong', _hover: { bg: 'white/6' } },
+    root: {
+      row: true,
+      align: 'center',
+      bg: CONTROL.md.bg,
+      border: 'borderStrong',
+      _hover: { bg: 'surface3' },
+    },
     ink: { shrink: 1 },
   },
   variants: {
@@ -32,7 +38,7 @@ const triggerVariants = sv({
           radius: CONTROL.sm.radius,
           minH: CONTROL.sm.line,
         },
-        ink: { fontSize: CONTROL.sm.fontSize },
+        ink: { fontSize: CONTROL.sm.fontSize, lineHeight: CONTROL.sm.line },
       },
       md: {
         root: {
@@ -42,7 +48,7 @@ const triggerVariants = sv({
           radius: CONTROL.md.radius,
           minH: CONTROL.md.line,
         },
-        ink: { fontSize: CONTROL.md.fontSize },
+        ink: { fontSize: CONTROL.md.fontSize, lineHeight: CONTROL.md.line },
       },
     },
     invalid: { true: { root: { border: 'danger' } } },

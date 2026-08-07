@@ -4,8 +4,7 @@
 // and registry management in its own drawer.
 
 import { useT } from '@kroma/ui';
-import { Button, SegmentedControl } from '@kroma/ui/kit';
-import { IconSearch } from '@tabler/icons-react';
+import { Button, Field, SegmentedControl } from '@kroma/ui/kit';
 import { useMemo, useRef, useState } from 'react';
 import { installBundle, message, updateModules } from '#web/features/admin/module-api';
 import { useModuleData } from '#web/features/admin/module-data';
@@ -17,7 +16,6 @@ import { RegistriesDrawer } from '#web/features/admin/module-registries';
 import { StoreGrid } from '#web/features/admin/module-store';
 import { UpdatesList } from '#web/features/admin/module-updates';
 import { Denied, PageHeader, useAsyncAction, useCap } from '#web/features/admin/shell';
-import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/input-group';
 
 type Tab = 'discover' | 'installed' | 'updates';
 
@@ -125,17 +123,16 @@ function ModulesInner() {
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <SegmentedControl value={tab} options={tabs} onChange={setTab} />
         {tab !== 'updates' && (
-          <InputGroup className="h-9 w-64">
-            <InputGroupAddon>
-              <IconSearch size={15} />
-            </InputGroupAddon>
-            <InputGroupInput
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('admin.modulesSearch')}
-              className="text-[13px]"
-            />
-          </InputGroup>
+          <Field
+            w={256}
+            label={t('admin.modulesSearch')}
+            hideLabel
+            type="search"
+            icon="search"
+            placeholder={t('admin.modulesSearch')}
+            value={query}
+            onChange={setQuery}
+          />
         )}
       </div>
 

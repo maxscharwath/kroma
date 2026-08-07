@@ -5,14 +5,12 @@
 
 import type { LogEntry, MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { EmptyState, SegmentedControl, Select, Surface, Switch } from '@kroma/ui/kit';
-import { IconSearch } from '@tabler/icons-react';
+import { EmptyState, Field, SegmentedControl, Select, Surface, Switch } from '@kroma/ui/kit';
 import { useEffect, useRef, useState } from 'react';
 import { RealtimeBadge } from '#web/features/admin/realtime-badge';
 import { PageHeader, usePoll } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
 import { TableSkeleton } from '#web/shared/ui';
-import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/input-group';
 
 type LevelFilter = 'all' | 'info' | 'warn' | 'error';
 
@@ -85,17 +83,16 @@ export function LogsPage() {
           options={sources.map((s) => ({ value: s, label: sourceLabel(s) }))}
           onChange={setSource}
         />
-        <InputGroup className="h-9 w-64">
-          <InputGroupAddon>
-            <IconSearch size={15} />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={qInput}
-            onChange={(e) => setQInput(e.target.value)}
-            placeholder={t('logs.searchPlaceholder')}
-            className="text-[13px]"
-          />
-        </InputGroup>
+        <Field
+          w={256}
+          label={t('logs.searchPlaceholder')}
+          hideLabel
+          type="search"
+          icon="search"
+          placeholder={t('logs.searchPlaceholder')}
+          value={qInput}
+          onChange={setQInput}
+        />
         <div className="ml-auto flex items-center gap-2 text-[13px] font-semibold text-muted">
           <span>{t('logs.follow')}</span>
           <Switch checked={follow} onChange={setFollow} label={t('logs.follow')} />

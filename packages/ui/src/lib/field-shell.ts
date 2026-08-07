@@ -18,12 +18,20 @@ import { activeTheme, styles } from '#ui/core';
 type ControlSize = 'sm' | 'md';
 
 interface ControlMetrics {
+  /** The well's fill. Every control wears it: a filled segmented control
+   *  beside a transparent select is the difference that reads as "these are
+   *  two different kinds of thing". */
+  bg: 'surface2';
   /** Corner, in px (a raw number so a class-string consumer can spell it too). */
   radius: number;
   px: number;
   py: number;
-  /** The content row's height: what makes every control on a row line up. */
+  /** The content row's height: what a control's own content measures. */
   line: number;
+  /** The control's outer height: the number every control on a row targets,
+   *  whatever it is made of (an entry's padding, a button's label, a square
+   *  icon button). Derived: border + py + line + py + border. */
+  height: number;
   fontSize: number;
   /** Gap between a leading glyph, the content and a trailing slot. */
   gap: number;
@@ -32,8 +40,8 @@ interface ControlMetrics {
 /** The shape of every input, per size. Read it rather than re-deriving it:
  *  this table IS the design. */
 export const CONTROL: Record<ControlSize, ControlMetrics> = {
-  sm: { radius: 10, px: 14, py: 9, line: 20, fontSize: 13.5, gap: 10 },
-  md: { radius: 22, px: 22, py: 12, line: 24, fontSize: 16, gap: 14 },
+  sm: { bg: 'surface2', radius: 10, px: 14, py: 9, line: 20, height: 40, fontSize: 13.5, gap: 10 },
+  md: { bg: 'surface2', radius: 22, px: 22, py: 12, line: 24, height: 50, fontSize: 16, gap: 14 },
 };
 
 /** The field's edge. Focus wins over invalid: while you are fixing the value,

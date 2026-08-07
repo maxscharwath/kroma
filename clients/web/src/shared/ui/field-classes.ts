@@ -13,8 +13,11 @@
 // surfaces it appears on: inset on a console card, and on the bare page
 // behind the sign-in form, where a near-black fill left only a hairline
 // border.
+// No `transition-colors`: the focus ring appears instantly, so a border still
+// crossfading from its white idle colour reads as a white flash inside an
+// amber ring. Edge and ring land together.
 const EDGE =
-  'min-w-0 rounded-[10px] border border-border-strong bg-surface-2 text-text outline-none transition-colors';
+  'min-w-0 rounded-[10px] border border-border-strong bg-surface-2 text-text outline-none';
 
 export const FIELD_BOX = `${EDGE} px-[14px] py-[9px] focus:border-accent`;
 

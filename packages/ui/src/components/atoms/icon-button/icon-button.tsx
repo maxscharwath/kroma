@@ -7,6 +7,7 @@ import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
+import { CONTROL, type ControlSize } from '#ui/lib/field-shell';
 
 /** How the button is filled. */
 export type IconButtonVariant = Variant<typeof iconButtonVariants, 'variant'>;
@@ -98,6 +99,10 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
   icon?: IconName;
   /** Diameter. The design uses 60 on the detail screen. */
   size?: number;
+  /** Sit on a control row: square at the shell's height, with the shell's
+   *  corner rather than the pill, so an icon button beside a field or a
+   *  button is the same box. A `size`/`radius` still wins. */
+  control?: ControlSize;
   /** Glyph size. Defaults to 40% of the diameter. */
   glyph?: number;
   variant?: IconButtonVariant;
@@ -114,7 +119,8 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
 
 function IconButton({
   icon,
-  size = 60,
+  size,
+  control,
   glyph,
   variant = 'glass',
   active = false,
@@ -126,17 +132,22 @@ function IconButton({
   children,
   ...focusProps
 }: Readonly<IconButtonProps>) {
-  const glyphSize = glyph ?? Math.round(size * 0.4);
+  // A control-row icon button is square at the shell's height with the
+  // shell's corner; anything else keeps the design's round 60.
+  const shell = control ? CONTROL[control] : null;
+  const box$ = size ?? shell?.height ?? 60;
+  const corner = cornerRadius ?? shell?.radius;
+  const glyphSize = glyph ?? Math.round(box$ * 0.4);
   const theme = useTheme();
   // Memoised, not inlined: <Focusable> keys its own style memo on this value,
   // and a fresh array per render re-runs the box/face split on every frame of
   // every icon button on screen.
-  const box = useMemo(() => [metrics(size, cornerRadius), style], [size, cornerRadius, style]);
+  const box = useMemo(() => [metrics(box$, corner), style], [box$, corner, style]);
   // The translucent coats frost what sits behind them (see <Frost>). The
   // content may be a render function, so the layer rides along either way.
   const frost =
     variant === 'glass' || variant === 'scrim' ? (
-      <Frost radius={cornerRadius ?? theme.radius.pill} />
+      <Frost radius={corner ?? theme.radius.pill} />
     ) : null;
   return (
     <Focusable

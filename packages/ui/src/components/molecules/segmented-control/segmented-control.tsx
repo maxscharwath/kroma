@@ -31,16 +31,18 @@ const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc
           px: CONTROL.sm.px,
           py: CONTROL.sm.py - GROUP_PAD,
           radius: CONTROL.sm.radius - GROUP_PAD,
+          minH: CONTROL.sm.line,
         },
-        label: { fontSize: CONTROL.sm.fontSize },
+        label: { fontSize: CONTROL.sm.fontSize, lineHeight: CONTROL.sm.line },
       },
       md: {
         root: {
           px: CONTROL.md.px,
           py: CONTROL.md.py - GROUP_PAD,
           radius: CONTROL.md.radius - GROUP_PAD,
+          minH: CONTROL.md.line,
         },
-        label: { fontSize: CONTROL.md.fontSize },
+        label: { fontSize: CONTROL.md.fontSize, lineHeight: CONTROL.md.line },
       },
     },
     active: {

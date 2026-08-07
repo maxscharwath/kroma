@@ -6,6 +6,7 @@
 
 import { useT } from '@kroma/ui';
 import { Box, Button, CardSkeleton, EmptyState, Skeleton } from '@kroma/ui/kit';
+import type { ViewStyle } from 'react-native';
 
 /**
  * The shape of a console page, pulsing: a title, a subtitle, and the panels
@@ -34,36 +35,47 @@ export function ModuleLoading({ panels = 2 }: Readonly<{ panels?: number }>) {
 export function ModuleUnavailable() {
   const t = useT();
   return (
-    <EmptyState
-      icon="plug-off"
-      title={t('modules.unavailable')}
-      hint={t('modules.unavailableHint')}
-    />
+    <Box style={PAGE}>
+      <EmptyState
+        fill
+        icon="plug-off"
+        title={t('modules.unavailable')}
+        hint={t('modules.unavailableHint')}
+      />
+    </Box>
   );
 }
 
 /** A module page whose own data could not be fetched. Distinct from
  *  {@link ModuleUnavailable}: the module IS there, the request failed. Pass
  *  `retry` where the page can ask again, and the state offers the button. */
-export function ModuleFailed({ retry }: Readonly<{ retry?: () => void }>) {
+export function ModuleFailed({ retry, detail }: Readonly<{ retry?: () => void; detail?: string }>) {
   const t = useT();
   return (
-    <EmptyState
-      fill
-      icon="alert-triangle"
-      title={t('modules.loadFailed')}
-      hint={t('modules.loadFailedHint')}
-      action={
-        retry ? (
-          <Button
-            variant="glass"
-            size="sm"
-            icon="refresh"
-            label={t('error.retry')}
-            onPress={retry}
-          />
-        ) : undefined
-      }
-    />
+    <Box style={PAGE}>
+      <EmptyState
+        fill
+        icon="alert-triangle"
+        title={t('modules.loadFailed')}
+        hint={t('modules.loadFailedHint')}
+        detail={detail}
+        action={
+          retry ? (
+            <Button
+              variant="glass"
+              size="sm"
+              icon="refresh"
+              label={t('error.retry')}
+              onPress={retry}
+            />
+          ) : undefined
+        }
+      />
+    </Box>
   );
 }
+
+// The console's main region does not stretch its children, so a state that
+// should centre in the viewport has to bring its own height. The unit is the
+// browser's; RN's types do not know it, and these pages render only there.
+const PAGE = { minHeight: '62vh' } as unknown as ViewStyle;

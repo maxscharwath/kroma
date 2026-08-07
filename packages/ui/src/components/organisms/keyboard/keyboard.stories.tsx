@@ -53,8 +53,8 @@ export default story({
     letters: 'abc' as (typeof KEYBOARD_LAYOUTS)[number],
   },
   controls: {
-    layout: { options: ['search', 'url'] },
-    letters: { options: [...KEYBOARD_LAYOUTS] },
+    layout: ['search', 'url'],
+    letters: KEYBOARD_LAYOUTS,
   },
   render: ({ layout, letters }) => <KeyboardDemo layout={layout} letters={letters} />,
 });

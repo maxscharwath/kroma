@@ -50,16 +50,17 @@ const WHEEL_BANDS = [
   { color: 'rgba(168, 85, 247, .30)', top: '94%', height: '42%', drift: -0.4 },
 ] as const;
 
-// A portrait phone is mostly HEIGHT: the desktop proportions bury the
-// artwork under two thirds of ribbon, so compact screens take a tighter
-// stack pinned to the lower quarter, same order and tilt.
+// A portrait phone is mostly HEIGHT, and the landscape percentages land as a
+// thin strip at the bottom of it. Compact screens take the same order and
+// tilt over a taller run: the stack opens just under the midline and grows
+// past the bottom edge, so the ribbons carry the lower half of the frame.
 const COMPACT_BANDS = [
-  { color: 'rgba(242, 104, 92, .30)', top: '66%', height: '4%', drift: 1 },
-  { color: 'rgba(244, 182, 66, .30)', top: '69%', height: '6%', drift: -0.7 },
-  { color: 'rgba(95, 191, 143, .30)', top: '73%', height: '8%', drift: 0.5 },
-  { color: 'rgba(79, 157, 224, .30)', top: '78%', height: '11%', drift: -1 },
-  { color: 'rgba(99, 102, 241, .30)', top: '84%', height: '15%', drift: 0.8 },
-  { color: 'rgba(168, 85, 247, .30)', top: '91%', height: '26%', drift: -0.4 },
+  { color: 'rgba(242, 104, 92, .30)', top: '48%', height: '6%', drift: 1 },
+  { color: 'rgba(244, 182, 66, .30)', top: '53%', height: '9%', drift: -0.7 },
+  { color: 'rgba(95, 191, 143, .30)', top: '59%', height: '12%', drift: 0.5 },
+  { color: 'rgba(79, 157, 224, .30)', top: '66%', height: '16%', drift: -1 },
+  { color: 'rgba(99, 102, 241, .30)', top: '74%', height: '21%', drift: 0.8 },
+  { color: 'rgba(168, 85, 247, .30)', top: '86%', height: '34%', drift: -0.4 },
 ] as const;
 
 const COMPACT_MAX_W = 600;

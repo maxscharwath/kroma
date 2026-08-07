@@ -8,6 +8,7 @@
 
 import { type ReactNode, useMemo } from 'react';
 import { type StyleProp, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
+import { Box } from '#ui/components/atoms/box';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
@@ -17,20 +18,32 @@ import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
 import { useGroupMember } from '#ui/lib/group-shape';
 
+// The row's rhythm, shared by the root and the dimmable content wrapper below.
+const CONTENT_GAP = 9;
+
 const buttonVariants = svFor<{
   root: StyleDecl;
   label: StyleDecl;
   icon: Pick<IconProps, 'color' | 'size'>;
 }>()({
   slots: {
-    root: { row: true, center: true, gap: 9, radius: 'md', _disabled: { opacity: 0.5 } },
+    // Disabled is NOT a root opacity: an element with opacity < 1 becomes its
+    // own backdrop root, which blinds the <Frost> child's backdrop-filter.
+    // Each variant fades its FILL below instead, and the content row carries
+    // the ink dim (a group fade, so icon strokes never double-paint).
+    root: { row: true, center: true, gap: CONTENT_GAP, radius: 'md' },
     label: { text: 'label' },
     icon: { color: 'text', size: 20 },
   },
   variants: {
     variant: {
       primary: {
-        root: { bg: 'accent', _hover: { bg: 'accentHover' }, _press: { bg: 'accentHover' } },
+        root: {
+          bg: 'accent',
+          _hover: { bg: 'accentHover' },
+          _press: { bg: 'accentHover' },
+          _disabled: { bg: 'accent/50' },
+        },
         label: { color: 'accentInk' },
         icon: { color: 'accentInk' },
       },
@@ -40,13 +53,19 @@ const buttonVariants = svFor<{
           border: 'borderStrong',
           _hover: { bg: 'white/16' },
           _press: { bg: 'white/18' },
+          _disabled: { bg: 'white/5', border: 'white/7' },
         },
       },
       ghost: {
         root: { bg: 'transparent', _hover: { bg: 'white/6' }, _press: { bg: 'white/8' } },
       },
       danger: {
-        root: { bg: 'danger', _hover: { bg: 'dangerHover' }, _press: { opacity: 0.85 } },
+        root: {
+          bg: 'danger',
+          _hover: { bg: 'dangerHover' },
+          _press: { opacity: 0.85 },
+          _disabled: { bg: 'danger/50' },
+        },
       },
       /** Red ink, no fill: the destructive action that is an exit rather than
        *  the screen's purpose (a dialog's "Delete" beside its primary pair). */
@@ -63,6 +82,7 @@ const buttonVariants = svFor<{
           border: 'white/15',
           _hover: { bg: 'rgba(28, 28, 34, 0.72)' },
           _press: { bg: 'rgba(40, 40, 48, 0.75)' },
+          _disabled: { bg: 'bg/35', border: 'white/7' },
         },
       },
       /** A bordered toggle: the detail screen's "Ma liste" / "Vu" pills, which
@@ -73,6 +93,7 @@ const buttonVariants = svFor<{
           border: 'white/20',
           _hover: { bg: 'white/17' },
           _press: { bg: 'white/20' },
+          _disabled: { bg: 'white/6', border: 'white/10' },
         },
       },
     },
@@ -187,19 +208,23 @@ function Button({
     >
       {(state) => (
         <>
-          {FROSTED.has(variant) ? (
+          {FROSTED.has(variant) || (disabled && !UNFILLED.has(variant)) ? (
             <Frost radius={typeof frostRadius === 'number' ? frostRadius : defaultRadius} />
           ) : null}
-          <ButtonContent
-            glyph={state.slots.icon}
-            icon={icon}
-            iconRight={iconRight}
-            label={label}
-            labelStyle={state.slots.label}
-            loading={loading}
-          >
-            {children}
-          </ButtonContent>
+          {/* One group fade for the whole ink row: the fill's own alpha above
+              stays outside it, so the frost keeps working. */}
+          <Box row center gap={CONTENT_GAP} opacity={disabled ? 0.5 : undefined}>
+            <ButtonContent
+              glyph={state.slots.icon}
+              icon={icon}
+              iconRight={iconRight}
+              label={label}
+              labelStyle={state.slots.label}
+              loading={loading}
+            >
+              {children}
+            </ButtonContent>
+          </Box>
         </>
       )}
     </Focusable>
@@ -245,6 +270,10 @@ function ButtonContent({
 // The variants whose fill is a translucency over whatever sits behind, the
 // ones a backdrop blur has anything to do for.
 const FROSTED = new Set<ButtonVariant>(['glass', 'outline', 'scrim']);
+
+// The variants with no fill at rest: disabling one leaves nothing to frost,
+// where every other variant fades its fill translucent and frosts behind it.
+const UNFILLED = new Set<ButtonVariant>(['ghost', 'dangerGhost']);
 
 export type { ButtonProps, ButtonSize, ButtonVariant };
 export { Button, buttonVariants };

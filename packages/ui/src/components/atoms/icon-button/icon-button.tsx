@@ -156,8 +156,10 @@ function IconButton({
   );
   // The translucent coats frost what sits behind them (see <Frost>). The
   // content may be a render function, so the layer rides along either way.
+  // `danger` (a red wash) and an `active` toggle (the accent's soft fill) are
+  // translucencies too, whatever variant they dress.
   const frost =
-    variant === 'glass' || variant === 'scrim' ? (
+    active || variant === 'glass' || variant === 'scrim' || variant === 'danger' ? (
       <Frost radius={corner ?? theme.radius.pill} />
     ) : null;
   return (

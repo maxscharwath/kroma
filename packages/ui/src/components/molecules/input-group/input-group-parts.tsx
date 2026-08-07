@@ -116,8 +116,11 @@ function Addon({
       row
       align="center"
       gap={8}
-      pl={align === 'inline-end' ? 0 : metrics.px}
-      pr={align === 'inline-start' ? 0 : metrics.px}
+      // py, not px, against the shell's edge: an addon holds glyphs and chips,
+      // which sit as far from their edge as from the top and bottom, matching
+      // <TextField>'s own icon well.
+      pl={align === 'inline-end' ? 0 : metrics.py}
+      pr={align === 'inline-start' ? 0 : metrics.py}
       py={block ? INSET : 0}
       minH={block ? metrics.height : undefined}
       style={[
@@ -159,7 +162,7 @@ function useInShell(part: string): { box: number; radius: number; pull: ViewStyl
   const { metrics } = useInputGroup(part);
   const slot = useAddonSlot();
   return useMemo(() => {
-    const by = -(metrics.px - INSET);
+    const by = -(metrics.py - INSET);
     const edge = slot?.edge ? slot.align : null;
     return {
       box: metrics.height - INSET * 2,

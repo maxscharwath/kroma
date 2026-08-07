@@ -116,7 +116,11 @@ function TextField({
       row
       align="center"
       gap={metrics.gap}
-      px={metrics.px}
+      // A side holding a glyph well or an inner button insets by py, not px,
+      // so the glyph sits as far from its edge as from the top and bottom;
+      // only a side where TEXT meets the edge keeps the wider px.
+      pl={icon ? metrics.py : metrics.px}
+      pr={type === 'password' || trailing ? metrics.py : metrics.px}
       py={metrics.py}
       radius={metrics.radius}
       bg={metrics.bg}
@@ -196,7 +200,13 @@ function TextField({
               width, the button is absolutely positioned over it - because in
               flow its padding set the row height. */}
           <Box w={CONTENT} />
-          <Box absolute style={s.revealSlot}>
+          <Box
+            absolute
+            // Anchored where the spacer's well sits: pr (= py) plus the well's
+            // own centring of the glyph, so the eye lines up with the leading
+            // icon's inset on the other side.
+            style={[s.revealSlot, { right: metrics.py + (CONTENT - REVEAL_SIZE) / 2 }]}
+          >
             <Focusable
               label={revealed ? 'Hide password' : 'Show password'}
               ring={false}
@@ -224,7 +234,7 @@ const REVEAL_STATES = { hover: { bg: 'white/10' } } as const;
 
 const s = styles({
   input: { flex: true, minW: 0, borderWidth: 0, bg: 'transparent', p: 0 },
-  revealSlot: { right: 16, top: 0, bottom: 0, justify: 'center' },
+  revealSlot: { top: 0, bottom: 0, justify: 'center' },
   reveal: { p: 4, m: -4, radius: 'md' },
 });
 

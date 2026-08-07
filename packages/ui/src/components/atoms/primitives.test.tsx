@@ -57,6 +57,14 @@ function rgb(hex: string): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+// The alpha spelling, for a token like `accent/50`.
+function rgba(hex: string, alpha: number): string {
+  const m = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
+  if (!m) return hex;
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => Number.parseInt(h as string, 16));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 describe('Icon', () => {
   it('draws an outline glyph as a stroked svg', () => {
     const { container } = render(<Icon name="check" size={32} color="accent" />);
@@ -108,7 +116,12 @@ describe('Button', () => {
     // A disabled control is not a navigator node at all, so it IS the styled
     // element rather than the view inside one.
     const el = screen.getByLabelText('Off');
-    expect(css(el).opacity).toBe('0.5');
+    // The FILL fades and the ink row dims, never the element itself: a root
+    // opacity would make the element its own backdrop root and blind the
+    // frost layer's backdrop-filter (see button.tsx).
+    expect(css(el).opacity).not.toBe('0.5');
+    expect(css(el).backgroundColor).toBe(rgba(colors.accent, 0.5));
+    expect(css(screen.getByText('Off').parentElement as HTMLElement).opacity).toBe('0.5');
     fireEvent.click(el);
     expect(onPress).not.toHaveBeenCalled();
   });

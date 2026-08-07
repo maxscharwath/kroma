@@ -42,6 +42,13 @@ const otpVariants = sv({
       filled: {},
       active: { slot: { borderColor: 'accent', bg: 'accentSoft' } },
     },
+    /** Dimmed by colour, never by a row opacity: a faded row goes translucent
+     *  and lets a backdrop bleed through the cells; the fill stays solid and
+     *  only the edge and ink recede. Declared before `invalid` so a lockout
+     *  keeps its red edge. */
+    disabled: {
+      true: { slot: { bg: 'surface2', borderColor: 'border' }, char: { color: 'textDim' } },
+    },
     invalid: {
       true: { slot: { borderColor: 'danger' } },
     },
@@ -54,7 +61,7 @@ const otpVariants = sv({
       style: { slot: { borderColor: 'danger' } },
     },
   ],
-  defaults: { size: 'md', state: 'empty', invalid: false },
+  defaults: { size: 'md', state: 'empty', disabled: false, invalid: false },
 });
 
 type OtpSize = 'md' | 'tv';
@@ -151,7 +158,7 @@ function OtpField({
   }));
 
   return (
-    <Box row align="center" gap={12} opacity={disabled ? 0.5 : 1} {...box}>
+    <Box row align="center" gap={12} {...box}>
       {physicalKeyboard ? (
         // Off-screen rather than hidden: `opacity: 0` still leaves a focusable,
         // pasteable, autofillable entry. It covers the row so a tap anywhere
@@ -185,7 +192,7 @@ function OtpField({
           {renderSlot ? (
             renderSlot(slot, at)
           ) : (
-            <Slot slot={slot} size={size} invalid={invalid} mask={mask} />
+            <Slot slot={slot} size={size} invalid={invalid} disabled={disabled} mask={mask} />
           )}
           {isGroupEnd(groups, at, maxLength) ? <Separator /> : null}
         </Box>
@@ -215,10 +222,11 @@ function Slot({
   slot,
   size,
   invalid,
+  disabled,
   mask,
-}: Readonly<{ slot: OtpSlot; size: OtpSize; invalid: boolean; mask: boolean }>) {
+}: Readonly<{ slot: OtpSlot; size: OtpSize; invalid: boolean; disabled: boolean; mask: boolean }>) {
   const state = slotState(slot);
-  const s = otpVariants({ size, state, invalid });
+  const s = otpVariants({ size, state, invalid, disabled });
   return (
     <Box style={s.slot}>
       {slot.char == null ? null : <Txt style={s.char}>{mask ? '•' : slot.char}</Txt>}

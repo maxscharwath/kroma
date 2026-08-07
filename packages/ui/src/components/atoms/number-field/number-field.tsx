@@ -97,7 +97,7 @@ function NumberField({
       onBlur={settle}
       textStyle={TABULAR}
       trailing={
-        <Box mr={-6}>
+        <Box>
           <Step
             icon="chevron-up"
             size={field.size}

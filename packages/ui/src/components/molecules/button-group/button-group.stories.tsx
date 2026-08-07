@@ -51,7 +51,7 @@ function Chips() {
     <Box gap={20}>
       <ButtonGroup.Root label="Adresse du serveur">
         <ButtonGroup.Text>https://</ButtonGroup.Text>
-        <Button variant="outline" label="kroma" />
+        <Button variant="glass" label="kroma" />
         <ButtonGroup.Text>.tv</ButtonGroup.Text>
       </ButtonGroup.Root>
       <ButtonGroup.Root label="Débit maximal">

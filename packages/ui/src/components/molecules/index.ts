@@ -1,5 +1,13 @@
 export type { BackButtonProps } from './back-button';
 export { BackButton } from './back-button';
+export type {
+  ButtonGroupRootProps,
+  ButtonGroupTextProps,
+  GroupMember,
+  GroupOrientation,
+  GroupPosition,
+} from './button-group';
+export { ButtonGroup, useGroupMember, useGroupShape } from './button-group';
 export type { CategoryTileProps, CategoryTileSize } from './category-tile';
 export { CategoryTile, categoryTileVariants } from './category-tile';
 export type {
@@ -17,6 +25,8 @@ export type { FieldProps } from './field';
 export { Field } from './field';
 export type { HintKey, HintProps } from './hint';
 export { HINT_KEYS, Hint } from './hint';
+export type { InputGroupAddonProps, InputGroupRootProps } from './input-group';
+export { InputGroup } from './input-group';
 export type { KeypadProps } from './keypad';
 export { Keypad } from './keypad';
 export type { ListRowProps, ListRowSize } from './list-row';

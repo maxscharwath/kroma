@@ -32,6 +32,8 @@ interface TextAreaProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'>
   value?: string;
   defaultValue?: string;
   onChange?: (next: string) => void;
+  /** After the entry takes focus; see <TextField>. */
+  onFocus?: () => void;
   /** After the entry loses focus: the commit point of a save-on-blur field. */
   onBlur?: () => void;
   placeholder?: string;
@@ -56,6 +58,7 @@ function TextArea({
   value: valueProp,
   defaultValue = '',
   onChange,
+  onFocus,
   onBlur,
   placeholder,
   rows = 3,
@@ -108,7 +111,10 @@ function TextArea({
           multiline
           value={value}
           onChangeText={setValue}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
           onBlur={() => {
             setFocused(false);
             onBlur?.();

@@ -23,6 +23,22 @@ describe('<InputGroup>', () => {
     expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Amount');
   });
 
+  it.each([
+    ['sm', '13.5px'],
+    ['md', '16px'],
+  ] as const)('gives the entry the %s shell the group was asked for', (size, fontSize) => {
+    // The shell's height, corner and padding all come from the Root, so the
+    // entry inside it has to be told the same size or the group is one size
+    // and its text another.
+    render(
+      <InputGroup.Root label="Amount" size={size}>
+        <InputGroup.Input placeholder="0.00" physicalKeyboard autoFocus={false} />
+      </InputGroup.Root>,
+    );
+    expect(screen.getByPlaceholderText('0.00').style.fontSize).toBe(fontSize);
+    cleanup();
+  });
+
   it('lays the addons out by `align`, not by the order they were written', () => {
     render(
       <InputGroup.Root label="Amount">

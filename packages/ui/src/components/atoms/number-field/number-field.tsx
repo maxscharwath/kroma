@@ -12,6 +12,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { TextField, type TextFieldProps } from '#ui/components/atoms/text-field';
 import { styles } from '#ui/core';
+import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { useTDefault } from '#ui/services/i18n';
 
 interface NumberFieldProps
@@ -42,7 +43,6 @@ function NumberField({
   min,
   max,
   step,
-  py = 12,
   autoFocus = false,
   ...field
 }: Readonly<NumberFieldProps>) {
@@ -90,7 +90,6 @@ function NumberField({
   return (
     <TextField
       {...field}
-      py={py}
       type="number"
       autoFocus={autoFocus}
       value={text}
@@ -101,12 +100,14 @@ function NumberField({
         <Box mr={-6}>
           <Step
             icon="chevron-up"
+            size={field.size}
             label={t('common.increase')}
             disabled={max !== undefined && value >= max}
             onPress={() => nudge(1)}
           />
           <Step
             icon="chevron-down"
+            size={field.size}
             label={t('common.decrease')}
             disabled={min !== undefined && value <= min}
             onPress={() => nudge(-1)}
@@ -127,17 +128,24 @@ function NumberField({
 
 function Step({
   icon,
+  size,
   label,
   disabled,
   onPress,
-}: Readonly<{ icon: IconName; label: string; disabled: boolean; onPress: () => void }>) {
+}: Readonly<{
+  icon: IconName;
+  size?: ControlSize;
+  label: string;
+  disabled: boolean;
+  onPress: () => void;
+}>) {
   return (
     <Focusable
       label={label}
       disabled={disabled}
       onPress={onPress}
       ring={false}
-      style={s.step}
+      style={[s.step, s[size ?? entryDefaultSize()]]}
       states={STEP_STATES}
     >
       <Icon name={icon} size={12} stroke={2.6} color={disabled ? 'text/25' : 'textMuted'} />
@@ -151,7 +159,9 @@ const STEP_STATES = { hover: { bg: 'white/10' } } as const;
 const TABULAR = { fontVariant: ['tabular-nums' as const] };
 
 const s = styles({
-  step: { w: 24, h: 13, center: true, radius: 4 },
+  step: { w: 24, center: true, radius: 4 },
+  sm: { h: Math.floor((CONTROL.sm.line - 2) / 2) },
+  md: { h: Math.floor((CONTROL.md.line - 2) / 2) },
 });
 
 export type { NumberFieldProps };

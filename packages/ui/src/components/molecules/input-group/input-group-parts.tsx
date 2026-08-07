@@ -1,10 +1,16 @@
-// The pieces that go inside <InputGroup.Root>: the control, and the addons
-// that flank it.
-
-import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  Children,
+  isValidElement,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { Pressable, type StyleProp, type TextInput, type ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Button, type ButtonProps } from '#ui/components/atoms/button';
+import { IconButton, type IconButtonProps } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
 import { TextArea, type TextAreaProps } from '#ui/components/atoms/text-area';
 import { TextField, type TextFieldProps } from '#ui/components/atoms/text-field';
@@ -14,20 +20,20 @@ import {
   type AddonAlign,
   AddonContext,
   INSET,
-  useAddonAlign,
+  useAddonSlot,
   useInputGroup,
 } from './input-group-context';
 
-/** The entry, stripped of the shell it usually draws: inside a group the box,
- *  the border, the corner and the focus ring all belong to the Root. */
+/** The entry, stripped of the shell it usually draws: that belongs to Root. */
 function GroupInput(props: Readonly<Omit<TextFieldProps, 'size'>>) {
   const group = useInputGroup('Input');
   const entry = useRef<TextInput>(null);
-  const { registerFocus, onFocusChange, padStart, padEnd, invalid } = group;
+  const { size, registerFocus, onFocusChange, padStart, padEnd, invalid } = group;
   const focus = useCallback(() => entry.current?.focus(), []);
   useEffect(() => registerFocus(focus), [registerFocus, focus]);
   return (
     <TextField
+      size={size}
       flex={1}
       minW={0}
       ring={false}
@@ -51,11 +57,12 @@ function GroupInput(props: Readonly<Omit<TextFieldProps, 'size'>>) {
   );
 }
 
-/** The multi-line entry. Same deal, and the one the block addons are for. */
+/** The multi-line entry, and the one the block addons are for. */
 function GroupTextarea(props: Readonly<Omit<TextAreaProps, 'size'>>) {
-  const { onFocusChange, padStart, padEnd, invalid } = useInputGroup('Textarea');
+  const { size, onFocusChange, padStart, padEnd, invalid } = useInputGroup('Textarea');
   return (
     <TextArea
+      size={size}
       flex={1}
       minW={0}
       ring={false}
@@ -79,11 +86,9 @@ function GroupTextarea(props: Readonly<Omit<TextAreaProps, 'size'>>) {
 }
 
 interface AddonProps {
-  /** Where it sits, not where it is written: the Root reads this and renders
-   *  the buckets in visual order, since Yoga has no `order`. */
+  /** Where it sits, not where it is written. */
   align?: AddonAlign;
-  /** A hairline between a block addon and the entry, the way a code editor
-   *  rules off its filename bar. */
+  /** A hairline between a block addon and the entry. */
   divider?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -99,16 +104,20 @@ function Addon({
 }: Readonly<AddonProps>) {
   const { metrics, focusControl } = useInputGroup('Addon');
   const block = align.startsWith('block');
-  // Every addon sits on the entry's own margin, so a bar's first word lines up
-  // with the text under it. A button is the exception and pulls ITSELF in.
+  const items = Children.toArray(children);
+  const edgeAt = align === 'inline-start' ? 0 : align === 'inline-end' ? items.length - 1 : -1;
+  const slotted = items.map((child, index) => (
+    <AddonContext.Provider key={slotKey(child, index)} value={{ align, edge: index === edgeAt }}>
+      {child}
+    </AddonContext.Provider>
+  ));
   const body = (
     <Box
       row
       align="center"
       gap={8}
-      px={metrics.px}
-      // A bar is a control row like any other: the same height as the entry
-      // beside it, whether it holds a button or only a word.
+      pl={align === 'inline-end' ? 0 : metrics.px}
+      pr={align === 'inline-start' ? 0 : metrics.px}
       py={block ? INSET : 0}
       minH={block ? metrics.height : undefined}
       style={[
@@ -118,15 +127,10 @@ function Addon({
         style,
       ]}
     >
-      {children}
+      {slotted}
     </Box>
   );
-  // Pressing the padding types into the entry, which is what a field does
-  // everywhere else. A block addon is a bar of its own controls, so it does
-  // not steal the caret; and a button inside an addon wins the responder, so
-  // it never reaches here either.
-  const inside = <AddonContext.Provider value={align}>{body}</AddonContext.Provider>;
-  if (block) return inside;
+  if (block) return body;
   return (
     <Pressable
       onPress={() => {
@@ -134,34 +138,67 @@ function Addon({
         focusControl();
       }}
     >
-      {inside}
+      {body}
     </Pressable>
   );
 }
 
-/** A button that lives inside the shell: the shell's height minus its inset,
- *  with the corner that leaves the two concentric. */
-function GroupButton({ style, ...props }: Readonly<ButtonProps>) {
-  const { metrics } = useInputGroup('Button');
-  const align = useAddonAlign();
-  const shape = useMemo<ViewStyle>(() => {
-    // The pull-in: the shell's text margin would leave a button that nearly
-    // fills the box floating a whole character-width off its own edge. A bar
-    // has the room, so a block addon keeps the margin.
-    const pull = -(metrics.px - INSET);
+function slotKey(child: ReactNode, index: number): string {
+  return isValidElement(child) && child.key !== null ? String(child.key) : `slot-${index}`;
+}
+
+/** What a control inside the shell measures: the shell's height minus its
+ *  inset, the concentric corner, and the pull-in an inline addon needs. */
+function useInShell(part: string): { box: number; radius: number; pull: ViewStyle } {
+  const { metrics } = useInputGroup(part);
+  const slot = useAddonSlot();
+  return useMemo(() => {
+    const by = -(metrics.px - INSET);
+    const edge = slot?.edge ? slot.align : null;
     return {
-      minHeight: metrics.height - INSET * 2,
-      paddingVertical: 0,
-      paddingHorizontal: 12,
-      borderRadius: nestedRadius(metrics.radius, INSET),
-      ...(align === 'inline-start' ? { marginLeft: pull } : null),
-      ...(align === 'inline-end' ? { marginRight: pull } : null),
+      box: metrics.height - INSET * 2,
+      radius: nestedRadius(metrics.radius, INSET),
+      pull: {
+        ...(edge === 'inline-start' ? { marginLeft: by } : null),
+        ...(edge === 'inline-end' ? { marginRight: by } : null),
+      },
     };
-  }, [metrics, align]);
+  }, [metrics, slot]);
+}
+
+/** A labelled button that lives inside the shell. */
+function GroupButton({ style, ...props }: Readonly<ButtonProps>) {
+  const at = useInShell('Button');
+  const shape = useMemo<ViewStyle>(
+    () => ({
+      minHeight: at.box,
+      paddingTop: 0,
+      paddingBottom: 0,
+      paddingLeft: 12,
+      paddingRight: 12,
+      borderRadius: at.radius,
+      ...at.pull,
+    }),
+    [at],
+  );
   return <Button variant="ghost" size="sm" {...props} style={[shape, style]} />;
 }
 
-/** Unit text inside an addon: a currency, a scheme, a count. */
+/** The icon-only one: its `label` is the accessible name, not visible text. */
+function GroupIconButton({ style, ...props }: Readonly<IconButtonProps>) {
+  const at = useInShell('IconButton');
+  return (
+    <IconButton
+      variant="ghost"
+      size={at.box}
+      radius={at.radius}
+      {...props}
+      style={[at.pull, style]}
+    />
+  );
+}
+
+/** Unit text inside an addon. */
 function GroupText({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <Txt variant="meta" color="textDim">
@@ -177,4 +214,4 @@ const s = styles({
 });
 
 export type { AddonProps };
-export { Addon, GroupButton, GroupInput, GroupText, GroupTextarea };
+export { Addon, GroupButton, GroupIconButton, GroupInput, GroupText, GroupTextarea };

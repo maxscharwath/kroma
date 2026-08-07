@@ -6,7 +6,7 @@
 // declared once with `sv` slots rather than assembled from conditionals and
 // parallel lookup maps at the call site.
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { type StyleProp, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
@@ -15,6 +15,7 @@ import { Spinner } from '#ui/components/atoms/spinner';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
+import { useGroupMember } from '#ui/lib/group-shape';
 
 const buttonVariants = svFor<{
   root: StyleDecl;
@@ -138,13 +139,15 @@ interface ButtonProps
   loading?: boolean;
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
-  /** Focus scale. Defaults to the design's 1.04 for the primary action. */
+  /** Focus scale. Defaults to the design's 1.04 for the primary action, and to
+   *  1 inside a <ButtonGroup>, where a member that grows tears the line it
+   *  shares with its neighbours. */
   focusScale?: number;
 }
 
 function Button({
   variant = 'primary',
-  size = 'md',
+  size,
   block = false,
   active = false,
   icon,
@@ -154,26 +157,33 @@ function Button({
   children,
   style,
   disabled = false,
-  focusScale = 1.04,
+  focusScale,
   onPress,
+  onFocus,
+  onBlur,
   ...focusProps
 }: Readonly<ButtonProps>) {
+  const group = useGroupMember(onFocus, onBlur);
+  const shell = size ?? group.size ?? 'md';
   const defaultRadius = useTheme().radius.md;
-  const s = buttonVariants({ variant, size, block, active }, { disabled });
+  const s = buttonVariants({ variant, size: shell, block, active }, { disabled });
   // The translucent coats frost what sits behind them (see <Frost>); the radius
   // follows any caller override so the blur clips with the corner.
   const frostRadius = StyleSheet.flatten([s.root, style])?.borderRadius;
+  const box = useMemo(() => (group.style ? [group.style, style] : style), [group.style, style]);
   return (
     <Focusable
       {...focusProps}
       onPress={loading ? undefined : onPress}
+      onFocus={group.onFocus}
+      onBlur={group.onBlur}
       disabled={disabled}
       inert={loading}
-      focusScale={focusScale}
+      focusScale={focusScale ?? (group.grouped ? 1 : 1.04)}
       label={label}
       sv={buttonVariants}
-      vars={{ variant, size, block, active }}
-      style={style}
+      vars={{ variant, size: shell, block, active }}
+      style={box}
     >
       {(state) => (
         <>

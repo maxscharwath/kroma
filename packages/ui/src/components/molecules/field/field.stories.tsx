@@ -1,6 +1,7 @@
 import { story } from '@kroma/workbench/story';
 import { Box } from '#ui/components/atoms/box';
 import type { TextFieldType } from '#ui/components/atoms/text-field';
+import { Select } from '#ui/components/molecules/select';
 import { Field } from './field';
 
 const TYPES: TextFieldType[] = ['text', 'email', 'password', 'url', 'search', 'number'];
@@ -109,6 +110,31 @@ const form = useForm({ schema, defaultValues: { email: '' }, t: useT() });
             defaultValue=""
             physicalKeyboard
           />
+        </Box>
+      ),
+    },
+    {
+      name: 'Around another control',
+      docs: 'Give it `children` and the Field is just the label, hint and error - which is how a `<Select>` gets the same label row as the entry beside it. Wrap it: a bare `block` select dropped into a grid cell is stretched by whatever is tallest in the row, and arrives taller than the field next to it. Wrapped, both cells are a label over a control off the same shell table, so they line up on both edges.',
+      render: () => (
+        <Box row gap={14}>
+          <Box flex>
+            <Field label="Category">
+              <Select
+                block
+                label="Category"
+                defaultValue="system"
+                options={[
+                  { value: 'system', label: 'Server status' },
+                  { value: 'media', label: 'New media' },
+                  { value: 'request', label: 'Requests' },
+                ]}
+              />
+            </Field>
+          </Box>
+          <Box flex>
+            <Field label="Opens" placeholder="/movie/…" icon="link" physicalKeyboard />
+          </Box>
         </Box>
       ),
     },

@@ -7,7 +7,8 @@ import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
-import { CONTROL, type ControlSize } from '#ui/lib/field-shell';
+import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { useGroupMember } from '#ui/lib/group-shape';
 
 /** How the button is filled. */
 export type IconButtonVariant = Variant<typeof iconButtonVariants, 'variant'>;
@@ -97,11 +98,13 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
   /** The glyph. Omit it and pass `children` instead for richer content (a
    *  spinner while loading, a stateful glyph). */
   icon?: IconName;
-  /** Diameter. The design uses 60 on the detail screen. */
+  /** Diameter. Defaults to the control shell's height, so an icon button
+   *  beside a <Button> is the same box; pass one only for an outlier. */
   size?: number;
   /** Sit on a control row: square at the shell's height, with the shell's
    *  corner rather than the pill, so an icon button beside a field or a
-   *  button is the same box. A `size`/`radius` still wins. */
+   *  button is the same box. A `size`/`radius` still wins, and a
+   *  <ButtonGroup> supplies it when the caller does not. */
   control?: ControlSize;
   /** Glyph size. Defaults to 40% of the diameter. */
   glyph?: number;
@@ -113,6 +116,9 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
   /** Corner radius override. The default is the pill; a workbench tool or a
    *  square tile passes its own. */
   radius?: number;
+  /** Focus scale. Defaults to the design's 1.04, and to 1 inside a
+   *  <ButtonGroup>, where a member that grows tears the line it shares with
+   *  its neighbours. */
   focusScale?: number;
   children?: ReactNode;
 }
@@ -128,21 +134,26 @@ function IconButton({
   radius: cornerRadius,
   style,
   states,
-  focusScale = 1.04,
+  focusScale,
   children,
+  onFocus,
+  onBlur,
   ...focusProps
 }: Readonly<IconButtonProps>) {
-  // A control-row icon button is square at the shell's height with the
-  // shell's corner; anything else keeps the design's round 60.
-  const shell = control ? CONTROL[control] : null;
-  const box$ = size ?? shell?.height ?? 60;
-  const corner = cornerRadius ?? shell?.radius;
+  const group = useGroupMember(onFocus, onBlur);
+  const row = control ?? group.size;
+  const shell = CONTROL[row ?? entryDefaultSize()];
+  const box$ = size ?? shell.height;
+  const corner = cornerRadius ?? (row ? shell.radius : undefined);
   const glyphSize = glyph ?? Math.round(box$ * 0.4);
   const theme = useTheme();
   // Memoised, not inlined: <Focusable> keys its own style memo on this value,
   // and a fresh array per render re-runs the box/face split on every frame of
   // every icon button on screen.
-  const box = useMemo(() => [metrics(box$, corner), style], [box$, corner, style]);
+  const box = useMemo(
+    () => [metrics(box$, corner), group.style, style],
+    [box$, corner, group.style, style],
+  );
   // The translucent coats frost what sits behind them (see <Frost>). The
   // content may be a render function, so the layer rides along either way.
   const frost =
@@ -152,7 +163,9 @@ function IconButton({
   return (
     <Focusable
       {...focusProps}
-      focusScale={focusScale}
+      onFocus={group.onFocus}
+      onBlur={group.onBlur}
+      focusScale={focusScale ?? (group.grouped ? 1 : 1.04)}
       states={states}
       sv={iconButtonVariants}
       vars={{ variant, active, focusFill }}

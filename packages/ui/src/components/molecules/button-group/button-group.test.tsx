@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render as renderRaw, screen } from '@testing-library/react';
+import { cleanup, render as renderRaw, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Box } from '#ui/components/atoms/box';
@@ -76,6 +76,17 @@ describe('a member of a ButtonGroup', () => {
     expect(member('Plus')).toEqual(TOP);
     expect(member('Moins')).toEqual(BOTTOM);
     expect(getComputedStyle(screen.getByLabelText('Moins')).borderTopWidth).toBe(O);
+  });
+
+  it('lifts itself over its neighbours while focused, so its ring is not overpainted', async () => {
+    render(
+      <ButtonGroup.Root label="Affichage">
+        <Button variant="outline" label="Grille" autoFocus />
+        <Button variant="outline" label="Liste" />
+      </ButtonGroup.Root>,
+    );
+    await waitFor(() => expect(getComputedStyle(screen.getByLabelText('Grille')).zIndex).toBe('1'));
+    expect(getComputedStyle(screen.getByLabelText('Liste')).zIndex).toBe('0');
   });
 
   it('wears the group corner rather than its own', () => {

@@ -69,7 +69,7 @@ export default story({
     },
     {
       name: 'A button in the shell',
-      docs: 'The action belongs to the value being typed, so it lives in the box with it. `InputGroup.Button` is not a size someone picked: it is the shell height minus the inset, with the corner that leaves the two concentric, which is why it still looks right when the shell is `md` on a television.',
+      docs: 'The action belongs to the value being typed, so it lives in the box with it. Neither button is a size someone picked: both are the shell height minus the inset, with the corner that leaves the two concentric, which is why they still look right when the shell is `md` on a television. `InputGroup.IconButton` is the icon-only one, whose `label` is the accessible name rather than visible text.',
       render: () => (
         <Box gap={16}>
           <InputGroup.Root label="Share link">
@@ -79,7 +79,7 @@ export default story({
               autoFocus={false}
             />
             <InputGroup.Addon align="inline-end">
-              <InputGroup.Button icon="copy" label="Copy" />
+              <InputGroup.IconButton icon="copy" label="Copy" />
             </InputGroup.Addon>
           </InputGroup.Root>
           <InputGroup.Root label="Search the catalogue">
@@ -89,6 +89,43 @@ export default story({
             <InputGroup.Input placeholder="Blade Runner" physicalKeyboard autoFocus={false} />
             <InputGroup.Addon align="inline-end">
               <InputGroup.Button variant="primary" label="Search" />
+            </InputGroup.Addon>
+          </InputGroup.Root>
+        </Box>
+      ),
+    },
+    {
+      name: 'A picker row',
+      docs: "The composed shape the admin console uses for a pick-from-dialog value: a read-only entry naming the choice, the thumbnail as the leading addon, the action welded into the shell. On the console's dense `sm` shell, which is where tight insets show first.",
+      render: () => (
+        <Box gap={16}>
+          <InputGroup.Root size="sm" label="Image">
+            <InputGroup.Addon>
+              <Icon name="photo" size={16} color="textDim" />
+            </InputGroup.Addon>
+            <InputGroup.Input
+              readOnly
+              placeholder="Choisir une image"
+              physicalKeyboard
+              autoFocus={false}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.Button label="Choisir" />
+            </InputGroup.Addon>
+          </InputGroup.Root>
+          <InputGroup.Root size="sm" label="Image">
+            <InputGroup.Addon>
+              <Icon name="photo" size={16} color="textDim" />
+            </InputGroup.Addon>
+            <InputGroup.Input
+              readOnly
+              defaultValue="notif-9f2a11c0-w1280.webp"
+              physicalKeyboard
+              autoFocus={false}
+            />
+            <InputGroup.Addon align="inline-end">
+              <InputGroup.IconButton icon="x" label="Effacer" />
+              <InputGroup.Button label="Choisir" />
             </InputGroup.Addon>
           </InputGroup.Root>
         </Box>

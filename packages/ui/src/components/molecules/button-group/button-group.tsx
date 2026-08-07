@@ -124,14 +124,14 @@ function Text({ children, style }: Readonly<ButtonGroupTextProps>) {
  *  as the member after it. */
 function Separator() {
   const vertical = useGroupSlot()?.orientation === 'vertical';
-  return <Box bg="borderStrong" style={vertical ? s.rule : s.bar} />;
+  return <Box bg="borderStrong" style={vertical ? s.horizontalLine : s.verticalLine} />;
 }
 
 // One px, not a hairline: the separator has to read as the same line that two
 // bordered members collapse into.
 const s = styles({
-  bar: { w: 1, self: 'stretch' },
-  rule: { h: 1, self: 'stretch' },
+  verticalLine: { w: 1, self: 'stretch' },
+  horizontalLine: { h: 1, self: 'stretch' },
 });
 
 const chip = styles({

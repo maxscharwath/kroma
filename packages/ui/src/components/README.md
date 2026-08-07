@@ -66,6 +66,17 @@ only and this kit does not:
    parts are there for the ones it cannot describe. A design system whose
    simplest list takes twelve lines will be worked around.
 
+3. **A container DECLARES to its parts; it cannot read them.** Radix's web
+   components let CSS do the reading: `:first-child` flattens a corner,
+   `has-[>textarea]` reshapes a shell, `order-last` moves an addon without
+   moving the markup. None of that exists here, and Yoga has no `order` at all.
+   So a Root that needs to know its own contents walks its children ONCE,
+   sorts them, and publishes what it learned through context: a position
+   (`first`/`middle`/`last`), a padding the entry must draw for itself, the
+   layout the shell takes. `<InputGroup>` and `<ButtonGroup>` are both this.
+   The corollary is real API: a part must be a DIRECT child to be sorted, and
+   only a part that reads the context takes part in the shape.
+
 Sugar is a shorthand for the parts, never a second implementation of them.
 
 ## A component is a folder

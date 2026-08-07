@@ -2,7 +2,7 @@
 // non-focusable value plus caret - nothing may invite a click that summons the
 // platform IME.
 
-import { type ReactNode, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useRef, useState } from 'react';
 import { type StyleProp, TextInput, type TextInputProps, type TextStyle } from 'react-native';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
@@ -38,8 +38,14 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
   onChange?: (next: string) => void;
   type?: TextFieldType;
   onSubmit?: () => void;
+  /** After the entry takes focus. A shell drawn AROUND this field (see
+   *  <InputGroup>) paints the focus state the entry itself gives up. */
+  onFocus?: () => void;
   /** After the entry loses focus: the commit point of a save-on-blur field. */
   onBlur?: () => void;
+  /** The entry itself, for a caller that has to focus it from outside: give it
+   *  a ref and the field uses it instead of its own. */
+  entryRef?: RefObject<TextInput | null>;
   placeholder?: string;
   icon?: IconName;
   trailing?: ReactNode;
@@ -52,6 +58,12 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
    *  the CURRENT password into it and never offers to generate one. */
   autoComplete?: TextInputProps['autoComplete'];
   invalid?: boolean;
+  /** A value to read and copy, not to change: the entry still focuses and
+   *  still selects, so a share link can be picked up with the keyboard. */
+  readOnly?: boolean;
+  /** Select the whole value when the entry takes focus, which is what a
+   *  one-shot value (a link, a token) wants: focus it and copy it. */
+  selectOnFocus?: boolean;
   label?: string;
   /** The control shell's size. Defaults to the app's (`setEntryDefaults`):
    *  `md` reads at ten feet, `sm` is a console page's density. */
@@ -69,7 +81,9 @@ function TextField({
   onChange,
   type = 'text',
   onSubmit,
+  onFocus,
   onBlur,
+  entryRef,
   placeholder,
   icon,
   trailing,
@@ -78,6 +92,8 @@ function TextField({
   keyboardType,
   autoComplete,
   invalid = false,
+  readOnly = false,
+  selectOnFocus = false,
   label,
   size,
   textStyle,
@@ -90,7 +106,8 @@ function TextField({
   const [value, setValue] = useControllable(valueProp, defaultValue, onChange);
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const input = useRef<TextInput>(null);
+  const own = useRef<TextInput>(null);
+  const input = entryRef ?? own;
   const keyboardProps = keyboardType ? { keyboardType } : null;
   const autoCompleteProps = autoComplete ? { autoComplete } : null;
   const masked = type === 'password' && !revealed;
@@ -133,11 +150,16 @@ function TextField({
           value={value}
           onChangeText={setValue}
           onSubmitEditing={onSubmit}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
           onBlur={() => {
             setFocused(false);
             onBlur?.();
           }}
+          readOnly={readOnly}
+          selectTextOnFocus={selectOnFocus}
           placeholder={placeholder}
           placeholderTextColor={PLACEHOLDER}
           accessibilityLabel={label}

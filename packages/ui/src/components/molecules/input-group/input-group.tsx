@@ -1,17 +1,6 @@
-// <InputGroup>: an entry with things welded into its shell. A search box with
-// a glyph and a Kbd hint, an amount between a currency and a unit, a comment
-// box with a counter and a Post button along its bottom edge.
-//
-// Composed, in Radix's shape (see the components README): the Root owns the
-// box, the border, the corner and the focus ring; the parts are written in
-// whatever order reads best and say where they belong with `align`.
-//
-// The web original is a stack of `has-[]` selectors: the container reads its
-// own contents and reshapes itself. Nothing here can do that, and Yoga has no
-// `order` either, so the Root walks its children ONCE, sorts them into
-// buckets, and publishes what it learned through context: the layout it needs
-// (a row, or a column when a block addon is present) and the padding the entry
-// must draw for itself where no addon is already holding it.
+// <InputGroup>: an entry with things welded into its shell. Yoga has no
+// `order` and there are no `:has()` selectors, so the Root sorts its children
+// into buckets once and publishes what it learned through context.
 
 import {
   Children,
@@ -26,7 +15,14 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { type ControlSize, controlMetrics, edgeColor, fieldRing } from '#ui/lib/field-shell';
 import { Context, type InputGroupContext } from './input-group-context';
-import { Addon, GroupButton, GroupInput, GroupText, GroupTextarea } from './input-group-parts';
+import {
+  Addon,
+  GroupButton,
+  GroupIconButton,
+  GroupInput,
+  GroupText,
+  GroupTextarea,
+} from './input-group-parts';
 
 interface InputGroupRootProps {
   /** Names the whole control to assistive tech: the entry plus its addons is
@@ -84,6 +80,7 @@ function Root({ label, size, invalid = false, style, children }: Readonly<InputG
 
   const ctx = useMemo<InputGroupContext>(
     () => ({
+      size,
       metrics,
       invalid,
       padStart: at.inlineStart.length > 0 ? 0 : metrics.px,
@@ -92,11 +89,19 @@ function Root({ label, size, invalid = false, style, children }: Readonly<InputG
       registerFocus,
       focusControl,
     }),
-    [metrics, invalid, at.inlineStart.length, at.inlineEnd.length, registerFocus, focusControl],
+    [
+      size,
+      metrics,
+      invalid,
+      at.inlineStart.length,
+      at.inlineEnd.length,
+      registerFocus,
+      focusControl,
+    ],
   );
 
   const row = (
-    <Box row align="center" minH={metrics.height} minW={0}>
+    <Box row align="center" gap={metrics.gap} minH={metrics.height - 2} minW={0}>
       {at.inlineStart}
       {at.control}
       {at.inlineEnd}
@@ -145,6 +150,7 @@ const InputGroup = {
   Textarea: GroupTextarea,
   Addon,
   Button: GroupButton,
+  IconButton: GroupIconButton,
   Text: GroupText,
 };
 

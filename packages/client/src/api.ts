@@ -61,6 +61,7 @@ import type {
   Metadata,
   MetricsSnapshot,
   ModuleInfo,
+  NotificationImages,
   NotificationPrefs,
   NotificationsView,
   PasskeyInfo,
@@ -756,6 +757,11 @@ export class KromaClient {
   /** Store an image for a notification, returning its cached path. */
   uploadNotificationImage(file: Blob): Promise<{ imageUrl: string }> {
     return admin.uploadNotificationImage(this.ctx, file);
+  }
+
+  /** Images previously uploaded for notifications, newest first. */
+  listNotificationImages(): Promise<NotificationImages> {
+    return admin.listNotificationImages(this.ctx);
   }
 
   adminJobs(): Promise<JobsView> {

@@ -105,7 +105,7 @@ function Addon({
   const { metrics, focusControl } = useInputGroup('Addon');
   const block = align.startsWith('block');
   const items = Children.toArray(children);
-  const edgeAt = align === 'inline-start' ? 0 : align === 'inline-end' ? items.length - 1 : -1;
+  const edgeAt = edgeIndex(align, items.length);
   const slotted = items.map((child, index) => (
     <AddonContext.Provider key={slotKey(child, index)} value={{ align, edge: index === edgeAt }}>
       {child}
@@ -141,6 +141,12 @@ function Addon({
       {body}
     </Pressable>
   );
+}
+
+function edgeIndex(align: AddonAlign, count: number): number {
+  if (align === 'inline-start') return 0;
+  if (align === 'inline-end') return count - 1;
+  return -1;
 }
 
 function slotKey(child: ReactNode, index: number): string {

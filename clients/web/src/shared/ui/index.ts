@@ -17,7 +17,6 @@ export type { PosterProps, PosterRailProps } from '#web/shared/ui/poster';
 export { Poster, PosterRail } from '#web/shared/ui/poster';
 export type { SelectOption, SelectProps } from '#web/shared/ui/select';
 export { Select } from '#web/shared/ui/select';
-export { Sheet } from '#web/shared/ui/sheet';
 export {
   CardSkeleton,
   DetailSkeleton,

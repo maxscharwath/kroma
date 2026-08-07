@@ -11,14 +11,19 @@
 // react-native-web's <Modal> focus trap, which yanks focus straight back
 // into the dialog and leaves the popover keyboard-dead.
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Pressable, ScrollView, type View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
-import { type AnchorPlacement, placeUnder } from '#ui/lib/anchor';
-import { armEscapeGuard } from '#ui/lib/escape-guard';
+import {
+  PANEL_BACKDROP,
+  PANEL_SHELL,
+  useAnchoredPlacement,
+  useListKeys,
+  usePanelFocus,
+} from '#ui/lib/anchored-panel';
 import { useInsideFocusScope } from '#ui/lib/focus-presence';
 import { useTDefault } from '#ui/services/i18n';
 import type { SelectOption } from './select';
@@ -33,14 +38,7 @@ function SelectOptions(props: Readonly<SelectSurfaceProps>) {
 
 const MIN_WIDTH = 160;
 const MAX_HEIGHT = 320;
-
-function element(ref: React.RefObject<View | null>): HTMLElement | null {
-  return ref.current as unknown as HTMLElement | null;
-}
-
-function place(trigger: HTMLElement): AnchorPlacement {
-  return placeUnder(trigger, { minWidth: MIN_WIDTH, matchWidth: true, maxHeight: MAX_HEIGHT });
-}
+const ROW_GUESS = 44;
 
 function firstEnabled(options: readonly SelectOption[], value: string): number {
   const chosen = options.findIndex((option) => option.value === value && !option.disabled);
@@ -63,32 +61,26 @@ function SelectPopover({
   const baseId = useId();
   const list = useRef<View>(null);
   const rows = useRef(new Map<number, number>());
-  const [at, setAt] = useState<AnchorPlacement | null>(null);
   const [active, setActive] = useState(() => firstEnabled(options, value));
-  const typed = useRef({ buffer: '', last: 0 });
 
-  // Measured before paint so the panel never flashes at 0,0.
-  useLayoutEffect(() => {
-    const trigger = element(anchor);
-    if (!trigger) return;
-    const settle = () => setAt(place(trigger));
-    settle();
-    window.addEventListener('resize', settle);
-    // Capture: the scroll that moves the trigger can happen in any container.
-    window.addEventListener('scroll', settle, true);
-    return () => {
-      window.removeEventListener('resize', settle);
-      window.removeEventListener('scroll', settle, true);
-    };
-  }, [anchor]);
-
-  // The list owns the DOM focus while open; the trigger takes it back after.
-  useEffect(() => {
-    const el = element(list);
-    el?.focus();
-    const trigger = element(anchor);
-    return () => trigger?.focus();
-  }, [anchor]);
+  const at = useAnchoredPlacement(anchor, {
+    minWidth: MIN_WIDTH,
+    matchWidth: true,
+    maxHeight: MAX_HEIGHT,
+  });
+  usePanelFocus(list, anchor);
+  const { onKeyDown } = useListKeys({
+    count: options.length,
+    active,
+    setActive,
+    disabledAt: (i) => options[i]?.disabled === true,
+    labelAt: (i) => options[i]?.label ?? '',
+    onPick: (i) => {
+      const option = options[i];
+      if (option) onPick(option.value);
+    },
+    onClose,
+  });
 
   // Keep the active row in sight as the keyboard walks the list.
   const scroller = useRef<ScrollView>(null);
@@ -103,57 +95,6 @@ function SelectPopover({
     }
   }, [active]);
 
-  const move = useCallback(
-    (from: number, delta: -1 | 1) => {
-      for (let i = from + delta; i >= 0 && i < options.length; i += delta) {
-        if (!options[i]?.disabled) {
-          setActive(i);
-          return;
-        }
-      }
-    },
-    [options],
-  );
-
-  const typeahead = (key: string) => {
-    const now = Date.now();
-    const state = typed.current;
-    state.buffer = (now - state.last > 500 ? '' : state.buffer) + key.toLowerCase();
-    state.last = now;
-    const hit = options.findIndex(
-      (option) => !option.disabled && option.label.toLowerCase().startsWith(state.buffer),
-    );
-    if (hit >= 0) setActive(hit);
-  };
-
-  const onKeyDown = (event: { nativeEvent: { key: string }; preventDefault: () => void }) => {
-    const key = event.nativeEvent.key;
-    if (key === 'ArrowDown') {
-      event.preventDefault();
-      move(active, 1);
-    } else if (key === 'ArrowUp') {
-      event.preventDefault();
-      move(active, -1);
-    } else if (key === 'Home') {
-      event.preventDefault();
-      move(-1, 1);
-    } else if (key === 'End') {
-      event.preventDefault();
-      move(options.length, -1);
-    } else if (key === 'Enter' || key === ' ') {
-      event.preventDefault();
-      const option = options[active];
-      if (option && !option.disabled) onPick(option.value);
-    } else if (key === 'Escape' || key === 'Tab') {
-      event.preventDefault();
-      // The paired keyup would otherwise also close a <Dialog> under us.
-      if (key === 'Escape') armEscapeGuard();
-      onClose();
-    } else if (key.length === 1) {
-      typeahead(key);
-    }
-  };
-
   if (!at) return null;
 
   return (
@@ -163,7 +104,7 @@ function SelectPopover({
         accessibilityLabel={t('common.close')}
         tabIndex={-1}
         onPress={onClose}
-        style={UNDER}
+        style={PANEL_BACKDROP}
       />
       <Box
         ref={list}
@@ -177,7 +118,7 @@ function SelectPopover({
         bg="surface2"
         shadow="pop"
         overflow="hidden"
-        style={[PANEL, { left: at.left, top: at.top, bottom: at.bottom, width: at.width }]}
+        style={[PANEL_SHELL, { left: at.left, top: at.top, bottom: at.bottom, width: at.width }]}
       >
         <ScrollView ref={scroller} style={{ maxHeight: at.maxHeight }}>
           <Box p={6}>
@@ -201,8 +142,6 @@ function SelectPopover({
     </>
   );
 }
-
-const ROW_GUESS = 44;
 
 function PopoverOption({
   id,
@@ -253,15 +192,6 @@ function PopoverOption({
 // `listbox` reaches the DOM through react-native-web even though React
 // Native's `Role` union stops short of it.
 const LISTBOX = 'listbox' as import('react-native').Role;
-
-// `position: fixed` - the panel rides the viewport, not a scroll container.
-// React Native's types don't know `fixed`, hence the cast.
-const FIXED = 'fixed' as 'absolute';
-
-// The backdrop must outrank the app's sticky chrome (headers ride z-40), or a
-// tap meant to dismiss lands on the header instead.
-const UNDER = { position: FIXED, top: 0, right: 0, bottom: 0, left: 0, zIndex: 99 } as const;
-const PANEL = { position: FIXED, zIndex: 100 } as const;
 
 const s = styles({
   active: { bg: 'white/8' },

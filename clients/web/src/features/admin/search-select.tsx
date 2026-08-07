@@ -8,14 +8,13 @@
 // arrows/Enter/Escape drive it while typing filters.
 
 import { useT } from '@kroma/ui';
-import { armEscapeGuard, placeUnder } from '@kroma/ui/kit';
+import { armEscapeGuard, useAnchoredPlacement } from '@kroma/ui/kit';
 import { IconCheck, IconChevronDown, IconSearch } from '@tabler/icons-react';
 import {
   type KeyboardEvent,
   type RefObject,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -96,12 +95,7 @@ function SearchPanel({
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const t = useT();
-  const [at, setAt] = useState<{
-    left: number;
-    top?: number;
-    bottom?: number;
-    width: number;
-  } | null>(null);
+  const at = useAnchoredPlacement(anchor, { minWidth: 240, matchWidth: true, maxHeight: 320 });
 
   // Keep the current value selectable even if it's not in the loaded list.
   const all = useMemo(
@@ -112,22 +106,6 @@ function SearchPanel({
     const needle = q.trim().toLowerCase();
     return needle ? all.filter((o) => o.toLowerCase().includes(needle)) : all;
   }, [q, all]);
-
-  useLayoutEffect(() => {
-    const el = anchor.current;
-    if (!el) return;
-    const settle = () => {
-      const spot = placeUnder(el, { minWidth: 240, matchWidth: true, maxHeight: 320 });
-      setAt({ left: spot.left, top: spot.top, bottom: spot.bottom, width: spot.width });
-    };
-    settle();
-    window.addEventListener('resize', settle);
-    window.addEventListener('scroll', settle, true);
-    return () => {
-      window.removeEventListener('resize', settle);
-      window.removeEventListener('scroll', settle, true);
-    };
-  }, [anchor]);
 
   useEffect(() => {
     input.current?.focus();

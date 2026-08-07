@@ -12,7 +12,7 @@ import {
 } from '@kroma/core';
 import { useModuleEnabled } from '@kroma/module-sdk';
 import { useT } from '@kroma/ui';
-import { Avatar, Button, Field, IconButton } from '@kroma/ui/kit';
+import { Avatar, Button, Drawer, Field, IconButton } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { kindMeta, posterGrad } from '#web/features/admin/pipeline-meta';
@@ -291,15 +291,6 @@ export const RequestDrawer = createCallable<
   const [search, setSearch] = useState<SearchState>({ busy: false, view: null, error: null });
   const [grabbed, setGrabbed] = useState<GrabbedState>(null);
 
-  // Mount at the off-screen transform, flip to `open` next frame; the 300ms
-  // unmounting delay keeps the node mounted while `call.ended` animates it out.
-  const [entered, setEntered] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setEntered(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-  const open = entered && !call.ended;
-
   // Close when this request drops out of the list (deleted here or elsewhere).
   const gone = !!data && !data.requests.some((r) => r.id === initialReq.id);
   useEffect(() => {
@@ -353,60 +344,58 @@ export const RequestDrawer = createCallable<
     !!req && acqEnabled && canReview && req.status !== 'denied' && req.status !== 'available';
 
   return (
-    <>
-      <button
-        type="button"
-        aria-label={t('common.close')}
-        onClick={() => call.end()}
-        className={`fixed inset-0 z-60 bg-[rgba(4,4,6,.6)] backdrop-blur-[2px] transition-opacity ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-      />
-      <aside
-        className="fixed right-0 top-0 z-61 flex h-screen w-[460px] max-w-full flex-col border-l border-white/9 bg-[#0E0E12] shadow-[-20px_0_60px_rgba(0,0,0,.6)] transition-transform duration-300 ease-out sm:max-w-[92vw]"
-        style={{ transform: open ? 'translateX(0)' : 'translateX(105%)' }}
-      >
-        {req ? (
-          <>
-            <DrawerHeader req={req} onClose={() => call.end()} />
+    <Drawer
+      open={!call.ended}
+      onClose={() => call.end()}
+      title={t('requests.sheet')}
+      width={460}
+      panelStyle={DRAWER_FILL}
+    >
+      {req ? (
+        <>
+          <DrawerHeader req={req} onClose={() => call.end()} />
 
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              <RequesterCard req={req} />
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <RequesterCard req={req} />
 
-              {showSearch ? (
-                <SearchPanel
-                  canReview={canReview}
-                  busy={busy}
-                  search={search}
-                  grabbed={grabbed}
-                  onSearch={runSearch}
-                  onGrab={grab}
-                />
-              ) : null}
-            </div>
-
-            {canReview ? (
-              <div className="border-t border-white/[0.07] px-6 py-4.5">
-                {denying ? (
-                  <DenyForm
-                    busy={busy}
-                    note={note}
-                    onNote={setNote}
-                    onDeny={submitDeny}
-                    onCancel={() => setDenying(false)}
-                  />
-                ) : (
-                  <ModerationButtons
-                    req={req}
-                    busy={busy}
-                    onApprove={submitApprove}
-                    onStartDeny={() => setDenying(true)}
-                    onDelete={submitDelete}
-                  />
-                )}
-              </div>
+            {showSearch ? (
+              <SearchPanel
+                canReview={canReview}
+                busy={busy}
+                search={search}
+                grabbed={grabbed}
+                onSearch={runSearch}
+                onGrab={grab}
+              />
             ) : null}
-          </>
-        ) : null}
-      </aside>
-    </>
+          </div>
+
+          {canReview ? (
+            <div className="border-t border-white/[0.07] px-6 py-4.5">
+              {denying ? (
+                <DenyForm
+                  busy={busy}
+                  note={note}
+                  onNote={setNote}
+                  onDeny={submitDeny}
+                  onCancel={() => setDenying(false)}
+                />
+              ) : (
+                <ModerationButtons
+                  req={req}
+                  busy={busy}
+                  onApprove={submitApprove}
+                  onStartDeny={() => setDenying(true)}
+                  onDelete={submitDelete}
+                />
+              )}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </Drawer>
   );
-}, 300);
+}, 400);
+
+// The drawers' darker fill, kept from the hand-rolled asides they replace.
+const DRAWER_FILL = { backgroundColor: '#0E0E12' } as const;

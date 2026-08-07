@@ -40,6 +40,14 @@ export {
 export * from './core/tokens';
 export type { AnchorPlacement } from './lib/anchor';
 export { placeUnder } from './lib/anchor';
+export type { ListKeysAt, PanelKeyEvent } from './lib/anchored-panel';
+export {
+  PANEL_BACKDROP,
+  PANEL_SHELL,
+  useAnchoredPlacement,
+  useListKeys,
+  usePanelFocus,
+} from './lib/anchored-panel';
 export type { Rect } from './lib/cover-rect';
 export { coverRect, parsePosition } from './lib/cover-rect';
 export { backdropBlur, bgPosition, bgSize, gradient, promote } from './lib/css';

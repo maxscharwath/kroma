@@ -3,7 +3,7 @@
 // re-exports the ones the web app consumes and keeps the web-specific extras
 // (poster gradient, French durations/uptime, relative timestamps) below.
 
-import { decimal, hueFromString } from '@kroma/core';
+import { decimal, formatTimecode, hueFromString } from '@kroma/core';
 
 export { decimal, formatBytes } from '@kroma/core';
 
@@ -27,14 +27,10 @@ export function formatHours(ms: number): string {
   return `${decimal((ms || 0) / 3_600_000, 1)} h`;
 }
 
-/** Player timecode from ms: "1:42:08" or "8:30". */
+/** Player timecode from ms: "1:42:08" or "8:30". Core's scrub-bar formatter,
+ * fed milliseconds. */
 export function timecode(ms: number): string {
-  const s = Math.max(0, Math.floor((ms || 0) / 1000));
-  const hh = Math.floor(s / 3600);
-  const mm = Math.floor((s % 3600) / 60);
-  const ss = s % 60;
-  const p = (n: number) => String(n).padStart(2, '0');
-  return hh > 0 ? `${hh}:${p(mm)}:${p(ss)}` : `${mm}:${p(ss)}`;
+  return formatTimecode((ms || 0) / 1000);
 }
 
 /** Mb/s with a French decimal comma. */

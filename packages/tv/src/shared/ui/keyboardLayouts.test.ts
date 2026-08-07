@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_KEYBOARD_LAYOUTS } from '#tv/app/keyboardLayoutPref';
-import { LAYOUT_LETTER_ROWS, urlRows } from './keyboardLayouts';
+import { DELETE_KEY, LAYOUT_LETTER_ROWS, urlRows } from './keyboardLayouts';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').sort().join('');
 
@@ -34,7 +34,7 @@ describe('urlRows', () => {
       ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
       ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
       ['k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't'],
-      ['u', 'v', 'w', 'x', 'y', 'z', '-', ':', '/', '⌫'],
+      ['u', 'v', 'w', 'x', 'y', 'z', '-', ':', '/', DELETE_KEY],
     ]);
   });
 

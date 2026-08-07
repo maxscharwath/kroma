@@ -2,6 +2,13 @@ export type { BackButtonProps } from './back-button';
 export { BackButton } from './back-button';
 export type { CategoryTileProps, CategoryTileSize } from './category-tile';
 export { CategoryTile, categoryTileVariants } from './category-tile';
+export type {
+  ChoiceItemProps,
+  ChoiceRootProps,
+  MultipleRootProps,
+  SingleRootProps,
+} from './choice-list';
+export { ChoiceList } from './choice-list';
 export type { DisclosureProps } from './disclosure';
 export { Disclosure } from './disclosure';
 export type { EmptyStateProps } from './empty-state';

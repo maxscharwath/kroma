@@ -1,8 +1,7 @@
 import { capabilities, type PlaybackCapabilities } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Tooltip } from '@kroma/ui/kit';
+import { Badge, Tooltip } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
-import { Badge } from '#web/shared/ui';
 
 /** Readout of what this device can direct-play, with a tooltip showing the
  * detection method. Detection touches the DOM → client-only (neutral on the

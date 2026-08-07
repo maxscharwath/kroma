@@ -82,6 +82,10 @@ interface ListRowProps extends Omit<FocusableProps, 'children' | 'style' | 'labe
   /** Trailing content: a value, a Switch, a Badge. Defaults to a chevron when
    *  the row leads somewhere, and to nothing when it does not. */
   trailing?: ReactNode;
+  /** The row's middle column, written by the caller instead of derived from
+   *  `label`/`hint`. `label` is still required: it stays the accessible name
+   *  however the row is arranged. */
+  children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -92,6 +96,7 @@ function ListRow({
   hint,
   size = 'tv',
   trailing,
+  children,
   onPress,
   style,
   ...focusProps
@@ -111,12 +116,16 @@ function ListRow({
         <>
           {leading ?? (icon ? <IconWell name={icon} size={size} /> : null)}
           <Box flex gap={2}>
-            <Txt style={state.slots.label}>{label}</Txt>
-            {hint ? (
-              <Txt color="textDim" style={state.slots.hint}>
-                {hint}
-              </Txt>
-            ) : null}
+            {children ?? (
+              <>
+                <Txt style={state.slots.label}>{label}</Txt>
+                {hint ? (
+                  <Txt color="textDim" style={state.slots.hint}>
+                    {hint}
+                  </Txt>
+                ) : null}
+              </>
+            )}
           </Box>
           {trailing ?? (onPress ? <Icon name="chevron-right" {...state.slots.chevron} /> : null)}
         </>

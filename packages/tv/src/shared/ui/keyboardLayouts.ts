@@ -32,6 +32,11 @@ export const LAYOUT_LETTER_ROWS: Record<KeyboardLayoutPref, readonly (readonly s
   ],
 };
 
+/** The delete key's identity in a layout. A NAME rather than the "\u232B"
+ * glyph: the row is data the renderer reads, and a key that draws an icon
+ * cannot be identified by the character it no longer prints. */
+export const DELETE_KEY = 'delete';
+
 /** Digits row, then the layout's lowercase letters chunked into rows of ten
  * with the URL specials appended to the tail (26 letters + 4 specials = three
  * even rows). */
@@ -41,7 +46,7 @@ export function urlRows(layout: KeyboardLayoutPref): string[][] {
     '-',
     ':',
     '/',
-    '⌫',
+    DELETE_KEY,
   ];
   const rows: string[][] = [['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']];
   for (let i = 0; i < keys.length; i += 10) rows.push(keys.slice(i, i + 10));

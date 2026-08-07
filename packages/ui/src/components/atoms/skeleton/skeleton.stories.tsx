@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { CardSkeleton } from './card-skeleton';
+import { PosterSkeleton } from './poster-skeleton';
 import { Skeleton } from './skeleton';
 import { TableSkeleton } from './table-skeleton';
 
@@ -20,11 +21,12 @@ function Labelled({ label, children }: Readonly<{ label: string; children: React
 export default story({
   name: 'Skeleton',
   group: 'Feedback',
-  docs: "The pulsing placeholder for content that is loading. It takes the same layout shorthands as Box, so it sizes exactly like what it replaces, and `shape` names the shapes that would otherwise be spelled out at every call site: a run of text lines on a type role's rhythm, a circle, and the two card ratios.",
+  docs: "The pulsing placeholder for content that is loading. It takes the same layout shorthands as Box, so it sizes exactly like what it replaces, and `shape` names the shapes that would otherwise be spelled out at every call site: a run of text lines on a type role's rhythm, a circle, and the two card ratios. Three ready-made shells compose it into the arrangements the product keeps asking for: `<PosterSkeleton>` for a browse tile, `<TableSkeleton>` for a list, `<CardSkeleton>` for a settings form.",
   usage: `<Skeleton w={220} h={22} />                        // a block
 <Skeleton shape="text" variant="meta" lines={3} />   // a paragraph
 <Skeleton shape="circle" size={42} />                // an avatar
-<Skeleton shape="poster" w={200} />                  // card art`,
+<Skeleton shape="poster" w={200} />                  // card art
+<PosterSkeleton />                                   // a whole browse tile`,
   guidelines: {
     do: [
       'Give a text placeholder the same `variant` as the <Txt> it stands in for: the lines then occupy exactly the height the real text will.',
@@ -72,14 +74,11 @@ export default story({
     },
     {
       name: 'A poster rail, loading',
-      docs: 'The shapes compose into the tile they stand in for: art, then a title and a meta line.',
+      docs: '`<PosterSkeleton>` is the loading twin of `<PosterCard>`: art, then a title and a meta line. It fills its cell like the card does, so a row states the tile width once.',
       render: () => (
         <Box row gap={18}>
           {[0, 1, 2, 3].map((tile) => (
-            <Box key={tile} gap={10} w={140}>
-              <Skeleton shape="poster" />
-              <Skeleton shape="text" variant="label" lines={2} />
-            </Box>
+            <PosterSkeleton key={tile} width={140} />
           ))}
         </Box>
       ),

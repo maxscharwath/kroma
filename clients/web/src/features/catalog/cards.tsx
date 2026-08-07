@@ -1,12 +1,13 @@
 import { metaLine, posterColors, type Section } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Badge } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { memo } from 'react';
 import type { MovieView, ShowView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import type { HeroEntry } from '#web/shared/lib/queries';
 import { useWatched } from '#web/shared/lib/watched';
-import { Badge, Button, Image, Poster, PosterRail } from '#web/shared/ui';
+import { Button, Image, Poster, PosterRail } from '#web/shared/ui';
 
 type HeroBadge = '4K' | 'HDR' | 'H.265';
 

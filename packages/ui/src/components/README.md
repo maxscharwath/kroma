@@ -21,6 +21,53 @@ to a design system: `packages/tv/src/features/*` for the 10-foot screens,
 shipping the product, and every screen would have to be re-approved by the design
 system to change a string.
 
+## Composed, not configured
+
+The kit's components follow **Radix's shape**: a component that is a *set of
+parts* exposes them by name and lets the caller arrange them, rather than
+growing a prop for every arrangement anyone might want.
+
+```tsx
+// Configured: every new demand is another prop, and the component becomes a
+// switchboard nobody can read.
+<ChoiceList items={items} renderBadge={...} hintPosition="below" showIcons />
+
+// Composed: the caller writes the row, the component owns the behaviour.
+<ChoiceList.Root label="Bibliotheques" value={picked} onValueChange={setPicked}>
+  <ChoiceList.Item value={lib.value} label={lib.label}>
+    <ChoiceList.Label>{lib.label}</ChoiceList.Label>
+    <ChoiceList.Hint>128 titres</ChoiceList.Hint>
+  </ChoiceList.Item>
+</ChoiceList.Root>
+```
+
+What the Root owns and the parts read through context:
+
+- **State.** Controlled by default (`value` + `onValueChange`), uncontrolled
+  through `defaultValue` where it makes sense. The parts never hold their own
+  copy of it.
+- **Semantics.** The Root draws the group role (`radiogroup`), the parts carry
+  their own (`radio`, `checkbox`) with the state that goes with them. A caller
+  cannot arrange the parts into something that lies to a screen reader.
+- **Behaviour.** Keyboard, focus, press. See `<Select>`, `<Menu>` and
+  `<Dialog>`, which each present differently under a D-pad and under a pointer
+  while the caller writes the same thing.
+
+Two rules that are ours rather than Radix's, because Radix targets the browser
+only and this kit does not:
+
+1. **The whole row is the control**, not a small box at its edge: a television
+   has one D-pad stop per row, and a pointer gets a hit area the size of the
+   thing it is aiming at. So an indicator is a FACE (`<CheckboxFace>`,
+   `<SwitchFace>`) with nothing pressable about it, and the row carries the
+   semantics.
+2. **Keep the sugar.** A part-based API must not make the common case verbose:
+   `<ChoiceList.Item label hint />` renders the ordinary row, and the named
+   parts are there for the ones it cannot describe. A design system whose
+   simplest list takes twelve lines will be worked around.
+
+Sugar is a shorthand for the parts, never a second implementation of them.
+
 ## A component is a folder
 
 ```

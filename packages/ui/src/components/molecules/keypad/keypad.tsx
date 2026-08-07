@@ -15,19 +15,17 @@
 import { SpatialNavigationNode } from 'react-tv-space-navigation';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
+import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, styles, svFor } from '#ui/core';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
+import { useTDefault } from '#ui/services/i18n';
 
 const ROWS = [
   ['1', '2', '3'],
   ['4', '5', '6'],
   ['7', '8', '9'],
 ] as const;
-
-// A keyboard glyph rather than an icon: unlike the arrows, it has no emoji
-// presentation to fall into on tvOS.
-const DELETE = '⌫';
 
 type KeyKind = 'digit' | 'delete';
 
@@ -66,11 +64,15 @@ interface KeypadProps {
 }
 
 function Keypad({ onDigit, onDelete, autoFocus = true, disabled }: Readonly<KeypadProps>) {
+  const t = useTDefault();
   const key = (label: string, onPress: () => void, kind: KeyKind = 'digit') => (
     <Focusable
       key={label}
       onPress={onPress}
-      label={label}
+      // The delete key draws a glyph, so its accessible name is a WORD: the
+      // backspace character reaches a screen reader as "erase to the left",
+      // or as nothing at all.
+      label={kind === 'delete' ? t('common.delete') : label}
       disabled={disabled}
       autoFocus={autoFocus && label === '1'}
       focusScale={1.08}
@@ -78,7 +80,13 @@ function Keypad({ onDigit, onDelete, autoFocus = true, disabled }: Readonly<Keyp
       sv={keypadVariants}
       vars={{ kind }}
     >
-      {(state) => <Txt style={state.slots.label}>{label}</Txt>}
+      {(state) =>
+        kind === 'delete' ? (
+          <Icon name="backspace" size={30} stroke={1.8} color="textMuted" />
+        ) : (
+          <Txt style={state.slots.label}>{label}</Txt>
+        )
+      }
     </Focusable>
   );
   return (
@@ -96,7 +104,7 @@ function Keypad({ onDigit, onDelete, autoFocus = true, disabled }: Readonly<Keyp
           <Box w={88} h={72} />
         </SpatialNavigationNode>
         {key('0', () => onDigit('0'))}
-        {key(DELETE, onDelete, 'delete')}
+        {key('delete', onDelete, 'delete')}
       </FocusRegion>
     </FocusColumn>
   );

@@ -9,14 +9,13 @@ import {
   UserId,
 } from '@kroma/core';
 import { type ActivateResult, useT } from '@kroma/ui';
-import { Button, Logo } from '@kroma/ui/kit';
+import { Button, Logo, OtpField } from '@kroma/ui/kit';
 import { IconLock, IconPlus } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { LoginForm, RegisterForm } from '#web/features/accounts/auth-forms';
 import { UserAvatar } from '#web/features/accounts/user-avatar';
 import { useAuth } from '#web/shared/lib/auth';
 import { passkeysSupported } from '#web/shared/lib/webauthn';
-import { Otp } from '#web/shared/ui';
 
 type Mode =
   | { kind: 'pick' }
@@ -418,7 +417,8 @@ function PinEntry({
 
       {/* key={shake} remounts the row so the shake animation replays each error. */}
       <div key={shake} className={shake ? 'animate-[otp-shake_0.4s_ease]' : ''}>
-        <Otp
+        <OtpField
+          maxLength={4}
           value={pin}
           onChange={(v) => {
             setError(null);
@@ -426,9 +426,10 @@ function PinEntry({
           }}
           onComplete={(value) => void submit(value)}
           mask
+          physicalKeyboard
           autoFocus
           disabled={locked}
-          ariaLabel={t('account.currentPin')}
+          label={t('account.currentPin')}
         />
       </div>
 

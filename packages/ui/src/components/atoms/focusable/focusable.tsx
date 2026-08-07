@@ -80,6 +80,17 @@ type NavigatorViewProps = ComponentProps<typeof SpatialNavigationFocusableView>[
 // keep the selected state (see `platformRole`).
 type FocusRole = AccessibilityRole | 'option';
 
+/** The accessibility state, in whichever shape the platform reads (see the
+ *  comment where it is built). */
+type A11yState =
+  | undefined
+  | { accessibilityState: AccessibilityState }
+  | {
+      'aria-checked': boolean | 'mixed' | undefined;
+      'aria-selected': boolean | undefined;
+      'aria-expanded': boolean | undefined;
+    };
+
 /** What the platform can be handed: the web keeps the real ARIA role, native
  *  gets the nearest value Android's `fromValue` accepts. */
 function platformRole(role: FocusRole): AccessibilityRole {
@@ -195,7 +206,7 @@ function touchForm(at: {
   boxRef: (view: View | null) => void;
   label: string | undefined;
   role: FocusRole;
-  a11yState: AccessibilityState | undefined;
+  a11yState: A11yState;
   style: FocusableProps['style'];
   focusedStyle: ViewStyle | undefined;
   animated: FocusableProps['style'];
@@ -273,7 +284,7 @@ function navigatorForm(at: {
   setBox: (view: View | null) => void;
   label: string | undefined;
   role: FocusRole;
-  a11yState: AccessibilityState | undefined;
+  a11yState: A11yState;
   pressedStyle: StyleProp<ViewStyle>;
   hoveredStyle: ViewStyle | undefined;
   onHoverIn: () => void;
@@ -304,7 +315,7 @@ function navigatorForm(at: {
       viewProps={
         {
           accessibilityRole: platformRole(at.role),
-          accessibilityState: at.a11yState,
+          ...(at.a11yState as object | undefined),
           accessibilityLabel: at.label,
           ref: at.setBox,
           // Browser targets only: this view is a plain <View>, so there is no
@@ -380,13 +391,21 @@ function Focusable<R extends AnySv = AnySv>({
   const focusVisible = useFocusVisible(focused);
   const scoped = useInsideFocusScope();
 
-  const a11yState = useMemo<AccessibilityState | undefined>(
-    () =>
-      checked === undefined && selected === undefined && expanded === undefined
-        ? undefined
-        : { checked, selected, expanded },
-    [checked, selected, expanded],
-  );
+  // React Native reads the `accessibilityState` OBJECT; react-native-web reads
+  // flat `aria-*` props and ignores that object entirely, which is how every
+  // control's checked state was being dropped on the web. Emit the shape each
+  // platform actually reads.
+  const a11yState = useMemo<A11yState>(() => {
+    if (checked === undefined && selected === undefined && expanded === undefined) return undefined;
+    if (WEB) {
+      return {
+        'aria-checked': checked,
+        'aria-selected': selected,
+        'aria-expanded': expanded,
+      };
+    }
+    return { accessibilityState: { checked, selected, expanded } };
+  }, [checked, selected, expanded]);
 
   const [hovered, setHovered] = useState(false);
   const hoverIn = useCallback(() => {
@@ -636,7 +655,7 @@ function Painted({
   onLongPress?: () => void;
   hitSlop?: number | Insets;
   role: FocusRole;
-  a11yState: AccessibilityState | undefined;
+  a11yState: A11yState;
   render: (pressed: boolean) => ReactNode;
 }>) {
   if (Platform.isTV && !TV_HAS_POINTER) {
@@ -685,7 +704,7 @@ function TouchPressable({
   unfocusable?: boolean;
   label?: string;
   role?: FocusRole;
-  a11yState?: AccessibilityState;
+  a11yState?: A11yState;
   boxRef?: Ref<View>;
   children: (pressed: boolean) => ReactNode;
 }>) {
@@ -695,7 +714,7 @@ function TouchPressable({
       ref={boxRef}
       {...(unfocusable ? (UNFOCUSABLE as object) : null)}
       accessibilityRole={platformRole(role)}
-      accessibilityState={a11yState}
+      {...a11yState}
       accessibilityLabel={label}
       onPress={onPress}
       onLongPress={onLongPress}

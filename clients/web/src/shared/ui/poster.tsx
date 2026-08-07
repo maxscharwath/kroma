@@ -1,6 +1,6 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { IconButton, VirtualRail } from '@kroma/ui/kit';
+import { IconButton, Progress, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
 
@@ -106,8 +106,8 @@ export function Poster({
             <div className="font-display text-[20px] font-bold text-white">{title}</div>
           </div>
           {progress != null ? (
-            <div className="absolute inset-x-0 bottom-0 h-1.25 bg-white/20">
-              <div className="h-full bg-accent" style={{ width: `${progress}%` }} />
+            <div className="absolute inset-x-0 bottom-0">
+              <Progress value={progress / 100} size={5} trackColor="white/20" />
             </div>
           ) : null}
         </div>

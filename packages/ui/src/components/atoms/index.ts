@@ -8,6 +8,8 @@ export type { BoxProps } from './box';
 export { Box, Column, Row, Spacer } from './box';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './button';
 export { Button, buttonVariants } from './button';
+export type { CheckboxFaceProps, CheckboxProps, CheckboxSize } from './checkbox';
+export { Checkbox, CheckboxFace, checkboxVariants } from './checkbox';
 export type { ChipProps } from './chip';
 export { Chip, chipVariants } from './chip';
 export type { DividerProps } from './divider';
@@ -36,13 +38,16 @@ export type { ProgressProps } from './progress';
 export { clamp01, Progress } from './progress';
 export type { ProgressRingProps } from './progress-ring';
 export { ProgressRing } from './progress-ring';
+export type { RadioFaceProps, RadioProps, RadioSize } from './radio';
+export { Radio, RadioFace, radioVariants } from './radio';
 export type {
   CardSkeletonProps,
+  PosterSkeletonProps,
   SkeletonProps,
   SkeletonShape,
   TableSkeletonProps,
 } from './skeleton';
-export { CardSkeleton, Skeleton, TableSkeleton } from './skeleton';
+export { CardSkeleton, PosterSkeleton, Skeleton, TableSkeleton } from './skeleton';
 export type { SpinnerProps } from './spinner';
 export { Spinner } from './spinner';
 export type { StatusDotProps } from './status-dot';

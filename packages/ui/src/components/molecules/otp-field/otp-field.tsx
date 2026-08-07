@@ -13,7 +13,7 @@
 // Sibling: <PinField> is the masked-dots spelling of the same job, for a
 // 10-foot secret PIN.
 
-import { type ReactNode, useMemo, useRef } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { TextInput } from 'react-native';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
@@ -120,6 +120,7 @@ function OtpField({
 }: Readonly<OtpFieldProps>) {
   const [value, setValue] = useControllable(valueProp, defaultValue, onChange);
   const input = useRef<TextInput>(null);
+  const [focused, setFocused] = useState(false);
 
   const allowed = useMemo(() => new RegExp(pattern), [pattern]);
 
@@ -137,12 +138,16 @@ function OtpField({
     report(clean);
   };
 
+  // The caret sits in the next empty slot; a full code has none, because there
+  // is nowhere left to type. It also tracks focus rather than mere presence: a
+  // screen can stack several codes (current PIN, new PIN, confirm), and a caret
+  // blinking in a field that would not receive the keystroke is a lie.
+  const caretAt = physicalKeyboard && focused && !disabled ? value.length : -1;
+
   const slots: OtpSlot[] = Array.from({ length: maxLength }, (_, at) => ({
     char: at < value.length ? (value[at] ?? null) : null,
     isActive: at === Math.min(value.length, maxLength - 1),
-    // The caret sits in the next empty slot; a full code has none, because
-    // there is nowhere left to type.
-    hasFakeCaret: physicalKeyboard && !disabled && at === value.length,
+    hasFakeCaret: at === caretAt,
   }));
 
   return (
@@ -155,6 +160,8 @@ function OtpField({
           ref={input}
           value={value}
           onChangeText={commit}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           maxLength={maxLength}
           autoFocus={autoFocus}
           editable={!disabled}

@@ -28,7 +28,6 @@
     "@tanstack/react-start": "^1.168.32",
     "chart.js": "^4.5.1",
     "hls.js": "^1.5.0",
-    "input-otp": "^1.4.2",
     "react": "^19.2.0",
     "react-call": "^2.0.2",
     "react-chartjs-2": "^5.3.1",

@@ -4,6 +4,7 @@
 // ordering follows the device's persisted layout preference (ABC / AZERTY /
 // QWERTY / QWERTZ, see keyboardLayoutPref).
 
+import { useT } from '@kroma/ui';
 import {
   Button,
   Focusable,
@@ -23,7 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TextStyle, ViewStyle } from 'react-native';
 import { getKeyboardLayoutPref, type KeyboardLayoutPref } from '#tv/app/keyboardLayoutPref';
 import { useEnv } from '#tv/app/providers/env';
-import { LAYOUT_LETTER_ROWS, urlRows } from './keyboardLayouts';
+import { DELETE_KEY, LAYOUT_LETTER_ROWS, urlRows } from './keyboardLayouts';
 
 // On a hardware keyboard (`physicalKeyboard`, never a real TV shell), typing
 // wins over D-pad activation: Space types a space rather than pressing the
@@ -196,9 +197,10 @@ function UrlKeyboard({
   onSubmit?: () => void;
   submitLabel?: string;
 }>) {
+  const t = useT();
   const rows = useLayout(urlRows);
   const press = (k: string) => {
-    if (k === '⌫') onChange(value.slice(0, -1));
+    if (k === DELETE_KEY) onChange(value.slice(0, -1));
     else onChange(value + k);
   };
   return (
@@ -210,7 +212,9 @@ function UrlKeyboard({
           {row.map((k, keyIndex) => (
             <Key
               key={k}
-              label={k}
+              label={k === DELETE_KEY ? t('common.delete') : k}
+              icon={k === DELETE_KEY ? 'backspace' : undefined}
+              iconSize={26}
               autoFocus={rowIndex === 0 && keyIndex === 0}
               onPress={() => press(k)}
               style={s.urlKey}

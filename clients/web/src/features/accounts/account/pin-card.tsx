@@ -2,13 +2,14 @@
 // into this profile on a shared device. It is not the login credential.
 
 import { useT } from '@kroma/ui';
+import { OtpField } from '@kroma/ui/kit';
 import { IconLock } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Panel, StatusText, useSave } from '#web/features/accounts/account/ui';
 import { useAuth } from '#web/shared/lib/auth';
-import { Button, Otp } from '#web/shared/ui';
+import { Button } from '#web/shared/ui';
 
-function PinField({
+function PinRow({
   label,
   value,
   onChange,
@@ -16,7 +17,14 @@ function PinField({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-dim">{label}</span>
-      <Otp value={value} onChange={onChange} mask ariaLabel={label} />
+      <OtpField
+        maxLength={4}
+        value={value}
+        onChange={onChange}
+        mask
+        physicalKeyboard
+        label={label}
+      />
     </div>
   );
 }
@@ -82,14 +90,14 @@ export function PinCard() {
 
       <form onSubmit={submit} className="flex flex-col gap-4">
         {hasPin ? (
-          <PinField label={t('account.currentPin')} value={current} onChange={setCurrent} />
+          <PinRow label={t('account.currentPin')} value={current} onChange={setCurrent} />
         ) : null}
-        <PinField
+        <PinRow
           label={hasPin ? t('account.newPin') : t('account.pin')}
           value={pin}
           onChange={setPin}
         />
-        <PinField label={t('account.confirmPin')} value={confirm} onChange={setConfirm} />
+        <PinRow label={t('account.confirmPin')} value={confirm} onChange={setConfirm} />
         <div className="flex flex-wrap items-center gap-3">
           <Button
             size="sm"

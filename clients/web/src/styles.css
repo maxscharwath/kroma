@@ -62,16 +62,6 @@
   }
 }
 
-/* Blinking caret for the OTP / PIN slots (shared/ui/Otp). */
-@keyframes otp-caret {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-}
 /* Horizontal shake for a rejected PIN (keyed re-mount retriggers it). */
 @keyframes otp-shake {
   0%,

@@ -11,13 +11,13 @@ import {
   type VideoTrack,
 } from '@kroma/core';
 import { useT, useThemeAudio } from '@kroma/ui';
-import { BackButton, IconButton, radius } from '@kroma/ui/kit';
+import { BackButton, Badge, IconButton, radius } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { HeroBackdrop } from '#web/features/catalog/hero-backdrop';
 import { CastButton } from '#web/features/playback/cast/cast-button';
 import { imageUrl } from '#web/shared/lib/api';
-import { Badge, Button, Image, Poster, PosterRail } from '#web/shared/ui';
+import { Button, Image, Poster, PosterRail } from '#web/shared/ui';
 
 export type QualityTone = '4K' | 'HDR' | 'H.265';
 

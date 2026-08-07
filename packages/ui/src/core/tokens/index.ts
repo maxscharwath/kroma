@@ -3,7 +3,7 @@ export { colors, SERIES_COLORS, SHADE, shade, WHEEL_COLORS } from './colors';
 export type { ShadowRegistry, ShadowToken } from './effects';
 export { glow, motion, ring, shadow } from './effects';
 export type { RadiusRegistry, RadiusToken } from './layout';
-export { absoluteFill, CANVAS, gutter, radius, rhythm, space } from './layout';
+export { absoluteFill, CANVAS, gutter, nestedRadius, radius, rhythm, space } from './layout';
 export type { MobileTypeRole } from './mobile';
 export { mobileFonts, mobileRadius, mobileSpace, mobileType } from './mobile';
 export type { FontRegistry, FontToken, TypeRole, TypeRoleRegistry, TypeSpec } from './typography';

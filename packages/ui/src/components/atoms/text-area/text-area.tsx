@@ -14,7 +14,14 @@ import { Txt } from '#ui/components/atoms/text';
 import { styles, useTheme } from '#ui/core';
 import { Caret } from '#ui/lib/caret';
 import { fieldSizing } from '#ui/lib/css';
-import { CONTENT_LINE, edgeColor, fieldRing, NO_OUTLINE, PLACEHOLDER } from '#ui/lib/field-shell';
+import {
+  CONTENT_LINE,
+  edgeColor,
+  entryDefaultPhysicalKeyboard,
+  fieldRing,
+  NO_OUTLINE,
+  PLACEHOLDER,
+} from '#ui/lib/field-shell';
 import { useControllable } from '#ui/lib/use-controllable';
 
 const WEB = Platform.OS === 'web';
@@ -23,6 +30,8 @@ interface TextAreaProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'>
   value?: string;
   defaultValue?: string;
   onChange?: (next: string) => void;
+  /** After the entry loses focus: the commit point of a save-on-blur field. */
+  onBlur?: () => void;
   placeholder?: string;
   rows?: number;
   maxRows?: number;
@@ -43,11 +52,12 @@ function TextArea({
   value: valueProp,
   defaultValue = '',
   onChange,
+  onBlur,
   placeholder,
   rows = 3,
   maxRows = 10,
   autoSize = true,
-  physicalKeyboard = false,
+  physicalKeyboard = entryDefaultPhysicalKeyboard(),
   autoFocus = false,
   invalid = false,
   label,
@@ -91,7 +101,10 @@ function TextArea({
           value={value}
           onChangeText={setValue}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
           placeholder={placeholder}
           placeholderTextColor={PLACEHOLDER}
           accessibilityLabel={label}

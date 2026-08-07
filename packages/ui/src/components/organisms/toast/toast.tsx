@@ -87,8 +87,9 @@ export function Toaster({ placement = 'top-right', inset = 32 }: Readonly<Toaste
     };
   }, []);
 
-  if (entries.length === 0) return null;
-
+  // The (empty) container stays mounted: a live region only announces changes
+  // INSIDE an element assistive tech already knows about, so mounting it
+  // together with the first notice would swallow that notice.
   const top = placement === 'top-right';
   return (
     <Box
@@ -103,6 +104,9 @@ export function Toaster({ placement = 'top-right', inset = 32 }: Readonly<Toaste
       // A notice never takes the remote, and never eats a tap meant for what is
       // underneath it.
       pointerEvents="none"
+      // A live region, so a screen reader announces a notice when it appears
+      // instead of the viewer having to stumble on it.
+      accessibilityLiveRegion="polite"
       style={top ? undefined : s.fullWidth}
     >
       {entries.map((entry) => (

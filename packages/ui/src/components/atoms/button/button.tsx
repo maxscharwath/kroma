@@ -46,6 +46,13 @@ const buttonVariants = svFor<{
       danger: {
         root: { bg: 'danger', _hover: { bg: 'dangerHover' }, _press: { opacity: 0.85 } },
       },
+      /** Red ink, no fill: the destructive action that is an exit rather than
+       *  the screen's purpose (a dialog's "Delete" beside its primary pair). */
+      dangerGhost: {
+        root: { bg: 'transparent', _hover: { bg: 'danger/10' }, _press: { bg: 'danger/14' } },
+        label: { color: 'danger' },
+        icon: { color: 'danger' },
+      },
       /** A dark wash for a control floating OVER artwork it must not brighten
        *  (a skip-intro pill, an overlay's quiet action). */
       scrim: {

@@ -2,6 +2,8 @@ export type { BackButtonProps } from './back-button';
 export { BackButton } from './back-button';
 export type { CategoryTileProps, CategoryTileSize } from './category-tile';
 export { CategoryTile, categoryTileVariants } from './category-tile';
+export type { DisclosureProps } from './disclosure';
+export { Disclosure } from './disclosure';
 export type { EmptyStateProps } from './empty-state';
 export { EmptyState } from './empty-state';
 export type { FieldProps } from './field';
@@ -24,6 +26,8 @@ export {
   REGEXP_ONLY_DIGITS,
   REGEXP_ONLY_DIGITS_AND_CHARS,
 } from './otp-field';
+export type { PageHeaderProps } from './page-header';
+export { PageHeader } from './page-header';
 export type { PersonCardProps, PersonCardSize } from './person-card';
 export { PersonCard, personCardVariants } from './person-card';
 export type { PinFieldProps } from './pin-field';
@@ -32,5 +36,11 @@ export type { PosterCardProps } from './poster-card';
 export { POSTER_SCRIM, PosterCard } from './poster-card';
 export type { SectionProps } from './section';
 export { Section } from './section';
+export type { SegmentedControlProps, SegmentedOption } from './segmented-control';
+export { SegmentedControl, segmentedControlVariants } from './segmented-control';
 export type { SelectOption, SelectProps } from './select';
-export { Select } from './select';
+export { Select, selectTriggerVariants } from './select';
+export type { StatCardProps } from './stat-card';
+export { StatCard } from './stat-card';
+export type { TooltipProps } from './tooltip';
+export { Tooltip } from './tooltip';

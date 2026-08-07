@@ -50,6 +50,11 @@ export interface ImgProps {
   radius?: number;
   /** Stretch to fill a positioned parent (absolute, inset 0). */
   fill?: boolean;
+  /** Drawn under the art while it loads (a blur hash, a glyph). */
+  placeholder?: ReactNode;
+  /** Drawn when there is no `src` or it failed (initials, a fallback glyph),
+   *  so the surface degrades to something said rather than to blank. */
+  fallback?: ReactNode;
   style?: StyleProp<ViewStyle>;
   /** Mark this the above-the-fold LCP art: load it eagerly at high priority
    *  instead of lazily. Web only, and at most one image per screen. */
@@ -131,6 +136,8 @@ function Img({
   background,
   radius,
   fill = false,
+  placeholder,
+  fallback,
   style,
   priority = false,
   noCrossFade = false,
@@ -171,9 +178,25 @@ function Img({
     style,
   ];
 
+  // The extra surfaces both platforms share: the placeholder sits under the
+  // incoming art and leaves with it; the fallback replaces it outright.
+  const showPlaceholder = placeholder != null && src != null && !loaded && !errored;
+  const showFallback = fallback != null && (src == null || errored);
+  const placeholderLayer = showPlaceholder ? (
+    <View key="placeholder" style={absoluteFill}>
+      {placeholder}
+    </View>
+  ) : null;
+  const fallbackLayer = showFallback ? (
+    <View key="fallback" style={absoluteFill}>
+      {fallback}
+    </View>
+  ) : null;
+
   if (IS_WEB) {
     return (
       <View style={container}>
+        {placeholderLayer}
         {webLayers({
           src,
           under,
@@ -189,6 +212,7 @@ function Img({
           onLoad,
           onError: handleError,
         })}
+        {fallbackLayer}
       </View>
     );
   }
@@ -218,12 +242,14 @@ function Img({
 
   return (
     <View onLayout={onBoxLayout} style={container}>
+      {placeholderLayer}
       {under && under !== src ? (
         <View key="under" style={layer}>
           {backend.render({ uri: under, fit: mode, fadeMs: 0, style: absoluteFill })}
         </View>
       ) : null}
       {src && !errored ? <Fragment key={src}>{leaf(src, true)}</Fragment> : null}
+      {fallbackLayer}
     </View>
   );
 }

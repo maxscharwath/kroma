@@ -27,6 +27,22 @@ export function fieldRing(): TextStyle {
 
 export const PLACEHOLDER = 'rgba(244, 243, 240, 0.3)';
 
+// Whether entries render a real input by default. A per-site prop, because a
+// UA cannot be trusted to know a TV browser from a desktop one, but a shell
+// that IS sure (the web app, the desktop app) states it once at startup
+// instead of at every call site. TV apps keep passing the env's answer.
+let entryPhysicalKeyboard = false;
+
+/** Shell-level default for `physicalKeyboard` on <TextField> and <TextArea>.
+ *  Call once at startup; a per-site prop still wins. */
+export function setEntryDefaults(defaults: Readonly<{ physicalKeyboard: boolean }>): void {
+  entryPhysicalKeyboard = defaults.physicalKeyboard;
+}
+
+export function entryDefaultPhysicalKeyboard(): boolean {
+  return entryPhysicalKeyboard;
+}
+
 /** The height of a field's content row, independent of what sits in it: the
  * entry never measures shorter than this and the glyph wells never measure
  * taller, so every field in a form lines up regardless of icons. A caller who

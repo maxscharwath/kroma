@@ -1,10 +1,14 @@
 // Organisms: a region of an interface, composing molecules and atoms and owning
 // behaviour of its own.
 
-export type { ConfirmDialogProps, DialogProps } from './dialog';
-export { ConfirmDialog, Dialog, DialogFooter } from './dialog';
+export type { ConfirmDialogProps, ConfirmOptions, DialogActionsProps, DialogProps } from './dialog';
+export { ConfirmDialog, ConfirmHost, confirm, Dialog, DialogActions, DialogFooter } from './dialog';
+export type { DrawerProps, DrawerSide } from './drawer';
+export { Drawer } from './drawer';
 export type { KromaIntroProps } from './kroma-intro';
 export { KromaIntro } from './kroma-intro';
+export type { MenuEntry, MenuItem, MenuProps } from './menu';
+export { Menu } from './menu';
 export { PerfHud } from './perf-hud';
 export type { RailProps } from './rail';
 export { Rail } from './rail';

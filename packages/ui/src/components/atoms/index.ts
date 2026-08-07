@@ -30,12 +30,19 @@ export type { ImgProps } from './img';
 export { IMG_FADE_MS, Img } from './img';
 export type { LogoProps } from './logo';
 export { Logo } from './logo';
+export type { NumberFieldProps } from './number-field';
+export { NumberField } from './number-field';
 export type { ProgressProps } from './progress';
 export { clamp01, Progress } from './progress';
 export type { ProgressRingProps } from './progress-ring';
 export { ProgressRing } from './progress-ring';
-export type { SkeletonProps, SkeletonShape } from './skeleton';
-export { Skeleton } from './skeleton';
+export type {
+  CardSkeletonProps,
+  SkeletonProps,
+  SkeletonShape,
+  TableSkeletonProps,
+} from './skeleton';
+export { CardSkeleton, Skeleton, TableSkeleton } from './skeleton';
 export type { SpinnerProps } from './spinner';
 export { Spinner } from './spinner';
 export type { StatusDotProps } from './status-dot';

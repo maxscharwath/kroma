@@ -2,7 +2,7 @@
 // On a TV it locks the navigator behind it and mounts its own, so the remote
 // cannot reach — or fire OK on — anything under the panel.
 
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useId, useRef } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, type View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
@@ -13,6 +13,7 @@ import { useInsideFocusScope } from '#ui/lib/focus-presence';
 import { FocusRegion, FocusScope, useLockFocusBehind } from '#ui/lib/focus-scope';
 import { useModalPortalRepair } from '#ui/lib/modal-portal';
 import { useOverlay, useOverlayHost } from '#ui/lib/overlay-host';
+import { useScrollLock } from '#ui/lib/scroll-lock';
 
 interface DialogProps {
   open: boolean;
@@ -22,6 +23,13 @@ interface DialogProps {
   children?: ReactNode;
   footer?: ReactNode;
   width?: number;
+  /** Panel padding. 0 hands the surface to content that owns its own layout
+   *  (a routed detail sheet); such a dialog names itself via `title` even
+   *  though nothing visible renders it. */
+  pad?: number;
+  /** Keep `title` as the accessible name only; the visible header is the
+   *  content's own. */
+  titleHidden?: boolean;
 }
 
 function Dialog({
@@ -32,10 +40,13 @@ function Dialog({
   children,
   footer,
   width = 720,
+  pad = 40,
+  titleHidden = false,
 }: Readonly<DialogProps>) {
   // react-native-web's Modal loses its portal container under StrictMode, and a
   // dialog that never appears is the symptom. See lib/modal-portal.web.
   useModalPortalRepair(open);
+  useScrollLock(open);
   // Called here, not in the panel: the lock has to reach the navigator the
   // dialog was opened FROM.
   useLockFocusBehind(open);
@@ -47,6 +58,8 @@ function Dialog({
     <DialogSurface
       onClose={onClose}
       width={width}
+      pad={pad}
+      titleHidden={titleHidden}
       title={title}
       description={description}
       trapped={navigated}
@@ -73,14 +86,31 @@ function Dialog({
 function DialogSurface({
   onClose,
   width,
+  pad,
   title,
+  titleHidden,
   description,
   trapped,
   bridge,
   children,
-}: Readonly<Omit<DialogProps, 'open'> & { width: number; trapped: boolean; bridge: boolean }>) {
+}: Readonly<
+  Omit<DialogProps, 'open'> & { width: number; pad: number; trapped: boolean; bridge: boolean }
+>) {
   useFocusNav({ onBack: onClose });
   const backdrop = useRef<View>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const showsTitle = Boolean(title) && !titleHidden;
+  // The panel names itself: by reference on the web when the title is visible
+  // (so a screen reader can also jump to it), by value otherwise.
+  const naming =
+    Platform.OS === 'web'
+      ? {
+          'aria-labelledby': showsTitle ? titleId : undefined,
+          'aria-label': showsTitle ? undefined : title,
+          'aria-describedby': description ? descriptionId : undefined,
+        }
+      : { accessibilityLabel: title };
   const panel = (
     <Box flex center bg="overlay" p={64}>
       {/* Web only: on a TV, Back/Menu is the platform's way out and an extra
@@ -107,13 +137,21 @@ function DialogSurface({
         radius="2xl"
         border="borderStrong"
         shadow="pop"
-        p={40}
-        gap={24}
+        p={pad}
+        gap={pad > 0 ? 24 : 0}
+        overflow="hidden"
         dataSet={FOCUS_SCOPE}
+        role="dialog"
+        aria-modal
+        {...naming}
       >
-        {title ? <Txt variant="h2">{title}</Txt> : null}
+        {showsTitle ? (
+          <Txt nativeID={titleId} variant="h2">
+            {title}
+          </Txt>
+        ) : null}
         {description ? (
-          <Txt color="textMuted" variant="body">
+          <Txt nativeID={descriptionId} color="textMuted" variant="body">
             {description}
           </Txt>
         ) : null}
@@ -135,10 +173,62 @@ const FOCUS_SCOPE = { focusScope: '' } as const;
 const s = styles({
   fill: { flex: true },
   footerRow: { row: true, justify: 'flex-end', gap: 12, mt: 8 },
+  actionsSplit: { row: true, align: 'center', justify: 'space-between', gap: 12, mt: 8 },
+  actionsEnd: { row: true, align: 'center', gap: 10 },
 });
 
 function DialogFooter({ children }: Readonly<{ children: ReactNode }>) {
   return <FocusRegion style={s.footerRow}>{children}</FocusRegion>;
+}
+
+interface DialogActionsProps {
+  onCancel: () => void;
+  cancelLabel: string;
+  onConfirm: () => void;
+  /** Already resolved by the caller, so it can swap to "Saving...". */
+  confirmLabel: string;
+  /** The confirm spins and both actions ignore presses while the work runs. */
+  busy?: boolean;
+  disabled?: boolean;
+  /** A destructive third action pinned to the far edge ("Delete account"). */
+  destructive?: { label: string; onPress: () => void; disabled?: boolean };
+}
+
+/** The standard dialog footer: a right-aligned cancel + primary pair, with an
+ *  optional destructive action pinned left. */
+function DialogActions({
+  onCancel,
+  cancelLabel,
+  onConfirm,
+  confirmLabel,
+  busy = false,
+  disabled = false,
+  destructive,
+}: Readonly<DialogActionsProps>) {
+  return (
+    <FocusRegion style={destructive ? s.actionsSplit : s.footerRow}>
+      {destructive ? (
+        <Button
+          variant="dangerGhost"
+          size="sm"
+          label={destructive.label}
+          onPress={destructive.onPress}
+          disabled={busy || destructive.disabled}
+        />
+      ) : null}
+      <Box row align="center" gap={10} style={destructive ? undefined : s.actionsEnd}>
+        <Button variant="ghost" size="sm" label={cancelLabel} onPress={onCancel} disabled={busy} />
+        <Button
+          variant="primary"
+          size="sm"
+          label={confirmLabel}
+          onPress={onConfirm}
+          loading={busy}
+          disabled={disabled}
+        />
+      </Box>
+    </FocusRegion>
+  );
 }
 
 interface ConfirmDialogProps extends Omit<DialogProps, 'footer' | 'children'> {
@@ -173,5 +263,5 @@ function ConfirmDialog({
   );
 }
 
-export type { ConfirmDialogProps, DialogProps };
-export { ConfirmDialog, Dialog, DialogFooter };
+export type { ConfirmDialogProps, DialogActionsProps, DialogProps };
+export { ConfirmDialog, Dialog, DialogActions, DialogFooter };

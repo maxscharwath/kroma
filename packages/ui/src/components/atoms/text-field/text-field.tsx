@@ -13,6 +13,7 @@ import { Caret } from '#ui/lib/caret';
 import {
   CONTENT_LINE as CONTENT,
   edgeColor,
+  entryDefaultPhysicalKeyboard,
   fieldRing,
   NO_OUTLINE,
   PLACEHOLDER,
@@ -36,6 +37,8 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
   onChange?: (next: string) => void;
   type?: TextFieldType;
   onSubmit?: () => void;
+  /** After the entry loses focus: the commit point of a save-on-blur field. */
+  onBlur?: () => void;
   placeholder?: string;
   icon?: IconName;
   trailing?: ReactNode;
@@ -58,10 +61,11 @@ function TextField({
   onChange,
   type = 'text',
   onSubmit,
+  onBlur,
   placeholder,
   icon,
   trailing,
-  physicalKeyboard = false,
+  physicalKeyboard = entryDefaultPhysicalKeyboard(),
   autoFocus = true,
   keyboardType,
   invalid = false,
@@ -115,7 +119,10 @@ function TextField({
           onChangeText={setValue}
           onSubmitEditing={onSubmit}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
           placeholder={placeholder}
           placeholderTextColor={PLACEHOLDER}
           accessibilityLabel={label}

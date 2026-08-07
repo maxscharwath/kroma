@@ -49,8 +49,8 @@ import { colors } from '#ui/core/tokens';                      // 3. inside the 
    use this and never learn which level something is at — the levels are for the
    people editing the kit.
 2. **`@kroma/ui/kit/<level>/<name>`** is one component without the rest of the
-   kit's module graph, for a package that wants `Button` and nothing else
-   (`packages/admin-kit`). It is a single wildcard in `package.json`, so no list
+   kit's module graph, for a package that wants `Button` and nothing else.
+   It is a single wildcard in `package.json`, so no list
    is maintained: add a folder and it is importable.
 3. **`#ui/*`** is the kit's own internal alias (package.json `imports`) so its
    files never climb `../../..`. It is NOT for consumers. Four resolvers have to

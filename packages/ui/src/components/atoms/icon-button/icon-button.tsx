@@ -48,6 +48,17 @@ const iconButtonVariants = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color
         root: { bg: 'accent', _hover: { bg: 'accentHover' }, _press: { bg: 'accentHover' } },
         icon: { color: 'accentInk' },
       },
+      /** The destructive control (a row's delete): a red-tinted wash that
+       *  deepens as it is pressed. */
+      danger: {
+        root: {
+          bg: 'danger/10',
+          border: 'danger/25',
+          _hover: { bg: 'danger/20' },
+          _press: { bg: 'danger/26' },
+        },
+        icon: { color: 'danger' },
+      },
       /** A dark wash instead of a light one: the control that floats OVER
        *  artwork it must not brighten (a back button on a detail hero, the
        *  skip-intro corner of the player). */

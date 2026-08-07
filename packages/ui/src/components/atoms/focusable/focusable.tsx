@@ -18,6 +18,8 @@ import {
   useState,
 } from 'react';
 import {
+  type AccessibilityRole,
+  type AccessibilityState,
   Animated,
   type Insets,
   Platform,
@@ -72,6 +74,11 @@ type NavigatorViewProps = ComponentProps<typeof SpatialNavigationFocusableView>[
  * gets `{...s.icon}` where it used to get `color={ink(focused)}` out of a lookup
  * table beside the component.
  */
+// `option` is not in React Native's union but react-native-web passes it
+// through to the ARIA role a listbox row needs; native ignores it harmlessly,
+// hence the casts where the role meets React Native's own prop type.
+type FocusRole = AccessibilityRole | 'option';
+
 interface FocusState<R extends AnySv = AnySv> {
   focused: boolean;
   pressed: boolean;
@@ -114,6 +121,18 @@ interface FocusableProps<R extends AnySv = AnySv> {
   states?: Partial<Record<SvStateName, StyleDecl>>;
   children?: ReactNode | ((state: FocusState<R>) => ReactNode);
   label?: string;
+  /** What the control IS to assistive tech. Defaults to `button`; a control
+   *  with its own semantics (`switch`, `radio`, `tab`, ...) says so here and
+   *  pairs it with `checked`/`selected`/`expanded` below. `option` is not in
+   *  React Native's union but passes through react-native-web to the ARIA
+   *  role a listbox row needs; native platforms ignore it harmlessly. */
+  role?: FocusRole;
+  /** `role="switch" | "checkbox" | "radio"` state, announced as `aria-checked`. */
+  checked?: boolean | 'mixed';
+  /** `role="tab"`/listbox-option state, announced as `aria-selected`. */
+  selected?: boolean;
+  /** A disclosure trigger's open state, announced as `aria-expanded`. */
+  expanded?: boolean;
   ref?: Ref<ComponentRef<typeof View>>;
 }
 
@@ -167,6 +186,8 @@ const focusRing = () => sharedStyle('focusable:ring', { boxShadow: activeTheme()
 function touchForm(at: {
   boxRef: (view: View | null) => void;
   label: string | undefined;
+  role: FocusRole;
+  a11yState: AccessibilityState | undefined;
   style: FocusableProps['style'];
   focusedStyle: ViewStyle | undefined;
   animated: FocusableProps['style'];
@@ -202,6 +223,8 @@ function touchForm(at: {
     <TouchPressable
       boxRef={at.boxRef}
       label={at.label}
+      role={at.role}
+      a11yState={at.a11yState}
       base={base}
       pressedStyle={at.pressedStyle}
       onPress={at.onPress}
@@ -241,6 +264,8 @@ function navigatorForm(at: {
   handleBlur: () => void;
   setBox: (view: View | null) => void;
   label: string | undefined;
+  role: FocusRole;
+  a11yState: AccessibilityState | undefined;
   pressedStyle: StyleProp<ViewStyle>;
   hoveredStyle: ViewStyle | undefined;
   onHoverIn: () => void;
@@ -270,7 +295,8 @@ function navigatorForm(at: {
       style={WEB ? flat(painted) : (at.layers?.box as NavigatorStyle)}
       viewProps={
         {
-          accessibilityRole: 'button',
+          accessibilityRole: at.role,
+          accessibilityState: at.a11yState,
           accessibilityLabel: at.label,
           ref: at.setBox,
           // Browser targets only: this view is a plain <View>, so there is no
@@ -298,6 +324,8 @@ function navigatorForm(at: {
             onPress={at.pointerPress}
             onLongPress={at.onLongPress}
             hitSlop={at.hitSlop}
+            role={at.role}
+            a11yState={at.a11yState}
             render={render}
           />
         );
@@ -325,6 +353,10 @@ function Focusable<R extends AnySv = AnySv>({
   states,
   children,
   label,
+  role = 'button',
+  checked,
+  selected,
+  expanded,
   ref,
 }: Readonly<FocusableProps<R>>) {
   const [selfFocused, setSelfFocused] = useState(false);
@@ -339,6 +371,14 @@ function Focusable<R extends AnySv = AnySv>({
   const focused = controlled ? controlledFocus : selfFocused;
   const focusVisible = useFocusVisible(focused);
   const scoped = useInsideFocusScope();
+
+  const a11yState = useMemo<AccessibilityState | undefined>(
+    () =>
+      checked === undefined && selected === undefined && expanded === undefined
+        ? undefined
+        : { checked, selected, expanded },
+    [checked, selected, expanded],
+  );
 
   const [hovered, setHovered] = useState(false);
   const hoverIn = useCallback(() => {
@@ -489,7 +529,8 @@ function Focusable<R extends AnySv = AnySv>({
   if (disabled) {
     return (
       <Animated.View
-        accessibilityRole="button"
+        accessibilityRole={role as AccessibilityRole}
+        accessibilityState={a11yState ? { ...a11yState, disabled: true } : { disabled: true }}
         accessibilityLabel={label}
         aria-disabled
         style={[painted, focused ? focusedStyle : null, animated]}
@@ -508,6 +549,8 @@ function Focusable<R extends AnySv = AnySv>({
     return touchForm({
       boxRef: setBox,
       label,
+      role,
+      a11yState,
       style: painted,
       focusedStyle,
       animated,
@@ -535,6 +578,8 @@ function Focusable<R extends AnySv = AnySv>({
     entry,
     layers,
     style: painted,
+    role,
+    a11yState,
     focusedStyle,
     animated,
     showRing,
@@ -573,6 +618,8 @@ function Painted({
   onPress,
   onLongPress,
   hitSlop,
+  role,
+  a11yState,
   render,
 }: Readonly<{
   painted: StyleProp<ViewStyle>[];
@@ -580,6 +627,8 @@ function Painted({
   onPress: () => void;
   onLongPress?: () => void;
   hitSlop?: number | Insets;
+  role: FocusRole;
+  a11yState: AccessibilityState | undefined;
   render: (pressed: boolean) => ReactNode;
 }>) {
   if (Platform.isTV && !TV_HAS_POINTER) {
@@ -594,6 +643,8 @@ function Painted({
       onPress={onPress}
       onLongPress={onLongPress}
       hitSlop={hitSlop}
+      role={role}
+      a11yState={a11yState}
       unfocusable={Platform.isTV}
     >
       {(pressed) => render(pressed)}
@@ -611,6 +662,8 @@ function TouchPressable({
   hitSlop,
   unfocusable = false,
   label,
+  role = 'button',
+  a11yState,
   boxRef,
   children,
 }: Readonly<{
@@ -623,6 +676,8 @@ function TouchPressable({
   hitSlop?: number | Insets;
   unfocusable?: boolean;
   label?: string;
+  role?: FocusRole;
+  a11yState?: AccessibilityState;
   boxRef?: Ref<View>;
   children: (pressed: boolean) => ReactNode;
 }>) {
@@ -631,7 +686,8 @@ function TouchPressable({
     <AnimatedPressable
       ref={boxRef}
       {...(unfocusable ? (UNFOCUSABLE as object) : null)}
-      accessibilityRole="button"
+      accessibilityRole={role as AccessibilityRole}
+      accessibilityState={a11yState}
       accessibilityLabel={label}
       onPress={onPress}
       onLongPress={onLongPress}

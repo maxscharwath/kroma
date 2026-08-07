@@ -2,7 +2,9 @@ import { story } from '@kroma/workbench/story';
 import type { ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
+import { CardSkeleton } from './card-skeleton';
 import { Skeleton } from './skeleton';
+import { TableSkeleton } from './table-skeleton';
 
 function Labelled({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
@@ -79,6 +81,20 @@ export default story({
               <Skeleton shape="text" variant="label" lines={2} />
             </Box>
           ))}
+        </Box>
+      ),
+    },
+    {
+      name: 'Console shells',
+      docs: 'The two ready-made console placeholders: `<TableSkeleton rows>` stands in for a list or table, `<CardSkeleton fields>` for a settings form. Both are marked decorative to assistive tech.',
+      render: () => (
+        <Box row gap={24} align="flex-start" wrap>
+          <Box w={420}>
+            <TableSkeleton rows={4} />
+          </Box>
+          <Box w={340}>
+            <CardSkeleton fields={2} />
+          </Box>
         </Box>
       ),
     },

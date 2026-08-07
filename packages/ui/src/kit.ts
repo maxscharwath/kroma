@@ -38,11 +38,14 @@ export {
   useTheme,
 } from './core';
 export * from './core/tokens';
+export type { AnchorPlacement } from './lib/anchor';
+export { placeUnder } from './lib/anchor';
 export type { Rect } from './lib/cover-rect';
 export { coverRect, parsePosition } from './lib/cover-rect';
 export { backdropBlur, bgPosition, bgSize, gradient, promote } from './lib/css';
 // The one sanctioned way to ask for the DOM from shared code (null on a TV).
 export { webDocument, webWindow } from './lib/dom';
+export { setEntryDefaults } from './lib/field-shell';
 export { useFocusNav } from './lib/focus-nav';
 export { configureRemote, useHardwareKeys } from './lib/focus-remote';
 export type { FocusScopeProps, ScreenScopeProps } from './lib/focus-scope';

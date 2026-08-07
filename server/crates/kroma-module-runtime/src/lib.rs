@@ -323,11 +323,15 @@ pub async fn serve(
     // `extra`'s `/_port/*` routes are ALSO reachable through the core reverse
     // proxy, which sits outside the session gate — without this guard an
     // unauthenticated client could invoke privileged port actions. Applied before
-    // `_health` so the liveness probe stays unauthenticated.
-    let extra = extra.route_layer(axum::middleware::from_fn_with_state(
-        HostToken(env.host_token.clone()),
-        require_host_token,
-    ));
+    // `_health` so the liveness probe stays unauthenticated. The `_ready` route
+    // anchors the layer: axum panics on `route_layer` over an empty router, and
+    // a module without port routes hands one in (`serve_one`).
+    let extra = extra
+        .route("/_port/_ready", axum::routing::get(|| async { "ok" }))
+        .route_layer(axum::middleware::from_fn_with_state(
+            HostToken(env.host_token.clone()),
+            require_host_token,
+        ));
 
     let mut app = extra.route("/_health", axum::routing::get(|| async { "ok" }));
     for module in &modules {

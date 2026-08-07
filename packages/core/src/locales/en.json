@@ -2,6 +2,8 @@
   "common.cancel": "Cancel",
   "common.back": "Back",
   "common.close": "Close",
+  "common.increase": "Increase",
+  "common.decrease": "Decrease",
   "common.clear": "Clear",
   "common.done": "Done",
   "common.save": "Save",

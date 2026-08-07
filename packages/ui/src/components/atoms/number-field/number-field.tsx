@@ -1,15 +1,21 @@
-// <NumberField>: a compact numeric entry. The buffer is text (so a cleared
-// field can be retyped), and what is committed is always what is on screen: a
-// real number is committed as typed, a blank commits nothing (a blank is
-// `Number('') === 0`, which would silently commit 0 and bypass `min`), and
-// blur normalizes - clamps to the bounds and rewrites the text to the number
+// <NumberField>: the numeric entry, wearing exactly the well and rhythm a
+// <Field> entry wears, plus a stacked stepper pair - the affordance that says
+// "number", the pointer's way to nudge, and on a television the only way to
+// change the value at all. The buffer is text (so a cleared field can be
+// retyped), what is committed is always what is on screen, and blur
+// normalizes: clamps to the bounds and rewrites the text to the number
 // actually stored, so the field can never show 15 while holding 64.
 
 import { useRef, useState } from 'react';
+import { Box } from '#ui/components/atoms/box';
+import { Focusable } from '#ui/components/atoms/focusable';
+import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { TextField, type TextFieldProps } from '#ui/components/atoms/text-field';
+import { styles } from '#ui/core';
+import { useTDefault } from '#ui/services/i18n';
 
 interface NumberFieldProps
-  extends Omit<TextFieldProps, 'value' | 'defaultValue' | 'onChange' | 'type'> {
+  extends Omit<TextFieldProps, 'value' | 'defaultValue' | 'onChange' | 'type' | 'trailing'> {
   value: number;
   onChange: (next: number) => void;
   min?: number;
@@ -36,10 +42,11 @@ function NumberField({
   min,
   max,
   step,
-  w = 128,
+  py = 12,
   autoFocus = false,
   ...field
 }: Readonly<NumberFieldProps>) {
+  const t = useTDefault();
   const [text, setText] = useState(() => String(value));
   // Adjusted during render, not in an effect, so an outside change (a reset
   // button, a poll) lands without a frame of the stale number.
@@ -83,12 +90,29 @@ function NumberField({
   return (
     <TextField
       {...field}
-      w={w}
+      py={py}
       type="number"
       autoFocus={autoFocus}
       value={text}
       onChange={edit}
       onBlur={settle}
+      textStyle={TABULAR}
+      trailing={
+        <Box mr={-6}>
+          <Step
+            icon="chevron-up"
+            label={t('common.increase')}
+            disabled={max !== undefined && value >= max}
+            onPress={() => nudge(1)}
+          />
+          <Step
+            icon="chevron-down"
+            label={t('common.decrease')}
+            disabled={min !== undefined && value <= min}
+            onPress={() => nudge(-1)}
+          />
+        </Box>
+      }
       // A physical keyboard steps with the arrows, the way a native number
       // input does. On the container, where react-native-web delivers the
       // bubbled event from the focused entry.
@@ -100,6 +124,35 @@ function NumberField({
     />
   );
 }
+
+function Step({
+  icon,
+  label,
+  disabled,
+  onPress,
+}: Readonly<{ icon: IconName; label: string; disabled: boolean; onPress: () => void }>) {
+  return (
+    <Focusable
+      label={label}
+      disabled={disabled}
+      onPress={onPress}
+      ring={false}
+      style={s.step}
+      states={STEP_STATES}
+    >
+      <Icon name={icon} size={12} stroke={2.6} color={disabled ? 'text/25' : 'textMuted'} />
+    </Focusable>
+  );
+}
+
+const STEP_STATES = { hover: { bg: 'white/10' } } as const;
+
+// Digits that keep their width, so 99 -> 100 does not make the box breathe.
+const TABULAR = { fontVariant: ['tabular-nums' as const] };
+
+const s = styles({
+  step: { w: 24, h: 13, center: true, radius: 4 },
+});
 
 export type { NumberFieldProps };
 export { NumberField };

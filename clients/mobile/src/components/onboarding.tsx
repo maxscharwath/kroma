@@ -2,13 +2,13 @@
 // screens: profile tiles for the "Who's watching?" gate and the segmented
 // code cells (PIN pad, Quick Connect code).
 
-import { Icon, Spinner, styles } from '@kroma/ui/kit';
+import { Icon, Spinner, StatusDot, styles } from '@kroma/ui/kit';
 import { useRef } from 'react';
 import { Pressable, type ReturnKeyTypeOptions, Text, TextInput, View } from 'react-native';
 import { colors, radius, type } from '#mobile/lib/theme';
 import { Avatar } from './Avatar';
 
-const TILE_AVATAR = 84;
+const TILE_AVATAR = 104;
 
 export function ProfileTile({
   name,
@@ -36,12 +36,13 @@ export function ProfileTile({
       style={({ pressed }) => [s.tile, (pressed || offline) && { opacity: 0.6 }]}
     >
       <View>
-        <Avatar uri={avatarUri} name={name} size={TILE_AVATAR} />
-        {locked && !busy ? (
-          <View style={s.lockBadge}>
-            <Icon name="lock" size={13} stroke={2.2} color={colors.text} />
-          </View>
-        ) : null}
+        <Avatar
+          uri={avatarUri}
+          name={name}
+          size={TILE_AVATAR}
+          circle={false}
+          locked={locked && !busy}
+        />
         {busy ? (
           <View style={s.tileBusy}>
             <Spinner size={24} color={colors.text} />
@@ -52,9 +53,12 @@ export function ProfileTile({
         {name}
       </Text>
       {caption ? (
-        <Text numberOfLines={1} style={[s.tileCaption, offline && { color: colors.danger }]}>
-          {caption}
-        </Text>
+        <View style={s.captionRow}>
+          <StatusDot online={!offline} size={7} />
+          <Text numberOfLines={1} style={[s.tileCaption, offline && { color: colors.danger }]}>
+            {caption}
+          </Text>
+        </View>
       ) : null}
     </Pressable>
   );
@@ -63,8 +67,8 @@ export function ProfileTile({
 export function AddTile({ label, onPress }: Readonly<{ label: string; onPress(): void }>) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.tile, pressed && { opacity: 0.6 }]}>
-      <View style={s.addCircle}>
-        <Icon name="plus" size={30} stroke={2.2} color={colors.textDim} />
+      <View style={s.addTile}>
+        <Icon name="plus" size={34} stroke={1.8} color={colors.textDim} />
       </View>
       <Text numberOfLines={1} style={[s.tileName, { color: colors.textDim }]}>
         {label}
@@ -170,30 +174,21 @@ const s = styles({
     left: 0,
     center: true,
     bg: 'bg/55',
-    radius: TILE_AVATAR / 2,
-  },
-  lockBadge: {
-    absolute: true,
-    right: -2,
-    bottom: -2,
-    center: true,
-    w: 26,
-    h: 26,
-    bg: 'surface3',
-    radius: 13,
-    border: 'bg',
-    borderWidth: 2.5,
+    radius: Math.round(TILE_AVATAR * 0.16),
   },
   tileName: { ...type.caption, mt: 2, color: 'text', fontWeight: '600' },
-  tileCaption: { ...type.small, mt: -2 },
-  addCircle: {
+  tileCaption: { ...type.small },
+  // The dashed square of the TV and web pickers, at a phone's scale.
+  addTile: {
     center: true,
     w: TILE_AVATAR,
     h: TILE_AVATAR,
-    radius: TILE_AVATAR / 2,
-    border: 'borderStrong',
-    borderWidth: 1.5,
+    radius: Math.round(TILE_AVATAR * 0.16),
+    borderStyle: 'dashed',
+    border: 'white/18',
+    borderWidth: 2,
   },
+  captionRow: { row: true, align: 'center', gap: 5, mt: -2 },
   pinRow: { row: true, justify: 'center', gap: 12 },
   pinCell: {
     center: true,

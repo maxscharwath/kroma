@@ -142,9 +142,13 @@ function DrawerSurface({
   const panel = (
     <Box flex style={s.fill}>
       <Box
-        style={[StyleSheet.absoluteFill, s.scrim, WEB ? (FADE as ViewStyle) : null]}
+        style={[
+          StyleSheet.absoluteFill,
+          s.scrim,
+          WEB ? (FADE as ViewStyle) : null,
+          shown ? s.scrimActive : s.scrimInert,
+        ]}
         opacity={shown ? 1 : 0}
-        pointerEvents={shown ? 'auto' : 'none'}
       >
         {/* Web only: on a TV, Back/Menu is the platform's way out and an extra
             Pressable is one more thing for the D-pad to land on. */}
@@ -279,6 +283,8 @@ const FADE = {
 const s = styles({
   fill: { flex: true },
   scrim: { bg: 'overlay' },
+  scrimActive: { pointerEvents: 'auto' },
+  scrimInert: { pointerEvents: 'none' },
   holderRight: { absolute: true, top: 0, bottom: 0, right: 0, maxW: '100%' },
   holderLeft: { absolute: true, top: 0, bottom: 0, left: 0, maxW: '100%' },
   panelRight: { borderLeftWidth: 1, borderColor: 'borderStrong', shadow: 'pop', h: '100%' },

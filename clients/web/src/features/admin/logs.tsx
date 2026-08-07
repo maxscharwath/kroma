@@ -5,11 +5,11 @@
 
 import type { LogEntry, MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { EmptyState } from '@kroma/ui/kit';
+import { EmptyState, SegmentedControl, Select, Surface, Switch } from '@kroma/ui/kit';
 import { IconSearch } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
+import { RealtimeBadge } from '#web/features/admin/realtime-badge';
 import { PageHeader, usePoll } from '#web/features/admin/shell';
-import { Card, SegmentedControl, Select, Toggle } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
 import { TableSkeleton } from '#web/shared/ui';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '#web/shared/ui/input-group';
@@ -68,17 +68,22 @@ export function LogsPage() {
 
   return (
     <>
-      <PageHeader title={t('admin.logsTitle')} subtitle={t('admin.logsSub')} realtime />
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <PageHeader
+        title={t('admin.logsTitle')}
+        subtitle={t('admin.logsSub')}
+        action={<RealtimeBadge />}
+      />
+      <div className="mb-4 mt-2 flex flex-wrap items-center gap-3">
         <SegmentedControl
           value={level}
           options={LEVELS.map((l) => ({ value: l.value, label: t(l.labelKey) }))}
           onChange={setLevel}
         />
         <Select
-          value={sourceLabel(source)}
-          options={sources.map(sourceLabel)}
-          onChange={(label) => setSource(sources.find((s) => sourceLabel(s) === label) ?? 'all')}
+          label={t('logs.allSources')}
+          value={source}
+          options={sources.map((s) => ({ value: s, label: sourceLabel(s) }))}
+          onChange={setSource}
         />
         <InputGroup className="h-9 w-64">
           <InputGroupAddon>
@@ -93,7 +98,7 @@ export function LogsPage() {
         </InputGroup>
         <div className="ml-auto flex items-center gap-2 text-[13px] font-semibold text-muted">
           <span>{t('logs.follow')}</span>
-          <Toggle on={follow} onChange={setFollow} />
+          <Switch checked={follow} onChange={setFollow} label={t('logs.follow')} />
         </div>
       </div>
       {data === null ? <TableSkeleton rows={10} /> : null}
@@ -101,13 +106,13 @@ export function LogsPage() {
         <EmptyState icon="terminal-2" title={t('logs.empty')} />
       ) : null}
       {entries.length > 0 ? (
-        <Card className="p-0">
+        <Surface elevated pad="none" radius={16} border="border" overflow="hidden">
           <div ref={scroller} className="max-h-[70vh] overflow-y-auto px-4 py-3">
             {entries.map((e) => (
               <LogLine key={`${e.ts}-${e.source}-${e.message}`} entry={e} />
             ))}
           </div>
-        </Card>
+        </Surface>
       ) : null}
     </>
   );

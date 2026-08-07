@@ -2,10 +2,9 @@
 // `AuthGate.tsx`, which owns the gate/routing + profile picker and composes
 // these two screens.
 
-import { TextInput } from '@kroma/admin-kit';
 import { isEmail, isPassword, isUsername, type PublicUser } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button } from '@kroma/ui/kit';
+import { Button, Field } from '@kroma/ui/kit';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useState } from 'react';
 import { RegisterFields, type RegisterValues } from '#web/features/accounts/auth-fields';
@@ -64,23 +63,23 @@ export function LoginForm({
       ) : null}
 
       {profile ? null : (
-        <TextInput
-          size="lg"
-          className="w-full"
+        <Field
+          w="100%"
+          label={t('auth.emailOrUsername')}
+          hideLabel
           placeholder={t('auth.emailOrUsername')}
-          autoComplete="username"
           value={identifier}
           onChange={setIdentifier}
           // Deliberate: the sign-in field is what this screen is for.
           autoFocus
         />
       )}
-      <TextInput
-        size="lg"
-        className="w-full"
+      <Field
+        w="100%"
+        label={t('auth.password')}
+        hideLabel
         type="password"
         placeholder={t('auth.password')}
-        autoComplete="current-password"
         value={password}
         onChange={setPassword}
         // Deliberate: with a profile already picked, the password is the only thing left to type.

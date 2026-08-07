@@ -1,4 +1,3 @@
-import { TextInput } from '@kroma/admin-kit';
 import { hasPermission, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Button, EmptyState, Txt } from '@kroma/ui/kit';
@@ -6,6 +5,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui';
+import { FIELD } from '#web/shared/ui/field-classes';
 
 const DANGER_LABEL = { fontSize: 13, fontWeight: '600' } as const;
 
@@ -124,11 +124,12 @@ function InvitePage() {
               {t('admin.inviteLink')}
             </div>
             <div className="flex items-center gap-2">
-              <TextInput
+              <input
                 readOnly
                 value={link}
+                aria-label={t('admin.inviteLink')}
                 onFocus={(e) => e.currentTarget.select()}
-                className="flex-1"
+                className={`${FIELD} flex-1`}
               />
               <Button
                 variant="glass"

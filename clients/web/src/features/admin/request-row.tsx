@@ -1,14 +1,14 @@
 // One request row in the admin queue: poster, title + type pill + seasons,
 // requester, date, status chip, and quick approve/deny on pending rows.
 
-import { Image } from '@kroma/admin-kit';
 import type { MediaRequest, MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Avatar } from '@kroma/ui/kit';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import { kindMeta, posterGrad } from '#web/features/admin/pipeline-meta';
-import { Avatar } from '#web/features/admin/ui';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
 import { seasonsSummary } from '#web/features/requests/status';
+import { Image } from '#web/shared/ui';
 
 function Poster({ req }: Readonly<{ req: MediaRequest }>) {
   return (
@@ -67,7 +67,7 @@ export function RequestRowView({
       </div>
 
       <div className="flex min-w-0 items-center gap-2.5 max-md:hidden">
-        <Avatar name={req.requestedByName ?? '?'} size={26} />
+        <Avatar name={req.requestedByName ?? '?'} size={26} circle shadow={false} />
         <span className="truncate text-[13px] font-semibold text-white/75">
           {req.requestedByName ?? t('requests.unknownUser')}
         </span>

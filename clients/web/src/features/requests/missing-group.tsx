@@ -4,12 +4,12 @@
 // swallow the page. Row/series checkboxes and search buttons report back to the
 // page through callbacks; all mutation state lives in `missing.tsx`.
 
-import { Image } from '@kroma/admin-kit';
 import { type CalendarEntry, episodeTag, posterColors, sizedImageUrl } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
 import { Button, IconButton, Spinner } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { relativeAirDate } from '#web/features/requests/airdate';
+import { Image } from '#web/shared/ui';
 
 export interface MissingGroup {
   requestId: string | null;

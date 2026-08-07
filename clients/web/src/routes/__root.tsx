@@ -9,7 +9,7 @@ import { LocaleProvider } from '#web/shared/lib/locale';
 import { MyListProvider } from '#web/shared/lib/mylist';
 import { queryClient } from '#web/shared/lib/query';
 import { WatchedProvider } from '#web/shared/lib/watched';
-import { ConfirmDialog } from '#web/shared/ui';
+import { ConfirmHost } from '#web/shared/ui';
 import appCss from '#web/styles.css?url';
 
 // Dev-only: lazy so the devtools bundle never ships in the packaged SPA.
@@ -76,7 +76,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           <Intro />
           {/* Single root for the app-wide imperative confirm dialog (react-call);
               call it anywhere with `confirmDialog(...)`, no open-state needed. */}
-          <ConfirmDialog />
+          <ConfirmHost />
           <Suspense fallback={null}>
             <ReactQueryDevtools buttonPosition="bottom-left" />
           </Suspense>

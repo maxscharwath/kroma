@@ -13,7 +13,7 @@ import {
   sizedImageUrl,
 } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
-import * as Dialog from '@radix-ui/react-dialog';
+import { Drawer } from '@kroma/ui/kit';
 import {
   IconAlertTriangle,
   IconBell,
@@ -48,38 +48,39 @@ export function NotificationBell({ className }: Readonly<{ className?: string }>
   const { open, setOpen, everOpened } = usePanelState();
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>
-        <button
-          type="button"
-          aria-label={
-            unread > 0 ? `${t('notifications.title')} (${unread})` : t('notifications.title')
-          }
-          className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text data-[state=open]:bg-white/8 data-[state=open]:text-text ${className ?? ''}`}
-        >
-          <IconBell size={20} />
-          {unread > 0 && (
-            <span
-              // Caps at 9+ so the badge doesn't outgrow the bell.
-              className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-[18px] tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
-            >
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[6px] data-[state=open]:animate-[fade-in_.22s_var(--ease-out)]" />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-[#101014] outline-none data-[state=open]:animate-[slide-in-right_.3s_var(--ease-out)] sm:w-[min(25rem,92vw)] sm:border-l sm:border-white/8"
-        >
-          <PanelHeader onClose={() => setOpen(false)} />
-          {/* Mounted on first open and kept mounted after, so reopening doesn't refetch. */}
-          {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <>
+      <button
+        type="button"
+        aria-label={
+          unread > 0 ? `${t('notifications.title')} (${unread})` : t('notifications.title')
+        }
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+        className={`relative flex h-10 w-10 items-center justify-center rounded-[11px] text-muted transition-colors hover:bg-white/6 hover:text-text ${open ? 'bg-white/8 text-text' : ''} ${className ?? ''}`}
+      >
+        <IconBell size={20} />
+        {unread > 0 && (
+          <span
+            // Caps at 9+ so the badge doesn't outgrow the bell.
+            className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-[18px] tabular-nums text-accent-ink ring-2 ring-[#0C0C0E]"
+          >
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('notifications.title')}
+        width={400}
+        fullBelow={640}
+        panelStyle={PANEL_FILL}
+      >
+        <PanelHeader onClose={() => setOpen(false)} />
+        {/* Mounted on first open and kept mounted after, so reopening doesn't refetch. */}
+        {everOpened ? <PanelBody onNavigate={() => setOpen(false)} /> : null}
+      </Drawer>
+    </>
   );
 }
 
@@ -101,9 +102,7 @@ function PanelHeader({ onClose }: Readonly<{ onClose: () => void }>) {
 
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-white/[0.07] px-4 pb-3 pt-[max(1.15rem,env(safe-area-inset-top))]">
-      <Dialog.Title className="text-[16px] font-semibold text-text">
-        {t('notifications.title')}
-      </Dialog.Title>
+      <h2 className="text-[16px] font-semibold text-text">{t('notifications.title')}</h2>
       <div className="ml-auto flex items-center gap-0.5">
         {/* Icon-only: the label is long in every language and crowded the title. */}
         <IconAction
@@ -118,6 +117,8 @@ function PanelHeader({ onClose }: Readonly<{ onClose: () => void }>) {
     </div>
   );
 }
+
+const PANEL_FILL = { backgroundColor: '#101014' } as const;
 
 function IconAction({
   icon: Icon,
@@ -185,7 +186,7 @@ function PanelBody({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
         // Keyed on the run's first row, not the day: an unsorted inbox can open a
         // second "Earlier" run, and two sections must not share a key.
         <section key={group.items[0]?.id}>
-          {/* h3, not h2: Radix renders <Dialog.Title> as the h2. */}
+          {/* h3, not h2: the panel header renders the h2. */}
           <h3 className="sticky top-0 z-10 bg-[#101014] px-2 pb-1.5 pt-3 text-[11px] font-semibold text-dim">
             {t(NOTIFICATION_DAY_LABEL[group.day])}
           </h3>

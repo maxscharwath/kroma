@@ -28,7 +28,7 @@ export function BrowseBar({ sort, onSort, genres, genre, onGenre }: Readonly<Bro
       <div className="flex items-center gap-2.5">
         <span className="text-[13px] font-semibold text-dim">{t('browse.sortBy')}</span>
         <Select
-          ariaLabel={t('browse.sortBy')}
+          label={t('browse.sortBy')}
           value={sort}
           onChange={(v) => onSort(v as SortMode)}
           options={SORT_MODES.map((mode) => ({ value: mode, label: t(SORT_LABEL_KEY[mode]) }))}

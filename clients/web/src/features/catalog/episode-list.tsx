@@ -3,7 +3,6 @@
 // request card for a missing or partial season, so a partially-owned show
 // plays what it has and requests the gaps on one screen.
 
-import { Image } from '@kroma/admin-kit';
 import { type CastMember, formatRuntime, type MediaItem, posterColors } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Button, Chip, IconButton } from '@kroma/ui/kit';
@@ -14,6 +13,7 @@ import { ReportDialog } from '#web/features/catalog/report-dialog';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
 import { kromaClient } from '#web/shared/lib/api';
 import type { TitleSeason } from '#web/shared/lib/titleView';
+import { Image } from '#web/shared/ui';
 
 function EpisodeRow({
   episode,

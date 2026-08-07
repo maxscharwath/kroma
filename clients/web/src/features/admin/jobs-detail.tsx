@@ -8,8 +8,9 @@ import { useT } from '@kroma/ui';
 import { useState } from 'react';
 import { clock, dur, rel } from '#web/features/admin/jobs-format';
 import { usePoll } from '#web/features/admin/shell';
-import { C } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
+
+const C = { accent: '#F4B642', green: '#46D08D', red: '#E8536A' } as const;
 
 export function JobDetailPanel({ jobKey }: Readonly<{ jobKey: string }>) {
   const t = useT();

@@ -1,14 +1,15 @@
 // The brand mark stays from the shared design system (pure SVG, no styling deps).
 export { Logo } from '@kroma/ui/kit';
-export { Avatar, AvatarFallback, AvatarImage } from '#web/shared/ui/avatar';
 export type { BadgeProps, BadgeTone } from '#web/shared/ui/badge';
 export { Badge } from '#web/shared/ui/badge';
 export type { ButtonProps, ButtonSize, ButtonVariant } from '#web/shared/ui/button';
 export { Button } from '#web/shared/ui/button';
 export type { ChipProps } from '#web/shared/ui/chip';
 export { Chip } from '#web/shared/ui/chip';
-export type { ConfirmProps } from '#web/shared/ui/confirm';
-export { ConfirmDialog, confirmDialog } from '#web/shared/ui/confirm';
+export type { ConfirmOptions } from '#web/shared/ui/confirm';
+export { ConfirmHost, confirmDialog } from '#web/shared/ui/confirm';
+export type { ImageProps } from '#web/shared/ui/image';
+export { Image } from '#web/shared/ui/image';
 export type { OtpProps } from '#web/shared/ui/otp';
 export { Otp } from '#web/shared/ui/otp';
 export { EmptyState, PAGE_MAIN, PAGE_SUBTITLE, PAGE_TITLE } from '#web/shared/ui/page';

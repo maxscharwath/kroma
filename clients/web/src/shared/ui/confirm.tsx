@@ -1,6 +1,6 @@
-// Shim: the confirm callable lives in `@kroma/admin-kit` now, shared with
-// module pages. Re-exported so existing call sites keep importing from
-// `#web/shared/ui`; the single `<ConfirmDialog />` root in `routes/__root.tsx`
-// serves both.
+// Shim: the confirm dialog is the design system's (`confirm()` +
+// `<ConfirmHost/>` from @kroma/ui/kit), shared with module pages. Re-exported
+// so call sites keep importing from `#web/shared/ui`; the single
+// `<ConfirmHost />` root in `routes/__root.tsx` serves both.
 
-export { ConfirmDialog, type ConfirmProps, confirmDialog } from '@kroma/admin-kit';
+export { ConfirmHost, type ConfirmOptions, confirm as confirmDialog } from '@kroma/ui/kit';

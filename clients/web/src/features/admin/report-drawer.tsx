@@ -4,12 +4,11 @@
 
 import type { Report, ReportStatus } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button, IconButton } from '@kroma/ui/kit';
+import { Avatar, Button, IconButton } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { categoryMeta, kindLabelKey, soft, statusMeta } from '#web/features/admin/report-meta';
-import { Avatar } from '#web/features/admin/ui';
 
 // Shares the row like the old `flex-1` CTAs.
 const FLEX_1 = { flex: 1 } as const;
@@ -126,7 +125,7 @@ export const ReportDrawer = createCallable<
             {t('reports.reportedBy')}
           </div>
           <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5">
-            <Avatar name={report.reportedByName ?? '?'} size={34} />
+            <Avatar name={report.reportedByName ?? '?'} size={34} circle shadow={false} />
             <div className="min-w-0">
               <div className="truncate text-[14px] font-bold">
                 {report.reportedByName ?? t('reports.unknownUser')}

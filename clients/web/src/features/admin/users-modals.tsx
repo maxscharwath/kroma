@@ -1,13 +1,13 @@
 import { type AdminUser, type Invite, PERMISSIONS, type Permission } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button } from '@kroma/ui/kit';
+import { Button, Dialog, DialogActions, Field } from '@kroma/ui/kit';
 import { IconMail } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { createCallable } from 'react-call';
 import { useAsyncAction } from '#web/features/admin/shell';
-import { Field, Modal, ModalActions, TextInput } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
 import { confirmDialog } from '#web/shared/ui';
+import { FIELD } from '#web/shared/ui/field-classes';
 
 export function PendingInvite({ inv, onChange }: Readonly<{ inv: Invite; onChange: () => void }>) {
   const t = useT();
@@ -143,16 +143,21 @@ export const EditUserModal = createCallable<{ user: AdminUser }, boolean>(({ cal
   };
 
   return (
-    <Modal title={t('admin.editUser', { name: user.username })} onClose={() => call.end(false)}>
-      <Field label={t('admin.name')}>
-        <TextInput value={name} onChange={setName} className="w-full" />
-      </Field>
-      <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-dim">
-        {t('admin.permissions')}
+    <Dialog
+      open
+      title={t('admin.editUser', { name: user.username })}
+      onClose={() => call.end(false)}
+      width={460}
+    >
+      <Field label={t('admin.name')} value={name} onChange={setName} />
+      <div>
+        <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-dim">
+          {t('admin.permissions')}
+        </div>
+        <PermPicker selected={perms} toggle={toggle} />
+        {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
       </div>
-      <PermPicker selected={perms} toggle={toggle} />
-      {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
-      <ModalActions
+      <DialogActions
         onCancel={() => call.end(false)}
         cancelLabel={t('common.cancel')}
         onConfirm={() => {
@@ -162,14 +167,13 @@ export const EditUserModal = createCallable<{ user: AdminUser }, boolean>(({ cal
         busy={busy}
         destructive={{
           label: t('admin.deleteAccount'),
-          onClick: () => {
+          onPress: () => {
             void remove();
           },
           disabled: isSelf,
-          title: isSelf ? t('admin.cantDeleteYourself') : undefined,
         }}
       />
-    </Modal>
+    </Dialog>
   );
 });
 
@@ -192,20 +196,23 @@ export const InviteModal = createCallable<void, boolean>(({ call }) => {
     });
 
   return (
-    <Modal title={t('nav.inviteUser')} onClose={close}>
-      <p className="mb-4 text-[13px] text-dim">{t('admin.inviteIntro')}</p>
-      <PermPicker selected={perms} toggle={toggle} />
+    <Dialog open title={t('nav.inviteUser')} onClose={close} width={460}>
+      <div>
+        <p className="mb-4 text-[13px] text-dim">{t('admin.inviteIntro')}</p>
+        <PermPicker selected={perms} toggle={toggle} />
+      </div>
       {link ? (
-        <div className="mt-4 rounded-xl border border-accent/40 bg-accent-soft p-4">
+        <div className="rounded-xl border border-accent/40 bg-accent-soft p-4">
           <div className="mb-2 text-[12px] font-bold uppercase tracking-[.12em] text-accent">
             {t('admin.inviteLink')}
           </div>
           <div className="flex items-center gap-2">
-            <TextInput
+            <input
               readOnly
               value={link}
+              aria-label={t('admin.inviteLink')}
               onFocus={(e) => e.currentTarget.select()}
-              className="flex-1"
+              className={`${FIELD} flex-1`}
             />
             <button
               type="button"
@@ -227,7 +234,7 @@ export const InviteModal = createCallable<void, boolean>(({ call }) => {
           </div>
         </div>
       ) : (
-        <ModalActions
+        <DialogActions
           onCancel={close}
           cancelLabel={t('common.cancel')}
           onConfirm={() => {
@@ -238,6 +245,6 @@ export const InviteModal = createCallable<void, boolean>(({ call }) => {
           disabled={perms.size === 0}
         />
       )}
-    </Modal>
+    </Dialog>
   );
 });

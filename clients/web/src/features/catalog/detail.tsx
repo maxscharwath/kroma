@@ -1,4 +1,3 @@
-import { Image } from '@kroma/admin-kit';
 import {
   type CastMember,
   canDirectPlay,
@@ -18,15 +17,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { HeroBackdrop } from '#web/features/catalog/hero-backdrop';
 import { CastButton } from '#web/features/playback/cast/cast-button';
 import { imageUrl } from '#web/shared/lib/api';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Button,
-  Poster,
-  PosterRail,
-} from '#web/shared/ui';
+import { Badge, Button, Image, Poster, PosterRail } from '#web/shared/ui';
 
 export type QualityTone = '4K' | 'HDR' | 'H.265';
 
@@ -379,24 +370,13 @@ export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
               aria-label={t('person.viewWorks', { name: p.name })}
               className="group w-24 shrink-0 cursor-pointer bg-transparent p-0 text-center outline-none transition-transform duration-200 hover:scale-[1.06] focus-visible:scale-[1.06] sm:w-28"
             >
-              <Avatar className="mb-2.75 h-24 w-24 rounded-full sm:h-28 sm:w-28 shadow-[0_8px_22px_rgba(0,0,0,.45)] ring-accent transition-shadow duration-200 group-hover:ring-4 group-focus-visible:ring-4">
-                {photo ? (
-                  <AvatarImage
-                    src={photo}
-                    alt={p.name}
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                ) : null}
-                <AvatarFallback
-                  className="font-display text-[36px] font-bold text-white/90"
-                  style={{ background: `linear-gradient(158deg, ${g1}, ${g2})` }}
-                >
-                  <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_22%,rgba(255,255,255,.2),transparent_60%)]" />
-                  <span className="relative">{initials(p.name)}</span>
-                </AvatarFallback>
-              </Avatar>
+              <Image
+                className="mb-2.75 h-24 w-24 rounded-full sm:h-28 sm:w-28 shadow-[0_8px_22px_rgba(0,0,0,.45)] ring-accent transition-shadow duration-200 group-hover:ring-4 group-focus-visible:ring-4"
+                src={photo}
+                alt={p.name}
+                placeholder={<CastInitials name={p.name} g1={g1} g2={g2} />}
+                fallback={<CastInitials name={p.name} g1={g1} g2={g2} />}
+              />
               <div className="truncate text-[14px] font-semibold transition-colors group-hover:text-accent group-focus-visible:text-accent">
                 {p.name}
               </div>
@@ -438,5 +418,17 @@ export function SimilarRail({
         />
       </div>
     </section>
+  );
+}
+
+function CastInitials({ name, g1, g2 }: Readonly<{ name: string; g1: string; g2: string }>) {
+  return (
+    <span
+      className="relative flex h-full w-full items-center justify-center font-display text-[36px] font-bold text-white/90"
+      style={{ background: `linear-gradient(158deg, ${g1}, ${g2})` }}
+    >
+      <span className="absolute inset-0 bg-[radial-gradient(70%_60%_at_50%_22%,rgba(255,255,255,.2),transparent_60%)]" />
+      <span className="relative">{initials(name)}</span>
+    </span>
   );
 }

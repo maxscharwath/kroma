@@ -1,4 +1,3 @@
-import { Image } from '@kroma/admin-kit';
 import type { ElementRow, MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Button, IconButton } from '@kroma/ui/kit';
@@ -6,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { fmtDur, kindMeta, posterGrad, statusMeta } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
+import { Image } from '#web/shared/ui';
 
 function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
   const { client } = useAuth();

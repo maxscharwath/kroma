@@ -5,10 +5,10 @@
 
 import type { ConfigField } from '@kroma/module-sdk';
 import { useT } from '@kroma/ui';
-import { Button } from '@kroma/ui/kit';
+import { Button, Switch } from '@kroma/ui/kit';
 import { type ReactNode, useId, useState } from 'react';
 import { adminApi } from '#web/features/admin/module-api';
-import { FIELD, Toggle } from '#web/features/admin/ui';
+import { FIELD } from '#web/shared/ui/field-classes';
 
 type ConfigValue = string | number | boolean;
 
@@ -93,7 +93,7 @@ function Field({
 
   let control: ReactNode;
   if (field.type === 'bool') {
-    control = <Toggle on={value === true} onChange={onChange} />;
+    control = <Switch checked={value === true} onChange={onChange} label={field.label} />;
   } else if (field.type === 'select') {
     control = (
       <select

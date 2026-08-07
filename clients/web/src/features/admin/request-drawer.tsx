@@ -3,7 +3,6 @@
 // with optional reason / delete). The interactive release search joins with
 // the indexer milestone.
 
-import { Image, useModuleEnabled } from '@kroma/admin-kit';
 import {
   apiErrorText,
   type InteractiveSearchView,
@@ -11,17 +10,18 @@ import {
   type MessageKey,
   type ScoredReleaseView,
 } from '@kroma/core';
+import { useModuleEnabled } from '@kroma/module-sdk';
 import { useT } from '@kroma/ui';
-import { Button, IconButton } from '@kroma/ui/kit';
+import { Avatar, Button, Field, IconButton } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { kindMeta, posterGrad } from '#web/features/admin/pipeline-meta';
 import { ReleaseList } from '#web/features/admin/release-list';
 import { useAsyncAction, usePoll } from '#web/features/admin/shell';
-import { Avatar, TextInput } from '#web/features/admin/ui';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
 import { seasonsSummary } from '#web/features/requests/status';
 import { useAuth } from '#web/shared/lib/auth';
+import { Image } from '#web/shared/ui';
 
 // Shares the row like the old `flex-1` CTAs.
 const FLEX_1 = { flex: 1 } as const;
@@ -97,7 +97,7 @@ function RequesterCard({ req }: Readonly<{ req: MediaRequest }>) {
         {t('requests.requestedBy')}
       </div>
       <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-[#121216] px-4 py-3.5">
-        <Avatar name={req.requestedByName ?? '?'} size={34} />
+        <Avatar name={req.requestedByName ?? '?'} size={34} circle shadow={false} />
         <div className="min-w-0">
           <div className="truncate text-[14px] font-bold">
             {req.requestedByName ?? t('requests.unknownUser')}
@@ -193,11 +193,12 @@ function DenyForm({
   const t = useT();
   return (
     <div className="flex flex-col gap-2.5">
-      <TextInput
+      <Field
+        label={t('requests.denyNote')}
+        hideLabel
         value={note}
         onChange={onNote}
         placeholder={t('requests.denyNote')}
-        className="w-full"
       />
       <div className="flex gap-2.5">
         <Button

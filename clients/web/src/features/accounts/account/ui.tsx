@@ -3,11 +3,11 @@
 // dark panels, uppercase field labels with amber focus, and icon-led preference
 // rows. Also exports the small async-save state machine every section reuses.
 
-import { FIELD_GROUP } from '@kroma/admin-kit';
 import { apiErrorText, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { FIELD_GROUP } from '#web/shared/ui/field-classes';
 
 /** A page section: an uppercase overline separated from the previous section by
  * a hairline rule (the first one drops both). */

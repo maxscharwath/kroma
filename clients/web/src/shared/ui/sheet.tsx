@@ -1,11 +1,11 @@
-import * as Dialog from '@radix-ui/react-dialog';
+// Routed detail modal on the design system's <Dialog>: focus trap, Esc,
+// scroll-lock and click-outside come with it. Always open; closing navigates
+// back via `onClose`. The title is the accessible name only; the content owns
+// the visible header.
+
+import { Dialog } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
 
-/**
- * Routed detail modal built on Radix Dialog accessible (focus trap, Esc,
- * scroll-lock, click-outside) out of the box. Always open; closing navigates
- * back via `onClose`. Styled as the KROMA sheet.
- */
 export function Sheet({
   title,
   onClose,
@@ -16,26 +16,8 @@ export function Sheet({
   children: ReactNode;
 }>) {
   return (
-    <Dialog.Root
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-[18px] data-[state=open]:animate-[fade-in_.2s_ease]" />
-        {/* Resting transform via `transform` (not the tailwind translate
-            utilities, which emit the CSS `translate` property): the pop-in
-            keyframes animate `transform`, and the two would stack into a
-            double offset while the animation plays. */}
-        <Dialog.Content
-          aria-describedby={undefined}
-          className="fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[min(900px,calc(100%-2rem))] [transform:translate(-50%,-50%)] overflow-y-auto rounded-2xl border border-border bg-surface-1 shadow-pop focus:outline-none data-[state=open]:animate-[pop-in_.22s_var(--ease-spring)]"
-        >
-          <Dialog.Title className="sr-only">{title}</Dialog.Title>
-          {children}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open onClose={onClose} title={title} titleHidden width={900} pad={0}>
+      <div className="max-h-[88vh] overflow-y-auto">{children}</div>
+    </Dialog>
   );
 }

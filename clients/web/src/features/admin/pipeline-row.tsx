@@ -2,7 +2,6 @@
 // (metadata, or the failing/running stage), the treatment "flow" of status dots,
 // the overall status pill, and a reprocess shortcut.
 
-import { Image } from '@kroma/admin-kit';
 import type { ElementRow, MessageKey, Translate, Treatment } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { IconCheck, IconLoader2, IconRefresh, IconX } from '@tabler/icons-react';
@@ -14,6 +13,7 @@ import {
   statusMeta,
 } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
+import { Image } from '#web/shared/ui';
 
 function subLine(t: Translate, el: ElementRow): { text: string; color: string } {
   const names = (pred: (x: Treatment) => boolean) =>

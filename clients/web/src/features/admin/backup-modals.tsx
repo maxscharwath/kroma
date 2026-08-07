@@ -3,10 +3,11 @@
 // and only then asks for a password, always confirming before it overwrites.
 
 import { useT } from '@kroma/ui';
+import { Dialog, DialogActions, Field, Switch } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { createCallable } from 'react-call';
-import { FIELD, Field, Modal, ModalActions, TextInput, Toggle } from '#web/features/admin/ui';
 import { useAuth } from '#web/shared/lib/auth';
+import { FIELD } from '#web/shared/ui/field-classes';
 
 // "KROMABK1\n": the encrypted-backup envelope magic (see services/backup/crypto).
 const KROMA_MAGIC = [0x4b, 0x52, 0x4f, 0x4d, 0x41, 0x42, 0x4b, 0x31, 0x0a];
@@ -28,7 +29,7 @@ function errMessage(e: unknown, fallback: string): string {
 }
 
 function ErrorLine({ text }: Readonly<{ text: string }>) {
-  return <p className="mb-2 text-[13px] font-semibold text-[#E8536A]">{text}</p>;
+  return <p className="text-[13px] font-semibold text-[#E8536A]">{text}</p>;
 }
 
 function ToggleRow({
@@ -38,13 +39,13 @@ function ToggleRow({
   onChange,
 }: Readonly<{ label: string; hint: string; on: boolean; onChange: (v: boolean) => void }>) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-4">
+    <div className="flex items-start justify-between gap-4">
       <div>
         <div className="text-[14px] font-semibold text-text">{label}</div>
         <div className="mt-0.5 text-[12px] leading-relaxed text-dim">{hint}</div>
       </div>
       <div className="pt-0.5">
-        <Toggle on={on} onChange={onChange} />
+        <Switch checked={on} onChange={onChange} label={label} />
       </div>
     </div>
   );
@@ -83,7 +84,12 @@ export const ExportModal = createCallable<void, boolean>(({ call }) => {
   }
 
   return (
-    <Modal title={t('admin.backupExportTitle')} onClose={busy ? () => {} : () => call.end(false)}>
+    <Dialog
+      open
+      title={t('admin.backupExportTitle')}
+      width={520}
+      onClose={busy ? () => {} : () => call.end(false)}
+    >
       <ToggleRow
         label={t('admin.backupEncrypt')}
         hint={t('admin.backupEncryptHint')}
@@ -91,12 +97,16 @@ export const ExportModal = createCallable<void, boolean>(({ call }) => {
         onChange={setEncrypt}
       />
       {encrypt ? (
-        <Field label={t('admin.backupPassword')} hint={t('admin.backupPasswordHint')}>
-          <TextInput type="password" value={password} onChange={setPassword} className="w-full" />
-        </Field>
+        <Field
+          label={t('admin.backupPassword')}
+          hint={t('admin.backupPasswordHint')}
+          type="password"
+          value={password}
+          onChange={setPassword}
+        />
       ) : null}
       {error ? <ErrorLine text={error} /> : null}
-      <ModalActions
+      <DialogActions
         onCancel={() => call.end(false)}
         cancelLabel={t('common.cancel')}
         onConfirm={() => void run()}
@@ -104,7 +114,7 @@ export const ExportModal = createCallable<void, boolean>(({ call }) => {
         busy={busy}
         disabled={!canExport}
       />
-    </Modal>
+    </Dialog>
   );
 });
 
@@ -136,14 +146,23 @@ export const ImportModal = createCallable<{ file: File; encrypted: boolean }, st
     }
 
     return (
-      <Modal title={t('admin.backupImportTitle')} onClose={busy ? () => {} : () => call.end(null)}>
+      <Dialog
+        open
+        title={t('admin.backupImportTitle')}
+        width={520}
+        onClose={busy ? () => {} : () => call.end(null)}
+      >
         <Field label={t('admin.backupFile')}>
           <div className={`${FIELD} truncate`}>{file.name}</div>
         </Field>
         {encrypted ? (
-          <Field label={t('admin.backupPassword')} hint={t('admin.backupEncryptedFile')}>
-            <TextInput type="password" value={password} onChange={setPassword} className="w-full" />
-          </Field>
+          <Field
+            label={t('admin.backupPassword')}
+            hint={t('admin.backupEncryptedFile')}
+            type="password"
+            value={password}
+            onChange={setPassword}
+          />
         ) : null}
         <ToggleRow
           label={t('admin.backupReset')}
@@ -151,9 +170,9 @@ export const ImportModal = createCallable<{ file: File; encrypted: boolean }, st
           on={reset}
           onChange={setReset}
         />
-        <p className="mb-2 text-[12.5px] leading-relaxed text-dim">{t('admin.backupImportDesc')}</p>
+        <p className="text-[12.5px] leading-relaxed text-dim">{t('admin.backupImportDesc')}</p>
         {error ? <ErrorLine text={error} /> : null}
-        <ModalActions
+        <DialogActions
           onCancel={() => call.end(null)}
           cancelLabel={t('common.cancel')}
           onConfirm={() => void run()}
@@ -161,7 +180,7 @@ export const ImportModal = createCallable<{ file: File; encrypted: boolean }, st
           busy={busy}
           disabled={!canImport}
         />
-      </Modal>
+      </Dialog>
     );
   },
 );

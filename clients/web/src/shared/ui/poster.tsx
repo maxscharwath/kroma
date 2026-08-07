@@ -1,8 +1,8 @@
-import { Image } from '@kroma/admin-kit';
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { IconButton, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
+import { Image } from '#web/shared/ui/image';
 
 export interface PosterProps {
   title: string;

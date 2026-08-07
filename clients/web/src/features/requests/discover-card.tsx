@@ -2,13 +2,13 @@
 // rating + availability/request chip, and a hover "request" affordance.
 // Clicks route to the local fiche when owned, else the discover detail.
 
-import { Image } from '@kroma/admin-kit';
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { IconPlus, IconStarFilled } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { RequestStatusChip } from '#web/features/requests/request-status-chip';
+import { Image } from '#web/shared/ui';
 
 export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; width?: number }>) {
   const t = useT();

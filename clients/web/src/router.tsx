@@ -1,7 +1,12 @@
+import { setEntryDefaults } from '@kroma/ui/kit';
 import { createRouter as createTanStackRouter } from '@tanstack/react-router';
 import { NotFound, RouteError } from '#web/features/errors/error-page';
 import { routeTree } from '#web/routeTree.gen';
 import { queryClient } from '#web/shared/lib/query';
+
+// A browser session types on a real keyboard, so the design system's entries
+// render real inputs instead of the TV caret form.
+setEntryDefaults({ physicalKeyboard: true });
 
 export function getRouter() {
   return createTanStackRouter({

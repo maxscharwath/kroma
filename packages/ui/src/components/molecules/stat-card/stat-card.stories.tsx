@@ -4,7 +4,7 @@ import { StatCard } from './stat-card';
 
 export default story({
   name: 'StatCard',
-  group: 'State',
+  group: 'Feedback',
   docs: "One number that matters, on a card: the dashboard's active sessions, a module's disk usage, a queue depth. Label above, display-size value, an optional `unit` at the baseline. The value keeps the text colour unless the number has a hue of its own - a red CPU, a green success rate - stated through `color`.",
   usage: `<StatCard label="Sessions" value={4} />
 <StatCard label="CPU" value="82" unit="%" color="danger" />`,

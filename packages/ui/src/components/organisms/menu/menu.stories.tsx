@@ -7,7 +7,7 @@ const noop = () => {};
 
 export default story({
   name: 'Menu',
-  group: 'Actions',
+  group: 'Overlays',
   docs: 'The anchored action menu behind a "..." trigger: a download row\'s pause/retry/remove, a card\'s overflow. Under a pointer it is an anchored panel with the full **menu keyboard** - arrows, type-ahead, Enter fires, Esc returns to the trigger - announced as `role="menu"` through `aria-activedescendant`; under a D-pad the items open in a dialog, confined to the remote. Items are data (`icon`, `label`, `onSelect`, `disabled`, `danger`), with `\'separator\'` literals between groups; the destructive tail wears red.',
   usage: `<Menu
   label={t('downloads.rowActions')}

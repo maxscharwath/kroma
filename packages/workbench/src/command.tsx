@@ -36,7 +36,7 @@ interface CommandGroup {
 
 function commandGroups(stories: readonly Story[], query: string): CommandGroup[] {
   const hits = stories.filter((story) => matches(story, query));
-  return groupBy(hits, (story) => story.tier).map(({ key, items }) => ({ title: key, items }));
+  return groupBy(hits, (story) => story.group).map(({ key, items }) => ({ title: key, items }));
 }
 
 function flatten(groups: readonly CommandGroup[]): Story[] {
@@ -59,16 +59,20 @@ function offsetOf(groups: readonly CommandGroup[], index: number): number {
   return y;
 }
 
-const TIER_GLYPH: Record<string, IconName> = {
+const GROUP_GLYPH: Record<string, IconName> = {
   Foundations: 'palette',
-  Atoms: 'circle-square',
-  Molecules: 'components',
-  Organisms: 'layout-board',
-  Templates: 'layout',
+  Layout: 'layout',
+  Actions: 'pointer',
+  Input: 'forms',
+  Overlays: 'stack-2',
+  Feedback: 'progress',
+  Media: 'photo',
+  Player: 'player-play',
+  Brand: 'diamond',
 };
 
-function glyphFor(tier: string): IconName {
-  return TIER_GLYPH[tier] ?? 'square';
+function glyphFor(group: string): IconName {
+  return GROUP_GLYPH[group] ?? 'square';
 }
 
 function isMac(): boolean {
@@ -329,7 +333,7 @@ function Row({
     >
       {({ slots }) => (
         <>
-          <Icon name={glyphFor(story.tier)} size={15} color={open ? 'accent' : 'textDim'} />
+          <Icon name={glyphFor(story.group)} size={15} color={open ? 'accent' : 'textDim'} />
           <Txt variant="meta" style={slots.name} lines={1}>
             {story.name}
           </Txt>

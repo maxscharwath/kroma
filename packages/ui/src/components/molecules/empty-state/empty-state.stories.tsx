@@ -4,7 +4,7 @@ import { EmptyState } from './empty-state';
 
 export default story({
   name: 'EmptyState',
-  group: 'State',
+  group: 'Feedback',
   docs: 'The empty screen: an icon, what is missing, and why. The tv variant scales everything up for the 10-foot viewing distance.',
   matrix: false,
   args: {

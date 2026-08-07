@@ -19,7 +19,7 @@ function Labelled({ label, children }: Readonly<{ label: string; children: React
 
 export default story({
   name: 'Skeleton',
-  group: 'State',
+  group: 'Feedback',
   docs: "The pulsing placeholder for content that is loading. It takes the same layout shorthands as Box, so it sizes exactly like what it replaces, and `shape` names the shapes that would otherwise be spelled out at every call site: a run of text lines on a type role's rhythm, a circle, and the two card ratios.",
   usage: `<Skeleton w={220} h={22} />                        // a block
 <Skeleton shape="text" variant="meta" lines={3} />   // a paragraph

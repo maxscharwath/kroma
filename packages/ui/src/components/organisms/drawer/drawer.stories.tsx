@@ -28,7 +28,7 @@ function Demo({ side }: Readonly<{ side: 'left' | 'right' }>) {
 
 export default story({
   name: 'Drawer',
-  group: 'State',
+  group: 'Overlays',
   docs: 'The edge-anchored slide-in panel: a detail inspector, an edit form, the phone nav sheet. The same overlay contract as **Dialog** - portalled, scroll-locked, focus locked behind it, Esc/Back and outside-press dismiss, `role="dialog"` with `title` as its accessible name - but anchored to a side with its own enter/exit slide. It stays mounted through the exit, so callers just flip `open`. `fullBelow` makes it take the whole screen under a viewport width (the phone nav), and `panelStyle` recolours the surface.',
   usage: `<Drawer open={open} onClose={close} title="Edit registry" width={460}>
   ...the panel owns its header and content...

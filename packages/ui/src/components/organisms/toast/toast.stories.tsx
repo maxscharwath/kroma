@@ -5,7 +5,7 @@ import { Toaster, toast } from './toast';
 
 export default story({
   name: 'Toaster',
-  group: 'State',
+  group: 'Overlays',
   docs: 'Transient notices, the shadcn/sonner shape: one `<Toaster/>` mounted by the shell, and `toast(...)` callable from anywhere. That split is the point — a cast receiver learning that a phone picked up its remote has no business knowing where notices are drawn. Written for the ten-foot case first: read from the sofa, never dismissed by hand, and `pointerEvents="none"` so it can never take the remote. It is not a dialog; nothing here is a question.',
   usage: `// once, near the root
 <Toaster placement="top-right" />

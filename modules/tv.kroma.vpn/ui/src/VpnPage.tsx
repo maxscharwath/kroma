@@ -6,20 +6,14 @@
 
 import {
   apiErrorText,
-  Button,
-  Card,
   Denied,
-  Modal,
-  ModalActions,
-  PageHeader,
-  Pill,
   SettingsView,
-  TextArea,
   useAsyncAction,
   useCap,
   usePoll,
   useT,
 } from '@kroma/module-sdk';
+import { Badge, Button, Dialog, DialogActions, Field, PageHeader, Surface } from '@kroma/ui/kit';
 import { IconShield, IconShieldCheck, IconShieldX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useVpnApi } from './api';
@@ -61,7 +55,7 @@ export function VpnCard() {
   const connected = state?.status?.connected ?? false;
 
   return (
-    <Card className="mb-5 p-4.5">
+    <Surface elevated border="border" pad="none" p={18} mb={20}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -85,10 +79,10 @@ export function VpnCard() {
         <div className="flex items-center gap-2">
           {configured ? (
             <Button
-              variant="secondary"
+              variant="glass"
               size="sm"
               label={t('vpn.test')}
-              onClick={runTest}
+              onPress={runTest}
               loading={test.busy}
             />
           ) : null}
@@ -96,7 +90,7 @@ export function VpnCard() {
             variant="primary"
             size="sm"
             label={t(state?.wgConfigured ? 'vpn.reconfigure' : 'vpn.configure')}
-            onClick={() => setModal(true)}
+            onPress={() => setModal(true)}
           />
         </div>
       </div>
@@ -117,7 +111,7 @@ export function VpnCard() {
           }}
         />
       ) : null}
-    </Card>
+    </Surface>
   );
 }
 
@@ -138,9 +132,9 @@ function statusColor(configured: boolean, connected: boolean): string {
 function BridgePill({ running }: Readonly<{ running: boolean }>) {
   const t = useT();
   return (
-    <Pill color={running ? '#46D08D' : '#E8536A'}>
+    <Badge tone={running ? 'success' : 'danger'}>
       {running ? t('vpn.bridgeUp') : t('vpn.bridgeDown')}
-    </Pill>
+    </Badge>
   );
 }
 
@@ -181,22 +175,23 @@ function VpnConfigModal({
     );
 
   return (
-    <Modal title={t('vpn.modalTitle')} onClose={onClose}>
-      <p className="mb-3 text-[13px] leading-relaxed text-dim">{t('vpn.modalHelp')}</p>
-      <TextArea
+    <Dialog open title={t('vpn.modalTitle')} onClose={onClose} width={520}>
+      <p className="text-[13px] leading-relaxed text-dim">{t('vpn.modalHelp')}</p>
+      <Field
+        label={t('vpn.modalTitle')}
+        hideLabel
+        multiline
+        rows={9}
         value={config}
         onChange={setConfig}
         placeholder={
           '[Interface]\nPrivateKey = ...\nAddress = 10.2.0.2/32\n\n[Peer]\nPublicKey = ...\nEndpoint = ...:51820\nAllowedIPs = 0.0.0.0/0'
         }
-        rows={9}
-        mono
-        spellCheck={false}
-        className="w-full leading-relaxed placeholder:text-white/25"
+        entry={{ textStyle: { fontFamily: 'monospace', fontSize: 13 } }}
       />
-      {configured ? <p className="mt-2 text-[12px] text-dim">{t('vpn.configKept')}</p> : null}
-      {error ? <p className="mt-2 text-[13px] font-semibold text-[#EF8091]">{error}</p> : null}
-      <ModalActions
+      {configured ? <p className="text-[12px] text-dim">{t('vpn.configKept')}</p> : null}
+      {error ? <p className="text-[13px] font-semibold text-[#EF8091]">{error}</p> : null}
+      <DialogActions
         onCancel={onClose}
         cancelLabel={t('common.cancel')}
         onConfirm={() => save(config.trim())}
@@ -205,10 +200,10 @@ function VpnConfigModal({
         disabled={!config.trim()}
         destructive={
           configured
-            ? { label: t('vpn.removeConfig'), onClick: () => save(''), disabled: busy }
+            ? { label: t('vpn.removeConfig'), onPress: () => save(''), disabled: busy }
             : undefined
         }
       />
-    </Modal>
+    </Dialog>
   );
 }

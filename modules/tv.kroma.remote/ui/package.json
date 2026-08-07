@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@kroma/module-sdk": "workspace:*",
+    "@kroma/ui": "workspace:*",
     "@tabler/icons-react": "^3.44.0"
   },
   "peerDependencies": {

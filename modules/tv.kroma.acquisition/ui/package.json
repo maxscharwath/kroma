@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@kroma/module-sdk": "workspace:*",
+    "@kroma/ui": "workspace:*",
     "zod": "^4.4.3"
   },
   "peerDependencies": {

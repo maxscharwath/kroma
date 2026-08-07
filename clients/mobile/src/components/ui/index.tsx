@@ -9,7 +9,6 @@ import { useT } from '#mobile/lib/i18n';
 import { useGutters } from '#mobile/lib/layout';
 import { spacing, type } from '#mobile/lib/theme';
 
-export { TextField } from './controls';
 export {
   SheetBackdrop,
   SheetBody,

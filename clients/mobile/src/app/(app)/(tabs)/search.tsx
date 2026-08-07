@@ -2,7 +2,7 @@
 // as a poster grid.
 
 import { type MediaItem, sizedImageUrl } from '@kroma/core';
-import { Icon, styles } from '@kroma/ui/kit';
+import { Field, Icon, styles } from '@kroma/ui/kit';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type CardModel, movieCard, showCard } from '#mobile/components/cards';
 import { FadeImage } from '#mobile/components/FadeImage';
 import { gridMetrics, PosterGrid } from '#mobile/components/PosterGrid';
-import { EmptyState, Loading, TextField } from '#mobile/components/ui';
+import { EmptyState, Loading } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
 import { useGutters } from '#mobile/lib/layout';
 import { usePlay } from '#mobile/lib/play';
@@ -119,13 +119,13 @@ export default function Search() {
     <View style={[s.screen, { paddingTop: insets.top + spacing.sm }]}>
       <View style={[s.inputBox, gutters.style]}>
         <Text style={s.pageTitle}>{t('nav.search')}</Text>
-        <TextField
+        <Field
+          label={t('search.placeholder')}
+          hideLabel
           icon="search"
           value={query}
-          onChangeText={setQuery}
+          onChange={setQuery}
           placeholder={t('search.placeholder')}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
         />
       </View>
       {searchBody()}

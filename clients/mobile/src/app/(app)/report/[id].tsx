@@ -3,12 +3,12 @@
 // flow (POST /api/reports).
 
 import type { ReportCategory, ReportSubjectKind } from '@kroma/core';
-import { Button, Icon, styles } from '@kroma/ui/kit';
+import { Button, Field, Icon, styles } from '@kroma/ui/kit';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { PageHeader } from '#mobile/components/PageHeader';
-import { Screen, TextField } from '#mobile/components/ui';
+import { Screen } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
 import { goBack } from '#mobile/lib/nav';
 import { useClient } from '#mobile/lib/session';
@@ -105,13 +105,15 @@ export default function ReportProblem() {
             </View>
 
             <Text style={s.group}>{t('report.message')}</Text>
-            <TextField
+            <Field
+              label={t('report.messagePlaceholder')}
+              hideLabel
               icon="message-2"
               value={message}
-              onChangeText={setMessage}
+              onChange={setMessage}
               placeholder={t('report.messagePlaceholder')}
               multiline
-              numberOfLines={4}
+              rows={4}
               style={s.message}
             />
             {error ? <Text style={s.error}>{error}</Text> : null}

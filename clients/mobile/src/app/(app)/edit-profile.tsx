@@ -1,12 +1,12 @@
 import { KromaApiError, LANG_OFF, langName } from '@kroma/core';
-import { Button, Icon, type IconName, Spinner, styles } from '@kroma/ui/kit';
+import { Button, Field, Icon, type IconName, Spinner, styles } from '@kroma/ui/kit';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Avatar } from '#mobile/components/Avatar';
 import { type LangPickerRef, LangPickerSheet } from '#mobile/components/LangPickerSheet';
 import { PageHeader } from '#mobile/components/PageHeader';
-import { Screen, TextField } from '#mobile/components/ui';
+import { Screen } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
 import { useLangPrefs } from '#mobile/lib/langPrefs';
 import { boxed, contentWidth } from '#mobile/lib/layout';
@@ -199,13 +199,17 @@ export default function EditProfile() {
 
           <Section title={t('account.sectionInfo')}>
             <View style={s.card}>
-              <Text style={s.fieldLabel}>{t('auth.username')}</Text>
-              <TextField icon="user" value={username} onChangeText={setUsername} />
-              <Text style={s.fieldLabel}>{t('auth.email')}</Text>
-              <TextField
+              <Field
+                label={t('auth.username')}
+                icon="user"
+                value={username}
+                onChange={setUsername}
+              />
+              <Field
+                label={t('auth.email')}
                 icon="mail"
                 value={email}
-                onChangeText={setEmail}
+                onChange={setEmail}
                 keyboardType="email-address"
               />
               <Button
@@ -238,12 +242,27 @@ export default function EditProfile() {
 
           <Section title={t('account.sectionSecurity')}>
             <View style={s.card}>
-              <Text style={s.fieldLabel}>{t('account.currentPassword')}</Text>
-              <TextField icon="lock" value={current} onChangeText={setCurrent} secureTextEntry />
-              <Text style={s.fieldLabel}>{t('account.newPassword')}</Text>
-              <TextField icon="lock" value={next} onChangeText={setNext} secureTextEntry />
-              <Text style={s.fieldLabel}>{t('account.confirmPassword')}</Text>
-              <TextField icon="lock" value={confirm} onChangeText={setConfirm} secureTextEntry />
+              <Field
+                label={t('account.currentPassword')}
+                icon="lock"
+                value={current}
+                onChange={setCurrent}
+                type="password"
+              />
+              <Field
+                label={t('account.newPassword')}
+                icon="lock"
+                value={next}
+                onChange={setNext}
+                type="password"
+              />
+              <Field
+                label={t('account.confirmPassword')}
+                icon="lock"
+                value={confirm}
+                onChange={setConfirm}
+                type="password"
+              />
               <Button
                 variant="glass"
                 label={t('account.updatePassword')}
@@ -304,7 +323,6 @@ const s = styles({
   rowLabel: { ...type.body, shrink: 1, fontWeight: '500' },
   rowRight: { row: true, align: 'center', shrink: 0, gap: 8 },
   rowValue: { ...type.caption },
-  fieldLabel: { ...type.caption, mt: 2 },
   submit: { mt: 4 },
   message: { ...type.caption, textAlign: 'center' },
 });

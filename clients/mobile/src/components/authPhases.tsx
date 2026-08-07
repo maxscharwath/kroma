@@ -1,13 +1,13 @@
 // Presentation only; auth calls and phase switching stay in sign-in.
 
-import { Button, Spinner, styles } from '@kroma/ui/kit';
+import { Button, Field, Spinner, styles } from '@kroma/ui/kit';
 import { Text, View } from 'react-native';
 import { useT } from '#mobile/lib/i18n';
 import { colors, spacing, type } from '#mobile/lib/theme';
 import { Avatar } from './Avatar';
 import { BackLink, OnboardingBox, OnboardingTitle } from './OnboardingScreen';
 import { PinPad } from './onboarding';
-import { ErrorBanner, TextField } from './ui';
+import { ErrorBanner } from './ui';
 
 export type Identity = { name: string; avatarUri: string | null };
 
@@ -85,26 +85,31 @@ export function CredentialsPhase({
         <OnboardingTitle title={t('auth.signinTitle')} subtitle={serverLabel} />
       )}
       {identity ? null : (
-        <TextField
+        <Field
+          w="100%"
+          label={t('auth.emailOrUsername')}
+          hideLabel
           icon="user"
           value={identifier}
-          onChangeText={onIdentifier}
+          onChange={onIdentifier}
           placeholder={t('auth.emailOrUsername')}
           keyboardType="email-address"
-          textContentType="username"
           autoFocus
+          entry={{ autoComplete: 'username' }}
         />
       )}
-      <TextField
+      <Field
+        w="100%"
+        label={t('auth.password')}
+        hideLabel
         icon="lock"
         value={password}
-        onChangeText={onPassword}
+        onChange={onPassword}
         placeholder={t('auth.password')}
-        secureTextEntry
-        textContentType="password"
+        type="password"
         autoFocus={identity !== null}
-        returnKeyType="go"
-        onSubmitEditing={onSubmit}
+        onSubmit={onSubmit}
+        entry={{ autoComplete: 'current-password' }}
       />
       <ErrorBanner message={error} />
       <Button

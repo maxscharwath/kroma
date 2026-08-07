@@ -61,7 +61,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
     >
       <button type="button" onClick={open} className="block w-full text-left focus:outline-none">
         <div
-          className="relative aspect-2/3 overflow-hidden rounded-lg shadow-card transition-shadow duration-200 group-hover/card:shadow-[0_0_0_3px_var(--kroma-accent),var(--shadow-pop)]"
+          className="relative aspect-2/3 overflow-hidden rounded-lg shadow-card outline-3 outline-transparent transition-[box-shadow,outline-color] duration-200 group-hover/card:shadow-pop group-hover/card:outline-accent"
           style={{ background: `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)` }}
         >
           {showImg ? (

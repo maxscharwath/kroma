@@ -757,6 +757,7 @@ function TouchPressable({
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
       hitSlop={hitSlop}
+      onLayout={dip.onLayout}
       onPressIn={dip.onPressIn}
       onPressOut={dip.onPressOut}
       style={[...base, dip.pressed ? pressedStyle : null, dip.style]}

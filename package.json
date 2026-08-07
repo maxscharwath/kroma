@@ -53,7 +53,7 @@
     "build:mobile": "bun run --filter '@kroma/mobile' bundle:check",
     "build:desktop": "bun run --filter '@kroma/desktop' build",
     "deploy:tizen": "bun run --filter '@kroma/tizen' deploy",
-    "tizen:prepare": "bun run build:tizen && echo \"\u2713 Tizen app ready \u2192 clients/tizen/dist  (package: cd clients/tizen && tizen build-web && tizen package -t wgt -s <cert-profile> -- dist)\"",
+    "tizen:prepare": "bun run build:tizen && echo \"✓ Tizen app ready → clients/tizen/dist  (package: cd clients/tizen && tizen build-web && tizen package -t wgt -s <cert-profile> -- dist)\"",
     "typecheck": "bun run --filter '*' typecheck",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
@@ -128,6 +128,7 @@
   "patchedDependencies": {
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
     "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
-    "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch"
+    "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch",
+    "@expo/require-utils@57.0.4": "patches/@expo%2Frequire-utils@57.0.4.patch"
   }
 }

@@ -674,6 +674,7 @@
   },
   "patchedDependencies": {
     "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
+    "@expo/require-utils@57.0.4": "patches/@expo%2Frequire-utils@57.0.4.patch",
     "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch",
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
   },

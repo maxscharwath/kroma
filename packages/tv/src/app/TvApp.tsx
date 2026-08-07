@@ -81,7 +81,7 @@ export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly
                             <TvRouterGuard />
                             {/* Above the router so notices survive a screen
                                 change; they never take focus. */}
-                            <Toaster placement="top-right" inset={TOAST_INSET} />
+                            <Toaster position="top-right" inset={TOAST_INSET} />
                           </OverlayHost>
                         </CastReceiverProvider>
                       </WatchedProvider>

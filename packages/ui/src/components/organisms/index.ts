@@ -5,6 +5,23 @@ export type { ConfirmDialogProps, ConfirmOptions, DialogActionsProps, DialogProp
 export { ConfirmDialog, ConfirmHost, confirm, Dialog, DialogActions, DialogFooter } from './dialog';
 export type { DrawerProps, DrawerSide } from './drawer';
 export { Drawer } from './drawer';
+export type {
+  KeyboardLayout,
+  KeyProps,
+  KeyTone,
+  OnScreenKeyboardProps,
+  SearchKeyboardProps,
+  UrlKeyboardProps,
+} from './keyboard';
+export {
+  DELETE_KEY,
+  KEYBOARD_LAYOUTS,
+  Key,
+  keyFace,
+  LAYOUT_LETTER_ROWS,
+  OnScreenKeyboard,
+  urlRows,
+} from './keyboard';
 export type { KromaIntroProps } from './kroma-intro';
 export { KromaIntro } from './kroma-intro';
 export type { MenuEntry, MenuItem, MenuProps } from './menu';

@@ -1,13 +1,23 @@
-// Letter-row data for the on-screen keyboards, per user-selectable layout
-// (see keyboardLayoutPref). Rows are uppercase; the search keyboard renders
-// them as-is (inserting lowercase), the URL keyboard flattens them into rows
-// of ten lowercase keys.
+// Letter-row data for the on-screen keyboards, per selectable layout. Rows are
+// uppercase; the search keyboard renders them as-is (inserting lowercase), the
+// URL keyboard flattens them into rows of ten lowercase keys.
 
-import type { KeyboardLayoutPref } from '#tv/app/keyboardLayoutPref';
+/**
+ * The letter orders a host can ask for.
+ *
+ *  - `abc`    : alphabetical rows (the classic TV grid).
+ *  - `azerty` : French typewriter order.
+ *  - `qwerty` : US/UK typewriter order.
+ *  - `qwertz` : German/Swiss typewriter order.
+ */
+export type KeyboardLayout = 'abc' | 'azerty' | 'qwerty' | 'qwertz';
+
+/** In picker order. */
+export const KEYBOARD_LAYOUTS: readonly KeyboardLayout[] = ['abc', 'azerty', 'qwerty', 'qwertz'];
 
 // The last row of each layout is deliberately short: the search keyboard
 // appends space / backspace / close to it.
-export const LAYOUT_LETTER_ROWS: Record<KeyboardLayoutPref, readonly (readonly string[])[]> = {
+export const LAYOUT_LETTER_ROWS: Record<KeyboardLayout, readonly (readonly string[])[]> = {
   abc: [
     ['A', 'B', 'C', 'D', 'E', 'F'],
     ['G', 'H', 'I', 'J', 'K', 'L'],
@@ -40,7 +50,7 @@ export const DELETE_KEY = 'delete';
 /** Digits row, then the layout's lowercase letters chunked into rows of ten
  * with the URL specials appended to the tail (26 letters + 4 specials = three
  * even rows). */
-export function urlRows(layout: KeyboardLayoutPref): string[][] {
+export function urlRows(layout: KeyboardLayout): string[][] {
   const keys = [
     ...LAYOUT_LETTER_ROWS[layout].flat().map((l) => l.toLowerCase()),
     '-',

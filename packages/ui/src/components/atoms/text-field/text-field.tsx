@@ -183,15 +183,20 @@ function TextField({
           ]}
         />
       ) : (
+        // The TV spelling of the same field, so it must measure the same: the
+        // shell's font size (not <Txt>'s `body` role, which is a different size
+        // at `sm`), and a line box exactly the content row - native CLIPS text
+        // whose lineHeight overflows its box, where the web merely spills, so
+        // an inherited 1.55 ratio mis-seats the value on tvOS alone.
         <Box row align="center" flex gap={2} h={CONTENT}>
           <Txt
             lines={1}
-            style={[{ flexShrink: 1 }, textStyle]}
+            style={[s.tvValue, { fontSize: metrics.fontSize, lineHeight: CONTENT }, textStyle]}
             color={value ? 'text' : PLACEHOLDER}
           >
             {(masked ? '•'.repeat(value.length) : value) || placeholder || ''}
           </Txt>
-          <Caret height={28} />
+          <Caret height={CONTENT} />
         </Box>
       )}
       {type === 'password' ? (
@@ -234,6 +239,7 @@ const REVEAL_STATES = { hover: { bg: 'white/10' } } as const;
 
 const s = styles({
   input: { flex: true, minW: 0, borderWidth: 0, bg: 'transparent', p: 0 },
+  tvValue: { shrink: 1 },
   revealSlot: { top: 0, bottom: 0, justify: 'center' },
   reveal: { p: 4, m: -4, radius: 'md' },
 });

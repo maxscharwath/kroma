@@ -176,11 +176,18 @@ function AddEngineDialog({
   const { busy, error, run } = useAsyncAction();
   const [engineId, setEngineId] = useState(ask.engines[0]?.id ?? '');
   const [name, setName] = useState('');
-  const [values, setValues] = useState<Record<string, string>>({});
+  // Keyed by ENGINE: fields typed for Transmission must not ride along in a
+  // qBittorrent submit, and switching back must not lose what was typed.
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
 
   const engine = ask.engines.find((e) => e.id === engineId) ?? ask.engines[0];
   const fields = engine?.fields ?? [];
-  const setField = (key: string, value: string) => setValues((v) => ({ ...v, [key]: value }));
+  const values = drafts[engine?.id ?? ''] ?? {};
+  const setField = (key: string, value: string) =>
+    setDrafts((all) => {
+      const id = engine?.id ?? '';
+      return { ...all, [id]: { ...all[id], [key]: value } };
+    });
 
   const missingRequired = fields.some((f) => f.required && !(values[f.key] ?? '').trim());
   const canSubmit = Boolean(engine) && Boolean(name.trim()) && !missingRequired;

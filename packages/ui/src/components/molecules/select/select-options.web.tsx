@@ -5,6 +5,11 @@
 // Home/End jump, printable keys type ahead, Enter picks, Esc returns to the
 // trigger. DOM focus stays on the list and `aria-activedescendant` names the
 // active row, so the pattern reads to assistive tech the way it looks.
+//
+// Rendered in place, NOT portalled to the body: `position: fixed` already
+// escapes overflow clipping, and a body portal would put the panel outside
+// react-native-web's <Modal> focus trap, which yanks focus straight back
+// into the dialog and leaves the popover keyboard-dead.
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, type View } from 'react-native';
@@ -13,8 +18,9 @@ import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
 import { type AnchorPlacement, placeUnder } from '#ui/lib/anchor';
+import { armEscapeGuard } from '#ui/lib/escape-guard';
 import { useInsideFocusScope } from '#ui/lib/focus-presence';
-import { Portal } from '#ui/lib/portal';
+import { useTDefault } from '#ui/services/i18n';
 import type { SelectOption } from './select';
 import { optionVariants, SelectOptionsDialog } from './select-options-dialog';
 import type { SelectSurfaceProps } from './select-surface';
@@ -53,6 +59,7 @@ function SelectPopover({
   onPick,
   anchor,
 }: Readonly<SelectSurfaceProps>) {
+  const t = useTDefault();
   const baseId = useId();
   const list = useRef<View>(null);
   const rows = useRef(new Map<number, number>());
@@ -139,6 +146,8 @@ function SelectPopover({
       if (option && !option.disabled) onPick(option.value);
     } else if (key === 'Escape' || key === 'Tab') {
       event.preventDefault();
+      // The paired keyup would otherwise also close a <Dialog> under us.
+      if (key === 'Escape') armEscapeGuard();
       onClose();
     } else if (key.length === 1) {
       typeahead(key);
@@ -148,9 +157,14 @@ function SelectPopover({
   if (!at) return null;
 
   return (
-    <Portal>
+    <>
       {/* The world behind the panel: one press anywhere out there closes it. */}
-      <Pressable accessibilityLabel="Close" tabIndex={-1} onPress={onClose} style={UNDER} />
+      <Pressable
+        accessibilityLabel={t('common.close')}
+        tabIndex={-1}
+        onPress={onClose}
+        style={UNDER}
+      />
       <Box
         ref={list}
         tabIndex={-1}
@@ -163,7 +177,7 @@ function SelectPopover({
         bg="surface2"
         shadow="pop"
         overflow="hidden"
-        style={[PANEL, { left: at.left, top: at.top, width: at.width }]}
+        style={[PANEL, { left: at.left, top: at.top, bottom: at.bottom, width: at.width }]}
       >
         <ScrollView ref={scroller} style={{ maxHeight: at.maxHeight }}>
           <Box p={6}>
@@ -184,7 +198,7 @@ function SelectPopover({
           </Box>
         </ScrollView>
       </Box>
-    </Portal>
+    </>
   );
 }
 
@@ -244,7 +258,9 @@ const LISTBOX = 'listbox' as import('react-native').Role;
 // React Native's types don't know `fixed`, hence the cast.
 const FIXED = 'fixed' as 'absolute';
 
-const UNDER = { position: FIXED, top: 0, right: 0, bottom: 0, left: 0 } as const;
+// The backdrop must outrank the app's sticky chrome (headers ride z-40), or a
+// tap meant to dismiss lands on the header instead.
+const UNDER = { position: FIXED, top: 0, right: 0, bottom: 0, left: 0, zIndex: 99 } as const;
 const PANEL = { position: FIXED, zIndex: 100 } as const;
 
 const s = styles({

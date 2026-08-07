@@ -3,7 +3,7 @@
 // cannot reach — or fire OK on — anything under the panel.
 
 import { type ReactNode, useId, useRef } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, type View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, type View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { Txt } from '#ui/components/atoms/text';
@@ -14,6 +14,7 @@ import { FocusRegion, FocusScope, useLockFocusBehind } from '#ui/lib/focus-scope
 import { useModalPortalRepair } from '#ui/lib/modal-portal';
 import { useOverlay, useOverlayHost } from '#ui/lib/overlay-host';
 import { useScrollLock } from '#ui/lib/scroll-lock';
+import { useTDefault } from '#ui/services/i18n';
 
 interface DialogProps {
   open: boolean;
@@ -97,6 +98,7 @@ function DialogSurface({
   Omit<DialogProps, 'open'> & { width: number; pad: number; trapped: boolean; bridge: boolean }
 >) {
   useFocusNav({ onBack: onClose });
+  const t = useTDefault();
   const backdrop = useRef<View>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -118,7 +120,7 @@ function DialogSurface({
       {onClose && Platform.OS === 'web' ? (
         <Pressable
           ref={backdrop}
-          accessibilityLabel="Close"
+          accessibilityLabel={t('common.close')}
           onPress={onClose}
           // The backdrop must never hold the DOM focus: react-native-web 0.21's
           // Pressable ignores `focusable` and defaults to `tabindex="0"`, and
@@ -133,29 +135,33 @@ function DialogSurface({
       <Box
         w={width}
         maxW="100%"
+        maxH="100%"
         bg="surface2"
         radius="2xl"
         border="borderStrong"
         shadow="pop"
-        p={pad}
-        gap={pad > 0 ? 24 : 0}
         overflow="hidden"
         dataSet={FOCUS_SCOPE}
         role="dialog"
         aria-modal
         {...naming}
       >
-        {showsTitle ? (
-          <Txt nativeID={titleId} variant="h2">
-            {title}
-          </Txt>
-        ) : null}
-        {description ? (
-          <Txt nativeID={descriptionId} color="textMuted" variant="body">
-            {description}
-          </Txt>
-        ) : null}
-        {children}
+        {/* The panel scrolls as a whole (the old admin modal's contract): with
+            the page scroll locked behind the overlay, a form taller than the
+            viewport would otherwise clip with its actions unreachable. */}
+        <ScrollView contentContainerStyle={{ padding: pad, gap: pad > 0 ? 24 : 0 }}>
+          {showsTitle ? (
+            <Txt nativeID={titleId} variant="h2">
+              {title}
+            </Txt>
+          ) : null}
+          {description ? (
+            <Txt nativeID={descriptionId} color="textMuted" variant="body">
+              {description}
+            </Txt>
+          ) : null}
+          {children}
+        </ScrollView>
       </Box>
     </Box>
   );

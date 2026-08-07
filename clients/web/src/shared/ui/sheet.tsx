@@ -17,7 +17,7 @@ export function Sheet({
 }>) {
   return (
     <Dialog open onClose={onClose} title={title} titleHidden width={900} pad={0}>
-      <div className="max-h-[88vh] overflow-y-auto">{children}</div>
+      {children}
     </Dialog>
   );
 }

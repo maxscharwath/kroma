@@ -110,25 +110,37 @@ function Avatar({
   const fill = gradient ?? gradientFor(seed ?? name);
   const badge = Math.max(24, size * 0.2);
   const inset = badgeInset(size, corner);
+  // The initials stand in whenever the photo is not on screen: no src at all,
+  // still loading, or a stored URL that 404s - a profile is never a blank disc.
+  const initials = (
+    <Box fill center>
+      <Txt
+        style={{
+          fontFamily: fonts.display,
+          fontWeight: '700',
+          fontSize: Math.round(size * 0.38),
+          lineHeight: Math.round(size * 0.46),
+          color: 'rgba(255, 255, 255, 0.95)',
+        }}
+      >
+        {initialsOf(name)}
+      </Txt>
+    </Box>
+  );
   return (
     // No `overflow="hidden"`: `Img` already clips the art to `corner` itself, and
     // clipping HERE cropped the padlock badge against the disc's own corner - the
     // rounder the avatar, the more of the badge the arc cut away.
     <Box w={size} h={size} radius={corner} center style={shadow ? s.shadow : null}>
-      <Img src={src} background={fill} radius={corner} fill alt={name} />
-      {src ? null : (
-        <Txt
-          style={{
-            fontFamily: fonts.display,
-            fontWeight: '700',
-            fontSize: Math.round(size * 0.38),
-            lineHeight: Math.round(size * 0.46),
-            color: 'rgba(255, 255, 255, 0.95)',
-          }}
-        >
-          {initialsOf(name)}
-        </Txt>
-      )}
+      <Img
+        src={src}
+        background={fill}
+        radius={corner}
+        fill
+        alt={name}
+        placeholder={initials}
+        fallback={initials}
+      />
       {locked ? (
         <Box
           absolute

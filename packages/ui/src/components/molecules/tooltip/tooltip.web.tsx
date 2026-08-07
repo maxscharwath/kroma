@@ -41,6 +41,24 @@ function Tooltip({ label, children }: Readonly<TooltipProps>) {
     [],
   );
 
+  // The bubble follows its anchor: the focus path never blurs on scroll, so a
+  // once-measured position would strand the bubble at stale coordinates.
+  const shown = spot !== null;
+  useEffect(() => {
+    if (!shown) return;
+    const settle = () => {
+      const rect = box.current?.getBoundingClientRect();
+      if (rect) setSpot({ left: rect.left + rect.width / 2, top: rect.top - GAP });
+    };
+    window.addEventListener('resize', settle);
+    // Capture: the scroll that moves the anchor can happen in any container.
+    window.addEventListener('scroll', settle, true);
+    return () => {
+      window.removeEventListener('resize', settle);
+      window.removeEventListener('scroll', settle, true);
+    };
+  }, [shown]);
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the wrapper only watches hover/focus travelling through it; the child stays the interactive element.
     <span

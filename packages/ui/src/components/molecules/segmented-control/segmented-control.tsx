@@ -67,7 +67,8 @@ function SegmentedControl<T extends string>({
 }: Readonly<SegmentedControlProps<T>>) {
   const move = (delta: -1 | 1) => {
     const next = step(options, value, delta);
-    if (next) onChange(next);
+    // `!== null`, not truthiness: '' is a legal option value ("Auto").
+    if (next !== null) onChange(next);
   };
   return (
     <FocusRegion>

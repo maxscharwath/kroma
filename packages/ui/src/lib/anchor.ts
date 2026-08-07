@@ -4,7 +4,12 @@
 
 export interface AnchorPlacement {
   left: number;
-  top: number;
+  /** Set when the panel hangs under the trigger. */
+  top?: number;
+  /** Set when the panel flipped above: its BOTTOM edge is pinned to the
+   *  trigger, so a panel shorter than the height budget still sits against
+   *  it instead of floating detached. */
+  bottom?: number;
   width: number;
   maxHeight: number;
 }
@@ -35,10 +40,14 @@ export function placeUnder(
   const flip = below < MIN_ROOM && above > below;
   const maxHeight = Math.min(at.maxHeight, Math.max(0, flip ? above : below));
   const left = at.align === 'end' ? rect.right - width : rect.left;
-  return {
-    left: Math.max(EDGE, Math.min(left, view.innerWidth - width - EDGE)),
-    top: flip ? rect.top - ANCHOR_GAP - maxHeight : rect.bottom + ANCHOR_GAP,
-    width,
-    maxHeight,
-  };
+  const clampedLeft = Math.max(EDGE, Math.min(left, view.innerWidth - width - EDGE));
+  if (flip) {
+    return {
+      left: clampedLeft,
+      bottom: view.innerHeight - rect.top + ANCHOR_GAP,
+      width,
+      maxHeight,
+    };
+  }
+  return { left: clampedLeft, top: rect.bottom + ANCHOR_GAP, width, maxHeight };
 }

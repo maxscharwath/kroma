@@ -74,10 +74,18 @@ type NavigatorViewProps = ComponentProps<typeof SpatialNavigationFocusableView>[
  * gets `{...s.icon}` where it used to get `color={ink(focused)}` out of a lookup
  * table beside the component.
  */
-// `option` is not in React Native's union but react-native-web passes it
-// through to the ARIA role a listbox row needs; native ignores it harmlessly,
-// hence the casts where the role meets React Native's own prop type.
+// `option` is not in React Native's union: react-native-web passes it through
+// to the ARIA role a listbox row needs, but Android's accessibility delegate
+// THROWS on it, so the native forms swap it for the nearest legal role and
+// keep the selected state (see `platformRole`).
 type FocusRole = AccessibilityRole | 'option';
+
+/** What the platform can be handed: the web keeps the real ARIA role, native
+ *  gets the nearest value Android's `fromValue` accepts. */
+function platformRole(role: FocusRole): AccessibilityRole {
+  if (WEB) return role as AccessibilityRole;
+  return role === 'option' ? 'menuitem' : role;
+}
 
 interface FocusState<R extends AnySv = AnySv> {
   focused: boolean;
@@ -295,7 +303,7 @@ function navigatorForm(at: {
       style={WEB ? flat(painted) : (at.layers?.box as NavigatorStyle)}
       viewProps={
         {
-          accessibilityRole: at.role,
+          accessibilityRole: platformRole(at.role),
           accessibilityState: at.a11yState,
           accessibilityLabel: at.label,
           ref: at.setBox,
@@ -529,7 +537,7 @@ function Focusable<R extends AnySv = AnySv>({
   if (disabled) {
     return (
       <Animated.View
-        accessibilityRole={role as AccessibilityRole}
+        accessibilityRole={platformRole(role)}
         accessibilityState={a11yState ? { ...a11yState, disabled: true } : { disabled: true }}
         accessibilityLabel={label}
         aria-disabled
@@ -686,7 +694,7 @@ function TouchPressable({
     <AnimatedPressable
       ref={boxRef}
       {...(unfocusable ? (UNFOCUSABLE as object) : null)}
-      accessibilityRole={role as AccessibilityRole}
+      accessibilityRole={platformRole(role)}
       accessibilityState={a11yState}
       accessibilityLabel={label}
       onPress={onPress}

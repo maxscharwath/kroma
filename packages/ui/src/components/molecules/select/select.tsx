@@ -64,7 +64,9 @@ function Select({
   value: valueProp,
   defaultValue,
   onChange,
-  placeholder = 'Select…',
+  // No default text: the product is not in this file's language, so an unset
+  // select renders blank unless the caller passes a translated placeholder.
+  placeholder,
   disabled = false,
   invalid = false,
   block = false,
@@ -93,7 +95,7 @@ function Select({
         ref={trigger}
         role="combobox"
         expanded={open}
-        label={`${label}: ${current?.label ?? placeholder}`}
+        label={current ? `${label}: ${current.label}` : (placeholder ?? label)}
         disabled={disabled}
         onPress={() => setOpen(true)}
         sv={triggerVariants}
@@ -104,7 +106,7 @@ function Select({
           <>
             {current?.icon ? <Icon name={current.icon} size={18} color="textMuted" /> : null}
             <Txt variant="body" lines={1} style={state.slots.ink}>
-              {current?.label ?? placeholder}
+              {current?.label ?? placeholder ?? ''}
             </Txt>
             <Box flex />
             <Icon name="chevron-down" size={16} color="textDim" />

@@ -45,6 +45,7 @@ export { coverRect, parsePosition } from './lib/cover-rect';
 export { backdropBlur, bgPosition, bgSize, gradient, promote } from './lib/css';
 // The one sanctioned way to ask for the DOM from shared code (null on a TV).
 export { webDocument, webWindow } from './lib/dom';
+export { armEscapeGuard } from './lib/escape-guard';
 export { setEntryDefaults } from './lib/field-shell';
 export { useFocusNav } from './lib/focus-nav';
 export { configureRemote, useHardwareKeys } from './lib/focus-remote';

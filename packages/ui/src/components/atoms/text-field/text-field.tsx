@@ -46,6 +46,10 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
   autoFocus?: boolean;
   /** Explicit override; normally derived from `type`. */
   keyboardType?: 'default' | 'url' | 'email-address';
+  /** Explicit override; normally derived from `type`. A registration form's
+   *  password field says `new-password` here, or the browser's manager fills
+   *  the CURRENT password into it and never offers to generate one. */
+  autoComplete?: TextInputProps['autoComplete'];
   invalid?: boolean;
   label?: string;
   textStyle?: StyleProp<TextStyle>;
@@ -68,6 +72,7 @@ function TextField({
   physicalKeyboard = entryDefaultPhysicalKeyboard(),
   autoFocus = true,
   keyboardType,
+  autoComplete,
   invalid = false,
   label,
   textStyle,
@@ -80,6 +85,7 @@ function TextField({
   const [revealed, setRevealed] = useState(false);
   const input = useRef<TextInput>(null);
   const keyboardProps = keyboardType ? { keyboardType } : null;
+  const autoCompleteProps = autoComplete ? { autoComplete } : null;
   const masked = type === 'password' && !revealed;
   return (
     <Box
@@ -132,6 +138,7 @@ function TextField({
           spellCheck={false}
           secureTextEntry={masked}
           {...keyboardProps}
+          {...autoCompleteProps}
           selectionColor={theme.colors.accent}
           style={[s.input, NO_OUTLINE, { color: theme.colors.text }, textStyle]}
         />

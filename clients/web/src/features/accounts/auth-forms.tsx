@@ -70,6 +70,7 @@ export function LoginForm({
           placeholder={t('auth.emailOrUsername')}
           value={identifier}
           onChange={setIdentifier}
+          entry={{ autoComplete: 'username' }}
           // Deliberate: the sign-in field is what this screen is for.
           autoFocus
         />

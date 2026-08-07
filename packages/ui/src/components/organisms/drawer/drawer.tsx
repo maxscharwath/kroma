@@ -26,6 +26,7 @@ import { FocusScope, useLockFocusBehind } from '#ui/lib/focus-scope';
 import { useModalPortalRepair } from '#ui/lib/modal-portal';
 import { useOverlay, useOverlayHost } from '#ui/lib/overlay-host';
 import { useScrollLock } from '#ui/lib/scroll-lock';
+import { useTDefault } from '#ui/services/i18n';
 
 const WEB = Platform.OS === 'web';
 const SLIDE_MS = motion.duration.slow;
@@ -134,6 +135,7 @@ function DrawerSurface({
   children: ReactNode;
 }>) {
   useFocusNav({ onBack: onClose });
+  const t = useTDefault();
   const backdrop = useRef<View>(null);
   const window = useWindowDimensions();
   const full = fullBelow > 0 && window.width < fullBelow;
@@ -149,7 +151,7 @@ function DrawerSurface({
         {onClose && WEB ? (
           <Pressable
             ref={backdrop}
-            accessibilityLabel="Close"
+            accessibilityLabel={t('common.close')}
             onPress={onClose}
             // Never the DOM focus owner: see the same guard in <Dialog>.
             tabIndex={-1}

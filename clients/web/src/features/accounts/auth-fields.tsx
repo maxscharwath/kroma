@@ -91,6 +91,7 @@ export function RegisterFields({
         placeholder={t('auth.username')}
         value={username}
         onChange={(v) => onChange({ ...values, username: v })}
+        entry={{ autoComplete: 'username' }}
       />
       <Field
         w="100%"
@@ -100,6 +101,7 @@ export function RegisterFields({
         placeholder={t('auth.passwordHint')}
         value={password}
         onChange={(v) => onChange({ ...values, password: v })}
+        entry={{ autoComplete: 'new-password' }}
       />
     </>
   );

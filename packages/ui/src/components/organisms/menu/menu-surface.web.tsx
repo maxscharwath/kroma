@@ -12,8 +12,9 @@ import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
 import { type AnchorPlacement, placeUnder } from '#ui/lib/anchor';
+import { armEscapeGuard } from '#ui/lib/escape-guard';
 import { useInsideFocusScope } from '#ui/lib/focus-presence';
-import { Portal } from '#ui/lib/portal';
+import { useTDefault } from '#ui/services/i18n';
 import type { MenuItem } from './menu';
 import { MenuSurfaceDialog, type MenuSurfaceProps, menuItemVariants } from './menu-surface-dialog';
 
@@ -31,6 +32,7 @@ function element(ref: React.RefObject<View | null>): HTMLElement | null {
 }
 
 function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfaceProps>) {
+  const t = useTDefault();
   const baseId = useId();
   const panel = useRef<View>(null);
   const rows = items.filter((entry): entry is MenuItem => entry !== 'separator');
@@ -111,6 +113,8 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
       fire(rows[active]);
     } else if (key === 'Escape' || key === 'Tab') {
       event.preventDefault();
+      // The paired keyup would otherwise also close a <Dialog> under us.
+      if (key === 'Escape') armEscapeGuard();
       onClose();
     } else if (key.length === 1) {
       typeahead(key);
@@ -120,9 +124,16 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
   if (!at) return null;
 
   let rowIndex = -1;
+  // In place, not portalled: fixed positioning already escapes clipping, and
+  // a body portal would sit outside react-native-web's <Modal> focus trap.
   return (
-    <Portal>
-      <Pressable accessibilityLabel="Close" tabIndex={-1} onPress={onClose} style={UNDER} />
+    <>
+      <Pressable
+        accessibilityLabel={t('common.close')}
+        tabIndex={-1}
+        onPress={onClose}
+        style={UNDER}
+      />
       <Box
         ref={panel}
         tabIndex={-1}
@@ -136,7 +147,16 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
         shadow="pop"
         overflow="hidden"
         p={6}
-        style={[PANEL, { left: at.left, top: at.top, minWidth: at.width }]}
+        style={[
+          PANEL,
+          {
+            left: at.left,
+            top: at.top,
+            bottom: at.bottom,
+            minWidth: at.width,
+            maxHeight: at.maxHeight,
+          },
+        ]}
       >
         {items.map((entry, index) => {
           if (entry === 'separator') {
@@ -157,7 +177,7 @@ function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfac
           );
         })}
       </Box>
-    </Portal>
+    </>
   );
 }
 
@@ -201,7 +221,9 @@ function PanelItem({
 }
 
 const FIXED = 'fixed' as 'absolute';
-const UNDER = { position: FIXED, top: 0, right: 0, bottom: 0, left: 0 } as const;
+// The backdrop must outrank the app's sticky chrome (headers ride z-40), or a
+// tap meant to dismiss lands on the header instead.
+const UNDER = { position: FIXED, top: 0, right: 0, bottom: 0, left: 0, zIndex: 99 } as const;
 const PANEL = { position: FIXED, zIndex: 100 } as const;
 
 const s = styles({

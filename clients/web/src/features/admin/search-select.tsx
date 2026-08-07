@@ -7,7 +7,8 @@
 // filtered list is a listbox it controls through aria-activedescendant, and
 // arrows/Enter/Escape drive it while typing filters.
 
-import { placeUnder } from '@kroma/ui/kit';
+import { useT } from '@kroma/ui';
+import { armEscapeGuard, placeUnder } from '@kroma/ui/kit';
 import { IconCheck, IconChevronDown, IconSearch } from '@tabler/icons-react';
 import {
   type KeyboardEvent,
@@ -94,7 +95,13 @@ function SearchPanel({
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const [at, setAt] = useState<{ left: number; top: number; width: number } | null>(null);
+  const t = useT();
+  const [at, setAt] = useState<{
+    left: number;
+    top?: number;
+    bottom?: number;
+    width: number;
+  } | null>(null);
 
   // Keep the current value selectable even if it's not in the loaded list.
   const all = useMemo(
@@ -111,7 +118,7 @@ function SearchPanel({
     if (!el) return;
     const settle = () => {
       const spot = placeUnder(el, { minWidth: 240, matchWidth: true, maxHeight: 320 });
-      setAt({ left: spot.left, top: spot.top, width: spot.width });
+      setAt({ left: spot.left, top: spot.top, bottom: spot.bottom, width: spot.width });
     };
     settle();
     window.addEventListener('resize', settle);
@@ -149,6 +156,7 @@ function SearchPanel({
       if (hit) onPick(hit);
     } else if (e.key === 'Escape' || e.key === 'Tab') {
       e.preventDefault();
+      if (e.key === 'Escape') armEscapeGuard();
       onClose();
     }
   };
@@ -160,14 +168,14 @@ function SearchPanel({
       {/* The world behind the panel: one press anywhere out there closes it. */}
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('common.close')}
         tabIndex={-1}
         onClick={onClose}
         className="fixed inset-0 z-50 cursor-default"
       />
       <div
         className="fixed z-50 min-w-60 overflow-hidden rounded-[11px] border border-border-strong bg-[#121216] shadow-pop"
-        style={{ left: at.left, top: at.top, width: at.width }}
+        style={{ left: at.left, top: at.top, bottom: at.bottom, width: at.width }}
       >
         {/* The popup itself is the box, so this row takes no field ring (see styles.css). */}
         <div

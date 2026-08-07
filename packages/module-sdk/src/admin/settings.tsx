@@ -5,7 +5,17 @@
 
 import type { MessageKey, SettingGroup, SettingRow } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Divider, Field, PageHeader, Select, Surface, Switch, Txt } from '@kroma/ui/kit';
+import {
+  Box,
+  Divider,
+  Field,
+  Focusable,
+  PageHeader,
+  Select,
+  Surface,
+  Switch,
+  Txt,
+} from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { useAdminHost } from './context';
 import { Denied } from './denied';
@@ -221,17 +231,20 @@ function SecretInput({
           {configured ? t('admin.secretSet') : t('admin.secretUnset')}
         </Txt>
         {configured ? (
-          <Txt
-            variant="overline"
-            color="text/40"
+          // A Focusable, not a pressable Txt: react-native-web wires Text
+          // onPress as click only, so Enter/Space on the tabbed control would
+          // do nothing.
+          <Focusable
+            label={t('admin.secretClear')}
             onPress={() => {
               setV('');
               onCommit('');
             }}
-            accessibilityRole="button"
           >
-            {t('admin.secretClear')}
-          </Txt>
+            <Txt variant="overline" color="text/40">
+              {t('admin.secretClear')}
+            </Txt>
+          </Focusable>
         ) : null}
       </Box>
     </Box>

@@ -260,11 +260,18 @@ describe('Avatar', () => {
     expect(AVATAR_GRADIENTS).toContain(gradientFor('user-1'));
   });
 
-  it('shows the initials when there is no photo, and not when there is', () => {
-    const { rerender } = render(<Avatar name="Marie Curie" />);
+  it('shows the initials until a photo has actually arrived', () => {
+    const { container, rerender } = render(<Avatar name="Marie Curie" />);
     expect(screen.getByText('MC')).toBeTruthy();
     rerender(<Avatar name="Marie Curie" src="https://example.test/a.jpg" />);
+    // Still there while the photo loads, and again if it fails: a profile is
+    // never a blank disc.
+    expect(screen.getByText('MC')).toBeTruthy();
+    const img = container.querySelector('img:not([aria-hidden])') as HTMLImageElement;
+    fireEvent.load(img);
     expect(screen.queryByText('MC')).toBeNull();
+    fireEvent.error(img);
+    expect(screen.getByText('MC')).toBeTruthy();
   });
 
   it('rounds to an exact circle, half the size, rather than a clamped radius', () => {

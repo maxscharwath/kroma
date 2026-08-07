@@ -4,9 +4,10 @@ import { NotFound, RouteError } from '#web/features/errors/error-page';
 import { routeTree } from '#web/routeTree.gen';
 import { queryClient } from '#web/shared/lib/query';
 
-// A browser session types on a real keyboard, so the design system's entries
-// render real inputs instead of the TV caret form.
-setEntryDefaults({ physicalKeyboard: true });
+// The console is a mouse-and-keyboard page read at arm's length: real inputs
+// rather than the TV caret form, and the compact control shell, stated once so
+// every kit control on a row is the same shape and height.
+setEntryDefaults({ physicalKeyboard: true, size: 'sm' });
 
 export function getRouter() {
   return createTanStackRouter({

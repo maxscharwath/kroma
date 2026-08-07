@@ -15,7 +15,9 @@ import { styles, useTheme } from '#ui/core';
 import { Caret } from '#ui/lib/caret';
 import { fieldSizing } from '#ui/lib/css';
 import {
-  CONTENT_LINE,
+  CONTROL,
+  type ControlSize,
+  controlMetrics,
   edgeColor,
   entryDefaultPhysicalKeyboard,
   fieldRing,
@@ -40,6 +42,8 @@ interface TextAreaProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'>
   autoFocus?: boolean;
   invalid?: boolean;
   label?: string;
+  /** The control shell's size; see <TextField>. */
+  size?: ControlSize;
   /** A caller setting a bigger font here should set `lineHeight` with it: that
    *  is what `rows` counts. */
   textStyle?: StyleProp<TextStyle>;
@@ -61,10 +65,12 @@ function TextArea({
   autoFocus = false,
   invalid = false,
   label,
+  size,
   textStyle,
   ring = true,
   ...box
 }: Readonly<TextAreaProps>) {
+  const metrics = controlMetrics(size);
   const theme = useTheme();
   const [value, setValue] = useControllable(valueProp, defaultValue, onChange);
   const [focused, setFocused] = useState(false);
@@ -79,8 +85,9 @@ function TextArea({
     <Box
       // Top, not centre: a field that grows downwards keeps its first line put.
       align="flex-start"
-      px={22}
-      radius="2xl"
+      px={metrics.px}
+      py={metrics.py}
+      radius={metrics.radius}
       borderWidth={1}
       {...box}
       // The whole field is the caret's landing zone, padding included. A drag a
@@ -151,7 +158,9 @@ function growth(autoSize: boolean, min: number, grown: number): StyleProp<TextSt
   return WEB ? (fieldSizing() as unknown as TextStyle) : { height: grown };
 }
 
-const LINE = CONTENT_LINE;
+// The row unit `rows`/`maxRows` count in: the md shell's content line, so a
+// one-line TextArea is exactly a TextField tall on either size.
+const LINE = CONTROL.md.line;
 const lines = (n: number) => n * LINE;
 
 const s = styles({

@@ -11,7 +11,8 @@ import { Txt } from '#ui/components/atoms/text';
 import { styles, useTheme } from '#ui/core';
 import { Caret } from '#ui/lib/caret';
 import {
-  CONTENT_LINE as CONTENT,
+  type ControlSize,
+  controlMetrics,
   edgeColor,
   entryDefaultPhysicalKeyboard,
   fieldRing,
@@ -52,6 +53,9 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
   autoComplete?: TextInputProps['autoComplete'];
   invalid?: boolean;
   label?: string;
+  /** The control shell's size. Defaults to the app's (`setEntryDefaults`):
+   *  `md` reads at ten feet, `sm` is a console page's density. */
+  size?: ControlSize;
   textStyle?: StyleProp<TextStyle>;
   /** The amber focus ring. Off for an entry flattened into other chrome (a
    *  command palette's search row), where the surrounding sheet is the focus
@@ -75,11 +79,14 @@ function TextField({
   autoComplete,
   invalid = false,
   label,
+  size,
   textStyle,
   ring = true,
   ...box
 }: Readonly<TextFieldProps>) {
   const theme = useTheme();
+  const metrics = controlMetrics(size);
+  const CONTENT = metrics.line;
   const [value, setValue] = useControllable(valueProp, defaultValue, onChange);
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -91,9 +98,10 @@ function TextField({
     <Box
       row
       align="center"
-      gap={14}
-      px={22}
-      radius="2xl"
+      gap={metrics.gap}
+      px={metrics.px}
+      py={metrics.py}
+      radius={metrics.radius}
       borderWidth={1}
       {...box}
       // The whole field is the caret's landing zone: tapping the icon or the
@@ -140,7 +148,12 @@ function TextField({
           {...keyboardProps}
           {...autoCompleteProps}
           selectionColor={theme.colors.accent}
-          style={[s.input, NO_OUTLINE, { color: theme.colors.text }, textStyle]}
+          style={[
+            s.input,
+            NO_OUTLINE,
+            { color: theme.colors.text, minHeight: CONTENT, fontSize: metrics.fontSize },
+            textStyle,
+          ]}
         />
       ) : (
         <Box row align="center" flex gap={2} h={CONTENT}>
@@ -187,8 +200,8 @@ const REVEAL_SIZE = 20;
 const REVEAL_STATES = { hover: { bg: 'white/10' } } as const;
 
 const s = styles({
-  input: { flex: true, minW: 0, minH: CONTENT, borderWidth: 0, bg: 'transparent', p: 0 },
-  revealSlot: { right: 22, top: 0, bottom: 0, justify: 'center' },
+  input: { flex: true, minW: 0, borderWidth: 0, bg: 'transparent', p: 0 },
+  revealSlot: { right: 16, top: 0, bottom: 0, justify: 'center' },
   reveal: { p: 4, m: -4, radius: 'md' },
 });
 

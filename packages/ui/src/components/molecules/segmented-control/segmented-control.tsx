@@ -8,15 +8,41 @@ import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor } from '#ui/core';
+import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { FocusRegion } from '#ui/lib/focus-scope';
 
+// The group's own padding, and therefore how much smaller a segment's corner
+// is than the group's: concentric corners, not two radii guessed apart.
+const GROUP_PAD = 4;
+
+// A segment is a control in the same family as an entry: the shell's own
+// padding and type, with the corner stepped in so the pill's inner radius
+// nests inside the group's (see lib/field-shell).
 const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc: StyleDecl }>()({
   slots: {
-    root: { radius: 8, px: 14, py: 8, _hover: { bg: 'white/5' } },
-    label: { font: 'ui', fontSize: 13, fontWeight: '600', color: 'text/75' },
+    root: { _hover: { bg: 'white/5' } },
+    label: { font: 'ui', fontWeight: '600', color: 'text/75' },
     desc: { font: 'ui', fontSize: 11, color: 'textDim' },
   },
   variants: {
+    size: {
+      sm: {
+        root: {
+          px: CONTROL.sm.px,
+          py: CONTROL.sm.py - GROUP_PAD,
+          radius: CONTROL.sm.radius - GROUP_PAD,
+        },
+        label: { fontSize: CONTROL.sm.fontSize },
+      },
+      md: {
+        root: {
+          px: CONTROL.md.px,
+          py: CONTROL.md.py - GROUP_PAD,
+          radius: CONTROL.md.radius - GROUP_PAD,
+        },
+        label: { fontSize: CONTROL.md.fontSize },
+      },
+    },
     active: {
       true: {
         root: { bg: 'accentSoft', _hover: { bg: 'accentSoft' } },
@@ -24,7 +50,7 @@ const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc
       },
     },
   },
-  defaults: { active: false },
+  defaults: { size: 'md', active: false },
 });
 
 interface SegmentedOption<T extends string> {
@@ -37,6 +63,8 @@ interface SegmentedOption<T extends string> {
 
 interface SegmentedControlProps<T extends string> {
   value: T;
+  /** The control shell's size; see <TextField>. */
+  size?: ControlSize;
   options: readonly SegmentedOption<T>[];
   onChange: (next: T) => void;
   /** Accessible name of the group. */
@@ -63,8 +91,11 @@ function SegmentedControl<T extends string>({
   options,
   onChange,
   label,
+  size,
   style,
 }: Readonly<SegmentedControlProps<T>>) {
+  const shell = size ?? entryDefaultSize();
+  const metrics = CONTROL[shell];
   const move = (delta: -1 | 1) => {
     const next = step(options, value, delta);
     // `!== null`, not truthiness: '' is a legal option value ("Auto").
@@ -75,9 +106,9 @@ function SegmentedControl<T extends string>({
       <Box
         row
         self="flex-start"
-        gap={4}
-        p={4}
-        radius={11}
+        gap={GROUP_PAD}
+        p={GROUP_PAD}
+        radius={metrics.radius}
         border="borderStrong"
         bg="surface2"
         accessibilityRole="radiogroup"
@@ -95,6 +126,7 @@ function SegmentedControl<T extends string>({
           <Segment
             key={option.value}
             option={option}
+            size={shell}
             active={option.value === value}
             onPress={() => onChange(option.value)}
           />
@@ -106,9 +138,15 @@ function SegmentedControl<T extends string>({
 
 function Segment<T extends string>({
   option,
+  size,
   active,
   onPress,
-}: Readonly<{ option: SegmentedOption<T>; active: boolean; onPress: () => void }>) {
+}: Readonly<{
+  option: SegmentedOption<T>;
+  size: ControlSize;
+  active: boolean;
+  onPress: () => void;
+}>) {
   return (
     <Focusable
       role="radio"
@@ -117,7 +155,7 @@ function Segment<T extends string>({
       disabled={option.disabled}
       onPress={onPress}
       sv={segmentedControlVariants}
-      vars={{ active }}
+      vars={{ size, active }}
     >
       {(state) => (
         <>

@@ -11,30 +11,45 @@ import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { sv } from '#ui/core';
+import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { useControllable } from '#ui/lib/use-controllable';
 import { SelectOptions } from './select-options';
 
-// The trigger wears <TextField>'s well, so a form reads as one family.
+// The trigger IS a field: same well, same metrics table, so a select and an
+// entry on one row are the same shape and height (see lib/field-shell).
 const triggerVariants = sv({
   slots: {
-    root: {
-      row: true,
-      align: 'center',
-      gap: 14,
-      px: 22,
-      py: 12,
-      radius: '2xl',
-      border: 'borderStrong',
-      _hover: { bg: 'white/6' },
-    },
+    root: { row: true, align: 'center', border: 'borderStrong', _hover: { bg: 'white/6' } },
     ink: { shrink: 1 },
   },
   variants: {
+    size: {
+      sm: {
+        root: {
+          gap: CONTROL.sm.gap,
+          px: CONTROL.sm.px,
+          py: CONTROL.sm.py,
+          radius: CONTROL.sm.radius,
+          minH: CONTROL.sm.line,
+        },
+        ink: { fontSize: CONTROL.sm.fontSize },
+      },
+      md: {
+        root: {
+          gap: CONTROL.md.gap,
+          px: CONTROL.md.px,
+          py: CONTROL.md.py,
+          radius: CONTROL.md.radius,
+          minH: CONTROL.md.line,
+        },
+        ink: { fontSize: CONTROL.md.fontSize },
+      },
+    },
     invalid: { true: { root: { border: 'danger' } } },
     filled: { true: { ink: { color: 'text' } }, false: { ink: { color: 'textDim' } } },
     block: { true: { root: { self: 'stretch' } } },
   },
-  defaults: { invalid: false, filled: false, block: false },
+  defaults: { size: 'md', invalid: false, filled: false, block: false },
 });
 
 interface SelectOption {
@@ -55,6 +70,8 @@ interface SelectProps extends Omit<FocusableProps, 'children' | 'onPress' | 'sty
   invalid?: boolean;
   /** Stretch to the width of the parent. */
   block?: boolean;
+  /** The control shell's size; see <TextField>. */
+  size?: ControlSize;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -70,9 +87,11 @@ function Select({
   disabled = false,
   invalid = false,
   block = false,
+  size,
   style,
   ...focusProps
 }: Readonly<SelectProps>) {
+  const shell = size ?? entryDefaultSize();
   // '' is "nothing picked": no option may use it, or the placeholder never shows.
   const [value, setValue] = useControllable(valueProp, defaultValue ?? '', onChange);
   const [open, setOpen] = useState(false);
@@ -99,7 +118,7 @@ function Select({
         disabled={disabled}
         onPress={() => setOpen(true)}
         sv={triggerVariants}
-        vars={{ invalid, filled: current !== undefined, block }}
+        vars={{ size: shell, invalid, filled: current !== undefined, block }}
         style={style}
       >
         {(state) => (

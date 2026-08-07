@@ -25,15 +25,23 @@ export function UserAvatar({
   radius?: number;
   className?: string;
 }>) {
-  const roundness = (radius ?? Math.round(size * 0.13)) / size;
+  const corner = radius ?? Math.round(size * 0.13);
   return (
-    <span className={className} style={{ display: 'inline-flex' }}>
+    // Block, sized and rounded to exactly the avatar's box: callers put their
+    // shadow/ring classes HERE, and a box-shadow only traces a rounded corner
+    // the element itself has - while `inline` would add the line box's
+    // descender under the disc and shift anything absolutely positioned
+    // against the tile (the padlock overlay).
+    <span
+      className={className}
+      style={{ display: 'block', width: size, height: size, borderRadius: corner }}
+    >
       <Avatar
         name={name}
         seed={seed}
         src={avatarUrl ? imageUrl(avatarUrl) : null}
         size={size}
-        roundness={roundness}
+        roundness={corner / size}
         shadow={false}
       />
     </span>

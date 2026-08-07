@@ -5,7 +5,7 @@
 //
 // One control drives the connector: the enable toggle (auto-saved). The server
 // reconciles the running connector to match it, so disabling always stops it.
-import { Denied, useCap, useT } from '@kroma/module-sdk';
+import { Denied, ModuleFailed, ModuleLoading, useCap, useT } from '@kroma/module-sdk';
 import { Badge, Button, Field, PageHeader, Section, Surface, Switch } from '@kroma/ui/kit';
 import { IconCloud, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useRef, useState } from 'react';
@@ -30,6 +30,9 @@ export default function RemotePage() {
   const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  // A first fetch that never answers must not leave a blank page: the page
+  // waits, then says the data failed. Later polls keep the last good view.
+  const [failed, setFailed] = useState(false);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -37,13 +40,14 @@ export default function RemotePage() {
       .status()
       .then((v) => {
         setView(v);
+        setFailed(false);
         if (!loaded.current) {
           loaded.current = true;
           setUrl(v.url);
           setEnabled(v.enabled);
         }
       })
-      .catch(() => undefined);
+      .catch(() => setFailed(true));
   }, [remote]);
 
   // Poll live status (running / logs) without touching the form fields.
@@ -58,7 +62,7 @@ export default function RemotePage() {
   }, [remote]);
 
   if (!canManage) return <Denied />;
-  if (!view) return null;
+  if (!view) return failed ? <ModuleFailed /> : <ModuleLoading panels={2} />;
   const st = view.status;
 
   // Persist config; the server reconciles the connector to match `enabled`.

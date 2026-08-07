@@ -1996,5 +1996,9 @@
   "about.repository": "Repository",
   "about.privacyTitle": "Privacy",
   "about.privacyBody": "KROMA collects nothing. There is no account with us, no analytics and no tracking: the app talks to the server you configure, and shows only what that server serves.",
-  "about.privacyUrl": "Full policy: kroma.tv/privacy"
+  "about.privacyUrl": "Full policy: kroma.tv/privacy",
+  "modules.unavailable": "Module unavailable",
+  "modules.unavailableHint": "It is not installed, or it has been turned off.",
+  "modules.loadFailed": "This page could not be loaded",
+  "modules.loadFailedHint": "The module is installed; its data did not answer."
 }

@@ -1997,5 +1997,9 @@
   "about.repository": "Dépôt",
   "about.privacyTitle": "Confidentialité",
   "about.privacyBody": "KROMA ne collecte rien. Aucun compte chez nous, aucune analyse d’usage, aucun traçage : l’application dialogue avec le serveur que vous configurez et n’affiche que ce qu’il sert.",
-  "about.privacyUrl": "Politique complète : kroma.tv/privacy"
+  "about.privacyUrl": "Politique complète : kroma.tv/privacy",
+  "modules.unavailable": "Module indisponible",
+  "modules.unavailableHint": "Il n'est pas installé, ou il a été désactivé.",
+  "modules.loadFailed": "Cette page n'a pas pu être chargée",
+  "modules.loadFailedHint": "Le module est installé ; ses données n'ont pas répondu."
 }

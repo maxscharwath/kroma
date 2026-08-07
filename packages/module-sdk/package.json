@@ -12,9 +12,9 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@kroma/admin-kit": "workspace:*",
     "@kroma/core": "workspace:*",
-    "@kroma/ui": "workspace:*"
+    "@kroma/ui": "workspace:*",
+    "@tanstack/react-query": "^5.101.2"
   },
   "peerDependencies": {
     "react": ">=18"

@@ -210,7 +210,9 @@ function SplashBackdrop({
       {WEB ? (
         <Box absolute top={0} right={0} bottom={0} left={0} style={s.multiply as ViewStyle} />
       ) : null}
-      {WEB ? null : <Box absolute top={0} right={0} bottom={0} left={0} bg="rgba(8, 8, 10, 0.5)" />}
+      {WEB ? null : (
+        <Box absolute top={0} right={0} bottom={0} left={0} bg="rgba(8, 8, 10, 0.34)" />
+      )}
       {bands ? <BandStack /> : null}
       {dim > 0 ? (
         <Box absolute top={0} right={0} bottom={0} left={0} bg={`rgba(8, 8, 10, ${dim})`} />
@@ -259,7 +261,7 @@ const s = styles({
   // NavPill's lens: these keys are ignored by native.
   isolate: { isolation: 'isolate' },
   saturate: { filter: 'saturate(1.2)' },
-  multiply: { backgroundColor: '#68686f', mixBlendMode: 'multiply' },
+  multiply: { backgroundColor: '#8f8f97', mixBlendMode: 'multiply' },
 });
 
 export type { SplashBackdropProps, SplashCover };

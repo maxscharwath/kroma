@@ -1,6 +1,6 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { CastProvider, I18nProvider as KitI18nProvider } from '@kroma/ui';
-import { registerFrost, setImageBackend } from '@kroma/ui/kit';
+import { registerFrost, setEntryDefaults, setImageBackend } from '@kroma/ui/kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import * as Device from 'expo-device';
@@ -28,6 +28,12 @@ setImageBackend(expoImageBackend);
 // Same inversion for glass: <Frost> has no blur of its own, so a shell that
 // registers nothing leaves every frosted surface a flat wash (see <Frost>).
 registerFrost(BlurView);
+
+// This app's form factor, stated once (see lib/field-shell). A phone HAS a
+// keyboard: tapping a field must focus a real entry and summon the IME. The
+// kit defaults to the 10-foot behaviour, where a field is a read-only value
+// with a caret and typing arrives from the on-screen keyboard instead.
+setEntryDefaults({ physicalKeyboard: true, size: 'md' });
 
 function KitI18nBridge({ children }: Readonly<{ children: ReactNode }>) {
   return <KitI18nProvider locale={useI18n().locale}>{children}</KitI18nProvider>;

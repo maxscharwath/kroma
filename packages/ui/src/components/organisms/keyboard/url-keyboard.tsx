@@ -5,7 +5,7 @@ import { Button } from '#ui/components/atoms/button';
 import { styles } from '#ui/core';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
 import { useTDefault } from '#ui/services/i18n';
-import { Key } from './key';
+import { KEY, KEY_ROW_W, Key } from './key';
 import { DELETE_KEY, type KeyboardLayout, urlRows } from './keyboard-layouts';
 
 interface UrlKeyboardProps {
@@ -81,12 +81,15 @@ function UrlKeyboard({
 }
 
 const s = styles({
-  column: { gap: 12 },
-  key: { h: 52, flex: 1 },
-  keyText: { fontSize: 20 },
-  clearKey: { h: 52, flex: 2 },
-  submit: { h: 52, flex: 3 },
-  keyRow: { row: true, gap: 12 },
+  // The column measures itself off the ten-key row, so the grid is the same
+  // object in a workbench story and on a 4K stage, and the flex keys below
+  // always have a width to divide.
+  column: { gap: KEY.gap, w: KEY_ROW_W, self: 'center' },
+  key: { h: KEY.height, flex: 1 },
+  keyText: { fontSize: 19 },
+  clearKey: { h: KEY.height, flex: 2 },
+  submit: { h: KEY.height, flex: 3 },
+  keyRow: { row: true, gap: KEY.gap },
 });
 
 export type { UrlKeyboardProps };

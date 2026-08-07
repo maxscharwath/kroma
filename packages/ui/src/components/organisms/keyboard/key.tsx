@@ -8,6 +8,18 @@ import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, styles, svFor } from '#ui/core';
 import { CONTROL } from '#ui/lib/field-shell';
 
+/**
+ * One key box and one gap for BOTH grids, so a keyboard is the same object
+ * whichever layout it is showing. Fixed rather than flex: every grid has a
+ * ten-key digits row, so a flex-sized key made the letters of a shorter row
+ * wider than the digits above them, and a grid with no parent width to
+ * divide collapsed to its glyphs.
+ */
+export const KEY = { width: 44, height: 48, gap: 8 } as const;
+
+/** The width of a ten-key row: what a grid measures itself against. */
+export const KEY_ROW_W = KEY.width * 10 + KEY.gap * 9;
+
 // The focused key: the URL keyboard tints amber, the search keyboard fills solid
 // for a stronger 10-foot cue at its larger size.
 const keyFace = svFor<{

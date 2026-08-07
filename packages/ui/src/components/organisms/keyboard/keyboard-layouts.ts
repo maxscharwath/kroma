@@ -18,12 +18,13 @@ export const KEYBOARD_LAYOUTS: readonly KeyboardLayout[] = ['abc', 'azerty', 'qw
 // The last row of each layout is deliberately short: the search keyboard
 // appends space / backspace / close to it.
 export const LAYOUT_LETTER_ROWS: Record<KeyboardLayout, readonly (readonly string[])[]> = {
+  // Ten a row, like every typewriter layout below and like the digits row
+  // above them: a six-column grid left the alphabet in a narrow tower beside
+  // a full-width row of digits.
   abc: [
-    ['A', 'B', 'C', 'D', 'E', 'F'],
-    ['G', 'H', 'I', 'J', 'K', 'L'],
-    ['M', 'N', 'O', 'P', 'Q', 'R'],
-    ['S', 'T', 'U', 'V', 'W', 'X'],
-    ['Y', 'Z'],
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
+    ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'],
+    ['U', 'V', 'W', 'X', 'Y', 'Z'],
   ],
   azerty: [
     ['A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],

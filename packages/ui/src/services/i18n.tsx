@@ -59,6 +59,13 @@ export function useLocale(): Locale {
   return useI18n().locale;
 }
 
+/** Like {@link useLocale}, but standing alone: outside an <I18nProvider> it is
+ * the default locale rather than a throw. Same reason as {@link useTDefault},
+ * and what a kit component formatting a number reaches for. */
+export function useLocaleDefault(): Locale {
+  return useContext(I18nContext)?.locale ?? DEFAULT_LOCALE;
+}
+
 /** A no-op unless the provider was given an `onLocaleChange`. */
 export function useSetLocale(): (locale: Locale) => void {
   return useI18n().setLocale;

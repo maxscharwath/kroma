@@ -7,6 +7,7 @@
 import { useT } from '@kroma/ui';
 import {
   Button,
+  CONTROL,
   Focusable,
   FocusColumn,
   FocusRegion,
@@ -84,7 +85,11 @@ const keyFace = svFor<{
   label: StyleDecl;
 }>()({
   slots: {
-    root: { center: true, radius: 16, bg: 'white/5' },
+    // The same well the URL field above sits in (lib/field-shell), opaque: a
+    // key is a control, not a wash. Over the splash artwork a translucent
+    // tint let every key sample a different ribbon, so one keyboard arrived
+    // in six colours.
+    root: { center: true, radius: 16, bg: CONTROL.md.bg },
     glyph: { color: 'text', stroke: 1.8 },
     label: { color: 'text' },
   },
@@ -181,7 +186,6 @@ const s = styles({
   urlKey: { h: 52, flex: 1 },
   urlKeyText: { fontSize: 20 },
   urlClearKey: { h: 52, flex: 2 },
-  urlClearText: { fontSize: 16 },
   urlSubmit: { h: 52, flex: 3 },
   keyRow: { row: true, gap: 12 },
 });
@@ -227,11 +231,14 @@ function UrlKeyboard({
       {/* Declared as a row: a plain box would make Left/Right do nothing
           between these three controls. */}
       <FocusRegion style={s.keyRow}>
+        {/* An icon, never a symbol character: TV system fonts miss glyphs like
+            U+2327 and draw a tofu box instead. */}
         <Key
-          label="⌧"
+          label={t('common.clear')}
+          icon="eraser"
+          iconSize={24}
           onPress={() => onChange('')}
           style={s.urlClearKey}
-          textStyle={s.urlClearText}
           tone="url"
         />
         <Key

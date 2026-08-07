@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Field } from '#ui/components/molecules/field';
 import { Dialog } from '#ui/components/organisms/dialog';
 import { colors, radius, typeSpec } from '#ui/core/tokens';
+import { CONTROL } from '#ui/lib/field-shell';
 import { clearPressGuard } from '#ui/lib/press-guard';
 import { onScreen } from '#ui/testing';
 import { AVATAR_GRADIENTS, Avatar, gradientFor, initialsOf } from './avatar';
@@ -229,6 +230,17 @@ describe('TextField', () => {
     fireEvent.mouseDown(field);
     fireEvent.mouseUp(field);
     expect(document.activeElement).toBe(input);
+  });
+
+  it('seats the television value on the shell line, not the body role', () => {
+    // Without a keyboard the value is drawn text, and it has to measure like the
+    // entry it replaces: `body`'s own 1.55 ratio overflows the content row, and
+    // native clips a line box that does not fit (the web only spills), so the
+    // value sat wrong on tvOS alone.
+    render(<TextField value="192.168.1.124:4040" label="Address" size="sm" />);
+    const value = css(screen.getByText('192.168.1.124:4040'));
+    expect(value.fontSize).toBe(`${CONTROL.sm.fontSize}px`);
+    expect(value.lineHeight).toBe(`${CONTROL.sm.line}px`);
   });
 });
 

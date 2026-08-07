@@ -1,7 +1,8 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { CastProvider, I18nProvider as KitI18nProvider } from '@kroma/ui';
-import { setImageBackend } from '@kroma/ui/kit';
+import { registerFrost, setImageBackend } from '@kroma/ui/kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BlurView } from 'expo-blur';
 import * as Device from 'expo-device';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -23,6 +24,10 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 // The design system draws artwork through whichever decoder the app registers.
 // A phone wants expo-image's memory + disk cache; see lib/image-backend.
 setImageBackend(expoImageBackend);
+
+// Same inversion for glass: <Frost> has no blur of its own, so a shell that
+// registers nothing leaves every frosted surface a flat wash (see <Frost>).
+registerFrost(BlurView);
 
 function KitI18nBridge({ children }: Readonly<{ children: ReactNode }>) {
   return <KitI18nProvider locale={useI18n().locale}>{children}</KitI18nProvider>;

@@ -215,13 +215,24 @@ function SplashBackdrop({
         <Box absolute top={0} right={0} bottom={0} left={0} bg={`rgba(8, 8, 10, ${dim})`} />
       ) : null}
       {cover.caption ? (
-        <Box absolute right={20} bottom={14} row align="center" gap={8}>
+        // Bounded on BOTH sides and clipped to one line: a long title on a
+        // portrait phone otherwise runs off the left edge.
+        <Box
+          absolute
+          left={20}
+          right={20}
+          bottom={14}
+          row
+          align="center"
+          justify="flex-end"
+          gap={8}
+        >
           {cover.eyebrow ? (
             <Txt variant="overline" color="white/55" style={s.eyebrow}>
               {cover.eyebrow}
             </Txt>
           ) : null}
-          <Txt color="white/80" style={s.caption}>
+          <Txt color="white/80" lines={1} style={s.caption}>
             {cover.caption}
           </Txt>
         </Box>
@@ -241,8 +252,8 @@ const s = styles({
     borderBottomWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  eyebrow: { fontSize: 10 },
-  caption: { fontSize: 12, fontWeight: '500' },
+  eyebrow: { fontSize: 10, shrink: 0 },
+  caption: { fontSize: 12, fontWeight: '500', shrink: 1 },
   // Web-tier CSS reached through the style escape hatch, exactly like the
   // NavPill's lens: these keys are ignored by native.
   isolate: { isolation: 'isolate' },

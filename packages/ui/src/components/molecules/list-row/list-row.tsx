@@ -18,6 +18,7 @@ import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { IconWell } from '#ui/components/atoms/icon-well';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor } from '#ui/core';
+import { CONTROL } from '#ui/lib/field-shell';
 
 type ListRowSize = 'sm' | 'tv';
 
@@ -34,7 +35,12 @@ const listRowVariants = svFor<{
       align: 'center',
       radius: 'xl',
       border: 'border',
-      bg: 'white/3',
+      // THE SAME WELL A FIELD SITS IN (lib/field-shell), opaque and taken
+      // from the one table so the two can never drift. A list can sit over
+      // artwork (the signed-out TV screens over the splash): a translucent
+      // fill let each row sample whatever was behind it, so a column of
+      // identical rows arrived in a different colour each.
+      bg: CONTROL.md.bg,
       // A solid amber edge rather than a fill, which is why the row draws no
       // ring: a row is wide, and a filled one at the top of a list reads as
       // "selected forever" instead of "focused".
@@ -63,7 +69,7 @@ const listRowVariants = svFor<{
      *  a row that does something on press takes it: a settings list is full of
      *  rows that only display. */
     pressable: {
-      true: { root: { _hover: { bg: 'white/7', border: 'borderStrong' } } },
+      true: { root: { _hover: { bg: 'surface3', border: 'borderStrong' } } },
     },
   },
   defaults: { size: 'tv', pressable: false },

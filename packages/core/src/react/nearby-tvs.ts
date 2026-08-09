@@ -9,8 +9,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { watchNearbyTvs } from '../handoff';
 
 export interface NearbyTvs {
-  /** Every TV waiting on this network, freshest first poll. Empty off the local
-   * network too: the server does not distinguish, so nothing here pretends to. */
+  /** Every TV waiting on this network, freshest first poll. Empty when the
+   * caller is somewhere else too: the server does not distinguish, so nothing
+   * here pretends to. */
   devices: HandoffDevice[];
   /** The TV a grant is in flight for, or null. */
   connecting: HandoffDevice | null;

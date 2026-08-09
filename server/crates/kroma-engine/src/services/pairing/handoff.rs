@@ -3,11 +3,16 @@
 //! scan, nothing to type.
 //!
 //! What keeps it safe is reach, not secrecy. A beacon is only ever listed to a
-//! caller whose own address sits on the same subnet as the TV that published it,
-//! so "the TVs I can see" means "the TVs on this network" and never "every TV
+//! caller whose own address puts it on the same network as the TV that published
+//! it, so "the TVs I can see" means "the TVs next to me" and never "every TV
 //! this server knows". The handle a phone grants against is server-minted and
 //! unguessable, the poll secret never leaves the TV, and the grant mints an
 //! ordinary session that shows up in the account's device list like any other.
+//!
+//! Note what that does NOT require: that the server sit on their network. It is
+//! a rendezvous, nothing more. A television and a telephone in the same room
+//! pair through a server in another country, because the only address pair the
+//! rule compares is theirs (see [`same_network`]).
 //!
 //! A beacon also carries a short check string the TV prints on its own screen.
 //! Nobody is asked to type it. It is there so that a person facing two TVs, or
@@ -33,9 +38,13 @@ pub const BEACON_TTL_SECS: i64 = 60;
 /// and there is no second loop to fall out of step with it. Well inside the TTL.
 pub const POLL_SECS: i64 = 3;
 
-// Announcing is unauthenticated by design (the TV has no account yet), so this
-// bounds the store. Well above any plausible number of TVs in one home.
-const MAX_BEACONS: usize = 64;
+// Announcing is unauthenticated by design (the TV has no account yet) and is
+// reachable from wherever the server is, so the store is bounded twice. The
+// per-network cap is the one that matters: a beacon is only ever visible to its
+// own network, so nobody can push another network's TVs out of a phone's list by
+// flooding. The global cap is the backstop behind it.
+const MAX_BEACONS: usize = 256;
+const MAX_PER_NETWORK: usize = 8;
 const MAX_NAME: usize = 48;
 const MAX_PLATFORM: usize = 32;
 
@@ -94,8 +103,18 @@ impl HandoffInner {
     /// beacon drops the previous one, so a relaunched TV shows up once rather
     /// than twice; any tokens that beacon had accrued come back for deletion.
     pub fn announce(&self, req: Announce) -> (Announced, Vec<Orphaned>) {
-        let device_id = req.device_id.clone();
-        let orphans = self.grants.forget_where(|b| b.device_id == device_id);
+        // Scoped to the network, not just to the id: a device id is not a secret
+        // (it rides the cast roster too), so a global match would let anyone who
+        // learned one drop that TV's beacon from anywhere. Inside its own
+        // network the id is enough, and anyone there can do worse.
+        let (device_id, ip) = (req.device_id.clone(), req.ip.clone());
+        let mut orphans = self
+            .grants
+            .forget_where(|b| b.device_id == device_id && same_network(&b.ip, &ip));
+
+        // Room for this one, taken from its own network's share rather than from
+        // whatever the store happens to hold.
+        orphans.extend(self.grants.trim_scope(MAX_PER_NETWORK, |b| same_network(&b.ip, &ip)));
 
         let check = check_string();
         let beacon = Beacon {
@@ -116,11 +135,11 @@ impl HandoffInner {
         (announced, orphans)
     }
 
-    /// Every TV waiting on `viewer_ip`'s own subnet, ordered so the list does not
-    /// reshuffle between two polls.
+    /// Every TV waiting on `viewer_ip`'s own network, ordered so the list does
+    /// not reshuffle between two polls.
     pub fn nearby(&self, viewer_ip: &str) -> Vec<Nearby> {
         let mut rows = self.grants.map_live(|handle, b| {
-            same_subnet(&b.ip, viewer_ip).then(|| Nearby {
+            same_network(&b.ip, viewer_ip).then(|| Nearby {
                 handle: handle.to_string(),
                 name: b.name.clone(),
                 platform: b.platform.clone(),
@@ -144,7 +163,7 @@ impl HandoffInner {
     ) -> bool {
         self.grants.authorize(
             handle,
-            |b| same_subnet(&b.ip, viewer_ip),
+            |b| same_network(&b.ip, viewer_ip),
             Granted { token, access_token, user },
         )
     }
@@ -166,18 +185,42 @@ impl HandoffInner {
     }
 }
 
-/// Whether two client addresses sit on the same link: same /24 for IPv4, same
-/// /64 for IPv6. Two devices on one home network share it; a device reaching the
-/// server through a tunnel, a VPN or the open internet does not.
+/// Whether two client addresses put their devices on one network, as seen from
+/// wherever the server happens to sit. That is the only question this feature
+/// asks: the server is a rendezvous, and whether it shares a network with either
+/// device is beside the point. A TV and a phone in the same room must find each
+/// other through a server on the other side of the world.
 ///
-/// Deliberately narrower than the LAN/WAN split: `192.168.0.0/16` spans a whole
-/// building, and "the TVs I can see" has to mean the ones in this room's range.
-pub fn same_subnet(a: &str, b: &str) -> bool {
+/// Which makes the comparison depend on how the two got here:
+///
+/// - **Private IPv4** (the server is on their network, seeing them directly):
+///   same /24. One home spans `192.168.1.20` on ethernet and `192.168.1.50` on
+///   wifi, so equality would be too strict.
+/// - **Public IPv4** (the server is elsewhere, seeing them through their NAT):
+///   the very same address. A household leaves through one, so equality is what
+///   "together" means here, and /24 across the open internet would be far too
+///   loose.
+/// - **IPv6**, either way: same /64. That is one prefix delegation, which is one
+///   LAN, whether the addresses are unique-local or global.
+///
+/// Two limits worth knowing, both of which fall back to the code on the screen:
+/// a home routed across several subnets, and a dual-stack home where one device
+/// arrives over IPv6 and the other over IPv4.
+pub fn same_network(a: &str, b: &str) -> bool {
     match (host(a), host(b)) {
-        (Some(IpAddr::V4(a)), Some(IpAddr::V4(b))) => a.octets()[..3] == b.octets()[..3],
+        (Some(IpAddr::V4(a)), Some(IpAddr::V4(b))) if behind_one_router(&a) && behind_one_router(&b) => {
+            a.octets()[..3] == b.octets()[..3]
+        }
+        (Some(IpAddr::V4(a)), Some(IpAddr::V4(b))) => a == b,
         (Some(IpAddr::V6(a)), Some(IpAddr::V6(b))) => a.octets()[..8] == b.octets()[..8],
         _ => false,
     }
+}
+
+// An address the server can only be seeing because it sits on the same network
+// as its owner: nothing routes these across the internet.
+fn behind_one_router(ip: &std::net::Ipv4Addr) -> bool {
+    ip.is_private() || ip.is_loopback() || ip.is_link_local()
 }
 
 // `::ffff:192.168.1.4` and `192.168.1.4` are one host reached over a dual-stack
@@ -209,6 +252,10 @@ mod tests {
     const TV: &str = "192.168.1.20";
     const PHONE: &str = "192.168.1.50";
     const ELSEWHERE: &str = "10.0.0.7";
+    // What one household looks like to a server that is not in it: both devices
+    // leave through the same NAT, so both arrive wearing the same address.
+    const HOUSEHOLD: &str = "203.0.113.7";
+    const OTHER_HOUSEHOLD: &str = "203.0.113.9";
 
     fn user() -> User {
         crate::test_support::test_user("u1", vec![])
@@ -364,20 +411,91 @@ mod tests {
     }
 
     #[test]
-    fn same_subnet_holds_only_inside_one_link() {
-        assert!(same_subnet("192.168.1.20", "192.168.1.50"));
-        assert!(same_subnet("127.0.0.1", "127.0.0.1"));
-        assert!(!same_subnet("192.168.1.20", "192.168.2.50"));
-        assert!(!same_subnet("192.168.1.20", "10.0.0.7"));
+    fn a_server_somewhere_else_still_pairs_a_tv_and_a_phone_in_one_room() {
+        // The server is on another network entirely, so it never sees either
+        // device's own address: both arrive through their household's NAT.
+        let h = new();
+        let tv = announce(&h, "tv-salon-01", "Salon", HOUSEHOLD);
+
+        assert_eq!(h.nearby(HOUSEHOLD).len(), 1);
+        assert!(h.grant(&tv.handle, HOUSEHOLD, user(), "tok".into(), "acc".into()));
+        assert!(matches!(h.poll(&tv.secret), PollState::Authorized { .. }));
+    }
+
+    #[test]
+    fn a_phone_leaving_through_another_router_is_not_in_the_room() {
+        let h = new();
+        let tv = announce(&h, "tv-salon-01", "Salon", HOUSEHOLD);
+        // Next door, or the same phone on cellular: a different way out.
+        assert!(h.nearby(OTHER_HOUSEHOLD).is_empty());
+        assert!(!h.grant(&tv.handle, OTHER_HOUSEHOLD, user(), "tok".into(), "acc".into()));
+    }
+
+    #[test]
+    fn a_device_id_learned_elsewhere_cannot_drop_that_tvs_beacon() {
+        let h = new();
+        let mine = announce(&h, "tv-salon-01", "Salon", TV);
+        // A device id is not a secret. Announcing it from another network must
+        // not take my beacon down.
+        announce(&h, "tv-salon-01", "Impostor", HOUSEHOLD);
+
+        assert_eq!(h.nearby(PHONE).len(), 1);
+        assert_eq!(h.nearby(PHONE)[0].name, "Salon");
+        assert!(matches!(h.poll(&mine.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn one_network_cannot_crowd_another_out_of_the_store() {
+        let h = new();
+        for i in 0..(MAX_PER_NETWORK * 4) {
+            announce(&h, &format!("tv-flood-{i:04}"), "Flood", HOUSEHOLD);
+        }
+        let mine = announce(&h, "tv-salon-01", "Salon", TV);
+
+        // The flood is capped at its own network's share, and never touched mine.
+        assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
+        assert_eq!(h.nearby(PHONE).len(), 1);
+        assert!(matches!(h.poll(&mine.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn same_network_is_the_subnet_when_the_server_sees_them_directly() {
+        // Private addresses: one home spans .20 on ethernet and .50 on wifi.
+        assert!(same_network("192.168.1.20", "192.168.1.50"));
+        assert!(same_network("127.0.0.1", "127.0.0.1"));
+        assert!(!same_network("192.168.1.20", "192.168.2.50"));
+        assert!(!same_network("192.168.1.20", "10.0.0.7"));
         // A dual-stack socket reports the same host two ways.
-        assert!(same_subnet("::ffff:192.168.1.20", "192.168.1.50"));
-        // IPv6 compares on the /64 prefix.
-        assert!(same_subnet("fd00:1234:5678:9abc::1", "fd00:1234:5678:9abc::2"));
-        assert!(!same_subnet("fd00:1234:5678:9abc::1", "fd00:1234:5678:9abd::1"));
+        assert!(same_network("::ffff:192.168.1.20", "192.168.1.50"));
+    }
+
+    #[test]
+    fn same_network_is_the_very_address_when_the_server_is_elsewhere() {
+        // Public IPv4: a household leaves through one address, so that address
+        // IS the network. A /24 here would span strangers.
+        assert!(same_network("203.0.113.7", "203.0.113.7"));
+        assert!(!same_network("203.0.113.7", "203.0.113.9"));
+        // A private address and a public one are never the same place, whichever
+        // way round they come.
+        assert!(!same_network("192.168.1.20", "203.0.113.7"));
+        assert!(!same_network("203.0.113.7", "192.168.1.20"));
+    }
+
+    #[test]
+    fn same_network_is_the_prefix_delegation_over_ipv6() {
+        // One /64 is one LAN, unique-local or global alike.
+        assert!(same_network("fd00:1234:5678:9abc::1", "fd00:1234:5678:9abc::2"));
+        assert!(!same_network("fd00:1234:5678:9abc::1", "fd00:1234:5678:9abd::1"));
+        assert!(same_network("2001:db8:1:2::1", "2001:db8:1:2::99"));
+        assert!(!same_network("2001:db8:1:2::1", "2001:db8:1:3::1"));
+    }
+
+    #[test]
+    fn an_address_that_is_not_one_is_nowhere() {
         // Families never match across, and an unparseable address matches nothing.
-        assert!(!same_subnet("192.168.1.20", "fd00::1"));
-        assert!(!same_subnet("not-an-ip", "192.168.1.50"));
-        assert!(!same_subnet("192.168.1.20", ""));
+        assert!(!same_network("192.168.1.20", "fd00::1"));
+        assert!(!same_network("not-an-ip", "192.168.1.50"));
+        assert!(!same_network("192.168.1.20", ""));
     }
 
     #[test]

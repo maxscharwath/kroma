@@ -1,14 +1,15 @@
 //! `/api/handoff`: signing a TV in by pointing at it.
 //!
 //! A TV with no account announces itself; a phone already signed in lists the
-//! TVs waiting on its own subnet and grants one its account. No code crosses the
-//! room, so nothing has to be read off a screen or typed on a remote.
+//! TVs waiting on its own network and grants one its account. No code crosses
+//! the room, so nothing has to be read off a screen or typed on a remote.
 //!
-//! Every route here is network-gated before it is anything else. Announcing and
-//! listing are refused outright to a caller the server does not consider local,
-//! and the service then narrows "local" to the caller's own subnet, so a TV
-//! reachable through a tunnel never appears in a stranger's list, and a handle
-//! learned some other way cannot be granted from off-network.
+//! What gates every route is the pair of addresses the two devices arrive from,
+//! and nothing else. The server does not have to be on their network: it is a
+//! rendezvous, so a TV and a phone in one room pair through a server anywhere in
+//! the world. The service compares only their two addresses, which is why a TV
+//! somewhere else never appears in a stranger's list and a handle learned some
+//! other way cannot be granted from off-network.
 
 use std::net::SocketAddr;
 
@@ -26,8 +27,6 @@ use crate::api::util::{client_ip, query, SecretQuery};
 use crate::db;
 use crate::i18n::ReqLocale;
 use crate::services::pairing::handoff::{valid_device_id, Announce, Nearby};
-use crate::services::playback::is_lan;
-use crate::services::settings;
 use crate::state::SharedState;
 
 /// Reachable before a session exists: this is how a TV with no account at all
@@ -102,18 +101,6 @@ pub struct GrantBody {
     pub handle: String,
 }
 
-// The caller's address, and whether this server counts it as local at all. The
-// service narrows it further to one subnet; this is the coarse gate that keeps
-// a WAN caller out of the feature entirely.
-fn local_caller(state: &SharedState, headers: &HeaderMap, addr: &SocketAddr) -> Option<String> {
-    let ip = client_ip(headers, addr);
-    is_lan(&ip, &settings::local_networks(&state.settings)).then_some(ip)
-}
-
-fn not_local(loc: &str) -> Response {
-    lerr(loc, StatusCode::FORBIDDEN, "handoff.notLocal")
-}
-
 // Tokens minted for a beacon nobody will collect. Deleting them is best-effort
 // cleanup, never something a caller waits on the outcome of.
 async fn drop_orphans(
@@ -139,9 +126,7 @@ pub async fn announce(
     headers: HeaderMap,
     Json(body): Json<AnnounceBody>,
 ) -> Response {
-    let Some(ip) = local_caller(&state, &headers, &addr) else {
-        return not_local(loc);
-    };
+    let ip = client_ip(&headers, &addr);
     if !valid_device_id(&body.device_id) {
         return lerr(loc, StatusCode::BAD_REQUEST, "error.castBadReceiver");
     }
@@ -185,19 +170,18 @@ pub async fn poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>
 }
 
 /// `GET /api/handoff/devices` (Bearer) → the TVs waiting on the caller's own
-/// subnet. Empty for a caller the server does not consider local, which is the
-/// same answer as "no TV is waiting": being off-network is not worth a distinct
-/// error a scanner could read.
+/// network. Empty when none are, which is also the answer a caller sitting
+/// somewhere else gets: being off-network is not worth a distinct error a
+/// scanner could read.
 pub async fn devices(
     State(state): State<SharedState>,
     AuthUser(_user): AuthUser,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Response {
-    let rows = match local_caller(&state, &headers, &addr) {
-        Some(ip) => state.handoff.nearby(&ip).into_iter().map(NearbyDevice::from).collect(),
-        None => Vec::new(),
-    };
+    let ip = client_ip(&headers, &addr);
+    let rows: Vec<NearbyDevice> =
+        state.handoff.nearby(&ip).into_iter().map(NearbyDevice::from).collect();
     Json(rows).into_response()
 }
 
@@ -211,9 +195,7 @@ pub async fn grant(
     headers: HeaderMap,
     Json(body): Json<GrantBody>,
 ) -> Response {
-    let Some(ip) = local_caller(&state, &headers, &addr) else {
-        return not_local(loc);
-    };
+    let ip = client_ip(&headers, &addr);
 
     // The granting device is signed in and vouches for the TV, exactly as a
     // Quick Connect approval does. The TV is not the caller, so its user agent

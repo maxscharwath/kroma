@@ -53,7 +53,7 @@ export function handoffPoll(ctx: RequestContext, secret: string): Promise<Pairin
   return ctx.json<PairingStatus>(`/handoff/poll?secret=${encodeURIComponent(secret)}`);
 }
 
-/** The TVs waiting on this device's own subnet. Empty off the local network:
+/** The TVs waiting on this device's own network. Empty off it:
  * the same answer as "none waiting", which is all a caller may learn. (Bearer.) */
 export function handoffDevices(ctx: RequestContext): Promise<HandoffDevice[]> {
   return ctx

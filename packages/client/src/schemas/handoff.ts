@@ -20,7 +20,7 @@ export const HandoffBeacon = z.object({
 });
 export type HandoffBeacon = z.infer<typeof HandoffBeacon>;
 
-/** One TV waiting on the caller's own subnet (`GET /handoff/devices`). Carries
+/** One TV waiting on the caller's own network (`GET /handoff/devices`). Carries
  * no address: which TVs are nearby is the point, where they sit is not. */
 export const HandoffDevice = z.object({
   handle: z.string(),

@@ -2043,7 +2043,6 @@
   "handoff.connecting": "Connexion…",
   "handoff.connected": "{name} se connecte",
   "handoff.gone": "Cette TV n'attend plus",
-  "handoff.notLocal": "Cet appareil n'est pas sur le réseau local",
   "handoff.otherWays": "Autres façons de connecter",
   "handoff.tvHint": "Ou ouvre KROMA sur ton téléphone : cette TV y attend sous {name}.",
   "handoff.tvCheck": "Code de contrôle {check}"

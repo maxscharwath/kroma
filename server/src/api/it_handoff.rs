@@ -15,7 +15,10 @@ use crate::api::test_support::{get, raw, send, test_app, TestApp};
 const TV_IP: &str = "192.168.1.20";
 const PHONE_IP: &str = "192.168.1.50";
 const OTHER_SUBNET: &str = "192.168.9.9";
-const WAN_IP: &str = "8.8.8.8";
+// One household as a server on another network sees it: both devices leave
+// through the same NAT, so both arrive wearing that one address.
+const HOUSEHOLD: &str = "203.0.113.7";
+const OTHER_HOUSEHOLD: &str = "203.0.113.9";
 
 async fn from(
     t: &TestApp,
@@ -99,21 +102,42 @@ async fn a_phone_signs_a_waiting_tv_in_by_picking_it_from_the_list() {
 }
 
 #[tokio::test]
-async fn a_tv_off_the_local_network_may_not_announce_itself() {
+async fn a_server_on_another_network_still_pairs_a_tv_and_a_phone_in_one_room() {
+    // The server is somewhere else entirely (a NAS at home reached over a
+    // tunnel, say), so it never sees either device's own address: the TV and
+    // the phone both arrive through their household's one public address.
     let t = test_app();
-    let body = json!({ "deviceId": "tv-salon-01", "name": "Salon", "platform": "tvOS" });
-    let (status, _) = from(&t, "POST", "/api/handoff/announce", None, Some(body), WAN_IP).await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    let beacon = announce(&t, "tv-salon-01", "Salon", HOUSEHOLD).await;
+
+    let (status, list) =
+        from(&t, "GET", "/api/handoff/devices", Some(&t.token), None, HOUSEHOLD).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list.as_array().map(Vec::len), Some(1));
+
+    let (status, _) = from(
+        &t,
+        "POST",
+        "/api/handoff/grant",
+        Some(&t.token),
+        Some(json!({ "handle": list[0]["handle"] })),
+        HOUSEHOLD,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(poll_status(&t, &beacon).await, "authorized");
 }
 
 #[tokio::test]
-async fn a_phone_off_the_local_network_is_shown_no_tvs_and_may_not_grant() {
+async fn a_phone_leaving_through_another_router_is_shown_no_tvs_and_may_not_grant() {
+    // Next door, or the same phone with wifi off: a different way onto the
+    // internet, so not the same room however close it is.
     let t = test_app();
-    let beacon = announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+    let beacon = announce(&t, "tv-salon-01", "Salon", HOUSEHOLD).await;
     let handle = beacon["handle"].clone();
 
     // Not an error a scanner could read: the same empty list as "nothing waiting".
-    let (status, list) = from(&t, "GET", "/api/handoff/devices", Some(&t.token), None, WAN_IP).await;
+    let (status, list) =
+        from(&t, "GET", "/api/handoff/devices", Some(&t.token), None, OTHER_HOUSEHOLD).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().map(Vec::len), Some(0));
 
@@ -124,10 +148,10 @@ async fn a_phone_off_the_local_network_is_shown_no_tvs_and_may_not_grant() {
         "/api/handoff/grant",
         Some(&t.token),
         Some(json!({ "handle": handle })),
-        WAN_IP,
+        OTHER_HOUSEHOLD,
     )
     .await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(poll_status(&t, &beacon).await, "pending");
     assert_eq!(session_count(&t).await, before, "a refused grant minted a session");
 }

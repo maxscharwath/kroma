@@ -184,6 +184,34 @@ impl<M> Grants<M> {
         map.remove(&handle)?.orphaned()
     }
 
+    /// Make room for one more entry matching `in_scope`, by forgetting the least
+    /// recently active matches until fewer than `max` remain.
+    ///
+    /// This is what stops one caller crowding out the rest of an unauthenticated
+    /// store: the global capacity alone would let whoever announces most often
+    /// evict everyone else's requests.
+    pub fn trim_scope(&self, max: usize, in_scope: impl Fn(&M) -> bool) -> Vec<Orphaned> {
+        let mut map = self.map.lock().unwrap();
+        self.reap(&mut map);
+        let mut scoped: Vec<(u64, String)> = map
+            .iter()
+            .filter(|(_, e)| in_scope(&e.meta))
+            .map(|(handle, e)| (e.seen, handle.clone()))
+            .collect();
+        if scoped.len() < max {
+            return Vec::new();
+        }
+        // Least recently active first, then drop as many as the newcomer needs.
+        scoped.sort_unstable();
+        let doomed = scoped.len() + 1 - max;
+        scoped
+            .into_iter()
+            .take(doomed)
+            .filter_map(|(_, handle)| map.remove(&handle))
+            .filter_map(Entry::orphaned)
+            .collect()
+    }
+
     /// Forget every entry whose metadata matches, surrendering their tokens.
     pub fn forget_where(&self, doomed: impl Fn(&M) -> bool) -> Vec<Orphaned> {
         let mut map = self.map.lock().unwrap();
@@ -328,6 +356,42 @@ mod tests {
         assert_eq!(orphans.len(), 1);
         assert_eq!(g.len(), 1);
         assert!(matches!(g.poll(&kept), PollState::Pending));
+    }
+
+    #[test]
+    fn trim_scope_bounds_one_scope_and_leaves_the_others_alone() {
+        let g: Grants<&str> = Grants::new(300, 64);
+        let mut mint = seq_mint();
+        let (mine, mine_secret) = g.insert("theirs", &mut mint);
+        for _ in 0..3 {
+            g.insert("ours", &mut mint);
+        }
+        assert!(g.authorize(&mine, |_| true, granted()));
+
+        // Under the cap: nothing goes.
+        g.trim_scope(4, |m| *m == "ours");
+        assert_eq!(g.len(), 4);
+
+        // At it: the least recently active match goes, and only a match. It had
+        // no tokens to surrender, so nothing comes back for deletion.
+        assert!(g.trim_scope(3, |m| *m == "ours").is_empty());
+        assert_eq!(g.len(), 3);
+        assert!(matches!(g.poll(&mine_secret), PollState::Authorized { .. }));
+    }
+
+    #[test]
+    fn trim_scope_surrenders_the_tokens_of_everything_it_drops() {
+        let g: Grants<&str> = Grants::new(300, 64);
+        let mut mint = seq_mint();
+        let (first, _) = g.insert("ours", &mut mint);
+        let (second, _) = g.insert("ours", &mut mint);
+        assert!(g.authorize(&first, |_| true, granted()));
+        assert!(g.authorize(&second, |_| true, granted()));
+
+        // Room for one more out of a scope of two means dropping both.
+        let orphans = g.trim_scope(1, |m| *m == "ours");
+        assert_eq!(orphans.len(), 2);
+        assert_eq!(g.len(), 0);
     }
 
     #[test]

@@ -501,7 +501,7 @@ export class KromaClient {
   handoffPoll(secret: string): Promise<PairingStatus> {
     return handoff.handoffPoll(this.ctx, secret);
   }
-  /** The TVs waiting on this device's own subnet. */
+  /** The TVs waiting on this device's own network. */
   handoffDevices(): Promise<HandoffDevice[]> {
     return handoff.handoffDevices(this.ctx);
   }

@@ -1,0 +1,88 @@
+import { Directions } from 'react-tv-space-navigation';
+import { describe, expect, it } from 'vitest';
+import type { FocusBox } from './focus-here';
+import { walkTab } from './focus-tab';
+
+const COLS = 3;
+const ROWS = 2;
+const TILE = { w: 100, h: 50 };
+
+/** A grid the navigator would give us: arrows stop at the walls, and a move
+ *  bumps the counter exactly as a real focus does. */
+function grid(start: { row: number; col: number }) {
+  const at = { ...start };
+  let seq = 0;
+  const move = (row: number, col: number) => {
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+    at.row = row;
+    at.col = col;
+    seq += 1;
+  };
+  return {
+    at,
+    sent: [] as Directions[],
+    probe: {
+      seq: () => seq,
+      box: () => ({ top: at.row * TILE.h, left: at.col * TILE.w, height: TILE.h }),
+    },
+    send(direction: Directions) {
+      this.sent.push(direction);
+      if (direction === Directions.RIGHT) move(at.row, at.col + 1);
+      if (direction === Directions.LEFT) move(at.row, at.col - 1);
+      if (direction === Directions.DOWN) move(at.row + 1, at.col);
+      if (direction === Directions.UP) move(at.row - 1, at.col);
+    },
+  };
+}
+
+describe('walkTab', () => {
+  it('steps along the line while the line lasts', () => {
+    const g = grid({ row: 0, col: 0 });
+    walkTab((d) => g.send(d), g.probe);
+    expect(g.at).toEqual({ row: 0, col: 1 });
+    expect(g.sent).toEqual([Directions.RIGHT]);
+  });
+
+  it('turns the corner: the end of a row continues at the START of the next', () => {
+    const g = grid({ row: 0, col: COLS - 1 });
+    walkTab((d) => g.send(d), g.probe);
+    expect(g.at).toEqual({ row: 1, col: 0 });
+  });
+
+  it('walks backwards to the END of the row above', () => {
+    const g = grid({ row: 1, col: 0 });
+    walkTab((d) => g.send(d), g.probe, true);
+    expect(g.at).toEqual({ row: 0, col: COLS - 1 });
+  });
+
+  it('stays put at the last control, having nowhere to turn to', () => {
+    const g = grid({ row: ROWS - 1, col: COLS - 1 });
+    walkTab((d) => g.send(d), g.probe);
+    expect(g.at).toEqual({ row: ROWS - 1, col: COLS - 1 });
+  });
+
+  it('stops at the start of the line rather than rewinding off it', () => {
+    // A row with something to its left that is NOT part of it - a sidebar - is
+    // what the box test is for: the rewind must not fall into it.
+    type Id = 'last' | 'end' | 'start' | 'menu';
+    const NODES: Record<Id, { box: FocusBox; to: Partial<Record<Directions, Id>> }> = {
+      last: { box: { top: 0, left: 100, height: 50 }, to: { [Directions.DOWN]: 'end' } },
+      end: { box: { top: 50, left: 100, height: 50 }, to: { [Directions.LEFT]: 'start' } },
+      start: {
+        box: { top: 50, left: 0, height: 50 },
+        to: { [Directions.LEFT]: 'menu', [Directions.RIGHT]: 'end' },
+      },
+      menu: { box: { top: -200, left: -150, height: 400 }, to: { [Directions.RIGHT]: 'start' } },
+    };
+    let at: Id = 'last';
+    let seq = 0;
+    const probe = { seq: () => seq, box: () => NODES[at].box };
+    walkTab((direction) => {
+      const next = NODES[at].to[direction];
+      if (!next) return;
+      at = next;
+      seq += 1;
+    }, probe);
+    expect(at).toBe('start');
+  });
+});

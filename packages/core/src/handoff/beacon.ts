@@ -114,7 +114,15 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         platform,
         ...(secret ? { prevSecret: secret } : {}),
       });
-      if (stopped) return;
+      if (stopped) {
+        // The loop was stopped while this announce was in flight: the television
+        // signed in some other way, or the screen went. The server minted a
+        // beacon nobody now holds, and leaving it would keep a row in every
+        // nearby picker for its full TTL, offering a grant the television will
+        // never collect. Take it down.
+        client.handoffLeave(beacon.secret).catch(() => undefined);
+        return;
+      }
       secret = beacon.secret;
       republish({
         state: 'waiting',

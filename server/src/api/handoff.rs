@@ -13,7 +13,7 @@
 
 use std::net::SocketAddr;
 
-use axum::extract::{ConnectInfo, Query, State};
+use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::api::accounts::mint_device_tokens;
 use crate::api::error::lerr;
 use crate::api::extract::AuthUser;
-use crate::api::util::{client_ip, query, SecretQuery};
+use crate::api::util::{client_ip, query};
 use crate::db;
 use crate::i18n::ReqLocale;
 use crate::services::pairing::handoff::{valid_device_id, Announce, Announcement, Nearby};
@@ -35,7 +35,7 @@ pub fn public_routes() -> Router<SharedState> {
     Router::new()
         .route("/handoff/announce", post(announce))
         .route("/handoff/leave", post(leave))
-        .route("/handoff/poll", get(poll))
+        .route("/handoff/poll", post(poll))
 }
 
 /// The granting half: only a signed-in account can hand itself to a TV.
@@ -179,11 +179,17 @@ pub async fn leave(State(state): State<SharedState>, Json(body): Json<SecretBody
     StatusCode::NO_CONTENT.into_response()
 }
 
-/// `GET /api/handoff/poll?secret=…` → `pending` | `authorized` (then the
-/// session) | `expired`. Same shape as the Quick Connect poll, and it doubles as
-/// the beacon's heartbeat: a TV that stops polling leaves the list.
-pub async fn poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
-    let status = super::dto::PairingPoll::from(state.handoff.poll(&q.secret));
+/// `POST /api/handoff/poll` `{ secret }` → `pending` | `authorized` (then the
+/// session) | `expired`. Doubles as the beacon's heartbeat: a TV that stops
+/// polling leaves the list.
+///
+/// POST, and the secret in the body rather than the query, for two reasons that
+/// point the same way. It is not a read: it refreshes the beacon and consumes
+/// the grant exactly once. And a URL is written down everywhere a request goes
+/// past (`TraceLayer`'s span records the uri, and every reverse proxy logs it by
+/// default), which is not where a credential redeeming a 90-day token belongs.
+pub async fn poll(State(state): State<SharedState>, Json(body): Json<SecretBody>) -> Response {
+    let status = super::dto::PairingPoll::from(state.handoff.poll(&body.secret));
     // Every poll is also the moment the store may have swept a lapsed beacon,
     // and a swept beacon that was approved still has real rows behind it.
     drop_orphans(&state, state.handoff.take_orphans()).await;

@@ -162,6 +162,7 @@
   "connect.backToProfiles": "Retour pour revenir aux profils",
   "connect.codePromptForUser": "Saisis le code à 4 chiffres affiché sur ta TV pour la connecter au compte de {name}.",
   "connect.codePrompt": "Saisis le code à 4 chiffres affiché sur ta TV pour la connecter au compte.",
+  "connect.pickOrCode": "Choisis ta TV ci-dessous, ou utilise le code qu'elle affiche.",
   "connect.willConnectSoon": "Ta TV va se connecter dans un instant.",
   "connect.serverNotFound": "Serveur KROMA introuvable",
   "connect.serverNotFoundHint": "Vérifiez que le serveur est démarré sur le réseau ({platform}), ou saisissez son adresse.",

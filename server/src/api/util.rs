@@ -8,8 +8,9 @@ use serde::Deserialize;
 
 pub(crate) use kroma_module_host::{blocking, query};
 
-/// `?secret=…`: how a device waiting to be paired identifies its own pending
-/// request, on both `/auth/quickconnect/poll` and `/handoff/poll`.
+/// `?secret=…`: how a device already in the world identifies its own pending
+/// Quick Connect request. Newer callers send `X-Kroma-Pairing-Secret` instead,
+/// and the handoff poll takes it in a POST body: a URL is logged everywhere.
 #[derive(Debug, Deserialize)]
 pub struct SecretQuery {
     pub secret: String,

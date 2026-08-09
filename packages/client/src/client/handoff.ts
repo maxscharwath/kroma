@@ -48,10 +48,18 @@ export async function handoffLeave(ctx: RequestContext, secret: string): Promise
 
 /** Poll this beacon by its secret → `pending` until a phone grants it, then the
  * session exactly once. Polling also keeps the beacon listed, so a TV that stops
- * polling drops off every phone's list on its own. */
+ * polling drops off every phone's list on its own.
+ *
+ * A POST with the secret in the body, not a GET with it in the query: this is
+ * not a read (it refreshes the beacon and consumes the grant), and a URL is
+ * written into every access log the request passes through. */
 export function handoffPoll(ctx: RequestContext, secret: string): Promise<PairingStatus> {
   return ctx
-    .json<PairingStatus>(`/handoff/poll?secret=${encodeURIComponent(secret)}`)
+    .json<PairingStatus>('/handoff/poll', {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ secret }),
+    })
     .then((r) => validate(PairingStatus, r));
 }
 

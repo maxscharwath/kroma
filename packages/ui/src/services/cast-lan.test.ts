@@ -92,9 +92,13 @@ describe('a signed-in television heard on the link', () => {
   });
 
   it('nudges nothing when the roster already has it', async () => {
-    const { lan } = stubLan([ready('r1', 'Salon')]);
-    const { onUnknownReceiver } = run({ lan, knows: (id) => id === 'r1' });
-    await waitFor(() => expect(true).toBe(true));
+    // Waiting on something real, not on a tautology: a nudge that arrived one
+    // effect-flush later would slip past `await waitFor(() => expect(true))`.
+    const { lan, report } = stubLan([ready('r1', 'Salon')]);
+    const { onUnknownReceiver, result } = run({ lan, knows: (id) => id === 'r1' });
+
+    act(() => report([ready('r1', 'Salon'), waiting('h1', 'Chambre')]));
+    await waitFor(() => expect(result.current).toHaveLength(1));
     expect(onUnknownReceiver).not.toHaveBeenCalled();
   });
 

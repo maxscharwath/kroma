@@ -7,7 +7,7 @@
 // else, a phone with the native module also has its own link.
 
 import type { KromaClient } from '@kroma/client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiscoveredTv, LanDiscoveryBridge, NearbyReceiver } from '../handoff';
 import { lanSource, serverSource, watchNearbyTvs } from '../handoff';
 
@@ -65,9 +65,17 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
     return watchNearbyTvs({ sources, onRows: setDevices });
   }, [sources]);
 
+  // A row stays pressable while its grant is in flight, so without this a
+  // double tap grants twice: the second either takes a second session or fails,
+  // and the picker then shows success and failure at once. Read through a ref
+  // rather than state, because two taps can land inside one render.
+  const inFlight = useRef(false);
+
   const connect = useCallback(
     async (device: DiscoveredTv) => {
-      if (!client) return;
+      if (!client || inFlight.current) return;
+      inFlight.current = true;
+      setConnected(null);
       setConnecting(device);
       setFailed(false);
       try {
@@ -79,6 +87,7 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
       } catch {
         setFailed(true);
       } finally {
+        inFlight.current = false;
         setConnecting(null);
       }
     },

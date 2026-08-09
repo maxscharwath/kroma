@@ -161,6 +161,7 @@
   "connect.backToProfiles": "Press Back to return to profiles",
   "connect.codePromptForUser": "Enter the 4-digit code shown on your TV to connect it to {name}'s account.",
   "connect.codePrompt": "Enter the 4-digit code shown on your TV to connect it to the account.",
+  "connect.pickOrCode": "Pick your TV below, or use the code it shows.",
   "connect.willConnectSoon": "Your TV will connect in a moment.",
   "connect.serverNotFound": "KROMA server not found",
   "connect.serverNotFoundHint": "Make sure the server is running on the network ({platform}), or enter its address.",

@@ -321,8 +321,13 @@ export function quickConnectInitiate(
 
 /** Poll a Quick Connect request by its secret. */
 export function quickConnectPoll(ctx: RequestContext, secret: string): Promise<PairingStatus> {
+  // In a header rather than the query: a URL is written into every access log
+  // the request passes through, and this redeems a 90-day credential. The
+  // server still reads `?secret=` for televisions already in the world.
   return ctx
-    .json<PairingStatus>(`/auth/quickconnect/poll?secret=${encodeURIComponent(secret)}`)
+    .json<PairingStatus>('/auth/quickconnect/poll', {
+      headers: { 'x-kroma-pairing-secret': secret },
+    })
     .then((r) => validate(PairingStatus, r));
 }
 

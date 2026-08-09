@@ -3,7 +3,7 @@
 // scan the QR the TV shows (the code rides its query params) or type the
 // 4-digit code (POST /auth/quickconnect/authorize). Mirror of the web flow.
 
-import { Box, Icon, OtpField, styles, Txt } from '@kroma/ui/kit';
+import { Box, Disclosure, Icon, OtpField, styles, Txt } from '@kroma/ui/kit';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -51,6 +51,7 @@ export default function ConnectDevice() {
   const [code, setCode] = useState('');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [cameraOn, setCameraOn] = useState(false);
+  const [otherWays, setOtherWays] = useState(false);
   const scannedRef = useRef(false);
 
   const submit = async (value: string) => {
@@ -73,10 +74,11 @@ export default function ConnectDevice() {
     if (digits.length === 4) void submit(digits);
   };
 
-  // One page, everything visible: the camera activates in place above the
-  // manual code cells (no mode toggle).
+  // Only once the scanner is actually on screen. Asking on mount turned the
+  // viewfinder on behind a keyboard for every reader, including the ones who
+  // came to tap their television and never looked down.
   useEffect(() => {
-    if (!camera) return;
+    if (!camera || !otherWays) return;
     let cancelled = false;
     void (async () => {
       const current = await camera.Camera.getCameraPermissionsAsync();
@@ -86,7 +88,7 @@ export default function ConnectDevice() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [otherWays]);
 
   const enableCamera = async () => {
     if (!camera) return;
@@ -118,47 +120,57 @@ export default function ConnectDevice() {
           </Box>
         ) : (
           <>
-            <OnboardingTitle title={t('connect.title')} subtitle={t('connect.codePrompt')} />
+            <OnboardingTitle title={t('connect.title')} subtitle={t('connect.pickOrCode')} />
             <NearbyTvs />
-            <Box style={s.center}>
-              {camera ? (
-                <Box style={s.cameraBox}>
-                  {cameraOn ? (
-                    <>
-                      <camera.CameraView
-                        style={StyleSheet.absoluteFill}
-                        facing="back"
-                        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                        onBarcodeScanned={({ data }) => onScanned(data)}
-                      />
-                      <Box style={s.cameraFrame} pointerEvents="none" />
-                    </>
-                  ) : (
-                    <Pressable
-                      onPress={() => void enableCamera()}
-                      style={({ pressed }) => [
-                        s.cameraOff,
-                        pressed && { backgroundColor: colors.surfaceHigh },
-                      ]}
-                    >
-                      <Icon name="scan" size={34} stroke={1.8} color={colors.accent} />
-                      <Txt style={s.cameraOffLabel}>{t('connect.scanTvQr')}</Txt>
-                    </Pressable>
-                  )}
-                </Box>
-              ) : (
-                <Icon name="device-tv" size={56} stroke={1.8} color={colors.accent} />
-              )}
-              <OtpField
-                maxLength={4}
-                value={code}
-                onChange={onChange}
-                invalid={state === 'error'}
-                disabled={state === 'busy'}
-                physicalKeyboard
-                autoFocus
-              />
-            </Box>
+
+            {/* A real disclosure, not the decorative chevron this used to be.
+                Collapsed, the page is one question with one answer: which
+                television. Expanded, the scanner and the keypad arrive together
+                because they are the same road - and neither is mounted before
+                that, so a live viewfinder and a raised keyboard stop burying
+                the list somebody came here to read. */}
+            <Disclosure title={t('handoff.otherWays')} open={otherWays} onOpenChange={setOtherWays}>
+              <Box style={s.center}>
+                <Txt style={s.codePrompt}>{t('connect.codePrompt')}</Txt>
+                {camera ? (
+                  <Box style={s.cameraBox}>
+                    {cameraOn ? (
+                      <>
+                        <camera.CameraView
+                          style={StyleSheet.absoluteFill}
+                          facing="back"
+                          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                          onBarcodeScanned={({ data }) => onScanned(data)}
+                        />
+                        <Box style={s.cameraFrame} pointerEvents="none" />
+                      </>
+                    ) : (
+                      <Pressable
+                        onPress={() => void enableCamera()}
+                        style={({ pressed }) => [
+                          s.cameraOff,
+                          pressed && { backgroundColor: colors.surfaceHigh },
+                        ]}
+                      >
+                        <Icon name="scan" size={34} stroke={1.8} color={colors.accent} />
+                        <Txt style={s.cameraOffLabel}>{t('connect.scanTvQr')}</Txt>
+                      </Pressable>
+                    )}
+                  </Box>
+                ) : (
+                  <Icon name="device-tv" size={56} stroke={1.8} color={colors.accent} />
+                )}
+                <OtpField
+                  maxLength={4}
+                  value={code}
+                  onChange={onChange}
+                  invalid={state === 'error'}
+                  disabled={state === 'busy'}
+                  physicalKeyboard
+                  autoFocus
+                />
+              </Box>
+            </Disclosure>
             <ErrorBanner message={state === 'error' ? t('connect.invalidCode') : null} />
           </>
         )}
@@ -169,6 +181,7 @@ export default function ConnectDevice() {
 
 const s = styles({
   center: { align: 'center', gap: spacing.md },
+  codePrompt: { ...type.caption, color: 'textDim', textAlign: 'center' },
   cameraBox: { w: 176, h: 176, bg: 'surface2', radius: radius.lg, overflow: 'hidden' },
   cameraOff: { fill: true, center: true, gap: 10, px: spacing.md },
   cameraOffLabel: { ...type.caption, color: 'accent', fontWeight: '700', textAlign: 'center' },

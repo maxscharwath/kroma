@@ -291,13 +291,16 @@ describe('stopping', () => {
     expect(client.handoffPoll).not.toHaveBeenCalled();
   });
 
-  it('has nothing to take down before the first announce lands', async () => {
+  it('takes down a beacon the server minted after the stop', async () => {
+    // The television signed in another way while the announce was in flight.
+    // Discarding the reply would leave a row in every nearby picker for the
+    // full TTL, offering a grant nothing will ever collect.
     const { client, left } = stubClient();
     const { stop } = run(client);
     stop();
     await tick();
-    expect(left).toEqual([]);
-    // The announce that was already in flight is discarded, not acted on.
+
+    expect(left).toEqual(['s1']);
     expect(client.handoffPoll).not.toHaveBeenCalled();
   });
 

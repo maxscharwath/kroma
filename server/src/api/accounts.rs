@@ -789,10 +789,25 @@ pub async fn quick_authorize(
     }
 }
 
-/// `GET /api/auth/quickconnect/poll?secret=…` → `{ status }` where status is
-/// `pending` | `authorized` (then `{ token, user }`) | `expired`.
-pub async fn quick_poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
-    let status = super::dto::PairingPoll::from(state.quickconnect.poll(&q.secret));
+/// `GET /api/auth/quickconnect/poll` → `{ status }` where status is `pending` |
+/// `authorized` (then `{ token, user }`) | `expired`.
+///
+/// The secret is read from `X-Kroma-Pairing-Secret` when present, and from
+/// `?secret=` otherwise. A URL is written down everywhere a request goes past
+/// (the tracing span records the uri, and every reverse proxy logs it), which
+/// is not where a credential redeeming a 90-day token belongs. The query is
+/// still honoured because televisions already in the world send it that way.
+pub async fn quick_poll(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    Query(q): Query<SecretQuery>,
+) -> Response {
+    let secret = headers
+        .get("x-kroma-pairing-secret")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string)
+        .unwrap_or(q.secret);
+    let status = super::dto::PairingPoll::from(state.quickconnect.poll(&secret));
     // A code that lapsed after it was approved still has rows behind it.
     for orphan in state.quickconnect.take_orphans() {
         let (token, access) = (orphan.token, orphan.access_token);

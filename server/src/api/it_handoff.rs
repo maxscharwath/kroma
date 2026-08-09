@@ -45,8 +45,16 @@ fn secret(beacon: &Value) -> String {
 }
 
 async fn poll(t: &TestApp, beacon: &Value) -> Value {
-    let (status, body) =
-        get(&t.app, &format!("/api/handoff/poll?secret={}", secret(beacon)), None).await;
+    // A POST with the secret in the body: a URL is written into every access
+    // log the request passes through.
+    let (status, body) = send(
+        &t.app,
+        "POST",
+        "/api/handoff/poll",
+        None,
+        Some(json!({ "secret": secret(beacon) })),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     body
 }
@@ -351,7 +359,8 @@ async fn a_tv_re_announcing_replaces_its_own_row_rather_than_adding_one() {
 #[tokio::test]
 async fn an_unknown_secret_polls_expired() {
     let t = test_app();
-    let (status, body) = get(&t.app, "/api/handoff/poll?secret=nope", None).await;
+    let (status, body) =
+        send(&t.app, "POST", "/api/handoff/poll", None, Some(json!({ "secret": "nope" }))).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "expired");
     // Leaving with a secret nobody holds is a no-op, not an error.

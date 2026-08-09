@@ -78,10 +78,14 @@ describe('handoffLeave', () => {
 });
 
 describe('handoffPoll', () => {
-  it('escapes the secret into the query', () => {
+  it('sends the secret in the body, never in the URL', async () => {
+    // A URL is written into every access log the request passes through, and
+    // this secret redeems a session plus a 90-day credential.
     const { ctx, calls } = recordCtx({ status: 'pending' });
-    void handoffPoll(ctx, 'a b&c=d');
-    expect(calls[0]?.path).toBe('/handoff/poll?secret=a%20b%26c%3Dd');
+    await handoffPoll(ctx, 'a b&c=d');
+    expect(calls[0]?.path).toBe('/handoff/poll');
+    expect(calls[0]?.init?.method).toBe('POST');
+    expect(JSON.parse(calls[0]?.init?.body as string)).toEqual({ secret: 'a b&c=d' });
   });
 });
 

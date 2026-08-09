@@ -98,11 +98,6 @@ export function NearbyTvs() {
       {failed ? <Txt style={s.failed}>{t('handoff.gone')}</Txt> : null}
 
       {body}
-
-      <Box style={s.divider}>
-        <Icon name="chevron-down" size={16} color={colors.textDim} />
-        <Txt style={s.otherWays}>{t('handoff.otherWays')}</Txt>
-      </Box>
     </Box>
   );
 }
@@ -117,6 +112,4 @@ const s = styles({
   stateLabel: { ...type.caption, color: 'textDim' },
   emptyText: { fill: true, gap: 2 },
   emptyHint: { ...type.caption, color: 'textDim', opacity: 0.8 },
-  divider: { align: 'center', gap: 4, marginTop: spacing.md },
-  otherWays: { ...type.caption, color: 'textDim', fontWeight: '600' },
 });

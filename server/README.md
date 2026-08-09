@@ -77,7 +77,37 @@ All configuration is via environment variables:
 | `KROMA_HTTPS_PORT`  | `4443`      | Port for the HTTPS listener (only used when `KROMA_HTTPS=1`).          |
 | `KROMA_TLS_SANS`    | *(empty)*   | Extra cert names/IPs, comma/space separated. See [HTTPS](#https-on-the-lan-optional). |
 | `KROMA_HTTPS_REDIRECT`| `0`       | Set to `1` to redirect all HTTP traffic to HTTPS (needs `KROMA_HTTPS=1`). |
+| `KROMA_TRUSTED_PROXIES`| *(empty)* | Proxies whose forwarding headers may be believed. See [Behind a reverse proxy](#behind-a-reverse-proxy). |
 | `RUST_LOG`         | `info`      | Standard `tracing` filter, e.g. `kroma_server=debug`.                  |
+
+## Behind a reverse proxy
+
+The server reads `X-Forwarded-For` / `CF-Connecting-IP` only from a peer worth
+believing, because both are set by whoever is calling. Loopback is always
+believed, so **a proxy on the same host needs no configuration**.
+
+A proxy anywhere else does. In another container, or on another machine, its
+requests arrive from its own address, the headers are discarded, and the server
+sees every client as that one address. Two things quietly stop working: nearby
+TV pairing treats the whole world as one network, and the login brute-force
+guard counts everyone as one caller.
+
+Name the proxy and it can be seen through. Bare addresses or IPv4 CIDRs, comma
+or space separated:
+
+```bash
+KROMA_TRUSTED_PROXIES="172.18.0.0/16"     # a docker bridge
+KROMA_TRUSTED_PROXIES="10.0.0.4, 10.0.0.5" # two named front-ends
+```
+
+Only ever name the proxy. Anything matching this list can claim to be any
+client, so a range your clients live in gives that away to all of them.
+
+Also make sure the proxy sets the header the standard way, appending the peer it
+saw rather than replacing what the caller sent. nginx's
+`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` does this, as do
+Caddy and Traefik by default; the server reads the rightmost entry, which is the
+only one the proxy itself vouched for.
 
 ## HTTPS on the LAN (optional)
 

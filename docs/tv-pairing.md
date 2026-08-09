@@ -42,6 +42,14 @@ Three cases this cannot settle, all of which fall back to Quick Connect:
 3. carrier-grade NAT, where strangers share one public address and can therefore
    see each other's beacons.
 
+And one it cannot even see, which is why it is configuration rather than a
+limit: a reverse proxy the server has not been told about. Its requests arrive
+from its own address, the forwarding headers are discarded, and every client
+looks like that one address, so the rule answers yes for every pair. Name it in
+`KROMA_TRUSTED_PROXIES` (see [server/README.md](../server/README.md)); a proxy
+on the same host is loopback and needs nothing. Note that a beacon heard on the
+link is unaffected either way, since it never asks the server where anyone is.
+
 ## What hearing it on the link adds
 
 A link-local multicast does not cross a router, so hearing one is being in the

@@ -134,7 +134,7 @@ pub async fn announce(
     headers: HeaderMap,
     Json(body): Json<AnnounceBody>,
 ) -> Response {
-    let ip = client_ip(&headers, &addr);
+    let ip = client_ip(&headers, &addr, &state.config.trusted_proxies);
     if !valid_device_id(&body.device_id) {
         return lerr(loc, StatusCode::BAD_REQUEST, "error.castBadReceiver");
     }
@@ -206,7 +206,7 @@ pub async fn devices(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
 ) -> Response {
-    let ip = client_ip(&headers, &addr);
+    let ip = client_ip(&headers, &addr, &state.config.trusted_proxies);
     let rows: Vec<NearbyDevice> =
         state.handoff.nearby(&ip).into_iter().map(NearbyDevice::from).collect();
     Json(rows).into_response()
@@ -222,7 +222,7 @@ pub async fn grant(
     headers: HeaderMap,
     Json(body): Json<GrantBody>,
 ) -> Response {
-    let ip = client_ip(&headers, &addr);
+    let ip = client_ip(&headers, &addr, &state.config.trusted_proxies);
 
     // The granting device is signed in and vouches for the TV, exactly as a
     // Quick Connect approval does. The TV is not the caller, so its user agent

@@ -31,6 +31,20 @@ pub struct Config {
     // Only takes effect once HTTPS is actually running, and the cert-download
     // route stays on plain HTTP so a device can bootstrap trust first.
     pub https_redirect_override: Option<bool>,
+    /// Peers whose `X-Forwarded-For` / `CF-Connecting-IP` may be believed:
+    /// bare addresses or IPv4 CIDRs. Loopback is always trusted, which covers a
+    /// proxy on the same host and is why this is empty by default.
+    ///
+    /// It exists for the proxy that is NOT on loopback: another container, or
+    /// another machine. Without it the header is discarded and every request
+    /// arrives wearing the proxy's own address, so the server cannot tell two
+    /// clients apart at all: nearby pairing sees one network holding everyone,
+    /// and the login guard counts the whole world as one address. Naming the
+    /// proxy is what lets it see through it.
+    ///
+    /// Never widen this to a range clients live in. Whoever matches it can
+    /// claim to be anyone.
+    pub trusted_proxies: Vec<String>,
 }
 
 impl Config {
@@ -96,6 +110,17 @@ impl Config {
             .ok()
             .and_then(|p| p.trim().parse::<u16>().ok());
 
+        let trusted_proxies = env::var("KROMA_TRUSTED_PROXIES")
+            .ok()
+            .map(|raw| {
+                raw.split([',', ' ', ';'])
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default();
+
         let tls_extra_sans = env::var("KROMA_TLS_SANS")
             .ok()
             .map(|raw| {
@@ -127,6 +152,7 @@ impl Config {
             https_port_override,
             tls_extra_sans,
             https_redirect_override,
+            trusted_proxies,
         }
     }
 

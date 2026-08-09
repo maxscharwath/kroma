@@ -1,15 +1,15 @@
-// Both handoff loops, driven on fake timers against a stub client. What the TV
-// side has to do: publish and wait, sign in on a grant, start over when the
-// beacon lapses, stay quiet when the server refuses. What the phone side has to
-// do: keep the list fresh, and never blank it over one dropped request.
+// The television's loop, driven on fake timers against a stub client. What it
+// has to do: publish and wait, sign in on a grant, start over when the beacon
+// lapses, stay quiet when the server refuses, and keep its DNS-SD record in
+// step with whichever beacon is current.
 
-import type { HandoffDevice, KromaClient, PairingStatus, User } from '@kroma/client';
+import type { KromaClient, PairingStatus, User } from '@kroma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type HandoffBeaconView, startHandoff, watchNearbyTvs } from './handoff';
+import { type HandoffBeaconView, startHandoff } from './beacon';
 
 const USER = { id: 'u1', username: 'owner' } as unknown as User;
 
-const BEACON = { handle: 'h1', secret: 's1', check: 'K7QM', ttlSecs: 60, pollSecs: 3 };
+const BEACON = { handle: 'h1', secret: 's1', check: 'K7QM', proof: 'p1', ttlSecs: 60, pollSecs: 3 };
 
 function stubClient(overrides: Partial<Record<string, unknown>> = {}) {
   const calls: string[] = [];
@@ -22,7 +22,7 @@ function stubClient(overrides: Partial<Record<string, unknown>> = {}) {
         calls.push('announce');
         announces.push(body);
         minted += 1;
-        return { ...BEACON, secret: `s${minted}`, handle: `h${minted}` };
+        return { ...BEACON, secret: `s${minted}`, handle: `h${minted}`, proof: `p${minted}` };
       },
     ),
     handoffPoll: vi.fn(async (): Promise<PairingStatus> => {
@@ -92,6 +92,108 @@ describe('publishing the beacon', () => {
     await tick(3000);
     expect(client.handoffPoll).toHaveBeenCalledTimes(2);
     stop();
+  });
+});
+
+describe('publishing on this television s own link', () => {
+  it('puts the beacon on the link as well as at the server', async () => {
+    const published: Array<{ name: string; txt: Record<string, string> }> = [];
+    const unpublish = vi.fn();
+    const { client } = stubClient();
+    const stop = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: 'Apple TV',
+      platform: 'Apple TV',
+      publish: (service) => {
+        published.push(service);
+        return unpublish;
+      },
+      onBeacon: () => undefined,
+      onAuthenticated: () => undefined,
+    });
+    await tick();
+
+    expect(published).toHaveLength(1);
+    expect(published[0]?.name).toBe('Apple TV');
+    // The record carries what a phone needs to name the row and to prove it
+    // heard this television.
+    expect(published[0]?.txt.handle).toBe('h1');
+    expect(published[0]?.txt.proof).toBe('p1');
+    expect(published[0]?.txt.check).toBe('K7QM');
+
+    stop();
+    expect(unpublish).toHaveBeenCalled();
+  });
+
+  it('replaces the record when the beacon rotates, so no stale handle stays audible', async () => {
+    const published: Array<{ txt: Record<string, string> }> = [];
+    const unpublish = vi.fn();
+    const { client } = stubClient({
+      handoffPoll: vi.fn(async (): Promise<PairingStatus> => ({ status: 'expired' })),
+    });
+    const stop = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: 'Apple TV',
+      platform: 'Apple TV',
+      publish: (service) => {
+        published.push(service);
+        return unpublish;
+      },
+      onBeacon: () => undefined,
+      onAuthenticated: () => undefined,
+    });
+    await tick();
+    await tick(3000);
+
+    expect(published.map((p) => p.txt.handle)).toEqual(['h1', 'h2']);
+    expect(unpublish).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('publishes under the brand when the television has no name of its own', async () => {
+    const published: Array<{ name: string }> = [];
+    const { client } = stubClient();
+    const stop = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: '',
+      platform: '',
+      publish: (service) => {
+        published.push(service);
+        return () => undefined;
+      },
+      onBeacon: () => undefined,
+      onAuthenticated: () => undefined,
+    });
+    await tick();
+    // A DNS-SD record needs an instance name, and an empty one is not a name.
+    expect(published[0]?.name).toBe('KROMA');
+    stop();
+  });
+
+  it('still pairs through the server when the platform refuses to publish', async () => {
+    const publish = vi.fn(() => {
+      throw new Error('no local network permission');
+    });
+    const { client } = stubClient();
+    const beacons: Array<HandoffBeaconView | null> = [];
+    const stop = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: 'Apple TV',
+      platform: 'Apple TV',
+      publish,
+      onBeacon: (b) => beacons.push(b),
+      onAuthenticated: () => undefined,
+    });
+    await tick();
+
+    expect(publish).toHaveBeenCalled();
+    // The screen still shows the beacon: the server half worked.
+    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QM' });
+    expect(() => stop()).not.toThrow();
   });
 });
 
@@ -274,101 +376,5 @@ describe('stopping', () => {
     await tick();
     expect(() => stop()).not.toThrow();
     await tick();
-  });
-});
-
-describe('watching for nearby TVs', () => {
-  function rows(n: number): HandoffDevice[] {
-    return Array.from({ length: n }, (_, i) => ({
-      handle: `h${i}`,
-      name: `TV ${i}`,
-      platform: 'tvOS',
-      check: 'K7QM',
-    }));
-  }
-
-  it('lists what is waiting and keeps looking', async () => {
-    const handoffDevices = vi.fn(async () => rows(1));
-    const client = { handoffDevices } as unknown as KromaClient;
-    const seen: HandoffDevice[][] = [];
-    const stop = watchNearbyTvs({ client, onRows: (r) => seen.push(r) });
-
-    await tick();
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.[0]?.name).toBe('TV 0');
-
-    handoffDevices.mockResolvedValue(rows(2));
-    await tick(3000);
-    expect(seen.at(-1)).toHaveLength(2);
-    stop();
-  });
-
-  it('keeps the last good list when a poll does not answer', async () => {
-    const handoffDevices = vi.fn(async () => rows(1));
-    const client = { handoffDevices } as unknown as KromaClient;
-    const seen: HandoffDevice[][] = [];
-    const stop = watchNearbyTvs({ client, onRows: (r) => seen.push(r) });
-    await tick();
-
-    handoffDevices.mockRejectedValue(new Error('offline'));
-    await tick(3000);
-    // Nothing new was published: the row on screen is stale, not gone.
-    expect(seen).toHaveLength(1);
-
-    // And it recovers on the next tick rather than giving up.
-    handoffDevices.mockResolvedValue(rows(3));
-    await tick(3000);
-    expect(seen.at(-1)).toHaveLength(3);
-    stop();
-  });
-
-  it('stops looking once the picker closes', async () => {
-    const handoffDevices = vi.fn(async () => rows(1));
-    const client = { handoffDevices } as unknown as KromaClient;
-    const seen: HandoffDevice[][] = [];
-    const stop = watchNearbyTvs({ client, onRows: (r) => seen.push(r) });
-    await tick();
-    stop();
-
-    await tick(30_000);
-    expect(handoffDevices).toHaveBeenCalledTimes(1);
-    expect(seen).toHaveLength(1);
-  });
-
-  it('schedules nothing more when a poll in flight fails after the picker closed', async () => {
-    let reject: ((cause: Error) => void) | undefined;
-    const handoffDevices = vi.fn(
-      () =>
-        new Promise<HandoffDevice[]>((_resolve, r) => {
-          reject = r;
-        }),
-    );
-    const client = { handoffDevices } as unknown as KromaClient;
-    const stop = watchNearbyTvs({ client, onRows: () => undefined });
-
-    stop();
-    reject?.(new Error('offline'));
-    await tick();
-
-    await tick(60_000);
-    expect(handoffDevices).toHaveBeenCalledTimes(1);
-  });
-
-  it('publishes nothing from a poll that landed after the picker closed', async () => {
-    let release: ((rows: HandoffDevice[]) => void) | undefined;
-    const handoffDevices = vi.fn(
-      () =>
-        new Promise<HandoffDevice[]>((resolve) => {
-          release = resolve;
-        }),
-    );
-    const client = { handoffDevices } as unknown as KromaClient;
-    const seen: HandoffDevice[][] = [];
-    const stop = watchNearbyTvs({ client, onRows: (r) => seen.push(r) });
-
-    stop();
-    release?.(rows(1));
-    await tick();
-    expect(seen).toEqual([]);
   });
 });

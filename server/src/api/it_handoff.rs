@@ -128,6 +128,43 @@ async fn a_server_on_another_network_still_pairs_a_tv_and_a_phone_in_one_room() 
 }
 
 #[tokio::test]
+async fn a_phone_that_heard_the_tv_grants_where_the_addresses_alone_would_not() {
+    // A home routed across two subnets, or a dual-stack one where the TV came
+    // over IPv6 and the phone over IPv4: same room, addresses this server
+    // cannot reconcile. Quoting the proof from the TV's DNS-SD record settles
+    // it, because a multicast does not leave the link it was sent on.
+    let t = test_app();
+    let beacon = announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+    let proof = beacon["proof"].as_str().expect("a link proof").to_string();
+    assert_eq!(proof.len(), 32, "hex of 16 bytes");
+
+    let refused = json!({ "handle": beacon["handle"] });
+    let (status, _) =
+        from(&t, "POST", "/api/handoff/grant", Some(&t.token), Some(refused), OTHER_SUBNET).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let heard = json!({ "handle": beacon["handle"], "proof": proof });
+    let (status, _) =
+        from(&t, "POST", "/api/handoff/grant", Some(&t.token), Some(heard), OTHER_SUBNET).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    assert_eq!(poll_status(&t, &beacon).await, "authorized");
+}
+
+#[tokio::test]
+async fn a_proof_nobody_published_is_refused() {
+    let t = test_app();
+    let beacon = announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+    let before = session_count(&t).await;
+
+    let invented = json!({ "handle": beacon["handle"], "proof": "0".repeat(32) });
+    let (status, _) =
+        from(&t, "POST", "/api/handoff/grant", Some(&t.token), Some(invented), OTHER_SUBNET).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(poll_status(&t, &beacon).await, "pending");
+    assert_eq!(session_count(&t).await, before);
+}
+
+#[tokio::test]
 async fn a_phone_leaving_through_another_router_is_shown_no_tvs_and_may_not_grant() {
     // Next door, or the same phone with wifi off: a different way onto the
     // internet, so not the same room however close it is.

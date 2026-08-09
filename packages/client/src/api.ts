@@ -506,8 +506,8 @@ export class KromaClient {
     return handoff.handoffDevices(this.ctx);
   }
   /** Hand this account to one of them. */
-  handoffGrant(handle: string): Promise<void> {
-    return handoff.handoffGrant(this.ctx, handle);
+  handoffGrant(handle: string, proof?: string): Promise<void> {
+    return handoff.handoffGrant(this.ctx, handle, proof);
   }
 
   progress(): Promise<ProgressEntry[]> {

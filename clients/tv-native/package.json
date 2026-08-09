@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@kroma/core": "workspace:*",
+    "@kroma/lan-beacon": "workspace:*",
     "@kroma/tv": "workspace:*",
     "@kroma/ui": "workspace:*",
     "expo": "~57.0.11",

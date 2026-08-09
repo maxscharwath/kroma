@@ -13,6 +13,10 @@ export const HandoffBeacon = z.object({
   handle: z.string(),
   secret: z.string(),
   check: z.string(),
+  /** Goes in this TV's DNS-SD record and nowhere else. A phone that can quote
+   * it heard the TV on the link, so the server takes it in place of comparing
+   * the two devices' addresses. */
+  proof: z.string(),
   ttlSecs: z.number(),
   /** How often to poll. Polling is what keeps the beacon listed, so a TV that
    * stops polling leaves the list on its own, with no second heartbeat. */

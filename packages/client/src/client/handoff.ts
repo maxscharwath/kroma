@@ -61,12 +61,19 @@ export function handoffDevices(ctx: RequestContext): Promise<HandoffDevice[]> {
     .then((r) => validate(HandoffDevice.array(), r));
 }
 
-/** Hand this account to the TV behind `handle`. Resolves on 204; throws
+/** Hand this account to the TV behind `handle`. Pass `proof` when this device
+ * heard that TV's record on the link rather than being told about it by the
+ * server: it is the stronger evidence of the two, and the only one that holds
+ * when the addresses cannot be reconciled. Resolves on 204; throws
  * `KromaApiError` 404 when that TV stopped waiting. (Bearer.) */
-export async function handoffGrant(ctx: RequestContext, handle: string): Promise<void> {
+export async function handoffGrant(
+  ctx: RequestContext,
+  handle: string,
+  proof?: string,
+): Promise<void> {
   await ctx.json<void>('/handoff/grant', {
     method: 'POST',
     headers: JSON_HEADERS,
-    body: JSON.stringify({ handle }),
+    body: JSON.stringify(proof ? { handle, proof } : { handle }),
   });
 }

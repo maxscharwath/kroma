@@ -9,6 +9,7 @@
 
 import {
   setBuildInfo,
+  setLanBeacon,
   setLauncherBackend,
   setSearchShell,
   setServerBrowse,
@@ -25,6 +26,7 @@ import { LogBox, Platform } from 'react-native';
 
 LogBox.ignoreAllLogs(true);
 
+import { lanBeacon } from '@kroma/lan-beacon';
 import { useEffect, useState } from 'react';
 import { browseForServers } from '../modules/server-discovery';
 import { startLauncherLinks } from './lib/launcher-links';
@@ -53,6 +55,9 @@ setLauncherBackend(nativeLauncher);
 // DNS-SD, and it is the one route that finds a server on a port nothing would
 // have thought to scan - or behind a reverse proxy on 443 (see the module).
 setServerBrowse(browseForServers);
+// This television announces itself on its own link, so a phone in the room can
+// sign it in without the server having to place the two by their addresses.
+setLanBeacon(lanBeacon);
 // The platform's backdrop blur, which frosts the kit's glass surfaces (episode
 // cards, glass buttons). tvOS composites UIVisualEffectView on the GPU, so the
 // shell hands it over; the kit itself stays free of the dependency (see Frost).

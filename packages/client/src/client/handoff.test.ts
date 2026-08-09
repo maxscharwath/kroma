@@ -25,6 +25,7 @@ const BEACON = {
   handle: 'a1b2c3',
   secret: 's3cr3t',
   check: 'K7QM',
+  proof: 'deadbeef',
   ttlSecs: 60,
   pollSecs: 3,
 };
@@ -81,6 +82,23 @@ describe('handoffPoll', () => {
     const { ctx, calls } = recordCtx({ status: 'pending' });
     void handoffPoll(ctx, 'a b&c=d');
     expect(calls[0]?.path).toBe('/handoff/poll?secret=a%20b%26c%3Dd');
+  });
+});
+
+describe('handoffGrant', () => {
+  it('sends the proof when this device heard the TV itself', async () => {
+    const { ctx, calls } = recordCtx();
+    await handoffGrant(ctx, 'a1b2c3', 'heard-it');
+    expect(JSON.parse(calls[0]?.init?.body as string)).toEqual({
+      handle: 'a1b2c3',
+      proof: 'heard-it',
+    });
+  });
+
+  it('omits it when the server is what told this device about the TV', async () => {
+    const { ctx, calls } = recordCtx();
+    await handoffGrant(ctx, 'a1b2c3');
+    expect(JSON.parse(calls[0]?.init?.body as string)).toEqual({ handle: 'a1b2c3' });
   });
 });
 

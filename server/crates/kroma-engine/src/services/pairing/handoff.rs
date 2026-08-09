@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use super::grants::{Granted, Grants, Orphaned, PollState};
 use crate::model::User;
-use crate::services::auth::random_bytes;
+use crate::services::auth::{ct_eq, random_bytes};
 use kroma_primitives::clean_label;
 
 /// The shape a TV's self-declared device id must have. Checked at the HTTP
@@ -53,6 +53,10 @@ const MAX_PLATFORM: usize = 32;
 const CHECK_ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CHECK_LEN: usize = 4;
 
+// The link proof rides a DNS-SD text record, so it stays small; 16 bytes is far
+// past guessing and leaves the record comfortably inside one MTU.
+const PROOF_BYTES: usize = 16;
+
 /// What a TV says about itself when it starts waiting for an account.
 pub struct Announce {
     pub device_id: String,
@@ -66,6 +70,11 @@ pub struct Announced {
     pub handle: String,
     pub secret: String,
     pub check: String,
+    /// Published in the TV's DNS-SD record, and in nothing else. A phone that
+    /// can quote it heard a link-local multicast from this TV, which does not
+    /// cross a router: better evidence of being in the same room than any
+    /// address this server can infer through a NAT. See [`HandoffInner::grant`].
+    pub proof: String,
     pub ttl_secs: i64,
     pub poll_secs: i64,
 }
@@ -86,6 +95,7 @@ struct Beacon {
     platform: String,
     ip: String,
     check: String,
+    proof: String,
 }
 
 pub struct HandoffInner {
@@ -117,18 +127,21 @@ impl HandoffInner {
         orphans.extend(self.grants.trim_scope(MAX_PER_NETWORK, |b| same_network(&b.ip, &ip)));
 
         let check = check_string();
+        let proof = hex::encode(random_bytes(PROOF_BYTES));
         let beacon = Beacon {
             device_id: req.device_id,
             name: clean_label(&req.name, MAX_NAME),
             platform: clean_label(&req.platform, MAX_PLATFORM),
             ip: req.ip,
             check: check.clone(),
+            proof: proof.clone(),
         };
         let (handle, secret) = self.grants.insert(beacon, random_handle);
         let announced = Announced {
             handle,
             secret,
             check,
+            proof,
             ttl_secs: BEACON_TTL_SECS,
             poll_secs: POLL_SECS,
         };
@@ -151,19 +164,33 @@ impl HandoffInner {
     }
 
     /// Hand `user`'s freshly-minted tokens to the TV behind `handle`. False when
-    /// the handle is unknown, lapsed, or belongs to a TV that is not on the
-    /// granting device's network. A caller may not learn which.
+    /// the handle is unknown, lapsed, or the caller has shown nothing that puts
+    /// it beside that TV. A caller may not learn which.
+    ///
+    /// Two ways to show it, and either will do:
+    ///
+    /// - the addresses agree ([`same_network`]), which is all a phone that found
+    ///   the TV through this server can offer;
+    /// - or the caller quotes the beacon's `proof`, which is published in the
+    ///   TV's DNS-SD record and nowhere else. Multicast does not leave the link,
+    ///   so quoting it is proof of having been on it. Unlike the addresses, it
+    ///   holds across a routed home and a dual-stack one, and cannot be claimed
+    ///   by a stranger who merely shares a public address under CGNAT.
     pub fn grant(
         &self,
         handle: &str,
         viewer_ip: &str,
+        proof: Option<&str>,
         user: User,
         token: String,
         access_token: String,
     ) -> bool {
         self.grants.authorize(
             handle,
-            |b| same_network(&b.ip, viewer_ip),
+            |b| {
+                same_network(&b.ip, viewer_ip)
+                    || proof.is_some_and(|p| ct_eq(b.proof.as_bytes(), p.as_bytes()))
+            },
             Granted { token, access_token, user },
         )
     }
@@ -296,7 +323,7 @@ mod tests {
         let h = new();
         let tv = announce(&h, "tv-salon-01", "Salon", TV);
         assert!(matches!(h.poll(&tv.secret), PollState::Pending));
-        assert!(h.grant(&tv.handle, PHONE, user(), "tok".into(), "acc".into()));
+        assert!(h.grant(&tv.handle, PHONE, None, user(), "tok".into(), "acc".into()));
 
         let PollState::Authorized { token, access_token, user } = h.poll(&tv.secret) else {
             panic!("expected the granted session");
@@ -309,14 +336,14 @@ mod tests {
     fn a_handle_learned_elsewhere_is_useless_off_the_tvs_subnet() {
         let h = new();
         let tv = announce(&h, "tv-salon-01", "Salon", TV);
-        assert!(!h.grant(&tv.handle, ELSEWHERE, user(), "tok".into(), "acc".into()));
+        assert!(!h.grant(&tv.handle, ELSEWHERE, None, user(), "tok".into(), "acc".into()));
         assert!(matches!(h.poll(&tv.secret), PollState::Pending));
     }
 
     #[test]
     fn an_unknown_handle_is_refused() {
         let h = new();
-        assert!(!h.grant("deadbeef", PHONE, user(), "tok".into(), "acc".into()));
+        assert!(!h.grant("deadbeef", PHONE, None, user(), "tok".into(), "acc".into()));
     }
 
     #[test]
@@ -333,7 +360,7 @@ mod tests {
     fn replacing_a_beacon_granted_in_the_gap_surrenders_its_tokens() {
         let h = new();
         let first = announce(&h, "tv-salon-01", "Salon", TV);
-        assert!(h.grant(&first.handle, PHONE, user(), "tok".into(), "acc".into()));
+        assert!(h.grant(&first.handle, PHONE, None, user(), "tok".into(), "acc".into()));
 
         let (_, orphans) = h.announce(Announce {
             device_id: "tv-salon-01".into(),
@@ -418,7 +445,7 @@ mod tests {
         let tv = announce(&h, "tv-salon-01", "Salon", HOUSEHOLD);
 
         assert_eq!(h.nearby(HOUSEHOLD).len(), 1);
-        assert!(h.grant(&tv.handle, HOUSEHOLD, user(), "tok".into(), "acc".into()));
+        assert!(h.grant(&tv.handle, HOUSEHOLD, None, user(), "tok".into(), "acc".into()));
         assert!(matches!(h.poll(&tv.secret), PollState::Authorized { .. }));
     }
 
@@ -428,7 +455,50 @@ mod tests {
         let tv = announce(&h, "tv-salon-01", "Salon", HOUSEHOLD);
         // Next door, or the same phone on cellular: a different way out.
         assert!(h.nearby(OTHER_HOUSEHOLD).is_empty());
-        assert!(!h.grant(&tv.handle, OTHER_HOUSEHOLD, user(), "tok".into(), "acc".into()));
+        assert!(!h.grant(&tv.handle, OTHER_HOUSEHOLD, None, user(), "tok".into(), "acc".into()));
+    }
+
+    #[test]
+    fn a_phone_that_heard_the_tv_may_grant_from_anywhere_the_addresses_disagree() {
+        // The routed home and the dual-stack home both look like this: two
+        // devices in one room whose addresses this server cannot reconcile.
+        let h = new();
+        let tv = announce(&h, "tv-salon-01", "Salon", TV);
+        assert!(!h.grant(&tv.handle, ELSEWHERE, None, user(), "tok".into(), "acc".into()));
+
+        // Quoting the proof is quoting a multicast that never left the link.
+        assert!(h.grant(
+            &tv.handle,
+            ELSEWHERE,
+            Some(&tv.proof),
+            user(),
+            "tok".into(),
+            "acc".into()
+        ));
+        assert!(matches!(h.poll(&tv.secret), PollState::Authorized { .. }));
+    }
+
+    #[test]
+    fn a_proof_that_is_not_this_beacons_is_worth_nothing() {
+        let h = new();
+        let salon = announce(&h, "tv-salon-01", "Salon", TV);
+        let chambre = announce(&h, "tv-chambre-01", "Chambre", TV);
+
+        // Another beacon's proof, and an invented one, both fail.
+        assert!(!h.grant(&salon.handle, ELSEWHERE, Some(&chambre.proof), user(), "t".into(), "a".into()));
+        assert!(!h.grant(&salon.handle, ELSEWHERE, Some("00"), user(), "t".into(), "a".into()));
+        assert!(matches!(h.poll(&salon.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn every_beacon_gets_its_own_proof() {
+        let h = new();
+        let mut seen = std::collections::HashSet::new();
+        for i in 0..16 {
+            let tv = announce(&h, &format!("tv-{i:04}-xxxx"), "Salon", TV);
+            assert_eq!(tv.proof.len(), PROOF_BYTES * 2, "hex of {PROOF_BYTES} bytes");
+            assert!(seen.insert(tv.proof), "proof repeated");
+        }
     }
 
     #[test]

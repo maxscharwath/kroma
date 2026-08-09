@@ -1,4 +1,4 @@
-import type { HandoffDevice } from '@kroma/core';
+import type { DiscoveredTv } from '@kroma/core';
 import { useNearbyTvs } from '@kroma/core/react';
 import { useT } from '@kroma/ui';
 import { Icon, ListRow, Spinner, Txt } from '@kroma/ui/kit';
@@ -7,11 +7,14 @@ import { useAuth } from '#web/shared/lib/auth';
 // The fast half of "connect a device": the TVs waiting on this network, one tap
 // each. Everything it decides lives in `useNearbyTvs`; this brings the rows.
 //
+// A browser cannot listen to its own link, so the server is this shell's only
+// source. The phone app passes a second one.
+//
 // It renders nothing at all when nothing is waiting and nothing has been
 // connected: an empty box above the code field would only ask the reader to
 // work out whether it is broken.
 
-function trailing(device: HandoffDevice, connecting: string | null, connected: string | null) {
+function trailing(device: DiscoveredTv, connecting: string | null, connected: string | null) {
   if (connecting === device.handle) return <Spinner size={18} thickness={2} />;
   if (connected === device.handle) return <Icon name="check" size={18} color="success" />;
   return undefined;
@@ -20,7 +23,7 @@ function trailing(device: HandoffDevice, connecting: string | null, connected: s
 export function NearbyTvs() {
   const t = useT();
   const { client } = useAuth();
-  const { devices, connecting, connected, failed, connect } = useNearbyTvs(client);
+  const { devices, connecting, connected, failed, connect } = useNearbyTvs({ client });
 
   if (devices.length === 0 && !connected) return null;
 

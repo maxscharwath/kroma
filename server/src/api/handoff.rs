@@ -69,6 +69,10 @@ pub struct AnnounceReply {
     /// Four characters the TV prints on its own screen so a person can tell two
     /// TVs apart in the phone's list. Never typed anywhere.
     pub check: String,
+    /// Goes in the TV's DNS-SD record and nowhere else. A phone that can quote
+    /// it heard this TV on the link, which is why the grant will take it in
+    /// place of the address check.
+    pub proof: String,
     pub ttl_secs: i64,
     /// How often to poll. Polling is what keeps the beacon listed, so a TV that
     /// stops polling leaves the list on its own.
@@ -99,6 +103,10 @@ pub struct SecretBody {
 #[derive(Debug, Deserialize)]
 pub struct GrantBody {
     pub handle: String,
+    /// The beacon's `proof`, when the caller heard this TV on the link rather
+    /// than being told about it by this server.
+    #[serde(default)]
+    pub proof: Option<String>,
 }
 
 // Tokens minted for a beacon nobody will collect. Deleting them is best-effort
@@ -148,6 +156,7 @@ pub async fn announce(
         handle: announced.handle,
         secret: announced.secret,
         check: announced.check,
+        proof: announced.proof,
         ttl_secs: announced.ttl_secs,
         poll_secs: announced.poll_secs,
     })
@@ -205,11 +214,13 @@ pub async fn grant(
         Err(resp) => return resp,
     };
 
-    if state.handoff.grant(&body.handle, &ip, user, token.clone(), access.clone()) {
+    let heard = body.proof.as_deref();
+    if state.handoff.grant(&body.handle, &ip, heard, user, token.clone(), access.clone()) {
         StatusCode::NO_CONTENT.into_response()
     } else {
-        // Unknown handle, lapsed beacon, or a TV on another subnet: one answer
-        // for all three. Don't leave the just-minted tokens dangling.
+        // Unknown handle, lapsed beacon, or a caller that showed nothing
+        // putting it beside that TV: one answer for all three. Don't leave the
+        // just-minted tokens dangling.
         drop_orphans(
             &state,
             vec![crate::services::pairing::Orphaned { token, access_token: access }],

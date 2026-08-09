@@ -1,11 +1,16 @@
 // The fast half of "connect a device": the TVs waiting on this network, one tap
 // each. Everything it decides lives in `useNearbyTvs`; this brings the rows.
 //
+// Two ways of looking here, not one: the server, and this phone's own link when
+// the binary carries the native module. A television heard on the link can be
+// signed in even where the server could not tell the two apart.
+//
 // Renders nothing while nothing is waiting and nothing has been connected: an
 // empty box above the camera would only ask the reader to work out whether it
 // is broken.
 
 import { useNearbyTvs } from '@kroma/core/react';
+import { lanBeacon } from '@kroma/lan-beacon';
 import { Box, Icon, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
 import { useT } from '#mobile/lib/i18n';
 import { useClient } from '#mobile/lib/session';
@@ -14,7 +19,10 @@ import { colors, spacing, type } from '#mobile/lib/theme';
 export function NearbyTvs() {
   const t = useT();
   const client = useClient();
-  const { devices, connecting, connected, failed, connect } = useNearbyTvs(client);
+  const { devices, connecting, connected, failed, connect } = useNearbyTvs({
+    client,
+    lan: lanBeacon ?? undefined,
+  });
 
   if (devices.length === 0 && !connected) return null;
 

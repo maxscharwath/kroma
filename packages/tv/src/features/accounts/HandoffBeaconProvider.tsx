@@ -4,9 +4,13 @@
 // Mounted above the router, like the cast receiver: the beacon has to be up on
 // whichever gate screen the TV happens to be showing, not only on the one that
 // mentions it. Renders nothing.
+//
+// The beacon goes up at the server always, and on this television's own link
+// when the shell registered a stack to publish with (see app/lanBeacon).
 
 import { type HandoffBeaconView, type KromaClient, startHandoff } from '@kroma/core';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { lanBeacon } from '#tv/app/lanBeacon';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -42,6 +46,9 @@ export function HandoffBeaconProvider({
       deviceId: deviceId(),
       name: deviceName(platform),
       platform,
+      // Read at start, not at module load: a shell registers its stack at the
+      // app root, which has run by the time a gate screen is up.
+      publish: lanBeacon()?.publish,
       onBeacon: setBeacon,
       onAuthenticated: (result) => login(result, activeServerUrl),
     });

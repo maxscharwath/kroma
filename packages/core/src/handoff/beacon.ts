@@ -1,15 +1,17 @@
-// Nearby handoff, both halves, headless.
+// The TV's half of the nearby handoff: publish a beacon while signed out, poll
+// it, and sign in the moment a phone next to it grants an account.
 //
-// `startHandoff` is what a TV runs while it is signed out: publish a beacon,
-// poll it, and sign in the moment a phone on the same network grants it an
-// account. `watchNearbyTvs` is what that phone runs: keep the list of TVs
-// waiting on this network fresh while the picker is open.
+// The beacon goes up in two places at once where the platform allows it: at the
+// server, which any phone can list, and on the link itself as a DNS-SD record,
+// which only a phone in the same room can hear. The second is optional and the
+// first is not, because the grant travels through the server either way.
 //
-// Kept out of React on purpose. Each is a loop with several ways to go wrong
+// Kept out of React on purpose. This is a loop with several ways to go wrong
 // (the server does not answer, the beacon lapses, the grant arrives, the screen
 // goes away), and every one of them is worth a test that needs no renderer.
 
-import type { AuthResult, HandoffDevice, KromaClient } from '@kroma/client';
+import type { AuthResult, KromaClient } from '@kroma/client';
+import { beaconTxt, type LanDiscoveryBridge } from './sources';
 
 /** What the gate screens show while the TV waits: the name a phone sees, and
  * the check string that says which row in that list is this TV. */
@@ -21,6 +23,12 @@ export interface HandoffBeaconView {
 export interface HandoffLoopOptions {
   client: KromaClient;
   deviceId: string;
+  /** Publish the beacon on this device's own link as well, when the platform
+   * has a DNS-SD stack to publish it with. A phone that hears the record has
+   * proved it is in the room, which is worth more than any address the server
+   * can infer, so this is what makes handoff work across a routed home or a
+   * dual-stack one. Absent on a shell that cannot publish. */
+  publish?: LanDiscoveryBridge['publish'];
   /** What this TV calls itself in the phone's list. */
   name: string;
   platform: string;
@@ -40,10 +48,25 @@ const RETRY_MS = 15_000;
  * down instead of lingering on someone's phone until its TTL.
  */
 export function startHandoff(opts: HandoffLoopOptions): () => void {
-  const { client, deviceId, name, platform, onBeacon, onAuthenticated } = opts;
+  const { client, deviceId, name, platform, publish, onBeacon, onAuthenticated } = opts;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let secret = '';
+  let unpublish: (() => void) | undefined;
+
+  // Every beacon gets its own record, so a rotated one never leaves a stale
+  // handle audible on the link.
+  const republish = (record: Parameters<typeof beaconTxt>[0] | null) => {
+    unpublish?.();
+    unpublish = undefined;
+    if (!record || !publish) return;
+    try {
+      unpublish = publish({ name: record.name || 'KROMA', txt: beaconTxt(record) });
+    } catch {
+      // A platform that refuses to publish (no permission, no multicast) still
+      // pairs through the server.
+    }
+  };
 
   // The one place a next step is scheduled, and so the one place that has to
   // notice the loop was stopped while a request was in flight.
@@ -60,6 +83,7 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         // Collected: the beacon is already consumed server-side, so there is
         // nothing left to take down.
         secret = '';
+        republish(null);
         onBeacon(null);
         onAuthenticated({
           token: status.token,
@@ -90,6 +114,13 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
       });
       if (stopped) return;
       secret = beacon.secret;
+      republish({
+        handle: beacon.handle,
+        name,
+        platform,
+        check: beacon.check,
+        proof: beacon.proof,
+      });
       onBeacon({ name, check: beacon.check });
       wait(beacon.pollSecs * 1000, () => void poll(beacon.pollSecs * 1000));
     } catch {
@@ -97,6 +128,7 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
       // Either way the code + QR on screen still pair this TV.
       if (stopped) return;
       secret = '';
+      republish(null);
       onBeacon(null);
       wait(RETRY_MS, () => void begin());
     }
@@ -108,62 +140,12 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
     stopped = true;
     if (timer) clearTimeout(timer);
     timer = undefined;
+    republish(null);
     onBeacon(null);
     if (secret) {
       const going = secret;
       secret = '';
       client.handoffLeave(going).catch(() => undefined);
     }
-  };
-}
-
-export interface NearbyWatchOptions {
-  client: KromaClient;
-  /** The TVs waiting on this device's own network. Empty when none are, and
-   * empty off the local network too: the server does not distinguish between
-   * those two, so neither does this. */
-  onRows: (rows: HandoffDevice[]) => void;
-}
-
-// The picker is open on a phone in someone's hand: fast enough that a TV
-// switched on while they look appears without them thinking to refresh.
-const NEARBY_POLL_MS = 3000;
-
-/**
- * Keep the nearby-TV list fresh for as long as the picker is open. Returns the
- * stop function.
- *
- * A failed poll leaves the last good list on screen rather than blanking it: a
- * dropped request is not the same as the TVs going away, and a list that
- * flickers empty under someone's thumb is worse than one a few seconds stale.
- */
-export function watchNearbyTvs(opts: NearbyWatchOptions): () => void {
-  const { client, onRows } = opts;
-  let stopped = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-
-  // As in `startHandoff`: the one place a next step is scheduled is the one
-  // place that has to notice the picker closed mid-request.
-  const wait = () => {
-    if (stopped) return;
-    timer = setTimeout(() => void tick(), NEARBY_POLL_MS);
-  };
-
-  const tick = async () => {
-    try {
-      const rows = await client.handoffDevices();
-      if (!stopped) onRows(rows);
-    } catch {
-      /* keep the last good list */
-    }
-    wait();
-  };
-
-  void tick();
-
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-    timer = undefined;
   };
 }

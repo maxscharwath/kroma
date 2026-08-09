@@ -8,6 +8,7 @@
 // stage the app is laid out on.
 
 import {
+  type DeviceNameSource,
   setBuildInfo,
   setLauncherBackend,
   setSearchShell,
@@ -19,6 +20,7 @@ import { KIT_FONTS } from '@kroma/ui/fonts';
 import { registerFrost, TvStage } from '@kroma/ui/kit';
 import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import { LogBox, Platform } from 'react-native';
@@ -40,6 +42,15 @@ import { nativeVoiceSearch } from './lib/voice-search';
 // and the shell hands it over here - at module scope, before the first render,
 // like the backends below.
 setBuildInfo(Constants.expoConfig?.extra?.buildInfo ?? {});
+
+// What the set is called, when the platform will say. On Android TV this is the
+// name typed in setup. On tvOS it is `UIDevice.current.name`, which since
+// tvOS 16 answers with the MODEL unless the app carries Apple's
+// user-assigned-device-name entitlement - so "Apple TV", not "Salon", until
+// that entitlement is granted. Either way it beats the platform label, and the
+// port drops an empty answer for us. No `subscribe`: this one is already there
+// when the app starts, unlike the buses the browser shells have to ask.
+const DEVICE_NAME: DeviceNameSource = { get: () => Device.deviceName };
 // Speaking a search is the one capability the shared app cannot implement for
 // itself: the microphone belongs to the platform (see the module). Registered at
 // module scope, before the first render, exactly like the image backend.
@@ -96,6 +107,7 @@ export function App() {
         // room can sign it in without the server having to place the two by
         // their addresses. Null on a shell without the native module.
         lan={lanBeacon ?? undefined}
+        deviceName={DEVICE_NAME}
       />
     </TvStage>
   );

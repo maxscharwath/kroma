@@ -21,11 +21,11 @@ declare class LanBeaconNativeModule extends NativeModule<{
   // Emitted on every change to what is audible, carrying the whole current view
   // rather than a delta: a browser that missed a departure would otherwise show
   // a television that has gone.
-  'lan-beacon:found': (event: { services: LanService[] }) => void;
+  'lan-beacon:found': (event: { services: LanService[]; epoch: number }) => void;
 }> {
   publish(name: string, txt: Record<string, string>): void;
   unpublish(): void;
-  startBrowse(): void;
+  startBrowse(epoch: number): void;
   stopBrowse(): void;
 }
 
@@ -77,6 +77,11 @@ function bridge(module: LanBeaconNativeModule): LanDiscoveryBridge {
   // link happens to change.
   let latest: LanService[] = [];
   let published: symbol | null = null;
+  // Names the browse the native side is running for us, and moves on whenever
+  // one is started or stopped. A browse that has been told to stop can still
+  // report (a worker parked in a resolve, a listener torn down mid-flight) and
+  // the event channel is shared, so a report is only ours if it names this one.
+  let epoch = 0;
 
   return {
     publish(service) {
@@ -98,11 +103,14 @@ function bridge(module: LanBeaconNativeModule): LanDiscoveryBridge {
       listeners.add(onFound);
       if (listeners.size === 1) {
         subscription = module.addListener('lan-beacon:found', (event) => {
+          if (event.epoch !== epoch) return;
           latest = event.services;
           for (const listener of listeners) listener(latest);
         });
         void allowedNearby().then((allowed) => {
-          if (allowed && listeners.size > 0) module.startBrowse();
+          if (!allowed || listeners.size === 0) return;
+          epoch += 1;
+          module.startBrowse(epoch);
         });
       } else {
         onFound(latest);
@@ -117,6 +125,7 @@ function bridge(module: LanBeaconNativeModule): LanDiscoveryBridge {
         subscription?.remove();
         subscription = null;
         latest = [];
+        epoch += 1;
         module.stopBrowse();
       };
     },

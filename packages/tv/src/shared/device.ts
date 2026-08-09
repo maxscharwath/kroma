@@ -1,6 +1,6 @@
-// This TV's identity on the network: the id it is known by, and the label a
-// person sees. Minted once and persisted with the other device preferences, so
-// a relaunch is the same TV rather than a second ghost in everyone's picker.
+// This TV's identity on the network: the id it is known by. Minted once and
+// persisted with the other device preferences, so a relaunch is the same TV
+// rather than a second ghost in everyone's picker.
 //
 // Not a credential: the cast roster binds the id to the account that first
 // announced it, and a handoff beacon only ever reveals it on its own subnet.
@@ -41,11 +41,4 @@ export function deviceId(): string {
 /** Test seam: forget the memoized id so a test can re-derive it. */
 export function resetDeviceIdCache(): void {
   cached = null;
-}
-
-/** What this device calls itself in someone else's picker. TVs have no name to
- * read and typing one on a D-pad is a chore, so the platform label is the honest
- * default. */
-export function deviceName(platform: string): string {
-  return platform && platform !== 'TV' ? platform : 'TV';
 }

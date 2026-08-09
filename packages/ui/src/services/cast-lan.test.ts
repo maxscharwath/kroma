@@ -75,6 +75,19 @@ describe('televisions with no account', () => {
     expect(result.current[0]?.name).toBe('Salon');
   });
 
+  it('keep the same array when a report changes nothing', async () => {
+    const { lan, report } = stubLan([waiting('h1', 'Salon')]);
+    const { result } = run({ lan });
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    const held = result.current;
+
+    act(() => report([waiting('h1', 'Salon')]));
+    expect(result.current).toBe(held);
+
+    act(() => report([waiting('h1', 'Salon'), waiting('h2', 'Chambre')]));
+    expect(result.current).not.toBe(held);
+  });
+
   it('go when the link says they have gone', async () => {
     const { lan, report } = stubLan([waiting('h1', 'Salon')]);
     const { result } = run({ lan });
@@ -120,6 +133,29 @@ describe('a signed-in television heard on the link', () => {
 
     act(() => report([ready('r2', 'Chambre')]));
     await waitFor(() => expect(onUnknownReceiver).toHaveBeenCalledTimes(1));
+  });
+});
+
+function appVisibility(state: 'visible' | 'hidden') {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  act(() => {
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+describe('a phone with the app behind it', () => {
+  it('stops the browse until the app is in front again', async () => {
+    const { lan, stop } = stubLan([waiting('h1', 'Salon')]);
+    const { result } = run({ lan });
+    await waitFor(() => expect(result.current).toHaveLength(1));
+
+    appVisibility('hidden');
+    await waitFor(() => expect(stop).toHaveBeenCalled());
+    expect(result.current).toEqual([]);
+
+    appVisibility('visible');
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    expect(lan.browse).toHaveBeenCalledTimes(2);
   });
 });
 

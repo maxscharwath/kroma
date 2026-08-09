@@ -14,6 +14,7 @@
 import type { DiscoveredTv, LanDiscoveryBridge } from '@kroma/core';
 import { watchLanBeacons } from '@kroma/core';
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 export interface LanCastOptions {
   /** This device's DNS-SD stack, when it has one. Absent everywhere else, and
@@ -30,10 +31,15 @@ export interface LanCastOptions {
 }
 
 /** The signed-out televisions in the room, and a nudge to refetch when a
- * signed-in one turns up that the server has not mentioned yet. */
+ * signed-in one turns up that the server has not mentioned yet.
+ *
+ * Listens only while the app is in front: the browse is a multicast listener,
+ * and on Android a worker thread with it, so a phone in a pocket would
+ * otherwise pay for it for the whole signed-in session. */
 export function useLanCast(opts: LanCastOptions): DiscoveredTv[] {
   const { lan, enabled, onUnknownReceiver, knowsReceiver } = opts;
   const [pairable, setPairable] = useState<DiscoveredTv[]>([]);
+  const inFront = useForeground();
 
   // The browse outlives any particular roster, so what it needs from the
   // provider is read at call time rather than captured in the effect's deps.
@@ -41,20 +47,55 @@ export function useLanCast(opts: LanCastOptions): DiscoveredTv[] {
   latest.current = { onUnknownReceiver, knowsReceiver };
 
   useEffect(() => {
-    if (!enabled || !lan?.browse) {
-      setPairable([]);
+    if (!enabled || !inFront || !lan?.browse) {
+      setPairable((held) => (held.length === 0 ? held : []));
       return;
     }
 
     return watchLanBeacons(lan, (beacons) => {
-      setPairable(beacons.pairable);
+      // The same televisions keep the same array. This list is part of the cast
+      // context's value, so a fresh one per report re-renders every screen
+      // holding a cast button for a list that has not changed.
+      setPairable((held) => (sameTvs(held, beacons.pairable) ? held : beacons.pairable));
       // One nudge per report, however many strangers it held: the refetch it
       // triggers answers for all of them.
       if (beacons.receivers.some((row) => !latest.current.knowsReceiver(row.receiverId))) {
         latest.current.onUnknownReceiver();
       }
     });
-  }, [lan, enabled]);
+  }, [lan, enabled, inFront]);
 
   return pairable;
+}
+
+function sameTvs(held: readonly DiscoveredTv[], found: readonly DiscoveredTv[]): boolean {
+  return (
+    held.length === found.length &&
+    held.every((row, at) => {
+      const next = found[at];
+      return (
+        next !== undefined &&
+        row.handle === next.handle &&
+        row.name === next.name &&
+        row.platform === next.platform &&
+        row.check === next.check &&
+        row.proof === next.proof &&
+        row.server === next.server
+      );
+    })
+  );
+}
+
+// `inactive` is the app switcher and the pull-down shade on iOS, a second of
+// nothing rather than a departure: tearing the browse down for it would restart
+// it as fast as it stopped.
+function useForeground(): boolean {
+  const [inFront, setInFront] = useState(() => AppState.currentState !== 'background');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      setInFront(state !== 'background');
+    });
+    return () => sub?.remove();
+  }, []);
+  return inFront;
 }

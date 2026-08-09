@@ -39,9 +39,9 @@ public class LanBeaconModule: Module {
       self.state.unpublish()
     }
 
-    Function("startBrowse") {
+    Function("startBrowse") { (epoch: Int) in
       self.state.startBrowse { services in
-        self.sendEvent("lan-beacon:found", ["services": services])
+        self.sendEvent("lan-beacon:found", ["services": services, "epoch": epoch])
       }
     }
 
@@ -57,16 +57,53 @@ public class LanBeaconModule: Module {
 }
 
 // Everything with a lifetime, kept off the module so a reload cannot strand a
-// listener still holding the port.
+// listener still holding the port. Every field below is confined to `queue`:
+// the module's `Function`s run on the JavaScript actor while Network.framework
+// calls its handlers back on `queue`, so the entry points hop rather than share.
 private final class BeaconState {
   private let queue = DispatchQueue(label: "tv.kroma.lan-beacon")
   private var listener: NWListener?
   private var browser: NWBrowser?
+  private var advertised: (name: String, txt: [String: String])?
+  private var retries = 0
+  private var generation = 0
 
   private static let serviceType = "_kroma-tv._tcp"
+  // A television is the one device nobody is holding, so a beacon that dies
+  // silently is a beacon nobody notices. Rebuild a few times, backing off.
+  private static let maxRetries = 4
 
   func publish(name: String, txt: [String: String]) {
-    unpublish()
+    queue.async { self.advertise(name: name, txt: txt) }
+  }
+
+  func unpublish() {
+    queue.async { self.withdraw() }
+  }
+
+  func startBrowse(_ onFound: @escaping ([[String: Any]]) -> Void) {
+    queue.async { self.beginBrowse(onFound) }
+  }
+
+  func stopBrowse() {
+    queue.async { self.endBrowse() }
+  }
+
+  private func advertise(name: String, txt: [String: String]) {
+    withdraw()
+    advertised = (name, txt)
+    start(name: name, txt: txt, generation: generation)
+  }
+
+  private func withdraw() {
+    generation &+= 1
+    advertised = nil
+    retries = 0
+    listener?.cancel()
+    listener = nil
+  }
+
+  private func start(name: String, txt: [String: String], generation: Int) {
     var record = NWTXTRecord()
     for (key, value) in txt {
       record[key] = value
@@ -79,17 +116,37 @@ private final class BeaconState {
     // A connection here is nobody we know. Accepting and immediately cancelling
     // keeps the listener healthy; leaving them pending would stall it.
     listener.newConnectionHandler = { connection in connection.cancel() }
-    listener.start(queue: queue)
+    // Without this the publisher is the one half of the module that cannot
+    // fail out loud: a refused Local Network permission parks the listener in
+    // `.waiting` forever and the television advertises nothing, looking for all
+    // the world like a set that simply is not there. `.waiting` recovers on its
+    // own once permission is granted; `.failed` is documented as terminal, so
+    // the listener has to be built again rather than restarted.
+    listener.stateUpdateHandler = { [weak self] state in
+      guard case .failed = state else { return }
+      self?.rebuild(generation: generation)
+    }
+    self.listener?.cancel()
     self.listener = listener
+    listener.start(queue: queue)
   }
 
-  func unpublish() {
+  private func rebuild(generation: Int) {
+    // The record can be replaced or withdrawn while this backs off, and
+    // re-advertising a spent one hands every phone that taps it a dead handle.
+    guard generation == self.generation, advertised != nil, retries < Self.maxRetries
+    else { return }
+    retries += 1
     listener?.cancel()
     listener = nil
+    queue.asyncAfter(deadline: .now() + .seconds(1 << (retries - 1))) { [weak self] in
+      guard let self, generation == self.generation, let record = self.advertised else { return }
+      self.start(name: record.name, txt: record.txt, generation: generation)
+    }
   }
 
-  func startBrowse(_ onFound: @escaping ([[String: Any]]) -> Void) {
-    stopBrowse()
+  private func beginBrowse(_ onFound: @escaping ([[String: Any]]) -> Void) {
+    endBrowse()
     // `bonjourWithTXTRecord`, NOT `bonjour`: the plain descriptor browses without
     // asking for text records, so every result arrives with `.none` metadata and
     // the whole payload is missing. The names differ by one word and the failure
@@ -115,16 +172,16 @@ private final class BeaconState {
       // say the link is empty.
       case .failed:
         onFound([])
-        self?.stopBrowse()
+        self?.endBrowse()
       default:
         break
       }
     }
-    browser.start(queue: queue)
     self.browser = browser
+    browser.start(queue: queue)
   }
 
-  func stopBrowse() {
+  private func endBrowse() {
     browser?.cancel()
     browser = nil
   }

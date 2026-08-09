@@ -10,7 +10,7 @@ const readDeviceValue = vi.hoisted(() => vi.fn((_key: string) => null as string 
 const writeDeviceValue = vi.hoisted(() => vi.fn((_key: string, _value: string) => {}));
 vi.mock('#tv/app/devicePref', () => ({ readDeviceValue, writeDeviceValue }));
 
-import { deviceId, deviceName, resetDeviceIdCache } from './device';
+import { deviceId, resetDeviceIdCache } from './device';
 
 const KEY = 'kroma:cast-receiver-id';
 
@@ -112,14 +112,6 @@ describe('a stored value the server would reject', () => {
 describe('a device that cannot remember', () => {
   it('still answers with a usable id', () => {
     expect(deviceId()).toMatch(ACCEPTABLE);
-  });
-});
-
-describe('deviceName', () => {
-  it('falls back to the bare label when the platform says nothing', () => {
-    expect(deviceName('Apple TV')).toBe('Apple TV');
-    expect(deviceName('TV')).toBe('TV');
-    expect(deviceName('')).toBe('TV');
   });
 });
 

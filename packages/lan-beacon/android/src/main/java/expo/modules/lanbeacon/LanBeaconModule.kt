@@ -3,6 +3,8 @@ package expo.modules.lanbeacon
 import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.os.Handler
+import android.os.Looper
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.net.ServerSocket
@@ -31,12 +33,16 @@ private const val FOUND_EVENT = "lan-beacon:found"
 // Generous: an unanswered resolve poisons the manager, so the cost of waiting
 // too little is far higher than the cost of waiting too long.
 private const val RESOLVE_TIMEOUT_SECONDS = 8L
+private const val MAX_RETRIES = 4
 
 class LanBeaconModule : Module() {
   private var nsd: NsdManager? = null
   private var registration: NsdManager.RegistrationListener? = null
   private var advertisedSocket: ServerSocket? = null
   private var browse: Browse? = null
+  private var advertised: Pair<String, Map<String, String>>? = null
+  private var retries = 0
+  private val handler = Handler(Looper.getMainLooper())
 
   override fun definition() = ModuleDefinition {
     Name("LanBeacon")
@@ -48,7 +54,7 @@ class LanBeaconModule : Module() {
 
     Function("unpublish") { unpublish() }
 
-    Function("startBrowse") { startBrowse() }
+    Function("startBrowse") { epoch: Int -> startBrowse(epoch) }
 
     Function("stopBrowse") { stopBrowse() }
 
@@ -66,8 +72,16 @@ class LanBeaconModule : Module() {
   }
 
   private fun publish(name: String, txt: Map<String, String>) {
-    val manager = manager() ?: return
     unpublish()
+    advertised = name to txt
+    retries = 0
+    republish()
+  }
+
+  private fun republish() {
+    val (name, txt) = advertised ?: return
+    val manager = manager() ?: return
+    releaseRegistration()
 
     // A DNS-SD advertisement needs a port, so one is taken and held. Nothing
     // ever connects to it: the record IS the message, and the grant it leads to
@@ -83,8 +97,21 @@ class LanBeaconModule : Module() {
       for ((key, value) in txt) setAttribute(key, value)
     }
     val listener = object : NsdManager.RegistrationListener {
-      override fun onServiceRegistered(info: NsdServiceInfo) = Unit
-      override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
+      override fun onServiceRegistered(info: NsdServiceInfo) {
+        retries = 0
+      }
+
+      // A television is the one device nobody is holding, so a beacon that dies
+      // silently is a beacon nobody notices. NSD fails registration for reasons
+      // that pass - Wi-Fi settling after a cold boot, a name already taken -
+      // and the set would otherwise advertise nothing for the rest of the run.
+      override fun onRegistrationFailed(info: NsdServiceInfo, errorCode: Int) {
+        if (retries >= MAX_RETRIES) return
+        retries += 1
+        val delay = 1000L shl (retries - 1)
+        handler.postDelayed({ if (advertised != null) republish() }, delay)
+      }
+
       override fun onServiceUnregistered(info: NsdServiceInfo) = Unit
       override fun onUnregistrationFailed(info: NsdServiceInfo, errorCode: Int) = Unit
     }
@@ -96,6 +123,13 @@ class LanBeaconModule : Module() {
   }
 
   private fun unpublish() {
+    advertised = null
+    retries = 0
+    handler.removeCallbacksAndMessages(null)
+    releaseRegistration()
+  }
+
+  private fun releaseRegistration() {
     registration?.let { listener -> runCatching { nsd?.unregisterService(listener) } }
     registration = null
     runCatching { advertisedSocket?.close() }
@@ -104,11 +138,12 @@ class LanBeaconModule : Module() {
 
   // A private method rather than the body of the `Function` lambda: an early
   // return inside one fights the return type Expo infers for it.
-  private fun startBrowse() {
+  private fun startBrowse(epoch: Int) {
     val manager = manager() ?: return
     stopBrowse()
-    browse = Browse(manager) { services -> sendEvent(FOUND_EVENT, mapOf("services" to services)) }
-      .also { it.start() }
+    browse = Browse(manager) { services ->
+      sendEvent(FOUND_EVENT, mapOf("services" to services, "epoch" to epoch))
+    }.also { it.start() }
   }
 
   private fun stopBrowse() {
@@ -131,6 +166,7 @@ private class Browse(
   private val audible = linkedMapOf<String, Map<String, Any>>()
   private val pending = ArrayBlockingQueue<NsdServiceInfo>(64)
   private val running = AtomicBoolean(false)
+  private val discovering = AtomicBoolean(false)
   private var worker: Thread? = null
 
   private val listener = object : NsdManager.DiscoveryListener {
@@ -152,8 +188,8 @@ private class Browse(
     // multicast filtered on guest wifi, another app holding NSD, or the
     // permission refused. Saying "nothing here" beats a picker that waits.
     override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-      running.set(false)
-      onFound(emptyList())
+      discovering.set(false)
+      if (running.getAndSet(false)) onFound(emptyList())
     }
 
     override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
@@ -161,12 +197,14 @@ private class Browse(
 
   fun start() {
     if (!running.compareAndSet(false, true)) return
+    discovering.set(true)
     val started = runCatching {
       nsd.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
     }.isSuccess
     if (!started) {
       // No multicast on this network: an empty view, and the caller falls back
       // to the server source it always had.
+      discovering.set(false)
       running.set(false)
       onFound(emptyList())
       return
@@ -174,9 +212,14 @@ private class Browse(
     worker = Thread { drain() }.also { it.start() }
   }
 
+  // Not gated on `running`: the worker clears that flag on its own, and a stop
+  // that read it as proof of having unregistered would leave this discovery on
+  // the shared NsdManager while the next browse registers another.
   fun stop() {
-    if (!running.compareAndSet(true, false)) return
-    runCatching { nsd.stopServiceDiscovery(listener) }
+    running.set(false)
+    if (discovering.compareAndSet(true, false)) {
+      runCatching { nsd.stopServiceDiscovery(listener) }
+    }
     worker?.interrupt()
     worker = null
   }
@@ -209,10 +252,10 @@ private class Browse(
       val answered = runCatching { gate.poll(RESOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) }
         .getOrNull() != null
       if (!answered) {
-        // Nothing may be resolved through this manager again. Stop rather than
-        // spin: `startBrowse` builds a fresh one.
-        running.set(false)
-        onFound(emptyList())
+        // Nothing may be resolved through this manager again (or `stop` came in
+        // and interrupted the wait). Stop rather than spin: `startBrowse` builds
+        // a fresh one, and a stopped browse must not report over its successor.
+        if (running.getAndSet(false)) onFound(emptyList())
         return
       }
     }

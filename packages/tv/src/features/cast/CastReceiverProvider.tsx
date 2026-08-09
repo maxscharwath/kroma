@@ -21,7 +21,7 @@ import { applyCastCommand } from '#tv/features/cast/applyCommand';
 import { castReport, onCastReportChange } from '#tv/features/cast/castBridge';
 import { castReceiverPrefStore } from '#tv/features/cast/castPref';
 import { setCastControllers, setCastUplink } from '#tv/features/cast/controllers';
-import { deviceId, deviceName } from '#tv/shared/device';
+import { deviceId } from '#tv/shared/device';
 
 const DRIFT_MS = 20_000;
 const FALLBACK_BEAT_MS = 10_000;
@@ -34,15 +34,17 @@ const AUTH_WAIT_TICKS = 50;
 export function CastReceiverProvider({
   client,
   lan,
+  name,
   children,
 }: Readonly<{
   client: KromaClient | null;
   lan?: LanDiscoveryBridge;
+  name: string;
   children: ReactNode;
 }>) {
   return (
     <>
-      {client ? <CastReceiver client={client} lan={lan} /> : null}
+      {client ? <CastReceiver client={client} lan={lan} name={name} /> : null}
       {children}
     </>
   );
@@ -51,7 +53,8 @@ export function CastReceiverProvider({
 function CastReceiver({
   client,
   lan,
-}: Readonly<{ client: KromaClient; lan?: LanDiscoveryBridge }>) {
+  name,
+}: Readonly<{ client: KromaClient; lan?: LanDiscoveryBridge; name: string }>) {
   const nav = useNav();
   const t = useT();
   const { user } = useAuth();
@@ -59,8 +62,8 @@ function CastReceiver({
   const [castable] = useStoredPref(castReceiverPrefStore);
 
   // Read through a ref so the effect below doesn't reconnect on every render.
-  const deps = useRef({ client, nav, t, platform });
-  deps.current = { client, nav, t, platform };
+  const deps = useRef({ client, nav, t, platform, name });
+  deps.current = { client, nav, t, platform, name };
 
   const applied = useRef(0);
   const signedIn = Boolean(user);
@@ -81,7 +84,6 @@ function CastReceiver({
     if (!signedIn || castable === 'off') return;
     const publish = lan?.publish;
     if (!publish) return;
-    const name = deviceName(platform);
     try {
       return publish({
         name,
@@ -91,7 +93,7 @@ function CastReceiver({
       // A platform that refuses to publish still casts through the server.
       return;
     }
-  }, [signedIn, castable, platform, lan]);
+  }, [signedIn, castable, platform, lan, name]);
 
   useEffect(() => {
     if (!signedIn || castable === 'off') return;
@@ -122,7 +124,7 @@ function CastReceiver({
               seed={who.username}
               size={40}
               roundness={0.35}
-              src={deps.current.client.resolveArt(who.avatarUrl ?? undefined)}
+              src={deps.current.client.resolveArt(who.avatarUrl ?? undefined, 40)}
             />
           ),
           tone: 'success',
@@ -141,7 +143,7 @@ function CastReceiver({
       try {
         const reply = await deps.current.client.announceCast({
           receiverId: id,
-          name: deviceName(deps.current.platform),
+          name: deps.current.name,
           platform: deps.current.platform,
           lastAppliedSeq: applied.current,
           playback: castReport(deps.current.t) ?? undefined,
@@ -165,7 +167,7 @@ function CastReceiver({
         events.send({
           type: 'cast.hello',
           receiverId: id,
-          name: deviceName(deps.current.platform),
+          name: deps.current.name,
           platform: deps.current.platform,
         });
         pushState();

@@ -174,8 +174,22 @@ export default function SignIn() {
     })),
   ];
 
+  // The screen owns the way back, not each phase: the same control in the same
+  // corner on every step, which is what the TV and web gates do. The gate is
+  // the root and has nowhere to go; the sign-up form returns to the server
+  // list it came from rather than all the way out.
+  function backFrom(kind: Phase['kind']): (() => void) | undefined {
+    if (kind === 'gate') return undefined;
+    if (kind !== 'form') return backToGate;
+    return () => {
+      setPassword('');
+      setError(null);
+      setPhase({ kind: 'server' });
+    };
+  }
+
   return (
-    <OnboardingScreen covers={covers}>
+    <OnboardingScreen covers={covers} onBack={backFrom(phase.kind)}>
       {phase.kind === 'gate' && (
         <ProfileGate
           tiles={gateTiles}
@@ -202,7 +216,6 @@ export default function SignIn() {
           onPickSaved={pickSaved}
           onPickDiscovered={(url) => void connectDiscovered(url)}
           onAddServer={() => router.push('/connect')}
-          onBack={backToGate}
         />
       )}
       {phase.kind === 'pin' && (
@@ -219,7 +232,6 @@ export default function SignIn() {
             setPin(next);
             if (next.length === 4) void enterSaved(phase.account, next);
           }}
-          onBack={backToGate}
         />
       )}
       {(phase.kind === 'password' || phase.kind === 'form') && (
@@ -240,15 +252,6 @@ export default function SignIn() {
           onIdentifier={setIdentifier}
           onPassword={setPassword}
           onSubmit={() => void submit(phase.kind === 'password' ? phase.username : identifier)}
-          onBack={() => {
-            if (phase.kind === 'form') {
-              setPassword('');
-              setError(null);
-              setPhase({ kind: 'server' });
-            } else {
-              backToGate();
-            }
-          }}
         />
       )}
     </OnboardingScreen>

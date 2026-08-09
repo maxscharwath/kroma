@@ -8,7 +8,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
 import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor } from '#ui/core';
-import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { bySize, CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { FocusRegion } from '#ui/lib/focus-scope';
 
 // The group's own padding, and therefore how much smaller a segment's corner
@@ -25,26 +25,10 @@ const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc
     desc: { font: 'ui', fontSize: 11, color: 'textDim' },
   },
   variants: {
-    size: {
-      sm: {
-        root: {
-          px: CONTROL.sm.px,
-          py: CONTROL.sm.py - GROUP_PAD,
-          radius: CONTROL.sm.radius - GROUP_PAD,
-          minH: CONTROL.sm.line,
-        },
-        label: { fontSize: CONTROL.sm.fontSize, lineHeight: CONTROL.sm.line },
-      },
-      md: {
-        root: {
-          px: CONTROL.md.px,
-          py: CONTROL.md.py - GROUP_PAD,
-          radius: CONTROL.md.radius - GROUP_PAD,
-          minH: CONTROL.md.line,
-        },
-        label: { fontSize: CONTROL.md.fontSize, lineHeight: CONTROL.md.line },
-      },
-    },
+    size: bySize((m) => ({
+      root: { px: m.px, py: m.py - GROUP_PAD, radius: m.radius - GROUP_PAD, minH: m.line },
+      label: { fontSize: m.fontSize, lineHeight: m.line },
+    })),
     active: {
       true: {
         root: { bg: 'accentSoft', _hover: { bg: 'accentSoft' } },

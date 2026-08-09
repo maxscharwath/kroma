@@ -2,9 +2,9 @@
 // clients so the choice follows the user everywhere.
 
 import { LOCALES, type Locale } from '@kroma/core';
-import { Icon, styles } from '@kroma/ui/kit';
+import { Box, Icon, styles, Txt } from '@kroma/ui/kit';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { PageHeader } from '#mobile/components/PageHeader';
 import { Screen } from '#mobile/components/ui';
 import { useI18n, useT } from '#mobile/lib/i18n';
@@ -36,25 +36,25 @@ export default function LanguageSettings() {
   return (
     <Screen padded={false}>
       <PageHeader title={t('account.uiLanguage')} />
-      <View style={s.body}>
-        <Text style={s.hint}>{t('account.uiLanguageDesc')}</Text>
-        <View style={s.card}>
+      <Box style={s.body}>
+        <Txt style={s.hint}>{t('account.uiLanguageDesc')}</Txt>
+        <Box style={s.card}>
           {LOCALES.map((l) => (
             <Pressable
               key={l.code}
               onPress={() => void pick(l.code)}
               style={({ pressed }) => [s.row, pressed && s.rowPressed]}
             >
-              <Text style={[s.rowLabel, locale === l.code && { fontWeight: '700' }]}>
+              <Txt style={[s.rowLabel, locale === l.code && { fontWeight: '700' }]}>
                 {t(l.labelKey)}
-              </Text>
+              </Txt>
               {locale === l.code ? (
                 <Icon name="check" size={17} stroke={2.4} color={colors.accent} />
               ) : null}
             </Pressable>
           ))}
-        </View>
-      </View>
+        </Box>
+      </Box>
     </Screen>
   );
 }

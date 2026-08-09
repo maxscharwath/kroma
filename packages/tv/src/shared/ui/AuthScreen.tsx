@@ -10,15 +10,17 @@ import {
   type SplashCover,
   styles,
 } from '@kroma/ui/kit';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { memo, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { AUTH_SCREENS } from '#tv/app/navPolicy';
 import { useConnectionMaybe } from '#tv/app/providers/connection';
-import { useNav } from '#tv/app/router';
+import { type TvChrome, useNav } from '#tv/app/router';
 
-const BACKDROP = `radial-gradient(120% 90% at 50% 0%, #15131C, ${colors.bg} 68%)`;
+const BACKDROP = gradient(`radial-gradient(120% 90% at 50% 0%, #15131C, ${colors.bg} 68%)`);
 
 /** The public `/api/splash` sample mapped for the kit's universal splash
  * backdrop, so the TV gate dresses like the web and phone ones. Empty until
- * the server answers (or when it has no artwork), which keeps the radial. */
+ * the first server answers (or when it has no artwork), which keeps the
+ * radial. */
 function useSplashCovers(): SplashCover[] {
   const t = useT();
   const connection = useConnectionMaybe();
@@ -66,18 +68,45 @@ function useSplashCovers(): SplashCover[] {
   return covers;
 }
 
-/** The shared centred backdrop for the TV auth / connect / pin screens. The
- * pinned Back button self-hides at the signed-out root. */
+// ONE instance for the whole gate, mounted by the outlet rather than by each
+// screen (see `TvChrome`). That is what makes the sign-in read as one room the
+// viewer moves through: fetched once, so `/api/splash` - which answers with a
+// fresh RANDOM sample every call - cannot deal a different cover on the next
+// step, and its slideshow and pan keep running instead of restarting.
+const GateBackdrop = memo(function GateBackdrop() {
+  const covers = useSplashCovers();
+  return (
+    <Box fill style={BACKDROP}>
+      <SplashBackdrop covers={covers} />
+    </Box>
+  );
+});
+
+/**
+ * The routes that wear the gate's artwork: every screen built on
+ * {@link AuthScreen}. Derived from the access table rather than hand-listed, so
+ * a new signed-out screen cannot get the guard and silently lose the artwork -
+ * `ACCESS` is exhaustive by type, a literal here would not be. The two extras
+ * are the signed-in screens that still use {@link AuthScreen}.
+ *
+ * `under: true`: decorative, never a focus target. Handed to
+ * `<TvNavProvider chrome={…}>`.
+ */
+export const AUTH_BACKDROP: TvChrome = {
+  routes: [...AUTH_SCREENS, 'profileMenu', 'report'],
+  render: GateBackdrop,
+  under: true,
+};
+
+/** The shared centred scaffold for the TV auth / connect / pin screens: the
+ * artwork is the outlet's (see {@link AUTH_BACKDROP}), so this brings only the
+ * scroll and the pinned Back button, which self-hides at the signed-out
+ * root. */
 export function AuthScreen({ children }: Readonly<{ children: ReactNode }>) {
   const nav = useNav();
   const t = useT();
-  const covers = useSplashCovers();
   return (
-    <Box fill z={10} style={gradient(BACKDROP)}>
-      {/* Auth content (lists, keyboards, hints) descends into the ribbon
-          zone on a TV, so the splash carries a wash over the ribbons here:
-          muted ink stays AA-readable and the colour still comes through. */}
-      <SplashBackdrop covers={covers} dim={0.45} />
+    <Box fill z={10}>
       <FocusScroll style={s.scroll} contentStyle={s.content}>
         {children}
       </FocusScroll>

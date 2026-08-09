@@ -75,8 +75,11 @@ export function RegisterFields({
         onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
       />
 
+      {/* `md` against the app's `sm` default, matching the sign-in form these
+          sit beside; see the note in auth-forms.tsx. */}
       <Field
         w="100%"
+        size="md"
         label={t('auth.email')}
         hideLabel
         type="email"
@@ -87,6 +90,7 @@ export function RegisterFields({
       />
       <Field
         w="100%"
+        size="md"
         label={t('auth.username')}
         hideLabel
         icon="user"
@@ -97,6 +101,7 @@ export function RegisterFields({
       />
       <Field
         w="100%"
+        size="md"
         label={t('auth.passwordHint')}
         hideLabel
         type="password"

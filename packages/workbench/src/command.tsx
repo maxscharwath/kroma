@@ -244,14 +244,12 @@ function CommandPalette({
               autoFocus
               icon="search"
               entry={{
+                // The sheet is the shell here: the palette opens focused, and a
+                // fill, an edge or a ring on this row would outline a box the
+                // dialog's own corners clip.
+                flat: true,
                 px: 0,
                 py: 14,
-                radius: 0,
-                bg: 'transparent',
-                borderWidth: 0,
-                // The sheet is the focus surface: the palette opens focused, and
-                // a field ring here outlines a row the dialog's corners clip.
-                ring: false,
                 gap: 10,
                 textStyle: s.input,
               }}

@@ -12,7 +12,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { TextField, type TextFieldProps } from '#ui/components/atoms/text-field';
 import { styles } from '#ui/core';
-import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { bySize, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { useTDefault } from '#ui/services/i18n';
 
 interface NumberFieldProps
@@ -160,8 +160,7 @@ const TABULAR = { fontVariant: ['tabular-nums' as const] };
 
 const s = styles({
   step: { w: 24, center: true, radius: 4 },
-  sm: { h: Math.floor((CONTROL.sm.line - 2) / 2) },
-  md: { h: Math.floor((CONTROL.md.line - 2) / 2) },
+  ...bySize((m) => ({ h: Math.floor((m.line - 2) / 2) })),
 });
 
 export type { NumberFieldProps };

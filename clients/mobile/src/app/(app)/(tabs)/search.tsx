@@ -2,11 +2,11 @@
 // as a poster grid.
 
 import { type MediaItem, sizedImageUrl } from '@kroma/core';
-import { Field, Icon, styles } from '@kroma/ui/kit';
+import { Box, Field, Icon, styles, Txt } from '@kroma/ui/kit';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { FlatList, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type CardModel, movieCard, showCard } from '#mobile/components/cards';
 import { FadeImage } from '#mobile/components/FadeImage';
@@ -47,9 +47,9 @@ function SuggestedRow({ item }: Readonly<{ item: MediaItem }>) {
         radius={radius.sm}
         style={s.suggestThumb}
       />
-      <Text numberOfLines={2} style={s.suggestTitle}>
+      <Txt lines={2} style={s.suggestTitle}>
         {item.metadata?.title ?? item.title}
-      </Text>
+      </Txt>
       <Pressable
         onPress={() => void play(item.id)}
         hitSlop={8}
@@ -107,7 +107,7 @@ export default function Search() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <SuggestedRow item={item} />}
         ListHeaderComponent={
-          <Text style={[s.suggestHeader, gutters.style]}>{t('content.forYou')}</Text>
+          <Txt style={[s.suggestHeader, gutters.style]}>{t('content.forYou')}</Txt>
         }
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE }}
         keyboardShouldPersistTaps="handled"
@@ -116,9 +116,9 @@ export default function Search() {
   }
 
   return (
-    <View style={[s.screen, { paddingTop: insets.top + spacing.sm }]}>
-      <View style={[s.inputBox, gutters.style]}>
-        <Text style={s.pageTitle}>{t('nav.search')}</Text>
+    <Box style={[s.screen, { paddingTop: insets.top + spacing.sm }]}>
+      <Box style={[s.inputBox, gutters.style]}>
+        <Txt style={s.pageTitle}>{t('nav.search')}</Txt>
         <Field
           label={t('search.placeholder')}
           hideLabel
@@ -127,9 +127,9 @@ export default function Search() {
           onChange={setQuery}
           placeholder={t('search.placeholder')}
         />
-      </View>
+      </Box>
       {searchBody()}
-    </View>
+    </Box>
   );
 }
 

@@ -8,14 +8,15 @@
 // tuned. A one-line TextArea being exactly a TextField tall is the same rule
 // applied twice.
 //
-// Two sizes, because two form factors read at different distances: `md` is the
-// ten-foot default, `sm` is the density a console page wants. A shell that
-// knows which it is states it once with `setEntryDefaults`.
+// Three sizes, because three form factors read at three distances: `sm` is the
+// density a console page wants, `md` a phone held in the hand, `tv` a screen
+// read across a room. A shell that knows which it is states it once with
+// `setEntryDefaults` rather than at every call site.
 
 import type { TextStyle } from 'react-native';
 import { activeTheme, styles } from '#ui/core';
 
-type ControlSize = 'sm' | 'md';
+type ControlSize = 'sm' | 'md' | 'tv';
 
 interface ControlMetrics {
   /** The well's fill. Every control wears it: a filled segmented control
@@ -69,7 +70,71 @@ export const CONTROL: Record<ControlSize, ControlMetrics> = {
     fontSize: 16,
     gap: 14,
   },
+  /** The ten-foot one. A television screen is read across a room and driven by
+   *  a D-pad, so the well is taller and the ink larger than anything a pointer
+   *  needs - the same step <Button> and <OtpField> already take with their own
+   *  `tv` size. The corner is a keyboard key's, so a field and the grid under
+   *  it read as one family rather than two. */
+  tv: {
+    bg: CONTROL_FILL,
+    radius: 22,
+    px: 26,
+    py: 18,
+    line: 30,
+    height: 68,
+    fontSize: 20,
+    gap: 16,
+  },
 };
+
+/**
+ * One slot table per size, built from {@link CONTROL} rather than transcribed.
+ * A control that changes shape with `size` writes the mapping ONCE and gets
+ * every size, so adding a size is an entry in the table above and nothing else
+ * — before this, `sm` and `md` were hand-copied into five recipes and the
+ * fourth size would have been five more clones.
+ */
+export function bySize<T>(build: (metrics: ControlMetrics) => T): Record<ControlSize, T> {
+  return Object.fromEntries(
+    Object.entries(CONTROL).map(([size, metrics]) => [size, build(metrics)]),
+  ) as Record<ControlSize, T>;
+}
+
+/**
+ * The face every KEY wears — the keypad's and the on-screen keyboard's alike.
+ * A keyboard and a keypad are the same object at two scales, so the well, the
+ * edge, the lift, the cursor wash and the amber under focus are declared here
+ * once; a copy in each component is how the two grids drifted into a solid
+ * amber fill on one and a tint on the other. Each grid still owns its own
+ * geometry (the keypad's 88x72, the keyboard's per-size box and corner).
+ *
+ * It lives here rather than beside either component because <Keypad> is a
+ * molecule and <Key> an organism, so neither may import the other — the same
+ * reason lib/group-shape.ts exists.
+ */
+export const keyFace = {
+  root: {
+    center: true,
+    // The same well a field sits in, opaque: a key is a control, not a wash.
+    // Over artwork a translucent tint let every key sample whatever was behind
+    // it, so one keyboard arrived in six colours. The hairline edge and the
+    // lift are what keep a key off the artwork at all.
+    bg: CONTROL.md.bg,
+    border: 'border',
+    shadow: 'card',
+    // A key under the cursor lifts its own wash rather than borrowing the
+    // amber, which is reserved for where focus is. Focus takes the amber EDGE
+    // and not the wash alone: a 16%-alpha tint over a dark key is invisible
+    // across a room, and what reads instead is whatever ring the platform
+    // draws. Going down takes the lit step of that amber, so a press reads as
+    // a press and not as focus arriving again.
+    _hover: { bg: 'surface3' },
+    _focus: { bg: 'accentSoft', border: 'accent' },
+    _press: { bg: 'accentSoftHover', border: 'accentHover' },
+  },
+  label: { color: 'text', fontWeight: '700', _focus: { color: 'accent' } },
+  glyph: { color: 'text', stroke: 1.8, _focus: { color: 'accent' } },
+} as const;
 
 /** The field's edge. Focus wins over invalid: while you are fixing the value,
  * the field should look like the thing you are working in, not like a failure. */
@@ -86,6 +151,37 @@ const shell = styles({ ring: { ring: 'focusLift' } });
 
 export function fieldRing(): TextStyle {
   return shell.ring;
+}
+
+/**
+ * What an entry paints for itself, and what it drops when the shell belongs to
+ * something else — the well of an <InputGroup>, the row of a command palette.
+ * A flattened entry that kept drawing its own fill, edge, corner, lift and ring
+ * paints a second set of all five over the parent's, and its rounded rectangle
+ * shows through as the seam where the addons begin and end.
+ *
+ * Both <TextField> and <TextArea> read it, so the answer to "what does flat
+ * mean" is in one place rather than two that drift.
+ */
+export function fieldShell(
+  metrics: ControlMetrics,
+  at: Readonly<{ flat: boolean; focused: boolean; invalid: boolean; lift?: boolean }>,
+): { box: Record<string, unknown>; edge: TextStyle | null } {
+  if (at.flat) return { box: { radius: 0, bg: 'transparent', borderWidth: 0 }, edge: null };
+  return {
+    box: {
+      radius: metrics.radius,
+      bg: metrics.bg,
+      borderWidth: 1,
+      // The fill is translucent, so a lift is what keeps the field off the
+      // artwork. Only <TextField> asks for it; a textarea sits in a form.
+      ...(at.lift ? { shadow: 'card' } : null),
+    },
+    edge: {
+      borderColor: edgeColor(at.focused, at.invalid),
+      ...(at.focused ? fieldRing() : null),
+    } as TextStyle,
+  };
 }
 
 export const PLACEHOLDER = 'rgba(244, 243, 240, 0.3)';

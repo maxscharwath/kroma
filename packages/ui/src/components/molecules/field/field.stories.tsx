@@ -25,7 +25,7 @@ const form = useForm({ schema, defaultValues: { email: '' }, t: useT() });
 // A bare entry (a header search box). The label is still required and still
 // reaches the platform as the accessible name; only the label ROW is dropped.
 <Field label="Search" hideLabel icon="search" onChange={setQuery}
-       entry={{ h: 68, textStyle: { fontSize: 24 } }} />`,
+       size="tv" />`,
   guidelines: {
     do: [
       'Let the Field render the entry: label, error tint and spacing stay in step.',

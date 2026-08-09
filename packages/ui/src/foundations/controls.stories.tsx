@@ -88,7 +88,7 @@ setEntryDefaults({ physicalKeyboard: true, size: 'sm' });
   matrix: false,
   width: 'fill',
   args: { size: 'sm' as ControlSize },
-  controls: { size: ['sm', 'md'] },
+  controls: { size: ['sm', 'md', 'tv'] },
   render: ({ size }) => <Row size={size} />,
   scenes: [
     {

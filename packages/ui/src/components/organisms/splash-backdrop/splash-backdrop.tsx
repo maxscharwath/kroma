@@ -1,30 +1,28 @@
 // <SplashBackdrop>: the sign-in screens' ambient artwork, one implementation
-// for web, phone and TV: a slideshow of covers dissolving on a slow breathing
-// zoom, graded dark enough to hold a form, with the KROMA wheel stacked
-// across the lower frame as tilted glass ribbons. Purely decorative: it takes
-// no input and hides itself from accessibility.
+// for web, phone and TV: one cover at a time, dissolving on a slow drift under
+// a grade dark enough to hold a form, with the KROMA wheel drawn as a 3px rule
+// along the bottom edge. Purely decorative: it takes no input and hides itself
+// from accessibility.
 //
-// Platform seams, in the NavPill tradition: the web keeps the photographic
-// multiply grade, the saturation lift and the edge vignette (CSS-only
-// effects); native approximates the grade with a plain wash. The ribbons
-// frost through <Frost>, so they blur for real wherever the shell registered
-// a blur view and degrade to a wash elsewhere.
+// Everything above the artwork is a gradient, which both platforms paint (see
+// lib/css). The one seam is the photographic grade: a CSS filter the web tier
+// gets and native does without.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  type LayoutChangeEvent,
   Platform,
   Image as RNImage,
   type StyleProp,
-  useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
-import { Frost } from '#ui/components/atoms/frost';
-import { Img } from '#ui/components/atoms/img';
+import { IMG_FADE_MS, Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
-import { styles } from '#ui/core';
+import { styles, WHEEL_COLORS } from '#ui/core';
+import { gradient } from '#ui/lib/css';
 
 const WEB = Platform.OS === 'web';
 
@@ -32,38 +30,41 @@ const WEB = Platform.OS === 'web';
 // dissolve rather than a cut.
 const HOLD_MS = 18000;
 const FADE_MS = 2800;
-const BREATHE_MS = 20000;
-const DRIFT_MS = 30000;
 
-// The full KROMA wheel in wheel order, thinnest first into a broad base,
-// like layered panes seen in perspective. Every step is smaller than the
-// band above it, so the stack is one continuous overlap from its first
-// ribbon to past the frame's bottom edge (the last band overshoots 100% to
-// cover the wedge the tilt exposes). `drift` staggers the shared clock so
-// the ribbons slide at different amplitudes.
-const WHEEL_BANDS = [
-  { color: 'rgba(242, 104, 92, .30)', top: '44%', height: '8%', drift: 1 },
-  { color: 'rgba(244, 182, 66, .30)', top: '50%', height: '12%', drift: -0.7 },
-  { color: 'rgba(95, 191, 143, .30)', top: '58%', height: '17%', drift: 0.5 },
-  { color: 'rgba(79, 157, 224, .30)', top: '68%', height: '23%', drift: -1 },
-  { color: 'rgba(99, 102, 241, .30)', top: '80%', height: '30%', drift: 0.8 },
-  { color: 'rgba(168, 85, 247, .30)', top: '94%', height: '42%', drift: -0.4 },
-] as const;
+// The grade that keeps a centred form readable over ANY artwork, in two parts:
+// a vertical veil that seats the frame top and bottom, and a radial one that
+// sinks the middle, where the form is.
+const VEIL = gradient(
+  'linear-gradient(180deg, rgba(8, 8, 10, 0.86) 0%, rgba(8, 8, 10, 0.5) 20%, rgba(8, 8, 10, 0.3) 38%, rgba(8, 8, 10, 0.72) 62%, rgba(8, 8, 10, 0.97) 88%)',
+);
+const VIGNETTE = gradient(
+  'radial-gradient(58% 46% at 50% 50%, rgba(8, 8, 10, 0.72) 0%, rgba(8, 8, 10, 0.34) 58%, rgba(8, 8, 10, 0) 100%)',
+);
+// The wheel's warm and cool ends breathed back into the foot of the frame, so
+// the rule below reads as where a gradient lands rather than as a sticker.
+const FOOT = gradient(
+  'linear-gradient(0deg, rgba(244, 180, 66, 0.07) 0%, rgba(79, 157, 224, 0.05) 46%, rgba(79, 157, 224, 0) 100%)',
+);
+const FOOT_H = 190;
+const RULE_H = 3;
 
-// A portrait phone is mostly HEIGHT, and the landscape percentages land as a
-// thin strip at the bottom of it. Compact screens take the same order and
-// tilt over a taller run: the stack opens just under the midline and grows
-// past the bottom edge, so the ribbons carry the lower half of the frame.
-const COMPACT_BANDS = [
-  { color: 'rgba(242, 104, 92, .30)', top: '48%', height: '6%', drift: 1 },
-  { color: 'rgba(244, 182, 66, .30)', top: '53%', height: '9%', drift: -0.7 },
-  { color: 'rgba(95, 191, 143, .30)', top: '59%', height: '12%', drift: 0.5 },
-  { color: 'rgba(79, 157, 224, .30)', top: '66%', height: '16%', drift: -1 },
-  { color: 'rgba(99, 102, 241, .30)', top: '74%', height: '21%', drift: 0.8 },
-  { color: 'rgba(168, 85, 247, .30)', top: '86%', height: '34%', drift: -0.4 },
-] as const;
+// How far the artwork travels under the frame, as a fraction of the viewport,
+// and the scale that keeps an edge out of the picture while it does. The scale
+// floor is what bounds the pan: at scale S the frame hides (S - 1) / 2 of the
+// width on each side, so raising the travel means raising the floor with it.
+const PAN_X = 0.06;
+const PAN_Y = 0.04;
+const ZOOM: number[] = [1.16, 1.24];
 
-const COMPACT_MAX_W = 600;
+// That travel is a FRACTION of the box, so the drift has to be given a speed
+// rather than a duration: one fixed duration walks 82px on a phone and 246px
+// on a 1080p panel, which reads as frozen on the one and as a pan on the
+// other. The duration comes from the measured travel instead, so every screen
+// drifts at the same pixels per second; the bounds keep a hairline box from
+// strobing and a wall-sized one from stalling.
+const DRIFT_PX_PER_S = 4;
+const DRIFT_MIN_MS = 8000;
+const DRIFT_MAX_MS = 60000;
 
 interface SplashCover {
   /** Full artwork URL, already resolved against the server. */
@@ -78,28 +79,35 @@ interface SplashBackdropProps {
   covers: readonly SplashCover[];
   /** How long each cover holds before the next dissolve. */
   holdMs?: number;
-  /** The stacked wheel ribbons; a host with a busy screen can turn them off. */
-  bands?: boolean;
-  /** 0..1 wash drawn OVER the ribbons. A gate whose content stays in the
-   *  upper half leaves it at 0; a host whose lists, keyboards or hints
-   *  descend into the ribbon zone (the TV auth screens) raises it, so muted
-   *  ink keeps AA contrast without giving up the colour. */
-  dim?: number;
   style?: StyleProp<ViewStyle>;
 }
 
+/** The pan for one axis: the frame crawls from one side of its overscan to the
+ *  other and back, as a fraction of the box it was measured against. */
+function pan(clock: Animated.Value, by: number): Animated.AnimatedInterpolation<number> {
+  return clock.interpolate({ inputRange: [0, 1], outputRange: [by, -by] });
+}
+
+/** One leg of the drift, in ms: the travel the pan covers across the measured
+ *  box, walked at `DRIFT_PX_PER_S`. */
+function legMs(width: number, height: number): number {
+  const travel = Math.hypot(width * PAN_X * 2, height * PAN_Y * 2);
+  return Math.min(Math.max((travel / DRIFT_PX_PER_S) * 1000, DRIFT_MIN_MS), DRIFT_MAX_MS);
+}
+
+/** 0..1 and back, `duration` each way, forever. */
 function useLoop(duration: number): Animated.Value {
   const value = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const half = {
+    const leg = {
       duration,
       easing: Easing.inOut(Easing.quad),
       useNativeDriver: !WEB,
     } as const;
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(value, { toValue: 1, ...half }),
-        Animated.timing(value, { toValue: 0, ...half }),
+        Animated.timing(value, { toValue: 1, ...leg }),
+        Animated.timing(value, { toValue: 0, ...leg }),
       ]),
     );
     anim.start();
@@ -108,50 +116,11 @@ function useLoop(duration: number): Animated.Value {
   return value;
 }
 
-function BandStack() {
-  const clock = useLoop(DRIFT_MS);
-  const { width } = useWindowDimensions();
-  const bands = width > 0 && width < COMPACT_MAX_W ? COMPACT_BANDS : WHEEL_BANDS;
-  return (
-    <Box absolute style={s.stack}>
-      {bands.map((band) => (
-        <Animated.View
-          key={band.color}
-          style={[
-            s.band,
-            {
-              top: band.top,
-              height: band.height,
-              backgroundColor: band.color,
-              transform: [
-                {
-                  translateX: clock.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-34 * band.drift, 34 * band.drift],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <Frost amount={12} />
-        </Animated.View>
-      ))}
-    </Box>
-  );
-}
-
 /** The universal sign-in splash: hosts fetch `/api/splash`, map it to covers
- * and drop this behind their gate. It owns the rotation, the pre-decode of
- * the next cover, the grade that keeps a form readable, the ribbons and the
+ * and drop this behind their gate. It owns the rotation, the pre-decode of the
+ * next cover, the grade that keeps a form readable, the wheel rule and the
  * caption; the host owns everything interactive above it. */
-function SplashBackdrop({
-  covers,
-  holdMs = HOLD_MS,
-  bands = true,
-  dim = 0,
-  style,
-}: Readonly<SplashBackdropProps>) {
+function SplashBackdrop({ covers, holdMs = HOLD_MS, style }: Readonly<SplashBackdropProps>) {
   const [slide, setSlide] = useState(0);
   useEffect(() => {
     if (covers.length < 2) return;
@@ -176,47 +145,62 @@ function SplashBackdrop({
     }
   }, [slide, covers]);
 
-  const breathe = useLoop(BREATHE_MS);
+  // The drift is a pan across a frame held oversized for it, so no edge of the
+  // artwork ever enters the picture. Measured off THIS box rather than off the
+  // window: a host that gives the backdrop less than the whole screen still
+  // keeps its edges out of frame. The same measurement times the crawl, so a
+  // phone and a 65-inch panel drift at one speed.
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { width, height } = e.nativeEvent.layout;
+    setBox((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+  };
+  const clock = useLoop(legMs(box.width, box.height));
+  // Memoised: a fresh transform array hands <Animated.View> a new node graph to
+  // tear down and re-attach, and on native that is bridge traffic for four
+  // nodes - re-issued mid-animation on every render. The deps only move on a
+  // genuine resize.
+  const drift = useMemo(
+    () => [
+      { translateX: pan(clock, box.width * PAN_X) },
+      { translateY: pan(clock, box.height * PAN_Y) },
+      { scale: clock.interpolate({ inputRange: [0, 1], outputRange: ZOOM }) },
+    ],
+    [clock, box.width, box.height],
+  );
   const cover = covers[slide % Math.max(covers.length, 1)];
   if (!cover) return null;
 
   return (
     <Box
-      absolute
-      top={0}
-      right={0}
-      bottom={0}
-      left={0}
+      fill
+      bg="bg"
       overflow="hidden"
       pointerEvents="none"
       aria-hidden
-      style={[WEB ? (s.isolate as ViewStyle) : null, style]}
+      onLayout={onLayout}
+      style={style}
     >
-      <Animated.View
-        style={[
-          s.fill,
-          WEB ? (s.saturate as ViewStyle) : null,
-          {
-            transform: [
-              { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) },
-            ],
-          },
-        ]}
-      >
-        <Img src={cover.url} fill duration={FADE_MS} position="50% 30%" background="#101014" />
+      <Animated.View style={[s.art, WEB ? (s.grade as ViewStyle) : null, { transform: drift }]}>
+        {/* The long dissolve belongs to the HANDOVER between two covers; the
+            gate's first sight of any artwork takes the kit's short reveal
+            instead, since a 2.8s ramp from the page colour reads as a fade
+            from black rather than as a cross-fade. */}
+        <Img
+          src={cover.url}
+          fill
+          duration={slide === 0 ? IMG_FADE_MS : FADE_MS}
+          position="50% 40%"
+        />
       </Animated.View>
-      {/* The grade that keeps a centred form readable on ANY cover: multiply
-          caps luminance while keeping hue on web; native takes a plain wash. */}
-      {WEB ? (
-        <Box absolute top={0} right={0} bottom={0} left={0} style={s.multiply as ViewStyle} />
-      ) : null}
-      {WEB ? null : (
-        <Box absolute top={0} right={0} bottom={0} left={0} bg="rgba(8, 8, 10, 0.34)" />
-      )}
-      {bands ? <BandStack /> : null}
-      {dim > 0 ? (
-        <Box absolute top={0} right={0} bottom={0} left={0} bg={`rgba(8, 8, 10, ${dim})`} />
-      ) : null}
+      <Box fill style={VEIL} />
+      <Box fill style={VIGNETTE} />
+      <Box absolute left={0} right={0} bottom={0} h={FOOT_H} style={FOOT} />
+      <Box absolute left={0} right={0} bottom={0} h={RULE_H} row>
+        {WHEEL_COLORS.map((segment) => (
+          <Box key={segment} flex bg={segment} />
+        ))}
+      </Box>
       {cover.caption ? (
         // Bounded on BOTH sides and clipped to one line: a long title on a
         // portrait phone otherwise runs off the left edge.
@@ -224,18 +208,21 @@ function SplashBackdrop({
           absolute
           left={20}
           right={20}
-          bottom={14}
+          bottom={20}
           row
           align="center"
           justify="flex-end"
-          gap={8}
+          gap={13}
         >
           {cover.eyebrow ? (
-            <Txt variant="overline" color="white/55" style={s.eyebrow}>
-              {cover.eyebrow}
-            </Txt>
+            <>
+              <Txt variant="overline" color="white/50" style={s.eyebrow}>
+                {cover.eyebrow}
+              </Txt>
+              <Box w={16} h={1} bg="white/30" />
+            </>
           ) : null}
-          <Txt color="white/80" lines={1} style={s.caption}>
+          <Txt color="white/90" lines={1} style={s.caption}>
             {cover.caption}
           </Txt>
         </Box>
@@ -245,23 +232,12 @@ function SplashBackdrop({
 }
 
 const s = styles({
-  fill: { absolute: true, top: 0, right: 0, bottom: 0, left: 0 },
-  stack: { left: '-25%', right: '-25%', top: 0, bottom: 0, transform: [{ rotate: '-14deg' }] },
-  band: {
-    absolute: true,
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  eyebrow: { fontSize: 10, shrink: 0 },
-  caption: { fontSize: 12, fontWeight: '500', shrink: 1 },
+  art: { absolute: true, top: 0, right: 0, bottom: 0, left: 0 },
+  eyebrow: { fontSize: 10, letterSpacing: 2.6, shrink: 0 },
+  caption: { fontSize: 14, fontWeight: '500', shrink: 1 },
   // Web-tier CSS reached through the style escape hatch, exactly like the
-  // NavPill's lens: these keys are ignored by native.
-  isolate: { isolation: 'isolate' },
-  saturate: { filter: 'saturate(1.2)' },
-  multiply: { backgroundColor: '#8f8f97', mixBlendMode: 'multiply' },
+  // NavPill's lens: this key is ignored by native.
+  grade: { filter: 'brightness(0.86) saturate(1.02)' },
 });
 
 export type { SplashBackdropProps, SplashCover };

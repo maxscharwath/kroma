@@ -1,5 +1,5 @@
-export type { KeyboardSize, KeyProps, KeyTone } from './key';
-export { Key, keyFace } from './key';
+export type { KeyboardSize, KeyProps } from './key';
+export { Key } from './key';
 export type { OnScreenKeyboardProps } from './keyboard';
 export { OnScreenKeyboard } from './keyboard';
 export type { KeyboardLayout } from './keyboard-layouts';

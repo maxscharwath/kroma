@@ -1,7 +1,14 @@
 // The kit's atoms: each owns one visual idea and knows tokens and focus, not the app.
 
 export type { AvatarProps } from './avatar';
-export { AVATAR_GRADIENT, AVATAR_GRADIENTS, Avatar, gradientFor, initialsOf } from './avatar';
+export {
+  AVATAR_GRADIENT,
+  AVATAR_GRADIENTS,
+  AVATAR_ROUNDNESS,
+  Avatar,
+  gradientFor,
+  initialsOf,
+} from './avatar';
 export type { BadgeProps, BadgeTone } from './badge';
 export { Badge, badgeVariants, qualityTone } from './badge';
 export type { BoxProps } from './box';

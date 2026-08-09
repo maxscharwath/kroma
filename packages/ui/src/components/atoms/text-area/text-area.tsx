@@ -18,9 +18,8 @@ import {
   CONTROL,
   type ControlSize,
   controlMetrics,
-  edgeColor,
   entryDefaultPhysicalKeyboard,
-  fieldRing,
+  fieldShell,
   NO_OUTLINE,
   PLACEHOLDER,
 } from '#ui/lib/field-shell';
@@ -49,9 +48,9 @@ interface TextAreaProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'>
   /** A caller setting a bigger font here should set `lineHeight` with it: that
    *  is what `rows` counts. */
   textStyle?: StyleProp<TextStyle>;
-  /** The amber focus ring. Off for an entry flattened into other chrome, where
-   *  the surrounding sheet is the focus surface. */
-  ring?: boolean;
+  /** The shell belongs to something else - the well of an <InputGroup>. See
+   *  `fieldShell` for what that drops and why. */
+  flat?: boolean;
 }
 
 function TextArea({
@@ -70,7 +69,7 @@ function TextArea({
   label,
   size,
   textStyle,
-  ring = true,
+  flat = false,
   ...box
 }: Readonly<TextAreaProps>) {
   const metrics = controlMetrics(size);
@@ -83,6 +82,7 @@ function TextArea({
   const min = lines(rows);
   const max = lines(maxRows);
   const grown = Math.min(Math.max(content, min), max);
+  const shell = fieldShell(metrics, { flat, focused, invalid });
 
   return (
     <Box
@@ -90,20 +90,14 @@ function TextArea({
       align="flex-start"
       px={metrics.px}
       py={metrics.py}
-      radius={metrics.radius}
-      bg={metrics.bg}
-      borderWidth={1}
+      {...shell.box}
       {...box}
       // The whole field is the caret's landing zone, padding included. A drag a
       // surrounding list steals never releases here, so scrolling past the field
       // cannot summon the caret.
       onStartShouldSetResponder={() => physicalKeyboard}
       onResponderRelease={() => input.current?.focus()}
-      style={[
-        { borderColor: edgeColor(focused, invalid) },
-        focused && ring ? fieldRing() : null,
-        box.style,
-      ]}
+      style={[shell.edge, box.style]}
     >
       {physicalKeyboard ? (
         <TextInput

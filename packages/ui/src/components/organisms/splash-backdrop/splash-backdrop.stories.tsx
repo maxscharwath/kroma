@@ -4,8 +4,8 @@ import { Txt } from '#ui/components/atoms/text';
 import { SplashBackdrop } from './splash-backdrop';
 
 // Real photographs from the workbench's sample art (see lib/sample-art): the
-// grade and ribbons only read over an actual image. Larger than the tile
-// sizes on purpose: this one fills the whole story box.
+// grade only reads over an actual image. Larger than the tile sizes on
+// purpose: this one fills the whole story box.
 const SPLASH_ART = 'https://picsum.photos/seed';
 const COVERS = [
   {
@@ -23,7 +23,7 @@ const COVERS = [
 export default story({
   name: 'SplashBackdrop',
   group: 'Brand',
-  docs: "The sign-in screens' ambient artwork, one implementation for web, phone and TV: covers dissolve on a slow breathing zoom under a grade dark enough to hold a form, with the **KROMA wheel stacked as tilted glass ribbons** across the lower frame. Hosts fetch the public `/api/splash` sample, map it to covers, and drop this behind their gate. Decorative by contract: it swallows no pointer events and hides from accessibility.",
+  docs: "The sign-in screens' ambient artwork, one implementation for web, phone and TV: covers dissolve on a slow drift under a grade dark enough to hold a form, with the **KROMA wheel as a 3px rule** along the bottom edge. Hosts fetch the public `/api/splash` sample, map it to covers, and drop this behind their gate. Decorative by contract: it swallows no pointer events and hides from accessibility.",
   usage: `const covers = splash.map((e) => ({
   url: e.backdropUrl,
   caption: [e.title, e.year].filter(Boolean).join(' · '),
@@ -34,12 +34,12 @@ export default story({
   guidelines: {
     do: [
       'Give the host screen its own readable ground for text the grade alone cannot carry (fields and buttons already bring their fills).',
-      'Raise `dim` when lists, keyboards or hints descend into the ribbon zone (the TV auth screens pass 0.45): muted ink keeps AA contrast and the colour still comes through.',
-      'Turn `bands` off when the screen above is itself busy; the artwork alone still reads as KROMA.',
+      'Centre the host content: the radial half of the grade is deepest where a form sits.',
     ],
     dont: [
       "Don't feed it unsized artwork URLs; resolve them like any poster first.",
-      "Don't stack another full-screen wash on top - the grade is calibrated for a centred form already.",
+      "Don't stack another full-screen wash on top - the grade is calibrated for a centred form already, lists and keyboards included.",
+      "Don't draw over the bottom 3px; the wheel rule is the brand signature of these screens.",
     ],
   },
   width: 'fill',

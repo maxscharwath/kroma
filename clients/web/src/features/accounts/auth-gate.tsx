@@ -9,8 +9,8 @@ import {
   UserId,
 } from '@kroma/core';
 import { type ActivateResult, useT } from '@kroma/ui';
-import { Button, Logo, OtpField } from '@kroma/ui/kit';
-import { IconLock, IconPlus } from '@tabler/icons-react';
+import { AddTile, Button, Logo, OtpField } from '@kroma/ui/kit';
+import { IconLock } from '@tabler/icons-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { LoginForm, RegisterForm } from '#web/features/accounts/auth-forms';
 import { LoginBackdrop } from '#web/features/accounts/login-backdrop';
@@ -337,24 +337,14 @@ export function GateBody() {
           </div>
         ))}
 
-        <div className="flex w-[150px] flex-col items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
+        <div className="flex w-[150px] flex-col items-center">
+          <AddTile
+            label={t('auth.addProfile')}
+            onPress={() => {
               setError(null);
               setMode({ kind: 'login', user: null });
             }}
-            className="group flex flex-col items-center gap-3.5 focus:outline-none"
-          >
-            {/* A real glass tile, not a ghost outline: over the splash art and
-                the band stack a bare dashed border disappears. Solid icon
-                colour (flattened): alpha strokes double-paint where an icon's
-                paths overlap. */}
-            <div className="flex h-[146px] w-[146px] items-center justify-center rounded-2xl border-2 border-dashed border-white/35 bg-[rgba(12,12,16,.55)] text-[#BDBCC4] shadow-[0_10px_30px_-12px_rgba(0,0,0,.55)] backdrop-blur-md transition-[transform,border-color,color] duration-200 group-hover:scale-[1.06] group-hover:border-accent group-hover:text-accent group-focus-visible:scale-[1.06] group-focus-visible:border-accent group-focus-visible:text-accent">
-              <IconPlus size={46} stroke={1.6} />
-            </div>
-            <span className="text-[18px] font-medium text-text/80">{t('auth.addProfile')}</span>
-          </button>
+          />
         </div>
       </div>
 

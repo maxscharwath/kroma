@@ -13,6 +13,7 @@ import {
   Fragment,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -155,6 +156,14 @@ function Img({
   const opacity = useRef(new Animated.Value(0)).current;
   const focal = useMemo(() => parsePosition(position), [position]);
 
+  // Each new source starts transparent again. Before paint, not in an effect
+  // after it: the leaf remounts with this source's key in the same commit, and
+  // a frame of the previous cover at full opacity under the new one is exactly
+  // the cut the fade exists to avoid.
+  useLayoutEffect(() => {
+    if (!IS_WEB && src) opacity.setValue(0);
+  }, [src, opacity]);
+
   // React Native has no object-position, so the native leaf places the cover
   // rectangle itself; `contain` never overflows, so it needs no focal maths.
   const rect = !IS_WEB && fit === 'cover' ? coverRect(box, natural, focal) : null;
@@ -237,7 +246,18 @@ function Img({
         onLoad?.();
       },
       onError: handleError,
-      style: [layer, animated && !backend.fades ? { opacity: loaded ? opacity : 0 } : null],
+      // ALWAYS the driven value, never a bare number. Two reasons, and the
+      // second is the one that bites on tvOS:
+      //
+      // - the value belongs to the <Img>, not to the source, so it is still
+      //   sitting at 1 from the last fade when the next cover arrives; it is
+      //   reset per source in the layout effect above rather than here.
+      // - swapping between `{ opacity: 0 }` and `{ opacity: <value> }` changes
+      //   the STYLE'S SHAPE between renders, and a native-driven animation
+      //   attached to a prop that JS just rewrote does not run under Fabric.
+      //   The image simply appeared, which is what "fading is broken on Apple
+      //   TV" looks like.
+      style: [layer, animated && !backend.fades ? { opacity } : null],
     });
 
   return (

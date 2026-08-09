@@ -36,10 +36,7 @@ function GroupInput(props: Readonly<Omit<TextFieldProps, 'size'>>) {
       size={size}
       flex={1}
       minW={0}
-      ring={false}
-      borderWidth={0}
-      bg="transparent"
-      radius={0}
+      flat
       pl={padStart}
       pr={padEnd}
       invalid={invalid}
@@ -65,10 +62,7 @@ function GroupTextarea(props: Readonly<Omit<TextAreaProps, 'size'>>) {
       size={size}
       flex={1}
       minW={0}
-      ring={false}
-      borderWidth={0}
-      bg="transparent"
-      radius={0}
+      flat
       pl={padStart}
       pr={padEnd}
       invalid={invalid}

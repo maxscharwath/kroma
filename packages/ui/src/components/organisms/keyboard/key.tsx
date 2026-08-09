@@ -6,8 +6,8 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
-import { type StyleDecl, styles, svFor } from '#ui/core';
-import { CONTROL } from '#ui/lib/field-shell';
+import { radius, type StyleDecl, svFor } from '#ui/core';
+import { keyFace } from '#ui/lib/field-shell';
 
 /** A keyboard's scale: `sm` is arm's length, `tv` is across a room. */
 type KeyboardSize = 'sm' | 'tv';
@@ -28,52 +28,37 @@ function keyMetrics(size: KeyboardSize) {
   return KEY_SIZES[size];
 }
 
+// The corner PER SIZE, not one number for both: the keypad's 22 reads as a
+// rounded square on a 78x74 television key and as half the width of a 44x48
+// one, so the whole small grid arrives as circles. Both are radius tokens, and
+// `tv` is deliberately the keypad's own - that is what makes a keyboard key and
+// a keypad key the same object at two scales.
+const keyRadius = { sm: radius.lg, tv: radius['2xl'] } as const satisfies Record<
+  KeyboardSize,
+  number
+>;
+
 /** The width of a ten-key row: what a grid measures itself against. */
 function keyRowWidth(size: KeyboardSize): number {
   const { width, gap } = KEY_SIZES[size];
   return width * 10 + gap * 9;
 }
 
-// The focused key: the URL keyboard tints amber, the search keyboard fills solid
-// for a stronger 10-foot cue at its larger size.
-const keyFace = svFor<{
+// The shared key face (lib/field-shell), plus the one thing that is this
+// grid's own: the corner its size carries.
+const face = svFor<{
   root: StyleDecl;
   glyph: Pick<IconProps, 'color' | 'stroke'>;
   label: StyleDecl;
 }>()({
-  slots: {
-    // The same well the field above sits in (lib/field-shell), opaque: a key
-    // is a control, not a wash. Over artwork a translucent tint let every key
-    // sample whatever was behind it, so one keyboard arrived in six colours.
-    // A hairline edge and a lift: the fill is translucent, so without them a
-    // key dissolves into whatever artwork it is sitting on.
-    root: {
-      center: true,
-      radius: 16,
-      bg: CONTROL.md.bg,
-      border: 'border',
-      shadow: 'card',
-    },
-    glyph: { color: 'text', stroke: 1.8 },
-    label: { color: 'text' },
-  },
+  slots: keyFace,
   variants: {
-    tone: {
-      url: {
-        root: { _focus: { bg: 'accent/18' } },
-        glyph: { _focus: { color: 'accent' } },
-        label: { _focus: { color: 'accent' } },
-      },
-      search: {
-        root: { _focus: { bg: 'accent' } },
-        glyph: { _focus: { color: 'accentInk' } },
-        label: { _focus: { color: 'accentInk' } },
-      },
+    size: {
+      sm: { root: { radius: keyRadius.sm } },
+      tv: { root: { radius: keyRadius.tv } },
     },
   },
 });
-
-type KeyTone = 'url' | 'search';
 
 interface KeyProps {
   label?: string;
@@ -82,7 +67,8 @@ interface KeyProps {
   onPress: () => void;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  tone: KeyTone;
+  /** The grid's scale, which is what the corner is taken from. */
+  size: KeyboardSize;
   autoFocus?: boolean;
 }
 
@@ -93,7 +79,7 @@ function Key({
   onPress,
   style,
   textStyle,
-  tone,
+  size,
   autoFocus,
 }: Readonly<KeyProps>) {
   return (
@@ -103,19 +89,19 @@ function Key({
       autoFocus={autoFocus}
       focusScale={1.08}
       ring={false}
-      sv={keyFace}
-      vars={{ tone }}
+      sv={face}
+      vars={{ size }}
       style={style}
     >
       {({ slots }) => (
         <>
           {/* The fill is translucent (lib/field-shell), so blur what shows
               through: a key reads as glass, not as a window on the artwork. */}
-          <Frost radius={16} />
+          <Frost radius={keyRadius[size]} />
           {icon ? (
             <Icon name={icon} size={iconSize ?? 24} {...slots.glyph} />
           ) : (
-            <Txt style={[slots.label, keyStyles.label, textStyle]}>{label}</Txt>
+            <Txt style={[slots.label, textStyle]}>{label}</Txt>
           )}
         </>
       )}
@@ -123,11 +109,5 @@ function Key({
   );
 }
 
-// Module scope, not a render body: this hands the same style identity to ~40
-// keys on every keystroke instead of rebuilding it each time.
-const keyStyles = styles({
-  label: { fontWeight: '700' },
-});
-
-export type { KeyboardSize, KeyProps, KeyTone };
-export { Key, keyFace, keyMetrics, keyRowWidth };
+export type { KeyboardSize, KeyProps };
+export { Key, keyMetrics, keyRowWidth };

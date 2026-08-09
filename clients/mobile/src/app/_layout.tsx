@@ -1,6 +1,6 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { CastProvider, I18nProvider as KitI18nProvider } from '@kroma/ui';
-import { registerFrost, setEntryDefaults, setImageBackend } from '@kroma/ui/kit';
+import { registerFrost, setEntryDefaults, setImageBackend, setTheme } from '@kroma/ui/kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import * as Device from 'expo-device';
@@ -17,7 +17,7 @@ import { isTablet } from '#mobile/lib/layout';
 import { useNotificationStream } from '#mobile/lib/notifications';
 import { usePushGrantRefresh, usePushLabels, usePushTaps } from '#mobile/lib/notifications/usePush';
 import { SessionProvider, useSession } from '#mobile/lib/session';
-import { colors } from '#mobile/lib/theme';
+import { colors, MOBILE } from '#mobile/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -34,6 +34,12 @@ registerFrost(BlurView);
 // kit defaults to the 10-foot behaviour, where a field is a read-only value
 // with a caret and typing arrives from the on-screen keyboard instead.
 setEntryDefaults({ physicalKeyboard: true, size: 'md' });
+
+// And the same statement for the rest of the vocabulary: the phone's type ramp,
+// corners and spacing, so a kit component here is sized for a hand rather than
+// for a room. Module scope, before the first render - a swap after one is legal
+// (every recipe re-resolves lazily) but would repaint the whole tree.
+setTheme(MOBILE);
 
 function KitI18nBridge({ children }: Readonly<{ children: ReactNode }>) {
   return <KitI18nProvider locale={useI18n().locale}>{children}</KitI18nProvider>;

@@ -11,7 +11,7 @@ import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { sv } from '#ui/core';
-import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { bySize, CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { useControllable } from '#ui/lib/use-controllable';
 import { SelectOptions } from './select-options';
 
@@ -29,28 +29,10 @@ const triggerVariants = sv({
     ink: { shrink: 1 },
   },
   variants: {
-    size: {
-      sm: {
-        root: {
-          gap: CONTROL.sm.gap,
-          px: CONTROL.sm.px,
-          py: CONTROL.sm.py,
-          radius: CONTROL.sm.radius,
-          minH: CONTROL.sm.line,
-        },
-        ink: { fontSize: CONTROL.sm.fontSize, lineHeight: CONTROL.sm.line },
-      },
-      md: {
-        root: {
-          gap: CONTROL.md.gap,
-          px: CONTROL.md.px,
-          py: CONTROL.md.py,
-          radius: CONTROL.md.radius,
-          minH: CONTROL.md.line,
-        },
-        ink: { fontSize: CONTROL.md.fontSize, lineHeight: CONTROL.md.line },
-      },
-    },
+    size: bySize((m) => ({
+      root: { gap: m.gap, px: m.px, py: m.py, radius: m.radius, minH: m.line },
+      ink: { fontSize: m.fontSize, lineHeight: m.line },
+    })),
     invalid: { true: { root: { border: 'danger' } } },
     filled: { true: { ink: { color: 'text' } }, false: { ink: { color: 'textDim' } } },
     block: { true: { root: { self: 'stretch' } } },

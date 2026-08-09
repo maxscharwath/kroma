@@ -14,12 +14,12 @@ import { Caret } from '#ui/lib/caret';
 import {
   type ControlSize,
   controlMetrics,
-  edgeColor,
   entryDefaultPhysicalKeyboard,
-  fieldRing,
+  fieldShell,
   NO_OUTLINE,
   PLACEHOLDER,
 } from '#ui/lib/field-shell';
+import { useGroupMember } from '#ui/lib/group-shape';
 import { useControllable } from '#ui/lib/use-controllable';
 
 type TextFieldType = 'text' | 'email' | 'password' | 'url' | 'search' | 'number';
@@ -66,14 +66,13 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
    *  one-shot value (a link, a token) wants: focus it and copy it. */
   selectOnFocus?: boolean;
   label?: string;
-  /** The control shell's size. Defaults to the app's (`setEntryDefaults`):
-   *  `md` reads at ten feet, `sm` is a console page's density. */
+  /** The control shell's size. Defaults to the app's (`setEntryDefaults`), so a
+   *  call site states this only when it differs from the rest of the app. */
   size?: ControlSize;
   textStyle?: StyleProp<TextStyle>;
-  /** The amber focus ring. Off for an entry flattened into other chrome (a
-   *  command palette's search row), where the surrounding sheet is the focus
-   *  surface and a ring would outline the wrong shape. */
-  ring?: boolean;
+  /** The shell belongs to something else - the well of an <InputGroup>, the row
+   *  of a command palette. See `fieldShell` for what that drops and why. */
+  flat?: boolean;
 }
 
 function TextField({
@@ -98,11 +97,15 @@ function TextField({
   label,
   size,
   textStyle,
-  ring = true,
+  flat = false,
   ...box
 }: Readonly<TextFieldProps>) {
   const theme = useTheme();
-  const metrics = controlMetrics(size);
+  // A field is a member of a <ButtonGroup> like a button is: it takes the
+  // group's size, flattens the corners it shares and lifts itself while it
+  // wears the ring, so an entry welds to the control beside it.
+  const group = useGroupMember(onFocus, onBlur);
+  const metrics = controlMetrics(size ?? group.size ?? undefined);
   const CONTENT = metrics.line;
   const [value, setValue] = useControllable(valueProp, defaultValue, onChange);
   const [focused, setFocused] = useState(false);
@@ -112,6 +115,7 @@ function TextField({
   const keyboardProps = keyboardType ? { keyboardType } : null;
   const autoCompleteProps = autoComplete ? { autoComplete } : null;
   const masked = type === 'password' && !revealed;
+  const shell = fieldShell(metrics, { flat, focused, invalid, lift: true });
   return (
     <Box
       row
@@ -123,29 +127,21 @@ function TextField({
       pl={icon ? metrics.py : metrics.px}
       pr={type === 'password' || trailing ? metrics.py : metrics.px}
       py={metrics.py}
-      radius={metrics.radius}
-      bg={metrics.bg}
-      borderWidth={1}
-      // The fill is translucent: a lift keeps the field off the artwork.
-      shadow="card"
+      {...shell.box}
       {...box}
       // The whole field is the caret's landing zone: tapping the icon or the
       // padding focuses the entry. Only presses no inner control claimed reach
       // here, and a drag stolen by a surrounding list never releases here.
       onStartShouldSetResponder={() => physicalKeyboard}
       onResponderRelease={() => input.current?.focus()}
-      // The same amber ring every other control wears, rather than a 1px edge
+      // The amber ring every other control wears, rather than a 1px edge
       // recolour: a field is a focus target like any other and must read as one
-      // from three metres.
-      style={[
-        { borderColor: edgeColor(focused, invalid) },
-        focused && ring ? fieldRing() : null,
-        box.style,
-      ]}
+      // from three metres. `flat` hands all of it to the surrounding shell.
+      style={[shell.edge, group.style, box.style]}
     >
       {/* The fill is translucent (lib/field-shell), so blur what shows
           through: a field over artwork reads as glass, not as a window. */}
-      <Frost radius={metrics.radius} />
+      {flat ? null : <Frost radius={metrics.radius} />}
       {/* The well is fixed at the entry's content height so a leading icon can
           never set the row height. */}
       {icon ? (
@@ -162,11 +158,11 @@ function TextField({
           onSubmitEditing={onSubmit}
           onFocus={() => {
             setFocused(true);
-            onFocus?.();
+            group.onFocus();
           }}
           onBlur={() => {
             setFocused(false);
-            onBlur?.();
+            group.onBlur();
           }}
           readOnly={readOnly}
           selectTextOnFocus={selectOnFocus}

@@ -114,10 +114,12 @@ const buttonVariants = svFor<{
         label: { fontSize: 19, fontWeight: '700' },
         icon: { size: 22 },
       },
-      /** The 10-foot primary action (the home hero, a detail screen's Lecture). */
+      /** The 10-foot primary action (the home hero, a detail screen's Lecture).
+       *  From the table like the rest, so a tv button beside a tv field is the
+       *  same height and the same corner rather than approximately both. */
       tv: {
-        root: { py: 18, px: 40 },
-        label: { fontSize: 20, fontWeight: '700' },
+        root: { py: CONTROL.tv.py, px: 40, minH: CONTROL.tv.height, radius: CONTROL.tv.radius },
+        label: { fontSize: CONTROL.tv.fontSize, fontWeight: '700', lineHeight: CONTROL.tv.line },
         icon: { size: 22 },
       },
     },

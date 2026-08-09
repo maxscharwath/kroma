@@ -19,7 +19,7 @@ import { Frost } from '#ui/components/atoms/frost';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
 import { radius, type StyleDecl, styles, svFor } from '#ui/core';
-import { CONTROL } from '#ui/lib/field-shell';
+import { keyFace } from '#ui/lib/field-shell';
 import { FocusColumn, FocusRegion } from '#ui/lib/focus-scope';
 import { useTDefault } from '#ui/services/i18n';
 
@@ -33,25 +33,9 @@ type KeyKind = 'digit' | 'delete';
 
 const keypadVariants = svFor<{ root: StyleDecl; label: StyleDecl }>()({
   slots: {
-    root: {
-      w: 88,
-      h: 72,
-      center: true,
-      radius: '2xl',
-      // The same well a field and a keyboard key sit in (lib/field-shell),
-      // opaque: a keypad is a grid of controls, and over artwork a wash let
-      // every key sample whatever was behind it.
-      bg: CONTROL.md.bg,
-      // A hairline edge and a lift: the fill is translucent, so without them
-      // a key dissolves into whatever artwork it is sitting on.
-      border: 'border',
-      shadow: 'card',
-      // A key under the cursor lifts its own wash rather than borrowing the
-      // amber: on a PIN pad, amber says "this is where Enter goes".
-      _hover: { bg: 'surface3' },
-      _focus: { bg: 'accentSoft' },
-    },
-    label: { fontWeight: '700', color: 'text', _focus: { color: 'accent' } },
+    // The shared key face (lib/field-shell); the pad brings only its own box.
+    root: { ...keyFace.root, w: 88, h: 72, radius: radius['2xl'] },
+    label: keyFace.label,
   },
   variants: {
     kind: {

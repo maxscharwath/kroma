@@ -15,7 +15,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
-import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { bySize, CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import {
   type GroupOrientation,
   type GroupPosition,
@@ -134,10 +134,7 @@ const s = styles({
   horizontalLine: { h: 1, self: 'stretch' },
 });
 
-const chip = styles({
-  sm: { fontSize: CONTROL.sm.fontSize, fontWeight: '600' },
-  md: { fontSize: CONTROL.md.fontSize, fontWeight: '600' },
-});
+const chip = styles(bySize((m) => ({ fontSize: m.fontSize, fontWeight: '600' as const })));
 
 function positionAt(index: number, count: number): GroupPosition {
   if (count === 1) return 'only';

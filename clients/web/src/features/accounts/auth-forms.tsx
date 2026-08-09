@@ -62,9 +62,14 @@ export function LoginForm({
         </div>
       ) : null}
 
+      {/* `size="md"` against the app's `sm` default (see router.tsx): the gate
+          is a full-screen front door rather than a console page, and <Button>
+          is `md` whatever the entries are - left alone, the form would stack a
+          40px field under a 50px button. */}
       {profile ? null : (
         <Field
           w="100%"
+          size="md"
           label={t('auth.emailOrUsername')}
           hideLabel
           icon="user"
@@ -78,6 +83,7 @@ export function LoginForm({
       )}
       <Field
         w="100%"
+        size="md"
         label={t('auth.password')}
         hideLabel
         type="password"

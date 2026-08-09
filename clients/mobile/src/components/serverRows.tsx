@@ -3,9 +3,8 @@
 // system's, so a phone's server list is the same object as the TV's and the
 // console's. What stays here is the section header and hint that frame it.
 
-import { ListRow, type ListRowProps, Spinner, styles } from '@kroma/ui/kit';
+import { Box, ListRow, type ListRowProps, Spinner, styles, Txt } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
 import { colors, spacing, type } from '#mobile/lib/theme';
 
 /** The card the rows stack in. */
@@ -45,15 +44,15 @@ export function ServerSectionHeader({
   loading,
 }: Readonly<{ title: string; loading?: boolean }>) {
   return (
-    <View style={s.sectionHeader}>
-      <Text style={s.sectionTitle}>{title}</Text>
+    <Box style={s.sectionHeader}>
+      <Txt style={s.sectionTitle}>{title}</Txt>
       {loading ? <Spinner size={18} color={colors.textFaint} /> : null}
-    </View>
+    </Box>
   );
 }
 
 export function ServerSectionHint({ children }: Readonly<{ children: string }>) {
-  return <Text style={s.sectionHint}>{children}</Text>;
+  return <Txt style={s.sectionHint}>{children}</Txt>;
 }
 
 const s = styles({

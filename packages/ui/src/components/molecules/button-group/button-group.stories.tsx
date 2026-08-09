@@ -3,6 +3,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { IconButton } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
+import { TextField } from '#ui/components/atoms/text-field';
 import { ButtonGroup } from './button-group';
 
 function Caption({ children }: Readonly<{ children: string }>) {
@@ -73,6 +74,22 @@ function Borderless() {
   );
 }
 
+function WithEntry() {
+  return (
+    <Box gap={20} w={460}>
+      <ButtonGroup.Root label="Adresse du serveur">
+        <TextField flex={1} minW={0} icon="world-search" placeholder="kroma.local:4040" />
+        <Button label="Connecter" />
+      </ButtonGroup.Root>
+      <ButtonGroup.Root label="Lien de partage" size="sm">
+        <ButtonGroup.Text>https://</ButtonGroup.Text>
+        <TextField flex={1} minW={0} defaultValue="kroma.tv/i/8f2ad1" readOnly selectOnFocus />
+        <IconButton variant="glass" icon="copy" label="Copier le lien" />
+      </ButtonGroup.Root>
+    </Box>
+  );
+}
+
 function Vertical() {
   return (
     <ButtonGroup.Root orientation="vertical" label="Volume">
@@ -105,7 +122,7 @@ function Toolbar() {
 export default story({
   name: 'ButtonGroup',
   group: 'Actions',
-  docs: 'A row (or a column) of related controls rendered as ONE control: adjacent members share a single border line and their inner corners are flattened, so three buttons read as one segmented object. A split button, a toolbar cluster, a value with its unit welded to the end.\n\nThe browser does this with `:first-child` and a collapsed border. React Native has neither, so **Root counts its children and publishes each one\'s position through a context**, one provider per child, and the members shape themselves from it. It is a context rather than `cloneElement` because a member is routinely wrapped (a Tooltip trigger, a Menu trigger) and cloned props would land on the wrapper instead of the control. `Button`, `IconButton` and `ButtonGroup.Text` read it; **anything else keeps its own shape**, which is a visible signal that a child is not a member.\n\nIt carries no selection state: it is `role="group"` plus a shape. For one-of-N use a <SegmentedControl>, and for a set of toggles a <ChoiceList>.',
+  docs: 'A row (or a column) of related controls rendered as ONE control: adjacent members share a single border line and their inner corners are flattened, so three buttons read as one segmented object. A split button, a toolbar cluster, a value with its unit welded to the end.\n\nThe browser does this with `:first-child` and a collapsed border. React Native has neither, so **Root counts its children and publishes each one\'s position through a context**, one provider per child, and the members shape themselves from it. It is a context rather than `cloneElement` because a member is routinely wrapped (a Tooltip trigger, a Menu trigger) and cloned props would land on the wrapper instead of the control. `Button`, `IconButton`, `TextField` and `ButtonGroup.Text` read it; **anything else keeps its own shape**, which is a visible signal that a child is not a member.\n\nIt carries no selection state: it is `role="group"` plus a shape. For one-of-N use a <SegmentedControl>, and for a set of toggles a <ChoiceList>.',
   usage: `<ButtonGroup.Root label="Abonnement">
   <Button label="Suivre" onPress={follow} />
   <ButtonGroup.Separator />
@@ -124,6 +141,7 @@ export default story({
       'Give every member the same variant, and let the group own `size` so they share one height.',
       'Add a `Separator` only between members that carry no border of their own.',
       'Nest groups to build a toolbar: the outer group spaces the clusters.',
+      'Give a `<TextField>` member `flex={1} minW={0}` so it takes the row and can still shrink.',
     ],
     dont: [
       "Don't use it to pick one option among several - that is a <SegmentedControl>.",
@@ -148,6 +166,11 @@ export default story({
       name: 'A separator for borderless members',
       docs: 'A filled member has no edge to share, so two of them would run together into one slab. The separator draws the line the collapsed borders would have drawn, and it occupies a slot, so the member after it is still shaped as the member after it.',
       render: () => <Borderless />,
+    },
+    {
+      name: 'An entry welded to a button',
+      docs: "A `<TextField>` is a member like any button: it takes the group's size, drops the corners and the border edge it shares, and lifts itself over its neighbour while it wears the focus ring. That last part is why the field reads the slot rather than the group styling it - only the field knows it is focused, and a collapsed border would otherwise let the member after it overpaint the ring.\n\nWhere this is the whole control rather than a row of them - a search box with a count welded inside its own well - reach for an <InputGroup> instead: there the shell is one well and the addons live *inside* it, so the field draws no fill, frost or edge of its own.",
+      render: () => <WithEntry />,
     },
     {
       name: 'Vertical',

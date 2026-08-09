@@ -72,7 +72,11 @@ interface AvatarProps {
   shadow?: boolean;
 }
 
-const ROUNDNESS = 0.16;
+/** The design's rounded square, as a FRACTION of the side. Exported because a
+ *  tile that sits in a row of avatars has to match their corner exactly, and a
+ *  copied `0.16` in the other component is how the two drift apart. */
+const AVATAR_ROUNDNESS = 0.16;
+const ROUNDNESS = AVATAR_ROUNDNESS;
 
 // A circle is the roundest a square can be, half its own side; `roundness` is
 // capped here rather than letting a value past it draw a shape no platform
@@ -162,4 +166,4 @@ function Avatar({
 const s = styles({ shadow: { boxShadow: '0 16px 40px rgba(0, 0, 0, 0.45)' } });
 
 export type { AvatarProps };
-export { AVATAR_GRADIENT, AVATAR_GRADIENTS, Avatar, gradientFor, initialsOf };
+export { AVATAR_GRADIENT, AVATAR_GRADIENTS, AVATAR_ROUNDNESS, Avatar, gradientFor, initialsOf };

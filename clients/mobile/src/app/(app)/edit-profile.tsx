@@ -1,8 +1,8 @@
 import { KromaApiError, LANG_OFF, langName } from '@kroma/core';
-import { Button, Field, Icon, type IconName, Spinner, styles } from '@kroma/ui/kit';
+import { Box, Button, Field, Icon, type IconName, Spinner, styles, Txt } from '@kroma/ui/kit';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView } from 'react-native';
 import { Avatar } from '#mobile/components/Avatar';
 import { type LangPickerRef, LangPickerSheet } from '#mobile/components/LangPickerSheet';
 import { PageHeader } from '#mobile/components/PageHeader';
@@ -17,17 +17,17 @@ type Note = { text: string; ok: boolean } | null;
 
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
-    <View style={s.section}>
-      <Text style={s.sectionTitle}>{title}</Text>
+    <Box style={s.section}>
+      <Txt style={s.sectionTitle}>{title}</Txt>
       {children}
-    </View>
+    </Box>
   );
 }
 
 function Message({ note }: Readonly<{ note: Note }>) {
   if (!note) return null;
   return (
-    <Text style={[s.message, { color: note.ok ? colors.accent : colors.danger }]}>{note.text}</Text>
+    <Txt style={[s.message, { color: note.ok ? colors.accent : colors.danger }]}>{note.text}</Txt>
   );
 }
 
@@ -43,21 +43,21 @@ function PrefRow({
       accessibilityRole="button"
       style={({ pressed }) => [s.row, pressed && s.rowPressed]}
     >
-      <View style={s.rowIconLabel}>
-        <View style={s.rowIconBox}>
+      <Box style={s.rowIconLabel}>
+        <Box style={s.rowIconBox}>
           <Icon name={icon} size={19} stroke={1.8} color={colors.accent} />
-        </View>
+        </Box>
         {/* The label yields to an ellipsis, the value never does. */}
-        <Text numberOfLines={1} style={s.rowLabel}>
+        <Txt lines={1} style={s.rowLabel}>
           {label}
-        </Text>
-      </View>
-      <View style={s.rowRight}>
-        <Text numberOfLines={1} style={s.rowValue}>
+        </Txt>
+      </Box>
+      <Box style={s.rowRight}>
+        <Txt lines={1} style={s.rowValue}>
           {value}
-        </Text>
+        </Txt>
         <Icon name="selector" size={16} stroke={2} color={colors.textFaint} />
-      </View>
+      </Box>
     </Pressable>
   );
 }
@@ -176,7 +176,7 @@ export default function EditProfile() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-          <View style={s.identity}>
+          <Box style={s.identity}>
             <Pressable
               onPress={() => void pickPhoto()}
               disabled={avatarBusy}
@@ -185,20 +185,20 @@ export default function EditProfile() {
               style={({ pressed }) => [pressed && { opacity: 0.85 }]}
             >
               <Avatar uri={avatar} name={user?.username} size={104} />
-              <View style={s.editBadge}>
+              <Box style={s.editBadge}>
                 {avatarBusy ? (
                   <Spinner size={14} thickness={2} color={colors.accentInk} />
                 ) : (
                   <Icon name="camera" size={14} stroke={2} color={colors.accentInk} />
                 )}
-              </View>
+              </Box>
             </Pressable>
-            <Text style={s.photoHint}>{t('account.photoHint')}</Text>
+            <Txt style={s.photoHint}>{t('account.photoHint')}</Txt>
             <Message note={avatarNote} />
-          </View>
+          </Box>
 
           <Section title={t('account.sectionInfo')}>
-            <View style={s.card}>
+            <Box style={s.card}>
               <Field
                 label={t('auth.username')}
                 icon="user"
@@ -220,11 +220,11 @@ export default function EditProfile() {
                 style={s.submit}
               />
               <Message note={infoNote} />
-            </View>
+            </Box>
           </Section>
 
           <Section title={t('account.sectionPrefs')}>
-            <View style={s.rowCard}>
+            <Box style={s.rowCard}>
               <PrefRow
                 icon="volume"
                 label={t('account.audioLanguage')}
@@ -237,11 +237,11 @@ export default function EditProfile() {
                 value={langLabel(user?.subtitleLanguage)}
                 onPress={() => openPicker('subtitle')}
               />
-            </View>
+            </Box>
           </Section>
 
           <Section title={t('account.sectionSecurity')}>
-            <View style={s.card}>
+            <Box style={s.card}>
               <Field
                 label={t('account.currentPassword')}
                 icon="lock"
@@ -272,7 +272,7 @@ export default function EditProfile() {
                 style={s.submit}
               />
               <Message note={passwordNote} />
-            </View>
+            </Box>
           </Section>
         </ScrollView>
       </KeyboardAvoidingView>

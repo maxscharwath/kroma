@@ -6,7 +6,6 @@ import { Button, Field } from '@kroma/ui/kit';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  BackLink,
   OnboardingBox,
   OnboardingScreen,
   OnboardingTitle,
@@ -38,7 +37,7 @@ export default function Connect() {
   };
 
   return (
-    <OnboardingScreen>
+    <OnboardingScreen onBack={router.canGoBack() ? () => router.back() : undefined}>
       <OnboardingBox>
         <OnboardingTitle title={t('connect.addServerTitle')} />
         <Field
@@ -63,7 +62,6 @@ export default function Connect() {
           loading={busy}
           disabled={!url.trim()}
         />
-        {router.canGoBack() ? <BackLink onPress={() => router.back()} /> : null}
       </OnboardingBox>
     </OnboardingScreen>
   );

@@ -31,10 +31,10 @@ function SearchKeyboard({ value, onChange, onClose, layout, size }: Readonly<Sea
   const letterRows = LAYOUT_LETTER_ROWS[layout];
   const lastRow = letterRows.at(-1) ?? [];
   const key = (id: string, label: string, onPress: () => void) => (
-    <Key key={id} label={label} onPress={onPress} style={FACE} textStyle={TEXT} tone="search" />
+    <Key key={id} size={size} label={label} onPress={onPress} style={FACE} textStyle={TEXT} />
   );
-  const glyph = (id: string, name: IconName, size: number, onPress: () => void) => (
-    <Key key={id} icon={name} iconSize={size} onPress={onPress} style={FACE} tone="search" />
+  const glyph = (id: string, name: IconName, glyphSize: number, onPress: () => void) => (
+    <Key key={id} size={size} icon={name} iconSize={glyphSize} onPress={onPress} style={FACE} />
   );
   const letter = (l: string) => key(l, l, () => onChange(value + l.toLowerCase()));
   // <FocusRegion>, not a plain box: without declared rows, every key is a

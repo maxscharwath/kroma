@@ -51,6 +51,7 @@ function UrlKeyboard({
         <FocusRegion key={row.join('')} style={s.keyRow}>
           {row.map((k, keyIndex) => (
             <Key
+              size={size}
               key={k}
               label={k === DELETE_KEY ? t('common.delete') : k}
               icon={k === DELETE_KEY ? 'backspace' : undefined}
@@ -59,7 +60,6 @@ function UrlKeyboard({
               onPress={() => press(k)}
               style={s.key}
               textStyle={s.keyText}
-              tone="url"
             />
           ))}
         </FocusRegion>
@@ -70,19 +70,19 @@ function UrlKeyboard({
         {/* An icon, never a symbol character: TV system fonts miss glyphs like
             U+2327 and draw a tofu box instead. */}
         <Key
+          size={size}
           label={t('common.clear')}
           icon="eraser"
           iconSize={m.glyph - 2}
           onPress={() => onChange('')}
           style={s.clearKey}
-          tone="url"
         />
         <Key
+          size={size}
           label="."
           onPress={() => onChange(`${value}.`)}
           style={s.key}
           textStyle={s.keyText}
-          tone="url"
         />
         {onSubmit ? (
           <Button variant="primary" onPress={onSubmit} label={submitLabel} style={s.submit} />

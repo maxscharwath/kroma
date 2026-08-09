@@ -5,14 +5,23 @@
 import { z } from 'zod';
 import { User } from './accounts';
 
+// Whether granting this beacon costs the person a trip to the television's own
+// screen. The server's word and the server's alone: it sets it for a beacon
+// raised from an origin it could not place, which is the only thing that tells
+// a packaged television apart from a page in a sandboxed iframe. Absent - an
+// older server, a row from anywhere else - reads as required, never as
+// permission.
+const ConfirmRequired = z.boolean().default(true);
+
 /** `POST /handoff/announce`: what a TV waiting for an account gets back.
  * `secret` never leaves that TV; `handle` is what a phone grants against;
- * `check` is the four characters the TV prints on its own screen so a person
- * can tell two TVs apart. */
+ * `check` is the five characters the TV prints on its own screen so a person
+ * can tell two TVs apart, and read them out when asked. */
 export const HandoffBeacon = z.object({
   handle: z.string(),
   secret: z.string(),
   check: z.string(),
+  confirmRequired: ConfirmRequired,
   /** The server's opaque per-install id, so the TV can say in its record which
    * install minted the handle. A handle means nothing to a different server,
    * and a household can easily have two. */
@@ -35,6 +44,7 @@ export const HandoffDevice = z.object({
   name: z.string(),
   platform: z.string(),
   check: z.string(),
+  confirmRequired: ConfirmRequired,
 });
 export type HandoffDevice = z.infer<typeof HandoffDevice>;
 
@@ -64,7 +74,11 @@ export type PairingStatus = z.infer<typeof PairingStatus>;
 const Label = z.string().max(64).optional();
 const Token = z.string().min(1).max(128);
 
-/** The text record a waiting TV publishes: what a phone needs to sign it in. */
+/** The text record a waiting TV publishes: what a phone needs to sign it in.
+ *
+ * `confirmRequired` is deliberately not in here and must never be: anything on
+ * the link can publish one of these, so a record carrying it would let a forged
+ * one wave the confirmation away. */
 export const WaitingBeaconTxt = z.object({
   v: z.literal('1'),
   state: z.literal('waiting'),

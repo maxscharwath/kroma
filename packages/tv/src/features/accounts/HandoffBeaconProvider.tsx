@@ -6,35 +6,31 @@
 // mentions it. Renders nothing.
 //
 // The beacon goes up at the server always, and on this television's own link
-// when the shell registered a stack to publish with (see app/lanBeacon).
+// when the shell handed a stack in to publish with (see TvApp's `lan`).
 
 import {
+  type HandoffBeaconHandle,
   type HandoffBeaconView,
   type KromaClient,
   type LanDiscoveryBridge,
   startHandoff,
 } from '@kroma/core';
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
-import { deviceId, deviceName } from '#tv/shared/device';
-
-const BeaconCtx = createContext<HandoffBeaconView | null>(null);
-
-/** The beacon this TV is currently waiting under, or null when it is not
- * waiting: signed in, off the local network, or on a server without handoff. */
-export function useHandoffBeacon(): HandoffBeaconView | null {
-  return useContext(BeaconCtx);
-}
+import { HandoffBeaconContext } from '#tv/app/providers/handoffBeacon';
+import { deviceId } from '#tv/shared/device';
 
 export function HandoffBeaconProvider({
   client,
   lan,
+  name,
   children,
 }: Readonly<{
   client: KromaClient | null;
   lan?: LanDiscoveryBridge;
+  name: string;
   children: ReactNode;
 }>) {
   const [beacon, setBeacon] = useState<HandoffBeaconView | null>(null);
@@ -42,6 +38,14 @@ export function HandoffBeaconProvider({
   const { activeServerUrl } = useConnection();
   const { platform } = useEnv();
   const signedIn = Boolean(user);
+  const running = useRef<HandoffBeaconHandle | null>(null);
+
+  // A new name is a rename, not a restart: the loop retires the beacon already
+  // out there in the same announce, where tearing the loop down and standing it
+  // up again would blank the screen's check string and go through a moment with
+  // nothing on the link at all.
+  const latest = useRef(name);
+  latest.current = name;
 
   useEffect(() => {
     // Only a signed-out TV waits: once there is an account, the beacon has done
@@ -50,17 +54,25 @@ export function HandoffBeaconProvider({
       setBeacon(null);
       return;
     }
-    return startHandoff({
+    const handoff = startHandoff({
       client,
       deviceId: deviceId(),
-      name: deviceName(platform),
+      name: latest.current,
       platform,
       publish: lan?.publish,
       onBeacon: setBeacon,
       onAuthenticated: (result) => login(result, activeServerUrl),
     });
+    running.current = handoff;
+    return () => {
+      running.current = null;
+      handoff.stop();
+    };
   }, [client, activeServerUrl, signedIn, platform, login, lan]);
 
-  const value = useMemo(() => beacon, [beacon]);
-  return <BeaconCtx.Provider value={value}>{children}</BeaconCtx.Provider>;
+  useEffect(() => {
+    running.current?.rename(name);
+  }, [name]);
+
+  return <HandoffBeaconContext.Provider value={beacon}>{children}</HandoffBeaconContext.Provider>;
 }

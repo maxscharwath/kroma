@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use super::grants::{Granted, Grants, Orphaned, PollState};
+use super::grants::{Filed, Granted, Grants, Orphaned, PollState};
 use crate::model::User;
 use crate::services::auth::random_u32;
 
@@ -46,7 +46,7 @@ impl QuickConnectInner {
     /// which is a far better failure than a code that silently stops working.
     pub fn initiate(&self) -> Option<Initiated> {
         let modulo = 10u32.pow(CODE_DIGITS);
-        let (code, secret) = self.grants.insert((), || {
+        let Filed { handle: code, secret } = self.grants.insert((), || {
             format!("{:0>width$}", random_u32() % modulo, width = CODE_DIGITS as usize)
         })?;
         Some(Initiated { code, secret, expires_in: CODE_TTL_SECS })

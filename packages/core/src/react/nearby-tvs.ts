@@ -8,8 +8,8 @@
 
 import type { KromaClient } from '@kroma/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DiscoveredTv, LanDiscoveryBridge } from '../handoff';
-import { lanSource, serverSource, watchNearbyTvs } from '../handoff';
+import type { DiscoveredTv, GrantResult, LanDiscoveryBridge } from '../handoff';
+import { grantRefusal, lanSource, serverSource, watchNearbyTvs } from '../handoff';
 
 export interface NearbyTvsOptions {
   /** Null stands the watcher down: no session yet, or the screen is not up. */
@@ -27,26 +27,27 @@ export interface NearbyTvs {
   devices: DiscoveredTv[];
   /** The TV a grant is in flight for, or null. */
   connecting: DiscoveredTv | null;
-  /** The TV that was just signed in, or null. Stays put after its row leaves
-   * the list, so the confirmation does not vanish with it. */
-  connected: DiscoveredTv | null;
-  /** True when the last grant was refused, meaning that TV stopped waiting. */
-  failed: boolean;
-  connect: (device: DiscoveredTv) => Promise<void>;
+  /**
+   * Sign that TV in, and say how it went. A row with `confirmRequired` needs
+   * the check string that TV is printing on its own screen; sent without one
+   * the server answers `checkRequired` rather than granting, and `checkRetryable`
+   * says which refusals leave the beacon standing for another code.
+   *
+   * The outcome comes back from the call rather than from a piece of state,
+   * because two identical refusals in a row are two answers and would be one
+   * state change.
+   */
+  connect: (device: DiscoveredTv, check?: string) => Promise<GrantResult>;
 }
 
 /** Watch for nearby TVs while the picker is open. */
 export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
   const { client, lan } = opts;
-  const [devices, setDevices] = useState<DiscoveredTv[]>([]);
+  const [rows, setRows] = useState<DiscoveredTv[]>([]);
   const [connecting, setConnecting] = useState<DiscoveredTv | null>(null);
-  const [connected, setConnected] = useState<DiscoveredTv | null>(null);
-  const [failed, setFailed] = useState(false);
   // Which install this phone is signed in to. A television heard on the link
   // may belong to a DIFFERENT server (a household with two, a laptop running
-  // one), and its handle means nothing to this one: granting it would fail with
-  // "no longer waiting" every time. Rows are filtered rather than allowed to
-  // fail, because a row that cannot work should not be offered.
+  // one), and its handle means nothing to this one.
   const [ourServer, setOurServer] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,18 +74,21 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
 
   useEffect(() => {
     if (sources.length === 0) {
-      setDevices([]);
+      setRows([]);
       return;
     }
-    return watchNearbyTvs({
-      sources,
-      // A row heard on the link says which install minted it. Anything from
-      // another server is dropped here rather than offered as a tap that can
-      // only answer "no longer waiting".
-      onRows: (rows) =>
-        setDevices(rows.filter((row) => !row.server || !ourServer || row.server === ourServer)),
-    });
-  }, [sources, ourServer]);
+    return watchNearbyTvs({ sources, onRows: setRows });
+  }, [sources]);
+
+  // A row heard on the link says which install minted it. Anything from another
+  // server is dropped rather than offered as a tap that can only answer "no
+  // longer waiting". Filtered on the way OUT: learning our own id a beat after
+  // mount would otherwise tear every source down and start it again, which
+  // costs a duplicate poll and a link browse that can blink the list empty.
+  const devices = useMemo(
+    () => rows.filter((row) => !row.server || !ourServer || row.server === ourServer),
+    [rows, ourServer],
+  );
 
   // A row stays pressable while its grant is in flight, so without this a
   // double tap grants twice: the second either takes a second session or fails,
@@ -93,20 +97,18 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
   const inFlight = useRef(false);
 
   const connect = useCallback(
-    async (device: DiscoveredTv) => {
-      if (!client || inFlight.current) return;
+    async (device: DiscoveredTv, check?: string): Promise<GrantResult> => {
+      if (!client || inFlight.current) return 'dropped';
       inFlight.current = true;
-      setConnected(null);
       setConnecting(device);
-      setFailed(false);
       try {
-        await client.handoffGrant(device.handle, device.proof);
-        setConnected(device);
+        await client.handoffGrant(device.handle, { proof: device.proof, check });
         // The beacon is consumed server-side; drop the row now rather than
         // leaving a TV in the list that is already signing in.
-        setDevices((rows) => rows.filter((row) => row.handle !== device.handle));
-      } catch {
-        setFailed(true);
+        setRows((current) => current.filter((row) => row.handle !== device.handle));
+        return 'granted';
+      } catch (cause) {
+        return grantRefusal(cause);
       } finally {
         inFlight.current = false;
         setConnecting(null);
@@ -115,5 +117,5 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
     [client],
   );
 
-  return { devices, connecting, connected, failed, connect };
+  return { devices, connecting, connect };
 }

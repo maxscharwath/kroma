@@ -1,8 +1,10 @@
 // The phone's list, merged from every way it has of finding a TV.
 //
 // A TV that is both heard on the link and listed by the server is one row, not
-// two. Which copy wins matters: the heard one carries the proof that sends the
-// grant down the stronger path, so `lan` beats `server` on a tie.
+// two, and the two copies are not equal: the server's row describes a beacon
+// the server minted, while a link record is whatever a device on the wire chose
+// to publish. So the server's row says what the row IS, and the heard one
+// contributes only the proof that sends the grant down the stronger path.
 
 import type { DiscoveredTv, TvDiscoverySource } from './sources';
 
@@ -13,18 +15,36 @@ export interface NearbyWatchOptions {
   onRows: (rows: DiscoveredTv[]) => void;
 }
 
-// A row heard on the link wins: it is the one carrying the proof, and it is the
-// one whose evidence of being in this room is worth more.
-function better(a: DiscoveredTv, b: DiscoveredTv): DiscoveredTv {
-  return a.via === 'lan' ? a : b;
+// A handle travels in the clear in the text record (see `beaconTxt`), so any
+// device on the link can republish a real television's handle under a name of
+// its own choosing. The server's copy is therefore the identity, a heard copy
+// adds its proof and nothing else, and a second record of the same kind cannot
+// take over a handle another has already claimed - "last one wins" would be an
+// ordering an attacker picks.
+function combine(seen: DiscoveredTv, row: DiscoveredTv): DiscoveredTv {
+  if (seen.via === row.via) return seen;
+  const listed = seen.via === 'server' ? seen : row;
+  const heard = seen.via === 'server' ? row : seen;
+  return { ...listed, via: 'lan', proof: heard.proof };
+}
+
+// Whether a grant costs the person a trip to the television's own screen is the
+// server's word, and a row that has no server word does not get to answer for
+// it. A television the server could not place is precisely what the check
+// string exists to settle, so a row only the link found is asked for one -
+// which is also what stops a forged record from waving the prompt away by
+// claiming its television needs none.
+function confirmUnlessListed(row: DiscoveredTv): DiscoveredTv {
+  return row.via === 'server' ? row : { ...row, confirmRequired: true };
 }
 
 function merge(views: Map<string, DiscoveredTv[]>): DiscoveredTv[] {
   const byHandle = new Map<string, DiscoveredTv>();
   for (const rows of views.values()) {
-    for (const row of rows) {
+    for (const found of rows) {
+      const row = confirmUnlessListed(found);
       const seen = byHandle.get(row.handle);
-      byHandle.set(row.handle, seen ? better(row, seen) : row);
+      byHandle.set(row.handle, seen ? combine(seen, row) : row);
     }
   }
   // Stable, so the list does not reshuffle under a thumb when one source

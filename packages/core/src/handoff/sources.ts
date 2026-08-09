@@ -102,15 +102,16 @@ export interface NearbyReceiver {
 // older TV's record from one it should ignore.
 const RECORD_VERSION = '1';
 
-// Control characters are stripped for the same reason the server strips them
-// from what a device tells it: these are drawn in someone else's picker, where a
-// raw newline could forge a line.
-function label(value: string | undefined): string {
-  return (value ?? '')
+/** A name from off-device, stripped and optionally capped, for the same reason
+ * the server strips what a device tells it: these are drawn in someone else's
+ * picker, where a raw newline could forge a line. */
+export function safeLabel(value: string | null | undefined, max?: number): string {
+  const text = (value ?? '')
     .split('')
     .filter((c) => c >= ' ' && c !== '\u007f')
     .join('')
     .trim();
+  return max === undefined ? text : text.slice(0, max).trim();
 }
 
 /** The text dictionary a TV publishes. Keys are short, as DNS-SD prefers. */
@@ -141,8 +142,8 @@ export function parseBeaconTxt(txt: Record<string, string>): BeaconRecord | null
   const parsed = BeaconTxt.safeParse(txt);
   if (!parsed.success) return null;
   const record = parsed.data;
-  const name = label(record.name);
-  const platform = label(record.platform);
+  const name = safeLabel(record.name);
+  const platform = safeLabel(record.platform);
   return record.state === 'waiting'
     ? {
         state: 'waiting',
@@ -210,6 +211,10 @@ export function watchLanBeacons(
             name,
             platform: record.platform,
             check: record.check,
+            // Not in the record and never taken from one: the server is what
+            // says whether a beacon has to be confirmed, and a row heard here
+            // has not been placed by it at all. Asking is the closed answer.
+            confirmRequired: true,
             via: 'lan',
             proof: record.proof,
             server: record.server,

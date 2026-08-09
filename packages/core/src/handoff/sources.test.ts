@@ -29,7 +29,8 @@ function serverRows(n: number): HandoffDevice[] {
     handle: `h${i}`,
     name: `TV ${i}`,
     platform: 'tvOS',
-    check: 'K7QM',
+    check: 'K7QMR',
+    confirmRequired: false,
   }));
 }
 
@@ -205,6 +206,7 @@ describe('the link source', () => {
         name: 'Salon',
         platform: 'tvOS',
         check: 'K7QM',
+        confirmRequired: true,
         via: 'lan',
         proof: 'deadbeef',
         server: 'srv-1',
@@ -280,6 +282,19 @@ describe('watching the link', () => {
     const last = seen.at(-1);
     expect(last?.pairable).toHaveLength(1);
     expect(last?.receivers).toEqual([{ receiverId: 'r1', name: 'Chambre', platform: 'Tizen' }]);
+  });
+
+  it('asks for the check on a television it only heard, whatever the record says', () => {
+    // The record is published in the clear by anything on the wire, so a key
+    // saying "no confirmation needed" would be a key an attacker writes. There
+    // is no such key, and a row heard here has no server word behind it.
+    const bridge = bridgeWith([
+      { name: 'Salon', txt: { ...beaconTxt(RECORD), confirmRequired: 'false' } },
+    ]);
+    const seen: Array<{ pairable: Array<{ confirmRequired: boolean }> }> = [];
+    watchLanBeacons(bridge, (b) => seen.push(b));
+
+    expect(seen.at(-1)?.pairable[0]?.confirmRequired).toBe(true);
   });
 
   it('falls back to the published name for a signed-in television too', () => {

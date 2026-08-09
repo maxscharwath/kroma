@@ -1,6 +1,7 @@
 // Merging what several ways of looking each found. The question this answers:
-// one television, found twice, is one row, and it is the copy that can prove
-// where it is.
+// one television, found twice, is one row - the server's account of it, carrying
+// the proof of the copy that was heard. Including whether granting it costs the
+// person a code, which a record on the link may not answer for.
 
 import { describe, expect, it, vi } from 'vitest';
 import { watchNearbyTvs } from './nearby';
@@ -11,7 +12,10 @@ function row(handle: string, name: string, via: 'lan' | 'server'): DiscoveredTv 
     handle,
     name,
     platform: 'tvOS',
-    check: 'K7QM',
+    check: 'K7QMR',
+    // What a placeable television looks like: the server listed it and asked
+    // for nothing more. Each test below that cares says so for itself.
+    confirmRequired: false,
     via,
     ...(via === 'lan' ? { proof: `proof-${handle}` } : {}),
   };
@@ -32,7 +36,7 @@ function manual(id: string) {
 }
 
 describe('merging what each source found', () => {
-  it('reports one row for a television found by both, keeping the heard copy', () => {
+  it('reports one row for a television found by both, carrying the proof it heard', () => {
     const server = manual('server');
     const lan = manual('lan');
     const seen: DiscoveredTv[][] = [];
@@ -57,6 +61,107 @@ describe('merging what each source found', () => {
     server.report([row('h1', 'Salon', 'server')]);
 
     expect(seen.at(-1)?.[0]?.via).toBe('lan');
+  });
+
+  it('does not let a record on the link rename a television the server listed', () => {
+    const server = manual('server');
+    const lan = manual('lan');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [server.source, lan.source], onRows: (r) => seen.push(r) });
+
+    server.report([row('h1', 'Salon', 'server')]);
+    // The handle is published in the clear, so anything on the link can quote
+    // it back under a name, a platform and a check string of its own.
+    lan.report([{ ...row('h1', 'Cuisine', 'lan'), platform: 'Android TV', check: 'ZZZZ' }]);
+
+    const merged = seen.at(-1);
+    expect(merged).toHaveLength(1);
+    expect(merged?.[0]?.name).toBe('Salon');
+    expect(merged?.[0]?.platform).toBe('tvOS');
+    expect(merged?.[0]?.check).toBe('K7QMR');
+    // The one thing the heard copy is believed about.
+    expect(merged?.[0]?.proof).toBe('proof-h1');
+  });
+
+  it('keeps the listed identity whichever source reported first', () => {
+    const lan = manual('lan');
+    const server = manual('server');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [lan.source, server.source], onRows: (r) => seen.push(r) });
+
+    lan.report([row('h1', 'Cuisine', 'lan')]);
+    server.report([row('h1', 'Salon', 'server')]);
+
+    expect(seen.at(-1)?.[0]?.name).toBe('Salon');
+    expect(seen.at(-1)?.[0]?.proof).toBe('proof-h1');
+  });
+
+  it('does not let one record on the link take a handle another already claimed', () => {
+    const lan = manual('lan');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [lan.source], onRows: (r) => seen.push(r) });
+
+    // Nothing here can tell which of the two is the television, so the order
+    // the browse happened to emit them in must not be what decides.
+    lan.report([row('h1', 'Salon', 'lan'), { ...row('h1', 'Cuisine', 'lan'), proof: 'forged' }]);
+
+    const merged = seen.at(-1);
+    expect(merged).toHaveLength(1);
+    expect(merged?.[0]?.name).toBe('Salon');
+    expect(merged?.[0]?.proof).toBe('proof-h1');
+  });
+
+  it('takes whether a code is needed from the server, not from the link', () => {
+    const server = manual('server');
+    const lan = manual('lan');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [server.source, lan.source], onRows: (r) => seen.push(r) });
+
+    server.report([{ ...row('h1', 'Salon', 'server'), confirmRequired: true }]);
+    // A forged record for a real handle, saying the confirmation may be skipped.
+    // Nothing in the text record is evidence of anything about the beacon, and
+    // this field in particular is the server's answer to whether it could place
+    // the origin that raised it.
+    lan.report([{ ...row('h1', 'Salon', 'lan'), confirmRequired: false }]);
+
+    expect(seen.at(-1)?.[0]?.confirmRequired).toBe(true);
+    expect(seen.at(-1)?.[0]?.proof).toBe('proof-h1');
+  });
+
+  it('takes it from the server whichever source reported first', () => {
+    const lan = manual('lan');
+    const server = manual('server');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [lan.source, server.source], onRows: (r) => seen.push(r) });
+
+    lan.report([{ ...row('h1', 'Salon', 'lan'), confirmRequired: false }]);
+    server.report([{ ...row('h1', 'Salon', 'server'), confirmRequired: true }]);
+
+    expect(seen.at(-1)?.[0]?.confirmRequired).toBe(true);
+  });
+
+  it('lets the server wave the code away, since it is the one that placed the TV', () => {
+    const server = manual('server');
+    const lan = manual('lan');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [server.source, lan.source], onRows: (r) => seen.push(r) });
+
+    server.report([{ ...row('h1', 'Salon', 'server'), confirmRequired: false }]);
+    lan.report([{ ...row('h1', 'Salon', 'lan'), confirmRequired: true }]);
+
+    expect(seen.at(-1)?.[0]?.confirmRequired).toBe(false);
+  });
+
+  it('asks for a code on a television only the link found', () => {
+    // No server row means the server never placed it, which is exactly the case
+    // the check string was added for. Fail closed.
+    const lan = manual('lan');
+    const seen: DiscoveredTv[][] = [];
+    watchNearbyTvs({ sources: [lan.source], onRows: (r) => seen.push(r) });
+
+    lan.report([{ ...row('h1', 'Salon', 'lan'), confirmRequired: false }]);
+
+    expect(seen.at(-1)?.[0]?.confirmRequired).toBe(true);
   });
 
   it('carries every television only one source could find', () => {

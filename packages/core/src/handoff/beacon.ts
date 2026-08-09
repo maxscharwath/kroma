@@ -10,7 +10,7 @@
 // (the server does not answer, the beacon lapses, the grant arrives, the screen
 // goes away), and every one of them is worth a test that needs no renderer.
 
-import type { AuthResult, KromaClient } from '@kroma/client';
+import { type AuthResult, KromaApiError, type KromaClient } from '@kroma/client';
 import { beaconTxt, type LanDiscoveryBridge } from './sources';
 
 /** What the gate screens show while the TV waits: the name a phone sees, and
@@ -32,27 +32,51 @@ export interface HandoffLoopOptions {
   /** What this TV calls itself in the phone's list. */
   name: string;
   platform: string;
-  /** The beacon to show, or null while there is none: announcing, or refused
-   * because the TV is off the local network or the server has no handoff. */
+  /** The beacon to show, or null while there is none: announcing, or refused.
+   * A refusal the server will not take back stops the loop for good. */
   onBeacon: (beacon: HandoffBeaconView | null) => void;
   onAuthenticated: (result: AuthResult) => void;
 }
 
-// How long to wait before announcing again after the server refused or did not
-// answer. Long enough not to hammer a server that has no handoff at all.
+// How long to wait before announcing again after the server did not answer, or
+// answered something a later try could still turn into a beacon.
 const RETRY_MS = 15_000;
 
-/**
- * Start announcing this TV and watching for a grant. Returns the stop function:
- * call it when the TV signs in or the screen goes away, and the beacon comes
- * down instead of lingering on someone's phone until its TTL.
- */
-export function startHandoff(opts: HandoffLoopOptions): () => void {
-  const { client, deviceId, name, platform, publish, onBeacon, onAuthenticated } = opts;
+// What a server answers a television that will never raise a beacon on it: this
+// origin may not announce (403), the route wants a session (401), or the server
+// predates handoff (404). A full network (429), a 5xx and a dropped request are
+// all worth waiting out instead.
+const FINAL_REFUSALS = new Set([401, 403, 404]);
+
+const refusedForGood = (cause: unknown) =>
+  cause instanceof KromaApiError && FINAL_REFUSALS.has(cause.status);
+
+/** The running beacon. */
+export interface HandoffBeaconHandle {
+  /** Take it down, rather than leave it on every nearby phone until its TTL:
+   * the TV signed in, or the screen went away. */
+  stop(): void;
+  /** Say it under another name. The platform is often slower than the first
+   * announce - webOS and Tizen both answer through a bus callback - so the
+   * beacon that went up under "webOS" has to become the one under "Salon"
+   * without a phone ever holding both. */
+  rename(next: string): void;
+}
+
+/** Start announcing this TV and watching for a grant. */
+export function startHandoff(opts: HandoffLoopOptions): HandoffBeaconHandle {
+  const { client, deviceId, platform, publish, onBeacon, onAuthenticated } = opts;
+  let name = opts.name;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let secret = '';
   let unpublish: (() => void) | undefined;
+  // Which announce is the current one. A reply to a superseded round (a rename
+  // landed while it was in flight) is taken down rather than left running a
+  // second loop against a beacon nothing shows.
+  let round = 0;
+
+  const stale = (mine: number) => stopped || mine !== round;
 
   // Every beacon gets its own record, so a rotated one never leaves a stale
   // handle audible on the link. A device has only one record: this is the
@@ -77,10 +101,22 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
     timer = setTimeout(run, ms);
   };
 
-  const poll = async (every: number) => {
+  const disarm = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const shutDown = () => {
+    stopped = true;
+    disarm();
+    republish(null);
+    onBeacon(null);
+  };
+
+  const poll = async (mine: number, every: number) => {
     try {
       const status = await client.handoffPoll(secret);
-      if (stopped) return;
+      if (stale(mine)) return;
       if (status.status === 'authorized') {
         // Collected: the beacon is already consumed server-side, so there is
         // nothing left to take down.
@@ -98,13 +134,22 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         void begin();
         return;
       }
-    } catch {
+    } catch (cause) {
+      if (stale(mine)) return;
+      if (refusedForGood(cause)) {
+        // Nothing can poll this beacon and nothing can take it down either. It
+        // lapses on its own once this stops asking after it.
+        secret = '';
+        shutDown();
+        return;
+      }
       // A dropped poll is not a lapsed beacon: keep the current one and retry.
     }
-    wait(every, () => void poll(every));
+    wait(every, () => void poll(mine, every));
   };
 
   const begin = async () => {
+    const mine = ++round;
     try {
       // Passing the outgoing secret retires that beacon up front, so a phone
       // looking at the list never sees this TV twice.
@@ -114,12 +159,13 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         platform,
         ...(secret ? { prevSecret: secret } : {}),
       });
-      if (stopped) {
-        // The loop was stopped while this announce was in flight: the television
-        // signed in some other way, or the screen went. The server minted a
-        // beacon nobody now holds, and leaving it would keep a row in every
-        // nearby picker for its full TTL, offering a grant the television will
-        // never collect. Take it down.
+      if (stale(mine)) {
+        // Nothing holds this reply any more: the loop was stopped (the
+        // television signed in some other way, or the screen went) or a rename
+        // has already announced a newer one. The server minted a beacon nobody
+        // now holds, and leaving it would keep a row in every nearby picker for
+        // its full TTL, offering a grant the television will never collect.
+        // Take it down.
         client.handoffLeave(beacon.secret).catch(() => undefined);
         return;
       }
@@ -137,12 +183,16 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         proof: beacon.proof,
       });
       onBeacon({ name, check: beacon.check });
-      wait(beacon.pollSecs * 1000, () => void poll(beacon.pollSecs * 1000));
-    } catch {
-      // Refused (not on the local network) or unavailable (an older server).
-      // Either way the code + QR on screen still pair this TV.
-      if (stopped) return;
+      wait(beacon.pollSecs * 1000, () => void poll(mine, beacon.pollSecs * 1000));
+    } catch (cause) {
+      if (stale(mine)) return;
       secret = '';
+      if (refusedForGood(cause)) {
+        // Asking again would only be refused again; the code + QR on screen
+        // still pair this TV.
+        shutDown();
+        return;
+      }
       republish(null);
       onBeacon(null);
       wait(RETRY_MS, () => void begin());
@@ -151,16 +201,20 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
 
   void begin();
 
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-    timer = undefined;
-    republish(null);
-    onBeacon(null);
-    if (secret) {
-      const going = secret;
-      secret = '';
-      client.handoffLeave(going).catch(() => undefined);
-    }
+  return {
+    stop() {
+      shutDown();
+      if (secret) {
+        const going = secret;
+        secret = '';
+        client.handoffLeave(going).catch(() => undefined);
+      }
+    },
+    rename(next: string) {
+      if (stopped || next === name) return;
+      name = next;
+      disarm();
+      void begin();
+    },
   };
 }

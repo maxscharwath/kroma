@@ -7,6 +7,7 @@
 //! a restart.
 
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
@@ -33,6 +34,38 @@ pub enum PollState {
 pub struct Orphaned {
     pub token: String,
     pub access_token: String,
+}
+
+/// A filed request: the public handle it answers to, and the secret only the
+/// device that filed it holds.
+pub struct Filed {
+    pub handle: String,
+    pub secret: String,
+}
+
+/// What [`Grants::replace_scoped`] did. The caller's own prior entries are gone
+/// either way, and their tokens ride back in `orphans` for the caller to delete.
+pub struct ScopedInsert {
+    pub filed: Option<Filed>,
+    pub orphans: Vec<Orphaned>,
+}
+
+/// What an approval rule decided about a caller. `Burn` refuses AND takes the
+/// entry down for good, which is how a flow ends a request that has been asked
+/// wrongly once too often; its tokens go to the orphanage like any other lapse.
+pub enum Verdict<R> {
+    Approve,
+    Refuse(R),
+    Burn(R),
+}
+
+/// What came of [`Grants::decide`]. `Gone` is an unknown handle, a lapsed entry
+/// or one already approved: three things a caller may not tell apart, and which
+/// therefore carry no reason of their own.
+pub enum Decided<R> {
+    Approved,
+    Refused(R),
+    Gone,
 }
 
 struct Entry<M> {
@@ -78,9 +111,9 @@ fn tick() -> u64 {
 impl<M> Grants<M> {
     /// `capacity` bounds an endpoint that is unauthenticated by design against a
     /// flood, and keeps the map sparse enough that a small handle keyspace still
-    /// mints collision-free. It must be at least 1: the store evicts to make
-    /// room, and a store with no room to make cannot hold the request it was
-    /// just handed.
+    /// mints collision-free. It must be at least 1: [`Self::insert`] refuses a
+    /// full store outright, and [`Self::replace_scoped`] only ever gets in by
+    /// taking a slot off whichever scope holds the most.
     pub fn new(ttl_secs: i64, capacity: usize) -> Self {
         debug_assert!(capacity > 0, "a grant store with no capacity can hold nothing");
         Self {
@@ -120,20 +153,72 @@ impl<M> Grants<M> {
             .map(|(handle, _)| handle.clone())
     }
 
-    /// File `meta` under the first free handle `mint` produces → `(handle,
-    /// secret)`, or None when the store is full.
+    /// File `meta` under the first free handle `mint` produces, or None when the
+    /// store is full.
     ///
     /// Full REFUSES rather than evicting. Eviction is what an unauthenticated
     /// endpoint must not do: whoever calls most often would otherwise decide
     /// whose pairing survives, and a few requests a second would keep every
-    /// honest device out of every list. A caller that wants room should make it
-    /// among its own entries first (see [`Self::forget_where`]).
-    pub fn insert(&self, meta: M, mut mint: impl FnMut() -> String) -> Option<(String, String)> {
+    /// honest device out of every list. A caller that must not be refused files
+    /// through [`Self::replace_scoped`], which takes room from whichever scope
+    /// holds the most rather than from whoever happens to be oldest.
+    pub fn insert(&self, meta: M, mut mint: impl FnMut() -> String) -> Option<Filed> {
         let mut map = self.map.lock().unwrap();
         self.reap(&mut map);
         if map.len() >= self.capacity {
             return None;
         }
+        Some(Self::file(&mut map, meta, &mut mint))
+    }
+
+    /// File `meta` in its own scope, replacing whatever the same caller filed
+    /// before, under ONE lock: forgetting, counting and inserting in three calls
+    /// is a race where a device re-announcing frees its slot and loses it to
+    /// whoever asked in between.
+    ///
+    /// A scope already holding `scope_limit` is refused, because those slots
+    /// belong to the devices that took them. A full STORE is not: it takes the
+    /// least-recently-seen entry of whichever OTHER scope holds the most, so a
+    /// flood spread across many scopes is displaced by the callers it was
+    /// crowding out and no scope can cost another one its place. Only a store
+    /// holding nothing outside the caller's own scope refuses.
+    pub fn replace_scoped<K: Eq + Hash>(
+        &self,
+        mine: impl Fn(&M) -> bool,
+        scope_of: impl Fn(&M) -> K,
+        scope_limit: usize,
+        meta: M,
+        mut mint: impl FnMut() -> String,
+    ) -> ScopedInsert {
+        let mut map = self.map.lock().unwrap();
+        self.reap(&mut map);
+
+        let previous: Vec<String> =
+            map.iter().filter(|(_, e)| mine(&e.meta)).map(|(h, _)| h.clone()).collect();
+        let orphans: Vec<Orphaned> = previous
+            .into_iter()
+            .filter_map(|handle| map.remove(&handle))
+            .filter_map(Entry::orphaned)
+            .collect();
+
+        let scope = scope_of(&meta);
+        if map.values().filter(|e| scope_of(&e.meta) == scope).count() >= scope_limit {
+            return ScopedInsert { filed: None, orphans };
+        }
+        if map.len() >= self.capacity {
+            let Some(handle) = crowded_out(&map, &scope_of, &scope) else {
+                return ScopedInsert { filed: None, orphans };
+            };
+            self.abandon(map.remove(&handle));
+        }
+        ScopedInsert { filed: Some(Self::file(&mut map, meta, &mut mint)), orphans }
+    }
+
+    fn file(
+        map: &mut HashMap<String, Entry<M>>,
+        meta: M,
+        mint: &mut impl FnMut() -> String,
+    ) -> Filed {
         let handle = loop {
             let candidate = mint();
             if !map.contains_key(&candidate) {
@@ -145,15 +230,7 @@ impl<M> Grants<M> {
             handle.clone(),
             Entry { secret: secret.clone(), fresh_at: now(), seen: tick(), meta, granted: None },
         );
-        Some((handle, secret))
-    }
-
-    /// How many live entries match, so a caller can bound its own share before
-    /// asking for room it will not get.
-    pub fn count(&self, matching: impl Fn(&M) -> bool) -> usize {
-        let mut map = self.map.lock().unwrap();
-        self.reap(&mut map);
-        map.values().filter(|e| matching(&e.meta)).count()
+        Filed { handle, secret }
     }
 
     /// Approve `handle` for a request whose metadata satisfies `allowed`. False
@@ -168,14 +245,37 @@ impl<M> Grants<M> {
     /// have: two phones can see one waiting television, and so can one phone
     /// twice.
     pub fn authorize(&self, handle: &str, allowed: impl Fn(&M) -> bool, granted: Granted) -> bool {
+        let rule = |meta: &mut M| match allowed(meta) {
+            true => Verdict::Approve,
+            false => Verdict::Refuse(()),
+        };
+        matches!(self.decide(handle, rule, granted), Decided::Approved)
+    }
+
+    /// [`Self::authorize`] for a rule that has more than one way to say no, and
+    /// that may record the refusal on the entry it just read: `rule` is handed
+    /// the metadata mutably, and a [`Verdict::Burn`] takes the entry down.
+    pub fn decide<R>(
+        &self,
+        handle: &str,
+        rule: impl FnOnce(&mut M) -> Verdict<R>,
+        granted: Granted,
+    ) -> Decided<R> {
         let mut map = self.map.lock().unwrap();
         self.reap(&mut map);
-        match map.get_mut(handle) {
-            Some(entry) if entry.granted.is_none() && allowed(&entry.meta) => {
+        let Some(entry) = map.get_mut(handle).filter(|e| e.granted.is_none()) else {
+            return Decided::Gone;
+        };
+        match rule(&mut entry.meta) {
+            Verdict::Approve => {
                 entry.granted = Some(granted);
-                true
+                Decided::Approved
             }
-            _ => false,
+            Verdict::Refuse(reason) => Decided::Refused(reason),
+            Verdict::Burn(reason) => {
+                self.abandon(map.remove(handle));
+                Decided::Refused(reason)
+            }
         }
     }
 
@@ -223,15 +323,6 @@ impl<M> Grants<M> {
         map.remove(&handle)?.orphaned()
     }
 
-    /// Forget every entry whose metadata matches, surrendering their tokens.
-    pub fn forget_where(&self, doomed: impl Fn(&M) -> bool) -> Vec<Orphaned> {
-        let mut map = self.map.lock().unwrap();
-        self.reap(&mut map);
-        let handles: Vec<String> =
-            map.iter().filter(|(_, e)| doomed(&e.meta)).map(|(h, _)| h.clone()).collect();
-        handles.into_iter().filter_map(|h| map.remove(&h)).filter_map(Entry::orphaned).collect()
-    }
-
     /// Project every live entry NOT yet approved through `view`, dropping the
     /// `None`s.
     ///
@@ -262,6 +353,27 @@ impl<M> Grants<M> {
     }
 }
 
+// Whose slot a newcomer takes when the store is full: the least-recently-seen
+// entry of the biggest scope that is not `spared`. Biggest first is what makes
+// the bound fair, since a flood only ever crowds itself out; least-recently-seen
+// within it is what makes the choice deterministic, since `seen` is unique.
+fn crowded_out<M, K: Eq + Hash>(
+    map: &HashMap<String, Entry<M>>,
+    scope_of: &impl Fn(&M) -> K,
+    spared: &K,
+) -> Option<String> {
+    let mut share: HashMap<K, usize> = HashMap::new();
+    for entry in map.values() {
+        *share.entry(scope_of(&entry.meta)).or_default() += 1;
+    }
+    map.iter()
+        .filter(|(_, e)| scope_of(&e.meta) != *spared)
+        .max_by_key(|(_, e)| {
+            (share.get(&scope_of(&e.meta)).copied().unwrap_or_default(), std::cmp::Reverse(e.seen))
+        })
+        .map(|(handle, _)| handle.clone())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,8 +398,23 @@ mod tests {
         }
     }
 
-    fn file(g: &Grants<&'static str>, meta: &'static str, mint: impl FnMut() -> String) -> (String, String) {
-        g.insert(meta, mint).expect("room in the store")
+    fn file(
+        g: &Grants<&'static str>,
+        meta: &'static str,
+        mint: impl FnMut() -> String,
+    ) -> (String, String) {
+        let Filed { handle, secret } = g.insert(meta, mint).expect("room in the store");
+        (handle, secret)
+    }
+
+    type Scoped = (&'static str, &'static str);
+
+    fn scope(meta: &Scoped) -> &'static str {
+        meta.0
+    }
+
+    fn place(g: &Grants<Scoped>, meta: Scoped, mint: impl FnMut() -> String) -> Filed {
+        g.replace_scoped(|_| false, scope, 8, meta, mint).filed.expect("room in the store")
     }
 
     #[test]
@@ -335,6 +462,48 @@ mod tests {
             panic!("expected the FIRST approval");
         };
         assert_eq!(token, "tok");
+    }
+
+    #[test]
+    fn a_rule_may_refuse_with_a_reason_of_its_own() {
+        let g = grants();
+        let (handle, secret) = file(&g, "tv", seq_mint());
+        let refused = g.decide(&handle, |_| Verdict::Refuse("wrong"), granted());
+        assert!(matches!(refused, Decided::Refused("wrong")));
+        assert!(matches!(g.poll(&secret), PollState::Pending), "the entry is still there");
+
+        let approved = g.decide(&handle, |_| Verdict::<&str>::Approve, granted());
+        assert!(matches!(approved, Decided::Approved));
+    }
+
+    #[test]
+    fn a_burnt_entry_is_gone_and_reads_as_one_that_never_existed() {
+        let g = grants();
+        let (handle, secret) = file(&g, "tv", seq_mint());
+        let burnt = g.decide(&handle, |_| Verdict::Burn("enough"), granted());
+        assert!(matches!(burnt, Decided::Refused("enough")));
+
+        assert!(matches!(g.poll(&secret), PollState::Unknown));
+        let again = g.decide(&handle, |_| Verdict::<&str>::Approve, granted());
+        assert!(matches!(again, Decided::Gone));
+        assert_eq!(g.len(), 0);
+    }
+
+    #[test]
+    fn a_rule_writes_what_it_learned_back_onto_the_entry() {
+        let g: Grants<u32> = Grants::new(300, 4);
+        let Filed { handle, .. } = g.insert(0, seq_mint()).expect("room in the store");
+        for expected in 1..=3 {
+            let seen = g.decide(
+                &handle,
+                |tries| {
+                    *tries += 1;
+                    Verdict::Refuse(*tries)
+                },
+                granted(),
+            );
+            assert!(matches!(seen, Decided::Refused(n) if n == expected));
+        }
     }
 
     #[test]
@@ -423,17 +592,79 @@ mod tests {
     }
 
     #[test]
-    fn forget_where_drops_every_match_and_leaves_the_rest() {
+    fn refiling_drops_the_callers_own_entries_and_leaves_the_rest() {
         let g = grants();
         let mut mint = seq_mint();
         let (doomed, _) = file(&g, "old", &mut mint);
         let (_, kept) = file(&g, "new", &mut mint);
         assert!(g.authorize(&doomed, |_| true, granted()));
 
-        let orphans = g.forget_where(|meta| *meta == "old");
-        assert_eq!(orphans.len(), 1);
-        assert_eq!(g.len(), 1);
+        let again = g.replace_scoped(|m| *m == "old", |_| (), 4, "old", &mut mint);
+        assert!(again.filed.is_some());
+        assert_eq!(again.orphans.len(), 1, "the replaced entry surrendered its tokens");
+        assert_eq!(g.len(), 2);
         assert!(matches!(g.poll(&kept), PollState::Pending));
+    }
+
+    #[test]
+    fn a_full_scope_is_refused_even_while_the_store_has_room() {
+        // The slots in a scope belong to the entries that took them, so a
+        // newcomer waits rather than pushing a neighbour out.
+        let g = grants();
+        let mut mint = seq_mint();
+        file(&g, "mine", &mut mint);
+        file(&g, "mine", &mut mint);
+        file(&g, "theirs", &mut mint);
+
+        let refused = g.replace_scoped(|_| false, |m| *m, 2, "mine", &mut mint);
+        assert!(refused.filed.is_none());
+        assert_eq!(g.len(), 3, "nobody was pushed out to make room");
+        assert!(g.replace_scoped(|_| false, |m| *m, 2, "theirs", &mut mint).filed.is_some());
+    }
+
+    #[test]
+    fn a_full_store_takes_room_from_the_scope_holding_the_most() {
+        // The bound a flood meets: it can only crowd itself out, so the scopes
+        // it was keeping out are the ones that survive it.
+        let g: Grants<(&str, &str)> = Grants::new(300, 4);
+        let mut mint = seq_mint();
+        let flood = place(&g, ("loud", "1"), &mut mint);
+        place(&g, ("loud", "2"), &mut mint);
+        place(&g, ("loud", "3"), &mut mint);
+        let quiet = place(&g, ("quiet", "1"), &mut mint);
+
+        let arrival = g.replace_scoped(|_| false, scope, 3, ("new", "1"), &mut mint);
+        assert!(arrival.filed.is_some());
+        assert_eq!(g.len(), 4);
+        assert!(matches!(g.poll(&flood.secret), PollState::Unknown), "the oldest of the most");
+        assert!(matches!(g.poll(&quiet.secret), PollState::Pending), "one scope, one beacon");
+    }
+
+    #[test]
+    fn an_entry_crowded_out_surrenders_its_tokens_like_a_lapse_does() {
+        let g: Grants<(&str, &str)> = Grants::new(300, 2);
+        let mut mint = seq_mint();
+        let doomed = place(&g, ("loud", "1"), &mut mint);
+        place(&g, ("loud", "2"), &mut mint);
+        assert!(g.authorize(&doomed.handle, |_| true, granted()));
+        assert!(g.take_orphans().is_empty(), "nothing has left yet");
+
+        assert!(g.replace_scoped(|_| false, scope, 2, ("new", "1"), &mut mint).filed.is_some());
+        let orphans = g.take_orphans();
+        assert_eq!(orphans.len(), 1);
+        assert_eq!(orphans[0].token, "tok");
+    }
+
+    #[test]
+    fn a_caller_is_refused_rather_than_making_room_among_its_own() {
+        let g: Grants<(&str, &str)> = Grants::new(300, 2);
+        let mut mint = seq_mint();
+        let first = place(&g, ("mine", "1"), &mut mint);
+        place(&g, ("mine", "2"), &mut mint);
+
+        let refused = g.replace_scoped(|_| false, scope, 8, ("mine", "3"), &mut mint);
+        assert!(refused.filed.is_none());
+        assert!(matches!(g.poll(&first.secret), PollState::Pending));
     }
 
     #[test]
@@ -457,17 +688,5 @@ mod tests {
 
         assert!(g.authorize(&handle, |_| true, granted()));
         assert!(g.map_pending(|h, _| Some(h.to_string())).is_empty());
-    }
-
-    #[test]
-    fn count_answers_for_a_slice_of_the_store() {
-        let g = grants();
-        let mut mint = seq_mint();
-        file(&g, "mine", &mut mint);
-        file(&g, "mine", &mut mint);
-        file(&g, "theirs", &mut mint);
-        assert_eq!(g.count(|m| *m == "mine"), 2);
-        assert_eq!(g.count(|m| *m == "theirs"), 1);
-        assert_eq!(g.count(|_| true), 3);
     }
 }

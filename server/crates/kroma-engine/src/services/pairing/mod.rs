@@ -13,6 +13,7 @@
 mod grants;
 pub mod handoff;
 pub mod quickconnect;
+mod throttle;
 
 pub use grants::{Granted, Orphaned, PollState};
 pub use handoff::{Handoff, HandoffInner};

@@ -3,16 +3,17 @@
 // lapses, stay quiet when the server refuses, and keep its DNS-SD record in
 // step with whichever beacon is current.
 
-import type { KromaClient, PairingStatus, User } from '@kroma/client';
+import { KromaApiError, type KromaClient, type PairingStatus, type User } from '@kroma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type HandoffBeaconView, startHandoff } from './beacon';
+import { type HandoffBeaconView, type HandoffLoopOptions, startHandoff } from './beacon';
 
 const USER = { id: 'u1', username: 'owner' } as unknown as User;
 
 const BEACON = {
   handle: 'h1',
   secret: 's1',
-  check: 'K7QM',
+  check: 'K7QMR',
+  confirmRequired: false,
   proof: 'p1',
   instanceId: 'srv-1',
   ttlSecs: 60,
@@ -46,23 +47,30 @@ function stubClient(overrides: Partial<Record<string, unknown>> = {}) {
   return { client, calls, announces, left };
 }
 
-function run(client: KromaClient) {
+function run(client: KromaClient, publish?: HandoffLoopOptions['publish']) {
   const beacons: Array<HandoffBeaconView | null> = [];
   const signedIn: Array<{ token: string }> = [];
-  const stop = startHandoff({
+  const handoff = startHandoff({
     client,
     deviceId: 'tv-salon-01',
     name: 'Apple TV',
     platform: 'Apple TV',
+    publish,
     onBeacon: (b) => beacons.push(b),
     onAuthenticated: (r) => signedIn.push({ token: r.token }),
   });
-  return { stop, beacons, signedIn };
+  return { ...handoff, beacons, signedIn };
 }
 
 // Let every already-resolved promise settle, then advance to the next timer.
 async function tick(ms = 0) {
   await vi.advanceTimersByTimeAsync(ms);
+}
+
+function refusing(status: number, route = '/handoff/announce') {
+  return vi.fn(async () => {
+    throw new KromaApiError(status, `POST ${route} failed (${status})`);
+  });
 }
 
 beforeEach(() => {
@@ -85,7 +93,7 @@ describe('publishing the beacon', () => {
       name: 'Apple TV',
       platform: 'Apple TV',
     });
-    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QM' });
+    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QMR' });
     stop();
   });
 
@@ -108,7 +116,7 @@ describe('publishing on this television s own link', () => {
     const published: Array<{ name: string; txt: Record<string, string> }> = [];
     const unpublish = vi.fn();
     const { client } = stubClient();
-    const stop = startHandoff({
+    const { stop } = startHandoff({
       client,
       deviceId: 'tv-salon-01',
       name: 'Apple TV',
@@ -130,7 +138,7 @@ describe('publishing on this television s own link', () => {
     expect(published[0]?.txt.proof).toBe('p1');
     // Which install minted the handle, so a phone on another server can tell.
     expect(published[0]?.txt.server).toBe('srv-1');
-    expect(published[0]?.txt.check).toBe('K7QM');
+    expect(published[0]?.txt.check).toBe('K7QMR');
 
     stop();
     expect(unpublish).toHaveBeenCalled();
@@ -142,7 +150,7 @@ describe('publishing on this television s own link', () => {
     const { client } = stubClient({
       handoffPoll: vi.fn(async (): Promise<PairingStatus> => ({ status: 'expired' })),
     });
-    const stop = startHandoff({
+    const { stop } = startHandoff({
       client,
       deviceId: 'tv-salon-01',
       name: 'Apple TV',
@@ -169,7 +177,7 @@ describe('publishing on this television s own link', () => {
     const published: unknown[] = [];
     const unpublish = vi.fn();
     const { client } = stubClient();
-    const stop = startHandoff({
+    const { stop } = startHandoff({
       client,
       deviceId: 'tv-salon-01',
       name: 'Apple TV',
@@ -197,7 +205,7 @@ describe('publishing on this television s own link', () => {
   it('publishes under the brand when the television has no name of its own', async () => {
     const published: Array<{ name: string }> = [];
     const { client } = stubClient();
-    const stop = startHandoff({
+    const { stop } = startHandoff({
       client,
       deviceId: 'tv-salon-01',
       name: '',
@@ -221,7 +229,7 @@ describe('publishing on this television s own link', () => {
     });
     const { client } = stubClient();
     const beacons: Array<HandoffBeaconView | null> = [];
-    const stop = startHandoff({
+    const { stop } = startHandoff({
       client,
       deviceId: 'tv-salon-01',
       name: 'Apple TV',
@@ -234,7 +242,7 @@ describe('publishing on this television s own link', () => {
 
     expect(publish).toHaveBeenCalled();
     // The screen still shows the beacon: the server half worked.
-    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QM' });
+    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QMR' });
     expect(() => stop()).not.toThrow();
   });
 });
@@ -281,6 +289,81 @@ describe('a beacon that lapsed', () => {
   });
 });
 
+describe('a name the platform only got round to later', () => {
+  it('announces again under it, retiring the beacon already out there', async () => {
+    const { client, announces } = stubClient();
+    const { rename, stop, beacons } = run(client);
+    await tick();
+
+    rename('Salon');
+    await tick();
+
+    expect(announces).toHaveLength(2);
+    expect(announces[1]?.name).toBe('Salon');
+    expect(announces[1]?.prevSecret).toBe('s1');
+    expect(beacons.at(-1)).toEqual({ name: 'Salon', check: 'K7QMR' });
+    stop();
+  });
+
+  it('replaces the record on the link, rather than leaving the old name audible', async () => {
+    const published: Array<{ name: string; txt: Record<string, string> }> = [];
+    const unpublish = vi.fn();
+    const { client } = stubClient();
+    const { rename, stop } = run(client, (service) => {
+      published.push(service);
+      return unpublish;
+    });
+    await tick();
+
+    rename('Salon');
+    await tick();
+
+    expect(published.map((p) => p.name)).toEqual(['Apple TV', 'Salon']);
+    expect(published.at(-1)?.txt.name).toBe('Salon');
+    expect(unpublish).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('says nothing again when the name has not actually changed', async () => {
+    const { client, announces } = stubClient();
+    const { rename, stop } = run(client);
+    await tick();
+
+    rename('Apple TV');
+    await tick();
+
+    expect(announces).toHaveLength(1);
+    stop();
+  });
+
+  it('leaves ONE loop running when it lands while the first announce is in flight', async () => {
+    const { client, announces, left } = stubClient();
+    const { rename, stop } = run(client);
+    rename('Salon');
+    await tick();
+
+    expect(announces.map((a) => a.name)).toEqual(['Apple TV', 'Salon']);
+    // The superseded beacon is taken down instead of sitting in every picker
+    // for its TTL under a name this television no longer answers to.
+    expect(left).toEqual(['s1']);
+
+    await tick(3000);
+    expect(client.handoffPoll).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('is ignored once the beacon has been taken down', async () => {
+    const { client, announces } = stubClient();
+    const { rename, stop } = run(client);
+    await tick();
+
+    stop();
+    rename('Salon');
+    await tick(60_000);
+    expect(announces).toHaveLength(1);
+  });
+});
+
 describe('a poll that did not answer', () => {
   it('keeps the beacon and tries again rather than re-announcing', async () => {
     const { client, announces } = stubClient({
@@ -299,10 +382,10 @@ describe('a poll that did not answer', () => {
   });
 });
 
-describe('a server that refuses to publish a beacon', () => {
+describe('an announce that did not go through', () => {
   it('shows nothing and retries slowly, leaving the code path alone', async () => {
     const announce = vi.fn(async () => {
-      throw new Error('not on the local network');
+      throw new Error('offline');
     });
     const { client } = stubClient({ announceHandoff: announce });
     const { beacons, stop } = run(client);
@@ -313,6 +396,142 @@ describe('a server that refuses to publish a beacon', () => {
 
     await tick(15_000);
     expect(announce).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it('keeps asking while this network is already holding all it may', async () => {
+    const announce = refusing(429);
+    const { client } = stubClient({ announceHandoff: announce });
+    const { stop } = run(client);
+    await tick();
+    await tick(15_000);
+    await tick(15_000);
+
+    expect(announce).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it('keeps asking through a server that is having a bad time', async () => {
+    const announce = refusing(503);
+    const { client } = stubClient({ announceHandoff: announce });
+    const { stop } = run(client);
+    await tick();
+    await tick(15_000);
+
+    expect(announce).toHaveBeenCalledTimes(2);
+    stop();
+  });
+});
+
+describe('a server this television may never raise a beacon on', () => {
+  it('stops asking when the origin is refused, rather than every 15s forever', async () => {
+    const announce = refusing(403);
+    const { client } = stubClient({ announceHandoff: announce });
+    const { beacons, stop } = run(client);
+    await tick();
+
+    expect(beacons.at(-1)).toBeNull();
+
+    await tick(60_000);
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(client.handoffPoll).not.toHaveBeenCalled();
+    stop();
+    expect(client.handoffLeave).not.toHaveBeenCalled();
+  });
+
+  it('stops asking a server too old to have the route at all', async () => {
+    const announce = refusing(404);
+    const { client } = stubClient({ announceHandoff: announce });
+    const { beacons, stop } = run(client);
+    await tick();
+    await tick(60_000);
+
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(beacons.at(-1)).toBeNull();
+    stop();
+  });
+
+  it('ignores a rename once it has given up, since a name was never the problem', async () => {
+    const announce = refusing(403);
+    const { client } = stubClient({ announceHandoff: announce });
+    const { rename, stop } = run(client);
+    await tick();
+
+    rename('Salon');
+    await tick(60_000);
+
+    expect(announce).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('stops polling one it did raise, taking its record off the link', async () => {
+    const unpublish = vi.fn();
+    const { client } = stubClient({ handoffPoll: refusing(403, '/handoff/poll') });
+    const { beacons, stop } = run(client, () => unpublish);
+    await tick();
+    await tick(3000);
+
+    expect(client.handoffPoll).toHaveBeenCalledTimes(1);
+    expect(beacons.at(-1)).toBeNull();
+    expect(unpublish).toHaveBeenCalledTimes(1);
+
+    await tick(60_000);
+    expect(client.handoffPoll).toHaveBeenCalledTimes(1);
+    expect(client.announceHandoff).toHaveBeenCalledTimes(1);
+
+    // The beacon lapses on its own: taking it down asks the same refused route.
+    stop();
+    expect(client.handoffLeave).not.toHaveBeenCalled();
+  });
+});
+
+describe('a television whose origin the server cannot place', () => {
+  it('announces once and settles into its poll cadence, rather than giving up', async () => {
+    // A packaged Tizen or webOS app presents `Origin: null`, which is what a
+    // sandboxed iframe presents too. That used to be refused outright, and the
+    // loop stops for good on a refusal it cannot outlive. It is answered now,
+    // with a beacon that will cost the person the check string on screen - so
+    // the giving-up path must not fire, and the loop has to be RUNNING rather
+    // than merely not stopped.
+    const announce = vi.fn(async () => ({ ...BEACON, confirmRequired: true }));
+    const unpublish = vi.fn();
+    const { client } = stubClient({ announceHandoff: announce });
+    const { beacons, stop } = run(client, () => unpublish);
+    await tick();
+
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(beacons.at(-1)).toEqual({ name: 'Apple TV', check: 'K7QMR' });
+
+    for (let polls = 1; polls <= 5; polls++) {
+      await tick(3000);
+      expect(client.handoffPoll).toHaveBeenCalledTimes(polls);
+    }
+
+    // One beacon, still the current one: no retry loop, no re-announce, and
+    // nothing took the record off the link or blanked the screen.
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(beacons).not.toContain(null);
+    expect(unpublish).not.toHaveBeenCalled();
+
+    stop();
+  });
+
+  it('collects the account when a phone that answered the code grants it', async () => {
+    const authorized: PairingStatus = {
+      status: 'authorized',
+      token: 'tok',
+      accessToken: 'acc',
+      user: USER,
+    };
+    const { client } = stubClient({
+      announceHandoff: vi.fn(async () => ({ ...BEACON, confirmRequired: true })),
+      handoffPoll: vi.fn(async () => authorized),
+    });
+    const { signedIn, stop } = run(client);
+    await tick();
+    await tick(3000);
+
+    expect(signedIn).toEqual([{ token: 'tok' }]);
     stop();
   });
 });

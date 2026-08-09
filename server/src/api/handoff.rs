@@ -4,38 +4,51 @@
 //! TVs waiting on its own network and grants one its account. No code crosses
 //! the room, so nothing has to be read off a screen or typed on a remote.
 //!
-//! What gates every route is the pair of addresses the two devices arrive from,
-//! and nothing else. The server does not have to be on their network: it is a
+//! What places the two devices beside each other is the pair of addresses they
+//! arrive from. The server does not have to be on their network: it is a
 //! rendezvous, so a TV and a phone in one room pair through a server anywhere in
 //! the world. The service compares only their two addresses, which is why a TV
 //! somewhere else never appears in a stranger's list and a handle learned some
 //! other way cannot be granted from off-network.
+//!
+//! An address places a device, and that is all it does: a page open in a browser
+//! on that network arrives from it too. Raising a beacon therefore also asks the
+//! caller for an origin this install can place
+//! (`crate::api::origin::require_beacon_origin`). An origin that names nobody
+//! still announces, and the grant against it asks for the check string off the
+//! television's own screen, which is what a page wearing that origin has nowhere
+//! to print.
 
 use std::net::SocketAddr;
 
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
+use axum::middleware::from_fn_with_state;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{Extension, Json, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::api::accounts::mint_device_tokens;
 use crate::api::error::lerr;
 use crate::api::extract::AuthUser;
-use crate::api::util::{client_ip, query};
-use crate::db;
+use crate::api::origin::{require_beacon_origin, ConfirmRequired};
+use crate::api::util::{client_ip, drop_orphans};
 use crate::i18n::ReqLocale;
-use crate::services::pairing::handoff::{valid_device_id, Announce, Announcement, Nearby};
+use crate::services::pairing::handoff::{
+    valid_device_id, Announce, Announcement, Claim, Nearby, Refusal,
+};
+use crate::services::pairing::Orphaned;
 use crate::state::SharedState;
 
 /// Reachable before a session exists: this is how a TV with no account at all
-/// gets one.
-pub fn public_routes() -> Router<SharedState> {
+/// gets one. Open to a device, closed to a page nobody can be held to.
+pub fn public_routes(state: SharedState) -> Router<SharedState> {
     Router::new()
         .route("/handoff/announce", post(announce))
         .route("/handoff/leave", post(leave))
         .route("/handoff/poll", post(poll))
+        .route_layer(from_fn_with_state(state, require_beacon_origin))
 }
 
 /// The granting half: only a signed-in account can hand itself to a TV.
@@ -60,14 +73,16 @@ pub struct AnnounceBody {
 }
 
 /// `POST /api/handoff/announce` → what the TV needs to stay listed and to
-/// collect the account it is granted.
+/// collect the account it is granted. `confirmRequired` says the origin this
+/// beacon was raised from named nobody, so the check string has to be readable
+/// on the TV's screen: the phone will ask for it before granting.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnounceReply {
     pub handle: String,
     pub secret: String,
-    /// Four characters the TV prints on its own screen so a person can tell two
-    /// TVs apart in the phone's list. Never typed anywhere.
+    /// A few characters the TV prints on its own screen so a person can tell two
+    /// TVs apart in the phone's list, and type back when `confirmRequired`.
     pub check: String,
     /// This install's opaque id, the same one `/health` reports. It goes in the
     /// TV's record so a phone can tell whether the handle is one ITS server
@@ -82,9 +97,12 @@ pub struct AnnounceReply {
     /// How often to poll. Polling is what keeps the beacon listed, so a TV that
     /// stops polling leaves the list on its own.
     pub poll_secs: i64,
+    pub confirm_required: bool,
 }
 
-/// One waiting TV in `GET /api/handoff/devices`.
+/// One waiting TV in `GET /api/handoff/devices`. `confirmRequired` is the
+/// phone's cue to ask for `check` rather than only show it: granting this row
+/// without it is refused.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NearbyDevice {
@@ -92,11 +110,18 @@ pub struct NearbyDevice {
     pub name: String,
     pub platform: String,
     pub check: String,
+    pub confirm_required: bool,
 }
 
 impl From<Nearby> for NearbyDevice {
     fn from(row: Nearby) -> Self {
-        Self { handle: row.handle, name: row.name, platform: row.platform, check: row.check }
+        Self {
+            handle: row.handle,
+            name: row.name,
+            platform: row.platform,
+            check: row.check,
+            confirm_required: row.confirm_required,
+        }
     }
 }
 
@@ -112,51 +137,55 @@ pub struct GrantBody {
     /// than being told about it by this server.
     #[serde(default)]
     pub proof: Option<String>,
+    /// The check string as a person read it off the television, required by a
+    /// beacon whose origin named nobody and ignored by every other.
+    #[serde(default)]
+    pub check: Option<String>,
 }
 
-// Tokens minted for a beacon nobody will collect. Deleting them is best-effort
-// cleanup, never something a caller waits on the outcome of.
-async fn drop_orphans(
-    state: &SharedState,
-    orphans: Vec<crate::services::pairing::Orphaned>,
-) {
-    for orphan in orphans {
-        let token = orphan.token;
-        let access = orphan.access_token;
-        let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
-        let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
-    }
+// Delete `surrendered`, then whatever the store swept while this request was
+// being served. Every handler here ends this way, because every one of them
+// touches the store and the store sweeps on every touch: a beacon that was
+// granted and then never polled for leaves a session and a 90-day access token
+// behind, and nothing else in the server would ever delete them.
+async fn sweep(state: &SharedState, surrendered: impl IntoIterator<Item = Orphaned>) {
+    drop_orphans(state, surrendered).await;
+    drop_orphans(state, state.handoff.take_orphans()).await;
 }
 
 /// `POST /api/handoff/announce` → [`AnnounceReply`]. Unauthenticated by design:
-/// the device announcing has no account yet. LAN-only, capped, and the reply's
-/// `handle` is unguessable, so announcing reveals nothing to anyone who cannot
-/// already list the subnet.
+/// the device announcing has no account yet. Capped per address and per network,
+/// closed to an origin this install refuses, and the reply's `handle` is
+/// unguessable, so announcing reveals nothing to anyone who cannot already list
+/// the subnet.
 pub async fn announce(
     State(state): State<SharedState>,
     ReqLocale(loc): ReqLocale,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Extension(ConfirmRequired(confirm_required)): Extension<ConfirmRequired>,
     headers: HeaderMap,
     Json(body): Json<AnnounceBody>,
 ) -> Response {
     let ip = client_ip(&headers, &addr, &state.config.trusted_proxies);
+    if state.handoff.announcing_too_often(&ip) {
+        return lerr(loc, StatusCode::TOO_MANY_REQUESTS, "handoff.tooOften");
+    }
     if !valid_device_id(&body.device_id) {
         return lerr(loc, StatusCode::BAD_REQUEST, "error.castBadReceiver");
     }
 
     if let Some(prev) = body.prev_secret.as_deref() {
-        let orphan = state.handoff.forget(prev);
-        drop_orphans(&state, orphan.into_iter().collect()).await;
+        drop_orphans(&state, state.handoff.forget(prev)).await;
     }
 
-    let (announcement, mut orphans) = state.handoff.announce(Announce {
+    let (announcement, orphans) = state.handoff.announce(Announce {
         device_id: body.device_id,
         name: body.name,
         platform: body.platform,
         ip,
+        confirm_required,
     });
-    orphans.extend(state.handoff.take_orphans());
-    drop_orphans(&state, orphans).await;
+    sweep(&state, orphans).await;
 
     match announcement {
         Announcement::Ok(announced) => Json(AnnounceReply {
@@ -167,6 +196,7 @@ pub async fn announce(
             proof: announced.proof,
             ttl_secs: announced.ttl_secs,
             poll_secs: announced.poll_secs,
+            confirm_required: announced.confirm_required,
         })
         .into_response(),
         // This network is already holding as many waiting televisions as it may.
@@ -180,8 +210,7 @@ pub async fn announce(
 /// `POST /api/handoff/leave` `{ secret }` → 204. Take the beacon down early
 /// (the TV signed in another way, or is quitting) instead of waiting out its TTL.
 pub async fn leave(State(state): State<SharedState>, Json(body): Json<SecretBody>) -> Response {
-    let orphan = state.handoff.forget(&body.secret);
-    drop_orphans(&state, orphan.into_iter().collect()).await;
+    sweep(&state, state.handoff.forget(&body.secret)).await;
     StatusCode::NO_CONTENT.into_response()
 }
 
@@ -196,9 +225,7 @@ pub async fn leave(State(state): State<SharedState>, Json(body): Json<SecretBody
 /// default), which is not where a credential redeeming a 90-day token belongs.
 pub async fn poll(State(state): State<SharedState>, Json(body): Json<SecretBody>) -> Response {
     let status = super::dto::PairingPoll::from(state.handoff.poll(&body.secret));
-    // Every poll is also the moment the store may have swept a lapsed beacon,
-    // and a swept beacon that was approved still has real rows behind it.
-    drop_orphans(&state, state.handoff.take_orphans()).await;
+    sweep(&state, []).await;
     Json(status).into_response()
 }
 
@@ -215,11 +242,14 @@ pub async fn devices(
     let ip = client_ip(&headers, &addr, &state.config.trusted_proxies);
     let rows: Vec<NearbyDevice> =
         state.handoff.nearby(&ip).into_iter().map(NearbyDevice::from).collect();
+    sweep(&state, []).await;
     Json(rows).into_response()
 }
 
 /// `POST /api/handoff/grant` (Bearer) `{ handle }` → 204. Mints this account a
 /// fresh device session and leaves it for the TV to collect on its next poll.
+/// A beacon whose origin named nobody also wants `check`, read off that TV's
+/// own screen; three wrong answers take the beacon down for good.
 pub async fn grant(
     State(state): State<SharedState>,
     ReqLocale(loc): ReqLocale,
@@ -238,18 +268,26 @@ pub async fn grant(
         Err(resp) => return resp,
     };
 
-    let heard = body.proof.as_deref();
-    if state.handoff.grant(&body.handle, &ip, heard, user, token.clone(), access.clone()) {
-        StatusCode::NO_CONTENT.into_response()
-    } else {
-        // Unknown handle, lapsed beacon, or a caller that showed nothing
-        // putting it beside that TV: one answer for all three. Don't leave the
-        // just-minted tokens dangling.
-        drop_orphans(
-            &state,
-            vec![crate::services::pairing::Orphaned { token, access_token: access }],
-        )
-        .await;
-        lerr(loc, StatusCode::NOT_FOUND, "handoff.gone")
+    let claim =
+        Claim { viewer_ip: &ip, proof: body.proof.as_deref(), check: body.check.as_deref() };
+    match state.handoff.grant(&body.handle, claim, user, token.clone(), access.clone()) {
+        Ok(()) => {
+            sweep(&state, []).await;
+            StatusCode::NO_CONTENT.into_response()
+        }
+        // Don't leave the just-minted tokens dangling.
+        Err(refusal) => {
+            sweep(&state, [Orphaned { token, access_token: access }]).await;
+            refused(loc, refusal)
+        }
+    }
+}
+
+fn refused(loc: &str, refusal: Refusal) -> Response {
+    match refusal {
+        Refusal::CheckRequired => lerr(loc, StatusCode::BAD_REQUEST, "handoff.checkRequired"),
+        Refusal::CheckWrong => lerr(loc, StatusCode::FORBIDDEN, "handoff.checkWrong"),
+        Refusal::CheckTooMany => lerr(loc, StatusCode::TOO_MANY_REQUESTS, "handoff.checkTooMany"),
+        Refusal::Gone => lerr(loc, StatusCode::NOT_FOUND, "handoff.gone"),
     }
 }

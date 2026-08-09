@@ -14,13 +14,14 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::pin;
-use crate::api::util::{blocking, client_ip, query, SecretQuery};
+use crate::api::util::{blocking, client_ip, drop_orphans, query, SecretQuery};
 use crate::api::extract::{bearer_from_headers, AuthUser};
 use crate::services::auth;
 use crate::services::loginguard;
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::model::{Permission, PublicUser, User};
+use crate::services::pairing::Orphaned;
 use crate::state::SharedState;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, patch, post};
@@ -536,8 +537,8 @@ pub struct ChangePasswordBody {
 }
 
 /// `PATCH /api/auth/me/password` (Bearer) `{ current, next }` → 204. Every other
-/// session and device token is revoked — a rotation is how a user evicts a stolen
-/// credential — while the caller's own session keeps working.
+/// session and device token is revoked (a rotation is how a user evicts a stolen
+/// credential) while the caller's own session keeps working.
 pub async fn change_password(
     State(state): State<SharedState>,
     ReqLocale(loc): ReqLocale,
@@ -734,13 +735,11 @@ pub async fn quick_initiate(
     // Drop the rotated-away code so it stops being approvable, along with any
     // tokens it accrued in the gap (approved but never polled for).
     if let Some(Json(QuickInitiateBody { prev_secret: Some(secret) })) = body {
-        if let Some(revoked) = state.quickconnect.revoke(&secret) {
-            let (token, access) = (revoked.token, revoked.access_token);
-            let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
-            let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
-        }
+        drop_orphans(&state, state.quickconnect.revoke(&secret)).await;
     }
-    let Some(init) = state.quickconnect.initiate() else {
+    let initiated = state.quickconnect.initiate();
+    drop_orphans(&state, state.quickconnect.take_orphans()).await;
+    let Some(init) = initiated else {
         return lerr(loc, StatusCode::TOO_MANY_REQUESTS, "connect.tooManyPending");
     };
     let web_base = state.config.web_url.clone().or_else(|| {
@@ -779,12 +778,13 @@ pub async fn quick_authorize(
         Err(resp) => return resp,
     };
 
-    if state.quickconnect.authorize(&code, user, token.clone(), access.clone()) {
+    let approved = state.quickconnect.authorize(&code, user, token.clone(), access.clone());
+    drop_orphans(&state, state.quickconnect.take_orphans()).await;
+    if approved {
         StatusCode::NO_CONTENT.into_response()
     } else {
         // Unknown/expired code → don't leave the just-created tokens dangling.
-        let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
-        let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
+        drop_orphans(&state, Some(Orphaned { token, access_token: access })).await;
         lerr(loc, StatusCode::NOT_FOUND, "connect.invalidCode")
     }
 }
@@ -810,10 +810,6 @@ pub async fn quick_poll(
         .unwrap_or_default();
     let status = super::dto::PairingPoll::from(state.quickconnect.poll(&secret));
     // A code that lapsed after it was approved still has rows behind it.
-    for orphan in state.quickconnect.take_orphans() {
-        let (token, access) = (orphan.token, orphan.access_token);
-        let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
-        let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
-    }
+    drop_orphans(&state, state.quickconnect.take_orphans()).await;
     Json(status).into_response()
 }

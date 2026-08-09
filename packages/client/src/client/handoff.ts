@@ -33,7 +33,7 @@ export function announceHandoff(
       headers: JSON_HEADERS,
       body: JSON.stringify(body),
     })
-    .then((r) => validate(HandoffBeacon, r));
+    .then((r) => HandoffBeacon.parse(r));
 }
 
 /** Take this beacon down early (signed in another way, or quitting) instead of
@@ -64,26 +64,45 @@ export function handoffPoll(ctx: RequestContext, secret: string): Promise<Pairin
 }
 
 /** The TVs waiting on this device's own network. Empty off it:
- * the same answer as "none waiting", which is all a caller may learn. (Bearer.) */
+ * the same answer as "none waiting", which is all a caller may learn. (Bearer.)
+ *
+ * Answers with the PARSED rows rather than the body as it arrived, so
+ * `confirmRequired` is a boolean on every one of them and an older server's
+ * silence about it reads as the safe answer instead of as `undefined`. */
 export function handoffDevices(ctx: RequestContext): Promise<HandoffDevice[]> {
-  return ctx
-    .json<HandoffDevice[]>('/handoff/devices')
-    .then((r) => validate(HandoffDevice.array(), r));
+  return ctx.json<HandoffDevice[]>('/handoff/devices').then((r) => HandoffDevice.array().parse(r));
 }
 
-/** Hand this account to the TV behind `handle`. Pass `proof` when this device
- * heard that TV's record on the link rather than being told about it by the
- * server: it is the stronger evidence of the two, and the only one that holds
- * when the addresses cannot be reconciled. Resolves on 204; throws
- * `KromaApiError` 404 when that TV stopped waiting. (Bearer.) */
+/** What a phone sends alongside the handle: why it should be believed to be
+ * beside that television. */
+export interface HandoffEvidence {
+  /** This device heard that TV's record on its own link rather than being told
+   * about it by the server. The stronger of the two, and the only one that
+   * holds when the addresses cannot be reconciled. */
+  proof?: string;
+  /** The check string the TV is printing, read off its screen by the person
+   * granting. Demanded of a beacon the server could not place by its origin -
+   * a screen is the one thing a page pretending to be a television has not
+   * got. Case and surrounding space are the server's to normalise. */
+  check?: string;
+}
+
+/** Hand this account to the TV behind `handle`. Resolves on 204; throws
+ * `KromaApiError` 400 when a check was required and none was sent, 403 when the
+ * check was wrong and more attempts remain, 429 when they have run out, and 404
+ * when that TV stopped waiting. (Bearer.) */
 export async function handoffGrant(
   ctx: RequestContext,
   handle: string,
-  proof?: string,
+  evidence: HandoffEvidence = {},
 ): Promise<void> {
   await ctx.json<void>('/handoff/grant', {
     method: 'POST',
     headers: JSON_HEADERS,
-    body: JSON.stringify(proof ? { handle, proof } : { handle }),
+    body: JSON.stringify({
+      handle,
+      proof: evidence.proof || undefined,
+      check: evidence.check || undefined,
+    }),
   });
 }

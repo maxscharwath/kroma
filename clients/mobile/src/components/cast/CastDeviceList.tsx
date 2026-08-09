@@ -4,13 +4,14 @@
 // (<CastPanel>): the player is a native fullScreenModal, and @gorhom's sheet
 // renders into a host that sits behind it.
 
-import type { CastReceiver } from '@kroma/core';
+import type { CastReceiver, DiscoveredTv } from '@kroma/core';
 import { useCast } from '@kroma/ui';
 import { Box, Icon, styles, Txt } from '@kroma/ui/kit';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable } from 'react-native';
 import { SheetTitle } from '#mobile/components/ui';
 import { useT } from '#mobile/lib/i18n';
+import { useClient } from '#mobile/lib/session';
 import { colors, radius, spacing, type } from '#mobile/lib/theme';
 
 export interface CastDeviceListProps {
@@ -20,7 +21,31 @@ export interface CastDeviceListProps {
 
 export function CastDeviceList({ onPick, offerLocal = true }: Readonly<CastDeviceListProps>) {
   const t = useT();
-  const { receivers, active } = useCast();
+  const client = useClient();
+  const { receivers, active, pairable } = useCast();
+  // A television with no account cannot be cast to, and saying "none available"
+  // with one in the room is the dead end this answers. The provider already
+  // found it; the one useful thing to add here is the act of signing it in.
+  //
+  // Deliberately NOT `useNearbyTvs`: that hook does its own looking, and this
+  // list is rendered inside a provider that is already looking.
+  const [signingIn, setSigningIn] = useState<string | null>(null);
+  const [signedIn, setSignedIn] = useState<string | null>(null);
+  const signIn = useCallback(
+    async (tv: DiscoveredTv) => {
+      setSigningIn(tv.handle);
+      try {
+        await client.handoffGrant(tv.handle, tv.proof);
+        setSignedIn(tv.handle);
+      } catch {
+        // It stopped waiting. Its row goes on the next report, which says more
+        // than an error would.
+      } finally {
+        setSigningIn(null);
+      }
+    },
+    [client],
+  );
 
   return (
     <>
@@ -49,7 +74,18 @@ export function CastDeviceList({ onPick, offerLocal = true }: Readonly<CastDevic
         />
       ))}
 
-      {receivers.length === 0 ? (
+      {pairable.map((tv) => (
+        <DeviceRow
+          key={tv.handle}
+          icon="device-tv"
+          name={tv.name}
+          detail={detailOfPairable(tv.handle, signingIn, signedIn, t)}
+          selected={false}
+          onPress={() => void signIn(tv)}
+        />
+      ))}
+
+      {receivers.length === 0 && pairable.length === 0 ? (
         <NoDevices />
       ) : (
         // Shown even with devices already listed: the roster is live, so a
@@ -99,6 +135,18 @@ function Searching() {
       <Txt style={s.searchingLabel}>{t('cast.searching')}</Txt>
     </Box>
   );
+}
+
+// What the row under a television with no account says it is doing.
+function detailOfPairable(
+  handle: string,
+  signingIn: string | null,
+  signedIn: string | null,
+  t: ReturnType<typeof useT>,
+): string {
+  if (signedIn === handle) return t('handoff.connecting');
+  if (signingIn === handle) return t('handoff.connecting');
+  return t('cast.signInThisTv');
 }
 
 function detailOf(r: CastReceiver, t: ReturnType<typeof useT>): string {

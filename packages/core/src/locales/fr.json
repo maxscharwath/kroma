@@ -2042,5 +2042,6 @@
   "handoff.connecting": "Connexion…",
   "handoff.connected": "{name} se connecte",
   "handoff.gone": "Cette TV n'attend plus",
-  "handoff.otherWays": "Autres façons de connecter"
+  "handoff.otherWays": "Autres façons de connecter",
+  "cast.signInThisTv": "Pas encore de compte · touche pour la connecter"
 }

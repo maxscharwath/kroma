@@ -55,13 +55,39 @@ export interface LanDiscoveryBridge {
   browse?: (onFound: (services: LanService[]) => void) => () => void;
 }
 
-/** What a TV puts in its record, and what a phone reads back out. */
-export interface BeaconRecord {
-  handle: string;
+/** What a TV puts in its record, and what a phone reads back out.
+ *
+ * One record type for both states a television can be in, because a phone
+ * looking for televisions wants both answers from one browse: the ones waiting
+ * for an account, and the ones already signed in and ready to be cast to. What
+ * the phone can DO with a row differs; that it can see the row does not. */
+export type BeaconRecord =
+  | {
+      /** Signed out, and waiting for someone to hand it an account. */
+      state: 'waiting';
+      name: string;
+      platform: string;
+      handle: string;
+      check: string;
+      proof: string;
+    }
+  | {
+      /** Signed in, on the cast roster, ready to be played to. */
+      state: 'ready';
+      name: string;
+      platform: string;
+      /** Its id on the cast roster, so a row heard here and a row listed by the
+       * server are recognised as one television. */
+      receiver: string;
+    };
+
+/** One signed-in television heard on the link. Carries no authority: a command
+ * still travels through the server, which is the only thing that knows whose
+ * television this is. */
+export interface NearbyReceiver {
+  receiverId: string;
   name: string;
   platform: string;
-  check: string;
-  proof: string;
 }
 
 // Bumped if the keys below ever change meaning, so a newer phone can tell an
@@ -70,23 +96,102 @@ const RECORD_VERSION = '1';
 
 /** The text dictionary a TV publishes. Keys are short, as DNS-SD prefers. */
 export function beaconTxt(record: BeaconRecord): Record<string, string> {
-  return {
+  const common = {
     v: RECORD_VERSION,
-    handle: record.handle,
+    state: record.state,
     name: record.name,
     platform: record.platform,
-    check: record.check,
-    proof: record.proof,
   };
+  return record.state === 'waiting'
+    ? { ...common, handle: record.handle, check: record.check, proof: record.proof }
+    : { ...common, receiver: record.receiver };
 }
 
 /** Read a record back, or null if it is not one this build understands. A
  * malformed or future record is skipped rather than shown half-empty. */
 export function parseBeaconTxt(txt: Record<string, string>): BeaconRecord | null {
   if (txt.v !== RECORD_VERSION) return null;
-  const { handle, name, platform, check, proof } = txt;
-  if (!handle || !check || !proof) return null;
-  return { handle, name: name || '', platform: platform || '', check, proof };
+  const name = txt.name || '';
+  const platform = txt.platform || '';
+  if (txt.state === 'waiting') {
+    const { handle, check, proof } = txt;
+    if (!handle || !check || !proof) return null;
+    return { state: 'waiting', name, platform, handle, check, proof };
+  }
+  if (txt.state === 'ready') {
+    return txt.receiver ? { state: 'ready', name, platform, receiver: txt.receiver } : null;
+  }
+  return null;
+}
+
+// One browse, projected through `read`. Both callers below want the same
+// records and different halves of them.
+function watchRecords<T>(
+  bridge: LanDiscoveryBridge,
+  read: (record: BeaconRecord, service: LanService) => T | null,
+  onRows: (rows: T[]) => void,
+): () => void {
+  const browse = bridge.browse;
+  if (!browse) return () => undefined;
+  return browse((services) => {
+    const rows: T[] = [];
+    for (const service of services) {
+      const record = parseBeaconTxt(service.txt);
+      const row = record && read(record, service);
+      if (row) rows.push(row);
+    }
+    onRows(rows);
+  });
+}
+
+/** Everything this device can hear, split by what can be done with it. */
+export interface LanBeacons {
+  /** Televisions with no account, which a phone can sign in. */
+  pairable: DiscoveredTv[];
+  /** Televisions already signed in. Discovery only: what a sender may command
+   * is still the server's to say. */
+  receivers: NearbyReceiver[];
+}
+
+/**
+ * Watch the link once and report both halves.
+ *
+ * One browse rather than two: a caller that wants both would otherwise stand up
+ * two browsers over the same service type, and on a phone that is two multicast
+ * listeners for one question.
+ */
+export function watchLanBeacons(
+  bridge: LanDiscoveryBridge,
+  onBeacons: (beacons: LanBeacons) => void,
+): () => void {
+  return watchRecords(
+    bridge,
+    // A record with no name of its own still has the one the network published
+    // it under.
+    (record, service) => ({ record, name: record.name || service.name }),
+    (rows) => {
+      const beacons: LanBeacons = { pairable: [], receivers: [] };
+      for (const { record, name } of rows) {
+        if (record.state === 'waiting') {
+          beacons.pairable.push({
+            handle: record.handle,
+            name,
+            platform: record.platform,
+            check: record.check,
+            via: 'lan',
+            proof: record.proof,
+          });
+        } else {
+          beacons.receivers.push({
+            receiverId: record.receiver,
+            name,
+            platform: record.platform,
+          });
+        }
+      }
+      onBeacons(beacons);
+    },
+  );
 }
 
 /** The TVs the server can see from the two devices' addresses. Works wherever
@@ -130,26 +235,7 @@ export function lanSource(bridge: LanDiscoveryBridge): TvDiscoverySource {
   return {
     id: 'lan',
     start(onRows) {
-      const browse = bridge.browse;
-      if (!browse) return () => undefined;
-      return browse((services) => {
-        const rows: DiscoveredTv[] = [];
-        for (const service of services) {
-          const record = parseBeaconTxt(service.txt);
-          if (!record) continue;
-          rows.push({
-            handle: record.handle,
-            // A record with no name of its own still has the one the network
-            // published it under.
-            name: record.name || service.name,
-            platform: record.platform,
-            check: record.check,
-            via: 'lan',
-            proof: record.proof,
-          });
-        }
-        onRows(rows);
-      });
+      return watchLanBeacons(bridge, (beacons) => onRows(beacons.pairable));
     },
   };
 }

@@ -71,6 +71,7 @@ describe('a phone that can hear its own link', () => {
       {
         name: 'Salon',
         txt: beaconTxt({
+          state: 'waiting',
           handle: 'h-salon',
           name: 'Salon',
           platform: 'tvOS',
@@ -92,6 +93,7 @@ describe('a phone that can hear its own link', () => {
       {
         name: 'Salon',
         txt: beaconTxt({
+          state: 'waiting',
           handle: 'h-salon',
           name: 'Salon',
           platform: 'tvOS',

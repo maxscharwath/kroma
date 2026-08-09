@@ -8,8 +8,16 @@ export { watchNearbyTvs } from './nearby';
 export type {
   BeaconRecord,
   DiscoveredTv,
+  LanBeacons,
   LanDiscoveryBridge,
   LanService,
+  NearbyReceiver,
   TvDiscoverySource,
 } from './sources';
-export { beaconTxt, lanSource, parseBeaconTxt, serverSource } from './sources';
+export {
+  beaconTxt,
+  lanSource,
+  parseBeaconTxt,
+  serverSource,
+  watchLanBeacons,
+} from './sources';

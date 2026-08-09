@@ -2,10 +2,17 @@
 // socket and applies remote commands, with an HTTP polling fallback for
 // when the socket won't come up. Renders nothing.
 
-import { type CastCommand, type CastController, type KromaClient, KromaEvents } from '@kroma/core';
+import {
+  beaconTxt,
+  type CastCommand,
+  type CastController,
+  type KromaClient,
+  KromaEvents,
+} from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Avatar, toast } from '@kroma/ui/kit';
 import { type ReactNode, useEffect, useRef } from 'react';
+import { lanBeacon } from '#tv/app/lanBeacon';
 import { useAuth } from '#tv/app/providers/auth';
 import { useEnv } from '#tv/app/providers/env';
 import { useNav } from '#tv/app/router';
@@ -49,6 +56,34 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
 
   const applied = useRef(0);
   const signedIn = Boolean(user);
+
+  // Say on the link that this television is up and castable, for as long as it
+  // is. The phone's picker is fed by the server, which knows whose television
+  // this is; hearing the record only makes the row appear at once instead of on
+  // the next beat, and makes it appear at all when the roster is a moment
+  // behind. Nothing here authorizes anything.
+  //
+  // A device can only have ONE record on the link, and this is one of the two
+  // that want it: the handoff beacon publishes the other while signed OUT. They
+  // are mutually exclusive on `signedIn`, and React runs every cleanup in a
+  // commit before any create, so the handover never leaves the link silent.
+  // Adding a third publisher would break that, and should instead go through a
+  // single owner.
+  useEffect(() => {
+    if (!signedIn || castable === 'off') return;
+    const publish = lanBeacon()?.publish;
+    if (!publish) return;
+    const name = deviceName(platform);
+    try {
+      return publish({
+        name,
+        txt: beaconTxt({ state: 'ready', name, platform, receiver: deviceId() }),
+      });
+    } catch {
+      // A platform that refuses to publish still casts through the server.
+      return;
+    }
+  }, [signedIn, castable, platform]);
 
   useEffect(() => {
     if (!signedIn || castable === 'off') return;

@@ -5,9 +5,17 @@
 
 import type { HandoffDevice, KromaClient } from '@kroma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { beaconTxt, type LanService, lanSource, parseBeaconTxt, serverSource } from './sources';
+import {
+  beaconTxt,
+  type LanService,
+  lanSource,
+  parseBeaconTxt,
+  serverSource,
+  watchLanBeacons,
+} from './sources';
 
 const RECORD = {
+  state: 'waiting' as const,
   handle: 'a1b2c3',
   name: 'Salon',
   platform: 'tvOS',
@@ -44,6 +52,22 @@ describe('the published record', () => {
       const txt = { ...beaconTxt(RECORD), [key]: '' };
       expect(parseBeaconTxt(txt), key).toBeNull();
     }
+  });
+
+  it('reads a signed-in television back, and refuses one with no receiver', () => {
+    const ready = beaconTxt({ state: 'ready', name: 'Salon', platform: 'tvOS', receiver: 'r1' });
+    expect(parseBeaconTxt(ready)).toEqual({
+      state: 'ready',
+      name: 'Salon',
+      platform: 'tvOS',
+      receiver: 'r1',
+    });
+    expect(parseBeaconTxt({ ...ready, receiver: '' })).toBeNull();
+  });
+
+  it('refuses a record whose state is one this build has no meaning for', () => {
+    expect(parseBeaconTxt({ ...beaconTxt(RECORD), state: 'dozing' })).toBeNull();
+    expect(parseBeaconTxt({ v: '1', name: 'Salon' })).toBeNull();
   });
 
   it('tolerates a television that said nothing about itself', () => {
@@ -206,6 +230,52 @@ describe('the link source', () => {
   it('is inert on a device that can publish but not browse', () => {
     const seen: unknown[][] = [];
     const stop = lanSource({ publish: () => () => undefined }).start((rows) => seen.push(rows));
+    expect(seen).toEqual([]);
+    expect(() => stop()).not.toThrow();
+  });
+});
+
+describe('watching the link', () => {
+  function bridgeWith(services: LanService[]) {
+    return {
+      browse(onFound: (found: LanService[]) => void) {
+        onFound(services);
+        return () => undefined;
+      },
+    };
+  }
+
+  it('splits what it heard by what can be done with it', () => {
+    const bridge = bridgeWith([
+      { name: 'Salon', txt: beaconTxt(RECORD) },
+      {
+        name: 'Chambre',
+        txt: beaconTxt({ state: 'ready', name: 'Chambre', platform: 'Tizen', receiver: 'r1' }),
+      },
+    ]);
+    const seen: Array<{ pairable: unknown[]; receivers: unknown[] }> = [];
+    watchLanBeacons(bridge, (b) => seen.push(b));
+
+    const last = seen.at(-1);
+    expect(last?.pairable).toHaveLength(1);
+    expect(last?.receivers).toEqual([{ receiverId: 'r1', name: 'Chambre', platform: 'Tizen' }]);
+  });
+
+  it('falls back to the published name for a signed-in television too', () => {
+    const bridge = bridgeWith([
+      {
+        name: 'Salon de Max',
+        txt: beaconTxt({ state: 'ready', name: '', platform: 'tvOS', receiver: 'r1' }),
+      },
+    ]);
+    const seen: Array<{ receivers: Array<{ name: string }> }> = [];
+    watchLanBeacons(bridge, (b) => seen.push(b));
+    expect(seen.at(-1)?.receivers[0]?.name).toBe('Salon de Max');
+  });
+
+  it('is inert on a device that cannot browse', () => {
+    const seen: unknown[] = [];
+    const stop = watchLanBeacons({}, (b) => seen.push(b));
     expect(seen).toEqual([]);
     expect(() => stop()).not.toThrow();
   });

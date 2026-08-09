@@ -55,7 +55,9 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
   let unpublish: (() => void) | undefined;
 
   // Every beacon gets its own record, so a rotated one never leaves a stale
-  // handle audible on the link.
+  // handle audible on the link. A device has only one record: this is the
+  // signed-OUT one, and the cast receiver publishes the signed-in one. The two
+  // never overlap (see CastReceiverProvider).
   const republish = (record: Parameters<typeof beaconTxt>[0] | null) => {
     unpublish?.();
     unpublish = undefined;
@@ -115,6 +117,7 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
       if (stopped) return;
       secret = beacon.secret;
       republish({
+        state: 'waiting',
         handle: beacon.handle,
         name,
         platform,

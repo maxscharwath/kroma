@@ -14,7 +14,7 @@ import { applyCastCommand } from '#tv/features/cast/applyCommand';
 import { castReport, onCastReportChange } from '#tv/features/cast/castBridge';
 import { castReceiverPrefStore } from '#tv/features/cast/castPref';
 import { setCastControllers, setCastUplink } from '#tv/features/cast/controllers';
-import { receiverId } from '#tv/features/cast/receiverId';
+import { deviceId, deviceName } from '#tv/shared/device';
 
 const DRIFT_MS = 20_000;
 const FALLBACK_BEAT_MS = 10_000;
@@ -52,7 +52,7 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
 
   useEffect(() => {
     if (!signedIn || castable === 'off') return;
-    const id = receiverId();
+    const id = deviceId();
     let stopped = false;
     let fallback: ReturnType<typeof setTimeout> | undefined;
     let drift: ReturnType<typeof setInterval> | undefined;
@@ -185,10 +185,4 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
   }, [signedIn, castable, client]);
 
   return null;
-}
-
-// TVs have no name to read and typing one on a D-pad is a chore, so the
-// platform label is the honest default.
-function deviceName(platform: string): string {
-  return platform && platform !== 'TV' ? platform : 'TV';
 }

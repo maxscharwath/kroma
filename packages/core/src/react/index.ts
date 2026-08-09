@@ -6,3 +6,5 @@
 
 export type { LangPatch, LangPrefs, LangPrefsHost, LangPrefUser } from './lang-prefs';
 export { normalizeLangPref, prefValue, useLangPrefs } from './lang-prefs';
+export type { NearbyTvs } from './nearby-tvs';
+export { useNearbyTvs } from './nearby-tvs';

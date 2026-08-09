@@ -202,6 +202,23 @@ pub(crate) fn seed_play(state: &SharedState, user_id: &str, item_id: &str, ended
         .unwrap();
 }
 
+/// A `User` value with no DB row behind it, for services that only read the
+/// struct. Use [`test_state`] + `kroma_db::create_user` when the row must exist.
+pub(crate) fn test_user(id: &str, permissions: Vec<crate::model::Permission>) -> crate::model::User {
+    crate::model::User {
+        id: id.into(),
+        email: format!("{id}@example.test"),
+        username: id.into(),
+        avatar_url: None,
+        language: None,
+        audio_language: None,
+        subtitle_language: None,
+        permissions,
+        created_at: "now".into(),
+        has_pin: false,
+    }
+}
+
 /// Epoch **seconds** "now" for seeding recent `play_history` rows.
 pub(crate) fn now_secs() -> i64 {
     std::time::SystemTime::now()

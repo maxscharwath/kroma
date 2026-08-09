@@ -2033,5 +2033,17 @@
   "modules.unavailable": "Module unavailable",
   "modules.unavailableHint": "It is not installed, or it has been turned off.",
   "modules.loadFailed": "This page could not be loaded",
-  "modules.loadFailedHint": "The module is installed; its data did not answer."
+  "modules.loadFailedHint": "The module is installed; its data did not answer.",
+  "handoff.nearbyTitle": "TVs on this network",
+  "handoff.nearbySub": "Pick yours to sign it in. Nothing to scan, nothing to type.",
+  "handoff.nearbyEmpty": "No TV is waiting right now.",
+  "handoff.nearbyEmptyHint": "Open KROMA on the TV and leave it on its sign-in screen.",
+  "handoff.check": "Code {check} on screen",
+  "handoff.connecting": "Signing in…",
+  "handoff.connected": "{name} is signing in",
+  "handoff.gone": "That TV is no longer waiting",
+  "handoff.notLocal": "This device is not on the local network",
+  "handoff.otherWays": "Other ways to connect",
+  "handoff.tvHint": "Or open KROMA on your phone: this TV is waiting there under {name}.",
+  "handoff.tvCheck": "Check code {check}"
 }

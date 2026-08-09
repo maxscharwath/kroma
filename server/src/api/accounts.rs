@@ -14,14 +14,13 @@ use serde_json::json;
 
 use crate::api::error::lerr;
 use crate::api::pin;
-use crate::api::util::{blocking, client_ip, query};
+use crate::api::util::{blocking, client_ip, query, SecretQuery};
 use crate::api::extract::{bearer_from_headers, AuthUser};
 use crate::services::auth;
 use crate::services::loginguard;
 use crate::db;
 use crate::i18n::{self, ReqLocale};
 use crate::model::{Permission, PublicUser, User};
-use crate::services::quickconnect::PollState;
 use crate::state::SharedState;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, patch, post};
@@ -621,7 +620,7 @@ pub async fn revoke_session(
     }
 }
 
-async fn mint_device_tokens(
+pub(super) async fn mint_device_tokens(
     state: &SharedState,
     user_id: &str,
     user_agent: Option<String>,
@@ -787,20 +786,8 @@ pub async fn quick_authorize(
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct QuickPollQuery {
-    pub secret: String,
-}
-
 /// `GET /api/auth/quickconnect/poll?secret=…` → `{ status }` where status is
 /// `pending` | `authorized` (then `{ token, user }`) | `expired`.
-pub async fn quick_poll(State(state): State<SharedState>, Query(q): Query<QuickPollQuery>) -> Response {
-    let status = match state.quickconnect.poll(&q.secret) {
-        PollState::Authorized { token, access_token, user } => {
-            super::dto::QuickPoll::Authorized { token, access_token, user }
-        }
-        PollState::Pending => super::dto::QuickPoll::Pending,
-        PollState::Unknown => super::dto::QuickPoll::Expired,
-    };
-    Json(status).into_response()
+pub async fn quick_poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
+    Json(super::dto::PairingPoll::from(state.quickconnect.poll(&q.secret))).into_response()
 }

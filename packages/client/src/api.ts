@@ -12,6 +12,8 @@ import {
 import * as cast from './client/cast';
 import type { DiscoverType } from './client/discovery';
 import * as discovery from './client/discovery';
+import type { HandoffAnnounce } from './client/handoff';
+import * as handoff from './client/handoff';
 import * as library from './client/library';
 import * as media from './client/media';
 import { type ModuleApi, moduleApi } from './client/module-api';
@@ -43,6 +45,8 @@ import type {
   DiscoverResponse,
   ElementProcessing,
   GrabBody,
+  HandoffBeacon,
+  HandoffDevice,
   Health,
   HistoryStats,
   InteractiveSearchView,
@@ -64,6 +68,7 @@ import type {
   NotificationImages,
   NotificationPrefs,
   NotificationsView,
+  PairingStatus,
   PasskeyInfo,
   Permission,
   PersonDetailResponse,
@@ -76,7 +81,6 @@ import type {
   ProgressEntry,
   PublicUser,
   QuickConnectInit,
-  QuickConnectStatus,
   Report,
   ReportsView,
   RequestsView,
@@ -101,6 +105,7 @@ export type { AdminFsEntry, AdminFsList } from './client/admin';
 export type { KromaClientOptions } from './client/base';
 export { apiErrorText, KromaApiError } from './client/base';
 export type { DiscoverType } from './client/discovery';
+export type { HandoffAnnounce } from './client/handoff';
 export type { HlsAudioFilter, StoryboardManifest } from './client/media';
 export type { ModuleApi } from './client/module-api';
 export type { ReportQuery } from './client/reports';
@@ -124,6 +129,9 @@ const NO_REFRESH = new Set([
   '/auth/relock',
   '/auth/quickconnect/initiate',
   '/auth/quickconnect/poll',
+  '/handoff/announce',
+  '/handoff/leave',
+  '/handoff/poll',
 ]);
 
 /** Thin typed client over the KROMA server REST API, shared by every client shell.
@@ -476,11 +484,30 @@ export class KromaClient {
   quickConnectInitiate(prevSecret?: string): Promise<QuickConnectInit> {
     return accounts.quickConnectInitiate(this.ctx, prevSecret);
   }
-  quickConnectPoll(secret: string): Promise<QuickConnectStatus> {
+  quickConnectPoll(secret: string): Promise<PairingStatus> {
     return accounts.quickConnectPoll(this.ctx, secret);
   }
   quickConnectAuthorize(code: string): Promise<void> {
     return accounts.quickConnectAuthorize(this.ctx, code);
+  }
+
+  /** Publish this device's beacon so a phone on the same network can sign it in. */
+  announceHandoff(body: HandoffAnnounce): Promise<HandoffBeacon> {
+    return handoff.announceHandoff(this.ctx, body);
+  }
+  handoffLeave(secret: string): Promise<void> {
+    return handoff.handoffLeave(this.ctx, secret);
+  }
+  handoffPoll(secret: string): Promise<PairingStatus> {
+    return handoff.handoffPoll(this.ctx, secret);
+  }
+  /** The TVs waiting on this device's own subnet. */
+  handoffDevices(): Promise<HandoffDevice[]> {
+    return handoff.handoffDevices(this.ctx);
+  }
+  /** Hand this account to one of them. */
+  handoffGrant(handle: string): Promise<void> {
+    return handoff.handoffGrant(this.ctx, handle);
   }
 
   progress(): Promise<ProgressEntry[]> {

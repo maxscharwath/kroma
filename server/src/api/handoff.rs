@@ -1,0 +1,238 @@
+//! `/api/handoff`: signing a TV in by pointing at it.
+//!
+//! A TV with no account announces itself; a phone already signed in lists the
+//! TVs waiting on its own subnet and grants one its account. No code crosses the
+//! room, so nothing has to be read off a screen or typed on a remote.
+//!
+//! Every route here is network-gated before it is anything else. Announcing and
+//! listing are refused outright to a caller the server does not consider local,
+//! and the service then narrows "local" to the caller's own subnet, so a TV
+//! reachable through a tunnel never appears in a stranger's list, and a handle
+//! learned some other way cannot be granted from off-network.
+
+use std::net::SocketAddr;
+
+use axum::extract::{ConnectInfo, Query, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use serde::{Deserialize, Serialize};
+
+use crate::api::accounts::mint_device_tokens;
+use crate::api::error::lerr;
+use crate::api::extract::AuthUser;
+use crate::api::util::{client_ip, query, SecretQuery};
+use crate::db;
+use crate::i18n::ReqLocale;
+use crate::services::pairing::handoff::{valid_device_id, Announce, Nearby};
+use crate::services::playback::is_lan;
+use crate::services::settings;
+use crate::state::SharedState;
+
+/// Reachable before a session exists: this is how a TV with no account at all
+/// gets one.
+pub fn public_routes() -> Router<SharedState> {
+    Router::new()
+        .route("/handoff/announce", post(announce))
+        .route("/handoff/leave", post(leave))
+        .route("/handoff/poll", get(poll))
+}
+
+/// The granting half: only a signed-in account can hand itself to a TV.
+pub fn routes() -> Router<SharedState> {
+    Router::new()
+        .route("/handoff/devices", get(devices))
+        .route("/handoff/grant", post(grant))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnounceBody {
+    pub device_id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub platform: String,
+    /// The secret of the beacon this one replaces, so a TV re-announcing after a
+    /// settings change does not leave its old row on anyone's phone.
+    #[serde(default)]
+    pub prev_secret: Option<String>,
+}
+
+/// `POST /api/handoff/announce` → what the TV needs to stay listed and to
+/// collect the account it is granted.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnounceReply {
+    pub handle: String,
+    pub secret: String,
+    /// Four characters the TV prints on its own screen so a person can tell two
+    /// TVs apart in the phone's list. Never typed anywhere.
+    pub check: String,
+    pub ttl_secs: i64,
+    /// How often to poll. Polling is what keeps the beacon listed, so a TV that
+    /// stops polling leaves the list on its own.
+    pub poll_secs: i64,
+}
+
+/// One waiting TV in `GET /api/handoff/devices`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NearbyDevice {
+    pub handle: String,
+    pub name: String,
+    pub platform: String,
+    pub check: String,
+}
+
+impl From<Nearby> for NearbyDevice {
+    fn from(row: Nearby) -> Self {
+        Self { handle: row.handle, name: row.name, platform: row.platform, check: row.check }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SecretBody {
+    pub secret: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GrantBody {
+    pub handle: String,
+}
+
+// The caller's address, and whether this server counts it as local at all. The
+// service narrows it further to one subnet; this is the coarse gate that keeps
+// a WAN caller out of the feature entirely.
+fn local_caller(state: &SharedState, headers: &HeaderMap, addr: &SocketAddr) -> Option<String> {
+    let ip = client_ip(headers, addr);
+    is_lan(&ip, &settings::local_networks(&state.settings)).then_some(ip)
+}
+
+fn not_local(loc: &str) -> Response {
+    lerr(loc, StatusCode::FORBIDDEN, "handoff.notLocal")
+}
+
+// Tokens minted for a beacon nobody will collect. Deleting them is best-effort
+// cleanup, never something a caller waits on the outcome of.
+async fn drop_orphans(
+    state: &SharedState,
+    orphans: Vec<crate::services::pairing::Orphaned>,
+) {
+    for orphan in orphans {
+        let token = orphan.token;
+        let access = orphan.access_token;
+        let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
+        let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
+    }
+}
+
+/// `POST /api/handoff/announce` → [`AnnounceReply`]. Unauthenticated by design:
+/// the device announcing has no account yet. LAN-only, capped, and the reply's
+/// `handle` is unguessable, so announcing reveals nothing to anyone who cannot
+/// already list the subnet.
+pub async fn announce(
+    State(state): State<SharedState>,
+    ReqLocale(loc): ReqLocale,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<AnnounceBody>,
+) -> Response {
+    let Some(ip) = local_caller(&state, &headers, &addr) else {
+        return not_local(loc);
+    };
+    if !valid_device_id(&body.device_id) {
+        return lerr(loc, StatusCode::BAD_REQUEST, "error.castBadReceiver");
+    }
+
+    if let Some(prev) = body.prev_secret.as_deref() {
+        let orphan = state.handoff.forget(prev);
+        drop_orphans(&state, orphan.into_iter().collect()).await;
+    }
+
+    let (announced, orphans) = state.handoff.announce(Announce {
+        device_id: body.device_id,
+        name: body.name,
+        platform: body.platform,
+        ip,
+    });
+    drop_orphans(&state, orphans).await;
+
+    Json(AnnounceReply {
+        handle: announced.handle,
+        secret: announced.secret,
+        check: announced.check,
+        ttl_secs: announced.ttl_secs,
+        poll_secs: announced.poll_secs,
+    })
+    .into_response()
+}
+
+/// `POST /api/handoff/leave` `{ secret }` → 204. Take the beacon down early
+/// (the TV signed in another way, or is quitting) instead of waiting out its TTL.
+pub async fn leave(State(state): State<SharedState>, Json(body): Json<SecretBody>) -> Response {
+    let orphan = state.handoff.forget(&body.secret);
+    drop_orphans(&state, orphan.into_iter().collect()).await;
+    StatusCode::NO_CONTENT.into_response()
+}
+
+/// `GET /api/handoff/poll?secret=…` → `pending` | `authorized` (then the
+/// session) | `expired`. Same shape as the Quick Connect poll, and it doubles as
+/// the beacon's heartbeat: a TV that stops polling leaves the list.
+pub async fn poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
+    Json(super::dto::PairingPoll::from(state.handoff.poll(&q.secret))).into_response()
+}
+
+/// `GET /api/handoff/devices` (Bearer) → the TVs waiting on the caller's own
+/// subnet. Empty for a caller the server does not consider local, which is the
+/// same answer as "no TV is waiting": being off-network is not worth a distinct
+/// error a scanner could read.
+pub async fn devices(
+    State(state): State<SharedState>,
+    AuthUser(_user): AuthUser,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Response {
+    let rows = match local_caller(&state, &headers, &addr) {
+        Some(ip) => state.handoff.nearby(&ip).into_iter().map(NearbyDevice::from).collect(),
+        None => Vec::new(),
+    };
+    Json(rows).into_response()
+}
+
+/// `POST /api/handoff/grant` (Bearer) `{ handle }` → 204. Mints this account a
+/// fresh device session and leaves it for the TV to collect on its next poll.
+pub async fn grant(
+    State(state): State<SharedState>,
+    ReqLocale(loc): ReqLocale,
+    AuthUser(user): AuthUser,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<GrantBody>,
+) -> Response {
+    let Some(ip) = local_caller(&state, &headers, &addr) else {
+        return not_local(loc);
+    };
+
+    // The granting device is signed in and vouches for the TV, exactly as a
+    // Quick Connect approval does. The TV is not the caller, so its user agent
+    // is unknown here (NULL) until it first uses the token.
+    let (token, access) = match mint_device_tokens(&state, &user.id, None).await {
+        Ok(pair) => pair,
+        Err(resp) => return resp,
+    };
+
+    if state.handoff.grant(&body.handle, &ip, user, token.clone(), access.clone()) {
+        StatusCode::NO_CONTENT.into_response()
+    } else {
+        // Unknown handle, lapsed beacon, or a TV on another subnet: one answer
+        // for all three. Don't leave the just-minted tokens dangling.
+        drop_orphans(
+            &state,
+            vec![crate::services::pairing::Orphaned { token, access_token: access }],
+        )
+        .await;
+        lerr(loc, StatusCode::NOT_FOUND, "handoff.gone")
+    }
+}

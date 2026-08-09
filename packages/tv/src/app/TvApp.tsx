@@ -15,6 +15,7 @@ import { WatchedProvider } from '#tv/app/providers/watched';
 import { TvClientProvider, TvNavProvider, TvOutlet, type TvScreens, useNav } from '#tv/app/router';
 import { onSearchRequest } from '#tv/app/searchRequest';
 import { useCatalogue } from '#tv/app/useCatalogue';
+import { HandoffBeaconProvider } from '#tv/features/accounts/HandoffBeaconProvider';
 import { TvAbout } from '#tv/features/accounts/TvAbout';
 import { TvAddProfile } from '#tv/features/accounts/TvAddProfile';
 import { TvConnect } from '#tv/features/accounts/TvConnect';
@@ -84,15 +85,19 @@ export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly
                         {/* Above the router: a TV must be castable from its home
                             screen, not only from the player. */}
                         <CastReceiverProvider client={client}>
-                          {/* A television cannot use React Native's <Modal>: its
+                          {/* Also above the router: the beacon has to be up on
+                              whichever gate screen the TV is showing. */}
+                          <HandoffBeaconProvider client={client}>
+                            {/* A television cannot use React Native's <Modal>: its
                               view controller never receives a press from a remote
                               (see @kroma/ui lib/overlay-host). */}
-                          <OverlayHost>
-                            <TvRouterGuard />
-                            {/* Above the router so notices survive a screen
+                            <OverlayHost>
+                              <TvRouterGuard />
+                              {/* Above the router so notices survive a screen
                                 change; they never take focus. */}
-                            <Toaster position="top-right" inset={TOAST_INSET} />
-                          </OverlayHost>
+                              <Toaster position="top-right" inset={TOAST_INSET} />
+                            </OverlayHost>
+                          </HandoffBeaconProvider>
                         </CastReceiverProvider>
                       </WatchedProvider>
                     </MyListProvider>

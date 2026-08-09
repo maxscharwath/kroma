@@ -18,6 +18,7 @@ import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
 import { useServersHealth } from '#tv/app/useServersHealth';
+import { HandoffHint } from '#tv/features/accounts/HandoffHint';
 import { AuthScreen, artUrl, GATE_MARK, hostOf, KromaMark } from '#tv/shared/ui';
 
 interface Tile {
@@ -148,6 +149,8 @@ export function TvProfiles() {
           style={{ paddingHorizontal: 18, paddingVertical: 10, borderWidth: 1 }}
         />
       </Box>
+
+      <HandoffHint mt={32} />
 
       <Hint
         text={t('profiles.navHint')}

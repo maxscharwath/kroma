@@ -15,6 +15,7 @@ mod cast;
 mod discover;
 mod downloads_overlay;
 mod extract;
+mod handoff;
 mod home;
 mod host_jobs;
 mod images;
@@ -59,6 +60,8 @@ mod it_media;
 mod it_playback;
 #[cfg(test)]
 mod it_cast;
+#[cfg(test)]
+mod it_handoff;
 #[cfg(test)]
 mod it_images;
 #[cfg(test)]
@@ -142,6 +145,7 @@ pub fn router(state: SharedState, supervisor: Arc<Supervisor>) -> Router {
         .merge(accounts::routes())
         .merge(passkeys::routes())
         .merge(pin::routes())
+        .merge(handoff::public_routes())
         .merge(invites::routes())
         .merge(images::routes())
         .merge(media::public_routes())
@@ -168,6 +172,7 @@ pub fn router(state: SharedState, supervisor: Arc<Supervisor>) -> Router {
         .merge(home::routes())
         .merge(playback::routes())
         .merge(cast::routes())
+        .merge(handoff::routes())
         .merge(discover::routes())
         .merge(rematch::routes())
         .merge(requests::routes())

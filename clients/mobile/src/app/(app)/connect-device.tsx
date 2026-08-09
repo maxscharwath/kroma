@@ -1,12 +1,14 @@
-// Quick Connect: scan the QR the TV shows (the code rides its query params) or
-// type the 4-digit code, then authorize that device into this account (mirror
-// of the web flow, POST /auth/quickconnect/authorize).
+// Connect a device. The TVs waiting on this network sit at the top, one tap
+// each (POST /handoff/grant); under them the road that works from anywhere:
+// scan the QR the TV shows (the code rides its query params) or type the
+// 4-digit code (POST /auth/quickconnect/authorize). Mirror of the web flow.
 
 import { Box, Icon, OtpField, styles, Txt } from '@kroma/ui/kit';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+import { NearbyTvs } from '#mobile/components/NearbyTvs';
 import {
   OnboardingBox,
   OnboardingScreen,
@@ -117,6 +119,7 @@ export default function ConnectDevice() {
         ) : (
           <>
             <OnboardingTitle title={t('connect.title')} subtitle={t('connect.codePrompt')} />
+            <NearbyTvs />
             <Box style={s.center}>
               {camera ? (
                 <Box style={s.cameraBox}>

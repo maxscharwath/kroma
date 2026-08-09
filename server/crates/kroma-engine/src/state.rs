@@ -13,7 +13,7 @@ use crate::infra::metrics::Metrics;
 use crate::infra::storyboard::Storyboard;
 use crate::services::jobs::JobManager;
 use crate::services::playback::Registry;
-use crate::services::quickconnect::{self, QuickConnect};
+use crate::services::pairing::{handoff, quickconnect, Handoff, QuickConnect};
 use crate::services::search::SearchEngine;
 use crate::services::sections::VectorCache;
 use crate::services::settings::Settings;
@@ -31,6 +31,7 @@ pub struct AppState {
     pub hls: hls::HlsEngine,
     pub storyboard: Storyboard,
     pub quickconnect: QuickConnect,
+    pub handoff: Handoff,
     pub playback: Registry,
     pub cast: crate::services::cast::Registry,
     pub metrics: Metrics,
@@ -151,6 +152,7 @@ impl AppState {
             hls,
             storyboard,
             quickconnect: quickconnect::new(),
+            handoff: handoff::new(),
             playback: Registry::new(),
             cast: crate::services::cast::Registry::new(),
             metrics: Metrics::new(),

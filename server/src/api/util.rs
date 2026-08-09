@@ -4,8 +4,16 @@
 use std::net::SocketAddr;
 
 use axum::http::HeaderMap;
+use serde::Deserialize;
 
 pub(crate) use kroma_module_host::{blocking, query};
+
+/// `?secret=…`: how a device waiting to be paired identifies its own pending
+/// request, on both `/auth/quickconnect/poll` and `/handoff/poll`.
+#[derive(Debug, Deserialize)]
+pub struct SecretQuery {
+    pub secret: String,
+}
 
 /// Best client IP for playback accounting and the login brute-force guard.
 /// `CF-Connecting-IP` / `X-Forwarded-For` are client-settable, so they're trusted

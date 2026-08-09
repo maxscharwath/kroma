@@ -21,14 +21,14 @@
 
 use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use axum::http::StatusCode;
 use axum::response::Response;
 use kroma_db::Pool;
 use kroma_domain::{Audience, NotificationSpec, Permission, User};
+use kroma_testing::TempDir;
 
 use crate::{Event, HostCtx, LibraryFolders};
 
@@ -72,14 +72,6 @@ impl Log {
     }
 }
 
-// A unique temp path, so two tests running in parallel threads of one process
-// never share a database. The pid alone is not enough for that.
-fn temp_db_path(tag: &str) -> PathBuf {
-    static SEQ: AtomicU32 = AtomicU32::new(0);
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("kroma-{tag}-{}-{n}.db", std::process::id()))
-}
-
 /// A [`HostCtx`] with no app behind it.
 ///
 /// Every answer is the neutral one until configured: settings hand back the
@@ -88,12 +80,15 @@ fn temp_db_path(tag: &str) -> PathBuf {
 /// a test asserts on [`published`](Self::published) /
 /// [`notifications`](Self::notifications) / [`jobs`](Self::jobs).
 ///
+/// `data_dir()` is a scratch directory of this host's own, removed once the last
+/// clone drops, so anything the code under test writes there goes with it.
+///
 /// `db()` panics unless the host was built with [`with_db`](Self::with_db) -
 /// louder than handing out a pool to a test that did not ask for one.
 #[derive(Clone)]
 pub struct StubHost {
     db: Option<Pool>,
-    data_dir: PathBuf,
+    data_dir: Arc<TempDir>,
     tmdb_key: Option<String>,
     metadata_language: String,
     module_enabled: bool,
@@ -113,9 +108,22 @@ impl Default for StubHost {
 impl StubHost {
     /// A host with no database. `db()` panics if reached.
     pub fn new() -> Self {
+        Self::in_dir(kroma_testing::temp_dir("stub-host"))
+    }
+
+    /// A host over a real, empty, migrated SQLite database inside this host's
+    /// own scratch directory. `tag` only shapes that directory's name, to make
+    /// a stray one identifiable.
+    pub fn with_db(tag: &str) -> Self {
+        let data_dir = kroma_testing::temp_dir(tag);
+        let db = kroma_db::init(&data_dir.path().join("kroma.db")).expect("init test db");
+        Self { db: Some(db), ..Self::in_dir(data_dir) }
+    }
+
+    fn in_dir(data_dir: TempDir) -> Self {
         Self {
             db: None,
-            data_dir: std::env::temp_dir(),
+            data_dir: Arc::new(data_dir),
             tmdb_key: None,
             metadata_language: "en".into(),
             module_enabled: true,
@@ -125,15 +133,6 @@ impl StubHost {
             services: Arc::new(Mutex::new(Vec::new())),
             log: Arc::new(Log::default()),
         }
-    }
-
-    /// A host over a real, empty, migrated SQLite database in a temp file unique
-    /// to this call. `tag` only shapes the filename, to make a stray one
-    /// identifiable.
-    pub fn with_db(tag: &str) -> Self {
-        let path = temp_db_path(tag);
-        let _ = std::fs::remove_file(&path);
-        Self { db: Some(kroma_db::init(&path).expect("init test db")), ..Self::new() }
     }
 
     /// A host over a pool the caller already built. For a module whose tests
@@ -235,7 +234,7 @@ impl HostCtx for StubHost {
         self.db.as_ref().expect("this StubHost has no database - build it with StubHost::with_db")
     }
     fn data_dir(&self) -> &Path {
-        &self.data_dir
+        self.data_dir.path()
     }
     fn require(&self, _user: &User, _perm: Permission) -> Result<(), Response> {
         Ok(())

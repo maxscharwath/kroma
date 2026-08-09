@@ -26,6 +26,7 @@ const BEACON = {
   secret: 's3cr3t',
   check: 'K7QM',
   proof: 'deadbeef',
+  instanceId: 'srv-1',
   ttlSecs: 60,
   pollSecs: 3,
 };

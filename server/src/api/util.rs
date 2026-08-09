@@ -11,9 +11,13 @@ pub(crate) use kroma_module_host::{blocking, query};
 /// `?secret=…`: how a device already in the world identifies its own pending
 /// Quick Connect request. Newer callers send `X-Kroma-Pairing-Secret` instead,
 /// and the handoff poll takes it in a POST body: a URL is logged everywhere.
-#[derive(Debug, Deserialize)]
+///
+/// Optional, because a caller that sends the header sends no query at all, and a
+/// required field would reject it before the handler ever looked.
+#[derive(Debug, Default, Deserialize)]
 pub struct SecretQuery {
-    pub secret: String,
+    #[serde(default)]
+    pub secret: Option<String>,
 }
 
 /// Whether this peer's forwarding headers may be believed: loopback always (a

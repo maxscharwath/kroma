@@ -806,7 +806,8 @@ pub async fn quick_poll(
         .get("x-kroma-pairing-secret")
         .and_then(|v| v.to_str().ok())
         .map(str::to_string)
-        .unwrap_or(q.secret);
+        .or(q.secret)
+        .unwrap_or_default();
     let status = super::dto::PairingPoll::from(state.quickconnect.poll(&secret));
     // A code that lapsed after it was approved still has rows behind it.
     for orphan in state.quickconnect.take_orphans() {

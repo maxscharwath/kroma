@@ -129,6 +129,10 @@ export function startHandoff(opts: HandoffLoopOptions): () => void {
         handle: beacon.handle,
         name,
         platform,
+        // Which install minted the handle: a phone whose server is a different
+        // one cannot grant it, and should not be shown a row it can only fail
+        // to use.
+        server: beacon.instanceId,
         check: beacon.check,
         proof: beacon.proof,
       });

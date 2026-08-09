@@ -25,6 +25,7 @@ function waiting(handle: string, name: string): LanService {
     name,
     txt: beaconTxt({
       state: 'waiting',
+      server: 'srv-1',
       handle,
       name,
       platform: 'tvOS',

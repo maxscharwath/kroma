@@ -9,7 +9,15 @@ import { type HandoffBeaconView, startHandoff } from './beacon';
 
 const USER = { id: 'u1', username: 'owner' } as unknown as User;
 
-const BEACON = { handle: 'h1', secret: 's1', check: 'K7QM', proof: 'p1', ttlSecs: 60, pollSecs: 3 };
+const BEACON = {
+  handle: 'h1',
+  secret: 's1',
+  check: 'K7QM',
+  proof: 'p1',
+  instanceId: 'srv-1',
+  ttlSecs: 60,
+  pollSecs: 3,
+};
 
 function stubClient(overrides: Partial<Record<string, unknown>> = {}) {
   const calls: string[] = [];
@@ -120,6 +128,8 @@ describe('publishing on this television s own link', () => {
     // heard this television.
     expect(published[0]?.txt.handle).toBe('h1');
     expect(published[0]?.txt.proof).toBe('p1');
+    // Which install minted the handle, so a phone on another server can tell.
+    expect(published[0]?.txt.server).toBe('srv-1');
     expect(published[0]?.txt.check).toBe('K7QM');
 
     stop();
@@ -149,6 +159,38 @@ describe('publishing on this television s own link', () => {
 
     expect(published.map((p) => p.txt.handle)).toEqual(['h1', 'h2']);
     expect(unpublish).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it('keeps the record up across polls, rather than taking it down after one', async () => {
+    // The record is the whole point of publishing: a beacon that is announced
+    // and then goes silent on the link is worse than one never published, since
+    // the phone saw it once and will not see it go.
+    const published: unknown[] = [];
+    const unpublish = vi.fn();
+    const { client } = stubClient();
+    const stop = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: 'Apple TV',
+      platform: 'Apple TV',
+      publish: (service) => {
+        published.push(service);
+        return unpublish;
+      },
+      onBeacon: () => undefined,
+      onAuthenticated: () => undefined,
+    });
+
+    await tick();
+    expect(published).toHaveLength(1);
+
+    // Several polls, all pending.
+    for (let i = 0; i < 4; i++) await tick(3000);
+    expect(client.handoffPoll).toHaveBeenCalledTimes(4);
+    expect(unpublish, 'the record was taken down while still waiting').not.toHaveBeenCalled();
+    expect(published, 'the record was republished for no reason').toHaveLength(1);
+
     stop();
   });
 

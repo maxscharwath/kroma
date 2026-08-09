@@ -29,6 +29,7 @@ function stubClient(rows: DiscoveredTv[] = [SALON, CHAMBRE]) {
   return {
     handoffDevices: vi.fn(async () => rows),
     handoffGrant: vi.fn(async () => undefined),
+    health: vi.fn(async () => ({ instanceId: 'srv-1' })),
   } as unknown as KromaClient;
 }
 
@@ -72,6 +73,7 @@ describe('a phone that can hear its own link', () => {
         name: 'Salon',
         txt: beaconTxt({
           state: 'waiting',
+          server: 'srv-1',
           handle: 'h-salon',
           name: 'Salon',
           platform: 'tvOS',
@@ -87,6 +89,46 @@ describe('a phone that can hear its own link', () => {
     expect(result.current.devices[0]?.proof).toBe('heard-it');
   });
 
+  it('does not offer a television belonging to a different server', async () => {
+    // A household can have two servers, or a laptop can be running one. The
+    // handle in that television's record means nothing to THIS server, so
+    // granting it answers "no longer waiting" every single time. A row that
+    // cannot work should not be a row.
+    // Two televisions on the link, one belonging to this server and one not.
+    // Waiting for the ours-only list is a positive assertion: an empty list
+    // would pass before the filter had done anything at all.
+    const client = stubClient([]);
+    const lan = stubLan([
+      {
+        name: 'Salon',
+        txt: beaconTxt({
+          state: 'waiting',
+          server: 'some-other-server',
+          handle: 'h-theirs',
+          name: 'Salon',
+          platform: 'tvOS',
+          check: 'K7QM',
+          proof: 'heard-it',
+        }),
+      },
+      {
+        name: 'Chambre',
+        txt: beaconTxt({
+          state: 'waiting',
+          server: 'srv-1',
+          handle: 'h-ours',
+          name: 'Chambre',
+          platform: 'tvOS',
+          check: 'B4XR',
+          proof: 'heard-it-too',
+        }),
+      },
+    ]);
+    const { result } = renderHook(() => useNearbyTvs({ client, lan }));
+
+    await waitFor(() => expect(result.current.devices.map((d) => d.handle)).toEqual(['h-ours']));
+  });
+
   it('sends the proof it heard along with the grant', async () => {
     const client = stubClient([]);
     const lan = stubLan([
@@ -94,6 +136,7 @@ describe('a phone that can hear its own link', () => {
         name: 'Salon',
         txt: beaconTxt({
           state: 'waiting',
+          server: 'srv-1',
           handle: 'h-salon',
           name: 'Salon',
           platform: 'tvOS',

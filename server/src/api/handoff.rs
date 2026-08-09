@@ -69,6 +69,11 @@ pub struct AnnounceReply {
     /// Four characters the TV prints on its own screen so a person can tell two
     /// TVs apart in the phone's list. Never typed anywhere.
     pub check: String,
+    /// This install's opaque id, the same one `/health` reports. It goes in the
+    /// TV's record so a phone can tell whether the handle is one ITS server
+    /// would recognise: a handle is minted by one server and means nothing to
+    /// another, and a household can easily have two.
+    pub instance_id: String,
     /// Goes in the TV's DNS-SD record and nowhere else. A phone that can quote
     /// it heard this TV on the link, which is why the grant will take it in
     /// place of the address check.
@@ -158,6 +163,7 @@ pub async fn announce(
             handle: announced.handle,
             secret: announced.secret,
             check: announced.check,
+            instance_id: state.instance_id.clone(),
             proof: announced.proof,
             ttl_secs: announced.ttl_secs,
             poll_secs: announced.poll_secs,

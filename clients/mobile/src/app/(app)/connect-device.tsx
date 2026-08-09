@@ -1,9 +1,30 @@
-// Connect a device. The TVs waiting on this network sit at the top, one tap
-// each (POST /handoff/grant); under them the road that works from anywhere:
-// scan the QR the TV shows (the code rides its query params) or type the
-// 4-digit code (POST /auth/quickconnect/authorize). Mirror of the web flow.
+// Connect a device: two roads to the same place, and the reader picks which.
+//
+// - `network`: the televisions waiting on this network, one tap each
+//   (POST /handoff/grant). Asks nothing of anybody, and is therefore first.
+// - `scan`: the road that works from anywhere - across subnets, from cellular,
+//   from a television that cannot be heard. Scan the QR the TV shows (the code
+//   rides its query params) or type the 4-digit code
+//   (POST /auth/quickconnect/authorize).
+//
+// A segmented control rather than one long page: stacked, the two roads put a
+// viewfinder, a keyboard and a list of televisions inside the same 700 points,
+// and only the tallest phone reached the bottom. One mode is mounted at a time,
+// so the camera never runs behind the list it is not in.
+//
+// HOW THE KEYBOARD IS SURVIVED, since this page has no scroll view and should
+// not need one: everything in `scan` is a fixed height except the viewfinder,
+// which is `flex` with a square aspect. When the keyboard takes half the screen
+// the column shrinks and the viewfinder is the one thing that gives, so the code
+// cells it belongs to stay on screen instead of being cropped behind the keys.
+// A ScrollView here does NOT work: its parent is a flex column with no
+// intrinsic height to hand down, so it collapses to nothing and takes the
+// camera and the cells with it.
+//
+// The same televisions also appear in the cast picker (<CastDeviceList>), which
+// is where somebody already choosing a screen will look for them.
 
-import { Box, Disclosure, Icon, OtpField, styles, Txt } from '@kroma/ui/kit';
+import { Box, Icon, OtpField, SegmentedControl, styles, Txt } from '@kroma/ui/kit';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -35,6 +56,10 @@ const camera = loadCamera();
 const QUERY_CODE = /[?&]code=(\d{4,8})/;
 const BARE_CODE = /^\d{4,8}$/;
 
+// `network` leads because it is the one that asks nothing of the reader.
+const MODES = ['network', 'scan'] as const;
+type ConnectMode = (typeof MODES)[number];
+
 /** Pull a Quick Connect code out of a scanned QR payload: the authorize URL's
  * `code` query param, or a bare numeric code. */
 export function codeFromQr(payload: string): string | null {
@@ -51,7 +76,7 @@ export default function ConnectDevice() {
   const [code, setCode] = useState('');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [cameraOn, setCameraOn] = useState(false);
-  const [otherWays, setOtherWays] = useState(false);
+  const [mode, setMode] = useState<ConnectMode>('network');
   const scannedRef = useRef(false);
 
   const submit = async (value: string) => {
@@ -74,11 +99,11 @@ export default function ConnectDevice() {
     if (digits.length === 4) void submit(digits);
   };
 
-  // Only once the scanner is actually on screen. Asking on mount turned the
-  // viewfinder on behind a keyboard for every reader, including the ones who
-  // came to tap their television and never looked down.
+  // Only while the scanner is the mode on screen: asking on mount turned the
+  // viewfinder on behind the list of televisions, for readers who never picked
+  // that road.
   useEffect(() => {
-    if (!camera || !otherWays) return;
+    if (!camera || mode !== 'scan') return;
     let cancelled = false;
     void (async () => {
       const current = await camera.Camera.getCameraPermissionsAsync();
@@ -88,7 +113,7 @@ export default function ConnectDevice() {
     return () => {
       cancelled = true;
     };
-  }, [otherWays]);
+  }, [mode]);
 
   const enableCamera = async () => {
     if (!camera) return;
@@ -105,11 +130,11 @@ export default function ConnectDevice() {
     void submit(scanned);
   };
 
-  return (
-    <OnboardingScreen keyboardBehavior="height" onBack={() => goBack(router)} settings={false}>
-      <OnboardingBox>
-        {state === 'done' ? (
-          <Box style={s.center}>
+  if (state === 'done') {
+    return (
+      <OnboardingScreen onBack={() => goBack(router)} settings={false}>
+        <OnboardingBox>
+          <Box style={s.done}>
             <Box style={s.doneBadge}>
               <Icon name="check" size={34} stroke={2.4} color={colors.accentInk} />
             </Box>
@@ -118,71 +143,99 @@ export default function ConnectDevice() {
               subtitle={t('connect.willConnectSoon')}
             />
           </Box>
-        ) : (
-          <>
-            <OnboardingTitle title={t('connect.title')} subtitle={t('connect.pickOrCode')} />
-            <NearbyTvs />
+        </OnboardingBox>
+      </OnboardingScreen>
+    );
+  }
 
-            {/* A real disclosure, not the decorative chevron this used to be.
-                Collapsed, the page is one question with one answer: which
-                television. Expanded, the scanner and the keypad arrive together
-                because they are the same road - and neither is mounted before
-                that, so a live viewfinder and a raised keyboard stop burying
-                the list somebody came here to read. */}
-            <Disclosure title={t('handoff.otherWays')} open={otherWays} onOpenChange={setOtherWays}>
-              <Box style={s.center}>
-                <Txt style={s.codePrompt}>{t('connect.codePrompt')}</Txt>
-                {camera ? (
-                  <Box style={s.cameraBox}>
-                    {cameraOn ? (
-                      <>
-                        <camera.CameraView
-                          style={StyleSheet.absoluteFill}
-                          facing="back"
-                          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                          onBarcodeScanned={({ data }) => onScanned(data)}
-                        />
-                        <Box style={s.cameraFrame} pointerEvents="none" />
-                      </>
-                    ) : (
-                      <Pressable
-                        onPress={() => void enableCamera()}
-                        style={({ pressed }) => [
-                          s.cameraOff,
-                          pressed && { backgroundColor: colors.surfaceHigh },
-                        ]}
-                      >
-                        <Icon name="scan" size={34} stroke={1.8} color={colors.accent} />
-                        <Txt style={s.cameraOffLabel}>{t('connect.scanTvQr')}</Txt>
-                      </Pressable>
-                    )}
-                  </Box>
-                ) : (
-                  <Icon name="device-tv" size={56} stroke={1.8} color={colors.accent} />
-                )}
-                <OtpField
-                  maxLength={4}
-                  value={code}
-                  onChange={onChange}
-                  invalid={state === 'error'}
-                  disabled={state === 'busy'}
-                  physicalKeyboard
-                  autoFocus
-                />
-              </Box>
-            </Disclosure>
-            <ErrorBanner message={state === 'error' ? t('connect.invalidCode') : null} />
-          </>
+  return (
+    <OnboardingScreen keyboardBehavior="height" onBack={() => goBack(router)} settings={false}>
+      <OnboardingBox>
+        <OnboardingTitle title={t('connect.title')} />
+
+        <SegmentedControl
+          value={mode}
+          onChange={setMode}
+          label={t('connect.title')}
+          options={MODES.map((m) => ({ value: m, label: t(`connect.mode.${m}`) }))}
+          style={s.modes}
+        />
+
+        {/* Under the control, because it describes the mode the control just
+            selected. Above it, it read as a description of the title. */}
+        <Txt style={s.modeDesc}>
+          {mode === 'network' ? t('handoff.nearbySub') : t('connect.codePrompt')}
+        </Txt>
+
+        {mode === 'network' ? (
+          <NearbyTvs />
+        ) : (
+          <Box style={s.scan}>
+            <Box style={s.cameraBox}>
+              {camera && cameraOn ? (
+                <>
+                  <camera.CameraView
+                    style={StyleSheet.absoluteFill}
+                    facing="back"
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={({ data }) => onScanned(data)}
+                  />
+                  <Box style={s.cameraFrame} pointerEvents="none" />
+                </>
+              ) : (
+                <Pressable
+                  onPress={() => void enableCamera()}
+                  disabled={!camera}
+                  style={({ pressed }) => [
+                    s.cameraOff,
+                    pressed && { backgroundColor: colors.surfaceHigh },
+                  ]}
+                >
+                  <Icon name="scan" size={34} stroke={1.8} color={colors.accent} />
+                  <Txt style={s.cameraOffLabel}>{t('connect.scanTvQr')}</Txt>
+                </Pressable>
+              )}
+            </Box>
+
+            {/* NOT autoFocused: the keypad used to come up with the screen and
+                cover the scanner and the cells it belongs to. Tapping the cells
+                raises it, for the reader who came to type. */}
+            <OtpField
+              maxLength={4}
+              value={code}
+              onChange={onChange}
+              invalid={state === 'error'}
+              disabled={state === 'busy'}
+              physicalKeyboard
+            />
+          </Box>
         )}
+
+        <ErrorBanner message={state === 'error' ? t('connect.invalidCode') : null} />
       </OnboardingBox>
     </OnboardingScreen>
   );
 }
 
 const s = styles({
-  center: { align: 'center', gap: spacing.md },
-  codePrompt: { ...type.caption, color: 'textDim', textAlign: 'center' },
-  cameraBox: { w: 176, h: 176, bg: 'surface2', radius: radius.lg, overflow: 'hidden' },
+  done: { align: 'center', gap: spacing.md },
+  doneBadge: { center: true, w: 72, h: 72, bg: 'accent', radius: 36 },
+  modes: { self: 'center' },
+  modeDesc: { ...type.caption, color: 'textDim', textAlign: 'center' },
+  scan: { flex: true, align: 'center', justify: 'center', gap: spacing.md },
+  // The one thing on this page that gives. `flex` with a square aspect and a
+  // floor: it takes what the keyboard leaves, never grows past a thumb's reach,
+  // and never shrinks so far that there is nothing to aim at.
+  cameraBox: {
+    flex: true,
+    aspectRatio: 1,
+    self: 'center',
+    maxH: 200,
+    minH: 92,
+    bg: 'surface2',
+    radius: radius.lg,
+    overflow: 'hidden',
+  },
   cameraOff: { fill: true, center: true, gap: 10, px: spacing.md },
   cameraOffLabel: { ...type.caption, color: 'accent', fontWeight: '700', textAlign: 'center' },
   cameraFrame: {
@@ -195,5 +248,4 @@ const s = styles({
     border: 'accent',
     borderWidth: 2,
   },
-  doneBadge: { center: true, w: 72, h: 72, bg: 'accent', radius: 36 },
 });

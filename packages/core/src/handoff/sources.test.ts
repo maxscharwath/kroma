@@ -16,6 +16,7 @@ import {
 
 const RECORD = {
   state: 'waiting' as const,
+  server: 'srv-1',
   handle: 'a1b2c3',
   name: 'Salon',
   platform: 'tvOS',
@@ -206,6 +207,7 @@ describe('the link source', () => {
         check: 'K7QM',
         via: 'lan',
         proof: 'deadbeef',
+        server: 'srv-1',
       },
     ]);
   });
@@ -244,28 +246,6 @@ describe('the link source', () => {
     const { bridge, stop } = bridgeWith([]);
     lanSource(bridge).start(() => undefined)();
     expect(stop).toHaveBeenCalled();
-  });
-
-  it('reports the signed-in televisions from the same browse', () => {
-    const { bridge, push } = bridgeWith([
-      { name: 'Salon', txt: beaconTxt(RECORD) },
-      {
-        name: 'Chambre',
-        txt: beaconTxt({ state: 'ready', name: 'Chambre', platform: 'Tizen', receiver: 'r1' }),
-      },
-    ]);
-    const rows: unknown[][] = [];
-    const receivers: unknown[][] = [];
-    lanSource(bridge, (found) => receivers.push(found)).start((next) => rows.push(next));
-
-    // One browse, both halves: the waiting one is pairable, the signed-in one is
-    // only worth saying out loud so it is not mistaken for absent.
-    expect(bridge.browse).toHaveBeenCalledTimes(1);
-    expect(rows[0]).toHaveLength(1);
-    expect(receivers[0]).toEqual([{ receiverId: 'r1', name: 'Chambre', platform: 'Tizen' }]);
-
-    push([]);
-    expect(receivers[1]).toEqual([]);
   });
 
   it('is inert on a device that can publish but not browse', () => {

@@ -423,6 +423,36 @@ async fn quick_connect_initiate_then_poll_states() {
 }
 
 #[tokio::test]
+async fn the_poll_secret_can_travel_in_a_header_instead_of_the_url() {
+    // A URL is written into every access log the request passes through, so
+    // newer devices send the secret as a header and no query at all. A required
+    // query field would reject them before the handler ever looked.
+    let t = test_app();
+    let (_, init) = send(&t.app, "POST", "/api/auth/quickconnect/initiate", None, None).await;
+    let secret = init["secret"].as_str().expect("a poll secret");
+
+    let (status, _headers, body) = raw(
+        &t.app,
+        "GET",
+        "/api/auth/quickconnect/poll",
+        None,
+        None,
+        &[("x-kroma-pairing-secret", secret)],
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "pending");
+}
+
+#[tokio::test]
+async fn a_poll_with_neither_header_nor_query_is_simply_unknown() {
+    let t = test_app();
+    let (status, body) = get(&t.app, "/api/auth/quickconnect/poll", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "expired");
+}
+
+#[tokio::test]
 async fn quick_connect_initiate_falls_back_to_the_public_url_setting() {
     let t = test_app();
     // Without KROMA_WEB_URL, the admin "Remote access" public URL feeds the QR

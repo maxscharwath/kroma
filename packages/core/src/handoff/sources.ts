@@ -27,6 +27,10 @@ export interface DiscoveredTv extends HandoffDevice {
    * the grant sends on so the server can accept it in place of its own
    * address check. Never displayed. */
   proof?: string;
+  /** Carried only by `lan` rows: which install minted `handle`. A row whose
+   * server is not the caller's own cannot be granted, and is dropped rather
+   * than offered as a tap that can only fail. */
+  server?: string;
 }
 
 /** One way of finding TVs. */
@@ -68,6 +72,9 @@ export type BeaconRecord =
       state: 'waiting';
       name: string;
       platform: string;
+      /** The install that minted `handle`, so a phone on a different server
+       * knows this row is not one it can sign in. */
+      server: string;
       handle: string;
       check: string;
       proof: string;
@@ -115,7 +122,13 @@ export function beaconTxt(record: BeaconRecord): Record<string, string> {
     platform: record.platform,
   };
   return record.state === 'waiting'
-    ? { ...common, handle: record.handle, check: record.check, proof: record.proof }
+    ? {
+        ...common,
+        server: record.server,
+        handle: record.handle,
+        check: record.check,
+        proof: record.proof,
+      }
     : { ...common, receiver: record.receiver };
 }
 
@@ -135,6 +148,7 @@ export function parseBeaconTxt(txt: Record<string, string>): BeaconRecord | null
         state: 'waiting',
         name,
         platform,
+        server: record.server,
         handle: record.handle,
         check: record.check,
         proof: record.proof,
@@ -198,6 +212,7 @@ export function watchLanBeacons(
             check: record.check,
             via: 'lan',
             proof: record.proof,
+            server: record.server,
           });
         } else {
           beacons.receivers.push({
@@ -249,25 +264,12 @@ export function serverSource(client: KromaClient, everyMs = 3000): TvDiscoverySo
 /** The TVs this device can hear on its own link. Stronger evidence of being in
  * the same room than any address comparison: link-local multicast does not
  * cross a router, so a record you heard is a TV you are next to.
- *
- * `onReceivers` reports the other half of the same browse - the televisions
- * heard here that already have an account. A caller that shows a list of
- * pairable televisions wants them too: a television standing in the room and
- * absent from the list is the reading "this is broken", when the truth is
- * "this one is already done". Taking them from this browse rather than a second
- * one is the point of `watchLanBeacons` reporting both.
  */
-export function lanSource(
-  bridge: LanDiscoveryBridge,
-  onReceivers?: (receivers: NearbyReceiver[]) => void,
-): TvDiscoverySource {
+export function lanSource(bridge: LanDiscoveryBridge): TvDiscoverySource {
   return {
     id: 'lan',
     start(onRows) {
-      return watchLanBeacons(bridge, (beacons) => {
-        onRows(beacons.pairable);
-        onReceivers?.(beacons.receivers);
-      });
+      return watchLanBeacons(bridge, (beacons) => onRows(beacons.pairable));
     },
   };
 }

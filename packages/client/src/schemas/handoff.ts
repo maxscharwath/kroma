@@ -13,6 +13,10 @@ export const HandoffBeacon = z.object({
   handle: z.string(),
   secret: z.string(),
   check: z.string(),
+  /** The server's opaque per-install id, so the TV can say in its record which
+   * install minted the handle. A handle means nothing to a different server,
+   * and a household can easily have two. */
+  instanceId: z.string(),
   /** Goes in this TV's DNS-SD record and nowhere else. A phone that can quote
    * it heard the TV on the link, so the server takes it in place of comparing
    * the two devices' addresses. */
@@ -66,6 +70,9 @@ export const WaitingBeaconTxt = z.object({
   state: z.literal('waiting'),
   name: Label,
   platform: Label,
+  /** Which install minted `handle`. A phone whose server is a different one
+   * cannot grant this row and must not offer it. */
+  server: Token,
   handle: Token,
   check: z.string().min(1).max(16),
   proof: Token,

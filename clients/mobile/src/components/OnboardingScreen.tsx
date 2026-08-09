@@ -4,12 +4,7 @@
 import { BackButton, Box, SplashBackdrop, type SplashCover, styles, Txt } from '@kroma/ui/kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  type KeyboardAvoidingViewProps,
-  Platform,
-  Pressable,
-} from 'react-native';
+import { KeyboardAvoidingView, type KeyboardAvoidingViewProps, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useT } from '#mobile/lib/i18n';
 import { boxed, contentWidth, useIsWide } from '#mobile/lib/layout';

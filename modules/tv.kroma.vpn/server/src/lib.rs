@@ -149,41 +149,60 @@ impl Vpn {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-                if me.generation.load(Ordering::SeqCst) != generation {
+                if !me.is_current(generation) {
                     return;
                 }
-                let died = {
-                    let mut guard = me.child.lock().await;
-                    match guard.as_mut() {
-                        Some(child) => child.try_wait().map(|s| s.is_some()).unwrap_or(true),
-                        None => return,
-                    }
-                };
-                if died {
-                    tracing::warn!("wireguard bridge exited; restarting in 5s");
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    if me.generation.load(Ordering::SeqCst) != generation {
-                        return;
-                    }
-                    match spawn_child(&bin, &conf_path) {
-                        Ok(mut child) => {
-                            let mut guard = me.child.lock().await;
-                            // Re-check under the lock: a `stop` between the
-                            // check above and here took a `None` child, so
-                            // storing this one would leave it tunnelling with
-                            // nothing left holding a handle to kill it.
-                            if me.generation.load(Ordering::SeqCst) != generation {
-                                let _ = child.kill().await;
-                                return;
-                            }
-                            record_pid(&me.dir(), &child);
-                            *guard = Some(child);
-                        }
-                        Err(e) => tracing::warn!(error = %e, "wireguard bridge restart failed"),
-                    }
+                match me.child_died().await {
+                    // No child left to watch: a `stop` took it.
+                    None => return,
+                    Some(false) => continue,
+                    Some(true) => {}
+                }
+                tracing::warn!("wireguard bridge exited; restarting in 5s");
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if !me.respawn(generation, &bin, &conf_path).await {
+                    return;
                 }
             }
         });
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
+
+    /// Whether the child has exited, or `None` when there is no longer one.
+    async fn child_died(&self) -> Option<bool> {
+        let mut guard = self.child.lock().await;
+        let child = guard.as_mut()?;
+        Some(child.try_wait().map(|s| s.is_some()).unwrap_or(true))
+    }
+
+    /// Whether the supervisor should keep watching: false once this generation
+    /// is no longer the active config.
+    async fn respawn(&self, generation: u64, bin: &std::path::Path, conf: &std::path::Path) -> bool {
+        if !self.is_current(generation) {
+            return false;
+        }
+        match spawn_child(bin, conf) {
+            Ok(mut child) => {
+                let mut guard = self.child.lock().await;
+                // Re-check under the lock: a `stop` between the check above and
+                // here took a `None` child, so storing this one would leave it
+                // tunnelling with nothing left holding a handle to kill it.
+                if !self.is_current(generation) {
+                    let _ = child.kill().await;
+                    return false;
+                }
+                record_pid(&self.dir(), &child);
+                *guard = Some(child);
+                true
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "wireguard bridge restart failed");
+                true
+            }
+        }
     }
 
     /// Whether the bridge child is currently alive.

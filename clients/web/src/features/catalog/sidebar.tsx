@@ -290,22 +290,31 @@ function UserChip() {
       label={t('nav.account')}
       align="start"
       items={items}
-      trigger={(bind) => <UserChipTrigger bind={bind} user={user} label={t('nav.account')} />}
+      trigger={userChipTrigger(user, t('nav.account'))}
     />
   );
 }
 
 type MenuTriggerBind = Parameters<NonNullable<ComponentProps<typeof Menu>['trigger']>>[0];
 
+// Built out here rather than inline in <UserChip>: a render prop is still a
+// function returning elements, and one written inside the parent remounts its
+// subtree on every render of it.
+const userChipTrigger = (user: ChipUser, label: string) => (bind: MenuTriggerBind) => (
+  <UserChipTrigger bind={bind} user={user} label={label} />
+);
+
+interface ChipUser {
+  id: string;
+  username: string;
+  avatarUrl?: string | null;
+}
+
 function UserChipTrigger({
   bind,
   user,
   label,
-}: Readonly<{
-  bind: MenuTriggerBind;
-  user: { id: string; username: string; avatarUrl?: string | null };
-  label: string;
-}>) {
+}: Readonly<{ bind: MenuTriggerBind; user: ChipUser; label: string }>) {
   const { ref, expanded, open } = bind;
   return (
     <button

@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useNav } from '#tv/app/router';
-import { HandoffHint } from '#tv/features/accounts/HandoffHint';
 import { AuthScreen, GATE_MARK, KromaMark } from '#tv/shared/ui';
 
 const EXPIRY_MARGIN_SEC = 5;
@@ -178,8 +177,6 @@ export function TvQuickConnect() {
         </>
       ) : null}
       {!error && !info ? <Spinner size={40} thickness={3} /> : null}
-
-      <HandoffHint mt={32} />
 
       <Txt style={{ fontSize: 15, fontWeight: '500', marginTop: 24 }} color="textDim">
         {t('connect.backToProfiles')}

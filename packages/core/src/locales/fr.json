@@ -2039,11 +2039,8 @@
   "handoff.nearbySub": "Choisis la tienne pour la connecter. Rien à scanner, rien à saisir.",
   "handoff.nearbyEmpty": "Aucune TV n'attend pour le moment.",
   "handoff.nearbyEmptyHint": "Ouvre KROMA sur la TV et laisse-la sur son écran de connexion.",
-  "handoff.check": "Code {check} à l'écran",
   "handoff.connecting": "Connexion…",
   "handoff.connected": "{name} se connecte",
   "handoff.gone": "Cette TV n'attend plus",
-  "handoff.otherWays": "Autres façons de connecter",
-  "handoff.tvHint": "Ou ouvre KROMA sur ton téléphone : cette TV y attend sous {name}.",
-  "handoff.tvCheck": "Code de contrôle {check}"
+  "handoff.otherWays": "Autres façons de connecter"
 }

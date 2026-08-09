@@ -90,7 +90,11 @@ private final class BeaconState {
 
   func startBrowse(_ onFound: @escaping ([[String: Any]]) -> Void) {
     stopBrowse()
-    let descriptor = NWBrowser.Descriptor.bonjour(type: Self.serviceType, domain: nil)
+    // `bonjourWithTXTRecord`, NOT `bonjour`: the plain descriptor browses without
+    // asking for text records, so every result arrives with `.none` metadata and
+    // the whole payload is missing. The names differ by one word and the failure
+    // is silent, which is worth the sentence.
+    let descriptor = NWBrowser.Descriptor.bonjourWithTXTRecord(type: Self.serviceType, domain: nil)
     // `includePeerToPeer` stays off: this is about the room's network, and AWDL
     // would let a device that is on no network of ours appear in the list.
     let browser = NWBrowser(for: descriptor, using: .tcp)

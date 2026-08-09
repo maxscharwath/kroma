@@ -43,7 +43,7 @@ export function NearbyTvs() {
             size="sm"
             icon="device-tv"
             label={device.name}
-            hint={t('handoff.check', { check: device.check })}
+            hint={device.platform}
             trailing={
               connecting?.handle === device.handle ? <Spinner size={18} thickness={2} /> : undefined
             }

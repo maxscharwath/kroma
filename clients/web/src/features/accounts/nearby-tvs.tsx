@@ -48,7 +48,7 @@ export function NearbyTvs() {
             size="sm"
             icon="device-tv"
             label={device.name}
-            hint={t('handoff.check', { check: device.check })}
+            hint={device.platform}
             trailing={trailing(device, connecting?.handle ?? null, connected?.handle ?? null)}
             onPress={() => void connect(device)}
           />

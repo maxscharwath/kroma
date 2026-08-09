@@ -24,7 +24,7 @@
 // The same televisions also appear in the cast picker (<CastDeviceList>), which
 // is where somebody already choosing a screen will look for them.
 
-import { Box, Icon, OtpField, SegmentedControl, styles, Txt } from '@kroma/ui/kit';
+import { Box, Icon, Keypad, OtpField, SegmentedControl, styles, Txt } from '@kroma/ui/kit';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -76,7 +76,7 @@ export default function ConnectDevice() {
   const [code, setCode] = useState('');
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [cameraOn, setCameraOn] = useState(false);
-  const [mode, setMode] = useState<ConnectMode>('network');
+  const [mode, setMode] = useState<ConnectMode>('scan');
   const scannedRef = useRef(false);
 
   const submit = async (value: string) => {
@@ -149,7 +149,12 @@ export default function ConnectDevice() {
   }
 
   return (
-    <OnboardingScreen keyboardBehavior="height" onBack={() => goBack(router)} settings={false}>
+    <OnboardingScreen
+      keyboardBehavior="height"
+      onBack={() => goBack(router)}
+      settings={false}
+      brand={false}
+    >
       <OnboardingBox>
         <OnboardingTitle title={t('connect.title')} />
 
@@ -158,13 +163,13 @@ export default function ConnectDevice() {
           onChange={setMode}
           label={t('connect.title')}
           options={MODES.map((m) => ({ value: m, label: t(`connect.mode.${m}`) }))}
-          style={s.modes}
+          stretch
         />
 
         {/* Under the control, because it describes the mode the control just
             selected. Above it, it read as a description of the title. */}
         <Txt style={s.modeDesc}>
-          {mode === 'network' ? t('handoff.nearbySub') : t('connect.codePrompt')}
+          {mode === 'network' ? t('handoff.nearbySub') : t('connect.scanOrType')}
         </Txt>
 
         {mode === 'network' ? (
@@ -197,16 +202,31 @@ export default function ConnectDevice() {
               )}
             </Box>
 
-            {/* NOT autoFocused: the keypad used to come up with the screen and
-                cover the scanner and the cells it belongs to. Tapping the cells
-                raises it, for the reader who came to type. */}
+            {/* The kit's own pad, NOT the system keyboard, and `physicalKeyboard`
+                is therefore off: the cells are presentational and the pad below
+                feeds them.
+
+                Two things fall out of that, both of which resisted every fix
+                while a UIKit keyboard was involved. iOS puts an AutoFill chip
+                over a `number-pad` - measured, and no combination of
+                `textContentType="none"`, `autoComplete="off"`, `autoCorrect`,
+                `spellCheck` or `importantForAutofill` suppresses it, because it
+                belongs to the keyboard rather than to the field. And a keyboard
+                that owns the bottom half of the screen is what cropped the
+                cells and the scanner. A pad we draw has neither problem: no
+                chip, and its height is ours. */}
             <OtpField
               maxLength={4}
               value={code}
               onChange={onChange}
               invalid={state === 'error'}
               disabled={state === 'busy'}
-              physicalKeyboard
+            />
+            <Keypad
+              autoFocus={false}
+              disabled={state === 'busy'}
+              onDigit={(digit) => onChange(code + digit)}
+              onDelete={() => onChange(code.slice(0, -1))}
             />
           </Box>
         )}
@@ -220,9 +240,8 @@ export default function ConnectDevice() {
 const s = styles({
   done: { align: 'center', gap: spacing.md },
   doneBadge: { center: true, w: 72, h: 72, bg: 'accent', radius: 36 },
-  modes: { self: 'center' },
   modeDesc: { ...type.caption, color: 'textDim', textAlign: 'center' },
-  scan: { flex: true, align: 'center', justify: 'center', gap: spacing.md },
+  scan: { flex: true, align: 'center', gap: spacing.lg, pt: spacing.sm },
   // The one thing on this page that gives. `flex` with a square aspect and a
   // floor: it takes what the keyboard leaves, never grows past a thumb's reach,
   // and never shrinks so far that there is nothing to aim at.
@@ -230,8 +249,8 @@ const s = styles({
     flex: true,
     aspectRatio: 1,
     self: 'center',
-    maxH: 200,
-    minH: 92,
+    maxH: 260,
+    minH: 96,
     bg: 'surface2',
     radius: radius.lg,
     overflow: 'hidden',

@@ -9,7 +9,6 @@
 
 import {
   setBuildInfo,
-  setLanBeacon,
   setLauncherBackend,
   setSearchShell,
   setServerBrowse,
@@ -55,9 +54,6 @@ setLauncherBackend(nativeLauncher);
 // DNS-SD, and it is the one route that finds a server on a port nothing would
 // have thought to scan - or behind a reverse proxy on 443 (see the module).
 setServerBrowse(browseForServers);
-// This television announces itself on its own link, so a phone in the room can
-// sign it in without the server having to place the two by their addresses.
-setLanBeacon(lanBeacon);
 // The platform's backdrop blur, which frosts the kit's glass surfaces (episode
 // cards, glass buttons). tvOS composites UIVisualEffectView on the GPU, so the
 // shell hands it over; the kit itself stays free of the dependency (see Frost).
@@ -94,7 +90,13 @@ export function App() {
       {/* One binary per platform, so the label is the OS: this app is the
           Android TV client too, and reporting "AppleTV" there was wrong in the
           admin dashboard and the About screen alike. */}
-      <TvApp platform={Platform.OS === 'ios' ? 'AppleTV' : 'AndroidTV'} />
+      <TvApp
+        platform={Platform.OS === 'ios' ? 'AppleTV' : 'AndroidTV'}
+        // This television announces itself on its own link, so a phone in the
+        // room can sign it in without the server having to place the two by
+        // their addresses. Null on a shell without the native module.
+        lan={lanBeacon ?? undefined}
+      />
     </TvStage>
   );
 }

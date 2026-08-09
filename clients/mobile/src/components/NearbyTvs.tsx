@@ -12,11 +12,11 @@
 
 import { useNearbyTvs } from '@kroma/core/react';
 import { lanBeacon } from '@kroma/lan-beacon';
-import { Box, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
+import { Box, Icon, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useT } from '#mobile/lib/i18n';
 import { useClient } from '#mobile/lib/session';
-import { spacing, type } from '#mobile/lib/theme';
+import { colors, radius, spacing, type } from '#mobile/lib/theme';
 
 // A television answers the server poll in about a second and a link browse
 // faster still, but "nothing here" the instant the mode opens is a lie the
@@ -58,15 +58,20 @@ export function NearbyTvs() {
     );
   } else if (!settled) {
     body = (
-      <Box style={s.looking}>
-        <Spinner size={16} thickness={2} />
-        <Txt style={s.dim}>{t('handoff.nearbySearching')}</Txt>
+      <Box style={s.state}>
+        <Spinner size={20} thickness={2} />
+        <Txt style={s.stateTitle}>{t('handoff.nearbySearching')}</Txt>
       </Box>
     );
   } else {
+    // Centred in the space the rows would have filled, rather than stranded
+    // under the header with the rest of the screen empty beneath it.
     body = (
-      <Box style={s.empty}>
-        <Txt style={s.dim}>{t('handoff.nearbyEmpty')}</Txt>
+      <Box style={s.state}>
+        <Box style={s.disc}>
+          <Icon name="device-tv" size={32} stroke={1.4} color={colors.textDim} />
+        </Box>
+        <Txt style={s.stateTitle}>{t('handoff.nearbyEmpty')}</Txt>
         <Txt style={s.hint}>{t('handoff.nearbyEmptyHint')}</Txt>
       </Box>
     );
@@ -84,11 +89,11 @@ export function NearbyTvs() {
 }
 
 const s = styles({
-  section: { w: '100%', gap: 6 },
-  connected: { ...type.caption, color: 'success', fontWeight: '700' },
-  failed: { ...type.caption, color: 'danger', fontWeight: '700' },
-  looking: { row: true, align: 'center', gap: spacing.sm, py: spacing.sm },
-  empty: { gap: 2, py: spacing.sm },
-  dim: { ...type.caption, color: 'textDim' },
-  hint: { ...type.caption, color: 'textDim', opacity: 0.8 },
+  section: { flex: true, w: '100%', gap: spacing.sm },
+  connected: { ...type.caption, color: 'success', fontWeight: '700', textAlign: 'center' },
+  failed: { ...type.caption, color: 'danger', fontWeight: '700', textAlign: 'center' },
+  state: { flex: true, align: 'center', gap: spacing.sm, px: spacing.lg, pt: spacing.xl },
+  disc: { center: true, w: 76, h: 76, mb: 2, bg: 'surface2', radius: radius.pill },
+  stateTitle: { ...type.body, color: 'text', fontWeight: '600', textAlign: 'center' },
+  hint: { ...type.caption, color: 'textMuted', textAlign: 'center', lineHeight: 20, maxW: 300 },
 });

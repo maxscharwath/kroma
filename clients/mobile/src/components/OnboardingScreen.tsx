@@ -17,6 +17,7 @@ export function OnboardingScreen({
   onBack,
   covers,
   settings = true,
+  brand = true,
   children,
 }: Readonly<{
   keyboardBehavior?: NonNullable<KeyboardAvoidingViewProps['behavior']>;
@@ -26,6 +27,11 @@ export function OnboardingScreen({
    *  need before anything else. A screen reached from INSIDE the app is past
    *  that choice and turns it off. */
   settings?: boolean;
+  /** The lockup over the content. On for the signed-out gates, where it is the
+   *  one thing that says which app is asking. Off for a screen reached from
+   *  inside the app, which has already answered that and needs the 84pt more
+   *  than it needs the reminder. */
+  brand?: boolean;
   /** Splash artwork behind the phase (see the kit's SplashBackdrop); phases
    *  without a known server pass nothing and keep the plain wash. */
   covers?: readonly SplashCover[];
@@ -71,9 +77,11 @@ export function OnboardingScreen({
             },
           ]}
         >
-          <Box style={s.brand}>
-            <KromaLockup height={36} />
-          </Box>
+          {brand ? (
+            <Box style={s.brand}>
+              <KromaLockup height={36} />
+            </Box>
+          ) : null}
           {children}
         </Box>
       </KeyboardAvoidingView>

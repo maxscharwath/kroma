@@ -2018,6 +2018,7 @@
   "offline.failed": "Téléchargement échoué. Votre serveur doit peut-être être mis à jour.",
   "offline.queued": "En attente",
   "offline.downloadSeason": "Télécharger la saison",
+  "connect.scanOrType": "Scanne le QR affiché sur ta TV, ou saisis son code.",
   "connect.scanTvQr": "Scanner le QR du téléviseur",
   "connect.schemeChecking": "Vérification de l’adresse…",
   "connect.schemeInsecure": "Connexion non chiffrée (HTTP)",

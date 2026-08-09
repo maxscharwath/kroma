@@ -8,9 +8,13 @@
 // The beacon goes up at the server always, and on this television's own link
 // when the shell registered a stack to publish with (see app/lanBeacon).
 
-import { type HandoffBeaconView, type KromaClient, startHandoff } from '@kroma/core';
+import {
+  type HandoffBeaconView,
+  type KromaClient,
+  type LanDiscoveryBridge,
+  startHandoff,
+} from '@kroma/core';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { lanBeacon } from '#tv/app/lanBeacon';
 import { useAuth } from '#tv/app/providers/auth';
 import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
@@ -26,8 +30,13 @@ export function useHandoffBeacon(): HandoffBeaconView | null {
 
 export function HandoffBeaconProvider({
   client,
+  lan,
   children,
-}: Readonly<{ client: KromaClient | null; children: ReactNode }>) {
+}: Readonly<{
+  client: KromaClient | null;
+  lan?: LanDiscoveryBridge;
+  children: ReactNode;
+}>) {
   const [beacon, setBeacon] = useState<HandoffBeaconView | null>(null);
   const { user, login } = useAuth();
   const { activeServerUrl } = useConnection();
@@ -46,13 +55,11 @@ export function HandoffBeaconProvider({
       deviceId: deviceId(),
       name: deviceName(platform),
       platform,
-      // Read at start, not at module load: a shell registers its stack at the
-      // app root, which has run by the time a gate screen is up.
-      publish: lanBeacon()?.publish,
+      publish: lan?.publish,
       onBeacon: setBeacon,
       onAuthenticated: (result) => login(result, activeServerUrl),
     });
-  }, [client, activeServerUrl, signedIn, platform, login]);
+  }, [client, activeServerUrl, signedIn, platform, login, lan]);
 
   const value = useMemo(() => beacon, [beacon]);
   return <BeaconCtx.Provider value={value}>{children}</BeaconCtx.Provider>;

@@ -8,11 +8,11 @@ import {
   type CastController,
   type KromaClient,
   KromaEvents,
+  type LanDiscoveryBridge,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Avatar, toast } from '@kroma/ui/kit';
 import { type ReactNode, useEffect, useRef } from 'react';
-import { lanBeacon } from '#tv/app/lanBeacon';
 import { useAuth } from '#tv/app/providers/auth';
 import { useEnv } from '#tv/app/providers/env';
 import { useNav } from '#tv/app/router';
@@ -33,17 +33,25 @@ const AUTH_WAIT_TICKS = 50;
  * legitimately be null before a server is configured. */
 export function CastReceiverProvider({
   client,
+  lan,
   children,
-}: Readonly<{ client: KromaClient | null; children: ReactNode }>) {
+}: Readonly<{
+  client: KromaClient | null;
+  lan?: LanDiscoveryBridge;
+  children: ReactNode;
+}>) {
   return (
     <>
-      {client ? <CastReceiver client={client} /> : null}
+      {client ? <CastReceiver client={client} lan={lan} /> : null}
       {children}
     </>
   );
 }
 
-function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
+function CastReceiver({
+  client,
+  lan,
+}: Readonly<{ client: KromaClient; lan?: LanDiscoveryBridge }>) {
   const nav = useNav();
   const t = useT();
   const { user } = useAuth();
@@ -71,7 +79,7 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
   // single owner.
   useEffect(() => {
     if (!signedIn || castable === 'off') return;
-    const publish = lanBeacon()?.publish;
+    const publish = lan?.publish;
     if (!publish) return;
     const name = deviceName(platform);
     try {
@@ -83,7 +91,7 @@ function CastReceiver({ client }: Readonly<{ client: KromaClient }>) {
       // A platform that refuses to publish still casts through the server.
       return;
     }
-  }, [signedIn, castable, platform]);
+  }, [signedIn, castable, platform, lan]);
 
   useEffect(() => {
     if (!signedIn || castable === 'off') return;

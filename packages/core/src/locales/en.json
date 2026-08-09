@@ -2017,6 +2017,7 @@
   "offline.failed": "Download failed. Your server may need an update.",
   "offline.queued": "Waiting",
   "offline.downloadSeason": "Download season",
+  "connect.scanOrType": "Scan the QR on your TV, or type its code.",
   "connect.scanTvQr": "Scan the TV's QR code",
   "connect.schemeChecking": "Checking the address…",
   "connect.schemeInsecure": "Unencrypted connection (HTTP)",

@@ -1,3 +1,4 @@
+import type { LanDiscoveryBridge } from '@kroma/core';
 import { configureRemote, OverlayHost, setEntryDefaults, Toaster } from '@kroma/ui/kit';
 import { useEffect } from 'react';
 import { BrandIntro } from '#tv/app/BrandIntro';
@@ -45,6 +46,12 @@ export interface TvAppProps {
   platform?: string;
   capabilities?: TvEnvOverrides;
   introVideoSrc?: string;
+  /** This television's DNS-SD stack, when the shell has one. Passed down rather
+   * than registered in a module: a capability read deep in the tree through a
+   * module-level `let` is one bundling accident away from being silently null,
+   * and silently null here means the television never announces itself on the
+   * link and nothing anywhere says so. */
+  lan?: LanDiscoveryBridge;
 }
 
 // Module scope, so the remote is wired before the first screen renders.
@@ -61,7 +68,7 @@ const LAYERS = [BROWSE_CHROME, AUTH_BACKDROP] as const;
 
 const TOAST_INSET = { x: 64, y: 132 } as const;
 
-export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly<TvAppProps>) {
+export function TvApp({ platform = 'TV', capabilities, introVideoSrc, lan }: Readonly<TvAppProps>) {
   const { connection, client, activeServerUrl, setActiveServer, setSignedIn } =
     useCatalogue(platform);
 
@@ -84,10 +91,10 @@ export function TvApp({ platform = 'TV', capabilities, introVideoSrc }: Readonly
                       <WatchedProvider>
                         {/* Above the router: a TV must be castable from its home
                             screen, not only from the player. */}
-                        <CastReceiverProvider client={client}>
+                        <CastReceiverProvider client={client} lan={lan}>
                           {/* Also above the router: the beacon has to be up on
                               whichever gate screen the TV is showing. */}
-                          <HandoffBeaconProvider client={client}>
+                          <HandoffBeaconProvider client={client} lan={lan}>
                             {/* A television cannot use React Native's <Modal>: its
                               view controller never receives a press from a remote
                               (see @kroma/ui lib/overlay-host). */}

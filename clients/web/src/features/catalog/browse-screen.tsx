@@ -80,10 +80,10 @@ function useVisibleLetters(
         if (sectionTop < viewBottom && sectionBottom > line) visible.push(mark.letter);
       });
       const first = visible[0];
-      const last = visible[visible.length - 1];
+      const last = visible.at(-1);
       setRange((prev) => {
         if (first === undefined || last === undefined) return undefined;
-        return prev && prev.first === first && prev.last === last ? prev : { first, last };
+        return prev?.first === first && prev?.last === last ? prev : { first, last };
       });
     };
     const onScroll = () => {

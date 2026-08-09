@@ -57,7 +57,7 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'onChange' | 'ring'
   /** Explicit override; normally derived from `type`. A registration form's
    *  password field says `new-password` here, or the browser's manager fills
    *  the CURRENT password into it and never offers to generate one. */
-  autoComplete?: TextInputProps['autoComplete'];
+  autoComplete?: NonNullable<TextInputProps['autoComplete']>;
   invalid?: boolean;
   /** A value to read and copy, not to change: the entry still focuses and
    *  still selects, so a share link can be picked up with the keyboard. */
@@ -185,21 +185,14 @@ function TextField({
           ]}
         />
       ) : (
-        // The TV spelling of the same field, so it must measure the same: the
-        // shell's font size (not <Txt>'s `body` role, which is a different size
-        // at `sm`), and a line box exactly the content row - native CLIPS text
-        // whose lineHeight overflows its box, where the web merely spills, so
-        // an inherited 1.55 ratio mis-seats the value on tvOS alone.
-        <Box row align="center" flex gap={2} h={CONTENT}>
-          <Txt
-            lines={1}
-            style={[s.tvValue, { fontSize: metrics.fontSize, lineHeight: CONTENT }, textStyle]}
-            color={value ? 'text' : PLACEHOLDER}
-          >
-            {(masked ? '•'.repeat(value.length) : value) || placeholder || ''}
-          </Txt>
-          <Caret height={CONTENT} />
-        </Box>
+        <SoftValue
+          value={value}
+          masked={masked}
+          placeholder={placeholder}
+          content={CONTENT}
+          fontSize={metrics.fontSize}
+          textStyle={textStyle}
+        />
       )}
       {type === 'password' ? (
         <>
@@ -207,31 +200,77 @@ function TextField({
               width, the button is absolutely positioned over it - because in
               flow its padding set the row height. */}
           <Box w={CONTENT} />
-          <Box
-            absolute
+          <RevealButton
+            revealed={revealed}
+            onToggle={() => setRevealed((prev) => !prev)}
             // Anchored where the spacer's well sits: pr (= py) plus the well's
             // own centring of the glyph, so the eye lines up with the leading
             // icon's inset on the other side.
-            style={[s.revealSlot, { right: metrics.py + (CONTENT - REVEAL_SIZE) / 2 }]}
-          >
-            <Focusable
-              label={revealed ? 'Hide password' : 'Show password'}
-              ring={false}
-              onPress={() => setRevealed((prev) => !prev)}
-              style={s.reveal}
-              states={REVEAL_STATES}
-            >
-              <Icon
-                name={revealed ? 'eye-off' : 'eye'}
-                size={REVEAL_SIZE}
-                stroke={1.8}
-                color="rgba(244, 243, 240, 0.5)"
-              />
-            </Focusable>
-          </Box>
+            right={metrics.py + (CONTENT - REVEAL_SIZE) / 2}
+          />
         </>
       ) : null}
       {trailing}
+    </Box>
+  );
+}
+
+// The TV spelling of the same field, so it must measure the same: the shell's
+// font size (not <Txt>'s `body` role, which is a different size at `sm`), and a
+// line box exactly the content row - native CLIPS text whose lineHeight
+// overflows its box, where the web merely spills, so an inherited 1.55 ratio
+// mis-seats the value on tvOS alone.
+function SoftValue({
+  value,
+  masked,
+  placeholder,
+  content,
+  fontSize,
+  textStyle,
+}: Readonly<{
+  value: string;
+  masked: boolean;
+  placeholder: string | undefined;
+  content: number;
+  fontSize: number;
+  textStyle: StyleProp<TextStyle>;
+}>) {
+  const shown = masked ? '•'.repeat(value.length) : value;
+  return (
+    <Box row align="center" flex gap={2} h={content}>
+      <Txt
+        lines={1}
+        style={[s.tvValue, { fontSize, lineHeight: content }, textStyle]}
+        color={value ? 'text' : PLACEHOLDER}
+      >
+        {shown || placeholder || ''}
+      </Txt>
+      <Caret height={content} />
+    </Box>
+  );
+}
+
+function RevealButton({
+  revealed,
+  onToggle,
+  right,
+}: Readonly<{ revealed: boolean; onToggle: () => void; right: number }>) {
+  return (
+    <Box absolute style={[s.revealSlot, { right }]}>
+      <Focusable
+        label={revealed ? 'Hide password' : 'Show password'}
+        ring={false}
+        onPress={onToggle}
+        style={s.reveal}
+        states={REVEAL_STATES}
+      >
+        <Icon
+          name={revealed ? 'eye-off' : 'eye'}
+          size={REVEAL_SIZE}
+          stroke={1.8}
+          color="rgba(244, 243, 240, 0.5)"
+        />
+      </Focusable>
     </Box>
   );
 }

@@ -136,9 +136,8 @@ function SearchPanel({
   useEffect(() => setActive(0), [q]);
 
   useEffect(() => {
-    list.current
-      ?.querySelector(`[id="${CSS.escape(`${listId}-${active}`)}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+    const rowId = CSS.escape(`${listId}-${active}`);
+    list.current?.querySelector(`[id="${rowId}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [active, listId]);
 
   const onKeyDown = (e: KeyboardEvent) => {
@@ -200,9 +199,13 @@ function SearchPanel({
             <div className="px-3 py-4 text-center text-[12.5px] text-dim">-</div>
           ) : (
             filtered.map((o, i) => (
-              // biome-ignore lint/a11y/useKeyWithClickEvents: the combobox input owns the keyboard; rows are pointer targets named through aria-activedescendant
-              <div
+              // A real button, not a div: the row is a pointer target, and the
+              // keyboard reaches it through the combobox input above rather than
+              // by focus, so `tabIndex={-1}` keeps it out of the tab ring while
+              // the element stays interactive for assistive tech.
+              <button
                 key={o}
+                type="button"
                 id={`${listId}-${i}`}
                 role="option"
                 aria-selected={o === value}
@@ -210,13 +213,13 @@ function SearchPanel({
                 onMouseEnter={() => setActive(i)}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => onPick(o)}
-                className={`relative flex cursor-pointer select-none items-center rounded-[4px] py-2 pl-3 pr-8 text-[13px] font-medium outline-none ${i === active ? 'bg-white/6' : ''} ${o === value ? 'text-accent' : 'text-text'}`}
+                className={`relative flex w-full cursor-pointer select-none items-center rounded-[4px] py-2 pl-3 pr-8 text-left text-[13px] font-medium outline-none ${i === active ? 'bg-white/6' : ''} ${o === value ? 'text-accent' : 'text-text'}`}
               >
                 {o}
                 {o === value ? (
                   <IconCheck size={14} stroke={2.4} className="absolute right-2.5" />
                 ) : null}
-              </div>
+              </button>
             ))
           )}
         </div>

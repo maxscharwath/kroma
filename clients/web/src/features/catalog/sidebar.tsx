@@ -21,7 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { type ComponentProps, useEffect, useState } from 'react';
 import { CapabilityChip } from '#web/features/accounts/capability-chip';
 import { UserAvatar } from '#web/features/accounts/user-avatar';
 import { NotificationBell } from '#web/features/notifications/panel';
@@ -290,29 +290,44 @@ function UserChip() {
       label={t('nav.account')}
       align="start"
       items={items}
-      trigger={({ ref, expanded, open }) => (
-        <button
-          ref={ref as unknown as React.Ref<HTMLButtonElement>}
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded={expanded}
-          onClick={open}
-          className={`mt-2 flex items-center gap-3 rounded-md p-2.5 text-left transition-colors hover:bg-white/4 focus:outline-none ${expanded ? 'bg-white/4' : ''}`}
-          title={t('nav.account')}
-        >
-          <UserAvatar
-            name={user.username}
-            avatarUrl={user.avatarUrl}
-            seed={user.id}
-            size={36}
-            radius={10}
-          />
-          <div className="min-w-0">
-            <div className="truncate text-[14px] font-semibold text-text">{user.username}</div>
-            <div className="truncate text-[11px] font-medium text-dim">{t('nav.account')}</div>
-          </div>
-        </button>
-      )}
+      trigger={(bind) => <UserChipTrigger bind={bind} user={user} label={t('nav.account')} />}
     />
+  );
+}
+
+type MenuTriggerBind = Parameters<NonNullable<ComponentProps<typeof Menu>['trigger']>>[0];
+
+function UserChipTrigger({
+  bind,
+  user,
+  label,
+}: Readonly<{
+  bind: MenuTriggerBind;
+  user: { id: string; username: string; avatarUrl?: string | null };
+  label: string;
+}>) {
+  const { ref, expanded, open } = bind;
+  return (
+    <button
+      ref={ref as unknown as React.Ref<HTMLButtonElement>}
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={expanded}
+      onClick={open}
+      className={`mt-2 flex items-center gap-3 rounded-md p-2.5 text-left transition-colors hover:bg-white/4 focus:outline-none ${expanded ? 'bg-white/4' : ''}`}
+      title={label}
+    >
+      <UserAvatar
+        name={user.username}
+        avatarUrl={user.avatarUrl}
+        seed={user.id}
+        size={36}
+        radius={10}
+      />
+      <div className="min-w-0">
+        <div className="truncate text-[14px] font-semibold text-text">{user.username}</div>
+        <div className="truncate text-[11px] font-medium text-dim">{label}</div>
+      </div>
+    </button>
   );
 }

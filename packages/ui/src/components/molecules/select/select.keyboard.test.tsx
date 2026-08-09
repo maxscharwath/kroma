@@ -40,14 +40,14 @@ describe('a kit control on a web page', () => {
     render(<Select label="Source" options={OPTIONS} value="all" onChange={() => {}} />);
     const trigger = screen.getByRole('combobox');
     press(trigger);
-    expect(screen.queryByRole('listbox')).toBeTruthy();
+    expect(screen.getByRole('listbox')).toBeTruthy();
   });
 
   it('opens it with Space too, the key the responder skips for a combobox', () => {
     render(<Select label="Source" options={OPTIONS} value="all" onChange={() => {}} />);
     const trigger = screen.getByRole('combobox');
     press(trigger, ' ');
-    expect(screen.queryByRole('listbox')).toBeTruthy();
+    expect(screen.getByRole('listbox')).toBeTruthy();
   });
 
   it('keeps the focus on the trigger and names the list from it', () => {

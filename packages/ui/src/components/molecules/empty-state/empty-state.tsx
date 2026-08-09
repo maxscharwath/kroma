@@ -22,6 +22,25 @@ interface EmptyStateProps {
   fill?: boolean;
 }
 
+// Every measure the two shapes disagree on, resolved in one place so the tree
+// below reads as a layout rather than as a column of ternaries.
+function metrics(tv: boolean, fill: boolean) {
+  const offset = TOP_OFFSET[tv ? 'tv' : 'page'];
+  return {
+    flex: fill ? 1 : undefined,
+    justify: fill ? ('center' as const) : undefined,
+    mt: fill ? 0 : offset,
+    py: fill ? 64 : 0,
+    gap: tv ? 16 : 10,
+    badge: tv ? 88 : 64,
+    glyph: tv ? 40 : 26,
+    titleVariant: tv ? ('h2' as const) : ('title' as const),
+    titleStyle: tv ? null : s.title,
+    hintStyle: tv ? s.hintTv : s.hint,
+    actionMt: tv ? 8 : 6,
+  };
+}
+
 function EmptyState({
   icon,
   title,
@@ -31,23 +50,17 @@ function EmptyState({
   tv = false,
   fill = false,
 }: Readonly<EmptyStateProps>) {
+  const m = metrics(tv, fill);
   return (
-    <Box
-      center
-      flex={fill ? 1 : undefined}
-      justify={fill ? 'center' : undefined}
-      mt={fill ? 0 : TOP_OFFSET[tv ? 'tv' : 'page']}
-      py={fill ? 64 : 0}
-      gap={tv ? 16 : 10}
-    >
-      <Box center w={tv ? 88 : 64} h={tv ? 88 : 64} radius="pill" bg="white/5" border="white/8">
-        <Icon name={icon} size={tv ? 40 : 26} color="textDim" />
+    <Box center flex={m.flex} justify={m.justify} mt={m.mt} py={m.py} gap={m.gap}>
+      <Box center w={m.badge} h={m.badge} radius="pill" bg="white/5" border="white/8">
+        <Icon name={icon} size={m.glyph} color="textDim" />
       </Box>
-      <Txt variant={tv ? 'h2' : 'title'} style={[s.centred, tv ? null : s.title]}>
+      <Txt variant={m.titleVariant} style={[s.centred, m.titleStyle]}>
         {title}
       </Txt>
       {hint ? (
-        <Txt variant="body" color="textMuted" style={[s.centred, tv ? s.hintTv : s.hint]}>
+        <Txt variant="body" color="textMuted" style={[s.centred, m.hintStyle]}>
           {hint}
         </Txt>
       ) : null}
@@ -58,7 +71,7 @@ function EmptyState({
           </Txt>
         </Box>
       ) : null}
-      {action ? <Box mt={tv ? 8 : 6}>{action}</Box> : null}
+      {action ? <Box mt={m.actionMt}>{action}</Box> : null}
     </Box>
   );
 }

@@ -89,6 +89,18 @@ interface AddonProps {
   children: ReactNode;
 }
 
+// One provider per slot, each memoising its own value: the slot is built inside
+// a map, so the value cannot be hoisted to a hook in Addon, and rebuilding it
+// every render would re-render every control in the addon for nothing.
+function AddonSlotProvider({
+  align,
+  edge,
+  children,
+}: Readonly<{ align: AddonAlign; edge: boolean; children: ReactNode }>) {
+  const value = useMemo(() => ({ align, edge }), [align, edge]);
+  return <AddonContext.Provider value={value}>{children}</AddonContext.Provider>;
+}
+
 function Addon({
   align = 'inline-start',
   divider = false,
@@ -101,9 +113,9 @@ function Addon({
   const items = Children.toArray(children);
   const edgeAt = edgeIndex(align, items.length);
   const slotted = items.map((child, index) => (
-    <AddonContext.Provider key={slotKey(child, index)} value={{ align, edge: index === edgeAt }}>
+    <AddonSlotProvider key={slotKey(child, index)} align={align} edge={index === edgeAt}>
       {child}
-    </AddonContext.Provider>
+    </AddonSlotProvider>
   ));
   const body = (
     <Box

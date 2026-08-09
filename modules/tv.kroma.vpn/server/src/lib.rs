@@ -137,10 +137,15 @@ impl Vpn {
         tracing::info!(port, "wireguard bridge started (wireproxy)");
         *self.child.lock().await = Some(child);
 
-        // Supervisor: while this generation is the active config, respawn the
-        // child (with a small backoff) whenever it dies. The kill switch
-        // covers the gap. Respawns re-run the child directly, never `apply`.
-        let me = self.clone();
+        self.clone().supervise(generation, bin, conf_path);
+        Ok(())
+    }
+
+    /// While `generation` is the active config, respawn the child (with a small
+    /// backoff) whenever it dies. The kill switch covers the gap. Respawns
+    /// re-run the child directly, never `apply`.
+    fn supervise(self: Arc<Self>, generation: u64, bin: PathBuf, conf_path: PathBuf) {
+        let me = self;
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(std::time::Duration::from_secs(3)).await;
@@ -179,7 +184,6 @@ impl Vpn {
                 }
             }
         });
-        Ok(())
     }
 
     /// Whether the bridge child is currently alive.

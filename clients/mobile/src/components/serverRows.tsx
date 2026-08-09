@@ -3,7 +3,7 @@
 // system's, so a phone's server list is the same object as the TV's and the
 // console's. What stays here is the section header and hint that frame it.
 
-import { Box, ListRow, type ListRowProps, Spinner, styles, Txt } from '@kroma/ui/kit';
+import { Box, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
 import { colors, spacing, type } from '#mobile/lib/theme';
 
@@ -63,4 +63,4 @@ const s = styles({
   sectionHint: { ...type.small, px: spacing.xs },
 });
 
-export type { ListRowProps as ServerRowProps };
+export type { ListRowProps as ServerRowProps } from '@kroma/ui/kit';

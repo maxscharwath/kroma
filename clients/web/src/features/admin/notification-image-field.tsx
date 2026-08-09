@@ -64,8 +64,7 @@ export function NotificationImageField({
 }
 
 function imageName(value: string): string {
-  const parts = value.split('/');
-  return parts[parts.length - 1] || value;
+  return value.split('/').at(-1) || value;
 }
 
 const THUMB = { width: 20, height: 20 } as const;

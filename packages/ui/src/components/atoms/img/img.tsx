@@ -226,8 +226,49 @@ function Img({
     );
   }
 
-  const layer = rect ? { position: 'absolute' as const, ...rect } : absoluteFill;
-  const mode = rect ? ('stretch' as const) : fit;
+  return (
+    <View onLayout={onBoxLayout} style={container}>
+      {placeholderLayer}
+      {nativeLayers({
+        src,
+        under,
+        alt,
+        fit,
+        rect,
+        duration,
+        errored,
+        opacity,
+        setNatural,
+        markLoaded,
+        onLoad,
+        onError: handleError,
+      })}
+      {fallbackLayer}
+    </View>
+  );
+}
+
+interface NativeLayersArgs {
+  src: string | null;
+  under: string | null;
+  alt: string;
+  fit: 'cover' | 'contain';
+  rect: { top: number; left: number; width: number; height: number } | null;
+  duration: number;
+  errored: boolean;
+  opacity: Animated.Value;
+  setNatural: (size: Size) => void;
+  markLoaded: () => void;
+  onLoad: (() => void) | undefined;
+  onError: () => void;
+}
+
+// The native counterpart of webLayers, and a plain function for the same
+// reason: same elements, same keys, same style identities as when <Img>
+// returned them inline.
+function nativeLayers(at: Readonly<NativeLayersArgs>): ReactNode {
+  const layer = at.rect ? { position: 'absolute' as const, ...at.rect } : absoluteFill;
+  const mode = at.rect ? ('stretch' as const) : at.fit;
   const backend = imageBackend();
   // A backend that fades itself (expo-image) is left alone; one that doesn't
   // (React Native's <Image>) is cross-faded here instead.
@@ -235,17 +276,21 @@ function Img({
     backend.render({
       uri,
       fit: mode,
-      fadeMs: duration,
-      accessibilityLabel: alt || undefined,
-      onLoad: (size: { width: number; height: number } | null) => {
-        if (size) setNatural(size);
-        markLoaded();
+      fadeMs: at.duration,
+      accessibilityLabel: at.alt || undefined,
+      onLoad: (size: Size | null) => {
+        if (size) at.setNatural(size);
+        at.markLoaded();
         if (!backend.fades) {
-          Animated.timing(opacity, { toValue: 1, duration, useNativeDriver: true }).start();
+          Animated.timing(at.opacity, {
+            toValue: 1,
+            duration: at.duration,
+            useNativeDriver: true,
+          }).start();
         }
-        onLoad?.();
+        at.onLoad?.();
       },
-      onError: handleError,
+      onError: at.onError,
       // ALWAYS the driven value, never a bare number. Two reasons, and the
       // second is the one that bites on tvOS:
       //
@@ -257,20 +302,18 @@ function Img({
       //   attached to a prop that JS just rewrote does not run under Fabric.
       //   The image simply appeared, which is what "fading is broken on Apple
       //   TV" looks like.
-      style: [layer, animated && !backend.fades ? { opacity } : null],
+      style: [layer, animated && !backend.fades ? { opacity: at.opacity } : null],
     });
 
   return (
-    <View onLayout={onBoxLayout} style={container}>
-      {placeholderLayer}
-      {under && under !== src ? (
+    <>
+      {at.under && at.under !== at.src ? (
         <View key="under" style={layer}>
-          {backend.render({ uri: under, fit: mode, fadeMs: 0, style: absoluteFill })}
+          {backend.render({ uri: at.under, fit: mode, fadeMs: 0, style: absoluteFill })}
         </View>
       ) : null}
-      {src && !errored ? <Fragment key={src}>{leaf(src, true)}</Fragment> : null}
-      {fallbackLayer}
-    </View>
+      {at.src && !at.errored ? <Fragment key={at.src}>{leaf(at.src, true)}</Fragment> : null}
+    </>
   );
 }
 

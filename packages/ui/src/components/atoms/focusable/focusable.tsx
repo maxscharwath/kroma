@@ -739,7 +739,7 @@ function TouchPressable({
   unfocusable?: boolean;
   label?: string;
   role?: FocusRole;
-  a11yState?: A11yState;
+  a11yState: A11yState;
   webKeys?: WebKeys;
   boxRef?: Ref<View>;
   children: (pressed: boolean) => ReactNode;

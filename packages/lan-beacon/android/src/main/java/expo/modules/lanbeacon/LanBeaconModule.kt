@@ -44,12 +44,7 @@ class LanBeaconModule : Module() {
 
     Function("unpublish") { unpublish() }
 
-    Function("startBrowse") {
-      val manager = manager() ?: return@Function
-      stopBrowse()
-      browse = Browse(manager) { services -> sendEvent(FOUND_EVENT, mapOf("services" to services)) }
-        .also { it.start() }
-    }
+    Function("startBrowse") { startBrowse() }
 
     Function("stopBrowse") { stopBrowse() }
 
@@ -101,6 +96,15 @@ class LanBeaconModule : Module() {
     registration = null
     runCatching { advertisedSocket?.close() }
     advertisedSocket = null
+  }
+
+  // A private method rather than the body of the `Function` lambda: an early
+  // return inside one fights the return type Expo infers for it.
+  private fun startBrowse() {
+    val manager = manager() ?: return
+    stopBrowse()
+    browse = Browse(manager) { services -> sendEvent(FOUND_EVENT, mapOf("services" to services)) }
+      .also { it.start() }
   }
 
   private fun stopBrowse() {

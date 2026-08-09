@@ -309,6 +309,22 @@ describe('safeImageUrl', () => {
     expect(safeImageUrl('vbscript:msgbox')).toBeNull();
   });
 
+  it('rejects a scheme smuggled past the check with a tab or a newline', () => {
+    // A browser deletes tab/CR/LF from anywhere in a URL before parsing it, so
+    // every one of these loads as `javascript:alert(1)`. Splitting the scheme
+    // used to walk straight through the "no scheme at all" branch.
+    expect(safeImageUrl('java\nscript:alert(1)')).toBeNull();
+    expect(safeImageUrl('java\tscript:alert(1)')).toBeNull();
+    expect(safeImageUrl('jav\rascript:alert(1)')).toBeNull();
+    expect(safeImageUrl('data:text/ht\nml,<script>alert(1)</script>')).toBeNull();
+  });
+
+  it('keeps stripping to the scheme check, leaving a real path usable', () => {
+    // The strip must not corrupt artwork that merely got wrapped in transit.
+    expect(safeImageUrl('/api/images/\nabc')).toBe('/api/images/abc');
+    expect(safeImageUrl('\n')).toBeNull();
+  });
+
   it('treats absent artwork as absent', () => {
     expect(safeImageUrl(null)).toBeNull();
     expect(safeImageUrl(undefined)).toBeNull();

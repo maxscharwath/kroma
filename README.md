@@ -287,7 +287,8 @@ See each client's README for full device install steps.
 - **Discovery** `/search?q=` (typo-tolerant full-text), `/home` (generated
   sections), `/for-you`, `/items/:id/similar`, `/themed?q=`, `/continue`.
 - **Accounts & control** `/auth/*` (incl. Quick Connect), `/handoff/*` (nearby
-  TV pairing), `/progress`, `/admin/*`, `GET /events` (WebSocket), `POST /scan`.
+  TV pairing, see [`docs/tv-pairing.md`](docs/tv-pairing.md)), `/progress`,
+  `/admin/*`, `GET /events` (WebSocket), `POST /scan`.
 
 Configure via `KROMA_HOST` / `KROMA_PORT` / `KROMA_MEDIA_DIRS` / `KROMA_DATA_DIR` /
 `KROMA_TMDB_API_KEY`. Library persisted in SQLite (`<data>/kroma.db`, WAL). Optional

@@ -7,12 +7,10 @@
 // and a viewer who cannot read the sign-in screen cannot get to one.
 
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { LOCALES, type Locale } from '@kroma/core';
-import { Box, Icon, IconButton, styles, Txt } from '@kroma/ui/kit';
+import { IconButton } from '@kroma/ui/kit';
 import { useRef } from 'react';
-import { Pressable } from 'react-native';
 import { useI18n, useT } from '#mobile/lib/i18n';
-import { colors, radius, spacing, type } from '#mobile/lib/theme';
+import { LocalePicker } from './LocalePicker';
 import { SheetBody, SheetTitle, sheetChrome } from './ui/sheet';
 
 export function GateSettings() {
@@ -37,34 +35,15 @@ export function GateSettings() {
       <BottomSheetModal ref={sheet} {...sheetChrome}>
         <SheetBody>
           <SheetTitle>{t('account.uiLanguage')}</SheetTitle>
-          <Box style={s.card}>
-            {LOCALES.map((l) => (
-              <Pressable
-                key={l.code}
-                onPress={() => {
-                  setOverride(l.code as Locale);
-                  sheet.current?.dismiss();
-                }}
-                style={({ pressed }) => [s.row, pressed && s.rowPressed]}
-              >
-                <Txt style={[s.rowLabel, locale === l.code && { fontWeight: '700' }]}>
-                  {t(l.labelKey)}
-                </Txt>
-                {locale === l.code ? (
-                  <Icon name="check" size={17} stroke={2.4} color={colors.accent} />
-                ) : null}
-              </Pressable>
-            ))}
-          </Box>
+          <LocalePicker
+            locale={locale}
+            onPick={(next) => {
+              setOverride(next);
+              sheet.current?.dismiss();
+            }}
+          />
         </SheetBody>
       </BottomSheetModal>
     </>
   );
 }
-
-const s = styles({
-  card: { px: 6, py: 4, bg: 'surface1', radius: radius.lg },
-  row: { row: true, between: true, align: 'center', minH: 52, px: spacing.sm, radius: radius.md },
-  rowPressed: { bg: 'surface2' },
-  rowLabel: { ...type.body },
-});

@@ -614,4 +614,126 @@ mod tests {
         assert_eq!(items.len(), 2);
         assert_eq!(shows.len(), 1);
     }
+
+    fn seed_backdrop(conn: &Connection, kind: &str, id: &str, backdrop: &str) {
+        conn.execute(
+            "INSERT INTO metadata_core (subject_kind,subject_id,backdrop_url,rating,updated_at) \
+             VALUES (?1,?2,?3,7.5,0)",
+            params![kind, id, backdrop],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn splash_captions_a_title_in_the_asked_for_locale() {
+        // The one catalogue read served without a session, so the caption has
+        // to be localised from the stored translation rather than from whatever
+        // the scan happened to name the file.
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_backdrop(&conn, metadata_core::ITEM, "m1", "/b/m1.jpg");
+            conn.execute(
+                "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib','Severance','t')",
+                [],
+            )
+            .unwrap();
+            seed_backdrop(&conn, metadata_core::SHOW, "s1", "/b/s1.jpg");
+        }
+        crate::translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "fr",
+            "tmdb",
+            &crate::translations::TransData {
+                title: Some("Dune, première partie".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        crate::translations::put(
+            &p,
+            metadata_core::SHOW,
+            "s1",
+            "fr",
+            "tmdb",
+            &crate::translations::TransData {
+                title: Some("Séparation".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let mut titles: Vec<String> =
+            splash_entries(&p, 10, "fr").unwrap().into_iter().map(|e| e.title).collect();
+        titles.sort();
+        assert_eq!(titles, ["Dune, première partie", "Séparation"]);
+    }
+
+    #[test]
+    fn splash_keeps_the_stored_title_when_the_locale_has_no_translation() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_backdrop(&conn, metadata_core::ITEM, "m1", "/b/m1.jpg");
+        }
+        let entries = splash_entries(&p, 10, "de").unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].title, "Dune");
+        assert_eq!(entries[0].backdrop_url, "/b/m1.jpg");
+        assert_eq!(entries[0].kind, "movie");
+    }
+
+    #[test]
+    fn splash_only_offers_titles_that_have_a_backdrop() {
+        // The splash IS the backdrop; a title without one would be a blank slide.
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            seed_movie(&conn, "m1", "Dune", "lib");
+            seed_movie(&conn, "m2", "Arrival", "lib");
+            seed_backdrop(&conn, metadata_core::ITEM, "m1", "/b/m1.jpg");
+        }
+        let entries = splash_entries(&p, 10, "fr").unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].title, "Dune");
+    }
+
+    #[test]
+    fn splash_never_hands_back_more_than_the_limit() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            for n in 0..5 {
+                let id = format!("m{n}");
+                seed_movie(&conn, &id, &format!("Film {n}"), "lib");
+                seed_backdrop(&conn, metadata_core::ITEM, &id, "/b/x.jpg");
+            }
+        }
+        assert_eq!(splash_entries(&p, 2, "fr").unwrap().len(), 2);
+        assert!(splash_entries(&p, 0, "fr").unwrap().is_empty());
+    }
 }

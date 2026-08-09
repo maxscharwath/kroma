@@ -32,6 +32,11 @@ async fn only_notification_uploads_are_listed_newest_first() {
     seed_image(&dir, "dddddddddddddddd.webp", Duration::from_secs(10));
     seed_image(&dir, "eeeeeeeeeeeeeeee-w512.webp", Duration::from_secs(10));
     seed_image(&dir, "notif-aaaaaaaaaaaaaaaa-w1280.webp.w320.webp", Duration::from_secs(5));
+    // Nothing that is not a .webp at all: the store holds the odd original
+    // beside its rendition, and a name that merely STARTS like an upload is
+    // still not one.
+    seed_image(&dir, "notif-ffffffffffffffff-w1280.jpg", Duration::from_secs(5));
+    seed_image(&dir, "notif-ffffffffffffffff-w1280", Duration::from_secs(5));
 
     let (status, body) = get(&t.app, "/api/admin/notifications/images", Some(&t.token)).await;
     assert_eq!(status, StatusCode::OK);
@@ -48,6 +53,53 @@ async fn only_notification_uploads_are_listed_newest_first() {
     assert_eq!(images[0]["url"], json!("/api/images/notif-bbbbbbbbbbbbbbbb-w1280.webp"));
     assert!(images[0]["uploadedAt"].as_i64().unwrap() > 0);
     assert!(images[0]["bytes"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn an_upload_the_encoder_cannot_read_is_refused_as_unsupported_media() {
+    // The only path into the content-addressed store. The bytes are not an
+    // image, so the answer holds whether or not this machine has cwebp.
+    let t = test_app();
+    let (status, _h, _b) =
+        raw_bytes(&t.app, "/api/admin/notifications/image", &t.token, b"not-an-image".to_vec())
+            .await;
+    assert_eq!(status, StatusCode::UNSUPPORTED_MEDIA_TYPE);
+
+    let dir = crate::infra::image::images_dir(&t.state.config.data_dir);
+    let stored = std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0);
+    assert_eq!(stored, 0, "a rejected upload must leave nothing behind");
+}
+
+#[tokio::test]
+async fn an_empty_upload_is_refused_before_any_decoding() {
+    let t = test_app();
+    let (status, _h, _b) =
+        raw_bytes(&t.app, "/api/admin/notifications/image", &t.token, Vec::new()).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+async fn raw_bytes(
+    app: &axum::Router,
+    uri: &str,
+    token: &str,
+    bytes: Vec<u8>,
+) -> (StatusCode, axum::http::HeaderMap, Vec<u8>) {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt as _;
+
+    let req = Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("authorization", format!("Bearer {token}"))
+        .header("content-type", "image/png")
+        .body(Body::from(bytes))
+        .expect("build request");
+    let resp = app.clone().oneshot(req).await.expect("response");
+    let status = resp.status();
+    let headers = resp.headers().clone();
+    let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap_or_default();
+    (status, headers, body.to_vec())
 }
 
 #[tokio::test]

@@ -37,13 +37,24 @@ pub fn new() -> QuickConnect {
 }
 
 impl QuickConnectInner {
-    /// Create a pending request → a free code + a private secret.
-    pub fn initiate(&self) -> Initiated {
+    /// Create a pending request → a free code + a private secret, or None while
+    /// the store is full.
+    ///
+    /// Refusing beats evicting on an endpoint nobody has to authenticate to:
+    /// evicting would let whoever asks most often decide whose code survives.
+    /// A device that is refused shows its error and the human tries again,
+    /// which is a far better failure than a code that silently stops working.
+    pub fn initiate(&self) -> Option<Initiated> {
         let modulo = 10u32.pow(CODE_DIGITS);
         let (code, secret) = self.grants.insert((), || {
             format!("{:0>width$}", random_u32() % modulo, width = CODE_DIGITS as usize)
-        });
-        Initiated { code, secret, expires_in: CODE_TTL_SECS }
+        })?;
+        Some(Initiated { code, secret, expires_in: CODE_TTL_SECS })
+    }
+
+    /// Tokens of codes that lapsed, for the caller to delete.
+    pub fn take_orphans(&self) -> Vec<Orphaned> {
+        self.grants.take_orphans()
     }
 
     /// Approve a code for `user`, attaching a freshly-minted session `token` and
@@ -83,7 +94,7 @@ mod tests {
     #[test]
     fn a_code_is_four_digits_and_its_secret_is_not() {
         let qc = new();
-        let init = qc.initiate();
+        let init = qc.initiate().expect("room in the store");
         assert_eq!(init.code.len(), CODE_DIGITS as usize);
         assert!(init.code.chars().all(|c| c.is_ascii_digit()));
         assert_ne!(init.code, init.secret);
@@ -93,7 +104,7 @@ mod tests {
     #[test]
     fn approving_a_code_hands_the_device_its_session() {
         let qc = new();
-        let init = qc.initiate();
+        let init = qc.initiate().expect("room in the store");
         assert!(matches!(qc.poll(&init.secret), PollState::Pending));
         assert!(qc.authorize(&init.code, user(), "tok".into(), "acc".into()));
 
@@ -113,7 +124,7 @@ mod tests {
     #[test]
     fn revoke_forgets_a_pending_code() {
         let qc = new();
-        let init = qc.initiate();
+        let init = qc.initiate().expect("room in the store");
         assert!(qc.revoke(&init.secret).is_none());
         assert!(matches!(qc.poll(&init.secret), PollState::Unknown));
         assert!(qc.revoke("nope").is_none());
@@ -122,18 +133,24 @@ mod tests {
     #[test]
     fn revoke_surrenders_the_tokens_of_a_code_approved_too_late() {
         let qc = new();
-        let init = qc.initiate();
+        let init = qc.initiate().expect("room in the store");
         assert!(qc.authorize(&init.code, user(), "tok".into(), "acc".into()));
         let orphan = qc.revoke(&init.secret).expect("approved but never polled for");
         assert_eq!((orphan.token.as_str(), orphan.access_token.as_str()), ("tok", "acc"));
     }
 
     #[test]
-    fn initiate_is_capped_under_flood() {
+    fn a_flood_is_refused_rather_than_allowed_to_evict() {
+        // Evicting would let whoever asks most often decide whose code stops
+        // working, on an endpoint nobody has to authenticate to.
         let qc = new();
-        for _ in 0..(MAX_PENDING + 100) {
+        let first = qc.initiate().expect("the first always fits");
+        for _ in 0..MAX_PENDING {
             qc.initiate();
         }
-        assert!(qc.grants.len() <= MAX_PENDING);
+        assert_eq!(qc.grants.len(), MAX_PENDING);
+        assert!(qc.initiate().is_none(), "full refuses");
+        // And the code that was already there still works.
+        assert!(matches!(qc.poll(&first.secret), PollState::Pending));
     }
 }

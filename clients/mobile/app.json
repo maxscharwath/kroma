@@ -36,7 +36,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": ["android.permission.NEARBY_WIFI_DEVICES", "android.permission.INTERNET"]
     },
     "plugins": [
       "expo-router",

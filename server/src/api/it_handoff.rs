@@ -221,6 +221,69 @@ async fn a_handle_learned_elsewhere_is_useless_from_another_subnet() {
 }
 
 #[tokio::test]
+async fn a_caller_cannot_claim_a_subnet_by_writing_it_into_the_forwarded_header() {
+    // The shape a proxy produces is `what-the-caller-sent, the-peer-it-saw`, so
+    // believing the left half is how a stranger claims to be in your house.
+    let t = test_app();
+    announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+
+    let (status, list) = from(
+        &t,
+        "GET",
+        "/api/handoff/devices",
+        Some(&t.token),
+        None,
+        // Claiming the television's own subnet, from somewhere else entirely.
+        "192.168.1.50, 203.0.113.9",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list.as_array().map(Vec::len), Some(0), "the claim was believed");
+}
+
+#[tokio::test]
+async fn a_beacon_already_granted_is_neither_listed_nor_grantable_again() {
+    let t = test_app();
+    let beacon = announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+    let grant = json!({ "handle": beacon["handle"] });
+
+    let (status, _) =
+        from(&t, "POST", "/api/handoff/grant", Some(&t.token), Some(grant.clone()), PHONE_IP).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    // Gone from the list before the television has even collected it.
+    let (_, list) = from(&t, "GET", "/api/handoff/devices", Some(&t.token), None, PHONE_IP).await;
+    assert_eq!(list.as_array().map(Vec::len), Some(0));
+
+    // And a second grant mints nothing: the first approver's session stands.
+    let before = session_count(&t).await;
+    let (status, _) =
+        from(&t, "POST", "/api/handoff/grant", Some(&t.token), Some(grant), PHONE_IP).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(session_count(&t).await, before, "a refused second grant minted a session");
+
+    assert_eq!(poll_status(&t, &beacon).await, "authorized");
+}
+
+#[tokio::test]
+async fn a_network_already_holding_its_share_is_refused_rather_than_thinned() {
+    let t = test_app();
+    let first = announce(&t, "tv-0000-xxxx", "Salon", TV_IP).await;
+    for i in 1..8 {
+        announce(&t, &format!("tv-{i:04}-xxxx"), "Flood", TV_IP).await;
+    }
+
+    let body = json!({ "deviceId": "tv-late-xxxx", "name": "Late", "platform": "tvOS" });
+    let (status, _) = from(&t, "POST", "/api/handoff/announce", None, Some(body), TV_IP).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+
+    // Nobody was pushed out to make room.
+    assert_eq!(poll_status(&t, &first).await, "pending");
+    let (_, list) = from(&t, "GET", "/api/handoff/devices", Some(&t.token), None, PHONE_IP).await;
+    assert_eq!(list.as_array().map(Vec::len), Some(8));
+}
+
+#[tokio::test]
 async fn granting_a_handle_that_never_existed_is_refused() {
     let t = test_app();
     let before = session_count(&t).await;

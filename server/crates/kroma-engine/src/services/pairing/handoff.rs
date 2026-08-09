@@ -39,10 +39,14 @@ pub const BEACON_TTL_SECS: i64 = 60;
 pub const POLL_SECS: i64 = 3;
 
 // Announcing is unauthenticated by design (the TV has no account yet) and is
-// reachable from wherever the server is, so the store is bounded twice. The
-// per-network cap is the one that matters: a beacon is only ever visible to its
-// own network, so nobody can push another network's TVs out of a phone's list by
-// flooding. The global cap is the backstop behind it.
+// reachable from wherever the server is, so the store is bounded twice: per
+// network, and globally behind that.
+//
+// Both bounds REFUSE rather than evict. Evicting is what turns a bound into a
+// weapon: the slots in a network's share belong to whoever announces, not to
+// whoever announces most recently, so a caller looping this endpoint would
+// otherwise push every real television out of every phone's list. A television
+// makes room among its OWN beacons (same device id) and no one else's.
 const MAX_BEACONS: usize = 256;
 const MAX_PER_NETWORK: usize = 8;
 const MAX_NAME: usize = 48;
@@ -63,6 +67,13 @@ pub struct Announce {
     pub name: String,
     pub platform: String,
     pub ip: String,
+}
+
+/// What came of an announce: what the TV needs to stay listed, or that this
+/// network is already holding as many beacons as it may.
+pub enum Announcement {
+    Ok(Announced),
+    NetworkFull,
 }
 
 /// What the TV needs to keep its beacon alive and collect the account.
@@ -112,19 +123,22 @@ impl HandoffInner {
     /// Publish (or republish) a TV's beacon. The same device replacing its own
     /// beacon drops the previous one, so a relaunched TV shows up once rather
     /// than twice; any tokens that beacon had accrued come back for deletion.
-    pub fn announce(&self, req: Announce) -> (Announced, Vec<Orphaned>) {
+    pub fn announce(&self, req: Announce) -> (Announcement, Vec<Orphaned>) {
         // Scoped to the network, not just to the id: a device id is not a secret
         // (it rides the cast roster too), so a global match would let anyone who
         // learned one drop that TV's beacon from anywhere. Inside its own
         // network the id is enough, and anyone there can do worse.
         let (device_id, ip) = (req.device_id.clone(), req.ip.clone());
-        let mut orphans = self
+        let orphans = self
             .grants
             .forget_where(|b| b.device_id == device_id && same_network(&b.ip, &ip));
 
-        // Room for this one, taken from its own network's share rather than from
-        // whatever the store happens to hold.
-        orphans.extend(self.grants.trim_scope(MAX_PER_NETWORK, |b| same_network(&b.ip, &ip)));
+        // Its own beacons are now gone; what remains in this network's share
+        // belongs to other devices, and is not this one's to take.
+        let ip_for_scope = ip.clone();
+        if self.grants.count(|b| same_network(&b.ip, &ip_for_scope)) >= MAX_PER_NETWORK {
+            return (Announcement::NetworkFull, orphans);
+        }
 
         let check = check_string();
         let proof = hex::encode(random_bytes(PROOF_BYTES));
@@ -136,7 +150,9 @@ impl HandoffInner {
             check: check.clone(),
             proof: proof.clone(),
         };
-        let (handle, secret) = self.grants.insert(beacon, random_handle);
+        let Some((handle, secret)) = self.grants.insert(beacon, random_handle) else {
+            return (Announcement::NetworkFull, orphans);
+        };
         let announced = Announced {
             handle,
             secret,
@@ -145,13 +161,18 @@ impl HandoffInner {
             ttl_secs: BEACON_TTL_SECS,
             poll_secs: POLL_SECS,
         };
-        (announced, orphans)
+        (Announcement::Ok(announced), orphans)
+    }
+
+    /// Tokens of beacons that lapsed or were swept, for the caller to delete.
+    pub fn take_orphans(&self) -> Vec<Orphaned> {
+        self.grants.take_orphans()
     }
 
     /// Every TV waiting on `viewer_ip`'s own network, ordered so the list does
     /// not reshuffle between two polls.
     pub fn nearby(&self, viewer_ip: &str) -> Vec<Nearby> {
-        let mut rows = self.grants.map_live(|handle, b| {
+        let mut rows = self.grants.map_pending(|handle, b| {
             same_network(&b.ip, viewer_ip).then(|| Nearby {
                 handle: handle.to_string(),
                 name: b.name.clone(),
@@ -288,14 +309,21 @@ mod tests {
         crate::test_support::test_user("u1", vec![])
     }
 
-    fn announce(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announced {
-        let (announced, _) = h.announce(Announce {
+    fn try_announce(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announcement {
+        h.announce(Announce {
             device_id: device_id.into(),
             name: name.into(),
             platform: "tvOS".into(),
             ip: ip.into(),
-        });
-        announced
+        })
+        .0
+    }
+
+    fn announce(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announced {
+        match try_announce(h, device_id, name, ip) {
+            Announcement::Ok(announced) => announced,
+            Announcement::NetworkFull => panic!("this network had room"),
+        }
     }
 
     #[test]
@@ -431,8 +459,9 @@ mod tests {
     fn handles_do_not_repeat() {
         let h = new();
         let mut seen = std::collections::HashSet::new();
+        // One per network: the share is eight, and this is about the handles.
         for i in 0..16 {
-            let tv = announce(&h, &format!("tv-{i:04}-xxxx"), "Salon", TV);
+            let tv = announce(&h, &format!("tv-{i:04}-xxxx"), "Salon", &format!("192.168.{i}.20"));
             assert!(seen.insert(tv.handle), "handle repeated");
         }
     }
@@ -495,7 +524,7 @@ mod tests {
         let h = new();
         let mut seen = std::collections::HashSet::new();
         for i in 0..16 {
-            let tv = announce(&h, &format!("tv-{i:04}-xxxx"), "Salon", TV);
+            let tv = announce(&h, &format!("tv-{i:04}-xxxx"), "Salon", &format!("192.168.{i}.20"));
             assert_eq!(tv.proof.len(), PROOF_BYTES * 2, "hex of {PROOF_BYTES} bytes");
             assert!(seen.insert(tv.proof), "proof repeated");
         }
@@ -515,17 +544,73 @@ mod tests {
     }
 
     #[test]
-    fn one_network_cannot_crowd_another_out_of_the_store() {
+    fn a_full_network_refuses_the_next_television_rather_than_evicting_one() {
+        // The share belongs to the devices that took it. Evicting would let a
+        // caller loop this endpoint and keep every real television out of every
+        // phone's list.
         let h = new();
-        for i in 0..(MAX_PER_NETWORK * 4) {
-            announce(&h, &format!("tv-flood-{i:04}"), "Flood", HOUSEHOLD);
+        let first = announce(&h, "tv-0000-xxxx", "Salon", HOUSEHOLD);
+        for i in 1..MAX_PER_NETWORK {
+            announce(&h, &format!("tv-{i:04}-xxxx", i = i), "Flood", HOUSEHOLD);
+        }
+        assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
+
+        assert!(matches!(
+            try_announce(&h, "tv-late-xxxx", "Late", HOUSEHOLD),
+            Announcement::NetworkFull
+        ));
+        // Nobody was pushed out, and the one that was there still works.
+        assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
+        assert!(matches!(h.poll(&first.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn a_full_network_does_not_stop_another_one() {
+        let h = new();
+        for i in 0..MAX_PER_NETWORK {
+            announce(&h, &format!("tv-{i:04}-xxxx", i = i), "Flood", HOUSEHOLD);
         }
         let mine = announce(&h, "tv-salon-01", "Salon", TV);
-
-        // The flood is capped at its own network's share, and never touched mine.
-        assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
         assert_eq!(h.nearby(PHONE).len(), 1);
         assert!(matches!(h.poll(&mine.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn a_television_re_announcing_into_a_full_network_still_gets_its_slot_back() {
+        // It gives up its own beacon first, so the share it re-enters is the
+        // one it already held.
+        let h = new();
+        announce(&h, "tv-mine-xxxx", "Salon", HOUSEHOLD);
+        for i in 1..MAX_PER_NETWORK {
+            announce(&h, &format!("tv-{i:04}-xxxx", i = i), "Flood", HOUSEHOLD);
+        }
+        let again = announce(&h, "tv-mine-xxxx", "Salon", HOUSEHOLD);
+        assert!(matches!(h.poll(&again.secret), PollState::Pending));
+    }
+
+    #[test]
+    fn a_beacon_already_granted_stops_being_listed() {
+        // Its television is seconds from signing in, and a second grant is
+        // refused, so offering the row again could only fail.
+        let h = new();
+        let tv = announce(&h, "tv-salon-01", "Salon", TV);
+        assert_eq!(h.nearby(PHONE).len(), 1);
+
+        assert!(h.grant(&tv.handle, PHONE, None, user(), "tok".into(), "acc".into()));
+        assert!(h.nearby(PHONE).is_empty(), "a spent beacon is not on offer");
+    }
+
+    #[test]
+    fn a_second_phone_cannot_grant_a_beacon_already_taken() {
+        let h = new();
+        let tv = announce(&h, "tv-salon-01", "Salon", TV);
+        assert!(h.grant(&tv.handle, PHONE, None, user(), "tok".into(), "acc".into()));
+        assert!(!h.grant(&tv.handle, PHONE, None, user(), "tok2".into(), "acc2".into()));
+
+        let PollState::Authorized { token, .. } = h.poll(&tv.secret) else {
+            panic!("expected the first grant");
+        };
+        assert_eq!(token, "tok");
     }
 
     #[test]
@@ -569,11 +654,12 @@ mod tests {
     }
 
     #[test]
-    fn announcing_is_capped_under_flood() {
+    fn the_share_is_per_network_and_the_bound_that_bites_is_that_one() {
         let h = new();
-        for i in 0..(MAX_BEACONS + 40) {
-            announce(&h, &format!("tv-flood-{i:04}"), "Salon", TV);
+        for i in 0..MAX_PER_NETWORK {
+            announce(&h, &format!("tv-{i:04}-xxxx", i = i), "Salon", TV);
         }
-        assert!(h.nearby(PHONE).len() <= MAX_BEACONS);
+        assert_eq!(h.nearby(PHONE).len(), MAX_PER_NETWORK);
+        assert!(matches!(try_announce(&h, "tv-late-xxxx", "Late", TV), Announcement::NetworkFull));
     }
 }

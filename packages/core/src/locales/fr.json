@@ -2037,11 +2037,15 @@
   "modules.loadFailedHint": "Le module est installé ; ses données n'ont pas répondu.",
   "handoff.nearbyTitle": "TV sur ce réseau",
   "handoff.nearbySub": "Choisis la tienne pour la connecter. Rien à scanner, rien à saisir.",
+  "handoff.nearbySearching": "Recherche de TV sur ce réseau…",
+  "handoff.nearbySignedIn": "Déjà connectée",
   "handoff.nearbyEmpty": "Aucune TV n'attend pour le moment.",
   "handoff.nearbyEmptyHint": "Ouvre KROMA sur la TV et laisse-la sur son écran de connexion.",
   "handoff.connecting": "Connexion…",
   "handoff.connected": "{name} se connecte",
   "handoff.gone": "Cette TV n'attend plus",
   "handoff.otherWays": "Autres façons de connecter",
-  "cast.signInThisTv": "Pas encore de compte · touche pour la connecter"
+  "cast.signInThisTv": "Pas encore de compte · touche pour la connecter",
+  "handoff.tooManyHere": "Trop de TV attendent sur ce réseau",
+  "connect.tooManyPending": "Trop d'appareils attendent de se connecter. Réessaie dans un instant."
 }

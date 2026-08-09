@@ -5,37 +5,44 @@
 // the binary carries the native module. A television heard on the link can be
 // signed in even where the server could not tell the two apart.
 //
-// Renders nothing while nothing is waiting and nothing has been connected: an
-// empty box above the camera would only ask the reader to work out whether it
-// is broken.
+// It always says something. Rendering nothing while nothing is found reads as a
+// feature that does not exist - the reader never learns there was a faster road
+// than the code below, nor that it is being looked for. So an empty list is a
+// sentence about why it is empty, which is the one thing a silent box cannot be.
 
 import { useNearbyTvs } from '@kroma/core/react';
 import { lanBeacon } from '@kroma/lan-beacon';
 import { Box, Icon, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useT } from '#mobile/lib/i18n';
 import { useClient } from '#mobile/lib/session';
 import { colors, spacing, type } from '#mobile/lib/theme';
 
+// A television answers the server poll in about a second and a link browse
+// faster still, but "nothing here" the instant the screen opens is a lie the
+// reader acts on. Hold the looking state long enough for one honest answer.
+const SETTLE_MS = 4000;
+
 export function NearbyTvs() {
   const t = useT();
   const client = useClient();
-  const { devices, connecting, connected, failed, connect } = useNearbyTvs({
+  const { devices, signedIn, connecting, connected, failed, connect } = useNearbyTvs({
     client,
     lan: lanBeacon ?? undefined,
   });
+  const [settled, setSettled] = useState(false);
 
-  if (devices.length === 0 && !connected) return null;
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
-  return (
-    <Box style={s.section}>
-      <Txt style={s.title}>{t('handoff.nearbyTitle')}</Txt>
-      <Txt style={s.sub}>{t('handoff.nearbySub')}</Txt>
+  const anyFound = devices.length > 0 || signedIn.length > 0;
+  const looking = !settled && !anyFound;
 
-      {connected ? (
-        <Txt style={s.connected}>{t('handoff.connected', { name: connected.name })}</Txt>
-      ) : null}
-      {failed ? <Txt style={s.failed}>{t('handoff.gone')}</Txt> : null}
-
+  let body: ReactNode;
+  if (anyFound) {
+    body = (
       <ListRow.Group>
         {devices.map((device) => (
           <ListRow
@@ -50,7 +57,47 @@ export function NearbyTvs() {
             onPress={() => void connect(device)}
           />
         ))}
+        {signedIn.map((tv) => (
+          <ListRow
+            key={tv.receiverId}
+            size="sm"
+            icon="device-tv"
+            label={tv.name}
+            hint={t('handoff.nearbySignedIn')}
+          />
+        ))}
       </ListRow.Group>
+    );
+  } else if (looking) {
+    body = (
+      <Box style={s.state}>
+        <Spinner size={16} thickness={2} />
+        <Txt style={s.stateLabel}>{t('handoff.nearbySearching')}</Txt>
+      </Box>
+    );
+  } else {
+    body = (
+      <Box style={s.state}>
+        <Icon name="device-tv" size={16} color={colors.textDim} />
+        <Box style={s.emptyText}>
+          <Txt style={s.stateLabel}>{t('handoff.nearbyEmpty')}</Txt>
+          <Txt style={s.emptyHint}>{t('handoff.nearbyEmptyHint')}</Txt>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <Box style={s.section}>
+      <Txt style={s.title}>{t('handoff.nearbyTitle')}</Txt>
+      <Txt style={s.sub}>{t('handoff.nearbySub')}</Txt>
+
+      {connected ? (
+        <Txt style={s.connected}>{t('handoff.connected', { name: connected.name })}</Txt>
+      ) : null}
+      {failed ? <Txt style={s.failed}>{t('handoff.gone')}</Txt> : null}
+
+      {body}
 
       <Box style={s.divider}>
         <Icon name="chevron-down" size={16} color={colors.textDim} />
@@ -66,6 +113,10 @@ const s = styles({
   sub: { ...type.caption, color: 'textDim', marginBottom: spacing.sm },
   connected: { ...type.caption, color: 'success', fontWeight: '700' },
   failed: { ...type.caption, color: 'danger', fontWeight: '700' },
+  state: { row: true, align: 'center', gap: spacing.sm, py: spacing.sm },
+  stateLabel: { ...type.caption, color: 'textDim' },
+  emptyText: { fill: true, gap: 2 },
+  emptyHint: { ...type.caption, color: 'textDim', opacity: 0.8 },
   divider: { align: 'center', gap: 4, marginTop: spacing.md },
   otherWays: { ...type.caption, color: 'textDim', fontWeight: '600' },
 });

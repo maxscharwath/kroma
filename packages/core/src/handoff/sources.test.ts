@@ -70,6 +70,25 @@ describe('the published record', () => {
     expect(parseBeaconTxt({ v: '1', name: 'Salon' })).toBeNull();
   });
 
+  it('refuses a record too long to be an honest one', () => {
+    // Anything on the link can publish one of these. An unbounded name reaches
+    // a picker row; an unbounded handle reaches the server.
+    expect(parseBeaconTxt({ ...beaconTxt(RECORD), name: 'x'.repeat(200) })).toBeNull();
+    expect(parseBeaconTxt({ ...beaconTxt(RECORD), handle: 'x'.repeat(200) })).toBeNull();
+    expect(parseBeaconTxt({ ...beaconTxt(RECORD), proof: 'x'.repeat(200) })).toBeNull();
+    expect(parseBeaconTxt({ ...beaconTxt(RECORD), check: 'x'.repeat(50) })).toBeNull();
+  });
+
+  it('strips what a name could otherwise forge in someone else s picker', () => {
+    const forged = parseBeaconTxt({
+      ...beaconTxt(RECORD),
+      name: '  Salon\nAdministrateur  ',
+      platform: 'tv\u0007OS',
+    });
+    expect(forged?.name).toBe('SalonAdministrateur');
+    expect(forged?.platform).toBe('tvOS');
+  });
+
   it('tolerates a television that said nothing about itself', () => {
     const txt = { ...beaconTxt(RECORD), name: '', platform: '' };
     expect(parseBeaconTxt(txt)).toEqual({ ...RECORD, name: '', platform: '' });
@@ -225,6 +244,28 @@ describe('the link source', () => {
     const { bridge, stop } = bridgeWith([]);
     lanSource(bridge).start(() => undefined)();
     expect(stop).toHaveBeenCalled();
+  });
+
+  it('reports the signed-in televisions from the same browse', () => {
+    const { bridge, push } = bridgeWith([
+      { name: 'Salon', txt: beaconTxt(RECORD) },
+      {
+        name: 'Chambre',
+        txt: beaconTxt({ state: 'ready', name: 'Chambre', platform: 'Tizen', receiver: 'r1' }),
+      },
+    ]);
+    const rows: unknown[][] = [];
+    const receivers: unknown[][] = [];
+    lanSource(bridge, (found) => receivers.push(found)).start((next) => rows.push(next));
+
+    // One browse, both halves: the waiting one is pairable, the signed-in one is
+    // only worth saying out loud so it is not mistaken for absent.
+    expect(bridge.browse).toHaveBeenCalledTimes(1);
+    expect(rows[0]).toHaveLength(1);
+    expect(receivers[0]).toEqual([{ receiverId: 'r1', name: 'Chambre', platform: 'Tizen' }]);
+
+    push([]);
+    expect(receivers[1]).toEqual([]);
   });
 
   it('is inert on a device that can publish but not browse', () => {

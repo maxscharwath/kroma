@@ -8,7 +8,7 @@
 
 import type { KromaClient } from '@kroma/client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DiscoveredTv, LanDiscoveryBridge } from '../handoff';
+import type { DiscoveredTv, LanDiscoveryBridge, NearbyReceiver } from '../handoff';
 import { lanSource, serverSource, watchNearbyTvs } from '../handoff';
 
 export interface NearbyTvsOptions {
@@ -25,6 +25,11 @@ export interface NearbyTvs {
    * sorted by name. Empty when none are waiting, and empty for a caller the
    * server cannot place beside one either. */
   devices: DiscoveredTv[];
+  /** Televisions heard on this link that already have an account, so a caller
+   * can say so instead of showing an empty list next to a television that is
+   * plainly right there. Only ever populated on a device that can browse: the
+   * server does not list a TV that is no longer waiting. */
+  signedIn: NearbyReceiver[];
   /** The TV a grant is in flight for, or null. */
   connecting: DiscoveredTv | null;
   /** The TV that was just signed in, or null. Stays put after its row leaves
@@ -39,18 +44,22 @@ export interface NearbyTvs {
 export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
   const { client, lan } = opts;
   const [devices, setDevices] = useState<DiscoveredTv[]>([]);
+  const [signedIn, setSignedIn] = useState<NearbyReceiver[]>([]);
   const [connecting, setConnecting] = useState<DiscoveredTv | null>(null);
   const [connected, setConnected] = useState<DiscoveredTv | null>(null);
   const [failed, setFailed] = useState(false);
 
   const sources = useMemo(() => {
     if (!client) return [];
-    return lan?.browse ? [serverSource(client), lanSource(lan)] : [serverSource(client)];
+    return lan?.browse
+      ? [serverSource(client), lanSource(lan, setSignedIn)]
+      : [serverSource(client)];
   }, [client, lan]);
 
   useEffect(() => {
     if (sources.length === 0) {
       setDevices([]);
+      setSignedIn([]);
       return;
     }
     return watchNearbyTvs({ sources, onRows: setDevices });
@@ -76,5 +85,5 @@ export function useNearbyTvs(opts: NearbyTvsOptions): NearbyTvs {
     [client],
   );
 
-  return { devices, connecting, connected, failed, connect };
+  return { devices, signedIn, connecting, connected, failed, connect };
 }

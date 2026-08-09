@@ -2036,11 +2036,15 @@
   "modules.loadFailedHint": "The module is installed; its data did not answer.",
   "handoff.nearbyTitle": "TVs on this network",
   "handoff.nearbySub": "Pick yours to sign it in. Nothing to scan, nothing to type.",
+  "handoff.nearbySearching": "Looking for TVs on this network…",
+  "handoff.nearbySignedIn": "Already signed in",
   "handoff.nearbyEmpty": "No TV is waiting right now.",
   "handoff.nearbyEmptyHint": "Open KROMA on the TV and leave it on its sign-in screen.",
   "handoff.connecting": "Signing in…",
   "handoff.connected": "{name} is signing in",
   "handoff.gone": "That TV is no longer waiting",
   "handoff.otherWays": "Other ways to connect",
-  "cast.signInThisTv": "No account yet · tap to sign it in"
+  "cast.signInThisTv": "No account yet · tap to sign it in",
+  "handoff.tooManyHere": "Too many TVs are waiting on this network",
+  "connect.tooManyPending": "Too many devices are waiting to connect. Try again in a moment."
 }

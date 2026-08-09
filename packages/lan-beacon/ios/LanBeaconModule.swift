@@ -102,9 +102,23 @@ private final class BeaconState {
     browser.browseResultsChangedHandler = { results, _ in
       onFound(results.compactMap(Self.describe))
     }
-    browser.stateUpdateHandler = { state in
-      // No permission, or no Bonjour entry: an empty view rather than a hang.
-      if case .failed = state { onFound([]) }
+    browser.stateUpdateHandler = { [weak self] state in
+      switch state {
+      // What a refused Local Network prompt actually looks like. `.failed` is
+      // the missing-Info.plist case, which these builds cannot hit (both apps
+      // declare the type), so handling only that one meant handling the case
+      // that never happens and ignoring the one that does.
+      case .waiting:
+        onFound([])
+      // Documented as unrecoverable: the browser must be rebuilt, not restarted.
+      // Nothing here rebuilds it, so at least stop pretending it is alive and
+      // say the link is empty.
+      case .failed:
+        onFound([])
+        self?.stopBrowse()
+      default:
+        break
+      }
     }
     browser.start(queue: queue)
     self.browser = browser

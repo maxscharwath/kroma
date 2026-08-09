@@ -26,7 +26,7 @@ use crate::api::extract::AuthUser;
 use crate::api::util::{client_ip, query, SecretQuery};
 use crate::db;
 use crate::i18n::ReqLocale;
-use crate::services::pairing::handoff::{valid_device_id, Announce, Nearby};
+use crate::services::pairing::handoff::{valid_device_id, Announce, Announcement, Nearby};
 use crate::state::SharedState;
 
 /// Reachable before a session exists: this is how a TV with no account at all
@@ -144,23 +144,31 @@ pub async fn announce(
         drop_orphans(&state, orphan.into_iter().collect()).await;
     }
 
-    let (announced, orphans) = state.handoff.announce(Announce {
+    let (announcement, mut orphans) = state.handoff.announce(Announce {
         device_id: body.device_id,
         name: body.name,
         platform: body.platform,
         ip,
     });
+    orphans.extend(state.handoff.take_orphans());
     drop_orphans(&state, orphans).await;
 
-    Json(AnnounceReply {
-        handle: announced.handle,
-        secret: announced.secret,
-        check: announced.check,
-        proof: announced.proof,
-        ttl_secs: announced.ttl_secs,
-        poll_secs: announced.poll_secs,
-    })
-    .into_response()
+    match announcement {
+        Announcement::Ok(announced) => Json(AnnounceReply {
+            handle: announced.handle,
+            secret: announced.secret,
+            check: announced.check,
+            proof: announced.proof,
+            ttl_secs: announced.ttl_secs,
+            poll_secs: announced.poll_secs,
+        })
+        .into_response(),
+        // This network is already holding as many waiting televisions as it may.
+        // Refusing is the point: the slots belong to the devices that took them.
+        Announcement::NetworkFull => {
+            lerr(loc, StatusCode::TOO_MANY_REQUESTS, "handoff.tooManyHere")
+        }
+    }
 }
 
 /// `POST /api/handoff/leave` `{ secret }` → 204. Take the beacon down early
@@ -175,7 +183,11 @@ pub async fn leave(State(state): State<SharedState>, Json(body): Json<SecretBody
 /// session) | `expired`. Same shape as the Quick Connect poll, and it doubles as
 /// the beacon's heartbeat: a TV that stops polling leaves the list.
 pub async fn poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
-    Json(super::dto::PairingPoll::from(state.handoff.poll(&q.secret))).into_response()
+    let status = super::dto::PairingPoll::from(state.handoff.poll(&q.secret));
+    // Every poll is also the moment the store may have swept a lapsed beacon,
+    // and a swept beacon that was approved still has real rows behind it.
+    drop_orphans(&state, state.handoff.take_orphans()).await;
+    Json(status).into_response()
 }
 
 /// `GET /api/handoff/devices` (Bearer) → the TVs waiting on the caller's own

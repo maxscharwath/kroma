@@ -104,7 +104,7 @@ export default function ConnectDevice() {
   };
 
   return (
-    <OnboardingScreen keyboardBehavior="height" onBack={() => goBack(router)}>
+    <OnboardingScreen keyboardBehavior="height" onBack={() => goBack(router)} settings={false}>
       <OnboardingBox>
         {state === 'done' ? (
           <Box style={s.center}>

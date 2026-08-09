@@ -28,6 +28,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val SERVICE_TYPE = "_kroma-tv._tcp."
 private const val FOUND_EVENT = "lan-beacon:found"
 
+// Generous: an unanswered resolve poisons the manager, so the cost of waiting
+// too little is far higher than the cost of waiting too long.
+private const val RESOLVE_TIMEOUT_SECONDS = 8L
+
 class LanBeaconModule : Module() {
   private var nsd: NsdManager? = null
   private var registration: NsdManager.RegistrationListener? = null
@@ -120,7 +124,11 @@ private class Browse(
   private val nsd: NsdManager,
   private val onFound: (List<Map<String, Any>>) -> Unit,
 ) {
-  private val audible = Collections.synchronizedMap(linkedMapOf<String, Map<String, Any>>())
+  // Guarded by its own monitor rather than `Collections.synchronizedMap`: the
+  // wrapper synchronizes each CALL, but traversing `values` is several, and
+  // `record()` (worker thread) and `onServiceLost` (NsdManager's callback
+  // thread) do exactly that against each other.
+  private val audible = linkedMapOf<String, Map<String, Any>>()
   private val pending = ArrayBlockingQueue<NsdServiceInfo>(64)
   private val running = AtomicBoolean(false)
   private var worker: Thread? = null
@@ -132,12 +140,22 @@ private class Browse(
 
     override fun onServiceLost(service: NsdServiceInfo) {
       val name = service.serviceName ?: return
-      if (audible.remove(name) != null) publish()
+      val gone = synchronized(audible) { audible.remove(name) != null }
+      if (gone) publish()
     }
 
     override fun onDiscoveryStarted(serviceType: String) = Unit
     override fun onDiscoveryStopped(serviceType: String) = Unit
-    override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
+
+    // NsdManager reports a failed START here, not by throwing, so this is the
+    // only place the caller can be told the link is not going to answer:
+    // multicast filtered on guest wifi, another app holding NSD, or the
+    // permission refused. Saying "nothing here" beats a picker that waits.
+    override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
+      running.set(false)
+      onFound(emptyList())
+    }
+
     override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) = Unit
   }
 
@@ -182,8 +200,21 @@ private class Browse(
           }
         },
       )
-      // Bounded: a resolve that never calls back must not strand the worker.
-      runCatching { gate.poll(3, TimeUnit.SECONDS) }
+      // The legacy API allows one outstanding resolve, and the platform only
+      // clears its slot when the daemon answers. Walking away from a slow one
+      // and starting the next makes every later resolve fail ALREADY_ACTIVE for
+      // the life of this NsdManager, so waiting is the only correct move: the
+      // browse is continuous, and a television that could not be resolved comes
+      // round again on the next report.
+      val answered = runCatching { gate.poll(RESOLVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) }
+        .getOrNull() != null
+      if (!answered) {
+        // Nothing may be resolved through this manager again. Stop rather than
+        // spin: `startBrowse` builds a fresh one.
+        running.set(false)
+        onFound(emptyList())
+        return
+      }
     }
   }
 
@@ -194,11 +225,13 @@ private class Browse(
       .mapNotNull { (key, value) -> value?.let { key to String(it, Charsets.UTF_8) } }
       .toMap()
     if (txt.isEmpty()) return
-    audible[name] = mapOf("name" to name, "txt" to txt)
+    synchronized(audible) { audible[name] = mapOf("name" to name, "txt" to txt) }
     publish()
   }
 
   private fun publish() {
-    if (running.get()) onFound(audible.values.toList())
+    if (!running.get()) return
+    val view = synchronized(audible) { audible.values.toList() }
+    onFound(view)
   }
 }

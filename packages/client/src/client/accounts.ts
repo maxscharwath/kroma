@@ -5,7 +5,7 @@ import {
   AuthResult,
   type Invite,
   type InviteCreated,
-  type PairingStatus,
+  PairingStatus,
   PasskeyInfo,
   type Permission,
   PublicUser,
@@ -321,7 +321,9 @@ export function quickConnectInitiate(
 
 /** Poll a Quick Connect request by its secret. */
 export function quickConnectPoll(ctx: RequestContext, secret: string): Promise<PairingStatus> {
-  return ctx.json<PairingStatus>(`/auth/quickconnect/poll?secret=${encodeURIComponent(secret)}`);
+  return ctx
+    .json<PairingStatus>(`/auth/quickconnect/poll?secret=${encodeURIComponent(secret)}`)
+    .then((r) => validate(PairingStatus, r));
 }
 
 /** Approve a device's Quick Connect code (requires the approver's token). */

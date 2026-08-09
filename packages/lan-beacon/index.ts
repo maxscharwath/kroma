@@ -9,6 +9,7 @@
 
 import type { LanDiscoveryBridge, LanService } from '@kroma/core';
 import { type NativeModule, requireOptionalNativeModule } from 'expo';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 // Distinct from the server's `_kroma._tcp`: what is advertised here is a
 // television waiting for an account, not a server offering a library. Both
@@ -37,21 +38,87 @@ const native = requireOptionalNativeModule<LanBeaconNativeModule>('LanBeacon');
  * publish })` on a television; a shell that has neither passes nothing and
  * every path still works.
  */
-export const lanBeacon: LanDiscoveryBridge | null = native
-  ? {
-      publish(service) {
-        native.publish(service.name, service.txt);
-        return () => native.unpublish();
-      },
-      browse(onFound) {
-        const subscription = native.addListener('lan-beacon:found', (event) =>
-          onFound(event.services),
-        );
-        native.startBrowse();
-        return () => {
-          subscription.remove();
-          native.stopBrowse();
-        };
-      },
-    }
-  : null;
+export const lanBeacon: LanDiscoveryBridge | null = native ? bridge(native) : null;
+
+/**
+ * The native side holds ONE browser and ONE published record, but a phone has
+ * more than one caller: the cast picker browses for the whole signed-in session
+ * while the pairing screen browses whenever it is open. Handing each of them a
+ * `stop` that calls `native.stopBrowse()` would let whichever closed first
+ * cancel the other's browse, and the survivor would never learn, never restart,
+ * and quietly report nothing for the rest of the session.
+ *
+ * So the browse is reference-counted here: the native browser starts on the
+ * first caller and stops on the last, and every caller gets the full view. The
+ * published record is a single slot by nature (a device is in one state), so it
+ * is tracked by owner instead: releasing a record that has already been replaced
+ * must not take down its replacement.
+ */
+// Android 13 moved network service discovery behind a RUNTIME permission, so a
+// manifest entry alone leaves `discoverServices`/`registerService` failing on
+// every modern phone and television. Asked once; a refusal simply leaves the
+// server path doing the work it was already doing.
+async function allowedNearby(): Promise<boolean> {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 33) return true;
+  try {
+    const granted = await PermissionsAndroid.request(
+      'android.permission.NEARBY_WIFI_DEVICES' as never,
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch {
+    return false;
+  }
+}
+
+function bridge(module: LanBeaconNativeModule): LanDiscoveryBridge {
+  const listeners = new Set<(services: LanService[]) => void>();
+  let subscription: { remove: () => void } | null = null;
+  // The last view, so a caller arriving mid-session is not left blank until the
+  // link happens to change.
+  let latest: LanService[] = [];
+  let published: symbol | null = null;
+
+  return {
+    publish(service) {
+      const owner = Symbol('lan-beacon record');
+      published = owner;
+      void allowedNearby().then((allowed) => {
+        // Still ours by the time the answer came back?
+        if (allowed && published === owner) module.publish(service.name, service.txt);
+      });
+      return () => {
+        // Someone else's record is up now; theirs is not ours to take down.
+        if (published !== owner) return;
+        published = null;
+        module.unpublish();
+      };
+    },
+
+    browse(onFound) {
+      listeners.add(onFound);
+      if (listeners.size === 1) {
+        subscription = module.addListener('lan-beacon:found', (event) => {
+          latest = event.services;
+          for (const listener of listeners) listener(latest);
+        });
+        void allowedNearby().then((allowed) => {
+          if (allowed && listeners.size > 0) module.startBrowse();
+        });
+      } else {
+        onFound(latest);
+      }
+
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        listeners.delete(onFound);
+        if (listeners.size > 0) return;
+        subscription?.remove();
+        subscription = null;
+        latest = [];
+        module.stopBrowse();
+      };
+    },
+  };
+}

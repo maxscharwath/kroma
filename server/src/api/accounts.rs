@@ -728,6 +728,7 @@ pub struct QuickInitiateBody {
 /// expiring code sends the old secret as `prevSecret` so the server drops it.
 pub async fn quick_initiate(
     State(state): State<SharedState>,
+    ReqLocale(loc): ReqLocale,
     body: Option<Json<QuickInitiateBody>>,
 ) -> Response {
     // Drop the rotated-away code so it stops being approvable, along with any
@@ -739,7 +740,9 @@ pub async fn quick_initiate(
             let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
         }
     }
-    let init = state.quickconnect.initiate();
+    let Some(init) = state.quickconnect.initiate() else {
+        return lerr(loc, StatusCode::TOO_MANY_REQUESTS, "connect.tooManyPending");
+    };
     let web_base = state.config.web_url.clone().or_else(|| {
         let url = crate::services::settings::public_url(&state.settings);
         (!url.is_empty()).then_some(url)
@@ -789,5 +792,12 @@ pub async fn quick_authorize(
 /// `GET /api/auth/quickconnect/poll?secret=…` → `{ status }` where status is
 /// `pending` | `authorized` (then `{ token, user }`) | `expired`.
 pub async fn quick_poll(State(state): State<SharedState>, Query(q): Query<SecretQuery>) -> Response {
-    Json(super::dto::PairingPoll::from(state.quickconnect.poll(&q.secret))).into_response()
+    let status = super::dto::PairingPoll::from(state.quickconnect.poll(&q.secret));
+    // A code that lapsed after it was approved still has rows behind it.
+    for orphan in state.quickconnect.take_orphans() {
+        let (token, access) = (orphan.token, orphan.access_token);
+        let _ = query(&state.db, move |pool| db::delete_session(&pool, &token)).await;
+        let _ = query(&state.db, move |pool| db::delete_access_token(&pool, &access)).await;
+    }
+    Json(status).into_response()
 }

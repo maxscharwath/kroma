@@ -48,3 +48,39 @@ export const PairingStatus = z.discriminatedUnion('status', [
   }),
 ]);
 export type PairingStatus = z.infer<typeof PairingStatus>;
+
+// A television's own account of itself, published in the clear over DNS-SD by
+// anything on the link. A trust boundary in the ordinary sense, and the bounds
+// matter as much as the shape: `name` and `platform` are rendered in a picker,
+// `handle` and `proof` are sent back to the server, so an unbounded record from
+// a hostile device would otherwise reach both.
+//
+// The lengths mirror what the server allows for the same fields (MAX_NAME 48,
+// MAX_PLATFORM 32 in services/pairing/handoff.rs), with room for its hex.
+const Label = z.string().max(64).optional();
+const Token = z.string().min(1).max(128);
+
+/** The text record a waiting TV publishes: what a phone needs to sign it in. */
+export const WaitingBeaconTxt = z.object({
+  v: z.literal('1'),
+  state: z.literal('waiting'),
+  name: Label,
+  platform: Label,
+  handle: Token,
+  check: z.string().min(1).max(16),
+  proof: Token,
+});
+
+/** The text record a signed-in TV publishes: enough to recognise it on the cast
+ * roster, and nothing that authorizes anything. */
+export const ReadyBeaconTxt = z.object({
+  v: z.literal('1'),
+  state: z.literal('ready'),
+  name: Label,
+  platform: Label,
+  receiver: Token,
+});
+
+/** Either record, discriminated by the state the TV is in. */
+export const BeaconTxt = z.discriminatedUnion('state', [WaitingBeaconTxt, ReadyBeaconTxt]);
+export type BeaconTxt = z.infer<typeof BeaconTxt>;

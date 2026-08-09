@@ -55,6 +55,12 @@ impl<M> Entry<M> {
 
 pub struct Grants<M> {
     map: Mutex<HashMap<String, Entry<M>>>,
+    // Tokens belonging to entries that left without anyone asking: swept by the
+    // TTL, or evicted. Every OTHER removal path hands its `Orphaned` back to the
+    // caller directly; these two have no caller to hand them to, and the tokens
+    // are real rows in SQLite that nothing else will ever delete. Drained by
+    // `take_orphans` from the HTTP layer, which knows how to delete them.
+    orphanage: Mutex<Vec<Orphaned>>,
     ttl_secs: i64,
     capacity: usize,
 }
@@ -77,12 +83,35 @@ impl<M> Grants<M> {
     /// just handed.
     pub fn new(ttl_secs: i64, capacity: usize) -> Self {
         debug_assert!(capacity > 0, "a grant store with no capacity can hold nothing");
-        Self { map: Mutex::new(HashMap::new()), ttl_secs, capacity }
+        Self {
+            map: Mutex::new(HashMap::new()),
+            orphanage: Mutex::new(Vec::new()),
+            ttl_secs,
+            capacity,
+        }
     }
 
     fn reap(&self, map: &mut HashMap<String, Entry<M>>) {
         let cutoff = now() - self.ttl_secs;
-        map.retain(|_, e| e.fresh_at > cutoff);
+        let lapsed: Vec<String> =
+            map.iter().filter(|(_, e)| e.fresh_at <= cutoff).map(|(h, _)| h.clone()).collect();
+        for handle in lapsed {
+            self.abandon(map.remove(&handle));
+        }
+    }
+
+    // A device that was approved and then never came back still had tokens
+    // minted for it. Losing the entry must not lose them.
+    fn abandon(&self, entry: Option<Entry<M>>) {
+        if let Some(orphan) = entry.and_then(Entry::orphaned) {
+            self.orphanage.lock().unwrap().push(orphan);
+        }
+    }
+
+    /// Take the tokens of everything that lapsed or was evicted since the last
+    /// call, for the caller to delete. Empty almost always.
+    pub fn take_orphans(&self) -> Vec<Orphaned> {
+        std::mem::take(&mut *self.orphanage.lock().unwrap())
     }
 
     fn handle_for(map: &HashMap<String, Entry<M>>, secret: &str) -> Option<String> {
@@ -92,19 +121,18 @@ impl<M> Grants<M> {
     }
 
     /// File `meta` under the first free handle `mint` produces → `(handle,
-    /// secret)`. At capacity the least recently active entry is evicted rather
-    /// than the request refused: pairing always hands back a handle, and the
-    /// evicted device simply asks again.
-    pub fn insert(&self, meta: M, mut mint: impl FnMut() -> String) -> (String, String) {
+    /// secret)`, or None when the store is full.
+    ///
+    /// Full REFUSES rather than evicting. Eviction is what an unauthenticated
+    /// endpoint must not do: whoever calls most often would otherwise decide
+    /// whose pairing survives, and a few requests a second would keep every
+    /// honest device out of every list. A caller that wants room should make it
+    /// among its own entries first (see [`Self::forget_where`]).
+    pub fn insert(&self, meta: M, mut mint: impl FnMut() -> String) -> Option<(String, String)> {
         let mut map = self.map.lock().unwrap();
         self.reap(&mut map);
-        while map.len() >= self.capacity {
-            let oldest = map
-                .iter()
-                .min_by_key(|(_, e)| e.seen)
-                .map(|(handle, _)| handle.clone())
-                .expect("a map at capacity holds at least one entry");
-            map.remove(&oldest);
+        if map.len() >= self.capacity {
+            return None;
         }
         let handle = loop {
             let candidate = mint();
@@ -117,22 +145,33 @@ impl<M> Grants<M> {
             handle.clone(),
             Entry { secret: secret.clone(), fresh_at: now(), seen: tick(), meta, granted: None },
         );
-        (handle, secret)
+        Some((handle, secret))
+    }
+
+    /// How many live entries match, so a caller can bound its own share before
+    /// asking for room it will not get.
+    pub fn count(&self, matching: impl Fn(&M) -> bool) -> usize {
+        let mut map = self.map.lock().unwrap();
+        self.reap(&mut map);
+        map.values().filter(|e| matching(&e.meta)).count()
     }
 
     /// Approve `handle` for a request whose metadata satisfies `allowed`. False
-    /// when the handle is unknown, lapsed, or fails the predicate. All three
-    /// answer "no such device", which is all a caller may learn.
-    pub fn authorize(
-        &self,
-        handle: &str,
-        allowed: impl Fn(&M) -> bool,
-        granted: Granted,
-    ) -> bool {
+    /// when the handle is unknown, lapsed, fails the predicate, or was ALREADY
+    /// approved. All four answer "no such device", which is all a caller may
+    /// learn.
+    ///
+    /// Refusing the second approval is what makes this one-shot in both
+    /// directions. Overwriting would silently discard the first approver's
+    /// tokens (rows in SQLite that nothing would then delete) and hand the
+    /// device to whoever asked last, which is not a race a pairing flow should
+    /// have: two phones can see one waiting television, and so can one phone
+    /// twice.
+    pub fn authorize(&self, handle: &str, allowed: impl Fn(&M) -> bool, granted: Granted) -> bool {
         let mut map = self.map.lock().unwrap();
         self.reap(&mut map);
         match map.get_mut(handle) {
-            Some(entry) if allowed(&entry.meta) => {
+            Some(entry) if entry.granted.is_none() && allowed(&entry.meta) => {
                 entry.granted = Some(granted);
                 true
             }
@@ -184,34 +223,6 @@ impl<M> Grants<M> {
         map.remove(&handle)?.orphaned()
     }
 
-    /// Make room for one more entry matching `in_scope`, by forgetting the least
-    /// recently active matches until fewer than `max` remain.
-    ///
-    /// This is what stops one caller crowding out the rest of an unauthenticated
-    /// store: the global capacity alone would let whoever announces most often
-    /// evict everyone else's requests.
-    pub fn trim_scope(&self, max: usize, in_scope: impl Fn(&M) -> bool) -> Vec<Orphaned> {
-        let mut map = self.map.lock().unwrap();
-        self.reap(&mut map);
-        let mut scoped: Vec<(u64, String)> = map
-            .iter()
-            .filter(|(_, e)| in_scope(&e.meta))
-            .map(|(handle, e)| (e.seen, handle.clone()))
-            .collect();
-        if scoped.len() < max {
-            return Vec::new();
-        }
-        // Least recently active first, then drop as many as the newcomer needs.
-        scoped.sort_unstable();
-        let doomed = scoped.len() + 1 - max;
-        scoped
-            .into_iter()
-            .take(doomed)
-            .filter_map(|(_, handle)| map.remove(&handle))
-            .filter_map(Entry::orphaned)
-            .collect()
-    }
-
     /// Forget every entry whose metadata matches, surrendering their tokens.
     pub fn forget_where(&self, doomed: impl Fn(&M) -> bool) -> Vec<Orphaned> {
         let mut map = self.map.lock().unwrap();
@@ -221,16 +232,33 @@ impl<M> Grants<M> {
         handles.into_iter().filter_map(|h| map.remove(&h)).filter_map(Entry::orphaned).collect()
     }
 
-    /// Project every live entry through `view`, dropping the `None`s.
-    pub fn map_live<T>(&self, view: impl Fn(&str, &M) -> Option<T>) -> Vec<T> {
+    /// Project every live entry NOT yet approved through `view`, dropping the
+    /// `None`s.
+    ///
+    /// Approved-but-uncollected is deliberately excluded: such an entry is spent
+    /// (the second approval is refused) and its device is a few seconds from
+    /// signing in, so listing it offers a row that can only fail.
+    pub fn map_pending<T>(&self, view: impl Fn(&str, &M) -> Option<T>) -> Vec<T> {
         let mut map = self.map.lock().unwrap();
         self.reap(&mut map);
-        map.iter().filter_map(|(handle, e)| view(handle, &e.meta)).collect()
+        map.iter()
+            .filter(|(_, e)| e.granted.is_none())
+            .filter_map(|(handle, e)| view(handle, &e.meta))
+            .collect()
     }
 
     #[cfg(test)]
     pub(super) fn len(&self) -> usize {
         self.map.lock().unwrap().len()
+    }
+
+    /// Test seam: push every entry `secs` further into the past, so a sweep can
+    /// be watched without one.
+    #[cfg(test)]
+    pub(super) fn age(&self, secs: i64) {
+        for entry in self.map.lock().unwrap().values_mut() {
+            entry.fresh_at -= secs;
+        }
     }
 }
 
@@ -258,10 +286,14 @@ mod tests {
         }
     }
 
+    fn file(g: &Grants<&'static str>, meta: &'static str, mint: impl FnMut() -> String) -> (String, String) {
+        g.insert(meta, mint).expect("room in the store")
+    }
+
     #[test]
     fn a_fresh_request_polls_pending_until_it_is_approved() {
         let g = grants();
-        let (handle, secret) = g.insert("tv", seq_mint());
+        let (handle, secret) = file(&g, "tv", seq_mint());
         assert!(matches!(g.poll(&secret), PollState::Pending));
         assert!(g.authorize(&handle, |_| true, granted()));
         let PollState::Authorized { token, access_token, user } = g.poll(&secret) else {
@@ -276,7 +308,7 @@ mod tests {
     #[test]
     fn an_unknown_secret_or_handle_is_refused_without_saying_why() {
         let g = grants();
-        let (handle, _) = g.insert("tv", seq_mint());
+        let (handle, _) = file(&g, "tv", seq_mint());
         assert!(matches!(g.poll("nope"), PollState::Unknown));
         assert!(!g.authorize("nope", |_| true, granted()));
         assert!(!g.touch("nope"));
@@ -286,46 +318,93 @@ mod tests {
     }
 
     #[test]
+    fn approval_happens_once_and_the_second_asker_is_refused() {
+        // Two phones can see one waiting television, and one phone can be
+        // tapped twice. Overwriting would discard the first approver's tokens,
+        // which are rows nothing else would ever delete, and hand the device to
+        // whoever asked last.
+        let g = grants();
+        let (handle, secret) = file(&g, "tv", seq_mint());
+        assert!(g.authorize(&handle, |_| true, granted()));
+
+        let second =
+            Granted { token: "tok2".into(), access_token: "acc2".into(), user: user() };
+        assert!(!g.authorize(&handle, |_| true, second));
+
+        let PollState::Authorized { token, .. } = g.poll(&secret) else {
+            panic!("expected the FIRST approval");
+        };
+        assert_eq!(token, "tok");
+    }
+
+    #[test]
     fn mint_keeps_going_until_it_finds_a_free_handle() {
         let g = grants();
-        let (first, _) = g.insert("tv", || "fixed".to_string());
-        // A mint that keeps proposing a taken handle once, then a free one.
+        let (first, _) = file(&g, "tv", || "fixed".to_string());
         let mut proposals = ["fixed".to_string(), "other".to_string()].into_iter();
-        let (second, _) = g.insert("tv", move || proposals.next().expect("mint ran dry"));
+        let (second, _) = file(&g, "tv", move || proposals.next().expect("mint ran dry"));
         assert_eq!(first, "fixed");
         assert_eq!(second, "other");
     }
 
     #[test]
-    fn the_least_recently_active_request_is_evicted_at_capacity() {
+    fn a_full_store_refuses_rather_than_evicting_someone() {
+        // Eviction on an endpoint nobody authenticates to would let whoever
+        // asks most often decide whose pairing survives.
         let g = grants();
         let mut mint = seq_mint();
-        let (_, first) = g.insert("tv", &mut mint);
-        let (_, second) = g.insert("tv", &mut mint);
-        g.insert("tv", &mut mint);
-        g.insert("tv", &mut mint);
-        // A heartbeat on the oldest moves it to the back of the eviction queue,
-        // so the one that has been quiet longest goes instead.
-        assert!(g.touch(&first));
-        g.insert("tv", &mut mint);
-
+        let (_, first) = file(&g, "tv", &mut mint);
+        for _ in 0..3 {
+            file(&g, "tv", &mut mint);
+        }
         assert_eq!(g.len(), 4);
+
+        assert!(g.insert("tv", &mut mint).is_none());
+        assert_eq!(g.len(), 4);
+        // And the one that was already there is untouched.
         assert!(matches!(g.poll(&first), PollState::Pending));
-        assert!(matches!(g.poll(&second), PollState::Unknown));
     }
 
     #[test]
     fn a_lapsed_request_is_swept_on_the_next_touch_of_the_store() {
         let g: Grants<&str> = Grants::new(0, 4);
-        let (_, secret) = g.insert("tv", seq_mint());
+        let (_, secret) = file(&g, "tv", seq_mint());
         assert!(matches!(g.poll(&secret), PollState::Unknown));
         assert_eq!(g.len(), 0);
     }
 
     #[test]
+    fn a_request_swept_after_it_was_approved_surrenders_its_tokens() {
+        // The device was approved and then never came back: unplugged, or its
+        // wifi went. The tokens minted for it are real rows in SQLite, and
+        // losing the entry must not lose them.
+        let g = grants();
+        let (handle, _) = file(&g, "tv", seq_mint());
+        assert!(g.authorize(&handle, |_| true, granted()));
+        assert!(g.take_orphans().is_empty(), "nothing has lapsed yet");
+
+        g.age(400);
+        assert!(matches!(g.poll("anything"), PollState::Unknown), "the sweep ran");
+
+        let orphans = g.take_orphans();
+        assert_eq!(orphans.len(), 1, "the swept approval surrendered its tokens");
+        assert_eq!(orphans[0].token, "tok");
+        assert!(g.take_orphans().is_empty(), "draining twice yields nothing");
+    }
+
+    #[test]
+    fn a_request_swept_before_anyone_approved_it_surrenders_nothing() {
+        let g = grants();
+        file(&g, "tv", seq_mint());
+        g.age(400);
+        assert!(matches!(g.poll("anything"), PollState::Unknown));
+        assert!(g.take_orphans().is_empty(), "no tokens were ever minted");
+    }
+
+    #[test]
     fn a_heartbeat_carries_a_request_past_its_ttl() {
         let g = grants();
-        let (_, secret) = g.insert("tv", seq_mint());
+        let (_, secret) = file(&g, "tv", seq_mint());
         assert!(g.touch(&secret));
         assert!(matches!(g.poll(&secret), PollState::Pending));
     }
@@ -333,11 +412,10 @@ mod tests {
     #[test]
     fn forgetting_surrenders_only_the_tokens_nobody_will_collect() {
         let g = grants();
-        let (_, pending) = g.insert("tv", seq_mint());
-        // Never approved: nothing was minted, so there is nothing to clean up.
+        let (_, pending) = file(&g, "tv", seq_mint());
         assert!(g.forget(&pending).is_none());
 
-        let (handle, approved) = g.insert("tv", seq_mint());
+        let (handle, approved) = file(&g, "tv", seq_mint());
         assert!(g.authorize(&handle, |_| true, granted()));
         let orphan = g.forget(&approved).expect("approved but never collected");
         assert_eq!((orphan.token.as_str(), orphan.access_token.as_str()), ("tok", "acc"));
@@ -348,8 +426,8 @@ mod tests {
     fn forget_where_drops_every_match_and_leaves_the_rest() {
         let g = grants();
         let mut mint = seq_mint();
-        let (doomed, _) = g.insert("old", &mut mint);
-        let (_, kept) = g.insert("new", &mut mint);
+        let (doomed, _) = file(&g, "old", &mut mint);
+        let (_, kept) = file(&g, "new", &mut mint);
         assert!(g.authorize(&doomed, |_| true, granted()));
 
         let orphans = g.forget_where(|meta| *meta == "old");
@@ -359,49 +437,37 @@ mod tests {
     }
 
     #[test]
-    fn trim_scope_bounds_one_scope_and_leaves_the_others_alone() {
-        let g: Grants<&str> = Grants::new(300, 64);
-        let mut mint = seq_mint();
-        let (mine, mine_secret) = g.insert("theirs", &mut mint);
-        for _ in 0..3 {
-            g.insert("ours", &mut mint);
-        }
-        assert!(g.authorize(&mine, |_| true, granted()));
-
-        // Under the cap: nothing goes.
-        g.trim_scope(4, |m| *m == "ours");
-        assert_eq!(g.len(), 4);
-
-        // At it: the least recently active match goes, and only a match. It had
-        // no tokens to surrender, so nothing comes back for deletion.
-        assert!(g.trim_scope(3, |m| *m == "ours").is_empty());
-        assert_eq!(g.len(), 3);
-        assert!(matches!(g.poll(&mine_secret), PollState::Authorized { .. }));
-    }
-
-    #[test]
-    fn trim_scope_surrenders_the_tokens_of_everything_it_drops() {
-        let g: Grants<&str> = Grants::new(300, 64);
-        let mut mint = seq_mint();
-        let (first, _) = g.insert("ours", &mut mint);
-        let (second, _) = g.insert("ours", &mut mint);
-        assert!(g.authorize(&first, |_| true, granted()));
-        assert!(g.authorize(&second, |_| true, granted()));
-
-        // Room for one more out of a scope of two means dropping both.
-        let orphans = g.trim_scope(1, |m| *m == "ours");
-        assert_eq!(orphans.len(), 2);
-        assert_eq!(g.len(), 0);
-    }
-
-    #[test]
-    fn map_live_sees_every_entry_and_may_skip_some() {
+    fn map_pending_sees_what_is_still_waiting_and_may_skip_some() {
         let g = grants();
         let mut mint = seq_mint();
-        g.insert("keep", &mut mint);
-        g.insert("skip", &mut mint);
-        let mut seen = g.map_live(|handle, meta| (*meta == "keep").then(|| handle.to_string()));
+        file(&g, "keep", &mut mint);
+        file(&g, "skip", &mut mint);
+        let mut seen = g.map_pending(|handle, meta| (*meta == "keep").then(|| handle.to_string()));
         seen.sort();
         assert_eq!(seen, vec!["h1".to_string()]);
+    }
+
+    #[test]
+    fn map_pending_hides_a_request_already_approved() {
+        // Its device is seconds from signing in and the second approval is
+        // refused, so offering the row again can only fail.
+        let g = grants();
+        let (handle, _) = file(&g, "tv", seq_mint());
+        assert_eq!(g.map_pending(|h, _| Some(h.to_string())).len(), 1);
+
+        assert!(g.authorize(&handle, |_| true, granted()));
+        assert!(g.map_pending(|h, _| Some(h.to_string())).is_empty());
+    }
+
+    #[test]
+    fn count_answers_for_a_slice_of_the_store() {
+        let g = grants();
+        let mut mint = seq_mint();
+        file(&g, "mine", &mut mint);
+        file(&g, "mine", &mut mint);
+        file(&g, "theirs", &mut mint);
+        assert_eq!(g.count(|m| *m == "mine"), 2);
+        assert_eq!(g.count(|m| *m == "theirs"), 1);
+        assert_eq!(g.count(|_| true), 3);
     }
 }

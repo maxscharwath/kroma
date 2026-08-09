@@ -16,6 +16,7 @@
 // way `discoverServer` already takes a `browse` hook.
 
 import type { HandoffDevice, KromaClient } from '@kroma/client';
+import { BeaconTxt } from '@kroma/client';
 
 /** One waiting TV, however it was found. */
 export interface DiscoveredTv extends HandoffDevice {
@@ -94,6 +95,17 @@ export interface NearbyReceiver {
 // older TV's record from one it should ignore.
 const RECORD_VERSION = '1';
 
+// Control characters are stripped for the same reason the server strips them
+// from what a device tells it: these are drawn in someone else's picker, where a
+// raw newline could forge a line.
+function label(value: string | undefined): string {
+  return (value ?? '')
+    .split('')
+    .filter((c) => c >= ' ' && c !== '\u007f')
+    .join('')
+    .trim();
+}
+
 /** The text dictionary a TV publishes. Keys are short, as DNS-SD prefers. */
 export function beaconTxt(record: BeaconRecord): Record<string, string> {
   const common = {
@@ -107,21 +119,27 @@ export function beaconTxt(record: BeaconRecord): Record<string, string> {
     : { ...common, receiver: record.receiver };
 }
 
-/** Read a record back, or null if it is not one this build understands. A
- * malformed or future record is skipped rather than shown half-empty. */
+/** Read a record back, or null if it is not one this build understands.
+ *
+ * Anything on the link can publish one of these, so this is a boundary: a record
+ * that is malformed, from a future version, or simply too long to be honest is
+ * dropped rather than shown half-empty or passed on to the server. */
 export function parseBeaconTxt(txt: Record<string, string>): BeaconRecord | null {
-  if (txt.v !== RECORD_VERSION) return null;
-  const name = txt.name || '';
-  const platform = txt.platform || '';
-  if (txt.state === 'waiting') {
-    const { handle, check, proof } = txt;
-    if (!handle || !check || !proof) return null;
-    return { state: 'waiting', name, platform, handle, check, proof };
-  }
-  if (txt.state === 'ready') {
-    return txt.receiver ? { state: 'ready', name, platform, receiver: txt.receiver } : null;
-  }
-  return null;
+  const parsed = BeaconTxt.safeParse(txt);
+  if (!parsed.success) return null;
+  const record = parsed.data;
+  const name = label(record.name);
+  const platform = label(record.platform);
+  return record.state === 'waiting'
+    ? {
+        state: 'waiting',
+        name,
+        platform,
+        handle: record.handle,
+        check: record.check,
+        proof: record.proof,
+      }
+    : { state: 'ready', name, platform, receiver: record.receiver };
 }
 
 // One browse, projected through `read`. Both callers below want the same
@@ -230,12 +248,26 @@ export function serverSource(client: KromaClient, everyMs = 3000): TvDiscoverySo
 
 /** The TVs this device can hear on its own link. Stronger evidence of being in
  * the same room than any address comparison: link-local multicast does not
- * cross a router, so a record you heard is a TV you are next to. */
-export function lanSource(bridge: LanDiscoveryBridge): TvDiscoverySource {
+ * cross a router, so a record you heard is a TV you are next to.
+ *
+ * `onReceivers` reports the other half of the same browse - the televisions
+ * heard here that already have an account. A caller that shows a list of
+ * pairable televisions wants them too: a television standing in the room and
+ * absent from the list is the reading "this is broken", when the truth is
+ * "this one is already done". Taking them from this browse rather than a second
+ * one is the point of `watchLanBeacons` reporting both.
+ */
+export function lanSource(
+  bridge: LanDiscoveryBridge,
+  onReceivers?: (receivers: NearbyReceiver[]) => void,
+): TvDiscoverySource {
   return {
     id: 'lan',
     start(onRows) {
-      return watchLanBeacons(bridge, (beacons) => onRows(beacons.pairable));
+      return watchLanBeacons(bridge, (beacons) => {
+        onRows(beacons.pairable);
+        onReceivers?.(beacons.receivers);
+      });
     },
   };
 }

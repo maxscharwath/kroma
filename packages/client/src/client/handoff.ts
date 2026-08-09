@@ -6,7 +6,7 @@
 // (`handoffDevices` / `handoffGrant`) needs one: what it grants is its own
 // account. Both sides are refused off the local network, server-side.
 
-import { HandoffBeacon, HandoffDevice, type PairingStatus, validate } from '../schemas';
+import { HandoffBeacon, HandoffDevice, PairingStatus, validate } from '../schemas';
 import { JSON_HEADERS, type RequestContext } from './base';
 
 /** What a TV says about itself when it starts waiting. `deviceId` is its stable
@@ -50,7 +50,9 @@ export async function handoffLeave(ctx: RequestContext, secret: string): Promise
  * session exactly once. Polling also keeps the beacon listed, so a TV that stops
  * polling drops off every phone's list on its own. */
 export function handoffPoll(ctx: RequestContext, secret: string): Promise<PairingStatus> {
-  return ctx.json<PairingStatus>(`/handoff/poll?secret=${encodeURIComponent(secret)}`);
+  return ctx
+    .json<PairingStatus>(`/handoff/poll?secret=${encodeURIComponent(secret)}`)
+    .then((r) => validate(PairingStatus, r));
 }
 
 /** The TVs waiting on this device's own network. Empty off it:

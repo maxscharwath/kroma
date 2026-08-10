@@ -120,12 +120,6 @@ jobs:
       - name: Unit tests (vitest)
         run: bun run test
 
-      # Hard gate: the generated token CSS matches the TypeScript tokens it is
-      # generated FROM. Without this a hand edit to src/styles/tokens survives,
-      # and the two halves of the design system drift apart silently.
-      - name: Design tokens are in step
-        run: bun run tokens:check
-
       # Hard gate: the Biome backlog is cleared (`bun run check` is clean), so
       # lint + format regressions now fail CI.
       - name: Biome (lint + format)

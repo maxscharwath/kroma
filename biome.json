@@ -20,6 +20,7 @@
       "!clients/web/src/styles.css",
       "!sites/www/src/styles.css",
       "!packages/ui/src/styles/tailwind.css",
+      "!packages/ui/src/styles/styles.css",
       "!sites/modules/src/styles.css",
       "!packages/tv/src/tv.css",
       "!clients/mobile/google-services.json"

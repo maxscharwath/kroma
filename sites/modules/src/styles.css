@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@kroma-tokens;
 
 /* The KROMA registry palette: near-black product surfaces, amber accent,
    mint for capabilities. Named to avoid shadowing Tailwind's own scales. */

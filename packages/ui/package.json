@@ -20,14 +20,13 @@
     "./styles.css": "./src/styles/styles.css",
     "./fonts.css": "./src/styles/fonts.css",
     "./img.css": "./src/styles/img.css",
-    "./tokens.css": "./src/styles/tokens.css",
+    "./vite": "./vite/index.ts",
     "./tailwind.css": "./src/styles/tailwind.css",
     "./src/assets/*": "./src/assets/*"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit",
-    "gen:css": "bun ./scripts/gen-token-css.ts",
     "shots": "bun ./scripts/shoot-stories.ts"
   },
   "dependencies": {

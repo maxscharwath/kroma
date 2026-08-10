@@ -4,6 +4,7 @@
    module ships a self-contained CSS with the identical design. This file adds
    only the app-specific bits below. */
 @import "@kroma/ui/tailwind.css";
+@kroma-tokens;
 
 /* Tailwind v4 auto-detects sources rooted at this app, so it misses class names
    in packages/modules that live OUTSIDE clients/web: the admin UI kit and every

@@ -3,6 +3,7 @@
    Tailwind utilities - so this site renders in the same charcoal and amber as
    the app, with no second source of truth. */
 @import "@kroma/ui/tailwind.css";
+@kroma-tokens;
 
 /* Tailwind v4 scans this app's own sources automatically; nothing outside
    clients/site contributes class names, so no extra @source is needed. */

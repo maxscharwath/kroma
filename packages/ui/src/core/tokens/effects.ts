@@ -4,7 +4,7 @@
 // React Native 0.76+ implements boxShadow on both native platforms, and
 // react-native-web maps it straight to CSS. One value, three renderers.
 
-import { colors } from './colors';
+import { colors } from './colors.ts';
 import type { TokenOf } from './registry';
 
 export const shadow = {

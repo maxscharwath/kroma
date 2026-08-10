@@ -452,6 +452,35 @@ async fn a_poll_with_neither_header_nor_query_is_simply_unknown() {
     assert_eq!(body["status"], "expired");
 }
 
+// Nobody authenticates to initiate, so the pending codes are bounded, and the
+// bound REFUSES rather than evicting: evicting would let whoever asks most often
+// decide whose code silently stops working. A device that is refused says so and
+// the person tries again, which is the better failure by a distance.
+#[tokio::test]
+async fn quick_connect_refuses_a_new_code_rather_than_evicting_a_waiting_one() {
+    let t = test_app();
+
+    let mut issued = 0;
+    let refused = loop {
+        let (status, body) =
+            send(&t.app, "POST", "/api/auth/quickconnect/initiate", None, None).await;
+        if status != StatusCode::OK {
+            break (status, body);
+        }
+        issued += 1;
+        // Counted rather than compared against the constant, so the ceiling can
+        // move without this test lying about what it proved.
+        assert!(issued < 1000, "the pending codes never filled up");
+    };
+
+    assert!(issued > 0, "not one code was issued");
+    assert_eq!(refused.0, StatusCode::TOO_MANY_REQUESTS);
+
+    // The first code issued is still pending: it was not the one given up.
+    let (status, _) = send(&t.app, "POST", "/api/auth/quickconnect/initiate", None, None).await;
+    assert_eq!(status, StatusCode::TOO_MANY_REQUESTS, "asking again does not free a slot");
+}
+
 #[tokio::test]
 async fn quick_connect_initiate_falls_back_to_the_public_url_setting() {
     let t = test_app();

@@ -87,9 +87,7 @@ async function fetchCatalogFromGitHub(env: Env): Promise<Catalog> {
     const nonNightly = r.prerelease ? null : 'stable';
     const channel = r.tag_name === 'nightly' ? 'nightly' : nonNightly;
     if (!channel) continue;
-    // The rolling `nightly` tag keeps the date the release was FIRST cut, so a
-    // build from this morning reads as weeks old. Its .spk asset carries the
-    // date the bytes were actually uploaded.
+    // The rolling `nightly` tag keeps the date it was first cut; its asset does not.
     const rolling = channel === 'nightly' ? spk.updated_at : null;
     entries.push({
       channel,
@@ -165,12 +163,9 @@ export function entryVersion(e: Entry): string {
   return e.info?.version ?? versionFromSpkName(e.spkName);
 }
 
-/** The version string DSM's Package Center will DISPLAY. DSM's package-center
- * list hides a package whose feature version carries a large 4th segment (as
- * build.sh's canary `X.Y.Z.BUILD` does), so this collapses to
- * `major.minor.micro-build`, taking the build from the `-suffix` or, failing
- * that, from the 4th segment. Both canary shapes ever published - `X.Y.Z.BUILD`
- * and the older `X.Y.Z.BUILD-BUILD` - normalize to the same string. */
+/** The version string DSM's Package Center will DISPLAY: `major.minor.micro-build`,
+ *  the build taken from the `-suffix` or else the 4th segment. DSM hides a package
+ *  whose feature version carries a large 4th segment. */
 export function dsmVersion(raw: string): string {
   const [feat = '', suffix] = raw.split('-');
   const seg = feat.split('.');
@@ -198,10 +193,7 @@ export function cmpDsmVersion(a: string, b: string): number {
   return pa.build - pb.build;
 }
 
-/** Catalog order, newest first: by the version DSM would show, with the publish
- * date breaking a tie. The channel plays no part - a nightly sits wherever its
- * version puts it, which is what makes `find(channel === ...)` pick the newest
- * entry of a channel rather than merely the most recently published one. */
+/** Catalog order, newest first: the version DSM would show, then the publish date. */
 export function cmpEntries(a: Entry, b: Entry): number {
   const byVersion = cmpDsmVersion(dsmVersion(entryVersion(b)), dsmVersion(entryVersion(a)));
   return byVersion || b.publishedAt.localeCompare(a.publishedAt);

@@ -73,7 +73,7 @@ const letterVariants = svFor<{ root: StyleDecl; label: StyleDecl }>()({
   variants: {
     tone: {
       idle: { label: { color: 'textMuted', _hover: { color: 'text' } } },
-      dim: { label: { color: 'white/15' } },
+      dim: { label: { color: 'tint/15' } },
       lit: { label: { color: 'accentInk' } },
       litDim: { label: { color: INK_DIM } },
     },

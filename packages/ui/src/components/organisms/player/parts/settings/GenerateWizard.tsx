@@ -226,9 +226,9 @@ export const GenerateWizard = forwardRef<PanelHandle, GenerateWizardProps>(funct
 const s = styles({
   startButton: { mt: 4 },
   backgroundHint: { mx: 2, mt: 12, mb: 4, fontWeight: '500', fontSize: 14, lineHeight: 22 },
-  modeDisabled: { bg: 'white/4' },
+  modeDisabled: { bg: 'tint/4' },
   modeOn: { bg: 'accent' },
-  modeOff: { bg: 'white/5' },
+  modeOff: { bg: 'tint/5' },
 });
 
 function ModeTab({

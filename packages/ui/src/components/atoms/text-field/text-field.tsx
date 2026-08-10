@@ -276,7 +276,7 @@ function RevealButton({
 }
 
 const REVEAL_SIZE = 20;
-const REVEAL_STATES = { hover: { bg: 'white/10' } } as const;
+const REVEAL_STATES = { hover: { bg: 'tint/10' } } as const;
 
 const s = styles({
   input: { flex: true, minW: 0, borderWidth: 0, bg: 'transparent', p: 0 },

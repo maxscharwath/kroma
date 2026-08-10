@@ -32,18 +32,18 @@ const iconButtonVariants = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color
       /** Translucent fill with a hairline border: the default over artwork. */
       glass: {
         root: {
-          bg: 'white/12',
-          border: 'white/20',
-          _hover: { bg: 'white/18' },
-          _press: { bg: 'white/22' },
+          bg: 'tint/12',
+          border: 'tint/20',
+          _hover: { bg: 'tint/18' },
+          _press: { bg: 'tint/22' },
         },
       },
       ghost: {
         root: {
           bg: 'transparent',
-          _hover: { bg: 'white/6' },
-          _focus: { bg: 'white/6' },
-          _press: { bg: 'white/8' },
+          _hover: { bg: 'tint/6' },
+          _focus: { bg: 'tint/6' },
+          _press: { bg: 'tint/8' },
         },
       },
       primary: {
@@ -67,7 +67,7 @@ const iconButtonVariants = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color
       scrim: {
         root: {
           bg: 'bg/55',
-          border: 'white/12',
+          border: 'tint/12',
           _hover: { bg: 'rgba(28, 28, 34, 0.6)' },
           _press: { bg: 'rgba(40, 40, 48, 0.65)' },
         },
@@ -78,7 +78,7 @@ const iconButtonVariants = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color
     active: {
       true: {
         root: { bg: 'accentSoft', borderColor: 'accentWash/45', _hover: { bg: 'accentSoftHover' } },
-        icon: { color: 'accent' },
+        icon: { color: 'accentText' },
       },
     },
     /** The 10-foot treatment for a bare corner control (a back button) whose

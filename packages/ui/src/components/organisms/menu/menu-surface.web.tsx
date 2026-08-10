@@ -205,7 +205,7 @@ function PanelItem({
 
 const s = styles({
   row: { radius: ROW_RADIUS },
-  active: { bg: 'white/7' },
+  active: { bg: 'tint/7' },
   activeDanger: { bg: 'danger/14' },
   disabled: { opacity: 0.4 },
   label: { fontSize: 13, fontWeight: '600' },

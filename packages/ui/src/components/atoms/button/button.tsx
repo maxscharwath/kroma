@@ -49,15 +49,15 @@ const buttonVariants = svFor<{
       },
       glass: {
         root: {
-          bg: 'white/10',
+          bg: 'tint/10',
           border: 'borderStrong',
-          _hover: { bg: 'white/16' },
-          _press: { bg: 'white/18' },
-          _disabled: { bg: 'white/5', border: 'white/7' },
+          _hover: { bg: 'tint/16' },
+          _press: { bg: 'tint/18' },
+          _disabled: { bg: 'tint/5', border: 'tint/7' },
         },
       },
       ghost: {
-        root: { bg: 'transparent', _hover: { bg: 'white/6' }, _press: { bg: 'white/8' } },
+        root: { bg: 'transparent', _hover: { bg: 'tint/6' }, _press: { bg: 'tint/8' } },
       },
       danger: {
         root: {
@@ -79,21 +79,21 @@ const buttonVariants = svFor<{
       scrim: {
         root: {
           bg: 'bg/70',
-          border: 'white/15',
+          border: 'tint/15',
           _hover: { bg: 'rgba(28, 28, 34, 0.72)' },
           _press: { bg: 'rgba(40, 40, 48, 0.75)' },
-          _disabled: { bg: 'bg/35', border: 'white/7' },
+          _disabled: { bg: 'bg/35', border: 'tint/7' },
         },
       },
       /** A bordered toggle: the detail screen's "Ma liste" / "Vu" pills, which
        *  read as pressed rather than as a primary action. */
       outline: {
         root: {
-          bg: 'white/12',
-          border: 'white/20',
-          _hover: { bg: 'white/17' },
-          _press: { bg: 'white/20' },
-          _disabled: { bg: 'white/6', border: 'white/10' },
+          bg: 'tint/12',
+          border: 'tint/20',
+          _hover: { bg: 'tint/17' },
+          _press: { bg: 'tint/20' },
+          _disabled: { bg: 'tint/6', border: 'tint/10' },
         },
       },
     },
@@ -130,8 +130,8 @@ const buttonVariants = svFor<{
       when: { variant: 'outline', active: true },
       style: {
         root: { bg: 'accentSoft', borderColor: 'accentWash/45', _hover: { bg: 'accentSoftHover' } },
-        label: { color: 'accent' },
-        icon: { color: 'accent' },
+        label: { color: 'accentText' },
+        icon: { color: 'accentText' },
       },
     },
   ],

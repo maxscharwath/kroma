@@ -368,7 +368,7 @@ const navPillItemVariants = svFor<{
       },
     },
     /** The active item already wears the lens, so it takes no focus wash on top. */
-    active: { true: {}, false: { root: { _focus: { bg: 'white/10' } } } },
+    active: { true: {}, false: { root: { _focus: { bg: 'tint/10' } } } },
   },
   defaults: { size: 'tv', lit: false, active: false },
 });

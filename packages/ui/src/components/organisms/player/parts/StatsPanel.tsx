@@ -290,7 +290,7 @@ const sx = styles({
   column: { flexBasis: 200, grow: 1, shrink: 1, minW: 180 },
   chartCell: { flexBasis: 0, minW: 0 },
   body: { gap: 16 },
-  topRule: { borderTopWidth: 1, borderTopColor: 'white/8', pt: 16 },
+  topRule: { borderTopWidth: 1, borderTopColor: 'tint/8', pt: 16 },
   headline: { font: 'ui', fontSize: 17, fontWeight: '700', color: 'text' },
   summaryPair: { font: 'ui', fontSize: 12, fontWeight: '500' },
   blockTitle: {

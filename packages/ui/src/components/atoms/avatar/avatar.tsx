@@ -156,7 +156,7 @@ function Avatar({
           radius="pill"
           bg="bg/80"
         >
-          <Icon name="lock" size={Math.max(14, size * 0.11)} color="accent" />
+          <Icon name="lock" size={Math.max(14, size * 0.11)} color="accentText" />
         </Box>
       ) : null}
     </Box>

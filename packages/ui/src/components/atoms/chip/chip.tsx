@@ -34,14 +34,14 @@ const chipVariants = svFor<{
   variants: {
     variant: {
       solid: {
-        root: { bg: 'white/7', _hover: { bg: 'white/13' } },
+        root: { bg: 'tint/7', _hover: { bg: 'tint/13' } },
         label: { color: 'text' },
         count: { color: 'text' },
       },
       /** `subtle` is the strip that floats over the browse screens' ambient art:
        *  a fainter wash, no border, and muted text so it recedes until focused. */
       subtle: {
-        root: { bg: 'white/8', borderWidth: 0, _hover: { bg: 'white/14' } },
+        root: { bg: 'tint/8', borderWidth: 0, _hover: { bg: 'tint/14' } },
         label: { color: 'textMuted' },
         count: { color: 'textMuted' },
         icon: { color: 'textMuted' },

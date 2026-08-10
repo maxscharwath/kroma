@@ -21,7 +21,7 @@ const categoryTileVariants = sv({
     meta: {
       font: 'ui',
       fontWeight: '600',
-      color: 'white/72',
+      color: 'tint/72',
       fontVariant: ['tabular-nums'],
     },
   },

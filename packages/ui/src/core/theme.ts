@@ -14,7 +14,7 @@
 // reaches.
 
 import type { TextStyle } from 'react-native';
-import { type ColorToken, colors, withAlpha } from './tokens/colors';
+import { type ColorToken, colors, lightColors, withAlpha } from './tokens/colors';
 import {
   LIFT_SHADOW,
   motion,
@@ -151,6 +151,20 @@ function derive(tokens: ThemeTokens): Theme {
 /** The default theme, straight from the token modules. */
 export const KROMA: Theme = derive({
   colors,
+  radius,
+  shadow,
+  fonts,
+  typeSpec,
+  motion,
+  gutter,
+  space,
+  rhythm,
+  tracking,
+});
+
+/** KROMA on a warm paper ground. */
+export const KROMA_LIGHT: Theme = derive({
+  colors: lightColors,
   radius,
   shadow,
   fonts,

@@ -133,8 +133,8 @@ export const keyFace = {
     _focus: { bg: 'accentSoft' },
     _press: { bg: 'accentSoftHover', border: 'accentHover' },
   },
-  label: { color: 'text', fontWeight: '700', _focus: { color: 'accent' } },
-  glyph: { color: 'text', stroke: 1.8, _focus: { color: 'accent' } },
+  label: { color: 'text', fontWeight: '700', _focus: { color: 'accentText' } },
+  glyph: { color: 'text', stroke: 1.8, _focus: { color: 'accentText' } },
 } as const;
 
 /** The field's edge, which focus does NOT recolour: the ring outside it already

@@ -20,7 +20,7 @@ const checkboxVariants = sv({
     center: true,
     radius: 6,
     border: 'borderStrong',
-    bg: 'white/6',
+    bg: 'tint/6',
     _disabled: { opacity: 0.5 },
   },
   variants: {
@@ -38,7 +38,7 @@ const checkboxVariants = sv({
         border: 'accent',
         _hover: { bg: 'accentHover', border: 'accentHover' },
       },
-      false: { _hover: { bg: 'white/12', border: 'white/32' } },
+      false: { _hover: { bg: 'tint/12', border: 'tint/32' } },
     },
   },
   defaults: { size: 'sm', checked: false },

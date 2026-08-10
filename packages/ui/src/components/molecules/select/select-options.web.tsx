@@ -222,7 +222,7 @@ function PopoverOption({
         </Txt>
       ) : null}
       <Box w={18} align="center">
-        {chosen ? <Icon name="check" size={16} color="accent" /> : null}
+        {chosen ? <Icon name="check" size={16} color="accentText" /> : null}
       </Box>
     </Pressable>
   );
@@ -234,7 +234,7 @@ const LISTBOX = 'listbox' as import('react-native').Role;
 
 const s = styles({
   row: { radius: ROW_RADIUS },
-  active: { bg: 'white/8' },
+  active: { bg: 'tint/8' },
   disabled: { opacity: 0.4 },
 });
 

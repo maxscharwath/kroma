@@ -240,7 +240,7 @@ function Arrow({
     >
       <Txt
         style={{ fontSize: 17, lineHeight: 20, paddingHorizontal: 4, opacity: dim ? 0.4 : 1 }}
-        color="accent"
+        color="accentText"
       >
         {glyph}
       </Txt>

@@ -69,7 +69,7 @@ function Face({ item }: Readonly<{ item: UpNextItem }>) {
       <Box fill style={[s.vignette, VIGNETTE]} />
       <Box absolute left={14} right={14} bottom={12} gap={2}>
         {item.categoryLabel ? (
-          <Txt lines={1} style={s.category} color="accent">
+          <Txt lines={1} style={s.category} color="accentText">
             {item.categoryLabel}
           </Txt>
         ) : null}

@@ -34,7 +34,7 @@ function Progress({
   value = 0,
   size = 6,
   color = 'accent',
-  trackColor = 'white/25',
+  trackColor = 'tint/25',
   rounded = false,
   indeterminate = false,
 }: Readonly<ProgressProps>) {

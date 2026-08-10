@@ -25,6 +25,7 @@ export {
   activeTheme,
   createTheme,
   KROMA,
+  KROMA_LIGHT,
   onThemeChange,
   setTheme,
   themed,
@@ -53,4 +54,4 @@ export type {
   VariantProps,
   VariantSource,
 } from './types';
-export { ThemeProvider, useTheme } from './use-theme';
+export { ThemeProvider, useSystemTheme, useTheme } from './use-theme';

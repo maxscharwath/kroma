@@ -21,7 +21,7 @@ const surfaceVariants = sv({
       /** No fill, just an edge. For grouping without adding weight. */
       outline: { bg: 'transparent', border: 'border' },
       /** Over artwork, where a solid fill would hide the image. */
-      glass: { bg: 'white/6', border: 'borderStrong' },
+      glass: { bg: 'tint/6', border: 'borderStrong' },
     },
     pad: {
       none: {},

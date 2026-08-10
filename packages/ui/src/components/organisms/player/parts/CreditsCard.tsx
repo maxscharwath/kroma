@@ -42,7 +42,7 @@ const CARD_WIDTH = 392;
 const ART_FILL = 'linear-gradient(135deg, rgba(244,182,66,0.16), rgba(20,18,22,0.96))';
 const VIGNETTE = 'radial-gradient(120% 120% at 50% 25%, transparent, rgba(0,0,0,0.5))';
 
-const cancelFill = sv({ base: { _focus: { bg: 'white/16' } } });
+const cancelFill = sv({ base: { _focus: { bg: 'tint/16' } } });
 const playFill = sv({ base: { flex: 1, _focus: { bg: 'accentHover' } } });
 
 /**
@@ -109,7 +109,7 @@ export function CreditsCard({
         {item.title}
       </Txt>
       {item.subtitle ? (
-        <Txt style={s.subtitle} color="accent">
+        <Txt style={s.subtitle} color="accentText">
           {item.subtitle}
         </Txt>
       ) : null}

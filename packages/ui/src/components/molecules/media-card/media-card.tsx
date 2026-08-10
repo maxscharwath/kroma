@@ -91,7 +91,7 @@ const s = styles({
     lineHeight: 14,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    color: 'white/65',
+    color: 'tint/65',
   },
   title: {
     font: 'display',

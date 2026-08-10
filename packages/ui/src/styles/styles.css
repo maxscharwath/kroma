@@ -1,9 +1,6 @@
 /* KROMA global stylesheet import once per app: `import '@kroma/ui/styles.css'`. */
 @import "./fonts.css";
-@import "./tokens/colors.css";
-@import "./tokens/typography.css";
-@import "./tokens/spacing.css";
-@import "./tokens/effects.css";
+@import "./tokens.css";
 @import "./img.css";
 
 *,

@@ -20,6 +20,8 @@ export const colors = {
    *  Tailwind div) - and a wash that differs between them is a visible seam. */
   wash: 'rgba(255, 255, 255, 0.06)',
   borderStrong: 'rgba(255, 255, 255, 0.14)',
+  /** The direction a wash moves in: lighter on a dark ground, darker on paper. */
+  tint: '#FFFFFF',
 
   /* Text on dark */
   text: '#F4F3F0',
@@ -31,6 +33,9 @@ export const colors = {
   accentHover: '#FFC862',
   accentBright: '#FFD262',
   accentInk: '#0A0A0C',
+  /** The accent as INK rather than as a fill: it has to clear text contrast on
+   *  the page ground, which the fill hue does not on paper. */
+  accentText: '#F4B642',
   /** The soft-amber base. A different hue from `accent` (244, 182, 66): every
    *  wash, glow and edge in the accent family is built on this one, so it is a
    *  token rather than eight hand-written rgba() literals. */
@@ -55,6 +60,40 @@ export const colors = {
    *  every other variant's hover brightens too. */
   dangerHover: '#EF5350',
 } as const;
+
+/** The light palette. `accent` deepens because one token is both fill and text,
+ *  and `accentInk` flips with it. */
+export const lightColors: Record<keyof typeof colors, string> = {
+  bg: '#F7F5F1',
+  surface1: '#FFFEFB',
+  surface2: '#F0EDE6',
+  surface3: '#E6E2DA',
+  overlay: 'rgba(247, 245, 241, 0.88)',
+  border: 'rgba(10, 10, 12, 0.11)',
+  wash: 'rgba(10, 10, 12, 0.05)',
+  borderStrong: 'rgba(10, 10, 12, 0.2)',
+  tint: '#0A0A0C',
+
+  text: '#16151A',
+  textMuted: 'rgba(22, 21, 26, 0.66)',
+  textDim: 'rgba(22, 21, 26, 0.46)',
+
+  accent: '#F4B642',
+  accentHover: '#E0A32E',
+  accentBright: '#FFC862',
+  accentInk: '#0A0A0C',
+  accentText: '#8A5A05',
+  accentWash: '#B8811F',
+  accentSoft: 'rgba(184, 129, 31, 0.18)',
+  accentSoftHover: 'rgba(184, 129, 31, 0.28)',
+
+  success: '#136B41',
+  info: '#2F4FAE',
+  hdr: '#6B3E9E',
+  h265: '#106A5E',
+  danger: '#A62520',
+  dangerHover: '#8C1E1A',
+};
 
 /**
  * Names a theme adds to the palette, Tailwind-4 style: augment it once and the

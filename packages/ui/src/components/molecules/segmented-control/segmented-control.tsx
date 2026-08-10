@@ -20,7 +20,7 @@ const GROUP_PAD = 4;
 // nests inside the group's (see lib/field-shell).
 const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc: StyleDecl }>()({
   slots: {
-    root: { _hover: { bg: 'white/5' } },
+    root: { _hover: { bg: 'tint/5' } },
     label: { font: 'ui', fontWeight: '600', color: 'text/75' },
     desc: { font: 'ui', fontSize: 11, color: 'textDim' },
   },
@@ -32,7 +32,7 @@ const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc
     active: {
       true: {
         root: { bg: 'accentSoft', _hover: { bg: 'accentSoft' } },
-        label: { color: 'accent' },
+        label: { color: 'accentText' },
       },
     },
   },

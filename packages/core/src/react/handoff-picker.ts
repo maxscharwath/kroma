@@ -144,11 +144,11 @@ export interface CheckPrompt {
  *  guarantee. */
 export function useCheckPrompt(opts: CheckPromptOptions): CheckPrompt {
   const { device, onGrant } = opts;
-  const [code, setCodeRaw] = useState('');
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<GrantRefusal | null>(null);
 
-  const setCode = useCallback((next: string) => setCodeRaw(next.toUpperCase()), []);
+  const type = useCallback((next: string) => setCode(next.toUpperCase()), []);
 
   const submit = useCallback(
     async (value: string) => {
@@ -158,12 +158,12 @@ export function useCheckPrompt(opts: CheckPromptOptions): CheckPrompt {
       setBusy(false);
       if (result === 'granted' || result === 'dropped') return;
       setRefused(result);
-      setCodeRaw('');
+      setCode('');
     },
     [device, onGrant],
   );
 
-  return { code, setCode, busy, refused, submit };
+  return { code, setCode: type, busy, refused, submit };
 }
 
 /** The line under a row's name: what it is doing, or how it ended. */

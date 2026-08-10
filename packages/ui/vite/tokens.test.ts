@@ -1,11 +1,20 @@
+import { isAbsolute, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { colors, lightColors } from '../src/core/tokens/colors';
 import { WASH_ALPHA } from '../src/core/tokens/effects';
-import { baseCss, fontsCss, kromaCss, kromaTokens, themeCss, tokensCss } from './tokens';
+import {
+  baseCss,
+  fontsCss,
+  kromaCss,
+  kromaTokens,
+  SOURCE_ROOTS,
+  themeCss,
+  tokensCss,
+} from './tokens';
 
 const transform = (code: string, id = '/app/src/styles.css') => {
   const plugin = kromaTokens();
-  return plugin.transform(code, id)?.code ?? null;
+  return plugin.transform.call({}, code, id)?.code ?? null;
 };
 
 describe('tokensCss', () => {
@@ -22,14 +31,37 @@ describe('tokensCss', () => {
 
   it('keeps light behind an explicit opt-in, never prefers-color-scheme', () => {
     const css = tokensCss();
-    expect(css).toContain(':root[data-theme="light"]');
+    expect(css).toContain('[data-theme="light"]');
     expect(css).not.toContain('prefers-color-scheme');
   });
 
   it('leaves the dark palette as the bare-root default', () => {
-    const root = tokensCss().split(':root[data-theme="light"]')[0] ?? '';
-    expect(root).toContain(`--kroma-bg: ${colors.bg.toLowerCase()};`);
-    expect(root).not.toContain(lightColors.bg.toLowerCase());
+    const css = tokensCss();
+    // ONE rule for the two selectors that mean the same ground, never the same
+    // block written out twice.
+    expect(css).toContain(':root,\n[data-theme="dark"] {');
+    expect(css.match(/--kroma-bg: /g)).toHaveLength(2);
+  });
+
+  it('scopes a ground to any element, so a subtree can hold its own', () => {
+    const css = tokensCss();
+    // NOT `:root[data-theme]`: the player pins itself dark on a light page, and
+    // a root-only selector cannot reach it.
+    expect(css).toContain('[data-theme="dark"] {');
+    expect(css).toContain('[data-theme="light"] {');
+    expect(css).not.toContain(':root[data-theme');
+
+    const dark = css.split('[data-theme="dark"] {')[1]?.split('}')[0] ?? '';
+    const light = css.split('[data-theme="light"] {')[1]?.split('}')[0] ?? '';
+    expect(dark).toContain(`--kroma-bg: ${colors.bg.toLowerCase()};`);
+    expect(dark).not.toContain(lightColors.bg.toLowerCase());
+    expect(light).toContain(`--kroma-bg: ${lightColors.bg.toLowerCase()};`);
+  });
+
+  it('emits each elevation once per ground, never a fourth ground-free copy', () => {
+    const css = tokensCss();
+    expect(css.split(':root,\n')[0]).not.toContain('--shadow-card:');
+    expect(css.match(/--shadow-card: /g)).toHaveLength(2);
   });
 
   it('spells the irregular names the stylesheets already consume', () => {
@@ -43,13 +75,25 @@ describe('tokensCss', () => {
 describe('the alpha steps', () => {
   it('emits a property per step the source writes, in both palettes', () => {
     const css = tokensCss();
-    const [dark = '', light = ''] = css.split(':root[data-theme="light"]');
+    const [dark = '', light = ''] = css.split('[data-theme="light"]');
     expect(dark).toContain('--kroma-text-85: rgba(244, 243, 240, 0.85);');
     expect(light).toContain('--kroma-text-85: rgba(22, 21, 26, 0.85);');
   });
 
   it('spells a fractional step as a legal identifier', () => {
     expect(tokensCss()).toContain('--kroma-tint-2_5: rgba(255, 255, 255, 0.025);');
+  });
+
+  it('scans the repo, not the working directory a build happens to run from', () => {
+    // Relative roots resolved against the cwd, which during an app's build is
+    // that app's directory, so the scan walked nothing and emitted no alpha
+    // steps at all: `background-color: var(--kroma-tint-10)` then names a
+    // property that does not exist and the control paints transparent.
+    for (const root of SOURCE_ROOTS) expect(isAbsolute(root)).toBe(true);
+    expect(SOURCE_ROOTS.some((root) => root.endsWith(`${sep}packages`))).toBe(true);
+    // `tint/10` is <Button glass>'s rest fill, and only a scan that reached
+    // packages/ui could have found it.
+    expect(tokensCss()).toContain('--kroma-tint-10:');
   });
 
   it('emits the steps the theme derives, which no source spells out', () => {

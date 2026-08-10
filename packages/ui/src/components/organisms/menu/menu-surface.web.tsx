@@ -35,7 +35,9 @@ const MIN_WIDTH = 184;
 const MAX_HEIGHT = 400;
 const PANEL_PAD = 6;
 const ROW_RADIUS = CONTROL.sm.radius;
-const PANEL_RADIUS = ROW_RADIUS + PANEL_PAD;
+// Concentric with the rows inside it: the shell's corner plus the pad between
+// them lands exactly on this token, so the pair stays nested under any theme.
+const PANEL_RADIUS = 'xl';
 
 function MenuPanel({ onClose, label, items, align, anchor }: Readonly<MenuSurfaceProps>) {
   const t = useTDefault();

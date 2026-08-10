@@ -51,6 +51,14 @@ export {
 } from './otp-field';
 export type { PageHeaderProps } from './page-header';
 export { PageHeader } from './page-header';
+export type {
+  PageSlot,
+  PaginationItemProps,
+  PaginationRootProps,
+  PaginationStatusProps,
+  PaginationStepProps,
+} from './pagination';
+export { Pagination, pageWindow, paginationVariants } from './pagination';
 export type { PersonCardProps, PersonCardSize } from './person-card';
 export { PersonCard, personCardVariants } from './person-card';
 export type { PinFieldProps } from './pin-field';
@@ -59,7 +67,7 @@ export type { PosterCardProps } from './poster-card';
 export { POSTER_SCRIM, PosterCard } from './poster-card';
 export type { SectionProps } from './section';
 export { Section } from './section';
-export type { SegmentedControlProps, SegmentedOption } from './segmented-control';
+export type { SegmentedOption, SegmentedRootProps } from './segmented-control';
 export { SegmentedControl, segmentedControlVariants } from './segmented-control';
 export type { SelectOption, SelectProps } from './select';
 export { Select, selectTriggerVariants } from './select';

@@ -21,7 +21,6 @@ import {
   Img,
   Progress,
   Row,
-  radius,
   styles,
   Txt,
   tintGradient,
@@ -55,7 +54,7 @@ function episodeStill(at: {
       <Img
         src={at.still}
         background={tintGradient(posterColors(at.episode.id))}
-        radius={radius.lg}
+        radius="lg"
         position="50% 30%"
         fill
         style={at.watched ? s.dimmed : undefined}

@@ -25,7 +25,7 @@ function StatusDot({ online, size = 10, overArt = false }: Readonly<StatusDotPro
       w={size}
       h={size}
       shrink={0}
-      radius="pill"
+      radius="circle"
       bg={look.bg}
       style={shadow ? { boxShadow: shadow } : null}
     />

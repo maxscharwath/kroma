@@ -56,9 +56,9 @@ export default function ConnectDevice() {
     <Screen padded={false}>
       <PageHeader title={t('connect.title')} />
       <Box style={s.body}>
-        <SegmentedControl
+        <SegmentedControl.Root
           value={mode}
-          onChange={setMode}
+          onValueChange={setMode}
           label={t('connect.title')}
           options={MODES.map((m) => ({ value: m, label: t(`connect.mode.${m}`) }))}
           stretch

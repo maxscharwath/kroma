@@ -159,7 +159,7 @@ const STEP_STATES = { hover: { bg: 'tint/10' } } as const;
 const TABULAR = { fontVariant: ['tabular-nums' as const] };
 
 const s = styles({
-  step: { w: 24, center: true, radius: 4 },
+  step: { w: 24, center: true, radius: 'xs' },
   ...bySize((m) => ({ h: Math.floor((m.line - 2) / 2) })),
 });
 

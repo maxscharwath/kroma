@@ -17,7 +17,7 @@ import { clearPressGuard } from '#ui/lib/press-guard';
 import { onScreen } from '#ui/testing';
 import { AVATAR_GRADIENTS, Avatar, gradientFor, initialsOf } from './avatar';
 import { Badge } from './badge';
-import { Button } from './button';
+import { Button, buttonVariants } from './button';
 import { Chip } from './chip';
 import { Icon } from './icon';
 import { IconButton } from './icon-button';
@@ -128,6 +128,22 @@ describe('Button', () => {
     fireEvent.pointerOver(inner('B'));
     expect(css(inner('B')).backgroundColor).toBe('var(--kroma-accent-soft-hover)');
   });
+
+  it('deepens under the finger, a step PAST hover rather than a repeat of it', () => {
+    const at = (state: Record<string, boolean>) =>
+      buttonVariants({ variant: 'primary' }, state).root as Record<string, unknown>;
+    expect(at({ hover: true }).backgroundColor).toBe('var(--kroma-accent-hover)');
+    expect(at({ hover: true, press: true }).backgroundColor).toBe('var(--kroma-accent-press)');
+  });
+
+  it.each(['primary', 'glass', 'ghost', 'danger', 'dangerGhost', 'scrim', 'outline'] as const)(
+    'answers a pointer on %s three different ways: rest, hover, pressed',
+    (variant) => {
+      const at = (state: Record<string, boolean>) => buttonVariants({ variant }, state).root;
+      expect(at({ hover: true })).not.toEqual(at({}));
+      expect(at({ hover: true, press: true })).not.toEqual(at({ hover: true }));
+    },
+  );
 
   it('does not light under the pointer while it is busy', () => {
     render(<Button label="Envoi" loading />);
@@ -390,7 +406,7 @@ describe('Skeleton', () => {
     const avatar = render(<Skeleton shape="circle" size={42} />);
     expect(css(disc(avatar.container)).width).toBe('42px');
     expect(css(disc(avatar.container)).height).toBe('42px');
-    expect(css(disc(avatar.container)).borderTopLeftRadius).toBe(`${radius.pill}px`);
+    expect(css(disc(avatar.container)).borderTopLeftRadius).toBe('21px');
   });
 
   it('lets a caller override the shape it was handed', () => {

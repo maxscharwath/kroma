@@ -13,7 +13,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { act } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ring } from '#ui/core/tokens';
+import { activeTheme } from '#ui/core';
 import { configureRemote } from '#ui/lib/focus-remote';
 import { FocusRegion, FocusScope } from '#ui/lib/focus-scope';
 import { armPressGuard, clearPressGuard } from '#ui/lib/press-guard';
@@ -64,9 +64,9 @@ describe('Focusable on react-native-web', () => {
       </>,
     );
     const entry = painted('Entree');
-    expect(entry.style.outlineWidth).toBe(`${ring.focusLift.outlineWidth}px`);
-    expect(entry.style.outlineOffset).toBe(`${ring.focusLift.outlineOffset}px`);
-    expect(entry.style.boxShadow.replace(/\s+/g, ' ')).toBe(ring.focusLift.boxShadow);
+    expect(entry.style.outlineWidth).toBe(`${activeTheme().ring.focusLift.outlineWidth}px`);
+    expect(entry.style.outlineOffset).toBe(`${activeTheme().ring.focusLift.outlineOffset}px`);
+    expect(entry.style.boxShadow.replace(/\s+/g, ' ')).toBe(activeTheme().ring.focusLift.boxShadow);
     expect(ringed('Premier')).toBe(false);
   });
 

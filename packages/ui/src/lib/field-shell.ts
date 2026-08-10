@@ -14,7 +14,7 @@
 // `setEntryDefaults` rather than at every call site.
 
 import type { TextStyle } from 'react-native';
-import { activeTheme, styles } from '#ui/core';
+import { activeTheme, color, type RadiusToken, radiusValue, styles } from '#ui/core';
 
 type ControlSize = 'sm' | 'md' | 'tv';
 
@@ -29,8 +29,10 @@ interface ControlMetrics {
    *  hint is depth, not a legible picture, and a grid of keys still reads as
    *  one surface rather than one colour per key. */
   bg: `${ControlFill}`;
-  /** Corner, in px (a raw number so a class-string consumer can spell it too). */
-  radius: number;
+  /** Corner, by NAME: a theme that restates the corner language has to reach
+   *  every control, and a px number baked here at module load would not follow
+   *  it. Use {@link controlRadius} where the number itself is needed. */
+  radius: RadiusToken;
   px: number;
   py: number;
   /** The content row's height: what a control's own content measures. */
@@ -52,7 +54,7 @@ type ControlFill = typeof CONTROL_FILL;
 export const CONTROL: Record<ControlSize, ControlMetrics> = {
   sm: {
     bg: CONTROL_FILL,
-    radius: 10,
+    radius: 'md',
     px: 14,
     py: 9,
     line: 20,
@@ -62,7 +64,7 @@ export const CONTROL: Record<ControlSize, ControlMetrics> = {
   },
   md: {
     bg: CONTROL_FILL,
-    radius: 22,
+    radius: '2xl',
     px: 22,
     py: 12,
     line: 24,
@@ -77,7 +79,7 @@ export const CONTROL: Record<ControlSize, ControlMetrics> = {
    *  it read as one family rather than two. */
   tv: {
     bg: CONTROL_FILL,
-    radius: 22,
+    radius: '2xl',
     px: 26,
     py: 18,
     line: 30,
@@ -94,6 +96,12 @@ export const CONTROL: Record<ControlSize, ControlMetrics> = {
  * — before this, `sm` and `md` were hand-copied into five recipes and the
  * fourth size would have been five more clones.
  */
+/** A control's corner in px, against the ACTIVE theme. Read it at render time:
+ *  a value copied out at module load keeps the theme it was read under. */
+export function controlRadius(metrics: ControlMetrics): number {
+  return radiusValue(metrics.radius);
+}
+
 export function bySize<T>(build: (metrics: ControlMetrics) => T): Record<ControlSize, T> {
   return Object.fromEntries(
     Object.entries(CONTROL).map(([size, metrics]) => [size, build(metrics)]),
@@ -186,7 +194,10 @@ export function fieldShell(
   };
 }
 
-export const PLACEHOLDER = 'rgba(244, 243, 240, 0.3)';
+/** The ink of a field that has not been filled in. Through the palette, not a
+ *  literal: hard-coded it was the dark ground's own text, which on paper is
+ *  near-white on cream and reads as an empty box. */
+export const PLACEHOLDER = color('text/30');
 
 // What an app's controls default to. Per-site props still win; this is only so
 // a shell that KNOWS its form factor (the web console is a mouse-and-keyboard

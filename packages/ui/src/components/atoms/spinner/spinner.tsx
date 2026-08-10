@@ -3,7 +3,7 @@
 // off the JS thread on every platform.
 
 import { Animated } from 'react-native';
-import { useTheme } from '#ui/core';
+import { radiusValue, useTheme } from '#ui/core';
 import { useLoop } from '#ui/lib/loop';
 
 interface SpinnerProps {
@@ -29,7 +29,7 @@ function Spinner({
         {
           width: size,
           height: size,
-          borderRadius: theme.radius.pill,
+          borderRadius: radiusValue('circle'),
           borderWidth: thickness,
           // Three faint quadrants leave one visible arc: the spinner is the turn.
           borderColor: 'rgba(255, 255, 255, 0.14)',

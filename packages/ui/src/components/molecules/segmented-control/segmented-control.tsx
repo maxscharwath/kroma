@@ -1,14 +1,34 @@
-// <SegmentedControl>: one selected option among a few, each with an optional
-// sub-label. A radiogroup to assistive tech: each segment is a radio carrying
-// `checked`, and on a physical keyboard the arrow keys move the selection the
-// way a native radio group does.
+// <SegmentedControl>: one selected option among a few. A radiogroup to
+// assistive tech: each segment is a radio carrying `checked`, and on a physical
+// keyboard the arrow keys move the selection the way a native radio group does.
+//
+// Composed, in Radix's shape: a Root that owns the value, the semantics and the
+// keyboard, and Items that read it through context. A segment is not a fixed
+// arrangement of label + hint, and a props-only API answers every new demand
+// with another prop until the component is a switchboard. `options` stays as
+// sugar so the common row is still one line.
 
-import type { StyleProp, ViewStyle } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
+import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
-import { type StyleDecl, svFor } from '#ui/core';
-import { bySize, CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { type StyleDecl, svFor, useTheme } from '#ui/core';
+import { nestedRadius } from '#ui/core/tokens';
+import {
+  bySize,
+  CONTROL,
+  type ControlSize,
+  controlRadius,
+  entryDefaultSize,
+} from '#ui/lib/field-shell';
 import { FocusRegion } from '#ui/lib/focus-scope';
 
 // The group's own padding, and therefore how much smaller a segment's corner
@@ -20,18 +40,20 @@ const GROUP_PAD = 4;
 // nests inside the group's (see lib/field-shell).
 const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc: StyleDecl }>()({
   slots: {
-    root: { _hover: { bg: 'tint/5' } },
+    root: { row: true, center: true, gap: 7, _hover: { bg: 'tint/8' }, _press: { bg: 'tint/14' } },
     label: { font: 'ui', fontWeight: '600', color: 'text/75' },
     desc: { font: 'ui', fontSize: 11, color: 'textDim' },
   },
   variants: {
     size: bySize((m) => ({
-      root: { px: m.px, py: m.py - GROUP_PAD, radius: m.radius - GROUP_PAD, minH: m.line },
+      root: { px: m.px, py: m.py - GROUP_PAD, minH: m.line },
       label: { fontSize: m.fontSize, lineHeight: m.line },
     })),
+    // No fill of its own: the thumb behind the row carries the selection, so it
+    // can travel between segments rather than blink from one to the next.
     active: {
       true: {
-        root: { bg: 'accentSoft', _hover: { bg: 'accentSoft' } },
+        root: { _hover: { bg: 'transparent' }, _press: { bg: 'transparent' } },
         label: { color: 'accentText' },
       },
     },
@@ -42,130 +64,232 @@ const segmentedControlVariants = svFor<{ root: StyleDecl; label: StyleDecl; desc
 interface SegmentedOption<T extends string> {
   value: T;
   label: string;
+  /** Leading glyph. Under `iconOnly` it is the whole segment, and `label`
+   *  becomes the accessible name. */
+  icon?: IconName;
   /** A quieter second line under the label ("Recommandé", a codec note). */
   desc?: string;
   disabled?: boolean;
 }
 
-interface SegmentedControlProps<T extends string> {
+interface Box2D {
+  x: number;
+  width: number;
+}
+
+interface SegmentedContext {
+  value: string;
+  select: (next: string) => void;
+  size: ControlSize;
+  stretch: boolean;
+  iconOnly: boolean;
+  report: (value: string, box: Box2D) => void;
+}
+
+const Context = createContext<SegmentedContext | null>(null);
+
+function useSegmented(part: string): SegmentedContext {
+  const ctx = useContext(Context);
+  if (!ctx) throw new Error(`<SegmentedControl.${part}> must be used inside its Root`);
+  return ctx;
+}
+
+interface RootProps<T extends string> {
   value: T;
+  onValueChange: (next: T) => void;
+  /** Accessible name of the group: what the segments are segments OF. */
+  label?: string;
+  /** The control shell's size; see <TextField>. */
+  size?: ControlSize;
   /** Fill the width, every segment an equal share, instead of hugging its
    *  labels. For a control that names the MODE of the screen under it rather
    *  than a value in a form: a pill floating mid-page reads as unanchored, and
    *  a full-width bar reads as the thing the page is currently showing. */
   stretch?: boolean;
-  /** The control shell's size; see <TextField>. */
-  size?: ControlSize;
-  options: readonly SegmentedOption<T>[];
-  onChange: (next: T) => void;
-  /** Accessible name of the group. */
-  label?: string;
+  /** Draw each segment as its glyph alone. For options that are universally
+   *  understood as icons and whose words would be noise. */
+  iconOnly?: boolean;
+  /** Sugar for the plain case, instead of writing an Item per option. */
+  options?: readonly SegmentedOption<T>[];
+  children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
-/** The next enabled option in `delta` direction, wrapping at the ends. */
-function step<T extends string>(
-  options: readonly SegmentedOption<T>[],
-  value: T,
-  delta: -1 | 1,
-): T | null {
-  const at = options.findIndex((option) => option.value === value);
-  for (let hop = 1; hop <= options.length; hop++) {
-    const next = options[(at + delta * hop + options.length * hop) % options.length];
-    if (next && !next.disabled) return next.value === value ? null : next.value;
-  }
-  return null;
-}
-
-function SegmentedControl<T extends string>({
+function Root<T extends string>({
   value,
-  options,
-  onChange,
+  onValueChange,
   label,
   size,
   stretch = false,
+  iconOnly = false,
+  options,
+  children,
   style,
-}: Readonly<SegmentedControlProps<T>>) {
+}: Readonly<RootProps<T>>) {
   const shell = size ?? entryDefaultSize();
   const metrics = CONTROL[shell];
+  const boxes = useRef(new Map<string, Box2D>());
+  const [thumb, setThumb] = useState<Box2D | null>(null);
+
+  const report = useCallback(
+    (option: string, box: Box2D) => {
+      boxes.current.set(option, box);
+      if (option === value) setThumb(box);
+    },
+    [value],
+  );
+
+  useEffect(() => {
+    const at = boxes.current.get(value);
+    if (at) setThumb(at);
+  }, [value]);
+
+  // Ordered by where they actually sit, so the arrows follow the row rather
+  // than the order the Items happened to mount in.
   const move = (delta: -1 | 1) => {
-    const next = step(options, value, delta);
-    // `!== null`, not truthiness: '' is a legal option value ("Auto").
-    if (next !== null) onChange(next);
+    const order = [...boxes.current.entries()].sort((a, b) => a[1].x - b[1].x).map(([key]) => key);
+    const at = order.indexOf(value);
+    const next = order[(at + delta + order.length) % order.length];
+    if (next !== undefined && next !== value) onValueChange(next as T);
   };
+
+  const ctx: SegmentedContext = {
+    value,
+    select: (next) => onValueChange(next as T),
+    size: shell,
+    stretch,
+    iconOnly,
+    report,
+  };
+
   return (
-    <FocusRegion>
-      <Box
-        row
-        self={stretch ? 'stretch' : 'flex-start'}
-        gap={GROUP_PAD}
-        p={GROUP_PAD}
-        radius={metrics.radius}
-        border="borderStrong"
-        bg="surface2"
-        accessibilityRole="radiogroup"
-        accessibilityLabel={label}
-        // A physical keyboard moves the selection with the arrows, the way a
-        // native radio group does; the D-pad already walks the FocusRegion.
-        onKeyDown={(event) => {
-          const key = event.nativeEvent.key;
-          if (key === 'ArrowLeft' || key === 'ArrowUp') move(-1);
-          else if (key === 'ArrowRight' || key === 'ArrowDown') move(1);
-        }}
-        style={style}
-      >
-        {options.map((option) => (
-          <Segment
-            key={option.value}
-            option={option}
-            size={shell}
-            active={option.value === value}
-            stretch={stretch}
-            onPress={() => onChange(option.value)}
-          />
-        ))}
-      </Box>
-    </FocusRegion>
+    <Context.Provider value={ctx}>
+      <FocusRegion>
+        <Box
+          row
+          self={stretch ? 'stretch' : 'flex-start'}
+          gap={GROUP_PAD}
+          p={GROUP_PAD}
+          radius={metrics.radius}
+          border="borderStrong"
+          bg="surface2"
+          accessibilityRole="radiogroup"
+          accessibilityLabel={label}
+          // A physical keyboard moves the selection with the arrows, the way a
+          // native radio group does; the D-pad already walks the FocusRegion.
+          onKeyDown={(event) => {
+            const key = event.nativeEvent.key;
+            if (key === 'ArrowLeft' || key === 'ArrowUp') move(-1);
+            else if (key === 'ArrowRight' || key === 'ArrowDown') move(1);
+          }}
+          style={style}
+        >
+          <Thumb at={thumb} radius={segmentRadius(shell)} />
+          {options?.map((option) => (
+            <Item key={option.value} {...option} />
+          ))}
+          {children}
+        </Box>
+      </FocusRegion>
+    </Context.Provider>
   );
 }
 
-function Segment<T extends string>({
-  option,
-  size,
-  active,
-  stretch,
-  onPress,
-}: Readonly<{
-  option: SegmentedOption<T>;
-  size: ControlSize;
-  active: boolean;
-  stretch: boolean;
-  onPress: () => void;
-}>) {
+function Item<T extends string>({
+  value,
+  label,
+  icon,
+  desc,
+  disabled,
+}: Readonly<SegmentedOption<T>>) {
+  const { value: picked, select, size, stretch, iconOnly, report } = useSegmented('Item');
+  const active = value === picked;
+  const glyph = Math.round(CONTROL[size].fontSize * 1.2);
+  const corner = { borderRadius: segmentRadius(size) };
+  // The wrapper is what the thumb measures: <Focusable> owns its own layout
+  // callback for the press dip, and a second one cannot ride the same channel.
   return (
-    <Focusable
-      role="radio"
-      checked={active}
-      label={option.label}
-      disabled={option.disabled}
-      onPress={onPress}
-      sv={segmentedControlVariants}
-      vars={{ size, active }}
+    <Box
+      onLayout={(event: LayoutChangeEvent) => report(value, event.nativeEvent.layout)}
       style={stretch ? SEGMENT_GROW : undefined}
     >
-      {(state) => (
-        <>
-          <Txt style={state.slots.label}>{option.label}</Txt>
-          {option.desc ? <Txt style={state.slots.desc}>{option.desc}</Txt> : null}
-        </>
-      )}
-    </Focusable>
+      <Focusable
+        role="radio"
+        checked={active}
+        label={label}
+        disabled={disabled}
+        onPress={() => select(value)}
+        sv={segmentedControlVariants}
+        vars={{ size, active }}
+        style={stretch ? [SEGMENT_FILL, corner] : corner}
+      >
+        {(state) => (
+          <>
+            {icon ? (
+              <Icon name={icon} size={glyph} color={active ? 'accentText' : 'text/75'} />
+            ) : null}
+            {iconOnly && icon ? null : <Txt style={state.slots.label}>{label}</Txt>}
+            {desc ? <Txt style={state.slots.desc}>{desc}</Txt> : null}
+          </>
+        )}
+      </Focusable>
+    </Box>
   );
 }
+
+// The selection travels rather than blinking, so the eye follows it across the
+// row. One layer behind every segment, which is why a segment paints no fill.
+function Thumb({ at, radius }: Readonly<{ at: Box2D | null; radius: number }>) {
+  const theme = useTheme();
+  const x = useRef(new Animated.Value(0)).current;
+  const width = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+  useEffect(() => {
+    if (!at) return;
+    if (!placed.current) {
+      placed.current = true;
+      x.setValue(at.x);
+      width.setValue(at.width);
+      return;
+    }
+    const settle = { duration: 200, easing: Easing.out(Easing.cubic), useNativeDriver: false };
+    Animated.parallel([
+      Animated.timing(x, { toValue: at.x, ...settle }),
+      Animated.timing(width, { toValue: at.width, ...settle }),
+    ]).start();
+  }, [at, x, width]);
+  if (!at) return null;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        THUMB,
+        {
+          backgroundColor: theme.colors.accentSoft,
+          borderRadius: radius,
+          transform: [{ translateX: x }],
+          width,
+        },
+      ]}
+    />
+  );
+}
+
+// A segment's corner is the group's minus the padding between them: concentric,
+// so the pair still nests once a theme restates the corner language.
+function segmentRadius(size: ControlSize): number {
+  return nestedRadius(controlRadius(CONTROL[size]), GROUP_PAD);
+}
+
+const THUMB = { position: 'absolute', top: GROUP_PAD, bottom: GROUP_PAD, left: 0 } as const;
 
 // An equal share of the row, with the label centred in it. Frozen rather than
 // built per render: it never varies.
 const SEGMENT_GROW = { flex: 1, alignItems: 'center' } as const;
 
-export type { SegmentedControlProps, SegmentedOption };
+const SEGMENT_FILL = { alignSelf: 'stretch', alignItems: 'center' } as const;
+
+const SegmentedControl = { Root, Item };
+
+export type { RootProps as SegmentedRootProps, SegmentedOption };
 export { SegmentedControl, segmentedControlVariants };

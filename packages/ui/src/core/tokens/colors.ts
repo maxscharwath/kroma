@@ -27,10 +27,21 @@ export const colors = {
   text: '#F4F3F0',
   textMuted: 'rgba(244, 243, 240, 0.62)',
   textDim: 'rgba(244, 243, 240, 0.45)',
+  /** `textMuted` and `textDim` as SOLID ink, for anything that must not carry an
+   *  alpha. A glyph is the case that forces them: a translucent stroke
+   *  composites once per path, and fading the finished glyph instead needs an
+   *  opacity layer, which is its own artefact. These are the same greys, already
+   *  blended over the page ground. */
+  glyph: '#9B9B99',
+  glyphDim: '#737373',
 
   /* Brand accent: warm amber */
   accent: '#F4B642',
   accentHover: '#FFC862',
+  /** The step UNDER the finger. A press has to read as the control going in,
+   *  so it is deeper than rest while hover is lighter: pressed is never just
+   *  hover repeated, or the two states are one state. */
+  accentPress: '#DFA436',
   accentBright: '#FFD262',
   accentInk: '#0A0A0C',
   /** The accent as INK rather than as a fill: it has to clear text contrast on
@@ -59,6 +70,8 @@ export const colors = {
    *  than a darker one - a hover has to read as the control coming forward, and
    *  every other variant's hover brightens too. */
   dangerHover: '#EF5350',
+  /** See `accentPress`. */
+  dangerPress: '#C62F2B',
 } as const;
 
 /** The light palette. `accent` deepens because one token is both fill and text,
@@ -77,9 +90,12 @@ export const lightColors: Record<keyof typeof colors, string> = {
   text: '#16151A',
   textMuted: 'rgba(22, 21, 26, 0.66)',
   textDim: 'rgba(22, 21, 26, 0.46)',
+  glyph: '#636163',
+  glyphDim: '#908E8E',
 
   accent: '#F4B642',
   accentHover: '#E0A32E',
+  accentPress: '#C98D1F',
   accentBright: '#FFC862',
   accentInk: '#0A0A0C',
   accentText: '#8A5A05',
@@ -93,6 +109,7 @@ export const lightColors: Record<keyof typeof colors, string> = {
   h265: '#106A5E',
   danger: '#A62520',
   dangerHover: '#8C1E1A',
+  dangerPress: '#711512',
 };
 
 /**

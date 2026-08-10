@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { boxStyle, color } from '#ui/core';
-import { radius } from '#ui/core/tokens';
+import { afterEach, describe, expect, it } from 'vitest';
+import { boxStyle, color, createTheme, KROMA, setTheme } from '#ui/core';
+import { CIRCLE_RADIUS, radius } from '#ui/core/tokens';
+
+afterEach(() => setTheme(KROMA));
 
 describe('boxStyle flex shorthands', () => {
   it('turns `flex` into flex: 1 but keeps an explicit factor', () => {
@@ -60,6 +62,20 @@ describe('boxStyle paint', () => {
   it('resolves a radius token but passes a raw number through', () => {
     expect(boxStyle({ radius: 'lg' }).borderRadius).toBe(radius.lg);
     expect(boxStyle({ radius: 7 }).borderRadius).toBe(7);
+  });
+
+  it('takes `circle` from the box\u2019s own side, and clamps without one', () => {
+    expect(boxStyle({ radius: 'circle', w: 40, h: 40 }).borderRadius).toBe(20);
+    // Height wins: a disc is measured on the side a capsule would cap.
+    expect(boxStyle({ radius: 'circle', w: 80, h: 24 }).borderRadius).toBe(12);
+    expect(boxStyle({ radius: 'circle', w: '100%' }).borderRadius).toBe(CIRCLE_RADIUS);
+    expect(boxStyle({ radius: 'circle' }).borderRadius).toBe(CIRCLE_RADIUS);
+  });
+
+  it('keeps a circle round under a theme that squares every corner', () => {
+    setTheme(createTheme({ radius: { xs: 0, sm: 0, md: 0, lg: 0, xl: 0, '2xl': 0, pill: 0 } }));
+    expect(boxStyle({ radius: 'pill', w: 40, h: 40 }).borderRadius).toBe(0);
+    expect(boxStyle({ radius: 'circle', w: 40, h: 40 }).borderRadius).toBe(20);
   });
 
   it('defaults a border to 1px when only the colour is given', () => {

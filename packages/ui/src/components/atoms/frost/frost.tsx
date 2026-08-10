@@ -16,7 +16,7 @@
 
 import type { ComponentType } from 'react';
 import { Platform, type StyleProp, View, type ViewStyle } from 'react-native';
-import { styles } from '#ui/core';
+import { type CornerValue, radiusValue, styles } from '#ui/core';
 import { backdropBlur } from '#ui/lib/css';
 
 const WEB = Platform.OS === 'web';
@@ -45,13 +45,15 @@ function registerFrost<P extends FrostBackdropProps>(component: ComponentType<P>
 interface FrostProps {
   /** Blur strength in CSS px; the platform intensity is derived from it. */
   amount?: number;
-  /** Corner radius of the surface this layer sits in (it clips itself). */
-  radius?: number;
+  /** Corner of the surface this layer sits in (it clips itself), by token name
+   *  or in px. */
+  radius?: CornerValue;
   tint?: 'light' | 'dark' | 'default';
 }
 
 function Frost({ amount = 12, radius = 0, tint = 'dark' }: Readonly<FrostProps>) {
-  const shape = radius > 0 ? { borderRadius: radius } : null;
+  const corner = radiusValue(radius);
+  const shape = corner > 0 ? { borderRadius: corner } : null;
   if (WEB) {
     // backdrop-filter clips to its own element's rounded border box, so the
     // radius alone bounds the frost; `overflow` stays untouched.

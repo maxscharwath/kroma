@@ -21,11 +21,11 @@
 
 import type { DimensionValue, ViewStyle } from 'react-native';
 import { type ColorValue, color } from '#ui/core/color';
-import { activeTheme, type RingToken } from '#ui/core/theme';
+import { activeTheme, type RingToken, radiusValue } from '#ui/core/theme';
 import {
   absoluteFill,
+  type CornerValue,
   type FontToken,
-  type RadiusToken,
   type ShadowToken,
   type TypeRole,
 } from '#ui/core/tokens';
@@ -80,7 +80,9 @@ export interface BoxStyleProps {
   ml?: Spacing;
 
   bg?: ColorValue;
-  radius?: RadiusToken | number;
+  /** A radius token, a raw px value, or `'circle'` for a disc — see
+   *  {@link CornerValue}. */
+  radius?: CornerValue;
   border?: ColorValue;
   borderWidth?: number;
   shadow?: ShadowToken;
@@ -154,9 +156,7 @@ const RULES = {
   ml: 'marginLeft',
 
   bg: (v) => ({ backgroundColor: color(v as string) }),
-  radius: (v) => ({
-    borderRadius: typeof v === 'number' ? v : activeTheme().radius[v as RadiusToken],
-  }),
+  radius: (v) => ({ borderRadius: radiusValue(v as CornerValue) }),
   // Before `borderWidth`, so an explicit width always beats the hairline.
   border: (v) => ({ borderColor: color(v as string), borderWidth: 1 }),
   borderWidth: 'borderWidth',
@@ -214,6 +214,12 @@ export function boxStyle(p: Readonly<BoxStyleProps>): ViewStyle {
     } else if (value) {
       Object.assign(out, rule);
     }
+  }
+  // A disc is half of ITSELF, so where the declaration also states the box's
+  // side the corner comes from there rather than from the clamped fallback.
+  if (p.radius === 'circle') {
+    const stated = typeof p.h === 'number' ? p.h : p.w;
+    out.borderRadius = radiusValue('circle', typeof stated === 'number' ? stated : undefined);
   }
   return out as ViewStyle;
 }

@@ -6,7 +6,14 @@ import { StyleSheet, type ViewStyle } from 'react-native';
 import { Focusable, type FocusableProps } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
-import { type StyleDecl, svFor, useTheme, type Variant } from '#ui/core';
+import {
+  type CornerValue,
+  radiusValue,
+  type StyleDecl,
+  svFor,
+  useTheme,
+  type Variant,
+} from '#ui/core';
 import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { useGroupMember } from '#ui/lib/group-shape';
 
@@ -113,9 +120,9 @@ interface IconButtonProps extends Omit<FocusableProps, 'children' | 'focusScale'
   active?: boolean;
   /** Fill solid accent while focused and flip the glyph to ink. */
   focusFill?: boolean;
-  /** Corner radius override. The default is the pill; a workbench tool or a
-   *  square tile passes its own. */
-  radius?: number;
+  /** Corner override, by token name or in px. The default is the pill; a
+   *  workbench tool or a square tile passes its own. */
+  radius?: CornerValue;
   /** Focus scale. Defaults to the design's 1.04, and to 1 inside a
    *  <ButtonGroup>, where a member that grows tears the line it shares with
    *  its neighbours. */
@@ -144,7 +151,8 @@ function IconButton({
   const row = control ?? group.size;
   const shell = CONTROL[row ?? entryDefaultSize()];
   const box$ = size ?? shell.height;
-  const corner = cornerRadius ?? (row ? shell.radius : undefined);
+  const asked = cornerRadius ?? (row ? shell.radius : undefined);
+  const corner = asked === undefined ? undefined : radiusValue(asked);
   const glyphSize = glyph ?? Math.round(box$ * 0.4);
   const theme = useTheme();
   // Memoised, not inlined: <Focusable> keys its own style memo on this value,

@@ -165,7 +165,7 @@ export const SubtitleAppearancePanel = forwardRef<PanelHandle, SubtitleAppearanc
         <Box
           minH={92}
           center
-          radius={14}
+          radius="lg"
           borderWidth={1}
           border="white/6"
           px={20}

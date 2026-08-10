@@ -27,7 +27,7 @@ const chipVariants = svFor<{
   slots: {
     root: { row: true, align: 'center', gap: 8, py: 6, px: 14, radius: 'pill', border: 'border' },
     label: { font: 'ui', fontWeight: '600' },
-    dot: { w: 7, h: 7, radius: 'pill', shrink: 0 },
+    dot: { w: 7, h: 7, radius: 'circle', shrink: 0 },
     count: { font: 'ui', fontWeight: '600', opacity: 0.6 },
     icon: { color: 'text' },
   },

@@ -144,18 +144,18 @@ function CardBox({
 }
 
 const s = styles({
-  card: { aspect: 16 / 9, radius: 14 },
+  card: { aspect: 16 / 9, radius: 'lg' },
   face: {
     absolute: true,
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    radius: 14,
+    radius: 'lg',
     overflow: 'hidden',
     bg: 'surface1',
   },
-  hit: { absolute: true, top: 0, right: 0, bottom: 0, left: 0, radius: 14 },
+  hit: { absolute: true, top: 0, right: 0, bottom: 0, left: 0, radius: 'lg' },
   vignette: { pointerEvents: 'none' },
   category: {
     font: 'ui',

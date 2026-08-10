@@ -55,7 +55,7 @@ function ToastCard({
             w={40}
             h={40}
             center
-            radius="pill"
+            radius="circle"
             style={typeof entry.icon === 'string' ? s.well : undefined}
           >
             {typeof entry.icon === 'string' && hasGlyph(entry.icon) ? (

@@ -310,10 +310,13 @@ function navigatorForm(at: {
   label: string | undefined;
   role: FocusRole;
   a11yState: A11yState;
+  pressed: boolean;
   pressedStyle: StyleProp<ViewStyle>;
   hoveredStyle: ViewStyle | undefined;
   onHoverIn: () => void;
   onHoverOut: () => void;
+  onPointerDown: () => void;
+  onPointerUp: () => void;
   onLongPress: FocusableProps['onLongPress'];
   hitSlop: FocusableProps['hitSlop'];
   resolve: Resolve;
@@ -322,6 +325,7 @@ function navigatorForm(at: {
   const painted = [
     at.layers ? at.layers.face : at.style,
     at.hovered ? at.hoveredStyle : null,
+    at.pressed ? at.pressedStyle : null,
     at.focusVisible ? at.focusedStyle : null,
     // Above its neighbours for as long as it holds focus. react-native-web
     // gives every view an explicit `z-index: 0`, so equal siblings paint in DOM
@@ -354,7 +358,15 @@ function navigatorForm(at: {
           // Browser targets only: this view is a plain <View>, so there is no
           // hover callback to lean on and react-native-web forwards these two
           // straight to the element.
-          ...(WEB ? { onPointerEnter: at.onHoverIn, onPointerLeave: at.onHoverOut } : null),
+          ...(WEB
+            ? {
+                onPointerEnter: at.onHoverIn,
+                onPointerLeave: at.onHoverOut,
+                onPointerDown: at.onPointerDown,
+                onPointerUp: at.onPointerUp,
+                onPointerCancel: at.onPointerUp,
+              }
+            : null),
         } as NavigatorViewProps
       }
     >
@@ -368,7 +380,7 @@ function navigatorForm(at: {
                 slots: at.resolve(pressed),
               })
             : at.children;
-        if (WEB) return <>{render(false)}</>;
+        if (WEB) return <>{render(at.pressed)}</>;
         return (
           <Painted
             painted={painted}
@@ -465,7 +477,19 @@ function Focusable<R extends AnySv = AnySv>({
     setHovered(true);
     onHoverIn?.();
   }, [onHoverIn]);
-  const hoverOut = useCallback(() => setHovered(false), []);
+  // The navigator path renders a plain view rather than a <Pressable>, so there
+  // is no onPressIn to lean on and a pointer press would go unpainted on every
+  // web screen that mounts a focus scope. These are the same callbacks
+  // react-native-web forwards for hover, one event later.
+  const [pointerPressed, setPointerPressed] = useState(false);
+  const pointerDown = useCallback(() => setPointerPressed(true), []);
+  const pointerUp = useCallback(() => setPointerPressed(false), []);
+  // A pointer that leaves mid-press ends the press: the button it slid off must
+  // not stay painted as though the finger were still down.
+  const hoverOut = useCallback(() => {
+    setHovered(false);
+    setPointerPressed(false);
+  }, []);
 
   // The scale answers the pointer as well as the remote: it is what carries
   // hover on artwork controls, which have no fill for `hoveredStyle` to paint.
@@ -562,10 +586,10 @@ function Focusable<R extends AnySv = AnySv>({
   // computed once and reused, because it is what the outer render paints with
   // and what every unpressed child asks for.
   // Whether anything downstream can report a press, so a recipe's `_press` is
-  // only resolved where it can land: the browser's navigator path renders the
-  // view directly and never presses, and a pointerless television mounts a
-  // plain view rather than a Pressable.
-  const canPress = WEB ? controlled || !scoped : !Platform.isTV || TV_HAS_POINTER;
+  // only resolved where it can land. Every browser target can: the pressable
+  // path hears it from the <Pressable>, the navigator path from the pointer
+  // handlers above. A pointerless television mounts a plain view and cannot.
+  const canPress = WEB ? true : !Platform.isTV || TV_HAS_POINTER;
   // Normalised once per distinct set: these are coats over whatever the recipe
   // resolved, layered on top of it by the render forms below.
   const coats = useMemo(
@@ -684,10 +708,13 @@ function Focusable<R extends AnySv = AnySv>({
     handleBlur,
     setBox,
     label,
+    pressed: pointerPressed,
     pressedStyle: paintedPressed,
     hoveredStyle,
     onHoverIn: hoverIn,
     onHoverOut: hoverOut,
+    onPointerDown: pointerDown,
+    onPointerUp: pointerUp,
     onLongPress,
     hitSlop,
     resolve,

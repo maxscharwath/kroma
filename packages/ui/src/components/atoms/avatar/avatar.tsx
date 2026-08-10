@@ -7,7 +7,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
-import { styles, useTheme } from '#ui/core';
+import { type CornerValue, styles, useTheme } from '#ui/core';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #F4B642, #E8743B)',
@@ -111,6 +111,9 @@ function Avatar({
   // avatar is 7.2px, and a half-pixel arc is where a rounded box looks soft on
   // one side and crisp on the other.
   const corner = Math.round(size * ratio);
+  // The ratio stays a ratio (see `roundness`), but a full disc is GEOMETRY, and
+  // saying so is what keeps it round under a theme that squares every corner.
+  const shape: CornerValue = circle || ratio === CIRCLE ? 'circle' : corner;
   const fill = gradient ?? gradientFor(seed ?? name);
   const badge = Math.max(24, size * 0.2);
   const inset = badgeInset(size, corner);
@@ -135,11 +138,11 @@ function Avatar({
     // No `overflow="hidden"`: `Img` already clips the art to `corner` itself, and
     // clipping HERE cropped the padlock badge against the disc's own corner - the
     // rounder the avatar, the more of the badge the arc cut away.
-    <Box w={size} h={size} radius={corner} center style={shadow ? s.shadow : null}>
+    <Box w={size} h={size} radius={shape} center style={shadow ? s.shadow : null}>
       <Img
         src={src}
         background={fill}
-        radius={corner}
+        radius={shape}
         fill
         alt={name}
         placeholder={initials}
@@ -153,7 +156,7 @@ function Avatar({
           w={badge}
           h={badge}
           center
-          radius="pill"
+          radius="circle"
           bg="bg/80"
         >
           <Icon name="lock" size={Math.max(14, size * 0.11)} color="accentText" />

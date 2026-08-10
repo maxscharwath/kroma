@@ -2,6 +2,7 @@
 // lot, or `@kroma/ui/tokens` / `@kroma/ui/theme` for one half.
 
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { colors, lightColors, splitAlpha, withAlpha } from '../src/core/tokens/colors.ts';
 import { cssName, cssVar } from '../src/core/tokens/css-var.ts';
@@ -25,8 +26,8 @@ const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}
 // The utility reads better than the token does: `text-muted`, not `text-text-muted`.
 const UTILITY: Partial<Record<ColorToken, string>> = { textMuted: 'muted', textDim: 'dim' };
 
-const rule = (selector: string, lines: string[], indent = '') =>
-  `${indent}${selector} {\n${lines.map((l) => `${indent}  ${l}`).join('\n')}\n${indent}}`;
+const rule = (selector: string, lines: string[]) =>
+  `${selector} {\n${lines.map((l) => `  ${l}`).join('\n')}\n}`;
 
 const palette = (p: Record<ColorToken, string>) =>
   Object.entries(p).map(([k, v]) => `--kroma-${cssName(k as ColorToken)}: ${v.toLowerCase()};`);
@@ -35,7 +36,14 @@ const palette = (p: Record<ColorToken, string>) =>
 // ground, so the runtime resolves them to a literal and no property is needed.
 export const KNOWN_COLOR_NAMES: ReadonlySet<string> = new Set(Object.keys(colors));
 
-const SOURCE_ROOTS = ['packages', 'apps', 'clients', 'modules'];
+// Anchored to the repo, NOT to the working directory: a build runs from the app
+// it is building, where these names do not exist, and a scan that silently found
+// nothing would emit no alpha steps and leave every `token/NN` fill transparent.
+const REPO = fileURLToPath(new URL('../../..', import.meta.url));
+
+export const SOURCE_ROOTS = ['packages', 'apps', 'clients', 'modules'].map((dir) =>
+  join(REPO, dir),
+);
 
 // The theme derives these from the accent wash at runtime, so no source spells
 // them out and the scan cannot find them.
@@ -92,9 +100,10 @@ const spacing = () => [
   `--card-w: ${rhythm.cardWidth}px;`,
 ];
 
+// No `--shadow-*` here: elevation moves with the ground, so it is emitted once
+// per palette below rather than a second time as a ground-independent default.
 const effects = () => [
   ...Object.entries(radius).map(([k, v]) => `--radius-${k}: ${v}px;`),
-  ...Object.entries(shadow).map(([k, v]) => `--shadow-${k}: ${v};`),
   `--ring-width: ${RING_WIDTH}px;`,
   `--ring-gap: ${RING_GAP}px;`,
   // var(), not the literal hex, so a themed accent retints every ring.
@@ -118,25 +127,27 @@ const effects = () => [
  * ground. A shell opts in when it is ready to switch both halves together.
  */
 export function tokensCss(roots: readonly string[] = SOURCE_ROOTS): string {
-  const lightElevation = Object.entries(lightShadow).map(([k, v]) => `--shadow-${k}: ${v};`);
   const alphas = scanAlphas(roots, KNOWN_COLOR_NAMES);
   for (const combo of DERIVED) alphas.add(combo);
+
+  const ground = (p: Record<ColorToken, string>, elevation: Record<string, string>) => [
+    ...palette(p),
+    ...alphaVars(alphas, p),
+    ...fadedVars(p),
+    ...Object.entries(elevation).map(([k, v]) => `--shadow-${k}: ${v};`),
+  ];
+
   return [
-    rule(':root', [
-      ...palette(colors),
-      ...alphaVars(alphas, colors),
-      ...fadedVars(colors),
-      ...ALIASES,
-      ...typography(),
-      ...spacing(),
-      ...effects(),
-    ]),
-    rule(':root[data-theme="light"]', [
-      ...palette(lightColors),
-      ...alphaVars(alphas, lightColors),
-      ...fadedVars(lightColors),
-      ...lightElevation,
-    ]),
+    rule(':root', [...ALIASES, ...typography(), ...spacing(), ...effects()]),
+    // ONE rule for the two selectors, not the same block written twice: dark IS
+    // the bare-root default. The attribute selector stands on its own, NOT as
+    // `:root[data-theme]`, because a ground has to be pinnable on any element so
+    // a subtree can hold its own - the player is the case that forces it, its
+    // chrome sitting over video and staying dark whatever the page is doing.
+    rule(':root,\n[data-theme="dark"]', ground(colors, shadow)),
+    // Later and equally specific, so it wins on `<html data-theme="light">` and
+    // a light island inside a dark one still resolves light.
+    rule('[data-theme="light"]', ground(lightColors, lightShadow)),
   ].join('\n\n');
 }
 
@@ -244,12 +255,29 @@ interface BundleFile {
   source?: unknown;
 }
 
+interface PluginContext {
+  addWatchFile?: (id: string) => void;
+}
+
 interface CssPlugin {
   name: string;
   enforce: 'pre';
-  transform(code: string, id: string): { code: string; map: null } | null;
+  transform(this: PluginContext, code: string, id: string): { code: string; map: null } | null;
   generateBundle(options: unknown, bundle: Record<string, BundleFile>): void;
 }
+
+// What the emitted stylesheet is actually derived from. Declared as watched, or
+// the dev server holds the CSS it generated at startup and a token edited in
+// TypeScript silently keeps serving the old value.
+const SOURCES = [
+  '../src/core/tokens/colors.ts',
+  '../src/core/tokens/css-var.ts',
+  '../src/core/tokens/effects.ts',
+  '../src/core/tokens/layout.ts',
+  '../src/core/tokens/typography.ts',
+  '../src/styles/base.css',
+  '../src/styles/motion.css',
+].map((path) => fileURLToPath(new URL(path, import.meta.url)));
 
 /**
  * Expands the KROMA directives, the way `@import "tailwindcss"` expands into
@@ -270,6 +298,7 @@ export function kromaTokens(): CssPlugin {
       if (!id.includes('.css')) return null;
       DIRECTIVE.lastIndex = 0;
       if (!DIRECTIVE.test(code)) return null;
+      for (const file of SOURCES) this.addWatchFile?.(file);
       return { code: expand(code), map: null };
     },
     generateBundle(_options, bundle) {

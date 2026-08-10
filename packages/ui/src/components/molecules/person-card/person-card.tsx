@@ -24,7 +24,7 @@ const personCardVariants = svFor<{
 }>()({
   slots: {
     root: { align: 'center', shrink: 0, _press: { opacity: 0.7 } },
-    face: { radius: 'pill', _focus: { ring: 'focusLift' } },
+    face: { radius: 'circle', _focus: { ring: 'focusLift' } },
     name: {
       fontWeight: '600',
       textAlign: 'center',

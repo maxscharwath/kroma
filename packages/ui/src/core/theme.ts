@@ -14,10 +14,11 @@
 // reaches.
 
 import type { TextStyle } from 'react-native';
+import { webDocument } from '#ui/lib/dom';
 import { type ColorToken, colors, lightColors, withAlpha } from './tokens/colors';
 import { CSS_COLORS, CSS_SHADOWS } from './tokens/css-palette';
+import { cssVar } from './tokens/css-var';
 import {
-  LIFT_SHADOW,
   lightShadow,
   motion,
   type RingStyle,
@@ -27,7 +28,15 @@ import {
   standoffInside,
   WASH_ALPHA,
 } from './tokens/effects';
-import { gutter, type RadiusToken, radius, rhythm, space } from './tokens/layout';
+import {
+  CIRCLE_RADIUS,
+  type CornerValue,
+  gutter,
+  type RadiusToken,
+  radius,
+  rhythm,
+  space,
+} from './tokens/layout';
 import {
   type FontToken,
   fonts,
@@ -162,7 +171,9 @@ function derive(base: ThemeTokens): Theme {
     ring: {
       focus: standoff(accent),
       focusSm: standoff(accent),
-      focusLift: standoff(accent, LIFT_SHADOW),
+      // The theme's own elevation, not a literal: a black drop shadow tuned for
+      // charcoal is a smear under a control on paper.
+      focusLift: standoff(accent, tokens.shadow.pop),
       focusGlow: standoff(accent, glow.accent),
       focusGlowSm: standoff(accent, glow.accent),
       focusWash: standoff(withAlpha(tokens.colors.accentWash, WASH_ALPHA.ring / 100)),
@@ -215,16 +226,47 @@ export function activeTheme(): Theme {
   return active;
 }
 
+/**
+ * A corner in px, from the name the design speaks it in. For the handful of
+ * places that need the NUMBER rather than a style declaration — a <Frost> layer
+ * clipping itself, a corner nested inside another, an animated value — so they
+ * follow a theme's corner language instead of freezing the default scale.
+ *
+ * `side` is the box's own side, and only `'circle'` reads it: a disc is half of
+ * itself, so it resolves without the theme and no theme can flatten it.
+ */
+export function radiusValue(corner: CornerValue, side?: number): number {
+  if (typeof corner === 'number') return corner;
+  if (corner === 'circle') return side === undefined ? CIRCLE_RADIUS : side / 2;
+  return active.radius[corner];
+}
+
 /** Monotonic; bumped by every `setTheme`. Anything that caches resolved styles
  *  keys on it (see recipe.ts, styles.ts, box-style.ts). */
 export function themeVersion(): number {
   return version;
 }
 
+// The page furniture is authored CSS reading these properties, so a theme set
+// in JavaScript has to reach the cascade or the ground stays on `data-theme`'s.
+// A token the theme left alone still resolves to its own property (see `paint`),
+// which is why releasing it beats writing it back as a self-reference.
+function publish(theme: Theme): void {
+  const root = webDocument()?.documentElement;
+  if (!root) return;
+  const write = (name: string, value: string) => {
+    if (value.startsWith('var(')) root.style.removeProperty(name);
+    else root.style.setProperty(name, value);
+  };
+  for (const [token, value] of Object.entries(theme.colors)) write(cssVar(token), value);
+  for (const [token, value] of Object.entries(theme.shadow)) write(`--shadow-${token}`, value);
+}
+
 export function setTheme(theme: Theme): void {
   if (theme === active) return;
   active = theme;
   version += 1;
+  publish(theme);
   for (const listener of listeners) listener();
 }
 

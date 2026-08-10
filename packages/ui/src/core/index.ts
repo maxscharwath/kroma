@@ -27,6 +27,7 @@ export {
   KROMA,
   KROMA_LIGHT,
   onThemeChange,
+  radiusValue,
   setTheme,
   themed,
   themeVersion,

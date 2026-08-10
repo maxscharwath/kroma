@@ -7,20 +7,25 @@ import type { ControlSize } from '#ui/lib/field-shell';
 
 export interface ThemeSwitchProps {
   size?: ControlSize;
-  /** Defaults to the product's French. */
-  labels?: Readonly<Record<ThemeMode, string>>;
   /** Accessible name of the group. Defaults to the product's French. */
   label?: string;
+  /** Accessible names of the three modes, since the glyphs carry no words.
+   *  Defaults to the product's French. */
+  labels?: Readonly<Record<ThemeMode, string>>;
   style?: StyleProp<ViewStyle>;
 }
 
 const FR: Record<ThemeMode, string> = { system: 'Système', light: 'Clair', dark: 'Sombre' };
 
+// Sun, moon, and the machine deciding: the three the whole web already reads
+// without a word beside them.
+const GLYPH = { system: 'device-desktop', light: 'sun', dark: 'moon' } as const;
+
 const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 /**
  * Dark / light / system, persisted in a cookie so the server can render the
- * chosen palette instead of flashing the default one.
+ * chosen ground instead of flashing the default one.
  *
  * Reads the stored mode in an effect rather than during render: the server has
  * no cookie jar, and a value that differs between the two renders is a
@@ -28,8 +33,8 @@ const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
  */
 export function ThemeSwitch({
   size = 'sm',
-  labels = FR,
   label = 'Thème',
+  labels = FR,
   style,
 }: Readonly<ThemeSwitchProps>) {
   const [mode, setMode] = useState<ThemeMode>('system');
@@ -50,16 +55,25 @@ export function ThemeSwitch({
   }, [mode]);
 
   return (
-    <SegmentedControl
+    <SegmentedControl.Root
       label={label}
       size={size}
+      iconOnly
       value={mode}
-      options={ORDER.map((value) => ({ value, label: labels[value] }))}
-      onChange={(next) => {
+      onValueChange={(next) => {
         setMode(next);
         writeMode(next);
       }}
       style={style}
-    />
+    >
+      {ORDER.map((value) => (
+        <SegmentedControl.Item
+          key={value}
+          value={value}
+          label={labels[value]}
+          icon={GLYPH[value]}
+        />
+      ))}
+    </SegmentedControl.Root>
   );
 }

@@ -42,7 +42,9 @@ const MAX_HEIGHT = 320;
 const ROW_GUESS = 44;
 const PANEL_PAD = 6;
 const ROW_RADIUS = CONTROL.sm.radius;
-const PANEL_RADIUS = ROW_RADIUS + PANEL_PAD;
+// Concentric with the rows inside it: the shell's corner plus the pad between
+// them lands exactly on this token, so the pair stays nested under any theme.
+const PANEL_RADIUS = 'xl';
 
 function firstEnabled(options: readonly SelectOption[], value: string): number {
   const chosen = options.findIndex((option) => option.value === value && !option.disabled);

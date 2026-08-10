@@ -77,14 +77,14 @@ export function CreditsCard({
       z={38}
       w={px(CARD_WIDTH)}
       maxW="100%"
-      radius={px(20)}
+      radius={px(theme.radius['2xl'])}
       borderWidth={1}
       border="white/12"
       bg="rgba(16, 16, 20, 0.9)"
       p={px(20)}
       style={s.cardShadow}
     >
-      <Box h={px(150)} mb={px(16)} radius={px(14)} overflow="hidden">
+      <Box h={px(150)} mb={px(16)} radius={px(theme.radius.lg)} overflow="hidden">
         <Img src={item.posterUrl ?? null} background={ART_FILL} fill />
         <Box fill style={[s.vignette, gradient(VIGNETTE)]} />
         <Box absolute left={px(14)} bottom={px(14)} w={ring} h={ring} center>
@@ -97,7 +97,7 @@ export function CreditsCard({
               fill={theme.colors.accent}
             />
           </Box>
-          <Box w={px(42)} h={px(42)} center radius="pill" bg="#101014">
+          <Box w={px(42)} h={px(42)} center radius="circle" bg="#101014">
             <Txt style={[s.countdown, { fontSize: px(COUNTDOWN_SIZE) }]}>{String(secondsLeft)}</Txt>
           </Box>
         </Box>

@@ -292,7 +292,7 @@ function AlphabetRail({
           align="center"
           justify="center"
           bg="accent"
-          radius={22}
+          radius="2xl"
           style={{
             right: ROW_W + PAD * 2 + 18,
             top: bubble.y - BUBBLE / 2,

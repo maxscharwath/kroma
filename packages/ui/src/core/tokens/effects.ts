@@ -46,7 +46,7 @@ export const RING_WIDTH = 4;
  * Done with padding, every component owes the same sum by hand - outer = inner
  * + gap - and gets it wrong (a 6px frame around a 13px corner needs a 19px
  * radius, not 16). */
-export const RING_GAP = 4;
+export const RING_GAP = 6;
 
 /** How much room a focused control needs beside it, for anything that clips or
  * abuts it - a scroll view's edge, the capsule a nav item sits in: the gap, the

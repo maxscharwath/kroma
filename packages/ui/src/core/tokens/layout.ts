@@ -21,6 +21,7 @@ export const space = {
 } as const;
 
 export const radius = {
+  xs: 6,
   sm: 8,
   md: 10,
   lg: 13,
@@ -42,6 +43,23 @@ export function nestedRadius(outer: number, inset: number): number {
 export interface RadiusRegistry {}
 
 export type RadiusToken = TokenOf<typeof radius, RadiusRegistry>;
+
+/** What `'circle'` falls back to where the box's own side is not known at style
+ *  time. Every target clamps a corner to half the shorter side, so an
+ *  over-large value IS the circle. */
+export const CIRCLE_RADIUS = 9999;
+
+/**
+ * Everything a corner may be written as: a radius token, a raw px value, or
+ * `'circle'`.
+ *
+ * `'circle'` is GEOMETRY, not corner language, and deliberately not a member of
+ * the scale above — a theme restating every radius can square a button, a chip
+ * and a list row, which is the point of restating them, but it must not flatten
+ * a spinner, a radio or an avatar into a box. Those are round because of what
+ * they are, not because of how this design system likes its corners.
+ */
+export type CornerValue = RadiusToken | 'circle' | number;
 
 /** Layout gutters. `tv` is the 10-foot side padding (overscan-safe on every
  * panel we ship to). */

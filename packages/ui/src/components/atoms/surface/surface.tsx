@@ -8,7 +8,7 @@
 import type { ReactNode } from 'react';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Frost } from '#ui/components/atoms/frost';
-import { sv, useTheme, type Variant } from '#ui/core';
+import { type BoxStyleProps, boxStyle, splitShorthand, sv, useTheme, type Variant } from '#ui/core';
 
 const surfaceVariants = sv({
   base: { radius: 'lg' },
@@ -59,13 +59,20 @@ function Surface({
 }: Readonly<SurfaceProps>) {
   const defaultRadius = useTheme().radius.lg;
   const { root } = surfaceVariants({ tone, pad, elevated });
+  // The recipe is the FLOOR, not the ceiling: <Box> puts its own `style` prop
+  // last, so passing the recipe there let it beat every shorthand the caller
+  // wrote and a `radius="xl"` was silently dropped. Resolved here instead, and
+  // laid over the recipe in the order a reader expects: recipe, shorthands,
+  // one-off `style`.
+  const { shorthand, rest, any } = splitShorthand(box);
+  const asked = any ? boxStyle(shorthand as BoxStyleProps) : null;
   // Glass frosts what sits behind it (see <Frost>); the other tones are
   // opaque, where a backdrop blur has nothing to do. The radius is read off the
-  // resolved slot rather than flattened out of the whole style prop: the
+  // resolved layers rather than flattened out of the whole style prop: the
   // caller's own `style` cannot move a backdrop it does not know about.
-  const frostRadius = root.borderRadius;
+  const frostRadius = asked?.borderRadius ?? root.borderRadius;
   return (
-    <Box {...box} style={[root, style]}>
+    <Box {...rest} style={[root, asked, style]}>
       {tone === 'glass' ? (
         <Frost radius={typeof frostRadius === 'number' ? frostRadius : defaultRadius} />
       ) : null}

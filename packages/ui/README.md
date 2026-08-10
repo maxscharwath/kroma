@@ -338,9 +338,9 @@ hand-written map is a small change, local to `glyphs.ts`.
 ## Tokens
 
 `src/core/tokens/*.ts` is the **single source of truth** for the design; it is
-also what builds the default theme (see "Styling: Themes"). `bun run tokens:gen`
+also what builds the default theme (see "Styling: Themes"). `kromaUI()` (`@kroma/ui/vite`)
 generates the CSS custom properties the web and desktop clients consume
-(`src/styles/tokens/*.css`) from it. CI runs `bun run tokens:check`, which
+(`the CSS custom properties`) from it. The plugin emits them at build time, which
 regenerates and fails on any diff, so the two cannot drift.
 
 Never edit the generated CSS.

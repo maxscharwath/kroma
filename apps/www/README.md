@@ -18,7 +18,7 @@ Chosen because it matches the house web stack ([`clients/web`](../web) is also
 TanStack Start) while giving a marketing site the SEO of real per-page HTML.
 
 - **Framework:** TanStack Start + TanStack Router (file-based routes in `src/routes`).
-- **Styling:** Tailwind **v4**, importing `@kroma/ui/tailwind.css` (the kit's
+- **Styling:** Tailwind **v4**, importing `@kroma/ui/css` (the kit's
   `@theme`) — utilities like `bg-bg`, `text-accent`, `font-display` are the KROMA tokens.
 - **Blog:** `.mdx` files in [`content/blog/`](./content/blog), compiled with
   `@mdx-js/rollup` (frontmatter, GFM, anchored headings, Shiki code). See the
@@ -176,7 +176,7 @@ apps/www/
 │  │  ├─ seo.ts        the <head> helper (title, canonical, OG, hreflang)
 │  │  └─ site.ts       the domain, contact addresses and nav
 │  ├─ routes/          file-based routes (home, download, blog, privacy, support)
-│  └─ styles.css       imports @kroma/ui/tailwind.css + site-only @utility/@theme
+│  └─ styles.css       imports @kroma/ui/css + site-only @utility/@theme
 ├─ vite.config.ts      TanStack Start (static prerender) + MDX pipeline
 └─ wrangler.jsonc      assets-only Cloudflare Worker (kroma.tv)
 ```

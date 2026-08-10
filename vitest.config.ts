@@ -21,7 +21,6 @@ const alias = [
   { find: /^#tv\//, replacement: dir('./packages/tv/src/') },
   { find: /^#ui\//, replacement: dir('./packages/ui/src/') },
   { find: /^#web\//, replacement: dir('./clients/web/src/') },
-  { find: /^#site\//, replacement: dir('./apps/www/src/') },
   // @kroma/ui is written against React Native, which under the test runner
   // (as in every browser target) resolves to react-native-web.
   { find: /^react-native$/, replacement: 'react-native-web' },

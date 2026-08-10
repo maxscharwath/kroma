@@ -3,6 +3,9 @@
   "version": "0.1.3",
   "private": true,
   "type": "module",
+  "imports": {
+    "#site/*": "./src/*"
+  },
   "description": "KROMA showcase site (kroma.tv) TanStack Start, prerendered to static assets on Cloudflare. Marketing pages + an MD/MDX blog, styled from the @kroma/ui design tokens.",
   "scripts": {
     "dev": "vite dev --port 3100",

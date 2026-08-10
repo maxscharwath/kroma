@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
+  "imports": {
+    "#site/*": "./src/*"
+  },
   "description": "KROMA module registry (modules.kroma.tv): a TanStack Start app rendered on the edge, serving the modules.json catalog read live from GitHub Releases plus a browsable grid of every module.",
   "scripts": {
     "dev": "vite dev --port 3300",

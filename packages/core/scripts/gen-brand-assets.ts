@@ -225,7 +225,7 @@ function markSvg(): string {
 }
 
 const MARK = markSvg();
-for (const site of ['clients/web', 'sites/modules']) {
+for (const site of ['clients/web', 'apps/modules']) {
   await Bun.write(`${REPO}/${site}/public/favicon.svg`, `${MARK}\n`);
   console.log('wrote', `${REPO}/${site}/public/favicon.svg`);
 }
@@ -238,7 +238,7 @@ export const KROMA_MARK_SVG =
   '${MARK}';
 export const KROMA_MARK_DATA_URI = \`data:image/svg+xml,\${encodeURIComponent(KROMA_MARK_SVG)}\`;
 `;
-for (const w of ['sites/packages/worker', 'sites/modules/worker']) {
+for (const w of ['apps/packages/worker', 'apps/modules/worker']) {
   await Bun.write(`${REPO}/${w}/brand.ts`, workerBrand);
   console.log('wrote', `${REPO}/${w}/brand.ts`);
 }

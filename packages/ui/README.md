@@ -462,7 +462,7 @@ its titlebar, so the component keeps the room on a phone.
 
 The workbench is `@kroma/workbench`, a package of its own. This one provides the
 stories and the demos and nothing else: no registry, no config, no mark. Each
-shell configures its own — see `clients/kit/src/config.tsx`.
+shell configures its own — see `apps/kit/src/config.tsx`.
 It is a tool, not part of the library, and it drags in every story: an app that
 is not being inspected should not pay for it. The TV entry loads it lazily,
 behind the `?workbench` flag.

@@ -20,7 +20,7 @@ const flag = (name: string, fallback: string) =>
 // Paths are resolved from the REPO ROOT, not the cwd: this runs through a
 // workspace filter, so the cwd is packages/ui.
 const ROOT = new URL('../../../', import.meta.url).pathname;
-const dist = resolve(ROOT, flag('dir', 'clients/kit/dist'));
+const dist = resolve(ROOT, flag('dir', 'apps/kit/dist'));
 const out = resolve(ROOT, flag('out', 'packages/ui/.shots'));
 const only = flag('only', '');
 const withMatrix = args.includes('--matrix');

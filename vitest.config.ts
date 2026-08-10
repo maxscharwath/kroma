@@ -21,7 +21,7 @@ const alias = [
   { find: /^#tv\//, replacement: dir('./packages/tv/src/') },
   { find: /^#ui\//, replacement: dir('./packages/ui/src/') },
   { find: /^#web\//, replacement: dir('./clients/web/src/') },
-  { find: /^#site\//, replacement: dir('./sites/www/src/') },
+  { find: /^#site\//, replacement: dir('./apps/www/src/') },
   // @kroma/ui is written against React Native, which under the test runner
   // (as in every browser target) resolves to react-native-web.
   { find: /^react-native$/, replacement: 'react-native-web' },
@@ -66,8 +66,8 @@ const setupFiles = [dir('./vitest.setup.ts')];
 // root (`@kroma/lan-beacon`, whose entry point IS its root), its source tree,
 // and the build-time trees beside it (`worker/`, `bundler/`, `vite/`).
 const include = [
-  '{sites,packages,clients}/*/*.test.ts',
-  '{sites,packages,clients}/*/{src,worker,bundler,vite}/**/*.test.{ts,tsx}',
+  '{apps,packages,clients}/*/*.test.ts',
+  '{apps,packages,clients}/*/{src,worker,bundler,vite}/**/*.test.{ts,tsx}',
   'modules/*/ui/src/**/*.test.{ts,tsx}',
 ];
 

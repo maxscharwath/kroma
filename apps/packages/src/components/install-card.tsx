@@ -13,7 +13,11 @@ export function InstallCard({ url }: Readonly<{ url: string }>) {
       </Txt>
       <Box bg="surface1" p={16} radius="lg">
         <Row gap={12} between>
-          <Txt font="mono">{url}</Txt>
+          <Box minW={0} shrink={1}>
+            <Txt font="mono" lines={1}>
+              {url}
+            </Txt>
+          </Box>
           <CopyAction value={url} />
         </Row>
       </Box>

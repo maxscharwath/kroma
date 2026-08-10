@@ -68,6 +68,18 @@ describe('while the picker is open', () => {
     const { result } = renderHook(() => useNearbyTvs({ client: null }));
     expect(result.current.devices).toEqual([]);
   });
+
+  // Which install this phone belongs to is only used to DROP rows minted by
+  // another one. A server that will not say must therefore cost nothing: the
+  // picker still lists what it found rather than going empty.
+  it('still lists the TVs when the server will not say which install it is', async () => {
+    const client = stubClient();
+    (client as unknown as { health: () => Promise<unknown> }).health = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    const { result } = renderHook(() => useNearbyTvs({ client }));
+    await waitFor(() => expect(result.current.devices).toHaveLength(2));
+  });
 });
 
 describe('a phone that can hear its own link', () => {

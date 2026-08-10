@@ -224,4 +224,15 @@ mod tests {
         let named = vec!["null".to_string()];
         assert!(matches!(may_announce("null", &named), Placement::Placed));
     }
+
+    // An `Origin` header is whatever the caller wrote. One that names no host at
+    // all must place nobody rather than fall through as "not an address I can
+    // rule out", which is how a permissive default gets written by accident.
+    #[test]
+    fn an_origin_with_no_host_is_on_nobodys_network() {
+        assert!(!on_this_network("http://"));
+        assert!(!on_this_network("not an origin"));
+        assert!(!on_this_network(""));
+        assert!(refused("http://"));
+    }
 }

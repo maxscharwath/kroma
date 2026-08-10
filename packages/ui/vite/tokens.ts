@@ -1,6 +1,7 @@
 // The design system as CSS. A stylesheet writes `@import "@kroma/ui"` for the
 // lot, or `@kroma/ui/tokens` / `@kroma/ui/theme` for one half.
 
+import { fileURLToPath } from 'node:url';
 import { colors, lightColors } from '../src/core/tokens/colors.ts';
 import { glow, motion, RING_GAP, RING_WIDTH, shadow } from '../src/core/tokens/effects.ts';
 import { gutter, radius, rhythm, space } from '../src/core/tokens/layout.ts';
@@ -96,11 +97,115 @@ export function themeCss(): string {
   ]);
 }
 
-/** Fonts, Tailwind, the tokens and the bridge: everything an app entry needs. */
+// Latin and latin-ext cover English and French; both families are variable, so
+// one file per subset carries the whole 400-800 range.
+const SUBSETS = {
+  latin:
+    'U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD',
+  'latin-ext':
+    'U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF',
+};
+
+const FONT_DIR = fileURLToPath(new URL('../src/assets/fonts/', import.meta.url));
+
+/**
+ * The two typefaces, SELF-HOSTED.
+ *
+ * A KROMA server is self-hosted, so a television with no route to the internet
+ * is a normal deployment: a CDN request there cannot succeed, it can only time
+ * out with first paint waiting behind it. Absolute paths so Vite fingerprints
+ * and emits the woff2 from wherever the importing stylesheet lives.
+ */
+export function fontsCss(): string {
+  const slug = (family: string) => family.toLowerCase().replace(/\s+/g, '-');
+  return Object.values(fonts)
+    .flatMap((family) =>
+      Object.entries(SUBSETS).map(([subset, range]) =>
+        rule('@font-face', [
+          `font-family: "${family}";`,
+          'font-style: normal;',
+          'font-weight: 400 800;',
+          'font-display: swap;',
+          `src: url("${FONT_DIR}${slug(family)}-${subset}.woff2") format("woff2");`,
+          `unicode-range: ${range};`,
+        ]),
+      ),
+    )
+    .join('\n\n');
+}
+
+/** Keyframes the components animate with, on every browser target. */
+export function motionCss(): string {
+  return [
+    // The <Img> reveal. A rule rather than an opacity driven from React: the
+    // element's resting state has to be VISIBLE, or art that is already decoded
+    // stays invisible when the state that would reveal it never arrives.
+    '@keyframes kroma-img-in {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}',
+    '@keyframes kroma-breathe {\n  0%, 100% { opacity: 0.45; }\n  50% { opacity: 0.85; }\n}',
+    '@keyframes fade-in {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}',
+    '@keyframes pop-in {\n  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }\n  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }\n}',
+  ].join('\n\n');
+}
+
+/** The reset and page furniture a browser target wants. A TV shell supplies its
+ *  own (it hides overflow and owns its focus visuals), so this is not in the
+ *  `tokens` half every target shares. */
+export function baseCss(): string {
+  return [
+    '*, *::before, *::after { box-sizing: border-box; }',
+    'html, body, #root { height: 100%; }',
+    rule('body', [
+      'margin: 0;',
+      'background: var(--kroma-bg);',
+      'color: var(--kroma-text);',
+      'font: var(--type-body);',
+      '-webkit-font-smoothing: antialiased;',
+      'text-rendering: optimizeLegibility;',
+      'overflow-x: hidden;',
+    ]),
+    rule('::selection', ['background: var(--kroma-accent-soft);', 'color: var(--kroma-text);']),
+    'a { color: inherit; text-decoration: none; }',
+    'button { font-family: var(--font-ui); }',
+    // The ring is an outline standing off the control, so it already takes the
+    // control's corners: this must never set border-radius.
+    rule(':focus-visible', ['outline: var(--ring-outline);', 'outline-offset: var(--ring-gap);']),
+    // Except inside a field, where <TextField> owns the focus visual.
+    'input:focus-visible, textarea:focus-visible { box-shadow: none; }',
+    rule('.kroma-overline', [
+      'font: var(--type-overline);',
+      'letter-spacing: var(--tracking-overline);',
+      'text-transform: uppercase;',
+      'color: var(--kroma-text-muted);',
+    ]),
+    // Off-screen tiles skip layout and paint until they near the viewport while
+    // staying in the DOM, so remote focus can still reach them.
+    rule('.kroma-poster', ['content-visibility: auto;', 'contain-intrinsic-size: 200px 320px;']),
+    // Fluid, unlayered so they beat the token defaults, which are TV constants.
+    rule(':root', [
+      '--gutter-web: clamp(1rem, 4vw, 3.5rem);',
+      '--card-w: clamp(8.25rem, 30vw, 13rem);',
+    ]),
+    rule('*', [
+      'scrollbar-color: var(--kroma-border-strong) transparent;',
+      'scrollbar-width: thin;',
+    ]),
+    '::-webkit-scrollbar { width: 10px; height: 10px; }',
+    '::-webkit-scrollbar-track { background: transparent; }',
+    rule('::-webkit-scrollbar-thumb', [
+      'background-clip: padding-box;',
+      'border: 3px solid transparent;',
+      'border-radius: 999px;',
+      'background-color: var(--kroma-border-strong);',
+    ]),
+    '::-webkit-scrollbar-thumb:hover { background-color: var(--kroma-text-dim); }',
+    '::-webkit-scrollbar-corner { background: transparent; }',
+  ].join('\n\n');
+}
+
+/** The whole design system, framework-free: type, tokens, motion and the reset.
+ *  A Tailwind app adds `@import "tailwindcss"` and `@kroma/ui/css/theme`. */
 export function kromaCss(): string {
-  return ['@import "@kroma/ui/fonts.css";', '@import "tailwindcss";', tokensCss(), themeCss()].join(
-    '\n',
-  );
+  return [fontsCss(), tokensCss(), motionCss(), baseCss()].join('\n\n');
 }
 
 // A plain `@import`, the spelling Tailwind v4 uses for itself, rather than a
@@ -108,12 +213,15 @@ export function kromaCss(): string {
 // understand. Under `/css` because a bare `@kroma/ui` resolves to the package's
 // TypeScript entry, and Tailwind - which resolves imports itself - then tries to
 // parse TypeScript as a stylesheet.
-const DIRECTIVE = /@import\s+["']@kroma\/ui\/css(\/tokens|\/theme)?["']\s*;/g;
+const DIRECTIVE = /@import\s+["']@kroma\/ui\/css(\/[a-z]+)?["']\s*;/g;
 
 const EXPANSION: Record<string, () => string> = {
   '': kromaCss,
   '/tokens': tokensCss,
   '/theme': themeCss,
+  '/fonts': fontsCss,
+  '/motion': motionCss,
+  '/base': baseCss,
 };
 
 const expand = (code: string) =>

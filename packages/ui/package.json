@@ -17,13 +17,9 @@
     "./tokens/colors": "./src/core/tokens/colors.ts",
     "./tokens/*": "./src/core/tokens/*.ts",
     "./fonts": "./src/assets/fonts.ts",
-    "./styles.css": "./src/styles/styles.css",
-    "./fonts.css": "./src/styles/fonts.css",
-    "./img.css": "./src/styles/img.css",
     "./vite": "./vite/index.ts",
     "./css": "./src/styles/kroma.css",
     "./css/*": "./src/styles/kroma.css",
-    "./tailwind.css": "./src/styles/tailwind.css",
     "./src/assets/*": "./src/assets/*"
   },
   "scripts": {

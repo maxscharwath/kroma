@@ -1,10 +1,10 @@
+import { site } from '@kroma/site-meta';
 import { IconBrandGithub, IconMenu2 } from '@tabler/icons-react';
 import { Button } from '#site/components/button';
 import { LangSwitcher } from '#site/components/lang-switcher';
 import { L } from '#site/components/localized-link';
 import { Logo } from '#site/components/logo';
 import { localizePath, useLang } from '#site/lib/i18n';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 // Built per-render from the active locale: the anchors point at the localized

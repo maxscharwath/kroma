@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { InstallCard } from '#site/components/install-card';
 import { ReleaseHeadline } from '#site/components/release-headline';
-import { ReleaseRow } from '#site/components/release-row';
+import { ReleaseList } from '#site/components/release-list';
+import { SiteFooter } from '#site/components/site-footer';
 import { SiteHeader } from '#site/components/site-header';
 import { getCatalog } from '#site/lib/get-catalog';
 import { Box, Column, Row } from '#ui/components/atoms/box';
-import { Divider } from '#ui/components/atoms/divider';
 import { Txt } from '#ui/components/atoms/text';
 
 export const Route = createFileRoute('/browse')({
@@ -17,6 +17,7 @@ function Browse() {
   const { rows, repo, fetchedAt, source } = Route.useLoaderData();
   const latest = rows.find((r) => r.channel === 'stable');
   const nightly = rows.find((r) => r.channel === 'nightly');
+  const current = [latest, nightly].filter((r) => r !== undefined);
 
   return (
     <Box bg="bg" minH="100%">
@@ -34,29 +35,20 @@ function Browse() {
           <InstallCard url={source} />
 
           <Row gap={16} wrap align="stretch">
-            {latest ? <ReleaseHeadline label="Latest stable" release={latest} primary /> : null}
+            {latest ? <ReleaseHeadline label="Latest stable" release={latest} /> : null}
             {nightly ? <ReleaseHeadline label="Nightly" release={nightly} /> : null}
           </Row>
 
-          <Column gap={12}>
-            <Txt variant="overline" color="accentText">
-              All releases
-            </Txt>
-            <Box bg="surface1" radius="xl" overflow="hidden">
-              {rows.map((r, i) => (
-                <Column key={r.spk}>
-                  {i > 0 ? <Divider /> : null}
-                  <ReleaseRow release={r} />
-                </Column>
-              ))}
-            </Box>
-          </Column>
+          <ReleaseList releases={rows} current={current} />
 
           <Txt color="textDim" variant="meta">
-            Served from github.com/{repo} · catalog refreshed {fetchedAt.slice(0, 16)}
+            {fetchedAt
+              ? `Served from github.com/${repo} · catalog refreshed ${fetchedAt.slice(0, 16)}`
+              : `Served from github.com/${repo} · the release list is unavailable right now`}
           </Txt>
         </Column>
       </Box>
+      <SiteFooter source={source} />
     </Box>
   );
 }

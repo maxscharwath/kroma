@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import { IconBrandDocker, IconBrandRust, IconInfoCircle, IconServer } from '@tabler/icons-react';
 import { Callout } from '#site/components/download/callout';
 import { CodeBlock } from '#site/components/download/code-block';
@@ -5,7 +6,6 @@ import type { IconComponent } from '#site/components/download/icon';
 import { Panel } from '#site/components/download/panel';
 import { StepList } from '#site/components/download/step-list';
 import { Rich } from '#site/components/rich';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 // Kept in step with the repo's docker-compose.yml.

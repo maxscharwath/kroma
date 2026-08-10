@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import {
   IconAlertTriangle,
   IconBrandAndroid,
@@ -23,7 +24,6 @@ import {
   type PlatformFamilyProps,
 } from '#site/components/download/platform-family';
 import { Rich } from '#site/components/rich';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 // A link label is a message of its own: an anchor cannot live inside a

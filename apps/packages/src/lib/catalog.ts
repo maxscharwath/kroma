@@ -63,6 +63,19 @@ const MAX_SIDECARS = 60;
 const edgeCache = (): Cache | undefined =>
   (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
 
+// The last catalog GitHub actually answered with, per environment.
+//
+// The edge cache above is the real one, but it only exists on a Worker: the dev
+// server has no `caches.default` at all, so without this every reload spends one
+// of the sixty anonymous GitHub requests an hour and the page dies on the
+// sixty-first. It also covers a Worker whose cache is cold when GitHub blips.
+//
+// Keyed on the env rather than held in a module variable, so a different binding
+// (a token added, a repo pointed elsewhere) never answers from the old one.
+const memory = new WeakMap<Env, { at: number; catalog: Catalog }>();
+
+const MEMORY_TTL = 300_000;
+
 function ghHeaders(env: Env): HeadersInit {
   const h: Record<string, string> = {
     'user-agent': 'kroma-package-source-worker',
@@ -134,9 +147,12 @@ export async function loadCatalog(
   const cache = edgeCache();
   const hit = await cache?.match(CACHE_FRESH);
   if (hit) return (await hit.json()) as Catalog;
+  const held = memory.get(env);
+  if (!cache && held && Date.now() - held.at < MEMORY_TTL) return held.catalog;
   try {
     const catalog = await fetchCatalogFromGitHub(env);
     const body = JSON.stringify(catalog);
+    memory.set(env, { at: Date.now(), catalog });
     if (cache) {
       waitUntil(cache.put(CACHE_FRESH, jsonResponse(body, 300)));
       waitUntil(cache.put(CACHE_STALE, jsonResponse(body, 604800)));
@@ -145,6 +161,7 @@ export async function loadCatalog(
   } catch (err) {
     const stale = await cache?.match(CACHE_STALE);
     if (stale) return (await stale.json()) as Catalog;
+    if (held) return held.catalog;
     throw err;
   }
 }

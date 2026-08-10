@@ -1,5 +1,5 @@
+import { site } from '@kroma/site-meta';
 import type { ReactNode } from 'react';
-import { site } from '#site/lib/site';
 
 /** The off-site destinations this page links to. Language-neutral, so they live
  *  with the components rather than in the catalog: the hero, the family panels and

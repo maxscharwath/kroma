@@ -20,7 +20,13 @@ export function NotesDialog({ title, notes, href, onClose }: Readonly<NotesDialo
       footer={
         <Row gap={10} justify="flex-end">
           <Button variant="ghost" size="sm" label="Close" onPress={onClose} />
-          <Button variant="outline" size="sm" href={href} label="View on GitHub" />
+          <Button
+            variant="primary"
+            size="sm"
+            icon="brand-github"
+            href={href}
+            label="View on GitHub"
+          />
         </Row>
       }
     >

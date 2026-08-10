@@ -1,8 +1,8 @@
+import { site } from '@kroma/site-meta';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { AccentHeading } from '#site/components/home/heading';
 import { WheelMark } from '#site/components/wheel-mark';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 export function FinalCta() {

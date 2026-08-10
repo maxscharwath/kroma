@@ -1,0 +1,131 @@
+import { createFileRoute } from '@tanstack/react-router';
+import { type ReactNode, useState } from 'react';
+import type { ModuleEntry } from '#site/catalog';
+import { CopyAction } from '#site/components/copy-action';
+import { ModuleBuilds } from '#site/components/module-builds';
+import { ModuleDownload } from '#site/components/module-download';
+import { ModuleHistory } from '#site/components/module-history';
+import { RegistryUrl } from '#site/components/registry-url';
+import { SiteFooter } from '#site/components/site-footer';
+import { SiteHeader } from '#site/components/site-header';
+import { downloads } from '#site/lib/artifacts';
+import { depEntries } from '#site/lib/deps';
+import { getCatalog } from '#site/lib/get-catalog';
+import { getModuleHistory } from '#site/lib/get-module';
+import { Badge } from '#ui/components/atoms/badge';
+import { Box, Column, Row } from '#ui/components/atoms/box';
+import { Button } from '#ui/components/atoms/button';
+import { Icon } from '#ui/components/atoms/icon';
+import { Img } from '#ui/components/atoms/img';
+import { Txt } from '#ui/components/atoms/text';
+import { EmptyState } from '#ui/components/molecules/empty-state';
+
+export const Route = createFileRoute('/module/$id')({
+  loader: async ({ params }) => {
+    const [catalog, history] = await Promise.all([
+      getCatalog(),
+      getModuleHistory({ data: { id: params.id } }),
+    ]);
+    return { ...catalog, history, id: params.id };
+  },
+  component: ModulePage,
+});
+
+const ICON = 96;
+const ICON_RADIUS = 24;
+
+function Page({ children, registry }: Readonly<{ children: ReactNode; registry: string }>) {
+  return (
+    <Box bg="bg" minH="100%">
+      <SiteHeader title="Module registry" />
+      <Box px={28} py={32}>
+        <Column gap={28} w="100%" maxW={1080} mx="auto">
+          <Row>
+            <Button variant="ghost" size="sm" icon="chevron-left" label="All modules" href="/" />
+          </Row>
+          {children}
+        </Column>
+      </Box>
+      <SiteFooter registry={registry} />
+    </Box>
+  );
+}
+
+function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
+  const files = downloads(m);
+  const [target, setTarget] = useState<string | null>(files[0]?.target ?? null);
+  const picked = files.find((file) => file.target === target) ?? files[0];
+  const deps = depEntries(m.dependsOn);
+  return (
+    <Row gap={24} align="flex-start" wrap>
+      <Box bg="surface2" radius={ICON_RADIUS} w={ICON} h={ICON} shrink={0}>
+        <Img src={m.icon ?? null} fill fit="cover" radius={ICON_RADIUS} />
+      </Box>
+      <Column gap={10} grow={1} shrink={1} basis={320} minW={0}>
+        <Row gap={10} align="baseline" wrap>
+          <Txt variant="h1">{m.name}</Txt>
+          <Badge tone="neutral">v{m.version}</Badge>
+          {m.library ? <Badge tone="info">Library</Badge> : null}
+        </Row>
+        <Row gap={8}>
+          <Box shrink={1} minW={0}>
+            <Txt color="textDim" font="mono" lines={1}>
+              {m.id}
+            </Txt>
+          </Box>
+          <Box shrink={0}>
+            <CopyAction value={m.id} label="Copy id" variant="ghost" iconOnly />
+          </Box>
+        </Row>
+        {m.description ? <Txt color="textMuted">{m.description}</Txt> : null}
+        {m.minServer || deps.length > 0 ? (
+          <Row gap={12} wrap align="center">
+            {m.minServer ? (
+              <Row gap={6}>
+                <Icon name="server" size={14} color="textDim" />
+                <Txt color="textDim" variant="meta">
+                  KROMA {m.minServer}+
+                </Txt>
+              </Row>
+            ) : null}
+            {deps.map((dep) => (
+              <Row gap={6} key={dep.id}>
+                <Icon name="packages" size={14} color="textDim" />
+                <Txt color="textDim" variant="meta">
+                  {dep.range ? `${dep.id} ${dep.range}` : dep.id}
+                </Txt>
+              </Row>
+            ))}
+          </Row>
+        ) : null}
+      </Column>
+      {picked ? <ModuleDownload files={files} picked={picked} onPick={setTarget} /> : null}
+    </Row>
+  );
+}
+
+function ModulePage() {
+  const { modules, registry, history, id } = Route.useLoaderData();
+  const module = modules.find((m) => m.id === id);
+
+  if (!module) {
+    return (
+      <Page registry={registry}>
+        <EmptyState
+          icon="package-off"
+          title="No such module"
+          hint={`The registry does not list ${id}.`}
+        />
+      </Page>
+    );
+  }
+
+  return (
+    <Page registry={registry}>
+      <Hero module={module} />
+      <ModuleBuilds files={downloads(module)} />
+      <ModuleHistory rows={history} />
+      <RegistryUrl url={registry} note="Admin → Modules → Registries, then install from there." />
+    </Page>
+  );
+}

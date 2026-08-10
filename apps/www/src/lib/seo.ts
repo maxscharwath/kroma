@@ -1,5 +1,5 @@
+import { site } from '@kroma/site-meta';
 import { defaultLocale, type Lang, locales, localizePath } from '#site/lib/i18n';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 export interface SeoInput {

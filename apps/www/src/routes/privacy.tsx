@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import { IconShieldLock } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { ContactCard } from '#site/components/contact/contact-card';
@@ -5,7 +6,6 @@ import { PageShell } from '#site/components/contact/page-shell';
 import { getLocale, useLang } from '#site/lib/i18n';
 import { getLegalDoc } from '#site/lib/legal';
 import { seo } from '#site/lib/seo';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/privacy')({

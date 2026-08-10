@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import { IconBook, IconBrandGithub, IconBug, IconCircleCheck, IconMail } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { Button } from '#site/components/button';
@@ -8,7 +9,6 @@ import { L } from '#site/components/localized-link';
 import { Rich } from '#site/components/rich';
 import { getLocale } from '#site/lib/i18n';
 import { seo } from '#site/lib/seo';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 export const Route = createFileRoute('/support')({

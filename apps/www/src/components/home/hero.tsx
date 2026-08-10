@@ -1,9 +1,9 @@
+import { site } from '@kroma/site-meta';
 import { Fragment, useRef } from 'react';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { AccentHeading } from '#site/components/home/heading';
 import { HeroBeams } from '#site/components/home/hero-beams';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 // The entrance is a pure-CSS staggered rise: it needs no JS and no scroll

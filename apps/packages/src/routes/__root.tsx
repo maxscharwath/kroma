@@ -26,7 +26,7 @@ export const Route = createRootRoute({
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: stamps the stored theme before first paint; a component cannot run early enough. */}

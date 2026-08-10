@@ -1,7 +1,14 @@
 import type { ModuleEntry } from '#site/catalog';
 
-/** Schema 2 emits a `{ id: range }` map; very old catalogs carried an array. */
-export function depList(deps: ModuleEntry['dependsOn']): string[] {
-  if (Array.isArray(deps)) return deps;
-  return deps ? Object.keys(deps) : [];
+export interface Dependency {
+  id: string;
+  range: string | null;
+}
+
+/** Schema 2 emits a `{ id: range }` map; very old catalogs carried an array,
+ *  which names the dependency without pinning it. */
+export function depEntries(deps: ModuleEntry['dependsOn']): Dependency[] {
+  if (Array.isArray(deps)) return deps.map((id) => ({ id, range: null }));
+  if (!deps) return [];
+  return Object.entries(deps).map(([id, range]) => ({ id, range }));
 }

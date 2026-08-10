@@ -1,8 +1,8 @@
+import { site } from '@kroma/site-meta';
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { docs } from '#site/components/download/links';
 import { Panel } from '#site/components/download/panel';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 /** The last word: why the one-time setup exists, and where to go next. */

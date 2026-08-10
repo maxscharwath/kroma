@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import {
   IconCloudOff,
   IconLicense,
@@ -8,7 +9,6 @@ import {
 import { Button } from '#site/components/button';
 import { Container } from '#site/components/container';
 import { BandHeading } from '#site/components/home/heading';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 const POINTS: readonly {

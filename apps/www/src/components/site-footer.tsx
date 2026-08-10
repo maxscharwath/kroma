@@ -1,8 +1,8 @@
+import { site } from '@kroma/site-meta';
 import { IconBrandGithub } from '@tabler/icons-react';
 import { L } from '#site/components/localized-link';
 import { WheelMark } from '#site/components/wheel-mark';
 import { localizePath, useLang } from '#site/lib/i18n';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 interface FLink {
@@ -46,6 +46,7 @@ export function SiteFooter() {
         { label: m.footer_link_tv_demo(), href: site.tvUrl },
         { label: m.footer_link_ui_kit(), href: site.uiUrl },
         { label: m.footer_link_modules(), href: site.modulesUrl },
+        { label: m.footer_link_packages(), href: site.packagesUrl },
       ],
     },
     {
@@ -53,8 +54,8 @@ export function SiteFooter() {
       links: [
         { label: m.footer_link_blog(), to: '/blog' },
         { label: m.footer_link_source(), href: site.repo },
-        { label: m.footer_link_install_guide(), href: `${site.repo}/blob/main/INSTALL.md` },
-        { label: m.footer_link_contribute(), href: `${site.repo}/blob/main/CONTRIBUTING.md` },
+        { label: m.footer_link_install_guide(), href: site.links.installGuide },
+        { label: m.footer_link_contribute(), href: site.links.contributing },
       ],
     },
     {
@@ -69,7 +70,7 @@ export function SiteFooter() {
       links: [
         { label: m.footer_link_privacy(), to: '/privacy' },
         { label: m.footer_link_support(), to: '/support' },
-        { label: m.footer_link_license(), href: `${site.repo}/blob/main/LICENSE` },
+        { label: m.footer_link_license(), href: site.links.license },
       ],
     },
   ];

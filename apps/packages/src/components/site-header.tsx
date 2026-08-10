@@ -9,14 +9,14 @@ const EN = { system: 'Auto', light: 'Light', dark: 'Dark' };
 export function SiteHeader({ title }: Readonly<{ title: string }>) {
   return (
     <Box bg="surface1">
-      <Box px={28} py={14}>
+      <Box px={16} py={14}>
         <Row gap={14} between w="100%" maxW={1080} mx="auto">
-          <Row gap={12} minW={0}>
+          <Row gap={12} minW={0} shrink={1}>
             <Logo size={26} />
-            <Box h={18}>
+            <Box h={18} shrink={0}>
               <Divider vertical />
             </Box>
-            <Txt color="textMuted" variant="label">
+            <Txt color="textMuted" variant="label" lines={1}>
               {title}
             </Txt>
           </Row>

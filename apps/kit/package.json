@@ -17,8 +17,8 @@
     "start:tv": "EXPO_TV=1 expo start",
     "ios:tv": "EXPO_TV=1 expo run:ios",
     "android:tv": "EXPO_TV=1 expo run:android",
-    "prebuild": "expo prebuild --clean",
-    "prebuild:tv": "EXPO_TV=1 expo prebuild --clean",
+    "expo:prebuild": "expo prebuild --clean",
+    "expo:prebuild:tv": "EXPO_TV=1 expo prebuild --clean",
     "pod": "cd ios && pod install",
     "bundle:check": "bun ../../clients/expo-build/bundle-check.ts .",
     "typecheck": "tsc --noEmit"

@@ -1,3 +1,4 @@
+import { site } from '@kroma/site-meta';
 import {
   IconBox,
   IconBrandAndroid,
@@ -13,7 +14,6 @@ import {
 } from '@tabler/icons-react';
 import { Button } from '#site/components/button';
 import { Section } from '#site/components/section';
-import { site } from '#site/lib/site';
 import { m } from '#site/paraglide/messages';
 
 interface Platform {

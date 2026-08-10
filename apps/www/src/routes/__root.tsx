@@ -1,9 +1,9 @@
+import { site } from '@kroma/site-meta';
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { SiteFooter } from '#site/components/site-footer';
 import { SiteHeader } from '#site/components/site-header';
 import { useLang } from '#site/lib/i18n';
-import { site } from '#site/lib/site';
 import appCss from '#site/styles.css?url';
 
 export const Route = createRootRoute({

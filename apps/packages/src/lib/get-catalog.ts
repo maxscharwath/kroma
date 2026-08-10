@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
-import { loadCatalog } from '#site/lib/catalog';
-import { toRelease } from '#site/lib/release';
+import { DEFAULT_REPO, loadCatalog } from '#site/lib/catalog';
+import { type Release, toRelease } from '#site/lib/release';
 import { workerContext } from '#site/lib/worker-env';
 
 // The origin the page was actually served from, so a preview deploy, the
@@ -17,11 +17,21 @@ async function sourceUrl(): Promise<string> {
 export const getCatalog = createServerFn().handler(async () => {
   const { env, waitUntil } = await workerContext();
   const source = await sourceUrl();
-  const catalog = await loadCatalog(env, waitUntil);
-  return {
-    source,
-    fetchedAt: catalog.fetchedAt,
-    repo: catalog.repo,
-    rows: catalog.entries.map(toRelease),
-  };
+  try {
+    const catalog = await loadCatalog(env, waitUntil);
+    return {
+      source,
+      fetchedAt: catalog.fetchedAt,
+      repo: catalog.repo,
+      rows: catalog.entries.map(toRelease),
+    };
+  } catch (err) {
+    console.error('catalog load failed', err);
+    return {
+      source,
+      fetchedAt: null,
+      repo: env.GITHUB_REPO || DEFAULT_REPO,
+      rows: [] as Release[],
+    };
+  }
 });

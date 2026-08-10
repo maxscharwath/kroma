@@ -24,7 +24,10 @@ From the repo root the same five are `bun run dev:kit`, `run:kit:ios`,
 The first native run does an `expo prebuild`, which writes `ios/` and
 `android/` from `app.json` — both are generated and both are gitignored. The
 phone and TV variants write the SAME directories, so switching between them
-re-prebuilds; that is why `prebuild` and `prebuild:tv` are separate scripts.
+re-prebuilds; that is why `expo:prebuild` and `expo:prebuild:tv` are separate
+scripts. They are spelled `expo:` rather than `prebuild` on purpose: `prebuild`
+is npm's lifecycle hook for `build`, so under that name every web build of the
+workbench wiped and regenerated both native projects first.
 
 ## The one app, two shapes
 

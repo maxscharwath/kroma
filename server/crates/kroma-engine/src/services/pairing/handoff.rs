@@ -420,6 +420,7 @@ fn random_handle() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::pairing::approved;
 
     const TV: &str = "192.168.1.20";
     const PHONE: &str = "192.168.1.50";
@@ -447,23 +448,26 @@ mod tests {
         h.announce(request(device_id, name, ip)).0
     }
 
-    fn announce(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announced {
-        match try_announce(h, device_id, name, ip) {
-            Announcement::Ok(announced) => announced,
-            Announcement::NetworkFull => panic!("this network had room"),
+    // The beacon behind an admitted announce, said once rather than at each of
+    // the places that only ever expects one.
+    fn admitted(announcement: Announcement) -> Option<Announced> {
+        match announcement {
+            Announcement::Ok(announced) => Some(announced),
+            Announcement::NetworkFull => None,
         }
+    }
+
+    fn announce(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announced {
+        admitted(try_announce(h, device_id, name, ip)).expect("this network had room")
     }
 
     // A packaged Samsung or LG shell: it presents the `null` a sandboxed page
     // presents, so the server admits its beacon and holds the grant to the check
     // string on the television's own screen.
     fn announce_unplaceable(h: &Handoff, device_id: &str, name: &str, ip: &str) -> Announced {
-        let announced =
+        let announcement =
             h.announce(Announce { confirm_required: true, ..request(device_id, name, ip) }).0;
-        match announced {
-            Announcement::Ok(announced) => announced,
-            Announcement::NetworkFull => panic!("this network had room"),
-        }
+        admitted(announcement).expect("this network had room")
     }
 
     fn claim(viewer_ip: &str) -> Claim<'_> {
@@ -516,9 +520,8 @@ mod tests {
         assert!(matches!(h.poll(&tv.secret), PollState::Pending));
         assert!(grant(&h, &tv.handle, PHONE).is_ok());
 
-        let PollState::Authorized { token, access_token, user } = h.poll(&tv.secret) else {
-            panic!("expected the granted session");
-        };
+        let (token, access_token, user) =
+            approved(h.poll(&tv.secret)).expect("the granted session");
         assert_eq!((token.as_str(), access_token.as_str()), ("tok", "acc"));
         assert_eq!(user.id, "u1");
     }
@@ -815,10 +818,7 @@ mod tests {
         }
         assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
 
-        assert!(matches!(
-            try_announce(&h, "tv-late-xxxx", "Late", HOUSEHOLD),
-            Announcement::NetworkFull
-        ));
+        assert!(admitted(try_announce(&h, "tv-late-xxxx", "Late", HOUSEHOLD)).is_none());
         // Nobody was pushed out, and the one that was there still works.
         assert_eq!(h.nearby(HOUSEHOLD).len(), MAX_PER_NETWORK);
         assert!(matches!(h.poll(&first.secret), PollState::Pending));
@@ -890,9 +890,7 @@ mod tests {
         let second = h.grant(&tv.handle, claim(PHONE), user(), "tok2".into(), "acc2".into());
         assert!(second.is_err());
 
-        let PollState::Authorized { token, .. } = h.poll(&tv.secret) else {
-            panic!("expected the first grant");
-        };
+        let (token, ..) = approved(h.poll(&tv.secret)).expect("the first grant");
         assert_eq!(token, "tok");
     }
 
@@ -943,6 +941,6 @@ mod tests {
             announce(&h, &format!("tv-{i:04}-xxxx", i = i), "Salon", TV);
         }
         assert_eq!(h.nearby(PHONE).len(), MAX_PER_NETWORK);
-        assert!(matches!(try_announce(&h, "tv-late-xxxx", "Late", TV), Announcement::NetworkFull));
+        assert!(admitted(try_announce(&h, "tv-late-xxxx", "Late", TV)).is_none());
     }
 }

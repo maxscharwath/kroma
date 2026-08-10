@@ -86,6 +86,7 @@ impl QuickConnectInner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::pairing::approved;
 
     fn user() -> User {
         crate::test_support::test_user("u1", vec![])
@@ -108,9 +109,8 @@ mod tests {
         assert!(matches!(qc.poll(&init.secret), PollState::Pending));
         assert!(qc.authorize(&init.code, user(), "tok".into(), "acc".into()));
 
-        let PollState::Authorized { token, access_token, user } = qc.poll(&init.secret) else {
-            panic!("expected the approved session");
-        };
+        let (token, access_token, user) =
+            approved(qc.poll(&init.secret)).expect("the approved session");
         assert_eq!((token.as_str(), access_token.as_str()), ("tok", "acc"));
         assert_eq!(user.id, "u1");
     }

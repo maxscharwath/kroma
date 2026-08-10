@@ -377,6 +377,7 @@ fn crowded_out<M, K: Eq + Hash>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::pairing::approved;
 
     fn user() -> User {
         crate::test_support::test_user("u1", vec![])
@@ -423,9 +424,8 @@ mod tests {
         let (handle, secret) = file(&g, "tv", seq_mint());
         assert!(matches!(g.poll(&secret), PollState::Pending));
         assert!(g.authorize(&handle, |_| true, granted()));
-        let PollState::Authorized { token, access_token, user } = g.poll(&secret) else {
-            panic!("expected an approved request");
-        };
+        let (token, access_token, user) =
+            approved(g.poll(&secret)).expect("an approved request");
         assert_eq!((token.as_str(), access_token.as_str()), ("tok", "acc"));
         assert_eq!(user.id, "u1");
         // Collected exactly once: the entry is gone on the next poll.
@@ -458,9 +458,7 @@ mod tests {
             Granted { token: "tok2".into(), access_token: "acc2".into(), user: user() };
         assert!(!g.authorize(&handle, |_| true, second));
 
-        let PollState::Authorized { token, .. } = g.poll(&secret) else {
-            panic!("expected the FIRST approval");
-        };
+        let (token, ..) = approved(g.poll(&secret)).expect("the FIRST approval");
         assert_eq!(token, "tok");
     }
 

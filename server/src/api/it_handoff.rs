@@ -705,3 +705,29 @@ async fn two_waiting_tvs_are_listed_by_name() {
         list.as_array().expect("a list").iter().filter_map(|r| r["name"].as_str()).collect();
     assert_eq!(names, vec!["Chambre", "Salon"]);
 }
+
+// The session is minted BEFORE the beacon is handed over, so the one failure
+// that branch exists for has to leave the beacon standing: a television that is
+// still waiting is recoverable, and one consumed against a session that was
+// never created is a set that has to be restarted.
+//
+// Forced the only way a test can force it, by taking the table the mint writes
+// into out from under the handler.
+#[tokio::test]
+async fn a_grant_that_cannot_mint_a_session_refuses_and_leaves_the_beacon_waiting() {
+    let t = test_app();
+    let beacon = announce(&t, "tv-salon-01", "Salon", TV_IP).await;
+
+    t.state
+        .db
+        .get()
+        .expect("a connection")
+        .execute_batch("DROP TABLE access_tokens")
+        .expect("drop the table the mint writes into");
+
+    let status = grant(&t, json!({ "handle": beacon["handle"] }), PHONE_IP).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+
+    // Still waiting, and still its own beacon: nothing was spent on the attempt.
+    assert_eq!(poll_status(&t, &beacon).await, "pending");
+}

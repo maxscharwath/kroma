@@ -191,21 +191,14 @@ fn pick_version_dir(defs_root: &Path) -> Option<String> {
 mod tests {
     use super::*;
 
-    // A store over a scratch data dir, shared with the live test below: it is
-    // the only other place that needs one, and the guard has to outlive both.
-    fn store_in(tag: &str) -> (DefinitionStore, kroma_testing::TempDir) {
-        let dir = kroma_testing::temp_dir(tag);
-        let store = DefinitionStore::new(dir.path());
-        (store, dir)
-    }
-
     // A fresh install has never synced, so the cache directory does not exist at
     // all. Reading it has to come back EMPTY rather than as an error: the module
     // lists its definitions on the settings screen before anyone has pressed
     // sync, and an error there reads as a broken module rather than a new one.
     #[test]
     fn a_store_that_has_never_synced_is_empty_rather_than_broken() {
-        let (store, _dir) = store_in("defs-empty");
+        let dir = kroma_testing::temp_dir("defs-empty");
+        let store = DefinitionStore::new(dir.path());
         assert!(!store.is_populated());
         assert!(store.list().expect("listing a store that never synced").is_empty());
         // Asking for one by name is still an error: nothing is there to load.
@@ -222,38 +215,8 @@ mod tests {
         assert_eq!(pick_version_dir(&defs).as_deref(), Some("v11"));
     }
 
-    // Live end-to-end sync against the real upstream repo; run with
-    // `cargo test -p kroma-indexer -- --ignored`.
-    #[test]
-    #[ignore]
-    fn real_sync_downloads_and_loads() {
-        let (store, _dir) = store_in("defs-live");
-        let report = store.sync().expect("sync");
-        assert!(report.count > 100, "expected many definitions, got {}", report.count);
-        let metas = store.list().unwrap();
-        // A stray non-definition yaml or two is fine.
-        assert!(metas.len() >= report.count - 5, "listed {} of {}", metas.len(), report.count);
-        let tpb = metas.iter().find(|m| m.id == "thepiratebay").expect("thepiratebay present");
-        let def = store.load(&tpb.id).expect("load+parse thepiratebay");
-        assert_eq!(def.id, "thepiratebay");
-        assert!(!def.search.fields.is_empty());
-
-        // Print failures so a schema gap upstream is visible.
-        let (mut ok, mut fail) = (0u32, 0u32);
-        for m in &metas {
-            match store.load(&m.id) {
-                Ok(_) => ok += 1,
-                Err(e) => {
-                    fail += 1;
-                    if fail <= 25 {
-                        eprintln!("[parse-fail] {}: {e:#}", m.id);
-                    }
-                }
-            }
-        }
-        eprintln!("[schema-coverage] {ok} parsed OK, {fail} failed of {}", metas.len());
-        assert!(ok * 100 / metas.len() as u32 >= 90, "only {ok}/{} parsed", metas.len());
-    }
+    // The live end-to-end sync against the real upstream repo lives in
+    // `tests/live_sync.rs`: it is `#[ignore]`d, so nothing here can run it.
 
     #[test]
     fn meta_parses_minimal_yaml() {

@@ -7,8 +7,10 @@
   "exports": {
     "./build-info": "./src/build-info.ts",
     "./exit-after-build": "./src/exit-after-build.ts",
+    "./kit-sheet": "./src/kit-sheet.ts",
     "./legacy-css": "./src/legacy-css.ts",
     "./legacy-finalize": "./src/legacy-finalize.ts",
+    "./message-subset": "./src/message-subset.ts",
     "./polyfills-legacy": "./src/polyfills-legacy.ts",
     "./props-docs": "./src/props-docs.ts",
     "./rnw": "./src/rnw.ts",

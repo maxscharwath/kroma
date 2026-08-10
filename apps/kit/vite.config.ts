@@ -17,7 +17,7 @@ const kitDir = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   define: { __KROMA_BUILD__: JSON.stringify(collectBuildInfo(kitDir)), ...RNW_DEFINE },
   plugins: [
-    kromaUI(),
+    kromaUI({ icons: 'full' }),
     react(),
     propDocs({ tsconfig: `${repoRoot}packages/ui/tsconfig.json` }),
     {

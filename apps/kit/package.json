@@ -20,7 +20,7 @@
     "prebuild": "expo prebuild --clean",
     "prebuild:tv": "EXPO_TV=1 expo prebuild --clean",
     "pod": "cd ios && pod install",
-    "bundle:check": "bun ../expo-build/bundle-check.ts .",
+    "bundle:check": "bun ../../clients/expo-build/bundle-check.ts .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

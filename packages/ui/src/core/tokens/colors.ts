@@ -1,6 +1,6 @@
-// KROMA colour tokens. THIS FILE IS THE SINGLE SOURCE OF TRUTH: the CSS custom
-// properties in packages/ui/src/styles/tokens/colors.css are GENERATED from it
-// (`bun run --filter '@kroma/tv-kit' gen:css`). Never edit the .css by hand.
+// KROMA colour tokens. THIS FILE IS THE SINGLE SOURCE OF TRUTH: kromaUI()
+// (@kroma/ui/vite) emits the CSS custom properties from it at build time, so
+// there is no stylesheet copy to edit or to keep in step.
 //
 // Values are plain strings so they drop straight into a React Native StyleSheet
 // and into CSS alike. No color-mix()/oklch(): those cannot be expressed in RN,

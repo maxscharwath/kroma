@@ -224,7 +224,7 @@ const SYNOPSIS_LIT = 'rgba(244, 243, 240, 0.78)';
 const s = styles({
   // <Frost> blurs the artwork behind the card: CSS backdrop-filter on the
   // browser tiers, the shell's registered blur view on Apple TV.
-  row: { p: 18, radius: 20, bg: 'white/2.5', border: 'tint/5' },
+  row: { p: 18, radius: 20, bg: 'tint/2.5', border: 'tint/5' },
   rowLit: { bg: 'tint/6', borderColor: 'tint/12' },
   rowWatched: { borderColor: 'accentWash/22' },
   dimmed: { opacity: 0.55 },

@@ -2,24 +2,15 @@ import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { Catalog, depList, type ModuleEntry } from '#site/catalog';
 import { loadCatalog } from '#site/lib/source';
+import { workerContext } from '#site/lib/worker-env';
 import { Badge } from '#ui/components/atoms/badge';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
 
-async function workerEnv(): Promise<Record<string, string>> {
-  try {
-    const mod = (await import(/* @vite-ignore */ 'cloudflare:workers')) as {
-      env?: Record<string, string>;
-    };
-    return mod.env ?? {};
-  } catch {
-    return {};
-  }
-}
-
 const getCatalog = createServerFn().handler(async () => {
-  const body = await loadCatalog(await workerEnv(), () => undefined);
+  const { env, waitUntil } = await workerContext();
+  const body = await loadCatalog(env, waitUntil);
   if (!body) return { modules: [] as ModuleEntry[], generatedAt: null };
   const parsed = Catalog.safeParse(JSON.parse(body));
   return parsed.success

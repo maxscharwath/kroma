@@ -3,7 +3,7 @@
 @import "@kroma/ui/css/theme";
 
 /* Tailwind v4 scans this app's own sources automatically; nothing outside
-   clients/site contributes class names, so no extra @source is needed. */
+   apps/www contributes class names, so no extra @source is needed. */
 
 /* @kroma/ui ships an UNLAYERED `a { color: inherit }` (for the app shell),
    which outranks Tailwind's layered text-color utilities. This site colours

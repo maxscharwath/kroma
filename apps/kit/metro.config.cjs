@@ -9,7 +9,7 @@
 // nothing else - and `unstable_allowRequireContext`, which src/stories.ts needs
 // to find the stories, is already turned on by the factory.
 
-const { expoWorkspaceConfig } = require('../expo-build/metro-workspace.ts');
+const { expoWorkspaceConfig } = require('../../clients/expo-build/metro-workspace.ts');
 
 // `icons: 'full'`: the kit IS the icon gallery. It renders `iconNames()`, which
 // answers from whatever set shipped, so the subset every product client gets

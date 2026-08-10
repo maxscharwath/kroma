@@ -72,13 +72,20 @@ const effects = () => [
   `--hover-lift: ${motion.focusLift}px;`,
 ];
 
-/** Every design token as CSS custom properties, both palettes. */
+/**
+ * Every design token as CSS custom properties.
+ *
+ * The light palette is behind `[data-theme="light"]` and NOT behind
+ * `prefers-color-scheme`, because that query answers `light` for a visitor who
+ * has expressed no preference at all - it is the default state, not an opt-in.
+ * Gated that way it flipped every dark-only surface to paper while
+ * `activeTheme()` stayed on KROMA, so the kit painted dark cards on a light
+ * ground. A shell opts in when it is ready to switch both halves together.
+ */
 export function tokensCss(): string {
-  const light = palette(lightColors);
   return [
     rule(':root', [...palette(colors), ...ALIASES, ...typography(), ...spacing(), ...effects()]),
-    `@media (prefers-color-scheme: light) {\n${rule(':root:not([data-theme="dark"])', light, '  ')}\n}`,
-    rule(':root[data-theme="light"]', light),
+    rule(':root[data-theme="light"]', palette(lightColors)),
   ].join('\n\n');
 }
 
@@ -224,8 +231,21 @@ const EXPANSION: Record<string, () => string> = {
   '/base': baseCss,
 };
 
+// Unknown suffix throws rather than falling back to the aggregate: `/tokns` is
+// a typo, and quietly answering it with the browser reset would put body rules
+// into a TV shell that supplies its own.
 const expand = (code: string) =>
-  code.replace(DIRECTIVE, (_, which: string | undefined) => (EXPANSION[which ?? ''] ?? kromaCss)());
+  code.replace(DIRECTIVE, (_, which: string | undefined) => {
+    const emit = EXPANSION[which ?? ''];
+    if (!emit) {
+      throw new Error(
+        `[kroma-ui] no such stylesheet: @kroma/ui/css${which}. Known: ${Object.keys(EXPANSION)
+          .map((k) => `@kroma/ui/css${k}`)
+          .join(', ')}`,
+      );
+    }
+    return emit();
+  });
 
 interface BundleFile {
   type: string;

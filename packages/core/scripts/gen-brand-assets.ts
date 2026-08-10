@@ -238,7 +238,7 @@ export const KROMA_MARK_SVG =
   '${MARK}';
 export const KROMA_MARK_DATA_URI = \`data:image/svg+xml,\${encodeURIComponent(KROMA_MARK_SVG)}\`;
 `;
-for (const w of ['apps/packages/worker', 'apps/modules/worker']) {
+for (const w of ['apps/packages/src/lib', 'apps/modules/src/lib']) {
   await Bun.write(`${REPO}/${w}/brand.ts`, workerBrand);
   console.log('wrote', `${REPO}/${w}/brand.ts`);
 }

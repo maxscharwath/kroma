@@ -3,8 +3,8 @@
 // is (git commit, branch, compile time, repository). Reports the kit's OWN
 // package version, not the product's - the two move independently.
 
+import { collectBuildInfo } from '@kroma/build-info';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-import { collectBuildInfo } from '../../clients/build-info';
 
 export default function kitAppConfig({ config }: ConfigContext): Partial<ExpoConfig> {
   return { ...config, extra: { ...config.extra, buildInfo: collectBuildInfo(__dirname) } };

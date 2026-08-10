@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 import { dsmVersion, type Entry, entryVersion, loadCatalog } from '#site/lib/catalog';
+import { workerContext } from '#site/lib/worker-env';
 import { Badge } from '#ui/components/atoms/badge';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Divider } from '#ui/components/atoms/divider';
@@ -28,19 +29,9 @@ const toRow = (e: Entry): Release => ({
 
 // `cloudflare:workers` is only importable inside workerd; in `vite dev` the
 // catalog simply loads anonymously.
-async function workerEnv(): Promise<Record<string, string>> {
-  try {
-    const mod = (await import(/* @vite-ignore */ 'cloudflare:workers')) as {
-      env?: Record<string, string>;
-    };
-    return mod.env ?? {};
-  } catch {
-    return {};
-  }
-}
-
 const getCatalog = createServerFn().handler(async () => {
-  const catalog = await loadCatalog(await workerEnv(), () => undefined);
+  const { env, waitUntil } = await workerContext();
+  const catalog = await loadCatalog(env, waitUntil);
   return { fetchedAt: catalog.fetchedAt, repo: catalog.repo, rows: catalog.entries.map(toRow) };
 });
 

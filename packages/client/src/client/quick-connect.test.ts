@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { KromaApiError, type RequestContext } from './base';
-import { quickConnectPoll } from './quick-connect';
+import { quickConnectInitiate, quickConnectPoll } from './quick-connect';
 
 // Every case gets its own baseUrl: the legacy fallback is remembered per server,
 // and that memory outlives a single test.
@@ -25,6 +25,24 @@ function serverBeforeTheHeader(path: string): unknown {
   if (!path.includes('?')) throw new KromaApiError(400, 'GET /auth/quickconnect/poll failed (400)');
   return { status: 'pending' };
 }
+
+describe('quickConnectInitiate', () => {
+  it('asks for a code and sends no body when there is nothing to revoke', async () => {
+    const { ctx, calls } = pollCtx('http://fresh', () => ({}));
+    await quickConnectInitiate(ctx).catch(() => undefined);
+    expect(calls[0]?.path).toBe('/auth/quickconnect/initiate');
+    expect(calls[0]?.init?.body).toBeUndefined();
+  });
+
+  // Rotating an expiring code revokes the old one up front, so it stops being
+  // approvable rather than lingering until its TTL runs out.
+  it('carries the previous secret when one is rotating out', async () => {
+    const { ctx, calls } = pollCtx('http://rotating', () => ({}));
+    await quickConnectInitiate(ctx, 's3cr3t').catch(() => undefined);
+    expect(calls[0]?.init?.body).toBe(JSON.stringify({ prevSecret: 's3cr3t' }));
+    expect(new Headers(calls[0]?.init?.headers).get('content-type')).toContain('application/json');
+  });
+});
 
 describe('quickConnectPoll', () => {
   it('sends the secret in a header, never in the URL', async () => {

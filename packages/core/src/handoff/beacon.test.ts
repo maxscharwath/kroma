@@ -642,3 +642,55 @@ describe('stopping', () => {
     await tick();
   });
 });
+
+// The loop is stopped from outside (the screen went away, the set signed in
+// another way) and a request is already out. When it lands, the one place that
+// schedules the next step has to notice: otherwise a television nobody is
+// looking at goes on polling for the rest of the session.
+describe('stopping while a request is in flight', () => {
+  it('schedules nothing once the answer arrives', async () => {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { client } = stubClient({
+      announceHandoff: vi.fn(async () => {
+        await held;
+        return BEACON;
+      }),
+    });
+
+    const { stop } = run(client);
+    // The announce is out and nothing has come back yet.
+    stop();
+    release();
+    await tick();
+
+    // Nothing was armed behind it, however long anyone waits.
+    await tick(120_000);
+    expect(client.handoffPoll).not.toHaveBeenCalled();
+  });
+
+  // The screen is told about its beacon and tears itself down on the spot: the
+  // television signed in another way, or the gate closed. `onBeacon` runs
+  // immediately before the next step is armed, so this is the one moment the
+  // loop can be stopped between deciding to wait and waiting.
+  it('arms nothing when the screen stops it on hearing its own beacon', async () => {
+    const { client } = stubClient();
+    let handle: { stop: () => void } | undefined;
+    handle = startHandoff({
+      client,
+      deviceId: 'tv-salon-01',
+      name: 'Apple TV',
+      platform: 'Apple TV',
+      onBeacon: (b) => {
+        if (b) handle?.stop();
+      },
+      onAuthenticated: () => undefined,
+    });
+    await tick();
+
+    await tick(120_000);
+    expect(client.handoffPoll).not.toHaveBeenCalled();
+  });
+});

@@ -69,6 +69,32 @@ describe('while the picker is open', () => {
     expect(result.current.devices).toEqual([]);
   });
 
+  // An older server answers /health without an instanceId at all. Nothing can be
+  // dropped for belonging elsewhere then, so every row it found is listed.
+  it('lists everything when the server names no install', async () => {
+    const client = stubClient();
+    (client as unknown as { health: () => Promise<unknown> }).health = vi.fn(async () => ({}));
+    const { result } = renderHook(() => useNearbyTvs({ client }));
+    await waitFor(() => expect(result.current.devices).toHaveLength(2));
+  });
+
+  // The picker is closed before /health lands. Writing state into a hook nobody
+  // is rendering any more is the classic React warning, and the guard is why it
+  // does not happen here.
+  it('drops the answer that arrives after the picker has gone', async () => {
+    let release!: (h: { instanceId: string }) => void;
+    const held = new Promise<{ instanceId: string }>((resolve) => {
+      release = resolve;
+    });
+    const client = stubClient();
+    (client as unknown as { health: () => Promise<unknown> }).health = vi.fn(async () => held);
+
+    const { unmount } = renderHook(() => useNearbyTvs({ client }));
+    unmount();
+    release({ instanceId: 'srv-1' });
+    await expect(held).resolves.toEqual({ instanceId: 'srv-1' });
+  });
+
   // Which install this phone belongs to is only used to DROP rows minted by
   // another one. A server that will not say must therefore cost nothing: the
   // picker still lists what it found rather than going empty.

@@ -135,6 +135,8 @@ export function resetPerf(): void {
   sample.responses.length = 0;
   lastFrame = 0;
   pressedAt = 0;
+  // Where the focus WAS is not a reading about the run that starts now.
+  gridAt = null;
 }
 
 // Reachable from outside React: the benchmark script and a browser console read

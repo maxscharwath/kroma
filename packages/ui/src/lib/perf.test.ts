@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CHART_FRAMES,
   markFocus,
+  markGridFocus,
   markPress,
   perfReport,
   perfRunning,
@@ -195,6 +196,27 @@ describe('press-to-focus', () => {
     const report = perfReport();
     expect(report.responseWorst).toBe(300);
     expect(report.responseP50).toBe(20);
+  });
+});
+
+// A remote bug is a bug about WHICH element took the focus, and a television
+// has no inspector to ask - so the HUD prints where the ring landed.
+describe('the focused grid cell', () => {
+  it('reads as a dash until a grid has moved the focus', () => {
+    expect(perfReport().gridCell).toBe('-');
+  });
+
+  it('names the row and column once one has', () => {
+    markGridFocus(2, 7);
+    expect(perfReport().gridCell).toBe('2,7');
+  });
+
+  // `resetPerf` starts a fresh measurement, and where the focus WAS is not a
+  // reading about the run that starts now.
+  it('is forgotten by a reset, like everything else', () => {
+    markGridFocus(1, 1);
+    resetPerf();
+    expect(perfReport().gridCell).toBe('-');
   });
 });
 

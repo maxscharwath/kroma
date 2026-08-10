@@ -109,6 +109,15 @@ describe('resolveArt + art helpers', () => {
     expect(resolveArt(ctx, undefined)).toBeNull();
   });
 
+  // Cached art can already carry a query of its own, and appending a second `?`
+  // would make the width unreadable to the server and mint a URL that misses in
+  // every cache.
+  it('joins the width onto a path that already has a query', () => {
+    expect(resolveArt(ctx, '/api/images/x.webp?v=2', 320)).toBe(
+      'http://kroma.test/api/images/x.webp?v=2&w=320',
+    );
+  });
+
   it('asks the server for the width the artwork is actually drawn at', () => {
     expect(resolveArt(ctx, '/api/images/x.webp', 320)).toBe(
       'http://kroma.test/api/images/x.webp?w=320',

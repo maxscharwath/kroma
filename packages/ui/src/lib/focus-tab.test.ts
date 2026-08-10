@@ -112,4 +112,38 @@ describe('walkTab', () => {
     expect(at).toBe('last');
     expect(sends).toBeLessThan(6);
   });
+
+  // A box the platform will not measure - a node that has just unmounted, a view
+  // with no layout yet - leaves the walk unable to tell one line from the next.
+  // Guessing there is how a Tab lands somewhere the eye is not, so it stops.
+  //
+  // Both sides matter: the box is read BEFORE the rewind and again after it, and
+  // either read can come back empty.
+  function refusesAlong() {
+    let seq = 0;
+    const sent: Directions[] = [];
+    // The line has ended (RIGHT refused), so the walk drops to the next one and
+    // starts rewinding: every other direction moves.
+    const send = (d: Directions) => {
+      sent.push(d);
+      if (d !== Directions.RIGHT) seq += 1;
+    };
+    return { sent, send, seq: () => seq };
+  }
+
+  const WALKED = [Directions.RIGHT, Directions.DOWN, Directions.LEFT];
+
+  it('stops when the box BEFORE the rewind cannot be measured', () => {
+    const g = refusesAlong();
+    walkTab(g.send, { seq: g.seq, box: () => null });
+    expect(g.sent).toEqual(WALKED);
+  });
+
+  it('stops when the box AFTER the rewind cannot be measured', () => {
+    const g = refusesAlong();
+    let reads = 0;
+    const box = (): FocusBox | null => (reads++ === 0 ? { top: 50, left: 100, height: 50 } : null);
+    walkTab(g.send, { seq: g.seq, box });
+    expect(g.sent).toEqual(WALKED);
+  });
 });

@@ -53,13 +53,13 @@ export function Action({ onPress, href, tone = 'outline', children }: Readonly<A
   const style = { ...BASE, ...TONES[tone] };
   if (href) {
     return (
-      <a href={href} style={style}>
+      <a data-kroma="action" data-tone={tone} href={href} style={style}>
         {children}
       </a>
     );
   }
   return (
-    <button type="button" onClick={onPress} style={style}>
+    <button data-kroma="action" data-tone={tone} type="button" onClick={onPress} style={style}>
       {children}
     </button>
   );

@@ -1,3 +1,4 @@
 @import "tailwindcss";
 @import "@kroma/ui/css";
 @import "@kroma/ui/css/theme";
+@import "@kroma/ui/css/controls";

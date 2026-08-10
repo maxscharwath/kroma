@@ -3,8 +3,8 @@ import { applyMode, readMode, type ThemeMode, writeMode } from '#ui/core/theme-m
 
 const MODES: readonly { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'Auto' },
-  { value: 'light', label: 'Clair' },
-  { value: 'dark', label: 'Sombre' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
 ];
 
 const GROUP: CSSProperties = {
@@ -48,10 +48,11 @@ export function ThemeToggle() {
   }, [mode]);
 
   return (
-    <fieldset style={GROUP} aria-label="Thème">
+    <fieldset style={GROUP} aria-label="Theme">
       {MODES.map((m) => (
         <button
           key={m.value}
+          data-kroma="segment"
           type="button"
           aria-pressed={mode === m.value}
           style={OPTION(mode === m.value)}

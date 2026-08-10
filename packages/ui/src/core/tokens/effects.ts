@@ -13,6 +13,15 @@ export const shadow = {
   hero: '0 20px 50px rgba(0, 0, 0, 0.6)',
 } as const;
 
+/** The same elevations on paper. A shadow tuned to read against charcoal is a
+ *  smear on a light ground: what lifts a card there is a tight contact shadow
+ *  and a wide, very faint ambient one, not opacity. */
+export const lightShadow: Record<keyof typeof shadow, string> = {
+  card: '0 1px 2px rgba(22, 21, 26, 0.06), 0 8px 24px rgba(22, 21, 26, 0.06)',
+  pop: '0 2px 4px rgba(22, 21, 26, 0.08), 0 16px 40px rgba(22, 21, 26, 0.1)',
+  hero: '0 2px 6px rgba(22, 21, 26, 0.08), 0 24px 60px rgba(22, 21, 26, 0.12)',
+};
+
 /** Shadows a theme adds. Augment it and the name is legal wherever an elevation
  *  is written — the `shadow:` shorthand, <Box shadow> (see `ColorRegistry`). */
 // biome-ignore lint/suspicious/noEmptyInterface: an augmentation point is empty by design

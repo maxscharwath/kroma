@@ -4,6 +4,7 @@ import { KROMA, KROMA_LIGHT, setTheme, type Theme } from './theme.ts';
 export type ThemeMode = 'system' | 'light' | 'dark';
 
 export const THEME_COOKIE = 'kroma-theme';
+export const THEME_EVENT = 'kroma-theme';
 
 const MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
@@ -46,6 +47,9 @@ export function writeMode(mode: ThemeMode): void {
   const doc = webDocument();
   if (doc) doc.cookie = `${THEME_COOKIE}=${mode};path=/;max-age=31536000;samesite=lax`;
   applyMode(mode);
+  // Anything rendering through the kit has to re-render for the swap to show;
+  // the event is what a <ThemeProvider> higher up listens for.
+  webWindow()?.dispatchEvent?.(new CustomEvent(THEME_EVENT, { detail: mode }));
 }
 
 /** Inlined in `<head>` so the document is stamped before first paint. Without

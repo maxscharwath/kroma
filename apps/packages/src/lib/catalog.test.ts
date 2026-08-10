@@ -23,6 +23,7 @@ function entry(over: Partial<Entry> = {}): Entry {
     spkName: 'kroma-0.1.25-3439372-x86_64.spk',
     spkUrl: 'https://example/kroma.spk',
     spkSize: 1048576,
+    notes: '',
     info: null,
     ...over,
   };

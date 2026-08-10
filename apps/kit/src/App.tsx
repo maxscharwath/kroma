@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import { LogBox, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Kit } from './config';
+import { ThemeGate } from './ThemeGate';
 
 LogBox.ignoreAllLogs(true);
 
@@ -67,9 +68,11 @@ export function App() {
     // on mount, so gating it would render the first frame with insets at zero.
     <SafeAreaProvider style={styles.frame}>
       {ready ? (
-        <Stage>
-          <Kit />
-        </Stage>
+        <ThemeGate>
+          <Stage>
+            <Kit />
+          </Stage>
+        </ThemeGate>
       ) : null}
     </SafeAreaProvider>
   );

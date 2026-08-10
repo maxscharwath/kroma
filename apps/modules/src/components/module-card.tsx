@@ -38,7 +38,7 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
               {c.kind}
             </Badge>
           ))}
-          {m.library ? <Badge tone="info">bibliothèque</Badge> : null}
+          {m.library ? <Badge tone="info">library</Badge> : null}
           {targets.map((t) => (
             <Badge key={t} tone="neutral">
               {shortTarget(t)}
@@ -48,12 +48,12 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
 
         {deps.length > 0 ? (
           <Txt color="textDim" variant="meta">
-            requiert {deps.join(', ')}
+            needs {deps.join(', ')}
           </Txt>
         ) : null}
 
         <Txt color="textDim" variant="meta" style={{ marginTop: 'auto' }}>
-          {m.minServer ? `serveur ≥ ${m.minServer}` : ''}
+          {m.minServer ? `server ≥ ${m.minServer}` : ''}
           {m.minServer && m.size ? ' · ' : ''}
           {mb(m.size)}
         </Txt>

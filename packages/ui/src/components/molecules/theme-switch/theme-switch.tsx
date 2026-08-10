@@ -7,14 +7,14 @@ import type { ControlSize } from '#ui/lib/field-shell';
 
 export interface ThemeSwitchProps {
   size?: ControlSize;
+  /** Defaults to the product's French. */
+  labels?: Readonly<Record<ThemeMode, string>>;
   style?: StyleProp<ViewStyle>;
 }
 
-const OPTIONS = [
-  { value: 'system', label: 'Système' },
-  { value: 'light', label: 'Clair' },
-  { value: 'dark', label: 'Sombre' },
-] as const satisfies readonly { value: ThemeMode; label: string }[];
+const FR: Record<ThemeMode, string> = { system: 'Système', light: 'Clair', dark: 'Sombre' };
+
+const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 /**
  * Dark / light / system, persisted in a cookie so the server can render the
@@ -24,7 +24,7 @@ const OPTIONS = [
  * no cookie jar, and a value that differs between the two renders is a
  * hydration mismatch.
  */
-export function ThemeSwitch({ size = 'sm', style }: Readonly<ThemeSwitchProps>) {
+export function ThemeSwitch({ size = 'sm', labels = FR, style }: Readonly<ThemeSwitchProps>) {
   const [mode, setMode] = useState<ThemeMode>('system');
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function ThemeSwitch({ size = 'sm', style }: Readonly<ThemeSwitchProps>) 
       label="Thème"
       size={size}
       value={mode}
-      options={OPTIONS}
+      options={ORDER.map((value) => ({ value, label: labels[value] }))}
       onChange={(next) => {
         setMode(next);
         writeMode(next);

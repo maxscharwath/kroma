@@ -17,6 +17,7 @@ import type { TextStyle } from 'react-native';
 import { type ColorToken, colors, lightColors, withAlpha } from './tokens/colors';
 import {
   LIFT_SHADOW,
+  lightShadow,
   motion,
   type RingStyle,
   type ShadowToken,
@@ -166,7 +167,7 @@ export const KROMA: Theme = derive({
 export const KROMA_LIGHT: Theme = derive({
   colors: lightColors,
   radius,
-  shadow,
+  shadow: lightShadow,
   fonts,
   typeSpec,
   motion,

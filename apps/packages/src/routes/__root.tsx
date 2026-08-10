@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { ThemeGate } from '#site/components/theme-gate';
 import appCss from '#site/styles.css?url';
 import { themeBootScript } from '#ui/core/theme-mode';
 
@@ -33,7 +34,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
-        {children}
+        <ThemeGate>{children}</ThemeGate>
         <Scripts />
       </body>
     </html>

@@ -23,7 +23,7 @@ export function ReleaseHeadline({
           <Txt variant="overline" color="textDim">
             {label}
           </Txt>
-          {release.channel === 'nightly' ? <Badge tone="warning">bêta</Badge> : null}
+          {release.channel === 'nightly' ? <Badge tone="warning">beta</Badge> : null}
         </Row>
         <Txt variant="h2" style={MONO}>
           {release.version}
@@ -33,7 +33,7 @@ export function ReleaseHeadline({
         </Txt>
         <Row gap={8} style={{ marginTop: 4, flexWrap: 'wrap' }}>
           <Action tone={primary ? 'primary' : 'outline'} href={release.spk}>
-            Télécharger
+            Download
           </Action>
           <Action tone="ghost" href={release.release}>
             Notes

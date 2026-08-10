@@ -28,6 +28,7 @@ export type Entry = {
   spkName: string;
   spkUrl: string;
   spkSize: number;
+  notes: string;
   info: SpkInfo | null;
 };
 
@@ -50,6 +51,7 @@ type GhRelease = {
   prerelease: boolean;
   published_at: string | null;
   html_url: string;
+  body?: string | null;
   assets: GhAsset[];
 };
 
@@ -98,6 +100,7 @@ async function fetchCatalogFromGitHub(env: Env): Promise<Catalog> {
       spkName: spk.name,
       spkUrl: spk.browser_download_url,
       spkSize: spk.size,
+      notes: (r.body ?? '').trim(),
       info: null,
     });
   }

@@ -21,31 +21,29 @@ function Browse() {
 
   return (
     <Box bg="bg" style={{ minHeight: '100%' }}>
-      <SiteHeader title="Source de paquets Synology" />
+      <SiteHeader title="Synology package source" />
       <Box px={28} py={32}>
         <Column gap={32} style={PAGE}>
           <Column gap={10}>
             <Txt variant="hero" style={{ fontSize: 40 }}>
-              KROMA pour Synology
+              KROMA for Synology
             </Txt>
             <Txt color="textMuted">
-              Streaming direct-play HEVC auto-hébergé, pour DSM 7 (x86_64). Un paquet, aucune
-              dépendance.
+              Self-hosted, direct-play HEVC media streaming for Synology DSM 7 (x86_64). One
+              package, no dependencies.
             </Txt>
           </Column>
 
           <InstallCard url={source} />
 
           <Row gap={16} style={{ flexWrap: 'wrap', alignItems: 'stretch' }}>
-            {latest ? (
-              <ReleaseHeadline label="Dernière version stable" release={latest} primary />
-            ) : null}
+            {latest ? <ReleaseHeadline label="Latest stable" release={latest} primary /> : null}
             {nightly ? <ReleaseHeadline label="Nightly" release={nightly} /> : null}
           </Row>
 
           <Column gap={12}>
             <Txt variant="overline" color="accentText">
-              Toutes les versions
+              All releases
             </Txt>
             <Box bg="surface1" radius="xl" style={{ overflow: 'hidden' }}>
               {rows.map((r, i) => (
@@ -58,7 +56,7 @@ function Browse() {
           </Column>
 
           <Txt color="textDim" variant="meta">
-            Servi depuis github.com/{repo} · catalogue rafraîchi {fetchedAt.slice(0, 16)}
+            Served from github.com/{repo} · catalog refreshed {fetchedAt.slice(0, 16)}
           </Txt>
         </Column>
       </Box>

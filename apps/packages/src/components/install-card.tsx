@@ -7,10 +7,10 @@ export function InstallCard({ url }: Readonly<{ url: string }>) {
   return (
     <Column gap={12}>
       <Txt variant="overline" color="accentText">
-        Installation
+        Install
       </Txt>
       <Txt color="textMuted">
-        Centre de paquets → Paramètres → Sources de paquets → Ajouter, puis collez cette URL.
+        Package Center → Settings → Package Sources → Add, then paste this URL.
       </Txt>
       <Box bg="surface1" p={16} radius="lg">
         <Row gap={12} style={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -19,8 +19,8 @@ export function InstallCard({ url }: Readonly<{ url: string }>) {
         </Row>
       </Box>
       <Txt color="textDim" variant="meta">
-        KROMA apparaît dans l'onglet Communauté et se met à jour à chaque version. Activez les
-        paquets bêta pour suivre le canal nightly.
+        KROMA shows up in the Community tab and updates itself with every release. Enable beta
+        packages to follow the nightly channel.
       </Txt>
     </Column>
   );

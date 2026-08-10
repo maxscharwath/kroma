@@ -1,0 +1,62 @@
+/* Interaction states for the DOM controls a page rendered on the edge uses.
+ *
+ * Selected by `data-kroma` rather than a class: the element carries what it IS,
+ * the stylesheet says how that behaves, and nothing has to thread a class name
+ * through the component tree. `:hover` and `:active` need a selector — an inline
+ * style cannot express either, which is why these live in CSS at all. */
+
+[data-kroma="action"] {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+[data-kroma="action"]:active {
+  transform: scale(var(--press-scale));
+}
+
+[data-kroma="action"]:focus-visible {
+  outline: var(--ring-outline);
+  outline-offset: var(--ring-gap);
+}
+
+[data-kroma="action"][data-tone="primary"]:hover {
+  background: var(--kroma-accent-hover);
+}
+
+[data-kroma="action"][data-tone="outline"]:hover {
+  background: var(--kroma-surface-2);
+  border-color: var(--kroma-border-strong);
+}
+
+[data-kroma="action"][data-tone="ghost"]:hover {
+  background: var(--kroma-wash);
+  color: var(--kroma-text);
+}
+
+[data-kroma="segment"] {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+[data-kroma="segment"]:hover:not([aria-pressed="true"]) {
+  background: var(--kroma-surface-2);
+  color: var(--kroma-text);
+}
+
+[data-kroma="segment"]:active {
+  transform: scale(var(--press-scale));
+}
+
+[data-kroma="segment"]:focus-visible {
+  outline: var(--ring-outline);
+  outline-offset: 2px;
+}
+
+[data-kroma="segment"][aria-pressed="true"]:hover {
+  background: var(--kroma-accent-hover);
+}

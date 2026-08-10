@@ -7,6 +7,7 @@ export type Release = {
   size: string;
   spk: string;
   release: string;
+  notes: string;
 };
 
 export const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
@@ -21,5 +22,6 @@ export function toRelease(e: Entry): Release {
     size: mb(e.info?.size ?? e.spkSize),
     spk: e.spkUrl,
     release: e.releaseUrl,
+    notes: e.notes,
   };
 }

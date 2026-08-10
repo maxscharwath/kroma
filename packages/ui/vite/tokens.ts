@@ -1,9 +1,17 @@
 // The design system as CSS. A stylesheet writes `@import "@kroma/ui"` for the
 // lot, or `@kroma/ui/tokens` / `@kroma/ui/theme` for one half.
 
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { colors, lightColors } from '../src/core/tokens/colors.ts';
-import { glow, motion, RING_GAP, RING_WIDTH, shadow } from '../src/core/tokens/effects.ts';
+import {
+  glow,
+  lightShadow,
+  motion,
+  RING_GAP,
+  RING_WIDTH,
+  shadow,
+} from '../src/core/tokens/effects.ts';
 import { gutter, radius, rhythm, space } from '../src/core/tokens/layout.ts';
 import { fonts, tracking, typeSpec } from '../src/core/tokens/typography.ts';
 
@@ -83,9 +91,10 @@ const effects = () => [
  * ground. A shell opts in when it is ready to switch both halves together.
  */
 export function tokensCss(): string {
+  const lightElevation = Object.entries(lightShadow).map(([k, v]) => `--shadow-${k}: ${v};`);
   return [
     rule(':root', [...palette(colors), ...ALIASES, ...typography(), ...spacing(), ...effects()]),
-    rule(':root[data-theme="light"]', palette(lightColors)),
+    rule(':root[data-theme="light"]', [...palette(lightColors), ...lightElevation]),
   ].join('\n\n');
 }
 
@@ -141,73 +150,18 @@ export function fontsCss(): string {
     .join('\n\n');
 }
 
+const readCss = (name: string) =>
+  readFileSync(fileURLToPath(new URL(`../src/styles/${name}.css`, import.meta.url)), 'utf8');
+
 /** Keyframes the components animate with, on every browser target. */
-export function motionCss(): string {
-  return [
-    // The <Img> reveal. A rule rather than an opacity driven from React: the
-    // element's resting state has to be VISIBLE, or art that is already decoded
-    // stays invisible when the state that would reveal it never arrives.
-    '@keyframes kroma-img-in {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}',
-    '@keyframes kroma-breathe {\n  0%, 100% { opacity: 0.45; }\n  50% { opacity: 0.85; }\n}',
-    '@keyframes fade-in {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}',
-    '@keyframes pop-in {\n  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }\n  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }\n}',
-  ].join('\n\n');
-}
+export const motionCss = () => readCss('motion');
 
 /** The reset and page furniture a browser target wants. A TV shell supplies its
- *  own (it hides overflow and owns its focus visuals), so this is not in the
- *  `tokens` half every target shares. */
-export function baseCss(): string {
-  return [
-    '*, *::before, *::after { box-sizing: border-box; }',
-    'html, body, #root { height: 100%; }',
-    rule('body', [
-      'margin: 0;',
-      'background: var(--kroma-bg);',
-      'color: var(--kroma-text);',
-      'font: var(--type-body);',
-      '-webkit-font-smoothing: antialiased;',
-      'text-rendering: optimizeLegibility;',
-      'overflow-x: hidden;',
-    ]),
-    rule('::selection', ['background: var(--kroma-accent-soft);', 'color: var(--kroma-text);']),
-    'a { color: inherit; text-decoration: none; }',
-    'button { font-family: var(--font-ui); }',
-    // The ring is an outline standing off the control, so it already takes the
-    // control's corners: this must never set border-radius.
-    rule(':focus-visible', ['outline: var(--ring-outline);', 'outline-offset: var(--ring-gap);']),
-    // Except inside a field, where <TextField> owns the focus visual.
-    'input:focus-visible, textarea:focus-visible { box-shadow: none; }',
-    rule('.kroma-overline', [
-      'font: var(--type-overline);',
-      'letter-spacing: var(--tracking-overline);',
-      'text-transform: uppercase;',
-      'color: var(--kroma-text-muted);',
-    ]),
-    // Off-screen tiles skip layout and paint until they near the viewport while
-    // staying in the DOM, so remote focus can still reach them.
-    rule('.kroma-poster', ['content-visibility: auto;', 'contain-intrinsic-size: 200px 320px;']),
-    // Fluid, unlayered so they beat the token defaults, which are TV constants.
-    rule(':root', [
-      '--gutter-web: clamp(1rem, 4vw, 3.5rem);',
-      '--card-w: clamp(8.25rem, 30vw, 13rem);',
-    ]),
-    rule('*', [
-      'scrollbar-color: var(--kroma-border-strong) transparent;',
-      'scrollbar-width: thin;',
-    ]),
-    '::-webkit-scrollbar { width: 10px; height: 10px; }',
-    '::-webkit-scrollbar-track { background: transparent; }',
-    rule('::-webkit-scrollbar-thumb', [
-      'background-clip: padding-box;',
-      'border: 3px solid transparent;',
-      'border-radius: 999px;',
-      'background-color: var(--kroma-border-strong);',
-    ]),
-    '::-webkit-scrollbar-thumb:hover { background-color: var(--kroma-text-dim); }',
-    '::-webkit-scrollbar-corner { background: transparent; }',
-  ].join('\n\n');
-}
+ *  own, so this is not in the `tokens` half every target shares. */
+export const baseCss = () => readCss('base');
+
+/** Interaction states for the DOM controls an edge-rendered page uses. */
+export const controlsCss = () => readCss('controls');
 
 /** The whole design system, framework-free: type, tokens, motion and the reset.
  *  A Tailwind app adds `@import "tailwindcss"` and `@kroma/ui/css/theme`. */
@@ -229,6 +183,7 @@ const EXPANSION: Record<string, () => string> = {
   '/fonts': fontsCss,
   '/motion': motionCss,
   '/base': baseCss,
+  '/controls': controlsCss,
 };
 
 // Unknown suffix throws rather than falling back to the aggregate: `/tokns` is

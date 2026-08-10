@@ -142,14 +142,16 @@ function DialogSurface({
     ) : null);
   const foot = footerPart ?? (footer ? <FooterSlot>{footer}</FooterSlot> : null);
   const shell: Shell = { pad, hasHeader: Boolean(header), hasFooter: Boolean(foot) };
-  // The panel names itself: by reference on the web when the title is visible
-  // (so a screen reader can also jump to it), by value otherwise.
+  // The panel names itself by reference only when it rendered the node that
+  // carries the id: a composed <Dialog.Header> replaces the fallback, so
+  // pointing at `titleId` there would name the dialog after nothing at all.
+  const namesOwnTitle = !headerPart && showsTitle;
   const naming =
     Platform.OS === 'web'
       ? {
-          'aria-labelledby': showsTitle ? titleId : undefined,
-          'aria-label': showsTitle ? undefined : title,
-          'aria-describedby': description ? descriptionId : undefined,
+          'aria-labelledby': namesOwnTitle ? titleId : undefined,
+          'aria-label': namesOwnTitle ? undefined : title,
+          'aria-describedby': !headerPart && description ? descriptionId : undefined,
         }
       : { accessibilityLabel: title };
   const panel = (

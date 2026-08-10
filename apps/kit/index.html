@@ -6,13 +6,13 @@
     <title>KROMA Kit</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- Paint the stage black before the bundled CSS loads, so the launch
-         never flashes a white body. -->
+         never flashes a white body. The bundle's base.css takes both back onto
+         the theme's ground, so this is a launch colour and not the page's. -->
     <style>
       html,
       body {
         margin: 0;
         background: #0a0a0c;
-        color-scheme: dark;
       }
       /* React Native Web's flex:1 needs a flex ancestor; AppRegistry usually
          provides one, but this site mounts with createRoot directly. Fixing the

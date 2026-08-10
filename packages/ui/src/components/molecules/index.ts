@@ -21,6 +21,8 @@ export type {
   SingleRootProps,
 } from './choice-list';
 export { ChoiceList } from './choice-list';
+export type { CopyButtonProps } from './copy-button';
+export { CopyButton } from './copy-button';
 export type { DisclosureProps } from './disclosure';
 export { Disclosure } from './disclosure';
 export type { EmptyStateProps } from './empty-state';
@@ -63,5 +65,7 @@ export type { SelectOption, SelectProps } from './select';
 export { Select, selectTriggerVariants } from './select';
 export type { StatCardProps } from './stat-card';
 export { StatCard } from './stat-card';
+export type { ThemeSwitchProps } from './theme-switch';
+export { ThemeSwitch } from './theme-switch';
 export type { TooltipProps } from './tooltip';
 export { Tooltip } from './tooltip';

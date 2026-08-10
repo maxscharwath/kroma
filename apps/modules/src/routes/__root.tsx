@@ -1,6 +1,7 @@
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import appCss from '#site/styles.css?url';
+import { themeBootScript } from '#ui/core/theme-mode';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -31,6 +32,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: stamps the stored theme before first paint; a component cannot run early enough. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}

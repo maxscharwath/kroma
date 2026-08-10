@@ -31,6 +31,17 @@ export {
   themed,
   themeVersion,
 } from './theme';
+export type { ThemeMode } from './theme-mode';
+export {
+  applyMode,
+  isThemeMode,
+  readMode,
+  resolveMode,
+  THEME_COOKIE,
+  themeBootScript,
+  themeFor,
+  writeMode,
+} from './theme-mode';
 export * from './tokens';
 export type {
   AnyStyle,

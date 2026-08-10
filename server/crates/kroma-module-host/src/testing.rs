@@ -44,6 +44,28 @@ type Service = (TypeId, Arc<dyn Any + Send + Sync>);
 // value`, the exact shape of [`HostCtx::setting_str`].
 type StringSettings = Arc<dyn Fn(&str, &str) -> String + Send + Sync>;
 
+// The three calls both hosts RECORD rather than answer, written once.
+//
+// `Recording` wraps a real host and forwards everything else to it, and
+// `StubHost` has nothing behind it to forward to - but these three are the
+// traffic a test asserts on, so both must intercept them and both must do it
+// the same way. A test reading `log.published` should not have to know which
+// host it happens to be holding.
+macro_rules! records_into_log {
+    () => {
+        fn publish(&self, event: Event) {
+            self.log.published.lock().unwrap().push((None, event.topic));
+        }
+        fn publish_to(&self, user_id: &str, event: Event) {
+            self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
+        }
+        fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
+            self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
+            1
+        }
+    };
+}
+
 /// What a [`StubHost`] or [`Recording`] saw. Shared behind an `Arc` so a clone
 /// of the host - axum takes its state by value - observes the same traffic.
 #[derive(Default)]
@@ -265,16 +287,7 @@ impl HostCtx for StubHost {
         self.settings.lock().unwrap().extend(patch.clone());
         self.log.settings_written.lock().unwrap().push(patch);
     }
-    fn publish(&self, event: Event) {
-        self.log.published.lock().unwrap().push((None, event.topic));
-    }
-    fn publish_to(&self, user_id: &str, event: Event) {
-        self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
-    }
-    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
-        self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
-        1
-    }
+    records_into_log!();
     fn trigger_job(&self, key: &'static str, reason: &'static str) {
         self.log.jobs.lock().unwrap().push((key, reason));
     }
@@ -366,16 +379,7 @@ impl<H: HostCtx> HostCtx for Recording<H> {
     fn set_settings(&self, patch: BTreeMap<String, serde_json::Value>) {
         self.inner.set_settings(patch);
     }
-    fn publish(&self, event: Event) {
-        self.log.published.lock().unwrap().push((None, event.topic));
-    }
-    fn publish_to(&self, user_id: &str, event: Event) {
-        self.log.published.lock().unwrap().push((Some(user_id.to_string()), event.topic));
-    }
-    fn notify(&self, audience: &Audience, spec: &NotificationSpec) -> usize {
-        self.log.notified.lock().unwrap().push((audience.clone(), spec.clone()));
-        1
-    }
+    records_into_log!();
     fn trigger_job(&self, key: &'static str, reason: &'static str) {
         self.inner.trigger_job(key, reason);
     }

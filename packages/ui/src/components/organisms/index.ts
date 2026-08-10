@@ -26,6 +26,8 @@ export type { KromaIntroProps } from './kroma-intro';
 export { KromaIntro } from './kroma-intro';
 export type { MenuEntry, MenuItem, MenuProps } from './menu';
 export { Menu } from './menu';
+export type { NearbyTvListProps } from './nearby-tv-list';
+export { NearbyTvList } from './nearby-tv-list';
 export { PerfHud } from './perf-hud';
 export type { RailProps } from './rail';
 export { RAIL_GAP, Rail } from './rail';

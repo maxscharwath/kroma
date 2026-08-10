@@ -23,17 +23,15 @@
 // here, and why" are both the kit's <EmptyState> - and the footer that says the
 // looking goes on belongs under a list, never under one of those.
 
-import type { DiscoveredTv } from '@kroma/core';
-import type { HandoffOutcome } from '@kroma/core/react';
-import { handoffRowHint, useHandoffPicker, useNearbyTvs } from '@kroma/core/react';
+import { useHandoffPicker, useNearbyTvs } from '@kroma/core/react';
 import { lanBeacon } from '@kroma/lan-beacon';
-import { Badge, Box, EmptyState, Icon, ListRow, Spinner, styles, Txt } from '@kroma/ui/kit';
+import { Box, EmptyState, NearbyTvList, Spinner, styles, Txt } from '@kroma/ui/kit';
 import * as Haptics from 'expo-haptics';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { CheckPrompt } from '#mobile/components/connect/CheckPrompt';
 import { useT } from '#mobile/lib/i18n';
 import { useClient } from '#mobile/lib/session';
-import { colors, spacing, type } from '#mobile/lib/theme';
+import { spacing, type } from '#mobile/lib/theme';
 
 // A television answers the server poll in about a second and a link browse
 // faster still, but "nothing here" the instant the mode opens is a lie the
@@ -81,23 +79,13 @@ export function NearbyTvs() {
   let body: ReactNode;
   if (rows.length > 0) {
     body = (
-      <ListRow.Group>
-        {rows.map((device) => {
-          const busy = connecting?.handle === device.handle;
-          const outcome = outcomeFor(device);
-          return (
-            <ListRow
-              key={device.handle}
-              size="sm"
-              icon="device-tv"
-              label={device.name}
-              hint={handoffRowHint(device, busy, outcome, t) || undefined}
-              trailing={rowTrailing(device, busy, outcome)}
-              onPress={outcome ? undefined : () => start(device)}
-            />
-          );
-        })}
-      </ListRow.Group>
+      <NearbyTvList
+        devices={rows}
+        connectingHandle={connecting?.handle}
+        outcomeFor={outcomeFor}
+        onSelect={start}
+        t={t}
+      />
     );
   } else if (!settled) {
     body = (
@@ -130,18 +118,6 @@ export function NearbyTvs() {
       ) : null}
     </Box>
   );
-}
-
-function rowTrailing(
-  device: DiscoveredTv,
-  busy: boolean,
-  outcome: HandoffOutcome | null,
-): ReactNode {
-  if (busy) return <Spinner size={18} thickness={2} />;
-  if (outcome === 'done')
-    return <Icon name="check" size={18} stroke={2.4} color={colors.success} />;
-  if (outcome) return <Icon name="alert-triangle" size={18} stroke={2.2} color={colors.danger} />;
-  return <Badge tone="neutral">{device.check}</Badge>;
 }
 
 const s = styles({

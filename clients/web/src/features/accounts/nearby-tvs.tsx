@@ -21,20 +21,9 @@
 
 import type { DiscoveredTv, GrantResult } from '@kroma/core';
 import { HANDOFF_CHECK_LENGTH } from '@kroma/core';
-import type { HandoffOutcome } from '@kroma/core/react';
-import { handoffRowHint, useCheckPrompt, useHandoffPicker, useNearbyTvs } from '@kroma/core/react';
+import { useCheckPrompt, useHandoffPicker, useNearbyTvs } from '@kroma/core/react';
 import { useT } from '@kroma/ui';
-import {
-  Badge,
-  Button,
-  Icon,
-  ListRow,
-  OtpField,
-  REGEXP_ONLY_DIGITS_AND_CHARS,
-  Spinner,
-  Txt,
-} from '@kroma/ui/kit';
-import type { ReactNode } from 'react';
+import { Button, NearbyTvList, OtpField, REGEXP_ONLY_DIGITS_AND_CHARS, Txt } from '@kroma/ui/kit';
 import { useAuth } from '#web/shared/lib/auth';
 
 export function NearbyTvs() {
@@ -56,23 +45,13 @@ export function NearbyTvs() {
       {asking ? (
         <CheckPrompt device={asking} onGrant={grant} onCancel={stopAsking} />
       ) : (
-        <ListRow.Group>
-          {rows.map((device) => {
-            const busy = connecting?.handle === device.handle;
-            const outcome = outcomeFor(device);
-            return (
-              <ListRow
-                key={device.handle}
-                size="sm"
-                icon="device-tv"
-                label={device.name}
-                hint={handoffRowHint(device, busy, outcome, t) || undefined}
-                trailing={rowTrailing(device, busy, outcome)}
-                onPress={outcome ? undefined : () => start(device)}
-              />
-            );
-          })}
-        </ListRow.Group>
+        <NearbyTvList
+          devices={rows}
+          connectingHandle={connecting?.handle}
+          outcomeFor={outcomeFor}
+          onSelect={start}
+          t={t}
+        />
       )}
 
       <Txt style={{ fontSize: 12, marginTop: 18, textAlign: 'center' }} color="textDim">
@@ -121,15 +100,4 @@ function CheckPrompt({
       <Button variant="ghost" size="sm" label={t('common.cancel')} onPress={onCancel} />
     </div>
   );
-}
-
-function rowTrailing(
-  device: DiscoveredTv,
-  busy: boolean,
-  outcome: HandoffOutcome | null,
-): ReactNode {
-  if (busy) return <Spinner size={18} thickness={2} />;
-  if (outcome === 'done') return <Icon name="check" size={18} color="success" />;
-  if (outcome) return <Icon name="alert-triangle" size={18} color="danger" />;
-  return <Badge tone="neutral">{device.check}</Badge>;
 }

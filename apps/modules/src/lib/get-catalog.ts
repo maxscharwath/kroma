@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import type { ModuleEntry } from '#site/catalog';
+import { withIconUrls } from '#site/lib/icon';
 import { loadCatalog } from '#site/lib/source';
 import { workerContext } from '#site/lib/worker-env';
 
@@ -27,7 +28,7 @@ export const getCatalog = createServerFn().handler(async () => {
   if (!parsed.success) return empty;
   return {
     registry,
-    modules: parsed.data.modules,
+    modules: withIconUrls(parsed.data.modules),
     generatedAt: parsed.data.generatedAt ?? null,
   };
 });

@@ -27,10 +27,10 @@ export function jsonResponse(body: string, maxAge: number): Response {
   });
 }
 
-async function fetchUpstream(env: Env): Promise<string> {
-  const repo = env.GITHUB_REPO || DEFAULT_REPO;
+async function fetchUpstream(env: Env | undefined): Promise<string> {
+  const repo = env?.GITHUB_REPO || DEFAULT_REPO;
   const headers: Record<string, string> = { 'user-agent': 'kroma-module-registry' };
-  if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  if (env?.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
   const res = await fetch(`https://github.com/${repo}/releases/latest/download/modules.json`, {
     headers,
     redirect: 'follow',
@@ -43,7 +43,7 @@ async function fetchUpstream(env: Env): Promise<string> {
  *  produce one. The failure detail goes to the log, never to the caller: on a
  *  public endpoint `String(err)` would hand out the upstream URL. */
 export async function loadCatalog(
-  env: Env,
+  env: Env | undefined,
   waitUntil: (p: Promise<unknown>) => void,
 ): Promise<string | null> {
   const cache = edgeCache();

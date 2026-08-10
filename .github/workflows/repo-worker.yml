@@ -1,8 +1,8 @@
 name: Package-source worker
 
 # Deploys the Cloudflare Workers that back the KROMA package + module sources:
-#   packages/synology-repo/worker  -> packages.kroma.tv  (kroma-packages)
-#   packages/module-registry/worker -> modules.kroma.tv  (kroma-modules)
+#   sites/packages/worker  -> packages.kroma.tv  (kroma-packages)
+#   sites/modules/worker -> modules.kroma.tv  (kroma-modules)
 # Only when the worker code changes; releases never touch these (they read the
 # GitHub Releases API live). The two workers are gated SEPARATELY: a push that
 # touches one no longer redeploys the other (a dispatch still ships both).
@@ -14,8 +14,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'packages/synology-repo/worker/**'
-      - 'packages/module-registry/worker/**'
+      - 'sites/packages/worker/**'
+      - 'sites/modules/worker/**'
       - '.github/workflows/repo-worker.yml'
   workflow_dispatch:
 
@@ -41,10 +41,10 @@ jobs:
         with:
           filters: |
             packages_worker:
-              - 'packages/synology-repo/worker/**'
+              - 'sites/packages/worker/**'
               - '.github/workflows/repo-worker.yml'
             modules_worker:
-              - 'packages/module-registry/worker/**'
+              - 'sites/modules/worker/**'
               - '.github/workflows/repo-worker.yml'
 
       # Soft gate: no token -> skip (not fail). secrets can't be read in a job-
@@ -68,7 +68,7 @@ jobs:
 
       - name: Deploy the package source (packages.kroma.tv)
         if: steps.guard.outputs.has_token == 'true' && steps.f.outputs.packages_worker != 'false'
-        working-directory: packages/synology-repo/worker
+        working-directory: sites/packages/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bunx wrangler@4 deploy
@@ -83,7 +83,7 @@ jobs:
 
       - name: Deploy the module registry (modules.kroma.tv)
         if: steps.guard.outputs.has_token == 'true' && steps.f.outputs.modules_worker != 'false'
-        working-directory: packages/module-registry/worker
+        working-directory: sites/modules/worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: bunx wrangler@4 deploy

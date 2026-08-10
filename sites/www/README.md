@@ -154,13 +154,13 @@ see `clients/tv-web`). Requires the `kroma.tv` zone on the Cloudflare account;
 ```bash
 bun run --filter '@kroma/site' deploy
 # or, if dist/ is already built:
-cd clients/site && bunx wrangler@4 deploy
+cd sites/www && bunx wrangler@4 deploy
 ```
 
 ## Layout
 
 ```
-clients/site/
+sites/www/
 ├─ content/blog/       the blog, one .mdx per post + .<lang>.mdx translations
 ├─ content/legal/      the privacy policy, as MDX per locale
 ├─ messages/           the Paraglide catalogs, one .json per locale

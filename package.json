@@ -6,6 +6,7 @@
   "workspaces": [
     "packages/*",
     "clients/*",
+    "sites/*",
     "modules/*/ui"
   ],
   "scripts": {
@@ -42,6 +43,7 @@
     "deploy:tv-web": "bun run --filter '@kroma/tv-web' deploy",
     "deploy:site": "bun run --filter '@kroma/site' deploy",
     "deploy:modules": "bun run --filter '@kroma/module-registry' deploy",
+    "deploy:packages": "bun run --filter '@kroma/package-source' deploy",
     "build": "bun run --filter '*' build",
     "build:web": "bun run --filter '@kroma/web' build",
     "build:site": "bun run --filter '@kroma/site' build",

@@ -9,7 +9,7 @@
 // nightly channel, DSM catalog shape GET /all.json every entry (machine-readable) GET /icon.png
 // package icon (proxied from the repo, for DSM's store row) GET /favicon.svg the brand mark,
 // bundled (also answers /favicon.ico) Deploy: bunx wrangler deploy
-// (packages/synology-repo/worker) Optional secret GITHUB_TOKEN (public-repo read) lifts
+// (sites/packages/worker) Optional secret GITHUB_TOKEN (public-repo read) lifts
 // anonymous API limits.
 import { KROMA_MARK_SVG } from './brand';
 import {

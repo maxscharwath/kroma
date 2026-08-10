@@ -1,0 +1,14 @@
+{
+  "name": "@kroma/package-source",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "KROMA dynamic Synology package source (packages.kroma.tv): a Cloudflare Worker that answers DSM's Package Center with a live, channel- and arch-filtered catalog assembled from the GitHub Releases API, plus the browser landing page that lists every release.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "deploy": "bunx wrangler@4 deploy -c worker/wrangler.jsonc"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

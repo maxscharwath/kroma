@@ -69,7 +69,7 @@ on:
       - '.claude/**'
       - 'LICENSE'
       - 'clients/kit/**'
-      - 'clients/site/**'
+      - 'sites/www/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/sonar.yml'
       - '.github/workflows/codeql.yml'

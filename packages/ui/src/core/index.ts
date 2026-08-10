@@ -65,4 +65,4 @@ export type {
   VariantProps,
   VariantSource,
 } from './types';
-export { ThemeProvider, useSystemTheme, useTheme } from './use-theme';
+export { ThemeProvider, useTheme } from './use-theme';

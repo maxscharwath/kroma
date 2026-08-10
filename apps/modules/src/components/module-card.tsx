@@ -1,6 +1,5 @@
 import { type ReactNode, useState } from 'react';
 import type { ModuleEntry } from '#site/catalog';
-import { CopyAction } from '#site/components/copy-action';
 import { ModuleDownload } from '#site/components/module-download';
 import { downloads } from '#site/lib/artifacts';
 import { type Dependency, depEntries } from '#site/lib/deps';
@@ -12,6 +11,7 @@ import { Divider } from '#ui/components/atoms/divider';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 
 const ICON = 60;
 const ICON_RADIUS = 15;
@@ -60,7 +60,7 @@ function Footer({ id, sha256 }: Readonly<{ id: string; sha256: string | null }>)
             </Txt>
           </Box>
           <Box shrink={0}>
-            <CopyAction value={sha256} label="Copy hash" iconOnly />
+            <CopyButton value={sha256} label="Copy hash" iconOnly />
           </Box>
         </>
       ) : null}

@@ -77,10 +77,6 @@ interface Box2D {
   width: number;
 }
 
-interface Seat extends Box2D {
-  disabled: boolean;
-}
-
 interface SegmentedContext {
   value: string;
   select: (next: string) => void;
@@ -88,6 +84,7 @@ interface SegmentedContext {
   stretch: boolean;
   iconOnly: boolean;
   report: (value: string, box: Box2D) => void;
+  register: (value: string) => void;
   mark: (value: string, disabled: boolean) => void;
   forget: (value: string) => void;
 }
@@ -134,51 +131,57 @@ function Root<T extends string>({
 }: Readonly<RootProps<T>>) {
   const shell = size ?? entryDefaultSize();
   const metrics = CONTROL[shell];
-  const seats = useRef(new Map<string, Seat>());
+  // The row as the keyboard walks it: the order Items registered in, which for
+  // a flex row is the order they are read in. Deliberately NOT the measured
+  // geometry — that arrives a frame later, and arrow keys must work on the
+  // first render rather than only once something has been laid out.
+  const order = useRef<string[]>([]);
+  const off = useRef(new Set<string>());
+  // Geometry, for the thumb alone.
+  const boxes = useRef(new Map<string, Box2D>());
   const [thumb, setThumb] = useState<Box2D | null>(null);
 
-  // Two signals, because they arrive on different clocks: the box comes from
-  // layout, `disabled` from the render that may toggle it without moving
-  // anything.
   const report = useCallback(
     (option: string, box: Box2D) => {
-      seats.current.set(option, { ...box, disabled: seats.current.get(option)?.disabled ?? false });
+      boxes.current.set(option, box);
       if (option === value) setThumb(box);
     },
     [value],
   );
 
+  const register = useCallback((option: string) => {
+    if (!order.current.includes(option)) order.current.push(option);
+  }, []);
+
   const mark = useCallback((option: string, disabled: boolean) => {
-    const seat = seats.current.get(option);
-    if (seat) seat.disabled = disabled;
-    else seats.current.set(option, { x: Number.POSITIVE_INFINITY, width: 0, disabled });
+    if (disabled) off.current.add(option);
+    else off.current.delete(option);
   }, []);
 
   // An Item that leaves takes its seat with it, or the arrows keep walking onto
   // an option the caller has since removed.
   const forget = useCallback((option: string) => {
-    seats.current.delete(option);
+    const at = order.current.indexOf(option);
+    if (at !== -1) order.current.splice(at, 1);
+    off.current.delete(option);
+    boxes.current.delete(option);
   }, []);
 
   useEffect(() => {
-    const at = seats.current.get(value);
+    const at = boxes.current.get(value);
     if (at) setThumb(at);
   }, [value]);
 
-  // Ordered by where they actually sit, so the arrows follow the row rather
-  // than the order the Items happened to mount in. A disabled segment is
-  // stepped over rather than landed on: it is in the row but it is not a
-  // choice.
+  // A disabled segment is stepped over rather than landed on: it is in the row
+  // but it is not a choice.
   const move = (delta: -1 | 1) => {
-    const order = [...seats.current.entries()].sort((a, b) => a[1].x - b[1].x);
-    const at = order.findIndex(([key]) => key === value);
+    const row = order.current;
+    const at = row.indexOf(value);
     if (at === -1) return;
-    for (let step = 1; step <= order.length; step += 1) {
-      const entry = order[(((at + delta * step) % order.length) + order.length) % order.length];
-      if (!entry) continue;
-      const [key, seat] = entry;
-      if (key === value) return;
-      if (seat.disabled) continue;
+    for (let step = 1; step <= row.length; step += 1) {
+      const key = row[(((at + delta * step) % row.length) + row.length) % row.length];
+      if (key === undefined || key === value) return;
+      if (off.current.has(key)) continue;
       onValueChange(key as T);
       return;
     }
@@ -191,6 +194,7 @@ function Root<T extends string>({
     stretch,
     iconOnly,
     report,
+    register,
     mark,
     forget,
   };
@@ -236,14 +240,19 @@ function Item<T extends string>({
   disabled,
 }: Readonly<SegmentedOption<T>>) {
   const ctx = useSegmented('Item');
-  const { value: picked, select, size, stretch, iconOnly, report, mark, forget } = ctx;
+  const { value: picked, select, size, stretch, iconOnly, report, register, mark, forget } = ctx;
   const active = value === picked;
   const glyph = Math.round(CONTROL[size].fontSize * 1.2);
   const corner = { borderRadius: segmentRadius(size) };
+  // Two effects, not one: re-running the registration when `disabled` toggles
+  // would drop the segment and push it back on at the end of the row.
+  useEffect(() => {
+    register(value);
+    return () => forget(value);
+  }, [register, forget, value]);
   useEffect(() => {
     mark(value, Boolean(disabled));
-    return () => forget(value);
-  }, [mark, forget, value, disabled]);
+  }, [mark, value, disabled]);
   // The wrapper is what the thumb measures: <Focusable> owns its own layout
   // callback for the press dip, and a second one cannot ride the same channel.
   return (

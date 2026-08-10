@@ -12,7 +12,8 @@ import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Icon } from '#ui/components/atoms/icon';
 import { colors } from '#ui/core/tokens';
-import { DEFAULT_ICON_SIZE, resolveIcon, splitAlpha } from './glyph';
+import { splitAlpha } from '#ui/core/tokens/colors';
+import { DEFAULT_ICON_SIZE, resolveIcon } from './glyph';
 
 afterEach(cleanup);
 

@@ -45,24 +45,3 @@ export const Catalog = z.object({
   error: z.string().nullish(),
 });
 export type Catalog = z.infer<typeof Catalog>;
-
-export function depList(deps: ModuleEntry['dependsOn']): string[] {
-  if (Array.isArray(deps)) return deps;
-  return deps ? Object.keys(deps) : [];
-}
-
-/** The worker injects the catalog into index.html at the edge; the vite dev
- * server leaves the placeholder, so dev falls back to fetching: the local
- * route first, then the live registry (CORS-open). */
-export async function loadCatalog(): Promise<Catalog> {
-  const raw = document.getElementById('kroma-catalog')?.textContent?.trim();
-  if (raw && raw !== '"__CATALOG__"') return Catalog.parse(JSON.parse(raw));
-  for (const url of ['/modules.json', 'https://modules.kroma.tv/modules.json']) {
-    const res = await fetch(url).catch(() => null);
-    if (!res?.ok) continue;
-    const body = await res.json().catch(() => null);
-    const parsed = Catalog.safeParse(body);
-    if (parsed.success) return parsed.data;
-  }
-  throw new Error('no catalog reachable');
-}

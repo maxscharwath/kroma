@@ -1,6 +1,6 @@
-import { CopyAction } from '#site/components/copy-action';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 
 export function InstallCard({ url }: Readonly<{ url: string }>) {
   return (
@@ -18,7 +18,7 @@ export function InstallCard({ url }: Readonly<{ url: string }>) {
               {url}
             </Txt>
           </Box>
-          <CopyAction value={url} />
+          <CopyButton value={url} label="Copy" copiedLabel="Copied" variant="primary" />
         </Row>
       </Box>
       <Txt color="textDim" variant="meta">

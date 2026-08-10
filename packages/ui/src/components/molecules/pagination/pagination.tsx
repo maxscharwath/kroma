@@ -282,6 +282,39 @@ function Status({ format = pageOfCount }: Readonly<PaginationStatusProps>) {
 
 const Pagination = { Root, Previous, Pages, Item, Ellipsis, Next, Status };
 
+/** One page of a list, and the 1-based range it covers. */
+export interface Page<T> {
+  items: T[];
+  page: number;
+  pageCount: number;
+  /** 1-based index of the first item shown, or 0 when there is nothing. */
+  first: number;
+  last: number;
+  total: number;
+}
+
+/**
+ * The slice to render, with the page clamped into range.
+ *
+ * The clamp is the point: a list that shrinks under a filter must never leave
+ * the reader on a page past the end, staring at nothing.
+ */
+export function paginate<T>(items: readonly T[], page: number, size: number): Page<T> {
+  const total = items.length;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const current = Math.min(Math.max(1, Math.trunc(page)), pageCount);
+  const start = (current - 1) * size;
+  const slice = items.slice(start, start + size);
+  return {
+    items: slice,
+    page: current,
+    pageCount,
+    first: slice.length === 0 ? 0 : start + 1,
+    last: start + slice.length,
+    total,
+  };
+}
+
 export type {
   PageSlot,
   PaginationItemProps,

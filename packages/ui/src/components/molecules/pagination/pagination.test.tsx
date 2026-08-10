@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type PageSlot, Pagination, pageWindow } from './pagination';
+import { type PageSlot, Pagination, pageWindow, paginate } from './pagination';
 
 afterEach(cleanup);
 
@@ -177,5 +177,34 @@ describe('Pagination', () => {
 
   it('refuses to render a part outside its Root', () => {
     expect(() => render(<Pagination.Pages />)).toThrow(/inside <Pagination.Root>/);
+  });
+});
+
+describe('paginate', () => {
+  const items = [1, 2, 3, 4, 5];
+
+  it('slices the page and reports the visible range', () => {
+    expect(paginate(items, 1, 2)).toMatchObject({ items: [1, 2], first: 1, last: 2, pageCount: 3 });
+    expect(paginate(items, 3, 2)).toMatchObject({ items: [5], first: 5, last: 5, page: 3 });
+  });
+
+  it('clamps a page that no longer exists rather than showing nothing', () => {
+    expect(paginate(items, 9, 2)).toMatchObject({ items: [5], page: 3 });
+    expect(paginate(items, 0, 2)).toMatchObject({ items: [1, 2], page: 1 });
+  });
+
+  it('reports an empty list as one empty page', () => {
+    expect(paginate([], 1, 2)).toEqual({
+      items: [],
+      page: 1,
+      pageCount: 1,
+      first: 0,
+      last: 0,
+      total: 0,
+    });
+  });
+
+  it('counts the whole set, not the page', () => {
+    expect(paginate(items, 1, 2).total).toBe(5);
   });
 });

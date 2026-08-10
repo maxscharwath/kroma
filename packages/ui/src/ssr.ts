@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { CSS_SLOT, HREF_SLOT, isWorn, MARKER, wornBy } from './rnw-sheet';
 
 type Fetch = (request: Request) => Response | Promise<Response>;
 
@@ -14,32 +15,7 @@ export interface KitSheetFile {
 
 // Rewritten in the built output by kitSheet() (@kroma/bundler), once the build
 // has rendered the site and knows what the linked file holds.
-const BUILT: KitSheetFile = { href: '__KROMA_KIT_SHEET_HREF__', css: '__KROMA_KIT_SHEET_CSS__' };
-
-const GROUP = '[stylesheet-group=';
-const CLASS = /\.((?:css|r)-[\w-]+)/gi;
-const ATTR = /class="([^"]*)"/g;
-
-function wornBy(html: string): Set<string> {
-  const worn = new Set<string>();
-  for (const match of html.matchAll(ATTR)) {
-    for (const name of (match[1] ?? '').split(' ')) worn.add(name);
-  }
-  return worn;
-}
-
-// react-native-web compiles and inserts every rule of every style object it
-// touches, then picks the class names that win; the losers are in the sheet and
-// on no element. So a rule earns its place only if the page is wearing one of
-// its classes. A rule that names none (the resets, the keyframes) always does.
-function needed(rule: string, worn: ReadonlySet<string>): boolean {
-  let named = false;
-  for (const match of rule.matchAll(CLASS)) {
-    named = true;
-    if (worn.has(match[1] as string)) return true;
-  }
-  return !named;
-}
+const BUILT: KitSheetFile = { href: HREF_SLOT, css: CSS_SLOT };
 
 // The element is adopted on startup and react-native-web rebuilds its record
 // from it, rule by rule: every rule it reads has to sit under the group marker
@@ -49,11 +25,11 @@ function remainder(live: string, held: ReadonlySet<string>, worn: ReadonlySet<st
   const out: string[] = [];
   let marker: string | undefined;
   for (const rule of live.split('\n')) {
-    if (rule.startsWith(GROUP)) {
+    if (rule.startsWith(MARKER)) {
       marker = rule;
       continue;
     }
-    if (held.has(rule) || !needed(rule, worn)) continue;
+    if (held.has(rule) || !isWorn(rule, worn)) continue;
     if (marker !== undefined) {
       out.push(marker);
       marker = undefined;

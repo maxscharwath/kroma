@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { ReleaseRow } from '#site/components/release-row';
 import { ReleaseSearch } from '#site/components/release-search';
 import { filterReleases } from '#site/lib/filter-releases';
-import { paginate } from '#site/lib/paginate';
 import type { Release } from '#site/lib/release';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Divider } from '#ui/components/atoms/divider';
 import { Txt } from '#ui/components/atoms/text';
 import { EmptyState } from '#ui/components/molecules/empty-state';
-import { Pagination } from '#ui/components/molecules/pagination';
+import { Pagination, paginate } from '#ui/components/molecules/pagination';
 
 const PAGE_SIZE = 25;
 
@@ -39,7 +38,7 @@ export function ReleaseList({ releases, current = [] }: Readonly<ReleaseListProp
           </Txt>
           {shown.total > 0 ? (
             <Txt variant="meta" color="textDim">
-              {shown.from}-{shown.to} of {shown.total}
+              {shown.first}-{shown.last} of {shown.total}
             </Txt>
           ) : null}
         </Column>
@@ -64,13 +63,13 @@ export function ReleaseList({ releases, current = [] }: Readonly<ReleaseListProp
         </Box>
       )}
 
-      {shown.pages > 1 ? (
+      {shown.pageCount > 1 ? (
         <Row justify="flex-end">
           <Pagination.Root
             label="Releases"
             size="sm"
             page={shown.page}
-            pageCount={shown.pages}
+            pageCount={shown.pageCount}
             onPageChange={setPage}
           />
         </Row>

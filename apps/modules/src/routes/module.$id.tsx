@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import type { ModuleEntry } from '#site/catalog';
-import { CopyAction } from '#site/components/copy-action';
 import { ModuleBuilds } from '#site/components/module-builds';
 import { ModuleDownload } from '#site/components/module-download';
 import { ModuleHistory } from '#site/components/module-history';
@@ -18,15 +17,25 @@ import { Button } from '#ui/components/atoms/button';
 import { Icon } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 import { EmptyState } from '#ui/components/molecules/empty-state';
 
 export const Route = createFileRoute('/module/$id')({
+  // One module, not the catalog it came from. The whole catalog is dehydrated
+  // into the page, and every entry carries its icon as a base64 data URI, so
+  // spreading it here shipped eleven other modules' artwork to a page that
+  // shows one.
   loader: async ({ params }) => {
     const [catalog, history] = await Promise.all([
       getCatalog(),
       getModuleHistory({ data: { id: params.id } }),
     ]);
-    return { ...catalog, history, id: params.id };
+    return {
+      module: catalog.modules.find((m) => m.id === params.id) ?? null,
+      registry: catalog.registry,
+      history,
+      id: params.id,
+    };
   },
   component: ModulePage,
 });
@@ -74,7 +83,7 @@ function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
             </Txt>
           </Box>
           <Box shrink={0}>
-            <CopyAction value={m.id} label="Copy id" variant="ghost" iconOnly />
+            <CopyButton value={m.id} label="Copy id" iconOnly />
           </Box>
         </Row>
         {m.description ? <Txt color="textMuted">{m.description}</Txt> : null}
@@ -105,8 +114,7 @@ function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
 }
 
 function ModulePage() {
-  const { modules, registry, history, id } = Route.useLoaderData();
-  const module = modules.find((m) => m.id === id);
+  const { module, registry, history, id } = Route.useLoaderData();
 
   if (!module) {
     return (

@@ -2,18 +2,13 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { CSS_SLOT, classesIn, HREF_SLOT, isWorn, MARKER, wornBy } from '@kroma/ui/rnw-sheet';
 import { transform } from 'lightningcss';
 import type { Plugin } from 'vite';
-
-const HREF_SLOT = '__KROMA_KIT_SHEET_HREF__';
-const CSS_SLOT = '__KROMA_KIT_SHEET_CSS__';
 
 const SHEET = /<style id="react-native-stylesheet">([\s\S]*?)<\/style>/;
 const ANCHOR = /<a\s[^>]*?href="(\/[^"]*)"/g;
 const OPAQUE = /\.(?:json|png|jpg|svg|ico|css|js|txt|xml|webmanifest|zip|kmod|spk)($|\?)/;
-const MARKER = '[stylesheet-group=';
-const CLASS = /\.((?:css|r)-[\w-]+)/gi;
-const ATTR = /class="([^"]*)"/g;
 
 interface Handler {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
@@ -75,9 +70,7 @@ async function warm(entry: string, options: Required<KitSheetOptions>) {
     rendered.push(path);
     const found = SHEET.exec(html)?.[1] ?? '';
     if (found.length > css.length) css = found;
-    for (const match of html.matchAll(ATTR)) {
-      for (const name of (match[1] ?? '').split(' ')) worn.add(name);
-    }
+    for (const name of wornBy(html)) worn.add(name);
     for (const match of html.matchAll(ANCHOR)) {
       const next = (match[1] ?? '').split('#')[0] ?? '';
       if (next === '' || seen.has(next) || OPAQUE.test(next)) continue;
@@ -117,19 +110,12 @@ async function fill(dir: string, values: Record<string, string>): Promise<Record
   return hits;
 }
 
-const classesIn = (css: string) => new Set([...css.matchAll(CLASS)].map((match) => match[1]));
-
-// react-native-web compiles and inserts every rule of every style object it
-// touches, then picks the class names that win; on these two sites a third of
-// the sheet is losers, on no element of any page. A rule earns its place in the
-// file only if a render wore one of its classes, and the runtime holds the same
-// line: anything left out that a page does turn out to wear is inlined there.
+// On these two sites a third of the sheet is losers, on no element of any page.
+// The predicate is `isWorn` and lives in @kroma/ui/rnw-sheet, because the
+// runtime holds the same line against the same sheet: anything left out that a
+// page does turn out to wear is inlined there instead.
 function wornRules(css: string, worn: ReadonlySet<string>): string[] {
-  return css.split('\n').filter((rule) => {
-    if (rule.startsWith(MARKER)) return true;
-    const names = classesIn(rule);
-    return names.size === 0 || [...names].some((name) => worn.has(name as string));
-  });
+  return css.split('\n').filter((rule) => rule.startsWith(MARKER) || isWorn(rule, worn));
 }
 
 // The file is paint, not a record: react-native-web adopts the inline element,
@@ -147,7 +133,8 @@ function squeeze(css: string): string {
     minify: true,
   });
   const out = new TextDecoder().decode(code);
-  const lost = [...classesIn(body)].filter((name) => !classesIn(out).has(name));
+  const kept = classesIn(out);
+  const lost = [...classesIn(body)].filter((name) => !kept.has(name));
   if (lost.length > 0) throw new Error(`kit sheet: minifying dropped ${lost.join(', ')}`);
   return out;
 }

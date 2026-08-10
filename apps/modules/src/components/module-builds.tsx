@@ -1,4 +1,3 @@
-import { CopyAction } from '#site/components/copy-action';
 import type { Download } from '#site/lib/artifacts';
 import { mb, platformLabel, shortHash } from '#site/lib/ui';
 import { Box, Column, Row } from '#ui/components/atoms/box';
@@ -6,6 +5,7 @@ import { Button } from '#ui/components/atoms/button';
 import { Divider } from '#ui/components/atoms/divider';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 
 export interface ModuleBuildsProps {
   files: Download[];
@@ -42,7 +42,7 @@ export function ModuleBuilds({ files }: Readonly<ModuleBuildsProps>) {
                     </Txt>
                   </Box>
                   <Box shrink={0}>
-                    <CopyAction value={file.sha256} label="Copy hash" iconOnly />
+                    <CopyButton value={file.sha256} label="Copy hash" iconOnly />
                   </Box>
                 </Row>
               ) : null}

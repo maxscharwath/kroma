@@ -31,13 +31,6 @@ export interface ResolvedIcon {
 export const DEFAULT_ICON_SIZE = 24;
 export const DEFAULT_ICON_STROKE = 2;
 
-/**
- * A colour split into an opaque paint and the alpha it carried, because a translucent
- * stroke composites per path and a glyph's crossings would come out brighter. Anything
- * not recognisably translucent comes back untouched at opacity 1.
- */
-export { splitAlpha } from '#ui/core/tokens/colors';
-
 type Paint = { color: string; opacity: number | string };
 
 // A custom property is opaque to `splitAlpha`, so a token that resolves to one

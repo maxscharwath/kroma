@@ -10,21 +10,6 @@ const render = (ui: ReactElement) => renderRaw(onScreen(ui));
 
 afterEach(cleanup);
 
-// jsdom lays nothing out, so the seats every Item reports would all sit at x=0
-// and the arrow order would be the mount order by accident. Placing them by
-// hand is what makes "follows the row, not the mount order" testable at all.
-function place(order: readonly string[]) {
-  for (const [at, label] of order.entries()) {
-    const el = screen.getByRole('radio', { name: label });
-    const seat = el.parentElement;
-    if (!seat) throw new Error(`no wrapper for ${label}`);
-    fireEvent(
-      seat,
-      Object.assign(new Event('layout'), { nativeEvent: { layout: { x: at * 100, width: 100 } } }),
-    );
-  }
-}
-
 function Group({
   value,
   onValueChange,
@@ -55,7 +40,6 @@ describe('SegmentedControl', () => {
   it('steps over a disabled segment rather than selecting it', () => {
     const onValueChange = vi.fn();
     render(<Group value="a" onValueChange={onValueChange} disabled="b" />);
-    place(['A', 'B', 'C']);
 
     fireEvent.keyDown(screen.getByRole('radiogroup', { name: 'Mode' }), { key: 'ArrowRight' });
 
@@ -66,7 +50,6 @@ describe('SegmentedControl', () => {
   it('selects the next segment when nothing is disabled', () => {
     const onValueChange = vi.fn();
     render(<Group value="a" onValueChange={onValueChange} />);
-    place(['A', 'B', 'C']);
 
     fireEvent.keyDown(screen.getByRole('radiogroup', { name: 'Mode' }), { key: 'ArrowRight' });
 
@@ -76,7 +59,6 @@ describe('SegmentedControl', () => {
   it('wraps around the row backwards', () => {
     const onValueChange = vi.fn();
     render(<Group value="a" onValueChange={onValueChange} />);
-    place(['A', 'B', 'C']);
 
     fireEvent.keyDown(screen.getByRole('radiogroup', { name: 'Mode' }), { key: 'ArrowLeft' });
 

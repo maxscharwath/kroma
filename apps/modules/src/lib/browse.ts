@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ModuleEntry } from '#site/catalog';
+import { type Page, paginate } from '#ui/components/molecules/pagination';
 
 const PAGE_SIZE = 8;
 
@@ -11,37 +12,10 @@ export function matchesQuery(m: ModuleEntry, query: string): boolean {
   return [m.name, m.id, m.description ?? ''].some((field) => field.toLowerCase().includes(q));
 }
 
-export interface Page<T> {
-  items: T[];
-  page: number;
-  pageCount: number;
-  /** 1-based index of the first item shown, or 0 when there is nothing. */
-  first: number;
-  last: number;
-}
-
-/** One page of a list, with the page clamped into range: filtering a list down
- *  must never leave the reader on an empty page. */
-export function pageOf<T>(items: readonly T[], page: number, size = PAGE_SIZE): Page<T> {
-  const pageCount = Math.max(1, Math.ceil(items.length / size));
-  const current = Math.min(Math.max(1, Math.trunc(page)), pageCount);
-  const start = (current - 1) * size;
-  const slice = items.slice(start, start + size);
-  return {
-    items: slice,
-    page: current,
-    pageCount,
-    first: slice.length === 0 ? 0 : start + 1,
-    last: start + slice.length,
-  };
-}
-
 export interface Browse extends Page<ModuleEntry> {
   query: string;
   search: (next: string) => void;
   goTo: (next: number) => void;
-  /** How many modules the query matched, across every page. */
-  total: number;
 }
 
 /** What the reader is looking at, in words: the whole matched set when it fits
@@ -59,11 +33,10 @@ export function useModuleBrowse(modules: readonly ModuleEntry[]): Browse {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const found = useMemo(() => modules.filter((m) => matchesQuery(m, query)), [modules, query]);
-  const slice = pageOf(found, page);
+  const slice = paginate(found, page, PAGE_SIZE);
   return {
     ...slice,
     query,
-    total: found.length,
     search: (next: string) => {
       setQuery(next);
       setPage(1);

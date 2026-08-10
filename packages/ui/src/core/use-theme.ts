@@ -2,21 +2,7 @@
 // importable from non-React code (the resolver, tests, scripts).
 
 import { createElement, Fragment, type ReactNode, useEffect, useSyncExternalStore } from 'react';
-import { useColorScheme } from 'react-native';
-import {
-  activeTheme,
-  KROMA,
-  KROMA_LIGHT,
-  onThemeChange,
-  setTheme,
-  type Theme,
-  themeVersion,
-} from './theme';
-
-/** The palette the OS is asking for. Feed it to `<ThemeProvider theme={...}>`. */
-export function useSystemTheme(): Theme {
-  return useColorScheme() === 'light' ? KROMA_LIGHT : KROMA;
-}
+import { activeTheme, onThemeChange, setTheme, type Theme, themeVersion } from './theme';
 
 /** The active theme, live: re-renders the caller when it swaps. For reading a
  *  token a STYLE cannot carry (an ActivityIndicator's colour prop, a chart's

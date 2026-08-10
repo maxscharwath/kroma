@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ChannelBadge } from '#site/components/channel-badge';
-import { CopyAction } from '#site/components/copy-action';
 import { NotesAction } from '#site/components/notes-action';
 import type { Release } from '#site/lib/release';
 import { shortHash } from '#site/lib/ui';
@@ -8,6 +7,7 @@ import { Box, Row } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 import { Tooltip } from '#ui/components/molecules/tooltip';
 
 export interface ReleaseRowProps {
@@ -71,7 +71,7 @@ function Checksum({ md5 }: Readonly<{ md5: string }>) {
         </Box>
       </Tooltip>
       <Box shrink={0}>
-        <CopyAction value={md5} variant="ghost" label="Copy hash" />
+        <CopyButton value={md5} variant="ghost" label="Copy hash" copiedLabel="Copied" />
       </Box>
     </Row>
   );

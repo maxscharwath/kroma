@@ -1,7 +1,7 @@
-import { CopyAction } from '#site/components/copy-action';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
+import { CopyButton } from '#ui/components/molecules/copy-button';
 
 export interface RegistryUrlProps {
   url: string;
@@ -23,7 +23,7 @@ export function RegistryUrl({ url, note }: Readonly<RegistryUrlProps>) {
             </Txt>
           </Box>
           <Box shrink={0}>
-            <CopyAction value={url} label="Copy URL" />
+            <CopyButton value={url} label="Copy URL" copiedLabel="Copied" variant="primary" />
           </Box>
         </Row>
       </Box>

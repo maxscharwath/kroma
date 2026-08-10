@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ModuleEntry } from '../catalog';
-import { matchesQuery, pageOf, sliceLabel } from './browse';
+import { matchesQuery, sliceLabel } from './browse';
 
 const entry = (id: string, name = '', description = ''): ModuleEntry => ({
   id,
@@ -23,24 +23,6 @@ describe('matchesQuery', () => {
   it('keeps everything for an empty or blank query', () => {
     expect(matchesQuery(entry('tv.kroma.vpn'), '')).toBe(true);
     expect(matchesQuery(entry('tv.kroma.vpn'), '   ')).toBe(true);
-  });
-});
-
-describe('pageOf', () => {
-  const items = [1, 2, 3, 4, 5];
-
-  it('slices the page and reports the visible range', () => {
-    expect(pageOf(items, 1, 2)).toMatchObject({ items: [1, 2], first: 1, last: 2, pageCount: 3 });
-    expect(pageOf(items, 3, 2)).toMatchObject({ items: [5], first: 5, last: 5, page: 3 });
-  });
-
-  it('clamps a page that no longer exists rather than showing nothing', () => {
-    expect(pageOf(items, 9, 2)).toMatchObject({ items: [5], page: 3 });
-    expect(pageOf(items, 0, 2)).toMatchObject({ items: [1, 2], page: 1 });
-  });
-
-  it('reports an empty list as one empty page', () => {
-    expect(pageOf([], 1, 2)).toEqual({ items: [], page: 1, pageCount: 1, first: 0, last: 0 });
   });
 });
 

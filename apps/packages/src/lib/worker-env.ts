@@ -28,11 +28,19 @@ export async function workerContext(): Promise<{
   }
 }
 
+// Built once: callers key caches on the env object's identity, so handing back
+// a fresh copy per call would mean those caches never hit off workerd - which is
+// exactly where the render repeats and the cache is worth the most.
+let ambientEnv: Record<string, string> | undefined;
+
 function processEnv(): Record<string, string> {
+  if (ambientEnv) return ambientEnv;
   const ambient = (globalThis as { process?: { env?: Record<string, string | undefined> } })
     .process;
-  if (!ambient?.env) return {};
   const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(ambient.env)) if (value !== undefined) out[key] = value;
+  for (const [key, value] of Object.entries(ambient?.env ?? {})) {
+    if (value !== undefined) out[key] = value;
+  }
+  ambientEnv = out;
   return out;
 }

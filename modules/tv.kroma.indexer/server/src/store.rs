@@ -191,6 +191,27 @@ fn pick_version_dir(defs_root: &Path) -> Option<String> {
 mod tests {
     use super::*;
 
+    // A store over a scratch data dir, shared with the live test below: it is
+    // the only other place that needs one, and the guard has to outlive both.
+    fn store_in(tag: &str) -> (DefinitionStore, kroma_testing::TempDir) {
+        let dir = kroma_testing::temp_dir(tag);
+        let store = DefinitionStore::new(dir.path());
+        (store, dir)
+    }
+
+    // A fresh install has never synced, so the cache directory does not exist at
+    // all. Reading it has to come back EMPTY rather than as an error: the module
+    // lists its definitions on the settings screen before anyone has pressed
+    // sync, and an error there reads as a broken module rather than a new one.
+    #[test]
+    fn a_store_that_has_never_synced_is_empty_rather_than_broken() {
+        let (store, _dir) = store_in("defs-empty");
+        assert!(!store.is_populated());
+        assert!(store.list().expect("listing a store that never synced").is_empty());
+        // Asking for one by name is still an error: nothing is there to load.
+        assert!(store.load("thepiratebay").is_err());
+    }
+
     #[test]
     fn version_dir_picks_highest() {
         let tmp = kroma_testing::temp_dir("defs-test");
@@ -206,8 +227,7 @@ mod tests {
     #[test]
     #[ignore]
     fn real_sync_downloads_and_loads() {
-        let dir = kroma_testing::temp_dir("defs-live");
-        let store = DefinitionStore::new(dir.path());
+        let (store, _dir) = store_in("defs-live");
         let report = store.sync().expect("sync");
         assert!(report.count > 100, "expected many definitions, got {}", report.count);
         let metas = store.list().unwrap();

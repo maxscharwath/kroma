@@ -85,4 +85,31 @@ describe('walkTab', () => {
     }, probe);
     expect(at).toBe('start');
   });
+
+  it('stops when the row it dropped into loops instead of ending', () => {
+    // A looping rail answers LEFT at its first tile with its LAST tile: the
+    // rewind is refused nothing and the box never leaves the line, so "keep
+    // going while the line goes backwards" is the only thing that ends the walk.
+    type Id = 'above' | 'first' | 'last';
+    const NODES: Record<Id, { box: FocusBox; to: Partial<Record<Directions, Id>> }> = {
+      above: { box: { top: 0, left: 200, height: 50 }, to: { [Directions.DOWN]: 'last' } },
+      last: { box: { top: 50, left: 200, height: 50 }, to: { [Directions.LEFT]: 'first' } },
+      first: { box: { top: 50, left: 0, height: 50 }, to: { [Directions.LEFT]: 'last' } },
+    };
+    let at: Id = 'above';
+    let seq = 0;
+    let sends = 0;
+    const probe = { seq: () => seq, box: () => NODES[at].box };
+    walkTab((direction) => {
+      sends += 1;
+      const next = NODES[at].to[direction];
+      if (!next) return;
+      at = next;
+      seq += 1;
+    }, probe);
+    // It walked back to the first tile, saw the next step wrap forward, and
+    // stopped there rather than riding the loop to MAX_STEPS.
+    expect(at).toBe('last');
+    expect(sends).toBeLessThan(6);
+  });
 });

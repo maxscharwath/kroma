@@ -28,7 +28,7 @@ export interface HandoffLoopOptions {
    * proved it is in the room, which is worth more than any address the server
    * can infer, so this is what makes handoff work across a routed home or a
    * dual-stack one. Absent on a shell that cannot publish. */
-  publish?: LanDiscoveryBridge['publish'];
+  publish?: NonNullable<LanDiscoveryBridge['publish']>;
   /** What this TV calls itself in the phone's list. */
   name: string;
   platform: string;

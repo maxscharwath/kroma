@@ -49,7 +49,9 @@ export function lateDeviceName(): LateDeviceName {
     get: () => name,
     subscribe(listener) {
       listeners.add(listener);
-      return () => void listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
     found(next) {
       const answer = clean(next);

@@ -31,32 +31,43 @@ function sameLine(a: FocusBox, b: FocusBox): boolean {
 // However long the line is; what it really rules out is a cycle.
 const MAX_STEPS = 64;
 
-/** Move the focus one control along reading order; `back` for Shift+Tab. */
-export function walkTab(send: Send, probe: FocusProbe, back = false): void {
-  const along = back ? Directions.LEFT : Directions.RIGHT;
-  const step = (direction: Directions) => {
+// A move that reports whether the focus actually went anywhere: the navigator
+// says nothing when a direction is refused, so the sequence is the only answer.
+function stepper(send: Send, probe: FocusProbe) {
+  return (direction: Directions) => {
     const was = probe.seq();
     send(direction);
     return probe.seq() !== was;
   };
+}
 
-  if (step(along)) return;
-
-  // The line has ended. The next one begins wherever the perpendicular move
-  // lands - which is the same COLUMN, not the start of the line - so the walk
-  // then rewinds along that line until it runs out of line to rewind.
-  if (!step(back ? Directions.UP : Directions.DOWN)) return;
-
+// The perpendicular move landed in the same COLUMN, not at the start of the
+// line, so walk back along the new line until it runs out of line to walk.
+function rewindToEdge(send: Send, probe: FocusProbe, back: boolean): void {
+  const step = stepper(send, probe);
+  const along = back ? Directions.LEFT : Directions.RIGHT;
   const rewind = back ? Directions.RIGHT : Directions.LEFT;
   for (let i = 0; i < MAX_STEPS; i += 1) {
     const from = probe.box();
     if (!step(rewind)) return;
     const to = probe.box();
     if (!from || !to) return;
-    if (sameLine(from, to) && (back ? to.left > from.left : to.left < from.left)) continue;
+    if (sameLine(from, to)) {
+      if (back ? to.left > from.left : to.left < from.left) continue;
+      return;
+    }
     // That step left the line - a sidebar, the row above - so the edge was the
     // control before it. Take the step back and stop.
-    if (!sameLine(from, to)) send(along);
+    send(along);
     return;
   }
+}
+
+/** Move the focus one control along reading order; `back` for Shift+Tab. */
+export function walkTab(send: Send, probe: FocusProbe, back = false): void {
+  const step = stepper(send, probe);
+  if (step(back ? Directions.LEFT : Directions.RIGHT)) return;
+  // The line has ended, so drop to the next one and rewind it to its edge.
+  if (!step(back ? Directions.UP : Directions.DOWN)) return;
+  rewindToEdge(send, probe, back);
 }

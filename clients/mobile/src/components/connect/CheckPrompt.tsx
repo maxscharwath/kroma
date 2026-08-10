@@ -9,10 +9,10 @@
 // It asks for what only a screen in the room can show. A page wearing the same
 // unplaceable origin can mint a beacon, but it has nowhere to print the code.
 
-import type { DiscoveredTv, GrantRefusal, GrantResult } from '@kroma/core';
+import type { DiscoveredTv, GrantResult } from '@kroma/core';
 import { HANDOFF_CHECK_LENGTH } from '@kroma/core';
+import { useCheckPrompt } from '@kroma/core/react';
 import { Box, Button, OtpField, REGEXP_ONLY_DIGITS_AND_CHARS, styles, Txt } from '@kroma/ui/kit';
-import { useState } from 'react';
 import { useT } from '#mobile/lib/i18n';
 import { spacing, type } from '#mobile/lib/theme';
 
@@ -26,20 +26,8 @@ export interface CheckPromptProps {
 
 export function CheckPrompt({ device, onGrant, onCancel }: Readonly<CheckPromptProps>) {
   const t = useT();
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [refused, setRefused] = useState<GrantRefusal | null>(null);
+  const { code, setCode, busy, refused, submit } = useCheckPrompt({ device, onGrant });
   const asked = t('handoff.checkPrompt', { name: device.name });
-
-  const submit = async (value: string) => {
-    setBusy(true);
-    setRefused(null);
-    const result = await onGrant(device, value);
-    setBusy(false);
-    if (result === 'granted' || result === 'dropped') return;
-    setRefused(result);
-    setCode('');
-  };
 
   return (
     <Box style={s.prompt}>
@@ -47,11 +35,8 @@ export function CheckPrompt({ device, onGrant, onCancel }: Readonly<CheckPromptP
       <OtpField
         maxLength={HANDOFF_CHECK_LENGTH}
         value={code}
-        // A check string is letters as well as digits, so the entry may not be
-        // the number pad, and what a phone capitalizes for itself is the
-        // keyboard's habit rather than a guarantee.
-        onChange={(next) => setCode(next.toUpperCase())}
-        onComplete={(value) => void submit(value.toUpperCase())}
+        onChange={setCode}
+        onComplete={(value) => void submit(value)}
         pattern={REGEXP_ONLY_DIGITS_AND_CHARS}
         physicalKeyboard
         autoFocus

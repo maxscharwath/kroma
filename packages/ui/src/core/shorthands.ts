@@ -44,6 +44,7 @@ export interface BoxStyleProps {
   self?: NonNullable<ViewStyle['alignSelf']>;
   shrink?: number;
   grow?: number;
+  basis?: DimensionValue;
   gap?: Spacing;
   between?: boolean;
 
@@ -116,6 +117,7 @@ const RULES = {
   self: 'alignSelf',
   shrink: 'flexShrink',
   grow: 'flexGrow',
+  basis: 'flexBasis',
   gap: 'gap',
 
   w: 'width',

@@ -1,5 +1,4 @@
 import { CopyAction } from '#site/components/copy-action';
-import { MONO } from '#site/lib/ui';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 
@@ -12,11 +11,11 @@ export function RegistryUrl({ url, note }: Readonly<RegistryUrlProps>) {
   return (
     <Column gap={12}>
       <Txt variant="overline" color="accentText">
-        URL du registre
+        Registry URL
       </Txt>
       <Box bg="surface1" p={16} radius="lg">
-        <Row gap={12} style={{ alignItems: 'center', justifyContent: 'space-between' }}>
-          <Txt style={MONO}>{url}</Txt>
+        <Row gap={12} between>
+          <Txt font="mono">{url}</Txt>
           <CopyAction value={url} />
         </Row>
       </Box>

@@ -105,6 +105,17 @@
 
     "modules/*/ui": {
       "entry": ["src/index.{ts,tsx}"]
+    },
+
+    // knip's config loader parses an imported `.tsx` with JSX turned OFF, so
+    // reading this workspace's vite config throws on the first tag inside the
+    // social-card renderer it pulls in (vite/og-card.tsx) - and one config that
+    // fails to load aborts the whole run, every workspace with it. Skipping the
+    // vite plugin here means naming what it would have found: the config, the
+    // build plugins it reaches, and the app's own two entry points.
+    "apps/www": {
+      "vite": false,
+      "entry": ["vite.config.ts", "vite/*.{ts,tsx}", "src/router.tsx", "src/server.ts"]
     }
   }
 }

@@ -159,9 +159,24 @@ export function shade(alpha: number): string {
   return `rgba(10, 10, 12, ${alpha})`;
 }
 
+const CUSTOM_PROPERTY = /^var\((--[a-z0-9-]+)\)$/;
+
 /** A colour that is not `#RGB`/`#RRGGBB` is returned untouched rather than
- *  guessed at, so `withAlpha('transparent', 0.5)` is a no-op. */
+ *  guessed at, so `withAlpha('transparent', 0.5)` is a no-op.
+ *
+ * A custom property cannot be given an alpha without `color-mix()`, which React
+ * Native cannot express and the legacy webOS tier cannot parse, so it resolves
+ * to the sibling property the build emits for that step instead. */
 export function withAlpha(value: string, alpha: number): string {
+  const property = CUSTOM_PROPERTY.exec(value)?.[1];
+  if (property) {
+    const step = String(Number((alpha * 100).toFixed(4))).replace('.', '_');
+    return `var(${property}-${step})`;
+  }
+  return withHexAlpha(value, alpha);
+}
+
+function withHexAlpha(value: string, alpha: number): string {
   const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value)?.[1];
   if (!hex) return value;
   const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex;
@@ -169,4 +184,36 @@ export function withAlpha(value: string, alpha: number): string {
   const g = Number.parseInt(full.slice(2, 4), 16);
   const b = Number.parseInt(full.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${Number(alpha.toFixed(4))})`;
+}
+
+/**
+ * The inverse of {@link withAlpha}: a colour split into an opaque paint and the
+ * alpha it carried. Anything not recognisably translucent comes back untouched
+ * at opacity 1.
+ *
+ * <Icon> needs this because a translucent stroke composites PER PATH, so a
+ * glyph's crossings come out brighter than its lines; the build needs it to emit
+ * the opaque half of every translucent token as its own custom property.
+ */
+export function splitAlpha(value: string): { color: string; opacity: number } {
+  const body = /^rgba?\((.+)\)$/i.exec(value)?.[1];
+  if (body) {
+    // Both spellings, `rgba(r, g, b, a)` and the newer `rgb(r g b / a)`.
+    const parts = body.split(/[\s,/]+/).filter(Boolean);
+    if (parts.length < 4) return { color: value, opacity: 1 };
+    const raw = parts[3] as string;
+    const alpha = raw.endsWith('%') ? Number(raw.slice(0, -1)) / 100 : Number(raw);
+    if (!Number.isFinite(alpha)) return { color: value, opacity: 1 };
+    return { color: `rgb(${parts.slice(0, 3).join(', ')})`, opacity: alpha };
+  }
+  const hex = /^#(?:([0-9a-f]{3})([0-9a-f])|([0-9a-f]{6})([0-9a-f]{2}))$/i.exec(value);
+  if (hex) {
+    const short = hex[1] !== undefined;
+    const raw = (short ? hex[2] : hex[4]) as string;
+    return {
+      color: `#${short ? hex[1] : hex[3]}`,
+      opacity: Number.parseInt(raw, 16) / (short ? 15 : 255),
+    };
+  }
+  return { color: value, opacity: 1 };
 }

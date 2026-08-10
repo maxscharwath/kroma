@@ -15,6 +15,7 @@
 
 import type { TextStyle } from 'react-native';
 import { type ColorToken, colors, lightColors, withAlpha } from './tokens/colors';
+import { CSS_COLORS, CSS_SHADOWS } from './tokens/css-palette';
 import {
   LIFT_SHADOW,
   lightShadow,
@@ -24,6 +25,7 @@ import {
   shadow,
   standoff,
   standoffInside,
+  WASH_ALPHA,
 } from './tokens/effects';
 import { gutter, type RadiusToken, radius, rhythm, space } from './tokens/layout';
 import {
@@ -124,11 +126,32 @@ function merge<T>(base: T, over: DeepPartial<T> | undefined): T {
   return out as T;
 }
 
-function derive(tokens: ThemeTokens): Theme {
+// A token still holding its built-in value is one the cascade may own, so on a
+// browser it resolves to its custom property and one compiled class paints on
+// either ground. An override is a decision the cascade knows nothing about.
+function paint<K extends string>(
+  group: Record<K, string>,
+  builtin: Record<K, string>,
+  vars: Readonly<Record<string, string>> | null,
+): Record<K, string> {
+  if (!vars) return group;
+  const out = {} as Record<K, string>;
+  for (const key of Object.keys(group) as K[]) {
+    out[key] = group[key] === builtin[key] ? (vars[key] ?? group[key]) : group[key];
+  }
+  return out;
+}
+
+function derive(base: ThemeTokens): Theme {
+  const tokens: ThemeTokens = {
+    ...base,
+    colors: paint(base.colors, colors, CSS_COLORS),
+    shadow: paint(base.shadow, shadow, CSS_SHADOWS),
+  };
   const accent = tokens.colors.accent;
   const glow = {
-    accent: `0 6px 22px ${withAlpha(tokens.colors.accentWash, 0.4)}`,
-    play: `0 6px 22px ${withAlpha(tokens.colors.accentWash, 0.32)}`,
+    accent: `0 6px 22px ${withAlpha(tokens.colors.accentWash, WASH_ALPHA.glow / 100)}`,
+    play: `0 6px 22px ${withAlpha(tokens.colors.accentWash, WASH_ALPHA.play / 100)}`,
   };
   return Object.freeze({
     ...tokens,
@@ -142,7 +165,7 @@ function derive(tokens: ThemeTokens): Theme {
       focusLift: standoff(accent, LIFT_SHADOW),
       focusGlow: standoff(accent, glow.accent),
       focusGlowSm: standoff(accent, glow.accent),
-      focusWash: standoff(withAlpha(tokens.colors.accentWash, 0.28)),
+      focusWash: standoff(withAlpha(tokens.colors.accentWash, WASH_ALPHA.ring / 100)),
       focusInset: standoffInside(accent),
     },
     glow,

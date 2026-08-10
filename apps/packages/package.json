@@ -23,14 +23,12 @@
   },
   "devDependencies": {
     "@kroma/bundler": "workspace:*",
-    "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.25",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.4",
     "react-native-web": "^0.21.2",
-    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "wrangler": "^4.120.0"

@@ -3,7 +3,8 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { colors, lightColors } from '../src/core/tokens/colors.ts';
+import { colors, lightColors, splitAlpha, withAlpha } from '../src/core/tokens/colors.ts';
+import { cssName, cssVar } from '../src/core/tokens/css-var.ts';
 import {
   glow,
   lightShadow,
@@ -11,23 +12,15 @@ import {
   RING_GAP,
   RING_WIDTH,
   shadow,
+  WASH_ALPHA,
 } from '../src/core/tokens/effects.ts';
 import { gutter, radius, rhythm, space } from '../src/core/tokens/layout.ts';
-import { fonts, tracking, typeSpec } from '../src/core/tokens/typography.ts';
+import { fonts, SELF_HOSTED, tracking, typeSpec } from '../src/core/tokens/typography.ts';
+import { scanAlphas } from './alpha-scan.ts';
 
 type ColorToken = keyof typeof colors;
 
 const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
-
-// `surface1` is the only shape kebab-case gets wrong: a digit is not a word
-// boundary, which is exactly what keeps `h265` intact.
-const IRREGULAR: Partial<Record<ColorToken, string>> = {
-  surface1: 'surface-1',
-  surface2: 'surface-2',
-  surface3: 'surface-3',
-};
-
-const cssName = (k: ColorToken) => IRREGULAR[k] ?? kebab(k);
 
 // The utility reads better than the token does: `text-muted`, not `text-text-muted`.
 const UTILITY: Partial<Record<ColorToken, string>> = { textMuted: 'muted', textDim: 'dim' };
@@ -37,6 +30,38 @@ const rule = (selector: string, lines: string[], indent = '') =>
 
 const palette = (p: Record<ColorToken, string>) =>
   Object.entries(p).map(([k, v]) => `--kroma-${cssName(k as ColorToken)}: ${v.toLowerCase()};`);
+
+// `white` and `black` are deliberately absent: they mean the same on either
+// ground, so the runtime resolves them to a literal and no property is needed.
+export const KNOWN_COLOR_NAMES: ReadonlySet<string> = new Set(Object.keys(colors));
+
+const SOURCE_ROOTS = ['packages', 'apps', 'clients', 'modules'];
+
+// The theme derives these from the accent wash at runtime, so no source spells
+// them out and the scan cannot find them.
+const DERIVED = Object.values(WASH_ALPHA).map((step) => `accentWash/${step}`);
+
+const split = (combo: string) => combo.split('/') as [string, string];
+
+/** One property per `token/NN` the source actually writes, in this palette. */
+const alphaVars = (combos: ReadonlySet<string>, p: Record<ColorToken, string>) =>
+  [...combos]
+    .map(split)
+    .filter(([token]) => token in p)
+    .sort()
+    .map(
+      ([token, alpha]) =>
+        `${cssVar(token, alpha)}: ${withAlpha(p[token as ColorToken], Number(alpha) / 100)};`,
+    );
+
+/** Both halves of a translucent token, for the one consumer that cannot paint
+ *  with the whole: see `splitAlpha`. */
+const fadedVars = (p: Record<ColorToken, string>) =>
+  Object.entries(p).flatMap(([k, v]) => {
+    const { color, opacity } = splitAlpha(v);
+    if (opacity === 1) return [];
+    return [`${cssVar(k)}-opaque: ${color};`, `${cssVar(k)}-alpha: ${opacity};`];
+  });
 
 const ALIASES = [
   '--surface-page: var(--kroma-bg);',
@@ -49,9 +74,11 @@ const ALIASES = [
   '--brand-ink: var(--kroma-accent-ink);',
 ];
 
+const stack = (family: string) =>
+  SELF_HOSTED.includes(family) ? `"${family}", system-ui, sans-serif` : family;
+
 const typography = () => [
-  `--font-display: "${fonts.display}", system-ui, sans-serif;`,
-  `--font-ui: "${fonts.ui}", system-ui, sans-serif;`,
+  ...Object.entries(fonts).map(([k, v]) => `--font-${k}: ${stack(v)};`),
   ...Object.entries(typeSpec).map(
     ([k, s]) => `--type-${kebab(k)}: ${s.weight} ${s.size}px / ${s.ratio} var(--font-${s.family});`,
   ),
@@ -90,11 +117,26 @@ const effects = () => [
  * `activeTheme()` stayed on KROMA, so the kit painted dark cards on a light
  * ground. A shell opts in when it is ready to switch both halves together.
  */
-export function tokensCss(): string {
+export function tokensCss(roots: readonly string[] = SOURCE_ROOTS): string {
   const lightElevation = Object.entries(lightShadow).map(([k, v]) => `--shadow-${k}: ${v};`);
+  const alphas = scanAlphas(roots, KNOWN_COLOR_NAMES);
+  for (const combo of DERIVED) alphas.add(combo);
   return [
-    rule(':root', [...palette(colors), ...ALIASES, ...typography(), ...spacing(), ...effects()]),
-    rule(':root[data-theme="light"]', [...palette(lightColors), ...lightElevation]),
+    rule(':root', [
+      ...palette(colors),
+      ...alphaVars(alphas, colors),
+      ...fadedVars(colors),
+      ...ALIASES,
+      ...typography(),
+      ...spacing(),
+      ...effects(),
+    ]),
+    rule(':root[data-theme="light"]', [
+      ...palette(lightColors),
+      ...alphaVars(alphas, lightColors),
+      ...fadedVars(lightColors),
+      ...lightElevation,
+    ]),
   ].join('\n\n');
 }
 
@@ -134,20 +176,18 @@ const FONT_DIR = fileURLToPath(new URL('../src/assets/fonts/', import.meta.url))
  */
 export function fontsCss(): string {
   const slug = (family: string) => family.toLowerCase().replace(/\s+/g, '-');
-  return Object.values(fonts)
-    .flatMap((family) =>
-      Object.entries(SUBSETS).map(([subset, range]) =>
-        rule('@font-face', [
-          `font-family: "${family}";`,
-          'font-style: normal;',
-          'font-weight: 400 800;',
-          'font-display: swap;',
-          `src: url("${FONT_DIR}${slug(family)}-${subset}.woff2") format("woff2");`,
-          `unicode-range: ${range};`,
-        ]),
-      ),
-    )
-    .join('\n\n');
+  return SELF_HOSTED.flatMap((family) =>
+    Object.entries(SUBSETS).map(([subset, range]) =>
+      rule('@font-face', [
+        `font-family: "${family}";`,
+        'font-style: normal;',
+        'font-weight: 400 800;',
+        'font-display: swap;',
+        `src: url("${FONT_DIR}${slug(family)}-${subset}.woff2") format("woff2");`,
+        `unicode-range: ${range};`,
+      ]),
+    ),
+  ).join('\n\n');
 }
 
 const readCss = (name: string) =>
@@ -159,9 +199,6 @@ export const motionCss = () => readCss('motion');
 /** The reset and page furniture a browser target wants. A TV shell supplies its
  *  own, so this is not in the `tokens` half every target shares. */
 export const baseCss = () => readCss('base');
-
-/** Interaction states for the DOM controls an edge-rendered page uses. */
-export const controlsCss = () => readCss('controls');
 
 /** The whole design system, framework-free: type, tokens, motion and the reset.
  *  A Tailwind app adds `@import "tailwindcss"` and `@kroma/ui/css/theme`. */
@@ -183,7 +220,6 @@ const EXPANSION: Record<string, () => string> = {
   '/fonts': fontsCss,
   '/motion': motionCss,
   '/base': baseCss,
-  '/controls': controlsCss,
 };
 
 // Unknown suffix throws rather than falling back to the aggregate: `/tokns` is

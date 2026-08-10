@@ -1,7 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { RNW_DEFINE, RNW_SSR_NO_EXTERNAL, webResolve } from '@kroma/bundler/rnw';
 import { kromaUI } from '@kroma/ui/vite';
-import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin, UserConfig } from 'vite';
@@ -15,9 +14,9 @@ export interface KromaSiteOptions {
 }
 
 /**
- * The Vite config every KROMA web property shares: the design system, Tailwind,
- * TanStack Start and the react-native-web resolution the kit needs to render on
- * a server.
+ * The Vite config every KROMA web property shares: the design system, TanStack
+ * Start and the react-native-web resolution the kit needs to render on a
+ * server.
  *
  *   export default kromaSite(import.meta.url)
  */
@@ -25,10 +24,7 @@ export function kromaSite(siteUrl: string, options: KromaSiteOptions = {}): User
   const root = fileURLToPath(new URL('.', siteUrl));
   return {
     plugins: [
-      // Before Tailwind, which otherwise consumes the stylesheet and drops the
-      // `@import "@kroma/ui/css"` it cannot resolve.
       kromaUI(),
-      tailwindcss(),
       tanstackStart(options.prerender ? { prerender: { enabled: true, crawlLinks: true } } : {}),
       react(),
       ...(options.plugins ?? []),

@@ -45,7 +45,7 @@ describe('the light palette', () => {
 describe('switching themes', () => {
   it('re-resolves a token through the active palette', () => {
     setTheme(KROMA);
-    expect(color('bg')).toBe(colors.bg);
+    expect(color('bg')).toBe('var(--kroma-bg)');
     setTheme(KROMA_LIGHT);
     expect(color('bg')).toBe(lightColors.bg);
     setTheme(KROMA);
@@ -53,7 +53,7 @@ describe('switching themes', () => {
 
   it('re-resolves an alpha wash in the new direction', () => {
     setTheme(KROMA);
-    expect(color('tint/8')).toBe('rgba(255, 255, 255, 0.08)');
+    expect(color('tint/8')).toBe('var(--kroma-tint-8)');
     setTheme(KROMA_LIGHT);
     expect(color('tint/8')).toBe('rgba(10, 10, 12, 0.08)');
     setTheme(KROMA);

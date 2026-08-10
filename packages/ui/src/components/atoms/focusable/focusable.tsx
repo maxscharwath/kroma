@@ -100,6 +100,11 @@ function platformRole(role: FocusRole): AccessibilityRole {
   return role === 'option' ? 'menuitem' : role;
 }
 
+function linkProps(href: string | undefined, role: FocusRole): object | null {
+  if (!WEB || !href) return null;
+  return role === 'link' ? { href, accessibilityRole: undefined } : { href };
+}
+
 interface FocusState<R extends AnySv = AnySv> {
   focused: boolean;
   pressed: boolean;
@@ -128,6 +133,10 @@ interface FocusableProps<R extends AnySv = AnySv> {
    *  focus states from this prop. */
   focused?: boolean;
   hitSlop?: number | Insets;
+  /** A destination rather than an action: the control renders as an `<a href>`
+   *  on the browser targets, so it is a real link to open in a tab, copy or
+   *  download. Ignored on the native platforms, which have no document. */
+  href?: string;
   /** Reachable by the remote, but painting no interaction state: a control that
    *  is busy rather than unavailable. A spinner already says what is happening,
    *  and a hover highlight would promise a press that is not being taken. */
@@ -214,6 +223,7 @@ type WebKeys = {
 function touchForm(at: {
   boxRef: (view: View | null) => void;
   webKeys: WebKeys;
+  href: string | undefined;
   label: string | undefined;
   role: FocusRole;
   a11yState: A11yState;
@@ -253,6 +263,7 @@ function touchForm(at: {
     <TouchPressable
       boxRef={at.boxRef}
       webKeys={at.webKeys}
+      href={at.href}
       label={at.label}
       role={at.role}
       a11yState={at.a11yState}
@@ -282,6 +293,7 @@ function touchForm(at: {
 function navigatorForm(at: {
   entry: RefObject<SpatialNavigationNodeRef | null>;
   webKeys: WebKeys;
+  href: string | undefined;
   layers: ReturnType<typeof splitBoxLayers> | null;
   style: FocusableProps['style'];
   focusedStyle: ViewStyle | undefined;
@@ -335,6 +347,7 @@ function navigatorForm(at: {
         {
           accessibilityRole: platformRole(at.role),
           ...(at.a11yState as object | undefined),
+          ...linkProps(at.href, at.role),
           ...(at.webKeys ?? null),
           accessibilityLabel: at.label,
           ref: at.setBox,
@@ -385,6 +398,7 @@ function Focusable<R extends AnySv = AnySv>({
   disabled = false,
   focused: controlledFocus,
   hitSlop,
+  href,
   inert = false,
   focusScale = 1,
   ring: showRing = true,
@@ -392,7 +406,7 @@ function Focusable<R extends AnySv = AnySv>({
   states,
   children,
   label,
-  role = 'button',
+  role = href ? 'link' : 'button',
   checked,
   selected,
   expanded,
@@ -552,9 +566,8 @@ function Focusable<R extends AnySv = AnySv>({
   // view directly and never presses, and a pointerless television mounts a
   // plain view rather than a Pressable.
   const canPress = WEB ? controlled || !scoped : !Platform.isTV || TV_HAS_POINTER;
-  // Normalised once per distinct set, and NOT registered: these are coats over
-  // whatever the recipe resolved, so they have to stay plain styles the render
-  // forms can compose.
+  // Normalised once per distinct set: these are coats over whatever the recipe
+  // resolved, layered on top of it by the render forms below.
   const coats = useMemo(
     () => ({ focus: coat(states?.focus), hover: coat(states?.hover), press: coat(states?.press) }),
     [states],
@@ -624,6 +637,7 @@ function Focusable<R extends AnySv = AnySv>({
     return touchForm({
       boxRef: setBox,
       webKeys: webKeys?.pressable ?? null,
+      href,
       label,
       role,
       a11yState,
@@ -653,6 +667,7 @@ function Focusable<R extends AnySv = AnySv>({
   const node = navigatorForm({
     entry,
     webKeys: webKeys?.view ?? null,
+    href,
     layers,
     style: painted,
     role,
@@ -742,6 +757,7 @@ function TouchPressable({
   role = 'button',
   a11yState,
   webKeys,
+  href,
   boxRef,
   children,
 }: Readonly<{
@@ -757,6 +773,7 @@ function TouchPressable({
   role?: FocusRole;
   a11yState: A11yState;
   webKeys?: WebKeys;
+  href?: string;
   boxRef?: Ref<View>;
   children: (pressed: boolean) => ReactNode;
 }>) {
@@ -766,6 +783,7 @@ function TouchPressable({
       ref={boxRef}
       {...(unfocusable ? (UNFOCUSABLE as object) : (webKeys ?? null))}
       accessibilityRole={platformRole(role)}
+      {...linkProps(href, role)}
       {...a11yState}
       accessibilityLabel={label}
       onPress={onPress}

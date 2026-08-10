@@ -8,7 +8,7 @@
 //   phone       no stage: a 44pt hit target is the real 44pt.
 
 import { KIT_FONTS } from '@kroma/ui/fonts';
-import { OverlayHost, TvStage } from '@kroma/ui/kit';
+import { OverlayHost, ThemeProvider, TvStage } from '@kroma/ui/kit';
 import { colors } from '@kroma/ui/tokens';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
@@ -16,7 +16,6 @@ import type { ReactNode } from 'react';
 import { LogBox, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Kit } from './config';
-import { ThemeGate } from './ThemeGate';
 
 LogBox.ignoreAllLogs(true);
 
@@ -68,11 +67,11 @@ export function App() {
     // on mount, so gating it would render the first frame with insets at zero.
     <SafeAreaProvider style={styles.frame}>
       {ready ? (
-        <ThemeGate>
+        <ThemeProvider>
           <Stage>
             <Kit />
           </Stage>
-        </ThemeGate>
+        </ThemeProvider>
       ) : null}
     </SafeAreaProvider>
   );

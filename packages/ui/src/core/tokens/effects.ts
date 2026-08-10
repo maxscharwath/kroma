@@ -90,6 +90,12 @@ export function standoffInside(color: string): RingStyle {
   return { ...standoff(color), outlineOffset: -(RING_GAP + RING_WIDTH) };
 }
 
+/** The steps the theme derives from the accent wash, as the `/NN` percentages a
+ *  colour is written with everywhere else. Named rather than spelled at the
+ *  three use sites because the build emits one custom property per step and can
+ *  only see a step that appears somewhere as a literal. */
+export const WASH_ALPHA = { glow: 40, play: 32, ring: 28 } as const;
+
 export const LIFT_SHADOW = '0 10px 28px rgba(0, 0, 0, 0.5)';
 
 export const ring = {

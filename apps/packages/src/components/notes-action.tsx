@@ -8,7 +8,7 @@ export function NotesAction({ release }: Readonly<{ release: Release }>) {
 
   return (
     <>
-      <Button size="sm" variant="ghost" label="Notes" onPress={() => setOpen(true)} />
+      <Button variant="ghost" size="sm" label="Notes" onPress={() => setOpen(true)} />
       {open ? (
         <NotesDialog
           title={release.version}

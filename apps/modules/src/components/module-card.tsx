@@ -1,6 +1,6 @@
 import type { ModuleEntry } from '#site/catalog';
 import { depList } from '#site/lib/deps';
-import { MONO, mb, shortTarget } from '#site/lib/ui';
+import { mb, shortTarget } from '#site/lib/ui';
 import { Badge } from '#ui/components/atoms/badge';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Img } from '#ui/components/atoms/img';
@@ -11,15 +11,15 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
   const targets = (m.artifacts ?? []).map((a) => a.target || 'universal');
 
   return (
-    <Box bg="surface1" p={18} radius="xl" style={{ flexGrow: 1, flexBasis: 300, maxWidth: 360 }}>
-      <Column gap={12} style={{ height: '100%' }}>
-        <Row gap={12} style={{ alignItems: 'center' }}>
-          <Box bg="surface2" radius="md" style={{ width: 44, height: 44 }}>
+    <Box bg="surface1" p={18} radius="xl" grow={1} maxW={360} basis={300}>
+      <Column gap={12} h="100%">
+        <Row gap={12}>
+          <Box bg="surface2" radius="md" w={44} h={44}>
             <Img src={m.icon ?? null} fill fit="contain" radius={10} />
           </Box>
-          <Column gap={2} style={{ minWidth: 0, flexGrow: 1 }}>
+          <Column gap={2} minW={0} grow={1}>
             <Txt variant="label">{m.name}</Txt>
-            <Txt color="textDim" variant="meta" style={MONO}>
+            <Txt color="textDim" variant="meta" font="mono">
               {m.id}
             </Txt>
           </Column>
@@ -32,7 +32,7 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
           </Txt>
         ) : null}
 
-        <Row gap={6} style={{ flexWrap: 'wrap' }}>
+        <Row gap={6} wrap>
           {(m.provides ?? []).map((c) => (
             <Badge key={`${c.kind}:${c.id}`} tone="success">
               {c.kind}
@@ -52,11 +52,13 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
           </Txt>
         ) : null}
 
-        <Txt color="textDim" variant="meta" style={{ marginTop: 'auto' }}>
-          {m.minServer ? `server ≥ ${m.minServer}` : ''}
-          {m.minServer && m.size ? ' · ' : ''}
-          {mb(m.size)}
-        </Txt>
+        <Box mt="auto">
+          <Txt color="textDim" variant="meta">
+            {m.minServer ? `server ≥ ${m.minServer}` : ''}
+            {m.minServer && m.size ? ' · ' : ''}
+            {mb(m.size)}
+          </Txt>
+        </Box>
       </Column>
     </Box>
   );

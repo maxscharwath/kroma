@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { colors, lightColors } from '../src/core/tokens/colors';
+import { WASH_ALPHA } from '../src/core/tokens/effects';
 import { baseCss, fontsCss, kromaCss, kromaTokens, themeCss, tokensCss } from './tokens';
 
 const transform = (code: string, id = '/app/src/styles.css') => {
@@ -36,6 +37,30 @@ describe('tokensCss', () => {
     expect(css).toContain('--kroma-surface-1:');
     expect(css).toContain('--kroma-h265:');
     expect(css).toContain('--kroma-accent-soft-hover:');
+  });
+});
+
+describe('the alpha steps', () => {
+  it('emits a property per step the source writes, in both palettes', () => {
+    const css = tokensCss();
+    const [dark = '', light = ''] = css.split(':root[data-theme="light"]');
+    expect(dark).toContain('--kroma-text-85: rgba(244, 243, 240, 0.85);');
+    expect(light).toContain('--kroma-text-85: rgba(22, 21, 26, 0.85);');
+  });
+
+  it('spells a fractional step as a legal identifier', () => {
+    expect(tokensCss()).toContain('--kroma-tint-2_5: rgba(255, 255, 255, 0.025);');
+  });
+
+  it('emits the steps the theme derives, which no source spells out', () => {
+    const css = tokensCss();
+    for (const step of Object.values(WASH_ALPHA)) {
+      expect(css).toContain(`--kroma-accent-wash-${step}:`);
+    }
+  });
+
+  it('leaves white and black alone, since neither moves with the ground', () => {
+    expect(tokensCss()).not.toMatch(/--kroma-(white|black)-/);
   });
 });
 

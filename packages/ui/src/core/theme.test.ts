@@ -9,7 +9,7 @@ describe('createTheme', () => {
     const ocean = createTheme({ colors: { accent: '#3FB6F2' } });
     expect(ocean.colors.accent).toBe('#3FB6F2');
     expect(ocean.colors.bg).toBe(KROMA.colors.bg);
-    expect(KROMA.colors.accent).toBe('#F4B642');
+    expect(KROMA.colors.accent).toBe('var(--kroma-accent)');
   });
 
   it('re-derives what follows from other groups', () => {
@@ -61,11 +61,11 @@ describe('themed', () => {
 describe('setTheme', () => {
   it('re-resolves a recipe against the new palette, then back', () => {
     const r = sv({ base: { bg: 'accent' } });
-    expect(r().root).toMatchObject({ backgroundColor: '#F4B642' });
+    expect(r().root).toMatchObject({ backgroundColor: 'var(--kroma-accent)' });
     setTheme(createTheme({ colors: { accent: '#3FB6F2' } }));
     expect(r().root).toMatchObject({ backgroundColor: '#3FB6F2' });
     setTheme(KROMA);
-    expect(r().root).toMatchObject({ backgroundColor: '#F4B642' });
+    expect(r().root).toMatchObject({ backgroundColor: 'var(--kroma-accent)' });
   });
 
   it('hands back fresh identities after a swap, so styleq recompiles', () => {

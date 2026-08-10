@@ -1,12 +1,3 @@
-export const MONO = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' } as const;
-
-export const PAGE = {
-  maxWidth: 1080,
-  marginLeft: 'auto',
-  marginRight: 'auto',
-  width: '100%',
-} as const;
-
 export const mb = (n?: number | null) => {
   if (!n) return '';
   if (n < 1048576) return `${Math.max(1, Math.round(n / 1024))} KB`;

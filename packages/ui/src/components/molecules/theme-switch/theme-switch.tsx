@@ -9,6 +9,8 @@ export interface ThemeSwitchProps {
   size?: ControlSize;
   /** Defaults to the product's French. */
   labels?: Readonly<Record<ThemeMode, string>>;
+  /** Accessible name of the group. Defaults to the product's French. */
+  label?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -24,7 +26,12 @@ const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
  * no cookie jar, and a value that differs between the two renders is a
  * hydration mismatch.
  */
-export function ThemeSwitch({ size = 'sm', labels = FR, style }: Readonly<ThemeSwitchProps>) {
+export function ThemeSwitch({
+  size = 'sm',
+  labels = FR,
+  label = 'Thème',
+  style,
+}: Readonly<ThemeSwitchProps>) {
   const [mode, setMode] = useState<ThemeMode>('system');
 
   useEffect(() => {
@@ -44,7 +51,7 @@ export function ThemeSwitch({ size = 'sm', labels = FR, style }: Readonly<ThemeS
 
   return (
     <SegmentedControl
-      label="Thème"
+      label={label}
       size={size}
       value={mode}
       options={ORDER.map((value) => ({ value, label: labels[value] }))}

@@ -1,15 +1,17 @@
-import { ThemeToggle } from '#site/components/theme-toggle';
 import { Box, Row } from '#ui/components/atoms/box';
 import { Divider } from '#ui/components/atoms/divider';
 import { Logo } from '#ui/components/atoms/logo';
 import { Txt } from '#ui/components/atoms/text';
+import { ThemeSwitch } from '#ui/components/molecules/theme-switch';
+
+const EN = { system: 'Auto', light: 'Light', dark: 'Dark' };
 
 export function SiteHeader({ title }: Readonly<{ title: string }>) {
   return (
     <Box bg="surface1">
       <Box px={28} py={14}>
-        <Row gap={14} style={ROW}>
-          <Row gap={12} style={{ alignItems: 'center', minWidth: 0 }}>
+        <Row gap={14} between w="100%" maxW={1080} mx="auto">
+          <Row gap={12} minW={0}>
             <Logo size={26} />
             <Box h={18}>
               <Divider vertical />
@@ -18,19 +20,10 @@ export function SiteHeader({ title }: Readonly<{ title: string }>) {
               {title}
             </Txt>
           </Row>
-          <ThemeToggle />
+          <ThemeSwitch label="Theme" labels={EN} />
         </Row>
       </Box>
       <Divider />
     </Box>
   );
 }
-
-const ROW = {
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  maxWidth: 1080,
-  marginLeft: 'auto',
-  marginRight: 'auto',
-  width: '100%',
-} as const;

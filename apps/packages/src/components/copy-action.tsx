@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Action } from '#site/components/action';
+import { Button } from '#ui/components/atoms/button';
 
 const RESET_MS = 1400;
 
@@ -12,7 +12,10 @@ export function CopyAction({ value }: Readonly<{ value: string }>) {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
-    <Action
+    <Button
+      variant="outline"
+      size="sm"
+      label={copied ? 'Copied' : 'Copy'}
       onPress={() => {
         void navigator.clipboard?.writeText(value).then(() => {
           setCopied(true);
@@ -20,8 +23,6 @@ export function CopyAction({ value }: Readonly<{ value: string }>) {
           timer.current = setTimeout(() => setCopied(false), RESET_MS);
         });
       }}
-    >
-      {copied ? 'Copié' : 'Copier'}
-    </Action>
+    />
   );
 }

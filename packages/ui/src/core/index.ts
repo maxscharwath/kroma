@@ -38,9 +38,7 @@ export {
   readMode,
   resolveMode,
   THEME_COOKIE,
-  THEME_EVENT,
   themeBootScript,
-  themeFor,
   writeMode,
 } from './theme-mode';
 export * from './tokens';

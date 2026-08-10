@@ -2,7 +2,12 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
+    "paths": {
+      "#pkg/*": ["./src/*"],
+      "#ui/*": ["../../packages/ui/src/*"]
+    }
   },
-  "include": ["worker/**/*.ts"]
+  "include": ["src", "vite.config.ts"]
 }

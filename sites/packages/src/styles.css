@@ -1,0 +1,14 @@
+@import "@kroma/ui/css";
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--kroma-bg);
+  color: var(--kroma-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

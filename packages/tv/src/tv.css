@@ -16,7 +16,7 @@
 @import "@kroma/ui/fonts.css";
 @import "@kroma/ui/img.css";
 @import "tailwindcss";
-@kroma-tokens;
+@import "@kroma/ui/css/tokens";
 
 /* Tailwind ignores node_modules; the TV components live in this workspace
    package (symlinked), so scan them explicitly for utility class names. */

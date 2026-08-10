@@ -21,6 +21,8 @@
     "./fonts.css": "./src/styles/fonts.css",
     "./img.css": "./src/styles/img.css",
     "./vite": "./vite/index.ts",
+    "./css": "./src/styles/kroma.css",
+    "./css/*": "./src/styles/kroma.css",
     "./tailwind.css": "./src/styles/tailwind.css",
     "./src/assets/*": "./src/assets/*"
   },

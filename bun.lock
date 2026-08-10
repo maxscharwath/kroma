@@ -74,6 +74,7 @@
       "name": "@kroma/module-registry",
       "version": "0.1.0",
       "dependencies": {
+        "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@tanstack/react-router": "^1.170.23",
         "@tanstack/react-start": "^1.168.40",
@@ -98,6 +99,7 @@
       "name": "@kroma/package-source",
       "version": "0.1.0",
       "dependencies": {
+        "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@tanstack/react-router": "^1.170.23",
         "@tanstack/react-start": "^1.168.40",
@@ -121,6 +123,7 @@
       "name": "@kroma/site",
       "version": "0.1.3",
       "dependencies": {
+        "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@mdx-js/react": "^3.1.1",
         "@tabler/icons-react": "^3.46.0",
@@ -625,6 +628,13 @@
       "devDependencies": {
         "typescript": "^7.0.2",
         "wrangler": "^4.120.0",
+      },
+    },
+    "packages/site-meta": {
+      "name": "@kroma/site-meta",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^7.0.2",
       },
     },
     "packages/sonar-tools": {
@@ -1218,6 +1228,8 @@
     "@kroma/push-relay": ["@kroma/push-relay@workspace:packages/push-relay"],
 
     "@kroma/site": ["@kroma/site@workspace:apps/www"],
+
+    "@kroma/site-meta": ["@kroma/site-meta@workspace:packages/site-meta"],
 
     "@kroma/sonar-tools": ["@kroma/sonar-tools@workspace:packages/sonar-tools"],
 

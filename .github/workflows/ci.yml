@@ -210,8 +210,18 @@ jobs:
       - name: Prebuild the Android project
         run: bun run --filter '@kroma/tv-native' prebuild -- --platform android
 
+      # Same two knobs the release APK already uses (_release-tv.yml).
+      # --build-cache: without it every run reported "368 actionable tasks: 368
+      # executed" and recompiled the whole Expo/RN module graph. setup-gradle
+      # already persists ~/.gradle/caches, which is where the local build cache
+      # lives. Entries are keyed on task inputs, so a hit means those exact
+      # inputs compiled before - the gate is as strict, the recompile is not.
+      # The heap is raised because the generated gradle.properties asks for 2GB,
+      # a third of what this runner has, which costs GC time on C++ and Hermes.
       - name: Compile the APK
-        run: gradle -p clients/tv-native/android assembleDebug
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g
+        run: gradle -p clients/tv-native/android assembleDebug --build-cache
 
   desktop-shell:
     name: Desktop shell (cargo check, Linux/mpv path)

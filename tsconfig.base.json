@@ -12,6 +12,7 @@
       "#web/*": ["./clients/web/src/*"]
     },
     "allowImportingTsExtensions": true,
+    "incremental": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

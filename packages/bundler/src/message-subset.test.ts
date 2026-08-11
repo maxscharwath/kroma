@@ -1,8 +1,9 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { messageKeysIn, subsetCatalog } from './message-subset';
+import { messageKeysIn, messageSubset, subsetCatalog } from './message-subset';
 
 function tree(files: Record<string, string>): string {
   const root = mkdtempSync(join(tmpdir(), 'kroma-messages-'));
@@ -74,5 +75,52 @@ describe('the subset', () => {
 
   it('always keeps the language names, which locale detection matches on', () => {
     expect(Object.keys(subsetCatalog(CATALOG, new Set()))).toEqual(['lang.fr', 'lang.en']);
+  });
+});
+
+const EN = fileURLToPath(new URL('../../core/src/locales/en.json', import.meta.url));
+
+const full = () => JSON.parse(readFileSync(EN, 'utf8')) as Record<string, string>;
+
+function loader(options?: Parameters<typeof messageSubset>[0]) {
+  const load = messageSubset(options).load;
+  if (typeof load !== 'function') throw new Error('the plugin must expose a load hook');
+  return (id: string) => load.call(null as never, id, undefined) as string | null;
+}
+
+describe('the plugin', () => {
+  it('declines every id but a catalog JSON, so no other module is rewritten', () => {
+    const load = loader();
+    expect(load('/somewhere/else/en.json')).toBeNull();
+    expect(load(join(EN, '../index.ts'))).toBeNull();
+  });
+
+  it('rewrites the catalog past the query a bundler appends', () => {
+    const load = loader();
+    const withQuery = load(`${EN}?import`);
+    expect(withQuery).not.toBeNull();
+    expect(JSON.parse(withQuery ?? '{}')).toEqual(JSON.parse(load(EN) ?? '{}'));
+  });
+
+  it('keeps a key the scanned roots reach and drops the rest of the catalog', () => {
+    const catalog = full();
+    const reached = Object.keys(catalog).find((k) => !k.startsWith('lang.'));
+    if (!reached) throw new Error('the catalog is empty');
+    const root = tree({ 'page.tsx': `const label = t(${JSON.stringify(reached)});` });
+
+    const kept = JSON.parse(loader({ roots: [root] })(EN) ?? '{}') as Record<string, string>;
+
+    expect(kept[reached]).toBe(catalog[reached]);
+    expect(Object.keys(kept).length).toBeLessThan(Object.keys(catalog).length);
+  });
+
+  it('keeps a key nothing reaches when the caller names it outright', () => {
+    const catalog = full();
+    const scanned = JSON.parse(loader()(EN) ?? '{}') as Record<string, string>;
+    const dropped = Object.keys(catalog).find((k) => !(k in scanned));
+    if (!dropped) throw new Error('the design system reaches every message');
+
+    const kept = JSON.parse(loader({ keep: [dropped] })(EN) ?? '{}') as Record<string, string>;
+    expect(kept[dropped]).toBe(catalog[dropped]);
   });
 });

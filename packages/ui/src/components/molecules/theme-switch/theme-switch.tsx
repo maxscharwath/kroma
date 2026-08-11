@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
+import { Appearance, type StyleProp, type ViewStyle } from 'react-native';
 import { SegmentedControl } from '#ui/components/molecules/segmented-control';
 import { applyMode, readMode, type ThemeMode, writeMode } from '#ui/core/theme-mode';
-import { webWindow } from '#ui/lib/dom';
 import type { ControlSize } from '#ui/lib/field-shell';
 
 export interface ThemeSwitchProps {
@@ -24,8 +23,9 @@ const GLYPH = { system: 'device-desktop', light: 'sun', dark: 'moon' } as const;
 const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 /**
- * Dark / light / system, persisted in a cookie so the server can render the
- * chosen ground instead of flashing the default one.
+ * Dark / light / system, persisted where the platform can act on it: a cookie
+ * on the web, so the server renders the chosen ground instead of flashing the
+ * default one, and the device store on a native target.
  *
  * Reads the stored mode in an effect rather than during render: the server has
  * no cookie jar, and a value that differs between the two renders is a
@@ -47,11 +47,8 @@ export function ThemeSwitch({
 
   useEffect(() => {
     if (mode !== 'system') return;
-    const media = webWindow()?.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!media?.addEventListener) return;
-    const onChange = () => applyMode('system');
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
+    const watch = Appearance.addChangeListener(() => applyMode('system'));
+    return () => watch.remove();
   }, [mode]);
 
   return (

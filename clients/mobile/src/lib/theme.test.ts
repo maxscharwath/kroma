@@ -53,11 +53,13 @@ describe('the type ramp', () => {
   });
 
   it('dims the two small roles and not the rest', () => {
+    // The token NAME, not its value: a role has to re-resolve when the ground
+    // swaps rather than freeze the palette it was authored under.
     for (const role of ['display', 'title', 'heading', 'section', 'body'] as const) {
-      expect(type[role].color).toBe(kit.text);
+      expect(type[role].color).toBe('text');
     }
-    expect(type.caption.color).toBe(kit.textMuted);
-    expect(type.small.color).toBe(kit.textMuted);
+    expect(type.caption.color).toBe('textMuted');
+    expect(type.small.color).toBe('textMuted');
   });
 
   it('covers the kit’s whole ramp, so no role falls back to black', () => {

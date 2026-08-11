@@ -227,6 +227,23 @@ export function activeTheme(): Theme {
 }
 
 /**
+ * The ACTIVE ground at an alpha, for the gradients artwork fades into.
+ *
+ * The difference from {@link SHADE} and `shade()` is which ground is meant.
+ * Those are the dark one, spelled out, and they are right for a surface that is
+ * dark whatever the app around it chose: the television, and the player's
+ * chrome over video. This one follows the theme, so a poster on a phone set to
+ * the light ground fades into paper instead of into a black band the page below
+ * it does not have.
+ *
+ * Read it during render, not at module scope: a value taken at import freezes
+ * to the ground that happened to be active then.
+ */
+export function groundShade(alpha: number): string {
+  return withAlpha(active.colors.bg, alpha);
+}
+
+/**
  * A corner in px, from the name the design speaks it in. For the handful of
  * places that need the NUMBER rather than a style declaration — a <Frost> layer
  * clipping itself, a corner nested inside another, an animated value — so they

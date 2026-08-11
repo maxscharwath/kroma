@@ -19,6 +19,7 @@ import { Img } from '#ui/components/atoms/img';
 import { Txt } from '#ui/components/atoms/text';
 import { CopyButton } from '#ui/components/molecules/copy-button';
 import { EmptyState } from '#ui/components/molecules/empty-state';
+import { PageMain } from '#ui/lib/landmark';
 
 export const Route = createFileRoute('/module/$id')({
   // One module, not the catalog it came from. The whole catalog is dehydrated
@@ -47,14 +48,16 @@ function Page({ children, registry }: Readonly<{ children: ReactNode; registry: 
   return (
     <Box bg="bg" minH="100%">
       <SiteHeader title="Module registry" />
-      <Box px={28} py={32}>
-        <Column gap={28} w="100%" maxW={1080} mx="auto">
-          <Row>
-            <Button variant="ghost" size="sm" icon="chevron-left" label="All modules" href="/" />
-          </Row>
-          {children}
-        </Column>
-      </Box>
+      <PageMain>
+        <Box px={28} py={32}>
+          <Column gap={28} w="100%" maxW={1080} mx="auto">
+            <Row>
+              <Button variant="ghost" size="sm" icon="chevron-left" label="All modules" href="/" />
+            </Row>
+            {children}
+          </Column>
+        </Box>
+      </PageMain>
       <SiteFooter registry={registry} />
     </Box>
   );

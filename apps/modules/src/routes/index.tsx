@@ -10,6 +10,7 @@ import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
 import { EmptyState } from '#ui/components/molecules/empty-state';
 import { Pagination } from '#ui/components/molecules/pagination';
+import { PageMain } from '#ui/lib/landmark';
 
 export const Route = createFileRoute('/')({
   loader: () => getCatalog(),
@@ -25,64 +26,67 @@ function Registry() {
   return (
     <Box bg="bg" minH="100%">
       <SiteHeader title="Module registry" />
-      <Box px={28} py={32}>
-        <Column gap={32} w="100%" maxW={1080} mx="auto">
-          <Column gap={10}>
-            <Txt variant="h1">KROMA Modules</Txt>
-            <Txt color="textMuted">
-              Downloads, indexers, VPN, transcription: installed straight from your server's admin.
-            </Txt>
-          </Column>
+      <PageMain>
+        <Box px={28} py={32}>
+          <Column gap={32} w="100%" maxW={1080} mx="auto">
+            <Column gap={10}>
+              <Txt variant="h1">KROMA Modules</Txt>
+              <Txt color="textMuted">
+                Downloads, indexers, VPN, transcription: installed straight from your server's
+                admin.
+              </Txt>
+            </Column>
 
-          <RegistryUrl
-            url={registry}
-            note={`Admin → Modules → Registries. ${count} available${updated}`}
-          />
+            <RegistryUrl
+              url={registry}
+              note={`Admin → Modules → Registries. ${count} available${updated}`}
+            />
 
-          <Column gap={20}>
-            <Row gap={16} wrap between align="flex-end">
-              <Column gap={4}>
-                <Txt variant="overline" color="accentText">
-                  Modules
-                </Txt>
-                {browse.total > 0 ? (
-                  <Txt color="textDim" variant="meta">
-                    {sliceLabel(browse)}
+            <Column gap={20}>
+              <Row gap={16} wrap between align="flex-end">
+                <Column gap={4}>
+                  <Txt variant="overline" color="accentText">
+                    Modules
                   </Txt>
-                ) : null}
-              </Column>
-              <ModuleSearch value={browse.query} onChange={browse.search} />
-            </Row>
-
-            {browse.items.length === 0 ? (
-              <EmptyState
-                compact
-                icon="search"
-                title="No module matches"
-                hint="Search by name, reverse-DNS id or description."
-              />
-            ) : (
-              <Row gap={16} wrap align="stretch">
-                {browse.items.map((m) => (
-                  <ModuleCard key={m.id} module={m} />
-                ))}
+                  {browse.total > 0 ? (
+                    <Txt color="textDim" variant="meta">
+                      {sliceLabel(browse)}
+                    </Txt>
+                  ) : null}
+                </Column>
+                <ModuleSearch value={browse.query} onChange={browse.search} />
               </Row>
-            )}
 
-            {browse.pageCount > 1 ? (
-              <Row justify="flex-end">
-                <Pagination.Root
-                  label="Modules"
-                  size="sm"
-                  page={browse.page}
-                  pageCount={browse.pageCount}
-                  onPageChange={browse.goTo}
+              {browse.items.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon="search"
+                  title="No module matches"
+                  hint="Search by name, reverse-DNS id or description."
                 />
-              </Row>
-            ) : null}
+              ) : (
+                <Row gap={16} wrap align="stretch">
+                  {browse.items.map((m) => (
+                    <ModuleCard key={m.id} module={m} />
+                  ))}
+                </Row>
+              )}
+
+              {browse.pageCount > 1 ? (
+                <Row justify="flex-end">
+                  <Pagination.Root
+                    label="Modules"
+                    size="sm"
+                    page={browse.page}
+                    pageCount={browse.pageCount}
+                    onPageChange={browse.goTo}
+                  />
+                </Row>
+              ) : null}
+            </Column>
           </Column>
-        </Column>
-      </Box>
+        </Box>
+      </PageMain>
       <SiteFooter registry={registry} />
     </Box>
   );

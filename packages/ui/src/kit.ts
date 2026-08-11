@@ -27,6 +27,7 @@ export {
   boxStyle,
   color,
   createTheme,
+  groundShade,
   KROMA,
   KROMA_LIGHT,
   onThemeChange,
@@ -39,6 +40,7 @@ export {
   svFor,
   ThemeProvider,
   themeVersion,
+  useSystemGround,
   useTheme,
   writeMode,
 } from './core';

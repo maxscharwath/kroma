@@ -8,7 +8,15 @@
 // with another prop until the component is a switchboard. `options` stays as
 // sugar so the common row is still one line.
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   Animated,
   Easing,
@@ -149,6 +157,8 @@ function Root<T extends string>({
     [value],
   );
 
+  const select = useCallback((next: string) => onValueChange(next as T), [onValueChange]);
+
   const register = useCallback((option: string) => {
     if (!order.current.includes(option)) order.current.push(option);
   }, []);
@@ -187,17 +197,20 @@ function Root<T extends string>({
     }
   };
 
-  const ctx: SegmentedContext = {
-    value,
-    select: (next) => onValueChange(next as T),
-    size: shell,
-    stretch,
-    iconOnly,
-    report,
-    register,
-    mark,
-    forget,
-  };
+  const ctx = useMemo<SegmentedContext>(
+    () => ({
+      value,
+      select,
+      size: shell,
+      stretch,
+      iconOnly,
+      report,
+      register,
+      mark,
+      forget,
+    }),
+    [value, select, shell, stretch, iconOnly, report, register, mark, forget],
+  );
 
   return (
     <Context.Provider value={ctx}>
@@ -257,7 +270,14 @@ function Item<T extends string>({
   // callback for the press dip, and a second one cannot ride the same channel.
   return (
     <Box
-      onLayout={(event: LayoutChangeEvent) => report(value, event.nativeEvent.layout)}
+      onLayout={(event: LayoutChangeEvent) => {
+        // Copied, never kept: React Native pools the layout event, so a stored
+        // reference is the same object for every segment and mutates under the
+        // map. The thumb then reads its own seat back and React bails on the
+        // identity, which is why the travel only ever showed on the web.
+        const { x, width } = event.nativeEvent.layout;
+        report(value, { x, width });
+      }}
       style={stretch ? SEGMENT_GROW : undefined}
     >
       <Focusable

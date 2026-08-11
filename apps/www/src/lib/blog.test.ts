@@ -92,4 +92,14 @@ describe('createBlog', () => {
   it('is undefined for a slug that does not exist', () => {
     expect(createBlog({}).getPost('nope', 'en')).toBeUndefined();
   });
+
+  it('skips an entry the glob matched but never loaded, instead of crashing the list', () => {
+    const blog = createBlog({
+      [`${dir}/ghost.mdx`]: undefined as unknown as MdxModule,
+      [`${dir}/real.mdx`]: mod({ title: 'Real', date: '2026-01-01' }),
+    });
+
+    expect(blog.getAllPosts('en').map((p) => p.slug)).toEqual(['real']);
+    expect(blog.getPost('ghost', 'en')).toBeUndefined();
+  });
 });

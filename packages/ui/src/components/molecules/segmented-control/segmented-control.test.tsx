@@ -64,4 +64,14 @@ describe('SegmentedControl', () => {
 
     expect(onValueChange).toHaveBeenCalledWith('c');
   });
+
+  it('names the part that was rendered outside its Root', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => render(<SegmentedControl.Item value="a" label="A" />)).toThrow(
+      '<SegmentedControl.Item> must be used inside its Root',
+    );
+
+    vi.restoreAllMocks();
+  });
 });

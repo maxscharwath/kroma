@@ -1,5 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import server from './server';
+
+const rendered = vi.hoisted(() => [] as string[]);
+
+vi.mock('@tanstack/react-start/server-entry', () => ({
+  default: {
+    fetch: (request: Request) => {
+      rendered.push(new URL(request.url).pathname);
+      return new Response('<html lang="fr"><head></head><body>browse</body></html>', {
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      });
+    },
+  },
+}));
 
 const ctx = () => ({ waitUntil: vi.fn() });
 
@@ -34,6 +47,10 @@ function ghServing() {
   return calls;
 }
 
+beforeEach(() => {
+  rendered.length = 0;
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -44,6 +61,7 @@ describe('the worker entry', () => {
     const res = await server.fetch(req('/ping'), {}, ctx());
     expect(await res.text()).toBe('pong');
     expect(calls).toEqual([]);
+    expect(rendered).toEqual([]);
   });
 
   it('threads its env through to the catalog the feed is built from', async () => {
@@ -59,5 +77,19 @@ describe('the worker entry', () => {
     const res = await server.fetch(req('/', { headers: { accept: 'text/html' } }), {}, ctx());
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe('https://packages.kroma.tv/browse');
+  });
+
+  it('renders a page route with the ground stamped and the kit stylesheet inlined', async () => {
+    ghServing();
+    const res = await server.fetch(
+      req('/browse', { headers: { cookie: 'kroma-theme=light' } }),
+      {},
+      ctx(),
+    );
+    const html = await res.text();
+
+    expect(rendered).toEqual(['/browse']);
+    expect(html).toContain('<html data-theme="light" lang="fr">');
+    expect(html).toContain('<style id="react-native-stylesheet">');
   });
 });

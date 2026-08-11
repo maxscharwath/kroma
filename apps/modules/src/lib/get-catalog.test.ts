@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { catalogPayload } from './get-catalog';
+import { catalogForRequest, catalogPayload } from './get-catalog';
+
+vi.mock('@tanstack/react-start/server', () => ({
+  getRequest: () => new Request('https://modules.kroma.tv/module/tv.kroma.vpn?tab=history'),
+}));
 
 const ICON = `data:image/svg+xml;base64,${btoa('<svg viewBox="0 0 24 24" />')}`;
 
@@ -81,5 +85,14 @@ describe('catalogPayload', () => {
       modules: [],
       generatedAt: null,
     });
+  });
+});
+
+describe('catalogForRequest', () => {
+  it('names the registry on the origin the page was reached at, path and query dropped', async () => {
+    upstream(JSON.stringify(CATALOG));
+    const payload = await catalogForRequest();
+    expect(payload.registry).toBe('https://modules.kroma.tv/modules.json');
+    expect(payload.modules.map((m) => m.id)).toEqual(['tv.kroma.vpn']);
   });
 });

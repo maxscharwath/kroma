@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_REPO } from './catalog';
 
+vi.mock('@tanstack/react-start/server', () => ({
+  getRequest: () => new Request('https://packages.kroma.tv/browse?channel=nightly'),
+}));
+
 const RELEASES = [
   {
     tag_name: 'v1.0.0',
@@ -81,5 +85,16 @@ describe('catalogPayload', () => {
       rows: [],
     });
     expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe('catalogForRequest', () => {
+  it('sources the catalog at the origin the page was reached at, path and query dropped', async () => {
+    ghServing(RELEASES);
+    vi.resetModules();
+    const { catalogForRequest } = await import('./get-catalog');
+    const { source, rows } = await catalogForRequest();
+    expect(source).toBe('https://packages.kroma.tv/');
+    expect(rows.map((r) => r.version)).toEqual(['1.0.0-1']);
   });
 });

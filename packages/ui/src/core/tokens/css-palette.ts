@@ -2,24 +2,29 @@
 // `null`, a legal value, so a misresolved import would fail silently.
 
 import { Platform } from 'react-native';
-import { colors, splitAlpha } from './colors';
+import { type ColorToken, colors, splitAlpha } from './colors';
 import { cssVar } from './css-var';
-import { shadow } from './effects';
+import { type ShadowToken, shadow } from './effects';
 
 const WEB = Platform.OS === 'web';
 
-const vars = (group: object, name: (key: string) => string): Readonly<Record<string, string>> =>
-  Object.freeze(Object.fromEntries(Object.keys(group).map((k) => [k, `var(${name(k)})`])));
+const vars = <K extends string>(
+  group: Record<K, string>,
+  name: (key: string) => string,
+): Readonly<Record<K, string>> =>
+  Object.freeze(
+    Object.fromEntries(Object.keys(group).map((k) => [k, `var(${name(k)})`])),
+  ) as Record<K, string>;
 
 /**
  * The palette as CSS custom properties, or null where there is no cascade: a
  * browser repaints on `[data-theme]` alone, React Native moves the theme store.
  */
-export const CSS_COLORS: Readonly<Record<string, string>> | null = WEB
+export const CSS_COLORS: Readonly<Record<ColorToken, string>> | null = WEB
   ? vars(colors, cssVar)
   : null;
 
-export const CSS_SHADOWS: Readonly<Record<string, string>> | null = WEB
+export const CSS_SHADOWS: Readonly<Record<ShadowToken, string>> | null = WEB
   ? vars(shadow, (k) => `--shadow-${k}`)
   : null;
 

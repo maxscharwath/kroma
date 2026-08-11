@@ -26,7 +26,11 @@ export async function catalogPayload(origin: string): Promise<{
   };
 }
 
-export const getCatalog = createServerFn().handler(async () => {
+/** The same payload for the site the request arrived at: the registry url a
+ *  KROMA server would add is the origin the page was served from. */
+export async function catalogForRequest() {
   const { getRequest } = await import('@tanstack/react-start/server');
   return catalogPayload(new URL(getRequest().url).origin);
-});
+}
+
+export const getCatalog = createServerFn().handler(catalogForRequest);

@@ -127,12 +127,12 @@ function merge<T>(base: T, over: DeepPartial<T> | undefined): T {
 function paint<K extends string>(
   group: Record<K, string>,
   builtin: Record<K, string>,
-  vars: Readonly<Record<string, string>> | null,
+  vars: Readonly<Record<K, string>> | null,
 ): Record<K, string> {
   if (!vars) return group;
   const out = {} as Record<K, string>;
   for (const key of Object.keys(group) as K[]) {
-    out[key] = group[key] === builtin[key] ? (vars[key] ?? group[key]) : group[key];
+    out[key] = group[key] === builtin[key] ? vars[key] : group[key];
   }
   return out;
 }

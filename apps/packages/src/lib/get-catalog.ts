@@ -26,9 +26,13 @@ export async function catalogPayload(source: string): Promise<{
   }
 }
 
-export const getCatalog = createServerFn().handler(async () => {
+/** The same payload for the site the request arrived at: Package Center is
+ *  pointed at the origin the page was served from. */
+export async function catalogForRequest() {
   // Imported here, not at module scope: the server entry drags Node built-ins
   // into the client graph of every route that reaches this module.
   const { getRequest } = await import('@tanstack/react-start/server');
   return catalogPayload(`${new URL(getRequest().url).origin}/`);
-});
+}
+
+export const getCatalog = createServerFn().handler(catalogForRequest);

@@ -176,11 +176,21 @@ export function entryVersion(e: Entry): string {
   return e.info?.version ?? versionFromSpkName(e.spkName);
 }
 
+// The build is the FIRST dashed segment, not everything after the first dash: a
+// nightly carries two (`1.2.3-nightly-20260811`) and DSM shows the first.
+const splitBuild = (raw: string): [string, string | undefined] => {
+  const cut = raw.indexOf('-');
+  if (cut < 0) return [raw, undefined];
+  const rest = raw.slice(cut + 1);
+  const next = rest.indexOf('-');
+  return [raw.slice(0, cut), next < 0 ? rest : rest.slice(0, next)];
+};
+
 /** The version string DSM's Package Center will DISPLAY: `major.minor.micro-build`,
  *  the build taken from the `-suffix` or else the 4th segment. DSM hides a package
  *  whose feature version carries a large 4th segment. */
 export function dsmVersion(raw: string): string {
-  const [feat = '', suffix] = raw.split('-');
+  const [feat, suffix] = splitBuild(raw);
   const seg = feat.split('.');
   const head = seg.slice(0, 3).join('.');
   const build = suffix ?? seg[3];
@@ -191,10 +201,10 @@ export function dsmVersion(raw: string): string {
  * segment, then the -build suffix. */
 export function cmpDsmVersion(a: string, b: string): number {
   const parse = (v: string) => {
-    const [feat = '', build = '0'] = v.split('-');
+    const [feat, build] = splitBuild(v);
     return {
       seg: feat.split('.').map((n) => Number.parseInt(n, 10) || 0),
-      build: Number.parseInt(build, 10) || 0,
+      build: Number.parseInt(build ?? '', 10) || 0,
     };
   };
   const pa = parse(a);

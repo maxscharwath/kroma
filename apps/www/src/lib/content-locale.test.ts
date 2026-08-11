@@ -35,6 +35,10 @@ describe('parseContentPath', () => {
   it('ignores the directories above the file', () => {
     expect(parseContentPath('/any/where/at/all/deep.fr.mdx').name).toBe('deep');
   });
+
+  it('reads a bare filename, with no directory above it at all', () => {
+    expect(parseContentPath('my-post.fr.mdx')).toEqual({ name: 'my-post', lang: 'fr' });
+  });
 });
 
 describe('pickLocale', () => {

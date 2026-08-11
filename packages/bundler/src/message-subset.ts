@@ -5,9 +5,10 @@ import type { Plugin } from 'vite';
 const KIT_SRC = fileURLToPath(new URL('../../ui/src', import.meta.url));
 const CATALOG_DIR = fileURLToPath(new URL('../../core/src/locales/', import.meta.url));
 
-const CALL = /\b(?:t|msg)\(\s*(['"`])([\w.]+)\1/g;
+const CALL = /(?<=\b(?:t|msg)\(\s*(['"`]))[\w.]+(?=\1)/g;
 const PLURAL = /_(?:zero|one|two|few|many|other)$/;
 const SOURCE = /\.(?:ts|tsx|js|jsx)$/;
+const QUERY = /\?.*$/;
 
 function sources(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -33,9 +34,7 @@ export function messageKeysIn(roots: readonly string[]): Set<string> {
   const keys = new Set<string>();
   for (const root of roots) {
     for (const file of sources(root)) {
-      for (const [, , key] of readFileSync(file, 'utf8').matchAll(CALL)) {
-        if (key) keys.add(key);
-      }
+      for (const call of readFileSync(file, 'utf8').matchAll(CALL)) keys.add(call[0]);
     }
   }
   return keys;
@@ -76,7 +75,7 @@ export function messageSubset(options: MessageSubsetOptions = {}): Plugin {
     name: 'kroma:message-subset',
     enforce: 'pre',
     load(id) {
-      const file = id.split('?')[0] ?? id;
+      const file = id.replace(QUERY, '');
       if (!file.startsWith(CATALOG_DIR) || !file.endsWith('.json')) return null;
       keys ??= new Set([
         ...messageKeysIn([KIT_SRC, ...(options.roots ?? [])]),

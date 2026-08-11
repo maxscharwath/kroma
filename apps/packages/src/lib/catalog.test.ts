@@ -125,6 +125,10 @@ describe('dsmVersion', () => {
     expect(dsmVersion('1.2.3')).toBe('1.2.3');
     expect(dsmVersion('23.10-3')).toBe('23.10-3');
   });
+
+  it('takes the first dashed segment of a nightly, not the rest of the string', () => {
+    expect(dsmVersion('1.2.3-nightly-20260811')).toBe('1.2.3-nightly');
+  });
 });
 
 describe('toDsmPackage', () => {

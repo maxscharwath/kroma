@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { moduleVersions } from './get-module';
+import { moduleIdInput, moduleVersions } from './get-module';
 
 const RELEASES = [
   {
@@ -32,7 +32,7 @@ afterEach(() => {
 describe('moduleVersions', () => {
   it('reads back which version every recent release shipped', async () => {
     upstream();
-    expect(await moduleVersions('tv.kroma.vpn')).toEqual([
+    expect(await moduleVersions({ data: { id: 'tv.kroma.vpn' } })).toEqual([
       {
         version: '1.0.0',
         first: 'v0.2.0',
@@ -47,8 +47,15 @@ describe('moduleVersions', () => {
   it('refuses an id that is not a module id, without ever reaching GitHub', async () => {
     const calls = upstream();
     for (const id of ['../../etc/passwd', 'a', '', 'tv kroma vpn', 'a'.repeat(65)]) {
-      expect(await moduleVersions(id)).toEqual([]);
+      expect(await moduleVersions({ data: { id } })).toEqual([]);
     }
     expect(calls).toEqual([]);
+  });
+});
+
+describe('moduleIdInput', () => {
+  it('carries the id across and drops whatever else the caller attached', () => {
+    const payload = { id: 'tv.kroma.vpn', repo: 'someone/fork' } as { id: string };
+    expect(moduleIdInput(payload)).toEqual({ id: 'tv.kroma.vpn' });
   });
 });

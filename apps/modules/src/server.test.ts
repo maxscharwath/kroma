@@ -1,5 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import server from './server';
+
+const rendered = vi.hoisted(() => [] as string[]);
+
+vi.mock('@tanstack/react-start/server-entry', () => ({
+  default: {
+    fetch: (request: Request) => {
+      rendered.push(new URL(request.url).pathname);
+      return new Response('<html lang="fr"><head></head><body>modules</body></html>', {
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+      });
+    },
+  },
+}));
 
 const ctx = () => ({ waitUntil: vi.fn() });
 
@@ -25,6 +38,10 @@ function ghServing() {
   return calls;
 }
 
+beforeEach(() => {
+  rendered.length = 0;
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -36,6 +53,7 @@ describe('the worker entry', () => {
 
     expect(await res.text()).toBe('pong');
     expect(calls).toEqual([]);
+    expect(rendered).toEqual([]);
   });
 
   it('threads its env through to the catalog it serves', async () => {
@@ -54,5 +72,19 @@ describe('the worker entry', () => {
     expect(res.headers.get('content-type')).toBe('image/svg+xml');
     expect(await res.text()).toContain('<svg');
     expect(calls).toEqual([]);
+  });
+
+  it('renders a page route with the ground stamped and the kit stylesheet inlined', async () => {
+    ghServing();
+    const res = await server.fetch(
+      req('/', { headers: { accept: 'text/html', cookie: 'kroma-theme=light' } }),
+      {},
+      ctx(),
+    );
+    const html = await res.text();
+
+    expect(rendered).toEqual(['/']);
+    expect(html).toContain('<html data-theme="light" lang="fr">');
+    expect(html).toContain('<style id="react-native-stylesheet">');
   });
 });

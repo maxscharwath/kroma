@@ -21,6 +21,9 @@
     // Vendored Rust crate sources, some carrying their own bundled web UIs
     // (librqbit's, petgraph's docs CSS). Not ours; Biome excludes them too.
     "clients/synology/**",
+    // Reached only through the runner's `cloudflare:workers` alias, which is a
+    // resolution no static tool can follow.
+    "packages/site-kit/test/cloudflare-workers.ts",
     // Written by `bun run modules:gen` from the module manifests.
     "packages/modules-generated/**",
     "**/*.gen.ts",

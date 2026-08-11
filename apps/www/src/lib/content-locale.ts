@@ -24,11 +24,7 @@ const isLang = (s: string): s is Lang => LOCALES.includes(s);
  *  that is not a known locale is part of the name, so `release.2.mdx` is the
  *  document `release.2`, not `release` in a locale called `2`. */
 export function parseContentPath(path: string): { name: string; lang: Lang } {
-  const file =
-    path
-      .split('/')
-      .pop()
-      ?.replace(/\.mdx$/, '') ?? path;
+  const file = path.slice(path.lastIndexOf('/') + 1).replace(/\.mdx$/, '');
   const parts = file.split('.');
   const last = parts.length > 1 ? parts.at(-1) : undefined;
   if (last && isLang(last)) return { name: parts.slice(0, -1).join('.'), lang: last };

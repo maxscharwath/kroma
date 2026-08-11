@@ -67,4 +67,45 @@ describe('workerContext', () => {
     expect(env).toEqual({});
     expect(typeof waitUntil).toBe('function');
   });
+
+  it('hands back the bindings workerd itself carries, not the process environment', async () => {
+    const fresh = await reloaded();
+    const bindings = { GITHUB_REPO: 'someone/fork' };
+    vi.stubGlobal('KROMA_WORKERD', { env: bindings, waitUntil: () => undefined });
+    const { env } = await fresh();
+    expect(env).toBe(bindings);
+    expect(env[PROBE]).toBeUndefined();
+  });
+
+  it("wires workerd's waitUntil, so a background put outlives the response", async () => {
+    const fresh = await reloaded();
+    const held: Promise<unknown>[] = [];
+    vi.stubGlobal('KROMA_WORKERD', {
+      env: {},
+      waitUntil: (p: Promise<unknown>) => held.push(p),
+    });
+    const { waitUntil } = await fresh();
+
+    const put = Promise.resolve('cached');
+    waitUntil(put);
+    expect(held).toEqual([put]);
+  });
+
+  it('swallows the background work workerd offers nowhere to hand it to', async () => {
+    const fresh = await reloaded();
+    vi.stubGlobal('KROMA_WORKERD', {});
+    const { env, waitUntil } = await fresh();
+    const seen: unknown[] = [];
+    const onUnhandled = (err: unknown) => {
+      seen.push(err);
+    };
+    process.on('unhandledRejection', onUnhandled);
+
+    waitUntil(Promise.reject(new Error('cache put failed')));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    process.off('unhandledRejection', onUnhandled);
+    expect(env).toEqual({});
+    expect(seen).toEqual([]);
+  });
 });

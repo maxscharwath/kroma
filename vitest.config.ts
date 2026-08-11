@@ -26,6 +26,12 @@ const alias = [
   { find: /^react-native$/, replacement: 'react-native-web' },
   // Mirrors packages/bundler/src/rnw.ts.
   { find: /^@tabler\/icons-react-native$/, replacement: '@tabler/icons-react' },
+  // workerd's own module. The stand-in throws exactly as the platform's absence
+  // does unless a test names the ambient bindings on `globalThis.KROMA_WORKERD`.
+  {
+    find: /^cloudflare:workers$/,
+    replacement: dir('./packages/site-kit/test/cloudflare-workers.ts'),
+  },
   // The spatial navigator's webpack UMD bundle resolves its own `require`s past
   // the alias above and lands on React Native's Flow source ("Unexpected token
   // 'typeof'"); point the runner at its TS sources instead.

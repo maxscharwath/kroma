@@ -1,43 +1,10 @@
 import { StyleSheet } from 'react-native';
-import { CSS_SLOT, HREF_SLOT, isWorn, MARKER, wornBy } from './rnw-sheet';
+import { readMode } from './core/theme-mode';
 
 type Fetch = (request: Request) => Response | Promise<Response>;
 
 // react-native-web only, and it ships no TypeScript types.
 type WebStyleSheet = { getSheet(): { id: string; textContent: string } };
-
-/** The stylesheet a build wrote next to the page: where it is served from, and
- *  the rules it holds. */
-export interface KitSheetFile {
-  href: string;
-  css: string;
-}
-
-// Rewritten in the built output by kitSheet() (@kroma/bundler), once the build
-// has rendered the site and knows what the linked file holds.
-const BUILT: KitSheetFile = { href: HREF_SLOT, css: CSS_SLOT };
-
-// The element is adopted on startup and react-native-web rebuilds its record
-// from it, rule by rule: every rule it reads has to sit under the group marker
-// it belongs to, or the group lookup has nothing to push onto. So the marker
-// above a rule that stays comes along with it.
-function remainder(live: string, held: ReadonlySet<string>, worn: ReadonlySet<string>): string {
-  const out: string[] = [];
-  let marker: string | undefined;
-  for (const rule of live.split('\n')) {
-    if (rule.startsWith(MARKER)) {
-      marker = rule;
-      continue;
-    }
-    if (held.has(rule) || !isWorn(rule, worn)) continue;
-    if (marker !== undefined) {
-      out.push(marker);
-      marker = undefined;
-    }
-    out.push(rule);
-  }
-  return out.join('\n');
-}
 
 /**
  * Puts the kit's compiled stylesheet in the document the server sends.
@@ -51,43 +18,48 @@ function remainder(live: string, held: ReadonlySet<string>, worn: ReadonlySet<st
  * exist only once that page has finished rendering, which is after `</head>`
  * would already have been flushed.
  *
- * A build that ran `kitSheet()` has rendered every page already and written
- * those rules to a hashed file, which is linked here rather than re-sent on
- * every response. What stays inline is only what this page is wearing and the
- * file does not hold, normally nothing at all; `x-kroma-kit-delta` reports that
- * remainder in bytes, so a variant no build ever rendered still paints and is
- * still visible. Without such a file, every rule is inlined as before.
- *
- * The id is the one react-native-web looks for, so the client adopts this
- * element instead of starting a second sheet, and it stays last in the head,
- * after the file, so the rules the browser compiles on its own keep winning
- * ties. What is inlined is a sheet in its own right, group markers and all,
- * because adoption re-reads it rule by rule.
+ * The id is the one react-native-web looks for, and the element has to carry
+ * the whole sheet: on startup the client adopts it and rebuilds its record from
+ * the rules it finds. An element it finds empty leaves it believing nothing is
+ * registered, so it mints every rule again as it renders, and until that is
+ * finished the page is laid out by a partial sheet that wins on order.
  */
-export function withKitStyles(handler: Fetch, file: KitSheetFile = BUILT): Fetch {
-  const href = file.href.startsWith('/') ? file.href : null;
-  const known = new Set(file.css.split('\n'));
+/**
+ * Stamps the visitor's stored ground on `<html>` before the document leaves the
+ * server, so a page that will be light never paints dark first.
+ *
+ * Only an explicit choice is written. `system` is deliberately left unstamped:
+ * the token sheet resolves it through `prefers-color-scheme`, which costs no
+ * script and keeps following the operating system while the page is open.
+ */
+export function withTheme(handler: Fetch): Fetch {
+  return async (request: Request) => {
+    const response = await handler(request);
+    if (!response.headers.get('content-type')?.includes('text/html')) return response;
 
+    const mode = readMode(request.headers.get('cookie') ?? '');
+    const html = await response.text();
+    const headers = new Headers(response.headers);
+    headers.delete('content-length');
+    headers.append('vary', 'cookie');
+    return new Response(
+      mode === 'system' ? html : html.replace('<html', `<html data-theme="${mode}"`),
+      { status: response.status, statusText: response.statusText, headers },
+    );
+  };
+}
+
+export function withKitStyles(handler: Fetch): Fetch {
   return async (request: Request) => {
     const response = await handler(request);
     if (!response.headers.get('content-type')?.includes('text/html')) return response;
 
     const html = await response.text();
     const sheet = (StyleSheet as unknown as WebStyleSheet).getSheet();
-    const rest =
-      href === null ? sheet.textContent : remainder(sheet.textContent, known, wornBy(html));
-    if (href !== null && rest.length > 0) {
-      console.warn(
-        `kit sheet: ${new URL(request.url).pathname} inlined ${rest.length} bytes the built sheet does not hold`,
-      );
-    }
-
-    const link = href === null ? '' : `<link rel="stylesheet" href="${href}">`;
     const headers = new Headers(response.headers);
     headers.delete('content-length');
-    headers.set('x-kroma-kit-delta', String(rest.length));
     return new Response(
-      html.replace('</head>', `${link}<style id="${sheet.id}">${rest}</style></head>`),
+      html.replace('</head>', `<style id="${sheet.id}">${sheet.textContent}</style></head>`),
       { status: response.status, statusText: response.statusText, headers },
     );
   };

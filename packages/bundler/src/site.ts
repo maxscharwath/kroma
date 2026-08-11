@@ -1,5 +1,4 @@
 import { fileURLToPath } from 'node:url';
-import { type KitSheetOptions, kitSheet } from '@kroma/bundler/kit-sheet';
 import { messageSubset } from '@kroma/bundler/message-subset';
 import { RNW_DEFINE, RNW_SSR_NO_EXTERNAL, webResolve } from '@kroma/bundler/rnw';
 import { kromaUI } from '@kroma/ui/vite';
@@ -16,9 +15,6 @@ export interface KromaSiteOptions {
   /** Ship the whole application catalog rather than the messages this site's own
    *  source and the design system name — for a site that builds a key at runtime. */
   appMessages?: boolean;
-  /** Where the build starts crawling to compile the kit's stylesheet, and what
-   *  the worker is handed while it renders. */
-  sheet?: KitSheetOptions;
 }
 
 /**
@@ -36,7 +32,6 @@ export function kromaSite(siteUrl: string, options: KromaSiteOptions = {}): User
       kromaUI(),
       tanstackStart(options.prerender ? { prerender: { enabled: true, crawlLinks: true } } : {}),
       react(),
-      kitSheet(options.sheet),
       ...(options.plugins ?? []),
     ],
     define: RNW_DEFINE,

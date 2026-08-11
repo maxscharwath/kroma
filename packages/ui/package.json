@@ -12,7 +12,6 @@
     "./kit": "./src/kit.ts",
     "./kit/*": "./src/components/*/index.ts",
     "./ssr": "./src/ssr.ts",
-    "./rnw-sheet": "./src/rnw-sheet.ts",
     "./testing": "./src/testing.tsx",
     "./bundler": "./bundler/index.ts",
     "./workbench-config": "./src/workbench-config.tsx",

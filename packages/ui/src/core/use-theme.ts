@@ -2,7 +2,7 @@
 // importable from non-React code (the resolver, tests, scripts).
 
 import { createElement, Fragment, type ReactNode, useEffect, useSyncExternalStore } from 'react';
-import { Appearance } from 'react-native';
+import { Appearance, AppState } from 'react-native';
 import { activeTheme, onThemeChange, setTheme, type Theme, themeVersion } from './theme';
 import { applyMode, readMode } from './theme-mode';
 
@@ -25,10 +25,20 @@ export function useTheme(): Theme {
  */
 export function useSystemGround(): void {
   useEffect(() => {
-    const watch = Appearance.addChangeListener(() => {
+    const follow = () => {
       if (readMode() === 'system') applyMode('system');
+    };
+    const watch = Appearance.addChangeListener(follow);
+    // The listener alone is not enough: the ground is usually changed from the
+    // system's own settings, so the app is in the background when it moves and
+    // is handed the new one on the way back in.
+    const wake = AppState.addEventListener('change', (state) => {
+      if (state === 'active') follow();
     });
-    return () => watch.remove();
+    return () => {
+      watch.remove();
+      wake.remove();
+    };
   }, []);
 }
 

@@ -227,6 +227,20 @@ export function activeTheme(): Theme {
 }
 
 /**
+ * Whether a theme paints on paper.
+ *
+ * Compares the page colour, not the identity, so a form factor derived from
+ * KROMA_LIGHT still answers yes. Always false on a browser, and deliberately:
+ * there every colour resolves to a custom property and the CASCADE owns the
+ * ground, so the JavaScript side cannot tell the two apart and does not need
+ * to. What needs it is the thing the cascade cannot reach - a native blur view,
+ * which has to be handed its own tint.
+ */
+export function onPaper(theme: Theme = active): boolean {
+  return !CSS_COLORS && theme.colors.bg === KROMA_LIGHT.colors.bg;
+}
+
+/**
  * The ACTIVE ground at an alpha, for the gradients artwork fades into.
  *
  * The difference from {@link SHADE} and `shade()` is which ground is meant.

@@ -27,6 +27,7 @@ export {
   groundShade,
   KROMA,
   KROMA_LIGHT,
+  onPaper,
   onThemeChange,
   radiusValue,
   setTheme,

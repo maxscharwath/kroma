@@ -15,6 +15,7 @@ import {
   mobileRadius,
   mobileType,
   mobileTypeSpec,
+  onPaper,
   type Theme,
   type ThemeOverrides,
 } from '@kroma/ui/kit';
@@ -50,7 +51,7 @@ export const MOBILE_LIGHT = createTheme(FORM_FACTOR, KROMA_LIGHT);
 
 /** The phone's theme for whichever ground is currently set. */
 export function mobileTheme(ground: Theme = activeTheme()): Theme {
-  return ground.colors.bg === KROMA_LIGHT.colors.bg ? MOBILE_LIGHT : MOBILE;
+  return onPaper(ground) ? MOBILE_LIGHT : MOBILE;
 }
 
 // Straight pass-throughs: re-exported rather than rebound, so no local name

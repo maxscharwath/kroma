@@ -30,6 +30,7 @@ export {
   groundShade,
   KROMA,
   KROMA_LIGHT,
+  onPaper,
   onThemeChange,
   readMode,
   setTheme,

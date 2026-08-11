@@ -16,7 +16,7 @@
 
 import type { ComponentType } from 'react';
 import { Platform, type StyleProp, View, type ViewStyle } from 'react-native';
-import { type CornerValue, radiusValue, styles } from '#ui/core';
+import { type CornerValue, onPaper, radiusValue, styles } from '#ui/core';
 import { backdropBlur } from '#ui/lib/css';
 
 const WEB = Platform.OS === 'web';
@@ -48,10 +48,13 @@ interface FrostProps {
   /** Corner of the surface this layer sits in (it clips itself), by token name
    *  or in px. */
   radius?: CornerValue;
+  /** Defaults to the ground the app is on. Pass it only for a surface that is
+   *  one ground whatever the app around it chose, the way the player's chrome
+   *  is dark over video. */
   tint?: 'light' | 'dark' | 'default';
 }
 
-function Frost({ amount = 12, radius = 0, tint = 'dark' }: Readonly<FrostProps>) {
+function Frost({ amount = 12, radius = 0, tint }: Readonly<FrostProps>) {
   const corner = radiusValue(radius);
   const shape = corner > 0 ? { borderRadius: corner } : null;
   if (WEB) {
@@ -64,7 +67,7 @@ function Frost({ amount = 12, radius = 0, tint = 'dark' }: Readonly<FrostProps>)
     <PlatformFrost
       // expo-blur's 0-100 scale: about four steps to the CSS pixel.
       intensity={Math.min(100, amount * 4)}
-      tint={tint}
+      tint={tint ?? (onPaper() ? 'light' : 'dark')}
       style={[s.fill, s.clip, shape]}
     />
   );

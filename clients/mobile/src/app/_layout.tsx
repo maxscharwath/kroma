@@ -16,7 +16,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BlurView } from 'expo-blur';
 import * as Device from 'expo-device';
-import { Stack } from 'expo-router';
+import { Stack, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -30,7 +30,7 @@ import { isTablet } from '#mobile/lib/layout';
 import { useNotificationStream } from '#mobile/lib/notifications';
 import { usePushGrantRefresh, usePushLabels, usePushTaps } from '#mobile/lib/notifications/usePush';
 import { SessionProvider, useSession } from '#mobile/lib/session';
-import { MOBILE_LIGHT, mobileTheme } from '#mobile/lib/theme';
+import { MOBILE, MOBILE_LIGHT, mobileTheme } from '#mobile/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -92,7 +92,22 @@ function makeQueryClient(): QueryClient {
 
 function Shell() {
   const { status, user, client } = useSession();
-  const theme = mobileTheme(useTheme());
+  // Two surfaces paint over something dark that is not the page, and hold the
+  // dark ground whatever the phone chose: the gate, which is composed over a
+  // full-bleed still, and the player, whose chrome sits on video. On paper
+  // their ink would land on the artwork and disappear.
+  //
+  // Decided here rather than by the subtree itself. There is one theme store on
+  // a native target, so a component that drove it from an effect would bump the
+  // version, the version would remount it, and the effect would run again.
+  const route = useSegments().join('/');
+  const overArtwork = status !== 'signedIn' || route.includes('player');
+  const ground = useTheme();
+  const theme = overArtwork ? MOBILE : mobileTheme(ground);
+  // The store moved to get here, so the stored mode is re-derived on the way out.
+  useEffect(() => {
+    if (!overArtwork) applyMode(readMode());
+  }, [overArtwork]);
   // One cache per signed-in account: switching users drops everything.
   const [clients] = useState(() => new Map<string, QueryClient>());
   const cacheKey = user?.id ?? 'anon';

@@ -118,7 +118,7 @@ export function CastRail({ cast }: Readonly<{ cast: CastMember[] }>) {
 const s = styles({
   back: { absolute: true, z: 2 },
   heroText: { absolute: true, bottom: spacing.sm, gap: 6 },
-  context: { ...type.caption, color: 'accent', fontWeight: '700' },
+  context: { ...type.caption, color: 'accentText', fontWeight: '700' },
   heroTitle: {
     ...type.display,
     fontSize: 32,

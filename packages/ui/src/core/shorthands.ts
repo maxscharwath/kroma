@@ -80,8 +80,7 @@ export interface BoxStyleProps {
   ml?: Spacing;
 
   bg?: ColorValue;
-  /** A radius token, a raw px value, or `'circle'` for a disc — see
-   *  {@link CornerValue}. */
+  /** A radius token, a raw px value, or `'circle'`; see {@link CornerValue}. */
   radius?: CornerValue;
   border?: ColorValue;
   borderWidth?: number;
@@ -218,8 +217,7 @@ export function boxStyle(p: Readonly<BoxStyleProps>): ViewStyle {
     if (value === undefined) continue;
     applyRule(out, RULES[key], value);
   }
-  // A disc is half of ITSELF, so where the declaration also states the box's
-  // side the corner comes from there rather than from the clamped fallback.
+  // A disc is half of ITSELF, so a stated side beats the clamped fallback.
   if (p.radius === 'circle') {
     const stated = typeof p.h === 'number' ? p.h : p.w;
     out.borderRadius = radiusValue('circle', typeof stated === 'number' ? stated : undefined);

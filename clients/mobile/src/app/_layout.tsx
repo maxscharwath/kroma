@@ -3,6 +3,7 @@ import { lanBeacon } from '@kroma/lan-beacon';
 import { CastProvider, I18nProvider as KitI18nProvider } from '@kroma/ui';
 import {
   applyMode,
+  onPaper,
   readMode,
   registerFrost,
   setEntryDefaults,
@@ -30,12 +31,10 @@ import { isTablet } from '#mobile/lib/layout';
 import { useNotificationStream } from '#mobile/lib/notifications';
 import { usePushGrantRefresh, usePushLabels, usePushTaps } from '#mobile/lib/notifications/usePush';
 import { SessionProvider, useSession } from '#mobile/lib/session';
-import { MOBILE, MOBILE_LIGHT, mobileTheme } from '#mobile/lib/theme';
+import { MOBILE, mobileTheme } from '#mobile/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-// Every per-device choice the design system persists goes through this store,
-// and the theme mode is read one statement below.
 installDeviceStore();
 
 // The design system draws artwork through whichever decoder the app registers.
@@ -56,10 +55,6 @@ setEntryDefaults({ physicalKeyboard: true, size: 'md' });
 // corners and spacing, so a kit component here is sized for a hand rather than
 // for a room. Module scope, before the first render - a swap after one is legal
 // (every recipe re-resolves lazily) but would repaint the whole tree.
-//
-// The ground comes first, so a returning user opens on the mode they chose
-// rather than on the default one, and the form factor is then re-stated over
-// whichever base `applyMode` picked.
 applyMode(readMode());
 setTheme(mobileTheme());
 
@@ -92,21 +87,17 @@ function makeQueryClient(): QueryClient {
 
 function Shell() {
   const { status, user, client } = useSession();
-  // Two surfaces paint over something dark that is not the page, and hold the
-  // dark ground whatever the phone chose: the gate, which is composed over a
-  // full-bleed still, and the player, whose chrome sits on video. On paper
-  // their ink would land on the artwork and disappear.
-  //
-  // Decided here rather than by the subtree itself. There is one theme store on
-  // a native target, so a component that drove it from an effect would bump the
-  // version, the version would remount it, and the effect would run again.
-  const route = useSegments().join('/');
-  const overArtwork = status !== 'signedIn' || route.includes('player');
+  // The gate and the player sit over artwork and keep the dark ground. Decided here
+  // because one theme store means a subtree driving it from an effect remounts itself.
+  const segments: string[] = useSegments();
+  const overArtwork = status !== 'signedIn' || segments.includes('player');
   const ground = useTheme();
   const theme = overArtwork ? MOBILE : mobileTheme(ground);
   // The store moved to get here, so the stored mode is re-derived on the way out.
   useEffect(() => {
-    if (!overArtwork) applyMode(readMode());
+    if (overArtwork) return;
+    applyMode(readMode());
+    setTheme(mobileTheme());
   }, [overArtwork]);
   // One cache per signed-in account: switching users drops everything.
   const [clients] = useState(() => new Map<string, QueryClient>());
@@ -138,10 +129,8 @@ function Shell() {
             >
               <NotificationStream />
               <BottomSheetModalProvider>
-                {/* Innermost on purpose: a theme swap REMOUNTS this subtree
-                    (see <ThemeProvider>), so the session, the query cache, the
-                    locale, the downloads and the cast session all sit above it
-                    and only the screens are drawn again. */}
+                {/* Innermost: a theme swap REMOUNTS this subtree, so every provider
+                    above it survives one and only the screens are drawn again. */}
                 <ThemeProvider theme={theme}>
                   <Stack
                     screenOptions={{
@@ -166,9 +155,7 @@ function Shell() {
 
 export default function RootLayout() {
   useSystemGround();
-  // Above the provider, so the root ground and the system bar follow a swap by
-  // re-rendering rather than by remounting the session under them.
-  const paper = mobileTheme(useTheme()) === MOBILE_LIGHT;
+  const paper = onPaper(useTheme());
   return (
     <GestureHandlerRootView style={s.root}>
       <SessionProvider>

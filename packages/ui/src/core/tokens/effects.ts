@@ -13,9 +13,8 @@ export const shadow = {
   hero: '0 20px 50px rgba(0, 0, 0, 0.6)',
 } as const;
 
-/** The same elevations on paper. A shadow tuned to read against charcoal is a
- *  smear on a light ground: what lifts a card there is a tight contact shadow
- *  and a wide, very faint ambient one, not opacity. */
+/** The same elevations on paper: a tight contact shadow under a wide, very
+ *  faint ambient one, where the dark ground's single opaque drop would smear. */
 export const lightShadow: Record<keyof typeof shadow, string> = {
   card: '0 1px 2px rgba(22, 21, 26, 0.06), 0 8px 24px rgba(22, 21, 26, 0.06)',
   pop: '0 2px 4px rgba(22, 21, 26, 0.08), 0 16px 40px rgba(22, 21, 26, 0.1)',
@@ -91,9 +90,8 @@ export function standoffInside(color: string): RingStyle {
 }
 
 /** The steps the theme derives from the accent wash, as the `/NN` percentages a
- *  colour is written with everywhere else. Named rather than spelled at the
- *  three use sites because the build emits one custom property per step and can
- *  only see a step that appears somewhere as a literal. */
+ *  colour is written with everywhere else. The build emits one property per
+ *  step, so a new one has to be added to the derived list in `vite/tokens.ts`. */
 export const WASH_ALPHA = { glow: 40, play: 32, ring: 28 } as const;
 
 export const LIFT_SHADOW = '0 10px 28px rgba(0, 0, 0, 0.5)';

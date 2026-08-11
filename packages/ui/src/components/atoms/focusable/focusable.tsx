@@ -516,15 +516,12 @@ function Focusable<R extends AnySv = AnySv>({
     setHovered(true);
     onHoverIn?.();
   }, [onHoverIn]);
-  // The navigator path renders a plain view rather than a <Pressable>, so there
-  // is no onPressIn to lean on and a pointer press would go unpainted on every
-  // web screen that mounts a focus scope. These are the same callbacks
-  // react-native-web forwards for hover, one event later.
+  // The navigator path renders a plain view rather than a <Pressable>, so it has
+  // no onPressIn and leans on the pointer events react-native-web forwards.
   const [pointerPressed, setPointerPressed] = useState(false);
   const pointerDown = useCallback(() => setPointerPressed(true), []);
   const pointerUp = useCallback(() => setPointerPressed(false), []);
-  // A pointer that leaves mid-press ends the press: the button it slid off must
-  // not stay painted as though the finger were still down.
+  // A pointer that leaves mid-press ends the press.
   const hoverOut = useCallback(() => {
     setHovered(false);
     setPointerPressed(false);
@@ -625,10 +622,8 @@ function Focusable<R extends AnySv = AnySv>({
   // computed once and reused, because it is what the outer render paints with
   // and what every unpressed child asks for.
   // Whether anything downstream can report a press, so a recipe's `_press` is
-  // only resolved where it can land. Every browser target can: the pressable
-  // path hears it from the <Pressable>, the navigator path from the pointer
-  // handlers above. A pointerless television mounts a plain view and cannot.
-  const canPress = WEB ? true : !Platform.isTV || TV_HAS_POINTER;
+  // only resolved where it can land: a pointerless television cannot.
+  const canPress = WEB || !Platform.isTV || TV_HAS_POINTER;
   // Normalised once per distinct set: these are coats over whatever the recipe
   // resolved, layered on top of it by the render forms below.
   const coats = useMemo(
@@ -655,10 +650,6 @@ function Focusable<R extends AnySv = AnySv>({
   // there is no caller style - the common case.
   const root = recipe ? (rest.root as StyleProp<ViewStyle>) : undefined;
   const painted = usePair(root, style);
-  // The press coat rides the `pressedStyle` channel, which is the only one that
-  // can see a Pressable's own state. Skipped entirely where nothing can report a
-  // press: the browser targets render the navigator's view directly, and a
-  // pointerless television never mounts a Pressable at all.
   // Only what the press ADDS, not the whole root: the press coat lands after the
   // caller's `style`, so re-applying the resolved root there would revert a
   // one-off override (a `radius={12}` snapping back to the recipe's pill) for as

@@ -14,8 +14,14 @@ export const UNAVAILABLE = JSON.stringify({
   error: 'catalog unavailable',
 });
 
-const edgeCache = (): Cache | undefined =>
+export const edgeCache = (): Cache | undefined =>
   (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
+
+export function githubHeaders(env: Env | undefined): Record<string, string> {
+  const out: Record<string, string> = { 'user-agent': 'kroma-module-registry' };
+  if (env?.GITHUB_TOKEN) out.authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  return out;
+}
 
 export function jsonResponse(body: string, maxAge: number): Response {
   return new Response(body, {
@@ -29,10 +35,8 @@ export function jsonResponse(body: string, maxAge: number): Response {
 
 async function fetchUpstream(env: Env | undefined): Promise<string> {
   const repo = env?.GITHUB_REPO || DEFAULT_REPO;
-  const headers: Record<string, string> = { 'user-agent': 'kroma-module-registry' };
-  if (env?.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
   const res = await fetch(`https://github.com/${repo}/releases/latest/download/modules.json`, {
-    headers,
+    headers: githubHeaders(env),
     redirect: 'follow',
   });
   if (!res.ok) throw new Error(`modules.json ${res.status}`);
@@ -40,8 +44,7 @@ async function fetchUpstream(env: Env | undefined): Promise<string> {
 }
 
 /** The catalog body, or `null` when neither upstream nor the stale edge copy can
- *  produce one. The failure detail goes to the log, never to the caller: on a
- *  public endpoint `String(err)` would hand out the upstream URL. */
+ *  produce one. The failure detail goes to the log, never to the caller. */
 export async function loadCatalog(
   env: Env | undefined,
   waitUntil: (p: Promise<unknown>) => void,

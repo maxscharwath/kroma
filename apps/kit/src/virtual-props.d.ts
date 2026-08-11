@@ -1,5 +1,4 @@
-// `virtual:kroma-props` has no file on disk - it is served by the `propDocs`
-// plugin (clients/tv-build/props-docs.ts) - so its shape is declared here.
+// Served by the `propDocs` plugin in @kroma/bundler; no file on disk.
 
 declare module 'virtual:kroma-props' {
   import type { PropDoc } from '@kroma/workbench';

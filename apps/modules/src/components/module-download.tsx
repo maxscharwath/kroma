@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Download } from '#site/lib/artifacts';
 import { mb, platformLabel } from '#site/lib/ui';
 import { Column } from '#ui/components/atoms/box';
@@ -26,8 +27,16 @@ export interface ModuleDownloadProps {
   onPick: (target: string | null) => void;
 }
 
-/** The card's primary action: the `.kmod` for the chosen platform, with the
- *  other builds one press away on the split button's menu. */
+/** The build the reader has chosen, which starts as the likeliest one. */
+export function useDownloadPick(files: Download[]): {
+  picked: Download | undefined;
+  pick: (target: string | null) => void;
+} {
+  const [target, setTarget] = useState<string | null>(files[0]?.target ?? null);
+  return { picked: files.find((file) => file.target === target) ?? files[0], pick: setTarget };
+}
+
+/** The `.kmod` for the chosen platform, the other builds on a split-button menu. */
 export function ModuleDownload({ files, picked, onPick }: Readonly<ModuleDownloadProps>) {
   const caption = [platformLabel(picked.target), mb(picked.size)].filter(Boolean).join(' · ');
   return (

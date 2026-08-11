@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { extname, join, resolve, sep } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -82,16 +82,11 @@ const server = createServer((request, response) => {
   const requested = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
   const entry = join(dist, 'index.html');
 
-  // Containment check inline at the sink: `join(dist, requested)` alone lets
-  // `/../../../etc/passwd` walk out of the build directory. Strip leading
-  // separators, then require the resolved path to still sit under `dist` -
-  // the only check that holds, since `..` can appear anywhere in the path.
-  let file = entry;
-  if (requested !== '/') {
-    const candidate = resolve(dist, `.${sep}${requested.replace(/^[/\\]+/, '')}`);
-    if (candidate === dist || candidate.startsWith(`${dist}${sep}`)) file = candidate;
-  }
-  if (!existsSync(file) || !statSync(file).isFile()) file = entry;
+  // `..` can appear anywhere, so containment is decided on the resolved path.
+  const rel = relative(dist, resolve(dist, `.${sep}${requested.replace(/^[/\\]+/, '')}`));
+  const inside = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+  const candidate = inside ? join(dist, rel) : entry;
+  const file = existsSync(candidate) && statSync(candidate).isFile() ? candidate : entry;
 
   response.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
   createReadStream(file).pipe(response);

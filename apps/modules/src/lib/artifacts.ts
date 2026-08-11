@@ -19,9 +19,8 @@ const rank = (target: string | null) => {
   return at === -1 ? ORDER.length : at;
 };
 
-/** Every `.kmod` a visitor can actually fetch, the likeliest platform first.
- *  A catalog that lists no artifacts still advertises its default one at the
- *  top level, which is where a single-file module is found. */
+/** Every `.kmod` a visitor can actually fetch, the likeliest platform first,
+ *  falling back to the top-level artifact a single-target module carries. */
 export function downloads(m: ModuleEntry): Download[] {
   const listed = (m.artifacts ?? []).flatMap((a) =>
     a.url

@@ -11,12 +11,11 @@ const PLATFORMS: Record<string, string> = {
   'x86_64-unknown-linux-musl': 'Linux x64',
 };
 
-/** A build target triple as the platform a reader recognises. An unmapped
- *  triple passes through; a module built for no target at all runs anywhere. */
+/** A build target triple as the platform a reader recognises. */
 export const platformLabel = (target?: string | null) =>
   target ? (PLATFORMS[target] ?? target) : 'Universal';
 
 /** The first and last eight hex characters, which is how a checksum is compared
- *  by eye. The full digest is what the copy control puts on the clipboard. */
+ *  by eye. */
 export const shortHash = (hash: string) =>
   hash.length > 20 ? `${hash.slice(0, 8)}…${hash.slice(-8)}` : hash;

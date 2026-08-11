@@ -52,11 +52,8 @@ type NavPillSize = 'sm' | 'tv';
 /** `auto` is the size's own policy: every label at `tv`, the active item's at `sm`. */
 type NavPillLabels = 'auto' | 'all' | 'active' | 'none';
 
-// The item's WHOLE box, measured. Deriving the vertical half from the capsule's
-// padding instead put the lens in a different coordinate system from the item:
-// `onLayout` measures from the content box and an absolute child is placed
-// against the padding box, so the lens sat a border off and two borders tall,
-// and the miss showed as fill leaking out past a focused item's ring.
+// The item's WHOLE box, measured: `onLayout` reports the content box while an
+// absolute child is placed against the padding box, so a derived height misses.
 interface LensRect {
   x: number;
   y: number;
@@ -338,8 +335,7 @@ function NativeLens({ rect, chase }: Readonly<{ rect: LensRect | null; chase: bo
 
   const box = rect ?? last.current;
   if (!box) return null;
-  // Only x and width travel: every item shares the row's height and baseline,
-  // so those are set rather than animated.
+  // Only x and width travel: every item shares the row's height and baseline.
   return (
     <Animated.View
       style={[s.lens, { left, width, opacity: shown, top: box.y, height: box.height }]}
@@ -375,9 +371,6 @@ const navPillItemVariants = svFor<{
     /** Under the lens: the current section, or the one a slide is previewing.
      *  It stays amber while focused, so only an unlit item brightens. */
     lit: {
-      // `accentText`, not `accentBright`: the bright fill hue is a dark-ground
-      // colour and lands as pale yellow on cream. This is the accent as INK,
-      // which clears contrast on either page.
       true: { label: { color: 'accentText' }, icon: { color: 'accentText' } },
       false: {
         label: { _focus: { color: 'text' } },

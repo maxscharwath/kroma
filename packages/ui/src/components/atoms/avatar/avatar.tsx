@@ -111,8 +111,7 @@ function Avatar({
   // avatar is 7.2px, and a half-pixel arc is where a rounded box looks soft on
   // one side and crisp on the other.
   const corner = Math.round(size * ratio);
-  // The ratio stays a ratio (see `roundness`), but a full disc is GEOMETRY, and
-  // saying so is what keeps it round under a theme that squares every corner.
+  // A full disc is GEOMETRY: said in those terms, no theme can square it.
   const shape: CornerValue = circle || ratio === CIRCLE ? 'circle' : corner;
   const fill = gradient ?? gradientFor(seed ?? name);
   const badge = Math.max(24, size * 0.2);

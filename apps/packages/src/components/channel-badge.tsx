@@ -4,8 +4,6 @@ import { Box } from '#ui/components/atoms/box';
 
 export interface ChannelBadgeProps {
   channel: Release['channel'];
-  /** The build this channel currently offers. A stable release is marked only
-   *  when it is that one: every other stable row would say nothing. */
   current?: boolean;
 }
 

@@ -27,8 +27,7 @@ function sources(dir: string, out: string[] = []): string[] {
 
 /**
  * Every catalog key the code under `roots` can ask for by name: the argument of
- * a literal `t('key')` or `msg('key')`. A key built at runtime is not one of
- * them, which is the whole precondition of {@link messageSubset}.
+ * a literal `t('key')` or `msg('key')`.
  */
 export function messageKeysIn(roots: readonly string[]): Set<string> {
   const keys = new Set<string>();
@@ -59,18 +58,14 @@ export function subsetCatalog(
 }
 
 export interface MessageSubsetOptions {
-  /** Source trees scanned for the keys to keep, on top of the design system's own. */
   roots?: readonly string[];
-  /** Keys to keep whatever the scan found, for a caller that builds one at runtime. */
   keep?: readonly string[];
 }
 
 /**
- * Ship only the part of `@kroma/core`'s message catalogs the bundle can reach.
- *
- * Both languages are a static import of ~2000 messages each, so a site that
- * renders no application string of its own still carries every admin screen's
- * copy for the one label a dialog's close button reads.
+ * Ship only the part of `@kroma/core`'s message catalogs the bundle can reach:
+ * the design system's own keys, plus the literals found under `roots` and
+ * whatever `keep` names.
  *
  * Only for a target whose every key is a literal: a key assembled at runtime
  * resolves to itself once its message is gone.

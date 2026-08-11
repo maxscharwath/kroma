@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { ModuleEntry } from '#site/catalog';
-import { ModuleDownload } from '#site/components/module-download';
+import { ModuleDownload, useDownloadPick } from '#site/components/module-download';
 import { downloads } from '#site/lib/artifacts';
 import { type Dependency, depEntries } from '#site/lib/deps';
 import { shortHash } from '#site/lib/ui';
@@ -80,8 +80,7 @@ function Footer({ id, sha256 }: Readonly<{ id: string; sha256: string | null }>)
 
 export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
   const files = downloads(m);
-  const [target, setTarget] = useState<string | null>(files[0]?.target ?? null);
-  const picked = files.find((file) => file.target === target) ?? files[0];
+  const { picked, pick } = useDownloadPick(files);
   const deps = depEntries(m.dependsOn);
   const requires = Boolean(m.minServer) || deps.length > 0;
 
@@ -126,7 +125,7 @@ export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
             </Txt>
           ) : null}
         </Column>
-        {picked ? <ModuleDownload files={files} picked={picked} onPick={setTarget} /> : null}
+        {picked ? <ModuleDownload files={files} picked={picked} onPick={pick} /> : null}
       </Row>
 
       <Divider />

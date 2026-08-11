@@ -225,6 +225,7 @@ const drain = () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const headersOf = (calls: { init?: RequestInit }[]) =>
@@ -413,6 +414,43 @@ describe('loadCatalog', () => {
     expect(cache.put.mock.calls[1]?.[1].headers.get('cache-control')).toBe(
       'public, max-age=604800',
     );
+  });
+
+  it('holds the catalog in memory for five minutes where there is no edge cache', async () => {
+    const calls = ghServing([release()]);
+    const env = {};
+    const first = await loadCatalog(env, () => undefined);
+    const second = await loadCatalog(env, () => undefined);
+    expect(second).toBe(first);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('keys that hold on the env, so a changed binding never answers stale', async () => {
+    const calls = ghServing([release()]);
+    await loadCatalog({ GITHUB_REPO: 'someone/fork' }, () => undefined);
+    await loadCatalog({ GITHUB_REPO: 'another/fork' }, () => undefined);
+    expect(calls.map((c) => c.url)).toEqual([
+      'https://api.github.com/repos/someone/fork/releases?per_page=100',
+      'https://api.github.com/repos/another/fork/releases?per_page=100',
+    ]);
+  });
+
+  it('answers from the expired memory copy when GitHub then goes down', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-01T00:00:00Z'));
+    ghServing([release()]);
+    const env = {};
+    const first = await loadCatalog(env, () => undefined);
+
+    vi.setSystemTime(new Date('2026-08-01T00:06:00Z'));
+    vi.unstubAllGlobals();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    );
+    expect(await loadCatalog(env, () => undefined)).toBe(first);
   });
 
   it('serves the week-old copy when GitHub is down, and rethrows when there is none', async () => {

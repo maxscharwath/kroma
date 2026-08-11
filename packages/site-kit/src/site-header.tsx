@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Box, Row } from '#ui/components/atoms/box';
 import { Divider } from '#ui/components/atoms/divider';
 import { Logo } from '#ui/components/atoms/logo';
@@ -6,7 +7,11 @@ import { ThemeSwitch } from '#ui/components/molecules/theme-switch';
 
 const EN = { system: 'Auto', light: 'Light', dark: 'Dark' };
 
-export function SiteHeader({ title }: Readonly<{ title: string }>) {
+/**
+ * The site-wide header: the mark, this site's `title`, and a theme switch.
+ * `actions` are placed to the left of that switch.
+ */
+export function SiteHeader({ title, actions }: Readonly<{ title: string; actions?: ReactNode }>) {
   return (
     <Box bg="surface1">
       <Box px={16} py={14}>
@@ -20,7 +25,10 @@ export function SiteHeader({ title }: Readonly<{ title: string }>) {
               {title}
             </Txt>
           </Row>
-          <ThemeSwitch label="Theme" labels={EN} />
+          <Row gap={10} shrink={0}>
+            {actions}
+            <ThemeSwitch label="Theme" labels={EN} />
+          </Row>
         </Row>
       </Box>
       <Divider />

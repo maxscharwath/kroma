@@ -14,11 +14,9 @@ export function goBack(router: Router): void {
 /**
  * A dynamic segment, or null when the path carried nothing usable.
  *
- * `/item/${id}` with an absent id is a REAL path: the template interpolates
- * the string "undefined", which matches `[id]` and opens a detail screen for a
- * title that cannot exist. A deep link, a notification and a Top Shelf card can
- * all carry the same, so the screens treat it as no id at all rather than
- * trusting the param's type.
+ * `/item/${id}` with an absent id is a REAL path: the template interpolates the
+ * string "undefined", which matches `[id]` and opens a detail screen for a title
+ * that cannot exist. A deep link and a notification can carry the same.
  */
 export function routeParam(value: string | string[] | undefined): string | null {
   const first = Array.isArray(value) ? value[0] : value;

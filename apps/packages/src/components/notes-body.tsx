@@ -47,8 +47,6 @@ function NotesLine({ line }: Readonly<{ line: Line }>) {
   return <Txt color="textMuted">{line.text}</Txt>;
 }
 
-/** GitHub release notes, rendered with the kit rather than dumped as the
- *  markdown source they arrive as. */
 export function NotesBody({ notes }: Readonly<{ notes: string }>) {
   const lines = parse(notes);
   if (lines.length === 0) {

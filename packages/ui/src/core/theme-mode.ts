@@ -15,12 +15,8 @@ const MODES: readonly ThemeMode[] = ['system', 'light', 'dark'];
 export const isThemeMode = (v: unknown): v is ThemeMode =>
   typeof v === 'string' && (MODES as readonly string[]).includes(v);
 
-// A browser keeps the choice in a cookie because the SERVER has to read it, and
-// stamps the ground on the document before the page is sent. A native app has
-// no server and no cookie jar, so it keeps it beside its other device
-// preferences. One file keyed on the platform rather than a `.web.ts` pair, for
-// the reason css-palette gives: both halves are legal values, so a resolution
-// that fell through to the wrong one would be silent.
+// A cookie on the web because the SERVER has to read it and stamp the ground
+// before the page is sent; device storage where there is no server.
 const WEB = Platform.OS === 'web';
 
 const COOKIE = new RegExp(String.raw`(?:^|;\s*)${THEME_COOKIE}=([^;]+)`);
@@ -47,10 +43,8 @@ function store(mode: ThemeMode): void {
   }
 }
 
-/** The ground a mode resolves to right now. `system` is the operating system's
- *  own answer, which react-native-web reads from `prefers-color-scheme` and a
- *  native target from the platform. Anything it cannot tell reads as dark,
- *  which is the product's default ground. */
+/** The ground a mode resolves to right now. Anything `system` cannot be told
+ *  about reads as dark, the product's default ground. */
 export function resolveMode(mode: ThemeMode): 'light' | 'dark' {
   if (mode !== 'system') return mode;
   return Appearance.getColorScheme() === 'light' ? 'light' : 'dark';
@@ -62,17 +56,10 @@ export function readMode(cookie?: string): ThemeMode {
 }
 
 /**
- * Stamps the ground on the document, which on a browser is the whole switch.
- *
- * Every colour the kit compiles there is a custom property, so redefining the
- * properties under `[data-theme]` repaints the page: nothing re-renders, no
- * second stylesheet loads, and the classes on every element are the ones that
- * were already there. `system` is stamped as ABSENCE, so the token sheet's
- * `prefers-color-scheme` rules answer it and keep following the operating
- * system while the page is open.
- *
- * React Native has no cascade to redefine anything in, so on a native target
- * the store is moved instead and `<ThemeProvider>` renders the tree again.
+ * Stamps the ground on the document, which on a browser is the whole switch:
+ * every colour is a custom property, so `[data-theme]` repaints without a
+ * re-render, and `system` is stamped as ABSENCE for the media query to answer.
+ * React Native has no cascade, so there the store moves instead.
  */
 export function applyMode(mode: ThemeMode): void {
   const root = webDocument()?.documentElement;

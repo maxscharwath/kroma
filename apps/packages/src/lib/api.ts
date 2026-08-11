@@ -41,8 +41,7 @@ function dsmPackages(catalog: Catalog, params: URLSearchParams, origin: string) 
   const stable = catalog.entries.find((e) => e.channel === 'stable');
   const nightly = catalog.entries.find((e) => e.channel === 'nightly');
 
-  // When a nightly shares a normalized version with stable, prefer stable: its
-  // .spk is the released one.
+  // On a tie stable wins: its .spk is the released one.
   let pick: Entry | undefined = stable;
   if (
     beta &&
@@ -55,9 +54,8 @@ function dsmPackages(catalog: Catalog, params: URLSearchParams, origin: string) 
   return { packages: pick ? [toDsmPackage(pick, origin, catalog.repo)] : [] };
 }
 
-// The cache key is the SOURCE url, not the request, so no client query param can
-// bust it on its own - hence the explicit `?fresh=1` escape hatch.
-async function icon(repo: string, ctx: ExecCtx, fresh = false): Promise<Response> {
+// The cache key is the SOURCE url, not the request, so no client query param busts it.
+async function icon(repo: string, ctx: ExecCtx, fresh: boolean): Promise<Response> {
   const src = `https://raw.githubusercontent.com/${repo}/main/clients/synology/spk/PACKAGE_ICON_256.PNG`;
   const cache = (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
   const hit = fresh ? undefined : await cache?.match(src);
@@ -77,11 +75,6 @@ async function icon(repo: string, ctx: ExecCtx, fresh = false): Promise<Response
  * Everything that is not a page: DSM's Package Center feed, the JSON mirrors,
  * the icon and the favicon. Returns `null` when the request should fall through
  * to the rendered site.
- *
- * This runs BEFORE the SSR handler on purpose. Synology NASes poll this origin
- * on a schedule and parse the answer as JSON; none of that should pay for a
- * React render, and a page that failed to render must not be able to take the
- * package feed down with it.
  */
 export async function machineResponse(
   request: Request,
@@ -103,23 +96,21 @@ export async function machineResponse(
   }
 
   const isFeed = path === '/catalog.json' || path === '/nightly.json' || path === '/all.json';
-  // DSM's add-source probe sends a browser-like Accept with no arch/unique
-  // params, and answering it with HTML made DSM parse the page as JSON and fail
-  // silently - so a browser at the root is redirected rather than rendered.
+  if (path !== '/' && !isFeed) return null;
+
+  // DSM's add-source probe sends a browser-like Accept with no arch/unique params,
+  // and answering it with HTML makes DSM parse the page as JSON and fail silently.
   const wantsHtml =
     request.method === 'GET' &&
     (request.headers.get('accept') ?? '').includes('text/html') &&
     !url.searchParams.has('arch') &&
     !url.searchParams.has('unique');
   if (path === '/' && wantsHtml) return Response.redirect(`${origin}/browse`, 302);
-  if (path !== '/' && !isFeed) return null;
 
   let catalog: Catalog;
   try {
     catalog = await loadCatalog(env, (p) => ctx.waitUntil(p));
   } catch (err) {
-    // The detail goes to the log, never to the caller: `String(err)` on a failed
-    // fetch carries the upstream URL to anyone who asks.
     console.error('catalog load failed', err);
     return json({ packages: [], error: 'catalog unavailable' }, 503);
   }

@@ -3,11 +3,8 @@ const repo = 'https://github.com/maxscharwath/kroma';
 
 /**
  * The facts every KROMA web property repeats: the domain, the subdomains, the
- * repository, the mailboxes, and the pages a footer links to.
- *
- * Everything here is language-INVARIANT by design. A URL, a hostname and an
- * email address read the same in every locale, so translated copy stays in each
- * site's own catalogue.
+ * repository, the mailboxes, and the pages a footer links to. Language-invariant
+ * only: translated copy stays in each site's own catalogue.
  */
 export const site = {
   name: 'KROMA',

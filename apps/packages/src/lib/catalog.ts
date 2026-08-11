@@ -63,15 +63,8 @@ const MAX_SIDECARS = 60;
 const edgeCache = (): Cache | undefined =>
   (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
 
-// The last catalog GitHub actually answered with, per environment.
-//
-// The edge cache above is the real one, but it only exists on a Worker: the dev
-// server has no `caches.default` at all, so without this every reload spends one
-// of the sixty anonymous GitHub requests an hour and the page dies on the
-// sixty-first. It also covers a Worker whose cache is cold when GitHub blips.
-//
-// Keyed on the env rather than held in a module variable, so a different binding
-// (a token added, a repo pointed elsewhere) never answers from the old one.
+// Off workerd there is no `caches.default`, and anonymous GitHub allows sixty
+// requests an hour. Keyed on the env so a changed binding never answers stale.
 const memory = new WeakMap<Env, { at: number; catalog: Catalog }>();
 
 const MEMORY_TTL = 300_000;
@@ -213,7 +206,6 @@ export function cmpDsmVersion(a: string, b: string): number {
   return pa.build - pb.build;
 }
 
-/** Catalog order, newest first: the version DSM would show, then the publish date. */
 export function cmpEntries(a: Entry, b: Entry): number {
   const byVersion = cmpDsmVersion(dsmVersion(entryVersion(b)), dsmVersion(entryVersion(a)));
   return byVersion || b.publishedAt.localeCompare(a.publishedAt);

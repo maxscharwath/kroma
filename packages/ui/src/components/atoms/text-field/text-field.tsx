@@ -9,7 +9,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Frost } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Txt } from '#ui/components/atoms/text';
-import { styles, useTheme } from '#ui/core';
+import { color, styles, useTheme } from '#ui/core';
 import { Caret } from '#ui/lib/caret';
 import {
   type ControlSize,
@@ -167,7 +167,7 @@ function TextField({
           readOnly={readOnly}
           selectTextOnFocus={selectOnFocus}
           placeholder={placeholder}
-          placeholderTextColor={PLACEHOLDER}
+          placeholderTextColor={color(PLACEHOLDER)}
           accessibilityLabel={label}
           autoFocus={autoFocus}
           autoCorrect={false}

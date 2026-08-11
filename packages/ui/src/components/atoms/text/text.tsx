@@ -21,9 +21,7 @@ import {
 } from '#ui/core';
 
 // Registered, not spread: a role read straight off the theme is a plain object,
-// which react-native-web re-serialises onto every string it paints. Through
-// `StyleSheet.create` the four declarations compile once into atomic classes the
-// whole screen shares. Re-registered per theme, which is what repaints a swap.
+// which react-native-web re-serialises onto every string it paints.
 const typeStyles = themed((theme) => StyleSheet.create({ ...theme.type }));
 
 const familyStyles = themed((theme) =>

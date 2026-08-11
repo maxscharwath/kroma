@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { machineResponse } from './api';
+import { type ExecCtx, machineResponse } from './api';
 import type { Env } from './catalog';
 
 const ICON_SRC =
@@ -7,11 +7,26 @@ const ICON_SRC =
 
 const ctx = () => ({ waitUntil: vi.fn() });
 
+const deferring = () => {
+  const pending: Promise<unknown>[] = [];
+  return {
+    waitUntil: (p: Promise<unknown>) => {
+      pending.push(p);
+    },
+    settled: () => Promise.all(pending),
+  };
+};
+
 const req = (path: string, init?: RequestInit) =>
   new Request(`https://packages.kroma.tv${path}`, init);
 
-async function machine(path: string, init?: RequestInit, env: Env = {}): Promise<Response> {
-  const res = await machineResponse(req(path, init), env, ctx());
+async function machine(
+  path: string,
+  init?: RequestInit,
+  env: Env = {},
+  context: ExecCtx = ctx(),
+): Promise<Response> {
+  const res = await machineResponse(req(path, init), env, context);
   if (!res) throw new Error(`expected a machine response for ${path}`);
   return res;
 }
@@ -94,7 +109,7 @@ function stubEdgeCache(seed: Record<string, string> = {}) {
     }),
   };
   vi.stubGlobal('caches', { default: cache });
-  return cache;
+  return { cache, store };
 }
 
 afterEach(() => {
@@ -128,6 +143,29 @@ describe('machineResponse', () => {
     ghServing([NIGHTLY]);
     expect((await packagesOf(await machine('/nightly.json')))[0]?.version).toBe('1.3.0-9000001');
     expect(await packagesOf(await machine('/catalog.json'))).toEqual([]);
+  });
+
+  it('answers /nightly.json with an empty list while no nightly has been cut', async () => {
+    ghServing([release()]);
+    expect(await packagesOf(await machine('/nightly.json'))).toEqual([]);
+  });
+
+  it('warms the edge cache in the background, so the next probe skips GitHub', async () => {
+    const { store } = stubEdgeCache();
+    const calls = ghServing([release()]);
+    const deferred = deferring();
+
+    const first = await machine('/catalog.json', undefined, {}, deferred);
+    expect((await packagesOf(first))[0]?.version).toBe('1.2.3-3439372');
+
+    await deferred.settled();
+    const written = store.get('https://kroma-packages.cache/catalog-fresh');
+    const cached = JSON.parse(written ?? '{}') as { entries?: { spkName: string }[] };
+    expect(cached.entries?.[0]?.spkName).toBe('kroma-1.2.3-3439372-x86_64.spk');
+
+    const second = await machine('/catalog.json');
+    expect((await packagesOf(second))[0]?.version).toBe('1.2.3-3439372');
+    expect(calls).toHaveLength(1);
   });
 
   it('lists every channel with its release detail on /all.json', async () => {
@@ -251,6 +289,12 @@ describe('the DSM feed at the root', () => {
     expect((await packagesOf(res))[0]?.version).toBe('1.2.3-3439372');
   });
 
+  it('offers nothing at all when no release carries a package', async () => {
+    ghServing([release({ tag_name: 'desktop-latest', assets: [asset('KROMA.dmg')] })]);
+    const res = await machine('/', { method: 'POST', body: 'arch=x86_64&major=7' });
+    expect(await res.json()).toEqual({ packages: [] });
+  });
+
   it('answers an unreadable POST body as if it were empty rather than failing', async () => {
     ghServing([release()]);
     const body = new ReadableStream({
@@ -283,7 +327,7 @@ describe('/icon.png', () => {
   });
 
   it('serves the edge copy, and ?fresh skips that read and busts the subrequest', async () => {
-    const cache = stubEdgeCache({ [ICON_SRC]: 'OLD' });
+    const { cache } = stubEdgeCache({ [ICON_SRC]: 'OLD' });
     const calls = fetchServing('NEW');
 
     expect(await (await machine('/icon.png')).text()).toBe('OLD');

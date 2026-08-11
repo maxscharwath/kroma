@@ -90,12 +90,11 @@ const rank = (key: string) => (RN_SHORTHANDS.has(key) ? 0 : 1);
  * own shorthands first, then everything else alphabetically.
  *
  * Registration is what makes react-native-web compile the declarations into
- * atomic classes rather than re-serialise them onto every element wearing them.
- * `StyleSheet.create` hands the same object back, so the result is still a plain
- * style a caller can read; on React Native it is an identity function.
+ * atomic classes rather than re-serialise them onto every element. It hands the
+ * same object back, so the result is still a plain style a caller can read.
  *
  * An order that varied with which layers contributed would mean an unstable
- * stylesheet between builds. Sorting alone is not enough — see `RN_SHORTHANDS`.
+ * stylesheet between builds. Sorting alone is not enough, see `RN_SHORTHANDS`.
  */
 export function stabilise(merged: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};

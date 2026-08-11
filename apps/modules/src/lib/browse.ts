@@ -4,8 +4,7 @@ import { type Page, paginate } from '#ui/components/molecules/pagination';
 
 const PAGE_SIZE = 8;
 
-/** Substring match over what the card shows: the name, the reverse-DNS id and
- *  the description. The same rule the server's admin store applies. */
+/** Substring match over what the card shows: name, reverse-DNS id, description. */
 export function matchesQuery(m: ModuleEntry, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
@@ -18,17 +17,14 @@ export interface Browse extends Page<ModuleEntry> {
   goTo: (next: number) => void;
 }
 
-/** What the reader is looking at, in words: the whole matched set when it fits
- *  on one page, the visible range when it does not. */
+/** The matched set in words: a total on one page, a range over several. */
 export function sliceLabel(b: Pick<Browse, 'first' | 'last' | 'total'>): string {
   const noun = b.total === 1 ? 'module' : 'modules';
   if (b.first === 1 && b.last === b.total) return `${b.total} ${noun}`;
   return `${b.first}-${b.last} of ${b.total} ${noun}`;
 }
 
-/** Query and page state over a loaded catalog. A new query returns to page 1,
- *  and the first render is the unfiltered first page, which is what the server
- *  rendered. */
+/** Query and page state over a loaded catalog. A new query returns to page 1. */
 export function useModuleBrowse(modules: readonly ModuleEntry[]): Browse {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);

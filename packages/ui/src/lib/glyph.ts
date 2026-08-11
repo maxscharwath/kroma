@@ -34,8 +34,7 @@ export const DEFAULT_ICON_STROKE = 2;
 type Paint = { color: string; opacity: number | string };
 
 // A custom property is opaque to `splitAlpha`, so a token that resolves to one
-// is looked up rather than parsed: `textDim` through the pair the build emits,
-// `accent/45` through the base property plus the alpha the caller wrote.
+// is looked up rather than parsed.
 function cascadePaint(authored: string): Paint | null {
   const faded = CSS_FADED[authored];
   if (faded) return faded;

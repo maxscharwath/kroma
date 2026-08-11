@@ -1,4 +1,4 @@
-// Type roles, the source of truth for both renderers (see gen-token-css.ts).
+// Type roles, the source of truth for both renderers (see ../../../vite/tokens.ts).
 // Roles store the authored ratio/em and derive the absolute px React Native
 // needs, rather than storing px and dividing back (which round-trips lossily).
 

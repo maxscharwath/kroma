@@ -6,7 +6,6 @@ export interface ReleaseSearchProps {
   onChange: (next: string) => void;
 }
 
-/** The release filter: version, channel and date, over the loaded list. */
 export function ReleaseSearch({ value, onChange }: Readonly<ReleaseSearchProps>) {
   return (
     <Field

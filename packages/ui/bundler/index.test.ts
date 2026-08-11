@@ -260,8 +260,7 @@ describe('the scan', () => {
   });
 
   it('ignores a name only a test spells, since no test reaches an artifact', () => {
-    // Fixtures are full of words that happen to be Tabler slugs - `banana`,
-    // `alien`, `zzz` - and each one displaced a real glyph.
+    // Fixtures are full of words that happen to be Tabler slugs, each displacing a real glyph.
     const dir = rootWithBarrel(
       [
         "export { default as IconHelpCircle } from './icons/IconHelpCircle.mjs';",

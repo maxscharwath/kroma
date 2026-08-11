@@ -34,8 +34,6 @@ function Spinner({
           borderRadius: radiusValue('circle'),
           borderWidth: thickness,
           // Three faint quadrants leave one visible arc: the spinner is the turn.
-          // `tint` so they darken on paper rather than staying a white the page
-          // cannot show.
           borderColor: ink('tint/14'),
           borderTopColor: color ? ink(color) : theme.colors.accent,
         },

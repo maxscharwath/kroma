@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { ModuleEntry } from '#site/catalog';
 import { ModuleBuilds } from '#site/components/module-builds';
-import { ModuleDownload } from '#site/components/module-download';
+import { ModuleDownload, useDownloadPick } from '#site/components/module-download';
 import { ModuleHistory } from '#site/components/module-history';
 import { RegistryUrl } from '#site/components/registry-url';
 import { SiteFooter } from '#site/components/site-footer';
@@ -22,10 +22,6 @@ import { EmptyState } from '#ui/components/molecules/empty-state';
 import { PageMain } from '#ui/lib/landmark';
 
 export const Route = createFileRoute('/module/$id')({
-  // One module, not the catalog it came from. The whole catalog is dehydrated
-  // into the page, and every entry carries its icon as a base64 data URI, so
-  // spreading it here shipped eleven other modules' artwork to a page that
-  // shows one.
   loader: async ({ params }) => {
     const [catalog, history] = await Promise.all([
       getCatalog(),
@@ -65,8 +61,7 @@ function Page({ children, registry }: Readonly<{ children: ReactNode; registry: 
 
 function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
   const files = downloads(m);
-  const [target, setTarget] = useState<string | null>(files[0]?.target ?? null);
-  const picked = files.find((file) => file.target === target) ?? files[0];
+  const { picked, pick } = useDownloadPick(files);
   const deps = depEntries(m.dependsOn);
   return (
     <Row gap={24} align="flex-start" wrap>
@@ -111,7 +106,7 @@ function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
           </Row>
         ) : null}
       </Column>
-      {picked ? <ModuleDownload files={files} picked={picked} onPick={setTarget} /> : null}
+      {picked ? <ModuleDownload files={files} picked={picked} onPick={pick} /> : null}
     </Row>
   );
 }

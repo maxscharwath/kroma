@@ -27,20 +27,16 @@ export const colors = {
   text: '#F4F3F0',
   textMuted: 'rgba(244, 243, 240, 0.62)',
   textDim: 'rgba(244, 243, 240, 0.48)',
-  /** `textMuted` and `textDim` as SOLID ink, for anything that must not carry an
-   *  alpha. A glyph is the case that forces them: a translucent stroke
-   *  composites once per path, and fading the finished glyph instead needs an
-   *  opacity layer, which is its own artefact. These are the same greys, already
-   *  blended over the page ground. */
+  /** `textMuted` and `textDim` as SOLID ink, already blended over the page
+   *  ground, for anything that must not carry an alpha: a translucent stroke
+   *  composites once per path, so a glyph's crossings come out brighter. */
   glyph: '#9B9B99',
   glyphDim: '#7A7A79',
 
   /* Brand accent: warm amber */
   accent: '#F4B642',
   accentHover: '#FFC862',
-  /** The step UNDER the finger. A press has to read as the control going in,
-   *  so it is deeper than rest while hover is lighter: pressed is never just
-   *  hover repeated, or the two states are one state. */
+  /** The step UNDER the finger: deeper than rest, where hover is lighter. */
   accentPress: '#DFA436',
   accentBright: '#FFD262',
   accentInk: '#0A0A0C',
@@ -181,9 +177,9 @@ const CUSTOM_PROPERTY = /^var\((--[a-z0-9-]+)\)$/;
 /** A colour that is not `#RGB`/`#RRGGBB` is returned untouched rather than
  *  guessed at, so `withAlpha('transparent', 0.5)` is a no-op.
  *
- * A custom property cannot be given an alpha without `color-mix()`, which React
- * Native cannot express and the legacy webOS tier cannot parse, so it resolves
- * to the sibling property the build emits for that step instead. */
+ * A custom property resolves to the sibling property the build emits for that
+ * step: fading one in place would need `color-mix()`, which neither React
+ * Native nor the legacy webOS tier can parse. */
 export function withAlpha(value: string, alpha: number): string {
   const property = CUSTOM_PROPERTY.exec(value)?.[1];
   if (property) {
@@ -207,10 +203,6 @@ function withHexAlpha(value: string, alpha: number): string {
  * The inverse of {@link withAlpha}: a colour split into an opaque paint and the
  * alpha it carried. Anything not recognisably translucent comes back untouched
  * at opacity 1.
- *
- * <Icon> needs this because a translucent stroke composites PER PATH, so a
- * glyph's crossings come out brighter than its lines; the build needs it to emit
- * the opaque half of every translucent token as its own custom property.
  */
 export function splitAlpha(value: string): { color: string; opacity: number } {
   const body = /^rgba?\((.+)\)$/i.exec(value)?.[1];

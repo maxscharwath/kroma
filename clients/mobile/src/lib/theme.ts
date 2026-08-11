@@ -64,13 +64,9 @@ export {
   WHEEL_COLORS,
 } from '@kroma/ui/kit';
 
-/**
- * The stops artwork fades into, on whichever ground is active.
- *
- * A phone is the one target that changes ground under its posters, so it cannot
- * use the kit's `SHADE`: that names the dark one, and on paper it would band a
- * black strip across the bottom of every hero. Call it during render.
- */
+/** The stops artwork fades into, on whichever ground is active. Not the kit's
+ *  `SHADE`, which names the dark one and would band black across a hero on
+ *  paper. Call it during render. */
 export function shades(): { transparent: string; mid: string; full: string } {
   return { transparent: groundShade(0), mid: groundShade(0.55), full: groundShade(1) };
 }
@@ -104,8 +100,7 @@ export const colors = {
 // React Native's silent default text colour is black, invisible on this app's
 // near-black surfaces; this ramp bakes in ink so no role needs it spelled
 // out, though a colour after `...type.x` in a spread still overrides it. The
-// ink is the TOKEN NAME rather than its value, so a role re-resolves when the
-// ground swaps instead of freezing the palette it was authored under.
+// ink is the token NAME, so a role re-resolves when the ground swaps.
 //
 // Prefer `<Txt variant="caption">` in new code: the role then carries its own
 // line height and tracking, and this spread is only still here for the styles()

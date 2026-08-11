@@ -15,13 +15,8 @@ export function useTheme(): Theme {
 
 /**
  * Follows the operating system's ground for as long as the stored choice is
- * `system`. Mount once, at the app root.
- *
- * A browser needs nothing here, because `system` is stamped as the ABSENCE of
- * `data-theme` and the token sheet answers it with `prefers-color-scheme`, live.
- * React Native has no such query, so the app has to subscribe: without this the
- * ground is only re-read at launch, and a phone that switches to dark at sunset
- * stays light until it is next opened from cold.
+ * `system`. Mount once, at the app root; a browser needs nothing here, since
+ * `prefers-color-scheme` answers it live in the token sheet.
  */
 export function useSystemGround(): void {
   useEffect(() => {
@@ -29,9 +24,8 @@ export function useSystemGround(): void {
       if (readMode() === 'system') applyMode('system');
     };
     const watch = Appearance.addChangeListener(follow);
-    // The listener alone is not enough: the ground is usually changed from the
-    // system's own settings, so the app is in the background when it moves and
-    // is handed the new one on the way back in.
+    // The ground is usually changed from the system's own settings, so the app
+    // is in the background when it moves and only hears about it on the way in.
     const wake = AppState.addEventListener('change', (state) => {
       if (state === 'active') follow();
     });

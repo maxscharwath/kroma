@@ -1,9 +1,9 @@
+import { SiteHeader } from '@kroma/site-kit/site-header';
 import { createFileRoute } from '@tanstack/react-router';
 import { InstallCard } from '#site/components/install-card';
 import { ReleaseHeadline } from '#site/components/release-headline';
 import { ReleaseList } from '#site/components/release-list';
 import { SiteFooter } from '#site/components/site-footer';
-import { SiteHeader } from '#site/components/site-header';
 import { getCatalog } from '#site/lib/get-catalog';
 import { Box, Column, Row } from '#ui/components/atoms/box';
 import { Txt } from '#ui/components/atoms/text';
@@ -19,6 +19,9 @@ function Browse() {
   const latest = rows.find((r) => r.channel === 'stable');
   const nightly = rows.find((r) => r.channel === 'nightly');
   const current = [latest, nightly].filter((r) => r !== undefined);
+  const freshness = fetchedAt
+    ? `catalog refreshed ${fetchedAt.slice(0, 16)}`
+    : 'the release list is unavailable right now';
 
   return (
     <Box bg="bg" minH="100%">
@@ -44,9 +47,7 @@ function Browse() {
             <ReleaseList releases={rows} current={current} />
 
             <Txt color="textDim" variant="meta">
-              {fetchedAt
-                ? `Served from github.com/${repo} · catalog refreshed ${fetchedAt.slice(0, 16)}`
-                : `Served from github.com/${repo} · the release list is unavailable right now`}
+              {`Served from github.com/${repo} · ${freshness}`}
             </Txt>
           </Column>
         </Box>

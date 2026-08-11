@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// The native vitest project mirrors Metro's module RESOLUTION, not the runtime:
-// it still aliases `react-native` to react-native-web, so `Platform.OS` answers
-// `web` there. Overriding it is the only way to reach the branch a television
-// and a phone actually take.
+// The native vitest project mirrors Metro's RESOLUTION, not its runtime: it still
+// aliases `react-native` to react-native-web, so `Platform.OS` answers `web`.
 vi.mock('react-native', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   Platform: { OS: 'ios', select: (o: Record<string, unknown>) => o.ios ?? o.default },

@@ -67,8 +67,6 @@ function ItemMeta({ media }: Readonly<{ media: MediaItem }>) {
 
 export default function ItemRoute() {
   const id = routeParam(useLocalSearchParams<{ id?: string }>().id);
-  // Not a title that failed to load: the path never named one, so Home is the
-  // honest destination rather than an error the reader cannot act on.
   return id ? <ItemDetail id={id} /> : <Redirect href="/" />;
 }
 

@@ -5,8 +5,7 @@ export interface Dependency {
   range: string | null;
 }
 
-/** Schema 2 emits a `{ id: range }` map; very old catalogs carried an array,
- *  which names the dependency without pinning it. */
+/** Schema 2 emits a `{ id: range }` map; very old catalogs carried a bare array. */
 export function depEntries(deps: ModuleEntry['dependsOn']): Dependency[] {
   if (Array.isArray(deps)) return deps.map((id) => ({ id, range: null }));
   if (!deps) return [];

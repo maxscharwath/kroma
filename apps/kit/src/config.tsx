@@ -1,6 +1,5 @@
-// The workbench config for the NATIVE kit app - the Metro mirror of
-// `config.web.tsx`. It differs by one line: a phone or TV has no address bar
-// for the router to write to, so `memoryRouter` holds the location in memory.
+// The Metro mirror of `config.web.tsx`: a phone or TV has no address bar for
+// the router to write to.
 
 import { KROMA_WORKBENCH } from '@kroma/ui/workbench-config';
 import { defineWorkbench, memoryRouter } from '@kroma/workbench';

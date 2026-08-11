@@ -1,6 +1,3 @@
-// Stories are picked up by a glob, so nothing else would notice an unsortable
-// group name or two components that slug to the same id.
-
 import { GROUP_ORDER, slug } from '@kroma/workbench';
 import { describe, expect, it } from 'vitest';
 import { STORIES } from './stories';

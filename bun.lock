@@ -74,6 +74,7 @@
       "name": "@kroma/module-registry",
       "version": "0.1.0",
       "dependencies": {
+        "@kroma/site-kit": "workspace:*",
         "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@tanstack/react-router": "^1.170.23",
@@ -99,6 +100,7 @@
       "name": "@kroma/package-source",
       "version": "0.1.0",
       "dependencies": {
+        "@kroma/site-kit": "workspace:*",
         "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@tanstack/react-router": "^1.170.23",
@@ -628,6 +630,27 @@
       "devDependencies": {
         "typescript": "^7.0.2",
         "wrangler": "^4.120.0",
+      },
+    },
+    "packages/site-kit": {
+      "name": "@kroma/site-kit",
+      "version": "0.1.0",
+      "dependencies": {
+        "@kroma/site-meta": "workspace:*",
+        "@kroma/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@tanstack/react-router": "^1.170.23",
+        "@types/node": "^22.10.2",
+        "@types/react": "^19.2.18",
+        "react": "19.2.8",
+        "typescript": "^7.0.2",
+        "vite": "^8.1.5",
+        "vitest": "^4.1.10",
+      },
+      "peerDependencies": {
+        "@tanstack/react-router": ">=1.170",
+        "react": ">=18",
       },
     },
     "packages/site-meta": {
@@ -1228,6 +1251,8 @@
     "@kroma/push-relay": ["@kroma/push-relay@workspace:packages/push-relay"],
 
     "@kroma/site": ["@kroma/site@workspace:apps/www"],
+
+    "@kroma/site-kit": ["@kroma/site-kit@workspace:packages/site-kit"],
 
     "@kroma/site-meta": ["@kroma/site-meta@workspace:packages/site-meta"],
 

@@ -34,12 +34,8 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
-/**
- * A platform file is only consulted for an EXTENSIONLESS specifier: both Vite
- * and Metro read `resolve.extensions` only when the import has none, so
- * `./thing.ts` resolves straight past `./thing.web.ts`. That failure is silent -
- * the wrong module loads and the build succeeds - so it is caught here instead.
- */
+// Vite and Metro read `resolve.extensions` only for an extensionless specifier,
+// so `./thing.ts` resolves straight past `./thing.web.ts`, and silently.
 describe('platform files', () => {
   it('are never reached through an explicit extension', () => {
     const files: string[] = [];

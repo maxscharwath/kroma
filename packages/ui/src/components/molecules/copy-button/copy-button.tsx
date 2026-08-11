@@ -16,14 +16,10 @@ export interface CopyButtonProps {
 
 const RESET_MS = 1400;
 
-// Smaller than any shell row: this face exists for a control that repeats on
-// every row of a list, where a full-height button would out-weigh the row it
-// sits in.
 const GLYPH_FACE = 30;
 const GLYPH = 16;
 
-/** Copies `value` and confirms it on the control itself, because a toast for
- *  something this small reads as louder than what happened. */
+/** Copies `value` and confirms it on the control itself, rather than by toast. */
 export function CopyButton({
   value,
   label = 'Copier',
@@ -38,8 +34,7 @@ export function CopyButton({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   // An insecure origin (a self-hosted instance on plain http) and a denied
-  // permission both reject: the control simply does not confirm, rather than
-  // throwing where nothing is listening.
+  // permission both reject; the control just does not confirm.
   const copy = () => {
     navigator.clipboard
       ?.writeText(value)

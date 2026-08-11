@@ -69,8 +69,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
     // tvFrame() is dev-only: letterboxes into a 1920x1080 stage in a desktop
     // browser; off in device mode, where the panel already is that canvas.
     plugins: [
-      // First: the token directive has to be expanded before Tailwind consumes
-      // the stylesheet, or the custom properties never reach the bundle.
+      // Before tailwindcss(): the token directive must expand first.
       kromaUI(),
       tailwindcss(),
       react(),
@@ -132,8 +131,7 @@ export function tvShellLegacyConfig(shellUrl: string, target: TvTarget): UserCon
   if (!chrome) throw new Error(`tv.target for ${target.platform} has no legacyChrome`);
   return {
     plugins: [
-      // First: the token directive has to be expanded before Tailwind consumes
-      // the stylesheet, or the custom properties never reach the bundle.
+      // Before tailwindcss(): the token directive must expand first.
       kromaUI(),
       tailwindcss(),
       react(),

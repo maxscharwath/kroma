@@ -1,7 +1,3 @@
-// How a token is spelled as a CSS custom property. Shared by the runtime (which
-// resolves a colour to var(--kroma-accent)) and by the build (which emits the
-// property), so the two cannot disagree about a name.
-
 const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
 // `surface1` is the only shape kebab-case gets wrong: a digit is not a word

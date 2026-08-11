@@ -13,9 +13,7 @@ export interface ModuleHistoryProps {
 const span = (row: VersionRow) =>
   row.first === row.last ? `KROMA ${row.first}` : `KROMA ${row.first} to ${row.last}`;
 
-/** Which version shipped with which KROMA release. The catalog only ever
- *  describes the current one, so this is read from the `modules.json` of each
- *  recent release; it is empty when GitHub cannot be reached. */
+/** Which version of the module shipped with which KROMA release. */
 export function ModuleHistory({ rows }: Readonly<ModuleHistoryProps>) {
   if (rows.length === 0) return null;
   return (

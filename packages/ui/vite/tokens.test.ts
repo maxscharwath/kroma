@@ -33,8 +33,6 @@ describe('tokensCss', () => {
     const css = tokensCss();
     expect(css).toContain('[data-theme="light"]');
 
-    // The query answers `light` for a visitor who has expressed no preference,
-    // so a root that has already said dark must stay out of its reach.
     const media = css.split('@media (prefers-color-scheme: light) {')[1] ?? '';
     expect(media).toContain(':root:not([data-theme]) {');
     expect(media).toContain(`--kroma-bg: ${lightColors.bg.toLowerCase()};`);
@@ -43,8 +41,6 @@ describe('tokensCss', () => {
 
   it('leaves the dark palette as the bare-root default', () => {
     const css = tokensCss();
-    // ONE rule for the two selectors that mean the same ground, never the same
-    // block written out twice.
     expect(css).toContain(':root,\n[data-theme="dark"] {');
     // Dark once, then light twice: the attribute and the unstamped query.
     expect(css.match(/--kroma-bg: /g)).toHaveLength(3);
@@ -52,8 +48,6 @@ describe('tokensCss', () => {
 
   it('scopes a ground to any element, so a subtree can hold its own', () => {
     const css = tokensCss();
-    // NOT `:root[data-theme]`: the player pins itself dark on a light page, and
-    // a root-only selector cannot reach it.
     expect(css).toContain('[data-theme="dark"] {');
     expect(css).toContain('[data-theme="light"] {');
     expect(css).not.toContain(':root[data-theme');
@@ -92,14 +86,9 @@ describe('the alpha steps', () => {
   });
 
   it('scans the repo, not the working directory a build happens to run from', () => {
-    // Relative roots resolved against the cwd, which during an app's build is
-    // that app's directory, so the scan walked nothing and emitted no alpha
-    // steps at all: `background-color: var(--kroma-tint-10)` then names a
-    // property that does not exist and the control paints transparent.
     for (const root of SOURCE_ROOTS) expect(isAbsolute(root)).toBe(true);
     expect(SOURCE_ROOTS.some((root) => root.endsWith(`${sep}packages`))).toBe(true);
-    // `tint/10` is <Button glass>'s rest fill, and only a scan that reached
-    // packages/ui could have found it.
+    // `tint/10` is <Button glass>'s rest fill: only a scan reaching packages/ui finds it.
     expect(tokensCss()).toContain('--kroma-tint-10:');
   });
 

@@ -1,34 +1,22 @@
+import { workerContext } from '@kroma/site-kit/worker-env';
 import { createServerFn } from '@tanstack/react-start';
 import type { ModuleEntry } from '#site/catalog';
 import { withIconUrls } from '#site/lib/icon';
 import { loadCatalog } from '#site/lib/source';
-import { workerContext } from '#site/lib/worker-env';
-
-// The origin the page was actually served from, so a preview deploy, the
-// workers.dev fallback and a self-hosted mirror each advertise themselves
-// rather than the production hostname.
-//
-// Imported inside the handler: this module is reachable from the route, and the
-// server entry at module scope drags Node built-ins into the client graph.
-async function registryUrl(): Promise<string> {
-  const { getRequest } = await import('@tanstack/react-start/server');
-  return `${new URL(getRequest().url).origin}/modules.json`;
-}
 
 export const getCatalog = createServerFn().handler(async () => {
-  // Imported here rather than at module scope: the schema is only ever parsed on
-  // the server, and a top-level import puts zod in the client bundle too.
-  const { Catalog } = await import('#site/catalog');
+  // Imported here, not at module scope: zod and the server entry would otherwise
+  // reach the client bundle, which this module is also part of.
+  const { parseCatalog } = await import('#site/catalog');
+  const { getRequest } = await import('@tanstack/react-start/server');
   const { env, waitUntil } = await workerContext();
-  const registry = await registryUrl();
+  const registry = `${new URL(getRequest().url).origin}/modules.json`;
   const body = await loadCatalog(env, waitUntil);
-  const empty = { registry, modules: [] as ModuleEntry[], generatedAt: null };
-  if (!body) return empty;
-  const parsed = Catalog.safeParse(JSON.parse(body));
-  if (!parsed.success) return empty;
+  const catalog = body ? parseCatalog(body) : null;
+  if (!catalog) return { registry, modules: [] as ModuleEntry[], generatedAt: null };
   return {
     registry,
-    modules: withIconUrls(parsed.data.modules),
-    generatedAt: parsed.data.generatedAt ?? null,
+    modules: withIconUrls(catalog.modules),
+    generatedAt: catalog.generatedAt ?? null,
   };
 });

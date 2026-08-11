@@ -13,8 +13,6 @@ const PAGE_SIZE = 25;
 
 export interface ReleaseListProps {
   releases: readonly Release[];
-  /** The build each channel currently offers, as the headline cards read it, so
-   *  the list cannot disagree with the top of the page. */
   current?: readonly Release[];
 }
 

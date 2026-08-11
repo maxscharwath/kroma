@@ -2,7 +2,8 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type PageSlot, Pagination, pageWindow, paginate } from './pagination';
+import { Pagination } from './pagination';
+import { type PageSlot, pageWindow, paginate } from './paging';
 
 afterEach(cleanup);
 
@@ -121,34 +122,34 @@ describe('Pagination', () => {
 
   it('disables previous on the first page and keeps it in the row', () => {
     row(1);
-    expect(disabled('Previous page')).toBe(true);
-    expect(disabled('Next page')).toBe(false);
+    expect(disabled('Précédent')).toBe(true);
+    expect(disabled('Suivant')).toBe(false);
   });
 
   it('disables next on the last page and keeps it in the row', () => {
     row(20);
-    expect(disabled('Next page')).toBe(true);
-    expect(disabled('Previous page')).toBe(false);
+    expect(disabled('Suivant')).toBe(true);
+    expect(disabled('Précédent')).toBe(false);
   });
 
   it('disables both when there is a single page', () => {
     row(1, 1);
-    expect(disabled('Previous page')).toBe(true);
-    expect(disabled('Next page')).toBe(true);
+    expect(disabled('Précédent')).toBe(true);
+    expect(disabled('Suivant')).toBe(true);
     expect(shown()).toEqual([1]);
   });
 
   it('steps one page at a time', () => {
     const onPageChange = row(10);
-    fireEvent.click(screen.getByLabelText('Next page'));
+    fireEvent.click(screen.getByLabelText('Suivant'));
     expect(onPageChange).toHaveBeenCalledWith(11);
-    fireEvent.click(screen.getByLabelText('Previous page'));
+    fireEvent.click(screen.getByLabelText('Précédent'));
     expect(onPageChange).toHaveBeenCalledWith(9);
   });
 
   it('a disabled step reports nothing', () => {
     const onPageChange = row(1);
-    fireEvent.click(screen.getByLabelText('Previous page'));
+    fireEvent.click(screen.getByLabelText('Précédent'));
     expect(onPageChange).not.toHaveBeenCalled();
   });
 
@@ -172,7 +173,7 @@ describe('Pagination', () => {
         <Pagination.Pages />
       </Pagination.Root>,
     );
-    expect(screen.getByText('Page 7 of 20')).toBeTruthy();
+    expect(screen.getByText('Page 7 sur 20')).toBeTruthy();
   });
 
   it('refuses to render a part outside its Root', () => {

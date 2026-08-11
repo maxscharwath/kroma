@@ -1,7 +1,3 @@
-// Which build the kit is, on both bundlers: Metro reads Expo's `extra` out of
-// `Constants.expoConfig`, Vite replaces `__KROMA_BUILD__` with a literal object.
-// Both are read at import time, so both must degrade rather than throw.
-
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const expoConfig = vi.hoisted(() => ({ value: null as Record<string, unknown> | null }));
@@ -84,8 +80,6 @@ describe('the Vite half', () => {
   });
 
   it('degrades when the define never ran', async () => {
-    // Reading an UNDECLARED name is a ReferenceError, not undefined, which is what
-    // the `typeof` guard is for.
     const { BUILD } = await vite(undefined);
     expect(BUILD).toEqual(EMPTY);
   });

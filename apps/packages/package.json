@@ -15,6 +15,7 @@
     "deploy": "bun run build && bunx wrangler@4 deploy"
   },
   "dependencies": {
+    "@kroma/site-kit": "workspace:*",
     "@kroma/site-meta": "workspace:*",
     "@kroma/ui": "workspace:*",
     "@tanstack/react-router": "^1.170.23",

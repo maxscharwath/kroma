@@ -6,8 +6,7 @@ const CANDIDATE = /['"]([a-zA-Z][a-zA-Z0-9]*)\/(\d+(?:\.\d+)?)['"]/g;
 const SOURCE_EXT = /\.(ts|tsx)$/;
 
 // `ios`, `android` and `src-tauri` hold no TypeScript, and `ios/Pods` alone is
-// ~7,100 directories - most of the walk's cost (see ../bundler/index.ts, which
-// skips the same trees for the same reason).
+// ~7,100 directories, most of the walk's cost.
 const SKIP = new Set([
   'node_modules',
   'dist',
@@ -23,9 +22,7 @@ const SKIP = new Set([
 
 const isTest = (name: string) => name.includes('.test.') || name.includes('.stories.');
 
-// One walk per root set per process: a stylesheet with two directives, and the
-// second pass over the emitted assets, otherwise re-read the whole repo each
-// time (see ../bundler/index.ts, which memoises its sibling scan the same way).
+// One walk per root set per process: every directive would otherwise re-read the repo.
 const CACHE = new Map<string, Set<string>>();
 
 function walk(dir: string, out: string[]): void {
@@ -45,14 +42,11 @@ function walk(dir: string, out: string[]): void {
 }
 
 /**
- * Every `token/NN` written anywhere in the source, as `[token, alpha]` pairs.
+ * Every `token/NN` written anywhere in the source, as `token/alpha` strings.
  *
- * The alpha suffix is Tailwind's syntax and is always a literal in a recipe or a
- * prop, never computed, so the whole set is knowable without running anything —
- * the same reason Tailwind's own extractor can walk files and collect
- * candidates. That matters because a `var()` cannot be given an alpha without
- * `color-mix()`, which the legacy webOS tier cannot parse: each combination has
- * to exist as its own custom property instead.
+ * The suffix is always a literal, never computed, so the set is knowable
+ * statically. Each combination needs its own custom property: `color-mix()`,
+ * the alternative, is not parseable on the legacy webOS tier.
  */
 export function scanAlphas(roots: readonly string[], known: ReadonlySet<string>): Set<string> {
   const key = `${roots.join('|')}::${[...known].sort((a, b) => a.localeCompare(b)).join(',')}`;

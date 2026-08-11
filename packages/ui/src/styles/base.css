@@ -1,7 +1,3 @@
-/* The reset and page furniture a browser target wants. A TV shell supplies its
-   own (it hides overflow and owns its focus visuals), so this is not in the
-   `tokens` half every target shares. */
-
 *,
 *::before,
 *::after {
@@ -14,10 +10,8 @@ body,
   height: 100%;
 }
 
-/* The root takes the ground too, not just the body: the overscroll gutter and
-   the canvas behind a short page are painted from here, and a shell that pins a
-   launch colour on <html> would otherwise keep it under every other theme.
-   `color-scheme` follows so the UA's own scrollbars and controls agree. */
+/* The root, not just the body: the overscroll gutter and the canvas behind a
+   short page are painted from here. */
 html {
   background: var(--kroma-bg);
   color-scheme: dark;
@@ -27,8 +21,7 @@ html {
   color-scheme: light;
 }
 
-/* An unstamped document is the `system` choice, resolved here rather than by a
-   script in <head>, so it also follows the OS while the page is open. */
+/* An unstamped document is the `system` choice. */
 @media (prefers-color-scheme: light) {
   html:not([data-theme]) {
     color-scheme: light;
@@ -79,8 +72,7 @@ textarea:focus-visible {
   color: var(--kroma-text-muted);
 }
 
-/* Off-screen tiles skip layout and paint until they near the viewport while
-   staying in the DOM, so remote focus can still reach them. */
+/* Off-screen tiles skip layout and paint but stay in the DOM, so focus reaches them. */
 .kroma-poster {
   content-visibility: auto;
   contain-intrinsic-size: 200px 320px;

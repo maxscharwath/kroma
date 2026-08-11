@@ -48,9 +48,8 @@ interface FrostProps {
   /** Corner of the surface this layer sits in (it clips itself), by token name
    *  or in px. */
   radius?: CornerValue;
-  /** Defaults to the ground the app is on. Pass it only for a surface that is
-   *  one ground whatever the app around it chose, the way the player's chrome
-   *  is dark over video. */
+  /** Defaults to the ground the app is on. Pass it only for a surface that holds
+   *  one ground whatever the app chose, the way the player's chrome stays dark. */
   tint?: 'light' | 'dark' | 'default';
 }
 

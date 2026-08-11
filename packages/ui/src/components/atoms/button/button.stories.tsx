@@ -30,9 +30,8 @@ export default story({
     loading: false,
   },
   controls: { icon: 'icon', iconRight: 'icon' },
-  // A press handler, so the workbench can actually be pressed: react-native-web
-  // only engages its press responder for a control that has one, and a button
-  // that cannot report a press cannot show what a press looks like.
+  // The empty `onPress` is load-bearing: react-native-web engages its press
+  // responder only for a control that has one.
   render: ({ icon, iconRight, ...props }) => (
     <Button
       {...props}

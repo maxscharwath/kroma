@@ -20,8 +20,7 @@ interface BoxProps extends BoxStyleProps, Omit<ViewProps, 'style'> {
    *  ViewProps does not carry it. */
   ref?: Ref<View>;
   /** Browser targets only: becomes `data-*` on the host element. Declared here
-   *  because only react-native-web's own `ViewProps` carries it, and a shell
-   *  that types against React Native would not see it. */
+   *  because only react-native-web's own `ViewProps` carries it. */
   dataSet?: Record<string, string | number | undefined>;
 }
 

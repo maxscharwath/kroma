@@ -5,9 +5,6 @@ import { kromaTokens } from './tokens.ts';
 
 export { tokensCss } from './tokens.ts';
 
-// The workspace root is the nearest ancestor whose package.json declares
-// `workspaces`. Discovered rather than passed so a shell's vite config needs no
-// KROMA configuration at all.
 function findRepoRoot(from = process.cwd()): string {
   for (let dir = from; ; dir = dirname(dir)) {
     const manifest = join(dir, 'package.json');

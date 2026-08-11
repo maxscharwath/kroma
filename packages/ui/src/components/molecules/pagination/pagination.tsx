@@ -7,13 +7,11 @@ import { Txt } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor } from '#ui/core';
 import { bySize, CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
 import { FocusRegion } from '#ui/lib/focus-scope';
+import { clamp, pageWindow } from './paging';
 
 const WEB = Platform.OS === 'web';
 
 const ARIA_CURRENT = { 'aria-current': 'page' } as unknown as BoxProps;
-
-/** A place in the row: a page to go to, or the run of pages the window hides. */
-type PageSlot = number | 'gap';
 
 const paginationVariants = svFor<{
   root: StyleDecl;
@@ -41,42 +39,6 @@ const paginationVariants = svFor<{
   defaults: { size: 'md', current: false },
 });
 
-function clamp(page: number, pageCount: number): number {
-  return Math.min(Math.max(Math.trunc(page) || 1, 1), pageCount);
-}
-
-function range(from: number, to: number): number[] {
-  const out: number[] = [];
-  for (let at = from; at <= to; at += 1) out.push(at);
-  return out;
-}
-
-/**
- * The pages the row shows for `page`, first and last always among them, with a
- * `'gap'` where a run is hidden. Always the same length for a given
- * `pageCount`, so the row never reflows as it is paged; a gap that would stand
- * for a single page renders that page instead.
- */
-function pageWindow(page: number, pageCount: number, siblings = 1): PageSlot[] {
-  const total = Math.max(1, Math.trunc(pageCount) || 1);
-  const at = clamp(page, total);
-  const side = Math.max(0, Math.trunc(siblings) || 0);
-  const width = side * 2 + 5;
-  if (total <= width) return range(1, total);
-
-  const left = Math.max(at - side, 1);
-  const right = Math.min(at + side, total);
-  if (left <= 2) return [...range(1, side * 2 + 3), 'gap', total];
-  if (right >= total - 1) return [1, 'gap', ...range(total - side * 2 - 2, total)];
-  return [
-    1,
-    left === 3 ? 2 : 'gap',
-    ...range(left, right),
-    right === total - 2 ? total - 1 : 'gap',
-    total,
-  ];
-}
-
 interface PaginationContext {
   page: number;
   pageCount: number;
@@ -100,7 +62,7 @@ function numberedPage(page: number): string {
 }
 
 function pageOfCount(page: number, pageCount: number): string {
-  return `Page ${page} of ${pageCount}`;
+  return `Page ${page} sur ${pageCount}`;
 }
 
 interface PaginationRootProps {
@@ -112,8 +74,7 @@ interface PaginationRootProps {
   label: string;
   /** The control shell's size; see <TextField>. */
   size?: ControlSize;
-  /** Pages either side of the current one. One is the default: a seven-slot
-   *  row that is one D-pad sweep and never reflows. */
+  /** Pages either side of the current one; one gives a seven-slot row. */
   siblings?: number;
   /** The accessible name of one page control. */
   pageLabel?: (page: number) => string;
@@ -203,13 +164,13 @@ interface PaginationStepProps {
 }
 
 /** The step back, disabled rather than hidden on the first page. */
-function Previous({ label = 'Previous page' }: Readonly<PaginationStepProps>) {
+function Previous({ label = 'Précédent' }: Readonly<PaginationStepProps>) {
   const { page } = usePagination('Previous');
   return <Step icon="chevron-left" label={label} to={page - 1} disabled={page <= 1} />;
 }
 
 /** The step forward, disabled rather than hidden on the last page. */
-function Next({ label = 'Next page' }: Readonly<PaginationStepProps>) {
+function Next({ label = 'Suivant' }: Readonly<PaginationStepProps>) {
   const { page, pageCount } = usePagination('Next');
   return <Step icon="chevron-right" label={label} to={page + 1} disabled={page >= pageCount} />;
 }
@@ -282,44 +243,10 @@ function Status({ format = pageOfCount }: Readonly<PaginationStatusProps>) {
 
 const Pagination = { Root, Previous, Pages, Item, Ellipsis, Next, Status };
 
-/** One page of a list, and the 1-based range it covers. */
-export interface Page<T> {
-  items: T[];
-  page: number;
-  pageCount: number;
-  /** 1-based index of the first item shown, or 0 when there is nothing. */
-  first: number;
-  last: number;
-  total: number;
-}
-
-/**
- * The slice to render, with the page clamped into range.
- *
- * The clamp is the point: a list that shrinks under a filter must never leave
- * the reader on a page past the end, staring at nothing.
- */
-export function paginate<T>(items: readonly T[], page: number, size: number): Page<T> {
-  const total = items.length;
-  const pageCount = Math.max(1, Math.ceil(total / size));
-  const current = Math.min(Math.max(1, Math.trunc(page)), pageCount);
-  const start = (current - 1) * size;
-  const slice = items.slice(start, start + size);
-  return {
-    items: slice,
-    page: current,
-    pageCount,
-    first: slice.length === 0 ? 0 : start + 1,
-    last: start + slice.length,
-    total,
-  };
-}
-
 export type {
-  PageSlot,
   PaginationItemProps,
   PaginationRootProps,
   PaginationStatusProps,
   PaginationStepProps,
 };
-export { Pagination, pageWindow, paginationVariants };
+export { Pagination, paginationVariants };

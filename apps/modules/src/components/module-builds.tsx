@@ -11,8 +11,7 @@ export interface ModuleBuildsProps {
   files: Download[];
 }
 
-/** Every `.kmod` this version ships, with the digest the server verifies it
- *  against before it unpacks anything. */
+/** Every `.kmod` this version ships, with the digest the server verifies. */
 export function ModuleBuilds({ files }: Readonly<ModuleBuildsProps>) {
   if (files.length === 0) return null;
   return (

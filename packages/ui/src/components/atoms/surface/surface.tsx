@@ -59,11 +59,8 @@ function Surface({
 }: Readonly<SurfaceProps>) {
   const defaultRadius = useTheme().radius.lg;
   const { root } = surfaceVariants({ tone, pad, elevated });
-  // The recipe is the FLOOR, not the ceiling: <Box> puts its own `style` prop
-  // last, so passing the recipe there let it beat every shorthand the caller
-  // wrote and a `radius="xl"` was silently dropped. Resolved here instead, and
-  // laid over the recipe in the order a reader expects: recipe, shorthands,
-  // one-off `style`.
+  // Resolved here so the layers land in the order a reader expects: recipe,
+  // then the caller's shorthands, then the one-off `style`.
   const { shorthand, rest, any } = splitShorthand(box);
   const asked = any ? boxStyle(shorthand as BoxStyleProps) : null;
   // Glass frosts what sits behind it (see <Frost>); the other tones are

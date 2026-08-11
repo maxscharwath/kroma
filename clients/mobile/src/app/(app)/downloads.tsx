@@ -161,17 +161,10 @@ function ActiveRow({
   );
 }
 
-function LegendItem({
-  tint,
-  outlined,
-  label,
-}: Readonly<{ tint?: ColorValue; outlined?: boolean; label: string }>) {
+function LegendItem({ tint, label }: Readonly<{ tint?: ColorValue; label: string }>) {
   return (
     <Box style={s.legendItem}>
-      <Box
-        bg={outlined ? undefined : tint}
-        style={[s.legendDot, outlined && s.legendDotOutlined]}
-      />
+      <Box bg={tint} style={[s.legendDot, !tint && s.legendDotOutlined]} />
       <Txt style={s.legendText}>{label}</Txt>
     </Box>
   );
@@ -214,7 +207,7 @@ function StorageMeter() {
           tint="borderStrong"
           label={`${t('offline.storageOther')} · ${formatBytes(other)}`}
         />
-        <LegendItem outlined label={`${t('offline.storageFree')} · ${formatBytes(free)}`} />
+        <LegendItem label={`${t('offline.storageFree')} · ${formatBytes(free)}`} />
       </Box>
     </Box>
   );

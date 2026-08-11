@@ -47,8 +47,7 @@ const ROWS = [
 type KeyKind = 'digit' | 'delete';
 type KeypadSize = 'tv' | 'compact';
 
-// The face and the blur behind it share one corner, by name: a number here
-// would keep the default scale under a theme that squares the kit off.
+// By name, not in px: the face and the blur behind it must follow one theme.
 const KEY_RADIUS: RadiusToken = '2xl';
 
 const keypadVariants = svFor<{ root: StyleDecl; label: StyleDecl }>()({

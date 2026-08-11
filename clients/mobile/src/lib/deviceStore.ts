@@ -1,10 +1,6 @@
-// The synchronous key/value store @kroma/core's per-device preferences (the
-// theme mode, subtitle appearance, the audio filter) read through. React Native
-// has no `localStorage`, so without this every one of those writes is a silent
-// no-op and every read answers "never chosen".
-//
-// Backed by one JSON file, mirrored in memory. The accounts and the prefs in
-// storage.ts stay in SecureStore: those hold credentials, these are choices.
+// React Native has no `localStorage`, so without this every per-device
+// preference @kroma/core persists is a silent no-op. Credentials stay in
+// SecureStore, see storage.ts.
 
 import { type SessionStorage, setSessionStorage } from '@kroma/core';
 import { Directory, File, Paths } from 'expo-file-system';
@@ -22,7 +18,6 @@ function open(): File | null {
     if (!file.exists) file.write('{}');
     return file;
   } catch {
-    // A device that refuses the location keeps the in-memory copy.
     return null;
   }
 }
@@ -60,12 +55,11 @@ function read(file: File | null): Record<string, string> {
     const parsed = STORED.safeParse(JSON.parse(file.textSync()));
     return parsed.success ? parsed.data : {};
   } catch {
-    // A truncated or hand-edited file must not stop the app from starting.
     return {};
   }
 }
 
-/** Installs the store, synchronously. Call it before the first read — the theme
+/** Installs the store, synchronously. Call it before the first read: the theme
  *  mode is applied at module scope, ahead of the first render. */
 export function installDeviceStore(): void {
   setSessionStorage(new DeviceStore());

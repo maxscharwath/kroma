@@ -7,20 +7,17 @@ import react from '@vitejs/plugin-react';
 import type { Plugin, UserConfig } from 'vite';
 
 export interface KromaSiteOptions {
-  /** Extra `resolve.alias` entries, on top of `#site` and the react-native-web set. */
   alias?: Record<string, string>;
   plugins?: Plugin[];
-  /** Prerender every page reachable from the entry links instead of rendering per request. */
   prerender?: boolean;
-  /** Ship the whole application catalog rather than the messages this site's own
-   *  source and the design system name — for a site that builds a key at runtime. */
   appMessages?: boolean;
 }
 
 /**
  * The Vite config every KROMA web property shares: the design system, TanStack
  * Start and the react-native-web resolution the kit needs to render on a
- * server.
+ * server. `appMessages` opts out of the message subset, for a site that builds
+ * a catalog key at runtime.
  *
  *   export default kromaSite(import.meta.url)
  */

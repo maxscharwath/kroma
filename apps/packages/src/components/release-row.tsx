@@ -12,7 +12,6 @@ import { Tooltip } from '#ui/components/molecules/tooltip';
 
 export interface ReleaseRowProps {
   release: Release;
-  /** The build its channel currently offers; see <ChannelBadge>. */
   current?: boolean;
 }
 

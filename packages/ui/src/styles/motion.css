@@ -1,8 +1,5 @@
-/* Keyframes the components animate with, on every browser target. */
-
-/* The <Img> reveal. A rule rather than an opacity driven from React: the
-   element's resting state has to be VISIBLE, or art that is already decoded
-   stays invisible when the state that would reveal it never arrives. */
+/* The <Img> reveal. A rule rather than an opacity driven from React: the resting
+   state has to be VISIBLE, or already-decoded art never gets revealed. */
 @keyframes kroma-img-in {
   from {
     opacity: 0;

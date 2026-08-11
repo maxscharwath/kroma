@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Catalog } from '#site/catalog';
 import { downloads } from '#site/lib/artifacts';
-import { DEFAULT_REPO, type Env } from '#site/lib/source';
+import { DEFAULT_REPO, type Env, edgeCache, githubHeaders } from '#site/lib/source';
 
 const RELEASES = 25;
 const CACHE_KEY = 'https://kroma-modules.cache/history-index';
@@ -30,19 +30,10 @@ export type VersionRow = z.infer<typeof VersionRow>;
 const Index = z.record(z.string(), z.array(VersionRow));
 type Index = z.infer<typeof Index>;
 
-const edgeCache = (): Cache | undefined =>
-  (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
-
-function headers(env: Env): Record<string, string> {
-  const out: Record<string, string> = { 'user-agent': 'kroma-module-registry' };
-  if (env.GITHUB_TOKEN) out.authorization = `Bearer ${env.GITHUB_TOKEN}`;
-  return out;
-}
-
 async function releases(env: Env): Promise<z.infer<typeof Release>[]> {
   const repo = env.GITHUB_REPO || DEFAULT_REPO;
   const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
-    headers: { ...headers(env), accept: 'application/vnd.github+json' },
+    headers: { ...githubHeaders(env), accept: 'application/vnd.github+json' },
   });
   if (!res.ok) throw new Error(`releases ${res.status}`);
   const parsed = z.array(Release).safeParse(await res.json());
@@ -55,14 +46,13 @@ async function releases(env: Env): Promise<z.infer<typeof Release>[]> {
 async function catalogOf(env: Env, release: z.infer<typeof Release>): Promise<Catalog | null> {
   const asset = release.assets.find((a) => a.name === 'modules.json');
   if (!asset) return null;
-  const res = await fetch(asset.browser_download_url, { headers: headers(env) });
+  const res = await fetch(asset.browser_download_url, { headers: githubHeaders(env) });
   if (!res.ok) return null;
   const parsed = Catalog.safeParse(await res.json().catch(() => null));
   return parsed.success ? parsed.data : null;
 }
 
-// The releases arrive newest first, so a version already on the list is being
-// extended backwards and only its `first` moves.
+// Releases arrive newest first, so a row already open is extended backwards.
 function fold(index: Index, release: z.infer<typeof Release>, catalog: Catalog): void {
   for (const entry of catalog.modules) {
     if (!entry.version) continue;
@@ -98,10 +88,9 @@ async function buildIndex(env: Env): Promise<Index> {
 }
 
 /**
- * Which version of each module every recent KROMA release shipped, newest
- * first. The catalog only ever describes the current version, so this is read
- * back from the `modules.json` each release publishes; one index serves every
- * module page, and it is empty when GitHub cannot be reached.
+ * Which version of `id` every recent KROMA release shipped, newest first, read
+ * back from the `modules.json` each release publishes. Empty when GitHub cannot
+ * be reached.
  */
 export async function moduleHistory(
   env: Env,

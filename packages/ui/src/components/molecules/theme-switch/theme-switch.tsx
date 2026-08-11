@@ -16,20 +16,15 @@ export interface ThemeSwitchProps {
 
 const FR: Record<ThemeMode, string> = { system: 'Système', light: 'Clair', dark: 'Sombre' };
 
-// Sun, moon, and the machine deciding: the three the whole web already reads
-// without a word beside them.
 const GLYPH = { system: 'device-desktop', light: 'sun', dark: 'moon' } as const;
 
 const ORDER: readonly ThemeMode[] = ['system', 'light', 'dark'];
 
 /**
  * Dark / light / system, persisted where the platform can act on it: a cookie
- * on the web, so the server renders the chosen ground instead of flashing the
- * default one, and the device store on a native target.
- *
- * Reads the stored mode in an effect rather than during render: the server has
- * no cookie jar, and a value that differs between the two renders is a
- * hydration mismatch.
+ * on the web, so the server renders the chosen ground, and the device store on
+ * a native target. The stored mode is read in an effect, not during render, or
+ * the server and the client disagree and hydration warns.
  */
 export function ThemeSwitch({
   size = 'sm',

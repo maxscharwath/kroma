@@ -86,10 +86,8 @@ const buttonVariants = svFor<{
         },
       },
       /** A bordered toggle: the detail screen's "Ma liste" / "Vu" pills, which
-       *  read as pressed rather than as a primary action. The edge is what
-       *  carries it, so the fill stays a whisper and the border is the part
-       *  that lights: a filled pill with a faint edge reads as a weak primary,
-       *  not as an outline. */
+       *  read as pressed rather than as a primary action: the edge carries the
+       *  state, and the fill stays a whisper. */
       outline: {
         root: {
           bg: 'tint/4',

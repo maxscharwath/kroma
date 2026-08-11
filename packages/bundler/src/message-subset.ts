@@ -5,10 +5,12 @@ import type { Plugin } from 'vite';
 const KIT_SRC = fileURLToPath(new URL('../../ui/src', import.meta.url));
 const CATALOG_DIR = fileURLToPath(new URL('../../core/src/locales/', import.meta.url));
 
-const CALL = /(?<=\b(?:t|msg)\(\s*(['"`]))[\w.]+(?=\1)/g;
+// The key is the whole match, so it needs no guard for a group that always
+// matches. The lookbehind's run of whitespace is BOUNDED: unbounded, it makes
+// the variable-length lookbehind super-linear on every source file scanned.
+const CALL = /(?<=\b(?:t|msg)\(\s{0,8}(['"`]))[\w.]+(?=\1)/g;
 const PLURAL = /_(?:zero|one|two|few|many|other)$/;
 const SOURCE = /\.(?:ts|tsx|js|jsx)$/;
-const QUERY = /\?.*$/;
 
 function sources(dir: string, out: string[] = []): string[] {
   let entries: string[];
@@ -75,7 +77,8 @@ export function messageSubset(options: MessageSubsetOptions = {}): Plugin {
     name: 'kroma:message-subset',
     enforce: 'pre',
     load(id) {
-      const file = id.replace(QUERY, '');
+      const query = id.indexOf('?');
+      const file = query < 0 ? id : id.slice(0, query);
       if (!file.startsWith(CATALOG_DIR) || !file.endsWith('.json')) return null;
       keys ??= new Set([
         ...messageKeysIn([KIT_SRC, ...(options.roots ?? [])]),

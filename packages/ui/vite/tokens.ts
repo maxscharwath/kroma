@@ -26,8 +26,13 @@ const kebab = (key: string) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}
 // The utility reads better than the token does: `text-muted`, not `text-text-muted`.
 const UTILITY: Partial<Record<ColorToken, string>> = { textMuted: 'muted', textDim: 'dim' };
 
+const indent = (line: string) => `  ${line}`;
+
 const rule = (selector: string, lines: string[]) =>
-  `${selector} {\n${lines.map((l) => `  ${l}`).join('\n')}\n}`;
+  `${selector} {\n${lines.map(indent).join('\n')}\n}`;
+
+const media = (query: string, body: string) =>
+  `@media ${query} {\n${body.split('\n').map(indent).join('\n')}\n}`;
 
 const palette = (p: Record<ColorToken, string>) =>
   Object.entries(p).map(([k, v]) => `--kroma-${cssName(k as ColorToken)}: ${v.toLowerCase()};`);
@@ -56,7 +61,9 @@ const alphaVars = (combos: ReadonlySet<string>, p: Record<ColorToken, string>) =
   [...combos]
     .map(split)
     .filter(([token]) => token in p)
-    .sort()
+    .sort(([aToken, aAlpha], [bToken, bAlpha]) =>
+      aToken === bToken ? Number(aAlpha) - Number(bAlpha) : aToken.localeCompare(bToken),
+    )
     .map(
       ([token, alpha]) =>
         `${cssVar(token, alpha)}: ${withAlpha(p[token as ColorToken], Number(alpha) / 100)};`,
@@ -119,12 +126,13 @@ const effects = () => [
 /**
  * Every design token as CSS custom properties.
  *
- * The light palette is behind `[data-theme="light"]` and NOT behind
- * `prefers-color-scheme`, because that query answers `light` for a visitor who
- * has expressed no preference at all - it is the default state, not an opt-in.
- * Gated that way it flipped every dark-only surface to paper while
- * `activeTheme()` stayed on KROMA, so the kit painted dark cards on a light
- * ground. A shell opts in when it is ready to switch both halves together.
+ * The ground is chosen by `data-theme`, and the light palette is repeated under
+ * `prefers-color-scheme` for a root carrying no such attribute - which is what
+ * an unstamped document means: the visitor is on `system` and the query is the
+ * answer. The `:not([data-theme])` is what keeps the two apart, and it is
+ * load-bearing: the query answers `light` for a visitor who has expressed no
+ * preference at all, so left to reach a stamped root it would repaint a page
+ * that had already said dark.
  */
 export function tokensCss(roots: readonly string[] = SOURCE_ROOTS): string {
   const alphas = scanAlphas(roots, KNOWN_COLOR_NAMES);
@@ -137,6 +145,8 @@ export function tokensCss(roots: readonly string[] = SOURCE_ROOTS): string {
     ...Object.entries(elevation).map(([k, v]) => `--shadow-${k}: ${v};`),
   ];
 
+  const light = ground(lightColors, lightShadow);
+
   return [
     rule(':root', [...ALIASES, ...typography(), ...spacing(), ...effects()]),
     // ONE rule for the two selectors, not the same block written twice: dark IS
@@ -147,7 +157,9 @@ export function tokensCss(roots: readonly string[] = SOURCE_ROOTS): string {
     rule(':root,\n[data-theme="dark"]', ground(colors, shadow)),
     // Later and equally specific, so it wins on `<html data-theme="light">` and
     // a light island inside a dark one still resolves light.
-    rule('[data-theme="light"]', ground(lightColors, lightShadow)),
+    rule('[data-theme="light"]', light),
+    // The `system` choice, which the server leaves unstamped on purpose.
+    media('(prefers-color-scheme: light)', rule(':root:not([data-theme])', light)),
   ].join('\n\n');
 }
 
@@ -193,7 +205,13 @@ export function fontsCss(): string {
         `font-family: "${family}";`,
         'font-style: normal;',
         'font-weight: 400 800;',
-        'font-display: swap;',
+        // `optional`, not `swap`: a swap repaints every line in a different
+        // face after first paint, which moves the whole column. The two faces
+        // here were 0.78 of a page's layout shift between them. `optional`
+        // gives the font one short window to arrive and then never swaps, so a
+        // late font costs a fallback render rather than a reflow. The preload
+        // in each shell's document is what makes it arrive inside that window.
+        'font-display: optional;',
         `src: url("${FONT_DIR}${slug(family)}-${subset}.woff2") format("woff2");`,
         `unicode-range: ${range};`,
       ]),

@@ -1,9 +1,9 @@
-import { withKitStyles } from '@kroma/ui/ssr';
+import { withKitStyles, withTheme } from '@kroma/ui/ssr';
 import handler from '@tanstack/react-start/server-entry';
 import { type ExecCtx, machineResponse } from '#site/lib/api';
 import type { Env } from '#site/lib/source';
 
-const page = withKitStyles((request) => handler.fetch(request));
+const page = withTheme(withKitStyles((request) => handler.fetch(request)));
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecCtx): Promise<Response> {

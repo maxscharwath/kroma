@@ -29,10 +29,16 @@ describe('tokensCss', () => {
     }
   });
 
-  it('keeps light behind an explicit opt-in, never prefers-color-scheme', () => {
+  it('answers an unstamped root with prefers-color-scheme, and nothing else', () => {
     const css = tokensCss();
     expect(css).toContain('[data-theme="light"]');
-    expect(css).not.toContain('prefers-color-scheme');
+
+    // The query answers `light` for a visitor who has expressed no preference,
+    // so a root that has already said dark must stay out of its reach.
+    const media = css.split('@media (prefers-color-scheme: light) {')[1] ?? '';
+    expect(media).toContain(':root:not([data-theme]) {');
+    expect(media).toContain(`--kroma-bg: ${lightColors.bg.toLowerCase()};`);
+    expect(media).not.toContain('[data-theme="dark"]');
   });
 
   it('leaves the dark palette as the bare-root default', () => {
@@ -40,7 +46,8 @@ describe('tokensCss', () => {
     // ONE rule for the two selectors that mean the same ground, never the same
     // block written out twice.
     expect(css).toContain(':root,\n[data-theme="dark"] {');
-    expect(css.match(/--kroma-bg: /g)).toHaveLength(2);
+    // Dark once, then light twice: the attribute and the unstamped query.
+    expect(css.match(/--kroma-bg: /g)).toHaveLength(3);
   });
 
   it('scopes a ground to any element, so a subtree can hold its own', () => {
@@ -61,7 +68,7 @@ describe('tokensCss', () => {
   it('emits each elevation once per ground, never a fourth ground-free copy', () => {
     const css = tokensCss();
     expect(css.split(':root,\n')[0]).not.toContain('--shadow-card:');
-    expect(css.match(/--shadow-card: /g)).toHaveLength(2);
+    expect(css.match(/--shadow-card: /g)).toHaveLength(3);
   });
 
   it('spells the irregular names the stylesheets already consume', () => {

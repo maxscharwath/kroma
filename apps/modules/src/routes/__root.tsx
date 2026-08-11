@@ -1,7 +1,21 @@
+import bricolageLatin from '@kroma/ui/src/assets/fonts/bricolage-grotesque-latin.woff2?url';
+import hankenLatin from '@kroma/ui/src/assets/fonts/hanken-grotesk-latin.woff2?url';
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import appCss from '#site/styles.css?url';
-import { themeBootScript } from '#ui/core/theme-mode';
+
+// The faces are `font-display: optional`, so they only ever paint if they beat
+// the browser's short block window; discovered from the stylesheet they arrive
+// after first paint and are dropped for that view. Preloading starts them with
+// the document instead. `crossorigin` is not optional here: a font fetched
+// without it does not match the preload and is requested twice.
+const FONT_PRELOAD = [hankenLatin, bricolageLatin].map((href) => ({
+  rel: 'preload',
+  href,
+  as: 'font',
+  type: 'font/woff2',
+  crossOrigin: 'anonymous' as const,
+}));
 
 export const Route = createRootRoute({
   head: () => ({
@@ -17,6 +31,7 @@ export const Route = createRootRoute({
       },
     ],
     links: [
+      ...FONT_PRELOAD,
       { rel: 'stylesheet', href: appCss },
       { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
       // Autodiscovery: KROMA servers follow this when handed the site URL
@@ -32,8 +47,6 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: stamps the stored theme before first paint; a component cannot run early enough. */}
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
       <body>
         {children}

@@ -24,6 +24,7 @@ export type { RingToken, Theme, ThemeOverrides, ThemeTokens } from './theme';
 export {
   activeTheme,
   createTheme,
+  groundShade,
   KROMA,
   KROMA_LIGHT,
   onThemeChange,
@@ -39,7 +40,6 @@ export {
   readMode,
   resolveMode,
   THEME_COOKIE,
-  themeBootScript,
   writeMode,
 } from './theme-mode';
 export * from './tokens';
@@ -65,4 +65,4 @@ export type {
   VariantProps,
   VariantSource,
 } from './types';
-export { ThemeProvider, useTheme } from './use-theme';
+export { ThemeProvider, useSystemGround, useTheme } from './use-theme';

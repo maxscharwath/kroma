@@ -27,6 +27,14 @@ html {
   color-scheme: light;
 }
 
+/* An unstamped document is the `system` choice, resolved here rather than by a
+   script in <head>, so it also follows the OS while the page is open. */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) {
+    color-scheme: light;
+  }
+}
+
 body {
   margin: 0;
   background: var(--kroma-bg);

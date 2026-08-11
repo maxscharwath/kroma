@@ -4,6 +4,7 @@ import { downloads } from '#site/lib/artifacts';
 import { DEFAULT_REPO, type Env, edgeCache, githubHeaders } from '#site/lib/source';
 
 const RELEASES = 25;
+const CATALOG_ASSET = 'modules.json';
 const CACHE_KEY = 'https://kroma-modules.cache/history-index';
 const CACHE_TTL = 21600;
 
@@ -30,7 +31,10 @@ export type VersionRow = z.infer<typeof VersionRow>;
 const Index = z.record(z.string(), z.array(VersionRow));
 type Index = z.infer<typeof Index>;
 
-async function releases(env: Env): Promise<z.infer<typeof Release>[]> {
+type Asset = z.infer<typeof Release>['assets'][number];
+type Published = { release: z.infer<typeof Release>; asset: Asset };
+
+async function releases(env: Env): Promise<Published[]> {
   const repo = env.GITHUB_REPO || DEFAULT_REPO;
   const res = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`, {
     headers: { ...githubHeaders(env), accept: 'application/vnd.github+json' },
@@ -39,13 +43,14 @@ async function releases(env: Env): Promise<z.infer<typeof Release>[]> {
   const parsed = z.array(Release).safeParse(await res.json());
   if (!parsed.success) return [];
   return parsed.data
-    .filter((release) => release.assets.some((a) => a.name === 'modules.json'))
+    .flatMap((release) => {
+      const asset = release.assets.find((a) => a.name === CATALOG_ASSET);
+      return asset ? [{ release, asset }] : [];
+    })
     .slice(0, RELEASES);
 }
 
-async function catalogOf(env: Env, release: z.infer<typeof Release>): Promise<Catalog | null> {
-  const asset = release.assets.find((a) => a.name === 'modules.json');
-  if (!asset) return null;
+async function catalogOf(env: Env, asset: Asset): Promise<Catalog | null> {
   const res = await fetch(asset.browser_download_url, { headers: githubHeaders(env) });
   if (!res.ok) return null;
   const parsed = Catalog.safeParse(await res.json().catch(() => null));
@@ -78,11 +83,11 @@ function fold(index: Index, release: z.infer<typeof Release>, catalog: Catalog):
 
 async function buildIndex(env: Env): Promise<Index> {
   const list = await releases(env);
-  const catalogs = await Promise.all(list.map((release) => catalogOf(env, release)));
+  const catalogs = await Promise.all(list.map(({ asset }) => catalogOf(env, asset)));
   const index: Index = {};
-  for (const [at, catalog] of catalogs.entries()) {
-    const release = list[at];
-    if (catalog && release) fold(index, release, catalog);
+  for (const [at, { release }] of list.entries()) {
+    const catalog = catalogs[at];
+    if (catalog) fold(index, release, catalog);
   }
   return index;
 }

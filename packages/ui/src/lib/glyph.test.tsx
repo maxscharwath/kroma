@@ -88,6 +88,34 @@ describe('resolveIcon', () => {
       opacity: 1,
     });
   });
+
+  it('reads a faded token at its own step as the single property the build emits', () => {
+    expect(resolveIcon({ name: 'volume-off', color: 'textDim/40' })).toMatchObject({
+      color: 'var(--kroma-text-dim-40)',
+      opacity: 1,
+    });
+  });
+
+  it('mixes an alpha into a raw colour the cascade knows nothing about', () => {
+    expect(resolveIcon({ name: 'player-play', color: '#F4B642/50' })).toMatchObject({
+      color: 'rgb(244, 182, 66)',
+      opacity: 0.5,
+    });
+  });
+
+  it('parses a raw colour whose slash is not an alpha suffix', () => {
+    expect(resolveIcon({ name: 'player-play', color: 'rgb(255 0 0 / 50%)' })).toMatchObject({
+      color: 'rgb(255, 0, 0)',
+      opacity: 0.5,
+    });
+  });
+
+  it('paints body text when the caller names no colour', () => {
+    expect(resolveIcon({ name: 'player-play' })).toMatchObject({
+      color: 'var(--kroma-text)',
+      opacity: 1,
+    });
+  });
 });
 
 describe('<Icon>', () => {

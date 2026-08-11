@@ -176,6 +176,18 @@ describe('the plugin', () => {
     expect(bundle['a.css'].source).toContain('--kroma-bg:');
     expect(bundle['b.js'].source).toBe('@import "@kroma/ui/css/tokens";');
   });
+
+  it('leaves an emitted stylesheet that names no directive exactly as it was', () => {
+    const plugin = kromaTokens();
+    const binary = new Uint8Array([1, 2, 3]);
+    const bundle = {
+      'c.css': { type: 'asset', fileName: 'c.css', source: 'body { color: red; }' },
+      'd.css': { type: 'asset', fileName: 'd.css', source: binary },
+    };
+    plugin.generateBundle({}, bundle);
+    expect(bundle['c.css'].source).toBe('body { color: red; }');
+    expect(bundle['d.css'].source).toBe(binary);
+  });
 });
 
 describe('kromaCss', () => {

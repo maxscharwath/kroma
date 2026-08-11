@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -23,6 +23,7 @@ beforeAll(() => {
   writeFileSync(join(root, 'a.stories.tsx'), `<Box bg="bg/60" />`);
   writeFileSync(join(root, 'node_modules', 'd.ts'), `const x = 'accent/77';`);
   writeFileSync(join(root, 'noise.ts'), `fetch('kroma/api'); const r = 'rgb(255 0 0 / 50%)';`);
+  symlinkSync(join(root, 'gone.ts'), join(root, 'dangling.ts'));
 });
 
 afterAll(() => rmSync(root, { recursive: true, force: true }));
@@ -46,5 +47,11 @@ describe('scanAlphas', () => {
 
   it('answers empty for a root that does not exist rather than throwing', () => {
     expect(scanAlphas([join(root, 'nope')], KNOWN)).toEqual(new Set());
+  });
+
+  it('walks past a source file it cannot read, rather than failing the build', () => {
+    expect(scanAlphas([root], new Set([...KNOWN, 'surface1']))).toEqual(
+      new Set(['accent/12', 'text/85', 'tint/2.5']),
+    );
   });
 });

@@ -80,9 +80,32 @@ describe('downloads', () => {
     expect(listed.map((d) => d.url)).toEqual(['https://dl.test/mac.kmod']);
   });
 
+  it('sorts an artifact that names no target behind every one that does', () => {
+    const listed = downloads(
+      entry({
+        artifacts: [
+          artifact(null, 'https://dl.test/any.kmod'),
+          artifact('x86_64-unknown-linux-musl', 'https://dl.test/linux.kmod'),
+        ],
+      }),
+    );
+    expect(listed).toEqual([
+      {
+        target: 'x86_64-unknown-linux-musl',
+        url: 'https://dl.test/linux.kmod',
+        size: null,
+        sha256: null,
+      },
+      { target: null, url: 'https://dl.test/any.kmod', size: null, sha256: null },
+    ]);
+  });
+
   it('falls back to the top-level artifact of a single-file module', () => {
     expect(downloads(entry({ url: 'https://dl.test/one.kmod', size: 12 }))).toEqual([
       { target: null, url: 'https://dl.test/one.kmod', size: 12, sha256: null },
+    ]);
+    expect(downloads(entry({ url: 'https://dl.test/one.kmod' }))).toEqual([
+      { target: null, url: 'https://dl.test/one.kmod', size: null, sha256: null },
     ]);
   });
 

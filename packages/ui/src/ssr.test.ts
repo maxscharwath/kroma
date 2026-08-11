@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { describe, expect, it } from 'vitest';
-import { withKitStyles } from './ssr';
+import { THEME_COOKIE } from './core/theme-mode';
+import { withKitStyles, withTheme } from './ssr';
 
 const live = () =>
   (StyleSheet as unknown as { getSheet(): { textContent: string } }).getSheet().textContent;
@@ -11,10 +12,75 @@ const page = (body: string, init?: ResponseInit) =>
     ...init,
   });
 
-const get = () => new Request('https://packages.kroma.tv/browse');
+const get = (cookie?: string) =>
+  new Request('https://packages.kroma.tv/browse', {
+    headers: cookie ? { cookie } : undefined,
+  });
 
 const inlined = (html: string) =>
   /<style id="react-native-stylesheet">([\s\S]*?)<\/style>/.exec(html)?.[1] ?? '';
+
+describe('withTheme', () => {
+  const served = (body = '<html lang="fr"><head></head><body>y</body></html>') =>
+    withTheme(() => page(body));
+
+  it("stamps the visitor's stored ground on the document the server sends", async () => {
+    const html = await (await served()(get(`${THEME_COOKIE}=light`))).text();
+
+    expect(html).toContain('<html data-theme="light" lang="fr">');
+  });
+
+  it('leaves system unstamped, so prefers-color-scheme answers it live', async () => {
+    const html = await (await served()(get(`${THEME_COOKIE}=system`))).text();
+
+    expect(html).toContain('<html lang="fr">');
+    expect(html).not.toContain('data-theme');
+  });
+
+  it('reads a visitor with no cookie, and one with a value it does not know, as system', async () => {
+    expect(await (await served()(get())).text()).not.toContain('data-theme');
+    expect(await (await served()(get(`${THEME_COOKIE}=ocean`))).text()).not.toContain('data-theme');
+  });
+
+  it('finds the choice among the other cookies a visitor carries', async () => {
+    const html = await (
+      await served()(get(`kroma.session=abc; ${THEME_COOKIE}=dark; consent=1`))
+    ).text();
+
+    expect(html).toContain('data-theme="dark"');
+  });
+
+  it('varies on cookie, or a shared cache serves one visitor ground to the next', async () => {
+    const response = await served()(get(`${THEME_COOKIE}=light`));
+
+    expect(response.headers.get('vary')).toContain('cookie');
+    expect(response.headers.get('content-length')).toBeNull();
+  });
+
+  it('keeps the status and the headers the handler set', async () => {
+    const handler = withTheme(() =>
+      page('<html><head></head><body>gone</body></html>', {
+        status: 404,
+        statusText: 'Not Found',
+        headers: { 'content-type': 'text/html', 'cache-control': 'max-age=60' },
+      }),
+    );
+    const response = await handler(get(`${THEME_COOKIE}=dark`));
+
+    expect(response.status).toBe(404);
+    expect(response.statusText).toBe('Not Found');
+    expect(response.headers.get('cache-control')).toBe('max-age=60');
+  });
+
+  it('leaves a response that is not a document alone', async () => {
+    const json = new Response('{"packages":[]}', {
+      headers: { 'content-type': 'application/json' },
+    });
+    const handler = withTheme(() => json);
+
+    expect(await handler(get(`${THEME_COOKIE}=light`))).toBe(json);
+  });
+});
 
 describe('withKitStyles', () => {
   it('inlines the compiled stylesheet before the head closes', async () => {

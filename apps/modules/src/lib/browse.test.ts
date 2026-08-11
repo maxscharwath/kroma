@@ -22,6 +22,12 @@ describe('matchesQuery', () => {
     expect(matchesQuery(m, 'whisper')).toBe(false);
   });
 
+  it('still searches a module the catalog described with nothing at all', () => {
+    const m = { ...entry('tv.kroma.vpn', 'VPN'), description: null };
+    expect(matchesQuery(m, 'vpn')).toBe(true);
+    expect(matchesQuery(m, 'tunnel')).toBe(false);
+  });
+
   it('keeps everything for an empty or blank query', () => {
     expect(matchesQuery(entry('tv.kroma.vpn'), '')).toBe(true);
     expect(matchesQuery(entry('tv.kroma.vpn'), '   ')).toBe(true);

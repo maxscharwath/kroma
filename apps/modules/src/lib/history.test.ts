@@ -26,6 +26,7 @@ function upstream(releases: unknown, catalogs: Record<string, unknown> = {}) {
       if (url.startsWith('https://api.github.com/')) return Response.json(releases);
       const body = catalogs[url];
       if (body === undefined) return new Response('no such asset', { status: 404 });
+      if (typeof body === 'string') return new Response(body);
       return Response.json(body);
     }),
   );
@@ -194,6 +195,35 @@ describe('moduleHistory', () => {
     expect((await history({}, 'a')).map((r) => r.last)).toEqual(['v1']);
   });
 
+  it('drops a release whose modules.json is not JSON at all', async () => {
+    vi.stubGlobal('caches', undefined);
+    upstream([release('v2', '2026-02-01T00:00:00Z'), release('v1', '2026-01-01T00:00:00Z')], {
+      'https://dl.test/v2/modules.json': '<!doctype html><title>404</title>',
+      'https://dl.test/v1/modules.json': { modules: [{ id: 'a', version: '1.0.0' }] },
+    });
+
+    expect((await history({}, 'a')).map((r) => r.last)).toEqual(['v1']);
+  });
+
+  it('keeps no publication date on a run whose oldest release carries none', async () => {
+    vi.stubGlobal('caches', undefined);
+    upstream([release('v2', '2026-02-01T00:00:00Z'), release('v1', null)], {
+      'https://dl.test/v2/modules.json': { modules: [{ id: 'a', version: '1.0.0' }] },
+      'https://dl.test/v1/modules.json': { modules: [{ id: 'a', version: '1.0.0' }] },
+    });
+
+    expect(await history({}, 'a')).toEqual([
+      {
+        version: '1.0.0',
+        first: 'v1',
+        firstAt: null,
+        last: 'v2',
+        url: null,
+        size: null,
+      },
+    ]);
+  });
+
   it('answers empty when the releases payload is not a list of releases', async () => {
     vi.stubGlobal('caches', undefined);
     upstream({ message: 'Bad credentials' });
@@ -247,14 +277,17 @@ describe('moduleHistory', () => {
     expect(calls).toEqual([]);
   });
 
-  it('rebuilds when the cached body is not an index', async () => {
-    const { store } = edgeCache();
-    store.set(CACHE_KEY, Response.json({ a: 'not rows' }));
-    upstream([release('v1', '2026-01-01T00:00:00Z')], {
-      'https://dl.test/v1/modules.json': { modules: [{ id: 'a', version: '1.0.0' }] },
-    });
+  it('rebuilds when the cached body is not an index, or not JSON at all', async () => {
+    for (const cached of [Response.json({ a: 'not rows' }), new Response('<html>')]) {
+      const { store } = edgeCache();
+      store.set(CACHE_KEY, cached);
+      upstream([release('v1', '2026-01-01T00:00:00Z')], {
+        'https://dl.test/v1/modules.json': { modules: [{ id: 'a', version: '1.0.0' }] },
+      });
 
-    expect((await history({}, 'a')).map((r) => r.version)).toEqual(['1.0.0']);
+      expect((await history({}, 'a')).map((r) => r.version)).toEqual(['1.0.0']);
+      vi.unstubAllGlobals();
+    }
   });
 
   it('stores the built index for six hours, in the background', async () => {

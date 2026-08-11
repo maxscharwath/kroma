@@ -4,10 +4,18 @@
 // runner — and captures only; it does not compare.
 
 import { spawn } from 'node:child_process';
-import { createReadStream, existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 
 const args = process.argv.slice(2);
 const flag = (name: string, fallback: string) =>
@@ -74,6 +82,21 @@ const MIME: Record<string, string> = {
   '.ico': 'image/x-icon',
 };
 
+// Resolved through the filesystem, symlinks and all, then required to still sit
+// under the build directory: an unnormalised path that merely starts with it
+// can still climb out.
+const SERVE_ROOT = realpathSync(dist);
+
+function served(requested: string): string | null {
+  try {
+    const file = realpathSync(resolve(SERVE_ROOT, `.${sep}${requested.replace(/^[/\\]+/, '')}`));
+    if (file !== SERVE_ROOT && !file.startsWith(`${SERVE_ROOT}${sep}`)) return null;
+    return statSync(file).isFile() ? file : null;
+  } catch {
+    return null;
+  }
+}
+
 // The shell is a SPA: anything that is not a real file falls through to the
 // entry document, exactly as the packaged app does. node:http rather than
 // Bun.serve so the script typechecks against the @types/node the repo already
@@ -81,12 +104,7 @@ const MIME: Record<string, string> = {
 const server = createServer((request, response) => {
   const requested = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
   const entry = join(dist, 'index.html');
-
-  // `..` can appear anywhere, so containment is decided on the resolved path.
-  const rel = relative(dist, resolve(dist, `.${sep}${requested.replace(/^[/\\]+/, '')}`));
-  const inside = rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
-  const candidate = inside ? join(dist, rel) : entry;
-  const file = existsSync(candidate) && statSync(candidate).isFile() ? candidate : entry;
+  const file = served(requested) ?? entry;
 
   response.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
   createReadStream(file).pipe(response);

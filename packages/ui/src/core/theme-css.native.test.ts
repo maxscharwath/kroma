@@ -29,4 +29,25 @@ describe('the palette on a native target', () => {
       opacity: 0.48,
     });
   });
+
+  it('fades the ground to a literal, for the gradients artwork falls into', async () => {
+    const { groundShade, KROMA, KROMA_LIGHT, setTheme } = await import('./theme');
+    expect(groundShade(0.5)).toBe('rgba(10, 10, 12, 0.5)');
+    setTheme(KROMA_LIGHT);
+    expect(groundShade(0.5)).toBe('rgba(247, 245, 241, 0.5)');
+    setTheme(KROMA);
+  });
+});
+
+describe('the ground a native blur view has to tint itself against', () => {
+  it('answers for the theme it is handed, and for the active one by default', async () => {
+    const { KROMA, KROMA_LIGHT, onPaper, setTheme } = await import('./theme');
+    expect(onPaper(KROMA_LIGHT)).toBe(true);
+    expect(onPaper(KROMA)).toBe(false);
+
+    setTheme(KROMA_LIGHT);
+    expect(onPaper()).toBe(true);
+    setTheme(KROMA);
+    expect(onPaper()).toBe(false);
+  });
 });

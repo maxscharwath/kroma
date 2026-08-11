@@ -13,6 +13,8 @@ async function machine(path: string, init?: RequestInit, env: Env = {}): Promise
   return res;
 }
 
+const MARK = '<svg viewBox="0 0 24 24" />';
+
 const CATALOG = {
   schema: 2,
   generatedAt: '2026-07-02T00:00:00Z',
@@ -22,10 +24,37 @@ const CATALOG = {
       name: 'Demo & Co',
       version: '1.0.0',
       description: 'A <demo> module',
+      icon: `data:image/svg+xml;base64,${btoa(MARK)}`,
       artifacts: [{ target: 'wasm32', url: 'https://dl/a.kmod', size: 1, sha256: 'x' }],
     },
   ],
 };
+
+const FRESH = 'https://kroma-modules.cache/catalog-fresh';
+
+function edgeCache() {
+  const store = new Map<string, Response>();
+  vi.stubGlobal('caches', {
+    default: {
+      match: vi.fn(async (key: string) => store.get(key)?.clone()),
+      put: vi.fn(async (key: string, res: Response) => {
+        store.set(key, res);
+      }),
+    },
+  });
+  return store;
+}
+
+function background() {
+  const pending: Promise<unknown>[] = [];
+  return {
+    pending,
+    waitUntil: (p: Promise<unknown>) => {
+      pending.push(p);
+    },
+    settled: () => Promise.all(pending),
+  };
+}
 
 function upstreamServing(body: unknown, status = 200) {
   const calls: string[] = [];
@@ -101,6 +130,39 @@ describe('machineResponse', () => {
     expect(await machineResponse(req('/browse'), {}, ctx())).toBeNull();
     expect(await machineResponse(req('/assets/app-abc123.js'), {}, ctx())).toBeNull();
     expect(calls).toEqual([]);
+  });
+
+  it('serves a module icon from the versioned path the catalog hands out', async () => {
+    upstreamServing(CATALOG);
+    const res = await machine('/icon/tv.kroma.demo/1.0.0.svg');
+    expect(res.headers.get('content-type')).toBe('image/svg+xml');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(await res.text()).toBe(MARK);
+  });
+
+  it('warms the edge cache in the background, on the icon route as on the catalog one', async () => {
+    for (const path of ['/modules.json', '/icon/tv.kroma.demo/1.0.0.svg']) {
+      const store = edgeCache();
+      const calls = upstreamServing(CATALOG);
+      const bg = background();
+
+      await machineResponse(req(path), {}, bg);
+      expect(bg.pending).toHaveLength(2);
+      await bg.settled();
+      expect(await store.get(FRESH)?.clone().json()).toEqual(CATALOG);
+
+      await machineResponse(req(path), {}, bg);
+      expect(calls).toHaveLength(1);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('falls back to the ambient environment when the request arrives with no bindings', async () => {
+    const calls = upstreamServing(CATALOG);
+    vi.stubGlobal('process', { env: { GITHUB_REPO: 'ambient/fork' } });
+    const res = await machineResponse(req('/modules.json'), undefined, ctx());
+    expect(calls[0]).toBe('https://github.com/ambient/fork/releases/latest/download/modules.json');
+    expect(await res?.json()).toEqual(CATALOG);
   });
 
   it('reads the configured repo and lets the catalog be cached for five minutes', async () => {

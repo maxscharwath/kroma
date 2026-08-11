@@ -220,6 +220,60 @@ type WebKeys = {
   onKeyDown: (event: { nativeEvent: { key: string }; preventDefault: () => void }) => void;
 } | null;
 
+function useWebKeys(
+  active: boolean,
+  role: FocusRole,
+  press: RefObject<() => void>,
+): { pressable: WebKeys; view: WebKeys } | null {
+  return useMemo(() => {
+    if (!WEB || !active) return null;
+    const answering = (owns: (key: string) => boolean): WebKeys => ({
+      tabIndex: 0,
+      onKeyDown: (event) => {
+        if (!owns(event.nativeEvent.key)) return;
+        event.preventDefault();
+        press.current();
+      },
+    });
+    return {
+      pressable: answering((key) => key === ' ' && role !== 'button'),
+      view: answering((key) => key === 'Enter' || key === ' '),
+    };
+  }, [active, role, press]);
+}
+
+function disabledForm(at: {
+  role: FocusRole;
+  a11yState: A11yState;
+  label: string | undefined;
+  style: StyleProp<ViewStyle>;
+  focusedStyle: ViewStyle | undefined;
+  animated: FocusableProps['style'];
+  focused: boolean;
+  hovered: boolean;
+  slots: ReturnType<AnySv>;
+  children: FocusableProps['children'];
+}): ReactNode {
+  return (
+    <Animated.View
+      accessibilityRole={platformRole(at.role)}
+      accessibilityState={at.a11yState ? { ...at.a11yState, disabled: true } : { disabled: true }}
+      accessibilityLabel={at.label}
+      aria-disabled
+      style={[at.style, at.focused ? at.focusedStyle : null, at.animated]}
+    >
+      {typeof at.children === 'function'
+        ? at.children({
+            focused: at.focused,
+            pressed: false,
+            hovered: at.hovered,
+            slots: at.slots,
+          })
+        : at.children}
+    </Animated.View>
+  );
+}
+
 function touchForm(at: {
   boxRef: (view: View | null) => void;
   webKeys: WebKeys;
@@ -454,22 +508,7 @@ function Focusable<R extends AnySv = AnySv>({
     return { accessibilityState: { checked, selected, expanded } };
   }, [checked, selected, expanded]);
 
-  const webKeys = useMemo(() => {
-    if (!WEB) return null;
-    if (disabled || inert || !onPress) return null;
-    const answering = (owns: (key: string) => boolean): WebKeys => ({
-      tabIndex: 0,
-      onKeyDown: (event) => {
-        if (!owns(event.nativeEvent.key)) return;
-        event.preventDefault();
-        pressRef.current();
-      },
-    });
-    return {
-      pressable: answering((key) => key === ' ' && role !== 'button'),
-      view: answering((key) => key === 'Enter' || key === ' '),
-    };
-  }, [disabled, inert, onPress, role]);
+  const webKeys = useWebKeys(!disabled && !inert && Boolean(onPress), role, pressRef);
 
   const lift = useFocusLift();
   const [hovered, setHovered] = useState(false);
@@ -639,19 +678,18 @@ function Focusable<R extends AnySv = AnySv>({
   // A disabled control is not a node at all, so the remote walks straight past
   // it rather than stopping on something that does nothing.
   if (disabled) {
-    return (
-      <Animated.View
-        accessibilityRole={platformRole(role)}
-        accessibilityState={a11yState ? { ...a11yState, disabled: true } : { disabled: true }}
-        accessibilityLabel={label}
-        aria-disabled
-        style={[painted, focused ? focusedStyle : null, animated]}
-      >
-        {typeof children === 'function'
-          ? children({ focused, pressed: false, hovered, slots: rest as ReturnType<R> })
-          : children}
-      </Animated.View>
-    );
+    return disabledForm({
+      role,
+      a11yState,
+      label,
+      style: painted,
+      focusedStyle,
+      animated,
+      focused,
+      hovered,
+      slots: rest,
+      children,
+    });
   }
 
   // Unscoped on a television is deliberately not handled here: an unscoped TV

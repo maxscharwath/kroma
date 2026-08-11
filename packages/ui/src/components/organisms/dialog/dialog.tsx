@@ -9,6 +9,7 @@ import {
   type ReactNode,
   useContext,
   useId,
+  useMemo,
   useRef,
 } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, type View } from 'react-native';
@@ -125,35 +126,22 @@ function DialogSurface({
     (node) => node !== headerPart && node !== contentPart && node !== footerPart,
   );
   const header =
-    headerPart ??
-    (showsTitle || description ? (
-      <Header>
-        {showsTitle ? (
-          <Txt nativeID={titleId} variant="h2">
-            {title}
-          </Txt>
-        ) : null}
-        {description ? (
-          <Txt nativeID={descriptionId} color="textMuted" variant="body">
-            {description}
-          </Txt>
-        ) : null}
-      </Header>
-    ) : null);
+    headerPart ?? defaultHeader({ showsTitle, title, description, titleId, descriptionId });
   const foot = footerPart ?? (footer ? <FooterSlot>{footer}</FooterSlot> : null);
-  const shell: Shell = { pad, hasHeader: Boolean(header), hasFooter: Boolean(foot) };
+  const hasHeader = Boolean(header);
+  const hasFooter = Boolean(foot);
+  const shell = useMemo<Shell>(() => ({ pad, hasHeader, hasFooter }), [pad, hasHeader, hasFooter]);
   // The panel names itself by reference only when it rendered the node that
   // carries the id: a composed <Dialog.Header> replaces the fallback, so
   // pointing at `titleId` there would name the dialog after nothing at all.
   const namesOwnTitle = !headerPart && showsTitle;
-  const naming =
-    Platform.OS === 'web'
-      ? {
-          'aria-labelledby': namesOwnTitle ? titleId : undefined,
-          'aria-label': namesOwnTitle ? undefined : title,
-          'aria-describedby': !headerPart && description ? descriptionId : undefined,
-        }
-      : { accessibilityLabel: title };
+  const naming = panelNaming({
+    title,
+    titleId,
+    descriptionId,
+    namesOwnTitle,
+    describes: !headerPart && Boolean(description),
+  });
   const panel = (
     <Box flex center bg="overlay" p={64}>
       {/* Web only: on a TV, Back/Menu is the platform's way out and an extra
@@ -202,6 +190,45 @@ function DialogSurface({
   ) : (
     panel
   );
+}
+
+function defaultHeader(at: {
+  showsTitle: boolean;
+  title: string | undefined;
+  description: string | undefined;
+  titleId: string;
+  descriptionId: string;
+}): ReactNode {
+  if (!at.showsTitle && !at.description) return null;
+  return (
+    <Header>
+      {at.showsTitle ? (
+        <Txt nativeID={at.titleId} variant="h2">
+          {at.title}
+        </Txt>
+      ) : null}
+      {at.description ? (
+        <Txt nativeID={at.descriptionId} color="textMuted" variant="body">
+          {at.description}
+        </Txt>
+      ) : null}
+    </Header>
+  );
+}
+
+function panelNaming(at: {
+  title: string | undefined;
+  titleId: string;
+  descriptionId: string;
+  namesOwnTitle: boolean;
+  describes: boolean;
+}) {
+  if (Platform.OS !== 'web') return { accessibilityLabel: at.title };
+  return {
+    'aria-labelledby': at.namesOwnTitle ? at.titleId : undefined,
+    'aria-label': at.namesOwnTitle ? undefined : at.title,
+    'aria-describedby': at.describes ? at.descriptionId : undefined,
+  };
 }
 
 const FOCUS_SCOPE = { focusScope: '' } as const;

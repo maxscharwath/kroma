@@ -1,6 +1,6 @@
 import { type Env, loadCatalog } from '#site/lib/source';
 
-const DATA_SVG = /^data:image\/svg\+xml;base64,/;
+const DATA_SVG = 'data:image/svg+xml;base64,';
 
 /** Where a module's icon is served from, versioned so it can be cached forever:
  *  a module that changes its artwork changes its version with it. */
@@ -21,7 +21,7 @@ export function withIconUrls<T extends { id: string; version: string; icon?: str
   modules: readonly T[],
 ): T[] {
   return modules.map((m) =>
-    m.icon && DATA_SVG.test(m.icon) ? { ...m, icon: iconPath(m.id, m.version) } : { ...m },
+    m.icon?.startsWith(DATA_SVG) ? { ...m, icon: iconPath(m.id, m.version) } : { ...m },
   );
 }
 
@@ -43,9 +43,9 @@ export async function iconResponse(
   const { Catalog } = await import('#site/catalog');
   const parsed = Catalog.safeParse(JSON.parse(body));
   const icon = parsed.success ? parsed.data.modules.find((m) => m.id === id)?.icon : null;
-  if (!icon || !DATA_SVG.test(icon)) return new Response('no such icon', { status: 404 });
+  if (!icon?.startsWith(DATA_SVG)) return new Response('no such icon', { status: 404 });
 
-  return new Response(atob(icon.replace(DATA_SVG, '')), {
+  return new Response(atob(icon.slice(DATA_SVG.length)), {
     headers: {
       'content-type': 'image/svg+xml',
       // The version is in the path, so this answer can never go stale.

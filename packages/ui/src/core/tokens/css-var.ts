@@ -15,7 +15,9 @@ const IRREGULAR: Readonly<Record<string, string>> = {
 /** A colour token's custom-property name, without the leading `--kroma-`. */
 export const cssName = (token: string) => IRREGULAR[token] ?? kebab(token);
 
+const alphaSuffix = (alpha: string | number) => `-${String(alpha).replace('.', '_')}`;
+
 /** A colour token as a custom property, optionally at one alpha step. `2.5` is a
  *  legal alpha and an illegal ident, so the dot becomes an underscore. */
 export const cssVar = (token: string, alpha?: string | number) =>
-  `--kroma-${cssName(token)}${alpha === undefined ? '' : `-${String(alpha).replace('.', '_')}`}`;
+  `--kroma-${cssName(token)}${alpha === undefined ? '' : alphaSuffix(alpha)}`;

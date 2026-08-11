@@ -199,21 +199,24 @@ export function splitShorthand(props: Readonly<Record<string, unknown>>): {
   return { shorthand, rest, any };
 }
 
+function applyRule(out: Record<string, unknown>, rule: Rule, value: unknown): void {
+  if (typeof rule === 'string') {
+    out[rule] = value;
+  } else if (typeof rule === 'function') {
+    Object.assign(out, rule(value));
+  } else if (Array.isArray(rule)) {
+    for (const longhand of rule) out[longhand] = value;
+  } else if (value) {
+    Object.assign(out, rule);
+  }
+}
+
 export function boxStyle(p: Readonly<BoxStyleProps>): ViewStyle {
   const out: Record<string, unknown> = {};
   for (const key of RULE_KEYS) {
     const value = (p as Record<string, unknown>)[key];
     if (value === undefined) continue;
-    const rule: Rule = RULES[key];
-    if (typeof rule === 'string') {
-      out[rule] = value;
-    } else if (typeof rule === 'function') {
-      Object.assign(out, rule(value));
-    } else if (Array.isArray(rule)) {
-      for (const longhand of rule) out[longhand] = value;
-    } else if (value) {
-      Object.assign(out, rule);
-    }
+    applyRule(out, RULES[key], value);
   }
   // A disc is half of ITSELF, so where the declaration also states the box's
   // side the corner comes from there rather than from the clamped fallback.

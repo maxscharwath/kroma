@@ -55,7 +55,7 @@ function walk(dir: string, out: string[]): void {
  * to exist as its own custom property instead.
  */
 export function scanAlphas(roots: readonly string[], known: ReadonlySet<string>): Set<string> {
-  const key = `${roots.join('|')}::${[...known].sort().join(',')}`;
+  const key = `${roots.join('|')}::${[...known].sort((a, b) => a.localeCompare(b)).join(',')}`;
   const hit = CACHE.get(key);
   if (hit) return hit;
 

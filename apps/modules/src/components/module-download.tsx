@@ -5,9 +5,20 @@ import { Button } from '#ui/components/atoms/button';
 import { IconButton } from '#ui/components/atoms/icon-button';
 import { Txt } from '#ui/components/atoms/text';
 import { ButtonGroup } from '#ui/components/molecules/button-group';
-import { Menu } from '#ui/components/organisms/menu';
+import { Menu, type MenuProps } from '#ui/components/organisms/menu';
 
 const PICK = 'Choose a platform';
+
+const pickTrigger: NonNullable<MenuProps['trigger']> = ({ ref, expanded, open }) => (
+  <IconButton
+    ref={ref}
+    variant="primary"
+    icon="chevron-down"
+    label={PICK}
+    expanded={expanded}
+    onPress={open}
+  />
+);
 
 export interface ModuleDownloadProps {
   files: Download[];
@@ -39,16 +50,7 @@ export function ModuleDownload({ files, picked, onPick }: Readonly<ModuleDownloa
               label: platformLabel(file.target),
               onSelect: () => onPick(file.target),
             }))}
-            trigger={({ ref, expanded, open }) => (
-              <IconButton
-                ref={ref}
-                variant="primary"
-                icon="chevron-down"
-                label={PICK}
-                expanded={expanded}
-                onPress={open}
-              />
-            )}
+            trigger={pickTrigger}
           />
         </ButtonGroup.Root>
       ) : (

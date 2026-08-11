@@ -15,12 +15,12 @@ function parse(notes: string): Line[] {
     const line = raw.trim();
     if (!line) continue;
     const id = `line-${out.length}`;
-    const heading = /^#{1,6}\s+(.*)$/.exec(line)?.[1];
+    const heading = /^#{1,6}\s+(\S.*)?$/.exec(line)?.[1];
     if (heading) {
       out.push({ id, kind: 'heading', text: strip(heading) });
       continue;
     }
-    const bullet = /^[*-]\s+(.*)$/.exec(line)?.[1];
+    const bullet = /^[*-]\s+(\S.*)?$/.exec(line)?.[1];
     if (bullet) {
       out.push({ id, kind: 'bullet', text: strip(bullet) });
       continue;

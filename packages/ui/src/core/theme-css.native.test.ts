@@ -28,7 +28,7 @@ describe('the palette on a native target', () => {
     const { KROMA } = await import('./theme');
     expect(splitAlpha(KROMA.colors.textDim)).toEqual({
       color: 'rgb(244, 243, 240)',
-      opacity: 0.45,
+      opacity: 0.48,
     });
   });
 });

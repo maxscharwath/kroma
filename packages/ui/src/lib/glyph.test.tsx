@@ -38,7 +38,7 @@ describe('splitAlpha', () => {
   });
 
   it('lifts the alpha out of an rgba token', () => {
-    expect(splitAlpha(colors.textDim)).toEqual({ color: 'rgb(244, 243, 240)', opacity: 0.45 });
+    expect(splitAlpha(colors.textDim)).toEqual({ color: 'rgb(244, 243, 240)', opacity: 0.48 });
     expect(splitAlpha(colors.textMuted)).toEqual({ color: 'rgb(244, 243, 240)', opacity: 0.62 });
   });
 

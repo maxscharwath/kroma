@@ -26,14 +26,14 @@ export const colors = {
   /* Text on dark */
   text: '#F4F3F0',
   textMuted: 'rgba(244, 243, 240, 0.62)',
-  textDim: 'rgba(244, 243, 240, 0.45)',
+  textDim: 'rgba(244, 243, 240, 0.48)',
   /** `textMuted` and `textDim` as SOLID ink, for anything that must not carry an
    *  alpha. A glyph is the case that forces them: a translucent stroke
    *  composites once per path, and fading the finished glyph instead needs an
    *  opacity layer, which is its own artefact. These are the same greys, already
    *  blended over the page ground. */
   glyph: '#9B9B99',
-  glyphDim: '#737373',
+  glyphDim: '#7A7A79',
 
   /* Brand accent: warm amber */
   accent: '#F4B642',
@@ -89,9 +89,9 @@ export const lightColors: Record<keyof typeof colors, string> = {
 
   text: '#16151A',
   textMuted: 'rgba(22, 21, 26, 0.66)',
-  textDim: 'rgba(22, 21, 26, 0.46)',
+  textDim: 'rgba(22, 21, 26, 0.60)',
   glyph: '#636163',
-  glyphDim: '#908E8E',
+  glyphDim: '#706F70',
 
   accent: '#F4B642',
   accentHover: '#E0A32E',

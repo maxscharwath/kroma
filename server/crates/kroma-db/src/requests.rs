@@ -851,6 +851,109 @@ mod tests {
         assert_eq!(json.get("airStatus").and_then(|v| v.as_str()), Some("Ended"));
     }
 
+    fn ep_row(id: &str, season: u32, episode: u32, status: &str) -> WantedRow {
+        WantedRow {
+            id: id.into(),
+            request_id: "r1".into(),
+            kind: "episode".into(),
+            tmdb_id: 1396,
+            imdb_id: None,
+            title: "T".into(),
+            year: None,
+            season: Some(season),
+            episode: Some(episode),
+            air_date: None,
+            status: status.into(),
+            last_search_at: None,
+        }
+    }
+
+    #[test]
+    fn pruning_narrows_a_ledger_and_leaves_the_survivors_as_they_were() {
+        let p = pool();
+        insert_request(&p, &new_req("r1", RequestKind::Show, 1396, None), 1000).unwrap();
+        replace_wanted(
+            &p,
+            "r1",
+            &[
+                ep_row("w1", 1, 1, "available"),
+                ep_row("w2", 1, 2, "grabbed"),
+                ep_row("w3", 2, 1, "wanted"),
+            ],
+            1000,
+        )
+        .unwrap();
+
+        let removed = prune_wanted(&p, "r1", &["w1".into(), "w2".into()]).unwrap();
+        assert_eq!(removed, 1, "only the row that fell out of scope");
+
+        let conn = p.get().unwrap();
+        let rows = wanted_for_request(&conn, "r1").unwrap();
+        assert_eq!(rows.len(), 2);
+        // The point of pruning over replacing: what was downloaded stays known.
+        assert_eq!(rows.iter().find(|w| w.id == "w1").unwrap().status, "available");
+        assert_eq!(rows.iter().find(|w| w.id == "w2").unwrap().status, "grabbed");
+    }
+
+    #[test]
+    fn pruning_to_nothing_empties_the_ledger() {
+        let p = pool();
+        insert_request(&p, &new_req("r1", RequestKind::Show, 1396, None), 1000).unwrap();
+        replace_wanted(&p, "r1", &[ep_row("w1", 1, 1, "wanted")], 1000).unwrap();
+        assert_eq!(prune_wanted(&p, "r1", &[]).unwrap(), 1);
+        let conn = p.get().unwrap();
+        assert!(wanted_for_request(&conn, "r1").unwrap().is_empty());
+    }
+
+    #[test]
+    fn pruning_one_request_never_reaches_another() {
+        let p = pool();
+        insert_request(&p, &new_req("r1", RequestKind::Show, 1396, None), 1000).unwrap();
+        insert_request(&p, &new_req("r2", RequestKind::Show, 1400, None), 1000).unwrap();
+        replace_wanted(&p, "r1", &[ep_row("w1", 1, 1, "wanted")], 1000).unwrap();
+        let mut other = ep_row("w9", 1, 1, "wanted");
+        other.request_id = "r2".into();
+        replace_wanted(&p, "r2", &[other], 1000).unwrap();
+
+        prune_wanted(&p, "r1", &[]).unwrap();
+        let conn = p.get().unwrap();
+        assert_eq!(wanted_for_request(&conn, "r2").unwrap().len(), 1, "r2 untouched");
+    }
+
+    #[test]
+    fn episodes_on_disk_reports_one_row_per_episode_with_its_media() {
+        let p = pool();
+        let conn = p.get().unwrap();
+        seed_library(&conn);
+        conn.execute(
+            "INSERT INTO shows (id,library,title,added_at) VALUES ('s1','lib1','Show','now')",
+            [],
+        )
+        .unwrap();
+        // Two files for S01E01: the widest wins, since that is what a viewer gets.
+        for (id, season, episode, width) in
+            [("i1", 1, 1, 1920), ("i2", 1, 1, 3840), ("i3", 1, 2, 1280)]
+        {
+            conn.execute(
+                &format!(
+                    "INSERT INTO items (id,kind,title,container,library,show_id,season,episode,v_codec,v_width,v_height,v_hdr,duration_ms,added_at) \
+                     VALUES ('{id}','episode','E','mkv','lib1','s1',{season},{episode},'hevc',{width},1080,1,600000,'now')"
+                ),
+                [],
+            )
+            .unwrap();
+        }
+
+        let rows = episodes_on_disk(&conn, "s1").unwrap();
+        assert_eq!(rows.len(), 2, "one row per episode, not per file");
+        let e1 = rows.iter().find(|r| r.episode == 1).unwrap();
+        assert_eq!(e1.width, Some(3840), "the widest copy of the two");
+        assert_eq!(e1.codec.as_deref(), Some("hevc"));
+        assert!(e1.hdr);
+        assert_eq!(e1.duration_ms, Some(600_000));
+        assert_eq!(rows.iter().find(|r| r.episode == 2).unwrap().width, Some(1280));
+    }
+
     #[test]
     fn insert_wanted_is_additive_and_never_disturbs_grabbed() {
         let p = pool();

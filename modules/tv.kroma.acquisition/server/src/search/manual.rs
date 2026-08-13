@@ -105,6 +105,58 @@ mod tests {
         }
     }
 
+    fn release(title: &str, magnet: Option<&str>, link: Option<&str>) -> kroma_module_sdk::ports::Release {
+        kroma_module_sdk::ports::Release {
+            title: title.into(),
+            guid: "g1".into(),
+            link: link.map(str::to_string),
+            magnet: magnet.map(str::to_string),
+            size_bytes: Some(2048),
+            seeders: Some(7),
+            leechers: Some(1),
+            published_at: Some("2024-01-01".into()),
+            details_url: Some("https://t/1".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_view_carries_what_the_release_name_was_parsed_into() {
+        let v = to_view(
+            &release("The.Matrix.1999.1080p.BluRay.x265-GRP", Some("magnet:?xt=1"), None),
+            "idx1",
+            "Tracker",
+        );
+        assert_eq!(v.indexer_id, "idx1", "so a row keys on the indexer it came from");
+        assert_eq!(v.indexer_name, "Tracker");
+        assert_eq!(v.parsed_title, "The Matrix");
+        assert_eq!(v.year, Some(1999));
+        // The variant name with its `R` stripped, so `Res::R1080` reads "1080".
+        assert_eq!(v.resolution.as_deref(), Some("1080"));
+        assert_eq!(v.codec.as_deref(), Some("Hevc"), "x265 is HEVC, named by its variant");
+        assert_eq!(v.seeders, Some(7));
+        assert_eq!(v.download_url.as_deref(), Some("magnet:?xt=1"));
+        assert!(v.season.is_none(), "a film has no season to parse");
+    }
+
+    #[test]
+    fn a_magnetless_release_falls_back_to_its_link() {
+        let v = to_view(&release("Show.S02E03.1080p", None, Some("https://t/f.torrent")), "i", "T");
+        assert_eq!(v.download_url.as_deref(), Some("https://t/f.torrent"));
+        assert_eq!(v.season, Some(2));
+        assert_eq!(v.episode, Some(3));
+        assert!(!v.full_season, "one episode, not the pack");
+    }
+
+    #[test]
+    fn a_release_with_neither_is_left_ungrabbable_rather_than_guessed_at() {
+        let v = to_view(&release("Show.S01", None, None), "i", "T");
+        assert!(v.download_url.is_none());
+        // The details page is still carried: a built-in indexer resolves the
+        // real target from it at grab time.
+        assert_eq!(v.details_url.as_deref(), Some("https://t/1"));
+    }
+
     #[test]
     fn a_bare_query_stays_a_movie_search() {
         assert!(matches!(

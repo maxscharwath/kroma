@@ -1056,6 +1056,84 @@ mod tests {
     }
 
     #[test]
+    fn coverage_is_not_a_thing_a_movie_request_has() {
+        let host = host_with_tmdb(Some("k"));
+        insert_req(&host, "r1", RequestKind::Movie, 7, RequestStatus::Approved);
+        let err = set_coverage(&host, "r1", Some(vec![1]), None).unwrap_err();
+        assert!(err.to_string().contains("nothing to scope"), "{err}");
+    }
+
+    #[test]
+    fn coverage_refuses_a_denied_request() {
+        let host = host_with_tmdb(Some("k"));
+        insert_req(&host, "r1", RequestKind::Show, 42, RequestStatus::Denied);
+        assert!(set_coverage(&host, "r1", Some(vec![1]), None).unwrap_err().to_string().contains("denied"));
+    }
+
+    #[test]
+    fn coverage_on_a_pending_request_only_records_the_target() {
+        // Nothing to reconcile: approving is what builds the ledger, and it will
+        // build it from the coverage just set.
+        let host = host_with_tmdb(Some("k"));
+        insert_req(&host, "r1", RequestKind::Show, 42, RequestStatus::Pending);
+        let req = set_coverage(&host, "r1", Some(vec![3, 1, 1]), None).unwrap();
+        assert_eq!(req.seasons, Some(vec![1, 3]), "sorted and deduped");
+        assert_eq!(req.status, RequestStatus::Pending, "recording a target approves nothing");
+        let conn = host.db().get().unwrap();
+        assert!(db::wanted_for_request(&conn, "r1").unwrap().is_empty());
+    }
+
+    #[test]
+    fn coverage_normalizes_empty_lists_to_the_whole_show() {
+        let host = host_with_tmdb(Some("k"));
+        insert_req(&host, "r1", RequestKind::Show, 42, RequestStatus::Pending);
+        let req = set_coverage(&host, "r1", Some(vec![]), Some(vec![])).unwrap();
+        assert_eq!(req.seasons, None);
+        assert_eq!(req.episodes, None);
+    }
+
+    #[test]
+    fn narrowing_coverage_drops_the_rows_that_left_and_keeps_the_rest_as_they_were() {
+        let host = host_with_tmdb(Some("k"));
+        insert_req(&host, "r1", RequestKind::Show, 42, RequestStatus::Approved);
+        let mk = |id: &str, season: u32, episode: u32, status: &str| db::WantedRow {
+            id: id.into(),
+            request_id: "r1".into(),
+            kind: "episode".into(),
+            tmdb_id: 42,
+            imdb_id: None,
+            title: "T".into(),
+            year: None,
+            season: Some(season),
+            episode: Some(episode),
+            air_date: Some("2020-01-01".into()),
+            status: status.into(),
+            last_search_at: None,
+        };
+        db::replace_wanted(
+            host.db(),
+            "r1",
+            &[mk("keep", 1, 1, "available"), mk("drop", 2, 1, "wanted")],
+            0,
+        )
+        .unwrap();
+
+        // The ids the rebuild mints are deterministic, so a row that stays in
+        // scope is recognised and keeps its state rather than being re-created.
+        let rows = {
+            let conn = host.db().get().unwrap();
+            db::wanted_for_request(&conn, "r1").unwrap()
+        };
+        assert_eq!(rows.len(), 2, "both there before narrowing");
+
+        db::prune_wanted(host.db(), "r1", &["keep".into()]).unwrap();
+        let conn = host.db().get().unwrap();
+        let after = db::wanted_for_request(&conn, "r1").unwrap();
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].status, "available", "the survivor did not forget its file");
+    }
+
+    #[test]
     fn match_one_movie_flips_wanted_and_request_to_available() {
         let host = test_host();
         seed_movie_item(&host, "m1", 603);

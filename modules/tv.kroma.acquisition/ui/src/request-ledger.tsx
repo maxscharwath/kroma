@@ -124,7 +124,7 @@ export function RequestLedger({
       </Row>
 
       {episodes == null ? <Skeleton w="100%" h={180} radius="xl" /> : null}
-      {episodes != null && episodes.length === 0 ? (
+      {episodes?.length === 0 ? (
         <EmptyState.Root icon="inbox">
           <EmptyState.Title>{t('requests.ledgerEmpty')}</EmptyState.Title>
         </EmptyState.Root>

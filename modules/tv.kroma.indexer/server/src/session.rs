@@ -352,11 +352,11 @@ impl Session {
         seen: &mut std::collections::HashSet<String>,
         outcome: &mut SearchOutcome,
     ) {
-        let body = match req.method.as_str() {
+        let fetched = match req.method.as_str() {
             "post" => self.post_form_text(&req.url, &req.inputs),
             _ => self.get_text(&req.url, &req.inputs),
         };
-        let body = match body {
+        let body = match fetched {
             Ok(b) => b,
             Err(e) => {
                 tracing::warn!(
@@ -372,27 +372,8 @@ impl Session {
         };
         let bytes = body.len();
         let body = engine::preprocess(&self.def, &self.cfg, &body);
-        // A tracker that refuses the query answers 200 with an error document,
-        // which parses to zero rows and used to read as "nothing found". It is
-        // the indexer failing, and has to be reported as one.
         if let Some(message) = api_error(&body) {
-            tracing::warn!(
-                indexer = %self.def.name,
-                url = %req.url,
-                bytes,
-                error = %message,
-                "the tracker returned an error document",
-            );
-            // Rate limited: stop asking for a while, rather than spending the
-            // next search's budget re-earning the same refusal.
-            if message.contains("429") {
-                self.hold_off(RATE_LIMIT_COOLDOWN);
-            } else {
-                // Anything else it refuses may be the session, so the next
-                // search logs in again rather than reusing a dead one.
-                self.invalidate_login();
-            }
-            outcome.errors.push(format!("{}: {message}", self.def.name));
+            self.note_refusal(req, bytes, &message, outcome);
             return;
         }
         let parsed = match req.response_kind.as_str() {
@@ -402,38 +383,12 @@ impl Session {
         };
         match parsed {
             Ok(rels) => {
-                // Parsed-but-empty is the failure that used to be invisible: the
-                // tracker answered, and either it genuinely has nothing or the
-                // definition's row selector no longer matches its markup. The
-                // body itself is the only thing that tells the two apart, so a
-                // short one is quoted rather than described.
-                if rels.is_empty() {
-                    tracing::warn!(
-                        indexer = %self.def.name,
-                        url = %req.url,
-                        bytes,
-                        kind = %req.response_kind,
-                        body = %snippet(&body),
-                        "answered, but no row matched the definition's selectors",
-                    );
-                } else {
-                    tracing::info!(
-                        indexer = %self.def.name,
-                        url = %req.url,
-                        bytes,
-                        kind = %req.response_kind,
-                        parsed = rels.len(),
-                        "response parsed",
-                    );
-                }
-                let before = outcome.releases.len();
+                self.note_parsed(req, bytes, &body, rels.len());
                 for r in rels {
                     if seen.insert(r.guid.clone()) {
                         outcome.releases.push(r);
                     }
                 }
-                let added = outcome.releases.len() - before;
-                tracing::trace!(indexer = %self.def.name, added, "rows kept after dedup");
             }
             Err(e) => {
                 tracing::warn!(
@@ -446,6 +401,61 @@ impl Session {
                 );
                 outcome.errors.push(format!("{}: parse: {e:#}", self.def.name));
             }
+        }
+    }
+
+    // A tracker that refuses the query answers 200 with an error document, which
+    // parses to zero rows and used to read as "nothing found". It is the indexer
+    // failing, and has to be reported as one.
+    fn note_refusal(
+        &self,
+        req: &engine::SearchRequest,
+        bytes: usize,
+        message: &str,
+        outcome: &mut SearchOutcome,
+    ) {
+        tracing::warn!(
+            indexer = %self.def.name,
+            url = %req.url,
+            bytes,
+            error = %message,
+            "the tracker returned an error document",
+        );
+        if message.contains("429") {
+            // Rate limited: stop asking for a while, rather than spending the
+            // next search's budget re-earning the same refusal.
+            self.hold_off(RATE_LIMIT_COOLDOWN);
+        } else {
+            // Anything else it refuses may be the session, so the next search
+            // logs in again rather than reusing a dead one.
+            self.invalidate_login();
+        }
+        outcome.errors.push(format!("{}: {message}", self.def.name));
+    }
+
+    // Parsed-but-empty is the failure that used to be invisible: the tracker
+    // answered, and either it genuinely has nothing or the definition's row
+    // selector no longer matches its markup. The body is the only thing that
+    // tells the two apart, so a short one is quoted rather than described.
+    fn note_parsed(&self, req: &engine::SearchRequest, bytes: usize, body: &str, rows: usize) {
+        if rows == 0 {
+            tracing::warn!(
+                indexer = %self.def.name,
+                url = %req.url,
+                bytes,
+                kind = %req.response_kind,
+                body = %snippet(body),
+                "answered, but no row matched the definition's selectors",
+            );
+        } else {
+            tracing::info!(
+                indexer = %self.def.name,
+                url = %req.url,
+                bytes,
+                kind = %req.response_kind,
+                parsed = rows,
+                "response parsed",
+            );
         }
     }
 

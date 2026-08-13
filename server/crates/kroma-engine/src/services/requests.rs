@@ -610,31 +610,42 @@ fn refresh_wanted<S: HostCtx>(
     let have: HashMap<(Option<u32>, Option<u32>), &db::WantedRow> =
         existing.iter().map(|w| ((w.season, w.episode), w)).collect();
 
-    let aired = |air: Option<&str>| air.is_none_or(|d| d <= today);
     let mut to_insert: Vec<db::WantedRow> = Vec::new();
     let mut newly_aired: Vec<String> = Vec::new();
     for d in desired {
         match have.get(&(d.season, d.episode)) {
             None => {
-                if aired(d.air_date.as_deref()) {
+                if d.air_date.as_deref().is_none_or(|air| air <= today) {
                     newly_aired.push(d.id.clone());
                 }
                 to_insert.push(d);
             }
-            Some(existing_row) => {
-                if existing_row.air_date.is_none() {
-                    if let Some(air) = d.air_date.as_deref() {
-                        db::set_wanted_air_date(state.db(), &existing_row.id, air, now_ms())?;
-                        if air <= today && existing_row.status == "wanted" {
-                            newly_aired.push(existing_row.id.clone());
-                        }
-                    }
-                }
-            }
+            Some(row) => backfill_air_date(state, row, d.air_date.as_deref(), today, &mut newly_aired)?,
         }
     }
     db::insert_wanted(state.db(), &to_insert, now_ms())?;
     Ok(newly_aired)
+}
+
+// A row TMDB has since dated. Only ever fills a blank -- a date already known is
+// the one the ledger was built with -- and reports the row when that date turns
+// out to be in the past, since it just became searchable.
+fn backfill_air_date<S: HostCtx>(
+    state: &S,
+    row: &db::WantedRow,
+    air_date: Option<&str>,
+    today: &str,
+    newly_aired: &mut Vec<String>,
+) -> Result<()> {
+    if row.air_date.is_some() {
+        return Ok(());
+    }
+    let Some(air) = air_date else { return Ok(()) };
+    db::set_wanted_air_date(state.db(), &row.id, air, now_ms())?;
+    if air <= today && row.status == "wanted" {
+        newly_aired.push(row.id.clone());
+    }
+    Ok(())
 }
 
 /// Fulfill a request from a completed import, without waiting for the

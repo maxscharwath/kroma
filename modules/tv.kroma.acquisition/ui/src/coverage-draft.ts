@@ -14,16 +14,15 @@ import type {
   RequestCoverageBody,
 } from '@kroma/core';
 
-/** The pairs a draft holds, keyed `season:episode`. */
-export type EpisodeKey = string;
-
-export const keyOf = (season: number, episode: number): EpisodeKey => `${season}:${episode}`;
+/** How a draft names one episode: `season:episode`. */
+export const keyOf = (season: number, episode: number): string => `${season}:${episode}`;
 
 export interface CoverageDraft {
   /** Seasons taken whole: future episodes of these are covered too. */
   seasons: Set<number>;
-  /** Episodes picked one at a time, outside any whole season. */
-  episodes: Set<EpisodeKey>;
+  /** Episodes picked one at a time, outside any whole season, keyed by
+   *  [`keyOf`]. */
+  episodes: Set<string>;
 }
 
 /** Where a request starts when the editor opens. A whole-show request has no

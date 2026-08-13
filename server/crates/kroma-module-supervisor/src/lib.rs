@@ -663,49 +663,64 @@ impl Supervisor {
             let mut down: std::collections::HashSet<String> = std::collections::HashSet::new();
             loop {
                 std::thread::sleep(HOT_RELOAD_POLL);
-                for id in std::mem::take(&mut down) {
-                    match this.start_installed(&id) {
-                        Ok(_) => this.say(&id, "INFO sidecar back up after a failed hot reload"),
-                        Err(e) => {
-                            this.say(&id, &format!("ERROR sidecar still down: {e:#}"));
-                            down.insert(id);
-                        }
-                    }
-                }
-                // Bound in its own statement so the read guard is DROPPED here:
-                // held into the loop body it would deadlock against `stop`'s
-                // write lock the first time a binary actually changed.
-                let running: Vec<String> = this.procs.read().unwrap().keys().cloned().collect();
-                for id in running {
-                    let Ok(stamp) = std::fs::metadata(this.dir(&id).join(MODULE_BIN))
-                        .and_then(|m| m.modified())
-                    else {
-                        continue;
-                    };
-                    match seen.get(&id) {
-                        // First sighting is the binary it is already running.
-                        None => {
-                            seen.insert(id, stamp);
-                        }
-                        Some(&last) if last != stamp => {
-                            seen.insert(id.clone(), stamp);
-                            tracing::info!(module = %id, "binary changed; restarting the sidecar");
-                            this.stop(&id);
-                            if let Err(e) = this.start_installed(&id) {
-                                tracing::error!(
-                                    module = %id,
-                                    error = %format!("{e:#}"),
-                                    "hot reload failed; retrying every poll",
-                                );
-                                this.say(&id, &format!("ERROR hot reload failed: {e:#}"));
-                                down.insert(id);
-                            }
-                        }
-                        Some(_) => {}
-                    }
+                this.retry_failed_reloads(&mut down);
+                for id in this.running_ids() {
+                    this.reload_if_changed(&id, &mut seen, &mut down);
                 }
             }
         });
+    }
+
+    /// The ids with a live entry in the process map. Bound in its own statement
+    /// so the read guard is DROPPED before the caller acts: held across a
+    /// restart it would deadlock against `stop`'s write lock.
+    fn running_ids(&self) -> Vec<String> {
+        self.procs.read().unwrap().keys().cloned().collect()
+    }
+
+    // Modules whose last restart failed, tried again. One stays in `down` until
+    // it comes back, so a broken build is retried rather than forgotten.
+    fn retry_failed_reloads(&self, down: &mut std::collections::HashSet<String>) {
+        for id in std::mem::take(down) {
+            match self.start_installed(&id) {
+                Ok(_) => self.say(&id, "INFO sidecar back up after a failed hot reload"),
+                Err(e) => {
+                    self.say(&id, &format!("ERROR sidecar still down: {e:#}"));
+                    down.insert(id);
+                }
+            }
+        }
+    }
+
+    // Restart one module if its binary is not the one it started with. The first
+    // sighting only records the stamp: that IS the binary already running.
+    fn reload_if_changed(
+        &self,
+        id: &str,
+        seen: &mut HashMap<String, std::time::SystemTime>,
+        down: &mut std::collections::HashSet<String>,
+    ) {
+        let Ok(stamp) =
+            std::fs::metadata(self.dir(id).join(MODULE_BIN)).and_then(|m| m.modified())
+        else {
+            return;
+        };
+        let changed = matches!(seen.get(id), Some(&last) if last != stamp);
+        seen.insert(id.to_string(), stamp);
+        if !changed {
+            return;
+        }
+        tracing::info!(module = %id, "binary changed; restarting the sidecar");
+        self.stop(id);
+        if let Err(e) = self.start_installed(id) {
+            tracing::error!(
+                module = %id,
+                error = %format!("{e:#}"),
+                "hot reload failed; retrying every poll",
+            );
+            self.say(id, &format!("ERROR hot reload failed: {e:#}"));
+            down.insert(id.to_string());
+        }
     }
 
     /// Watch the running sidecars and bring back any that exits. A module that

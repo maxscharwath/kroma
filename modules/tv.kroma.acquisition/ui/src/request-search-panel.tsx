@@ -167,6 +167,13 @@ export function RequestSearchPanel({
   );
 }
 
+// react-query hands back whatever was thrown. An Error has a message worth
+// showing; anything else has no readable form, so the title above it stands
+// alone rather than printing "[object Object]".
+function failureText(failure: Error | null): string {
+  return failure?.message ?? '';
+}
+
 // The bar that only exists while a pick is in progress: what it comes to, and
 // the two ways out of it.
 function CoverageBar({
@@ -230,7 +237,7 @@ function Catalog({
   seasons: LedgerSeason[];
   episodes: Parameters<typeof RequestLedger>[0]['episodes'];
   loading: boolean;
-  failure: unknown;
+  failure: Error | null;
   requestId: string;
   draft: CoverageDraft | null;
   onToggleSeason: (season: number, on: boolean) => void;
@@ -245,7 +252,7 @@ function Catalog({
     return (
       <Callout.Root tone="danger">
         <Callout.Title>{t('requests.ledgerFailed')}</Callout.Title>
-        <Callout.Detail>{String(failure)}</Callout.Detail>
+        <Callout.Detail>{failureText(failure)}</Callout.Detail>
       </Callout.Root>
     );
   }

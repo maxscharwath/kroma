@@ -93,10 +93,10 @@ function PlatformSearch({ value, onChange, placeholder, children }: Readonly<Sea
   );
 }
 
-const DIRECTIONS: readonly string[] = ['up', 'down', 'left', 'right'];
+const DIRECTIONS: ReadonlySet<string> = new Set(['up', 'down', 'left', 'right']);
 
 function isDirection(heading: string): heading is FocusDirection {
-  return DIRECTIONS.includes(heading);
+  return DIRECTIONS.has(heading);
 }
 
 // The only television here whose own keyboard is worth more than ours.

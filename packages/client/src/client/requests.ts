@@ -150,10 +150,12 @@ export function scopeQuery(scope: SearchScope): string {
  * for this request, narrowed to `scope` (the whole request by default), and
  * returning scored releases + rejects with reasons. Slow (Torznab
  * round-trips); show a spinner. */
+const WHOLE_REQUEST: SearchScope = { scope: 'all' };
+
 export function searchReleases(
   ctx: RequestContext,
   id: string,
-  scope: SearchScope = { scope: 'all' },
+  scope: SearchScope = WHOLE_REQUEST,
 ): Promise<InteractiveSearchView> {
   return ctx.json<InteractiveSearchView>(
     `/requests/${encodeURIComponent(id)}/search?${scopeQuery(scope)}`,

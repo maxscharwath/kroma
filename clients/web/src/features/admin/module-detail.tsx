@@ -4,10 +4,12 @@
 // entry alike. A page rather than a drawer, so a module survives a reload and
 // can be linked to.
 
+import type { MessageKey, StoreModule } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, Button, EmptyState, Row, Skeleton, Surface, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
+import type { AdminModule } from '#web/features/admin/module-api';
 import { message, UninstallConflictError, uninstallModule } from '#web/features/admin/module-api';
 import { useModuleData, useModuleToggle } from '#web/features/admin/module-data';
 import { ModuleActions, UninstallConfirm } from '#web/features/admin/module-detail-actions';
@@ -86,25 +88,8 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
     return <Gone onBack={back} />;
   }
 
-  const name = installed?.name ?? entry?.name ?? id;
-  const version = installed?.version ?? entry?.version;
-  const description = installed?.description ?? entry?.description ?? '';
-  const metaRows: [string, ReactNode][] = [
-    [
-      t('admin.modulesVersion'),
-      update ? (
-        <>
-          v{installed?.version} <Text color="accentText">→ v{entry?.version}</Text>
-        </>
-      ) : (
-        `v${version ?? '?'}`
-      ),
-    ],
-  ];
-  if (entry?.source) metaRows.push([t('admin.modulesSource'), entry.source]);
-  const minServer = entry?.minServer ?? installed?.minServer;
-  if (minServer) metaRows.push([t('admin.modulesMinServer'), minServer]);
-  if (entry?.target) metaRows.push([t('admin.modulesPlatform'), entry.target]);
+  const { name, version, description } = identityOf(id, installed, entry);
+  const metaRows = metaRowsFor(t, installed, entry, update, version);
 
   return (
     <>
@@ -204,6 +189,49 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
       </Box>
     </>
   );
+}
+
+// What to call a module: whichever half knows, the installed copy first. A
+// module can be installed but absent from the catalog, or listed but not yet
+// installed, and every field falls back independently.
+function identityOf(
+  id: string,
+  installed: AdminModule | undefined,
+  entry: StoreModule | undefined,
+) {
+  return {
+    name: installed?.name ?? entry?.name ?? id,
+    version: installed?.version ?? entry?.version,
+    description: installed?.description ?? entry?.description ?? '',
+  };
+}
+
+// The facts table. Each row appears only when there is something to put in it,
+// which is why this is built rather than declared.
+function metaRowsFor(
+  t: (key: MessageKey) => string,
+  installed: AdminModule | undefined,
+  entry: StoreModule | undefined,
+  update: boolean,
+  version: string | undefined,
+): [string, ReactNode][] {
+  const rows: [string, ReactNode][] = [
+    [
+      t('admin.modulesVersion'),
+      update ? (
+        <>
+          v{installed?.version} <Text color="accentText">→ v{entry?.version}</Text>
+        </>
+      ) : (
+        `v${version ?? '?'}`
+      ),
+    ],
+  ];
+  if (entry?.source) rows.push([t('admin.modulesSource'), entry.source]);
+  const minServer = entry?.minServer ?? installed?.minServer;
+  if (minServer) rows.push([t('admin.modulesMinServer'), minServer]);
+  if (entry?.target) rows.push([t('admin.modulesPlatform'), entry.target]);
+  return rows;
 }
 
 function Gone({ onBack }: Readonly<{ onBack: () => void }>) {

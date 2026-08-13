@@ -257,6 +257,66 @@ fn collect_search_hits<S: HostCtx>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kroma_module_sdk::scene::{Profile, Res, Target};
+
+    fn indexer(priority: i32) -> IndexerRow {
+        IndexerRow {
+            id: "idx1".into(),
+            name: "Tracker".into(),
+            url: String::new(),
+            api_key: String::new(),
+            categories: Vec::new(),
+            enabled: true,
+            priority,
+            kind: "torznab".into(),
+            definition_id: None,
+            settings: String::new(),
+            last_ok_at: None,
+            last_error: None,
+            created_at: 0,
+        }
+    }
+
+    fn profile() -> Profile {
+        Profile {
+            resolution: Res::R1080,
+            prefer_hevc: true,
+            min_seeders: 1,
+            max_size_bytes_movie: 20 * 1_073_741_824,
+            max_size_bytes_episode: 5 * 1_073_741_824,
+            required_keywords: Vec::new(),
+            forbidden_keywords: Vec::new(),
+        }
+    }
+
+    fn target() -> SearchTarget {
+        SearchTarget {
+            query: kroma_module_sdk::ports::Query::Episode {
+                tmdb_id: Some(42),
+                title: "Show".into(),
+                season: 1,
+                episode: 1,
+            },
+            target: Target::Episode { season: 1, episode: 1 },
+            kind: "episode",
+            season: Some(1),
+            episodes: Some(vec![1]),
+        }
+    }
+
+    fn release(title: &str, seeders: Option<u32>) -> Release {
+        Release {
+            title: title.into(),
+            guid: "g1".into(),
+            magnet: Some("magnet:?xt=1".into()),
+            size_bytes: Some(1_073_741_824),
+            seeders,
+            leechers: Some(2),
+            published_at: Some("2024-01-01".into()),
+            details_url: Some("https://t/1".into()),
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn two_scopes_of_one_request_do_not_share_a_cache_slot() {
@@ -264,5 +324,71 @@ mod tests {
         let b = cache_key("r1", SearchScope::Episode { season: 1, episode: 1 });
         assert_ne!(a, b);
         assert_ne!(a, cache_key("r2", SearchScope::Season { season: 1 }));
+    }
+
+    #[test]
+    fn a_scored_release_carries_the_target_it_was_judged_against() {
+        let view = score_release(
+            &release("Show.S01E01.1080p.WEB-DL.x265-GRP", Some(20)),
+            &indexer(0),
+            &target(),
+            &profile(),
+        );
+        assert_eq!(view.indexer_id, "idx1");
+        assert_eq!(view.indexer_name, "Tracker");
+        assert_eq!(view.target, "episode", "what a grab of it would be filed as");
+        assert_eq!(view.season, Some(1));
+        assert_eq!(view.episodes, Some(vec![1]));
+        assert!(view.score.is_some(), "accepted, so it has a rank");
+        assert!(view.rejected.is_none());
+        assert!(!view.breakdown.is_empty(), "and the reasons behind that rank");
+        assert!(view.grabbable);
+        assert!(!view.upgrade, "decided later, against the real ledger");
+    }
+
+    #[test]
+    fn a_release_the_profile_refuses_keeps_its_reason_instead_of_a_score() {
+        // Under the seeder floor: shown anyway, because "why was this rejected"
+        // is the question the table exists to answer.
+        let view = score_release(&release("Show.S01E01.1080p", Some(0)), &indexer(0), &target(), &profile());
+        assert!(view.score.is_none());
+        let reason = view.rejected.expect("a rejected release says which rule fired");
+        assert!(reason.contains(':'), "rule and note, not a bare word: {reason}");
+        assert!(view.breakdown.is_empty());
+    }
+
+    #[test]
+    fn a_release_with_no_link_of_any_kind_is_not_grabbable() {
+        let mut bare = release("Show.S01E01.1080p", Some(9));
+        bare.magnet = None;
+        bare.link = None;
+        bare.details_url = None;
+        assert!(!score_release(&bare, &indexer(0), &target(), &profile()).grabbable);
+    }
+
+    #[test]
+    fn a_details_page_alone_is_grabbable_because_the_link_resolves_from_it() {
+        let mut only_details = release("Show.S01E01.1080p", Some(9));
+        only_details.magnet = None;
+        only_details.link = None;
+        assert!(score_release(&only_details, &indexer(0), &target(), &profile()).grabbable);
+    }
+
+    #[test]
+    fn the_cache_hands_a_grab_back_the_release_the_search_showed() {
+        let scope = SearchScope::Episode { season: 4, episode: 2 };
+        let view = score_release(&release("Show.S04E02.1080p", Some(9)), &indexer(0), &target(), &profile());
+        cache_results(
+            "req-cache",
+            scope,
+            vec![CachedRelease { view, magnet_or_url: "magnet:?xt=2".into(), tmdb_id: 42 }],
+        );
+
+        let found = cached_release("req-cache", scope, "g1", "idx1").expect("cached");
+        assert_eq!(found.magnet_or_url, "magnet:?xt=2", "so a grab needs no re-sweep");
+        // A different scope, indexer or guid is a different question.
+        assert!(cached_release("req-cache", SearchScope::All, "g1", "idx1").is_none());
+        assert!(cached_release("req-cache", scope, "other", "idx1").is_none());
+        assert!(cached_release("req-cache", scope, "g1", "other").is_none());
     }
 }

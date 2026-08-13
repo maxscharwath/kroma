@@ -2,9 +2,9 @@
 // nothing here has a target to be scored against. What the row carries instead
 // is what the parser read off the name, which is what the grab will import it as.
 
-import { formatBytes } from '@kroma/core';
-import { TABULAR, Table, useT } from '@kroma/module-sdk';
-import { Box, EmptyState, Icon, Row, Text } from '@kroma/ui/kit';
+import { Table, useT } from '@kroma/module-sdk';
+import { Box, EmptyState, Row, Text } from '@kroma/ui/kit';
+import { ReleaseFacts } from './release-cells';
 import type { ManualReleaseView } from './schemas';
 
 const COLUMNS = 'minmax(0,1fr) 150px 92px 84px 44px';
@@ -91,33 +91,12 @@ function ManualRow({
           ) : null}
         </Row>
       </Table.Cell>
-      <Table.Cell wide>
-        <Row gap={4}>
-          <Text variant="meta" color="textDim" lines={1}>
-            {r.indexerName}
-          </Text>
-          {r.detailsUrl ? (
-            <a
-              href={r.detailsUrl}
-              target="_blank"
-              rel="noreferrer"
-              title={t('downloads.viewOnTracker')}
-            >
-              <Icon name="external-link" size={11} thickness={2} color="textDim" />
-            </a>
-          ) : null}
-        </Row>
-      </Table.Cell>
-      <Table.Cell wide>
-        <Text variant="meta" color="textDim" style={TABULAR}>
-          {r.sizeBytes != null ? formatBytes(r.sizeBytes) : '—'}
-        </Text>
-      </Table.Cell>
-      <Table.Cell wide>
-        <Text variant="meta" color="success" style={TABULAR}>
-          {r.seeders ?? '—'}
-        </Text>
-      </Table.Cell>
+      <ReleaseFacts
+        indexerName={r.indexerName}
+        detailsUrl={r.detailsUrl}
+        sizeBytes={r.sizeBytes}
+        seeders={r.seeders}
+      />
       <Table.Cell>
         {canGrab && grabbable ? (
           <Table.Action

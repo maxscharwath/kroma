@@ -4,11 +4,11 @@
 // request drawer used to show.
 
 import type { IndexerReport, ScoredReleaseView } from '@kroma/core';
-import { formatBytes } from '@kroma/core';
 import { TABULAR, Table, useT } from '@kroma/module-sdk';
 import { Box, Chip, Divider, EmptyState, Icon, Row, SegmentedControl, Text } from '@kroma/ui/kit';
 import { useMemo, useState } from 'react';
 import { IndexerReportStrip } from './indexer-report';
+import { ReleaseFacts } from './release-cells';
 import {
   filterReleases,
   type ReleaseFilter,
@@ -176,33 +176,12 @@ function ReleaseRow({
             </Box>
           </Row>
         </Table.Cell>
-        <Table.Cell wide>
-          <Row gap={4}>
-            <Text variant="meta" color="textDim" lines={1}>
-              {r.indexerName}
-            </Text>
-            {r.detailsUrl ? (
-              <a
-                href={r.detailsUrl}
-                target="_blank"
-                rel="noreferrer"
-                title={t('downloads.viewOnTracker')}
-              >
-                <Icon name="external-link" size={11} thickness={2} color="textDim" />
-              </a>
-            ) : null}
-          </Row>
-        </Table.Cell>
-        <Table.Cell wide>
-          <Text variant="meta" color="textDim" style={TABULAR}>
-            {r.sizeBytes != null ? formatBytes(r.sizeBytes) : '—'}
-          </Text>
-        </Table.Cell>
-        <Table.Cell wide>
-          <Text variant="meta" color="success" style={TABULAR}>
-            {r.seeders ?? '—'}
-          </Text>
-        </Table.Cell>
+        <ReleaseFacts
+          indexerName={r.indexerName}
+          detailsUrl={r.detailsUrl}
+          sizeBytes={r.sizeBytes}
+          seeders={r.seeders}
+        />
         <Table.Cell>
           {r.score != null ? (
             <Row self="flex-start" radius="pill" bg="accentWash/14" px={8} py={2}>

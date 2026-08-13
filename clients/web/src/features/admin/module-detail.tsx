@@ -38,10 +38,7 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
   const navigate = useNavigate();
   const { modules, catalog, reload, refreshAll } = useModuleData();
   const { activeByModule } = useStoreOps();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [dependents, setDependents] = useState<string[] | null>(null);
+  const removal = useUninstall(id);
 
   // The list reads the same query keys, so a change here is already on screen
   // when the user goes back.
@@ -61,26 +58,6 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
 
   const install = async () => {
     if (await InstallModal.call({ id })) refresh();
-  };
-
-  const doUninstall = async (force: boolean) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await uninstallModule(id, force);
-      await refreshAll();
-      back();
-    } catch (e) {
-      if (e instanceof UninstallConflictError) {
-        setDependents(e.dependents);
-      } else {
-        setError(message(e));
-        setRemoving(false);
-        setDependents(null);
-      }
-    } finally {
-      setBusy(false);
-    }
   };
 
   if (!installed && !entry) {
@@ -105,7 +82,7 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
               name={name}
               update={update}
               toggler={toggler}
-              onUninstall={() => setRemoving(true)}
+              onUninstall={removal.ask}
               onInstall={() => void install()}
             />
           )}
@@ -118,17 +95,14 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
         </Box>
       ) : null}
 
-      {removing && !op ? (
+      {removal.asking && !op ? (
         <Box mb={16}>
           <UninstallConfirm
             name={name}
-            dependents={dependents}
-            busy={busy}
-            onCancel={() => {
-              setRemoving(false);
-              setDependents(null);
-            }}
-            onConfirm={(force) => void doUninstall(force)}
+            dependents={removal.dependents}
+            busy={removal.busy}
+            onCancel={removal.cancel}
+            onConfirm={(force) => void removal.confirm(force, refreshAll, back)}
           />
         </Box>
       ) : null}
@@ -168,9 +142,9 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
 
         <Box flex minW={0} w={{ base: '100%', lg: 'auto' }}>
           <Surface elevated radius="xl" pad="lg" gap={24}>
-            {(error ?? toggler.error) ? (
+            {(removal.error ?? toggler.error) ? (
               <Text variant="meta" color="danger">
-                {error ?? toggler.error}
+                {removal.error ?? toggler.error}
               </Text>
             ) : null}
             {entry && !entry.compatible && entry.reason ? (
@@ -189,6 +163,45 @@ function ModuleDetailInner({ id }: Readonly<{ id: string }>) {
       </Box>
     </>
   );
+}
+
+// Uninstalling is a small state machine of its own: ask, then confirm, then a
+// refusal that comes back with the dependents blocking it and re-asks with the
+// force option. Kept out of the page so the page stays layout, and so the four
+// pieces of state that only this flow touches are not four more the page holds.
+function useUninstall(id: string) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dependents, setDependents] = useState<string[] | null>(null);
+
+  const cancel = () => {
+    setAsking(false);
+    setDependents(null);
+  };
+
+  const confirm = async (force: boolean, refreshAll: () => Promise<unknown>, done: () => void) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await uninstallModule(id, force);
+      await refreshAll();
+      done();
+    } catch (e) {
+      // A conflict is not a failure: it is the answer, and it names what is in
+      // the way so the confirm can offer to force past it.
+      if (e instanceof UninstallConflictError) {
+        setDependents(e.dependents);
+      } else {
+        setError(message(e));
+        cancel();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return { asking, busy, error, dependents, ask: () => setAsking(true), cancel, confirm };
 }
 
 // What to call a module: whichever half knows, the installed copy first. A

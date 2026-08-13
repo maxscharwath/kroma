@@ -248,8 +248,9 @@
    A borderless control whose WRAPPER is the box a reader sees (a search box
    with a glyph in it, an InputGroup) marks itself `data-focus-ring="off"`:
    the control takes no ring, and its direct parent lights up instead.
-   `[role="combobox"]` is included because a select chip is a FIELD even
-   though it is built from a button. */
+   A <Select> trigger is NOT here: it is a control the keyboard operates, not
+   text the keyboard types into, so it wears the app's ring like every other
+   one. Only the native <select> does, being a field with text in it. */
 input:not(
   [type="checkbox"],
   [type="radio"],
@@ -260,7 +261,6 @@ input:not(
 ):focus-visible:not([data-focus-ring="off"]),
 textarea:focus-visible:not([data-focus-ring="off"]),
 select:focus-visible,
-[role="combobox"]:focus-visible,
 :has(> [data-focus-ring="off"]:focus):not([data-focus-ring="off"]) {
   border-color: var(--kroma-accent);
   outline: var(--ring-field);

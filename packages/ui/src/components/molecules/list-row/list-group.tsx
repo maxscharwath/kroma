@@ -27,6 +27,8 @@ interface ListGroupSlot {
 
 const InGroup = createContext<ListGroupSlot | null>(null);
 
+const INSET_RING = { focusRingInset: '' } as const;
+
 /** The group this row is a member of, or `null` when it stands alone. A member
  * must not draw a surface of its own, and takes the group's size. */
 export function useListGroup(): ListGroupSlot | null {
@@ -62,6 +64,10 @@ function ListGroup({ children, size, divider, style }: Readonly<ListGroupProps>)
       // The members' corners are the card's: clip them rather than asking
       // each row which end of the list it landed on.
       overflow="hidden"
+      // And because it clips them, a member's ring is drawn inward: the browser
+      // targets draw the ring in CSS, where the row itself cannot say so (the
+      // rule is in styles/base.css).
+      dataSet={INSET_RING}
       style={style}
     >
       <Frost radius={metrics.radius} />

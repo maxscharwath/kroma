@@ -111,3 +111,6 @@ __pycache__/
 # Emitted from clients/web/src/sw.ts by the Vite plugin in
 # clients/web/service-worker.ts, on both `dev` and `build`.
 clients/web/public/sw.js
+
+# Kit DOM audit output (bun run kit:dom): review artefacts, not sources.
+.dom/

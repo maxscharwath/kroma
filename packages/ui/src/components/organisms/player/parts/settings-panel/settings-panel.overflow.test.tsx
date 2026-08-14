@@ -3,11 +3,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { chromeMetrics } from '#ui/components/organisms/player/lib/metrics';
+import { type ControlId, controlOrder } from '#ui/components/organisms/player/lib/nav';
+import type { SubtitleAppearance } from '#ui/components/organisms/player/lib/subtitle-appearance';
+import { type PlayerController, WEB_FLAGS } from '#ui/components/organisms/player/types';
 import { I18nProvider } from '#ui/services/i18n';
-import { chromeMetrics } from '../../lib/metrics';
-import { type ControlId, controlOrder } from '../../lib/nav';
-import type { SubtitleAppearance } from '../../lib/subtitle-appearance';
-import { type PlayerController, WEB_FLAGS } from '../../types';
 import type { SubtitleGenBundle } from './settings/gen';
 import { SettingsPanel } from './settings-panel';
 

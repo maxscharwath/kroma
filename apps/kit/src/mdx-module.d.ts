@@ -1,4 +1,4 @@
-// The kit's own `.page.mdx` articles, as the bundlers compile them. Mirrors the
+// The kit site's own `.page.mdx` guides, as the bundlers compile them. Mirrors the
 // declaration in @kroma/workbench, which a consumer of that package gets from
 // its own source and this one does not.
 

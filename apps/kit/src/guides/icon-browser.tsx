@@ -6,7 +6,7 @@ import { Spinner } from '#ui/components/atoms/spinner';
 import { Text } from '#ui/components/atoms/text';
 import { Field } from '#ui/components/molecules/field';
 import { Pagination, paginate } from '#ui/components/molecules/pagination';
-import { SegmentedControl } from '#ui/components/molecules/segmented-control';
+import { SegmentGroup } from '#ui/components/molecules/segment-group';
 import { Select } from '#ui/components/molecules/select';
 import { SearchKeyboard } from '#ui/components/organisms/keyboard';
 import { styles } from '#ui/core';
@@ -130,12 +130,13 @@ function Browser() {
             </Named>
           ) : null}
           <Named label="Glyph size (px)">
-            <SegmentedControl.Root
-              label="Glyph size in pixels"
-              value={size}
-              options={SIZES}
-              onValueChange={setSize}
-            />
+            <SegmentGroup.Root label="Glyph size in pixels" value={size} onValueChange={setSize}>
+              {SIZES.map((option) => (
+                <SegmentGroup.Item key={option.value} value={option.value}>
+                  <SegmentGroup.Label>{option.label}</SegmentGroup.Label>
+                </SegmentGroup.Item>
+              ))}
+            </SegmentGroup.Root>
           </Named>
         </Box>
         {REMOTE ? <SearchKeyboard size="tv" value={query} onValueChange={search} /> : null}

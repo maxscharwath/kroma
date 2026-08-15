@@ -5,7 +5,7 @@ import { type SiteCatalog, toSiteCatalog } from '../src/lib/modules.ts';
 // The official module catalog, fetched once per build and compiled into the
 // bundle as `virtual:kroma-modules`. The browser never requests it: the list is
 // part of the prerendered HTML, so it renders without JS and costs no round
-// trip. The price of that choice is staleness — the site shows the catalog as of
+// trip. The price of that choice is staleness: the site shows the catalog as of
 // its last deploy.
 
 const CATALOG_URL = 'https://modules.kroma.tv/modules.json';

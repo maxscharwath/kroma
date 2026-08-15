@@ -6,7 +6,7 @@
 
 **Your own Netflix, on hardware you own.**
 Find it, download it, organize it, stream it. One Rust server for playback and
-catalog, and everything else — indexers · torrent engine · VPN + kill switch · AI —
+catalog, and everything else (indexers · torrent engine · VPN + kill switch · AI)
 as a module you install in a click. No Sonarr, no Radarr, no Jackett, no
 qBittorrent, no Gluetun. **Just KROMA.**
 
@@ -40,8 +40,8 @@ the web, your phone and your living-room TV, wrapped in one calm, cinematic,
 amber-on-charcoal design language.
 
 **Nothing to wire together.** Where a typical setup bolts together Sonarr +
-Radarr + Prowlarr/Jackett + qBittorrent + Gluetun + Jellyfin + Overseerr — six
-containers, six configs, six things that break — KROMA is one process you install
+Radarr + Prowlarr/Jackett + qBittorrent + Gluetun + Jellyfin + Overseerr (six
+containers, six configs, six things that break), KROMA is one process you install
 once. The rest are modules: you pick them from the Store inside the app, they
 install with one click, and they find each other by capability. No compose file,
 no ports to map, no credentials to copy between services.
@@ -80,26 +80,26 @@ is a module you add from Admin → Modules.
 | 📊 **Live bus** | scan/library/playback dashboards over a real-time WebSocket | at a glance |
 | 🧩 **Module store** | registries, sha256-verified installs, the sidecar supervisor | how the rest arrives |
 
-**Modules, one click from the Store** — the official catalog is
+**Modules, one click from the Store.** The official catalog is
 [`modules.kroma.tv/modules.json`](https://modules.kroma.tv/modules.json):
 
 | Module | What it adds | Needs |
 | --- | --- | --- |
-| 🔎 **Indexers** `tv.kroma.indexer` | native Cardigann engine — runs Jackett/Prowlarr tracker definitions directly | — |
-| 🔎 **Torznab** `tv.kroma.torznab` | external Torznab/Newznab indexers (Jackett, Prowlarr) | — |
+| 🔎 **Indexers** `tv.kroma.indexer` | native Cardigann engine, running Jackett/Prowlarr tracker definitions directly | - |
+| 🔎 **Torznab** `tv.kroma.torznab` | external Torznab/Newznab indexers (Jackett, Prowlarr) | - |
 | ⬇️ **Torrent downloads** `tv.kroma.torrents` | the embedded librqbit engine + the download queue | an indexer |
 | ⬇️ **qBittorrent** · **Transmission** | those clients as download sub-engines | Torrent downloads |
 | 🧠 **Acquisition** `tv.kroma.acquisition` | release search, quality scoring, grab + import, automatic wanted-list | an indexer + a download client |
-| 🔒 **VPN** `tv.kroma.vpn` | managed WireGuard→SOCKS5 bridge with a live seal test and kill switch | — |
-| ✨ **Embeddings** `tv.kroma.vector` | content embeddings behind For You, themed rows and semantic search | — |
-| ✨ **Whisper** `tv.kroma.whisper` | on-device subtitle transcription (candle) | — |
-| 🌐 **Remote access** `tv.kroma.remote` | public HTTPS share URL + optional managed Cloudflare Tunnel | — |
-| 📡 **mDNS** `tv.kroma.mdns` | DNS-SD advertising so LAN clients find the server automatically | — |
-| 🎞️ **Release parser** `tv.kroma.scene` | scene/P2P release-name parsing and scoring | — |
+| 🔒 **VPN** `tv.kroma.vpn` | managed WireGuard→SOCKS5 bridge with a live seal test and kill switch | - |
+| ✨ **Embeddings** `tv.kroma.vector` | content embeddings behind For You, themed rows and semantic search | - |
+| ✨ **Whisper** `tv.kroma.whisper` | on-device subtitle transcription (candle) | - |
+| 🌐 **Remote access** `tv.kroma.remote` | public HTTPS share URL + optional managed Cloudflare Tunnel | - |
+| 📡 **mDNS** `tv.kroma.mdns` | DNS-SD advertising so LAN clients find the server automatically | - |
+| 🎞️ **Release parser** `tv.kroma.scene` | scene/P2P release-name parsing and scoring | - |
 
 > **The one thing to know about the home screen.** Continue watching, Recently
 > added and Trending are plain database rows and always work. **For You and the
-> themed/semantic rows need the Embeddings module** — without it the core's
+> themed/semantic rows need the Embeddings module**. Without it the core's
 > embedder resolves to nothing, and those rows are simply not emitted rather than
 > breaking the page. The module ships a dependency-free lexical embedder by
 > default; a multilingual semantic build is available for better themed rows.
@@ -109,8 +109,8 @@ activity never leave your network.
 
 > **Playback is direct-play, HEVC-first.** The server never transcodes video: it
 > **range-streams the original files** and every client decodes HEVC/H.265 (incl.
-> 10-bit / HDR) natively — Samsung & LG TVs in hardware, modern browsers where
-> supported — so your NAS CPU stays idle. The one exception is an **audio-only**
+> 10-bit / HDR) natively (Samsung & LG TVs in hardware, modern browsers where
+> supported), so your NAS CPU stays idle. The one exception is an **audio-only**
 > HLS path for browsers that can't decode AC3/EAC3/DTS (video is copied, only the
 > audio is re-encoded to stereo AAC).
 
@@ -126,7 +126,7 @@ activity never leave your network.
 - **A native indexer engine** *(module: Indexers)*. A reimplementation of
   **Cardigann** runs the same community-maintained tracker definitions
   Jackett/Prowlarr use, fetched at runtime, with HTML/JSON/XML scraping, logins
-  and Cloudflare (FlareSolverr) — so you search real trackers with **no aggregator
+  and Cloudflare (FlareSolverr), so you search real trackers with **no aggregator
   to install**. External Torznab endpoints are their own module and work side by side.
 - **An embedded torrent engine** *(module: Torrent downloads)*. A librqbit
   BitTorrent client grabs releases in the module's own process; Transmission and
@@ -157,7 +157,7 @@ activity never leave your network.
 - **Multi-user and private.** Accounts, profiles, PIN-locked profiles, WebAuthn
   passkeys, invite links, per-user permissions and resume-anywhere.
 - **Live everything.** A WebSocket bus streams scan, enrich and library progress
-  to admin dashboards and clients in real time — posters appear as TMDB resolves
+  to admin dashboards and clients in real time. Posters appear as TMDB resolves
   them, with no client relaunch. Download progress, speed and ETA join the same
   bus once the download modules are installed.
 - **Zero-config discovery and one-tap pairing.** Clients subnet-scan the LAN, so
@@ -183,8 +183,8 @@ structural north-star; this is the short version.
 dependency rule is checked by `cargo build`, not by a CI grep.
 
 ```
-kroma-server (bin)  main.rs + api/ — router and handlers, no business logic
-  └─ kroma-engine   infra · services · state · model — the business logic
+kroma-server (bin)  main.rs + api/   router and handlers, no business logic
+  └─ kroma-engine   infra · services · state · model   the business logic
        ├─ kroma-db          all SQL, one shared Pool (WAL)
        ├─ kroma-domain      entities + pure rules: serde ONLY, no axum/rusqlite/reqwest
        ├─ kroma-primitives  timestamps · short hashes · random tokens
@@ -212,7 +212,7 @@ multi-process is safe).
 | `tv.kroma.scene` | release-name parser | `tv.kroma.remote` | remote access |
 | `tv.kroma.engine.qbittorrent` · `tv.kroma.engine.transmission` | external download clients | | |
 
-`modules/roster.yaml` is **empty on purpose** — this is the zero-module base
+`modules/roster.yaml` is **empty on purpose**: this is the zero-module base
 build. Every first-party module ships as an installable `.kmod` (a zstd bundle of
 `module.json` + a native binary + icon + `fe/`), releases on its own tag
 `<module-id>@<version>`, and installs from a **registry**: one pinned official
@@ -264,7 +264,7 @@ import each other, and both reach a library by its `@kroma/*` name.
 
 | Package / app | What it is | README |
 | ------------- | ---------- | ------ |
-| `server` | Rust media server — scan, SQLite, TMDB, range/HLS streaming | [server/README.md](server/README.md) |
+| `server` | Rust media server: scan, SQLite, TMDB, range/HLS streaming | [server/README.md](server/README.md) |
 | `modules/*` | The `.kmod` sidecars and how to author one | [modules/README.md](modules/README.md) |
 | `@kroma/core` | API client, types, HEVC detection, remote map, direct-play | [packages/core/README.md](packages/core/README.md) |
 | `@kroma/ui` | Design-system components + tokens, authored against React Native | [packages/ui/README.md](packages/ui/README.md) |
@@ -283,7 +283,7 @@ import each other, and both reach a library by its `@kroma/*` name.
 
 ## Prerequisites
 
-- **[Bun](https://bun.sh)** ≥ 1.3 — package manager and runner (the repo is a Bun workspace)
+- **[Bun](https://bun.sh)** ≥ 1.3, the package manager and runner (the repo is a Bun workspace)
 - **[Rust](https://www.rust-lang.org)** ≥ 1.88 + **ffmpeg/ffprobe** for the server's
   metadata and HLS path. `rust-toolchain.toml` pins the build to a concrete stable
   and rustup installs it for you.
@@ -311,20 +311,20 @@ Lighter variants, and separate terminals:
 ```bash
 bun run dev:webonly           # server + web only
 bun run dev:module            # server + web + module hot-reload
-bun run server:watch:lexical  # no ML features at all — the fastest rebuild
+bun run server:watch:lexical  # no ML features at all, the fastest rebuild
 bun run server && bun run dev:web
 ```
 
 ## Platforms
 
-Every root script is `<verb>:<target>` — **`dev:`** starts a dev server (Vite, or
+Every root script is `<verb>:<target>`. **`dev:`** starts a dev server (Vite, or
 Metro for the native apps), **`build:`** and **`deploy:`** ship it. `bun run` with
 no argument lists them all. Anything targeting a single workspace is
 `bun run --filter '@kroma/<name>' <script>`, which is how the native apps are
 compiled onto a simulator or device (`ios`, `android`).
 
-Each TV *shell* runs in a normal desktop browser for development — **arrow keys and
-Enter act as the remote**:
+Each TV *shell* runs in a normal desktop browser for development, where **arrow
+keys and Enter act as the remote**:
 
 ```bash
 bun run dev:tizen      # :5174   Samsung
@@ -339,7 +339,7 @@ bun run dev:webos      # :5175   LG
 | **Apple TV / Android TV** | `bun run --filter '@kroma/tv-native' ios` · `android` | Expo prebuild + native build; `bun run build:tv-native` is the JS-only gate ([tv-native](clients/tv-native)) |
 | **iPhone / iPad / Android** | `bun run --filter '@kroma/mobile' ios` · `android` | Expo prebuild + native build; `bun run build:mobile` is the JS-only gate ([mobile README](clients/mobile/README.md)) |
 | **Desktop** (macOS / Windows / Linux) | `bun run dev:desktop` | `bun run build:desktop` → Tauri bundle, mpv-backed ([desktop README](clients/desktop/README.md)) |
-| **Synology NAS** | — | `.spk` from the package source ([synology README](clients/synology/README.md)) |
+| **Synology NAS** | - | `.spk` from the package source ([synology README](clients/synology/README.md)) |
 | **TV on the web** | `bun run dev:tv-web` | `bun run deploy:tv-web` → tv.kroma.tv |
 | **Design system workbench** | `bun run dev:kit` (:5180) · `kit:ios` · `kit:tv` | `bun run deploy:kit` → ui.kroma.tv ([kit README](apps/kit/README.md)) |
 
@@ -348,7 +348,7 @@ The Expo scripts pass extra flags straight through: a physical device is
 `--configuration Release` installs a standalone build that needs no Metro at all.
 `bun run dev:mobile` (and the `start` script of any Expo workspace) launches Metro
 alone, for when the app is already installed. Two Expo apps at once collide on
-Metro's port — `--port 8083` moves the *server*, but a debug build still asks
+Metro's port: `--port 8083` moves the *server*, but a debug build still asks
 :8081 until you tell that install otherwise:
 `xcrun simctl spawn <udid> defaults write tv.kroma.mobile RCT_jsLocation localhost:8083`.
 
@@ -370,7 +370,7 @@ These are the CI hard gates ([`.github/workflows/ci.yml`](.github/workflows/ci.y
 
 ```bash
 bun run typecheck        # every TS workspace
-bun run test             # vitest — two projects: web + native
+bun run test             # vitest, two projects: web + native
 bun run check            # biome format + lint   (check:fix to write)
 cd server && cargo clippy --workspace --all-targets && cargo test --workspace
 bun run modules:clippy && bun run modules:test   # the module workspaces
@@ -379,7 +379,7 @@ bun run modules:clippy && bun run modules:test   # the module workspaces
 That last line is not redundant: modules are separate cargo workspaces, so
 `--workspace` from `server/` does not reach them. `bun run modules:check`
 (manifests valid, generated output in sync) and `bun run deadcode` (knip) are not
-wired into a workflow — run them by hand after touching a module or a generator.
+wired into a workflow. Run them by hand after touching a module or a generator.
 
 Quality is tracked on [SonarCloud](https://sonarcloud.io/summary/new_code?id=maxscharwath_kroma);
 the scanner's scope, coverage exclusions and every justified suppression live in
@@ -390,15 +390,15 @@ that put it there.
 
 `http://<host>:4040/api`:
 
-- **Catalogue** — `GET /health`, `/libraries`, `/movies`, `/shows`, `/shows/:id`
+- **Catalogue**: `GET /health`, `/libraries`, `/movies`, `/shows`, `/shows/:id`
   (seasons + episodes), `/items`, `/items/:id`, `/items/:id/metadata` (TMDB), posters.
-- **Streaming** — `/items/:id/stream` (HTTP range), `/items/:id/hls/…` (audio-only HLS).
-- **Discovery** — `/search?q=` (typo-tolerant, in-process), `/home` (generated
+- **Streaming**: `/items/:id/stream` (HTTP range), `/items/:id/hls/…` (audio-only HLS).
+- **Discovery**: `/search?q=` (typo-tolerant, in-process), `/home` (generated
   sections), `/continue`. `/for-you`, `/items/:id/similar` and `/themed?q=` are
   served by the core but need the Embeddings module to return anything.
-- **Accounts & control** — `/auth/*` (incl. Quick Connect), `/handoff/*` (nearby
+- **Accounts & control**: `/auth/*` (incl. Quick Connect), `/handoff/*` (nearby
   TV pairing), `/progress`, `/admin/*`, `GET /events` (WebSocket), `POST /scan`.
-- **Modules** — `/api/module/<id>/*` is reverse-proxied to the sidecar;
+- **Modules**: `/api/module/<id>/*` is reverse-proxied to the sidecar;
   `/api/_host/*` is the token-authed API a module calls back into.
 
 Configure via `KROMA_HOST` / `KROMA_PORT` / `KROMA_MEDIA_DIRS` / `KROMA_DATA_DIR` /
@@ -439,7 +439,7 @@ the design, and the workbench is the clickable reference.
 bun run dev:kit          # http://localhost:5180
 ```
 
-The kit has six levels and three doors out of it — read
+The kit has six levels and three doors out of it. Read
 [`packages/ui/src/components/README.md`](packages/ui/src/components/README.md) for
 what earns a place at each, and
 [`packages/ui/src/components/DESIGN.md`](packages/ui/src/components/DESIGN.md) for
@@ -447,7 +447,7 @@ how a component's API is shaped, before adding one or changing its props.
 
 ## Contributing
 
-Issues and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and
+Issues and PRs are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and
 how to report playback bugs, [CODE_STYLE.md](CODE_STYLE.md) for how code is
 written here (**the default is no comment**), and
 [CONVENTIONS.md](CONVENTIONS.md) for the cross-file house rules.

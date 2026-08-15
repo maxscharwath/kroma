@@ -88,7 +88,8 @@ function values(text: string, key: string): string[] {
     .filter((l) => !l.trimStart().startsWith('#'))
     .join('\n')
     .replaceAll('\\\n', '');
-  const line = new RegExp(`^${key.replaceAll('.', String.raw`\.`)}=(.*)$`, 'm').exec(body);
+  const escaped = key.replaceAll('.', String.raw`\.`);
+  const line = new RegExp(`^${escaped}=(.*)$`, 'm').exec(body);
   return (
     line?.[1]
       ?.split(',')
@@ -115,7 +116,7 @@ for (const key of LISTS) {
     hits.set(p, matched);
     if (matched.length === 0 && !DEFENSIVE.has(p)) {
       problems.push(
-        `${key}: '${p}' matches no file — it silently does nothing. Repoint or delete it.`,
+        `${key}: '${p}' matches no file, so it silently does nothing. Repoint or delete it.`,
       );
     }
   }
@@ -127,7 +128,7 @@ for (const key of LISTS) {
         q !== p && (hits.get(q)?.length ?? 0) > 0 && matched.every((f) => hits.get(q)?.includes(f)),
     );
     if (covered) {
-      problems.push(`${key}: '${p}' is fully covered by '${covered}' — redundant.`);
+      problems.push(`${key}: '${p}' is redundant, fully covered by '${covered}'.`);
     }
   }
 }
@@ -146,7 +147,7 @@ for (const id of ids) {
   const rx = toRegExp(key.trim());
   if (!files.some((f) => rx.test(f))) {
     problems.push(
-      `multicriteria '${id}': resourceKey '${key.trim()}' matches no file — the rule is no longer suppressed.`,
+      `multicriteria '${id}': resourceKey '${key.trim()}' matches no file, so the rule is no longer suppressed.`,
     );
   }
 }

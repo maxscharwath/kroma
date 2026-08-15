@@ -64,7 +64,7 @@ export function toSiteCatalog(raw: RawCatalog): SiteCatalog {
 
 /**
  * The site's own translated one-liner for a module, or the catalog's English
- * description when the site has no copy for it yet — which is what a newly
+ * description when the site has no copy for it yet, which is what a newly
  * published module gets until its copy lands.
  *
  * The message map is an argument rather than an import: this module has to stay

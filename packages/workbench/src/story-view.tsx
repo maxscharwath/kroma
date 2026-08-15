@@ -69,6 +69,37 @@ function useStageView(story: Story | undefined) {
 
 type StageView = ReturnType<typeof useStageView>;
 
+interface StageToolbarProps {
+  stage: StageView;
+  lenses?: readonly ToolbarLens[];
+  layout: WorkbenchLayout;
+  /** Opens the component list; set only while the tree is a drawer. */
+  onMenu?: () => void;
+}
+
+/** The toolbar wired to the stage it drives. Every canvas - the story, its
+ * document, and the one still loading - shows the same one, so the wiring is
+ * written once rather than fourteen props at a time. */
+function StageToolbar({ stage, lenses, layout, onMenu }: Readonly<StageToolbarProps>) {
+  return (
+    <Toolbar
+      lenses={lenses}
+      viewport={stage.viewport}
+      onViewport={stage.pickViewport}
+      surface={stage.surface}
+      onSurface={stage.setSurface}
+      theme={stage.theme}
+      onTheme={stage.pickTheme}
+      rotate={stage.rotate}
+      onRotate={stage.setRotate}
+      full={stage.full}
+      onFull={stage.setFull}
+      onMenu={onMenu}
+      layout={layout}
+    />
+  );
+}
+
 interface StoryCanvasProps {
   story: Story;
   view: View;
@@ -101,21 +132,7 @@ function StoryCanvas({
     // the reading view moves nothing but the stage.
     return (
       <Box flex minW={0} minH={0}>
-        <Toolbar
-          lenses={lenses}
-          viewport={stage.viewport}
-          onViewport={stage.pickViewport}
-          surface={stage.surface}
-          onSurface={stage.setSurface}
-          theme={stage.theme}
-          onTheme={stage.pickTheme}
-          rotate={stage.rotate}
-          onRotate={stage.setRotate}
-          full={stage.full}
-          onFull={stage.setFull}
-          onMenu={onMenu}
-          layout={layout}
-        />
+        <StageToolbar stage={stage} lenses={lenses} onMenu={onMenu} layout={layout} />
         {/* No heading over the tabs here: the document carries its own, the way
             a guide does, and two titles for one component is one too many. */}
         <CanvasTabs story={story} view={view} onView={onView} layout={layout} />
@@ -127,21 +144,7 @@ function StoryCanvas({
     // `minW={0}` stops a wide story from pushing the column past the window
     // instead of scrolling inside it.
     <Box flex minW={0} minH={0}>
-      <Toolbar
-        lenses={lenses}
-        viewport={stage.viewport}
-        onViewport={stage.pickViewport}
-        surface={stage.surface}
-        onSurface={stage.setSurface}
-        theme={stage.theme}
-        onTheme={stage.pickTheme}
-        rotate={stage.rotate}
-        onRotate={stage.setRotate}
-        full={stage.full}
-        onFull={stage.setFull}
-        onMenu={onMenu}
-        layout={layout}
-      />
+      <StageToolbar stage={stage} lenses={lenses} onMenu={onMenu} layout={layout} />
       <StoryHeading name={story.name} group={story.group} layout={layout} />
       <CanvasTabs story={story} view={view} onView={onView} layout={layout} />
       {docs ? (
@@ -304,4 +307,4 @@ const s = styles({
 const codeToggle = sv({ base: { py: 12, _focus: { bg: 'white/6' } } });
 
 export type { StageView };
-export { playFor, renderBody, StoryCanvas, StoryHeading, useStageView, viewCode };
+export { playFor, renderBody, StageToolbar, StoryCanvas, StoryHeading, useStageView, viewCode };

@@ -11,14 +11,13 @@ import { memo, useCallback, useMemo, useState } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, ScrollView } from 'react-native';
 import type { WorkbenchLayout } from './layout';
 import { MdxDoc, MEASURE } from './mdx';
-import { activeSection, OutlineContext, type Section, useOutline } from './outline';
+import { OutlineContext, type Section, sectionAtScroll, useOutline } from './outline';
 import { outlineOf, PageToc, TOC_WIDTH } from './page-toc';
 import type { DocComponent, Story } from './story';
 import { StoryDocContext } from './story-blocks';
 
 const JUMP_PAD = space[6];
 const SCROLL_HZ = 48;
-const END_SLACK = 2;
 
 interface StoryDocsProps {
   story: Story;
@@ -40,9 +39,7 @@ function StoryDocs({ story, args, content, layout }: Readonly<StoryDocsProps>) {
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const atEnd = contentOffset.y + layoutMeasurement.height >= contentSize.height - END_SLACK;
-      const at = activeSection(listed, top, contentOffset.y, atEnd);
+      const at = sectionAtScroll(listed, top, event.nativeEvent);
       setActive((prev) => (prev === at ? prev : at));
     },
     [listed, top],

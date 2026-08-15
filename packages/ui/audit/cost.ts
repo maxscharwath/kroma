@@ -94,12 +94,12 @@ function spacing(style: CSSStyleDeclaration): readonly string[] {
   return [...found, ...gaps].filter(Boolean);
 }
 
-const UNSET_SIZE = ['auto', '', 'none', '0px'];
+const UNSET_SIZE = new Set(['auto', '', 'none', '0px']);
 
 function sizing(style: CSSStyleDeclaration): readonly string[] {
   return SIZE_PROPS.filter((prop) => {
     const value = style.getPropertyValue(prop);
-    return Boolean(value) && !UNSET_SIZE.includes(value);
+    return Boolean(value) && !UNSET_SIZE.has(value);
   });
 }
 

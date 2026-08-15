@@ -27,23 +27,33 @@ const keyOf = (repo: string, fileName: string): string =>
 
 type Node = { type: string; [key: string]: unknown };
 
-// `export const story = defineStory({...})`, and the two spellings around it:
-// the export wrapper, and a definition handed straight over rather than called.
+// Past the export wrapper, to the declaration itself.
+function declarationOf(statement: Node): Node | null {
+  const declared = (
+    statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
+  ) as Node | null;
+  return declared?.type === 'VariableDeclaration' ? declared : null;
+}
+
+// `const story = ...`, and the object it is: handed to `defineStory` or written
+// out on its own.
+function definitionIn(declaration: Node): Node | null {
+  for (const declared of declaration.declarations as Node[]) {
+    const id = declared.id as Node;
+    if (id.type !== 'Identifier' || id.name !== 'story') continue;
+    const init = declared.init as Node | null;
+    const object = (init?.type === 'CallExpression' ? (init.arguments as Node[])[0] : init) as
+      | Node
+      | undefined;
+    return object?.type === 'ObjectExpression' ? object : null;
+  }
+  return null;
+}
+
 function storyObject(program: { body: readonly Node[] }): Node | null {
   for (const statement of program.body) {
-    const declaration = (
-      statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
-    ) as Node | null;
-    if (declaration?.type !== 'VariableDeclaration') continue;
-    for (const declared of declaration.declarations as Node[]) {
-      const id = declared.id as Node;
-      if (id.type !== 'Identifier' || id.name !== 'story') continue;
-      const init = declared.init as Node | null;
-      const definition = (init?.type === 'CallExpression' ? (init.arguments as Node[])[0] : init) as
-        | Node
-        | undefined;
-      return definition?.type === 'ObjectExpression' ? definition : null;
-    }
+    const declaration = declarationOf(statement);
+    if (declaration) return definitionIn(declaration);
   }
   return null;
 }

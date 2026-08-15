@@ -266,19 +266,28 @@ function shownRender(expression) {
 // The source of the declaration's own `render`, for the code drawer: the story
 // is `export const story = defineStory({ ... })` in one of the document's ESM
 // blocks, whose estree carries document offsets.
-// `export const story = defineStory({ ... })`: the declaration itself, past the
-// export wrapper and past the call it is usually handed to.
+// Past the export wrapper, to the declaration itself.
+function declarationOf(statement) {
+  const declared = statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
+  return declared?.type === 'VariableDeclaration' ? declared : null;
+}
+
+// `const story = ...`, and the object it is: handed to `defineStory` or written
+// out on its own.
+function definitionIn(declaration) {
+  for (const declared of declaration.declarations) {
+    if (declared.id.type !== 'Identifier' || declared.id.name !== 'story') continue;
+    const init = declared.init;
+    const definition = init?.type === 'CallExpression' ? init.arguments[0] : init;
+    return definition?.type === 'ObjectExpression' ? definition : null;
+  }
+  return null;
+}
+
 function storyDefinition(body) {
   for (const statement of body) {
-    const declaration =
-      statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
-    if (declaration?.type !== 'VariableDeclaration') continue;
-    for (const declared of declaration.declarations) {
-      if (declared.id.type !== 'Identifier' || declared.id.name !== 'story') continue;
-      const init = declared.init;
-      const definition = init?.type === 'CallExpression' ? init.arguments[0] : init;
-      return definition?.type === 'ObjectExpression' ? definition : null;
-    }
+    const declaration = declarationOf(statement);
+    if (declaration) return definitionIn(declaration);
   }
   return null;
 }

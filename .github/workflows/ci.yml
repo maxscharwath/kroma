@@ -99,6 +99,26 @@ jobs:
               - '!.claude/**'
               - '!LICENSE'
 
+  # A ruleset would be the right home for this, but branch-name patterns are a
+  # metadata restriction and those need an org on Team or Enterprise; this repo
+  # is user-owned. So the PR head branch is checked here instead. It only fires
+  # on a pull request — a push to main is skipped, which reports as successful.
+  branch-name:
+    name: Branch name
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+    steps:
+      - name: Head branch matches type/slug
+        env:
+          BRANCH: ${{ github.head_ref }}
+          PATTERN: '^(feat|fix|chore|ci|docs|refactor|perf|test|build|kit|release|revert|claude|dependabot)/[A-Za-z0-9._/-]+$'
+        run: |
+          if [[ ! "$BRANCH" =~ $PATTERN ]]; then
+            echo "::error::branch '$BRANCH' does not match $PATTERN"
+            exit 1
+          fi
+
   quality:
     name: Typecheck + unit tests + lint
     runs-on: ubuntu-latest

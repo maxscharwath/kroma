@@ -5,7 +5,7 @@
 // needs is READ from it rather than held beside it - the body, the prose, the
 // sample and the script are four answers to the same question.
 
-import { applyTheme, Box, CodeBlock, Focusable, styles, sv, Text } from '@kroma/ui/kit';
+import { applyTheme, Box, CodeBlock, Focusable, Icon, styles, sv, Text } from '@kroma/ui/kit';
 import type { ColorToken } from '@kroma/ui/tokens';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Matrix, ViewportFrame } from './canvas';
@@ -283,9 +283,7 @@ function CodeBar({
           <Text variant="overline" color={open ? 'accent' : 'textDim'}>
             Code
           </Text>
-          <Text variant="meta" color="textDim" style={s.codeHint}>
-            {open ? '▾' : '▸'}
-          </Text>
+          <Icon name={open ? 'chevron-down' : 'chevron-right'} size={14} color="textDim" />
         </Box>
       </Focusable>
       {/* No scroller of its own: <CodeBlock> owns both axes. */}
@@ -302,7 +300,6 @@ const s = styles({
   title: { fontSize: 24 },
   titleCompact: { fontSize: 20 },
   codeBar: { maxH: 320 },
-  codeHint: { fontSize: 10 },
 });
 const codeToggle = sv({ base: { py: 12, _focus: { bg: 'white/6' } } });
 

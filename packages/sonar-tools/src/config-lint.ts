@@ -76,7 +76,7 @@ function toRegExp(glob: string): RegExp {
     } else if (glob[i] === '?') {
       out += '[^/]';
     } else {
-      out += glob[i]?.replace(/[.+^${}()|[\]\\]/g, '\\$&') ?? '';
+      out += glob[i]?.replace(/[.+^${}()|[\]\\]/g, String.raw`\$&`) ?? '';
     }
   }
   return new RegExp(`^${out}$`);
@@ -88,7 +88,7 @@ function values(text: string, key: string): string[] {
     .filter((l) => !l.trimStart().startsWith('#'))
     .join('\n')
     .replaceAll('\\\n', '');
-  const line = new RegExp(`^${key.replaceAll('.', '\\.')}=(.*)$`, 'm').exec(body);
+  const line = new RegExp(`^${key.replaceAll('.', String.raw`\.`)}=(.*)$`, 'm').exec(body);
   return (
     line?.[1]
       ?.split(',')
@@ -136,7 +136,7 @@ for (const key of LISTS) {
 const ids = values(text, 'sonar.issue.ignore.multicriteria');
 for (const id of ids) {
   const key = new RegExp(
-    `^sonar\\.issue\\.ignore\\.multicriteria\\.${id}\\.resourceKey=(.*)$`,
+    String.raw`^sonar\.issue\.ignore\.multicriteria\.${id}\.resourceKey=(.*)$`,
     'm',
   ).exec(text)?.[1];
   if (!key) {

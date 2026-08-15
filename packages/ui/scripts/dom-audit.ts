@@ -12,6 +12,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const ROOT = new URL('../../../', import.meta.url).pathname;
 const TEST = 'packages/ui/audit/dom-budget.test.tsx';
@@ -33,7 +34,11 @@ const env = {
   ...(tree ? { KROMA_DOM_TREE: '1' } : {}),
 };
 
-const run = spawnSync('bun', ['x', 'vitest', 'run', '--project', 'web', TEST, '--reporter=dot'], {
+// The runner by path, not by name: a bare command is looked up through PATH,
+// which is one writable directory away from running something else entirely.
+const VITEST = join(ROOT, 'node_modules', '.bin', 'vitest');
+
+const run = spawnSync(VITEST, ['run', '--project', 'web', TEST, '--reporter=dot'], {
   cwd: ROOT,
   env,
   stdio: ['inherit', 'pipe', 'inherit'],

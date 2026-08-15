@@ -10,7 +10,12 @@ export const story = defineStory({
   // A remount key, so the panel picks the starting state and the preview still
   // toggles on press.
   render: ({ checked, ...props }) => (
-    <Switch key={String(checked)} {...props} defaultChecked={checked === true} />
+    <Switch
+      key={String(checked)}
+      {...props}
+      label="Subtitles"
+      defaultChecked={checked === true}
+    />
   ),
 });
 
@@ -23,6 +28,8 @@ The on/off switch. A television has no gestures: this is not a thumb you slide b
 
 <Do>
 - Use the `tv` size on a settings row read from the sofa.
+- Give it a `label`, or pair it with one: a switch says a state, and a state
+  nobody can name announces as nothing.
 </Do>
 
 <Dont>

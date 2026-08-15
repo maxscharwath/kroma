@@ -52,7 +52,7 @@ function checkSceneArgs(name: string, compiled: Story, scenes: readonly LiftedSc
       if (known.has(key)) continue;
       throw new Error(
         `${name}: scene "${scene.name}" sets an arg the story has no control for: \`${key}\`. ` +
-          `It knows ${[...known].sort().join(', ')}.`,
+          `It knows ${[...known].sort((a, b) => a.localeCompare(b)).join(', ')}.`,
       );
     }
   }

@@ -303,7 +303,7 @@ function pointerCursor(disabled: boolean, onPress: unknown): ViewStyle | null {
 
 function DisabledForm({
   at,
-}: {
+}: Readonly<{
   at: {
     role: FocusRole;
     disabledState: A11yState;
@@ -317,7 +317,7 @@ function DisabledForm({
     slots: ReturnType<AnySv>;
     children: FocusableProps['children'];
   };
-}): ReactNode {
+}>): ReactNode {
   return (
     <Animated.View
       accessibilityRole={platformRole(at.role)}
@@ -340,7 +340,7 @@ function DisabledForm({
 
 function TouchForm({
   at,
-}: {
+}: Readonly<{
   at: {
     boxRef: (view: View | null) => void;
     webKeys: WebKeys;
@@ -367,7 +367,7 @@ function TouchForm({
     resolve: Resolve;
     children: FocusableProps['children'];
   };
-}): ReactNode {
+}>): ReactNode {
   const lit = at.controlled && at.focusVisible;
   // Hover goes UNDER the focus coats: a control the cursor is over and the
   // remote is on is a focused control, not a doubly-lit one.
@@ -427,7 +427,7 @@ function liftedBox(
 function NavigatorForm({
   entry,
   at,
-}: {
+}: Readonly<{
   /** Its own prop, outside `at`: a RefObject inside the bag would read as a ref
    *  aggregate to the compiler and cost the form its memoisation. */
   entry: RefObject<SpatialNavigationNodeRef | null>;
@@ -463,7 +463,7 @@ function NavigatorForm({
     resolve: Resolve;
     children: FocusableProps['children'];
   };
-}): ReactNode {
+}>): ReactNode {
   const painted = [
     at.layers ? at.layers.face : at.style,
     at.hovered ? at.hoveredStyle : null,

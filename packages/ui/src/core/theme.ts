@@ -71,28 +71,35 @@ export function themeVersion(): number {
 // asks it rather than guessing.
 let derivedProps: Map<string, readonly string[]> | null = null;
 
+const DERIVED_PROP = /--kroma-([a-z0-9-]+?)-(\d+(?:_\d+)?|opaque|alpha)\s*:/g;
+
+// A cross-origin sheet answers `cssRules` with a SecurityError; it holds none of
+// ours, so it is skipped rather than read.
+function rulesOf(sheet: CSSStyleSheet): readonly CSSRule[] {
+  try {
+    return [...sheet.cssRules];
+  } catch {
+    return [];
+  }
+}
+
+function collectSteps(css: string, found: Map<string, string[]>): void {
+  for (const [, name, step] of css.matchAll(DERIVED_PROP)) {
+    if (!name || !step) continue;
+    const steps = found.get(name) ?? [];
+    if (!steps.includes(step)) steps.push(step);
+    found.set(name, steps);
+  }
+}
+
 function stepsOf(doc: Document): Map<string, readonly string[]> {
   // Cached once found, never cached empty: the token sheet may still be on its
   // way in (a code-split chunk, a dev server's first paint), and an empty scan
   // remembered would leave every theme after it without its alpha steps.
   if (derivedProps?.size) return derivedProps;
   const found = new Map<string, string[]>();
-  const seen = /--kroma-([a-z0-9-]+?)-(\d+(?:_\d+)?|opaque|alpha)\s*:/g;
   for (const sheet of doc.styleSheets) {
-    let rules: CSSRuleList;
-    try {
-      rules = sheet.cssRules;
-    } catch {
-      continue;
-    }
-    for (const rule of rules) {
-      for (const [, name, step] of rule.cssText.matchAll(seen)) {
-        if (!name || !step) continue;
-        const steps = found.get(name) ?? [];
-        if (!steps.includes(step)) steps.push(step);
-        found.set(name, steps);
-      }
-    }
+    for (const rule of rulesOf(sheet)) collectSteps(rule.cssText, found);
   }
   if (found.size > 0) derivedProps = found;
   return found;
@@ -127,7 +134,8 @@ function restated(theme: Theme, doc: Document): readonly (readonly [string, stri
 const block = (selector: string, theme: Theme | undefined, doc: Document): string => {
   const rules = theme ? restated(theme, doc) : [];
   if (rules.length === 0) return '';
-  return `${selector}{${rules.map(([name, value]) => `${name}:${value}`).join(';')}}`;
+  const body = rules.map(([name, value]) => `${name}:${value}`).join(';');
+  return `${selector}{${body}}`;
 };
 
 const SHEET_ID = 'kroma-theme';

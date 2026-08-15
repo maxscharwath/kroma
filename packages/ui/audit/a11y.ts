@@ -160,13 +160,24 @@ function unavailable(el: Element): boolean {
   return el.getAttribute('aria-disabled') === 'true' || nativelyDisabled(el);
 }
 
-// The activedescendant pattern: focus stays on the combobox or the listbox and
-// the rows are pointed at by id, so `tabindex="-1"` on a row is the correct
-// spelling of it rather than a row the keyboard cannot reach.
+// The activedescendant pattern: focus stays on the combobox and the rows are
+// pointed at by id, so `tabindex="-1"` on a row is the correct spelling of it
+// rather than a row the keyboard cannot reach.
+//
+// The owner is looked up through the DOCUMENT, not up the ancestors: a popover
+// is a portal, so the rows it holds are nowhere near the combobox that owns
+// them - which is the shape every anchored listbox in this kit takes.
 function ownedByActiveDescendant(el: Element): boolean {
   if (el.getAttribute('tabindex') !== '-1') return false;
-  for (let at: Element | null = el.parentElement; at; at = at.parentElement) {
-    if (at.hasAttribute('aria-activedescendant')) return true;
+  for (const owner of el.ownerDocument.querySelectorAll('[aria-activedescendant]')) {
+    if (owner.contains(el)) return true;
+    const controls = owner.getAttribute('aria-controls');
+    if (!controls) continue;
+    const listed = controls
+      .split(/\s+/)
+      .map((id) => el.ownerDocument.getElementById(id))
+      .filter((node): node is HTMLElement => node !== null);
+    if (listed.some((node) => node.contains(el))) return true;
   }
   return false;
 }

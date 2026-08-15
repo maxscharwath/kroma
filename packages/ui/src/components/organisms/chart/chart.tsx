@@ -179,8 +179,11 @@ function Root({
   // The key and the caption share one row, at either end of it.
   const caption = kids.filter((kid) => isPart(kid, ChartLegend) || isPart(kid, ChartFooter));
 
-  // Left to the React Compiler to memoise: every part below reads this, so a
-  // fresh object per render would redraw every mark, axis and readout whenever
+  // Left to the React Compiler to memoise, and it has to be: a manual `useMemo`
+  // here is one the compiler cannot preserve (it sees a dependency mutated
+  // further down), so writing one costs the WHOLE component its memoisation to
+  // satisfy a rule about one object. Every part below reads this, so a fresh
+  // object per render would redraw every mark, axis and readout whenever
   // anything above the chart did.
   const state: ChartState = {
     data,

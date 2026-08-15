@@ -158,8 +158,7 @@ function sceneObject(node, file) {
     properties.push(property('args', value.data.estree.body[0].expression));
   }
   if (take) {
-    properties.push(property(take.name, take.expression));
-    properties.push(property('code', literal(take.code)));
+    properties.push(property(take.name, take.expression), property('code', literal(take.code)));
     node.attributes.push(attributeOf(take.name, take.expression, take.code));
     node.children = node.children.filter((child) => !isTake(child));
   }
@@ -215,7 +214,7 @@ const isGuidance = (node) => node.type === 'mdxJsxFlowElement' && GUIDED.has(nod
 function pairGuidance(tree) {
   const out = [];
   for (const node of tree.children) {
-    const last = out[out.length - 1];
+    const last = out.at(-1);
     if (isGuidance(node) && last?.type === 'mdxJsxFlowElement' && last.name === 'Guidance') {
       last.children.push(node);
       continue;
@@ -267,27 +266,40 @@ function shownRender(expression) {
 // The source of the declaration's own `render`, for the code drawer: the story
 // is `export const story = defineStory({ ... })` in one of the document's ESM
 // blocks, whose estree carries document offsets.
+// `export const story = defineStory({ ... })`: the declaration itself, past the
+// export wrapper and past the call it is usually handed to.
+function storyDefinition(body) {
+  for (const statement of body) {
+    const declaration =
+      statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
+    if (declaration?.type !== 'VariableDeclaration') continue;
+    for (const declared of declaration.declarations) {
+      if (declared.id.type !== 'Identifier' || declared.id.name !== 'story') continue;
+      const init = declared.init;
+      const definition = init?.type === 'CallExpression' ? init.arguments[0] : init;
+      return definition?.type === 'ObjectExpression' ? definition : null;
+    }
+  }
+  return null;
+}
+
+function renderProperty(definition) {
+  for (const entry of definition.properties) {
+    if (entry.type !== 'Property' || entry.key.type !== 'Identifier') continue;
+    if (entry.key.name === 'render') return entry.value;
+  }
+  return null;
+}
+
 function renderCode(tree, doc) {
   for (const node of tree.children) {
     if (node.type !== 'mdxjsEsm' || !node.data?.estree) continue;
-    for (const statement of node.data.estree.body) {
-      const declaration =
-        statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
-      if (declaration?.type !== 'VariableDeclaration') continue;
-      for (const declared of declaration.declarations) {
-        if (declared.id.type !== 'Identifier' || declared.id.name !== 'story') continue;
-        const definition =
-          declared.init?.type === 'CallExpression' ? declared.init.arguments[0] : declared.init;
-        if (definition?.type !== 'ObjectExpression') return undefined;
-        for (const entry of definition.properties) {
-          if (entry.type !== 'Property' || entry.key.type !== 'Identifier') continue;
-          if (entry.key.name !== 'render') continue;
-          const shown = shownRender(entry.value);
-          return dedent(doc.slice(shown.start, shown.end).trim());
-        }
-        return undefined;
-      }
-    }
+    const definition = storyDefinition(node.data.estree.body);
+    if (!definition) continue;
+    const value = renderProperty(definition);
+    if (!value) return undefined;
+    const shown = shownRender(value);
+    return dedent(doc.slice(shown.start, shown.end).trim());
   }
   return undefined;
 }

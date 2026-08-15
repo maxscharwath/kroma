@@ -190,57 +190,92 @@ function accessibleLine(el: Element): string | undefined {
   const live = el.getAttribute('aria-live');
   if (!role && !state && !live) return undefined;
   const stop = focusable(el) ? ' tab' : '';
-  return `${role || tagOf(el)} "${nameOf(el).slice(0, 60)}"${state ? ` [${state}]` : ''}${stop}`;
+  const said = state ? ` [${state}]` : '';
+  return `${role || tagOf(el)} "${nameOf(el).slice(0, 60)}"${said}${stop}`;
 }
 
-function issuesOf(el: Element): readonly A11yIssue[] {
-  const out: A11yIssue[] = [];
-  const role = roleOf(el);
-  const name = nameOf(el);
-  const tag = tagOf(el);
+// One rule per thing that can be wrong, each answering for ONE element: given
+// what it is (its tag, its role, the name it would announce), what should be
+// reported about it. A table rather than a procedure, so a rule can be read,
+// tested and added without touching the others.
+interface Subject {
+  el: Element;
+  tag: string;
+  role: string;
+  name: string;
+}
 
-  // An entry is `unlabelled-input`'s business, which says the same thing about
-  // the same element in the terms its author can act on.
-  if (CONTROLS.has(role) && !ENTRIES.has(tag) && !name && !hiddenFromReaders(el)) {
-    out.push({ kind: 'nameless-control', note: `role=${role} announces as nothing` });
-  }
-  const wants = STATE_OF[role];
-  if (wants && !el.hasAttribute(wants)) {
-    out.push({ kind: 'stateless-control', note: `role=${role} carries no ${wants}` });
-  }
-  if (ENTRIES.has(tag) && !name) {
-    out.push({ kind: 'unlabelled-input', note: `<${tag}> has no accessible name` });
-  }
-  const labelled = el.getAttribute('aria-labelledby');
-  if (labelled) {
-    const missing = labelled.split(/\s+/).filter((id) => !el.ownerDocument.getElementById(id));
-    if (missing.length > 0) {
-      out.push({
-        kind: 'dangling-labelledby',
-        note: `aria-labelledby points at ${missing.join(' ')}, which is not in the tree`,
-      });
-    }
-  }
-  const index = el.getAttribute('tabindex');
-  if (index && Number.parseInt(index, 10) > 0) {
-    out.push({ kind: 'positive-tabindex', note: `tabindex=${index} reorders the page` });
-  }
-  if (
-    el.getAttribute('aria-hidden') === 'true' &&
-    el.querySelector('[tabindex="0"], button, input, a[href]')
-  ) {
-    out.push({
-      kind: 'hidden-focusable',
-      note: 'hidden from readers but still reachable by keyboard',
-    });
-  }
-  if (tag === 'img' && el.getAttribute('alt') === null) {
-    out.push({ kind: 'imageless-alt', note: '<img> with no alt, not even empty' });
-  }
-  if (unreachable(el, role)) {
-    out.push({ kind: 'unreachable-control', note: `role=${role} takes no tab stop` });
-  }
-  return out;
+interface Rule {
+  kind: A11yKind;
+  /** The finding's own words, or null when this subject is fine. */
+  note: (at: Subject) => string | null;
+}
+
+const RULES: readonly Rule[] = [
+  {
+    kind: 'nameless-control',
+    // An entry is `unlabelled-input`'s business, which says the same thing
+    // about the same element in the terms its author can act on.
+    note: ({ el, tag, role, name }) =>
+      CONTROLS.has(role) && !ENTRIES.has(tag) && !name && !hiddenFromReaders(el)
+        ? `role=${role} announces as nothing`
+        : null,
+  },
+  {
+    kind: 'stateless-control',
+    note: ({ el, role }) => {
+      const wants = STATE_OF[role];
+      return wants && !el.hasAttribute(wants) ? `role=${role} carries no ${wants}` : null;
+    },
+  },
+  {
+    kind: 'unlabelled-input',
+    note: ({ tag, name }) => (ENTRIES.has(tag) && !name ? `<${tag}> has no accessible name` : null),
+  },
+  {
+    kind: 'dangling-labelledby',
+    note: ({ el }) => {
+      const labelled = el.getAttribute('aria-labelledby');
+      if (!labelled) return null;
+      const missing = labelled.split(/\s+/).filter((id) => !el.ownerDocument.getElementById(id));
+      return missing.length === 0
+        ? null
+        : `aria-labelledby points at ${missing.join(' ')}, which is not in the tree`;
+    },
+  },
+  {
+    kind: 'positive-tabindex',
+    note: ({ el }) => {
+      const index = el.getAttribute('tabindex');
+      return index && Number.parseInt(index, 10) > 0 ? `tabindex=${index} reorders the page` : null;
+    },
+  },
+  {
+    kind: 'hidden-focusable',
+    note: ({ el }) =>
+      el.getAttribute('aria-hidden') === 'true' && el.querySelector(FOCUSABLE_INSIDE)
+        ? 'hidden from readers but still reachable by keyboard'
+        : null,
+  },
+  {
+    kind: 'imageless-alt',
+    note: ({ el, tag }) =>
+      tag === 'img' && el.getAttribute('alt') === null ? '<img> with no alt, not even empty' : null,
+  },
+  {
+    kind: 'unreachable-control',
+    note: ({ el, role }) => (unreachable(el, role) ? `role=${role} takes no tab stop` : null),
+  },
+];
+
+const FOCUSABLE_INSIDE = '[tabindex="0"], button, input, a[href]';
+
+function issuesOf(el: Element): readonly A11yIssue[] {
+  const at: Subject = { el, tag: tagOf(el), role: roleOf(el), name: nameOf(el) };
+  return RULES.flatMap((rule) => {
+    const note = rule.note(at);
+    return note ? [{ kind: rule.kind, note }] : [];
+  });
 }
 
 function unreachable(el: Element, role: string): boolean {

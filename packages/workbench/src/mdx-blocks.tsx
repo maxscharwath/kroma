@@ -146,7 +146,7 @@ function BulletList({ children }: Readonly<{ children?: ReactNode }>) {
   // Inside a guidance card the items draw their own markers and the card owns
   // the rhythm, so the list is a plain column: <List.Root>'s bullets and its
   // block margin would both be a second opinion.
-  const tone = useContext(GUIDELINE_TONE);
+  const tone = useContext(GuidelineToneContext);
   if (tone) return <Box gap={space[2]}>{children}</Box>;
   return (
     <Box style={s.list}>
@@ -180,7 +180,7 @@ function splitTask(children: ReactNode): { checked?: boolean; rest: ReactNode[] 
 
 /** Inside a story's `<Do>`/`<Dont>` card, which tone the card carries. Null
  * everywhere else, which is every other list in a document. */
-const GUIDELINE_TONE = createContext<'do' | 'dont' | null>(null);
+const GuidelineToneContext = createContext<'do' | 'dont' | null>(null);
 
 // A line of guidance. The card's header already says do or don't, so the marker
 // is a bullet in the card's own ink rather than a tick repeating it.
@@ -194,7 +194,7 @@ function GuidelineItem({ good, children }: Readonly<{ good: boolean; children?: 
 }
 
 function ListItem({ children }: Readonly<{ children?: ReactNode }>) {
-  const tone = useContext(GUIDELINE_TONE);
+  const tone = useContext(GuidelineToneContext);
   if (tone) return <GuidelineItem good={tone === 'do'}>{children}</GuidelineItem>;
   const task = splitTask(children);
   return <List.Item checked={task.checked}>{runs(task.rest)}</List.Item>;
@@ -271,7 +271,7 @@ export {
   Cell,
   DocFigure,
   DocTable,
-  GUIDELINE_TONE,
+  GuidelineToneContext,
   HeadCell,
   heading,
   ListItem,

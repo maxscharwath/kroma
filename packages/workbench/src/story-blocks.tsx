@@ -7,7 +7,7 @@ import { Box, Icon, styles, Text } from '@kroma/ui/kit';
 import { space } from '@kroma/ui/tokens';
 import { createContext, type ReactNode, useContext } from 'react';
 import type { Args } from './derive';
-import { DocFigure, GUIDELINE_TONE, MEASURE } from './mdx-blocks';
+import { DocFigure, GuidelineToneContext, MEASURE } from './mdx-blocks';
 import { useSection } from './outline';
 
 // A story's document is its prose, its scenes and its guidance; only four of
@@ -24,7 +24,7 @@ interface StoryDocScope {
   render?: (args: Args) => ReactNode;
 }
 
-const STORY_DOC = createContext<StoryDocScope | undefined>(undefined);
+const StoryDocContext = createContext<StoryDocScope | undefined>(undefined);
 
 interface SceneProps {
   /** The tab this scene is listed under on the canvas. */
@@ -44,7 +44,7 @@ interface SceneProps {
  * explanation lives. The compiler lifts the same take into the story's scene
  * tabs, so it is written once. */
 function Scene({ name, args, render, example, children }: Readonly<SceneProps>) {
-  const scope = useContext(STORY_DOC);
+  const scope = useContext(StoryDocContext);
   const draw = render ?? scope?.render;
   const body = example ? example() : draw?.({ ...scope?.args, ...args });
   const section = useSection(SECTION_LEVEL, name);
@@ -71,7 +71,7 @@ function Scene({ name, args, render, example, children }: Readonly<SceneProps>) 
 // Whether a card is one of a pair. A pair shares the row and each half takes
 // half of it; a card standing alone must NOT grow, or in a column `flexGrow`
 // stretches it down the page instead of across one.
-const PAIRED = createContext(false);
+const PairedContext = createContext(false);
 
 /** A do and the don't it answers, side by side where there is room for two
  * columns and stacked where there is not. Built by the compiler out of the
@@ -82,14 +82,14 @@ const PAIRED = createContext(false);
 function Guidance({ children }: Readonly<{ children?: ReactNode }>) {
   const section = useSection(SECTION_LEVEL, 'Guidelines');
   return (
-    <PAIRED.Provider value={true}>
+    <PairedContext.Provider value={true}>
       {/* Its own rhythm rather than a figure's: guidance closes a section
           rather than illustrating the line above it, so it is set off from the
           prose on BOTH sides instead of hugging what it follows. */}
       <Box row wrap gap={GUTTER} style={s.guidance} onLayout={section.onLayout}>
         {children}
       </Box>
-    </PAIRED.Provider>
+    </PairedContext.Provider>
   );
 }
 
@@ -105,7 +105,7 @@ interface CardProps {
 function Card({ tone, children }: Readonly<CardProps>) {
   const good = tone === 'do';
   const ink = good ? 'success' : 'danger';
-  const paired = useContext(PAIRED);
+  const paired = useContext(PairedContext);
   return (
     <Box
       {...(paired ? { grow: 1, basis: CARD_BASIS, minW: 0 } : null)}
@@ -119,9 +119,9 @@ function Card({ tone, children }: Readonly<CardProps>) {
           {good ? 'Do' : "Don't"}
         </Text>
       </Box>
-      <GUIDELINE_TONE.Provider value={tone}>
+      <GuidelineToneContext.Provider value={tone}>
         <Box gap={space[2]}>{children}</Box>
-      </GUIDELINE_TONE.Provider>
+      </GuidelineToneContext.Provider>
     </Box>
   );
 }
@@ -162,4 +162,4 @@ const s = styles({
 });
 
 export type { SceneProps, StoryDocScope };
-export { Do, Dont, Guidance, Scene, STORY_DOC };
+export { Do, Dont, Guidance, Scene, StoryDocContext };

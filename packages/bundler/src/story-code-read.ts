@@ -25,7 +25,43 @@ export type StoryCodes = Record<string, StoryCode>;
 const keyOf = (repo: string, fileName: string): string =>
   relative(repo, fileName).split(sep).join('/');
 
-async function mdxIdentity(fileName: string): Promise<StoryCode | null> {
+type Node = { type: string; [key: string]: unknown };
+
+// `export const story = defineStory({...})`, and the two spellings around it:
+// the export wrapper, and a definition handed straight over rather than called.
+function storyObject(program: { body: readonly Node[] }): Node | null {
+  for (const statement of program.body) {
+    const declaration = (
+      statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement
+    ) as Node | null;
+    if (declaration?.type !== 'VariableDeclaration') continue;
+    for (const declared of declaration.declarations as Node[]) {
+      const id = declared.id as Node;
+      if (id.type !== 'Identifier' || id.name !== 'story') continue;
+      const init = declared.init as Node | null;
+      const definition = (init?.type === 'CallExpression' ? (init.arguments as Node[])[0] : init) as
+        | Node
+        | undefined;
+      return definition?.type === 'ObjectExpression' ? definition : null;
+    }
+  }
+  return null;
+}
+
+/** A string property of the story object, read literally: anything computed is
+ * a value the index cannot know without running the module. */
+function wordOf(definition: Node, name: string): string | undefined {
+  for (const entry of definition.properties as Node[]) {
+    if (entry.type !== 'Property' || entry.computed) continue;
+    const key = entry.key as Node;
+    const value = entry.value as Node;
+    if (key.type !== 'Identifier' || key.name !== name) continue;
+    if (value.type === 'Literal' && typeof value.value === 'string') return value.value;
+  }
+  return undefined;
+}
+
+async function parseModule(fileName: string): Promise<{ body: readonly Node[] } | null> {
   const [{ readFile }, { compileMdx }, { Parser }] = await Promise.all([
     import('node:fs/promises'),
     import('./mdx.mjs'),
@@ -33,39 +69,25 @@ async function mdxIdentity(fileName: string): Promise<StoryCode | null> {
   ]);
   const text = await readFile(fileName, 'utf8').catch(() => null);
   if (text === null) return null;
-  let program: ReturnType<typeof Parser.parse>;
   try {
     const compiled = await compileMdx(text, fileName);
-    program = Parser.parse(compiled, { ecmaVersion: 'latest', sourceType: 'module' });
+    return Parser.parse(compiled, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    }) as unknown as { body: readonly Node[] };
   } catch {
     return null;
   }
-  for (const statement of program.body) {
-    const declaration =
-      statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement;
-    if (declaration?.type !== 'VariableDeclaration') continue;
-    for (const declared of declaration.declarations) {
-      if (declared.id.type !== 'Identifier' || declared.id.name !== 'story') continue;
-      const definition =
-        declared.init?.type === 'CallExpression' ? declared.init.arguments[0] : declared.init;
-      if (definition?.type !== 'ObjectExpression') return null;
-      const wordOf = (name: string): string | undefined => {
-        for (const entry of definition.properties) {
-          if (entry.type !== 'Property' || entry.computed) continue;
-          if (entry.key.type !== 'Identifier' || entry.key.name !== name) continue;
-          if (entry.value.type === 'Literal' && typeof entry.value.value === 'string') {
-            return entry.value.value;
-          }
-        }
-        return undefined;
-      };
-      const name = wordOf('name');
-      const group = wordOf('group');
-      if (!name && !group) return null;
-      return { ...(name ? { name } : null), ...(group ? { group } : null) };
-    }
-  }
-  return null;
+}
+
+async function mdxIdentity(fileName: string): Promise<StoryCode | null> {
+  const program = await parseModule(fileName);
+  const definition = program && storyObject(program);
+  if (!definition) return null;
+  const name = wordOf(definition, 'name');
+  const group = wordOf(definition, 'group');
+  if (!name && !group) return null;
+  return { ...(name ? { name } : null), ...(group ? { group } : null) };
 }
 
 /** What every `.story.mdx` declares about itself - the `name` and `group` an

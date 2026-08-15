@@ -25,7 +25,7 @@ describe('inlinePlatformConst', () => {
   it('keeps the line count, so source maps stay honest', () => {
     const out = inlinePlatformConst(KIT_FILE, 'android');
 
-    expect(out.split('\n').length).toBe(KIT_FILE.split('\n').length);
+    expect(out.split('\n')).toHaveLength(KIT_FILE.split('\n').length);
   });
 
   it('reads the double-quote and no-semicolon spellings too', () => {

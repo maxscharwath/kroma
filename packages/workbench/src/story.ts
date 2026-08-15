@@ -15,6 +15,7 @@ import type { PlayFunction } from './play-types';
 import type { PropSection } from './props';
 import { slug } from './registry';
 import { type View, viewIndex } from './view';
+import type { ViewportName } from './viewport';
 
 /** How much width the canvas gives a story: a fixed width, the whole stage, or
  * the stage clamped. Omit it for a component sized by its own content. */
@@ -75,7 +76,7 @@ interface StoryCommon<A extends Args> {
   matrix?: false;
   pad?: number;
   width?: StoryWidth;
-  viewport?: 'fit' | 'tv' | 'phone' | 'tablet';
+  viewport?: ViewportName;
   play?: PlayFunction;
 }
 
@@ -107,7 +108,7 @@ interface StoryMdxCommon<A extends Args> {
   matrix?: boolean;
   pad?: number;
   width?: StoryWidth;
-  viewport?: 'fit' | 'tv' | 'phone' | 'tablet';
+  viewport?: ViewportName;
 }
 
 /** What a `.story.mdx` declares, both ways round `StoryDef` allows: everything
@@ -186,7 +187,7 @@ interface Story {
   play?: PlayFunction;
   pad: number;
   width?: StoryWidth;
-  viewport?: 'fit' | 'tv' | 'phone' | 'tablet';
+  viewport?: ViewportName;
 }
 
 interface OwnView<A extends Args> {

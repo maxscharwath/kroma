@@ -7,14 +7,14 @@
 
 import { Box, styles, Text } from '@kroma/ui/kit';
 import { space } from '@kroma/ui/tokens';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { type NativeScrollEvent, type NativeSyntheticEvent, ScrollView } from 'react-native';
 import type { WorkbenchLayout } from './layout';
 import { MdxDoc, MEASURE } from './mdx';
 import { activeSection, OutlineContext, type Section, useOutline } from './outline';
 import { outlineOf, PageToc, TOC_WIDTH } from './page-toc';
 import type { DocComponent, Story } from './story';
-import { STORY_DOC } from './story-blocks';
+import { StoryDocContext } from './story-blocks';
 
 const JUMP_PAD = space[6];
 const SCROLL_HZ = 48;
@@ -94,6 +94,7 @@ const Document = memo(function Document({
   layout,
 }: Readonly<StoryDocsProps>) {
   const compact = layout.mode === 'compact';
+  const scope = useMemo(() => ({ args, render: story.render }), [args, story.render]);
   return (
     <Box
       w="100%"
@@ -104,9 +105,9 @@ const Document = memo(function Document({
       gap={compact ? space[5] : space[8]}
     >
       <DocHeading story={story} compact={compact} />
-      <STORY_DOC.Provider value={{ args, render: story.render }}>
+      <StoryDocContext.Provider value={scope}>
         <MdxDoc content={content} />
-      </STORY_DOC.Provider>
+      </StoryDocContext.Provider>
     </Box>
   );
 });

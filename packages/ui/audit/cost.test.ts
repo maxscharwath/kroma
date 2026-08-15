@@ -57,6 +57,16 @@ describe('what it calls a smell', () => {
     expect(smells[0]?.note).toContain('padding-top');
   });
 
+  it('counts the gap between children as shaping, so a spaced row is a wrapper too', () => {
+    const smells = costOf(
+      mount('<div style="display: flex; row-gap: 8px; column-gap: 8px"><span>t</span></div>'),
+    ).smells;
+
+    expect(smells[0]?.kind).toBe('wrapper');
+    expect(smells[0]?.note).toContain('row-gap');
+    expect(smells[0]?.note).toContain('column-gap');
+  });
+
   it('reads a box around one glyph as the glyph wrapper it is', () => {
     expect(kinds('<div style="padding: 4px"><svg><path/></svg></div>')).toEqual(['glyph-wrapper']);
   });

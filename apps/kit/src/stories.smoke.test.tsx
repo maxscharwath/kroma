@@ -2,7 +2,7 @@
 
 import { clearPressGuard } from '@kroma/ui/kit';
 import { onScreen } from '@kroma/ui/testing';
-import { STORY_COMPONENTS, STORY_DOC } from '@kroma/workbench';
+import { STORY_COMPONENTS, StoryDocContext } from '@kroma/workbench';
 import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -43,9 +43,9 @@ describe('every story renders', () => {
       it(`${story.group} / ${story.name}: docs`, () => {
         expect(() =>
           render(
-            <STORY_DOC.Provider value={{ args: story.args, render: story.render }}>
+            <StoryDocContext.Provider value={{ args: story.args, render: story.render }}>
               <Docs components={STORY_COMPONENTS} />
-            </STORY_DOC.Provider>,
+            </StoryDocContext.Provider>,
           ),
         ).not.toThrow();
       });

@@ -82,30 +82,43 @@ function paints(style: CSSStyleDeclaration): boolean {
   return zIndex !== '' && zIndex !== 'auto' && Number.parseInt(zIndex, 10) !== 0;
 }
 
-function layout(style: CSSStyleDeclaration): readonly string[] {
-  const found: string[] = [];
-  for (const edge of EDGES) {
-    if (px(style.getPropertyValue(`padding-${edge}`)) !== 0) found.push(`padding-${edge}`);
-    if (px(style.getPropertyValue(`margin-${edge}`)) !== 0) found.push(`margin-${edge}`);
-  }
-  for (const gap of ['row-gap', 'column-gap']) {
-    if (px(style.getPropertyValue(gap)) !== 0) found.push(gap);
-  }
-  for (const prop of SIZE_PROPS) {
+// The spacing a box adds around what is inside it, edge by edge.
+function spacing(style: CSSStyleDeclaration): readonly string[] {
+  const found = EDGES.flatMap((edge) => [
+    px(style.getPropertyValue(`padding-${edge}`)) === 0 ? '' : `padding-${edge}`,
+    px(style.getPropertyValue(`margin-${edge}`)) === 0 ? '' : `margin-${edge}`,
+  ]);
+  const gaps = ['row-gap', 'column-gap'].map((gap) =>
+    px(style.getPropertyValue(gap)) === 0 ? '' : gap,
+  );
+  return [...found, ...gaps].filter(Boolean);
+}
+
+const UNSET_SIZE = ['auto', '', 'none', '0px'];
+
+function sizing(style: CSSStyleDeclaration): readonly string[] {
+  return SIZE_PROPS.filter((prop) => {
     const value = style.getPropertyValue(prop);
-    if (value && !['auto', '', 'none', '0px'].includes(value)) found.push(prop);
-  }
+    return Boolean(value) && !UNSET_SIZE.includes(value);
+  });
+}
+
+// How a flex box arranges its children. Only a flex box does: jsdom answers
+// `flex-direction: row` for a plain block as readily as for a real one.
+function arranging(style: CSSStyleDeclaration): readonly string[] {
+  if (!['flex', 'inline-flex'].includes(style.display)) return [];
+  return [
+    ['flex-start', 'normal', ''].includes(style.justifyContent) ? '' : 'justify-content',
+    style.flexDirection === 'row' ? 'flex-direction' : '',
+    ['nowrap', ''].includes(style.flexWrap) ? '' : 'flex-wrap',
+  ].filter(Boolean);
+}
+
+function layout(style: CSSStyleDeclaration): readonly string[] {
+  const found: string[] = [...spacing(style), ...sizing(style)];
   if (Number.parseFloat(style.flexGrow || '0') !== 0) found.push('flex-grow');
   if (style.alignSelf && !['auto', ''].includes(style.alignSelf)) found.push('align-self');
-  // Only a flex box arranges anything, and jsdom answers `flex-direction: row`
-  // for a plain block as readily as for a real one.
-  if (!['flex', 'inline-flex'].includes(style.display)) return found;
-  if (style.justifyContent && !['flex-start', 'normal', ''].includes(style.justifyContent)) {
-    found.push('justify-content');
-  }
-  if (style.flexDirection === 'row') found.push('flex-direction');
-  if (style.flexWrap && !['nowrap', ''].includes(style.flexWrap)) found.push('flex-wrap');
-  return found;
+  return [...found, ...arranging(style)];
 }
 
 const IGNORED_ATTRS = new Set(['class', 'style', 'dir', 'data-focusable']);

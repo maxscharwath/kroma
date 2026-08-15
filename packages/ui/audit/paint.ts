@@ -82,7 +82,9 @@ function borderOf(style: CSSStyleDeclaration): string {
     const line =
       style.getPropertyValue(`border-${edge}-style`) || style.getPropertyValue('border-style');
     if (px(width) === 0 || line === 'none') return '-';
-    return `${width} ${style.getPropertyValue(`border-${edge}-color`) || style.getPropertyValue('border-color')}`;
+    const tint =
+      style.getPropertyValue(`border-${edge}-color`) || style.getPropertyValue('border-color');
+    return `${width} ${tint}`;
   });
   return sides.every((side) => side === '-') ? '' : sides.join('|');
 }
@@ -190,9 +192,13 @@ const TYPE_PROPS = [
 
 function typography(el: Element): string {
   const style = styleOf(el);
-  return TYPE_PROPS.map((prop) => style.getPropertyValue(prop))
-    .join('/')
-    .replace(/\/+$/, '');
+  // The trailing separators of the roles a node did not answer for. Trimmed by
+  // hand rather than with `/\/+$/`, whose unanchored run backtracks at every
+  // position in the string.
+  const spelled = TYPE_PROPS.map((prop) => style.getPropertyValue(prop)).join('/');
+  let end = spelled.length;
+  while (end > 0 && spelled[end - 1] === '/') end -= 1;
+  return spelled.slice(0, end);
 }
 
 function glyph(el: Element): string {

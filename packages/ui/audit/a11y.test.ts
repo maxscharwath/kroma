@@ -35,6 +35,7 @@ describe('nameOf', () => {
     );
     expect(nameOf(roots[1] as Element)).toBe('By reference');
     expect(nameOf(one('<div aria-label="Own" title="Tip">Inside</div>'))).toBe('Own');
+    expect(nameOf(one('<img src="a.png" alt="Poster" title="Tip"/>'))).toBe('Poster');
     expect(nameOf(one('<div title="Tip">Inside</div>'))).toBe('Tip');
     expect(nameOf(one('<div>Inside</div>'))).toBe('Inside');
   });
@@ -167,6 +168,29 @@ describe('what it calls unreachable', () => {
         '<div role="listbox" tabindex="0" aria-label="Category"><div role="option" aria-label="Server status" aria-selected="true" tabindex="-1"></div></div>',
       ),
     ).toEqual(['unreachable-control']);
+  });
+
+  it('leaves a row a combobox owns through aria-controls, though the popover is a portal', () => {
+    const combobox =
+      '<div role="combobox" tabindex="0" aria-label="Genre" aria-activedescendant="row" aria-controls="popover"></div>';
+    const popover =
+      '<div id="popover" role="listbox" aria-label="Genres">' +
+      '<div role="option" id="row" aria-label="Science fiction" aria-selected="true" tabindex="-1"></div></div>';
+
+    expect(kinds(combobox + popover)).toEqual([]);
+  });
+
+  it('still reads a row nothing points at as unreachable, wherever the pointer leads', () => {
+    const row =
+      '<div role="option" id="row" aria-label="Science fiction" aria-selected="true" tabindex="-1"></div>';
+    const owner = (controls: string) =>
+      `<div role="combobox" tabindex="0" aria-label="Genre" aria-activedescendant="row"${controls}></div>`;
+
+    expect(kinds(owner('') + row)).toEqual(['unreachable-control']);
+    expect(kinds(`${owner(' aria-controls="elsewhere"')}<div id="elsewhere"></div>${row}`)).toEqual(
+      ['unreachable-control'],
+    );
+    expect(kinds(owner(' aria-controls="gone"') + row)).toEqual(['unreachable-control']);
   });
 
   it('says nothing about a range, whose gesture and key map are not in the DOM', () => {

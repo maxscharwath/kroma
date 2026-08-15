@@ -6,7 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as sample from './fixtures/sample.story.mdx';
 import { MdxDoc } from './mdx';
-import { STORY_DOC } from './story-blocks';
+import { StoryDocContext } from './story-blocks';
 import { storyFromMdx } from './story-mdx';
 
 afterEach(cleanup);
@@ -80,9 +80,9 @@ describe('the document half', () => {
     const Docs = story.docs;
     if (typeof Docs !== 'function') throw new Error('the docs did not compile to a component');
     render(
-      <STORY_DOC.Provider value={{ args: story.args, render: story.render }}>
+      <StoryDocContext.Provider value={{ args: story.args, render: story.render }}>
         <MdxDoc content={Docs} />
-      </STORY_DOC.Provider>,
+      </StoryDocContext.Provider>,
     );
 
     expect(screen.getByText('Play!')).toBeTruthy();

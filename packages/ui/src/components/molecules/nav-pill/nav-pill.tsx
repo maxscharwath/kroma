@@ -204,6 +204,11 @@ function Root({
     }),
   );
 
+  // Left to the React Compiler, which memoises this on the inputs it actually
+  // reads. A hand-written `useMemo` here cannot be spelled correctly: its deps
+  // would have to name effect events, which biome requires be left OUT of a
+  // dependency array - and the mismatch is what makes the compiler give up on
+  // the whole component.
   const context = {
     size,
     labels: labelPolicy,

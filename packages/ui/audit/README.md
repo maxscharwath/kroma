@@ -31,6 +31,9 @@ node count goes down while the other two files do not change at all.**
 
 ```bash
 bun run kit:dom                 # worklist, worst structural overhead first
+bun run kit:dom --help          # every flag, and what a tree's annotations mean
+bun run kit:dom --smells        # only the components carrying removable structure
+bun run kit:dom --quiet         # the three summary lines, for a script
 bun run kit:dom ListRow         # one component: annotated tree + scoped digest
 # edit the component
 KROMA_DOM_ONLY=ListRow bun x vitest run --project web packages/ui/audit/dom-budget.test.tsx

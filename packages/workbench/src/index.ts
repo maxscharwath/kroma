@@ -63,7 +63,7 @@ export { controlsRole, defineStory, story } from './story';
 // The Scene/Do/Dont components themselves travel inside STORY_COMPONENTS; a
 // bare `Scene` here would collide with the compiled scene's type above.
 export type { StoryDocScope } from './story-blocks';
-export { STORY_DOC } from './story-blocks';
+export { StoryDocContext } from './story-blocks';
 export type { StoryCode, StoryCodes } from './story-code';
 export type { StoryMdxModule } from './story-mdx';
 export { storyFromMdx } from './story-mdx';

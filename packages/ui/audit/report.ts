@@ -53,11 +53,10 @@ const HEAD = [
 
 /** The worklist: every view, worst structural overhead first, with the smells
  * that explain it. Written for a person picking the next component to work on. */
-function report(measured: readonly Measured[], limit = 40): string {
+function worklist(measured: readonly Measured[], limit: number): readonly string[] {
   const totals = totalsOf(measured);
   const worst = worstFirst(measured, limit);
-  const broken = measured.filter((entry) => entry.error);
-  const out = [
+  return [
     '# Kit DOM audit',
     '',
     `${totals.views} views · ${totals.nodes} nodes · ${totals.leaves} leaves · ${totals.overhead} structural`,
@@ -68,18 +67,28 @@ function report(measured: readonly Measured[], limit = 40): string {
     '',
     HEAD,
     ...worst.map(row),
-    '',
-    '## Smells',
-    '',
   ];
-  for (const entry of [...measured].sort((a, b) => b.cost.smells.length - a.cost.smells.length)) {
-    if (entry.cost.smells.length === 0) continue;
-    out.push(`### ${entry.name} / ${entry.view}  (${entry.file})`);
-    for (const smell of entry.cost.smells) {
-      out.push(`- \`${smell.kind}\` ${smell.note}`, `  \`${smell.at}\``);
-    }
-    out.push('');
-  }
+}
+
+function smellsOf(measured: readonly Measured[]): readonly string[] {
+  const noisiest = [...measured].sort((a, b) => b.cost.smells.length - a.cost.smells.length);
+  return noisiest.flatMap((entry) =>
+    entry.cost.smells.length === 0
+      ? []
+      : [
+          `### ${entry.name} / ${entry.view}  (${entry.file})`,
+          ...entry.cost.smells.flatMap((smell) => [
+            `- \`${smell.kind}\` ${smell.note}`,
+            `  \`${smell.at}\``,
+          ]),
+          '',
+        ],
+  );
+}
+
+function report(measured: readonly Measured[], limit = 40): string {
+  const broken = measured.filter((entry) => entry.error);
+  const out = [...worklist(measured, limit), '', '## Smells', '', ...smellsOf(measured)];
   const failing = measured.filter((entry) => entry.access.findings.length > 0);
   if (failing.length > 0) {
     out.push('## Accessibility', '');
@@ -123,14 +132,17 @@ function digest(measured: readonly Measured[], limit = 15): string {
       (entry) =>
         `  ${entry.work.commits} commits${entry.work.remounts ? ' (full re-render)' : ''}  ${entry.name} / ${entry.view}`,
     );
+  // The three summary lines lead, in this order, because they are what `--quiet`
+  // reads and what a person wants first: the size, then whether anything is
+  // wrong with it, then what there is to remove.
   return [
+    `${totals.views} views  ${totals.nodes} nodes  ${totals.leaves} leaves  ${totals.overhead} structural`,
     a11y === 0 ? 'a11y: clean' : `a11y: ${a11y} findings`,
     restless.length === 0
       ? 'mounts: all settle in one commit'
       : `mounts: ${restless.length} views need more than one commit`,
-    ...worstMounts,
-    `${totals.views} views  ${totals.nodes} nodes  ${totals.leaves} leaves  ${totals.overhead} structural`,
     smells,
+    ...worstMounts,
     '',
     ...worst.map(
       (entry) =>

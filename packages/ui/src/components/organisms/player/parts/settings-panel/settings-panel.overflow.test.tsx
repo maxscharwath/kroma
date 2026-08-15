@@ -5,36 +5,12 @@ import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chromeMetrics } from '#ui/components/organisms/player/lib/metrics';
 import { type ControlId, controlOrder } from '#ui/components/organisms/player/lib/nav';
-import type { SubtitleAppearance } from '#ui/components/organisms/player/lib/subtitle-appearance';
-import { type PlayerController, WEB_FLAGS } from '#ui/components/organisms/player/types';
+import { WEB_FLAGS } from '#ui/components/organisms/player/types';
 import { I18nProvider } from '#ui/services/i18n';
-import type { SubtitleGenBundle } from './settings/gen';
 import { SettingsPanel } from './settings-panel';
+import { APPEARANCE, controller, GEN } from './settings-panel.fixture';
 
 afterEach(cleanup);
-
-function controller(): PlayerController {
-  return {
-    qualities: [],
-    qualityId: '',
-    setQuality: vi.fn(),
-    audioTracks: [],
-    audioIndex: null,
-    setAudio: vi.fn(),
-    audioFilter: 'off',
-    audioFilterSupported: false,
-    setAudioFilter: vi.fn(),
-    subtitles: [],
-    subtitleIndex: null,
-    setSubtitle: vi.fn(),
-    muted: false,
-    rate: 1,
-    setRate: vi.fn(),
-  } as unknown as PlayerController;
-}
-
-const GEN = { supported: false } as unknown as SubtitleGenBundle;
-const APPEARANCE = {} as SubtitleAppearance;
 
 function panel(overflow: readonly ControlId[], onControl = vi.fn()): ReactElement {
   return (

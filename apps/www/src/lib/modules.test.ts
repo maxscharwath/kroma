@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { catalogDay, ordered, type RawCatalog, resolveBlurb, toSiteCatalog } from './modules.ts';
+import { catalogDay, ordered, type RawCatalog, toSiteCatalog } from './modules.ts';
 
 const raw = (modules: RawCatalog['modules'], generatedAt?: string | null): RawCatalog => ({
   generatedAt,
@@ -73,54 +73,55 @@ describe('toSiteCatalog', () => {
 });
 
 describe('ordered', () => {
-  it('tells the acquisition story in order, whatever order the catalog arrived in', () => {
+  it('puts what stands on its own before what builds on it', () => {
     const { modules } = toSiteCatalog(
       raw([
-        { id: 'tv.kroma.vpn' },
-        { id: 'tv.kroma.indexer' },
-        { id: 'tv.kroma.torrents' },
-        { id: 'tv.kroma.acquisition' },
+        {
+          id: 'tv.kroma.acquisition',
+          name: 'Acquisition',
+          requires: [{ kind: 'indexer-engine' }, { kind: 'download-client' }],
+        },
+        {
+          id: 'tv.kroma.torrents',
+          name: 'Torrent downloads',
+          dependsOn: { 'tv.kroma.indexer': '^0.1.0' },
+        },
+        { id: 'tv.kroma.indexer', name: 'Indexers' },
       ]),
     );
 
-    expect(ordered(modules).map((x) => x.id)).toEqual([
-      'tv.kroma.indexer',
-      'tv.kroma.torrents',
-      'tv.kroma.acquisition',
-      'tv.kroma.vpn',
+    expect(ordered(modules).map((x) => x.name)).toEqual([
+      'Indexers',
+      'Torrent downloads',
+      'Acquisition',
     ]);
   });
 
-  it('keeps an unknown module rather than dropping it, after the curated ones', () => {
-    const { modules } = toSiteCatalog(raw([{ id: 'tv.kroma.zzz' }, { id: 'tv.kroma.indexer' }]));
-    expect(ordered(modules).map((x) => x.id)).toEqual(['tv.kroma.indexer', 'tv.kroma.zzz']);
+  it('sorts by name within a tier, so the order does not depend on catalog order', () => {
+    const { modules } = toSiteCatalog(
+      raw([
+        { id: 'b.zz', name: 'Zeta' },
+        { id: 'a.aa', name: 'Alpha' },
+      ]),
+    );
+    expect(ordered(modules).map((x) => x.name)).toEqual(['Alpha', 'Zeta']);
+  });
+
+  it('keeps a module the site has never heard of, since it knows no ids', () => {
+    const { modules } = toSiteCatalog(raw([{ id: 'tv.kroma.brandnew', name: 'Brand new' }]));
+    expect(ordered(modules).map((x) => x.id)).toEqual(['tv.kroma.brandnew']);
   });
 
   it('does not mutate its input', () => {
-    const { modules } = toSiteCatalog(raw([{ id: 'tv.kroma.vpn' }, { id: 'tv.kroma.indexer' }]));
+    const { modules } = toSiteCatalog(
+      raw([
+        { id: 'b', name: 'B' },
+        { id: 'a', name: 'A' },
+      ]),
+    );
     const before = modules.map((x) => x.id);
     ordered(modules);
     expect(modules.map((x) => x.id)).toEqual(before);
-  });
-});
-
-describe('resolveBlurb', () => {
-  const blurbs = { 'tv.kroma.whisper': () => 'Transcription, on your box' };
-
-  it('prefers the site copy over the catalog description', () => {
-    expect(resolveBlurb(blurbs, { id: 'tv.kroma.whisper', description: 'English from JSON' })).toBe(
-      'Transcription, on your box',
-    );
-  });
-
-  it('falls back to the catalog for a module the site has no copy for yet', () => {
-    expect(resolveBlurb(blurbs, { id: 'tv.kroma.future', description: 'Brand new' })).toBe(
-      'Brand new',
-    );
-  });
-
-  it('renders nothing rather than "null" when neither exists', () => {
-    expect(resolveBlurb(blurbs, { id: 'tv.kroma.future', description: null })).toBe('');
   });
 });
 

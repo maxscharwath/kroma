@@ -296,7 +296,7 @@
   "modules_head_title": "Modules",
   "modules_hero_eyebrow": "Modules",
   "modules_hero_title": "The server plays. [The modules do the rest.]",
-  "modules_hero_lead": "KROMA’s core is playback and catalog. Everything past that (indexers, downloads, acquisition, VPN, transcription, embeddings) is a separate program the server installs, starts and supervises for you. Install what you use, remove what you do not.",
+  "modules_hero_lead": "KROMA’s core is playback and catalog. Everything past that is a separate program the server installs, starts and supervises for you: it asks for a capability and runs whichever module provides it. Install what you use, remove what you do not.",
   "modules_what_title": "What a module actually is",
   "modules_what_1_title": "Its own process",
   "modules_what_1_body": "A module is a native binary that runs beside the server on its own local port, not a plugin loaded into it. One that crashes, hangs or is uninstalled cannot take playback down with it.",
@@ -316,17 +316,5 @@
   "modules_catalog_empty": "The catalog could not be read when this page was built.",
   "modules_catalog_link": "Browse the registry",
   "modules_registry_title": "Registries, and what is checked",
-  "modules_registry_body": "The official catalog is pinned, and an operator can add their own. An added registry must be https, the official one always wins an id clash, and every bundle is sha256-verified against the catalog before it is unpacked. A module that asks for a newer server than yours is not offered at all.",
-  "modules_item_acquisition": "Release search, quality scoring, grab and import, plus the automatic wanted-list pass.",
-  "modules_item_qbittorrent": "Your existing qBittorrent, as a download engine for the downloads module.",
-  "modules_item_transmission": "Your existing Transmission, as a download engine for the downloads module.",
-  "modules_item_indexer": "Searches trackers from community Cardigann definitions. No external aggregator to run.",
-  "modules_item_mdns": "DNS-SD advertising, so clients on the network find the server on their own.",
-  "modules_item_remote": "Public HTTPS access: the share and Quick Connect URL, with an optional managed Cloudflare Tunnel.",
-  "modules_item_scene": "Scene and P2P release-name parsing, shared by the acquisition stack.",
-  "modules_item_torrents": "The embedded librqbit engine and the download queue.",
-  "modules_item_torznab": "External Torznab and Newznab indexers, for a Jackett or Prowlarr you already run.",
-  "modules_item_vector": "Content embeddings, behind For You, the themed rows and semantic search.",
-  "modules_item_vpn": "A managed WireGuard bridge that torrent traffic routes through, with a live seal test.",
-  "modules_item_whisper": "On-device subtitle transcription, with no cloud and no API key."
+  "modules_registry_body": "The official catalog is pinned, and an operator can add their own. An added registry must be https, the official one always wins an id clash, and every bundle is sha256-verified against the catalog before it is unpacked. A module that asks for a newer server than yours is not offered at all."
 }

@@ -1,22 +1,5 @@
-import { resolveBlurb, type SiteModule } from '#site/lib/modules';
+import type { SiteModule } from '#site/lib/modules';
 import { m } from '#site/paraglide/messages';
-
-// The site's own copy per official module, so the French page reads French
-// rather than the catalog's English description.
-const BLURBS: Record<string, () => string> = {
-  'tv.kroma.acquisition': m.modules_item_acquisition,
-  'tv.kroma.engine.qbittorrent': m.modules_item_qbittorrent,
-  'tv.kroma.engine.transmission': m.modules_item_transmission,
-  'tv.kroma.indexer': m.modules_item_indexer,
-  'tv.kroma.mdns': m.modules_item_mdns,
-  'tv.kroma.remote': m.modules_item_remote,
-  'tv.kroma.scene': m.modules_item_scene,
-  'tv.kroma.torrents': m.modules_item_torrents,
-  'tv.kroma.torznab': m.modules_item_torznab,
-  'tv.kroma.vector': m.modules_item_vector,
-  'tv.kroma.vpn': m.modules_item_vpn,
-  'tv.kroma.whisper': m.modules_item_whisper,
-};
 
 export interface ModuleCardProps {
   mod: SiteModule;
@@ -53,7 +36,11 @@ export function ModuleCard({ mod }: Readonly<ModuleCardProps>) {
           )}
         </div>
 
-        <p className="mt-1.5 text-sm leading-relaxed text-muted">{resolveBlurb(BLURBS, mod)}</p>
+        {/* The registry's own words. This site carries no copy per module, so a
+            module added to or dropped from the catalog needs no change here. */}
+        {mod.description && (
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">{mod.description}</p>
+        )}
 
         {needs.length > 0 && (
           <p className="mt-2.5 font-mono text-[0.68rem] text-dim">

@@ -62,47 +62,21 @@ export function toSiteCatalog(raw: RawCatalog): SiteCatalog {
   };
 }
 
+/** How much has to be installed before a module is useful: its own prerequisites. */
+const depth = (mod: SiteModule): number => mod.requires.length + mod.dependsOn.length;
+
 /**
- * The site's own translated one-liner for a module, or the catalog's English
- * description when the site has no copy for it yet, which is what a newly
- * published module gets until its copy lands.
+ * The catalog in the order the page reads: what stands on its own first, then
+ * what builds on it, alphabetically within each tier.
  *
- * The message map is an argument rather than an import: this module has to stay
- * loadable without the Paraglide output, which only exists after a build.
+ * Derived from the catalog rather than from a list of ids, so a module added to
+ * or dropped from the registry needs no change here. This site knows that
+ * modules have prerequisites and names; it does not know which modules exist.
  */
-export function resolveBlurb(
-  blurbs: Readonly<Record<string, () => string>>,
-  mod: Pick<SiteModule, 'id' | 'description'>,
-): string {
-  return blurbs[mod.id]?.() ?? mod.description ?? '';
-}
-
-// The order the site tells the story in: what you acquire with, then what
-// carries it, then what enriches it, then what reaches it. Anything unlisted
-// keeps its catalog order after these.
-const ORDER = [
-  'tv.kroma.indexer',
-  'tv.kroma.torznab',
-  'tv.kroma.torrents',
-  'tv.kroma.acquisition',
-  'tv.kroma.engine.qbittorrent',
-  'tv.kroma.engine.transmission',
-  'tv.kroma.vpn',
-  'tv.kroma.vector',
-  'tv.kroma.whisper',
-  'tv.kroma.scene',
-  'tv.kroma.remote',
-  'tv.kroma.mdns',
-];
-
-const rank = (id: string) => {
-  const i = ORDER.indexOf(id);
-  return i === -1 ? ORDER.length : i;
-};
-
-/** The catalog in the order the page reads, curated first and the rest after. */
 export function ordered(modules: readonly SiteModule[]): SiteModule[] {
-  return [...modules].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
+  return [...modules].sort(
+    (a, b) => depth(a) - depth(b) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+  );
 }
 
 /** `2026-08-15T13:19:46.343Z` as `2026-08-15`, or null when it is not a date. */

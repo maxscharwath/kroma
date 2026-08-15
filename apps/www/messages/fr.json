@@ -296,7 +296,7 @@
   "modules_head_title": "Modules",
   "modules_hero_eyebrow": "Modules",
   "modules_hero_title": "Le serveur lit. [Les modules font le reste.]",
-  "modules_hero_lead": "Le cœur de KROMA, c’est la lecture et le catalogue. Tout le reste (indexeurs, téléchargements, acquisition, VPN, transcription, embeddings) est un programme séparé que le serveur installe, lance et supervise pour vous. Installez ce que vous utilisez, retirez le reste.",
+  "modules_hero_lead": "Le cœur de KROMA, c’est la lecture et le catalogue. Tout le reste est un programme séparé que le serveur installe, lance et supervise pour vous : il demande une capacité et fait tourner le module qui la fournit. Installez ce que vous utilisez, retirez le reste.",
   "modules_what_title": "Ce qu’est vraiment un module",
   "modules_what_1_title": "Son propre processus",
   "modules_what_1_body": "Un module est un binaire natif qui tourne à côté du serveur, sur son propre port local : ce n’est pas un plugin chargé dedans. S’il plante, se bloque ou est désinstallé, il n’emporte pas la lecture avec lui.",
@@ -316,17 +316,5 @@
   "modules_catalog_empty": "Le catalogue n’a pas pu être lu à la construction de cette page.",
   "modules_catalog_link": "Parcourir le registre",
   "modules_registry_title": "Les registres, et ce qui est vérifié",
-  "modules_registry_body": "Le catalogue officiel est épinglé, et un opérateur peut ajouter les siens. Un registre ajouté doit être en https, l’officiel gagne toujours en cas de collision d’identifiant, et chaque paquet est vérifié par sha256 contre le catalogue avant d’être décompressé. Un module qui exige un serveur plus récent que le vôtre n’est simplement pas proposé.",
-  "modules_item_acquisition": "Recherche de releases, notation de la qualité, récupération et import, plus la passe automatique de la liste des envies.",
-  "modules_item_qbittorrent": "Votre qBittorrent existant, comme moteur de téléchargement du module Downloads.",
-  "modules_item_transmission": "Votre Transmission existant, comme moteur de téléchargement du module Downloads.",
-  "modules_item_indexer": "Cherche sur les trackers à partir des définitions Cardigann de la communauté. Aucun agrégateur externe à faire tourner.",
-  "modules_item_mdns": "Annonce DNS-SD, pour que les clients du réseau trouvent le serveur tout seuls.",
-  "modules_item_remote": "Accès HTTPS public : l’URL de partage et de Quick Connect, avec un tunnel Cloudflare managé en option.",
-  "modules_item_scene": "Analyse des noms de releases scene et P2P, partagée par la chaîne d’acquisition.",
-  "modules_item_torrents": "Le moteur librqbit embarqué et la file de téléchargement.",
-  "modules_item_torznab": "Indexeurs Torznab et Newznab externes, pour un Jackett ou un Prowlarr que vous avez déjà.",
-  "modules_item_vector": "Embeddings de contenu, derrière Pour vous, les rangées thématiques et la recherche sémantique.",
-  "modules_item_vpn": "Un pont WireGuard managé par lequel passe le trafic torrent, avec test d’étanchéité en direct.",
-  "modules_item_whisper": "Transcription des sous-titres sur l’appareil, sans cloud et sans clé d’API."
+  "modules_registry_body": "Le catalogue officiel est épinglé, et un opérateur peut ajouter les siens. Un registre ajouté doit être en https, l’officiel gagne toujours en cas de collision d’identifiant, et chaque paquet est vérifié par sha256 contre le catalogue avant d’être décompressé. Un module qui exige un serveur plus récent que le vôtre n’est simplement pas proposé."
 }

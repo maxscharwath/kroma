@@ -63,10 +63,10 @@ all of these. Report per file, grouped by severity.
 
     <DOMAIN>-<N>  (STATUS) — one testable statement.
 
-- `DOMAIN` is a prefix each file picks for itself — there is no fixed list. The
-  invariants (enforced by `spec:check`) are that a file uses one prefix and a
-  prefix belongs to one file. Flag a file that mixes prefixes or reuses another
-  file's.
+- `DOMAIN` is a prefix each **space** (domain folder) picks for itself — there is
+  no fixed list. The invariants (enforced by `spec:check`) are that a space uses
+  one prefix across all its chapters and a prefix belongs to one space. Flag a
+  chapter that mixes prefixes or reuses another space's.
 - `N` is an integer, assigned once, never reused, never renumbered — even if the
   requirement is later deleted, its number is retired, not recycled.
 - Downstream, an epic or story references the IDs it implements

@@ -7,13 +7,17 @@
  * find the ID, jump to `file` + `line`. The human-facing `docs/spec/INDEX.md`
  * is generated from the same data so the two never drift.
  *
- * There is no hardcoded list of domains or prefixes. A file's prefix is whatever
+ * The spec is organised into *spaces*: each domain is a folder under docs/spec/
+ * (its landing chapter is that folder's README.md, and it may hold any number of
+ * further chapter files). A flat `docs/spec/foo.md` is treated as its own space.
+ *
+ * There is no hardcoded list of domains or prefixes. A space's prefix is whatever
  * its requirements use; the script discovers it. The only rules it enforces are
  * the ones that keep IDs unambiguous:
- *   - a file uses exactly one prefix (no mixing prefixes in one file),
- *   - a prefix belongs to exactly one file (no two files sharing a prefix),
+ *   - a space uses exactly one prefix (every chapter in the folder agrees),
+ *   - a prefix belongs to exactly one space (no two spaces sharing a prefix),
  *   - every requirement ID is unique, and every line carries a valid status.
- * Adding a domain is just adding a file and picking a prefix — no code change.
+ * Adding a domain is just adding a folder and picking a prefix — no code change.
  *
  * Two modes:
  *   default   — regenerate requirements.json + INDEX.md on disk.
@@ -23,20 +27,49 @@
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 const SPEC_DIR = join(import.meta.dir, "..");
+
+// Files at the root of docs/spec/ that are not spec chapters.
+const ROOT_SKIP = new Set(["README.md", "INDEX.md"]);
+
+// The space a chapter belongs to: the top folder under docs/spec/, or the file
+// stem for a flat file sitting directly in docs/spec/.
+function spaceOf(relPath: string): string {
+  const segments = relPath.split(sep);
+  return segments.length > 1 ? segments[0] : segments[0].replace(/\.md$/, "");
+}
+
+// Recursively list every .md chapter under docs/spec/, skipping the two root
+// artefacts and the scripts/ folder. Paths returned are relative to SPEC_DIR.
+async function chapters(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "scripts") continue;
+      out.push(...(await chapters(full)));
+    } else if (entry.name.endsWith(".md")) {
+      const rel = relative(SPEC_DIR, full);
+      if (rel.split(sep).length === 1 && ROOT_SKIP.has(entry.name)) continue;
+      out.push(rel);
+    }
+  }
+  return out.sort();
+}
 
 const STATUSES = ["SHIPPED", "AGREED", "DRAFT", "DESIGN, NOT IMPLEMENTED"] as const;
 type Status = (typeof STATUSES)[number];
 
 interface Requirement {
   id: string;
-  domain: string; // the prefix, discovered from the file — not from a fixed list
+  domain: string; // the prefix, discovered from the space — not from a fixed list
+  space: string; // the folder (or flat-file stem) the requirement lives in
   number: number;
   status: Status;
   text: string;
-  file: string;
+  file: string; // repo-relative path to the exact chapter
   line: number;
 }
 
@@ -51,15 +84,12 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
   const reqs: Requirement[] = [];
   const errors: string[] = [];
   const seenId = new Map<string, string>(); // id -> "file:line" of first sighting
-  const prefixOwner = new Map<string, string>(); // prefix -> the file that owns it
-  const filePrefix = new Map<string, string>(); // file -> the one prefix it uses
+  const prefixOwner = new Map<string, string>(); // prefix -> the space that owns it
+  const spacePrefix = new Map<string, string>(); // space -> the one prefix it uses
 
-  const files = (await readdir(SPEC_DIR)).filter(
-    (f) => f.endsWith(".md") && f !== "README.md" && f !== "INDEX.md",
-  );
-
-  for (const file of files.sort()) {
-    const lines = (await readFile(join(SPEC_DIR, file), "utf8")).split("\n");
+  for (const rel of await chapters(SPEC_DIR)) {
+    const space = spaceOf(rel);
+    const lines = (await readFile(join(SPEC_DIR, rel), "utf8")).split("\n");
     let inFence = false;
     lines.forEach((raw, i) => {
       // Never parse inside a fenced code block — spec files show example
@@ -74,25 +104,25 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
       if (!idm) return;
       const [, prefix, num, rest] = idm;
       const line = i + 1;
-      const where = `${file}:${line}`;
+      const where = `${rel}:${line}`;
 
-      // One prefix per file.
-      const established = filePrefix.get(file);
+      // One prefix per space (every chapter in the folder agrees).
+      const established = spacePrefix.get(space);
       if (established === undefined) {
-        filePrefix.set(file, prefix);
+        spacePrefix.set(space, prefix);
       } else if (established !== prefix) {
         errors.push(
-          `${where}: ${file} already uses prefix "${established}-", but this line uses "${prefix}-". ` +
-            `One prefix per file.`,
+          `${where}: space "${space}" already uses prefix "${established}-", but this line uses "${prefix}-". ` +
+            `One prefix per space.`,
         );
         return;
       }
-      // A prefix belongs to one file.
+      // A prefix belongs to one space.
       const owner = prefixOwner.get(prefix);
       if (owner === undefined) {
-        prefixOwner.set(prefix, file);
-      } else if (owner !== file) {
-        errors.push(`${where}: prefix "${prefix}-" is already used by ${owner}. A prefix belongs to one file.`);
+        prefixOwner.set(prefix, space);
+      } else if (owner !== space) {
+        errors.push(`${where}: prefix "${prefix}-" is already used by space "${owner}". A prefix belongs to one space.`);
         return;
       }
 
@@ -123,16 +153,17 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
       reqs.push({
         id,
         domain: prefix,
+        space,
         number,
         status: status as Status,
         text: textRaw.replace(/\s+/g, " "),
-        file: `docs/spec/${file}`,
+        file: `docs/spec/${rel.split(sep).join("/")}`,
         line,
       });
     });
   }
 
-  reqs.sort((a, b) => a.file.localeCompare(b.file) || a.number - b.number);
+  reqs.sort((a, b) => a.space.localeCompare(b.space) || a.number - b.number);
   return { reqs, errors };
 }
 
@@ -147,18 +178,23 @@ function renderIndex(reqs: Requirement[]): string {
       "The machine-readable source is [`requirements.json`](requirements.json).",
     "",
   ];
-  // Group by file, keeping first-seen order (reqs are already sorted by file).
-  const byFile = new Map<string, Requirement[]>();
+  // Group by space (reqs are already sorted by space, then number).
+  const bySpace = new Map<string, Requirement[]>();
   for (const r of reqs) {
-    let list = byFile.get(r.file);
-    if (!list) byFile.set(r.file, (list = []));
+    let list = bySpace.get(r.space);
+    if (!list) bySpace.set(r.space, (list = []));
     list.push(r);
   }
 
-  for (const [file, list] of byFile) {
-    const name = file.replace("docs/spec/", "");
-    out.push(`## ${list[0].domain} — [${name}](${name})`, "");
-    for (const r of list) out.push(`- **${r.id}** (${r.status}) — ${r.text}`);
+  for (const [space, list] of bySpace) {
+    out.push(`## ${list[0].domain} — [${space}](${space}/)`, "");
+    for (const r of list) {
+      // When a space spans several chapters, point each requirement at its file.
+      const chapters = new Set(list.map((x) => x.file));
+      const suffix =
+        chapters.size > 1 ? ` <sub>[${r.file.replace(`docs/spec/${space}/`, "")}](${r.file.replace("docs/spec/", "")})</sub>` : "";
+      out.push(`- **${r.id}** (${r.status}) — ${r.text}${suffix}`);
+    }
     out.push("");
   }
   return out.join("\n");

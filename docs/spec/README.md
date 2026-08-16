@@ -17,20 +17,22 @@ it belongs in architecture.
 
 ## The domains
 
-One file per domain, using the domain nouns `ARCHITECTURE.md` already uses — the same
-words name the server's crates, the clients' feature folders, and the `area/` labels.
-Learn the vocabulary once, use it everywhere.
+One **space** per domain — a folder under `docs/spec/`, using the domain nouns
+`ARCHITECTURE.md` already uses (the same words name the server's crates, the
+clients' feature folders, and the `area/` labels). A space's landing chapter is
+its `README.md`; as a domain grows it splits into further chapter files in the
+same folder. Learn the vocabulary once, use it everywhere.
 
-| File | Domain | `area/` label |
+| Space | Domain | `area/` label |
 |---|---|---|
-| [`library.md`](library.md) | Sources, scanning, matching, metadata refresh | `area/server` |
-| [`media.md`](media.md) | What a title *is*: containers, codecs, streams, artwork | `area/server` |
-| [`playback.md`](playback.md) | Direct play, fallbacks, resume, continue watching | `area/server` `area/tv` |
-| [`accounts.md`](accounts.md) | Accounts, sessions, profiles, who may see what | `area/server` |
-| [`discovery.md`](discovery.md) | Finding a server on the network, pairing a television | `area/tv` |
-| [`modules.md`](modules.md) | `.kmod` bundles, the Store, out-of-process sidecars | `area/modules` |
-| [`admin.md`](admin.md) | Running a server: settings, users, jobs, diagnostics | `area/server` |
-| [`surfaces.md`](surfaces.md) | What each client must do, and what it is allowed not to do | all client areas |
+| [`library/`](library/) | Sources, scanning, matching, metadata refresh | `area/server` |
+| [`media/`](media/) | What a title *is*: containers, codecs, streams, artwork | `area/server` |
+| [`playback/`](playback/) | Direct play, fallbacks, resume, continue watching | `area/server` `area/tv` |
+| [`accounts/`](accounts/) | Accounts, sessions, profiles, who may see what | `area/server` |
+| [`discovery/`](discovery/) | Finding a server on the network, pairing a television | `area/tv` |
+| [`modules/`](modules/) | `.kmod` bundles, the Store, out-of-process sidecars | `area/modules` |
+| [`admin/`](admin/) | Running a server: settings, users, jobs, diagnostics | `area/server` |
+| [`surfaces/`](surfaces/) | What each client must do, and what it is allowed not to do | all client areas |
 
 ## Status vocabulary
 
@@ -54,10 +56,10 @@ copying it.
 
     <DOMAIN>-<N>  (STATUS) — one testable statement.
 
-- `DOMAIN` is a short prefix the file picks for itself — no central list. The
-  only rules the tooling enforces are the ones that keep IDs unambiguous: a file
-  uses **one** prefix, and a prefix belongs to **one** file. Pick something
-  legible (`LIB`, `MEDIA`, …) and stay consistent.
+- `DOMAIN` is a short prefix the **space** picks for itself — no central list. The
+  only rules the tooling enforces are the ones that keep IDs unambiguous: a space
+  uses **one** prefix (every chapter in the folder agrees), and a prefix belongs to
+  **one** space. Pick something legible (`LIB`, `MEDIA`, …) and stay consistent.
 - `N` is an integer, assigned once and **never reused or renumbered**. A deleted
   requirement retires its number; it is not recycled.
 - One ID is one testable idea. If a line hides two requirements, it needs two IDs.
@@ -78,18 +80,18 @@ and that nothing leaks architecture.
 
 ### Finding a requirement, fast
 
-The prose is for humans; the index is for machines. `bun run spec:index` scans
-every domain file and regenerates two artefacts:
+The prose is for humans; the index is for machines. `bun run spec:index` walks
+every space (recursively, all chapters) and regenerates two artefacts:
 
 - [`requirements.json`](requirements.json) — one record per requirement:
-  `{ id, domain, status, text, file, line }`. An agent resolves any ID to its
-  exact location in a single lookup — no grepping prose, no guessing anchors.
+  `{ id, domain, space, status, text, file, line }`. An agent resolves any ID to
+  its exact chapter and line in a single lookup — no grepping prose, no anchors.
 - [`INDEX.md`](INDEX.md) — the same list for a human to skim.
 
 Both are generated; never edit them by hand. Run `bun run spec:index` whenever
 you change a requirement and commit the result. `bun run spec:check` verifies
 without writing — it fails if the committed index is stale or if any requirement
-has a duplicate ID, a prefix used in two files, a file mixing prefixes, or a
+has a duplicate ID, a prefix used in two spaces, a space mixing prefixes, or a
 missing status. Run it before you open the PR; the reviewer runs it too.
 
 ## How the spec changes

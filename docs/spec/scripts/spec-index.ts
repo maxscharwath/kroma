@@ -7,16 +7,18 @@
  * find the ID, jump to `file` + `line`. The human-facing `docs/spec/INDEX.md`
  * is generated from the same data so the two never drift.
  *
- * This script is also the enforcement point. It fails (non-zero exit) on:
- *   - a requirement line that is malformed or missing a status,
- *   - a duplicate requirement ID,
- *   - an unknown domain prefix, or a prefix used in the wrong file.
+ * There is no hardcoded list of domains or prefixes. A file's prefix is whatever
+ * its requirements use; the script discovers it. The only rules it enforces are
+ * the ones that keep IDs unambiguous:
+ *   - a file uses exactly one prefix (no mixing prefixes in one file),
+ *   - a prefix belongs to exactly one file (no two files sharing a prefix),
+ *   - every requirement ID is unique, and every line carries a valid status.
+ * Adding a domain is just adding a file and picking a prefix — no code change.
  *
  * Two modes:
  *   default   — regenerate requirements.json + INDEX.md on disk.
  *   --check    — verify only. Writes nothing; exits non-zero if the committed
- *                artefacts are stale or any requirement is invalid. Safe to run
- *                in CI without mutating the tree.
+ *                artefacts are stale or any requirement is invalid. Safe in CI.
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -24,24 +26,12 @@ import { join } from "node:path";
 
 const SPEC_DIR = join(import.meta.dir, "..");
 
-// The fixed domain prefixes. One per spec file; adding a domain means adding here.
-const DOMAINS: Record<string, string> = {
-  LIB: "library.md",
-  MEDIA: "media.md",
-  PLAY: "playback.md",
-  ACCT: "accounts.md",
-  DISC: "discovery.md",
-  MOD: "modules.md",
-  ADMIN: "admin.md",
-  SURF: "surfaces.md",
-};
-
 const STATUSES = ["SHIPPED", "AGREED", "DRAFT", "DESIGN, NOT IMPLEMENTED"] as const;
 type Status = (typeof STATUSES)[number];
 
 interface Requirement {
   id: string;
-  domain: string;
+  domain: string; // the prefix, discovered from the file — not from a fixed list
   number: number;
   status: Status;
   text: string;
@@ -52,14 +42,16 @@ interface Requirement {
 // A requirement line is an ID token first — `**LIB-4**` — then the rest. Split in
 // two so a line that has the ID but a malformed remainder is *reported*, not
 // silently skipped like a line that was never a requirement at all.
-const REQ_ID = /^\s*(?:[-*]\s+)?\*\*([A-Z]+)-(\d+)\*\*(.*)$/;
+const REQ_ID = /^\s*(?:[-*]\s+)?\*\*([A-Z][A-Z0-9]*)-(\d+)\*\*(.*)$/;
 // (STATUS) — text.  Accept em-dash, en-dash or hyphen as the separator.
 const REQ_REST = /^\s*\(([^)]+)\)\s*[—–-]\s*(\S.*?)\s*$/;
 
 async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
   const reqs: Requirement[] = [];
   const errors: string[] = [];
-  const seen = new Map<string, string>(); // id -> "file:line" of first sighting
+  const seenId = new Map<string, string>(); // id -> "file:line" of first sighting
+  const prefixOwner = new Map<string, string>(); // prefix -> the file that owns it
+  const filePrefix = new Map<string, string>(); // file -> the one prefix it uses
 
   const files = (await readdir(SPEC_DIR)).filter(
     (f) => f.endsWith(".md") && f !== "README.md" && f !== "INDEX.md",
@@ -79,45 +71,57 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
 
       const idm = raw.match(REQ_ID);
       if (!idm) return;
-      const [, domain, num, rest] = idm;
+      const [, prefix, num, rest] = idm;
       const line = i + 1;
       const where = `${file}:${line}`;
 
-      if (!(domain in DOMAINS)) {
-        errors.push(`${where}: unknown domain prefix "${domain}-"`);
+      // One prefix per file.
+      const established = filePrefix.get(file);
+      if (established === undefined) {
+        filePrefix.set(file, prefix);
+      } else if (established !== prefix) {
+        errors.push(
+          `${where}: ${file} already uses prefix "${established}-", but this line uses "${prefix}-". ` +
+            `One prefix per file.`,
+        );
         return;
       }
-      if (DOMAINS[domain] !== file) {
-        errors.push(`${where}: prefix "${domain}-" belongs in ${DOMAINS[domain]}, not ${file}`);
+      // A prefix belongs to one file.
+      const owner = prefixOwner.get(prefix);
+      if (owner === undefined) {
+        prefixOwner.set(prefix, file);
+      } else if (owner !== file) {
+        errors.push(`${where}: prefix "${prefix}-" is already used by ${owner}. A prefix belongs to one file.`);
+        return;
       }
 
       const restm = rest.match(REQ_REST);
       if (!restm) {
         errors.push(
-          `${where}: "${domain}-${num}" is not a well-formed requirement line ` +
-            `(expected \`**${domain}-${num}** (STATUS) — text\`)`,
+          `${where}: "${prefix}-${num}" is not a well-formed requirement line ` +
+            `(expected \`**${prefix}-${num}** (STATUS) — text\`)`,
         );
         return;
       }
       const [, statusRaw, textRaw] = restm;
       const status = statusRaw.trim();
       if (!STATUSES.includes(status as Status)) {
-        errors.push(`${where}: "${domain}-${num}" has invalid status "${status}"`);
+        errors.push(`${where}: "${prefix}-${num}" has invalid status "${status}"`);
         return;
       }
 
       // Normalise the number so LIB-04 and LIB-4 collide instead of masquerading
       // as two distinct requirements that happen to share a number.
       const number = Number(num);
-      const id = `${domain}-${number}`;
-      if (seen.has(id)) {
-        errors.push(`${where}: duplicate requirement ${id} (first at ${seen.get(id)})`);
+      const id = `${prefix}-${number}`;
+      if (seenId.has(id)) {
+        errors.push(`${where}: duplicate requirement ${id} (first at ${seenId.get(id)})`);
         return;
       }
-      seen.set(id, where);
+      seenId.set(id, where);
       reqs.push({
         id,
-        domain,
+        domain: prefix,
         number,
         status: status as Status,
         text: textRaw.replace(/\s+/g, " "),
@@ -142,16 +146,17 @@ function renderIndex(reqs: Requirement[]): string {
       "The machine-readable source is [`requirements.json`](requirements.json).",
     "",
   ];
-  const byDomain = new Map<string, Requirement[]>();
+  // Group by file, keeping first-seen order (reqs are already sorted by file).
+  const byFile = new Map<string, Requirement[]>();
   for (const r of reqs) {
-    let list = byDomain.get(r.domain);
-    if (!list) byDomain.set(r.domain, (list = []));
+    let list = byFile.get(r.file);
+    if (!list) byFile.set(r.file, (list = []));
     list.push(r);
   }
 
-  for (const [domain, list] of byDomain) {
-    const file = DOMAINS[domain];
-    out.push(`## ${domain} — [${file}](${file})`, "");
+  for (const [file, list] of byFile) {
+    const name = file.replace("docs/spec/", "");
+    out.push(`## ${list[0].domain} — [${name}](${name})`, "");
     for (const r of list) out.push(`- **${r.id}** (${r.status}) — ${r.text}`);
     out.push("");
   }

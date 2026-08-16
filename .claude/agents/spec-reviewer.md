@@ -63,9 +63,10 @@ all of these. Report per file, grouped by severity.
 
     <DOMAIN>-<N>  (STATUS) — one testable statement.
 
-- `DOMAIN` is the fixed prefix for the file: `LIB` (library), `MEDIA`, `PLAY`
-  (playback), `ACCT` (accounts), `DISC` (discovery), `MOD` (modules), `ADMIN`,
-  `SURF` (surfaces).
+- `DOMAIN` is a prefix each file picks for itself — there is no fixed list. The
+  invariants (enforced by `spec:check`) are that a file uses one prefix and a
+  prefix belongs to one file. Flag a file that mixes prefixes or reuses another
+  file's.
 - `N` is an integer, assigned once, never reused, never renumbered — even if the
   requirement is later deleted, its number is retired, not recycled.
 - Downstream, an epic or story references the IDs it implements

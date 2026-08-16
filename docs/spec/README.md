@@ -54,8 +54,10 @@ copying it.
 
     <DOMAIN>-<N>  (STATUS) — one testable statement.
 
-- `DOMAIN` is the fixed prefix for the file: `LIB`, `MEDIA`, `PLAY`, `ACCT`,
-  `DISC`, `MOD`, `ADMIN`, `SURF`.
+- `DOMAIN` is a short prefix the file picks for itself — no central list. The
+  only rules the tooling enforces are the ones that keep IDs unambiguous: a file
+  uses **one** prefix, and a prefix belongs to **one** file. Pick something
+  legible (`LIB`, `MEDIA`, …) and stay consistent.
 - `N` is an integer, assigned once and **never reused or renumbered**. A deleted
   requirement retires its number; it is not recycled.
 - One ID is one testable idea. If a line hides two requirements, it needs two IDs.
@@ -85,9 +87,10 @@ every domain file and regenerates two artefacts:
 - [`INDEX.md`](INDEX.md) — the same list for a human to skim.
 
 Both are generated; never edit them by hand. `bun run spec:check` regenerates
-them and fails if they are stale or if any requirement has a duplicate ID, an
-unknown domain prefix, or a missing status — so CI keeps the index honest the
-same way `modules:check` keeps generated module code honest.
+them and fails if they are stale or if any requirement has a duplicate ID, a
+prefix used in two files, a file mixing prefixes, or a missing status — so CI
+keeps the index honest the same way `modules:check` keeps generated module code
+honest.
 
 ## How the spec changes
 

@@ -18,7 +18,8 @@
  * Two modes:
  *   default   — regenerate requirements.json + INDEX.md on disk.
  *   --check    — verify only. Writes nothing; exits non-zero if the committed
- *                artefacts are stale or any requirement is invalid. Safe in CI.
+ *                artefacts are stale or any requirement is invalid. Run before
+ *                opening a PR.
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";

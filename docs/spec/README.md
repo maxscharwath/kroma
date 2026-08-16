@@ -86,11 +86,11 @@ every domain file and regenerates two artefacts:
   exact location in a single lookup — no grepping prose, no guessing anchors.
 - [`INDEX.md`](INDEX.md) — the same list for a human to skim.
 
-Both are generated; never edit them by hand. `bun run spec:check` regenerates
-them and fails if they are stale or if any requirement has a duplicate ID, a
-prefix used in two files, a file mixing prefixes, or a missing status — so CI
-keeps the index honest the same way `modules:check` keeps generated module code
-honest.
+Both are generated; never edit them by hand. Run `bun run spec:index` whenever
+you change a requirement and commit the result. `bun run spec:check` verifies
+without writing — it fails if the committed index is stale or if any requirement
+has a duplicate ID, a prefix used in two files, a file mixing prefixes, or a
+missing status. Run it before you open the PR; the reviewer runs it too.
 
 ## How the spec changes
 

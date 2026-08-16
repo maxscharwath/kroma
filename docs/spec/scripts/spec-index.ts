@@ -8,13 +8,15 @@
  * is generated from the same data so the two never drift.
  *
  * This script is also the enforcement point. It fails (non-zero exit) on:
+ *   - a requirement line that is malformed or missing a status,
  *   - a duplicate requirement ID,
- *   - an unknown domain prefix,
- *   - a requirement line missing a status,
- * so `bun run spec:check` can gate a PR the same way `modules:check` does.
+ *   - an unknown domain prefix, or a prefix used in the wrong file.
  *
- * It writes nothing when only validating: pass `--check` to validate + regenerate
- * and let the caller `git diff --exit-code` the outputs.
+ * Two modes:
+ *   default   — regenerate requirements.json + INDEX.md on disk.
+ *   --check    — verify only. Writes nothing; exits non-zero if the committed
+ *                artefacts are stale or any requirement is invalid. Safe to run
+ *                in CI without mutating the tree.
  */
 
 import { readdir, readFile, writeFile } from "node:fs/promises";
@@ -47,8 +49,12 @@ interface Requirement {
   line: number;
 }
 
-// **LIB-4** (AGREED) — A rescan never deletes user data.
-const REQ = /^\s*(?:[-*]\s+)?\*\*([A-Z]+)-(\d+)\*\*\s*\(([^)]+)\)\s*[—-]\s*(.+?)\s*$/;
+// A requirement line is an ID token first — `**LIB-4**` — then the rest. Split in
+// two so a line that has the ID but a malformed remainder is *reported*, not
+// silently skipped like a line that was never a requirement at all.
+const REQ_ID = /^\s*(?:[-*]\s+)?\*\*([A-Z]+)-(\d+)\*\*(.*)$/;
+// (STATUS) — text.  Accept em-dash, en-dash or hyphen as the separator.
+const REQ_REST = /^\s*\(([^)]+)\)\s*[—–-]\s*(\S.*?)\s*$/;
 
 async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
   const reqs: Requirement[] = [];
@@ -61,10 +67,19 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
 
   for (const file of files.sort()) {
     const lines = (await readFile(join(SPEC_DIR, file), "utf8")).split("\n");
+    let inFence = false;
     lines.forEach((raw, i) => {
-      const m = raw.match(REQ);
-      if (!m) return;
-      const [, domain, num, statusRaw, text] = m;
+      // Never parse inside a fenced code block — spec files show example
+      // requirement lines there, and those are illustrations, not requirements.
+      if (/^\s*(```|~~~)/.test(raw)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+
+      const idm = raw.match(REQ_ID);
+      if (!idm) return;
+      const [, domain, num, rest] = idm;
       const line = i + 1;
       const where = `${file}:${line}`;
 
@@ -75,12 +90,26 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
       if (DOMAINS[domain] !== file) {
         errors.push(`${where}: prefix "${domain}-" belongs in ${DOMAINS[domain]}, not ${file}`);
       }
+
+      const restm = rest.match(REQ_REST);
+      if (!restm) {
+        errors.push(
+          `${where}: "${domain}-${num}" is not a well-formed requirement line ` +
+            `(expected \`**${domain}-${num}** (STATUS) — text\`)`,
+        );
+        return;
+      }
+      const [, statusRaw, textRaw] = restm;
       const status = statusRaw.trim();
       if (!STATUSES.includes(status as Status)) {
         errors.push(`${where}: "${domain}-${num}" has invalid status "${status}"`);
         return;
       }
-      const id = `${domain}-${num}`;
+
+      // Normalise the number so LIB-04 and LIB-4 collide instead of masquerading
+      // as two distinct requirements that happen to share a number.
+      const number = Number(num);
+      const id = `${domain}-${number}`;
       if (seen.has(id)) {
         errors.push(`${where}: duplicate requirement ${id} (first at ${seen.get(id)})`);
         return;
@@ -89,9 +118,9 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
       reqs.push({
         id,
         domain,
-        number: Number(num),
+        number,
         status: status as Status,
-        text: text.replace(/\s+/g, " "),
+        text: textRaw.replace(/\s+/g, " "),
         file: `docs/spec/${file}`,
         line,
       });
@@ -114,14 +143,16 @@ function renderIndex(reqs: Requirement[]): string {
     "",
   ];
   const byDomain = new Map<string, Requirement[]>();
-  for (const r of reqs) (byDomain.get(r.domain) ?? byDomain.set(r.domain, []).get(r.domain)!).push(r);
+  for (const r of reqs) {
+    let list = byDomain.get(r.domain);
+    if (!list) byDomain.set(r.domain, (list = []));
+    list.push(r);
+  }
 
   for (const [domain, list] of byDomain) {
     const file = DOMAINS[domain];
     out.push(`## ${domain} — [${file}](${file})`, "");
-    for (const r of list) {
-      out.push(`- **${r.id}** (${r.status}) — ${r.text}`);
-    }
+    for (const r of list) out.push(`- **${r.id}** (${r.status}) — ${r.text}`);
     out.push("");
   }
   return out.join("\n");
@@ -135,10 +166,33 @@ if (errors.length) {
   process.exit(1);
 }
 
-await writeFile(join(SPEC_DIR, "requirements.json"), JSON.stringify(reqs, null, 2) + "\n");
-await writeFile(join(SPEC_DIR, "INDEX.md"), renderIndex(reqs));
+const json = JSON.stringify(reqs, null, 2) + "\n";
+const index = renderIndex(reqs);
+const jsonPath = join(SPEC_DIR, "requirements.json");
+const indexPath = join(SPEC_DIR, "INDEX.md");
 
-console.log(
-  `Spec index: ${reqs.length} requirement(s) written to requirements.json + INDEX.md.` +
-    (check ? " Run `git diff --exit-code` to confirm they were committed." : ""),
-);
+if (check) {
+  const stale: string[] = [];
+  for (const [path, want] of [
+    [jsonPath, json],
+    [indexPath, index],
+  ] as const) {
+    const have = await readFile(path, "utf8").catch(() => null);
+    if (have !== want) stale.push(path);
+  }
+  if (stale.length) {
+    console.error(
+      "Spec index is out of date:\n" +
+        stale.map((p) => `  ✗ ${p}`).join("\n") +
+        "\nRun `bun run spec:index` and commit the result.",
+    );
+    process.exit(1);
+  }
+  console.log(`Spec index: ${reqs.length} requirement(s), up to date.`);
+} else {
+  await writeFile(jsonPath, json);
+  await writeFile(indexPath, index);
+  console.log(
+    `Spec index: ${reqs.length} requirement(s) written to requirements.json + INDEX.md.`,
+  );
+}

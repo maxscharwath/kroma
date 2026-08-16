@@ -12,7 +12,7 @@
 //     generation.
 
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { flattenCustomProperties, lowerJs } from '@kroma/bundler/deep-tier';
 import { kromaLegacyCss } from '@kroma/bundler/legacy-css';
 import { transform } from 'lightningcss';
@@ -154,6 +154,57 @@ function dedupeAssets(distDir: string, dir: string): number {
   return saved;
 }
 
+// A packaged TV app is opened from a local path, and a font is one of the
+// resources an engine fetches in CORS mode: from a file:// document the request
+// fails outright, in every tier, and the whole app falls back to the engine's
+// default serif.
+//
+// Which is fatal rather than untidy, because of how the kit declares the faces.
+// `font-display: optional` buys no layout shift with a ~100ms block period and
+// NO swap period, so a face that has not arrived by then is dropped for the life
+// of the page. The kit's own styles/README is explicit that the preload is the
+// condition that declaration is only correct under, and the preload is precisely
+// what a packaged origin cannot satisfy: it carries `crossorigin`.
+//
+// So all three parts move together here. The bytes go into the stylesheet, which
+// removes the fetch; `optional` becomes `swap`, since there is no longer a
+// network race to lose and dropping the face is the worse outcome; and the
+// preload links go, because they now point at bytes the CSS already carries.
+function inlineFonts(distDir: string): number {
+  const sheets: string[] = [];
+  const collect = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) collect(path);
+      else if (entry.name.endsWith('.css')) sheets.push(path);
+    }
+  };
+  collect(distDir);
+
+  let added = 0;
+  for (const sheet of sheets) {
+    const base = dirname(sheet);
+    const before = readFileSync(sheet, 'utf8');
+    let after = before.replace(/url\(\s*(["']?)([^)"']+\.woff2)\1\s*\)/g, (whole, _q, ref) => {
+      const file = join(base, ref);
+      if (!existsSync(file)) return whole;
+      return `url(data:font/woff2;base64,${readFileSync(file).toString('base64')})`;
+    });
+    if (after === before) continue;
+    after = after.replace(/font-display\s*:\s*optional/g, 'font-display:swap');
+    writeFileSync(sheet, after);
+    added += after.length - before.length;
+  }
+
+  const index = join(distDir, 'index.html');
+  if (existsSync(index)) {
+    const html = readFileSync(index, 'utf8');
+    const stripped = html.replace(/\s*<link[^>]*rel="preload"[^>]*as="font"[^>]*>/g, '');
+    if (stripped !== html) writeFileSync(index, stripped);
+  }
+  return added;
+}
+
 // The one theme a flattened stylesheet can carry, taken from the shell's own
 // <html data-theme>. Cascade-driven theming is what resolving the custom
 // properties spends, so the tier has to know which side it is keeping.
@@ -193,7 +244,13 @@ export function legacyFinalize({
         await lowerJs(join(distDir, dir, 'index.js'), chrome);
         this.info?.(`[${dir}] lowered to chromium ${chrome}, theme pinned to ${theme}`);
       }
-      if (gate) rewriteIndexHtml(distDir, gate);
+      if (gate) {
+        rewriteIndexHtml(distDir, gate);
+        const inlined = inlineFonts(distDir);
+        if (inlined > 0) {
+          this.info?.(`[${dir}] inlined ${(inlined / 1024).toFixed(0)} kB of fonts into the CSS`);
+        }
+      }
       const saved = dedupeAssets(distDir, dir);
       if (saved > 0) {
         this.info?.(

@@ -184,11 +184,16 @@ export function tvShellLegacyConfig(
     // The member-expression key (like `import.meta.url` above) matches the
     // `globalThis` property read the player uses - a bare global would throw
     // in the runtimes that never define it.
+    // The deep marker is read by the kit's CSS palette: below M49 there are no
+    // custom properties, so a token written as `var(--kroma-…)` resolves to
+    // nothing and the colour is lost. The tier takes the literal values instead,
+    // the same branch native already takes.
     define: {
       ...RNW_DEFINE,
       ...TV_TIER,
       'import.meta.url': 'document.baseURI',
       'globalThis.__KROMA_LEGACY_TIER__': 'true',
+      ...(deep ? { 'globalThis.__KROMA_DEEP_TIER__': 'true' } : {}),
     },
     // `#tv/workbench` must come first: Vite matches string aliases by prefix in
     // order, and a bare `#tv` listed first would swallow it.

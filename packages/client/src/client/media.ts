@@ -192,6 +192,7 @@ export function hlsMasterUrl(
   startSec = 0,
   audio = 0,
   filter?: HlsAudioFilter,
+  copyCodecs?: string[],
 ): string {
   // The anchor, audio index and filter mode are all in the path, so each seek
   // position and language gets its own session with its own child URLs - no
@@ -202,7 +203,13 @@ export function hlsMasterUrl(
   const a = Math.max(0, Math.round(audio));
   const clean = aac ? 'aac' : 'copy';
   const mode = filter ? `aac-${filter}` : clean;
-  return `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/hls/${mode}/${anchor}/${a}/index.m3u8`;
+  const base = `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/hls/${mode}/${anchor}/${a}/index.m3u8`;
+  // `copyCodecs` lets the client declare what it can decode or pass through, so the
+  // server transcodes a `copy` request it would otherwise play silent (e.g. an
+  // AC-3-only title on a device with no Dolby path). Omitted = no preference; an
+  // empty array = decodes none. Only meaningful for a `copy` request.
+  if (!copyCodecs || mode !== 'copy') return base;
+  return `${base}?copy=${encodeURIComponent(copyCodecs.join(','))}`;
 }
 
 /** WebVTT URL for the n-th embedded subtitle track of an item. The server

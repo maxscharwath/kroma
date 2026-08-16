@@ -46,6 +46,34 @@ Every spec file and every section carries one, matching the style already used i
 
 A spec section without a status is a bug in the spec.
 
+## Requirement IDs
+
+Every normative statement in a spec — anything a reader could implement or test —
+carries a stable **requirement ID**, so the board can point at it instead of
+copying it.
+
+    <DOMAIN>-<N>  (STATUS) — one testable statement.
+
+- `DOMAIN` is the fixed prefix for the file: `LIB`, `MEDIA`, `PLAY`, `ACCT`,
+  `DISC`, `MOD`, `ADMIN`, `SURF`.
+- `N` is an integer, assigned once and **never reused or renumbered**. A deleted
+  requirement retires its number; it is not recycled.
+- One ID is one testable idea. If a line hides two requirements, it needs two IDs.
+
+Example:
+
+> **LIB-4** (AGREED) — A rescan never deletes user data. A file that disappears is
+> marked absent; its watch history survives.
+
+The ID is the join key between the spec and the board: an epic or story writes
+`Implements: LIB-4, LIB-7` rather than restating the rule. This keeps the earlier
+promise — *never copy spec text into an issue* — while still letting work trace
+back to exactly what it satisfies.
+
+The `spec-reviewer` agent (`.claude/agents/spec-reviewer.md`) checks that every
+normative line has a unique, stable ID and status, that the prose stays readable,
+and that nothing leaks architecture.
+
 ## How the spec changes
 
 The spec changes only through a pull request, and a PR that changes behaviour changes the

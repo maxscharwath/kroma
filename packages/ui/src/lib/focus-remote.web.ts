@@ -26,6 +26,20 @@ const KEYS: Record<string, Directions> = {
   Right: Directions.RIGHT,
 };
 
+// `KeyboardEvent.key` is Chrome 51 and the deep tier's floor is 47, so on a 2017
+// set the property is simply absent and every lookup above misses. The app then
+// installs, paints correctly and cannot be navigated at all, which is the worst
+// shape a failure can take: nothing looks wrong. Samsung's own simulator posts
+// the same event, a keyCode and no `key`, which is how this was caught.
+const CODES: Record<number, Directions> = {
+  37: Directions.LEFT,
+  38: Directions.UP,
+  39: Directions.RIGHT,
+  40: Directions.DOWN,
+  13: Directions.ENTER,
+};
+const TAB_CODE = 9;
+
 // ONE focus, and it is the navigator's. A click parks DOM focus on whatever was
 // clicked (react-native-web makes every pressable tabbable), and the CSS focus
 // rules then draw a ring there while the navigator's ring is somewhere else -
@@ -57,14 +71,14 @@ export function configureRemote(): void {
         // the eye is not. So Tab drives the navigator and never the browser -
         // as reading order, which is Tab's own meaning and not the right arrow's
         // (see `focus-tab`).
-        if (event.key === 'Tab') {
+        if (event.key === 'Tab' || (!event.key && event.keyCode === TAB_CODE)) {
           event.preventDefault();
           dropStrayFocus(document);
           markPress();
           walkTab(handle, PROBE, event.shiftKey);
           return;
         }
-        const direction = KEYS[event.key];
+        const direction = KEYS[event.key] ?? CODES[event.keyCode];
         if (!direction) return;
         // No text-entry guard, deliberately: react-native-web's TextInput calls
         // stopPropagation() on every keydown (its issue #612), so a key pressed

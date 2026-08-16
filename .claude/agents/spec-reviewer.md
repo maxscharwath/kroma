@@ -76,6 +76,14 @@ Example of a well-formed requirement line:
     **LIB-4** (AGREED) — A rescan never deletes user data. A file that disappears
     is marked absent; its watch history survives.
 
+## Tooling
+
+Run `bun run spec:check` before you reason by hand — it regenerates
+`docs/spec/requirements.json` + `INDEX.md` and fails on duplicate IDs, unknown
+prefixes, missing status, or a stale index. If it fails, that is your first
+finding. Use `requirements.json` to resolve any ID to its file and line instead
+of searching prose.
+
 ## How to report
 
 Lead with a verdict: **ship / fix first / block**. Then, per file, a short list of

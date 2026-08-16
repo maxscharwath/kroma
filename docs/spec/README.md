@@ -74,6 +74,21 @@ The `spec-reviewer` agent (`.claude/agents/spec-reviewer.md`) checks that every
 normative line has a unique, stable ID and status, that the prose stays readable,
 and that nothing leaks architecture.
 
+### Finding a requirement, fast
+
+The prose is for humans; the index is for machines. `bun run spec:index` scans
+every domain file and regenerates two artefacts:
+
+- [`requirements.json`](requirements.json) — one record per requirement:
+  `{ id, domain, status, text, file, line }`. An agent resolves any ID to its
+  exact location in a single lookup — no grepping prose, no guessing anchors.
+- [`INDEX.md`](INDEX.md) — the same list for a human to skim.
+
+Both are generated; never edit them by hand. `bun run spec:check` regenerates
+them and fails if they are stale or if any requirement has a duplicate ID, an
+unknown domain prefix, or a missing status — so CI keeps the index honest the
+same way `modules:check` keeps generated module code honest.
+
 ## How the spec changes
 
 The spec changes only through a pull request, and a PR that changes behaviour changes the

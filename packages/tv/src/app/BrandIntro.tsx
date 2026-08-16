@@ -11,9 +11,14 @@ export interface BrandIntroProps {
   videoSrc?: string;
 }
 
+// A 1080p HEVC master, not the shared 4K one: a TV panel tops out at 1080p, and
+// low-power Google TV boxes (Chromecast HD) stutter decoding 4K60 to downscale
+// it. Half the bitrate and a quarter of the pixels play smoothly, with nothing
+// lost on screen.
+//
 // `require`, not an import: Metro turns the asset into a registry entry, which
 // is what expo-video expects as a source.
-const FILM: number = require('@kroma/ui/src/assets/kroma-intro-hevc.mp4');
+const FILM: number = require('@kroma/ui/src/assets/kroma-intro-hevc-1080.mp4');
 
 const FALLBACK_HOLD_MS = 15_000;
 const AUDIO_FADE_STEPS = 8;

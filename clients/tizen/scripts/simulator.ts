@@ -11,12 +11,44 @@
 // which is the same thing its installer would have done.
 
 import { type ChildProcess, spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, writeFileSync } from 'node:fs';
+import { homedir, platform } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import {
+  hideCascadeLayers,
+  hideCustomProperties,
+  type Painted,
+  readButtonSpot,
+  readFocusRing,
+  readPainted,
+  setViewportSrc,
+} from './simulator-page.ts';
 
-const NWJS = join(homedir(), 'tizen-studio/tools/sec-tv-simulator/nwjs.app/Contents/MacOS/nwjs');
+export type { Painted };
+
+// Tizen Studio installs the simulator under the same tools directory on every
+// host; only the shape of the NW.js binary differs, and macOS wraps it in an
+// app bundle. `TIZEN_HOME` is the variable the Makefile and SETUP.md already
+// use for a non-default install.
+const NWJS_BY_PLATFORM: Record<string, string> = {
+  darwin: 'nwjs.app/Contents/MacOS/nwjs',
+  linux: 'nwjs',
+  win32: 'nwjs.exe',
+};
+
+function simulatorBinary(): string {
+  const relative = NWJS_BY_PLATFORM[platform()];
+  if (!relative) throw new Error(`no Tizen TV simulator known for ${platform()}`);
+  const home = process.env.TIZEN_HOME ?? join(homedir(), 'tizen-studio');
+  const binary = join(home, 'tools', 'sec-tv-simulator', relative);
+  if (!existsSync(binary)) {
+    throw new Error(
+      `no TV simulator at ${binary}. Install "TV Extensions" in the Tizen Studio package manager, or set TIZEN_HOME.`,
+    );
+  }
+  return binary;
+}
 
 /** Which bundle the engine gate should be pushed into. */
 export type Tier = 'modern' | 'legacy' | 'deep';
@@ -35,21 +67,24 @@ const REMOTE_BUTTONS = {
 
 export type RemoteKey = keyof typeof REMOTE_BUTTONS;
 
-const Target = z.object({
-  type: z.string(),
-  url: z.string(),
-  webSocketDebuggerUrl: z.string().optional(),
-});
-const Frame = z.object({
+// Which probes the engine gate should fail, per tier. Installed in the page
+// before the app's own scripts run.
+const DISGUISE: Record<Tier, (() => void) | null> = {
+  modern: null,
+  legacy: hideCascadeLayers,
+  deep: hideCustomProperties,
+};
+
+const Target = z.object({ type: z.string(), url: z.string(), webSocketDebuggerUrl: z.string() });
+const Reply = z.object({
   id: z.number().optional(),
   method: z.string().optional(),
   result: z.unknown().optional(),
   params: z.unknown().optional(),
 });
-const Evaluated = z.object({
-  result: z.object({ value: z.unknown().optional() }).optional(),
-  exceptionDetails: z.unknown().optional(),
-});
+// `value` is absent whenever the expression returns nothing, which the calls
+// that only set a property do.
+const Evaluated = z.object({ result: z.object({ value: z.unknown().optional() }).optional() });
 const Screenshot = z.object({ data: z.string() });
 const Thrown = z.object({
   exceptionDetails: z.object({
@@ -57,52 +92,39 @@ const Thrown = z.object({
     exception: z.object({ description: z.string().optional() }).optional(),
   }),
 });
+const Added = z.object({ identifier: z.string() });
+const Point = z.object({ x: z.number(), y: z.number() });
 
-// Everything the gate probes, made to answer the way a set below that tier does.
-const DISGUISE: Record<Tier, string> = {
-  modern: '',
-  legacy: 'delete window.CSSLayerBlockRule;',
-  deep: `delete window.CSSLayerBlockRule;
-    if (window.CSS && window.CSS.supports) {
-      var real = window.CSS.supports.bind(window.CSS);
-      window.CSS.supports = function () {
-        return Array.prototype.join.call(arguments, ' ').indexOf('var(') === -1 &&
-          real.apply(null, arguments);
-      };
-    }`,
-};
+// Mirrors the `Painted` interface the page half returns; the two are checked
+// against each other by `satisfies` below.
+const PaintedShape = z.object({
+  scripts: z.array(z.string()),
+  rootChars: z.number(),
+  bodyBackground: z.string(),
+  tizen: z.string(),
+  webapis: z.string(),
+  cascadeLayers: z.string(),
+  customProperties: z.boolean(),
+  webfontApplied: z.boolean(),
+}) satisfies z.ZodType<Painted>;
 
-// Reads back through the viewport iframe, which is where the app lives.
-const inFrame = (body: string) => `
-  (function () {
-    var f = document.querySelector('iframe');
-    var d = f.contentDocument, w = f.contentWindow;
-    if (!d) return null;
-    ${body}
-  })()
-`;
-
-async function targets(port: number): Promise<z.infer<typeof Target>[]> {
-  const res = await fetch(`http://127.0.0.1:${port}/json`);
-  return z.array(Target).parse(await res.json());
-}
-
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A running simulator. Always `close()` it: the process outlives the script. */
 export class Simulator {
   private nextId = 0;
   private readonly pending = new Map<number, (value: unknown) => void>();
   private readonly thrown: string[] = [];
+  private disguise: string | undefined;
 
   private constructor(
     private readonly proc: ChildProcess,
     private readonly ws: WebSocket,
   ) {
     ws.onmessage = (event) => {
-      const frame = Frame.safeParse(JSON.parse(String(event.data)));
-      if (!frame.success) return;
-      const { id, method, result, params } = frame.data;
+      const reply = Reply.safeParse(JSON.parse(String(event.data)));
+      if (!reply.success) return;
+      const { id, method, result, params } = reply.data;
       if (id !== undefined && this.pending.has(id)) {
         this.pending.get(id)?.(result);
         this.pending.delete(id);
@@ -110,10 +132,9 @@ export class Simulator {
       }
       if (method !== 'Runtime.exceptionThrown') return;
       const detail = Thrown.safeParse(params);
-      if (detail.success) {
-        const { text, exception } = detail.data.exceptionDetails;
-        this.thrown.push(exception?.description ?? text ?? 'unknown exception');
-      }
+      if (!detail.success) return;
+      const { text, exception } = detail.data.exceptionDetails;
+      this.thrown.push(exception?.description ?? text ?? 'unknown exception');
     };
   }
 
@@ -127,29 +148,27 @@ export class Simulator {
     resolution?: string;
   } = {}): Promise<Simulator> {
     const proc = spawn(
-      NWJS,
+      simulatorBinary(),
+      // biome-ignore format: one flag per line reads worse than one pair per line
       [
-        '--platform',
-        'tv',
-        '--tizentvversion',
-        tizenVersion,
-        '--resolution',
-        resolution,
+        '--platform', 'tv',
+        '--tizentvversion', tizenVersion,
+        '--resolution', resolution,
         `--remote-debugging-port=${port}`,
       ],
-      { stdio: 'ignore', detached: false },
+      { stdio: 'ignore' },
     );
 
     const deadline = Date.now() + 40_000;
     let page: z.infer<typeof Target> | undefined;
-    while (Date.now() < deadline) {
+    while (!page && Date.now() < deadline) {
       await wait(700);
-      page = await targets(port)
+      page = await fetch(`http://127.0.0.1:${port}/json`)
+        .then(async (res) => z.array(Target).parse(await res.json()))
         .then((all) => all.find((t) => t.type === 'page' && t.url.includes('ripple.html')))
         .catch(() => undefined);
-      if (page?.webSocketDebuggerUrl) break;
     }
-    if (!page?.webSocketDebuggerUrl) {
+    if (!page) {
       proc.kill();
       throw new Error(`simulator did not expose a CDP page on ${port}`);
     }
@@ -173,93 +192,78 @@ export class Simulator {
     });
   }
 
-  private async evaluate(expression: string): Promise<unknown> {
+  // A function rather than a source string: it is serialised here and run in
+  // the page, so it typechecks against the DOM on this side and cannot drift
+  // into an escaping bug. `returnByValue` serialises the result already.
+  private async call<T, A extends readonly unknown[]>(
+    shape: z.ZodType<T>,
+    fn: (...args: A) => unknown,
+    ...args: A
+  ): Promise<T> {
+    const call = `(${fn.toString()}).apply(null, ${JSON.stringify(args)})`;
     const raw = await this.send('Runtime.evaluate', {
-      expression,
+      expression: call,
       returnByValue: true,
       awaitPromise: true,
     });
-    return Evaluated.parse(raw).result?.value;
+    return shape.parse(Evaluated.parse(raw).result?.value);
   }
 
   /** Point the emulated screen at a built `index.html`, disguised as `tier`. */
   async load(indexHtml: string, tier: Tier): Promise<void> {
-    await this.send('Page.addScriptToEvaluateOnNewDocument', {
-      source: `try { ${DISGUISE[tier]} } catch (e) {}`,
-    });
-    const url = JSON.stringify(`file://${indexHtml}`);
-    await this.evaluate(
-      `(function(){document.querySelector('iframe').src='about:blank';return 1})()`,
-    );
+    // These accumulate, so the previous tier's disguise has to come off first:
+    // otherwise loading modern after deep still reports an engine with no
+    // custom properties, and the check passes on a lie.
+    if (this.disguise) {
+      await this.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: this.disguise });
+      this.disguise = undefined;
+    }
+    const disguise = DISGUISE[tier];
+    if (disguise) {
+      const added = await this.send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `try { (${disguise.toString()})(); } catch (e) {}`,
+      });
+      this.disguise = Added.parse(added).identifier;
+    }
+    await this.call(z.unknown(), setViewportSrc, 'about:blank');
     await wait(900);
     this.thrown.length = 0;
-    await this.evaluate(`(function(){document.querySelector('iframe').src=${url};return 1})()`);
-    await wait(7000);
+    await this.call(z.unknown(), setViewportSrc, `file://${indexHtml}`);
+    await this.settle();
+  }
+
+  // Waiting a fixed span races the shell: it passed only because three tiers in
+  // a row had warmed the caches, and a single tier on its own arrived at the
+  // remote before the rails existed. The shell taking focus is the precondition
+  // every later read actually depends on, so that is what gets waited for.
+  private async settle(timeoutMs = 30_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      await wait(500);
+      const ringed = await this.call(z.string().nullable(), readFocusRing).catch(() => null);
+      if (ringed) return;
+    }
+    throw new Error('the app never took focus in the simulator');
   }
 
   /** Which bundle the gate actually chose, plus what it painted. */
-  async inspect(): Promise<Record<string, unknown>> {
-    const raw = await this.evaluate(
-      inFrame(`
-        var root = d.getElementById('root');
-        var span = d.createElement('span');
-        span.style.cssText = 'position:absolute;visibility:hidden;font-size:64px;white-space:nowrap';
-        span.textContent = 'Who is watching?';
-        var widthOf = function (family) {
-          span.style.fontFamily = family;
-          d.body.appendChild(span);
-          var x = span.offsetWidth;
-          span.remove();
-          return x;
-        };
-        return JSON.stringify({
-          scripts: [].slice.call(d.scripts).map(function (s) { return s.getAttribute('src'); }).filter(Boolean),
-          stylesheets: [].slice.call(d.querySelectorAll('link[rel=stylesheet]')).map(function (l) { return l.getAttribute('href'); }),
-          rootChars: root ? root.innerHTML.length : 0,
-          bodyBackground: w.getComputedStyle(d.body).backgroundColor,
-          tizen: typeof w.tizen,
-          webapis: typeof w.webapis,
-          cascadeLayers: typeof w.CSSLayerBlockRule,
-          customProperties: w.CSS.supports('color', 'var(--k)'),
-          webfontApplied: widthOf('"Hanken Grotesk"') !== widthOf('serif')
-        });
-      `),
-    );
-    return z.record(z.string(), z.unknown()).parse(JSON.parse(z.string().parse(raw)));
+  async inspect(): Promise<Painted> {
+    const seen = await this.call(PaintedShape.nullable(), readPainted);
+    if (!seen) throw new Error('the simulator has no app in its viewport');
+    return seen;
   }
 
-  /** The label under the painted focus ring: the TV shell owns focus itself, so
-   *  `document.activeElement` stays on `body` and says nothing. */
+  /** The label under the painted focus ring. */
   async focusRing(): Promise<string> {
-    const raw = await this.evaluate(
-      inFrame(`
-        var found = null;
-        d.querySelectorAll('*').forEach(function (el) {
-          var cs = w.getComputedStyle(el);
-          if (cs.outlineStyle === 'none' || parseFloat(cs.outlineWidth) < 1) return;
-          var text = (el.getAttribute('aria-label') || el.textContent || '').replace(/\\s+/g, ' ').trim();
-          if (text) found = text.slice(0, 60);
-        });
-        return found;
-      `),
-    );
-    return typeof raw === 'string' ? raw : 'nothing focused';
+    return (await this.call(z.string().nullable(), readFocusRing)) ?? 'nothing focused';
   }
 
   /** Press one button on the simulator's remote, then let the shell settle. */
   async press(key: RemoteKey): Promise<void> {
-    const raw = await this.evaluate(`
-      (function () {
-        var el = document.getElementById(${JSON.stringify(REMOTE_BUTTONS[key])});
-        if (!el) return null;
-        var r = el.getBoundingClientRect();
-        return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
-      })()
-    `);
-    if (typeof raw !== 'string') throw new Error(`simulator remote has no ${key} button`);
-    const { x, y } = z.object({ x: z.number(), y: z.number() }).parse(JSON.parse(raw));
+    const spot = await this.call(Point.nullable(), readButtonSpot, REMOTE_BUTTONS[key]);
+    if (!spot) throw new Error(`simulator remote has no ${key} button`);
     for (const type of ['mousePressed', 'mouseReleased'] as const) {
-      await this.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+      await this.send('Input.dispatchMouseEvent', { ...spot, type, button: 'left', clickCount: 1 });
     }
     await wait(900);
   }
@@ -270,8 +274,8 @@ export class Simulator {
   }
 
   async screenshot(path: string): Promise<void> {
-    const raw = await this.send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(path, Buffer.from(Screenshot.parse(raw).data, 'base64'));
+    const shot = await this.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(path, Buffer.from(Screenshot.parse(shot).data, 'base64'));
   }
 
   close(): void {

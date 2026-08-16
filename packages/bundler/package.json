@@ -21,7 +21,6 @@
     "./mdx": "./src/mdx.mjs",
     "./mdx-transformer": "./src/mdx-transformer.cjs",
     "./message-subset": "./src/message-subset.ts",
-    "./polyfills-deep": "./src/polyfills-deep.ts",
     "./polyfills-legacy": "./src/polyfills-legacy.ts",
     "./props-docs": "./src/props-docs.ts",
     "./rnw": "./src/rnw.ts",
@@ -55,7 +54,6 @@
     "postcss": "^8.5.26",
     "postcss-custom-properties": "^15.0.1",
     "remark-gfm": "^4.0.1",
-    "resize-observer-polyfill": "^1.5.1",
     "typescript": "^7.0.2"
   },
   "peerDependencies": {

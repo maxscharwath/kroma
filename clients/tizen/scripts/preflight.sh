@@ -26,8 +26,23 @@ PROFILE="${PROFILE:-}"
 PKG_ID="${PKG_ID:-}"
 TIZEN_HOME="${TIZEN_HOME:-$HOME/tizen-studio}"
 CONFIG="${CONFIG:-public/config.xml}"
+WGT="${WGT:-}"
 
 blocked=0
+
+# The floor that matters is the one inside the archive about to be installed:
+# `make install` takes the newest dist/*.wgt and does not repackage, so a widget
+# built before the source manifest changed still carries the old value, and
+# checking the source would pass it straight into the opaque failure this script
+# exists to pre-empt. Falls back to the source when there is no archive yet.
+read_required() {
+  if [ -n "$WGT" ] && [ -f "$WGT" ] && command -v unzip >/dev/null 2>&1; then
+    unzip -p "$WGT" config.xml 2>/dev/null \
+      | sed -n 's/.*required_version="\([0-9.]*\)".*/\1/p' | head -1
+    return
+  fi
+  sed -n 's/.*required_version="\([0-9.]*\)".*/\1/p' "$CONFIG" 2>/dev/null | head -1
+}
 
 # True when version $1 is strictly lower than $2 (dot-separated, numeric per field).
 ver_lt() {
@@ -37,9 +52,9 @@ ver_lt() {
 }
 
 # --- Primary: connected set's platform version vs the app's required_version ------
-required=$(sed -n 's/.*required_version="\([0-9.]*\)".*/\1/p' "$CONFIG" 2>/dev/null | head -1)
+required=$(read_required)
 if [ -z "$required" ]; then
-  echo "  ~ platform floor: skipped: no required_version in $CONFIG"
+  echo "  ~ platform floor: skipped: no required_version in ${WGT:-$CONFIG}"
 elif [ -z "$SERIAL" ]; then
   echo "  ~ platform floor: skipped: no TV connected (app requires Tizen >= $required)"
 else

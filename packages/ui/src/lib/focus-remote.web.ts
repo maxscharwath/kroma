@@ -78,7 +78,11 @@ export function configureRemote(): void {
           walkTab(handle, PROBE, event.shiftKey);
           return;
         }
-        const direction = KEYS[event.key] ?? CODES[event.keyCode];
+        // Only where `key` is absent, matching the Tab branch above. This file
+        // is shared with the web client and the modern tiers, where a button
+        // reporting `Unidentified` alongside a legacy keyCode would otherwise
+        // steer the navigator instead of being ignored.
+        const direction = event.key ? KEYS[event.key] : CODES[event.keyCode];
         if (!direction) return;
         // No text-entry guard, deliberately: react-native-web's TextInput calls
         // stopPropagation() on every keydown (its issue #612), so a key pressed

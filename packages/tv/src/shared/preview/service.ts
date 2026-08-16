@@ -33,13 +33,20 @@ function writePrivateFile(t: Tizen, name: string, data: string): Promise<void> {
           if (!file) throw new Error(`tizen filesystem gave no file for ${name}`);
           file.openStream(
             'w',
+            // Its own callback, on its own turn of the platform's stack, so it
+            // needs its own guard: a write that throws would otherwise escape
+            // exactly the way the one above does.
             (stream) => {
               try {
-                stream.write(data);
-              } finally {
-                stream.close();
+                try {
+                  stream.write(data);
+                } finally {
+                  stream.close();
+                }
+                resolve();
+              } catch (error) {
+                reject(error);
               }
-              resolve();
             },
             reject,
             'UTF-8',

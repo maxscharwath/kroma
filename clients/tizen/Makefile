@@ -45,7 +45,7 @@ DEV_STAGE  := .dev-shell
 # Shared preflight: attempts every check, exits non-zero only on a confirmed
 # blocker (a set below the Tizen floor). Passes tool paths + identity through env.
 PREFLIGHT = SDB='$(SDB)' TIZEN='$(TIZEN)' SERIAL='$(SERIAL)' PROFILE='$(PROFILE)' \
-	PKG_ID='$(PKG_ID)' TIZEN_HOME='$(TIZEN_HOME)' CONFIG='public/config.xml' \
+	PKG_ID='$(PKG_ID)' TIZEN_HOME='$(TIZEN_HOME)' CONFIG='public/config.xml' WGT='$(WGT)' \
 	sh scripts/preflight.sh
 
 help: ## Show this help

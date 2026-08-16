@@ -105,6 +105,17 @@ describe('a remote that sends only a keyCode', () => {
     expect(tab.walk).toHaveBeenCalled();
   });
 
+  it('leaves a keyCode alone when the engine did report a key', () => {
+    // Modern tiers and the web client: a button that reports `Unidentified`
+    // while still carrying a legacy keyCode must not steer the navigator.
+    const { handle, stop } = mount();
+    const event = new KeyboardEvent('keydown', { key: 'Unidentified', cancelable: true });
+    Object.defineProperty(event, 'keyCode', { value: 40 });
+    document.dispatchEvent(event);
+    stop();
+    expect(handle).not.toHaveBeenCalled();
+  });
+
   it('ignores a keyCode that is not on the remote', () => {
     const { handle, stop } = mount();
     legacyPress(65);

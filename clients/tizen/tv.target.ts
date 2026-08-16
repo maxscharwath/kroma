@@ -16,13 +16,17 @@ import type { TvTarget } from '@kroma/bundler/shell';
 // lowering required_version to reach Tizen 5.0 (2019) is a one-line change once
 // somebody has run it on such a set.
 //
-// Deep tier: Tizen 3.0-5.5 (Chromium 47-69, 2017-2020). Everything above splits
-// on cascade layers or custom properties; below M49 there are no custom
-// properties at all, which is the line a 2017 set (M47) falls under. Reaching it
-// costs two passes the tier above does not need - Babel down-levels the bundle
-// where rolldown's es2015 output stops, and the stylesheet's tokens are resolved
-// to literals - and the second of those spends cascade-driven theming, so the
-// tier ships the one theme <html data-theme> names.
+// Deep tier: Tizen 3.0 only (Chromium 47-48, the 2017 sets). The gate splits it
+// from the legacy tier on custom properties, which is M49, so every set from
+// Tizen 4.0 (M56) up takes the legacy bundle and only a 2017 set falls through
+// to this one. `legacyChrome` and this floor are therefore not a range each:
+// raising the one above does not move the probe between them, which lives in
+// shell.ts.
+//
+// Reaching M47 costs two passes the tier above does not need. Babel down-levels
+// the bundle where rolldown's es2015 output stops, and the stylesheet's tokens
+// are resolved to literals; the second of those spends cascade-driven theming,
+// so the tier ships the one theme <html data-theme> names.
 //
 // config.xml floors the package at 3.0 to match, and drops devel.api.version to
 // 3.0 with it: a set refuses a Samsung Product API level it does not implement.

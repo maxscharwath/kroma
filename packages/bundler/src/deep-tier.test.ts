@@ -2,11 +2,17 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { flattenCustomProperties, syntaxAboveDeepFloor } from './deep-tier';
+import { flattenCustomProperties, lowerJs, syntaxAboveDeepFloor } from './deep-tier';
 
 function sheet(css: string): string {
   const path = join(mkdtempSync(join(tmpdir(), 'kroma-deep-')), 'style.css');
   writeFileSync(path, css);
+  return path;
+}
+
+function script(js: string): string {
+  const path = join(mkdtempSync(join(tmpdir(), 'kroma-deep-')), 'index.js');
+  writeFileSync(path, js);
   return path;
 }
 
@@ -29,6 +35,39 @@ describe('syntaxAboveDeepFloor', () => {
   it('does not flag generated code sitting in a string literal', () => {
     const code = 'var w = "const input = payload.value;";var y = "class Foo {}";';
     expect(syntaxAboveDeepFloor(code)).toEqual([]);
+  });
+});
+
+describe('lowerJs', () => {
+  // The bundle is a sloppy-mode IIFE, so the round trip is the assertion that
+  // matters: whatever Babel leaves behind has to satisfy the same walk that
+  // guards the build.
+  const BUNDLE = `(function () {
+    class Player { constructor(a = 1) { this.a = a; } }
+    let { x, y } = { x: 1, y: 2 };
+    const parts = [...[x, y]];
+    for (const p of parts) new Player(p);
+    function* steps() { yield 1; }
+    steps();
+  })();`;
+
+  it('leaves nothing above the floor', async () => {
+    expect(syntaxAboveDeepFloor(BUNDLE).length).toBeGreaterThan(0);
+    const path = script(BUNDLE);
+    await lowerJs(path, 47);
+    expect(syntaxAboveDeepFloor(readFileSync(path, 'utf8'))).toEqual([]);
+  });
+
+  it('keeps the file executable, and its behaviour', async () => {
+    const path = script(`${BUNDLE}\nglobalThis.__deepResult = [1, 2].map((n) => n * 2).join();`);
+    await lowerJs(path, 47);
+    const lowered = readFileSync(path, 'utf8');
+    new Function(lowered)();
+    expect((globalThis as { __deepResult?: string }).__deepResult).toBe('2,4');
+  });
+
+  it('refuses a file it cannot parse, rather than emitting it unchanged', async () => {
+    await expect(lowerJs(script('function ('), 47)).rejects.toThrow();
   });
 });
 

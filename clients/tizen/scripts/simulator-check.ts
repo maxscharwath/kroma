@@ -5,16 +5,16 @@
 //
 // It answers what a static check cannot: that the gate resolves the way it was
 // meant to, that the package paints in the Tizen webapis environment, and that
-// the D-pad still walks the rails. It cannot answer the engine floor, because
-// the simulator is modern Chromium whatever version it is told to be.
+// the remote still walks the rails. It cannot answer the engine floor, because
+// the simulator is modern Chromium whatever version it is told to be, which is
+// why this is a tool to run and read rather than a gate to hang a build on.
 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type RemoteKey, Simulator, type Tier } from './simulator.ts';
+import { type Painted, type RemoteKey, Simulator, type Tier } from './simulator.ts';
 
-const DIST = fileURLToPath(new URL('../dist', import.meta.url));
-const INDEX = join(DIST, 'index.html');
+const INDEX = fileURLToPath(new URL('../dist/index.html', import.meta.url));
 const SHOTS = process.env.KROMA_SIM_SHOTS;
 
 const EXPECTED: Record<Tier, string> = {
@@ -25,69 +25,65 @@ const EXPECTED: Record<Tier, string> = {
 
 const WALK: RemoteKey[] = ['down', 'right', 'right', 'left', 'up'];
 
-const failures: string[] = [];
-const check = (tier: string, ok: boolean, label: string, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? `  ${detail}` : ''}`);
-  if (!ok) failures.push(`${tier}: ${label}${detail ? ` (${detail})` : ''}`);
-};
+// `--json` emits one machine-readable record per check, so a script or an agent
+// can act on the result instead of scraping the ticks.
+const JSON_OUT = process.argv.includes('--json');
 
-const asString = (value: unknown): string => (typeof value === 'string' ? value : String(value));
-
-async function exercise(sim: Simulator, tier: Tier): Promise<void> {
-  console.log(`\n${tier} tier`);
-  await sim.load(INDEX, tier);
-  const seen = await sim.inspect();
-  const scripts = Array.isArray(seen.scripts) ? seen.scripts.map(asString) : [];
-
-  check(
-    tier,
-    scripts.some((s) => s.startsWith(EXPECTED[tier])),
-    'gate chose this tier',
-    scripts.join(' '),
-  );
-  check(tier, Number(seen.rootChars) > 0, 'app rendered', `${seen.rootChars} chars`);
-  check(tier, seen.tizen === 'object' && seen.webapis === 'object', 'tizen webapis present');
-  check(
-    tier,
-    seen.bodyBackground === 'rgb(10, 10, 12)',
-    'ground is the dark token',
-    asString(seen.bodyBackground),
-  );
-  check(tier, seen.webfontApplied === true, 'webfont applied, not the default serif');
-  check(tier, sim.errors().length === 0, 'no uncaught exceptions', sim.errors().join(' | '));
-
-  if (tier === 'deep') {
-    check(tier, seen.cascadeLayers === 'undefined', 'engine reports no cascade layers');
-    check(tier, seen.customProperties === false, 'engine reports no custom properties');
-  }
-  if (SHOTS) await sim.screenshot(join(SHOTS, `sim-${tier}.png`));
+interface Result {
+  ok: boolean;
+  label: string;
+  detail: string;
+  tier: Tier | 'remote';
 }
 
-async function exerciseRemote(sim: Simulator, tier: Tier): Promise<void> {
-  console.log(`\n${tier} tier, remote`);
-  const start = await sim.focusRing();
-  console.log(`  start        ${start}`);
+const results: Result[] = [];
+let scope: Tier | 'remote' = 'modern';
 
-  const path: string[] = [];
+const check = (ok: boolean, label: string, detail = ''): void => {
+  results.push({ ok, label, detail, tier: scope });
+  if (!JSON_OUT) console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? `  ${detail}` : ''}`);
+};
+
+const say = (line: string): void => {
+  if (!JSON_OUT) console.log(line);
+};
+
+function report(tier: Tier, seen: Painted, errors: readonly string[]): void {
+  check(
+    seen.scripts.some((src) => src.startsWith(EXPECTED[tier])),
+    'gate chose this tier',
+    seen.scripts.join(' '),
+  );
+  check(seen.rootChars > 0, 'app rendered', `${seen.rootChars} chars`);
+  check(seen.tizen === 'object' && seen.webapis === 'object', 'tizen webapis present');
+  check(seen.bodyBackground === 'rgb(10, 10, 12)', 'ground is the dark token', seen.bodyBackground);
+  check(seen.webfontApplied, 'webfont applied, not the default serif');
+  check(errors.length === 0, 'no uncaught exceptions', errors.join(' | '));
+  if (tier !== 'deep') return;
+  check(seen.cascadeLayers === 'undefined', 'engine reports no cascade layers');
+  check(!seen.customProperties, 'engine reports no custom properties');
+}
+
+async function exerciseRemote(sim: Simulator): Promise<void> {
+  scope = 'remote';
+  say('\nremote');
+  const start = await sim.focusRing();
+  say(`  start        ${start}`);
+
+  const stops: string[] = [];
   for (const key of WALK) {
     await sim.press(key);
     const at = await sim.focusRing();
-    console.log(`  ${key.padEnd(12)} ${at}`);
-    path.push(at);
+    say(`  ${key.padEnd(12)} ${at}`);
+    stops.push(at);
   }
-  check(tier, start !== 'nothing focused', 'something is focused at rest', start);
+  check(start !== 'nothing focused', 'something is focused at rest', start);
   check(
-    tier,
-    new Set(path).size > 1,
-    'focus moves with the d-pad',
-    `${new Set(path).size} distinct stops`,
+    new Set(stops).size > 1,
+    'focus moves with the remote',
+    `${new Set(stops).size} distinct stops`,
   );
-  check(
-    tier,
-    path.at(-1) === start,
-    'the walk returns where it started',
-    `${path.at(-1)} vs ${start}`,
-  );
+  check(stops.at(-1) === start, 'the walk returns where it started', `${stops.at(-1)} vs ${start}`);
 }
 
 if (!existsSync(INDEX)) {
@@ -95,22 +91,37 @@ if (!existsSync(INDEX)) {
   process.exit(1);
 }
 
-const only = process.argv.includes('--tier')
-  ? (process.argv[process.argv.indexOf('--tier') + 1] as Tier)
-  : undefined;
-const tiers: Tier[] = only ? [only] : ['modern', 'legacy', 'deep'];
+const asked = process.argv[process.argv.indexOf('--tier') + 1];
+const tiers: Tier[] =
+  process.argv.includes('--tier') && asked ? [asked as Tier] : ['modern', 'legacy', 'deep'];
 
-const sim = await Simulator.launch({ tizenVersion: '3.0' });
+const sim = await Simulator.launch();
 try {
-  for (const tier of tiers) await exercise(sim, tier);
-  await exerciseRemote(sim, tiers.at(-1) ?? 'deep');
+  for (const tier of tiers) {
+    scope = tier;
+    say(`\n${tier} tier`);
+    await sim.load(INDEX, tier);
+    report(tier, await sim.inspect(), sim.errors());
+    if (SHOTS) await sim.screenshot(join(SHOTS, `sim-${tier}.png`));
+  }
+  await exerciseRemote(sim);
 } finally {
   sim.close();
 }
 
-console.log(
-  failures.length === 0
-    ? `\n[simulator-check] ${tiers.join(', ')} OK in the Tizen simulator`
-    : `\n[simulator-check] ${failures.length} failed:\n  ${failures.join('\n  ')}`,
-);
-process.exit(failures.length === 0 ? 0 : 1);
+const failed = results.filter((result) => !result.ok);
+if (JSON_OUT) {
+  console.log(JSON.stringify({ tiers, passed: failed.length === 0, results }, null, 2));
+} else {
+  console.log(
+    failed.length === 0
+      ? `\n[simulator-check] ${tiers.join(', ')} OK in the Tizen simulator`
+      : `\n[simulator-check] ${failed.length} failed:\n  ${failed
+          .map(
+            (result) =>
+              `${result.tier}: ${result.label}${result.detail ? ` (${result.detail})` : ''}`,
+          )
+          .join('\n  ')}`,
+  );
+}
+process.exit(failed.length === 0 ? 0 : 1);

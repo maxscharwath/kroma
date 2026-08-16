@@ -15,31 +15,99 @@
 //     replaces the cascade that carried them.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { transformAsync } from '@babel/core';
+import { type InputOptions, transformAsync } from '@babel/core';
 import transformClasses from '@babel/plugin-transform-classes';
 import presetEnv from '@babel/preset-env';
 import { parse } from 'acorn';
+// Ships no types; it is a babel plugin factory and only ever passed to babel.
+// @ts-expect-error -- untyped package
+import polyfillCorejs3 from 'babel-plugin-polyfill-corejs3';
+import { build } from 'esbuild';
 import postcss from 'postcss';
 import customProperties from 'postcss-custom-properties';
 
 const THEME_ATTR = /\[data-theme\s*=\s*["']?([\w-]+)["']?\]/g;
 const COLOR_SCHEME = /prefers-color-scheme\s*:\s*([\w-]+)/;
+const COREJS = '3.40';
 
-/** Lowers `path` in place to `chrome`, the tier's Chromium floor. */
-export async function lowerJs(path: string, chrome: number): Promise<void> {
-  const out = await transformAsync(readFileSync(path, 'utf8'), {
+// Modules, not names: babel resolves a named plugin from the cwd, which during
+// a build is the shell's directory rather than this package's.
+function babelPass(
+  code: string,
+  path: string,
+  plugins: InputOptions['plugins'],
+  presets: InputOptions['presets'] = [],
+) {
+  return transformAsync(code, {
     filename: path,
     babelrc: false,
     configFile: false,
     compact: true,
     sourceMaps: false,
-    // Modules, not names: babel resolves a named plugin from the cwd, which
-    // during a build is the shell's directory rather than this package's.
-    presets: [[presetEnv, { targets: { chrome: String(chrome) }, modules: false }]],
-    plugins: [transformClasses],
+    presets,
+    plugins,
   });
-  if (!out?.code) throw new Error(`deep-tier: babel produced no output for ${path}`);
-  writeFileSync(path, out.code);
+}
+
+async function bundleInPlace(path: string, minify: boolean): Promise<void> {
+  await build({
+    entryPoints: [path],
+    outfile: path,
+    allowOverwrite: true,
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: 'es2015',
+    minify,
+    legalComments: 'none',
+    logLevel: 'silent',
+  });
+}
+
+/**
+ * Replaces a wholesale `core-js/stable` in `path` with only the modules the
+ * finished bundle reaches, for `chrome`. Leaves `minify` off when a lowering
+ * pass still has to read the result.
+ *
+ * It has to run here, on the bundle, rather than as a plugin during it: usage
+ * detection only sees what it is pointed at, and pointed at source it would miss
+ * every dependency. `core-js/stable` is the library's whole surface, 213 kB, of
+ * which the TV bundles reach about forty modules.
+ */
+export async function trimCorejs(path: string, chrome: number, minify = true): Promise<void> {
+  const injected = await babelPass(readFileSync(path, 'utf8'), path, [
+    [polyfillCorejs3, { method: 'usage-global', version: COREJS, targets: { chrome } }],
+  ]);
+  if (!injected?.code) throw new Error(`deep-tier: core-js injection failed for ${path}`);
+  writeFileSync(path, injected.code);
+  // Injection emits bare `require`s; nothing resolves them but a bundler.
+  await bundleInPlace(path, minify);
+}
+
+/**
+ * Lowers `path` in place to `chrome`, the tier's Chromium floor.
+ *
+ * With `polyfill`, core-js is trimmed first, and the order is what makes that
+ * correct: the modules it pulls in are themselves written in `let` and `const`,
+ * so they have to be in the file BEFORE the lowering pass rather than after it,
+ * or they reach a 2017 engine untouched and the guard fails the build.
+ */
+export async function lowerJs(
+  path: string,
+  chrome: number,
+  { polyfill = false }: { polyfill?: boolean } = {},
+): Promise<void> {
+  if (polyfill) await trimCorejs(path, chrome, false);
+
+  const lowered = await babelPass(
+    readFileSync(path, 'utf8'),
+    path,
+    [transformClasses],
+    [[presetEnv, { targets: { chrome: String(chrome) }, modules: false }]],
+  );
+  if (!lowered?.code) throw new Error(`deep-tier: babel produced no output for ${path}`);
+  writeFileSync(path, lowered.code);
+  if (polyfill) await bundleInPlace(path, true);
 }
 
 function walk(node: unknown, visit: (node: Record<string, unknown>) => void): void {

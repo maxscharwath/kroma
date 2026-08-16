@@ -13,7 +13,7 @@
 
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { flattenCustomProperties, lowerJs } from '@kroma/bundler/deep-tier';
+import { flattenCustomProperties, lowerJs, trimCorejs } from '@kroma/bundler/deep-tier';
 import { kromaLegacyCss } from '@kroma/bundler/legacy-css';
 import { transform } from 'lightningcss';
 import postcss from 'postcss';
@@ -256,10 +256,14 @@ export function legacyFinalize({
     enforce: 'post',
     async closeBundle() {
       await downlevelCss(distDir, dir, chrome);
+      // Both older tiers import `core-js/stable`, which is every polyfill the
+      // library has. The deep tier trims it as part of lowering; this tier needs
+      // no lowering, so it is the only thing done to its bundle.
+      if (!deep) await trimCorejs(join(distDir, dir, 'index.js'), chrome);
       if (deep) {
         const theme = pinnedTheme(distDir);
         await flattenCustomProperties(join(distDir, dir, 'style.css'), theme);
-        await lowerJs(join(distDir, dir, 'index.js'), chrome);
+        await lowerJs(join(distDir, dir, 'index.js'), chrome, { polyfill: true });
         this.info?.(`[${dir}] lowered to chromium ${chrome}, theme pinned to ${theme}`);
       }
       if (gate) {

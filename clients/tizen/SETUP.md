@@ -126,23 +126,55 @@ the TV's network (`bun run server` on the host, or the Docker image on your NAS)
 
 ---
 
-## Supported TVs the Tizen 6.0 floor
+## Supported TVs: the Tizen 6.0 floor
 
 KROMA requires **Tizen 6.0 (2021 models) or newer**. `config.xml` sets
 `required_version="6.0"`, and a retail set refuses a widget that demands a
-platform newer than its own with an opaque `install failed[118]` this was the
+platform newer than its own with an opaque `install failed[118]`. That was the
 whole of [#86](https://github.com/maxscharwath/kroma/issues/86).
 
-The floor is deliberate, not a bug. 2017/Tizen-3.0 era sets ship a Chromium
-(v53 for 3.0, v56 for 4.0) far older than the web build assumes, and lowering the
-value alone does not make the app run there see
+The floor is deliberate, not a bug. A 2017/Tizen-3.0 set ships **Chromium M47**
+(4.0 is M56, 5.0 is M63), far older than the web build assumes, and lowering
+`required_version` alone does not make the app run there. See
 [`tv.target.ts`](./tv.target.ts) and [`STORE.md`](./STORE.md) for the
 Chromium-per-Tizen table and the legacy build tier that makes 6.0 honest.
+
+How far below the floor M47 sits, measured on the built bundle rather than
+guessed. `esbuild --target=chrome47 dist/legacy/index.js` fails with thousands of
+constructs it cannot lower, dominated by `let` and destructuring, then default
+arguments and `class`; the same command at `chrome53` succeeds. The bundle runs
+sloppy, so those need M49, not the M41/M42 they would need under `use strict`.
+
+Both are reachable with tools this build does not currently run, so the floor is
+a cost decision rather than an impossibility. Babel lowers the same bundle to
+chrome47 clean (`preset-env` plus an explicit class transform, since the bundle
+is sloppy), for about 11% more bytes, and the API gap is roughly fifty core-js
+polyfills plus real shims for ResizeObserver, IntersectionObserver and
+AbortController, which core-js does not cover.
+
+The stylesheet needs a different tool rather than a harder one. Lightning CSS
+leaves `var()` alone at every target because it does not resolve custom
+properties; postcss-custom-properties does, and pinning a theme clears most of
+the file. What it leaves behind is a short list of element-scoped properties that
+are still defined in the sheet. The price is that theming stops going through the
+cascade and becomes one flattened stylesheet per theme, swapped at runtime.
+
+So a 2017 set is a third build tier, not a one-line manifest edit, and the part
+none of this settles is playback: the bundle drives MSE and HLS, and whether a
+2017 set direct-plays what KROMA serves can only be answered on the hardware.
+
+Do not try to settle this on the TV simulator. `sec-tv-simulator` is a webapis
+shim over one bundled NW.js, so `--tizentvversion 3.0` changes the API surface
+and nothing else: launched that way it still reports `Chrome/137` over CDP, still
+supports `let`, `var()`, `@layer` and optional chaining, and advertises a
+user-agent claiming `Chrome/55` that matches neither its real engine nor a 2017
+set's M47. It answers "works" for a build no such TV can parse. Only a retail set
+below the floor, or the static checks above, tell the truth.
 
 So the fix for a below-floor set is not to lower the number: it is to fail
 legibly. `make doctor` / `make preflight` read the connected set's platform
 version and, if it is under the floor, print
-`✗ this TV is Tizen X.Y; KROMA requires >= 6.0 — this set is not supported` and
+`✗ this TV is Tizen X.Y; KROMA requires >= 6.0, this set is not supported` and
 stop before `tizen install` runs.
 
 ## Troubleshooting

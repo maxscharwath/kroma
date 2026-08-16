@@ -48,8 +48,8 @@ else
   if [ -z "$tv_ver" ]; then
     echo "  ~ platform floor: skipped: could not read platform_version from $SERIAL"
   elif ver_lt "$tv_ver" "$required"; then
-    echo "  ✗ this TV is Tizen $tv_ver; KROMA requires >= $required — this set is not supported"
-    echo "    (2017/Tizen-3.0 era sets ship a Chromium too old for the build; not chased. See SETUP.md.)"
+    echo "  ✗ this TV is Tizen $tv_ver; KROMA requires >= $required, this set is not supported"
+    echo "    (a 2017/Tizen-3.0 set is Chromium M47, too old for the build; not chased. See SETUP.md.)"
     blocked=1
   else
     echo "  ✓ platform floor: TV is Tizen $tv_ver (>= required $required)"
@@ -81,7 +81,7 @@ else
     elif printf '%s' "$issuer" | grep -qi samsung; then
       echo "  ✓ signing profile: '$PROFILE' is a Samsung cert"
     else
-      echo "  ⚠ signing profile: '$PROFILE' is not Samsung-issued (self-signed?) — installs on the emulator only, not a retail TV"
+      echo "  ⚠ signing profile: '$PROFILE' is not Samsung-issued (self-signed?), installs on the emulator only, not a retail TV"
     fi
   fi
 fi

@@ -13,13 +13,21 @@
 
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { flattenCustomProperties, lowerJs } from '@kroma/bundler/deep-tier';
 import { kromaLegacyCss } from '@kroma/bundler/legacy-css';
 import { transform } from 'lightningcss';
 import postcss from 'postcss';
 import type { Plugin } from 'vite';
 
-async function downlevelCss(distDir: string, chrome: number): Promise<void> {
-  const path = join(distDir, 'legacy', 'style.css');
+/** One branch of the engine gate. The last tier carries no probe: it is the
+ * fallback every engine below the one above it falls into. */
+export interface GateTier {
+  dir: string;
+  probe?: string;
+}
+
+async function downlevelCss(distDir: string, dir: string, chrome: number): Promise<void> {
+  const path = join(distDir, dir, 'style.css');
   const raw = readFileSync(path, 'utf8');
   const shimmed = await postcss([kromaLegacyCss()]).process(raw, {
     from: path,
@@ -34,7 +42,7 @@ async function downlevelCss(distDir: string, chrome: number): Promise<void> {
   writeFileSync(path, code);
 }
 
-function rewriteIndexHtml(distDir: string): void {
+function rewriteIndexHtml(distDir: string, tiers: GateTier[]): void {
   const path = join(distDir, 'index.html');
   let html = readFileSync(path, 'utf8');
   const js = /<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/.exec(html);
@@ -56,15 +64,31 @@ function rewriteIndexHtml(distDir: string): void {
   // the whole indent run at every position the literal then fails to match.
   html = html.replace(/<link rel="modulepreload"[^>]*>\s*/g, '');
 
+  const branches = tiers
+    .map((tier) => {
+      const open = tier.probe ? `else if (${tier.probe}) {` : 'else {';
+      return `        ${open}
+          css = './${tier.dir}/style.css';
+          src = './${tier.dir}/index.js';
+        }`;
+    })
+    .join('\n');
+
   // The loader itself must be ES5: it is the one script every engine parses.
   const loader = `<script>
-      /* Engine gate: Chrome 99+ (cascade layers) takes the modern ESM bundle;
-         older engines take the ES2015 legacy bundle. */
+      /* Engine gate, newest first: Chrome 99+ (cascade layers) takes the modern
+         ESM bundle, and each older tier claims what the one above it cannot run. */
       (function () {
+        var css, src;
         var modern = typeof window.CSSLayerBlockRule !== 'undefined';
+        if (modern) {
+          css = '${css[1]}';
+          src = '${js[1]}';
+        }
+${branches}
         var link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = modern ? '${css[1]}' : './legacy/style.css';
+        link.href = css;
         document.head.appendChild(link);
         var script = document.createElement('script');
         if (modern) {
@@ -78,10 +102,8 @@ function rewriteIndexHtml(distDir: string): void {
           }
           script.type = 'module';
           script.crossOrigin = '';
-          script.src = '${js[1]}';
-        } else {
-          script.src = './legacy/index.js';
         }
+        script.src = src;
         document.body.appendChild(script);
       })();
     </script>`;
@@ -96,8 +118,8 @@ function rewriteIndexHtml(distDir: string): void {
 // 7.8 MB, 42% of the whole TV package, duplicated for nothing. Content
 // hashing makes this safe and cheap: identical bytes already carry
 // identical names.
-function dedupeAssets(distDir: string): number {
-  const legacyAssets = join(distDir, 'legacy', 'assets');
+function dedupeAssets(distDir: string, dir: string): number {
+  const legacyAssets = join(distDir, dir, 'assets');
   const modernAssets = join(distDir, 'assets');
   if (!existsSync(legacyAssets) || !existsSync(modernAssets)) return 0;
 
@@ -127,24 +149,55 @@ function dedupeAssets(distDir: string): number {
     for (const name of shared) text = text.split(from + name).join(to + name);
     writeFileSync(p, text);
   };
-  rewrite('legacy/index.js', './legacy/assets/', './assets/');
-  rewrite('legacy/style.css', './assets/', '../assets/');
+  rewrite(`${dir}/index.js`, `./${dir}/assets/`, './assets/');
+  rewrite(`${dir}/style.css`, './assets/', '../assets/');
   return saved;
 }
 
-/** `distDir` = the shell's absolute dist dir; `chrome` = the legacy tier's floor. */
-export function legacyFinalize({ distDir, chrome }: { distDir: string; chrome: number }): Plugin {
+// The one theme a flattened stylesheet can carry, taken from the shell's own
+// <html data-theme>. Cascade-driven theming is what resolving the custom
+// properties spends, so the tier has to know which side it is keeping.
+function pinnedTheme(distDir: string): string {
+  const html = readFileSync(join(distDir, 'index.html'), 'utf8');
+  return /<html[^>]*\sdata-theme="([\w-]+)"/.exec(html)?.[1] ?? 'dark';
+}
+
+export interface LegacyFinalizeOptions {
+  distDir: string;
+  chrome: number;
+  /** Subdirectory of dist this tier was built into. */
+  dir?: string;
+  /** Run the Chromium-47 passes: Babel down-level and custom-property flattening. */
+  deep?: boolean;
+  /** Tiers to write into index.html's gate. Only the last tier built passes this. */
+  gate?: GateTier[];
+}
+
+/** `distDir` = the shell's absolute dist dir; `chrome` = this tier's floor. */
+export function legacyFinalize({
+  distDir,
+  chrome,
+  dir = 'legacy',
+  deep = false,
+  gate,
+}: LegacyFinalizeOptions): Plugin {
   return {
     name: 'kroma-legacy-finalize',
     apply: 'build',
     enforce: 'post',
     async closeBundle() {
-      await downlevelCss(distDir, chrome);
-      rewriteIndexHtml(distDir);
-      const saved = dedupeAssets(distDir);
+      await downlevelCss(distDir, dir, chrome);
+      if (deep) {
+        const theme = pinnedTheme(distDir);
+        await flattenCustomProperties(join(distDir, dir, 'style.css'), theme);
+        await lowerJs(join(distDir, dir, 'index.js'), chrome);
+        this.info?.(`[${dir}] lowered to chromium ${chrome}, theme pinned to ${theme}`);
+      }
+      if (gate) rewriteIndexHtml(distDir, gate);
+      const saved = dedupeAssets(distDir, dir);
       if (saved > 0) {
         this.info?.(
-          `[legacy] deduped ${(saved / 1024 / 1024).toFixed(2)} MB shared with the modern tier`,
+          `[${dir}] deduped ${(saved / 1024 / 1024).toFixed(2)} MB shared with the modern tier`,
         );
       }
     },

@@ -16,6 +16,20 @@ import type { TvTarget } from '@kroma/bundler/shell';
 // lowering required_version to reach Tizen 5.0 (2019) is a one-line change once
 // somebody has run it on such a set.
 //
+// Deep tier: Tizen 3.0-5.5 (Chromium 47-69, 2017-2020). Everything above splits
+// on cascade layers or custom properties; below M49 there are no custom
+// properties at all, which is the line a 2017 set (M47) falls under. Reaching it
+// costs two passes the tier above does not need - Babel down-levels the bundle
+// where rolldown's es2015 output stops, and the stylesheet's tokens are resolved
+// to literals - and the second of those spends cascade-driven theming, so the
+// tier ships the one theme <html data-theme> names.
+//
+// This tier is BUILT but not yet OFFERED: config.xml still floors the package at
+// 6.0. What is unverified is not the bundle, which is checked statically, but
+// playback: the app drives MSE and HLS and nobody has watched a 2017 set play a
+// KROMA stream. Lowering required_version is the one-line change that follows
+// that test, not the one that replaces it.
+//
 // `deviceDev` honors KROMA_TV_DEVICE=1 for on-device live-dev over the LAN
 // (scripts/dev-device.sh + `make dev-shell`).
 export const target: TvTarget = {
@@ -23,4 +37,5 @@ export const target: TvTarget = {
   port: 5174,
   deviceDev: true,
   legacyChrome: 53,
+  deepLegacyChrome: 47,
 };

@@ -3,10 +3,10 @@
 How a client finds a server it was never told about, and how a television — which has no
 keyboard worth using — becomes signed in.
 
-Discovery ends where [`accounts.md`](accounts.md) begins: its job is to get a device
+Discovery ends where [`accounts.md`](../accounts/README.md) begins: its job is to get a device
 *attached* to a server and *pointed at* an account. What the account then means, and what
 the resulting session may do, is that file. The mechanics — the wire records, the trust
-proofs, the per-shell APIs — are [`../tv-pairing.md`](../tv-pairing.md); this file states
+proofs, the per-shell APIs — are [`../tv-pairing.md`](../../tv-pairing.md); this file states
 the product rules and links there rather than repeating them.
 
 ## Finding a server on the local network
@@ -21,7 +21,7 @@ whole of setup on the happy path.
 which television. A server is a rendezvous, not a resident: a television and a phone in one
 room can pair through a server in another country, so the only addresses that matter are
 the two devices'. The product's rule, stated plainly and specified in full in
-[`../tv-pairing.md`](../tv-pairing.md#what-the-same-network-means):
+[`../tv-pairing.md`](../../tv-pairing.md#what-the-same-network-means):
 
 - **On a private network the server sits inside**, "same network" means the same local
   block — one home, whether a device is on ethernet or on wifi.
@@ -40,7 +40,7 @@ Status: **SHIPPED**
 
 Listening on the network needs an API not every platform grants a sandboxed app, so shells
 divide by capability, not by preference. The product view — the mechanics and the per-shell
-table are in [`../tv-pairing.md`](../tv-pairing.md#what-each-shell-can-do):
+table are in [`../tv-pairing.md`](../../tv-pairing.md#what-each-shell-can-do):
 
 - **Native mobile shells** (iOS, Android) can *browse*: they find nearby televisions and
   show them in a list. This is where a person usually pairs a TV.
@@ -83,7 +83,7 @@ network, and no usable keyboard. There are three roads to it, and a television t
 whichever ones its platform allows. All three end in the same place — the server holds a
 pending request until a signed-in account approves it, then hands the television an ordinary
 session that appears in the account's device list and revokes like any other
-([`accounts.md`](accounts.md)).
+([`accounts.md`](../accounts/README.md)).
 
 **Quick Connect is the floor.** The television prints a short code; the person reads it and
 types it into an already-signed-in client. It is slow by design, and that is exactly why it
@@ -100,7 +100,7 @@ vouch for. It is listed, but tapping it is not enough: the person is asked for a
 string the television is already printing on its own screen. This is Quick Connect's
 guarantee kept *inside* the list rather than replacing it — one confirmation, on exactly the
 platforms that have no safer road in. Why a raw tap is unsafe there, and why the check
-string is the right price, is [`../tv-pairing.md`](../tv-pairing.md#who-may-raise-a-beacon).
+string is the right price, is [`../tv-pairing.md`](../../tv-pairing.md#who-may-raise-a-beacon).
 
 ### When discovery finds nothing
 
@@ -147,7 +147,7 @@ The boundary is that a paired television is a *device*, not a second key to the 
 can act as its account, but it cannot approve *other* devices, change credentials, or do
 anything that would let a set in a guest room mint further sessions. What a session may do,
 and how a television — which cannot practically re-authenticate often — stays valid, is
-[`accounts.md`](accounts.md). Revocation is symmetrical with every other device: the
+[`accounts.md`](../accounts/README.md). Revocation is symmetrical with every other device: the
 account sees the television in its device list and can end its session at any time, from
 anywhere, and the television falls back to unpaired.
 
@@ -168,4 +168,4 @@ grant already travels through it, so vendor integration would only remove a chec
 the minority of homes where the two devices' addresses disagree. The product would rather
 ship the check string everywhere than a fragile fast path on two vendors' terms. The full
 argument, and the seam left open should it ever pay off, is
-[`../tv-pairing.md`](../tv-pairing.md#why-tizen-and-webos-stop-at-the-server).
+[`../tv-pairing.md`](../../tv-pairing.md#why-tizen-and-webos-stop-at-the-server).

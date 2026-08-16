@@ -8,8 +8,8 @@ truth is the input to every playback decision. If a file direct-plays, it is bec
 streams match what a client can render; if it cannot, this is where the reason comes from.
 
 This file owns the *vocabulary* of media — the model, the containers, the codecs, the
-stream properties. The per-device capability matrix lives in [`surfaces.md`](surfaces.md)
-and the decision of what to send lives in [`playback.md`](playback.md). Both consume the
+stream properties. The per-device capability matrix lives in [`surfaces.md`](../surfaces/README.md)
+and the decision of what to send lives in [`playback.md`](../playback/README.md). Both consume the
 terms defined here; neither is redefined here.
 
 ## The media model
@@ -19,7 +19,7 @@ Status: **AGREED**
 Five nouns, nested, each the child of the one before:
 
 - **Title** — the work a person searches for: a film, or one episode of a series. The unit
-  the [`library.md`](library.md) matches to metadata. A title carries no bytes.
+  the [`library.md`](../library/README.md) matches to metadata. A title carries no bytes.
 - **Edition** — a named cut of a title: theatrical, director's, extended, remastered.
   Different runtimes, different content. A title with one cut has one unnamed edition.
 - **Media file** — one physical file on disk that realises an edition at a given fidelity.
@@ -48,7 +48,7 @@ a title and a cut; the fidelity is chosen for them.
 - The preference is a *default*, not a lock. A client that cannot render the preferred file
   may be served a lesser file of the same edition instead of falling back to transcoding —
   a genuinely better outcome, so the model must make the alternative reachable. Which file
-  a given client actually receives is [`playback.md`](playback.md)'s decision; media.md only
+  a given client actually receives is [`playback.md`](../playback/README.md)'s decision; media.md only
   guarantees the alternatives are enumerated and comparable.
 - Editions are surfaced to the person (they are different content); fidelity variants are
   not (they are the same content at different quality). A person chooses a cut, never a
@@ -71,7 +71,7 @@ First-class containers: **MP4**, **MKV**, **WebM**. First-class video codecs, HE
 
 First-class audio and subtitle codecs are named in their sections below. A codec being
 first-class is a statement about *KROMA's* handling; whether a *particular* device renders
-it is the matrix in [`surfaces.md`](surfaces.md).
+it is the matrix in [`surfaces.md`](../surfaces/README.md).
 
 ## Bit depth and HDR
 
@@ -79,7 +79,7 @@ Status: **AGREED**
 
 HDR is preserved end to end or it is not offered. KROMA never silently flattens HDR to SDR
 as if nothing happened — a tone-mapped picture is a compromise and is surfaced as one by
-[`playback.md`](playback.md).
+[`playback.md`](../playback/README.md).
 
 - **Bit depth** — 8-bit and 10-bit are first-class. 10-bit is retained as a first-class
   property of the video stream, never rounded away in the model.
@@ -91,7 +91,7 @@ as if nothing happened — a tone-mapped picture is a compromise and is surfaced
   coefficients travel with the video stream. A client is matched against the exact HDR
   variant, not a generic "HDR" flag. Where dynamic metadata (HDR10+, Dolby Vision) cannot
   be carried to a client, KROMA's position is that the base HDR10 layer is preserved rather
-  than discarding HDR entirely — a fallback [`playback.md`](playback.md) makes visible.
+  than discarding HDR entirely — a fallback [`playback.md`](../playback/README.md) makes visible.
 
 ## Audio
 
@@ -105,7 +105,7 @@ layout** (stereo, 5.1, 7.1, Atmos objects) is a first-class property.
   untouched to a device or receiver that can decode it. This is direct play for audio and is
   always preferred.
 - **Downmixing** to stereo happens only when the target cannot render the source layout, and
-  only as an explicit fallback — never silently. When it happens, [`playback.md`](playback.md)
+  only as an explicit fallback — never silently. When it happens, [`playback.md`](../playback/README.md)
   owns telling the person; media.md defines *what* downmix means (a channel-count reduction
   that is a compromise) and guarantees the original stream is retained unchanged as the
   source.
@@ -130,7 +130,7 @@ enumerated the same way once known.
   only when a subtitle cannot be delivered as a selectable overlay to the target. It is
   never the default and never silent. media.md's rule: the original subtitle stream is
   always preserved; the burn is a derived output, not a replacement. *When* it happens is
-  [`playback.md`](playback.md).
+  [`playback.md`](../playback/README.md).
 
 ## Artwork and images
 
@@ -140,7 +140,7 @@ Every title carries images: **poster**, **backdrop**, **logo**, and per-episode 
 These are media too, and are treated with the same discipline.
 
 - **Sources**, in order of trust: images embedded in the media file, sidecar image files
-  next to it, then images fetched by the [`library.md`](library.md) metadata refresh. A
+  next to it, then images fetched by the [`library.md`](../library/README.md) metadata refresh. A
   local image outranks a fetched one; a person's explicit choice outranks both.
 - **Sizes** — KROMA derives and caches a fixed set of sizes per image (a small grid
   thumbnail through a full-bleed backdrop) so a client requests a size, never the original.
@@ -179,7 +179,7 @@ known** — never hidden and never silently dropped.
   stream does not disqualify the file; the describable streams remain first-class.
 - The unknown stream is marked **undescribed** and carries its raw identifier so a person and
   a diagnostician can see exactly what was not understood. An undescribed stream is treated
-  as *not direct-playable* by [`playback.md`](playback.md) — KROMA will not gamble that a
+  as *not direct-playable* by [`playback.md`](../playback/README.md) — KROMA will not gamble that a
   client can render what KROMA itself cannot name.
 - A file that will not open at all — a truncated or corrupt container — is **unreadable**,
   surfaced as a typed error against the title with the reason, and excluded from play until

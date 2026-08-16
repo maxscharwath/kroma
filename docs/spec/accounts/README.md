@@ -16,7 +16,7 @@ settings, and a set of signed-in devices. Nothing else hangs off it.
 The first account created at first-run is the **owner**. The owner is an account
 like any other that additionally holds the server itself — see the roles below.
 Every subsequent account is an ordinary **user**, created by invitation from
-[`admin.md`](admin.md); a KROMA server is never self-signup.
+[`admin.md`](../admin/README.md); a KROMA server is never self-signup.
 
 **There are no profiles under an account, and there will not be.** A "profile"
 in other media servers is a login you do not have to type a password for: a way
@@ -41,7 +41,7 @@ Status: **AGREED**
 A person proves who they are with a **username and password**. That is the only
 credential the server stores, and it stores only a verifier for it, never the
 password. Password strength, reset, and lockout policy are the server operator's
-concern and live in [`admin.md`](admin.md).
+concern and live in [`admin.md`](../admin/README.md).
 
 A successful authentication mints a **session**: a long-lived, server-issued token
 bound to one device. Every request carries the session; the password is typed once
@@ -66,8 +66,8 @@ list** with enough to recognise it (shell, rough location, last-seen) and one
 action: revoke.
 
 A television binds to an account through the pairing handshake, not a typed
-password — the mechanics of that handshake are [`discovery.md`](discovery.md), and
-its raw material [`tv-pairing.md`](../tv-pairing.md). The product rule that matters
+password — the mechanics of that handshake are [`discovery.md`](../discovery/README.md), and
+its raw material [`tv-pairing.md`](../../tv-pairing.md). The product rule that matters
 here: **pairing ends in an ordinary session.** A paired television is not a special
 class of trust; it lands in the same device list as everything else and revokes the
 same way. There is nothing you can do to a paired television that you cannot do to a
@@ -111,7 +111,7 @@ browsing, search, and playback alike — a title a user cannot see is a title th
 cannot play, resume, or find.
 
 Module installation is an **admin** right, because installing a module runs new
-out-of-process code on the server — see [`modules.md`](modules.md). A plain user
+out-of-process code on the server — see [`modules.md`](../modules/README.md). A plain user
 may use whatever modules an admin has installed and enabled, within their own
 library visibility; they may not install, update, or remove them.
 
@@ -136,7 +136,7 @@ Status: **AGREED**
 | Change server settings, run and cancel jobs | ✓ | — |
 
 A user's power over their own account is total; their power over anyone else's, or
-over the server, is none. Everything in the admin column is [`admin.md`](admin.md)'s
+over the server, is none. Everything in the admin column is [`admin.md`](../admin/README.md)'s
 subject in depth.
 
 ## Per-user versus per-server
@@ -152,7 +152,7 @@ people on one server share nothing here.
 
 **Per-server** — the libraries and their contents, metadata and artwork, the set of
 installed modules, transcode and job policy, and every setting under
-[`admin.md`](admin.md). One person's Continue Watching is theirs; the library that
+[`admin.md`](../admin/README.md). One person's Continue Watching is theirs; the library that
 row points into is everyone's.
 
 Watch state is deliberately per-user and never per-device: resume a film on the
@@ -176,7 +176,7 @@ Another user's watch state is untouched even where it points at the same titles.
 
 The owner account cannot be deleted while it is the only admin; ownership must first
 pass to another account, so a server is never left with no one able to run it.
-An admin deleting another user is an [`admin.md`](admin.md) action; a user may
+An admin deleting another user is an [`admin.md`](../admin/README.md) action; a user may
 request deletion of their own account, which revokes their access on the spot.
 
 ### Does a revoked or deleted device lose downloaded content?
@@ -191,6 +191,6 @@ on discovering its session is dead, the client is required to purge downloaded m
 before it will run again. So the guarantee is "a revoked device gains nothing new and
 loses its downloads the next time the app runs", not "the download evaporates the
 instant you tap revoke". We state it plainly rather than pretend to a control we do
-not hold; the offline-download reality is [`modules.md`](modules.md)'s and the mobile
+not hold; the offline-download reality is [`modules.md`](../modules/README.md)'s and the mobile
 client's to enforce, and the account model's job is only to kill the session that
 would let those downloads be refreshed.

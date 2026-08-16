@@ -8,10 +8,10 @@ allowed *not* to do — so a missing feature is a decision on record rather than
 
 It owns the *surface* view: which surfaces exist, what they promise, and which class of
 media each can direct-play. It does not own the codec decision — given a file, a client and
-a network, what gets sent is [`playback.md`](playback.md)'s job, and what a stream *is* comes
-from [`media.md`](media.md). This file reads those as facts and states the consequence per
+a network, what gets sent is [`playback.md`](../playback/README.md)'s job, and what a stream *is* comes
+from [`media.md`](../media/README.md). This file reads those as facts and states the consequence per
 surface. The shared component kit that makes the surfaces look alike is architecture, not
-spec — see [`packages/ui`](../../packages/ui).
+spec — see [`packages/ui`](../../../packages/ui).
 
 ## The surfaces
 
@@ -36,11 +36,11 @@ best-effort surface that drops one says so here rather than failing silently.
 
 1. **Sign in / pair** — reach a server and become an account on it. On a surface with a
    keyboard this is address-plus-credentials; on a television it is the pairing handshake
-   ([`discovery.md`](discovery.md), [`docs/tv-pairing.md`](../tv-pairing.md)).
+   ([`discovery.md`](../discovery/README.md), [`docs/tv-pairing.md`](../../tv-pairing.md)).
 2. **Browse the library** — move through titles the account may see, by section and by search.
 3. **View a title** — its artwork, its metadata, its editions and available fidelities.
 4. **Start playback** — play the title, taking whatever rung the device needs
-   ([`playback.md`](playback.md)).
+   ([`playback.md`](../playback/README.md)).
 5. **Resume** — reopen an in-progress title at the server-held position, per user, per version.
 6. **Sign out** — end the session and drop the server from the surface, revocably.
 
@@ -88,15 +88,15 @@ What each surface must, may, and may not do, beyond the baseline all of them sha
 | Direct-play ceiling | browser codecs | device generation | browser codecs | panel generation | panel generation |
 
 "Discover" and "pair" are the surface's *reach*, and the per-shell truth — who publishes,
-who browses, why Tizen cannot — is [`discovery.md`](discovery.md)'s, grounded in
-[`docs/tv-pairing.md`](../tv-pairing.md). This table names the outcome; that file names the
+who browses, why Tizen cannot — is [`discovery.md`](../discovery/README.md)'s, grounded in
+[`docs/tv-pairing.md`](../../tv-pairing.md). This table names the outcome; that file names the
 mechanism.
 
 ### Direct-play by device generation
 
 Status: **AGREED**
 
-Whether a file direct-plays is decided per session by [`playback.md`](playback.md) against a
+Whether a file direct-plays is decided per session by [`playback.md`](../playback/README.md) against a
 device profile; the *class* of media a surface can decode is a surface fact, and it is the
 device's generation, not the surface's brand, that sets it. The rule KROMA holds to:
 
@@ -108,14 +108,14 @@ device's generation, not the surface's brand, that sets it. The rule KROMA holds
   which is where generation bites: a current phone decodes 10-bit HEVC and Dolby Vision in
   hardware that a three-year-old panel of the same brand cannot. KROMA reads the generation
   from the profile and never assumes newer than it measures.
-- **The honest consequence** is on record in [`playback.md`](playback.md): when a television's
+- **The honest consequence** is on record in [`playback.md`](../playback/README.md): when a television's
   older decoder cannot play a file a modern phone can, and transcode is capped or disabled, the
   television says so plainly and points at a surface that *does* play it. The matrix here is the
   input to that message; it is not a promise every surface plays everything.
 
 KROMA does not paper over a generation gap by silently transcoding for a capable surface, and
 it does not pretend a panel decodes a codec its generation predates. The first-class media
-truth (which codecs, containers, HDR variants exist) is [`media.md`](media.md); this section
+truth (which codecs, containers, HDR variants exist) is [`media.md`](../media/README.md); this section
 only says which surface can take it unmodified.
 
 ## Input models
@@ -134,7 +134,7 @@ break the surface. Three models, and each rewrites the UI, not just the event ha
 - **Remote, 10-foot** (all televisions) — a directional focus ring, not a cursor: everything
   reachable by up/down/left/right and OK, legible across a room, and no interaction that
   assumes text entry the remote cannot supply. Sign-in is the pairing handshake precisely
-  because a television keyboard is unusable ([`discovery.md`](discovery.md)). A television
+  because a television keyboard is unusable ([`discovery.md`](../discovery/README.md)). A television
   build that ships a pointer-shaped screen has not met the baseline's *view* and *browse*
   rungs, however complete it looks on a monitor.
 
@@ -156,8 +156,8 @@ file — the raw original when the device direct-plays it, else a server-side re
 fMP4 — and plays with no server connection. Downloads survive backgrounding and app kills and
 are re-adopted on next launch, and so is the queue of unsent progress reports, which flushes
 under the furthest-position rule when the server is reachable again
-([`playback.md`](playback.md),
-[`../architecture/mobile-offline-system-storage.md`](../architecture/mobile-offline-system-storage.md)).
+([`playback.md`](../playback/README.md),
+[`../architecture/mobile-offline-system-storage.md`](../../architecture/mobile-offline-system-storage.md)).
 
 ### OS-managed download rows
 
@@ -170,7 +170,7 @@ feel. The OS rows need system-managed HLS assets (`AVAssetDownloadTask`, a finit
 tokenised segment URLs, delete-reconciliation on every launch): a server-plus-native-plus-player
 project, iOS-only, with no Android equivalent to match. It is deferred as a unit rather than
 half-built. The full record, and what it would take, is in
-[`../architecture/mobile-offline-system-storage.md`](../architecture/mobile-offline-system-storage.md).
+[`../architecture/mobile-offline-system-storage.md`](../../architecture/mobile-offline-system-storage.md).
 
 ## Packaging and updates
 
@@ -178,7 +178,7 @@ Status: **AGREED**
 
 Each surface ships and updates the way its host expects; the product rule is only that a
 surface stays current without asking a person to babysit it. Deploy mechanics are
-[`admin.md`](admin.md)'s; here is the product-level shape.
+[`admin.md`](../admin/README.md)'s; here is the product-level shape.
 
 - **Web** — served by the server itself; the server embeds the web build. There is no separate
   install and no version skew: updating the server updates the web surface, and a browser
@@ -207,7 +207,7 @@ below the floor the app can build against. Deprecation is announced, never silen
   a dead app and no explanation.
 - **Sessions survive the app.** A deprecated surface's sessions are ordinary sessions; they
   keep working until the surface is retired and revoke like any other from the device list
-  ([`accounts.md`](accounts.md)). Retiring a surface does not strand an account.
+  ([`accounts.md`](../accounts/README.md)). Retiring a surface does not strand an account.
 - **The library outlives any surface.** Nothing about a person's library, watch state or
   account is tied to a surface — it is the server's — so moving to another surface loses only
   the retired app, never the account behind it. That is the point of stating the baseline once:

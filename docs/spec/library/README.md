@@ -4,8 +4,8 @@ Status: **AGREED** overall, with two sections still **DRAFT** where a product ch
 stays open. Every section carries its own status; the file-level label is the floor.
 
 Sources on disk become titles you can browse. Everything upstream of "there is something
-to play". What a title *is* once matched — streams, codecs, artwork — is [`media.md`](media.md);
-getting bytes onto disk in the first place is a module concern, [`modules.md`](modules.md).
+to play". What a title *is* once matched — streams, codecs, artwork — is [`media.md`](../media/README.md);
+getting bytes onto disk in the first place is a module concern, [`modules.md`](../modules/README.md).
 
 ## Sources
 
@@ -28,7 +28,7 @@ A source records the mount path, its content kind, and its scan schedule. Nothin
 source is destructive: removing a source removes its titles from the catalogue and stops
 watching the path, but touches no bytes on disk and — per the deletions rule below —
 preserves the watch history keyed to those files should the source ever return. Adding,
-editing and removing sources is an admin surface, [`admin.md`](admin.md).
+editing and removing sources is an admin surface, [`admin.md`](../admin/README.md).
 
 ## Naming conventions understood
 
@@ -48,7 +48,7 @@ Movies/Dune Part Two (2024)/Dune Part Two (2024) - 2160p.mkv
 
 The `Title (Year)` stem is what is matched. The year is not decoration — it disambiguates
 remakes and is the difference between a confident match and a guess. A trailing tag after
-` - ` (resolution, edition, source) is preserved as version/edition detail, [`media.md`](media.md),
+` - ` (resolution, edition, source) is preserved as version/edition detail, [`media.md`](../media/README.md),
 and never changes the matched identity. A loose file directly under the source root
 (`Movies/Blade Runner (1982).mkv`, no folder) is accepted with the same stem rules, but the
 folder-per-film layout is the recommended one and the only layout guaranteed to keep
@@ -82,7 +82,7 @@ Two scans, one code path, different triggers.
 
 **Initial scan** runs when a source is added: the whole tree is walked once, every
 candidate file matched, the catalogue populated. It is a background job with visible
-progress, [`admin.md`](admin.md); the catalogue fills as it goes rather than appearing all
+progress, [`admin.md`](../admin/README.md); the catalogue fills as it goes rather than appearing all
 at once at the end.
 
 **Incremental rescan** keeps the catalogue true to disk afterwards. It is triggered by,
@@ -108,7 +108,7 @@ guarantee rests on three rules:
 
 The corollary: KROMA never demands exclusive access to a library and never blocks the
 tools writing to it. A module mid-download and a scan mid-sweep coexist by design,
-[`modules.md`](modules.md).
+[`modules.md`](../modules/README.md).
 
 ## Matching and its failure path
 
@@ -212,13 +212,13 @@ Genuine permanent deletion of a title's history is an explicit, user-initiated a
 action ("Remove and forget"), never a side effect of a scan. Answering the skeleton
 directly: a rescan **only ever marks absent**; it never deletes user data. The one actor
 allowed to destroy history is a human who asks for it, on the admin surface,
-[`admin.md`](admin.md).
+[`admin.md`](../admin/README.md).
 
 ## Not in scope
 
 - **Acquisition** — getting files onto disk (downloads, indexers) is a module concern,
-  [`modules.md`](modules.md). The library observes what appears; it does not fetch it.
+  [`modules.md`](../modules/README.md). The library observes what appears; it does not fetch it.
 - **What a matched title technically is** — containers, codecs, streams, artwork sizes —
-  is [`media.md`](media.md).
-- **Choosing what to send a client** at play time is [`playback.md`](playback.md).
-- **Who may see which source or title** is [`accounts.md`](accounts.md).
+  is [`media.md`](../media/README.md).
+- **Choosing what to send a client** at play time is [`playback.md`](../playback/README.md).
+- **Who may see which source or title** is [`accounts.md`](../accounts/README.md).

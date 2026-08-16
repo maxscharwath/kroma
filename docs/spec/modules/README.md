@@ -22,8 +22,8 @@ load-bearing decision of this domain, chosen for three reasons:
   without rebuilding or replacing the server binary. The base build never grows.
 
 Mechanics — how a sidecar is spawned, supervised and reverse-proxied — live in
-[`../modules-as-kmod.md`](../modules-as-kmod.md); registry wiring lives in
-[`../module-registries.md`](../module-registries.md). This file states the product rules.
+[`../modules-as-kmod.md`](../../modules-as-kmod.md); registry wiring lives in
+[`../module-registries.md`](../../module-registries.md). This file states the product rules.
 
 ## What a module is, and the boundary it may not cross
 
@@ -91,7 +91,7 @@ sidecar is spawned:
   `minServer` gate — for an air-gapped server, a private build, or a module not on any
   registry.
 
-Both are admin actions on the [`admin.md`](admin.md) surface.
+Both are admin actions on the [`admin.md`](../admin/README.md) surface.
 
 ## The Store
 
@@ -110,7 +110,7 @@ server's verdict**, not just the catalogue entry:
 That verdict is the point: a user decides to install or update against what *their* server
 will actually do, before committing. Registry precedence, https requirements, shadowing of
 duplicate ids and the empty-catalogue-is-a-failure rule are specified in
-[`../module-registries.md`](../module-registries.md).
+[`../module-registries.md`](../../module-registries.md).
 
 ## Trust
 
@@ -156,7 +156,7 @@ Four actions, and what each does to the module's data:
 
 Uninstalling a module never touches media on disk — a downloads module leaves the files it
 fetched exactly where they are, and the library keeps observing them,
-[`library.md`](library.md).
+[`library.md`](../library/README.md).
 
 ## Failure and isolation
 
@@ -171,7 +171,7 @@ This is the guarantee the whole architecture exists to make:
   *and* again at spawn. A stale bundle that no longer fits the server fails to start with a
   named reason, rather than starting and emitting confusing runtime errors downstream.
 - **Failure is visible, not silent.** A module that will not start or has crashed surfaces
-  on the Admin Modules surface with its state and reason, [`admin.md`](admin.md).
+  on the Admin Modules surface with its state and reason, [`admin.md`](../admin/README.md).
 
 ## The compatibility promise
 
@@ -236,7 +236,7 @@ library has no need to carry any of it.
 - **Downloads and acquisition** (`tv.kroma.torrents`, `tv.kroma.acquisition`,
   `tv.kroma.indexer`, `tv.kroma.torznab`, `tv.kroma.vpn`, and the download engines
   `tv.kroma.engine.qbittorrent` / `tv.kroma.engine.transmission`). Getting bytes onto disk
-  is out of scope for the library, which only *observes* what appears, [`library.md`](library.md).
+  is out of scope for the library, which only *observes* what appears, [`library.md`](../library/README.md).
   This stack carries the heaviest and most legally sensitive native code in the product; it
   is exactly what should be optional, isolated and removable.
 - **Transcription** (`tv.kroma.whisper`). A speech-to-text ML runtime — a large native
@@ -244,7 +244,7 @@ library has no need to carry any of it.
 - **Semantic search** (`tv.kroma.vector`). Vector embeddings and search, again a native
   ML stack, and a feature a plain catalogue does not need.
 - **Network discovery** (`tv.kroma.mdns`). Advertising the server on the LAN for pairing,
-  [`discovery.md`](discovery.md) — a capability an operator may deliberately not want
+  [`discovery.md`](../discovery/README.md) — a capability an operator may deliberately not want
   running, so it is opt-in.
 - **Remote access** (`tv.kroma.remote`). Reaching the server from outside the LAN — a
   security-relevant surface that should be an explicit, removable choice, not always-on.
@@ -255,10 +255,10 @@ library has no need to carry any of it.
 ## Not in scope
 
 - **Getting bytes onto disk** as a library concern — matching, scanning, deletions — is
-  [`library.md`](library.md). The library observes; modules acquire.
+  [`library.md`](../library/README.md). The library observes; modules acquire.
 - **Running the server** — installing, enabling and diagnosing modules from the admin
-  surface — is [`admin.md`](admin.md).
+  surface — is [`admin.md`](../admin/README.md).
 - **Registry wiring and precedence** — official-vs-added, shadowing, https and
-  autodiscovery — is [`../module-registries.md`](../module-registries.md).
+  autodiscovery — is [`../module-registries.md`](../../module-registries.md).
 - **How a sidecar is built, packed, spawned and released** is
-  [`../modules-as-kmod.md`](../modules-as-kmod.md).
+  [`../modules-as-kmod.md`](../../modules-as-kmod.md).

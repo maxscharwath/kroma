@@ -6,9 +6,9 @@ The core promise: the file plays, unmodified, wherever possible. Everything else
 fallback, and every fallback is a compromise that is made visible and explained. KROMA
 never quietly degrades a stream and hopes nobody notices.
 
-Codec truth — what a stream actually is — lives in [`media.md`](media.md). The per-device
-capability matrix lives in [`surfaces.md`](surfaces.md). Who is allowed to watch a title at
-all lives in [`accounts.md`](accounts.md). This file owns the *decision*: given a file, a
+Codec truth — what a stream actually is — lives in [`media.md`](../media/README.md). The per-device
+capability matrix lives in [`surfaces.md`](../surfaces/README.md). Who is allowed to watch a title at
+all lives in [`accounts.md`](../accounts/README.md). This file owns the *decision*: given a file, a
 client and a network, what gets sent, and what is given up to send it.
 
 ## Direct play
@@ -21,7 +21,7 @@ default, the goal, and the only path with no compromise.
 
 A file direct-plays when **all** of the following hold:
 
-1. The client declares it can demux the **container** (per [`surfaces.md`](surfaces.md)).
+1. The client declares it can demux the **container** (per [`surfaces.md`](../surfaces/README.md)).
 2. The client can decode the **video stream** — codec, profile, level, bit depth and HDR
    variant — in hardware, as declared for that device generation.
 3. Every **audio stream the user might select** is decodable by the client, at its native
@@ -74,7 +74,7 @@ not so KROMA can pretend any file suits any screen. Consequences on record:
 
 - Transcode is always the lowest rung and is never the default for a capable client.
 - An admin may **cap or disable** video transcode per server and per user
-  ([`accounts.md`](accounts.md), [`admin.md`](admin.md)); disabling it means an incompatible
+  ([`accounts.md`](../accounts/README.md), [`admin.md`](../admin/README.md)); disabling it means an incompatible
   file reports as unplayable on that client rather than degrading.
 - We do not invest in adaptive multi-bitrate ladders, quality knobs, or bandwidth-based
   auto-transcode. The product's answer to "it won't play" is "get a client that direct-plays
@@ -119,7 +119,7 @@ keyframe, not a rounded chapter.
 Status: **AGREED**
 
 Progress is **per user, per media version**, stored on the server — it is the server's watch
-state, not a device's ([`accounts.md`](accounts.md)). Any client the user signs into sees the
+state, not a device's ([`accounts.md`](../accounts/README.md)). Any client the user signs into sees the
 same resume point.
 
 **When progress is written.** The playing client reports position on a steady heartbeat while
@@ -142,7 +142,7 @@ title again resets it to unwatched and clears the stored position.
 **Offline reconciliation.** Mobile downloads let a user watch with no server connection, and two
 devices can each accrue progress offline against the same version. Downloads survive app kills
 and are re-adopted on launch (see
-[`../architecture/mobile-offline-system-storage.md`](../architecture/mobile-offline-system-storage.md)),
+[`../architecture/mobile-offline-system-storage.md`](../../architecture/mobile-offline-system-storage.md)),
 and so does the **queue of unsent progress reports**. On reconnect each device flushes its queue,
 every report stamped with the **wall-clock time the user was actually at that position**.
 
@@ -162,7 +162,7 @@ higher position. If either device crossed the watched threshold, the title is wa
 Status: **AGREED**
 
 One account may play on several clients simultaneously; KROMA does not enforce a concurrent-stream
-limit as a product rule (an admin may cap server load — [`admin.md`](admin.md)). Each playing
+limit as a product rule (an admin may cap server load — [`admin.md`](../admin/README.md)). Each playing
 client is an independent session with its own fallback decision: the same title may direct-play on
 a phone and transcode on a television at the same moment, because the decision is per device, not
 per title.

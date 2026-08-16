@@ -17,6 +17,7 @@
     "build:fast": "vite build",
     "check:legacy": "bun ../tv-build/check-legacy.ts",
     "check:simulator": "bun scripts/simulator-check.ts",
+    "slice": "bun scripts/slice.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "doctor": "make doctor",

@@ -88,7 +88,17 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
       babel({ presets: [reactCompilerPreset()] }),
       tvFrame({ enabled: !deviceDev }),
     ],
-    resolve: webResolve({ '#tv': fileURLToPath(new URL('../../packages/tv/src', shellUrl)) }),
+    // The workbench is reached through `?workbench`, which a television has no
+    // way to ask for: in a package it is a lazy chunk nothing can ever fetch,
+    // measured at 169 kB. Stubbed for `build` only, so the dev server keeps it.
+    // `#tv/workbench` must come first, since Vite matches string aliases by
+    // prefix in order and a bare `#tv` would swallow it.
+    resolve: webResolve({
+      ...(command === 'build'
+        ? { '#tv/workbench': fileURLToPath(new URL('workbench-stub.tsx', import.meta.url)) }
+        : {}),
+      '#tv': fileURLToPath(new URL('../../packages/tv/src', shellUrl)),
+    }),
     // Packaged TV apps load from a local path: assets must be referenced relatively.
     base: './',
     server: {

@@ -12,7 +12,7 @@
 //     generation.
 
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { flattenCustomProperties, lowerJs } from '@kroma/bundler/deep-tier';
 import { kromaLegacyCss } from '@kroma/bundler/legacy-css';
 import { transform } from 'lightningcss';
@@ -182,12 +182,14 @@ function inlineFonts(distDir: string): number {
   collect(distDir);
 
   let added = 0;
+  const inlined = new Set<string>();
   for (const sheet of sheets) {
     const base = dirname(sheet);
     const before = readFileSync(sheet, 'utf8');
     let after = before.replace(/url\(\s*(["']?)([^)"']+\.woff2)\1\s*\)/g, (whole, _q, ref) => {
       const file = join(base, ref);
       if (!existsSync(file)) return whole;
+      inlined.add(file);
       return `url(data:font/woff2;base64,${readFileSync(file).toString('base64')})`;
     });
     if (after === before) continue;
@@ -202,7 +204,23 @@ function inlineFonts(distDir: string): number {
     const stripped = html.replace(/\s*<link[^>]*rel="preload"[^>]*as="font"[^>]*>/g, '');
     if (stripped !== html) writeFileSync(index, stripped);
   }
+
+  // The files themselves are dead once every reference to them is a data: URI
+  // and the preloads are gone, and a package pays for them all the same.
+  for (const file of inlined) {
+    if (!mentioned(distDir, basename(file))) rmSync(file);
+  }
   return added;
+}
+
+// Whether any emitted file still names `needle`, which is how a font is known
+// to be droppable rather than assumed to be.
+function mentioned(distDir: string, needle: string): boolean {
+  for (const entry of readdirSync(distDir, { withFileTypes: true, recursive: true })) {
+    if (entry.isDirectory() || entry.name.endsWith('.woff2')) continue;
+    if (readFileSync(join(entry.parentPath, entry.name)).includes(needle)) return true;
+  }
+  return false;
 }
 
 // The one theme a flattened stylesheet can carry, taken from the shell's own

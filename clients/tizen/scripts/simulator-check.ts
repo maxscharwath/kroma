@@ -14,7 +14,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Painted, type RemoteKey, Simulator, type Tier } from './simulator.ts';
 
-const INDEX = fileURLToPath(new URL('../dist/index.html', import.meta.url));
+// `--dist dist-deep` points the run at a slice, which carries one tier and no
+// gate: the disguise then proves the tier still runs on the engine it was cut
+// for, rather than which branch a probe took.
+const distArg = process.argv.includes('--dist')
+  ? process.argv[process.argv.indexOf('--dist') + 1]
+  : undefined;
+const INDEX = fileURLToPath(new URL(`../${distArg ?? 'dist'}/index.html`, import.meta.url));
 const SHOTS = process.env.KROMA_SIM_SHOTS;
 
 const EXPECTED: Record<Tier, string> = {

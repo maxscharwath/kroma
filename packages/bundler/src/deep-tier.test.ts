@@ -18,7 +18,8 @@ function script(js: string): string {
 
 describe('syntaxAboveDeepFloor', () => {
   it('passes the ES5 and M47-era syntax Babel leaves alone', () => {
-    const code = 'var a = function (x) { return `t${x}`; };for (var k of []) a(k);';
+    const template = ['`t', '${x}', '`'].join('');
+    const code = `var a = function (x) { return ${template}; };for (var k of []) a(k);`;
     expect(syntaxAboveDeepFloor(code)).toEqual([]);
   });
 

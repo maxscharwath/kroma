@@ -34,7 +34,7 @@ export function TvAbout() {
       </Text>
 
       <Box w="100%" maxW={560} gap={12}>
-        <Fact label={t('about.platform')} value={env.platform} />
+        <Fact label={t('about.platform')} value={platformLabel(env.platform)} />
         <Fact label={t('about.version')} value={`v${build.version}`} />
         <Fact
           label={t('about.cpu')}
@@ -80,6 +80,19 @@ export function TvAbout() {
       />
     </AuthScreen>
   );
+}
+
+// One binary per native platform, so its label is the OS with no space
+// ('AppleTV' / 'AndroidTV' - see the shell's App.tsx); the web shells already
+// pass a display-ready string ('Desktop', 'webOS', 'Tizen'), so those pass
+// through untouched.
+const PLATFORM_LABELS: Record<string, string> = {
+  AppleTV: 'Apple TV',
+  AndroidTV: 'Android TV',
+};
+
+function platformLabel(platform: string): string {
+  return PLATFORM_LABELS[platform] ?? platform;
 }
 
 function Fact({

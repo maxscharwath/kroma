@@ -9,6 +9,7 @@
 import { onScreen } from '@kroma/ui/testing';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { setHardwareSource } from '#tv/app/clientHardware';
 import { EnvProvider } from '#tv/app/providers/env';
 import { TvNavProvider } from '#tv/app/router';
 import { TvAbout } from '#tv/features/accounts/TvAbout';
@@ -16,8 +17,11 @@ import { TvAbout } from '#tv/features/accounts/TvAbout';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  setHardwareSource(null);
   sessionStorage.clear();
 });
+
+const GB = 1024 ** 3;
 
 function withNavigator(extra: Record<string, unknown>) {
   vi.stubGlobal('navigator', { ...globalThis.navigator, userAgent: 'test', ...extra });
@@ -55,6 +59,35 @@ describe('TvAbout hardware rows', () => {
     mount();
     expect(screen.getByText('Memory')).toBeTruthy();
     expect(screen.getByText('4 GB')).toBeTruthy();
+  });
+
+  it('reads an injected source in preference to the Web APIs', () => {
+    // The native shell has the numbers but no `navigator` fields: the source
+    // wins, and memory arrives in bytes to be shown as coarse GB.
+    withNavigator({});
+    vi.stubGlobal('performance', {});
+    setHardwareSource({ cpuCores: () => 6, memoryBytes: () => 8 * GB });
+    mount('AppleTV');
+    expect(screen.getByText('6 cores')).toBeTruthy();
+    expect(screen.getByText('8 GB')).toBeTruthy();
+  });
+
+  it('hides the rows when the injected source answers null', () => {
+    withNavigator({});
+    vi.stubGlobal('performance', {});
+    setHardwareSource({ cpuCores: () => null, memoryBytes: () => null });
+    mount('AndroidTV');
+    expect(screen.queryByText('CPU')).toBeNull();
+    expect(screen.queryByText('Memory')).toBeNull();
+  });
+
+  it('spaces the native platform labels', () => {
+    withNavigator({});
+    mount('AppleTV');
+    expect(screen.getByText('Apple TV')).toBeTruthy();
+    cleanup();
+    mount('AndroidTV');
+    expect(screen.getByText('Android TV')).toBeTruthy();
   });
 
   it('hides the CPU and memory rows when no API answers', () => {

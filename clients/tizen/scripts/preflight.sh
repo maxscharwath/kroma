@@ -49,7 +49,7 @@ else
     echo "  ~ platform floor: skipped: could not read platform_version from $SERIAL"
   elif ver_lt "$tv_ver" "$required"; then
     echo "  ✗ this TV is Tizen $tv_ver; KROMA requires >= $required, this set is not supported"
-    echo "    (a 2017/Tizen-3.0 set is Chromium M47, too old for the build; not chased. See SETUP.md.)"
+    echo "    (the floor is config.xml's required_version. See SETUP.md.)"
     blocked=1
   else
     echo "  ✓ platform floor: TV is Tizen $tv_ver (>= required $required)"

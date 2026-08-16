@@ -126,42 +126,40 @@ the TV's network (`bun run server` on the host, or the Docker image on your NAS)
 
 ---
 
-## Supported TVs: the Tizen 6.0 floor
+## Supported TVs: the Tizen 3.0 floor
 
-KROMA requires **Tizen 6.0 (2021 models) or newer**. `config.xml` sets
-`required_version="6.0"`, and a retail set refuses a widget that demands a
-platform newer than its own with an opaque `install failed[118]`. That was the
+KROMA targets **Tizen 3.0 (2017 models) and newer**. `config.xml` sets
+`required_version="3.0"`, and a retail set refuses a widget that demands a
+platform newer than its own with an opaque `install failed[118]`, which was the
 whole of [#86](https://github.com/maxscharwath/kroma/issues/86).
 
-The floor is deliberate, not a bug. A 2017/Tizen-3.0 set ships **Chromium M47**
-(4.0 is M56, 5.0 is M63), far older than the web build assumes, and lowering
-`required_version` alone does not make the app run there. See
-[`tv.target.ts`](./tv.target.ts) and [`STORE.md`](./STORE.md) for the
-Chromium-per-Tizen table and the legacy build tier that makes 6.0 honest.
+Reaching that far down is what the **deep tier** is for. Chromium is frozen per
+Tizen major (3.0 = M47, 4.0 = M56, 5.0 = M63, 5.5 = M69, 6.0 = M76, 6.5 = M85,
+7.0 = M94, 8.0 = M108), and the package carries three bundles gated at runtime in
+`dist/index.html`: modern for M99+, `legacy/` for M49-98, `deep/` for M47-48. The
+gate probes cascade layers, then custom properties, which is the M49 line a 2017
+set falls under. See [`tv.target.ts`](./tv.target.ts) and
+[`STORE.md`](./STORE.md).
 
-How far below the floor M47 sits, measured on the built bundle rather than
-guessed. `esbuild --target=chrome47 dist/legacy/index.js` fails with thousands of
-constructs it cannot lower, dominated by `let` and destructuring, then default
-arguments and `class`; the same command at `chrome53` succeeds. The bundle runs
-sloppy, so those need M49, not the M41/M42 they would need under `use strict`.
+The deep tier costs two passes the tier above does not need, and both are guarded
+by `check:legacy`, which fails the build rather than ship a bundle a 2017 set
+cannot parse. Babel lowers the JS where rolldown's es2015 output stops and esbuild
+refuses to follow, and postcss resolves the stylesheet's custom properties to
+literals, since M47 has none. The second of those spends cascade-driven theming:
+the deep bundle carries only the theme `<html data-theme>` names, which on this
+shell has always been dark.
 
-Both are reachable with tools this build does not currently run, so the floor is
-a cost decision rather than an impossibility. Babel lowers the same bundle to
-chrome47 clean (`preset-env` plus an explicit class transform, since the bundle
-is sloppy), for about 11% more bytes, and the API gap is roughly fifty core-js
-polyfills plus real shims for ResizeObserver, IntersectionObserver and
-AbortController, which core-js does not cover.
+`devel.api.version` drops to 3.0 with the floor, because a set refuses a Samsung
+Product API level it does not implement. The visible cost is
+`webapis.network.getTVName()`, which Samsung documents as API 4.0: a 2017 set
+announces its model rather than the name its owner gave it. `deviceName.ts`
+feature-detects every source and already falls back that way.
 
-The stylesheet needs a different tool rather than a harder one. Lightning CSS
-leaves `var()` alone at every target because it does not resolve custom
-properties; postcss-custom-properties does, and pinning a theme clears most of
-the file. What it leaves behind is a short list of element-scoped properties that
-are still defined in the sheet. The price is that theming stops going through the
-cascade and becomes one flattened stylesheet per theme, swapped at runtime.
-
-So a 2017 set is a third build tier, not a one-line manifest edit, and the part
-none of this settles is playback: the bundle drives MSE and HLS, and whether a
-2017 set direct-plays what KROMA serves can only be answered on the hardware.
+**Two things a build cannot answer, so treat 3.0 as unproven until a 2017 set
+has run it.** Whether such a set accepts the manifest's Samsung privileges, and
+playback, since the app drives MSE and HLS. Note also that the TV **simulator
+cannot settle either**: `--tizentvversion 3.0` still runs Chromium 137 behind a
+webapis shim, and reports a user-agent claiming Chrome 55.
 
 Do not try to settle this on the TV simulator. `sec-tv-simulator` is a webapis
 shim over one bundled NW.js, so `--tizentvversion 3.0` changes the API surface

@@ -24,11 +24,16 @@ import type { TvTarget } from '@kroma/bundler/shell';
 // to literals - and the second of those spends cascade-driven theming, so the
 // tier ships the one theme <html data-theme> names.
 //
-// This tier is BUILT but not yet OFFERED: config.xml still floors the package at
-// 6.0. What is unverified is not the bundle, which is checked statically, but
-// playback: the app drives MSE and HLS and nobody has watched a 2017 set play a
-// KROMA stream. Lowering required_version is the one-line change that follows
-// that test, not the one that replaces it.
+// config.xml floors the package at 3.0 to match, and drops devel.api.version to
+// 3.0 with it: a set refuses a Samsung Product API level it does not implement.
+// That costs `webapis.network.getTVName()`, which Samsung documents as API 4.0,
+// so a 2017 set announces its model instead of the name its owner gave it. Every
+// caller in deviceName.ts is feature-detected and already falls back that way.
+//
+// Still unverified on hardware, and neither is answerable from a build: whether
+// a 2017 set accepts the manifest's Samsung privileges, and playback, since the
+// app drives MSE and HLS. The simulator cannot settle either one, being Chromium
+// 137 behind a webapis shim.
 //
 // `deviceDev` honors KROMA_TV_DEVICE=1 for on-device live-dev over the LAN
 // (scripts/dev-device.sh + `make dev-shell`).

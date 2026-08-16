@@ -3,6 +3,8 @@ import { useLocale, useT } from '@kroma/ui';
 import { Box, Hint, ListRow, styles, Text, useFocusNav } from '@kroma/ui/kit';
 import { Platform } from 'react-native';
 import { buildInfo } from '#tv/app/clientBuild';
+import { clientHardware } from '#tv/app/clientHardware';
+import { useEnv } from '#tv/app/providers/env';
 import { useNav } from '#tv/app/router';
 import { AuthScreen, GATE_MARK, KromaMark } from '#tv/shared/ui';
 
@@ -18,6 +20,8 @@ export function TvAbout() {
   const t = useT();
   const locale = useLocale();
   const build = buildInfo();
+  const env = useEnv();
+  const hardware = clientHardware();
   useFocusNav({ onBack: nav.back });
 
   return (
@@ -30,7 +34,20 @@ export function TvAbout() {
       </Text>
 
       <Box w="100%" maxW={560} gap={12}>
+        <Fact label={t('about.platform')} value={env.platform} />
         <Fact label={t('about.version')} value={`v${build.version}`} />
+        <Fact
+          label={t('about.cpu')}
+          value={
+            hardware.cpuCores === null ? null : t('about.cpuCores', { count: hardware.cpuCores })
+          }
+        />
+        <Fact
+          label={t('about.memory')}
+          value={
+            hardware.memoryGb === null ? null : t('about.memorySize', { gb: hardware.memoryGb })
+          }
+        />
         {/* A build outside a git checkout has no commit to name; Fact hides
             the row rather than show an empty value. */}
         <Fact label={t('about.commit')} value={commitLabel(build.commit, build.dirty)} mono />

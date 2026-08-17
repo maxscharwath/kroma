@@ -8,8 +8,6 @@ import { UrlKeyboard } from './url-keyboard';
 
 afterEach(cleanup);
 
-// The keys' backdrop-blur layers (<Frost>): a per-key native surface on a
-// television, which is why the ten-foot grid must lay none.
 function blurLayers(container: HTMLElement): Element[] {
   return [...container.querySelectorAll('*')].filter((el) =>
     /blur/.test((el as HTMLElement).style.backdropFilter),

@@ -93,11 +93,9 @@ function Key({
         <>
           {/* The fill is translucent (lib/field-shell), so blur what shows
               through: a key reads as glass, not as a window on the artwork.
-              Never on a television, though: there the blur is a per-key native
-              surface (expo-blur), and a grid of them re-composited on every
-              focus move drops whole rows and occasionally crashes the box. The
-              ten-foot grid keeps the wash alone - the same degradation a shell
-              that registers no blur already shows (see frost.story.mdx). */}
+              Not on a television: there each Frost is its own native expo-blur
+              surface, and a grid of them re-composited on every focus move
+              drops rows and can take the box down. */}
           {size === 'tv' ? null : <Frost radius={keyRadius[size]} />}
           {icon ? (
             <Icon name={icon} size={iconSize ?? 24} {...slots.glyph} />

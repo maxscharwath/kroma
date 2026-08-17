@@ -184,7 +184,10 @@ export type HlsAudioFilter = 'standard' | 'night';
 /** HLS *master* playlist for one continuous remux: the video once plus EVERY
  * audio track as an alternate rendition, so language switches happen in place
  * (no reload). `aac=true` transcodes every rendition to stereo AAC for runtimes
- * that can't decode the source codec via MSE; `aac=false` stream-copies them. */
+ * that can't decode the source codec via MSE; `aac=false` stream-copies them.
+ * `copyCodecs` names what this device can decode, letting the server override a
+ * stream copy it would play silent; omitted means no declaration, an empty array
+ * means none, and it is read only for a copy request. */
 export function hlsMasterUrl(
   ctx: RequestContext,
   id: string,
@@ -204,10 +207,6 @@ export function hlsMasterUrl(
   const clean = aac ? 'aac' : 'copy';
   const mode = filter ? `aac-${filter}` : clean;
   const base = `${ctx.baseUrl}/api/items/${encodeURIComponent(id)}/hls/${mode}/${anchor}/${a}/index.m3u8`;
-  // `copyCodecs` lets the client declare what it can decode or pass through, so the
-  // server transcodes a `copy` request it would otherwise play silent (e.g. an
-  // AC-3-only title on a device with no Dolby path). Omitted = no preference; an
-  // empty array = decodes none. Only meaningful for a `copy` request.
   if (!copyCodecs || mode !== 'copy') return base;
   return `${base}?copy=${encodeURIComponent(copyCodecs.join(','))}`;
 }

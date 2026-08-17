@@ -326,10 +326,10 @@ pub async fn hls_master(
     let Some(item) = load_item(&state, id).await else {
         return json_error(StatusCode::NOT_FOUND, "item not found");
     };
-    // A copy the client can't decode (e.g. AC-3-only on a device with no Dolby path)
-    // is redirected onto its transcoded twin: the effective mode owns the session and
-    // its segment URLs, so master and segments never disagree. Video stays copied.
-    let selected_codec = item.audio_tracks.iter().find(|t| t.index == audio).map(|t| t.codec.as_str());
+    // Redirected rather than served here: the effective mode owns the session and
+    // its segment URLs, so master and segments never disagree.
+    let selected_codec =
+        item.audio_tracks.iter().find(|t| t.index == audio).map(|t| t.codec.as_str());
     let effective = mode.for_client_audio(selected_codec, q.copy.as_deref());
     if effective != mode {
         return Redirect::temporary(&hls_master_path(&item.id, effective, anchor, audio)).into_response();
@@ -409,8 +409,6 @@ pub async fn hls_file(
     }
 }
 
-// The API is mounted at `/api`; a redirected master keeps every path segment but the
-// mode, so the client's relative segment fetches resolve under the effective session.
 // Item ids are hex `short_hash`es (optionally joined by a colon), so they need no
 // escaping to sit in a path segment.
 fn hls_master_path(id: &str, mode: StreamMode, anchor: u64, audio: u32) -> String {

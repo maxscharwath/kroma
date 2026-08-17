@@ -42,14 +42,11 @@ impl StreamMode {
         }
     }
 
-    /// Second-guesses a `Copy` request the client cannot actually play. Given the
-    /// selected track's `codec` and the set of codecs the client declared it can
-    /// decode or pass through (comma-separated; `None` = no declared capability),
-    /// returns the mode whose audio will actually reach the speakers. Only `Copy`
-    /// is overridden - a filter/transcode request already re-encodes - and only
-    /// when a set is present and excludes the codec, so a client that sends no set
-    /// behaves exactly as before. Video is stream-copied in every mode, so an audio
-    /// fix never touches the picture.
+    /// The mode whose audio will actually reach the speakers, given the selected
+    /// track's codec and the comma-separated set the client declared it can decode
+    /// (`None` = declared nothing, and the request stands). Only `Copy` is ever
+    /// overridden; video is stream-copied in every mode, so this never touches
+    /// the picture.
     pub fn for_client_audio(self, codec: Option<&str>, client_decodes: Option<&str>) -> Self {
         match (self, client_decodes) {
             (Self::Copy, Some(set)) if !client_can_play(codec, set) => Self::Aac,
@@ -86,10 +83,8 @@ impl StreamMode {
     }
 }
 
-// A codec the client can play when it appears in the declared set (case-insensitive).
-// An unknown codec (unprobed track) is assumed playable: with no codec there is
-// nothing honest to override, and forcing a transcode would punish the common case.
-// A present-but-empty set means the client decodes none, so anything is overridden.
+// An unprobed track is assumed playable: with no codec there is nothing honest to
+// override, and forcing a transcode would punish the common case.
 fn client_can_play(codec: Option<&str>, client_set: &str) -> bool {
     let Some(codec) = codec else { return true };
     client_set.split(',').any(|c| c.trim().eq_ignore_ascii_case(codec))

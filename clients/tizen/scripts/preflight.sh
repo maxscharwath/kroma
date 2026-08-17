@@ -46,9 +46,11 @@ read_required() {
 
 # True when version $1 is strictly lower than $2 (dot-separated, numeric per field).
 ver_lt() {
-  [ "$1" = "$2" ] && return 1
-  lowest=$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)
-  [ "$lowest" = "$1" ]
+  have="$1"
+  want="$2"
+  [ "$have" = "$want" ] && return 1
+  lowest=$(printf '%s\n%s\n' "$have" "$want" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)
+  [ "$lowest" = "$have" ]
 }
 
 # --- Primary: connected set's platform version vs the app's required_version ------

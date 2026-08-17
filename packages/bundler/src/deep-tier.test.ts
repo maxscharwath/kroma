@@ -74,8 +74,19 @@ describe('lowerJs', () => {
 });
 
 describe('flattenCustomProperties', () => {
-  it('resolves against the pinned theme and drops the definitions', async () => {
-    const path = sheet(':root,[data-theme=dark]{--bg:#000}.a{color:var(--bg)}');
+  // Each of these is one input reduced to the literal a 2017 set can read.
+  it.each([
+    ['resolves against the pinned theme', ':root,[data-theme=dark]{--bg:#000}.a{color:var(--bg)}'],
+    [
+      'unwraps a prefers-color-scheme block for the pinned theme',
+      ':root{--bg:#000}@media (prefers-color-scheme:light){:root{--bg:#fff}}.a{color:var(--bg)}',
+    ],
+    [
+      'keeps a descendant selector scoped to the pinned theme',
+      ':root{--bg:#000}[data-theme=dark] .a{color:var(--bg)}',
+    ],
+  ])('%s', async (_name, css) => {
+    const path = sheet(css);
     await flattenCustomProperties(path, 'dark');
     expect(readFileSync(path, 'utf8')).toBe('.a{color:#000}');
   });
@@ -90,24 +101,10 @@ describe('flattenCustomProperties', () => {
     expect(css).not.toContain('#fff');
   });
 
-  it('drops a prefers-color-scheme block for another theme', async () => {
-    const path = sheet(
-      ':root{--bg:#000}@media (prefers-color-scheme:light){:root{--bg:#fff}}.a{color:var(--bg)}',
-    );
-    await flattenCustomProperties(path, 'dark');
-    expect(readFileSync(path, 'utf8')).toBe('.a{color:#000}');
-  });
-
   it('resolves a property defined through another property', async () => {
     const path = sheet(':root{--ink:#0a0a0c;--text:var(--ink)}.a{color:var(--text)}');
     await flattenCustomProperties(path, 'dark');
     expect(readFileSync(path, 'utf8')).toBe('.a{color:#0a0a0c}');
-  });
-
-  it('keeps a descendant selector scoped to the pinned theme', async () => {
-    const path = sheet(':root{--bg:#000}[data-theme=dark] .a{color:var(--bg)}');
-    await flattenCustomProperties(path, 'dark');
-    expect(readFileSync(path, 'utf8')).toBe('.a{color:#000}');
   });
 
   it('throws rather than emit a sheet an engine below M49 would drop', async () => {

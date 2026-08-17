@@ -47,7 +47,8 @@ let scope: Tier | 'remote' = 'modern';
 
 const check = (ok: boolean, label: string, detail = ''): void => {
   results.push({ ok, label, detail, tier: scope });
-  if (!JSON_OUT) console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? `  ${detail}` : ''}`);
+  const suffix = detail ? `  ${detail}` : '';
+  if (!JSON_OUT) console.log(`  ${ok ? '✓' : '✗'} ${label}${suffix}`);
 };
 
 const say = (line: string): void => {
@@ -123,10 +124,7 @@ if (JSON_OUT) {
     failed.length === 0
       ? `\n[simulator-check] ${tiers.join(', ')} OK in the Tizen simulator`
       : `\n[simulator-check] ${failed.length} failed:\n  ${failed
-          .map(
-            (result) =>
-              `${result.tier}: ${result.label}${result.detail ? ` (${result.detail})` : ''}`,
-          )
+          .map((result) => `${result.tier}: ${result.label} ${result.detail}`.trimEnd())
           .join('\n  ')}`,
   );
 }

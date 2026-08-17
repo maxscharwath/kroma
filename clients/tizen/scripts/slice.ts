@@ -33,8 +33,10 @@ const SHELL = fileURLToPath(new URL('..', import.meta.url));
 const DIST = join(SHELL, 'dist');
 const TEXT = /\.(js|css|html|json)$/;
 
-const tier = process.argv[2] as Tier | undefined;
-if (!tier || !TIERS.includes(tier)) {
+// Matched against the list rather than cast from it: what the rest of the file
+// builds paths from is then one of these literals, never the argument.
+const tier = TIERS.find((known) => known === process.argv[2]);
+if (!tier) {
   console.error(`usage: slice.ts <${TIERS.join('|')}>`);
   process.exit(1);
 }
@@ -49,7 +51,7 @@ const html = readFileSync(join(DIST, 'index.html'), 'utf8');
 // are named by their directory.
 function entryOf(which: Tier): { css: string; js: string } {
   if (which !== 'modern') return { css: `./${which}/style.css`, js: `./${which}/index.js` };
-  const [, css, js] = /css = '([^']+)';\s*\n\s*src = '([^']+)';/.exec(html) ?? [];
+  const [, css, js] = /css = '([^']*)';[^\n]*\n[^\n]*src = '([^']*)';/.exec(html) ?? [];
   if (!css || !js) throw new Error('[slice] could not read the modern entry out of the gate');
   return { css, js };
 }
@@ -113,10 +115,12 @@ const loader = `<script>
         document.body.appendChild(script);
       })();
     </script>`;
-writeFileSync(
-  join(OUT, 'index.html'),
-  html.replace(/<script>[\s\S]*?<\/script>\s*(?=<\/body>)/, `${loader}\n  `),
-);
+// The gate is the last script in the body, so it is cut out by index rather
+// than matched: a lazy `[\s\S]*?` before a lookahead rescans from every
+// position in the document.
+const head = html.slice(0, html.lastIndexOf('<script>'));
+const tail = html.slice(html.lastIndexOf('</body>'));
+writeFileSync(join(OUT, 'index.html'), `${head}${loader}\n  ${tail}`);
 
 function sizeOf(dir: string): number {
   let total = 0;

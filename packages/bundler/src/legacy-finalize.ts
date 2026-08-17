@@ -186,7 +186,7 @@ function inlineFonts(distDir: string): number {
   for (const sheet of sheets) {
     const base = dirname(sheet);
     const before = readFileSync(sheet, 'utf8');
-    let after = before.replace(/url\(\s*(["']?)([^)"']+\.woff2)\1\s*\)/g, (whole, _q, ref) => {
+    let after = before.replace(/url\((["']?)([^)"']*\.woff2)\1\)/g, (whole, _q, ref) => {
       const file = join(base, ref);
       if (!existsSync(file)) return whole;
       inlined.add(file);
@@ -201,7 +201,7 @@ function inlineFonts(distDir: string): number {
   const index = join(distDir, 'index.html');
   if (existsSync(index)) {
     const html = readFileSync(index, 'utf8');
-    const stripped = html.replace(/\s*<link[^>]*rel="preload"[^>]*as="font"[^>]*>/g, '');
+    const stripped = html.replace(/[^\S\n]*<link [^>]*as="font"[^>]*>\n?/g, '');
     if (stripped !== html) writeFileSync(index, stripped);
   }
 

@@ -166,7 +166,7 @@ export function tvShellLegacyConfig(
     ? [{ dir: 'legacy', probe: SUPPORTS_CUSTOM_PROPERTIES }, { dir: 'deep' }]
     : [{ dir: 'legacy' }];
   // Whichever tier is built last owns the gate, so that it can name them all.
-  const gate = dir === tiers[tiers.length - 1]?.dir ? tiers : undefined;
+  const gate = dir === tiers.at(-1)?.dir ? tiers : undefined;
   return {
     plugins: [
       kromaUI(),

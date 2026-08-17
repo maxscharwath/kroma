@@ -31,6 +31,11 @@ const KEYS: Record<string, Directions> = {
 // installs, paints correctly and cannot be navigated at all, which is the worst
 // shape a failure can take: nothing looks wrong. Samsung's own simulator posts
 // the same event, a keyCode and no `key`, which is how this was caught.
+// Read once, here, because there is no undeprecated way to identify a key on an
+// engine that predates `KeyboardEvent.key`: `code` is Chrome 48 and `which` is
+// deprecated too. The tier this exists for is M47.
+const legacyCode = (event: KeyboardEvent): number => event.keyCode;
+
 const CODES: Record<number, Directions> = {
   37: Directions.LEFT,
   38: Directions.UP,
@@ -71,7 +76,7 @@ export function configureRemote(): void {
         // the eye is not. So Tab drives the navigator and never the browser -
         // as reading order, which is Tab's own meaning and not the right arrow's
         // (see `focus-tab`).
-        if (event.key === 'Tab' || (!event.key && event.keyCode === TAB_CODE)) {
+        if (event.key === 'Tab' || (!event.key && legacyCode(event) === TAB_CODE)) {
           event.preventDefault();
           dropStrayFocus(document);
           markPress();
@@ -82,7 +87,7 @@ export function configureRemote(): void {
         // is shared with the web client and the modern tiers, where a button
         // reporting `Unidentified` alongside a legacy keyCode would otherwise
         // steer the navigator instead of being ignored.
-        const direction = event.key ? KEYS[event.key] : CODES[event.keyCode];
+        const direction = event.key ? KEYS[event.key] : CODES[legacyCode(event)];
         if (!direction) return;
         // No text-entry guard, deliberately: react-native-web's TextInput calls
         // stopPropagation() on every keydown (its issue #612), so a key pressed

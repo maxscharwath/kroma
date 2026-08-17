@@ -9,7 +9,6 @@
     "includes": [
       "**",
       "!**/dist",
-      // Per-tier slices of a built TV package (scripts/slice.ts).
       "!**/dist-*",
       "!**/build",
       "!clients/webos/service",

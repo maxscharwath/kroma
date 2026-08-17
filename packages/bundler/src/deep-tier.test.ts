@@ -18,8 +18,9 @@ function script(js: string): string {
 
 describe('syntaxAboveDeepFloor', () => {
   it('passes the ES5 and M47-era syntax Babel leaves alone', () => {
-    const template = ['`t', '${x}', '`'].join('');
-    const code = `var a = function (x) { return ${template}; };for (var k of []) a(k);`;
+    // A template literal and for-of are M41 and M38: Babel leaves both alone,
+    // and the walk must not mistake them for something a 2017 set cannot parse.
+    const code = 'var a = function (x) { return `plain`; };for (var k of []) a(k);';
     expect(syntaxAboveDeepFloor(code)).toEqual([]);
   });
 

@@ -24,9 +24,8 @@ export function run(
   if (result.error) throw new Error(`${command}: ${result.error.message}`);
   if (result.status !== 0 && !options.allowFailure) {
     const stderr = String(result.stderr ?? '').trim();
-    throw new Error(
-      `${command} ${args.join(' ')} exited ${result.status}${stderr ? `\n${stderr}` : ''}`,
-    );
+    const detail = stderr ? `\n${stderr}` : '';
+    throw new Error(`${command} ${args.join(' ')} exited ${result.status}${detail}`);
   }
   return as === 'buffer' ? (result.stdout as Buffer) : String(result.stdout ?? '');
 }

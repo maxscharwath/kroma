@@ -50,13 +50,18 @@ export async function captureApple(
   run('xcrun', ['simctl', 'io', udid, 'screenshot', '--type=png', file]);
 }
 
+const UDID = /\(([0-9A-F-]{36})\)/i;
+
 function deviceUdid(target: Target): string {
   const wanted = target.device ?? '';
   const listed = run('xcrun', ['simctl', 'list', 'devices', 'available']);
-  // "    Apple TV 4K (3rd generation) (at 1080p) (B6C6…) (Shutdown)"
+  // "    Apple TV 4K (3rd generation) (at 1080p) (B6C6…) (Shutdown)" - the name
+  // carries parentheses of its own, so it is whatever precedes the UDID rather
+  // than anything a single pattern can capture without backtracking over it.
   for (const line of listed.split('\n')) {
-    const [, name, udid] = /^\s*(.+?) \(([0-9A-F-]{36})\)/i.exec(line) ?? [];
-    if (name === wanted && udid) return udid;
+    const found = UDID.exec(line);
+    const udid = found?.[1];
+    if (found && udid && line.slice(0, found.index).trim() === wanted) return udid;
   }
   throw new Error(
     `no available simulator named "${wanted}". ` +

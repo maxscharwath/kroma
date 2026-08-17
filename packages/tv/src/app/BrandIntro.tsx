@@ -11,10 +11,8 @@ export interface BrandIntroProps {
   videoSrc?: string;
 }
 
-// A 1080p HEVC master, not the shared 4K one: a TV panel tops out at 1080p, and
-// low-power Google TV boxes (Chromecast HD) stutter decoding 4K60 to downscale
-// it. Half the bitrate and a quarter of the pixels play smoothly, with nothing
-// lost on screen.
+// The 1080p master, not the shared 4K one: a TV panel tops out at 1080p, and a
+// low-power Google TV box stutters decoding 4K60 only to downscale it.
 //
 // `require`, not an import: Metro turns the asset into a registry entry, which
 // is what expo-video expects as a source.

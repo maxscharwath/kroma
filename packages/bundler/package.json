@@ -35,9 +35,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/core": "^8.0.1",
-    "@babel/plugin-transform-classes": "^8.0.1",
-    "@babel/preset-env": "^8.0.2",
+    "@babel/core": "^7.29.7",
+    "@babel/plugin-transform-classes": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "@kroma/build-info": "workspace:*",
     "@kroma/ui": "workspace:*",
     "@mdx-js/mdx": "^3.1.1",

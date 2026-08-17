@@ -57,9 +57,8 @@ const DEVICE_NAME: DeviceNameSource = { get: () => Device.deviceName };
 // itself: the microphone belongs to the platform (see the module). Registered at
 // module scope, before the first render, exactly like the image backend.
 setVoiceSearchBackend(nativeVoiceSearch);
-// The set's own CPU and memory counts, for the About screen. Hermes exposes no
-// `navigator.hardwareConcurrency` / `deviceMemory`, so the numbers come from the
-// native module (ProcessInfo on tvOS, ActivityManager on Android TV) instead.
+// Hermes exposes no `navigator.hardwareConcurrency` / `deviceMemory`, so the
+// About screen's numbers come from the native module instead.
 setHardwareSource(nativeHardware);
 // And on Apple TV the keyboard belongs to the platform too, because that is the
 // only keyboard the Siri Remote will dictate into (see the module).

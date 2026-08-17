@@ -1,10 +1,4 @@
 // @vitest-environment jsdom
-//
-// The About screen reads the set's own hardware live, through Web APIs a TV
-// webview may or may not expose. What this pins: each row appears with the real
-// number when its API answers, and hides - rather than printing a zero or an
-// empty value - when the engine has nothing to say, which is the normal case on
-// a native shell.
 
 import { onScreen } from '@kroma/ui/testing';
 import { cleanup, render, screen } from '@testing-library/react';

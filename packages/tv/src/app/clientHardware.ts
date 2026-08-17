@@ -1,26 +1,17 @@
-// Live hardware of the set this client is running on, for the About screen.
-//
-// Every value is a Web API a TV webview may simply not have: Chromium exposes
-// `navigator.deviceMemory` and `performance.memory`, most engines expose
-// `hardwareConcurrency`, and a native (Hermes) shell exposes none of them. Each
-// probe answers null when its API is missing so the row hides rather than shows
-// a zero, and never throws - an absent API is the normal case here.
-//
-// A native shell has no such Web API but does have the numbers, so it injects a
-// `HardwareSource` at module scope (see `setHardwareSource`); when one is set it
-// wins, otherwise the browser reads below stand unchanged.
+// Live hardware of the set this client is running on, for the About screen. The
+// Web APIs behind it are ones a TV webview may simply not have, and a native
+// (Hermes) shell has none of them at all, so every read answers null rather than
+// throwing or guessing, and the About row hides.
 
+/** Null on any value the running engine will not report. */
 export interface ClientHardware {
-  /** Logical CPU cores, or null where the engine will not say. */
   cpuCores: number | null;
-  /** Device memory in GB (Chromium's coarse `deviceMemory`, else the JS heap
-   * limit), or null where neither is reported. */
   memoryGb: number | null;
 }
 
-/** A shell's own way to the numbers the Web APIs will not give it. Both answer
- * null when the platform withholds the value, exactly like the probes below;
- * memory is bytes, converted to GB here so the source stays engine-agnostic. */
+/** A native shell's own way to the numbers no Web API gives it, injected at the
+ * app root; when one is set it wins over the browser reads. Memory is bytes.
+ * Both answer null when the platform withholds the value. */
 export interface HardwareSource {
   cpuCores(): number | null;
   memoryBytes(): number | null;
@@ -42,10 +33,6 @@ interface DeviceNavigator {
   deviceMemory?: number;
 }
 
-interface HeapMemory {
-  jsHeapSizeLimit?: number;
-}
-
 const BYTES_PER_GB = 1024 ** 3;
 
 function readCpuCores(): number | null {
@@ -58,12 +45,10 @@ function readCpuCores(): number | null {
 function readMemoryGb(): number | null {
   const injected = fromSource((s) => s.memoryBytes());
   if (injected !== null) return Math.round(injected / BYTES_PER_GB) || null;
+  // No `performance.memory` fallback: that is the JS heap cap, not the set's
+  // RAM, and printing it under "Memory" would be a wrong number rather than none.
   const nav = globalThis.navigator as DeviceNavigator | undefined;
-  const device = positive(nav?.deviceMemory);
-  if (device) return device;
-  const perf = globalThis.performance as (Performance & { memory?: HeapMemory }) | undefined;
-  const limit = positive(perf?.memory?.jsHeapSizeLimit);
-  return limit ? Math.round(limit / BYTES_PER_GB) || null : null;
+  return positive(nav?.deviceMemory);
 }
 
 // A source that is set but throws counts as no answer, so the Web reads below

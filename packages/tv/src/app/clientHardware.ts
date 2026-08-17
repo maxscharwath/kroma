@@ -3,18 +3,22 @@
 // (Hermes) shell has none of them at all, so every read answers null rather than
 // throwing or guessing, and the About row hides.
 
-/** Null on any value the running engine will not report. */
+/** Null on any value the running engine will not report. `memoryFreeGb` is the
+ * RAM still free right now, and only a native shell can answer it: no Web API
+ * reports it, so it stays null on every browser shell. */
 export interface ClientHardware {
   cpuCores: number | null;
   memoryGb: number | null;
+  memoryFreeGb: number | null;
 }
 
 /** A native shell's own way to the numbers no Web API gives it, injected at the
  * app root; when one is set it wins over the browser reads. Memory is bytes.
- * Both answer null when the platform withholds the value. */
+ * Each answers null when the platform withholds the value. */
 export interface HardwareSource {
   cpuCores(): number | null;
   memoryBytes(): number | null;
+  freeMemoryBytes(): number | null;
 }
 
 let source: HardwareSource | null = null;
@@ -25,7 +29,11 @@ export function setHardwareSource(src: HardwareSource | null): void {
 }
 
 export function clientHardware(): ClientHardware {
-  return { cpuCores: readCpuCores(), memoryGb: readMemoryGb() };
+  return {
+    cpuCores: readCpuCores(),
+    memoryGb: readMemoryGb(),
+    memoryFreeGb: readMemoryFreeGb(),
+  };
 }
 
 interface DeviceNavigator {
@@ -49,6 +57,13 @@ function readMemoryGb(): number | null {
   // RAM, and printing it under "Memory" would be a wrong number rather than none.
   const nav = globalThis.navigator as DeviceNavigator | undefined;
   return positive(nav?.deviceMemory);
+}
+
+// Free RAM moves, so it is worth a decimal where the total is not: on a 2 GB
+// television the interesting readings are all under one gigabyte.
+function readMemoryFreeGb(): number | null {
+  const bytes = fromSource((s) => s.freeMemoryBytes());
+  return bytes === null ? null : Math.round((bytes / BYTES_PER_GB) * 10) / 10;
 }
 
 // A source that is set but throws counts as no answer, so the Web reads below

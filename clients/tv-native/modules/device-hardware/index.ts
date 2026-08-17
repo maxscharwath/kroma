@@ -7,6 +7,7 @@ import { type NativeModule, requireOptionalNativeModule } from 'expo';
 declare class DeviceHardwareNativeModule extends NativeModule {
   cpuCores(): number;
   memoryBytes(): number;
+  freeMemoryBytes(): number | null;
 }
 
 const native = requireOptionalNativeModule<DeviceHardwareNativeModule>('DeviceHardware');
@@ -17,4 +18,8 @@ export function cpuCores(): number | null {
 
 export function memoryBytes(): number | null {
   return native ? native.memoryBytes() : null;
+}
+
+export function freeMemoryBytes(): number | null {
+  return native ? native.freeMemoryBytes() : null;
 }

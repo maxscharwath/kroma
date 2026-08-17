@@ -1,4 +1,4 @@
 import type { HardwareSource } from '@kroma/tv';
-import { cpuCores, memoryBytes } from '../../modules/device-hardware';
+import { cpuCores, freeMemoryBytes, memoryBytes } from '../../modules/device-hardware';
 
-export const nativeHardware: HardwareSource = { cpuCores, memoryBytes };
+export const nativeHardware: HardwareSource = { cpuCores, memoryBytes, freeMemoryBytes };

@@ -26,10 +26,18 @@ class DeviceHardwareModule : Module() {
     // totalMem is a Long; JS numbers are doubles and RAM sizes sit far inside
     // the 2^53 a double holds exactly, so the width is not a concern.
     Function("memoryBytes") {
-      val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-      val info = ActivityManager.MemoryInfo()
-      manager.getMemoryInfo(info)
-      info.totalMem.toDouble()
+      memoryInfo().totalMem.toDouble()
     }
+
+    Function("freeMemoryBytes") {
+      memoryInfo().availMem.toDouble()
+    }
+  }
+
+  private fun memoryInfo(): ActivityManager.MemoryInfo {
+    val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    val info = ActivityManager.MemoryInfo()
+    manager.getMemoryInfo(info)
+    return info
   }
 }

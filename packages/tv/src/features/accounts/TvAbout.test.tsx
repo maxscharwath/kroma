@@ -60,16 +60,50 @@ describe('TvAbout hardware rows', () => {
     // wins, and memory arrives in bytes to be shown as coarse GB.
     withNavigator({});
     vi.stubGlobal('performance', {});
-    setHardwareSource({ cpuCores: () => 6, memoryBytes: () => 8 * GB });
+    setHardwareSource({
+      cpuCores: () => 6,
+      memoryBytes: () => 8 * GB,
+      freeMemoryBytes: () => null,
+    });
     mount('AppleTV');
     expect(screen.getByText('6 cores')).toBeTruthy();
     expect(screen.getByText('8 GB')).toBeTruthy();
   });
 
+  it('shows the free RAM alongside the total when the source reports it', () => {
+    withNavigator({});
+    setHardwareSource({
+      cpuCores: () => 4,
+      memoryBytes: () => 8 * GB,
+      // The reading that explains a struggling television, and the one the
+      // browser shells can never answer.
+      freeMemoryBytes: () => 1.25 * GB,
+    });
+    mount('AndroidTV');
+    expect(screen.getByText('1.3 GB free of 8 GB')).toBeTruthy();
+  });
+
+  it('keeps a decimal on a set with well under a gigabyte to spare', () => {
+    withNavigator({});
+    setHardwareSource({
+      cpuCores: () => 4,
+      memoryBytes: () => 2 * GB,
+      freeMemoryBytes: () => 0.4 * GB,
+    });
+    mount('AndroidTV');
+    // Rounded to a whole gigabyte this reads "0 GB free", which is both wrong
+    // and the exact case the row exists for.
+    expect(screen.getByText('0.4 GB free of 2 GB')).toBeTruthy();
+  });
+
   it('hides the rows when the injected source answers null', () => {
     withNavigator({});
     vi.stubGlobal('performance', {});
-    setHardwareSource({ cpuCores: () => null, memoryBytes: () => null });
+    setHardwareSource({
+      cpuCores: () => null,
+      memoryBytes: () => null,
+      freeMemoryBytes: () => null,
+    });
     mount('AndroidTV');
     expect(screen.queryByText('CPU')).toBeNull();
     expect(screen.queryByText('Memory')).toBeNull();

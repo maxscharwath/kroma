@@ -201,11 +201,16 @@ function inlineFonts(distDir: string): number {
   const index = join(distDir, 'index.html');
   if (existsSync(index)) {
     const html = readFileSync(index, 'utf8');
-    // One `[^>]*` and a predicate, rather than two either side of the attribute:
-    // a pair of them backtracks across the tag on every near miss.
-    const stripped = html.replace(/[^\S\n]*<link [^>]*>\n?/g, (tag) =>
-      tag.includes('as="font"') ? '' : tag,
-    );
+    // By line rather than by pattern: vite emits each preload on its own, and
+    // any regex for a tag is a star before a literal, which backtracks across
+    // the document on every near miss. This cannot.
+    const stripped = html
+      .split('\n')
+      .filter((line) => {
+        const tag = line.trimStart();
+        return !(tag.startsWith('<link ') && tag.includes('as="font"'));
+      })
+      .join('\n');
     if (stripped !== html) writeFileSync(index, stripped);
   }
 

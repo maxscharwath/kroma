@@ -56,7 +56,7 @@ async function chapters(dir: string): Promise<string[]> {
       out.push(rel);
     }
   }
-  return out.sort();
+  return out.sort((a, b) => a.localeCompare(b));
 }
 
 const STATUSES = ['SHIPPED', 'AGREED', 'DRAFT', 'DESIGN, NOT IMPLEMENTED'] as const;
@@ -78,7 +78,7 @@ interface Requirement {
 // silently skipped like a line that was never a requirement at all.
 const REQ_ID = /^\s*(?:[-*]\s+)?\*\*([A-Z][A-Z0-9]*)-(\d+)\*\*(.*)$/;
 // (STATUS) - text.  Accept em-dash, en-dash or hyphen as the separator.
-const REQ_REST = /^\s*\(([^)]+)\)\s*[—–-]\s*(\S.*?)\s*$/;
+const REQ_REST = /^\s*\(([^)]+)\)\s*[—–-]\s*(\S.*)$/;
 
 async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
   const reqs: Requirement[] = [];
@@ -158,7 +158,7 @@ async function collect(): Promise<{ reqs: Requirement[]; errors: string[] }> {
         space,
         number,
         status: status as Status,
-        text: textRaw.replace(/\s+/g, ' '),
+        text: textRaw.replace(/\s+/g, ' ').trim(),
         file: `docs/spec/${rel.split(sep).join('/')}`,
         line,
       });
@@ -195,10 +195,11 @@ function renderIndex(reqs: Requirement[]): string {
     out.push(`## ${list[0].domain} - [${space}](${space}/)`, '');
     // When a space spans several chapters, point each requirement at its file.
     const multiChapter = new Set(list.map((x) => x.file)).size > 1;
+    const spaceRoot = `docs/spec/${space}/`;
     for (const r of list) {
-      const suffix = multiChapter
-        ? ` <sub>[${r.file.replace(`docs/spec/${space}/`, '')}](${r.file.replace('docs/spec/', '')})</sub>`
-        : '';
+      const chapter = r.file.replace(spaceRoot, '');
+      const href = r.file.replace('docs/spec/', '');
+      const suffix = multiChapter ? ` <sub>[${chapter}](${href})</sub>` : '';
       out.push(`- **${r.id}** (${r.status}) - ${r.text}${suffix}`);
     }
     out.push('');
@@ -229,10 +230,9 @@ if (check) {
     if (have !== want) stale.push(path);
   }
   if (stale.length) {
+    const listed = stale.map((p) => `  ✗ ${p}`).join('\n');
     console.error(
-      `Spec index is out of date:\n${stale
-        .map((p) => `  ✗ ${p}`)
-        .join('\n')}\nRun \`bun run spec:index\` and commit the result.`,
+      `Spec index is out of date:\n${listed}\nRun \`bun run spec:index\` and commit the result.`,
     );
     process.exit(1);
   }

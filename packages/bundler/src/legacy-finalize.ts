@@ -201,7 +201,11 @@ function inlineFonts(distDir: string): number {
   const index = join(distDir, 'index.html');
   if (existsSync(index)) {
     const html = readFileSync(index, 'utf8');
-    const stripped = html.replace(/[^\S\n]*<link [^>]*as="font"[^>]*>\n?/g, '');
+    // One `[^>]*` and a predicate, rather than two either side of the attribute:
+    // a pair of them backtracks across the tag on every near miss.
+    const stripped = html.replace(/[^\S\n]*<link [^>]*>\n?/g, (tag) =>
+      tag.includes('as="font"') ? '' : tag,
+    );
     if (stripped !== html) writeFileSync(index, stripped);
   }
 

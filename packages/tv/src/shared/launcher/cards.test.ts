@@ -7,6 +7,9 @@ import {
   type WatchNextItem,
 } from '#tv/shared/launcher/cards';
 
+beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.restoreAllMocks());
+
 function fakeClient(backdrop: string | null = 'http://s/back.jpg'): KromaClient {
   return {
     baseUrl: 'http://s',
@@ -170,6 +173,3 @@ describe('buildWatchNext', () => {
     vi.useRealTimers();
   });
 });
-
-beforeEach(() => vi.clearAllMocks());
-afterEach(() => vi.restoreAllMocks());

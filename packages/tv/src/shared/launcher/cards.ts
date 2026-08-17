@@ -1,9 +1,6 @@
-// Platform-agnostic builders for the rows KROMA publishes OUT to a television's
-// home screen: the Android TV / Google TV preview channels (new releases) and
-// the Watch Next "Continue watching" row. The providers own the effects (fetch,
-// de-dupe pushes, hand the JSON to the native launcher); this module owns the
-// pure shape, so it is the same on every platform and testable without React.
-// Mirrors the Tizen Smart Hub split (shared/preview/cards.ts is the pure half).
+// Card-builders for the rows KROMA publishes OUT to a television's home screen:
+// the Android TV preview channels and the Watch Next row. The providers own the
+// effects; this owns the shape, so it is testable without React.
 
 import type { ContinueItem, KromaClient, MediaItem, Section } from '@kroma/core';
 

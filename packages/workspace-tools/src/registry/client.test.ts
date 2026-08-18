@@ -42,9 +42,11 @@ describe('createRegistryClient', () => {
     id: 'tv.kroma.torrents',
     name: 'Torrents',
     latest: '0.1.9',
+    distTags: { latest: '0.1.9', beta: '0.2.0-beta.1' },
     versions: {
       '0.1.0': { artifacts: [] },
       '0.1.9': { minServer: '0.1.4', artifacts: [] },
+      '0.2.0-beta.1': { artifacts: [] },
     },
   };
   const index: SearchEntry[] = [
@@ -66,6 +68,15 @@ describe('createRegistryClient', () => {
 
   it('resolves to null when no version matches', async () => {
     expect(await client.resolve('tv.kroma.torrents', '^9.0.0')).toBeNull();
+  });
+
+  it('resolves a channel (dist-tag) to its version, incl. a pre-release', async () => {
+    expect((await client.resolve('tv.kroma.torrents', 'beta'))?.version).toBe('0.2.0-beta.1');
+    expect((await client.resolve('tv.kroma.torrents', 'latest'))?.version).toBe('0.1.9');
+  });
+
+  it('a stable range does not pick up the beta version', async () => {
+    expect((await client.resolve('tv.kroma.torrents', '^0.1.0'))?.version).toBe('0.1.9');
   });
 
   it('searches the index by id, name, keyword or tag', async () => {

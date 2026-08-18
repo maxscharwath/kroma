@@ -26,6 +26,8 @@ export interface ModuleRecord {
   id: string;
   name: string;
   latest: string;
+  // Named channels → version, e.g. { latest, beta, nightly } (npm dist-tags).
+  distTags?: Record<string, string>;
   versions: Record<string, RegistryVersion>;
   [extra: string]: unknown;
 }
@@ -98,7 +100,10 @@ export function createRegistryClient(baseUrl: string, getJson: GetJson): Registr
     },
     async resolve(id, range) {
       const record = (await getJson(`${base}/m/${id}.json`)) as ModuleRecord;
-      const version = pickVersion(Object.keys(record.versions), range);
+      // A channel name (dist-tag) resolves to its version directly; otherwise the
+      // range picks the highest satisfying version.
+      const channel = record.distTags?.[range];
+      const version = channel ?? pickVersion(Object.keys(record.versions), range);
       if (!version) return null;
       const resolved = record.versions[version];
       return resolved ? { version, record: resolved } : null;

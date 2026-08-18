@@ -43,7 +43,14 @@ export interface ModuleRecord {
   tags?: string[];
   icon?: string;
   latest: string;
+  distTags: Record<string, string>;
   versions: Record<string, RegistryVersion>;
+}
+
+// The channel a version belongs to: its first pre-release identifier (beta, rc,
+// nightly…), or `latest` for a stable release.
+export function channelOf(version: string): string {
+  return version.match(/-([0-9A-Za-z]+)/)?.[1] ?? 'latest';
 }
 
 export interface SearchEntry {
@@ -98,6 +105,7 @@ export function buildModuleRecord(entry: Entry): ModuleRecord {
     tags: tagsOf(entry),
     icon: entry.icon,
     latest: entry.version,
+    distTags: { [channelOf(entry.version)]: entry.version },
     versions: { [entry.version]: version },
   };
 }

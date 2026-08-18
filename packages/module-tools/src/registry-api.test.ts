@@ -58,6 +58,13 @@ describe('buildModuleRecord', () => {
     expect(buildModuleRecord(entry()).tags).toEqual(['download-client']);
   });
 
+  it('tags a stable version as latest and a pre-release by its channel', () => {
+    expect(buildModuleRecord(entry()).distTags).toEqual({ latest: '0.1.7' });
+    expect(buildModuleRecord(entry({ version: '0.2.0-beta.3' })).distTags).toEqual({
+      beta: '0.2.0-beta.3',
+    });
+  });
+
   it('prefers explicit tags over derived ones', () => {
     expect(buildModuleRecord(entry({ tags: ['featured'] })).tags).toEqual(['featured']);
   });

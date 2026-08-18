@@ -57,7 +57,7 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
     "versions": {
       "0.1.7": {
         "minServer": "0.1.4",
-        "dependsOn": { "tv.kroma.x": "^0.1.0" },
+        "dependencies": { "tv.kroma.x": "^0.1.0" },
         "provides": [ … ], "requires": [ … ],
         "artifacts": [
           { "target": "x86_64-linux", "url": "…/tv.kroma.torrents-0.1.7-x86_64-linux.kmod",
@@ -80,18 +80,50 @@ verifies every downloaded bundle against it. This is the non-negotiable that mak
 third-party registry safe — a compromised host cannot serve tampered bytes undetected. The
 `sha256` field already emitted by `module-tools` becomes this, just reformatted.
 
-### 2. Choosing a registry: group-prefix routing
+### 2. `dependencies`, and where a package comes from
 
-A module id is a reverse-DNS group (`tv.kroma.acquisition`), exactly Maven's convention. A
-client maps a group prefix to a registry, longest-prefix-wins, default = Kroma:
+**Rename `dependsOn` → `dependencies`** (and `optionalDependsOn` → `optionalDependencies`).
+These are the exact npm names — one less bit of vocabulary to learn, and no camelCase
+coinage. The manifest bumps to `apiVersion: 2`; the loader accepts the old keys during a
+transition so nothing installed breaks.
+
+A dependency value is a **plain version range** — the whole DX goal is that the common line
+stays boring:
 
 ```jsonc
-{ "tv.kroma": "https://modules.kroma.tv", "com.acme": "https://modules.acme.dev" }
+"dependencies": { "tv.kroma.torrents": "^0.1.0" }
 ```
 
-`dependsOn` values stay bare ranges — no inline registry, no per-dependency object (that is
-not how npm or Gradle expresses a registry either). A third-party module `com.acme.foo`
-resolves against its own registry automatically.
+Where a package *comes from* is answered centrally, the way Gradle's `repositories { … }`
+and npm's `.npmrc` scopes do — never by cluttering each dependency line. A module id is a
+reverse-DNS group (`tv.kroma.acquisition`, exactly Maven's convention), and a small
+`registries` map routes a group prefix to a registry, longest-prefix-wins, default = Kroma:
+
+```jsonc
+"registries": { "com.acme": "https://modules.acme.dev" }
+```
+
+So a dependency on `com.acme.foo` resolves against Acme's registry with **one line of
+config**, and `tv.kroma.*` needs nothing (it is the default). This is the Gradle model:
+a package can depend on a package from another repository, and the repository is declared
+once, not repeated on every dependency.
+
+**Escape hatch (rare):** for a genuine one-off source — a git ref, a tarball URL, a pinned
+registry for a single dependency — the value may be an npm-style inline **string protocol**,
+never a nested object:
+
+```jsonc
+"dependencies": {
+  "tv.kroma.torrents": "^0.1.0",                 // default registry
+  "com.acme.foo": "^1.2.0",                        // Acme registry, via registries map
+  "dev.fork.bar": "git+https://…/bar#^0.3.0",      // one-off git source
+  "corp.internal.x": "^2.0.0@https://npm.corp"     // one-off pinned registry
+}
+```
+
+The bare range is the 95% path; the protocol string is there for the 5% without ever forcing
+an object. Modern, familiar (it is literally npm's dependency-string grammar), and it keeps
+`dependencies` a flat `id → string` map.
 
 ### 3. The typed client
 

@@ -191,15 +191,19 @@ export type HlsAudioFilter = 'standard' | 'night';
  * is read only for a copy request, `videoCodecs` for every mode - the video axis
  * is independent of the audio one, and the server answers a mismatch with a
  * redirect to the mode it will actually produce. */
+export interface HlsMasterDeclaration {
+  filter?: HlsAudioFilter;
+  copyCodecs?: string[];
+  videoCodecs?: string[];
+}
+
 export function hlsMasterUrl(
   ctx: RequestContext,
   id: string,
   aac = false,
   startSec = 0,
   audio = 0,
-  filter?: HlsAudioFilter,
-  copyCodecs?: string[],
-  videoCodecs?: string[],
+  { filter, copyCodecs, videoCodecs }: HlsMasterDeclaration = {},
 ): string {
   // The anchor, audio index and filter mode are all in the path, so each seek
   // position and language gets its own session with its own child URLs - no

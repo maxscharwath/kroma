@@ -72,11 +72,10 @@ export abstract class BaseTvEngine implements TvEngine {
           this.forceAac,
           this.baseSec,
           this.rendition,
-          undefined,
           // Declared on every master, not just the fallback one: the server copies
           // audio unless it is told what this device decodes, so a master that says
           // nothing is served a codec it may only be able to play as silence.
-          decodableAudioCodecs(),
+          { copyCodecs: decodableAudioCodecs() },
         );
   }
 

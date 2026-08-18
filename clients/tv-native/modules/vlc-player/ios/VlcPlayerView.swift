@@ -203,7 +203,7 @@ final class VlcPlayerView: ExpoView {
 }
 
 extension VlcPlayerView: VLCMediaPlayerDelegate {
-  func mediaPlayerTimeChanged(_ aNotification: Notification) {
+  func mediaPlayerTimeChanged(_: Notification) {
     guard let vlc = player else { return }
     let lengthMs = Int64(vlc.media?.length.intValue ?? 0)
     if lengthMs > 0, lengthMs != lastLengthMs {
@@ -222,7 +222,7 @@ extension VlcPlayerView: VLCMediaPlayerDelegate {
     onPlayerTime(["timeMs": Int64(vlc.time.intValue)])
   }
 
-  func mediaPlayerStateChanged(_ aNotification: Notification) {
+  func mediaPlayerStateChanged(_: Notification) {
     guard let vlc = player else { return }
     switch vlc.state {
     case .playing:

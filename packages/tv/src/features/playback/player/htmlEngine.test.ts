@@ -203,7 +203,7 @@ describe('HtmlEngine master construction', () => {
   it('points the element at the anchored master with the chosen audio rendition', async () => {
     const fv = fakeVideo();
     const { hlsMasterUrl } = makeEngine({ fv, direct: false, rendition: 2, masterAac: true });
-    expect(hlsMasterUrl).toHaveBeenCalledWith('vid1', true, 0, 2, undefined, DECODABLE);
+    expect(hlsMasterUrl).toHaveBeenCalledWith('vid1', true, 0, 2, { copyCodecs: DECODABLE });
     await tick();
     expect(fv.get('src')).toBe('master:vid1:true:0:2');
     expect(fv.get('preload')).toBe('auto');
@@ -444,7 +444,7 @@ describe('HtmlEngine seek (master)', () => {
     fv.setBuffered([[0, 10]]);
     engine.seekTo(600);
     expect(hlsMasterUrl).toHaveBeenCalledTimes(1);
-    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 600, 0, undefined, DECODABLE);
+    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 600, 0, { copyCodecs: DECODABLE });
   });
 
   it('resumes playback once the re-anchored master can play', async () => {
@@ -480,7 +480,7 @@ describe('HtmlEngine seek (master)', () => {
     hlsMasterUrl.mockClear();
     engine.seekTo(5);
     expect(hlsMasterUrl).toHaveBeenCalledTimes(1);
-    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 5, 0, undefined, DECODABLE);
+    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 5, 0, { copyCodecs: DECODABLE });
   });
 });
 
@@ -493,7 +493,7 @@ describe('HtmlEngine audio rendition (master)', () => {
     hlsMasterUrl.mockClear();
     engine.setAudioRendition(1);
     expect(hlsMasterUrl).toHaveBeenCalledTimes(1);
-    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 42, 1, undefined, DECODABLE);
+    expect(hlsMasterUrl).toHaveBeenLastCalledWith('vid1', false, 42, 1, { copyCodecs: DECODABLE });
   });
 
   it('ignores selecting the already-active rendition', async () => {

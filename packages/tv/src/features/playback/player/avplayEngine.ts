@@ -58,14 +58,10 @@ export class AvplayEngine extends BaseTvEngine {
    * has no client-side audio DSP, so the server's remux applies it instead. */
   protected sourceUrl(): string {
     if (this.mode === 'master' && this.filter !== 'off') {
-      return this.client.hlsMasterUrl(
-        this.item.id,
-        false,
-        this.baseSec,
-        this.rendition,
-        serverAudioFilter(this.filter),
-        decodableAudioCodecs(),
-      );
+      return this.client.hlsMasterUrl(this.item.id, false, this.baseSec, this.rendition, {
+        filter: serverAudioFilter(this.filter),
+        copyCodecs: decodableAudioCodecs(),
+      });
     }
     return super.sourceUrl();
   }

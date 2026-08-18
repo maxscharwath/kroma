@@ -139,8 +139,7 @@ export class HtmlEngine implements TvEngine {
       this.opts.masterAac,
       this.baseSec,
       this.rendition,
-      undefined,
-      decodableAudioCodecs(),
+      { copyCodecs: decodableAudioCodecs() },
     );
     // Safari / WKWebView: prefer native HLS, whose stack decodes Dolby
     // (AC3 / E-AC3) in full surround where hls.js + MSE cannot.

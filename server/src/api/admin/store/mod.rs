@@ -37,7 +37,7 @@ const MAX_BUNDLE_BYTES: usize = kroma_module_supervisor::MAX_BUNDLE_BYTES as usi
 // apps/modules). It reads `modules.json` off the latest GitHub
 // Release, edge-caches it with a stale fallback, and serves a browsable page
 // at the bare origin. Overridable via the `moduleRegistryUrl` setting.
-const DEFAULT_REGISTRY: &str = "https://modules.kroma.tv/modules.json";
+const DEFAULT_REGISTRY: &str = "https://modules.kroma.tv/registry.json";
 
 pub fn routes() -> Router<SharedState> {
     Router::new()

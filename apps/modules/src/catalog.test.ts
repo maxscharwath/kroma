@@ -14,15 +14,14 @@ describe('ModuleEntry', () => {
     expect(ModuleEntry.safeParse({ name: 'Torrents' }).success).toBe(false);
   });
 
-  it('takes both catalog spellings of a dependency list', () => {
+  it('reads the dependency map', () => {
     expect(
       ModuleEntry.parse({ id: 'a', dependencies: { 'tv.kroma.vpn': '^1' } }).dependencies,
-    ).toEqual({
-      'tv.kroma.vpn': '^1',
-    });
-    expect(ModuleEntry.parse({ id: 'a', dependencies: ['tv.kroma.vpn'] }).dependencies).toEqual([
-      'tv.kroma.vpn',
-    ]);
+    ).toEqual({ 'tv.kroma.vpn': '^1' });
+  });
+
+  it('refuses the pre-v2 array form rather than listing a module without its deps', () => {
+    expect(() => ModuleEntry.parse({ id: 'a', dependencies: ['tv.kroma.vpn'] })).toThrow();
   });
 
   it('drops a download url that is not https, and a malformed digest', () => {

@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.engine.transmission",
   "name": "Transmission engine",
   "version": "0.1.1",

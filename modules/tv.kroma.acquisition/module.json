@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.acquisition",
   "name": "Acquisition",
   "version": "0.1.9",

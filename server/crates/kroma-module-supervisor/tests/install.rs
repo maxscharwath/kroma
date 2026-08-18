@@ -39,7 +39,7 @@ fn install_rejects_a_module_needing_a_newer_server() {
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
+        r#"{ "apiVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
              "minServer": "999.0.0", "library": true }"#,
     );
     let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
@@ -53,7 +53,7 @@ fn install_accepts_a_satisfied_min_server() {
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
+        r#"{ "apiVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
              "minServer": "0.1.0", "library": true }"#,
     );
     let manifest = sup.install(&bundle, None, ("upload", None)).unwrap();
@@ -67,10 +67,42 @@ fn install_still_rejects_reserved_ids() {
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "id": "tv.kroma.reserved", "name": "Shadow", "version": "1.0.0", "library": true }"#,
+        r#"{ "apiVersion": 2, "id": "tv.kroma.reserved", "name": "Shadow", "version": "1.0.0",
+             "library": true }"#,
     );
     let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
     assert!(err.contains("built into this server"), "unexpected error: {err}");
+}
+
+#[test]
+fn install_refuses_a_bundle_built_for_another_manifest_contract() {
+    let scratch = temp_modules_dir("api");
+    let dir = scratch.path();
+    let sup = supervisor(dir, "0.1.4");
+    // No apiVersion at all: every bundle that predates the field, which is the
+    // shape whose dependencies would otherwise read as empty.
+    let bundle = tar_with_manifest(
+        r#"{ "id": "com.example.demo", "name": "Demo", "version": "1.0.0", "library": true }"#,
+    );
+    let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
+    assert!(err.contains("module API v0"), "unexpected error: {err}");
+    assert!(err.contains("rebuild"), "the error must say what to do: {err}");
+    assert!(sup.installed_ids().is_empty(), "nothing is unpacked");
+}
+
+#[test]
+fn install_reports_an_id_mismatch_before_the_contract_it_was_built_against() {
+    let scratch = temp_modules_dir("id-first");
+    let dir = scratch.path();
+    let sup = supervisor(dir, "0.1.4");
+    // Old AND shipped under someone else's id: the id is the security answer, so
+    // that is the one the operator is told.
+    let bundle = tar_with_manifest(
+        r#"{ "id": "com.example.other", "name": "Other", "version": "1.0.0", "library": true }"#,
+    );
+    let err =
+        sup.install(&bundle, Some("com.example.demo"), ("registry", None)).unwrap_err().to_string();
+    assert!(err.contains("offered as"), "unexpected error: {err}");
 }
 
 #[test]

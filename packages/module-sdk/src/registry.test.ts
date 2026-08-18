@@ -33,18 +33,9 @@ describe('depEntries', () => {
     expect(depEntries({ a: '' })).toEqual([{ id: 'a', version: undefined }]);
   });
 
-  it('parses the legacy array form (bare id, id@range, object)', () => {
-    expect(depEntries(['plain', 'scoped@^2.1.0', { id: 'obj', version: '3.0.0' }])).toEqual([
-      { id: 'plain' },
-      { id: 'scoped', version: '^2.1.0' },
-      { id: 'obj', version: '3.0.0' },
-    ]);
-  });
-
-  it('splits on the FIRST @ only and ignores a leading @', () => {
-    expect(depEntries(['a@>=1@2'])).toEqual([{ id: 'a', version: '>=1@2' }]);
-    // Leading '@' => at index 0 => whole string is the id.
-    expect(depEntries(['@scope/pkg'])).toEqual([{ id: '@scope/pkg' }]);
+  it('is empty for a manifest that declares none', () => {
+    expect(depEntries()).toEqual([]);
+    expect(depEntries({})).toEqual([]);
   });
 });
 
@@ -219,7 +210,7 @@ describe('ModuleRegistry.reconcile', () => {
     const r = new ModuleRegistry();
     r.register(mod('a'));
     r.register(mod('b'));
-    const manifest: ModuleManifest[] = [{ id: 'a', name: 'A', version: '1.0.0' }];
+    const manifest: ModuleManifest[] = [{ apiVersion: 2, id: 'a', name: 'A', version: '1.0.0' }];
     expect(r.reconcile(manifest)).toEqual([
       { id: 'a', frontend: true, backend: true, manifest: manifest[0] },
       { id: 'b', frontend: true, backend: false, manifest: undefined },

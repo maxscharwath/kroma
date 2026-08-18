@@ -26,11 +26,12 @@ const leaf = id.split('.').pop() ?? id;
 const title = leaf.charAt(0).toUpperCase() + leaf.slice(1);
 
 const template = `---
+apiVersion: 2
 id: ${id}
 name: ${title}
 version: 0.1.0
 description: "TODO: one-line description of ${title}."
-dependencies: []
+dependencies: {}
 provides: []
 permissions:
   - library.manage

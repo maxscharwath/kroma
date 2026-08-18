@@ -14,19 +14,10 @@ export interface Capability {
   flow?: string;
 }
 
-/** One entry in the legacy array dependency form: a bare id, an `"id@range"`
- *  string, or an object with a semver range. */
-export type Dependency = string | { id: string; version?: string };
-
-/** The package.json-style dependency form: a map of module id to semver range
- *  (a bare `"*"` means any version). This is what the backend now serializes;
- *  the array form is still accepted for older manifests. Version ranges are
- *  enforced on the backend; the frontend registry uses only the id for setup
- *  ordering. */
-export type DependencyMap = Record<string, string>;
-
-/** Either dependency form a manifest may carry. */
-export type Dependencies = DependencyMap | Dependency[];
+/** A map of module id to semver range; a bare `"*"` means any version. Ranges
+ *  are enforced on the backend, so the frontend registry reads only the id, for
+ *  setup ordering. */
+export type Dependencies = Record<string, string>;
 
 /** A capability dependency: satisfied by any module whose `provides` matches. */
 export interface CapabilityReq {
@@ -55,13 +46,16 @@ export interface FeRemote {
 
 /** A backend module's self-description. */
 export interface ModuleManifest {
+  /** The manifest contract it was built against; a server speaking another one
+   *  refuses the bundle rather than reading it on a best-effort basis. */
+  apiVersion: number;
   id: string;
   name: string;
   version: string;
   description?: string;
   minServer?: string;
-  dependencies?: Dependency[];
-  optionalDependencies?: Dependency[];
+  dependencies?: Dependencies;
+  optionalDependencies?: Dependencies;
   requires?: CapabilityReq[];
   provides?: Capability[];
   permissions?: string[];

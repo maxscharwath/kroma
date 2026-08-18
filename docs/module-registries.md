@@ -5,9 +5,12 @@ A **registry** is any static host serving a small set of JSON documents plus the
 registry universally hostable. The Store (Admin → Modules) reads every
 configured registry and shows the union.
 
-The wire format is [RFC 110](#the-wire-format-rfc-110). The two older shapes
-(schema 2's `modules.json`, and schema 1's flat `url`/`size`/`sha256`) still
-parse, so nothing that already publishes a catalog has to move.
+The wire format is [RFC 110](#the-wire-format-rfc-110), and it is the only one
+read. The older catalogs (schema 2's `{ "modules": [...] }`, schema 1's flat
+`url`/`size`/`sha256`) are not: their fields moved, and a moved field parses as
+**absent** rather than as an error, so accepting them would list modules whose
+dependencies and checksums had quietly gone missing. A registry serving one gets
+a clear refusal instead.
 
 ## The list
 
@@ -33,9 +36,11 @@ trust grant. Every install still goes through the same gate:
   (The official slot still accepts any scheme: it is one deliberate override and
   predates the list.)
 - the artifact URL must be **https**,
-- the registry must publish a **checksum** (`integrity`, or the legacy flat
-  `sha256`), and the downloaded bytes must match it; a module with no checksum
-  is refused,
+- the registry must publish an **`integrity`**, and the downloaded bytes must
+  match it; a module with no checksum is refused,
+- the bundle declares `apiVersion` and it must be the one this server speaks;
+  anything else is refused at install **and** at spawn, because a bundle built
+  against an older manifest contract loses fields silently rather than loudly,
 - `minServer` is enforced at install **and** at spawn,
 - the catalog fetch is bounded by a timeout and a size cap, and an entry's
   `icon` is only accepted as a small inline `data:` image.
@@ -93,6 +98,7 @@ uncompressed tar — not something an installer verifies.
 
 ```json
 {
+  "apiVersion": 2,
   "id": "tv.kroma.notes",
   "name": "Notes",
   "version": "0.2.0",
@@ -118,9 +124,9 @@ uncompressed tar — not something an installer verifies.
 ```
 
 `tags` defaults to the capability kinds the module provides, so a store can
-filter by `download-client` without hand-authored tags. `dependencies` /
-`optionalDependencies` are npm's spelling of `dependsOn` / `optionalDependsOn`;
-both are read.
+filter by `download-client` without hand-authored tags. `apiVersion` is the
+manifest contract the bundle was built against, copied out of its `module.json`;
+a module declaring another one is listed with the reason and never offered.
 
 Artifact URLs are absolute, so the metadata and the bytes may live on different
 hosts. `@kroma/registry` is the contract in code: the zod schemas,
@@ -178,49 +184,10 @@ one the registry offered, and `minServer` is enforced from the **bundle**. A
 registry that understates either to make a module look installable is refused at
 unpack time, and a wrong `integrity` fails when the downloaded bytes are hashed.
 
-### The legacy shape
-
-Schema 2, one entry per module, with per-target artifacts. `optionalDependsOn`
-feeds the install dialog's opt-in list; `provides` / `requires` are `(kind,
-id)` capability pairs the install planner uses to suggest engine providers
-(e.g. a module requiring an `indexer-engine` gets the catalog's providers
-offered alongside):
-
-```json
-{
-  "schema": 2,
-  "modules": [
-    {
-      "id": "tv.kroma.notes",
-      "name": "Notes",
-      "version": "0.2.0",
-      "description": "...",
-      "minServer": "0.1.4",
-      "library": false,
-      "dependsOn": { "tv.kroma.torrents": "^0.1.0" },
-      "optionalDependsOn": { "tv.kroma.vpn": "^0.1.0" },
-      "provides": [{ "kind": "download-client", "id": "notes" }],
-      "requires": [{ "kind": "indexer-engine" }],
-      "artifacts": [
-        {
-          "target": "x86_64-unknown-linux-musl",
-          "url": "https://example.org/tv.kroma.notes-x86_64-unknown-linux-musl.kmod",
-          "size": 8123456,
-          "sha256": "…"
-        }
-      ]
-    }
-  ]
-}
-```
-
 `target` is the Rust triple the binary was built for; omit it only for a library
 module (manifest + frontend, no native binary), which runs anywhere. The server
 picks an exact target match first, then a platform-independent bundle, then a
 musl build of the same architecture, which is static, so it also runs on glibc.
-
-Schema 1 (a flat `url` / `size` / `sha256` per module, no target) still parses as
-a single platform-independent artifact.
 
 Host the documents and the `.kmod` files anywhere that serves them over https
 (GitHub Releases, GitHub Pages, an S3 bucket, a NAS), then add the URL under

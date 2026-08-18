@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.indexer",
   "name": "Indexers",
   "version": "0.1.4",

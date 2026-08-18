@@ -116,13 +116,11 @@ fn normalize_range(range: &str) -> Option<String> {
 
 // (De)serialize a `dependencies` / `optionalDependencies` collection as a
 // package.json-style map `{ "<id>": "<range>" }`, where a bare `"*"` (or empty)
-// range means "any version". The legacy array form (a list of bare ids,
-// `"id@range"` strings, or `{ id, version }` objects) is still accepted on the
-// way in, so older manifests and third-party `.tar` modules keep loading.
+// range means "any version".
 mod dep_map {
     use std::fmt;
 
-    use serde::de::{MapAccess, SeqAccess, Visitor};
+    use serde::de::{MapAccess, Visitor};
     use serde::ser::SerializeMap;
     use serde::{Deserializer, Serializer};
 
@@ -145,7 +143,7 @@ mod dep_map {
             type Value = Vec<Dependency>;
 
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("a { id: range } map or a list of dependencies")
+                f.write_str("a { id: range } map")
             }
 
             // An explicit `null` (some manifest generators emit it for the empty
@@ -159,15 +157,6 @@ mod dep_map {
                 let mut out = Vec::new();
                 while let Some((id, range)) = access.next_entry::<String, String>()? {
                     out.push(Dependency { id, version: super::normalize_range(&range) });
-                }
-                Ok(out)
-            }
-
-            // Legacy array: each item is a bare id, an "id@range", or { id, version }.
-            fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Self::Value, A::Error> {
-                let mut out = Vec::new();
-                while let Some(dep) = access.next_element::<Dependency>()? {
-                    out.push(dep);
                 }
                 Ok(out)
             }
@@ -187,6 +176,15 @@ pub struct CapabilityReq {
     pub id: Option<String>,
 }
 
+/// The module manifest contract this build speaks.
+///
+/// A `.kmod` built against a different one is REFUSED rather than read on a
+/// best-effort basis, and the reason is that the shapes which changed between
+/// versions parse as *absent*, never as errors: a v1 bundle still spelling its
+/// dependencies `dependsOn` would install with an empty dependency set and fail
+/// at runtime, somewhere else, with nothing pointing back here.
+pub const MODULE_API_VERSION: u32 = 2;
+
 /// The public description of a module.
 ///
 /// This is the serde shape served at `GET /api/modules` and mirrored by the
@@ -197,6 +195,11 @@ pub struct CapabilityReq {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleManifest {
+    /// Which manifest contract this module was built against. `0` when absent,
+    /// which is every bundle predating the field and therefore every bundle
+    /// this build refuses.
+    #[serde(default)]
+    pub api_version: u32,
     pub id: String,
     pub name: String,
     pub version: Version,
@@ -233,6 +236,7 @@ impl ModuleManifest {
     /// the rest.
     pub fn new(id: impl Into<String>, name: impl Into<String>, version: impl Into<Version>) -> Self {
         Self {
+            api_version: MODULE_API_VERSION,
             id: id.into(),
             name: name.into(),
             version: version.into(),
@@ -279,15 +283,16 @@ mod tests {
     }
 
     #[test]
-    fn depends_on_still_reads_the_legacy_array_forms() {
-        let m: ModuleManifest = serde_json::from_str(
-            r#"{ "id": "a", "name": "A", "version": "1.0.0",
-                 "dependencies": ["bare", "with@^1.2", { "id": "obj", "version": ">=2" }] }"#,
+    fn the_pre_v2_array_form_is_refused_rather_than_read() {
+        // Refused LOUDLY on purpose. Accepting it was the compatibility this
+        // build dropped; reading it silently as empty would be worse than either.
+        let err = serde_json::from_str::<ModuleManifest>(
+            r#"{ "apiVersion": 2, "id": "a", "name": "A", "version": "1.0.0",
+                 "dependencies": ["bare", "with@^1.2"] }"#,
         )
-        .unwrap();
-        assert_eq!(m.dependencies[0], Dependency::new("bare"));
-        assert_eq!(m.dependencies[1], Dependency { id: "with".into(), version: Some("^1.2".into()) });
-        assert_eq!(m.dependencies[2], Dependency { id: "obj".into(), version: Some(">=2".into()) });
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("a { id: range } map"), "{err}");
     }
 
     #[test]
@@ -319,25 +324,26 @@ mod tests {
     }
 
     #[test]
-    fn legacy_object_wildcard_version_normalizes_to_none() {
-        // `{ id, version: "*" }` collapses to the same shape as the map "*" and a
-        // bare id, so a save/load round-trip is a fixpoint.
-        let m: ModuleManifest = serde_json::from_str(
-            r#"{ "id": "a", "name": "A", "version": "1.0.0",
-                 "dependencies": [{ "id": "lib", "version": "*" }] }"#,
-        )
-        .unwrap();
-        assert_eq!(m.dependencies[0], Dependency::new("lib"));
-    }
-
-    #[test]
     fn a_depends_on_that_is_neither_a_map_nor_a_list_says_what_was_expected() {
         let err = serde_json::from_str::<ModuleManifest>(
             r#"{ "id": "a", "name": "A", "version": "1.0.0", "dependencies": 7 }"#,
         )
         .unwrap_err()
         .to_string();
-        assert!(err.contains("a { id: range } map or a list of dependencies"), "{err}");
+        assert!(err.contains("a { id: range } map"), "{err}");
+    }
+
+    #[test]
+    fn a_manifest_declares_which_contract_it_was_built_against() {
+        let fresh = ModuleManifest::new("a", "A", "1.0.0");
+        assert_eq!(fresh.api_version, MODULE_API_VERSION);
+        assert_eq!(serde_json::to_value(&fresh).unwrap()["apiVersion"], MODULE_API_VERSION);
+
+        // Absent reads as 0, which is every bundle predating the field - the
+        // supervisor's install gate turns that into a refusal with a reason.
+        let old: ModuleManifest =
+            serde_json::from_str(r#"{ "id": "a", "name": "A", "version": "1.0.0" }"#).unwrap();
+        assert_eq!(old.api_version, 0);
     }
 
     #[test]

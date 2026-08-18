@@ -37,8 +37,8 @@ describe('toSiteCatalog', () => {
     });
   });
 
-  it('accepts dependencies as an array as well as a map', () => {
-    const { modules } = toSiteCatalog(raw([{ id: 'a', dependencies: ['x', 'y'] }]));
+  it('lists the ids a module depends on', () => {
+    const { modules } = toSiteCatalog(raw([{ id: 'a', dependencies: { x: '^1', y: '*' } }]));
     expect(modules[0]?.dependencies).toEqual(['x', 'y']);
   });
 

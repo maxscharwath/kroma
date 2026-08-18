@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.mdns",
   "name": "mDNS discovery",
   "version": "0.1.1",

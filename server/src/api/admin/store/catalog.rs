@@ -1,14 +1,11 @@
-//! Registry catalog: normalize whatever a registry serves into one module list,
-//! pick the artifact for this build target, enrich with installed/update state.
+//! Registry catalog: read an RFC 110 registry into one module list, pick the
+//! artifact for this build target, enrich with installed/update state.
 //!
-//! Three shapes parse into the same [`CatalogModule`], so the same Store code
-//! reads any of them:
-//!   * RFC 110 `index.json`, a bare array of module records (`integrity`,
-//!     `dependencies`);
-//!   * schema 2, `{ "modules": [ ... ] }` with per-target `artifacts`;
-//!   * schema 1, one flat `url`/`size`/`sha256` per module.
-//!
-//! An RFC 110 `registry.json` descriptor is followed to the index it fronts.
+//! One shape, not three. A registry URL is either the `registry.json` descriptor
+//! (followed to the `index.json` beside it) or that index directly. The older
+//! `{ "modules": [...] }` catalogs are not read: their fields moved, and the
+//! moved ones parse as ABSENT rather than as errors, so accepting them would
+//! offer modules with their dependencies and checksums quietly missing.
 
 use kroma_module_host::HostCtx;
 use kroma_module_supervisor::Supervisor;
@@ -30,6 +27,9 @@ pub struct Artifact {
 }
 
 pub struct CatalogModule {
+    /// The manifest contract the bundle was built against; `0` when the registry
+    /// row predates the field, which is the same answer as "too old".
+    pub api_version: u64,
     pub id: String,
     pub name: String,
     pub version: String,
@@ -88,49 +88,23 @@ pub async fn fetch(sup: &Supervisor, url: &str) -> anyhow::Result<Vec<CatalogMod
     if let Some(index) = index_url(&raw, url)? {
         raw = sup.fetch_catalog(&index).await?;
     }
-    let listed = match &raw {
-        // RFC 110 `index.json`.
-        Value::Array(entries) => Some(entries),
-        other => other.get("modules").and_then(Value::as_array),
+    let Value::Array(entries) = &raw else {
+        anyhow::bail!("not an RFC 110 registry: expected a descriptor or a module index");
     };
-    let modules: Vec<CatalogModule> =
-        listed.map(|mods| mods.iter().filter_map(parse_module).collect()).unwrap_or_default();
-    // A registry proxy (the first-party worker) degrades to an EMPTY catalog
-    // carrying an `error` field when its upstream is down. That must count as
-    // a fetch failure, not a catalog that offers nothing: an official outage
-    // reported as "0 modules" would let a lower-priority registry claim
-    // first-party ids, and auto-update would install its copies unattended.
-    if modules.is_empty() {
-        if let Some(error) = raw.get("error").and_then(Value::as_str) {
-            anyhow::bail!("registry reports: {error}");
-        }
-    }
-    Ok(modules)
+    Ok(entries.iter().filter_map(parse_module).collect())
 }
 
 
 fn parse_module(m: &Value) -> Option<CatalogModule> {
     let id = m.get("id")?.as_str()?.to_string();
     let str_of = |k: &str| m.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
-    let artifacts: Vec<Artifact> = match m.get("artifacts").and_then(Value::as_array) {
-        Some(list) => list.iter().filter_map(parse_artifact).collect(),
-        // Schema 1 carries no target metadata: platform-independent.
-        None => m
-            .get("url")
-            .and_then(Value::as_str)
-            .map(|url| Artifact {
-                target: None,
-                url: url.to_string(),
-                size: m.get("size").and_then(Value::as_u64),
-                sha256: m.get("sha256").and_then(Value::as_str).map(str::to_string),
-            })
-            .into_iter()
-            .collect(),
-    };
-    // RFC 110 renamed both maps to npm's spelling; either is accepted.
-    let dependencies = parse_deps(m, "dependencies").or_else(|| parse_deps(m, "dependencies"));
-    let optional_dependencies =
-        parse_deps(m, "optionalDependencies").or_else(|| parse_deps(m, "optionalDependencies"));
+    let artifacts: Vec<Artifact> = m
+        .get("artifacts")
+        .and_then(Value::as_array)
+        .map(|list| list.iter().filter_map(parse_artifact).collect())
+        .unwrap_or_default();
+    let dependencies = parse_deps(m, "dependencies");
+    let optional_dependencies = parse_deps(m, "optionalDependencies");
     let provides = m
         .get("provides")
         .and_then(Value::as_array)
@@ -167,6 +141,7 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         .filter(|s| s.starts_with("data:image/") && s.len() <= 128 * 1024)
         .map(str::to_string);
     Some(CatalogModule {
+        api_version: m.get("apiVersion").and_then(Value::as_u64).unwrap_or(0),
         id,
         name: str_of("name"),
         version: str_of("version"),
@@ -174,8 +149,8 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         min_server: m.get("minServer").and_then(Value::as_str).map(str::to_string),
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
         icon,
-        dependencies: dependencies.unwrap_or_default(),
-        optional_dependencies: optional_dependencies.unwrap_or_default(),
+        dependencies,
+        optional_dependencies,
         provides,
         requires,
         artifacts,
@@ -183,22 +158,20 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
 }
 
 // A `{ "<id>": "<range>" }` dependency map; `"*"`/blank ranges normalize away.
-// `None` distinguishes "the key is absent" from "the map is empty", so the two
-// accepted spellings can be tried in order.
-fn parse_deps(m: &Value, key: &str) -> Option<Vec<(String, Option<String>)>> {
-    let deps = m.get(key)?.as_object()?;
-    Some(
-        deps.iter()
-            .map(|(dep_id, range)| {
-                let range = range
-                    .as_str()
-                    .map(str::trim)
-                    .filter(|r| !r.is_empty() && *r != "*")
-                    .map(str::to_string);
-                (dep_id.clone(), range)
-            })
-            .collect(),
-    )
+fn parse_deps(m: &Value, key: &str) -> Vec<(String, Option<String>)> {
+    let Some(deps) = m.get(key).and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    deps.iter()
+        .map(|(dep_id, range)| {
+            let range = range
+                .as_str()
+                .map(str::trim)
+                .filter(|r| !r.is_empty() && *r != "*")
+                .map(str::to_string);
+            (dep_id.clone(), range)
+        })
+        .collect()
 }
 
 /// A Subresource-Integrity string (`sha256-<base64>`, RFC 110's mandatory
@@ -250,6 +223,18 @@ fn cap_rows<I: serde::Serialize>(caps: &[(String, I)]) -> Vec<Value> {
     caps.iter().map(|(kind, id)| json!({ "kind": kind, "id": id })).collect()
 }
 pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
+    // Refused at unpack anyway (see the supervisor's install gate); said here so
+    // the Store never offers an install that cannot succeed.
+    let speaks = u64::from(kroma_module_manifest::MODULE_API_VERSION);
+    if m.api_version != speaks {
+        return (
+            false,
+            Some(format!(
+                "built for module API v{} (this server speaks v{speaks}); it needs rebuilding",
+                m.api_version,
+            )),
+        );
+    }
     if !kroma_module_manifest::server_satisfies(m.min_server.as_deref(), SERVER_VERSION) {
         let needs = m.min_server.as_deref().unwrap_or("?");
         return (false, Some(format!("requires KROMA server {needs} (this server is {SERVER_VERSION})")));
@@ -261,9 +246,8 @@ pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
 }
 
 /// The `GET /api/admin/store/catalog` response, merged across every configured
-/// registry. Field names stay a superset of the legacy schema-1 passthrough, so
-/// an older client keeps working: `registryUrl` and a top-level `error` still
-/// describe the OFFICIAL registry, which is the only one such a client knew.
+/// registry. `registryUrl` and the top-level `error` describe the OFFICIAL
+/// registry, which is the only one an older client knew about.
 pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> Value {
     let installed: std::collections::HashMap<String, String> =
         kroma_module_kernel::manifests(state).into_iter().map(|m| (m.id, m.version)).collect();
@@ -277,6 +261,7 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
             let update_available = installed_version
                 .is_some_and(|current| kroma_module_manifest::is_newer(&m.version, current));
             json!({
+                "apiVersion": m.api_version,
                 "id": m.id,
                 "name": m.name,
                 "version": m.version,
@@ -317,6 +302,7 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
 #[cfg(test)]
 pub(super) fn test_module(id: &str, version: &str) -> CatalogModule {
     CatalogModule {
+        api_version: u64::from(kroma_module_manifest::MODULE_API_VERSION),
         id: id.into(),
         name: id.into(),
         version: version.into(),
@@ -428,10 +414,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_handles_schema_2_and_legacy_schema_1() {
-        let v2: Value = serde_json::from_str(
-            r#"{ "id": "a.b", "name": "AB", "version": "0.2.0", "minServer": "0.1.4",
-                 "library": false,
+    fn parse_reads_a_full_record() {
+        let entry: Value = serde_json::from_str(
+            r#"{ "apiVersion": 2, "id": "a.b", "name": "AB", "version": "0.2.0",
+                 "minServer": "0.1.4", "library": false,
                  "dependencies": { "c.d": "^0.1.0", "e.f": "*" },
                  "optionalDependencies": { "g.h": "^0.2.0" },
                  "provides": [{ "kind": "download-client", "id": "qbittorrent", "label": "qBittorrent" }],
@@ -441,9 +427,11 @@ mod tests {
                                  "size": 5, "sha256": "ab" }] }"#,
         )
         .unwrap();
-        let m = parse_module(&v2).unwrap();
+        let m = parse_module(&entry).unwrap();
+        assert_eq!(m.api_version, 2);
         assert_eq!(m.version, "0.2.0");
         assert_eq!(m.min_server.as_deref(), Some("0.1.4"));
+        // A "*" range normalizes away, so the planner sees "no constraint".
         assert_eq!(
             m.dependencies,
             vec![("c.d".to_string(), Some("^0.1.0".to_string())), ("e.f".to_string(), None)]
@@ -459,15 +447,21 @@ mod tests {
         );
         assert_eq!(m.artifacts.len(), 1);
         assert_eq!(m.artifacts[0].target.as_deref(), Some("x86_64-unknown-linux-musl"));
+    }
 
-        let v1: Value = serde_json::from_str(
+    #[test]
+    fn a_record_built_for_another_contract_is_listed_but_not_offered() {
+        // Not dropped: the Store shows it with the reason, which is more use than
+        // a module silently missing from the shelf.
+        let old: Value = serde_json::from_str(
             r#"{ "id": "a.b", "name": "AB", "version": "0.1.0",
-                 "url": "https://x/a.b.kmod", "size": 5, "sha256": "ab" }"#,
+                 "artifacts": [{ "target": null, "url": "https://x/a.b.kmod" }] }"#,
         )
         .unwrap();
-        let m = parse_module(&v1).unwrap();
-        assert_eq!(m.artifacts.len(), 1);
-        assert!(m.artifacts[0].target.is_none());
-        assert_eq!(m.artifacts[0].sha256.as_deref(), Some("ab"));
+        let m = parse_module(&old).unwrap();
+        assert_eq!(m.api_version, 0);
+        let (compatible, reason) = compat_verdict(&m);
+        assert!(!compatible);
+        assert!(reason.unwrap_or_default().contains("module API v0"));
     }
 }

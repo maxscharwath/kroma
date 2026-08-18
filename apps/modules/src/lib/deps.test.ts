@@ -14,14 +14,8 @@ describe('depEntries', () => {
     ]);
   });
 
-  it('lists the bare-array form very old catalogs carried, with no range', () => {
-    expect(depEntries(entry({ dependencies: ['tv.kroma.torrents'] }))).toEqual([
-      { id: 'tv.kroma.torrents', range: null },
-    ]);
-  });
-
-  it('is empty when there is nothing to show', () => {
-    for (const deps of [undefined, null, {}, []]) {
+  it('is empty when a module declares nothing', () => {
+    for (const deps of [undefined, null, {}]) {
       expect(depEntries(entry({ dependencies: deps }))).toEqual([]);
     }
   });

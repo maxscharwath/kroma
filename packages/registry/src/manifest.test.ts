@@ -43,11 +43,14 @@ describe('dependenciesOf / optionalDependenciesOf', () => {
     expect(optionalDependenciesOf(m)).toEqual({ 'tv.kroma.z': '*' });
   });
 
-  it('reads a bare-array or absent map as no dependencies', () => {
-    expect(dependenciesOf(Manifest.parse({ ...base, dependencies: [] }))).toEqual({});
-    expect(dependenciesOf(Manifest.parse({ ...base, dependencies: ['tv.kroma.y'] }))).toEqual({});
+  it('reads an absent map as no dependencies', () => {
     expect(dependenciesOf(Manifest.parse(base))).toEqual({});
     expect(optionalDependenciesOf(Manifest.parse(base))).toEqual({});
+    expect(dependenciesOf(Manifest.parse({ ...base, dependencies: null }))).toEqual({});
+  });
+
+  it('refuses the pre-v2 array form rather than reading it as empty', () => {
+    expect(() => Manifest.parse({ ...base, dependencies: ['tv.kroma.y'] })).toThrow();
   });
 
   it('does not read the pre-rename spelling', () => {

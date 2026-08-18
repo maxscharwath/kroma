@@ -7,12 +7,19 @@
 import { z } from 'zod';
 import { Capability, CapabilityReq } from './schema';
 
-// Very old manifests spell the map as an array of ids, and any optional field
-// may arrive as an explicit null.
-const DependencyMap = z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish();
+// Any optional field may arrive as an explicit null.
+const DependencyMap = z.record(z.string(), z.string()).nullish();
+
+/** The manifest contract this build speaks. */
+export const MODULE_API_VERSION = 2;
 
 /** A module's `module.json`, as authored. */
 export const Manifest = z.object({
+  // Optional in the SHAPE, required by the contract. A catalog row is derived
+  // from a bundle that may predate the field, and a registry that still lists
+  // one should render rather than fail to parse - the refusal belongs where the
+  // bundle is actually opened, which is `speaksCurrentApi` at install.
+  apiVersion: z.number().int().nullish(),
   id: z.string(),
   name: z.string(),
   version: z.string(),
@@ -32,11 +39,15 @@ export const Manifest = z.object({
 });
 export type Manifest = z.infer<typeof Manifest>;
 
-// The array form carries ids with no range, which is "any version" - the same
-// answer as an absent map, so both collapse to `{}`.
-function mapOf(raw: Manifest['dependencies']): Record<string, string> {
-  return raw && !Array.isArray(raw) ? raw : {};
+/** Whether a module was built against the manifest contract this build speaks.
+ *  A bundle that was not is refused rather than read on a best-effort basis: the
+ *  fields that moved between versions parse as ABSENT, not as errors, so a stale
+ *  one would install with its dependencies silently dropped. */
+export function speaksCurrentApi(manifest: Pick<Manifest, 'apiVersion'>): boolean {
+  return manifest.apiVersion === MODULE_API_VERSION;
 }
+
+const mapOf = (raw: Manifest['dependencies']): Record<string, string> => raw ?? {};
 
 /** The versions a module requires, by id. */
 export function dependenciesOf(manifest: Manifest): Record<string, string> {

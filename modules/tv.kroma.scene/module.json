@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.scene",
   "name": "Release parser",
   "version": "0.1.1",

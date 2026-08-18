@@ -5,8 +5,12 @@
   "description": "Schema for a module's module.json (and the YAML frontmatter of a .module.md).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "version"],
+  "required": ["apiVersion", "id", "name", "version"],
   "properties": {
+    "apiVersion": {
+      "const": 2,
+      "description": "The manifest contract this module is built against. A server that speaks a different one refuses the bundle rather than reading it on a best-effort basis, because the fields that moved between versions parse as absent, not as errors."
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$",

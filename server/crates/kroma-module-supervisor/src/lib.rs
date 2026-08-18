@@ -435,6 +435,10 @@ impl Supervisor {
                 "'{id}' is built into this server and can't be installed as a module (this build compiles it in)"
             );
         }
+        // After the id checks, which are the security ones: a bundle shipped
+        // under someone else's id must be reported as that, whatever contract it
+        // was built against.
+        check_module_api(&id, &manifest)?;
         let min_server = manifest.get("minServer").and_then(Value::as_str);
         if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
             anyhow::bail!(
@@ -627,6 +631,7 @@ impl Supervisor {
         if self.cfg.reserved_ids.iter().any(|r| r == id) {
             anyhow::bail!("'{id}' shadows a built-in module; not spawning");
         }
+        check_module_api(id, &manifest)?;
         let min_server = manifest.get("minServer").and_then(Value::as_str);
         if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
             anyhow::bail!(
@@ -792,6 +797,22 @@ impl Supervisor {
 
 /// Verify `bytes` against a hex SHA-256. Refusing on mismatch is what keeps a
 /// tampered or truncated registry download out of `install()`.
+/// `Err` when a bundle was built against a manifest contract this server does not
+/// speak. Checked at install AND at spawn: an installed module predates the
+/// server it now runs under, and the fields that moved parse as absent rather
+/// than as errors, so reading one on a best-effort basis loses its dependencies
+/// silently instead of saying why.
+fn check_module_api(id: &str, manifest: &Value) -> anyhow::Result<()> {
+    let found = manifest.get("apiVersion").and_then(Value::as_u64).unwrap_or(0);
+    anyhow::ensure!(
+        found == u64::from(kroma_module_manifest::MODULE_API_VERSION),
+        "'{id}' was built for module API v{found}, and this server speaks v{}; rebuild it against \
+         the current SDK",
+        kroma_module_manifest::MODULE_API_VERSION,
+    );
+    Ok(())
+}
+
 /// Resolve `relative` against the URL a document was actually fetched from, so a
 /// sibling document (a registry's index beside its descriptor) is reached
 /// without trusting a URL that document declares about itself.

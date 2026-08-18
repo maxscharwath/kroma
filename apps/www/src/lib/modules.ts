@@ -24,8 +24,7 @@ const kinds = (xs: { kind: string }[] | null | undefined) => [
   ...new Set((xs ?? []).map((x) => x.kind).filter(Boolean)),
 ];
 
-const depIds = (d: Catalog['modules'][number]['dependencies']) =>
-  Array.isArray(d) ? d : Object.keys(d ?? {});
+const depIds = (d: Catalog['modules'][number]['dependencies']) => Object.keys(d ?? {});
 
 /** The catalog as fetched, reduced to what the site renders and ordered by id. */
 export function toSiteCatalog(raw: Catalog): SiteCatalog {

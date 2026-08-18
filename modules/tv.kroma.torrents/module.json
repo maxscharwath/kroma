@@ -1,4 +1,5 @@
 {
+  "apiVersion": 2,
   "id": "tv.kroma.torrents",
   "name": "Torrent downloads",
   "version": "0.1.8",

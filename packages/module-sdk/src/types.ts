@@ -2,6 +2,13 @@
 // `kroma_module_sdk::ModuleManifest` (serialized camelCase). The frontend reads
 // this to learn which backend modules are active and to reconcile them against
 // the frontend modules registered in the host.
+//
+// The manifest half comes from `@kroma/registry`, which is where the contract is
+// defined; what is added here is the runtime state only this endpoint reports.
+
+import type { ConfigField, Manifest } from '@kroma/registry';
+
+export type { ConfigField } from '@kroma/registry';
 
 /** One capability a backend module provides. `kind`+`id` are the interface and
  *  implementation; engine capabilities (download-client, indexer-engine) may also
@@ -25,41 +32,16 @@ export interface CapabilityReq {
   id?: string;
 }
 
-/** One admin-configurable setting a module exposes. */
-export interface ConfigField {
-  key: string;
-  label: string;
-  type: 'string' | 'bool' | 'number' | 'select';
-  default?: string;
-  options?: string[];
-  placeholder?: string;
-  // Render as a password input; the value is treated write-only.
-  secret?: boolean;
-  required?: boolean;
-}
-
 /** The frontend remote a runtime-loaded module ships (Module Federation). The
  *  entry URL is derived by the host as `/modules/<id>/remoteEntry.js`. */
 export interface FeRemote {
   module: string;
 }
 
-/** A backend module's self-description. */
-export interface ModuleManifest {
-  /** The manifest contract it was built against; a server speaking another one
-   *  refuses the bundle rather than reading it on a best-effort basis. */
-  apiVersion: number;
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  minServer?: string;
-  dependencies?: Dependencies;
-  optionalDependencies?: Dependencies;
-  requires?: CapabilityReq[];
-  provides?: Capability[];
-  permissions?: string[];
-  config?: ConfigField[];
+/** A backend module's self-description: the manifest contract, plus whether the
+ *  server currently has it enabled. */
+export type ModuleManifest = Manifest & {
   feRemote?: FeRemote;
+  /** Whether the server currently has it enabled; runtime state, not manifest. */
   enabled?: boolean;
-}
+};

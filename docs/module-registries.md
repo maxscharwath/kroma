@@ -65,14 +65,16 @@ When the fetched body isn't JSON, the server looks for an RSS-style
 autodiscovery tag in the page and follows it:
 
 ```html
-<link rel="kroma-modules" href="/modules.json">
+<link rel="kroma-modules" href="/registry.json">
 ```
 
 The discovered link must be https (or stay on the exact origin the operator
 typed), and the second fetch is bounded exactly like the first. So
 `https://modules.kroma.tv` works as a registry URL while people clicking the
 same link get a browsable page. A static host can offer the same by serving an
-`index.html` with that one tag beside its `catalog.json`.
+`index.html` with that one tag beside its `registry.json`. The bare origin also
+answers the descriptor directly to anything that did not ask for HTML, so a
+client that pastes the origin never needs the tag at all.
 
 ## The wire format (RFC 110)
 

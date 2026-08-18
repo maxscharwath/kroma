@@ -130,11 +130,13 @@ describe('machineResponse', () => {
     expect(await machineResponse(req('/favicon.svg'), {}, ctx())).toBeNull();
   });
 
-  it('answers the bare origin with the catalog when the caller did not ask for HTML', async () => {
+  it('answers the bare origin with the descriptor when the caller did not ask for HTML', async () => {
     upstreamServing(CATALOG);
     const res = await machine('/');
     expect(res.headers.get('content-type')).toBe('application/json');
-    expect(await res.json()).toEqual(CATALOG);
+    // A server pasting the origin is asking which registry this is, and the
+    // legacy catalog would answer in a shape it no longer reads.
+    expect(await res.json()).toMatchObject({ apiVersion: 1, modules: ['tv.kroma.demo'] });
   });
 
   it('lets a browser at the bare origin fall through to the rendered page', async () => {
@@ -303,6 +305,18 @@ describe('the RFC-110 documents', () => {
       const res = await machine(path);
       expect(res.status, path).toBe(503);
     }
+  });
+
+  it('is reachable from the bare origin, the descriptor and the index alike', async () => {
+    upstreamServing(CATALOG);
+    // The three URLs an operator might paste. Each has to land somewhere a
+    // current server can read, which is what the link tag in <head> and the
+    // bare-origin branch are both for.
+    const descriptor = (await (await machine('/')).json()) as { modules: string[] };
+    const direct = (await (await machine('/registry.json')).json()) as { modules: string[] };
+    expect(direct).toEqual(descriptor);
+    const index = (await (await machine('/index.json')).json()) as unknown[];
+    expect(index).toHaveLength(descriptor.modules.length);
   });
 
   it('serves the JSON Schema for each document without reading the catalog', async () => {

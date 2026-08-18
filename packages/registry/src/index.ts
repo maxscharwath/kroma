@@ -17,10 +17,13 @@ export {
 } from './client';
 export {
   ArtifactRef,
+  ConfigField,
   DescribedModule,
   dependenciesOf,
   Manifest,
+  MODULE_API_VERSION,
   optionalDependenciesOf,
+  speaksCurrentApi,
 } from './manifest';
 export {
   Capability,

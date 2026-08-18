@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Manifest } from '@kroma/registry';
+import { Manifest, MODULE_API_VERSION, speaksCurrentApi } from '@kroma/registry';
 import type { Artifact, Entry } from './catalog';
 import { byCodeUnit } from './sort';
 
@@ -93,6 +93,14 @@ export function readBundles(dir: string): Bundle[] {
       continue;
     }
     const manifest = read.data;
+    // Refused here as well as at install: a registry that lists a bundle no
+    // current server will unpack is worse than one that never offered it.
+    if (!speaksCurrentApi(manifest)) {
+      console.warn(
+        `  ! ${file}: built for module API v${manifest.apiVersion ?? 0}, and this SDK speaks v${MODULE_API_VERSION}; skipped`,
+      );
+      continue;
+    }
     // Bundles are named `<id>.kmod` or `<id>-<target>.kmod`; recover the target
     // from the filename using the id just read out of the bundle.
     const stem = file.slice(0, -'.kmod'.length);

@@ -7,13 +7,9 @@
 import { Capability, CapabilityReq } from '@kroma/registry';
 import { z } from 'zod';
 
-/** One `{ id, version? }` dependency edge as the catalog reports it. The server
- * flattens the registry's `{ id: range }` map into rows on the way out. */
-export const StoreDependency = z.object({
-  id: z.string(),
-  version: z.string().nullish(),
-});
-export type StoreDependency = z.infer<typeof StoreDependency>;
+/** A `{ id: range }` dependency map, the one shape a dependency has anywhere:
+ * in a manifest, in a registry record, and here. */
+const DependencyMap = z.record(z.string(), z.string());
 
 /** One catalog entry, enriched server-side (`GET /api/admin/store/catalog`):
  * the picked artifact for this platform, installed/update state, and the
@@ -26,8 +22,8 @@ export const StoreModule = z.object({
   library: z.boolean(),
   icon: z.string().nullish(),
   minServer: z.string().nullish(),
-  dependencies: z.array(StoreDependency),
-  optionalDependencies: z.array(StoreDependency),
+  dependencies: DependencyMap,
+  optionalDependencies: DependencyMap,
   provides: z.array(Capability),
   requires: z.array(CapabilityReq),
   target: z.string().nullish(),

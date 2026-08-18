@@ -76,11 +76,7 @@ async fn run_plan(sup: &Arc<Supervisor>, op: &Op, plan: &[Planned<'_>]) -> Resul
                 .map_err(|e| anyhow!("installing '{}' failed: {e:#}", entry.id))?
         };
         op.done(&entry.id, &entry.version);
-        installed.push(json!({
-            "id": manifest.get("id"),
-            "name": manifest.get("name"),
-            "version": manifest.get("version"),
-        }));
+        installed.push(installed_row(&manifest));
     }
     Ok(installed)
 }
@@ -140,11 +136,12 @@ pub async fn reinstall(state: &SharedState, sup: &Arc<Supervisor>, id: &str) -> 
         .map_err(|_| anyhow!("reinstall task panicked"))?
         .map_err(|e| anyhow!("reinstalling '{id}' failed: {e:#}"))?
     };
-    Ok(json!({
-        "id": manifest.get("id"),
-        "name": manifest.get("name"),
-        "version": manifest.get("version"),
-    }))
+    Ok(installed_row(&manifest))
+}
+
+/// What the Store shows for a module that just landed.
+pub(super) fn installed_row(m: &kroma_module_manifest::ModuleManifest) -> Value {
+    json!({ "id": m.id, "name": m.name, "version": m.version })
 }
 
 #[derive(Serialize)]
@@ -181,12 +178,7 @@ pub async fn update_all(
     let mut outcome = UpdateOutcome { updated: Vec::new(), failed: Vec::new() };
     let mut targets: Vec<(&CatalogModule, String)> = Vec::new();
     for manifest in sup.installed_manifests() {
-        let (Some(id), Some(cur)) = (
-            manifest.get("id").and_then(Value::as_str),
-            manifest.get("version").and_then(Value::as_str),
-        ) else {
-            continue;
-        };
+        let (id, cur) = (manifest.id.as_str(), manifest.version.as_str());
         if only.is_some_and(|ids| !ids.iter().any(|x| x == id)) {
             continue;
         }

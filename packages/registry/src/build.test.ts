@@ -46,6 +46,14 @@ describe('buildModuleRecord', () => {
     expect(() => ModuleRecord.parse(buildModuleRecord(entry()))).not.toThrow();
   });
 
+  it('carries the contract the bundle was built against, so a client can judge it', () => {
+    // Without this on the wire, every compatibility check downstream has to
+    // download the bundle to find out it cannot install it.
+    const record = buildModuleRecord(entry({ apiVersion: 2 }));
+    expect(record.versions['0.1.7']?.apiVersion).toBe(2);
+    expect(buildIndex([entry({ apiVersion: 2 })])[0]?.apiVersion).toBe(2);
+  });
+
   it('carries the store metadata and one version with SRI artifacts', () => {
     const record = buildModuleRecord(
       entry({ author: 'Max', license: 'GPL-2.0-or-later', keywords: ['torrent'] }),

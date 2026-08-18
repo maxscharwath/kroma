@@ -215,8 +215,14 @@ fn pick_for<'a>(artifacts: &'a [Artifact], host: &str) -> Option<&'a Artifact> {
 }
 
 
-fn dep_rows(deps: &[(String, Option<String>)]) -> Vec<Value> {
-    deps.iter().map(|(id, range)| json!({ "id": id, "version": range })).collect()
+// The `{ id: range }` map a manifest and a registry record both use; a declared
+// "no constraint" serializes back as the wildcard it came from.
+fn dep_map(deps: &[(String, Option<String>)]) -> Value {
+    Value::Object(
+        deps.iter()
+            .map(|(id, range)| (id.clone(), json!(range.as_deref().unwrap_or("*"))))
+            .collect(),
+    )
 }
 
 fn cap_rows<I: serde::Serialize>(caps: &[(String, I)]) -> Vec<Value> {
@@ -269,8 +275,8 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
                 "library": m.library,
                 "icon": m.icon,
                 "minServer": m.min_server,
-                "dependencies": dep_rows(&m.dependencies),
-                "optionalDependencies": dep_rows(&m.optional_dependencies),
+                "dependencies": dep_map(&m.dependencies),
+                "optionalDependencies": dep_map(&m.optional_dependencies),
                 "provides": cap_rows(&m.provides),
                 "requires": cap_rows(&m.requires),
                 "target": artifact.and_then(|a| a.target.clone()),

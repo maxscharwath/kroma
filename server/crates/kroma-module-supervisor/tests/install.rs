@@ -57,7 +57,7 @@ fn install_accepts_a_satisfied_min_server() {
              "minServer": "0.1.0", "library": true }"#,
     );
     let manifest = sup.install(&bundle, None, ("upload", None)).unwrap();
-    assert_eq!(manifest["id"], "com.example.demo");
+    assert_eq!(manifest.id, "com.example.demo");
     assert_eq!(sup.installed_ids(), vec!["com.example.demo".to_string()]);
 }
 

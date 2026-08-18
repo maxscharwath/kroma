@@ -71,7 +71,7 @@ async fn install_url(
         .map_err(|e| bad(&format!("install failed: {e:#}")))?;
     // Unpack + spawn is blocking; keep it off the async runtime.
     let url = body.url.clone();
-    let manifest: Value = {
+    let manifest = {
         let sup = sup.clone();
         tokio::task::spawn_blocking(move || sup.install(&bytes, None, ("url", Some(&url))))
             .await
@@ -203,7 +203,7 @@ async fn install_upload(
         return Err(bad("empty bundle"));
     }
     // Unpack + spawn is blocking; keep it off the async runtime.
-    let manifest: Value =
+    let manifest =
         tokio::task::spawn_blocking(move || sup.install(&body, None, ("upload", None)))
         .await
         .map_err(|_| bad("install task panicked"))?
@@ -267,12 +267,8 @@ async fn uninstall(
     }
 }
 
-fn installed_json(manifest: &Value) -> Json<Value> {
-    Json(json!({
-        "id": manifest.get("id"),
-        "name": manifest.get("name"),
-        "version": manifest.get("version"),
-    }))
+fn installed_json(manifest: &kroma_module_manifest::ModuleManifest) -> Json<Value> {
+    Json(super::store::install::installed_row(manifest))
 }
 
 fn bad(msg: &str) -> Response {

@@ -54,6 +54,7 @@ function metaOf(entry: DescribedModule) {
 
 function versionOf(entry: DescribedModule): RegistryVersion {
   return {
+    apiVersion: entry.apiVersion,
     minServer: entry.minServer,
     library: entry.library,
     dependencies: someMap(dependenciesOf(entry)),

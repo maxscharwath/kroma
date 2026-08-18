@@ -32,6 +32,39 @@ describe('Manifest', () => {
   });
 });
 
+describe('the shape a real manifest declares', () => {
+  // Every property `modules/module.schema.json` allows. zod STRIPS what it does
+  // not declare, so a field missing here is a field the published catalog would
+  // lose without anything failing - which is how `ports` went missing once.
+  const full = {
+    apiVersion: 2,
+    id: 'tv.kroma.torrents',
+    name: 'Torrents',
+    version: '0.1.8',
+    description: 'Downloads',
+    minServer: '0.1.4',
+    library: false,
+    dependencies: { 'tv.kroma.indexer': '^0.1.0' },
+    optionalDependencies: { 'tv.kroma.vpn': '^0.1.0' },
+    provides: [{ kind: 'download-client', id: 'rqbit', label: 'rqbit' }],
+    requires: [{ kind: 'indexer-engine' }],
+    ports: ['download-grab', 'download-db'],
+    permissions: ['library.manage'],
+    config: [{ key: 'host', label: 'Host', type: 'string', placeholder: 'localhost' }],
+    feRemote: { module: './Module' },
+  };
+
+  it('keeps every one of them', () => {
+    expect(Manifest.parse(full)).toEqual(full);
+  });
+
+  it('refuses a config field whose type is not one the admin can render', () => {
+    expect(() =>
+      Manifest.parse({ ...full, config: [{ key: 'k', label: 'K', type: 'colour' }] }),
+    ).toThrow();
+  });
+});
+
 describe('dependenciesOf / optionalDependenciesOf', () => {
   it('reads the map a module declares', () => {
     const m = Manifest.parse({

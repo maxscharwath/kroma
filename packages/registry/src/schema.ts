@@ -35,6 +35,9 @@ const DependencyMap = z.record(z.string(), z.string());
 
 /** Everything that is true of one *version* of a module. */
 export const RegistryVersion = z.object({
+  // Per version, not per module: a module published v1 bundles before it
+  // published v2 ones, and a client has to judge each on its own.
+  apiVersion: z.number().int().nullish(),
   minServer: z.string().nullish(),
   library: z.boolean().nullish(),
   dependencies: DependencyMap.nullish(),

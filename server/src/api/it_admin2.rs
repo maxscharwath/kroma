@@ -274,7 +274,8 @@ async fn store_catalog_enriches_a_reachable_registry() {
     assert!(lib["url"].is_string(), "a universal artifact resolves an install URL");
     assert!(lib["installedVersion"].is_null());
     assert_eq!(lib["updateAvailable"], json!(false));
-    assert_eq!(lib["dependencies"][0]["id"], json!("tv.kroma.dep"));
+    // The `{ id: range }` map, the one shape a dependency has anywhere.
+    assert_eq!(lib["dependencies"], json!({ "tv.kroma.dep": "^0.1.0" }));
 
     let future = by_id("tv.kroma.future");
     assert_eq!(future["compatible"], json!(false));
@@ -337,8 +338,8 @@ async fn the_store_reads_an_rfc_110_registry_through_its_descriptor() {
     assert_eq!(mods[0]["id"], json!("com.acme.app"));
     assert_eq!(mods[0]["version"], json!("1.2.0"));
     assert_eq!(mods[0]["compatible"], json!(true));
-    assert_eq!(mods[0]["dependencies"][0]["id"], json!("com.acme.lib"));
-    assert_eq!(mods[0]["optionalDependencies"][0]["id"], json!("com.acme.vpn"));
+    assert_eq!(mods[0]["dependencies"], json!({ "com.acme.lib": "^1.0.0" }));
+    assert_eq!(mods[0]["optionalDependencies"], json!({ "com.acme.vpn": "*" }));
     // `integrity` is what the installer will compare the downloaded bytes to.
     assert_eq!(mods[0]["sha256"], json!("ab".repeat(32)));
 }

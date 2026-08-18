@@ -10,6 +10,20 @@ import { Capability, CapabilityReq } from './schema';
 // Any optional field may arrive as an explicit null.
 const DependencyMap = z.record(z.string(), z.string()).nullish();
 
+/** One admin-configurable setting a module exposes. */
+export const ConfigField = z.object({
+  key: z.string(),
+  label: z.string(),
+  type: z.enum(['string', 'bool', 'number', 'select']),
+  default: z.string().nullish(),
+  options: z.array(z.string()).nullish(),
+  placeholder: z.string().nullish(),
+  // Rendered as a password input, and the value is treated write-only.
+  secret: z.boolean().nullish(),
+  required: z.boolean().nullish(),
+});
+export type ConfigField = z.infer<typeof ConfigField>;
+
 /** The manifest contract this build speaks. */
 export const MODULE_API_VERSION = 2;
 
@@ -30,6 +44,13 @@ export const Manifest = z.object({
   optionalDependencies: DependencyMap,
   provides: z.array(Capability).nullish(),
   requires: z.array(CapabilityReq).nullish(),
+  /** Cross-module RPC contracts this module SERVES, by name. Distinct from
+   *  `provides`: this is the machine wiring a consumer resolves against, so no
+   *  one has to name a module id. */
+  ports: z.array(z.string()).nullish(),
+  permissions: z.array(z.string()).nullish(),
+  config: z.array(ConfigField).nullish(),
+  feRemote: z.object({ module: z.string() }).nullish(),
   // Store metadata, all optional.
   author: z.string().nullish(),
   homepage: z.string().nullish(),

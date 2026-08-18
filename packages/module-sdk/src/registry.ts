@@ -12,7 +12,7 @@ import type {
 import type { Dependencies, ModuleManifest } from './types';
 
 /** A `{ id: range }` dependency map as a flat list; `"*"` means no constraint. */
-export function depEntries(deps?: Dependencies): { id: string; version?: string }[] {
+export function depEntries(deps?: Dependencies | null): { id: string; version?: string }[] {
   if (!deps) return [];
   return Object.entries(deps).map(([id, range]) => ({
     id,

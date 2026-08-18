@@ -178,9 +178,23 @@ dispatch is a sub-engine registry (`DownloadClientRegistry` and friends).
 `bun run modules:pack` output is directly installable: upload the `.kmod` in
 Admin → Modules.
 
-To serve modules to others, host a catalog: `bun run modules registry` emits a
-`modules.json` index of per-target artifacts with checksums, which any static
-host can serve. Operators add it under Admin → Modules → Registries. See
+To try the packed bundles as a registry before publishing anything:
+
+```bash
+bun run modules serve                      # dist/modules, on :4173
+bun run modules serve --from ./bundles --port 8080
+```
+
+It serves the RFC 110 documents live off the directory, re-read per request, with
+artifact URLs taken from the origin each request arrived at — so the same tree is
+right on localhost, on a LAN address and behind a tunnel. Add
+`http://localhost:4173` under Admin → Modules → Registries to browse it. Note
+that a server refuses to **install** over http, so install a local build by
+uploading the `.kmod` there.
+
+To serve modules to others, host them: `bun run modules registry` writes the same
+documents to disk (plus the schemas and a `modules.json` mirror), which any
+static host can serve. See
 [`docs/module-registries.md`](../docs/module-registries.md).
 
 ### Releasing this repo's modules

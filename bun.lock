@@ -619,6 +619,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@kroma/registry": "workspace:*",
+        "hono": "^4.13.2",
         "zod": "^4.4.3",
       },
       "devDependencies": {

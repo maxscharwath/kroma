@@ -191,6 +191,10 @@ bun run modules registry --from ./bundles --out ./public --base https://mods.exa
 works on a pile of `.kmod` files outside a KROMA checkout. Upload the output
 as-is and point the registry entry at its `registry.json`.
 
+`bun run modules serve` is the same documents without the disk: it serves a
+directory of bundles live on a local port, which is how you check a registry
+before hosting one.
+
 **Nothing is authored by hand.** Every field is read out of the bundles: the
 manifest comes from `module.json` inside the tar, `size` and `integrity` from the
 bytes. There is no metadata file to maintain alongside them and no pipeline to

@@ -32,7 +32,14 @@
 
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { buildDescriptor, buildIndex, buildModuleRecord } from '@kroma/registry';
+import {
+  buildDescriptor,
+  buildIndex,
+  buildModuleRecord,
+  jsonSchema,
+  SCHEMA_NAMES,
+  schemaPath,
+} from '@kroma/registry';
 import { readBundles, toEntries } from './bundles';
 import { root } from './root';
 
@@ -75,8 +82,17 @@ write('registry.json', buildDescriptor('KROMA modules', baseUrl, modules));
 write('index.json', buildIndex(modules));
 for (const entry of modules) write(`m/${entry.id}.json`, buildModuleRecord(entry));
 
+// The schemas too, so a self-hosted registry describes itself rather than
+// sending a reader to another host. Their `$id` stays the canonical one: this is
+// a mirror of the contract, not a second contract claiming the same name.
+for (const name of SCHEMA_NAMES) {
+  const schema = jsonSchema(name);
+  write(schemaPath(name).replace(/^\//, ''), schema);
+  write(`schemas/${name}.json`, schema);
+}
+
 console.log(
-  `registry: ${modules.length} module(s) -> ${outDir}/{catalog,registry,index}.json + m/*.json`,
+  `registry: ${modules.length} module(s) -> ${outDir}/{catalog,registry,index}.json + m/*.json + schemas/`,
 );
 for (const m of modules) {
   const targets = m.artifacts.map((a) => a.target ?? 'universal').join(', ');

@@ -137,22 +137,28 @@ approved**. Resolution of a dependency's group prefix walks this order:
    `registries` map for the groups its dependencies need (so `com.acme.foo` ships "my
    `com.acme.*` come from `https://modules.acme.dev`"). This makes the source *self-describing*
    and therefore detectable: the resolver knows exactly which host a dependency wants.
-3. **The Kroma default** — anything under no declared prefix (and always `tv.kroma.*`) resolves
-   to `modules.kroma.tv`. So *"default to Kroma when undefined"* holds — for the Kroma
-   namespace and truly unqualified ids.
+3. **The default registry** — *anything* with no matching override resolves against the
+   default (Kroma). This is the npm rule: the default registry serves every id unless a
+   scope/prefix has an explicit override — so `com.acme.foo` with no `com.acme` entry is simply
+   looked up on `modules.kroma.tv`, and if it is not there the result is an ordinary
+   *"module not found"*, exactly as `npm install @acme/x` 404s on the default registry when no
+   `@acme:registry` is set. No special "undeclared group" failure — the default just catches it.
 
-The important case is (2) pointing at a registry the host does **not** yet trust. That is a
+So the `registries` map is *purely an override*: you touch it only to send a prefix somewhere
+other than the default. `tv.kroma.*` needs nothing; `com.acme.*` needs one line only if Acme
+runs its own registry.
+
+The one case that warns is an override (from config **or** step 2, a module's own declared
+`registries`) that points at a host the user has **not** trusted yet — a
 **trust-on-first-use prompt**, not a silent fetch:
 
-> `com.acme.foo` requires modules from a new registry: **modules.acme.dev**. Trust this
-> registry and fetch from it? [once] [always] [no]
+> `com.acme.foo` wants modules from a new registry: **modules.acme.dev**. Trust it and fetch?
+> [once] [always] [no]
 
-On *always*, it is promoted into the host's trusted `registries`; on *once*, it is used for
-this install only; on *no*, the install fails closed. A genuinely foreign group that is
-declared *nowhere* fails with a precise message naming the missing registry, rather than a
-confusing 404 against Kroma. This is the cargo/npm posture (a package may name another
-registry, but pulling from an unapproved host is always a user decision) — nothing
-third-party is fetched, verified or loaded from a host the user has not consciously trusted.
+*always* promotes it into the trusted `registries`; *once* uses it for this install only;
+*no* fails closed. This is the cargo/npm posture: the default serves by default, but the first
+time a *new* registry is introduced, pulling from it is a conscious user decision. Nothing is
+fetched, verified or loaded from a host the user has not trusted.
 
 ### 3. The typed client
 

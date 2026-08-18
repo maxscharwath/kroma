@@ -76,9 +76,13 @@ function versionOf(entry: DescribedModule): RegistryVersion {
   };
 }
 
+/** The versions a registry already serves for a module, folded under the one
+ *  being published. */
+export type KnownVersions = Partial<Pick<ModuleRecord, 'versions' | 'distTags'>>;
+
 /** One module's full record. `known` folds this version into the versions a
  *  registry already publishes, so republishing does not drop history. */
-export function buildModuleRecord(entry: DescribedModule, known?: ModuleRecord): ModuleRecord {
+export function buildModuleRecord(entry: DescribedModule, known?: KnownVersions): ModuleRecord {
   const versions = { ...known?.versions, [entry.version]: versionOf(entry) };
   const channel = channelOf(entry.version);
   const distTags = { ...known?.distTags, ...(channel ? { [channel]: entry.version } : {}) };

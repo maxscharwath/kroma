@@ -1,4 +1,10 @@
-export { buildDescriptor, buildIndex, buildModuleRecord, sriFromHex } from './build';
+export {
+  buildDescriptor,
+  buildIndex,
+  buildModuleRecord,
+  type KnownVersions,
+  sriFromHex,
+} from './build';
 export {
   createRegistryClient,
   type FetchJson,

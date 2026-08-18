@@ -7,6 +7,7 @@ import {
   type SchemaName,
 } from '@kroma/module-tools/registry';
 import type { ModuleEntry } from '#site/catalog';
+import { releaseHistory } from '#site/lib/releases';
 import { type Env, jsonResponse, loadCatalog } from '#site/lib/source';
 
 const REGISTRY_NAME = 'KROMA modules';
@@ -80,7 +81,10 @@ export async function registryResponse(
     const id = decodeURIComponent(one[1]);
     const found = modules.find((m) => m.id === id);
     if (!found) return jsonResponse(JSON.stringify({ error: 'no such module' }), 60, 404);
-    return jsonResponse(JSON.stringify(buildModuleRecord(found)), 300);
+    // Only the full record carries history: the catalog names the current
+    // version of each module, the releases hold every version ever cut.
+    const known = (await releaseHistory(env, waitUntil))[id];
+    return jsonResponse(JSON.stringify(buildModuleRecord(found, known)), 300);
   }
   const document =
     path === '/registry.json'

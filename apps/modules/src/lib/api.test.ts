@@ -75,11 +75,28 @@ function upstreamServing(body: unknown, status = 200) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
-      calls.push(String(input));
+      const url = String(input);
+      calls.push(url);
+      // The releases listing is a different upstream; a test that does not care
+      // about history gets an empty one.
+      if (url.startsWith('https://api.github.com/')) return new Response('[]');
       return new Response(JSON.stringify(body), { status });
     }),
   );
   return calls;
+}
+
+// The per-module release tags the pipeline cuts, which carry the versions the
+// merged catalog does not.
+function releasesServing(releases: unknown[]) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith('https://api.github.com/')) return new Response(JSON.stringify(releases));
+      return new Response(JSON.stringify(CATALOG));
+    }),
+  );
 }
 
 function offline(message: string) {
@@ -247,6 +264,29 @@ describe('the RFC-110 documents', () => {
     expect(record.latest).toBe('1.0.0');
     expect(record.distTags).toEqual({ latest: '1.0.0' });
     expect(record.versions['1.0.0']?.artifacts[0]?.integrity).toBe(SRI);
+  });
+
+  it('carries every version the release tags hold, not just the catalog row', async () => {
+    releasesServing([
+      {
+        tag_name: 'tv.kroma.demo@0.9.0',
+        assets: [
+          {
+            name: 'tv.kroma.demo-wasm32.kmod',
+            size: 9,
+            browser_download_url: 'https://dl/old.kmod',
+            digest: `sha256:${DIGEST}`,
+          },
+        ],
+      },
+    ]);
+    const record = (await (await machine('/m/tv.kroma.demo.json')).json()) as {
+      latest: string;
+      versions: Record<string, unknown>;
+    };
+    expect(Object.keys(record.versions).sort()).toEqual(['0.9.0', '1.0.0']);
+    // The catalog still names which one a bare install resolves to.
+    expect(record.latest).toBe('1.0.0');
   });
 
   it('404s a module the registry does not carry', async () => {

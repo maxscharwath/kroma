@@ -127,6 +127,28 @@ hosts. `@kroma/module-tools/registry` is the contract in code: the zod schemas,
 the document builders, and a typed client (`descriptor`, `index`, `module`,
 `search`, `resolve`) that any conforming registry answers.
 
+### Where the reference registry gets its modules
+
+Two sources, and the split matters:
+
+- **`/index.json`** is projected from the merged `modules.json` the release train
+  publishes to the rolling `modules` tag. That document is the publisher's
+  statement of what is *current*, and it is the only place the manifest metadata
+  (icon, `minServer`, dependencies, capabilities) exists outside the bundles.
+- **`/m/{id}.json`** additionally lists every version, read from the
+  `<id>@<version>` **GitHub Releases themselves** — the ground truth the merged
+  catalog is only a current-row projection of. Each asset carries a `digest`
+  GitHub computed, which becomes `integrity` directly, so the published
+  `.sha256` sidecars never have to be fetched to trust a bundle.
+
+A historical version therefore carries its artifacts and their integrity but not
+its manifest metadata: that lives inside the `.kmod`, and only the current row is
+in the catalog. Enough to pin or roll back, which is the point.
+
+The listing is walked at most three pages and cached at the edge for an hour, so
+a cold request cannot turn into an unbounded crawl, and it degrades to "no
+history" rather than to an error: history enriches a record, it never gates one.
+
 ## Publishing one
 
 `bun run modules registry` turns the packed `.kmod` files into a publishable

@@ -54,11 +54,13 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
     "tags": ["download-client"],           // capability kinds it provides, for filtering
     "icon": "…",
     "latest": "0.1.7",
+    "distTags": { "latest": "0.1.7", "beta": "0.2.0-beta.3" },   // channels (§ pre-releases)
     "versions": {
       "0.1.7": {
         "minServer": "0.1.4",
         "dependencies": { "tv.kroma.x": "^0.1.0" },
-        "provides": [ … ], "requires": [ … ],
+        "provides": [{ "kind": "download-client", "id": "qbittorrent", "label": "qBittorrent" }],
+        "requires": [{ "kind": "indexer-engine" }],
         "artifacts": [
           { "target": "x86_64-linux", "url": "…/tv.kroma.torrents-0.1.7-x86_64-linux.kmod",
             "size": 12345, "integrity": "sha256-…", "contentHash": "sha256-…" }
@@ -67,6 +69,18 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
     }
   }
   ```
+
+  **`provides` / `requires` are the capability-interface layer** (already in
+  `module.json`, mirrored into the registry). A module `provides` capabilities and
+  `requires` capabilities *by `kind`* — a named interface — instead of by concrete
+  module id. `requires: [{ "kind": "indexer-engine" }]` means "any module that
+  provides that kind satisfies me"; `provides: [{ "kind": "download-client", "id":
+  "qbittorrent" }]` declares an implementation of that interface. So the acquisition
+  module needs *a* download-client and *an* indexer-engine, and qBittorrent,
+  Transmission or a built-in indexer can each fill the slot — polymorphism, decoupled
+  from ids. `dependencies` is the *other* axis (a specific module + version range);
+  the two compose. A provider entry may also carry admin UI metadata (`label`,
+  `fields`, `flow`) so the "add engine" picker is data-driven.
 - **`GET /search/index.json`** — a **trimmed** search index: one small record per module
   (`id`, `name`, one-line `description`, `keywords`, `tags`, `latest`) — *not* the full
   packument. ~120 bytes/module, so 3 000 modules ≈ 350 KB gzipped-to-~80 KB, shipped once and
@@ -177,6 +191,115 @@ A `Registry` interface (in `workspace-tools`, reused by the server SDK):
   `m/{id}.json`.
 - **`server/crates/kroma-module-kernel`**: resolve + install through the `Registry` contract,
   verifying `integrity` before load, honouring the group-prefix routing config.
+
+## JSON Schema
+
+The wire format is specified as JSON Schema (draft 2020-12), shipped in the repo as
+`docs/spec/registry/*.schema.json` and served by the reference registry at
+`/schema/{descriptor,module,search}.json` so a third-party publisher can validate output.
+Abbreviated here; `$defs` are shared across the three documents.
+
+```jsonc
+// module.schema.json — GET /m/{id}.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["apiVersion", "id", "name", "latest", "versions"],
+  "properties": {
+    "apiVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" }, // reverse-DNS
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "homepage": { "type": "string", "format": "uri" },
+    "license": { "type": "string" },
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "icon": { "type": "string" },
+    "latest": { "$ref": "#/$defs/semver" },
+    "distTags": { "type": "object", "additionalProperties": { "$ref": "#/$defs/semver" } },
+    "versions": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/version" }
+    }
+  },
+  "$defs": {
+    "semver": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$" },
+    "integrity": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/]+={0,2}$" },
+    "capability": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string" }, "id": { "type": "string" },
+        "label": { "type": "string" }, "flow": { "type": "string" },
+        "fields": { "type": "array" }
+      }
+    },
+    "capabilityReq": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": { "kind": { "type": "string" }, "id": { "type": "string" } }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["target", "url", "size", "integrity"],
+      "properties": {
+        "target": { "type": ["string", "null"] },
+        "url": { "type": "string", "format": "uri" },
+        "size": { "type": "integer", "minimum": 0 },
+        "integrity": { "$ref": "#/$defs/integrity" },
+        "contentHash": { "$ref": "#/$defs/integrity" }
+      }
+    },
+    "version": {
+      "type": "object",
+      "required": ["artifacts"],
+      "properties": {
+        "minServer": { "$ref": "#/$defs/semver" },
+        "dependencies": { "type": "object", "additionalProperties": { "type": "string" } },
+        "optionalDependencies": { "type": "object", "additionalProperties": { "type": "string" } },
+        "provides": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+        "requires": { "type": "array", "items": { "$ref": "#/$defs/capabilityReq" } },
+        "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } }
+      }
+    }
+  }
+}
+```
+
+```jsonc
+// registry.schema.json — GET /registry.json
+{
+  "type": "object",
+  "required": ["apiVersion", "name", "url", "modules"],
+  "properties": {
+    "apiVersion": { "const": 1 },
+    "name": { "type": "string" },
+    "url": { "type": "string", "format": "uri" },
+    "modules": { "type": "array", "items": { "type": "string" } }
+  }
+}
+
+// search.schema.json — GET /search/index.json
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "name", "latest"],
+    "properties": {
+      "id": { "type": "string" }, "name": { "type": "string" },
+      "description": { "type": "string" },
+      "keywords": { "type": "array", "items": { "type": "string" } },
+      "tags": { "type": "array", "items": { "type": "string" } },
+      "latest": { "type": "string" }
+    }
+  }
+}
+```
+
+The generator asserts its own output against these schemas in CI, and the `Registry`
+client can validate a fetched document before trusting it — so a malformed third-party
+registry is a clear error, not a runtime surprise.
 
 ## Scaling (what happens at 3 000 modules)
 

@@ -309,15 +309,27 @@ write(
     {
       name: '@kroma/modules-generated',
       version: '0.0.0',
+      private: true,
       type: 'module',
+      description:
+        'Written by `bun run modules:gen` from the module manifests: the aggregator every shell imports so a module reaches an app without an app knowing its name.',
+      author: 'Maxime Scharwath <maxscharwath@gmail.com>',
+      license: 'GPL-2.0-or-later',
+      repository: {
+        type: 'git',
+        url: 'git+https://github.com/maxscharwath/kroma.git',
+        directory: 'packages/modules-generated',
+      },
       exports: { '.': './src/index.ts' },
       scripts: { typecheck: 'tsc --noEmit', build: 'tsc --noEmit' },
       dependencies: Object.fromEntries([
         ['@kroma/module-sdk', 'workspace:*'],
         ...generated.map((g) => [g.pkg, 'workspace:*'] as const),
       ]),
-      peerDependencies: { react: '>=18' },
-      devDependencies: { '@types/react': '^19', typescript: '^7.0.2' },
+      // Pinned like every other workspace package, not a floor: a generated
+      // manifest that drifts from the repo's versions is a diff on every run.
+      peerDependencies: { react: '^19.2.8' },
+      devDependencies: { '@types/react': '^19.2.18', typescript: '^7.0.2' },
     },
     null,
     2,

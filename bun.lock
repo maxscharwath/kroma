@@ -67,7 +67,7 @@
       },
     },
     "apps/modules": {
-      "name": "@kroma/module-registry",
+      "name": "@kroma/modules-site",
       "version": "0.0.0",
       "dependencies": {
         "@kroma/registry": "workspace:*",
@@ -1364,8 +1364,6 @@
 
     "@kroma/module-indexer": ["@kroma/module-indexer@workspace:modules/tv.kroma.indexer/ui"],
 
-    "@kroma/module-registry": ["@kroma/module-registry@workspace:apps/modules"],
-
     "@kroma/module-remote": ["@kroma/module-remote@workspace:modules/tv.kroma.remote/ui"],
 
     "@kroma/module-sdk": ["@kroma/module-sdk@workspace:packages/module-sdk"],
@@ -1377,6 +1375,8 @@
     "@kroma/module-vpn": ["@kroma/module-vpn@workspace:modules/tv.kroma.vpn/ui"],
 
     "@kroma/modules-generated": ["@kroma/modules-generated@workspace:packages/modules-generated"],
+
+    "@kroma/modules-site": ["@kroma/modules-site@workspace:apps/modules"],
 
     "@kroma/package-source": ["@kroma/package-source@workspace:apps/packages"],
 

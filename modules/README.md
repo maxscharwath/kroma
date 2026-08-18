@@ -188,9 +188,21 @@ bun run modules serve --from ./bundles --port 8080
 It serves the RFC 110 documents live off the directory, re-read per request, with
 artifact URLs taken from the origin each request arrived at — so the same tree is
 right on localhost, on a LAN address and behind a tunnel. Add
-`http://localhost:4173` under Admin → Modules → Registries to browse it. Note
-that a server refuses to **install** over http, so install a local build by
-uploading the `.kmod` there.
+`http://localhost:4173` under Admin → Modules → Registries to browse it.
+
+To actually **install** a local build, upload it rather than pointing a server at
+that registry — a server refuses an artifact URL that is not https, which a local
+registry never is:
+
+```bash
+KROMA_TOKEN=<a token with settings.manage> \
+  bun run modules install tv.kroma.vpn            # -> http://localhost:4040
+bun run modules install tv.kroma.vpn --server http://192.168.1.20:4040
+```
+
+It picks this machine's build out of `dist/modules` when a module was packed for
+several targets, and the server applies the same gates the Store does — a bundle
+built against an older manifest schema is refused with what to do about it.
 
 To serve modules to others, host them: `bun run modules registry` writes the same
 documents to disk (plus the schemas and a `modules.json` mirror), which any

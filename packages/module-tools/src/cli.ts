@@ -8,6 +8,7 @@
 //   cargo     run one cargo subcommand across every module workspace
 //   registry  turn packed bundles into a publishable catalog (one base URL)
 //   serve     serve those bundles as a live registry, for local verification
+//   install   upload a packed .kmod to a running server (the local dev install)
 //   release   decide which modules to publish on their own tags, and merge the
 //             catalog against what is already live
 //   watch     rebuild + install one module's sidecar on every save (dev loop)
@@ -23,6 +24,7 @@ const COMMANDS = {
   cargo: () => import('./cargo'),
   registry: () => import('./registry'),
   serve: async () => (await import('./serve')).main(),
+  install: async (args: string[]) => (await import('./install')).main(args),
   release: async () => (await import('./release')).main(),
   watch: async (args: string[]) => (await import('./watch')).main(args),
 };

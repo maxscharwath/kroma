@@ -66,7 +66,7 @@ export const RegistryIndex = z.array(RegistryEntry);
 /** `GET /m/{id}.json`: every version the registry serves, plus the named
  *  channels that point into them. */
 export const ModuleRecord = ModuleMeta.extend({
-  apiVersion: z.number().int(),
+  apiVersion: z.number().int().min(1),
   latest: z.string(),
   distTags: z.record(z.string(), z.string()).default({}),
   versions: z.record(z.string(), RegistryVersion),
@@ -75,7 +75,7 @@ export type ModuleRecord = z.infer<typeof ModuleRecord>;
 
 /** `GET /registry.json`: who this registry is and which ids it serves. */
 export const RegistryDescriptor = z.object({
-  apiVersion: z.number().int(),
+  apiVersion: z.number().int().min(1),
   name: z.string(),
   url: z.string(),
   modules: z.array(z.string()),

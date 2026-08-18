@@ -17,3 +17,4 @@ export {
   RegistryIndex,
   RegistryVersion,
 } from './schema';
+export { jsonSchema, SCHEMA_NAMES, type SchemaName } from './spec';

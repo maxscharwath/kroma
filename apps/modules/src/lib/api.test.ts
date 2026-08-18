@@ -263,6 +263,19 @@ describe('the RFC-110 documents', () => {
     }
   });
 
+  it('serves the JSON Schema for each document without reading the catalog', async () => {
+    const calls = upstreamServing(CATALOG);
+    for (const name of ['registry', 'index', 'module']) {
+      const res = await machine(`/schema/${name}.json`);
+      const schema = (await res.json()) as Record<string, unknown>;
+      expect(schema.$schema, name).toBe('https://json-schema.org/draft/2020-12/schema');
+      // Open-world: a registry may carry fields a later apiVersion defines.
+      expect(JSON.stringify(schema), name).not.toContain('"additionalProperties":false');
+    }
+    expect(calls, 'the spec does not depend on the upstream catalog').toEqual([]);
+    expect(await machineResponse(req('/schema/nope.json'), {}, ctx())).toBeNull();
+  });
+
   it('leaves any other /m/ path to the rendered site', async () => {
     upstreamServing(CATALOG);
     expect(await machineResponse(req('/m/tv.kroma.demo'), {}, ctx())).toBeNull();

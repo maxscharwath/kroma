@@ -1,4 +1,11 @@
-import { buildDescriptor, buildIndex, buildModuleRecord } from '@kroma/module-tools/registry';
+import {
+  buildDescriptor,
+  buildIndex,
+  buildModuleRecord,
+  jsonSchema,
+  SCHEMA_NAMES,
+  type SchemaName,
+} from '@kroma/module-tools/registry';
 import type { ModuleEntry } from '#site/catalog';
 import { type Env, jsonResponse, loadCatalog } from '#site/lib/source';
 
@@ -6,10 +13,20 @@ const REGISTRY_NAME = 'KROMA modules';
 
 const MODULE_ROUTE = /^\/m\/([^/]+)\.json$/;
 
+const SCHEMA_ROUTE = /^\/schema\/([^/]+)\.json$/;
+
+const schemaName = (path: string): SchemaName | undefined =>
+  SCHEMA_NAMES.find((name) => SCHEMA_ROUTE.exec(path)?.[1] === name);
+
 /** The RFC-110 paths this registry answers, off the same merged catalog the
  *  legacy `/modules.json` serves. */
 export function isRegistryPath(path: string): boolean {
-  return path === '/registry.json' || path === '/index.json' || MODULE_ROUTE.test(path);
+  return (
+    path === '/registry.json' ||
+    path === '/index.json' ||
+    MODULE_ROUTE.test(path) ||
+    schemaName(path) !== undefined
+  );
 }
 
 // The catalog's own schema keeps a nullable url/size so a malformed upstream
@@ -44,6 +61,11 @@ export async function registryResponse(
   waitUntil: (p: Promise<unknown>) => void,
 ): Promise<Response | null> {
   if (!isRegistryPath(path)) return null;
+
+  // The spec is derived from the schemas this registry emits with, so it is
+  // served without reading the catalog at all.
+  const schema = schemaName(path);
+  if (schema) return jsonResponse(JSON.stringify(jsonSchema(schema)), 86400);
 
   const body = await loadCatalog(env, waitUntil);
   const { parseCatalog } = await import('#site/catalog');

@@ -1,3 +1,5 @@
+import type { Catalog } from '#site/lib/catalog';
+
 /** One catalog entry, reduced to the language-invariant facts the site renders. */
 export interface SiteModule {
   id: string;
@@ -18,32 +20,15 @@ export interface SiteCatalog {
   modules: SiteModule[];
 }
 
-export interface RawEntry {
-  id: string;
-  name?: string;
-  version?: string;
-  description?: string | null;
-  icon?: string | null;
-  library?: boolean | null;
-  provides?: { kind: string }[] | null;
-  requires?: { kind: string }[] | null;
-  dependencies?: Record<string, string> | string[] | null;
-}
-
-export interface RawCatalog {
-  generatedAt?: string | null;
-  modules: RawEntry[];
-}
-
 const kinds = (xs: { kind: string }[] | null | undefined) => [
   ...new Set((xs ?? []).map((x) => x.kind).filter(Boolean)),
 ];
 
-const depIds = (d: Record<string, string> | string[] | null | undefined) =>
+const depIds = (d: Catalog['modules'][number]['dependencies']) =>
   Array.isArray(d) ? d : Object.keys(d ?? {});
 
 /** The catalog as fetched, reduced to what the site renders and ordered by id. */
-export function toSiteCatalog(raw: RawCatalog): SiteCatalog {
+export function toSiteCatalog(raw: Catalog): SiteCatalog {
   return {
     generatedAt: raw.generatedAt ?? null,
     modules: raw.modules

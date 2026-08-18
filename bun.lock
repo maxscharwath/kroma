@@ -122,6 +122,7 @@
       "name": "@kroma/site",
       "version": "0.0.0",
       "dependencies": {
+        "@kroma/registry": "workspace:*",
         "@kroma/site-meta": "workspace:*",
         "@kroma/ui": "workspace:*",
         "@mdx-js/react": "^3.1.1",
@@ -536,6 +537,7 @@
       "name": "@kroma/client",
       "version": "0.0.0",
       "dependencies": {
+        "@kroma/registry": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {

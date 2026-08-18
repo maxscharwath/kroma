@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { catalogDay, ordered, type RawCatalog, toSiteCatalog } from './modules.ts';
+import { Catalog } from './catalog.ts';
+import { catalogDay, ordered, toSiteCatalog } from './modules.ts';
 
-const raw = (modules: RawCatalog['modules'], generatedAt?: string | null): RawCatalog => ({
-  generatedAt,
-  modules,
-});
+// Through the real schema, so a fixture the published catalog could not produce
+// fails here rather than passing on a shape only this test believes in.
+const raw = (modules: unknown[], generatedAt?: string | null) =>
+  Catalog.parse({ generatedAt, modules });
 
 describe('toSiteCatalog', () => {
   it('reduces an entry to the facts the site renders', () => {
@@ -16,7 +17,7 @@ describe('toSiteCatalog', () => {
           version: '0.1.7',
           description: 'The engine',
           icon: 'data:image/svg+xml;base64,AAA',
-          provides: [{ kind: 'download-client' }],
+          provides: [{ kind: 'download-client', id: 'rqbit' }],
           requires: [],
           dependencies: { 'tv.kroma.indexer': '^0.1.0' },
         },
@@ -62,7 +63,15 @@ describe('toSiteCatalog', () => {
 
   it('de-duplicates repeated capability kinds', () => {
     const { modules } = toSiteCatalog(
-      raw([{ id: 'a', provides: [{ kind: 'indexer-engine' }, { kind: 'indexer-engine' }] }]),
+      raw([
+        {
+          id: 'a',
+          provides: [
+            { kind: 'indexer-engine', id: 'torznab' },
+            { kind: 'indexer-engine', id: 'newznab' },
+          ],
+        },
+      ]),
     );
     expect(modules[0]?.provides).toEqual(['indexer-engine']);
   });

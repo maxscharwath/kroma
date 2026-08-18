@@ -1,3 +1,6 @@
+// What the registry SERVES. Where each document lives is `lib/api.ts`'s job;
+// this module only turns the merged catalog into the RFC 110 documents.
+
 import {
   buildDescriptor,
   buildIndex,
@@ -7,7 +10,6 @@ import {
   publishesSchema,
   SCHEMA_NAMES,
   type SchemaName,
-  schemaVersionOf,
 } from '@kroma/registry';
 import type { ModuleEntry } from '#site/catalog';
 import { releaseHistory } from '#site/lib/releases';
@@ -15,35 +17,11 @@ import { type Env, jsonResponse, loadCatalog } from '#site/lib/source';
 
 const REGISTRY_NAME = 'KROMA modules';
 
-const MODULE_ROUTE = /^\/m\/([^/]+)\.json$/;
+const SCHEMA_TTL = 86_400;
+const DOCUMENT_TTL = 300;
+const MISS_TTL = 60;
 
-// `/schemas/<version>/<name>.json` is what a `$id` pins; `/schemas/<name>.json`
-// is the unversioned alias, always the current one.
-const SCHEMA_ROUTE = /^\/schemas(?:\/(\d+))?\/([^/]+)\.json$/;
-
-// `/schemas/<version>/<name>.json` is what a `$id` pins; `/schemas/<name>.json`
-// is the unversioned alias, always the current one.
-function schemaRequest(path: string): { name: SchemaName; version: number } | undefined {
-  const match = SCHEMA_ROUTE.exec(path);
-  const name = SCHEMA_NAMES.find((known) => known === match?.[2]);
-  if (!name) return undefined;
-  const version = match?.[1] ? Number(match[1]) : schemaVersionOf(name);
-  // Every version this build still publishes answers, not only the current one:
-  // a `$id` pinned against an older contract must keep resolving to the schema
-  // it was pinned to.
-  return publishesSchema(name, version) ? { name, version } : undefined;
-}
-
-/** The RFC-110 paths this registry answers, off the same merged catalog the
- *  legacy `/modules.json` serves. */
-export function isRegistryPath(path: string): boolean {
-  return (
-    path === '/registry.json' ||
-    path === '/index.json' ||
-    MODULE_ROUTE.test(path) ||
-    schemaRequest(path) !== undefined
-  );
-}
+export type WaitUntil = (p: Promise<unknown>) => void;
 
 // The site's schema nulls a url or size it would not put on a page; a registry
 // may not offer an artifact with no https url at all, so those are dropped here
@@ -55,45 +33,54 @@ function described(m: ModuleEntry): DescribedModule {
   };
 }
 
-/** Serves what [`isRegistryPath`] matches. `null` when the path is not one; a
- *  503 when the catalog cannot be read, because an empty registry and an
- *  unreachable one must not look the same to an installer. */
-export async function registryResponse(
-  path: string,
-  origin: string,
-  env: Env,
-  waitUntil: (p: Promise<unknown>) => void,
-): Promise<Response | null> {
-  if (!isRegistryPath(path)) return null;
-
-  // The spec is derived from the schemas this registry emits with, so it is
-  // served without reading the catalog at all.
-  const schema = schemaRequest(path);
-  if (schema) {
-    return jsonResponse(JSON.stringify(jsonSchema(schema.name, schema.version, origin)), 86400);
-  }
-
+/** The merged catalog as the documents are built from, or `null` when it cannot
+ *  be read - which is a 503, never an empty registry: those must not look alike
+ *  to an installer. */
+async function modules(env: Env, waitUntil: WaitUntil): Promise<DescribedModule[] | null> {
   const body = await loadCatalog(env, waitUntil);
   const { parseCatalog } = await import('#site/catalog');
   const catalog = body ? parseCatalog(body) : null;
-  if (!catalog) {
-    return jsonResponse(JSON.stringify({ error: 'catalog unavailable' }), 60, 503);
-  }
-  const modules = catalog.modules.map(described);
+  return catalog ? catalog.modules.map(described) : null;
+}
 
-  const one = MODULE_ROUTE.exec(path);
-  if (one?.[1]) {
-    const id = decodeURIComponent(one[1]);
-    const found = modules.find((m) => m.id === id);
-    if (!found) return jsonResponse(JSON.stringify({ error: 'no such module' }), 60, 404);
-    // Only the full record carries history: the catalog names the current
-    // version of each module, the releases hold every version ever cut.
-    const known = (await releaseHistory(env, waitUntil))[id];
-    return jsonResponse(JSON.stringify(buildModuleRecord(found, known)), 300);
-  }
-  const document =
-    path === '/registry.json'
-      ? buildDescriptor(REGISTRY_NAME, origin, modules)
-      : buildIndex(modules);
-  return jsonResponse(JSON.stringify(document), 300);
+const unavailable = () =>
+  jsonResponse(JSON.stringify({ error: 'catalog unavailable' }), MISS_TTL, 503);
+
+/** `GET /registry.json` — who this registry is and which ids it serves. */
+export async function descriptorResponse(env: Env, waitUntil: WaitUntil, origin: string) {
+  const found = await modules(env, waitUntil);
+  if (!found) return unavailable();
+  return jsonResponse(JSON.stringify(buildDescriptor(REGISTRY_NAME, origin, found)), DOCUMENT_TTL);
+}
+
+/** `GET /index.json` — one record per module, the version a bare install gets. */
+export async function indexResponse(env: Env, waitUntil: WaitUntil) {
+  const found = await modules(env, waitUntil);
+  if (!found) return unavailable();
+  return jsonResponse(JSON.stringify(buildIndex(found)), DOCUMENT_TTL);
+}
+
+/** `GET /m/{id}.json` — one module, every version. */
+export async function moduleResponse(id: string, env: Env, waitUntil: WaitUntil) {
+  const found = await modules(env, waitUntil);
+  if (!found) return unavailable();
+  const entry = found.find((m) => m.id === id);
+  if (!entry) return jsonResponse(JSON.stringify({ error: 'no such module' }), MISS_TTL, 404);
+  // Only the full record carries history: the catalog names the current version
+  // of each module, the releases hold every version ever cut.
+  const known = (await releaseHistory(env, waitUntil))[id];
+  return jsonResponse(JSON.stringify(buildModuleRecord(entry, known)), DOCUMENT_TTL);
+}
+
+/** `GET /schemas/{version}/{name}.json` — the spec, derived from the schemas this
+ *  registry emits with, so it is served without reading the catalog at all.
+ *  `null` when nothing publishes that name at that version. */
+export function schemaResponse(name: string, version: number | undefined, origin: string) {
+  const known = SCHEMA_NAMES.find((candidate) => candidate === name) as SchemaName | undefined;
+  if (!known) return null;
+  // Every version this build still publishes answers, not only the current one:
+  // a `$id` pinned against an older contract must keep resolving to the schema
+  // it was pinned to.
+  if (version !== undefined && !publishesSchema(known, version)) return null;
+  return jsonResponse(JSON.stringify(jsonSchema(known, version, origin)), SCHEMA_TTL);
 }

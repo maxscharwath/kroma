@@ -28,6 +28,7 @@
     "@kroma/ui": "workspace:*",
     "@tanstack/react-router": "^1.170.29",
     "@tanstack/react-start": "^1.168.46",
+    "hono": "^4.13.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "^4.4.3"

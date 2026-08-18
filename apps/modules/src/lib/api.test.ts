@@ -168,6 +168,20 @@ describe('machineResponse', () => {
     expect(calls).toEqual([]);
   });
 
+  it('separates a route falling through from a route answering 404', async () => {
+    upstreamServing(CATALOG);
+    // Both are 404-shaped; only the first means "this is a page, not a document".
+    expect(await machineResponse(req('/browse'), {}, ctx())).toBeNull();
+    const missing = await machine('/m/tv.kroma.nope.json');
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toEqual({ error: 'no such module' });
+  });
+
+  it('answers only GET; a write to a document is not a route', async () => {
+    upstreamServing(CATALOG);
+    expect(await machineResponse(req('/index.json', { method: 'POST' }), {}, ctx())).toBeNull();
+  });
+
   it('serves a module icon from the versioned path the catalog hands out', async () => {
     upstreamServing(CATALOG);
     const res = await machine('/icon/tv.kroma.demo/1.0.0.svg');

@@ -35,7 +35,12 @@ export const Manifest = z.object({
   /** Editor-only: lets a manifest point an editor at its own contract. Declared
    *  so a strict authoring check allows it, and stripped on the way to the wire,
    *  because a registry document is not where a `$schema` belongs. */
-  $schema: z.string().optional(),
+  $schema: z
+    .string()
+    .optional()
+    .describe(
+      'The schema this manifest is written against, so an editor can offer completion and inline docs. Ignored everywhere else.',
+    ),
   // Optional in the SHAPE, required by the contract. A catalog row is derived
   // from a bundle that may predate the field, and a registry that still lists
   // one should render rather than fail to parse - the refusal belongs where the
@@ -58,7 +63,12 @@ export const Manifest = z.object({
   /** What this module needs from its host, by engine name and semver range
    *  (`{ server: ">=0.1.4" }`). A bare version means "at least that". An engine
    *  the host cannot check is refused, not ignored. */
-  engines: z.record(z.string(), z.string()).nullish(),
+  engines: z
+    .record(z.string(), z.string())
+    .nullish()
+    .describe(
+      'What this module needs from its host, by engine name and semver range, e.g. { "server": ">=0.1.4" }. A bare version means "at least that". An engine the host cannot check is refused, not ignored.',
+    ),
   library: z
     .boolean()
     .nullish()
@@ -84,19 +94,40 @@ export const Manifest = z.object({
   /** Cross-module RPC contracts this module SERVES, by name. Distinct from
    *  `provides`: this is the machine wiring a consumer resolves against, so no
    *  one has to name a module id. */
-  ports: z.array(z.string()).nullish(),
+  ports: z
+    .array(z.string())
+    .nullish()
+    .describe(
+      'Cross-module RPC contracts this module SERVES, by name (e.g. torznab, indexer-db). Distinct from provides, which describes user-configurable capabilities: this is the machine wiring a consumer resolves against, so no one has to name a module id.',
+    ),
   permissions: z
     .array(z.string())
     .nullish()
     .describe("Permissions this module's own routes require."),
-  config: z.array(ConfigField).nullish(),
-  feRemote: z.object({ module: z.string() }).nullish(),
+  config: z
+    .array(ConfigField)
+    .nullish()
+    .describe('Admin-configurable settings this module exposes, rendered as a form.'),
+  feRemote: z
+    .object({ module: z.string() })
+    .nullish()
+    .describe(
+      'Frontend Module Federation remote (runtime-loaded modules). The entry URL is derived by the server as /modules/<id>/remoteEntry.js.',
+    ),
   // Store metadata, all optional.
-  author: z.string().nullish(),
-  homepage: z.string().nullish(),
-  license: z.string().nullish(),
-  keywords: z.array(z.string()).nullish(),
-  tags: z.array(z.string()).nullish(),
+  author: z.string().nullish().describe('Who published it, shown on the Store page.'),
+  homepage: z.string().nullish().describe('Where to read more about it.'),
+  license: z.string().nullish().describe('SPDX identifier, e.g. GPL-2.0-or-later.'),
+  keywords: z
+    .array(z.string())
+    .nullish()
+    .describe("Free-form search terms, matched by the Store's search."),
+  tags: z
+    .array(z.string())
+    .nullish()
+    .describe(
+      'Capability kinds for filtering. Defaults to the kinds this module provides, so it rarely needs writing by hand.',
+    ),
 });
 export type Manifest = z.infer<typeof Manifest>;
 

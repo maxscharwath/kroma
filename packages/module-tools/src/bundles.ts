@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Manifest } from '@kroma/registry';
+import { Manifest } from '@kroma/registry';
 import type { Artifact, Entry } from './catalog';
 import { byCodeUnit } from './sort';
 
@@ -87,7 +87,12 @@ export function readBundles(dir: string): Bundle[] {
       console.warn(`  ! ${file}: no module.json inside, skipped`);
       continue;
     }
-    const manifest = JSON.parse(new TextDecoder().decode(manifestBytes)) as Manifest;
+    const read = Manifest.safeParse(JSON.parse(new TextDecoder().decode(manifestBytes)));
+    if (!read.success) {
+      console.warn(`  ! ${file}: module.json is not a manifest, skipped (${read.error.message})`);
+      continue;
+    }
+    const manifest = read.data;
     // Bundles are named `<id>.kmod` or `<id>-<target>.kmod`; recover the target
     // from the filename using the id just read out of the bundle.
     const stem = file.slice(0, -'.kmod'.length);

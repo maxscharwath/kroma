@@ -1,36 +1,40 @@
 // The packed-catalog shapes: what `readBundles` recovers from a `.kmod` and what
-// the schema-2 `catalog.json` carries. The contract-level model it extends lives
-// in `@kroma/registry`.
+// the schema-2 `catalog.json` carries. Both are read back from somewhere else -
+// a downloaded bundle, a published catalog - so both are schemas, extending the
+// contract-level model in `@kroma/registry`.
 
-import type { ArtifactRef, DescribedModule } from '@kroma/registry';
+import { ArtifactRef, DescribedModule } from '@kroma/registry';
+import { z } from 'zod';
 
 /** One downloadable `.kmod` build, as the packer records it. */
-export interface Artifact extends ArtifactRef {
-  target: string | null;
-  file: string;
-  url: string;
-  size: number;
-  sha256: string;
+export const Artifact = ArtifactRef.extend({
+  target: z.string().nullable(),
+  file: z.string(),
+  size: z.number().int().nonnegative(),
+  sha256: z.string(),
   // sha256 of the UNCOMPRESSED tar. The pipeline's "did this module actually
   // change?" test, and the reason it is not `sha256`: that one covers the zstd
   // stream, so a compressor upgrade would move it while the bundle's contents
   // stood still, and every module would look like it needed a version bump.
-  contentHash: string;
-}
+  contentHash: z.string(),
+});
+export type Artifact = z.infer<typeof Artifact>;
 
 /** One module in the catalog: its manifest, its icon and every build of it. */
-export interface Entry extends DescribedModule {
-  icon?: string;
-  artifacts: Artifact[];
+export const Entry = DescribedModule.extend({
+  icon: z.string().optional(),
+  artifacts: z.array(Artifact),
   // Schema-1 compatibility mirror of artifacts[0].
-  file: string;
-  url: string;
-  size: number;
-  sha256: string;
-}
+  file: z.string(),
+  url: z.string(),
+  size: z.number().int().nonnegative(),
+  sha256: z.string(),
+});
+export type Entry = z.infer<typeof Entry>;
 
-export interface Catalog {
-  schema: number;
-  generatedAt?: string;
-  modules: Entry[];
-}
+export const Catalog = z.object({
+  schema: z.number(),
+  generatedAt: z.string().nullish(),
+  modules: z.array(Entry).default([]),
+});
+export type Catalog = z.infer<typeof Catalog>;

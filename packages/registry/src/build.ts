@@ -58,8 +58,8 @@ function versionOf(entry: DescribedModule): RegistryVersion {
     library: entry.library,
     dependencies: someMap(dependenciesOf(entry)),
     optionalDependencies: someMap(optionalDependenciesOf(entry)),
-    provides: some(entry.provides) as RegistryVersion['provides'],
-    requires: some(entry.requires) as RegistryVersion['requires'],
+    provides: some(entry.provides),
+    requires: some(entry.requires),
     artifacts: entry.artifacts.flatMap((a) => {
       const integrity = sriFromHex(a.sha256);
       if (!integrity) return [];

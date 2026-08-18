@@ -15,13 +15,15 @@ export {
   verifyIntegrity,
 } from './client';
 export {
-  type ArtifactRef,
-  type DescribedModule,
+  ArtifactRef,
+  DescribedModule,
   dependenciesOf,
-  type Manifest,
+  Manifest,
   optionalDependenciesOf,
 } from './manifest';
 export {
+  Capability,
+  CapabilityReq,
   ModuleRecord,
   REGISTRY_API_VERSION,
   RegistryArtifact,

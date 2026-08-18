@@ -35,7 +35,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compareRaw, parse } from '@kroma/registry';
 import { type Bundle, readBundles, toEntries } from './bundles';
-import type { Catalog, Entry } from './catalog';
+import { Catalog, type Entry } from './catalog';
 import { byCodeUnit } from './sort';
 
 const DEFAULT_REGISTRY = 'https://modules.kroma.tv/modules.json';
@@ -90,7 +90,7 @@ async function loadPublished(source: string): Promise<Catalog> {
     if (!existsSync(source)) {
       throw new Error(`--published ${source} does not exist`);
     }
-    return JSON.parse(readFileSync(source, 'utf8')) as Catalog;
+    return Catalog.parse(JSON.parse(readFileSync(source, 'utf8')));
   }
   const res = await fetch(source, { headers: { 'user-agent': 'kroma-module-tools' } });
   if (res.status === 404) {
@@ -98,7 +98,7 @@ async function loadPublished(source: string): Promise<Catalog> {
     return { schema: 2, modules: [] };
   }
   if (!res.ok) throw new Error(`${source}: HTTP ${res.status}`);
-  return (await res.json()) as Catalog;
+  return Catalog.parse(await res.json());
 }
 
 export interface PlannedRelease {

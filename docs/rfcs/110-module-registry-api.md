@@ -67,9 +67,11 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
     }
   }
   ```
-- **`GET /search.json`** — a prebuilt search index (id, name, description, keywords, tags,
-  author, latest). Small enough to ship whole and filter client-side; a large registry can
-  swap in a query endpoint behind the same path without clients noticing.
+- **`GET /search/index.json`** — a **trimmed** search index: one small record per module
+  (`id`, `name`, one-line `description`, `keywords`, `tags`, `latest`) — *not* the full
+  packument. ~120 bytes/module, so 3 000 modules ≈ 350 KB gzipped-to-~80 KB, shipped once and
+  cached; the full record is fetched from `/m/{id}.json` only when a user opens a module.
+  See **Scaling** below for what happens past that.
 - **The bundles** stay where they are (release assets today); `artifacts[].url` is absolute,
   so the metadata and the bytes can live on different hosts.
 
@@ -108,6 +110,32 @@ A `Registry` interface (in `workspace-tools`, reused by the server SDK):
   `m/{id}.json`.
 - **`server/crates/kroma-module-kernel`**: resolve + install through the `Registry` contract,
   verifying `integrity` before load, honouring the group-prefix routing config.
+
+## Scaling (what happens at 3 000 modules)
+
+The design is deliberately O(1) where it matters and never scans the registry to do its job.
+
+- **Resolve / install — already optimal, unbounded.** `resolve(id)` fetches one static file,
+  `/m/{id}.json`, straight from a CDN edge. It never lists or scans the registry. 3 000 or
+  3 000 000 modules is the same single cache-hit request — this is exactly how Maven Central
+  (millions of artifacts) and the npm registry serve as static blobs.
+- **Generation — incremental, not full-rebuild.** Publishing one module regenerates only that
+  module's `/m/{id}.json` and patches its one line in the index; it does **not** re-emit 3 000
+  files. Cost is O(changed), not O(registry).
+- **Search — the one thing that must not ship everything.** The trimmed `/search/index.json`
+  (~80 KB gzipped at 3 000) is fine to ship once and filter client-side. Past a threshold the
+  same path is served in tiers, transparently to clients:
+  1. **Sharded index** — `/search/index/{aa}.json` sharded by id prefix, so a client fetches
+     only the shards a query touches. Still fully static.
+  2. **Query endpoint** — a registry that outgrows even that puts a real search service behind
+     `/search?q=…`. This is the *only* place a large registry needs server logic; the static
+     floor (descriptor, per-module, sharded index) still lets anyone host without it.
+- **`workspace-tools` verify — linear.** Building the local graph is O(modules) file reads and
+  O(edges) range checks; the topological order is O(V+E). 3 000 local modules is a sub-second
+  pass, and `affected` only walks the reverse edges it needs.
+
+Net: nothing in resolution, install or verification degrades with registry size; only *search*
+tiers up, and it tiers without breaking the static-hostable contract.
 
 ## What this costs
 

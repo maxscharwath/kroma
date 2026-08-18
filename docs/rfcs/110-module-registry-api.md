@@ -42,8 +42,9 @@ Landed on `feat/module-registry`: the contract package (`@kroma/registry`), the 
 the four paths on `modules.kroma.tv` — including per-module version history read off the
 `<id>@<version>` release tags — and the server's reading half: a descriptor is followed, an
 unknown `apiVersion` refused, and `integrity` verified through the existing install gate.
-Still open, and listed under **Unresolved**: the default-URL flip and a store UI reading the
-new documents.
+The rename and the manifest `apiVersion` floor landed with it, so every older shape is
+deleted rather than tolerated. Still open, and listed under **Unresolved**: a store UI
+reading the new documents.
 
 ## Proposal
 
@@ -176,8 +177,9 @@ Verifying the closure against each unpacked manifest is listed under **Unresolve
 
 **Rename `dependsOn` → `dependencies`** (and `optionalDependsOn` → `optionalDependencies`).
 These are the exact npm names — one less bit of vocabulary to learn, and no camelCase
-coinage. There is no manifest version field to bump: readers accept either spelling, so a
-manifest moves when its author moves it and nothing installed breaks.
+coinage. Renamed, not aliased: a reader that takes either spelling is not a transition,
+it is two spellings kept forever. See **A single manifest contract** for what makes the
+break safe.
 
 A dependency value is a **plain version range**, and nothing else:
 
@@ -284,7 +286,7 @@ The constraints that matter, and that a third-party document is held to:
 | `integrity` | `sha256-<base64>` of exactly 32 bytes. A truncated or non-sha256 digest is not "weaker verification", it is no verification, so it is rejected rather than trusted. |
 | `artifacts[].target` | the Rust triple, or `null` for a bundle with no native binary. |
 | `artifacts[].size` | non-negative integer. |
-| `dependencies` / `optionalDependencies` | `{ id: range }`. `dependsOn` / `optionalDependsOn` are read as the same thing. |
+| `dependencies` / `optionalDependencies` | `{ id: range }`. The pre-v2 array form is refused, not read as empty. |
 
 `provides` entries may carry admin UI metadata (`label`, `flow`, `fields`) beyond
 `kind`/`id`, which the open-world rule above is exactly what allows.
@@ -381,20 +383,44 @@ existing out-of-process module isolation.
   everyone at once and is fixed by a deploy rather than a re-release. Cheap either way, but
   it means the served documents are not themselves a release artifact.
 
+## A single manifest contract
+
+`module.json` carries **`apiVersion`**, and a server refuses a bundle that does not
+declare the one it speaks — at install, at spawn, and in the Store's compatibility verdict
+so it is never offered.
+
+That gate is what lets every older shape be deleted rather than tolerated: the array
+dependency form, schema-1's flat `url`/`size`/`sha256`, schema-2's `{ "modules": [...] }`.
+Tolerating them is not free, and the cost is not the code — it is that **a field which moved
+parses as absent, never as an error**. A v1 bundle still spelling its dependencies
+`dependsOn` installs with an empty dependency set and fails later, somewhere else, with
+nothing pointing back at the manifest. A version that must be declared turns that into one
+refusal with a reason.
+
+So the contract is deliberately not backward compatible, and says so out loud:
+
+- **Readers speak exactly one version.** Not a range, not a floor — `apiVersion` must equal
+  what the build knows. A registry document is the same: higher is refused rather than
+  half-read (§1).
+- **The refusal names the fix.** `'<id>' was built for module API v0, and this server speaks
+  v2; rebuild it against the current SDK`.
+- **Every module republishes on the bump.** Which is cheap while the modules are first-party
+  and the tags are per-module, and is the reason to do it now rather than at 1.0.
+
 ## Compatibility
 
 - The generator keeps emitting the schema-2 `catalog.json`, and `modules.kroma.tv` keeps
-  serving `/modules.json`, so a server predating this contract is unaffected. Reading is
-  symmetric: one server reads the RFC index, schema 2 and schema 1 into the same module list,
-  so pointing an entry at any of the three works.
+  serving `/modules.json`, so a server predating this contract keeps working. Reading is
+  **not** symmetric: a current server reads the RFC documents and nothing else (see **A
+  single manifest contract**), so the default registry URL moves to `/registry.json`.
 - Installed modules and their `tv.kroma.<id>@<version>` release tags are unaffected — only the
   *served metadata* is normalized and extended.
 - The release pipeline is unchanged: the reference registry's worker projects the published
   `modules.json` into the contract at the edge. One published artifact, no second set of
   files to keep in step, and a fix to the projection ships by deploying the worker.
 - **Deploy order matters once.** The worker must serve `/registry.json` before any server
-  ships with a default pointing at it. The worker deploys on merge; the default is flipped in
-  a later change, deliberately.
+  ships with a default pointing at it. That order holds by construction: the worker deploys
+  on merge to main, and a server release is cut from a tag afterwards.
 
 ## Alternatives
 
@@ -425,8 +451,6 @@ existing out-of-process module isolation.
   already enforced from the bundle at install; `dependencies` / `requires` are still taken
   from the record (see §1b). Closing that means comparing the planned closure against each
   unpacked `module.json` and failing the install on disagreement.
-- **Flipping the default registry URL** from `/modules.json` to `/registry.json`, once the
-  worker has been deployed (see **Compatibility**).
 - **A store UI on `modules.kroma.tv` reading the new documents.** The site still renders from
   `/modules.json`; the machine paths landed first so servers and third-party publishers have
   something to build against.

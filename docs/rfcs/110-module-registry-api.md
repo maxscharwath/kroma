@@ -38,11 +38,12 @@ them. Where the wording below and those schemas ever disagree, the schemas are t
 
 ## Status
 
-Landed on `feat/module-registry`: the contract package (`@kroma/module-tools/registry`), the
-generator, the four paths on `modules.kroma.tv`, and the server's reading half — a descriptor
-is followed, an unknown `apiVersion` refused, and `integrity` verified through the existing
-install gate. Still open, and listed under **Unresolved**: version history, the default-URL
-flip, and a store UI reading the new documents.
+Landed on `feat/module-registry`: the contract package (`@kroma/registry`), the generator,
+the four paths on `modules.kroma.tv` — including per-module version history read off the
+`<id>@<version>` release tags — and the server's reading half: a descriptor is followed, an
+unknown `apiVersion` refused, and `integrity` verified through the existing install gate.
+Still open, and listed under **Unresolved**: the default-URL flip and a store UI reading the
+new documents.
 
 ## Proposal
 
@@ -121,8 +122,8 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
   once, and `/m/{id}.json` is fetched only to install, or to show version history. See
   **Scaling** for what a registry does when this outgrows one file.
 - **`GET /schema/{registry,index,module}.json`** — the JSON Schema for each document, so a
-  publisher can validate its output. Derived from the reference implementation's schemas,
-  not hand-maintained beside them (see **JSON Schema**).
+  publisher can validate its output. Derived from the reference implementation's zod
+  schemas via `z.toJSONSchema`, not hand-maintained beside them (see **JSON Schema**).
 - **The bundles** stay where they are (release assets today); `artifacts[].url` is absolute,
   so the metadata and the bytes can live on different hosts.
 
@@ -137,6 +138,39 @@ ignore.
 verifies every downloaded bundle against it. This is the non-negotiable that makes a
 third-party registry safe — a compromised host cannot serve tampered bytes undetected. The
 `sha256` field already emitted by `module-tools` becomes this, just reformatted.
+
+### 1b. Where the metadata comes from
+
+Every field in a version record already exists inside the `.kmod` it describes: the bundle
+is a tar of `module.json` (id, version, `minServer`, dependencies, `provides`/`requires`),
+an icon, and the sidecar binary. `size` and `integrity` are functions of the bundle's bytes.
+
+So a registry document is **derived from the bundles, never authored beside them**. That is
+what makes "anyone can host one" true without also making it a maintenance burden: point
+the generator at a directory of `.kmod` files and it opens each one, reads the manifest out
+of the tar, hashes the bytes, and writes the three documents. No CI is required — CI here
+only decides *what to publish*, not *what the documents say*.
+
+The record is a **cache of the bundle, and the bundle wins.** At install the server unpacks
+the `.kmod` and re-reads its `module.json`: the id must equal the one the registry offered
+(otherwise a registry could advertise one id and ship a bundle that overwrites another),
+and `minServer` is enforced from the *bundle*, not from the record. A registry that
+understates `minServer` to make a module look installable gets a refusal at unpack time.
+The record exists so a client can build a store listing and resolve a dependency graph
+*without downloading every bundle* — not so it can be believed over the bytes.
+
+The same holds for `integrity`, which answers "should the registry know the hash?": it
+must, and it is never hand-written. The reference registry gets it two ways, both computed
+from real bytes — the packer hashes what it just wrote, and the release listing carries the
+digest GitHub computed on upload. A third-party publisher gets it from the same generator.
+And a wrong one is not a security hole but a loud failure: the installer hashes what it
+downloaded and refuses on mismatch, so a registry cannot make a client accept bytes its own
+document does not describe.
+
+What is *not* re-checked against the bundle is the dependency and capability set — the
+install planner trusts the record for those. A registry that understates them produces a
+module that installs and then fails to resolve a port at runtime, which is loud but late.
+Verifying the closure against each unpacked manifest is listed under **Unresolved**.
 
 ### 2. `dependencies`, and where a package comes from
 
@@ -183,7 +217,7 @@ that is local configuration, and the wire format does not depend on it.
 
 ### 3. The typed client
 
-`@kroma/module-tools/registry` is the contract in code, and the same package both emits the
+`@kroma/registry` is the contract in code, and the same package both emits the
 documents and reads them — so the reference registry cannot publish a shape its own client
 would reject:
 
@@ -202,16 +236,26 @@ against the same documents, which is why the schema is the contract and the clie
 
 ### 4. Where it lands
 
-- **`packages/module-tools`**: `@kroma/module-tools/registry` (schemas, builders, client,
-  derived JSON Schema), and `modules registry` emits `registry.json`, `index.json` and
-  `m/{id}.json` beside the bundles, with the new metadata read from each `module.json`
-  (`author`, `keywords`, `tags`, `homepage`, `license` — optional manifest fields).
-  `sha256` becomes `integrity`, reformatted.
+- **`packages/registry`** (`@kroma/registry`): the contract itself — schemas, builders,
+  client, derived JSON Schema. A leaf package depending on zod and nothing else, so the
+  same code runs under Bun, Node and workerd. Named after the protocol, not after any one
+  consumer of it.
+- **`packages/module-tools`**: depends on `@kroma/registry` to emit. `modules registry`
+  writes `registry.json`, `index.json` and `m/{id}.json` beside the bundles, with the new
+  metadata read from each `module.json` (`author`, `keywords`, `tags`, `homepage`,
+  `license` — optional manifest fields). `sha256` becomes `integrity`, reformatted.
 - **`apps/modules`** (`modules.kroma.tv`): serves all four paths off the merged catalog it
   already reads, so the release pipeline is unchanged — the worker *projects* the published
   `modules.json` into the contract rather than the pipeline emitting a second set of files
   to keep in step. An unreachable catalog is a **503**, not an empty registry: those must
   not look alike to an installer.
+
+  `/m/{id}.json` additionally reads the `<id>@<version>` **GitHub Releases**, which are the
+  ground truth the merged catalog is only a current-row projection of, so a record carries
+  every version ever published rather than one. Each asset's `digest` (GitHub computes it)
+  becomes `integrity` directly, so the published `.sha256` sidecars never have to be fetched
+  to trust a bundle. Bounded: three pages, cached an hour, and empty rather than fatal —
+  history enriches a record, it never gates one, and `/index.json` never touches the listing.
 - **`server/src/api/admin/store/`**: `catalog.rs` normalizes the RFC index, schema 2 and
   schema 1 into one module list, follows a descriptor to the index beside it, and turns
   `integrity` into the digest `kroma-module-supervisor`'s existing checksum gate already
@@ -377,11 +421,10 @@ existing out-of-process module isolation.
   left for a focused security follow-up before `signed`/`pinned` is enforced by default.
 - **Yank/deprecate.** A way to mark a version withdrawn without deleting it (npm `deprecate`),
   and how the server treats an installed module whose version was later yanked.
-- **Version history.** `/m/{id}.json` is shaped for many versions and `buildModuleRecord`
-  folds a new one into what a registry already publishes, but the reference registry's
-  published catalog only carries the newest of each module, so its records currently hold
-  one version. Recovering history means reading the per-module release tags; worth doing,
-  not worth blocking the contract on.
+- **Re-checking the dependency set against the unpacked bundle.** `id` and `minServer` are
+  already enforced from the bundle at install; `dependencies` / `requires` are still taken
+  from the record (see §1b). Closing that means comparing the planned closure against each
+  unpacked `module.json` and failing the install on disagreement.
 - **Flipping the default registry URL** from `/modules.json` to `/registry.json`, once the
   worker has been deployed (see **Compatibility**).
 - **A store UI on `modules.kroma.tv` reading the new documents.** The site still renders from

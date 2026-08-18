@@ -89,9 +89,10 @@ async fn run_plan(sup: &Arc<Supervisor>, op: &Op, plan: &[Planned<'_>]) -> Resul
 /// once the transport and the checksum are the ones a first install insists on.
 ///
 /// Every path that fetches native code goes through here: registry installs
-/// download and run a binary, so requiring HTTPS and a published sha256 (which
-/// the catalog generator always emits) in ONE place is what stops a second
-/// caller from quietly skipping either.
+/// download and run a binary, so requiring HTTPS and a published checksum (RFC
+/// 110 `integrity`, or the legacy flat `sha256`, both normalized by
+/// [`super::catalog`]) in ONE place is what stops a second caller from quietly
+/// skipping either.
 async fn verified_artifact(
     sup: &Arc<Supervisor>,
     entry: &CatalogModule,
@@ -108,7 +109,7 @@ async fn verified_artifact(
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .ok_or_else(|| {
-            anyhow!("'{}' has no published sha256 checksum; refusing to install", entry.id)
+            anyhow!("'{}' has no published checksum; refusing to install", entry.id)
         })?;
     let bytes = sup
         .download_artifact(&artifact.url, Some(sha), on_progress)

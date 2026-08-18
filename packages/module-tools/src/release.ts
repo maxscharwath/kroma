@@ -33,7 +33,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Bundle, type Catalog, type Entry, readBundles, toEntries } from './bundles';
+import { type Bundle, readBundles, toEntries } from './bundles';
+import type { Catalog, Entry } from './catalog';
 import { compareRaw, parse } from './semver';
 import { byCodeUnit } from './sort';
 

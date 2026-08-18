@@ -792,6 +792,13 @@ impl Supervisor {
 
 /// Verify `bytes` against a hex SHA-256. Refusing on mismatch is what keeps a
 /// tampered or truncated registry download out of `install()`.
+/// Resolve `relative` against the URL a document was actually fetched from, so a
+/// sibling document (a registry's index beside its descriptor) is reached
+/// without trusting a URL that document declares about itself.
+pub fn sibling_url(fetched_from: &str, relative: &str) -> anyhow::Result<String> {
+    Ok(reqwest::Url::parse(fetched_from)?.join(relative)?.to_string())
+}
+
 pub fn verify_sha256(bytes: &[u8], expected: &str) -> anyhow::Result<()> {
     use sha2::Digest;
     let actual = hex::encode(sha2::Sha256::digest(bytes));

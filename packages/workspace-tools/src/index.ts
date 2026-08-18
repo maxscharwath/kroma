@@ -7,16 +7,3 @@ export { compare, parse, type SemVer, satisfies } from './core/range';
 export { type Violation, type ViolationKind, verify } from './core/verify';
 export { changedFiles, type Exec } from './io/git';
 export { loadGraph } from './io/load';
-export {
-  createRegistryClient,
-  type ModuleRecord,
-  pickVersion,
-  type RegistryArtifact,
-  type RegistryClient,
-  type RegistryDescriptor,
-  type RegistryVersion,
-  type SearchEntry,
-  verifyIntegrity,
-} from './registry/client';
-export { type Registries, registryFor } from './registry/routing';
-export { type DependencySource, type DependencySpec, parseDependency } from './registry/spec';

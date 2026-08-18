@@ -1,6 +1,14 @@
-//! Registry catalog: normalize the index `bun run modules registry` emits, pick
-//! the artifact for this build target, enrich with installed/update state.
-//! Legacy schema 1 (a flat `url`/`size`/`sha256`) still parses as one artifact.
+//! Registry catalog: normalize whatever a registry serves into one module list,
+//! pick the artifact for this build target, enrich with installed/update state.
+//!
+//! Three shapes parse into the same [`CatalogModule`], so the same Store code
+//! reads any of them:
+//!   * RFC 110 `index.json`, a bare array of module records (`integrity`,
+//!     `dependencies`);
+//!   * schema 2, `{ "modules": [ ... ] }` with per-target `artifacts`;
+//!   * schema 1, one flat `url`/`size`/`sha256` per module.
+//!
+//! An RFC 110 `registry.json` descriptor is followed to the index it fronts.
 
 use kroma_module_host::HostCtx;
 use kroma_module_supervisor::Supervisor;
@@ -47,13 +55,46 @@ pub fn registry_url(state: &SharedState) -> String {
     if u.trim().is_empty() { super::DEFAULT_REGISTRY.to_string() } else { u }
 }
 
-pub async fn fetch(sup: &Supervisor, url: &str) -> anyhow::Result<Vec<CatalogModule>> {
-    let raw = sup.fetch_catalog(url).await?;
-    let modules: Vec<CatalogModule> = raw
+/// The registry contract this server speaks. A document declaring a higher one
+/// is refused rather than half-read: an unknown major means fields this build
+/// would silently ignore.
+const REGISTRY_API_VERSION: u64 = 1;
+
+/// The one-request module list an RFC 110 descriptor fronts, resolved against
+/// the URL the descriptor was actually FETCHED from rather than the `url` it
+/// declares - a registry does not get to redirect a client somewhere else by
+/// describing itself as living there.
+fn index_url(descriptor: &Value, fetched_from: &str) -> anyhow::Result<Option<String>> {
+    let Some(api_version) = descriptor.get("apiVersion").and_then(Value::as_u64) else {
+        return Ok(None);
+    };
+    // `modules` holds ids in a descriptor and records in a catalog.
+    let ids_only = descriptor
         .get("modules")
         .and_then(Value::as_array)
-        .map(|mods| mods.iter().filter_map(parse_module).collect())
-        .unwrap_or_default();
+        .is_some_and(|m| m.iter().all(Value::is_string));
+    if !ids_only {
+        return Ok(None);
+    }
+    anyhow::ensure!(
+        api_version <= REGISTRY_API_VERSION,
+        "registry speaks apiVersion {api_version}; this server speaks {REGISTRY_API_VERSION}",
+    );
+    Ok(Some(kroma_module_supervisor::sibling_url(fetched_from, "index.json")?))
+}
+
+pub async fn fetch(sup: &Supervisor, url: &str) -> anyhow::Result<Vec<CatalogModule>> {
+    let mut raw = sup.fetch_catalog(url).await?;
+    if let Some(index) = index_url(&raw, url)? {
+        raw = sup.fetch_catalog(&index).await?;
+    }
+    let listed = match &raw {
+        // RFC 110 `index.json`.
+        Value::Array(entries) => Some(entries),
+        other => other.get("modules").and_then(Value::as_array),
+    };
+    let modules: Vec<CatalogModule> =
+        listed.map(|mods| mods.iter().filter_map(parse_module).collect()).unwrap_or_default();
     // A registry proxy (the first-party worker) degrades to an EMPTY catalog
     // carrying an `error` field when its upstream is down. That must count as
     // a fetch failure, not a catalog that offers nothing: an official outage
@@ -86,8 +127,10 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
             .into_iter()
             .collect(),
     };
-    let depends_on = parse_deps(m, "dependsOn");
-    let optional_depends_on = parse_deps(m, "optionalDependsOn");
+    // RFC 110 renamed both maps to npm's spelling; either is accepted.
+    let depends_on = parse_deps(m, "dependencies").or_else(|| parse_deps(m, "dependsOn"));
+    let optional_depends_on =
+        parse_deps(m, "optionalDependencies").or_else(|| parse_deps(m, "optionalDependsOn"));
     let provides = m
         .get("provides")
         .and_then(Value::as_array)
@@ -131,8 +174,8 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         min_server: m.get("minServer").and_then(Value::as_str).map(str::to_string),
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
         icon,
-        depends_on,
-        optional_depends_on,
+        depends_on: depends_on.unwrap_or_default(),
+        optional_depends_on: optional_depends_on.unwrap_or_default(),
         provides,
         requires,
         artifacts,
@@ -140,30 +183,41 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
 }
 
 // A `{ "<id>": "<range>" }` dependency map; `"*"`/blank ranges normalize away.
-fn parse_deps(m: &Value, key: &str) -> Vec<(String, Option<String>)> {
-    m.get(key)
-        .and_then(Value::as_object)
-        .map(|deps| {
-            deps.iter()
-                .map(|(dep_id, range)| {
-                    let range = range
-                        .as_str()
-                        .map(str::trim)
-                        .filter(|r| !r.is_empty() && *r != "*")
-                        .map(str::to_string);
-                    (dep_id.clone(), range)
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+// `None` distinguishes "the key is absent" from "the map is empty", so the two
+// accepted spellings can be tried in order.
+fn parse_deps(m: &Value, key: &str) -> Option<Vec<(String, Option<String>)>> {
+    let deps = m.get(key)?.as_object()?;
+    Some(
+        deps.iter()
+            .map(|(dep_id, range)| {
+                let range = range
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|r| !r.is_empty() && *r != "*")
+                    .map(str::to_string);
+                (dep_id.clone(), range)
+            })
+            .collect(),
+    )
+}
+
+/// A Subresource-Integrity string (`sha256-<base64>`, RFC 110's mandatory
+/// artifact checksum) as the hex digest the installer compares against, or
+/// `None` when it is not one this server can check.
+pub fn sha256_from_sri(integrity: &str) -> Option<String> {
+    use base64::Engine as _;
+    let encoded = integrity.trim().strip_prefix("sha256-")?;
+    let raw = base64::engine::general_purpose::STANDARD.decode(encoded).ok()?;
+    (raw.len() == 32).then(|| hex::encode(raw))
 }
 
 fn parse_artifact(a: &Value) -> Option<Artifact> {
+    let integrity = a.get("integrity").and_then(Value::as_str).and_then(sha256_from_sri);
     Some(Artifact {
         target: a.get("target").and_then(Value::as_str).map(str::to_string),
         url: a.get("url")?.as_str()?.to_string(),
         size: a.get("size").and_then(Value::as_u64),
-        sha256: a.get("sha256").and_then(Value::as_str).map(str::to_string),
+        sha256: integrity.or_else(|| a.get("sha256").and_then(Value::as_str).map(str::to_string)),
     })
 }
 
@@ -282,6 +336,11 @@ pub(super) fn test_module(id: &str, version: &str) -> CatalogModule {
 mod tests {
     use super::*;
 
+    fn base64_of(hex: &str) -> String {
+        use base64::Engine as _;
+        base64::engine::general_purpose::STANDARD.encode(hex::decode(hex).unwrap())
+    }
+
     fn artifact(target: Option<&str>) -> Artifact {
         Artifact {
             target: target.map(str::to_string),
@@ -305,6 +364,67 @@ mod tests {
         let with_universal = vec![artifact(Some("x86_64-unknown-linux-musl")), artifact(None)];
         let picked = pick_for(&with_universal, "aarch64-apple-darwin").unwrap();
         assert!(picked.target.is_none());
+    }
+
+    #[test]
+    fn an_sri_checksum_becomes_the_hex_digest_the_installer_compares() {
+        let hex = "ab".repeat(32);
+        let sri = format!("sha256-{}", base64_of(&hex));
+        assert_eq!(sha256_from_sri(&sri).as_deref(), Some(hex.as_str()));
+        assert_eq!(sha256_from_sri(&format!("  {sri}  ")).as_deref(), Some(hex.as_str()));
+    }
+
+    #[test]
+    fn an_integrity_this_server_cannot_check_is_refused_rather_than_trusted() {
+        assert!(sha256_from_sri("md5-abc").is_none());
+        assert!(sha256_from_sri("nonsense").is_none());
+        assert!(sha256_from_sri("sha256-!!!").is_none());
+        // Right prefix, wrong digest length: a truncated hash must not pass.
+        assert!(sha256_from_sri("sha256-3q2+7w==").is_none());
+    }
+
+    #[test]
+    fn parse_reads_an_rfc_110_record() {
+        let rfc: Value = serde_json::from_str(&format!(
+            r#"{{ "id": "a.b", "name": "AB", "version": "0.2.0", "minServer": "0.1.4",
+                  "dependencies": {{ "c.d": "^0.1.0" }},
+                  "optionalDependencies": {{ "g.h": "^0.2.0" }},
+                  "artifacts": [{{ "target": "x86_64-unknown-linux-musl",
+                                   "url": "https://x/a.b.kmod", "size": 5,
+                                   "integrity": "sha256-{}" }}] }}"#,
+            base64_of(&"cd".repeat(32)),
+        ))
+        .unwrap();
+        let m = parse_module(&rfc).unwrap();
+        assert_eq!(m.depends_on, vec![("c.d".to_string(), Some("^0.1.0".to_string()))]);
+        assert_eq!(m.optional_depends_on, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
+        assert_eq!(m.artifacts[0].sha256.as_deref(), Some("cd".repeat(32).as_str()));
+    }
+
+    #[test]
+    fn a_descriptor_is_followed_to_the_index_beside_it_and_a_catalog_is_not() {
+        let descriptor: Value = serde_json::from_str(
+            r#"{ "apiVersion": 1, "name": "R", "url": "https://elsewhere.example",
+                 "modules": ["a.b", "c.d"] }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            index_url(&descriptor, "https://r.example/registry.json").unwrap().as_deref(),
+            // Resolved against where it was fetched, NOT the `url` it declares.
+            Some("https://r.example/index.json"),
+        );
+
+        let catalog: Value =
+            serde_json::from_str(r#"{ "schema": 2, "modules": [{ "id": "a.b" }] }"#).unwrap();
+        assert!(index_url(&catalog, "https://r.example/modules.json").unwrap().is_none());
+    }
+
+    #[test]
+    fn a_registry_speaking_a_newer_contract_is_refused() {
+        let future: Value =
+            serde_json::from_str(r#"{ "apiVersion": 2, "modules": ["a.b"] }"#).unwrap();
+        let err = index_url(&future, "https://r.example/registry.json").unwrap_err();
+        assert!(err.to_string().contains("apiVersion 2"), "{err}");
     }
 
     #[test]

@@ -264,6 +264,80 @@ async fn store_catalog_enriches_a_reachable_registry() {
     assert!(alien["url"].is_null(), "no build for this platform -> no install URL");
 }
 
+// An RFC 110 registry: a descriptor that fronts the one-request index beside it.
+async fn spawn_rfc_registry(descriptor: serde_json::Value, index: serde_json::Value) -> String {
+    let serve = |body: serde_json::Value| {
+        axum::routing::get(move || {
+            let body = body.clone();
+            async move { axum::Json(body) }
+        })
+    };
+    let app = axum::Router::new()
+        .route("/registry.json", serve(descriptor))
+        .route("/index.json", serve(index));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let _ = axum::serve(listener, app).await;
+    });
+    format!("http://{addr}/registry.json")
+}
+
+#[tokio::test]
+async fn the_store_reads_an_rfc_110_registry_through_its_descriptor() {
+    let t = test_app();
+    // sha256-<base64> of 32 0xab bytes, the form RFC 110 mandates.
+    let integrity = "sha256-q6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6s=";
+    let url = spawn_rfc_registry(
+        json!({
+            "apiVersion": 1,
+            "name": "Third party",
+            // Deliberately NOT where it is served from: a registry does not get
+            // to point the client somewhere else by describing itself as living
+            // there, so the index must still be read off the loopback origin.
+            "url": "https://elsewhere.example",
+            "modules": ["com.acme.app"]
+        }),
+        json!([
+            { "id": "com.acme.app", "name": "App", "version": "1.2.0", "library": true,
+              "dependencies": { "com.acme.lib": "^1.0.0" },
+              "optionalDependencies": { "com.acme.vpn": "*" },
+              "artifacts": [{ "target": null, "url": "https://x/app.kmod", "size": 10,
+                              "integrity": integrity }] }
+        ]),
+    )
+    .await;
+    point_store_at(&t, &url);
+
+    let (status, body) = get(&t.app, "/api/admin/store/catalog", Some(&t.token)).await;
+    assert_eq!(status, StatusCode::OK);
+    let mods = body["modules"].as_array().expect("modules");
+    assert_eq!(mods.len(), 1, "the descriptor was followed to the index beside it");
+    assert_eq!(mods[0]["id"], json!("com.acme.app"));
+    assert_eq!(mods[0]["version"], json!("1.2.0"));
+    assert_eq!(mods[0]["compatible"], json!(true));
+    assert_eq!(mods[0]["dependsOn"][0]["id"], json!("com.acme.lib"));
+    assert_eq!(mods[0]["optionalDependsOn"][0]["id"], json!("com.acme.vpn"));
+    // `integrity` is what the installer will compare the downloaded bytes to.
+    assert_eq!(mods[0]["sha256"], json!("ab".repeat(32)));
+}
+
+#[tokio::test]
+async fn a_registry_speaking_a_contract_this_server_does_not_know_is_not_read() {
+    let t = test_app();
+    let url = spawn_rfc_registry(
+        json!({ "apiVersion": 99, "name": "Future", "url": "https://f", "modules": ["com.acme.app"] }),
+        json!([{ "id": "com.acme.app", "name": "App", "version": "1.2.0", "artifacts": [] }]),
+    )
+    .await;
+    point_store_at(&t, &url);
+
+    let (status, body) = get(&t.app, "/api/admin/store/catalog", Some(&t.token)).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["modules"].as_array().map(Vec::len), Some(0));
+    assert!(body["error"].as_str().unwrap_or_default().contains("apiVersion 99"), "{body}");
+}
+
 fn point_store_at(t: &crate::api::test_support::TestApp, url: &str) {
     t.state.settings.set_patch(
         &t.state.db,

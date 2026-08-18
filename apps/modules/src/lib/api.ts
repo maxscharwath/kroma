@@ -1,12 +1,14 @@
 import { workerContext } from '@kroma/site-kit/worker-env';
 import { KROMA_MARK_SVG } from '#site/lib/brand';
 import { iconResponse } from '#site/lib/icon';
+import { isRegistryPath, registryResponse } from '#site/lib/registry';
 import { type Env, jsonResponse, loadCatalog, UNAVAILABLE } from '#site/lib/source';
 
 export type ExecCtx = { waitUntil(p: Promise<unknown>): void };
 
 /**
- * The registry endpoints: the catalog a KROMA server reads, and the favicon.
+ * The registry endpoints: the RFC-110 documents, the legacy catalog a KROMA
+ * server reads, the module icons, and the favicon.
  * Returns `null` when the request should fall through to the rendered site.
  *
  * The bare origin is itself a valid registry URL, so only `Accept: text/html`
@@ -29,13 +31,17 @@ export async function machineResponse(
 
   const isCatalog = path === '/modules.json' || path === '/all.json';
   const isIcon = path.startsWith('/icon/');
+  const isRegistry = isRegistryPath(path);
   const wantsHtml =
     request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
-  if (!isCatalog && !isIcon && !(path === '/' && !wantsHtml)) return null;
+  if (!isCatalog && !isIcon && !isRegistry && !(path === '/' && !wantsHtml)) return null;
 
   // `vite dev` calls the server entry with no bindings at all.
   const resolved = env ?? ((await workerContext()).env as Env);
   if (isIcon) return iconResponse(path, resolved, (p) => ctx.waitUntil(p));
+  if (isRegistry) {
+    return registryResponse(path, url.origin, resolved, (p) => ctx.waitUntil(p));
+  }
 
   const catalog = await loadCatalog(resolved, (p) => ctx.waitUntil(p));
   return catalog ? jsonResponse(catalog, 300) : jsonResponse(UNAVAILABLE, 60);

@@ -15,7 +15,10 @@ const Artifact = z.object({
   size: z.number().nullish(),
   url: DownloadUrl,
   sha256: Sha256,
+  contentHash: Sha256,
 });
+
+const DependencyMap = z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish();
 
 export const ModuleEntry = z.object({
   id: z.string(),
@@ -24,8 +27,15 @@ export const ModuleEntry = z.object({
   description: z.string().nullish(),
   minServer: z.string().nullish(),
   library: z.boolean().nullish(),
-  dependsOn: z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish(),
+  dependsOn: DependencyMap,
+  optionalDependsOn: DependencyMap,
   provides: z.array(z.object({ kind: z.string(), id: z.string() })).nullish(),
+  requires: z.array(z.object({ kind: z.string(), id: z.string().nullish() })).nullish(),
+  author: z.string().nullish(),
+  homepage: z.string().nullish(),
+  license: z.string().nullish(),
+  keywords: z.array(z.string()).nullish(),
+  tags: z.array(z.string()).nullish(),
   icon: z.string().nullish(),
   artifacts: z.array(Artifact).nullish(),
   size: z.number().nullish(),

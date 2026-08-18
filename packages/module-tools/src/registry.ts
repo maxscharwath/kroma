@@ -13,7 +13,8 @@
 // Output: dist/registry/{catalog.json, <id>[-<target>].kmod, ...}
 //
 // One base URL for every module, which makes this the LOCAL/self-hosted shape:
-// every bundle sits in one directory. The release pipeline uses
+// every bundle AND every RFC-110 document sits in one directory, so the base is
+// also the registry's own root. The release pipeline uses
 // `modules release` instead, because a per-module tag gives each module its own
 // base - see that command.
 //
@@ -25,7 +26,7 @@
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readBundles, toEntries } from './bundles';
-import { buildDescriptor, buildModuleRecord, buildSearchIndex } from './registry-api';
+import { buildDescriptor, buildIndex, buildModuleRecord } from './registry/build';
 import { root } from './root';
 
 const modulesDir = join(root, 'dist/modules');
@@ -46,19 +47,19 @@ const modules = toEntries(bundles, () => baseUrl);
 const catalog = { schema: 2, generatedAt: new Date().toISOString(), modules };
 writeFileSync(join(outDir, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
 
-// RFC 110 normalized artifacts: descriptor + id index, one record per module,
-// and a trimmed search index. Static files any host can serve.
+// RFC 110: the descriptor, the one-request index, and one record per module.
+// Static files any host can serve, in the layout the contract names.
 const write = (rel: string, value: unknown) => {
   const path = join(outDir, rel);
   mkdirSync(join(path, '..'), { recursive: true });
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 };
 write('registry.json', buildDescriptor('KROMA modules', baseUrl, modules));
-write('search/index.json', buildSearchIndex(modules));
+write('index.json', buildIndex(modules));
 for (const entry of modules) write(`m/${entry.id}.json`, buildModuleRecord(entry));
 
 console.log(
-  `registry: ${modules.length} module(s) -> ${outDir}/{catalog,registry,search/index}.json + m/*.json`,
+  `registry: ${modules.length} module(s) -> ${outDir}/{catalog,registry,index}.json + m/*.json`,
 );
 for (const m of modules) {
   const targets = m.artifacts.map((a) => a.target ?? 'universal').join(', ');

@@ -15,6 +15,9 @@ async function machine(path: string, init?: RequestInit, env: Env = {}): Promise
 
 const MARK = '<svg viewBox="0 0 24 24" />';
 
+const DIGEST = 'ab'.repeat(32);
+const SRI = `sha256-${btoa(String.fromCharCode(...Array(32).fill(0xab)))}`;
+
 const CATALOG = {
   schema: 2,
   generatedAt: '2026-07-02T00:00:00Z',
@@ -25,7 +28,18 @@ const CATALOG = {
       version: '1.0.0',
       description: 'A <demo> module',
       icon: `data:image/svg+xml;base64,${btoa(MARK)}`,
-      artifacts: [{ target: 'wasm32', url: 'https://dl/a.kmod', size: 1, sha256: 'x' }],
+      minServer: '0.1.4',
+      dependsOn: { 'tv.kroma.other': '^0.1.0' },
+      provides: [{ kind: 'download-client', id: 'demo' }],
+      artifacts: [
+        {
+          target: 'wasm32',
+          url: 'https://dl/a.kmod',
+          size: 1,
+          sha256: DIGEST,
+          contentHash: DIGEST,
+        },
+      ],
     },
   ],
 };
@@ -195,5 +209,63 @@ describe('machineResponse', () => {
     expect(raw).not.toContain('10.0.0.7');
     expect(raw).not.toContain('github.com');
     expect(logged).toHaveBeenCalled();
+  });
+});
+
+describe('the RFC-110 documents', () => {
+  it('describes itself at /registry.json, naming the origin it was asked at', async () => {
+    upstreamServing(CATALOG);
+    expect(await (await machine('/registry.json')).json()).toEqual({
+      apiVersion: 1,
+      name: 'KROMA modules',
+      url: 'https://modules.kroma.tv',
+      modules: ['tv.kroma.demo'],
+    });
+  });
+
+  it('serves the installable version of every module at /index.json', async () => {
+    upstreamServing(CATALOG);
+    const index = (await (await machine('/index.json')).json()) as Array<Record<string, unknown>>;
+    expect(index).toHaveLength(1);
+    expect(index[0]).toMatchObject({
+      id: 'tv.kroma.demo',
+      version: '1.0.0',
+      minServer: '0.1.4',
+      dependencies: { 'tv.kroma.other': '^0.1.0' },
+      tags: ['download-client'],
+      artifacts: [{ target: 'wasm32', url: 'https://dl/a.kmod', size: 1, integrity: SRI }],
+    });
+  });
+
+  it('serves one module record at /m/<id>.json', async () => {
+    upstreamServing(CATALOG);
+    const record = (await (await machine('/m/tv.kroma.demo.json')).json()) as {
+      latest: string;
+      distTags: Record<string, string>;
+      versions: Record<string, { artifacts: Array<{ integrity: string }> }>;
+    };
+    expect(record.latest).toBe('1.0.0');
+    expect(record.distTags).toEqual({ latest: '1.0.0' });
+    expect(record.versions['1.0.0']?.artifacts[0]?.integrity).toBe(SRI);
+  });
+
+  it('404s a module the registry does not carry', async () => {
+    upstreamServing(CATALOG);
+    expect((await machine('/m/tv.kroma.nope.json')).status).toBe(404);
+  });
+
+  it('503s rather than reporting an empty registry when the catalog cannot be read', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    offline('offline');
+    for (const path of ['/registry.json', '/index.json', '/m/tv.kroma.demo.json']) {
+      const res = await machine(path);
+      expect(res.status, path).toBe(503);
+    }
+  });
+
+  it('leaves any other /m/ path to the rendered site', async () => {
+    upstreamServing(CATALOG);
+    expect(await machineResponse(req('/m/tv.kroma.demo'), {}, ctx())).toBeNull();
+    expect(await machineResponse(req('/m/a/b.json'), {}, ctx())).toBeNull();
   });
 });

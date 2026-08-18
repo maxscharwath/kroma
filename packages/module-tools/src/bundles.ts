@@ -6,68 +6,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { Artifact, Entry, Manifest } from './catalog';
 import { byCodeUnit } from './sort';
-
-export interface Manifest {
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  minServer?: string;
-  library?: boolean;
-  // RFC 110 names (npm-aligned). `dependsOn`/`optionalDependsOn` are the pre-v2
-  // spelling and stay accepted; `dependenciesOf()` reads either.
-  dependencies?: Record<string, string> | unknown[];
-  optionalDependencies?: Record<string, string> | unknown[];
-  dependsOn?: Record<string, string> | unknown[];
-  optionalDependsOn?: Record<string, string> | unknown[];
-  provides?: unknown[];
-  requires?: unknown[];
-  // Store metadata (RFC 110), all optional.
-  author?: string;
-  homepage?: string;
-  license?: string;
-  keywords?: string[];
-  tags?: string[];
-}
-
-// The dependency map under either the v2 name or the legacy one; `{}` when absent
-// or when the value is the empty-array form some manifests use.
-export function dependenciesOf(
-  manifest: Pick<Manifest, 'dependencies' | 'dependsOn'>,
-): Record<string, string> {
-  const raw = manifest.dependencies ?? manifest.dependsOn;
-  return raw && !Array.isArray(raw) ? (raw as Record<string, string>) : {};
-}
-
-export interface Artifact {
-  target: string | null;
-  file: string;
-  url: string;
-  size: number;
-  sha256: string;
-  // sha256 of the UNCOMPRESSED tar. The pipeline's "did this module actually
-  // change?" test, and the reason it is not `sha256`: that one covers the zstd
-  // stream, so a compressor upgrade would move it while the bundle's contents
-  // stood still, and every module would look like it needed a version bump.
-  contentHash: string;
-}
-
-export interface Entry extends Manifest {
-  icon?: string;
-  artifacts: Artifact[];
-  // Schema-1 compatibility mirror of artifacts[0].
-  file: string;
-  url: string;
-  size: number;
-  sha256: string;
-}
-
-export interface Catalog {
-  schema: number;
-  generatedAt?: string;
-  modules: Entry[];
-}
 
 /** One packed bundle on disk, before it is placed in a catalog. */
 export interface Bundle {

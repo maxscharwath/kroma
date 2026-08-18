@@ -9,6 +9,7 @@ const artifact = (target: string | null, url: string | null, size?: number): Art
   url,
   size,
   sha256: null,
+  contentHash: null,
 });
 
 const entry = (over: Partial<ModuleEntry> = {}): ModuleEntry => ({
@@ -54,6 +55,7 @@ describe('downloads', () => {
               url: 'https://dl.test/a.kmod',
               size: 4096,
               sha256: digest,
+              contentHash: null,
             },
           ],
         }),

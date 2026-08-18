@@ -1,8 +1,13 @@
 # Module registries
 
-A **registry** is any static host serving a catalog index (`modules.json`) plus
-the `.kmod` files it points at. The Store (Admin → Modules) reads every
+A **registry** is any static host serving a small set of JSON documents plus the
+`.kmod` files they point at. No server logic is required, which is what makes a
+registry universally hostable. The Store (Admin → Modules) reads every
 configured registry and shows the union.
+
+The wire format is [RFC 110](#the-wire-format-rfc-110). The two older shapes
+(schema 2's `modules.json`, and schema 1's flat `url`/`size`/`sha256`) still
+parse, so nothing that already publishes a catalog has to move.
 
 ## The list
 
@@ -28,8 +33,9 @@ trust grant. Every install still goes through the same gate:
   (The official slot still accepts any scheme: it is one deliberate override and
   predates the list.)
 - the artifact URL must be **https**,
-- the catalog must publish a **sha256**, and the downloaded bytes must match it;
-  a module with no checksum is refused,
+- the registry must publish a **checksum** (`integrity`, or the legacy flat
+  `sha256`), and the downloaded bytes must match it; a module with no checksum
+  is refused,
 - `minServer` is enforced at install **and** at spawn,
 - the catalog fetch is bounded by a timeout and a size cap, and an entry's
   `icon` is only accepted as a small inline `data:` image.
@@ -63,10 +69,68 @@ typed), and the second fetch is bounded exactly like the first. So
 same link get a browsable page. A static host can offer the same by serving an
 `index.html` with that one tag beside its `catalog.json`.
 
+## The wire format (RFC 110)
+
+Three documents, all plain `GET`s, all sha256-verifiable end to end.
+
+| Path | What it is |
+|---|---|
+| `/registry.json` | The descriptor: `apiVersion`, a display `name`, the registry's own `url`, and the module ids it serves. |
+| `/index.json` | One record per module, carrying the version a bare install resolves to. Everything the Store needs to render a listing and judge compatibility, in ONE request. |
+| `/m/{id}.json` | One module's full record: every version the registry serves, and the named channels (`distTags`) pointing into them. |
+
+Point a registry entry at `/registry.json` and the server follows it to the
+`index.json` **beside it** — resolved against the URL it actually fetched, never
+the `url` the descriptor declares about itself, so a registry cannot redirect a
+client somewhere else by lying about where it lives. A document declaring an
+`apiVersion` this server does not know is refused rather than half-read.
+
+Every artifact carries a mandatory `integrity` in Subresource-Integrity form
+(`sha256-<base64>`). This is the non-negotiable that makes a third-party
+registry safe: a compromised host cannot serve tampered bytes undetected.
+`contentHash` is the publisher's "did the bundle actually change?" key over the
+uncompressed tar — not something an installer verifies.
+
+```json
+{
+  "id": "tv.kroma.notes",
+  "name": "Notes",
+  "version": "0.2.0",
+  "description": "…",
+  "author": "…", "homepage": "…", "license": "GPL-2.0-or-later",
+  "keywords": ["notes"], "tags": ["download-client"],
+  "minServer": "0.1.4",
+  "library": false,
+  "dependencies": { "tv.kroma.torrents": "^0.1.0" },
+  "optionalDependencies": { "tv.kroma.vpn": "^0.1.0" },
+  "provides": [{ "kind": "download-client", "id": "notes" }],
+  "requires": [{ "kind": "indexer-engine" }],
+  "artifacts": [
+    {
+      "target": "x86_64-unknown-linux-musl",
+      "url": "https://example.org/tv.kroma.notes-x86_64-unknown-linux-musl.kmod",
+      "size": 8123456,
+      "integrity": "sha256-…",
+      "contentHash": "sha256-…"
+    }
+  ]
+}
+```
+
+`tags` defaults to the capability kinds the module provides, so a store can
+filter by `download-client` without hand-authored tags. `dependencies` /
+`optionalDependencies` are npm's spelling of `dependsOn` / `optionalDependsOn`;
+both are read.
+
+Artifact URLs are absolute, so the metadata and the bytes may live on different
+hosts. `@kroma/module-tools/registry` is the contract in code: the zod schemas,
+the document builders, and a typed client (`descriptor`, `index`, `module`,
+`search`, `resolve`) that any conforming registry answers.
+
 ## Publishing one
 
 `bun run modules registry` turns the packed `.kmod` files into a publishable
-tree: the catalog plus the bundles it points at:
+tree: the RFC 110 documents, the schema-2 mirror, and the bundles they point at:
 
 ```bash
 bun run modules:pack                                             # -> dist/modules/*.kmod
@@ -74,8 +138,12 @@ bun run modules registry --base https://mods.example.com         # -> dist/regis
 ```
 
 `--base` is the URL the files will be served from; it becomes each artifact's
-`url`. Output is `dist/registry/{catalog.json, <id>[-<target>].kmod, …}`. Upload
-that directory as-is and point the registry entry at its `catalog.json`.
+`url` and, since everything lands in one directory, the registry's own root.
+Output is `dist/registry/{registry.json, index.json, m/<id>.json, catalog.json,
+<id>[-<target>].kmod, …}`. Upload that directory as-is and point the registry
+entry at its `registry.json`.
+
+### The legacy shape
 
 Schema 2, one entry per module, with per-target artifacts. `optionalDependsOn`
 feeds the install dialog's opt-in list; `provides` / `requires` are `(kind,
@@ -119,6 +187,15 @@ musl build of the same architecture, which is static, so it also runs on glibc.
 Schema 1 (a flat `url` / `size` / `sha256` per module, no target) still parses as
 a single platform-independent artifact.
 
-Host `modules.json` and the `.kmod` files anywhere that serves them over https
+Host the documents and the `.kmod` files anywhere that serves them over https
 (GitHub Releases, GitHub Pages, an S3 bucket, a NAS), then add the URL under
 Admin → Modules → Registries.
+
+## Which registry serves an id
+
+An id is resolved against the operator's **configured registry list**, in
+precedence order, with official pinned first. There is no group-prefix routing:
+a reverse-DNS prefix map (`com.acme` → some host) would let any module drag in a
+registry the operator never approved, which is the opposite of what the list is
+for. A build-time tool may map prefixes to registries for its own resolution;
+the wire format does not depend on it.

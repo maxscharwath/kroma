@@ -184,6 +184,30 @@ describe('hlsMasterUrl', () => {
       'http://kroma.test/api/items/abc/hls/aac-night/0/0/index.m3u8',
     );
   });
+
+  it('declares decodable video, which the audio treatment never suppresses', () => {
+    expect(hlsMasterUrl(ctx, 'abc', false, 0, 0, undefined, undefined, ['h264', 'vp9'])).toBe(
+      'http://kroma.test/api/items/abc/hls/copy/0/0/index.m3u8?video=h264%2Cvp9',
+    );
+    expect(hlsMasterUrl(ctx, 'abc', false, 0, 0, 'night', undefined, ['h264'])).toBe(
+      'http://kroma.test/api/items/abc/hls/aac-night/0/0/index.m3u8?video=h264',
+    );
+    expect(hlsMasterUrl(ctx, 'abc', false, 0, 0, undefined, undefined, [])).toBe(
+      'http://kroma.test/api/items/abc/hls/copy/0/0/index.m3u8?video=',
+    );
+  });
+
+  it('carries both declarations at once', () => {
+    expect(hlsMasterUrl(ctx, 'abc', false, 30, 1, undefined, ['aac'], ['h264'])).toBe(
+      'http://kroma.test/api/items/abc/hls/copy/30/1/index.m3u8?copy=aac&video=h264',
+    );
+  });
+
+  it('omits the query entirely when nothing is declared', () => {
+    expect(hlsMasterUrl(ctx, 'abc', false, 0, 0, undefined, undefined, undefined)).toBe(
+      'http://kroma.test/api/items/abc/hls/copy/0/0/index.m3u8',
+    );
+  });
 });
 
 describe('stream / subtitle URL builders', () => {

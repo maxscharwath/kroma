@@ -326,8 +326,9 @@ export class KromaClient {
     audio = 0,
     filter?: media.HlsAudioFilter,
     copyCodecs?: string[],
+    videoCodecs?: string[],
   ): string {
-    return media.hlsMasterUrl(this.ctx, id, aac, startSec, audio, filter, copyCodecs);
+    return media.hlsMasterUrl(this.ctx, id, aac, startSec, audio, filter, copyCodecs, videoCodecs);
   }
   posterUrl(id: string): string {
     return artwork.posterUrl(this.ctx, id);

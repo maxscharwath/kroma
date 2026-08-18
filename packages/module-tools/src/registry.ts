@@ -9,8 +9,15 @@
 //   bun run modules registry                             # from dist/modules/*.kmod
 //   bun run modules registry --base https://mods.example.com
 //   bun run modules registry --base .../releases/download/v0.1.5
+//   bun run modules registry --from ./bundles --out ./public --base https://…
 //
-// Output: dist/registry/{catalog.json, <id>[-<target>].kmod, ...}
+// Output: <out>/{registry.json, index.json, m/<id>.json, catalog.json,
+//               <id>[-<target>].kmod, ...}
+//
+// Every field it writes is READ OUT OF THE BUNDLES: the manifest from the tar,
+// the size and checksum from the bytes. Nothing is authored beside them, which
+// is what lets a third party publish a registry with one command and no
+// pipeline.
 //
 // One base URL for every module, which makes this the LOCAL/self-hosted shape:
 // every bundle AND every RFC-110 document sits in one directory, so the base is
@@ -24,16 +31,26 @@
 // the first artifact are kept per entry so schema-1 consumers keep working.
 
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { buildDescriptor, buildIndex, buildModuleRecord } from '@kroma/registry';
 import { readBundles, toEntries } from './bundles';
 import { root } from './root';
 
-const modulesDir = join(root, 'dist/modules');
-const outDir = join(root, 'dist/registry');
+const flag = (name: string): string | undefined => {
+  const at = process.argv.indexOf(`--${name}`);
+  return at >= 0 ? process.argv[at + 1] : undefined;
+};
 
-const baseIdx = process.argv.indexOf('--base');
-const baseUrl = (baseIdx >= 0 ? (process.argv[baseIdx + 1] ?? '') : '').replace(/\/$/, '');
+// Relative to the caller's cwd, not the repo: the point of --from/--out is
+// running this outside a KROMA checkout.
+const resolve = (value: string | undefined, fallback: string) => {
+  if (!value) return join(root, fallback);
+  return isAbsolute(value) ? value : join(process.cwd(), value);
+};
+
+const modulesDir = resolve(flag('from'), 'dist/modules');
+const outDir = resolve(flag('out'), 'dist/registry');
+const baseUrl = (flag('base') ?? '').replace(/\/$/, '');
 
 const bundles = readBundles(modulesDir);
 mkdirSync(outDir, { recursive: true });

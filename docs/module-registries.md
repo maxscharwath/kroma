@@ -151,19 +151,32 @@ history" rather than to an error: history enriches a record, it never gates one.
 
 ## Publishing one
 
-`bun run modules registry` turns the packed `.kmod` files into a publishable
-tree: the RFC 110 documents, the schema-2 mirror, and the bundles they point at:
+`bun run modules registry` turns a directory of packed `.kmod` files into a
+publishable tree: the RFC 110 documents, the schema-2 mirror, and the bundles
+they point at.
 
 ```bash
 bun run modules:pack                                             # -> dist/modules/*.kmod
 bun run modules registry --base https://mods.example.com         # -> dist/registry/
+bun run modules registry --from ./bundles --out ./public --base https://mods.example.com
 ```
 
 `--base` is the URL the files will be served from; it becomes each artifact's
 `url` and, since everything lands in one directory, the registry's own root.
-Output is `dist/registry/{registry.json, index.json, m/<id>.json, catalog.json,
-<id>[-<target>].kmod, …}`. Upload that directory as-is and point the registry
-entry at its `registry.json`.
+`--from` / `--out` take any directory (relative to where you ran it), so this
+works on a pile of `.kmod` files outside a KROMA checkout. Upload the output
+as-is and point the registry entry at its `registry.json`.
+
+**Nothing is authored by hand.** Every field is read out of the bundles: the
+manifest comes from `module.json` inside the tar, `size` and `integrity` from the
+bytes. There is no metadata file to maintain alongside them and no pipeline to
+run — CI here only decides *what* to publish, never what the documents say.
+
+And the record is a cache of the bundle, not a claim above it. At install the
+server unpacks the `.kmod` and re-reads its `module.json`: the id must match the
+one the registry offered, and `minServer` is enforced from the **bundle**. A
+registry that understates either to make a module look installable is refused at
+unpack time, and a wrong `integrity` fails when the downloaded bytes are hashed.
 
 ### The legacy shape
 

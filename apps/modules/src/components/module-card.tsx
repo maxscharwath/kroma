@@ -81,7 +81,7 @@ function Footer({ id, sha256 }: Readonly<{ id: string; sha256: string | null }>)
 export function ModuleCard({ module: m }: Readonly<{ module: ModuleEntry }>) {
   const files = downloads(m);
   const { picked, pick } = useDownloadPick(files);
-  const deps = depEntries(m.dependsOn);
+  const deps = depEntries(m);
   const requires = Boolean(m.minServer) || deps.length > 0;
 
   return (

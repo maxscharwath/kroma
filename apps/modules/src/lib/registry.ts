@@ -2,6 +2,7 @@ import {
   buildDescriptor,
   buildIndex,
   buildModuleRecord,
+  type DescribedModule,
   jsonSchema,
   SCHEMA_NAMES,
   type SchemaName,
@@ -30,25 +31,13 @@ export function isRegistryPath(path: string): boolean {
   );
 }
 
-// The catalog's own schema keeps a nullable url/size so a malformed upstream
-// entry cannot reach the site; an artifact with no https url is not one a
-// registry may offer at all.
-function described(m: ModuleEntry) {
+// The site's schema nulls a url or size it would not put on a page; a registry
+// may not offer an artifact with no https url at all, so those are dropped here
+// rather than described.
+function described(m: ModuleEntry): DescribedModule {
   return {
     ...m,
-    artifacts: (m.artifacts ?? []).flatMap((a) =>
-      a.url
-        ? [
-            {
-              target: a.target,
-              url: a.url,
-              size: a.size ?? 0,
-              sha256: a.sha256,
-              contentHash: a.contentHash,
-            },
-          ]
-        : [],
-    ),
+    artifacts: m.artifacts.flatMap((a) => (a.url ? [{ ...a, url: a.url, size: a.size ?? 0 }] : [])),
   };
 }
 

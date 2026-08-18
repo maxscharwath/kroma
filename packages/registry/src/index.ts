@@ -12,6 +12,7 @@ export {
   pickVersion,
   type RegistryClient,
   type Resolved,
+  type Searchable,
   verifyIntegrity,
 } from './client';
 export {

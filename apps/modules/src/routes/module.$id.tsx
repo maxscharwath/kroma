@@ -62,7 +62,7 @@ function Page({ children, registry }: Readonly<{ children: ReactNode; registry: 
 function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
   const files = downloads(m);
   const { picked, pick } = useDownloadPick(files);
-  const deps = depEntries(m.dependsOn);
+  const deps = depEntries(m);
   return (
     <Row gap={24} align="flex-start" wrap>
       <Box bg="surface2" radius={ICON_RADIUS} w={ICON} h={ICON} shrink={0}>

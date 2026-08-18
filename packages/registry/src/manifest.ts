@@ -9,7 +9,7 @@ import { Capability, CapabilityReq } from './schema';
 
 // Very old manifests spell the map as an array, and any optional field may
 // arrive as an explicit null.
-const DependencyMap = z.union([z.record(z.string(), z.string()), z.array(z.unknown())]).nullish();
+const DependencyMap = z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish();
 
 /** A module's `module.json`, as authored. */
 export const Manifest = z.object({

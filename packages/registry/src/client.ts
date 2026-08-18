@@ -33,8 +33,11 @@ export async function verifyIntegrity(bytes: Uint8Array, integrity: string): Pro
   return actual === expected;
 }
 
+/** What a substring search reads: everything a store card puts on screen. */
+export type Searchable = Pick<RegistryEntry, 'id' | 'name' | 'description' | 'keywords' | 'tags'>;
+
 /** Substring match over everything a store card shows. */
-export function matches(entry: RegistryEntry, query: string): boolean {
+export function matches(entry: Searchable, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return [

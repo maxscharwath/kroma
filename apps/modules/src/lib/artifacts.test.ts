@@ -16,6 +16,7 @@ const entry = (over: Partial<ModuleEntry> = {}): ModuleEntry => ({
   id: 'tv.kroma.vpn',
   name: 'VPN',
   version: '1.0.0',
+  artifacts: [],
   url: null,
   sha256: null,
   ...over,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRegistryClient, pickVersion, verifyIntegrity } from './client';
+import { createRegistryClient, matches, pickVersion, verifyIntegrity } from './client';
 import type { ModuleRecord, RegistryEntry } from './schema';
 
 const sri = async (text: string) => {
@@ -34,6 +34,34 @@ describe('verifyIntegrity', () => {
     expect(await verifyIntegrity(bytes, 'md5-abc')).toBe(false);
     expect(await verifyIntegrity(bytes, 'nonsense')).toBe(false);
     expect(await verifyIntegrity(bytes, 'sha256-')).toBe(false);
+  });
+});
+
+describe('matches', () => {
+  const entry = {
+    id: 'tv.kroma.vpn',
+    name: 'VPN',
+    description: 'Routes the download engine through a tunnel.',
+    keywords: ['wireguard'],
+    tags: ['network'],
+  };
+
+  it('reads the id, name, description, keywords and tags, case-insensitively', () => {
+    for (const q of ['vpn', 'KROMA.VPN', 'tunnel', 'WireGuard', 'network']) {
+      expect(matches(entry, q), q).toBe(true);
+    }
+    expect(matches(entry, 'whisper')).toBe(false);
+  });
+
+  it('still searches a module described with nothing at all', () => {
+    const bare = { id: 'tv.kroma.vpn', name: 'VPN' };
+    expect(matches(bare, 'vpn')).toBe(true);
+    expect(matches(bare, 'tunnel')).toBe(false);
+  });
+
+  it('keeps everything for an empty or blank query', () => {
+    expect(matches(entry, '')).toBe(true);
+    expect(matches(entry, '   ')).toBe(true);
   });
 });
 

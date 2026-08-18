@@ -52,7 +52,7 @@ function targetOf(file: string, id: string): string | null {
   return stem === id ? null : stem.slice(id.length).replace(/^-/, '') || null;
 }
 
-export type History = Record<string, KnownVersions>;
+type History = Record<string, KnownVersions>;
 
 function toHistory(releases: z.infer<typeof Releases>): History {
   const out: History = {};

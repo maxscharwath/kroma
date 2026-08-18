@@ -14,8 +14,10 @@ const Integrity = z.string().regex(/^sha256-[A-Za-z0-9+/]{43}=$/, 'not an sha256
 // Loose, not stripped: a provider entry carries admin UI metadata beyond
 // `kind`/`id` (`label`, `flow`, `fields`) that drives the "add engine" picker,
 // and parsing must carry it through rather than quietly drop it.
-export const Capability = z.looseObject({ kind: z.string(), id: z.string() });
-export const CapabilityReq = z.looseObject({ kind: z.string(), id: z.string().nullish() });
+export const Capability = z.object({ kind: z.string(), id: z.string() }).catchall(z.json());
+export const CapabilityReq = z
+  .object({ kind: z.string(), id: z.string().nullish() })
+  .catchall(z.json());
 
 export const RegistryArtifact = z.object({
   // `null` for a bundle that carries no native binary, so it runs anywhere.

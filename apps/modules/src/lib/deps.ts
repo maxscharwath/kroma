@@ -1,3 +1,4 @@
+import { dependenciesOf } from '@kroma/registry';
 import type { ModuleEntry } from '#site/catalog';
 
 export interface Dependency {
@@ -5,9 +6,11 @@ export interface Dependency {
   range: string | null;
 }
 
-/** Schema 2 emits a `{ id: range }` map; very old catalogs carried a bare array. */
-export function depEntries(deps: ModuleEntry['dependsOn']): Dependency[] {
-  if (Array.isArray(deps)) return deps.map((id) => ({ id, range: null }));
-  if (!deps) return [];
-  return Object.entries(deps).map(([id, range]) => ({ id, range }));
+/** A module's required dependencies as rows. Very old catalogs carried a bare
+ *  array of ids, which the shared reader treats as none; listed here without a
+ *  range so the page still shows them. */
+export function depEntries(m: ModuleEntry): Dependency[] {
+  const raw = m.dependencies ?? m.dependsOn;
+  if (Array.isArray(raw)) return raw.map((id) => ({ id, range: null }));
+  return Object.entries(dependenciesOf(m)).map(([id, range]) => ({ id, range }));
 }

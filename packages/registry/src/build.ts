@@ -8,10 +8,10 @@ import {
   type RegistryDescriptor,
   type RegistryEntry,
   type RegistryVersion,
-} from './documents';
-import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest';
-import { channelOf } from './semver';
-import { byCodeUnit } from './sort';
+} from './documents/index.ts';
+import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest/index.ts';
+import { channelOf } from './semver.ts';
+import { byCodeUnit } from './sort.ts';
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/i;
 

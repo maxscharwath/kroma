@@ -7,7 +7,7 @@ import {
   RegistryDescriptor as DescV1,
   RegistryIndex as IndexV1,
   ModuleRecord as RecordV1,
-} from './v1';
+} from './v1.ts';
 
 /** The document contract this build serves and reads. */
 export const REGISTRY_API_VERSION = 1;
@@ -27,4 +27,4 @@ export {
   RegistryEntry,
   RegistryIndex,
   RegistryVersion,
-} from './v1';
+} from './v1.ts';

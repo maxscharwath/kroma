@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildDescriptor, buildIndex, buildModuleRecord, sriFromHex } from './build';
-import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './documents';
-import type { DescribedModule } from './manifest';
+import { buildDescriptor, buildIndex, buildModuleRecord, sriFromHex } from './build.ts';
+import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './documents/index.ts';
+import type { DescribedModule } from './manifest/index.ts';
 
 function entry(over: Partial<DescribedModule> = {}): DescribedModule {
   return {

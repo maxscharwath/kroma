@@ -7,8 +7,8 @@
 // edit to it.
 
 import { z } from 'zod';
-import { DOCUMENT_SCHEMAS, REGISTRY_API_VERSION } from './documents';
-import { MANIFEST_SCHEMAS, MODULE_SCHEMA_VERSION } from './manifest';
+import { DOCUMENT_SCHEMAS, REGISTRY_API_VERSION } from './documents/index.ts';
+import { MANIFEST_SCHEMAS, MODULE_SCHEMA_VERSION } from './manifest/index.ts';
 
 // zod strips unknown keys, which is right for a client reading a document it
 // does not fully know. The PUBLISHED contract is open-world though: a registry

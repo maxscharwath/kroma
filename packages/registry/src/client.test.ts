@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createRegistryClient, matches, pickVersion, verifyIntegrity } from './client';
-import type { ModuleRecord, RegistryEntry } from './documents';
+import { createRegistryClient, matches, pickVersion, verifyIntegrity } from './client.ts';
+import type { ModuleRecord, RegistryEntry } from './documents/index.ts';
 
 const sri = async (text: string) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { channelOf, compareRaw, parse, satisfies } from './semver';
+import { channelOf, compareRaw, parse, satisfies } from './semver.ts';
 
 const sorted = (...versions: string[]) => [...versions].sort(compareRaw);
 

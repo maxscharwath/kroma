@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dependenciesOf, Manifest, optionalDependenciesOf } from './v2';
+import { dependenciesOf, Manifest, optionalDependenciesOf } from './v2.ts';
 
 const base = { id: 'tv.kroma.x', name: 'X', version: '1.0.0' };
 

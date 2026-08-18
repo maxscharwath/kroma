@@ -7,7 +7,7 @@
 // beside this one, a line in `MANIFEST_SCHEMAS`, and a bump below.
 
 import type { z } from 'zod';
-import { Manifest as V2 } from './v2';
+import { Manifest as V2 } from './v2.ts';
 
 /** The manifest schema this build speaks. Distinct from the documents'
  *  `apiVersion`: one versions a file a module author writes, the other versions
@@ -27,4 +27,4 @@ export {
   optionalDependenciesOf,
   REVERSE_DNS_ID,
   speaksCurrentSchema,
-} from './v2';
+} from './v2.ts';

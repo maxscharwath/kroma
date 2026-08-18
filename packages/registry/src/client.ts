@@ -9,8 +9,8 @@ import {
   type RegistryEntry,
   RegistryIndex,
   type RegistryVersion,
-} from './documents';
-import { compareRaw, satisfies } from './semver';
+} from './documents/index.ts';
+import { compareRaw, satisfies } from './semver.ts';
 
 export type FetchJson = (url: string) => Promise<unknown>;
 

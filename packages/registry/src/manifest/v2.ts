@@ -5,7 +5,7 @@
 // checked, not asserted.
 
 import { z } from 'zod';
-import { Capability, CapabilityReq } from '../documents/v1';
+import { Capability, CapabilityReq } from '../documents/v1.ts';
 
 // Any optional field may arrive as an explicit null.
 const DependencyMap = z.record(z.string(), z.string()).nullish();

@@ -4,7 +4,7 @@ export {
   buildModuleRecord,
   type KnownVersions,
   sriFromHex,
-} from './build';
+} from './build.ts';
 export {
   createRegistryClient,
   type FetchJson,
@@ -14,7 +14,7 @@ export {
   type Resolved,
   type Searchable,
   verifyIntegrity,
-} from './client';
+} from './client.ts';
 export {
   Capability,
   CapabilityReq,
@@ -27,7 +27,7 @@ export {
   RegistryEntry,
   RegistryIndex,
   RegistryVersion,
-} from './documents';
+} from './documents/index.ts';
 export {
   ArtifactRef,
   ConfigField,
@@ -39,8 +39,8 @@ export {
   optionalDependenciesOf,
   REVERSE_DNS_ID,
   speaksCurrentSchema,
-} from './manifest';
-export { channelOf, compareRaw, parse, satisfies, type Version } from './semver';
+} from './manifest/index.ts';
+export { channelOf, compareRaw, parse, satisfies, type Version } from './semver.ts';
 export {
   jsonSchema,
   publishesSchema,
@@ -48,4 +48,4 @@ export {
   type SchemaName,
   schemaPath,
   schemaVersionOf,
-} from './spec';
+} from './spec.ts';

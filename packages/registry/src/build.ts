@@ -2,9 +2,7 @@
 // values out, so both the publish pipeline and the reference registry's worker
 // derive the same bytes from the same input.
 
-import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from '../catalog';
-import { channelOf } from '../semver';
-import { byCodeUnit } from '../sort';
+import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest';
 import {
   type ModuleRecord,
   REGISTRY_API_VERSION,
@@ -12,6 +10,8 @@ import {
   type RegistryEntry,
   type RegistryVersion,
 } from './schema';
+import { channelOf } from './semver';
+import { byCodeUnit } from './sort';
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/i;
 

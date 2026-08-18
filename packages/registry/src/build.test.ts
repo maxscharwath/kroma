@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Entry } from '../catalog';
 import { buildDescriptor, buildIndex, buildModuleRecord, sriFromHex } from './build';
+import type { DescribedModule } from './manifest';
 import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './schema';
 
-function entry(over: Partial<Entry> = {}): Entry {
+function entry(over: Partial<DescribedModule> = {}): DescribedModule {
   return {
     id: 'tv.kroma.torrents',
     name: 'Torrents',
@@ -27,7 +27,7 @@ function entry(over: Partial<Entry> = {}): Entry {
     size: 10,
     sha256: 'ab'.repeat(32),
     ...over,
-  } as Entry;
+  } as DescribedModule;
 }
 
 describe('sriFromHex', () => {
@@ -119,7 +119,9 @@ describe('buildModuleRecord', () => {
 
   it('drops an artifact with no usable checksum instead of describing it', () => {
     const record = buildModuleRecord(
-      entry({ artifacts: [{ ...entry().artifacts[0], sha256: '' }] as Entry['artifacts'] }),
+      entry({
+        artifacts: [{ ...entry().artifacts[0], sha256: '' }] as DescribedModule['artifacts'],
+      }),
     );
     expect(record.versions['0.1.7']?.artifacts).toEqual([]);
   });

@@ -25,8 +25,8 @@
 
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildDescriptor, buildIndex, buildModuleRecord } from '@kroma/registry';
 import { readBundles, toEntries } from './bundles';
-import { buildDescriptor, buildIndex, buildModuleRecord } from './registry/build';
 import { root } from './root';
 
 const modulesDir = join(root, 'dist/modules');

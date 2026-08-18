@@ -22,7 +22,7 @@
     "deploy": "bun run build && bunx wrangler@4 deploy"
   },
   "dependencies": {
-    "@kroma/module-tools": "workspace:*",
+    "@kroma/registry": "workspace:*",
     "@kroma/site-kit": "workspace:*",
     "@kroma/site-meta": "workspace:*",
     "@kroma/ui": "workspace:*",

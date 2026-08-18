@@ -5,7 +5,7 @@ import {
   jsonSchema,
   SCHEMA_NAMES,
   type SchemaName,
-} from '@kroma/module-tools/registry';
+} from '@kroma/registry';
 import type { ModuleEntry } from '#site/catalog';
 import { releaseHistory } from '#site/lib/releases';
 import { type Env, jsonResponse, loadCatalog } from '#site/lib/source';

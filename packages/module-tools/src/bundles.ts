@@ -6,7 +6,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Artifact, Entry, Manifest } from './catalog';
+import type { Manifest } from '@kroma/registry';
+import type { Artifact, Entry } from './catalog';
 import { byCodeUnit } from './sort';
 
 /** One packed bundle on disk, before it is placed in a catalog. */

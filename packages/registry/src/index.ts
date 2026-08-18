@@ -15,6 +15,13 @@ export {
   verifyIntegrity,
 } from './client';
 export {
+  type ArtifactRef,
+  type DescribedModule,
+  dependenciesOf,
+  type Manifest,
+  optionalDependenciesOf,
+} from './manifest';
+export {
   ModuleRecord,
   REGISTRY_API_VERSION,
   RegistryArtifact,
@@ -23,4 +30,5 @@ export {
   RegistryIndex,
   RegistryVersion,
 } from './schema';
+export { channelOf, compareRaw, parse, satisfies, type Version } from './semver';
 export { jsonSchema, SCHEMA_NAMES, type SchemaName } from './spec';

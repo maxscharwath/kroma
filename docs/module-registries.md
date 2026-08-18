@@ -123,7 +123,7 @@ filter by `download-client` without hand-authored tags. `dependencies` /
 both are read.
 
 Artifact URLs are absolute, so the metadata and the bytes may live on different
-hosts. `@kroma/module-tools/registry` is the contract in code: the zod schemas,
+hosts. `@kroma/registry` is the contract in code: the zod schemas,
 the document builders, and a typed client (`descriptor`, `index`, `module`,
 `search`, `resolve`) that any conforming registry answers.
 

@@ -2,7 +2,6 @@
 // so resolution, channel selection and integrity are testable without a network
 // and the same client runs under Bun, Node and workerd.
 
-import { compareRaw, satisfies } from '../semver';
 import {
   ModuleRecord,
   REGISTRY_API_VERSION,
@@ -11,6 +10,7 @@ import {
   RegistryIndex,
   type RegistryVersion,
 } from './schema';
+import { compareRaw, satisfies } from './semver';
 
 export type FetchJson = (url: string) => Promise<unknown>;
 

@@ -120,12 +120,14 @@ describe('machineResponse', () => {
     expect(calls).toEqual([]);
   });
 
-  it('serves the brand mark at /favicon.svg and /favicon.ico, never the catalog', async () => {
-    for (const path of ['/favicon.svg', '/favicon.ico']) {
-      const res = await machine(path);
-      expect(res.headers.get('content-type')).toBe('image/svg+xml');
-      expect(await res.text()).toContain('aria-label="KROMA"');
-    }
+  it('sends /favicon.ico to the real asset instead of serving a second copy', async () => {
+    const res = await machine('/favicon.ico');
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe('https://modules.kroma.tv/favicon.svg');
+  });
+
+  it('leaves /favicon.svg to the asset handler, which answers before this worker', async () => {
+    expect(await machineResponse(req('/favicon.svg'), {}, ctx())).toBeNull();
   });
 
   it('answers the bare origin with the catalog when the caller did not ask for HTML', async () => {

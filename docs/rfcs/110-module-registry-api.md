@@ -125,6 +125,35 @@ The bare range is the 95% path; the protocol string is there for the 5% without 
 an object. Modern, familiar (it is literally npm's dependency-string grammar), and it keeps
 `dependencies` a flat `id → string` map.
 
+### 3. Resolving an unknown registry (trust on first use)
+
+When you install a module that depends on something from *another* registry, the source has
+to be **detectable** and the user **warned before anything is fetched from a host they never
+approved**. Resolution of a dependency's group prefix walks this order:
+
+1. **Host-trusted registries** — the `registries` config on this server/machine. Explicit,
+   already approved, used silently.
+2. **The installing module's declared registries** — a published module carries its own
+   `registries` map for the groups its dependencies need (so `com.acme.foo` ships "my
+   `com.acme.*` come from `https://modules.acme.dev`"). This makes the source *self-describing*
+   and therefore detectable: the resolver knows exactly which host a dependency wants.
+3. **The Kroma default** — anything under no declared prefix (and always `tv.kroma.*`) resolves
+   to `modules.kroma.tv`. So *"default to Kroma when undefined"* holds — for the Kroma
+   namespace and truly unqualified ids.
+
+The important case is (2) pointing at a registry the host does **not** yet trust. That is a
+**trust-on-first-use prompt**, not a silent fetch:
+
+> `com.acme.foo` requires modules from a new registry: **modules.acme.dev**. Trust this
+> registry and fetch from it? [once] [always] [no]
+
+On *always*, it is promoted into the host's trusted `registries`; on *once*, it is used for
+this install only; on *no*, the install fails closed. A genuinely foreign group that is
+declared *nowhere* fails with a precise message naming the missing registry, rather than a
+confusing 404 against Kroma. This is the cargo/npm posture (a package may name another
+registry, but pulling from an unapproved host is always a user decision) — nothing
+third-party is fetched, verified or loaded from a host the user has not consciously trusted.
+
 ### 3. The typed client
 
 A `Registry` interface (in `workspace-tools`, reused by the server SDK):

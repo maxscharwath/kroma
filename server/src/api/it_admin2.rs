@@ -220,7 +220,7 @@ async fn store_catalog_enriches_a_reachable_registry() {
         "modules": [
             // Universal (library) bundle: satisfies any host -> compatible.
             { "id": "tv.kroma.lib", "name": "Lib", "version": "1.0.0", "library": true,
-              "dependsOn": { "tv.kroma.dep": "^0.1.0" },
+              "dependencies": { "tv.kroma.dep": "^0.1.0" },
               "artifacts": [{ "target": null, "url": "https://x/lib.kmod", "size": 10, "sha256": "aa" }] },
             // minServer far in the future -> incompatible with a reason.
             { "id": "tv.kroma.future", "name": "Future", "version": "2.0.0", "minServer": "999.0.0",
@@ -253,7 +253,7 @@ async fn store_catalog_enriches_a_reachable_registry() {
     assert!(lib["url"].is_string(), "a universal artifact resolves an install URL");
     assert!(lib["installedVersion"].is_null());
     assert_eq!(lib["updateAvailable"], json!(false));
-    assert_eq!(lib["dependsOn"][0]["id"], json!("tv.kroma.dep"));
+    assert_eq!(lib["dependencies"][0]["id"], json!("tv.kroma.dep"));
 
     let future = by_id("tv.kroma.future");
     assert_eq!(future["compatible"], json!(false));
@@ -316,8 +316,8 @@ async fn the_store_reads_an_rfc_110_registry_through_its_descriptor() {
     assert_eq!(mods[0]["id"], json!("com.acme.app"));
     assert_eq!(mods[0]["version"], json!("1.2.0"));
     assert_eq!(mods[0]["compatible"], json!(true));
-    assert_eq!(mods[0]["dependsOn"][0]["id"], json!("com.acme.lib"));
-    assert_eq!(mods[0]["optionalDependsOn"][0]["id"], json!("com.acme.vpn"));
+    assert_eq!(mods[0]["dependencies"][0]["id"], json!("com.acme.lib"));
+    assert_eq!(mods[0]["optionalDependencies"][0]["id"], json!("com.acme.vpn"));
     // `integrity` is what the installer will compare the downloaded bytes to.
     assert_eq!(mods[0]["sha256"], json!("ab".repeat(32)));
 }
@@ -352,8 +352,8 @@ async fn the_install_plan_pulls_dependencies_first_and_offers_the_rest() {
         "schema": 2,
         "modules": [
             { "id": "tv.x.app", "name": "App", "version": "1.0.0",
-              "dependsOn": { "tv.x.lib": "^1.0.0" },
-              "optionalDependsOn": { "tv.x.vpn": "*" },
+              "dependencies": { "tv.x.lib": "^1.0.0" },
+              "optionalDependencies": { "tv.x.vpn": "*" },
               "requires": [{ "kind": "download-client" }],
               "artifacts": [{ "target": null, "url": "https://x/app.kmod", "size": 30 }] },
             { "id": "tv.x.lib", "name": "Lib", "version": "1.4.0", "library": true,

@@ -1,9 +1,9 @@
 {
   "id": "tv.kroma.mdns",
   "name": "mDNS discovery",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minServer": "0.1.4",
-  "dependsOn": [],
+  "dependencies": [],
   "provides": [
     {
       "kind": "discovery",

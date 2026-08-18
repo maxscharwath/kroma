@@ -15,10 +15,12 @@ describe('ModuleEntry', () => {
   });
 
   it('takes both catalog spellings of a dependency list', () => {
-    expect(ModuleEntry.parse({ id: 'a', dependsOn: { 'tv.kroma.vpn': '^1' } }).dependsOn).toEqual({
+    expect(
+      ModuleEntry.parse({ id: 'a', dependencies: { 'tv.kroma.vpn': '^1' } }).dependencies,
+    ).toEqual({
       'tv.kroma.vpn': '^1',
     });
-    expect(ModuleEntry.parse({ id: 'a', dependsOn: ['tv.kroma.vpn'] }).dependsOn).toEqual([
+    expect(ModuleEntry.parse({ id: 'a', dependencies: ['tv.kroma.vpn'] }).dependencies).toEqual([
       'tv.kroma.vpn',
     ]);
   });

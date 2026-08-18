@@ -4,7 +4,7 @@
 // index (schema 2) plus the `.kmod` files themselves, ready to publish to any
 // static host. The in-app Store fetches the index, picks the artifact
 // matching the server's build target, verifies its sha256, and resolves
-// `dependsOn` before installing.
+// `dependencies` before installing.
 //
 //   bun run modules registry                             # from dist/modules/*.kmod
 //   bun run modules registry --base https://mods.example.com

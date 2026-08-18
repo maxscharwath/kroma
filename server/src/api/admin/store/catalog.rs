@@ -38,9 +38,9 @@ pub struct CatalogModule {
     pub library: bool,
     pub icon: Option<String>,
     // `(module id, optional semver range)`.
-    pub depends_on: Vec<(String, Option<String>)>,
+    pub dependencies: Vec<(String, Option<String>)>,
     // Same shape; offered as an opt-in at install time, never auto-pulled.
-    pub optional_depends_on: Vec<(String, Option<String>)>,
+    pub optional_dependencies: Vec<(String, Option<String>)>,
     // `(kind, id)` capabilities this module provides (e.g. download-client).
     pub provides: Vec<(String, String)>,
     // `(kind, optional provider id)` capabilities it needs SOMEONE to provide;
@@ -128,9 +128,9 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
             .collect(),
     };
     // RFC 110 renamed both maps to npm's spelling; either is accepted.
-    let depends_on = parse_deps(m, "dependencies").or_else(|| parse_deps(m, "dependsOn"));
-    let optional_depends_on =
-        parse_deps(m, "optionalDependencies").or_else(|| parse_deps(m, "optionalDependsOn"));
+    let dependencies = parse_deps(m, "dependencies").or_else(|| parse_deps(m, "dependencies"));
+    let optional_dependencies =
+        parse_deps(m, "optionalDependencies").or_else(|| parse_deps(m, "optionalDependencies"));
     let provides = m
         .get("provides")
         .and_then(Value::as_array)
@@ -174,8 +174,8 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         min_server: m.get("minServer").and_then(Value::as_str).map(str::to_string),
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
         icon,
-        depends_on: depends_on.unwrap_or_default(),
-        optional_depends_on: optional_depends_on.unwrap_or_default(),
+        dependencies: dependencies.unwrap_or_default(),
+        optional_dependencies: optional_dependencies.unwrap_or_default(),
         provides,
         requires,
         artifacts,
@@ -284,8 +284,8 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
                 "library": m.library,
                 "icon": m.icon,
                 "minServer": m.min_server,
-                "dependsOn": dep_rows(&m.depends_on),
-                "optionalDependsOn": dep_rows(&m.optional_depends_on),
+                "dependencies": dep_rows(&m.dependencies),
+                "optionalDependencies": dep_rows(&m.optional_dependencies),
                 "provides": cap_rows(&m.provides),
                 "requires": cap_rows(&m.requires),
                 "target": artifact.and_then(|a| a.target.clone()),
@@ -324,8 +324,8 @@ pub(super) fn test_module(id: &str, version: &str) -> CatalogModule {
         min_server: None,
         library: false,
         icon: None,
-        depends_on: Vec::new(),
-        optional_depends_on: Vec::new(),
+        dependencies: Vec::new(),
+        optional_dependencies: Vec::new(),
         provides: Vec::new(),
         requires: Vec::new(),
         artifacts: Vec::new(),
@@ -396,8 +396,8 @@ mod tests {
         ))
         .unwrap();
         let m = parse_module(&rfc).unwrap();
-        assert_eq!(m.depends_on, vec![("c.d".to_string(), Some("^0.1.0".to_string()))]);
-        assert_eq!(m.optional_depends_on, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
+        assert_eq!(m.dependencies, vec![("c.d".to_string(), Some("^0.1.0".to_string()))]);
+        assert_eq!(m.optional_dependencies, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
         assert_eq!(m.artifacts[0].sha256.as_deref(), Some("cd".repeat(32).as_str()));
     }
 
@@ -432,8 +432,8 @@ mod tests {
         let v2: Value = serde_json::from_str(
             r#"{ "id": "a.b", "name": "AB", "version": "0.2.0", "minServer": "0.1.4",
                  "library": false,
-                 "dependsOn": { "c.d": "^0.1.0", "e.f": "*" },
-                 "optionalDependsOn": { "g.h": "^0.2.0" },
+                 "dependencies": { "c.d": "^0.1.0", "e.f": "*" },
+                 "optionalDependencies": { "g.h": "^0.2.0" },
                  "provides": [{ "kind": "download-client", "id": "qbittorrent", "label": "qBittorrent" }],
                  "requires": [{ "kind": "indexer-engine" }, { "kind": "download-client", "id": "rqbit" }],
                  "artifacts": [{ "target": "x86_64-unknown-linux-musl",
@@ -445,10 +445,10 @@ mod tests {
         assert_eq!(m.version, "0.2.0");
         assert_eq!(m.min_server.as_deref(), Some("0.1.4"));
         assert_eq!(
-            m.depends_on,
+            m.dependencies,
             vec![("c.d".to_string(), Some("^0.1.0".to_string())), ("e.f".to_string(), None)]
         );
-        assert_eq!(m.optional_depends_on, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
+        assert_eq!(m.optional_dependencies, vec![("g.h".to_string(), Some("^0.2.0".to_string()))]);
         assert_eq!(m.provides, vec![("download-client".to_string(), "qbittorrent".to_string())]);
         assert_eq!(
             m.requires,

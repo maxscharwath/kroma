@@ -1,9 +1,9 @@
 {
   "id": "tv.kroma.acquisition",
   "name": "Acquisition",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "minServer": "0.1.4",
-  "dependsOn": {
+  "dependencies": {
     "tv.kroma.torrents": "^0.1.0"
   },
   "requires": [

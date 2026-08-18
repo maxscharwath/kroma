@@ -83,13 +83,13 @@ export class ModuleRegistry {
     const mods = [...this.modules.values()];
     const edgesOf = (m: KromaModule): string[] => {
       const ids: string[] = [];
-      for (const { id } of depEntries(m.dependsOn)) {
+      for (const { id } of depEntries(m.dependencies)) {
         if (!this.modules.has(id)) {
           throw new Error(`module "${m.id}" depends on "${id}", which is not registered`);
         }
         ids.push(id);
       }
-      for (const { id } of depEntries(m.optionalDependsOn)) {
+      for (const { id } of depEntries(m.optionalDependencies)) {
         if (this.modules.has(id)) ids.push(id);
       }
       return ids;

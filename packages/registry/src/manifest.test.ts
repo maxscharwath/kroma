@@ -33,31 +33,27 @@ describe('Manifest', () => {
 });
 
 describe('dependenciesOf / optionalDependenciesOf', () => {
-  it('reads either spelling', () => {
-    const current = Manifest.parse({ ...base, dependencies: { 'tv.kroma.y': '^1.0.0' } });
-    const legacy = Manifest.parse({ ...base, dependsOn: { 'tv.kroma.y': '^1.0.0' } });
-    expect(dependenciesOf(current)).toEqual({ 'tv.kroma.y': '^1.0.0' });
-    expect(dependenciesOf(legacy)).toEqual({ 'tv.kroma.y': '^1.0.0' });
-  });
-
-  it('prefers the current spelling when a manifest carries both', () => {
-    const both = Manifest.parse({
+  it('reads the map a module declares', () => {
+    const m = Manifest.parse({
       ...base,
-      dependencies: { a: '^1' },
-      dependsOn: { b: '^2' },
+      dependencies: { 'tv.kroma.y': '^1.0.0' },
+      optionalDependencies: { 'tv.kroma.z': '*' },
     });
-    expect(dependenciesOf(both)).toEqual({ a: '^1' });
+    expect(dependenciesOf(m)).toEqual({ 'tv.kroma.y': '^1.0.0' });
+    expect(optionalDependenciesOf(m)).toEqual({ 'tv.kroma.z': '*' });
   });
 
-  it('reads the optional map under either name', () => {
-    const current = Manifest.parse({ ...base, optionalDependencies: { z: '*' } });
-    const legacy = Manifest.parse({ ...base, optionalDependsOn: { z: '*' } });
-    expect(optionalDependenciesOf(current)).toEqual({ z: '*' });
-    expect(optionalDependenciesOf(legacy)).toEqual({ z: '*' });
-  });
-
-  it('reads the empty-array form very old manifests use as no dependencies', () => {
-    expect(dependenciesOf(Manifest.parse({ ...base, dependsOn: [] }))).toEqual({});
+  it('reads a bare-array or absent map as no dependencies', () => {
+    expect(dependenciesOf(Manifest.parse({ ...base, dependencies: [] }))).toEqual({});
+    expect(dependenciesOf(Manifest.parse({ ...base, dependencies: ['tv.kroma.y'] }))).toEqual({});
     expect(dependenciesOf(Manifest.parse(base))).toEqual({});
+    expect(optionalDependenciesOf(Manifest.parse(base))).toEqual({});
+  });
+
+  it('does not read the pre-rename spelling', () => {
+    // `dependsOn` was renamed, not aliased: a manifest that still uses it
+    // declares nothing, which the schema validation at publish catches.
+    const stale = Manifest.parse({ ...base, dependsOn: { 'tv.kroma.y': '^1.0.0' } });
+    expect(dependenciesOf(stale)).toEqual({});
   });
 });

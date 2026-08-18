@@ -91,9 +91,11 @@ export function loadGraph(options: LoadOptions): Graph {
   for (const dir of subdirs(root, modulesDir)) {
     const manifest = readJson(join(root, dir, 'module.json'));
     if (!manifest || typeof manifest.id !== 'string') continue;
-    const dependsOn = manifest.dependsOn;
+    const dependencies = manifest.dependencies;
     const ranges =
-      dependsOn && !Array.isArray(dependsOn) ? (dependsOn as Record<string, string>) : undefined;
+      dependencies && !Array.isArray(dependencies)
+        ? (dependencies as Record<string, string>)
+        : undefined;
     projects.push({
       name: manifest.id,
       dir,

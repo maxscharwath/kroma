@@ -60,8 +60,8 @@ export interface ModuleManifest {
   version: string;
   description?: string;
   minServer?: string;
-  dependsOn?: Dependency[];
-  optionalDependsOn?: Dependency[];
+  dependencies?: Dependency[];
+  optionalDependencies?: Dependency[];
   requires?: CapabilityReq[];
   provides?: Capability[];
   permissions?: string[];

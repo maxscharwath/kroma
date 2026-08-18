@@ -97,20 +97,15 @@ describe('buildModuleRecord', () => {
     expect(beta.latest).toBe('0.1.7');
   });
 
-  it('reads dependencies under either the v2 or legacy key, optionals included', () => {
-    const v2 = buildModuleRecord(
+  it('carries both dependency maps into the version record', () => {
+    const record = buildModuleRecord(
       entry({
         dependencies: { 'tv.kroma.x': '^0.1.0' },
         optionalDependencies: { 'tv.kroma.y': '*' },
       }),
     );
-    const legacy = buildModuleRecord(
-      entry({ dependsOn: { 'tv.kroma.x': '^0.1.0' }, optionalDependsOn: { 'tv.kroma.y': '*' } }),
-    );
-    for (const record of [v2, legacy]) {
-      expect(record.versions['0.1.7']?.dependencies).toEqual({ 'tv.kroma.x': '^0.1.0' });
-      expect(record.versions['0.1.7']?.optionalDependencies).toEqual({ 'tv.kroma.y': '*' });
-    }
+    expect(record.versions['0.1.7']?.dependencies).toEqual({ 'tv.kroma.x': '^0.1.0' });
+    expect(record.versions['0.1.7']?.optionalDependencies).toEqual({ 'tv.kroma.y': '*' });
   });
 
   it('omits an empty dependency map rather than emitting {}', () => {

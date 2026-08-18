@@ -1,9 +1,11 @@
 {
   "id": "tv.kroma.engine.qbittorrent",
   "name": "qBittorrent engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minServer": "0.1.4",
-  "dependsOn": { "tv.kroma.torrents": "^0.1.0" },
+  "dependencies": {
+    "tv.kroma.torrents": "^0.1.0"
+  },
   "provides": [
     {
       "kind": "download-client",
@@ -17,8 +19,17 @@
           "placeholder": "http://nas:8080",
           "required": true
         },
-        { "key": "username", "label": "field.username", "type": "string" },
-        { "key": "password", "label": "field.password", "type": "string", "secret": true }
+        {
+          "key": "username",
+          "label": "field.username",
+          "type": "string"
+        },
+        {
+          "key": "password",
+          "label": "field.password",
+          "type": "string",
+          "secret": true
+        }
       ]
     }
   ],

@@ -32,7 +32,7 @@ const Entry = z.object({
   description: z.string().nullish(),
   library: z.boolean().nullish(),
   icon: Icon,
-  dependsOn: z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish(),
+  dependencies: z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish(),
   provides: z.array(z.object({ kind: z.string() }).loose()).nullish(),
   requires: z.array(z.object({ kind: z.string() }).loose()).nullish(),
 });

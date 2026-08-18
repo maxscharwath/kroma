@@ -2,7 +2,7 @@
 // Single-file module codegen. A module is authored as ONE file,
 // `modules/<name>.module.md`, with:
 //   - YAML frontmatter: the manifest (id, name, version, description,
-//     dependsOn, provides, permissions, config).
+//     dependencies, provides, permissions, config).
 //   - ```svg  : the packaged icon, written to `icon.svg` next to module.json.
 //   - ```tsx  : the frontend (required), written to ui/src/index.tsx.
 //   - ```rust : OPTIONAL extra backend items (the MODULE const is generated).

@@ -7,8 +7,8 @@
 import { z } from 'zod';
 import { Capability, CapabilityReq } from './schema';
 
-// Very old manifests spell the map as an array, and any optional field may
-// arrive as an explicit null.
+// Very old manifests spell the map as an array of ids, and any optional field
+// may arrive as an explicit null.
 const DependencyMap = z.union([z.record(z.string(), z.string()), z.array(z.string())]).nullish();
 
 /** A module's `module.json`, as authored. */
@@ -19,12 +19,8 @@ export const Manifest = z.object({
   description: z.string().nullish(),
   minServer: z.string().nullish(),
   library: z.boolean().nullish(),
-  // npm's spelling. `dependsOn`/`optionalDependsOn` are the pre-v2 names and
-  // stay accepted; the readers below take either.
   dependencies: DependencyMap,
   optionalDependencies: DependencyMap,
-  dependsOn: DependencyMap,
-  optionalDependsOn: DependencyMap,
   provides: z.array(Capability).nullish(),
   requires: z.array(CapabilityReq).nullish(),
   // Store metadata, all optional.
@@ -36,18 +32,20 @@ export const Manifest = z.object({
 });
 export type Manifest = z.infer<typeof Manifest>;
 
+// The array form carries ids with no range, which is "any version" - the same
+// answer as an absent map, so both collapse to `{}`.
 function mapOf(raw: Manifest['dependencies']): Record<string, string> {
   return raw && !Array.isArray(raw) ? raw : {};
 }
 
-/** The required dependency map under either the current name or the legacy one. */
+/** The versions a module requires, by id. */
 export function dependenciesOf(manifest: Manifest): Record<string, string> {
-  return mapOf(manifest.dependencies ?? manifest.dependsOn);
+  return mapOf(manifest.dependencies);
 }
 
-/** The optional dependency map under either the current name or the legacy one. */
+/** The versions a module suggests but does not require, by id. */
 export function optionalDependenciesOf(manifest: Manifest): Record<string, string> {
-  return mapOf(manifest.optionalDependencies ?? manifest.optionalDependsOn);
+  return mapOf(manifest.optionalDependencies);
 }
 
 /** What a registry document says about one downloadable build. */

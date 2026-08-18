@@ -10,7 +10,7 @@ export interface Violation {
 }
 
 // Check that every declared dependency actually resolves against the versions in
-// the graph: each `dependsOn` range is satisfied by the current version of the
+// the graph: each `dependencies` range is satisfied by the current version of the
 // depended project, and each `minServer` is met by the server. Returns the list
 // of violations (empty = the dependency graph is coherent). Pure.
 export function verify(graph: Graph): Violation[] {

@@ -10,7 +10,6 @@ export interface Dependency {
  *  array of ids, which the shared reader treats as none; listed here without a
  *  range so the page still shows them. */
 export function depEntries(m: ModuleEntry): Dependency[] {
-  const raw = m.dependencies ?? m.dependsOn;
-  if (Array.isArray(raw)) return raw.map((id) => ({ id, range: null }));
+  if (Array.isArray(m.dependencies)) return m.dependencies.map((id) => ({ id, range: null }));
   return Object.entries(dependenciesOf(m)).map(([id, range]) => ({ id, range }));
 }

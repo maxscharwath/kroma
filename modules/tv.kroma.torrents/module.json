@@ -1,12 +1,12 @@
 {
   "id": "tv.kroma.torrents",
   "name": "Torrent downloads",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "minServer": "0.1.4",
-  "dependsOn": {
+  "dependencies": {
     "tv.kroma.indexer": "^0.1.0"
   },
-  "optionalDependsOn": {
+  "optionalDependencies": {
     "tv.kroma.vpn": "^0.1.0"
   },
   "provides": [

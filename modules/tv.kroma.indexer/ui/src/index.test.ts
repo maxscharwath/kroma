@@ -5,7 +5,7 @@ import { indexerModule } from './index';
 describe('indexerModule', () => {
   it('takes its identity from the shared manifest and depends on nothing', () => {
     expect(indexerModule.id).toBe('tv.kroma.indexer');
-    expect(indexerModule.dependsOn).toEqual([]);
+    expect(indexerModule.dependencies).toEqual([]);
   });
 
   it('derives its nav link from the route it points at', () => {

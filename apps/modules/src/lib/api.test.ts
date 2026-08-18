@@ -29,7 +29,7 @@ const CATALOG = {
       description: 'A <demo> module',
       icon: `data:image/svg+xml;base64,${btoa(MARK)}`,
       minServer: '0.1.4',
-      dependsOn: { 'tv.kroma.other': '^0.1.0' },
+      dependencies: { 'tv.kroma.other': '^0.1.0' },
       provides: [{ kind: 'download-client', id: 'demo' }],
       artifacts: [
         {

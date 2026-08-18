@@ -30,7 +30,7 @@ id: ${id}
 name: ${title}
 version: 0.1.0
 description: "TODO: one-line description of ${title}."
-dependsOn: []
+dependencies: []
 provides: []
 permissions:
   - library.manage
@@ -60,7 +60,7 @@ function Panel(_: ModuleComponentProps) {
 export const module: KromaModule = {
   id: manifest.id,
   version: manifest.version,
-  dependsOn: manifest.dependsOn,
+  dependencies: manifest.dependencies,
   // A user-facing page at /m/${slug}. For an admin-only page instead, use
   // section: 'admin' and to: '/admin/m/${slug}'.
   navItems: [{ to: '/m/${slug}', label: manifest.name, section: 'library' }],

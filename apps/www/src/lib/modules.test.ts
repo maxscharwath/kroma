@@ -18,7 +18,7 @@ describe('toSiteCatalog', () => {
           icon: 'data:image/svg+xml;base64,AAA',
           provides: [{ kind: 'download-client' }],
           requires: [],
-          dependsOn: { 'tv.kroma.indexer': '^0.1.0' },
+          dependencies: { 'tv.kroma.indexer': '^0.1.0' },
         },
       ]),
     );
@@ -32,13 +32,13 @@ describe('toSiteCatalog', () => {
       library: false,
       provides: ['download-client'],
       requires: [],
-      dependsOn: ['tv.kroma.indexer'],
+      dependencies: ['tv.kroma.indexer'],
     });
   });
 
-  it('accepts dependsOn as an array as well as a map', () => {
-    const { modules } = toSiteCatalog(raw([{ id: 'a', dependsOn: ['x', 'y'] }]));
-    expect(modules[0]?.dependsOn).toEqual(['x', 'y']);
+  it('accepts dependencies as an array as well as a map', () => {
+    const { modules } = toSiteCatalog(raw([{ id: 'a', dependencies: ['x', 'y'] }]));
+    expect(modules[0]?.dependencies).toEqual(['x', 'y']);
   });
 
   it('falls back to the id when a name is missing, and never returns undefined fields', () => {
@@ -51,7 +51,7 @@ describe('toSiteCatalog', () => {
       library: false,
       provides: [],
       requires: [],
-      dependsOn: [],
+      dependencies: [],
     });
   });
 
@@ -84,7 +84,7 @@ describe('ordered', () => {
         {
           id: 'tv.kroma.torrents',
           name: 'Torrent downloads',
-          dependsOn: { 'tv.kroma.indexer': '^0.1.0' },
+          dependencies: { 'tv.kroma.indexer': '^0.1.0' },
         },
         { id: 'tv.kroma.indexer', name: 'Indexers' },
       ]),

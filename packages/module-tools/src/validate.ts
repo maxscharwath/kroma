@@ -29,7 +29,7 @@ function checkNoExtraProps(
 }
 
 // additionalProperties as a schema: validate every value not named in
-// `properties` against it, so the dependsOn `{ id: range }` map rejects the
+// `properties` against it, so the dependencies `{ id: range }` map rejects the
 // same non-string ranges the Rust loader (next_entry::<String, String>) does.
 function checkAdditionalSchema(
   schema: Json,
@@ -70,7 +70,7 @@ function validateArray(node: Json, value: unknown, path: string, errors: string[
     errors.push(`${path}: expected array`);
     return false;
   }
-  // A permissive array (no `items` schema, e.g. the mixed-form dependsOn) skips
+  // A permissive array (no `items` schema, e.g. the mixed-form dependencies) skips
   // per-item validation.
   const items = node.items as Json | undefined;
   if (items)
@@ -116,7 +116,7 @@ function validateByType(node: Json, value: unknown, path: string, errors: string
 
 function validate(node: Json, value: unknown, path: string, errors: string[]): void {
   // `oneOf`: the value must validate against exactly one alternative (we only
-  // need "at least one" for our permissive subset, e.g. dependsOn = object|array).
+  // need "at least one" for our permissive subset, e.g. dependencies = object|array).
   if (Array.isArray(node.oneOf)) {
     const ok = (node.oneOf as Json[]).some((sub) => {
       const subErrors: string[] = [];

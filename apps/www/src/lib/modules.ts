@@ -10,7 +10,7 @@ export interface SiteModule {
   library: boolean;
   provides: string[];
   requires: string[];
-  dependsOn: string[];
+  dependencies: string[];
 }
 
 export interface SiteCatalog {
@@ -27,7 +27,7 @@ export interface RawEntry {
   library?: boolean | null;
   provides?: { kind: string }[] | null;
   requires?: { kind: string }[] | null;
-  dependsOn?: Record<string, string> | string[] | null;
+  dependencies?: Record<string, string> | string[] | null;
 }
 
 export interface RawCatalog {
@@ -56,14 +56,14 @@ export function toSiteCatalog(raw: RawCatalog): SiteCatalog {
         library: e.library === true,
         provides: kinds(e.provides),
         requires: kinds(e.requires),
-        dependsOn: depIds(e.dependsOn),
+        dependencies: depIds(e.dependencies),
       }))
       .sort((a, b) => a.id.localeCompare(b.id)),
   };
 }
 
 /** How much has to be installed before a module is useful: its own prerequisites. */
-const depth = (mod: SiteModule): number => mod.requires.length + mod.dependsOn.length;
+const depth = (mod: SiteModule): number => mod.requires.length + mod.dependencies.length;
 
 /**
  * The catalog in the order the page reads: what stands on its own first, then

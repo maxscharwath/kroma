@@ -31,7 +31,7 @@
       "type": "boolean",
       "description": "A library module: its `.kmod` ships no native binary (its code is co-linked into the processes that need it), so the supervisor registers it but spawns no process. E.g. the release-name parser."
     },
-    "dependsOn": {
+    "dependencies": {
       "description": "Hard dependencies as a package.json-style map { \"<id>\": \"<semver range>\" } (a bare \"*\" means any version). A legacy array of ids / 'id@range' strings / { id, version } objects is also accepted. Enforced on the backend.",
       "oneOf": [
         {
@@ -45,8 +45,8 @@
         }
       ]
     },
-    "optionalDependsOn": {
-      "description": "Soft dependencies (same shape as dependsOn): version-checked and ordered first when present, but not required.",
+    "optionalDependencies": {
+      "description": "Soft dependencies (same shape as dependencies): version-checked and ordered first when present, but not required.",
       "oneOf": [
         {
           "type": "object",

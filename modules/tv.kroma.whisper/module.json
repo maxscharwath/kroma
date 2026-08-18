@@ -1,9 +1,9 @@
 {
   "id": "tv.kroma.whisper",
   "name": "Whisper transcription",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minServer": "0.1.4",
-  "dependsOn": [],
+  "dependencies": [],
   "provides": [
     {
       "kind": "transcriber",

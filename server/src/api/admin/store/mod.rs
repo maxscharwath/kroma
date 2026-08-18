@@ -232,7 +232,7 @@ async fn uninstall(
     if !q.force {
         let dependents: Vec<String> = kroma_module_kernel::manifests(&state)
             .into_iter()
-            .filter(|m| m.id != id && m.depends_on.iter().any(|d| d.id == id))
+            .filter(|m| m.id != id && m.dependencies.iter().any(|d| d.id == id))
             .filter(|m| kroma_engine::modules::module_enabled(&state.settings, &m.id))
             .map(|m| m.id)
             .collect();

@@ -114,7 +114,7 @@ fn normalize_range(range: &str) -> Option<String> {
     (!trimmed.is_empty() && trimmed != "*").then(|| trimmed.to_string())
 }
 
-// (De)serialize a `dependsOn` / `optionalDependsOn` collection as a
+// (De)serialize a `dependencies` / `optionalDependencies` collection as a
 // package.json-style map `{ "<id>": "<range>" }`, where a bare `"*"` (or empty)
 // range means "any version". The legacy array form (a list of bare ids,
 // `"id@range"` strings, or `{ id, version }` objects) is still accepted on the
@@ -192,8 +192,8 @@ pub struct CapabilityReq {
 /// This is the serde shape served at `GET /api/modules` and mirrored by the
 /// frontend registry, so it holds no runtime handles - only data. The `id` is
 /// the join key across the backend crate and the `@kroma/module-<id>` frontend
-/// package. Serialized camelCase so `depends_on` reaches the frontend (and a
-/// wasm plugin's JSON) as `dependsOn`.
+/// package. Serialized camelCase so `dependencies` reaches the frontend (and a
+/// wasm plugin's JSON) as `dependencies`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleManifest {
@@ -205,9 +205,9 @@ pub struct ModuleManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_server: Option<String>,
     #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
-    pub depends_on: Vec<Dependency>,
+    pub dependencies: Vec<Dependency>,
     #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
-    pub optional_depends_on: Vec<Dependency>,
+    pub optional_dependencies: Vec<Dependency>,
     #[serde(default)]
     pub requires: Vec<CapabilityReq>,
     #[serde(default)]
@@ -238,8 +238,8 @@ impl ModuleManifest {
             version: version.into(),
             description: String::new(),
             min_server: None,
-            depends_on: Vec::new(),
-            optional_depends_on: Vec::new(),
+            dependencies: Vec::new(),
+            optional_dependencies: Vec::new(),
             requires: Vec::new(),
             provides: Vec::new(),
             ports: Vec::new(),
@@ -256,7 +256,7 @@ impl ModuleManifest {
     }
 
     pub fn needs(mut self, module_id: impl Into<String>) -> Self {
-        self.depends_on.push(Dependency::new(module_id));
+        self.dependencies.push(Dependency::new(module_id));
         self
     }
 }
@@ -269,42 +269,42 @@ mod tests {
     fn depends_on_reads_the_package_json_style_map() {
         let m: ModuleManifest = serde_json::from_str(
             r#"{ "id": "a", "name": "A", "version": "1.0.0",
-                 "dependsOn": { "tv.kroma.torrents": "^0.1.0", "tv.kroma.lib": "*" } }"#,
+                 "dependencies": { "tv.kroma.torrents": "^0.1.0", "tv.kroma.lib": "*" } }"#,
         )
         .unwrap();
-        assert_eq!(m.depends_on.len(), 2);
-        assert_eq!(m.depends_on[0], Dependency { id: "tv.kroma.torrents".into(), version: Some("^0.1.0".into()) });
+        assert_eq!(m.dependencies.len(), 2);
+        assert_eq!(m.dependencies[0], Dependency { id: "tv.kroma.torrents".into(), version: Some("^0.1.0".into()) });
         // A "*" range normalizes to "no constraint".
-        assert_eq!(m.depends_on[1], Dependency::new("tv.kroma.lib"));
+        assert_eq!(m.dependencies[1], Dependency::new("tv.kroma.lib"));
     }
 
     #[test]
     fn depends_on_still_reads_the_legacy_array_forms() {
         let m: ModuleManifest = serde_json::from_str(
             r#"{ "id": "a", "name": "A", "version": "1.0.0",
-                 "dependsOn": ["bare", "with@^1.2", { "id": "obj", "version": ">=2" }] }"#,
+                 "dependencies": ["bare", "with@^1.2", { "id": "obj", "version": ">=2" }] }"#,
         )
         .unwrap();
-        assert_eq!(m.depends_on[0], Dependency::new("bare"));
-        assert_eq!(m.depends_on[1], Dependency { id: "with".into(), version: Some("^1.2".into()) });
-        assert_eq!(m.depends_on[2], Dependency { id: "obj".into(), version: Some(">=2".into()) });
+        assert_eq!(m.dependencies[0], Dependency::new("bare"));
+        assert_eq!(m.dependencies[1], Dependency { id: "with".into(), version: Some("^1.2".into()) });
+        assert_eq!(m.dependencies[2], Dependency { id: "obj".into(), version: Some(">=2".into()) });
     }
 
     #[test]
     fn serializes_as_a_map_and_omits_empty_collections() {
         let mut m = ModuleManifest::new("a", "A", "1.0.0");
-        m.depends_on.push(Dependency { id: "lib".into(), version: Some("^1".into()) });
-        m.depends_on.push(Dependency::new("plain"));
+        m.dependencies.push(Dependency { id: "lib".into(), version: Some("^1".into()) });
+        m.dependencies.push(Dependency::new("plain"));
         let json = serde_json::to_value(&m).unwrap();
-        assert_eq!(json["dependsOn"]["lib"], "^1");
+        assert_eq!(json["dependencies"]["lib"], "^1");
         // No declared range serializes back as the wildcard.
-        assert_eq!(json["dependsOn"]["plain"], "*");
-        // Empty optionalDependsOn is skipped entirely (not written as {} or []).
-        assert!(json.get("optionalDependsOn").is_none());
+        assert_eq!(json["dependencies"]["plain"], "*");
+        // Empty optionalDependencies is skipped entirely (not written as {} or []).
+        assert!(json.get("optionalDependencies").is_none());
 
         // And the map round-trips back to the same in-memory shape.
         let back: ModuleManifest = serde_json::from_value(json).unwrap();
-        assert_eq!(back.depends_on, m.depends_on);
+        assert_eq!(back.dependencies, m.dependencies);
     }
 
     #[test]
@@ -312,10 +312,10 @@ mod tests {
         // Some generators emit `null` for the empty case; it must load as empty,
         // not error the whole manifest.
         let m: ModuleManifest = serde_json::from_str(
-            r#"{ "id": "a", "name": "A", "version": "1.0.0", "dependsOn": null }"#,
+            r#"{ "id": "a", "name": "A", "version": "1.0.0", "dependencies": null }"#,
         )
         .unwrap();
-        assert!(m.depends_on.is_empty());
+        assert!(m.dependencies.is_empty());
     }
 
     #[test]
@@ -324,16 +324,16 @@ mod tests {
         // bare id, so a save/load round-trip is a fixpoint.
         let m: ModuleManifest = serde_json::from_str(
             r#"{ "id": "a", "name": "A", "version": "1.0.0",
-                 "dependsOn": [{ "id": "lib", "version": "*" }] }"#,
+                 "dependencies": [{ "id": "lib", "version": "*" }] }"#,
         )
         .unwrap();
-        assert_eq!(m.depends_on[0], Dependency::new("lib"));
+        assert_eq!(m.dependencies[0], Dependency::new("lib"));
     }
 
     #[test]
     fn a_depends_on_that_is_neither_a_map_nor_a_list_says_what_was_expected() {
         let err = serde_json::from_str::<ModuleManifest>(
-            r#"{ "id": "a", "name": "A", "version": "1.0.0", "dependsOn": 7 }"#,
+            r#"{ "id": "a", "name": "A", "version": "1.0.0", "dependencies": 7 }"#,
         )
         .unwrap_err()
         .to_string();

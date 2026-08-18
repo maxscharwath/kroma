@@ -84,27 +84,27 @@ describe('ModuleRegistry register/unregister/has/ids', () => {
 describe('ModuleRegistry.order (topological)', () => {
   it('orders dependencies before dependents', () => {
     const r = new ModuleRegistry();
-    r.register(mod('c', { dependsOn: { b: '*' } }));
-    r.register(mod('b', { dependsOn: { a: '*' } }));
+    r.register(mod('c', { dependencies: { b: '*' } }));
+    r.register(mod('b', { dependencies: { a: '*' } }));
     r.register(mod('a'));
     expect(r.order().map((m) => m.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('includes an optional dep as an edge only when present', () => {
     const r = new ModuleRegistry();
-    r.register(mod('b', { optionalDependsOn: { a: '*' } }));
+    r.register(mod('b', { optionalDependencies: { a: '*' } }));
     r.register(mod('a'));
     expect(r.order().map((m) => m.id)).toEqual(['a', 'b']);
 
     const r2 = new ModuleRegistry();
-    r2.register(mod('b', { optionalDependsOn: { ghost: '*' } }));
+    r2.register(mod('b', { optionalDependencies: { ghost: '*' } }));
     // Missing optional dep is fine (no throw), just no edge.
     expect(r2.order().map((m) => m.id)).toEqual(['b']);
   });
 
   it('holds a module back until every one of its dependencies is ordered', () => {
     const r = new ModuleRegistry();
-    r.register(mod('c', { dependsOn: { a: '*', b: '*' } }));
+    r.register(mod('c', { dependencies: { a: '*', b: '*' } }));
     r.register(mod('a'));
     r.register(mod('b'));
     expect(r.order().map((m) => m.id)).toEqual(['a', 'b', 'c']);
@@ -112,14 +112,14 @@ describe('ModuleRegistry.order (topological)', () => {
 
   it('throws on a missing hard dependency', () => {
     const r = new ModuleRegistry();
-    r.register(mod('b', { dependsOn: { a: '*' } }));
+    r.register(mod('b', { dependencies: { a: '*' } }));
     expect(() => r.order()).toThrow(/depends on "a", which is not registered/);
   });
 
   it('throws on a dependency cycle', () => {
     const r = new ModuleRegistry();
-    r.register(mod('a', { dependsOn: { b: '*' } }));
-    r.register(mod('b', { dependsOn: { a: '*' } }));
+    r.register(mod('a', { dependencies: { b: '*' } }));
+    r.register(mod('b', { dependencies: { a: '*' } }));
     expect(() => r.order()).toThrow(/dependency cycle among \[a, b\]/);
   });
 });
@@ -128,7 +128,7 @@ describe('ModuleRegistry.start', () => {
   it('runs setup in dependency order, exactly once each, skipping skipSetup', async () => {
     const r = new ModuleRegistry();
     const calls: string[] = [];
-    r.register(mod('b', { dependsOn: { a: '*' }, setup: () => void calls.push('b') }));
+    r.register(mod('b', { dependencies: { a: '*' }, setup: () => void calls.push('b') }));
     r.register(mod('a', { setup: () => void calls.push('a') }));
     r.register(mod('c', { setup: () => void calls.push('c') }));
 
@@ -175,7 +175,7 @@ describe('ModuleRegistry route/nav/panel collection', () => {
     const r = new ModuleRegistry();
     r.register(
       mod('b', {
-        dependsOn: { a: '*' },
+        dependencies: { a: '*' },
         navItems: [{ to: '/b', label: 'B' }],
         settingsPanels: [{ id: 'bp', label: 'B', component: comp as never }],
       }),

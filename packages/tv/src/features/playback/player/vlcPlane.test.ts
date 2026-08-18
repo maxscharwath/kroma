@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   getVlcPlane,
   registerVlcPlane,
-  vlcAvailable,
   type VlcPlaneProps,
+  vlcAvailable,
 } from '#tv/features/playback/player/vlcPlane';
 
 const Plane = (() => null) as unknown as ComponentType<VlcPlaneProps>;

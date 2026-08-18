@@ -19,6 +19,7 @@ final class VlcPlayerView: ExpoView {
   private let surface = UIView()
   private var player: VLCMediaPlayer?
   private var loadedUri: String?
+  private var pendingUri: String?
   private var startMs: Int64 = 0
   private var pendingSeekMs: Int64?
   private var seekTargetMs: Int64 = 0
@@ -92,11 +93,22 @@ final class VlcPlayerView: ExpoView {
     player?.rate = next
   }
 
-  // Idempotent: props re-apply on every JS render, and reopening the stream each
-  // time would restart the film under the viewer.
   func setSource(_ uri: String?) {
-    guard let uri, !uri.isEmpty, uri != loadedUri, let url = URL(string: uri) else { return }
+    pendingUri = uri
+  }
+
+  // Opening is deferred to the end of the prop batch, never done inside a setter:
+  // Expo applies props in declaration order, so a filter or an offset that sorts
+  // after the URL would otherwise open the stream with the previous value and then
+  // reopen it - losing the resume point on the way. Idempotent, because props
+  // re-apply on every render and reopening would restart the film under the viewer.
+  func commit() {
+    guard let uri = pendingUri, !uri.isEmpty, uri != loadedUri, let url = URL(string: uri)
+    else { return }
     loadedUri = uri
+    // Reset per open: it gates the pending seek, and a reopen of the same media has
+    // an identical length, so a stale value swallows the resume point forever.
+    lastLengthMs = 0
     let vlc = ensurePlayer()
     let media = VLCMedia(url: url)
     // Spelled out rather than left to VLC's own ranking: VideoToolbox first, and
@@ -170,13 +182,18 @@ final class VlcPlayerView: ExpoView {
     guard let uri = loadedUri else { return }
     startMs = Int64(player?.time.intValue ?? 0)
     loadedUri = nil
-    setSource(uri)
+    pendingUri = uri
+    commit()
   }
 
   func release() {
     player?.stop()
     player?.delegate = nil
     player = nil
+    // Cleared with the player: a remounted view is asked for the same URL, and a
+    // stale value makes commit() treat it as already open and draw nothing.
+    loadedUri = nil
+    lastLengthMs = 0
   }
 
   override func removeFromSuperview() {

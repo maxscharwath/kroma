@@ -40,6 +40,7 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
   private var pendingSeekMs: Long? = null
   private var startMs: Long = 0
   private var loadedUri: String? = null
+  private var pendingUri: String? = null
   private var seekTargetMs: Long = 0
   private var lastSeekNonce = -1
   private var wantPaused = false
@@ -122,9 +123,17 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     player?.rate = next
   }
 
-  // Idempotent: props re-apply on every JS render, and reopening the stream each
-  // time would restart the film under the viewer.
   fun setSource(uri: String?) {
+    pendingUri = uri
+  }
+
+  // Opening is deferred to the end of the prop batch, never done inside a setter:
+  // Expo applies props in declaration order, so a filter or an offset that sorts
+  // after the URL would otherwise open the stream with the previous value and then
+  // reopen it - losing the resume point on the way. Idempotent, because props
+  // re-apply on every render and reopening would restart the film under the viewer.
+  fun commit() {
+    val uri = pendingUri
     if (uri.isNullOrEmpty() || uri == loadedUri) return
     loadedUri = uri
     load(uri, startMs)
@@ -211,7 +220,8 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     val uri = loadedUri ?: return
     startMs = mp?.time ?: 0
     loadedUri = null
-    setSource(uri)
+    pendingUri = uri
+    commit()
   }
 
   fun setPaused(paused: Boolean) {
@@ -279,6 +289,9 @@ class VlcPlayerView(context: Context, appContext: AppContext) : ExpoView(context
     player = null
     libVlc?.release()
     libVlc = null
+    // Cleared with the player: a remounted view is asked for the same URL, and a
+    // stale value makes commit() treat it as already open and draw nothing.
+    loadedUri = null
   }
 
   // React Native lays out ITS OWN views and stops there: a child added natively is

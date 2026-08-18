@@ -33,6 +33,10 @@ class VlcPlayerModule : Module() {
       Prop("audioFilter") { view: VlcPlayerView, mode: String -> view.setAudioFilter(mode) }
 
       Prop("rate") { view: VlcPlayerView, rate: Double -> view.setRate(rate.toFloat()) }
+
+      // Every prop above only records state; the stream opens here, once the whole
+      // batch has landed, so no prop's declaration order can change what it opens with.
+      OnViewDidUpdateProps { view: VlcPlayerView -> view.commit() }
     }
   }
 }

@@ -25,6 +25,7 @@
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readBundles, toEntries } from './bundles';
+import { buildDescriptor, buildModuleRecord, buildSearchIndex } from './registry-api';
 import { root } from './root';
 
 const modulesDir = join(root, 'dist/modules');
@@ -40,10 +41,25 @@ for (const b of bundles) {
 }
 
 const modules = toEntries(bundles, () => baseUrl);
+
+// Schema-2 catalog, kept for the transition (RFC 110 compatibility mirror).
 const catalog = { schema: 2, generatedAt: new Date().toISOString(), modules };
 writeFileSync(join(outDir, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`);
 
-console.log(`registry: ${modules.length} module(s) -> ${outDir}/catalog.json`);
+// RFC 110 normalized artifacts: descriptor + id index, one record per module,
+// and a trimmed search index. Static files any host can serve.
+const write = (rel: string, value: unknown) => {
+  const path = join(outDir, rel);
+  mkdirSync(join(path, '..'), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+};
+write('registry.json', buildDescriptor('KROMA modules', baseUrl, modules));
+write('search/index.json', buildSearchIndex(modules));
+for (const entry of modules) write(`m/${entry.id}.json`, buildModuleRecord(entry));
+
+console.log(
+  `registry: ${modules.length} module(s) -> ${outDir}/{catalog,registry,search/index}.json + m/*.json`,
+);
 for (const m of modules) {
   const targets = m.artifacts.map((a) => a.target ?? 'universal').join(', ');
   console.log(`  ${m.id}  v${m.version}  [${targets}]`);

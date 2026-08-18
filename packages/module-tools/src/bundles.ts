@@ -15,10 +15,29 @@ export interface Manifest {
   description?: string;
   minServer?: string;
   library?: boolean;
+  // RFC 110 names (npm-aligned). `dependsOn`/`optionalDependsOn` are the pre-v2
+  // spelling and stay accepted; `dependenciesOf()` reads either.
+  dependencies?: Record<string, string> | unknown[];
+  optionalDependencies?: Record<string, string> | unknown[];
   dependsOn?: Record<string, string> | unknown[];
   optionalDependsOn?: Record<string, string> | unknown[];
   provides?: unknown[];
   requires?: unknown[];
+  // Store metadata (RFC 110), all optional.
+  author?: string;
+  homepage?: string;
+  license?: string;
+  keywords?: string[];
+  tags?: string[];
+}
+
+// The dependency map under either the v2 name or the legacy one; `{}` when absent
+// or when the value is the empty-array form some manifests use.
+export function dependenciesOf(
+  manifest: Pick<Manifest, 'dependencies' | 'dependsOn'>,
+): Record<string, string> {
+  const raw = manifest.dependencies ?? manifest.dependsOn;
+  return raw && !Array.isArray(raw) ? (raw as Record<string, string>) : {};
 }
 
 export interface Artifact {

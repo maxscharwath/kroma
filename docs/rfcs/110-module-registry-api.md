@@ -169,6 +169,42 @@ The design is deliberately O(1) where it matters and never scans the registry to
 Net: nothing in resolution, install or verification degrades with registry size; only *search*
 tiers up, and it tiers without breaking the static-hostable contract.
 
+## Security
+
+A third-party plugin registry is a supply chain, so trust is verified at every hop, and the
+**server refuses to load anything it has not checked** — defence in depth on top of the
+existing out-of-process module isolation.
+
+- **Integrity, checked twice.** Every artifact carries `integrity` (`sha256-<base64>`, SRI
+  form). The installer and the **server (`kroma-module-kernel`) both hash the downloaded
+  `.kmod` and compare before it is ever unpacked or loaded** — a mismatch is a hard refusal,
+  logged with the expected vs actual digest. Even a compromised CDN cannot serve tampered
+  bytes undetected. The metadata's `integrity` is itself covered because it is fetched over
+  TLS from the registry the group-prefix routing pins, so a rogue host cannot answer for
+  `tv.kroma.*`.
+- **Dependency closure verified before load — on the server.** At install the server resolves
+  the *full* transitive closure and refuses the operation unless: every `dependencies` range
+  is satisfied by a resolvable version, every `optionalDependencies` that is present is in
+  range, every `requires` capability `kind` is provided by some module in the set, `minServer`
+  is met, and the graph is acyclic. No module is loaded from a set that does not fully
+  resolve — the same checks `workspace-tools verify` runs at publish, re-run authoritatively
+  at install against what is actually there. A partial or contradictory install is rejected
+  whole, not loaded half-way.
+- **Provenance by signature (not just integrity).** `integrity` proves the bytes match the
+  metadata; it does **not** prove *who* published them. Each version therefore carries an
+  optional `signature` over its manifest+artifact digests and a publisher `keyId`; the server
+  holds a trust policy — `open` (any), `signed` (a valid signature by any key), or `pinned`
+  (an allow-list of `keyId`s per group prefix). The Kroma registry ships `signed`; a private
+  registry can demand `pinned`. Signing is opt-in at v2 but the fields are reserved now so the
+  wire format need not break to add it.
+- **No install-time code execution.** A `.kmod` is data (a zstd tar of a manifest, an icon, a
+  compiled sidecar); resolution and verification never execute publisher-supplied scripts (the
+  npm `postinstall` class of attack has no surface here). Execution happens only after
+  verification, and only in the sandboxed out-of-process host.
+- **Failure is loud and safe.** Every rejection (bad hash, unmet dependency, untrusted
+  signature, unreachable registry) fails closed with a specific error; the server never
+  degrades to "load it anyway".
+
 ## What this costs
 
 - A **published contract is a compatibility promise**: `apiVersion` must be bumped and old
@@ -198,9 +234,11 @@ tiers up, and it tiers without breaking the static-hostable contract.
 
 ## Unresolved
 
-- **Signing beyond integrity.** `sha256` proves the bytes match the metadata; a *signature*
-  would prove who published them. Probably a follow-up (a `signature`/`publicKey` field), but
-  the field should be reserved now.
-- **Yank/deprecate.** A way to mark a version withdrawn without deleting it (npm `deprecate`).
+- **Signature key distribution and rotation.** The `signature`/`keyId` fields and the
+  server trust policy are specified above, but *how a publisher's public key is discovered and
+  rotated* (a `/keys.json` on the registry? a well-known transparency log, sigstore-style?) is
+  left for a focused security follow-up before `signed`/`pinned` is enforced by default.
+- **Yank/deprecate.** A way to mark a version withdrawn without deleting it (npm `deprecate`),
+  and how the server treats an installed module whose version was later yanked.
 - **Implementation is several PRs**, not one: (a) manifest fields + generator + `Registry`
   client, (b) the site UI, (c) the server install path. This RFC is the contract they share.

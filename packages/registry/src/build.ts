@@ -12,6 +12,7 @@ import {
 import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest/index.ts';
 import { channelOf } from './semver.ts';
 import { byCodeUnit } from './sort.ts';
+import { base64 } from './text.ts';
 
 const HEX_SHA256 = /^[0-9a-f]{64}$/i;
 
@@ -21,7 +22,7 @@ const HEX_SHA256 = /^[0-9a-f]{64}$/i;
 export function sriFromHex(hexSha256: string | null | undefined): string | null {
   if (!hexSha256 || !HEX_SHA256.test(hexSha256)) return null;
   const bytes = hexSha256.match(/../g)?.map((byte) => Number.parseInt(byte, 16)) ?? [];
-  return `sha256-${btoa(String.fromCharCode(...bytes))}`;
+  return `sha256-${base64(Uint8Array.from(bytes))}`;
 }
 
 const some = <T>(list: T[] | null | undefined) => (list && list.length > 0 ? list : undefined);

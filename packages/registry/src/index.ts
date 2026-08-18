@@ -42,6 +42,7 @@ export {
 } from './manifest/index.ts';
 export { channelOf, compareRaw, parse, satisfies, type Version } from './semver.ts';
 export {
+  type JsonSchema,
   jsonSchema,
   publishesSchema,
   SCHEMA_NAMES,
@@ -49,3 +50,4 @@ export {
   schemaPath,
   schemaVersionOf,
 } from './spec.ts';
+export { base64, trimTrailingSlashes } from './text.ts';

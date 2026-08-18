@@ -11,6 +11,7 @@ import {
   type RegistryVersion,
 } from './documents/index.ts';
 import { compareRaw, satisfies } from './semver.ts';
+import { base64, trimTrailingSlashes } from './text.ts';
 
 export type FetchJson = (url: string) => Promise<unknown>;
 
@@ -29,7 +30,7 @@ export async function verifyIntegrity(bytes: Uint8Array, integrity: string): Pro
   const [algo, expected] = [integrity.slice(0, 7), integrity.slice(7)];
   if (algo !== 'sha256-' || !expected) return false;
   const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
-  const actual = btoa(String.fromCharCode(...new Uint8Array(digest)));
+  const actual = base64(new Uint8Array(digest));
   return actual === expected;
 }
 
@@ -72,7 +73,7 @@ function checkApiVersion(apiVersion: number, what: string): void {
 }
 
 export function createRegistryClient(baseUrl: string, fetchJson: FetchJson): RegistryClient {
-  const base = baseUrl.replace(/\/+$/, '');
+  const base = trimTrailingSlashes(baseUrl);
   const record = async (id: string): Promise<ModuleRecord> => {
     if (!ID.test(id)) throw new Error(`'${id}' is not a module id`);
     const parsed = ModuleRecord.parse(await fetchJson(`${base}/m/${encodeURIComponent(id)}.json`));

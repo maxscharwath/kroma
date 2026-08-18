@@ -3,6 +3,7 @@
 // the module icons, and the favicon. Anything not routed here falls through to
 // the rendered page.
 
+import { trimTrailingSlashes } from '@kroma/registry';
 import { workerContext } from '@kroma/site-kit/worker-env';
 import { type Context, Hono } from 'hono';
 import { iconResponse } from '#site/lib/icon';
@@ -48,7 +49,7 @@ app.get('/registry.json', (c) => descriptorResponse(c.env.env, later(c), origin(
 
 app.get('/index.json', (c) => indexResponse(c.env.env, later(c)));
 
-app.get('/m/:id{[^/]+\\.json}', (c) => {
+app.get('/m/:id{[^/]+[.]json}', (c) => {
   const id = c.req.param('id').replace(/\.json$/, '');
   return moduleResponse(decodeURIComponent(id), c.env.env, later(c));
 });
@@ -58,11 +59,11 @@ app.get('/m/:id{[^/]+\\.json}', (c) => {
 const schema = (c: Context<Ctx>, name: string, version: number | undefined) =>
   schemaResponse(name.replace(/\.json$/, ''), version, origin(c)) ?? c.notFound();
 
-app.get('/schemas/:version{[0-9]+}/:name{[^/]+\\.json}', (c) =>
+app.get('/schemas/:version{[0-9]+}/:name{[^/]+[.]json}', (c) =>
   schema(c, c.req.param('name'), Number(c.req.param('version'))),
 );
 
-app.get('/schemas/:name{[^/]+\\.json}', (c) => schema(c, c.req.param('name'), undefined));
+app.get('/schemas/:name{[^/]+[.]json}', (c) => schema(c, c.req.param('name'), undefined));
 
 // The legacy catalog, still served so a server predating the contract keeps
 // working. The bare origin answers it too: a current server pointed at a root
@@ -100,7 +101,7 @@ export async function machineResponse(
 // redirected: these are read by installers, not browsers.
 function withoutTrailingSlash(request: Request): Request {
   const url = new URL(request.url);
-  const trimmed = url.pathname.replace(/(.)\/+$/, '$1');
+  const trimmed = trimTrailingSlashes(url.pathname) || '/';
   if (trimmed === url.pathname) return request;
   url.pathname = trimmed;
   return new Request(url, request);

@@ -41,33 +41,23 @@ function cargoVersion(text: string): string {
   return text.match(/^version[ \t]*=[ \t]*"([^"]+)"/m)?.[1] ?? '0.0.0';
 }
 
-export function loadGraph(options: LoadOptions): Graph {
-  const {
-    root,
-    workspaceRoots = ['packages', 'clients', 'apps'],
-    serverManifest = 'server/Cargo.toml',
-    modulesDir = 'modules',
-  } = options;
+// The Rust server, when the tree has one.
+function serverProject(root: string, manifest: string): Project | undefined {
+  const path = join(root, manifest);
+  if (!existsSync(path)) return undefined;
+  return {
+    name: 'server',
+    dir: manifest.replace(/\/Cargo\.toml$/, ''),
+    manifest,
+    version: cargoVersion(readFileSync(path, 'utf8')),
+    deps: [],
+  };
+}
 
-  const projects: Project[] = [];
-  let server: Project | undefined;
-
-  // The Rust server.
-  const serverPath = join(root, serverManifest);
-  if (existsSync(serverPath)) {
-    server = {
-      name: 'server',
-      dir: serverManifest.replace(/\/Cargo\.toml$/, ''),
-      manifest: serverManifest,
-      version: cargoVersion(readFileSync(serverPath, 'utf8')),
-      deps: [],
-    };
-    projects.push(server);
-  }
-
-  // JS workspace projects. First pass records names so the second can resolve
-  // internal dependency edges (a dep is "internal" when it names another project).
-  const npm: Array<{ project: Project; rawDeps: string[] }> = [];
+// Every JS workspace project, with its edges resolved in a second pass: a
+// dependency is "internal" only when it names another project in this graph.
+function npmProjects(root: string, workspaceRoots: string[]): Project[] {
+  const found: Array<{ project: Project; rawDeps: string[] }> = [];
   for (const wsRoot of workspaceRoots) {
     for (const dir of subdirs(root, wsRoot)) {
       const pkg = readJson(join(root, dir, 'package.json'));
@@ -76,7 +66,7 @@ export function loadGraph(options: LoadOptions): Graph {
         ...(pkg.dependencies as Record<string, string> | undefined),
         ...(pkg.devDependencies as Record<string, string> | undefined),
       };
-      npm.push({
+      found.push({
         project: {
           name: pkg.name,
           dir,
@@ -88,22 +78,23 @@ export function loadGraph(options: LoadOptions): Graph {
       });
     }
   }
-  const npmNames = new Set(npm.map((n) => n.project.name));
-  for (const { project, rawDeps } of npm) {
-    project.deps = rawDeps.filter((d) => npmNames.has(d));
-    projects.push(project);
-  }
+  const names = new Set(found.map((n) => n.project.name));
+  return found.map(({ project, rawDeps }) => ({
+    ...project,
+    deps: rawDeps.filter((d) => names.has(d)),
+  }));
+}
 
-  // `.kmod` modules: version, dependency ranges, and the server floor.
+// `.kmod` modules: version, dependency ranges, and the host it needs.
+function moduleProjects(root: string, modulesDir: string): Project[] {
+  const out: Project[] = [];
   for (const dir of subdirs(root, modulesDir)) {
     const manifest = readJson(join(root, dir, 'module.json'));
     if (!manifest || typeof manifest.id !== 'string') continue;
-    const dependencies = manifest.dependencies;
+    const declared = manifest.dependencies;
     const ranges =
-      dependencies && !Array.isArray(dependencies)
-        ? (dependencies as Record<string, string>)
-        : undefined;
-    projects.push({
+      declared && !Array.isArray(declared) ? (declared as Record<string, string>) : undefined;
+    out.push({
       name: manifest.id,
       dir,
       manifest: `${dir}/module.json`,
@@ -113,6 +104,22 @@ export function loadGraph(options: LoadOptions): Graph {
       serverRange: engineRange(manifest.engines, 'server'),
     });
   }
+  return out;
+}
 
+export function loadGraph(options: LoadOptions): Graph {
+  const {
+    root,
+    workspaceRoots = ['packages', 'clients', 'apps'],
+    serverManifest = 'server/Cargo.toml',
+    modulesDir = 'modules',
+  } = options;
+
+  const server = serverProject(root, serverManifest);
+  const projects = [
+    ...(server ? [server] : []),
+    ...npmProjects(root, workspaceRoots),
+    ...moduleProjects(root, modulesDir),
+  ];
   return { projects, server };
 }

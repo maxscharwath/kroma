@@ -1,5 +1,5 @@
+import { satisfies } from '@kroma/registry';
 import { byName, type Graph } from './graph';
-import { satisfies } from './range';
 
 export type ViolationKind = 'missing-dep' | 'range' | 'min-server';
 

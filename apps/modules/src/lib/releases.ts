@@ -6,7 +6,7 @@
 // Every asset carries a `digest` GitHub computed itself, so integrity comes off
 // the listing and the published `.sha256` sidecars never have to be fetched.
 
-import type { KnownVersions } from '@kroma/registry';
+import { base64, type KnownVersions } from '@kroma/registry';
 import { z } from 'zod';
 import { DEFAULT_REPO, type Env, edgeCache, githubHeaders, jsonResponse } from '#site/lib/source';
 
@@ -43,7 +43,7 @@ function integrityOf(digest: string | null | undefined): string | null {
   const hex = digest?.match(HEX_DIGEST)?.[1];
   if (!hex) return null;
   const bytes = hex.match(/../g)?.map((byte) => Number.parseInt(byte, 16)) ?? [];
-  return `sha256-${btoa(String.fromCharCode(...bytes))}`;
+  return `sha256-${base64(Uint8Array.from(bytes))}`;
 }
 
 // `<id>-<target>.kmod`, or `<id>.kmod` for a bundle with no native binary.

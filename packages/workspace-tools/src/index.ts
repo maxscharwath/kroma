@@ -3,7 +3,6 @@
 
 export { affected, directlyChanged } from './core/affected';
 export { byName, dependents, type Graph, type Project } from './core/graph';
-export { compare, parse, type SemVer, satisfies } from './core/range';
 export { type Violation, type ViolationKind, verify } from './core/verify';
 export { changedFiles, type Exec } from './io/git';
 export { loadGraph } from './io/load';

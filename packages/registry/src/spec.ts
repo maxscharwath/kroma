@@ -52,6 +52,9 @@ function schemaFor(name: SchemaName, version: number): z.ZodType | undefined {
 export const publishesSchema = (name: SchemaName, version: number): boolean =>
   schemaFor(name, version) !== undefined;
 
+/** A JSON Schema document. */
+export type JsonSchema = Record<string, unknown>;
+
 /** The JSON Schema (draft 2020-12) for one version of one document, or `null`
  *  when this build does not publish that version. `origin` makes `$id` the URL
  *  it is actually served from. */
@@ -59,9 +62,9 @@ export function jsonSchema(
   name: SchemaName,
   version = schemaVersionOf(name),
   origin = 'https://modules.kroma.tv',
-): unknown | null {
+): JsonSchema | null {
   const schema = schemaFor(name, version);
   if (!schema) return null;
-  const emitted = openWorld(z.toJSONSchema(schema, { io: 'output' }));
-  return { ...(emitted as object), $id: `${origin}${schemaPath(name, version)}` };
+  const emitted = openWorld(z.toJSONSchema(schema, { io: 'output' })) as JsonSchema;
+  return { ...emitted, $id: `${origin}${schemaPath(name, version)}` };
 }

@@ -53,24 +53,24 @@ export function registryApp(dir: string) {
 
   app.get('/index.json', (c) => json(buildIndex(entries(c.req.url))));
 
-  app.get('/m/:id{[^/]+\\.json}', (c) => {
+  app.get('/m/:id{[^/]+[.]json}', (c) => {
     const id = decodeURIComponent(c.req.param('id').replace(/\.json$/, ''));
     const found = entries(c.req.url).find((m) => m.id === id);
     return found ? json(buildModuleRecord(found)) : c.json({ error: 'no such module' }, 404);
   });
 
-  app.get('/schemas/:version{[0-9]+}/:name{[^/]+\\.json}', (c) => {
+  app.get('/schemas/:version{[0-9]+}/:name{[^/]+[.]json}', (c) => {
     const name = schemaNamed(c.req.param('name'));
     if (!name) return c.json({ error: 'no such schema' }, 404);
     return json(jsonSchema(name, Number(c.req.param('version'))));
   });
 
-  app.get('/schemas/:name{[^/]+\\.json}', (c) => {
+  app.get('/schemas/:name{[^/]+[.]json}', (c) => {
     const name = schemaNamed(c.req.param('name'));
     return name ? json(jsonSchema(name)) : c.json({ error: 'no such schema' }, 404);
   });
 
-  app.get('/:file{[^/]+\\.kmod}', (c) => {
+  app.get('/:file{[^/]+[.]kmod}', (c) => {
     const file = c.req.param('file');
     // Only a file the bundle listing named, so a path cannot walk out of `dir`.
     const named = readBundles(dir).some((b) => b.file === file);

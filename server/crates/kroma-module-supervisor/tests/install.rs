@@ -1,4 +1,4 @@
-//! Integration tests for the supervisor's install path: the `minServer`
+//! Integration tests for the supervisor's install path: the `engines`
 //! compatibility gate and the download checksum verifier. Bundles are built
 //! in-memory as raw tars (the installer accepts zstd / gzip / raw, dispatched
 //! by magic bytes) and use `library: true` manifests so nothing is spawned.
@@ -39,22 +39,22 @@ fn install_rejects_a_module_needing_a_newer_server() {
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "apiVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
-             "minServer": "999.0.0", "library": true }"#,
+        r#"{ "schemaVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
+             "engines": { "server": ">=999.0.0" }, "library": true }"#,
     );
     let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
-    assert!(err.contains("requires KROMA server"), "unexpected error: {err}");
+    assert!(err.contains("requires server >=999.0.0"), "unexpected error: {err}");
     assert!(sup.installed_ids().is_empty());
 }
 
 #[test]
-fn install_accepts_a_satisfied_min_server() {
+fn install_accepts_a_satisfied_engine_range() {
     let scratch = temp_modules_dir("ok");
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "apiVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
-             "minServer": "0.1.0", "library": true }"#,
+        r#"{ "schemaVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
+             "engines": { "server": ">=0.1.0" }, "library": true }"#,
     );
     let manifest = sup.install(&bundle, None, ("upload", None)).unwrap();
     assert_eq!(manifest.id, "com.example.demo");
@@ -67,11 +67,26 @@ fn install_still_rejects_reserved_ids() {
     let dir = scratch.path();
     let sup = supervisor(dir, "0.1.4");
     let bundle = tar_with_manifest(
-        r#"{ "apiVersion": 2, "id": "tv.kroma.reserved", "name": "Shadow", "version": "1.0.0",
+        r#"{ "schemaVersion": 2, "id": "tv.kroma.reserved", "name": "Shadow", "version": "1.0.0",
              "library": true }"#,
     );
     let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
     assert!(err.contains("built into this server"), "unexpected error: {err}");
+}
+
+#[test]
+fn install_refuses_an_engine_this_server_cannot_check() {
+    let scratch = temp_modules_dir("engine");
+    let dir = scratch.path();
+    let sup = supervisor(dir, "0.1.4");
+    // Ignoring it would install a module onto a host that cannot run it.
+    let bundle = tar_with_manifest(
+        r#"{ "schemaVersion": 2, "id": "com.example.demo", "name": "Demo", "version": "1.0.0",
+             "engines": { "ffmpeg": ">=6" }, "library": true }"#,
+    );
+    let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
+    assert!(err.contains("cannot check"), "unexpected error: {err}");
+    assert!(err.contains("ffmpeg"), "unexpected error: {err}");
 }
 
 #[test]
@@ -85,7 +100,7 @@ fn install_refuses_a_bundle_built_for_another_manifest_contract() {
         r#"{ "id": "com.example.demo", "name": "Demo", "version": "1.0.0", "library": true }"#,
     );
     let err = sup.install(&bundle, None, ("upload", None)).unwrap_err().to_string();
-    assert!(err.contains("module API v0"), "unexpected error: {err}");
+    assert!(err.contains("manifest schema v0"), "unexpected error: {err}");
     assert!(err.contains("rebuild"), "the error must say what to do: {err}");
     assert!(sup.installed_ids().is_empty(), "nothing is unpacked");
 }

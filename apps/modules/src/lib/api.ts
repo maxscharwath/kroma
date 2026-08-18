@@ -11,8 +11,7 @@ export type ExecCtx = { waitUntil(p: Promise<unknown>): void };
  * Returns `null` when the request should fall through to the rendered site.
  *
  * The bare origin is itself a valid registry URL, so only `Accept: text/html`
- * gets a page there; anything else gets the descriptor, which is what a client
- * pasting the origin is looking for.
+ * gets a page there; anything else gets the catalog.
  */
 export async function machineResponse(
   request: Request,
@@ -32,22 +31,23 @@ export async function machineResponse(
     return Response.redirect(new URL('/favicon.svg', url), 301);
   }
 
-  const isCatalog = path === '/modules.json' || path === '/all.json';
   const isIcon = path.startsWith('/icon/');
+  const isRegistry = isRegistryPath(path);
   const wantsHtml =
     request.method === 'GET' && (request.headers.get('accept') ?? '').includes('text/html');
-  // A machine at the bare origin is asking "what registry is this?", which is
-  // the descriptor - the legacy catalog would answer with a shape a current
-  // server no longer reads.
-  const registryPath = path === '/' && !wantsHtml ? '/registry.json' : path;
-  const isRegistry = isRegistryPath(registryPath);
+  // The bare origin keeps answering the LEGACY catalog to a machine, and that is
+  // deliberate: a current server pointed at a root appends `/registry.json`
+  // itself and never asks for `/`, so changing this would serve nobody and would
+  // break the servers still reading the old shape from it.
+  const isCatalog =
+    path === '/modules.json' || path === '/all.json' || (path === '/' && !wantsHtml);
   if (!isCatalog && !isIcon && !isRegistry) return null;
 
   // `vite dev` calls the server entry with no bindings at all.
   const resolved = env ?? ((await workerContext()).env as Env);
   if (isIcon) return iconResponse(path, resolved, (p) => ctx.waitUntil(p));
   if (isRegistry) {
-    return registryResponse(registryPath, url.origin, resolved, (p) => ctx.waitUntil(p));
+    return registryResponse(path, url.origin, resolved, (p) => ctx.waitUntil(p));
   }
 
   const catalog = await loadCatalog(resolved, (p) => ctx.waitUntil(p));

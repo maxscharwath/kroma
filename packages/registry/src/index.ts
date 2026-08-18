@@ -16,18 +16,10 @@ export {
   verifyIntegrity,
 } from './client';
 export {
-  ArtifactRef,
-  ConfigField,
-  DescribedModule,
-  dependenciesOf,
-  Manifest,
-  MODULE_API_VERSION,
-  optionalDependenciesOf,
-  speaksCurrentApi,
-} from './manifest';
-export {
   Capability,
   CapabilityReq,
+  DOCUMENT_SCHEMAS,
+  Integrity,
   ModuleRecord,
   REGISTRY_API_VERSION,
   RegistryArtifact,
@@ -35,6 +27,25 @@ export {
   RegistryEntry,
   RegistryIndex,
   RegistryVersion,
-} from './schema';
+} from './documents';
+export {
+  ArtifactRef,
+  ConfigField,
+  DescribedModule,
+  dependenciesOf,
+  MANIFEST_SCHEMAS,
+  Manifest,
+  MODULE_SCHEMA_VERSION,
+  optionalDependenciesOf,
+  REVERSE_DNS_ID,
+  speaksCurrentSchema,
+} from './manifest';
 export { channelOf, compareRaw, parse, satisfies, type Version } from './semver';
-export { jsonSchema, SCHEMA_NAMES, type SchemaName } from './spec';
+export {
+  jsonSchema,
+  publishesSchema,
+  SCHEMA_NAMES,
+  type SchemaName,
+  schemaPath,
+  schemaVersionOf,
+} from './spec';

@@ -41,7 +41,8 @@ trust grant. Every install still goes through the same gate:
 - the bundle declares `apiVersion` and it must be the one this server speaks;
   anything else is refused at install **and** at spawn, because a bundle built
   against an older manifest contract loses fields silently rather than loudly,
-- `minServer` is enforced at install **and** at spawn,
+- the module's `engines` are enforced at install **and** at spawn, and an engine
+  the server cannot check is refused rather than ignored,
 - the catalog fetch is bounded by a timeout and a size cap, and an entry's
   `icon` is only accepted as a small inline `data:` image.
 
@@ -78,19 +79,34 @@ client that pastes the origin never needs the tag at all.
 
 ## The wire format (RFC 110)
 
-Three documents, all plain `GET`s, all sha256-verifiable end to end.
+Three documents, all plain `GET`s, all sha256-verifiable end to end — plus the
+schemas that describe them.
 
 | Path | What it is |
 |---|---|
 | `/registry.json` | The descriptor: `apiVersion`, a display `name`, the registry's own `url`, and the module ids it serves. |
 | `/index.json` | One record per module, carrying the version a bare install resolves to. Everything the Store needs to render a listing and judge compatibility, in ONE request. |
 | `/m/{id}.json` | One module's full record: every version the registry serves, and the named channels (`distTags`) pointing into them. |
+| `/schemas/{version}/{name}.json` | The JSON Schema for `manifest`, `registry`, `index` or `module`. `/schemas/{name}.json` is the unversioned alias. |
 
-Point a registry entry at `/registry.json` and the server follows it to the
-`index.json` **beside it** — resolved against the URL it actually fetched, never
+Point a registry entry at the registry's **root** — the descriptor lives at the
+well-known `/registry.json` beneath it — and the server follows it to the
+`index.json` **beside it**, resolved against the URL it actually fetched, never
 the `url` the descriptor declares about itself, so a registry cannot redirect a
 client somewhere else by lying about where it lives. A document declaring an
 `apiVersion` this server does not know is refused rather than half-read.
+
+The schemas are **derived** from the same definitions the reference registry
+emits and parses with, so the published spec cannot drift from the running code.
+They are versioned and pinned, in the shape Biome and json-schema.org use: a
+later contract is a new document beside the old one, never an edit to the URL
+someone already pinned. A `module.json` points at its own with
+
+```json
+{ "$schema": "https://modules.kroma.tv/schemas/2/manifest.json" }
+```
+
+which is what gives an editor completion and inline docs while authoring one.
 
 Every artifact carries a mandatory `integrity` in Subresource-Integrity form
 (`sha256-<base64>`). This is the non-negotiable that makes a third-party
@@ -107,7 +123,7 @@ uncompressed tar — not something an installer verifies.
   "description": "…",
   "author": "…", "homepage": "…", "license": "GPL-2.0-or-later",
   "keywords": ["notes"], "tags": ["download-client"],
-  "minServer": "0.1.4",
+  "engines": { "server": ">=0.1.4" },
   "library": false,
   "dependencies": { "tv.kroma.torrents": "^0.1.0" },
   "optionalDependencies": { "tv.kroma.vpn": "^0.1.0" },
@@ -142,7 +158,7 @@ Two sources, and the split matters:
 - **`/index.json`** is projected from the merged `modules.json` the release train
   publishes to the rolling `modules` tag. That document is the publisher's
   statement of what is *current*, and it is the only place the manifest metadata
-  (icon, `minServer`, dependencies, capabilities) exists outside the bundles.
+  (icon, `engines`, dependencies, capabilities) exists outside the bundles.
 - **`/m/{id}.json`** additionally lists every version, read from the
   `<id>@<version>` **GitHub Releases themselves** — the ground truth the merged
   catalog is only a current-row projection of. Each asset carries a `digest`
@@ -182,7 +198,7 @@ run — CI here only decides *what* to publish, never what the documents say.
 
 And the record is a cache of the bundle, not a claim above it. At install the
 server unpacks the `.kmod` and re-reads its `module.json`: the id must match the
-one the registry offered, and `minServer` is enforced from the **bundle**. A
+one the registry offered, and `engines` are enforced from the **bundle**. A
 registry that understates either to make a module look installable is refused at
 unpack time, and a wrong `integrity` fails when the downloaded bytes are hashed.
 

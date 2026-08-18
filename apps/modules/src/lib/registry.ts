@@ -4,8 +4,10 @@ import {
   buildModuleRecord,
   type DescribedModule,
   jsonSchema,
+  publishesSchema,
   SCHEMA_NAMES,
   type SchemaName,
+  schemaVersionOf,
 } from '@kroma/registry';
 import type { ModuleEntry } from '#site/catalog';
 import { releaseHistory } from '#site/lib/releases';
@@ -15,10 +17,22 @@ const REGISTRY_NAME = 'KROMA modules';
 
 const MODULE_ROUTE = /^\/m\/([^/]+)\.json$/;
 
-const SCHEMA_ROUTE = /^\/schema\/([^/]+)\.json$/;
+// `/schemas/<version>/<name>.json` is what a `$id` pins; `/schemas/<name>.json`
+// is the unversioned alias, always the current one.
+const SCHEMA_ROUTE = /^\/schemas(?:\/(\d+))?\/([^/]+)\.json$/;
 
-const schemaName = (path: string): SchemaName | undefined =>
-  SCHEMA_NAMES.find((name) => SCHEMA_ROUTE.exec(path)?.[1] === name);
+// `/schemas/<version>/<name>.json` is what a `$id` pins; `/schemas/<name>.json`
+// is the unversioned alias, always the current one.
+function schemaRequest(path: string): { name: SchemaName; version: number } | undefined {
+  const match = SCHEMA_ROUTE.exec(path);
+  const name = SCHEMA_NAMES.find((known) => known === match?.[2]);
+  if (!name) return undefined;
+  const version = match?.[1] ? Number(match[1]) : schemaVersionOf(name);
+  // Every version this build still publishes answers, not only the current one:
+  // a `$id` pinned against an older contract must keep resolving to the schema
+  // it was pinned to.
+  return publishesSchema(name, version) ? { name, version } : undefined;
+}
 
 /** The RFC-110 paths this registry answers, off the same merged catalog the
  *  legacy `/modules.json` serves. */
@@ -27,7 +41,7 @@ export function isRegistryPath(path: string): boolean {
     path === '/registry.json' ||
     path === '/index.json' ||
     MODULE_ROUTE.test(path) ||
-    schemaName(path) !== undefined
+    schemaRequest(path) !== undefined
   );
 }
 
@@ -54,8 +68,10 @@ export async function registryResponse(
 
   // The spec is derived from the schemas this registry emits with, so it is
   // served without reading the catalog at all.
-  const schema = schemaName(path);
-  if (schema) return jsonResponse(JSON.stringify(jsonSchema(schema)), 86400);
+  const schema = schemaRequest(path);
+  if (schema) {
+    return jsonResponse(JSON.stringify(jsonSchema(schema.name, schema.version, origin)), 86400);
+  }
 
   const body = await loadCatalog(env, waitUntil);
   const { parseCatalog } = await import('#site/catalog');

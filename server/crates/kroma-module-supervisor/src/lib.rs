@@ -442,15 +442,9 @@ impl Supervisor {
         // After the id checks, which are the security ones: a bundle shipped
         // under someone else's id must be reported as that, whatever contract it
         // was built against.
-        check_module_api(&id, &manifest)?;
-        let min_server = manifest.min_server.as_deref();
-        if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
-            anyhow::bail!(
-                "'{id}' requires KROMA server {} but this server is {}; update the server first",
-                min_server.unwrap_or("?"),
-                self.cfg.server_version,
-            );
-        }
+        check_manifest_schema(&id, &manifest)?;
+        kroma_module_manifest::engines_satisfied(&manifest.engines, &self.cfg.server_version)
+            .map_err(|reason| anyhow::anyhow!("'{id}' {reason}"))?;
         Ok((id, manifest))
     }
 
@@ -605,7 +599,7 @@ impl Supervisor {
 
     /// Start one installed module, applying the same gates as boot: a stray
     /// `.kmod` for a built-in id never spawns (it would duplicate the in-core
-    /// module), `minServer` is enforced, and a library module (no binary) is a
+    /// module), its `engines` are enforced, and a library module (no binary) is a
     /// successful no-op. This is what the admin enable toggle drives, so
     /// enabling a runtime module brings its process up without a restart.
     pub fn start_installed(&self, id: &str) -> anyhow::Result<()> {
@@ -617,15 +611,9 @@ impl Supervisor {
         if self.cfg.reserved_ids.iter().any(|r| r == id) {
             anyhow::bail!("'{id}' shadows a built-in module; not spawning");
         }
-        check_module_api(id, &manifest)?;
-        let min_server = manifest.min_server.as_deref();
-        if !kroma_module_manifest::server_satisfies(min_server, &self.cfg.server_version) {
-            anyhow::bail!(
-                "'{id}' requires KROMA server {} but this server is {}",
-                min_server.unwrap_or("?"),
-                self.cfg.server_version,
-            );
-        }
+        check_manifest_schema(id, &manifest)?;
+        kroma_module_manifest::engines_satisfied(&manifest.engines, &self.cfg.server_version)
+            .map_err(|reason| anyhow::anyhow!("'{id}' {reason}"))?;
         if !self.has_binary(id) {
             return Ok(());
         }
@@ -788,13 +776,13 @@ impl Supervisor {
 /// server it now runs under, and the fields that moved parse as absent rather
 /// than as errors, so reading one on a best-effort basis loses its dependencies
 /// silently instead of saying why.
-fn check_module_api(id: &str, manifest: &ModuleManifest) -> anyhow::Result<()> {
-    let found = manifest.api_version;
+fn check_manifest_schema(id: &str, manifest: &ModuleManifest) -> anyhow::Result<()> {
+    let found = manifest.schema_version;
     anyhow::ensure!(
-        found == kroma_module_manifest::MODULE_API_VERSION,
-        "'{id}' was built for module API v{found}, and this server speaks v{}; rebuild it against \
+        found == kroma_module_manifest::MODULE_SCHEMA_VERSION,
+        "'{id}' was built for manifest schema v{found}, and this server speaks v{}; rebuild it against \
          the current SDK",
-        kroma_module_manifest::MODULE_API_VERSION,
+        kroma_module_manifest::MODULE_SCHEMA_VERSION,
     );
     Ok(())
 }

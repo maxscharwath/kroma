@@ -186,14 +186,10 @@ pub async fn update_all(
         if !kroma_module_manifest::is_newer(&entry.version, cur) {
             continue;
         }
-        if !kroma_module_manifest::server_satisfies(entry.min_server.as_deref(), SERVER_VERSION) {
-            outcome.failed.push(FailedUpdate {
-                id: id.to_string(),
-                error: format!(
-                    "requires KROMA server {} (this server is {SERVER_VERSION}); update the server first",
-                    entry.min_server.as_deref().unwrap_or("?"),
-                ),
-            });
+        if let Err(reason) =
+            kroma_module_manifest::engines_satisfied(&entry.engines, SERVER_VERSION)
+        {
+            outcome.failed.push(FailedUpdate { id: id.to_string(), error: reason });
             continue;
         }
         targets.push((entry, cur.to_string()));

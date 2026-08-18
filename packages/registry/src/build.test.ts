@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildDescriptor, buildIndex, buildModuleRecord, sriFromHex } from './build';
+import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './documents';
 import type { DescribedModule } from './manifest';
-import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './schema';
 
 function entry(over: Partial<DescribedModule> = {}): DescribedModule {
   return {
@@ -9,7 +9,7 @@ function entry(over: Partial<DescribedModule> = {}): DescribedModule {
     name: 'Torrents',
     version: '0.1.7',
     description: 'Torrent stuff',
-    minServer: '0.1.4',
+    engines: { server: '>=0.1.4' },
     icon: 'data:image/svg+xml,…',
     provides: [{ kind: 'download-client', id: 'builtin' }],
     artifacts: [
@@ -49,9 +49,9 @@ describe('buildModuleRecord', () => {
   it('carries the contract the bundle was built against, so a client can judge it', () => {
     // Without this on the wire, every compatibility check downstream has to
     // download the bundle to find out it cannot install it.
-    const record = buildModuleRecord(entry({ apiVersion: 2 }));
-    expect(record.versions['0.1.7']?.apiVersion).toBe(2);
-    expect(buildIndex([entry({ apiVersion: 2 })])[0]?.apiVersion).toBe(2);
+    const record = buildModuleRecord(entry({ schemaVersion: 2 }));
+    expect(record.versions['0.1.7']?.schemaVersion).toBe(2);
+    expect(buildIndex([entry({ schemaVersion: 2 })])[0]?.schemaVersion).toBe(2);
   });
 
   it('carries the store metadata and one version with SRI artifacts', () => {
@@ -67,7 +67,7 @@ describe('buildModuleRecord', () => {
       latest: '0.1.7',
     });
     const version = record.versions['0.1.7'];
-    expect(version?.minServer).toBe('0.1.4');
+    expect(version?.engines).toEqual({ server: '>=0.1.4' });
     expect(version?.artifacts[0]?.integrity).toBe(sriFromHex('ab'.repeat(32)));
   });
 

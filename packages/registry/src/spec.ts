@@ -1,9 +1,14 @@
 // The wire format as JSON Schema, DERIVED from the zod schemas rather than
 // hand-written beside them: a publisher in another language validates against
 // the same definition this client parses with, and the two cannot drift.
+//
+// Served per VERSION. A pinned `$id` must keep answering with the schema it was
+// pinned to, so a new contract is a new document beside the old one, never an
+// edit to it.
 
 import { z } from 'zod';
-import { ModuleRecord, RegistryDescriptor, RegistryIndex } from './schema';
+import { DOCUMENT_SCHEMAS, REGISTRY_API_VERSION } from './documents';
+import { MANIFEST_SCHEMAS, MODULE_SCHEMA_VERSION } from './manifest';
 
 // zod strips unknown keys, which is right for a client reading a document it
 // does not fully know. The PUBLISHED contract is open-world though: a registry
@@ -20,18 +25,43 @@ function openWorld(node: unknown): unknown {
   return out;
 }
 
-const DOCUMENTS = {
-  registry: RegistryDescriptor,
-  index: RegistryIndex,
-  module: ModuleRecord,
-} as const;
-
 /** The document names a conforming registry serves a schema for. */
-export type SchemaName = keyof typeof DOCUMENTS;
+export type SchemaName = 'manifest' | 'registry' | 'index' | 'module';
 
-export const SCHEMA_NAMES = Object.keys(DOCUMENTS) as SchemaName[];
+export const SCHEMA_NAMES: SchemaName[] = ['manifest', 'registry', 'index', 'module'];
 
-/** The JSON Schema (draft 2020-12) for one document of the wire format. */
-export function jsonSchema(name: SchemaName): unknown {
-  return openWorld(z.toJSONSchema(DOCUMENTS[name], { io: 'output' }));
+/** Which version of its contract a document currently belongs to. The manifest
+ *  and the served documents version independently. */
+export const schemaVersionOf = (name: SchemaName): number =>
+  name === 'manifest' ? MODULE_SCHEMA_VERSION : REGISTRY_API_VERSION;
+
+/** Where a schema is published: `/schemas/<version>/<name>.json`, the shape
+ *  Biome and json-schema.org already use (and that this repo already pins
+ *  against in `biome.json`). Versioned, so a later contract is a NEW document
+ *  rather than a silent edit to the one third parties pinned against. */
+export const schemaPath = (name: SchemaName, version = schemaVersionOf(name)): string =>
+  `/schemas/${version}/${name}.json`;
+
+// Every version ever published, not just the current one.
+function schemaFor(name: SchemaName, version: number): z.ZodType | undefined {
+  if (name === 'manifest') return MANIFEST_SCHEMAS[version];
+  return DOCUMENT_SCHEMAS[version]?.[name];
+}
+
+/** Whether this build still publishes that version of that document. */
+export const publishesSchema = (name: SchemaName, version: number): boolean =>
+  schemaFor(name, version) !== undefined;
+
+/** The JSON Schema (draft 2020-12) for one version of one document, or `null`
+ *  when this build does not publish that version. `origin` makes `$id` the URL
+ *  it is actually served from. */
+export function jsonSchema(
+  name: SchemaName,
+  version = schemaVersionOf(name),
+  origin = 'https://modules.kroma.tv',
+): unknown | null {
+  const schema = schemaFor(name, version);
+  if (!schema) return null;
+  const emitted = openWorld(z.toJSONSchema(schema, { io: 'output' }));
+  return { ...(emitted as object), $id: `${origin}${schemaPath(name, version)}` };
 }

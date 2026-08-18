@@ -210,7 +210,7 @@ describe('ModuleRegistry.reconcile', () => {
     const r = new ModuleRegistry();
     r.register(mod('a'));
     r.register(mod('b'));
-    const manifest: ModuleManifest[] = [{ apiVersion: 2, id: 'a', name: 'A', version: '1.0.0' }];
+    const manifest: ModuleManifest[] = [{ schemaVersion: 2, id: 'a', name: 'A', version: '1.0.0' }];
     expect(r.reconcile(manifest)).toEqual([
       { id: 'a', frontend: true, backend: true, manifest: manifest[0] },
       { id: 'b', frontend: true, backend: false, manifest: undefined },

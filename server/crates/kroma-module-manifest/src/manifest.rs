@@ -1,5 +1,7 @@
 //! The wire shape a module publishes about itself.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 /// A module's reported version. Kept as a plain string for now; a real build
@@ -183,7 +185,7 @@ pub struct CapabilityReq {
 /// versions parse as *absent*, never as errors: a v1 bundle still spelling its
 /// dependencies `dependsOn` would install with an empty dependency set and fail
 /// at runtime, somewhere else, with nothing pointing back here.
-pub const MODULE_API_VERSION: u32 = 2;
+pub const MODULE_SCHEMA_VERSION: u32 = 2;
 
 /// The public description of a module.
 ///
@@ -199,14 +201,17 @@ pub struct ModuleManifest {
     /// which is every bundle predating the field and therefore every bundle
     /// this build refuses.
     #[serde(default)]
-    pub api_version: u32,
+    pub schema_version: u32,
     pub id: String,
     pub name: String,
     pub version: Version,
     #[serde(default)]
     pub description: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub min_server: Option<String>,
+    /// What this module needs from its host, by engine name (`server`) and
+    /// semver range. Named like npm's `engines` because it is that, and an
+    /// object because a floor on one thing was never going to be all of it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub engines: BTreeMap<String, String>,
     #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
     pub dependencies: Vec<Dependency>,
     #[serde(default, with = "dep_map", skip_serializing_if = "Vec::is_empty")]
@@ -236,12 +241,12 @@ impl ModuleManifest {
     /// the rest.
     pub fn new(id: impl Into<String>, name: impl Into<String>, version: impl Into<Version>) -> Self {
         Self {
-            api_version: MODULE_API_VERSION,
+            schema_version: MODULE_SCHEMA_VERSION,
             id: id.into(),
             name: name.into(),
             version: version.into(),
             description: String::new(),
-            min_server: None,
+            engines: BTreeMap::new(),
             dependencies: Vec::new(),
             optional_dependencies: Vec::new(),
             requires: Vec::new(),
@@ -287,7 +292,7 @@ mod tests {
         // Refused LOUDLY on purpose. Accepting it was the compatibility this
         // build dropped; reading it silently as empty would be worse than either.
         let err = serde_json::from_str::<ModuleManifest>(
-            r#"{ "apiVersion": 2, "id": "a", "name": "A", "version": "1.0.0",
+            r#"{ "schemaVersion": 2, "id": "a", "name": "A", "version": "1.0.0",
                  "dependencies": ["bare", "with@^1.2"] }"#,
         )
         .unwrap_err()
@@ -336,14 +341,14 @@ mod tests {
     #[test]
     fn a_manifest_declares_which_contract_it_was_built_against() {
         let fresh = ModuleManifest::new("a", "A", "1.0.0");
-        assert_eq!(fresh.api_version, MODULE_API_VERSION);
-        assert_eq!(serde_json::to_value(&fresh).unwrap()["apiVersion"], MODULE_API_VERSION);
+        assert_eq!(fresh.schema_version, MODULE_SCHEMA_VERSION);
+        assert_eq!(serde_json::to_value(&fresh).unwrap()["schemaVersion"], MODULE_SCHEMA_VERSION);
 
         // Absent reads as 0, which is every bundle predating the field - the
         // supervisor's install gate turns that into a refusal with a reason.
         let old: ModuleManifest =
             serde_json::from_str(r#"{ "id": "a", "name": "A", "version": "1.0.0" }"#).unwrap();
-        assert_eq!(old.api_version, 0);
+        assert_eq!(old.schema_version, 0);
     }
 
     #[test]

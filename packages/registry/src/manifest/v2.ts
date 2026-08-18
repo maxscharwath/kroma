@@ -5,7 +5,7 @@
 // checked, not asserted.
 
 import { z } from 'zod';
-import { Capability, CapabilityReq } from './schema';
+import { Capability, CapabilityReq } from '../documents/v1';
 
 // Any optional field may arrive as an explicit null.
 const DependencyMap = z.record(z.string(), z.string()).nullish();
@@ -24,31 +24,71 @@ export const ConfigField = z.object({
 });
 export type ConfigField = z.infer<typeof ConfigField>;
 
-/** The manifest contract this build speaks. */
-export const MODULE_API_VERSION = 2;
+/** The version this file defines. */
+const SCHEMA_VERSION = 2;
+
+/** A module id: reverse-DNS, lowercase. */
+export const REVERSE_DNS_ID = /^[a-z0-9]+(?:\.[a-z0-9-]+)+$/;
 
 /** A module's `module.json`, as authored. */
 export const Manifest = z.object({
+  /** Editor-only: lets a manifest point an editor at its own contract. Declared
+   *  so a strict authoring check allows it, and stripped on the way to the wire,
+   *  because a registry document is not where a `$schema` belongs. */
+  $schema: z.string().optional(),
   // Optional in the SHAPE, required by the contract. A catalog row is derived
   // from a bundle that may predate the field, and a registry that still lists
   // one should render rather than fail to parse - the refusal belongs where the
-  // bundle is actually opened, which is `speaksCurrentApi` at install.
-  apiVersion: z.number().int().nullish(),
-  id: z.string(),
-  name: z.string(),
-  version: z.string(),
-  description: z.string().nullish(),
-  minServer: z.string().nullish(),
-  library: z.boolean().nullish(),
-  dependencies: DependencyMap,
-  optionalDependencies: DependencyMap,
-  provides: z.array(Capability).nullish(),
-  requires: z.array(CapabilityReq).nullish(),
+  // bundle is actually opened, which is `speaksCurrentSchema` at install.
+  schemaVersion: z
+    .number()
+    .int()
+    .nullish()
+    .describe(
+      'The manifest schema this module is built against. A server that speaks a different one refuses the bundle rather than reading it on a best-effort basis, because the fields that moved between versions parse as absent, not as errors.',
+    ),
+  id: z.string().describe('Reverse-DNS identifier, e.g. tv.kroma.torrents. The runtime join key.'),
+  name: z.string().describe('Display name, shown in the Store and the admin.'),
+  version: z
+    .string()
+    .describe(
+      "The module's own semver version. Bump it whenever the bundle changes: CI content-hashes each bundle and refuses a run whose bytes moved while this stood still.",
+    ),
+  description: z.string().nullish().describe('One line, shown on the Store card.'),
+  /** What this module needs from its host, by engine name and semver range
+   *  (`{ server: ">=0.1.4" }`). A bare version means "at least that". An engine
+   *  the host cannot check is refused, not ignored. */
+  engines: z.record(z.string(), z.string()).nullish(),
+  library: z
+    .boolean()
+    .nullish()
+    .describe(
+      'A library module: its .kmod ships no native binary (its code is co-linked into the processes that need it), so the supervisor registers it but spawns no process.',
+    ),
+  dependencies: DependencyMap.describe(
+    'Hard dependencies as a map of module id to semver range; a bare "*" means any version. Enforced on the backend.',
+  ),
+  optionalDependencies: DependencyMap.describe(
+    'Soft dependencies, same shape: version-checked and ordered first when present, but not required.',
+  ),
+  provides: z
+    .array(Capability)
+    .nullish()
+    .describe(
+      'Capabilities this module implements, as (kind, id). May carry admin UI metadata so the add-picker is data-driven.',
+    ),
+  requires: z
+    .array(CapabilityReq)
+    .nullish()
+    .describe('Capability dependencies, satisfied by any module providing the (kind[, id]).'),
   /** Cross-module RPC contracts this module SERVES, by name. Distinct from
    *  `provides`: this is the machine wiring a consumer resolves against, so no
    *  one has to name a module id. */
   ports: z.array(z.string()).nullish(),
-  permissions: z.array(z.string()).nullish(),
+  permissions: z
+    .array(z.string())
+    .nullish()
+    .describe("Permissions this module's own routes require."),
   config: z.array(ConfigField).nullish(),
   feRemote: z.object({ module: z.string() }).nullish(),
   // Store metadata, all optional.
@@ -64,8 +104,8 @@ export type Manifest = z.infer<typeof Manifest>;
  *  A bundle that was not is refused rather than read on a best-effort basis: the
  *  fields that moved between versions parse as ABSENT, not as errors, so a stale
  *  one would install with its dependencies silently dropped. */
-export function speaksCurrentApi(manifest: Pick<Manifest, 'apiVersion'>): boolean {
-  return manifest.apiVersion === MODULE_API_VERSION;
+export function speaksCurrentSchema(manifest: Pick<Manifest, 'schemaVersion'>): boolean {
+  return manifest.schemaVersion === SCHEMA_VERSION;
 }
 
 const mapOf = (raw: Manifest['dependencies']): Record<string, string> => raw ?? {};

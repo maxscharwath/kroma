@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Manifest, MODULE_API_VERSION, speaksCurrentApi } from '@kroma/registry';
+import { Manifest, MODULE_SCHEMA_VERSION, speaksCurrentSchema } from '@kroma/registry';
 import type { Artifact, Entry } from './catalog';
 import { byCodeUnit } from './sort';
 
@@ -95,9 +95,9 @@ export function readBundles(dir: string): Bundle[] {
     const manifest = read.data;
     // Refused here as well as at install: a registry that lists a bundle no
     // current server will unpack is worse than one that never offered it.
-    if (!speaksCurrentApi(manifest)) {
+    if (!speaksCurrentSchema(manifest)) {
       console.warn(
-        `  ! ${file}: built for module API v${manifest.apiVersion ?? 0}, and this SDK speaks v${MODULE_API_VERSION}; skipped`,
+        `  ! ${file}: built for manifest schema v${manifest.schemaVersion ?? 0}, and this SDK speaks v${MODULE_SCHEMA_VERSION}; skipped`,
       );
       continue;
     }

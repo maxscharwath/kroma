@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Reference consumer. Subcommands:
 //   affected --since <range>   list the projects a change affects (transitively)
-//   verify                     check every dependency edge + minServer resolves
+//   verify                     check every dependency edge + engine range resolves
 // The analysis lives in the tested core; this only loads the repo and prints.
 
 import { affected } from './core/affected';

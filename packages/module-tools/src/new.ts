@@ -4,7 +4,7 @@
 
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MODULE_API_VERSION } from '@kroma/registry';
+import { MODULE_SCHEMA_VERSION } from '@kroma/registry';
 import { REVERSE_DNS, slug as toSlug } from './format';
 import { root } from './root';
 
@@ -27,7 +27,7 @@ const leaf = id.split('.').pop() ?? id;
 const title = leaf.charAt(0).toUpperCase() + leaf.slice(1);
 
 const template = `---
-apiVersion: ${MODULE_API_VERSION}
+schemaVersion: ${MODULE_SCHEMA_VERSION}
 id: ${id}
 name: ${title}
 version: 0.1.0

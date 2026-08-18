@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dependenciesOf, Manifest, optionalDependenciesOf } from './manifest';
+import { dependenciesOf, Manifest, optionalDependenciesOf } from './v2';
 
 const base = { id: 'tv.kroma.x', name: 'X', version: '1.0.0' };
 
@@ -33,16 +33,16 @@ describe('Manifest', () => {
 });
 
 describe('the shape a real manifest declares', () => {
-  // Every property `modules/module.schema.json` allows. zod STRIPS what it does
-  // not declare, so a field missing here is a field the published catalog would
-  // lose without anything failing - which is how `ports` went missing once.
+  // Every property a manifest may carry. zod STRIPS what it does not declare,
+  // so a field missing here is a field the published catalog would lose without
+  // anything failing - which is how `ports` went missing once.
   const full = {
-    apiVersion: 2,
+    schemaVersion: 2,
     id: 'tv.kroma.torrents',
     name: 'Torrents',
     version: '0.1.8',
     description: 'Downloads',
-    minServer: '0.1.4',
+    engines: { server: '>=0.1.4' },
     library: false,
     dependencies: { 'tv.kroma.indexer': '^0.1.0' },
     optionalDependencies: { 'tv.kroma.vpn': '^0.1.0' },

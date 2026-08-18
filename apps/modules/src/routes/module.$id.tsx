@@ -85,16 +85,16 @@ function Hero({ module: m }: Readonly<{ module: ModuleEntry }>) {
           </Box>
         </Row>
         {m.description ? <Text color="textMuted">{m.description}</Text> : null}
-        {m.minServer || deps.length > 0 ? (
+        {Object.keys(m.engines ?? {}).length > 0 || deps.length > 0 ? (
           <Row gap={12} wrap align="center">
-            {m.minServer ? (
-              <Row gap={6}>
+            {Object.entries(m.engines ?? {}).map(([engine, range]) => (
+              <Row gap={6} key={engine}>
                 <Icon name="server" size={14} color="textDim" />
                 <Text color="textDim" variant="meta">
-                  KROMA {m.minServer}+
+                  {engine === 'server' ? 'KROMA' : engine} {range}
                 </Text>
               </Row>
-            ) : null}
+            ))}
             {deps.map((dep) => (
               <Row gap={6} key={dep.id}>
                 <Icon name="packages" size={14} color="textDim" />

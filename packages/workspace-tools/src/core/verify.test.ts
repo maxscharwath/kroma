@@ -20,7 +20,7 @@ function graph(overrides: Partial<Graph> = {}): Graph {
         manifest: 'modules/tv.kroma.torrents/module.json',
         version: '0.1.7',
         deps: [],
-        minServer: '0.1.4',
+        serverRange: '>=0.1.4',
       },
       {
         name: 'tv.kroma.acquisition',
@@ -29,7 +29,7 @@ function graph(overrides: Partial<Graph> = {}): Graph {
         version: '0.1.8',
         deps: ['tv.kroma.torrents'],
         ranges: { 'tv.kroma.torrents': '^0.1.0' },
-        minServer: '0.1.4',
+        serverRange: '>=0.1.4',
       },
     ],
     ...overrides,
@@ -57,7 +57,7 @@ describe('verify', () => {
     expect(verify(g)[0]).toMatchObject({ kind: 'missing-dep' });
   });
 
-  it('flags a server below a module minServer', () => {
+  it('flags a server below a module engine range', () => {
     const g = graph({
       server: {
         name: 'server',

@@ -21,7 +21,7 @@ export const StoreModule = z.object({
   description: z.string(),
   library: z.boolean(),
   icon: z.string().nullish(),
-  minServer: z.string().nullish(),
+  engines: z.record(z.string(), z.string()).default({}),
   dependencies: DependencyMap,
   optionalDependencies: DependencyMap,
   provides: z.array(Capability),

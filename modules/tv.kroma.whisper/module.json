@@ -1,10 +1,12 @@
 {
-  "apiVersion": 2,
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
   "id": "tv.kroma.whisper",
   "name": "Whisper transcription",
   "version": "0.1.2",
-  "minServer": "0.1.4",
-  "dependencies": [],
+  "engines": {
+    "server": ">=0.1.4"
+  },
   "provides": [
     {
       "kind": "transcriber",

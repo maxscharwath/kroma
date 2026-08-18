@@ -4,12 +4,8 @@
 
 import { z } from 'zod';
 
-/** The contract version every document carries. A client refuses what it does
- *  not know rather than half-reading it. */
-export const REGISTRY_API_VERSION = 1;
-
-// Subresource-Integrity form of a sha256 digest: `sha256-<base64>`.
-const Integrity = z.string().regex(/^sha256-[A-Za-z0-9+/]{43}=$/, 'not an sha256 SRI');
+/** Subresource-Integrity form of a sha256 digest: `sha256-<base64>`. */
+export const Integrity = z.string().regex(/^sha256-[A-Za-z0-9+/]{43}=$/, 'not an sha256 SRI');
 
 // Loose, not stripped: a provider entry carries admin UI metadata beyond
 // `kind`/`id` (`label`, `flow`, `fields`) that drives the "add engine" picker,
@@ -35,10 +31,11 @@ const DependencyMap = z.record(z.string(), z.string());
 
 /** Everything that is true of one *version* of a module. */
 export const RegistryVersion = z.object({
-  // Per version, not per module: a module published v1 bundles before it
-  // published v2 ones, and a client has to judge each on its own.
-  apiVersion: z.number().int().nullish(),
-  minServer: z.string().nullish(),
+  // The MANIFEST schema the bundle was built against, per version: a module
+  // published v1 bundles before it published v2 ones, and a client judges each
+  // on its own. Not to be confused with the document's own `apiVersion`.
+  schemaVersion: z.number().int().nullish(),
+  engines: z.record(z.string(), z.string()).nullish(),
   library: z.boolean().nullish(),
   dependencies: DependencyMap.nullish(),
   optionalDependencies: DependencyMap.nullish(),

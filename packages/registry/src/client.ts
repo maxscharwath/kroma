@@ -9,7 +9,7 @@ import {
   type RegistryEntry,
   RegistryIndex,
   type RegistryVersion,
-} from './schema';
+} from './documents';
 import { compareRaw, satisfies } from './semver';
 
 export type FetchJson = (url: string) => Promise<unknown>;

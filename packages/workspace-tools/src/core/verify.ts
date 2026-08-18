@@ -11,7 +11,7 @@ export interface Violation {
 
 // Check that every declared dependency actually resolves against the versions in
 // the graph: each `dependencies` range is satisfied by the current version of the
-// depended project, and each `minServer` is met by the server. Returns the list
+// depended project, and each `engines.server` range is met by the server. Returns the list
 // of violations (empty = the dependency graph is coherent). Pure.
 export function verify(graph: Graph): Violation[] {
   const projects = byName(graph);
@@ -37,18 +37,18 @@ export function verify(graph: Graph): Violation[] {
       }
     }
 
-    if (project.minServer) {
+    if (project.serverRange) {
       if (!graph.server) {
         violations.push({
           project: project.name,
           kind: 'min-server',
-          detail: `requires server >= ${project.minServer}, but no server is in the workspace`,
+          detail: `requires server ${project.serverRange}, but no server is in the workspace`,
         });
-      } else if (!satisfies(graph.server.version, `>=${project.minServer}`)) {
+      } else if (!satisfies(graph.server.version, project.serverRange)) {
         violations.push({
           project: project.name,
           kind: 'min-server',
-          detail: `requires server >= ${project.minServer}, but server is ${graph.server.version}`,
+          detail: `requires server ${project.serverRange}, but server is ${graph.server.version}`,
         });
       }
     }

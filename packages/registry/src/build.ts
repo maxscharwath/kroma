@@ -2,14 +2,14 @@
 // values out, so both the publish pipeline and the reference registry's worker
 // derive the same bytes from the same input.
 
-import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest';
 import {
   type ModuleRecord,
   REGISTRY_API_VERSION,
   type RegistryDescriptor,
   type RegistryEntry,
   type RegistryVersion,
-} from './schema';
+} from './documents';
+import { type DescribedModule, dependenciesOf, optionalDependenciesOf } from './manifest';
 import { channelOf } from './semver';
 import { byCodeUnit } from './sort';
 
@@ -54,8 +54,8 @@ function metaOf(entry: DescribedModule) {
 
 function versionOf(entry: DescribedModule): RegistryVersion {
   return {
-    apiVersion: entry.apiVersion,
-    minServer: entry.minServer,
+    schemaVersion: entry.schemaVersion,
+    engines: entry.engines,
     library: entry.library,
     dependencies: someMap(dependenciesOf(entry)),
     optionalDependencies: someMap(optionalDependenciesOf(entry)),

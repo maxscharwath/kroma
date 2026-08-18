@@ -30,6 +30,13 @@ function subdirs(root: string, rel: string): string[] {
     .map((e) => `${rel}/${e.name}`);
 }
 
+// `engines: { "<name>": "<range>" }`, as a module declares what its host must be.
+function engineRange(engines: unknown, name: string): string | undefined {
+  if (!engines || typeof engines !== 'object' || Array.isArray(engines)) return undefined;
+  const value = (engines as Record<string, unknown>)[name];
+  return typeof value === 'string' ? value : undefined;
+}
+
 function cargoVersion(text: string): string {
   return text.match(/^version[ \t]*=[ \t]*"([^"]+)"/m)?.[1] ?? '0.0.0';
 }
@@ -103,7 +110,7 @@ export function loadGraph(options: LoadOptions): Graph {
       version: typeof manifest.version === 'string' ? manifest.version : '0.0.0',
       deps: ranges ? Object.keys(ranges) : [],
       ranges,
-      minServer: typeof manifest.minServer === 'string' ? manifest.minServer : undefined,
+      serverRange: engineRange(manifest.engines, 'server'),
     });
   }
 

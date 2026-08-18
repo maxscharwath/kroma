@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRegistryClient, matches, pickVersion, verifyIntegrity } from './client';
-import type { ModuleRecord, RegistryEntry } from './schema';
+import type { ModuleRecord, RegistryEntry } from './documents';
 
 const sri = async (text: string) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -80,7 +80,7 @@ describe('createRegistryClient', () => {
     distTags: { latest: '0.1.9', beta: '0.2.0-beta.1' },
     versions: {
       '0.1.0': { artifacts: [artifact] },
-      '0.1.9': { minServer: '0.1.4', artifacts: [artifact] },
+      '0.1.9': { engines: { server: '>=0.1.4' }, artifacts: [artifact] },
       '0.2.0-beta.1': { artifacts: [artifact] },
     },
   };
@@ -131,7 +131,7 @@ describe('createRegistryClient', () => {
   it('resolves a range to the highest matching version', async () => {
     const out = await client.resolve('tv.kroma.torrents', '^0.1.0');
     expect(out?.version).toBe('0.1.9');
-    expect(out?.release.minServer).toBe('0.1.4');
+    expect(out?.release.engines).toEqual({ server: '>=0.1.4' });
   });
 
   it('resolves to null when no version matches', async () => {

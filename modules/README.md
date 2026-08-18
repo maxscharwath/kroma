@@ -197,7 +197,7 @@ versions, so a silent republish reaches nobody. `bun run modules release
 ## Checks
 
 ```bash
-bun run modules:validate   # every manifest against module.schema.json
+bun run modules:validate   # every manifest against the @kroma/registry schema
 bun run modules:gen        # expand single-file sources + regenerate aggregators
 bun run modules:check      # CI gate: valid + generated output in sync
 ```

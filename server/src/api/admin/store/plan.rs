@@ -15,7 +15,7 @@ use super::catalog::{self, CatalogModule};
 use super::registries;
 use crate::state::SharedState;
 
-// This server's version, checked against each entry's `minServer`.
+// This server's version, checked against each entry's `engines.server` range.
 pub(super) const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(super) struct Planned<'a> {
@@ -90,11 +90,9 @@ impl<'a> Planner<'a> {
             }
         })?;
         // Fail fast with the precise blocker instead of a partial install.
-        if !kroma_module_manifest::server_satisfies(entry.min_server.as_deref(), SERVER_VERSION) {
-            bail!(
-                "'{id}' requires KROMA server {} (this server is {SERVER_VERSION}); update the server first",
-                entry.min_server.as_deref().unwrap_or("?"),
-            );
+        if let Err(reason) = kroma_module_manifest::engines_satisfied(&entry.engines, SERVER_VERSION)
+        {
+            bail!("'{id}' {reason}");
         }
         if catalog::pick_artifact(entry).is_none() {
             bail!("'{id}' has no build for this server's platform");
@@ -456,11 +454,11 @@ mod tests {
     #[test]
     fn a_module_this_server_is_too_old_for_blocks_the_plan_up_front() {
         let mut root = module("tv.x.app", "1.0.0");
-        root.min_server = Some("999.0.0".into());
+        root.engines.insert("server".into(), ">=999.0.0".into());
         let modules = vec![root];
         let err = planner(&modules).roots(&["tv.x.app"]).unwrap_err().to_string();
-        assert!(err.contains("requires KROMA server 999.0.0"), "{err}");
-        assert!(err.contains("update the server first"), "{err}");
+        assert!(err.contains("requires server >=999.0.0"), "{err}");
+        assert!(err.contains("this server is"), "{err}");
     }
 
     #[test]

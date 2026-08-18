@@ -28,7 +28,7 @@ const CATALOG = {
       version: '1.0.0',
       description: 'A <demo> module',
       icon: `data:image/svg+xml;base64,${btoa(MARK)}`,
-      minServer: '0.1.4',
+      engines: { server: '>=0.1.4' },
       dependencies: { 'tv.kroma.other': '^0.1.0' },
       provides: [{ kind: 'download-client', id: 'demo' }],
       artifacts: [
@@ -130,13 +130,14 @@ describe('machineResponse', () => {
     expect(await machineResponse(req('/favicon.svg'), {}, ctx())).toBeNull();
   });
 
-  it('answers the bare origin with the descriptor when the caller did not ask for HTML', async () => {
+  it('keeps answering the bare origin with the legacy catalog', async () => {
     upstreamServing(CATALOG);
     const res = await machine('/');
     expect(res.headers.get('content-type')).toBe('application/json');
-    // A server pasting the origin is asking which registry this is, and the
-    // legacy catalog would answer in a shape it no longer reads.
-    expect(await res.json()).toMatchObject({ apiVersion: 1, modules: ['tv.kroma.demo'] });
+    // Deliberately unchanged: a current server pointed at a root appends
+    // `/registry.json` itself, so moving this would serve nobody and would break
+    // the servers still reading the old shape here.
+    expect(await res.json()).toEqual(CATALOG);
   });
 
   it('lets a browser at the bare origin fall through to the rendered page', async () => {
@@ -251,7 +252,7 @@ describe('the RFC-110 documents', () => {
     expect(index[0]).toMatchObject({
       id: 'tv.kroma.demo',
       version: '1.0.0',
-      minServer: '0.1.4',
+      engines: { server: '>=0.1.4' },
       dependencies: { 'tv.kroma.other': '^0.1.0' },
       tags: ['download-client'],
       artifacts: [{ target: 'wasm32', url: 'https://dl/a.kmod', size: 1, integrity: SRI }],
@@ -307,29 +308,38 @@ describe('the RFC-110 documents', () => {
     }
   });
 
-  it('is reachable from the bare origin, the descriptor and the index alike', async () => {
+  it('answers the descriptor and the index a pasted root resolves to', async () => {
     upstreamServing(CATALOG);
-    // The three URLs an operator might paste. Each has to land somewhere a
-    // current server can read, which is what the link tag in <head> and the
-    // bare-origin branch are both for.
-    const descriptor = (await (await machine('/')).json()) as { modules: string[] };
-    const direct = (await (await machine('/registry.json')).json()) as { modules: string[] };
-    expect(direct).toEqual(descriptor);
+    // A server given the root appends `/registry.json`, so these two are what an
+    // operator pasting `https://modules.kroma.tv` actually reaches.
+    const descriptor = (await (await machine('/registry.json')).json()) as { modules: string[] };
+    expect(descriptor.modules).toEqual(['tv.kroma.demo']);
     const index = (await (await machine('/index.json')).json()) as unknown[];
     expect(index).toHaveLength(descriptor.modules.length);
   });
 
   it('serves the JSON Schema for each document without reading the catalog', async () => {
     const calls = upstreamServing(CATALOG);
-    for (const name of ['registry', 'index', 'module']) {
-      const res = await machine(`/schema/${name}.json`);
+    for (const name of ['manifest', 'registry', 'index', 'module']) {
+      const res = await machine(`/schemas/${name}.json`);
       const schema = (await res.json()) as Record<string, unknown>;
       expect(schema.$schema, name).toBe('https://json-schema.org/draft/2020-12/schema');
       // Open-world: a registry may carry fields a later apiVersion defines.
       expect(JSON.stringify(schema), name).not.toContain('"additionalProperties":false');
     }
     expect(calls, 'the spec does not depend on the upstream catalog').toEqual([]);
-    expect(await machineResponse(req('/schema/nope.json'), {}, ctx())).toBeNull();
+    expect(await machineResponse(req('/schemas/nope.json'), {}, ctx())).toBeNull();
+  });
+
+  it('answers a pinned schema url, and only for a version it publishes', async () => {
+    upstreamServing(CATALOG);
+    // What a manifest's `$schema` points at. It has to keep resolving to the
+    // schema it was pinned to, which is why versions are files and not edits.
+    const pinned = (await (await machine('/schemas/2/manifest.json')).json()) as {
+      $id: string;
+    };
+    expect(pinned.$id).toBe('https://modules.kroma.tv/schemas/2/manifest.json');
+    expect(await machineResponse(req('/schemas/9/manifest.json'), {}, ctx())).toBeNull();
   });
 
   it('leaves any other /m/ path to the rendered site', async () => {

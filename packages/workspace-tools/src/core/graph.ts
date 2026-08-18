@@ -13,13 +13,14 @@ export interface Project {
   deps: string[];
   // For a module: the raw dependency ranges it declares (name → semver range).
   ranges?: Record<string, string>;
-  // For a client/module: the minimum server version it requires.
-  minServer?: string;
+  // For a module: the semver range it declares for the server it runs on
+  // (`engines.server`).
+  serverRange?: string;
 }
 
 export interface Graph {
   projects: Project[];
-  // The server project, if present — the target of every `minServer` check.
+  // The server project, if present — the target of every `engines.server` check.
   server?: Project;
 }
 

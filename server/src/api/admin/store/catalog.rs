@@ -29,12 +29,13 @@ pub struct Artifact {
 pub struct CatalogModule {
     /// The manifest contract the bundle was built against; `0` when the registry
     /// row predates the field, which is the same answer as "too old".
-    pub api_version: u64,
+    pub schema_version: u64,
     pub id: String,
     pub name: String,
     pub version: String,
     pub description: String,
-    pub min_server: Option<String>,
+    /// What the module needs from its host, by engine name and semver range.
+    pub engines: std::collections::BTreeMap<String, String>,
     pub library: bool,
     pub icon: Option<String>,
     // `(module id, optional semver range)`.
@@ -65,7 +66,7 @@ const REGISTRY_API_VERSION: u64 = 1;
 /// declares - a registry does not get to redirect a client somewhere else by
 /// describing itself as living there.
 fn index_url(descriptor: &Value, fetched_from: &str) -> anyhow::Result<Option<String>> {
-    let Some(api_version) = descriptor.get("apiVersion").and_then(Value::as_u64) else {
+    let Some(schema_version) = descriptor.get("apiVersion").and_then(Value::as_u64) else {
         return Ok(None);
     };
     // `modules` holds ids in a descriptor and records in a catalog.
@@ -77,8 +78,8 @@ fn index_url(descriptor: &Value, fetched_from: &str) -> anyhow::Result<Option<St
         return Ok(None);
     }
     anyhow::ensure!(
-        api_version <= REGISTRY_API_VERSION,
-        "registry speaks apiVersion {api_version}; this server speaks {REGISTRY_API_VERSION}",
+        schema_version <= REGISTRY_API_VERSION,
+        "registry speaks apiVersion {schema_version}; this server speaks {REGISTRY_API_VERSION}",
     );
     Ok(Some(kroma_module_supervisor::sibling_url(fetched_from, "index.json")?))
 }
@@ -141,12 +142,20 @@ fn parse_module(m: &Value) -> Option<CatalogModule> {
         .filter(|s| s.starts_with("data:image/") && s.len() <= 128 * 1024)
         .map(str::to_string);
     Some(CatalogModule {
-        api_version: m.get("apiVersion").and_then(Value::as_u64).unwrap_or(0),
+        schema_version: m.get("schemaVersion").and_then(Value::as_u64).unwrap_or(0),
         id,
         name: str_of("name"),
         version: str_of("version"),
         description: str_of("description"),
-        min_server: m.get("minServer").and_then(Value::as_str).map(str::to_string),
+        engines: m
+            .get("engines")
+            .and_then(Value::as_object)
+            .map(|e| {
+                e.iter()
+                    .filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string())))
+                    .collect()
+            })
+            .unwrap_or_default(),
         library: m.get("library").and_then(Value::as_bool).unwrap_or(false),
         icon,
         dependencies,
@@ -231,19 +240,18 @@ fn cap_rows<I: serde::Serialize>(caps: &[(String, I)]) -> Vec<Value> {
 pub fn compat_verdict(m: &CatalogModule) -> (bool, Option<String>) {
     // Refused at unpack anyway (see the supervisor's install gate); said here so
     // the Store never offers an install that cannot succeed.
-    let speaks = u64::from(kroma_module_manifest::MODULE_API_VERSION);
-    if m.api_version != speaks {
+    let speaks = u64::from(kroma_module_manifest::MODULE_SCHEMA_VERSION);
+    if m.schema_version != speaks {
         return (
             false,
             Some(format!(
-                "built for module API v{} (this server speaks v{speaks}); it needs rebuilding",
-                m.api_version,
+                "built for manifest schema v{} (this server speaks v{speaks}); it needs rebuilding",
+                m.schema_version,
             )),
         );
     }
-    if !kroma_module_manifest::server_satisfies(m.min_server.as_deref(), SERVER_VERSION) {
-        let needs = m.min_server.as_deref().unwrap_or("?");
-        return (false, Some(format!("requires KROMA server {needs} (this server is {SERVER_VERSION})")));
+    if let Err(reason) = kroma_module_manifest::engines_satisfied(&m.engines, SERVER_VERSION) {
+        return (false, Some(reason));
     }
     if pick_artifact(m).is_none() {
         return (false, Some(format!("no build for this server's platform ({BUILD_TARGET})")));
@@ -267,14 +275,14 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
             let update_available = installed_version
                 .is_some_and(|current| kroma_module_manifest::is_newer(&m.version, current));
             json!({
-                "apiVersion": m.api_version,
+                "schemaVersion": m.schema_version,
                 "id": m.id,
                 "name": m.name,
                 "version": m.version,
                 "description": m.description,
                 "library": m.library,
                 "icon": m.icon,
-                "minServer": m.min_server,
+                "engines": m.engines,
                 "dependencies": dep_map(&m.dependencies),
                 "optionalDependencies": dep_map(&m.optional_dependencies),
                 "provides": cap_rows(&m.provides),
@@ -308,12 +316,12 @@ pub fn enriched(state: &SharedState, fetched: &[super::registries::Fetched]) -> 
 #[cfg(test)]
 pub(super) fn test_module(id: &str, version: &str) -> CatalogModule {
     CatalogModule {
-        api_version: u64::from(kroma_module_manifest::MODULE_API_VERSION),
+        schema_version: u64::from(kroma_module_manifest::MODULE_SCHEMA_VERSION),
         id: id.into(),
         name: id.into(),
         version: version.into(),
         description: String::new(),
-        min_server: None,
+        engines: std::collections::BTreeMap::new(),
         library: false,
         icon: None,
         dependencies: Vec::new(),
@@ -378,7 +386,7 @@ mod tests {
     #[test]
     fn parse_reads_an_rfc_110_record() {
         let rfc: Value = serde_json::from_str(&format!(
-            r#"{{ "id": "a.b", "name": "AB", "version": "0.2.0", "minServer": "0.1.4",
+            r#"{{ "id": "a.b", "name": "AB", "version": "0.2.0", "engines": {{ "server": ">=0.1.4" }},
                   "dependencies": {{ "c.d": "^0.1.0" }},
                   "optionalDependencies": {{ "g.h": "^0.2.0" }},
                   "artifacts": [{{ "target": "x86_64-unknown-linux-musl",
@@ -422,8 +430,8 @@ mod tests {
     #[test]
     fn parse_reads_a_full_record() {
         let entry: Value = serde_json::from_str(
-            r#"{ "apiVersion": 2, "id": "a.b", "name": "AB", "version": "0.2.0",
-                 "minServer": "0.1.4", "library": false,
+            r#"{ "schemaVersion": 2, "id": "a.b", "name": "AB", "version": "0.2.0",
+                 "engines": { "server": ">=0.1.4" }, "library": false,
                  "dependencies": { "c.d": "^0.1.0", "e.f": "*" },
                  "optionalDependencies": { "g.h": "^0.2.0" },
                  "provides": [{ "kind": "download-client", "id": "qbittorrent", "label": "qBittorrent" }],
@@ -434,9 +442,9 @@ mod tests {
         )
         .unwrap();
         let m = parse_module(&entry).unwrap();
-        assert_eq!(m.api_version, 2);
+        assert_eq!(m.schema_version, 2);
         assert_eq!(m.version, "0.2.0");
-        assert_eq!(m.min_server.as_deref(), Some("0.1.4"));
+        assert_eq!(m.engines.get("server").map(String::as_str), Some(">=0.1.4"));
         // A "*" range normalizes away, so the planner sees "no constraint".
         assert_eq!(
             m.dependencies,
@@ -465,9 +473,9 @@ mod tests {
         )
         .unwrap();
         let m = parse_module(&old).unwrap();
-        assert_eq!(m.api_version, 0);
+        assert_eq!(m.schema_version, 0);
         let (compatible, reason) = compat_verdict(&m);
         assert!(!compatible);
-        assert!(reason.unwrap_or_default().contains("module API v0"));
+        assert!(reason.unwrap_or_default().contains("manifest schema v0"));
     }
 }

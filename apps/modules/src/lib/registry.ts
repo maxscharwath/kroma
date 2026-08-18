@@ -21,7 +21,7 @@ const SCHEMA_TTL = 86_400;
 const DOCUMENT_TTL = 300;
 const MISS_TTL = 60;
 
-export type WaitUntil = (p: Promise<unknown>) => void;
+type WaitUntil = (p: Promise<unknown>) => void;
 
 // The site's schema nulls a url or size it would not put on a page; a registry
 // may not offer an artifact with no https url at all, so those are dropped here

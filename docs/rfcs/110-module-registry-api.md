@@ -1,7 +1,7 @@
-# RFC NNNN: a normalized Module Registry API anyone can host
+# RFC 110: a normalized Module Registry API anyone can host
 
 - Status: **DRAFT**
-- PR: #NNNN
+- PR: #110
 - Affects: `apps/modules` (the `modules.kroma.tv` site/worker), `packages/module-tools` (the catalog generator), `server/crates/kroma-module-kernel` (install/resolve), `.github/workflows/modules.yml`
 
 ## Summary

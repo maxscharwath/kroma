@@ -1,9 +1,10 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
-  "schemaVersion": 2,
+  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
+  "schemaVersion": 3,
   "id": "tv.kroma.vector",
   "name": "Embeddings",
-  "version": "0.1.2",
+  "version": "0.2.0",
+  "description": "Content embeddings for recommendations and semantic search.",
   "engines": {
     "server": ">=0.1.4"
   },
@@ -13,6 +14,5 @@
       "id": "content"
     }
   ],
-  "description": "Content embeddings for recommendations and semantic search.",
   "ports": ["embedder"]
 }

@@ -1,9 +1,10 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
-  "schemaVersion": 2,
+  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
+  "schemaVersion": 3,
   "id": "tv.kroma.indexer",
   "name": "Indexers",
-  "version": "0.1.4",
+  "version": "0.2.0",
+  "description": "Native Cardigann indexer engine: searches trackers from community YAML definitions, no external Torznab aggregator.",
   "engines": {
     "server": ">=0.1.4"
   },
@@ -15,6 +16,8 @@
       "flow": "definition"
     }
   ],
-  "description": "Native Cardigann indexer engine: searches trackers from community YAML definitions, no external Torznab aggregator.",
-  "ports": ["indexer-db", "indexer-search", "torrent-fetch"]
+  "ports": ["indexer-db", "indexer-search", "torrent-fetch"],
+  "storage": {
+    "adopt": ["indexers"]
+  }
 }

@@ -158,3 +158,6 @@ import. A re-export barrel emits no statements and neither helps nor hurts.
 
 Vitest's percentage counts only the files it loaded, while Sonar counts every file
 in scope at 0%. Trust `sonar-loop` for the real number.
+
+Where the file goes on disk, and what its suffix means, belong to the **naming**
+skill.

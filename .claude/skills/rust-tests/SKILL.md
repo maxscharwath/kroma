@@ -137,3 +137,6 @@ bun run modules:clippy && bun run modules:test
 
 The second line is not redundant: modules are separate cargo workspaces, so
 `--workspace` from `server/` does not reach them.
+
+Where the file goes on disk, and what its suffix means, belong to the **naming**
+skill.

@@ -16,6 +16,8 @@ any other change.
 
 | Skill | What it does |
 |-------|--------------|
+| `file-structure` | One file, one job: the size policy, what a natural seam is, where a split lands, and the signals a file is already two files. |
+| `naming` | Kebab-case files named after their export, the suffix vocabulary, a component folder's layout, snake_case and `it_` on the Rust side, and the names that are always wrong. |
 | `typescript-best-practices` | Discriminated unions, branded types, `unknown` over `any`, no `as`, exhaustiveness, strict compiler options, errors as values, no floating promises. Examples in `references/patterns.md`. |
 | `rust-best-practices` | The same table one language over: enums with data, newtypes, errors by layer, borrow in and own out, nothing blocking the async runtime, `SAFETY:` on every unsafe. |
 | `no-comments` | Runs the comment hunter over a diff and acts on what it finds. Slash-only, it never fires on its own. |

@@ -1,6 +1,6 @@
 ---
 name: rust-tests
-description: Write cargo tests. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and shared setup lives in a named test-support module rather than in each test. Covers naming, the block shape, where a test file goes, async and time, workspaces, and running one crate or one filter. Use when adding or changing any #[test] or #[tokio::test], or when Rust coverage has to come up. Triggers - "write a rust test", "cargo test", "test this crate", "cover this handler".
+description: 'Write cargo tests. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and shared setup lives in a named test-support module rather than in each test. Covers naming, the block shape, where a test file goes, async and time, workspaces, and running one crate or one filter. Use when adding or changing any #[test] or #[tokio::test], or when Rust coverage has to come up. Triggers - "write a rust test", "cargo test", "test this crate", "cover this handler".'
 ---
 
 # Rust tests

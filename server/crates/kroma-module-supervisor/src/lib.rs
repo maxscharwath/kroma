@@ -1192,7 +1192,7 @@ async fn tmdb_config<S: HostCtx>(State(host): State<S>) -> Json<Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::registry_document_url;
+    use super::{grant_json, registry_document_url};
 
     #[test]
     fn a_registry_root_resolves_to_the_descriptor_at_the_well_known_path() {
@@ -1219,5 +1219,38 @@ mod tests {
         ] {
             assert_eq!(registry_document_url(doc), doc);
         }
+    }
+
+    #[test]
+    fn the_grant_a_module_is_spawned_with_is_the_one_its_manifest_declares() {
+        // The last link in the chain: manifest -> this JSON -> the env the
+        // sidecar reads -> the authorizer. If the shape drifted here, every
+        // module would come up with a grant that silently is not its own, and
+        // the only symptom would be denials somewhere else entirely.
+        let storage = kroma_module_manifest::Storage {
+            core: kroma_module_manifest::CoreScope {
+                read: vec!["requests".into(), "users.username".into()],
+                write: vec!["wanted".into()],
+            },
+            adopt: vec!["indexers".into()],
+        };
+        let json = grant_json(Some(&storage));
+        let back: kroma_db::Grant = serde_json::from_str(&json).expect("kroma-db reads it back");
+        assert_eq!(back.read, ["requests", "users.username"]);
+        assert_eq!(back.write, ["wanted"]);
+    }
+
+    #[test]
+    fn a_module_that_declared_no_storage_is_spawned_with_an_empty_grant() {
+        // Not "no variable": the sidecar has to be able to tell "denied
+        // everything" from an older host that sent nothing at all.
+        let json = grant_json(None);
+        assert_eq!(serde_json::from_str::<kroma_db::Grant>(&json).unwrap(), kroma_db::Grant::none());
+
+        // ...and the same for a module that declared storage but no core reach,
+        // which is the one that gets its own file and nothing else.
+        let private_only = kroma_module_manifest::Storage::default();
+        let json = grant_json(Some(&private_only));
+        assert_eq!(serde_json::from_str::<kroma_db::Grant>(&json).unwrap(), kroma_db::Grant::none());
     }
 }

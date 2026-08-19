@@ -181,6 +181,9 @@ impl Scope {
 }
 
 #[cfg(test)]
+mod escapes;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -624,31 +624,30 @@ pub(crate) const ITEM_COLS: &str = "id,kind,title,year,duration_ms,container,\
 /// whose tables come from that module's `migrations()`. [`init`] would stamp the
 /// whole core schema into it, which is forty tables it will never read.
 pub fn open(path: &Path) -> Result<Pool> {
+    pool_at(path, 4, None)
+}
+
+/// The one place a [`Pool`] is built. `scope` is `None` for a database its owner
+/// is not scoped against, and the module grant otherwise.
+///
+/// Opens one connection before returning, so a path that cannot be opened fails
+/// here rather than at whatever query happens to run first.
+pub(crate) fn pool_at(path: &Path, max_idle: usize, scope: Option<crate::grant::Scope>) -> Result<Pool> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).ok();
     }
     let pool = Arc::new(PoolInner {
         path: path.to_path_buf(),
         idle: Mutex::new(Vec::new()),
-        max_idle: 4,
-        scope: None,
+        max_idle,
+        scope,
     });
-    // Fail here rather than at the first query if the file cannot be opened.
     let _ = pool.get()?;
     Ok(pool)
 }
 
 pub fn init(path: &Path) -> Result<Pool> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).ok();
-    }
-    let pool = Arc::new(PoolInner {
-        path: path.to_path_buf(),
-        idle: Mutex::new(Vec::new()),
-        max_idle: 8,
-        scope: None,
-    });
-
+    let pool = pool_at(path, 8, None)?;
     let conn = pool.get()?;
     conn.execute_batch(SCHEMA).context("failed to apply schema")?;
     migrate(&conn);

@@ -18,14 +18,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::Result;
 use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 
-use super::{Pool, PoolInner};
+use super::Pool;
 
 /// Reading a table's schema is not reading its data, and denying it breaks
 /// `PRAGMA table_info` and rusqlite's own column lookups for statements that are
@@ -162,15 +162,8 @@ fn decide(module_id: &str, grant: &Compiled, ctx: &AuthContext<'_>) -> Authoriza
 /// The database is NOT created or migrated here: the core owns the file and has
 /// already done both by the time a module is spawned.
 pub fn init_scoped(path: &Path, module_id: &str, grant: &Grant) -> Result<Pool> {
-    let pool = Arc::new(PoolInner {
-        path: path.to_path_buf(),
-        idle: Mutex::new(Vec::new()),
-        max_idle: 4,
-        scope: Some(Scope { module_id: module_id.to_string(), grant: Arc::new(grant.compile()) }),
-    });
-    // Fail here rather than at the first query if the file cannot be opened.
-    let _ = pool.get()?;
-    Ok(pool)
+    let scope = Scope { module_id: module_id.to_string(), grant: Arc::new(grant.compile()) };
+    crate::schema::pool_at(path, 4, Some(scope))
 }
 
 /// The authorizer a scoped [`Pool`] installs on each connection it opens.

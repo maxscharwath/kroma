@@ -1,6 +1,6 @@
 # TypeScript patterns
 
-Code examples for each rule in `SKILL.md`. The principles are language-agnostic: the same table exists for Rust in the **rust-best-practices** skill.
+Code examples for the rules in `SKILL.md` that need one. The principles are language-agnostic: the same table exists for Rust in the **rust-best-practices** skill.
 
 ## Branded types
 
@@ -290,6 +290,47 @@ openFile({
 ```
 
 Skip on hot paths: per-frame render, tokenizers, parsers, anything in a tight loop where the allocation cost matters.
+
+## Real tests
+
+```ts
+// Don't. Every assertion is about the mock, so the suite passes with the real
+// client broken.
+const client = { fetch: vi.fn().mockResolvedValue({ ok: true }) };
+await sync(client);
+expect(client.fetch).toHaveBeenCalledTimes(1);
+
+// Do. Run the real thing against a real boundary and assert what came out.
+it('retries once and gives up on a second failure', async () => {
+  const server = await startTestServer({ failTimes: 2 });
+
+  const result = await sync(createClient(server.url));
+
+  expect(result).toEqual({ ok: false, code: 'unreachable' });
+  expect(server.hits).toBe(2);
+});
+```
+
+Mock only what you cannot run locally: a payment provider, an app-store receipt, a
+push endpoint. A fake for something the test could have started is a test of the
+fake.
+
+## Structured telemetry
+
+```ts
+// Don't. Unsearchable, unparseable, and it ships.
+console.log('failed to import ' + release.title);
+
+// Do. One event, enough context to debug from an id alone.
+log.warn('import.failed', {
+  releaseId: release.id,
+  reason: 'no-matching-file',
+  candidates: candidates.length,
+});
+```
+
+Log the id, not the whole object: a payload dumped into a log line is how a secret
+or a user's path ends up in a retained index.
 
 ## Strict by default
 

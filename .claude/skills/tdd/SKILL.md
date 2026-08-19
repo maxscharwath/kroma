@@ -9,10 +9,11 @@ Make the behaviour executable before making it work. The point is not ceremony:
 a test written first describes what the caller needs, while a test written after
 describes what the code happens to do.
 
-Write the test in the style the repo already uses, and where the repo ships a
-language skill for it (**typescript-tests**, **rust-tests**) that skill wins.
-Failing both, the shape is: named as a sentence, built from setup, mock, test and
-verify blocks separated by blank lines, and carrying no comments.
+Write the test in the style the project already uses. Where the project ships a
+test skill for the language, that skill wins. Failing that, read two neighbouring
+test files and follow them. Failing both, the shape is: named as a sentence, built
+from setup, mock, test and verify blocks separated by blank lines, and carrying no
+comments.
 
 That shape is also the fastest way to write step 2. Name the behaviour, write the
 verify block first, then work backwards to the setup that makes it reachable.

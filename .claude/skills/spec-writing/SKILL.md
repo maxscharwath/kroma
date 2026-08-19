@@ -1,36 +1,51 @@
 ---
 name: spec-writing
-description: Write and change files under docs/spec. Covers what belongs in the spec rather than in architecture, the status vocabulary, requirement IDs and how to keep them stable, and how to size a requirement so it becomes one story. Use when adding or editing a spec chapter, when a PR changes behaviour and the spec has to move with it, or when asked what the product should do. Triggers - "write the spec", "add a requirement", "spec this out", "update docs/spec", "what should this do".
+description: Write and change a product spec. Covers what belongs in the spec rather than in architecture, the status vocabulary, requirement IDs and how to keep them stable, and how to size a requirement so it becomes one story. Use when adding or editing a spec chapter, when a PR changes behaviour and the spec has to move with it, or when asked what the product should do. Triggers - "write the spec", "add a requirement", "spec this out", "update the spec", "what should this do".
 ---
 
 # Writing the spec
 
-Read [`docs/spec/README.md`](../../../docs/spec/README.md) first, every time. It is
-the contract and it wins over anything here. The `spec-reviewer` agent checks the
-result, so write for that review.
+Find the spec and read its own contract first, every time. It wins over anything
+here.
+
+```bash
+git ls-files | grep -iE '(^|/)(spec|specs|requirements)(/|$)' | head
+```
+
+A spec root usually holds a `README.md` stating the rules for the rest, an index,
+and one folder per domain. If the project has no spec, do not invent one inside a
+ticket: say so, and propose the root as its own change.
+
+## What belongs here
 
 The spec says **what** the product does and **why**. Architecture says how the
 code is shaped. The test: a sentence that survives a full rewrite of the
 implementation belongs in the spec. A sentence naming a crate, a file, a
 framework, a wire format or a schema does not.
 
+That line is the one reviewers enforce hardest, because a spec that leaks
+implementation stops being reviewable by the people who care what the product
+does.
+
 ## Before writing
 
-Find the space. One folder per domain under `docs/spec/`, using the nouns
-`ARCHITECTURE.md` already uses: `library`, `media`, `playback`, `accounts`,
-`discovery`, `modules`, `admin`, `surfaces`. A new space needs a reason, not a
-new noun for an existing domain.
+Find the space. One folder per domain, using the nouns the project's architecture
+already uses. A new space needs a reason, not a new noun for an existing domain.
 
-Read the space's `README.md` and its sibling chapters before adding to them. Two
-chapters that disagree on the same rule is the defect the reviewer flags hardest.
+Read the space's own README and its sibling chapters before adding to them. Two
+chapters that disagree on the same rule is the worst defect a spec can carry,
+because both readers think they are right.
 
 ## Every section carries a status
 
-`SHIPPED`, `AGREED`, `DRAFT`, or `DESIGN, NOT IMPLEMENTED`. A section without one
-is a bug in the spec.
+A reader has to know whether a sentence describes today or an intention. Use the
+project's vocabulary if it has one. Where it does not, this set covers it:
 
-`DESIGN, NOT IMPLEMENTED` must say why it was deferred and what shipped instead.
-That record is worth more than the design was.
+`SHIPPED`, `AGREED`, `DRAFT`, `DESIGN, NOT IMPLEMENTED`
+
+A section without a status is a bug in the spec. `DESIGN, NOT IMPLEMENTED` must
+say why it was deferred and what shipped instead. That record is worth more than
+the design was.
 
 ## Requirement IDs
 
@@ -42,12 +57,14 @@ ID and its own status:
 
 - One prefix per space, one space per prefix. Pick something legible and stay with it.
 - `N` is assigned once. Never renumbered, never reused. A deleted requirement
-  retires its number. Check `git log` before you believe a number is free.
+  retires its number, so a link in an old ticket never silently points at a
+  different rule.
 - One ID is one testable idea. A line hiding two requirements needs two IDs.
 
-Assign the next number by reading
-[`docs/spec/requirements.json`](../../../docs/spec/requirements.json), not by
-counting prose.
+Take the next number from the project's generated index if it has one, or from
+`git log` if it does not. Never by counting the prose in front of you: a retired
+number is invisible there, and reusing it corrupts every link that pointed at the
+old rule.
 
 ## Sizing
 
@@ -70,13 +87,15 @@ Run the **unslop** skill over anything before committing it, and the
 
 ## Before the PR
 
-```bash
-bun run spec:index    # regenerate requirements.json and INDEX.md, then commit both
-bun run spec:check    # fails on a stale index, duplicate ID, mixed prefix, missing status
-```
-
-Both artefacts are generated. Never hand-edit them.
+Where the spec ships an index or a checker, regenerate and run it, then commit
+whatever it wrote. Look for the scripts in the project's manifest; they usually
+fail on a stale index, a duplicate ID, a mixed prefix or a missing status.
+Generated artefacts are never hand-edited.
 
 The spec changes only through a pull request, and a PR that changes behaviour
-changes the spec in the same PR. For anything large or contested, write an RFC in
-`docs/rfcs/` first.
+changes the spec in the same PR. For anything large or contested, write the design
+document the project uses for that (an RFC or an ADR) first, and let the spec
+record the outcome rather than the argument.
+
+Where the project ships a spec review agent, write for that review and run it
+before asking for a human one.

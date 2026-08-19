@@ -24,12 +24,13 @@ One idea underneath every rule: a wrong program should not compile. Every `any`,
 | Object args | Pass objects, not positional, so argument order is self-documenting. Skip on hot paths (per-frame render, tokenizers, parsers). |
 | Real tests | Don't mock what you can run. Prefer the framework's real test primitives with leak/disposable checks, and verify UI in a running build. Mock only what you can't run locally. |
 | Structured telemetry | Prefer structured logger diagnostics with enough context to debug from an id. No `console.log` in shipped code. |
-| Strict by default | `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `isolatedModules`. Below that floor the rest of this table is decoration. |
+| Strict by default | `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `isolatedModules`. Below that floor the rest of this table is decoration. A project missing one raises it rather than working around it. |
 | Errors as values | Expected failure returns a `Result` with a union of literal codes. Throw only for a violated invariant. `catch (error: unknown)`, never a silent `catch {}`. |
 | No floating promises | Every promise is awaited, returned, or handed to an owner. Independent work runs under one `Promise.all`. Long work takes an `AbortSignal`. |
 | Named exports | A default export renames itself at every call site. `import type` for types, no barrel over a package's internals. |
 
-Examples: `references/patterns.md`.
+Examples: `references/patterns.md`, which covers the rules that need one.
 
-Rust in the same repository follows the same instinct one language over: see the
-**rust-best-practices** skill.
+Read the project's `tsconfig` and lint config before deciding a rule here does not
+apply. Where a project also writes Rust, the same table lives one language over in
+**rust-best-practices**.

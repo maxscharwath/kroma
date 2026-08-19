@@ -85,7 +85,8 @@ Cutting real content to hit a shorter word count is a worse failure than the slo
 Leave these alone.
 
 - A caveat that is true. Uncertainty stated once is honest. The fix for "this may
-  not work on Tizen 5" is to test it, not to delete the sentence.
+  not work on the oldest supported browser" is to test it, not to delete the
+  sentence.
 - A number, a version, a limit, a name. Precision reads dry and earns its line.
 - Repetition the reader needs: a value restated where it is used, a warning
   repeated where it is easy to miss.

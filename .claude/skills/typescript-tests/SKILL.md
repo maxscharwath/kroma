@@ -1,6 +1,6 @@
 ---
 name: typescript-tests
-description: Write vitest tests for this repo. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and the two module-resolution projects decide where the file goes. Covers naming, the block shape, size, fixtures, what not to assert, jsdom opt-in, native resolution, and running one test. Use when adding or changing any .test.ts or .test.tsx, or when coverage has to come up. Triggers - "write a test", "add tests", "test this", "vitest", "how do I test", "cover this file".
+description: Write TypeScript tests. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and the runner's config decides where the file goes. Covers naming, the block shape, size, fixtures, what not to assert, DOM opt-in, multiple runner projects, coverage, and running one test. Use when adding or changing any .test.ts or .test.tsx, or when coverage has to come up. Triggers - "write a test", "add tests", "test this", "vitest", "jest", "how do I test", "cover this file".
 ---
 
 # TypeScript tests
@@ -23,6 +23,10 @@ it('falls back to the handed shape when the stage measures zero', () => {
 
 The name says what is guaranteed and the blank lines say where each phase ends,
 so nothing is left for a comment to say.
+
+Examples here use vitest. Jest, node:test and bun:test take the same shape; read
+two neighbouring test files for the project's runner, import style and helpers
+before writing a third.
 
 ## Naming
 
@@ -126,38 +130,57 @@ byte, why *this* timestamp. One line, stating the reason, not the value.
 
 ## Where the file goes
 
-There are two vitest projects because there are two module-resolution universes:
+Beside the code it covers, named after it. The runner's config owns the rest, so
+read it rather than guessing: it holds the include globs, the default environment,
+and whether the project splits its suites into more than one project.
 
-- **web**: `.web.*` files win, mirroring the shells' Vite config. This is the default.
-- **native**: Metro precedence, the plain file wins. A test that must run under
-  it is named `*.native.test.ts`.
+Two things to check in that config before naming a file:
 
-The include globs are derived from the web list, so the two cannot drift. Put the
-test beside the code it covers.
+- **The environment.** Many projects default to `node` and make a DOM opt-in, per
+  file, on the first line:
 
-The default environment is `node`. A test needing a DOM opts in on the first line:
+  ```ts
+  // @vitest-environment jsdom
+  ```
 
-```ts
-// @vitest-environment jsdom
-```
-
-## Running one
-
-```bash
-bun run test packages/core/src/hevc.test.ts
-bun run test --project web -t 'rejects a range'
-bun run test:coverage
-```
-
-## Coverage
-
-Write the test where it reaches the logic. If the logic sits somewhere no test
-can call, move the logic rather than excluding the file. `**/*.tsx` is
-coverage-excluded, so behaviour worth pinning belongs in a `.ts` a test can
-import. A re-export barrel emits no statements and neither helps nor hurts.
-
-Vitest's percentage counts only the files it loaded, while Sonar counts every file
-in scope at 0%. Trust `sonar-loop` for the real number.
+- **Multiple projects.** A repo that ships to more than one platform often runs
+  the same suites twice under different module resolution, with a suffix deciding
+  which project owns a file. Where that is true, the suffix is the only thing
+  making a test run at all, and a file named for the wrong project silently never
+  executes.
 
 Where the file goes on disk, and what its suffix means, belong to the **naming**
 skill.
+
+## Running one
+
+Read the manifest scripts for the project's wrapper, then narrow:
+
+```bash
+<test script> path/to/one.test.ts
+<test script> -t 'rejects a range'
+<test script> --project <name> -t 'rejects a range'
+```
+
+Run the narrow form while writing and the full suite before handing the work
+back. A test that passes alone and fails in the suite is sharing state.
+
+## Coverage
+
+Write the test where it reaches the logic. If the logic sits somewhere no test can
+call, move the logic rather than excluding the file: new logic goes where a test
+can reach it.
+
+Two traps worth knowing before trusting a percentage:
+
+- **A coverage tool that only instruments what the tests loaded reads far higher
+  than a scanner that counts every file in scope.** A file no test imports is
+  absent from the first number and a zero in the second. Check which one the
+  project's gate uses.
+- **Some branches are unreachable under the runner.** A `require()` fallback or a
+  build-time environment branch cannot be taken, so a test that appears to cover
+  it passes without asserting anything.
+
+Check the runner's coverage config for excluded paths before writing a test that
+cannot count. Where a file type is excluded, behaviour worth pinning belongs in
+one that is not.

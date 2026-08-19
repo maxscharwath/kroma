@@ -13,9 +13,14 @@ without "and" is two files.
 **Short enough to hold in your head.** Hard-split over **300 lines**. Split
 **200 to 300** only where a seam already runs. Aim for **150**.
 
-Exempt, because splitting them makes them worse: `generated/`, `*.gen.ts`,
-vendored code, data and locale JSON, lockfiles, and irreducible adapters such as
-an ffmpeg flag builder.
+Exempt, because splitting them makes them worse: generated output, vendored code,
+data and locale JSON, lockfiles, and irreducible adapters such as a command-line
+flag builder.
+
+Those numbers are the default. A project that states its own policy wins: look for
+it in `ARCHITECTURE.md`, `CONVENTIONS.md`, `CODE_STYLE.md`, `CONTRIBUTING.md` or
+the agent instructions at the repository root. Read the project's policy before
+quoting a threshold at anyone.
 
 ## The cut is a seam, not a line count
 
@@ -39,22 +44,35 @@ it back and look again.
 ## Where the piece lands
 
 Splitting is only half the decision. The other half is which side of a boundary
-the new file sits on, and the boundaries here are not suggestions.
+the new file sits on, and a boundary you have not read is a boundary you are about
+to break.
 
-- **Frontend slices.** `clients/web/src` and `packages/tv/src` are feature-sliced.
-  The dependency rule runs one way: `features/* -> shared/* -> @kroma/ui ->
-  @kroma/core`. A feature must never import a sibling feature. Code two features
-  both need moves up to `shared/`, not sideways.
-- **Packages by name.** `import { tvShellConfig } from '@kroma/bundler'`, never a
-  relative path out of the package. If the shared code has no package, giving it
-  one is the work.
-- **Server layers are crates**, so the inward-only rule is enforced by the
-  compiler. A helper that belongs to the domain goes in `kroma-domain`, which
-  means it may not reach for axum or rusqlite. `api/` holds no business logic.
-- **The kit has six levels**: tokens, atoms, molecules, organisms, templates. A
-  component knows only the levels below it. Pages are not in the kit.
-- **A module is its own workspace.** Shared module code goes through the SDK, and
-  no host-side crate may name a specific module.
+Learn them before cutting. The workspace manifest names the packages and who
+depends on whom, the project's architecture doc names the layers, and a directory
+that holds only more directories is usually a layer boundary with a rule attached.
+
+The rules that hold in most codebases:
+
+- **Dependencies run one way.** Whatever the layers are called, a lower one never
+  reaches up. If the project draws the arrow (`features -> shared -> kit -> core`
+  is a common shape), that arrow is not a suggestion.
+- **Siblings do not import siblings.** Two feature slices that both need a thing
+  push it up to the shared level, never sideways. A sideways import is how two
+  features become one.
+- **Cross-package code travels by name, not by path.** A relative import that
+  climbs out of its own package defeats the workspace graph. If the shared code has
+  no package, giving it one is the work.
+- **Let the compiler hold the line where it can.** Layers expressed as separate
+  crates, packages or modules are enforced by the build rather than by review, so
+  a helper lands in the layer whose dependencies it is allowed to have. A pure
+  domain layer that suddenly needs the web framework has landed in the wrong place.
+- **A transport layer holds no business logic.** Route handlers, controllers and
+  CLI entry points translate in and out. Logic that could be called without them
+  belongs behind them.
+- **A design system's levels each know only the levels below.** Tokens, then the
+  smallest controls, then arrangements, then regions, then page skeletons. Pages
+  themselves know the router and the server, so they belong to the app rather than
+  to the kit.
 
 ## Signals a file is already two files
 
@@ -68,8 +86,8 @@ the new file sits on, and the boundaries here are not suggestions.
 
 ## Applies to what you touch
 
-The policy governs the file you are changing, not the whole tree. Several files
-here are well over the limit already, and a PR is not the place to discover that.
+The policy governs the file you are changing, not the whole tree. Most codebases
+have files well over the limit already, and a PR is not the place to discover that.
 Leaving a file simpler than you found it is expected; rewriting an unrelated
 1500-line service because you passed through it is a separate change with its own
 review.
@@ -80,13 +98,14 @@ change, not a follow-up.
 
 ## Checking
 
-```bash
-find packages clients server/src server/crates -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.rs' \) \
-  | grep -vE 'node_modules|\.gen\.|/generated/|locales/' \
-  | xargs wc -l | sort -rn | head -20
+Longest files first, skipping what is exempt:
 
-bun run deadcode
+```bash
+git ls-files '*.ts' '*.tsx' '*.rs' '*.py' '*.go' \
+  | grep -vE 'vendor|\.gen\.|/generated/|locales/' \
+  | xargs wc -l | sort -rn | head -20
 ```
 
-Nothing in CI enforces the line count, so it holds only where a reader insists on
-it in review.
+Then run whatever dead-code check the project ships, named in its manifest scripts.
+Line count is rarely enforced in CI, so it holds only where a reader insists on it
+in review.

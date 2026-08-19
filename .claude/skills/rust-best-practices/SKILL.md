@@ -5,8 +5,9 @@ description: Rust best practices. Use when reading or editing any .rs file, desi
 
 # Rust best practices
 
-Same instinct as the **typescript-best-practices** skill, one language over: a
-wrong program should not compile. Rust hands you more of that for free, so the
+One idea underneath every rule: a wrong program should not compile. Where a
+project also writes TypeScript, the same table lives one language over in
+**typescript-best-practices**. Rust hands you more of that for free, so the
 failures move: `unwrap()`, a `clone()` that silences the borrow checker, a
 stringly typed API, a blocking call on the async runtime.
 
@@ -30,3 +31,6 @@ stringly typed API, a blocking call on the async runtime.
 | Real tests | Unit tests beside the code, integration tests in `tests/`. No `sleep` for synchronisation. Property tests where the invariant is stateable. |
 
 Examples: `references/patterns.md`.
+
+Read the project's `Cargo.toml` lints table and its clippy configuration before
+deciding a rule here does not apply.

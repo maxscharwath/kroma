@@ -1,6 +1,6 @@
 ---
 name: naming
-description: What things are called here. Kebab-case files named after their export, the suffix vocabulary (.test, .native.test, .web, .story, .fixtures, .gen), a component folder's layout, index files that only re-export, snake_case and it_ prefixes on the Rust side, and the symbol names that are always wrong (utils, helpers, V2, Enhanced, New). Use when creating a file or directory, naming a test file, adding a platform variant, or when a name has to change. Triggers - "what should I call this file", "where does this file go", "naming convention", "kebab or camel", "name this test".
+description: What things get called. A file is named after its export in the project's case convention, a suffix is a resolution instruction rather than decoration, an index file only re-exports, and some symbol names are always wrong (utils, helpers, V2, Enhanced, New). Covers learning a tree's local vocabulary before adding to it, test and platform-variant naming, and the per-language conventions. Use when creating a file or directory, naming a test file, adding a platform variant, or when a name has to change. Triggers - "what should I call this file", "where does this file go", "naming convention", "kebab or camel", "name this test".
 ---
 
 # Naming
@@ -9,49 +9,71 @@ A name is read far more often than it is written, and a wrong one costs every
 later reader a lookup. Two questions answer most cases: what does this file
 export, and what suffix says how it is resolved.
 
+## Learn the local vocabulary first
+
+Naming is the one area where matching the neighbours beats any rule here. Before
+adding a file, look at what surrounds it:
+
+```bash
+ls path/to/the/directory
+git ls-files 'src/**' | head -50
+```
+
+Two neighbours agreeing is the convention. If they disagree, the project's own
+docs settle it: check `CONVENTIONS.md`, `CODE_STYLE.md`, `CONTRIBUTING.md` or the
+agent instructions at the repository root.
+
 ## Files
 
-**Kebab-case, named after its export.** `focusable.tsx` exports `Focusable`.
-`stage-ratio.ts` exports `useStageRatio`. Never `Focusable.tsx`, never
-`stageRatio.ts`.
+**Named after its export, in one case convention per language.** The file, its
+main export and its folder carry the same name. Pick up the project's case from
+the tree and do not mix two in one directory.
 
-`packages/ui` holds this without exception across 756 files. `packages/tv` has
-drifted, with about a third of its files in PascalCase. The rule is the kit's,
-not the kit's alone: name a new file kebab-case wherever it lands, and rename a
-PascalCase neighbour only when you are already changing it.
+Kebab-case is the common choice for TypeScript and JavaScript: `focusable.tsx`
+exports `Focusable`, `stage-ratio.ts` exports `useStageRatio`. Rust and Python are
+snake_case. Go is lower-case, no separator. Java and C# are PascalCase because the
+language ties the file to the type.
 
-Rust is snake_case, and always has been. No exceptions in the tree.
+A tree that has drifted is normal. Name a new file correctly wherever it lands,
+and rename an off-convention neighbour only when you are already changing it. A
+rename commit that touches nothing else is its own change.
 
 ## The suffix vocabulary
 
-A suffix is a resolution instruction, not decoration. These are the ones in use:
+A suffix is a resolution instruction, not decoration. It tells a bundler, a test
+runner or a platform which of several files wins, so inventing one that nothing
+resolves is worse than no suffix at all.
 
-| Suffix | Means |
+Learn the set already in use before adding to it:
+
+```bash
+git ls-files | grep -oE '\.[a-z0-9]+\.[a-z]+$' | sort | uniq -c | sort -rn
+```
+
+The families that recur across projects:
+
+| Family | Means |
 |---|---|
-| `.test.ts` `.test.tsx` | A vitest suite, beside the file it covers |
-| `.native.test.ts` | Must run under Metro resolution, where the plain file wins |
-| `.web.ts` `.web.tsx` | The web implementation, chosen by the shells' Vite config |
-| `.story.mdx` | The workbench story for a kit component |
-| `.fixtures.tsx` | Rendered demo props for a story |
-| `.fixture.ts` | Plain data a test or story imports |
-| `.demo.tsx` | A standalone demo the workbench mounts |
-| `.a11y.test.tsx` | An accessibility suite, kept separate so it can be run alone |
-| `.gen.ts` | Generated. Never hand-edited, exempt from every policy |
+| `.test.*` `.spec.*` | A test suite, beside the file it covers |
+| A platform or target segment before the extension | Which build picks this file: web, native, server, a specific engine |
+| `.story.*` `.stories.*` | A design-system story for a component |
+| `.fixtures.*` `.fixture.*` | Props or data a test or story imports |
+| `.d.ts` | Types only |
+| `.gen.*` `.generated.*` | Generated. Never hand-edited, exempt from every policy |
 
-Invent no new suffix. A file that does not fit one of these is a plain
-`name.ts`.
+Invent no new suffix. A file that does not fit the set in use is a plain
+`name.ext`, and a genuinely new resolution rule is a change to the build config
+first and a file name second.
 
 ## A component is a folder
 
-Every kit component is a directory holding its code, its story, its demos and its
-tests:
+Where a component owns more than its own code, give it a directory and let
+everything inside share its name:
 
 ```
 focusable/
   focusable.tsx
   focusable.test.tsx
-  focusable.a11y.test.tsx
-  focusable.lift.native.test.tsx
   focusable.fixtures.tsx
   focusable.story.mdx
   index.ts
@@ -68,20 +90,26 @@ Logic in an `index.ts` is logic nobody can find.
 
 ## Test files
 
-A test file is the file under test plus `.test.ts`, in the same directory. Not a
-parallel `__tests__` tree, not a `tests/` folder at the package root.
+A test file is the file under test plus the project's test suffix, in the same
+directory. Not a parallel `__tests__` tree, not a `tests/` folder at the package
+root, unless that is already the project's convention.
 
-Add `.native` before `.test` when the suite must run under Metro resolution:
-`focus-remote.native.test.ts`. The two vitest projects derive their globs from
-each other, so the suffix is the only thing deciding which runs it.
+Where a test has to run under a different resolution or a different runner
+project, the suffix is what selects it, so read the runner's config to see which
+globs it owns before naming the file. Guessing here produces a test that never
+runs, which is worse than no test because it reads as coverage.
 
-On the Rust side, unit tests live in a `mod tests` beside the code, and API
-integration tests are files named `it_*.rs` beside the handlers:
-`server/src/api/it_accounts.rs`.
+Per-language conventions that are the language's, not a project's:
 
-The name *inside* the test is a different rule, and it belongs to the
-**typescript-tests** and **rust-tests** skills: the test name is a sentence about
-behaviour, and the file name is about resolution.
+- **Rust**: unit tests in a `#[cfg(test)] mod tests` beside the code; integration
+  tests in the crate's `tests/` directory. Some projects keep API integration
+  tests beside the handlers behind a prefix instead. Follow the tree.
+- **Go**: `_test.go` beside the file, same package for unit tests.
+- **Python**: `test_*.py`, wherever the project's runner is configured to look.
+
+The name *inside* the test is a different rule and belongs to the project's test
+skills: the test name is a sentence about behaviour, the file name is about
+resolution.
 
 ## Symbols
 
@@ -97,18 +125,21 @@ behaviour, and the file name is about resolution.
   `visible` on a function, not `flag`.
 - **Units and scale belong in the name.** `expiresAtMs`, `widthPx`,
   `bitrateKbps`. A number whose unit is a comment is a bug waiting.
-- **A hook starts with `use`**, and nothing else does. A property named `use`
-  reached through an object gets treated as a hook by the React Compiler, which
-  memoizes and freezes it.
-- **English, always.** Code, comments, identifiers and commit messages. French is
-  for user-facing copy, which is content and lives behind a translation key.
+- **Respect the framework's reserved shapes.** In React a hook starts with `use`
+  and nothing else does, because the compiler treats a `use`-prefixed member
+  reached through an object as a hook and freezes it. Every framework has one or
+  two of these; breaking one produces a bug with no error message.
+- **One language for code.** Identifiers, comments and commit messages in the
+  project's code language, which for almost every project is English. Localised
+  copy is content and lives behind a translation key, never in an identifier.
 
 ## Directories
 
-Feature slices use the domain nouns the rest of the repo uses, the same words
-that name the server's crates, the spec's spaces and the `area/` labels:
-`catalog`, `playback`, `accounts`, `admin`, `discovery`, `modules`, `library`,
-`media`. Learn the vocabulary once and use it everywhere. A new noun for an
-existing domain is how two names for one thing start.
+Use the domain nouns the project already uses, the same words that name its
+top-level modules, its services and its issue labels. Learn the vocabulary once
+and use it everywhere. A new noun for an existing domain is how two names for one
+thing start, and the second one is always the one nobody searches for.
 
-Module ids are reverse-DNS: `tv.kroma.torrents`.
+Where a project uses a namespaced id scheme (reverse-DNS, a scope prefix, a
+registry name), take the next id from the existing set rather than inventing a
+shape.

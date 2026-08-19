@@ -4,20 +4,28 @@ Skills and agents this repository ships to any Claude Code session opened in it.
 They are checked in so a clone gets them, and so a change to one is reviewed like
 any other change.
 
+Every one of them states a **generic rule**, so the same directory can be dropped
+into another repository and still be right. What is specific to a project stays in
+that project's own docs, and a skill points at them rather than restating them.
+For this repository that means [`CLAUDE.md`](../../CLAUDE.md),
+[`CONVENTIONS.md`](../../CONVENTIONS.md), [`CODE_STYLE.md`](../../CODE_STYLE.md),
+[`ARCHITECTURE.md`](../../ARCHITECTURE.md) and
+[`docs/TICKETS.md`](../../docs/TICKETS.md).
+
 ## Writing
 
 | Skill | What it does |
 |-------|--------------|
 | `unslop` | Cuts AI tells from prose before it ships: puffery, "not just X but Y", em dashes, rule of three, chatbot filler. For docs, commit messages, PR descriptions and copy. |
-| `spec-writing` | Writes and changes `docs/spec`: what belongs there rather than in architecture, the status vocabulary, requirement IDs and keeping them stable, sizing one so it becomes one story. |
-| `ticket-writing` | Issues and PR descriptions: the epic and sub-issue structure, linking a requirement ID instead of copying spec text, the label axes, what a reviewer needs. |
+| `spec-writing` | Writing a product spec: what belongs there rather than in architecture, the status vocabulary, requirement IDs and keeping them stable, sizing one so it becomes one story. |
+| `ticket-writing` | Issues and PR descriptions: the epic and sub-issue structure, linking a requirement instead of copying spec text, reading the project's labels and templates rather than guessing them. |
 
 ## Code
 
 | Skill | What it does |
 |-------|--------------|
-| `file-structure` | One file, one job: the size policy, what a natural seam is, where a split lands, and the signals a file is already two files. |
-| `naming` | Kebab-case files named after their export, the suffix vocabulary, a component folder's layout, snake_case and `it_` on the Rust side, and the names that are always wrong. |
+| `file-structure` | One file, one job: the size policy, what a natural seam is, where a split lands against the project's dependency rules, and the signals a file is already two files. |
+| `naming` | A file named after its export, a suffix that is a resolution instruction, index files that only re-export, and the symbol names that are always wrong. |
 | `typescript-best-practices` | Discriminated unions, branded types, `unknown` over `any`, no `as`, exhaustiveness, strict compiler options, errors as values, no floating promises. Examples in `references/patterns.md`. |
 | `rust-best-practices` | The same table one language over: enums with data, newtypes, errors by layer, borrow in and own out, nothing blocking the async runtime, `SAFETY:` on every unsafe. |
 | `no-comments` | Runs the comment hunter over a diff and acts on what it finds. Slash-only, it never fires on its own. |
@@ -26,10 +34,10 @@ any other change.
 
 | Skill | What it does |
 |-------|--------------|
-| `tdd` | The failing test before the code, for new behaviour and for bugs, and when to skip the loop honestly rather than force a bad test. |
-| `typescript-tests` | Vitest in this repo: the name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines, no comments, and the two resolution projects decide where the file goes. |
-| `rust-tests` | Cargo tests: the same block shape, sentence names, setup in `test_support`, integration tests beside the handlers, no `sleep` for synchronisation. |
-| `sonar-loop` | Drives a PR to 0 issues, 0% duplication and near-total coverage on new logic, then watches the checks until every one passes. |
+| `tdd` | The failing test first, for new behaviour and for bug fixes, and when to skip the loop and say so. |
+| `typescript-tests` | The name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines, no comments, and the runner's config decides where the file goes. |
+| `rust-tests` | Cargo tests: the same block shape, sentence names, shared setup in a named test-support module, unit tests beside the code. |
+| `sonar-loop` | Drives a PR to the project's quality targets, then watches the checks until every one passes. |
 
 ## Agents
 
@@ -41,25 +49,28 @@ any other change.
 `no-comments` and `comment-hunter` exist because the rule they enforce is the one
 this repo breaks most often. See `CODE_STYLE.md` and `.claude/CLAUDE.md`.
 
-## What is also installed globally
+## Reusing them elsewhere
 
-Four of these are portable, so they also live in `~/.claude/skills` and load in
-every project on this machine: `unslop`, `typescript-best-practices`,
-`rust-best-practices` and `tdd`. They name no path, script or threshold that only
-exists here, and the copies are identical to these, so edit one and copy it
-across rather than letting the two drift.
+Copy the directory. `.claude/skills` in another repository, or `~/.claude/skills`
+to load them in every project on this machine. Nothing here reads a path, a script
+name or a threshold that only exists in this repo.
 
-The other eight are about this repo. They cite `docs/spec`, this repo's labels,
-`bun run sonar:precheck`, `@kroma/*` package names, `test_support` and the
-300-line policy, so they stay here and travel with a clone.
+Two of them assume a tool rather than a repo, and that is the honest limit of the
+genericness: `sonar-loop` wants SonarCloud and the `gh` CLI, and `ticket-writing`
+wants GitHub issues. `spec-reviewer` is the one agent that stays specific, because
+it reviews this repo's `docs/spec` layout.
 
-The `comment-hunter` agent is portable and is installed globally too.
+Where a project states a threshold of its own, the project wins. A skill that
+names a default says so at the point it names it.
 
 ## Editing one
 
 A skill is prose an agent reads, so the bar is the same as any other doc here: no
 em dashes, no comments narrating the work, and no reference to a skill or agent
-that is not in this tree. Check a change before committing it:
+that is not in this tree. A rule that only makes sense in this repository belongs
+in the repository's docs with the skill pointing at it, not in the skill.
+
+Check a change before committing it:
 
 ```bash
 claude plugin validate .claude/skills --strict

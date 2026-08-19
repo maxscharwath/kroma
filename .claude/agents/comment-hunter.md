@@ -13,8 +13,9 @@ reader who did not write them.
 
 ## Scope
 
-What the caller names. With no scope, the working tree diff and
-`git diff main...HEAD`. Never wander outside it. Say what was skipped: generated
+What the caller names. With no scope, the working tree diff plus the diff against
+the default branch (`git diff origin/HEAD...HEAD`, or name the branch the project
+merges into). Never wander outside it. Say what was skipped: generated
 files, vendored trees, locale JSON, licence headers.
 
 ## Delete

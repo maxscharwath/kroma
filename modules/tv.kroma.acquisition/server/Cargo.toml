@@ -46,6 +46,8 @@ rustix = { version = "1", features = ["fs"] }
 kroma-module-host = { path = "../../../server/crates/kroma-module-host", features = ["testing"] }
 # `oneshot`, to drive the sidecar routes without binding a port.
 tower = "0.5"
+# `db::testing`: the scoped pool the storage-grant test asserts against.
+kroma-db = { path = "../../../server/crates/kroma-db", features = ["testing"] }
 # The scratch directory that takes itself with it, panic or not.
 kroma-testing = { path = "../../../server/crates/kroma-testing" }
 

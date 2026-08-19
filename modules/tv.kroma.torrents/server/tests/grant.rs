@@ -7,20 +7,13 @@
 //! grant on it. The client configs, credentials and all, went the other way: into
 //! this module's own file, which no grant governs.
 
-use kroma_module_sdk::db::{self, Grant};
+use kroma_module_sdk::db::{self, testing::TempPool, Pool};
 
-fn shipped_grant() -> Grant {
-    let manifest: serde_json::Value = serde_json::from_str(include_str!("../../module.json"))
-        .expect("this module's manifest parses");
-    serde_json::from_value(manifest["storage"]["core"].clone()).expect("storage.core is a grant")
-}
-
-fn scoped() -> (kroma_testing::TempDir, db::Pool, db::Pool) {
-    let dir = kroma_testing::temp_dir("torrents-grant");
-    let path = dir.path().join("kroma.db");
-    let unscoped = db::init(&path).expect("core schema");
-    let scoped = db::init_scoped(&path, "tv.kroma.torrents", &shipped_grant()).expect("scope");
-    (dir, unscoped, scoped)
+fn scoped() -> (TempPool, Pool) {
+    let core = db::testing::temp_pool("torrents-grant");
+    let grant = db::testing::grant_from_manifest(include_str!("../../module.json"));
+    let scoped = core.scoped("tv.kroma.torrents", &grant);
+    (core, scoped)
 }
 
 fn row(id: &str, request_id: Option<&str>) -> kroma_torrent::db::DownloadRow {
@@ -58,9 +51,8 @@ fn row(id: &str, request_id: Option<&str>) -> kroma_torrent::db::DownloadRow {
 
 #[test]
 fn the_grant_covers_the_ledger_this_module_owns_in_the_core_database() {
-    let (_dir, unscoped, scoped) = scoped();
-    unscoped
-        .get()
+    let (core, scoped) = scoped();
+    core.get()
         .unwrap()
         .execute_batch(
             "INSERT INTO requests (id,kind,tmdb_id,title,status,created_at,updated_at) \
@@ -90,7 +82,7 @@ fn the_grant_covers_the_ledger_this_module_owns_in_the_core_database() {
 
 #[test]
 fn the_grant_reaches_neither_accounts_nor_the_client_credentials_that_moved_out() {
-    let (_dir, _unscoped, scoped) = scoped();
+    let (_core, scoped) = scoped();
     let conn = scoped.get().unwrap();
 
     for sql in [

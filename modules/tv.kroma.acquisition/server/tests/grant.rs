@@ -8,26 +8,18 @@
 //! query it makes is prepared here against a pool scoped by its own
 //! `module.json`, so adding a call site that reaches further fails HERE.
 
-use kroma_module_sdk::db::{self, Grant};
+use kroma_module_sdk::db::{self, testing::TempPool, Pool};
 
-fn shipped_grant() -> Grant {
-    let manifest: serde_json::Value = serde_json::from_str(include_str!("../../module.json"))
-        .expect("this module's manifest parses");
-    serde_json::from_value(manifest["storage"]["core"].clone())
-        .expect("storage.core is a grant")
+// The core database plus the pool this module's process is actually handed:
+// same file, scoped to the grant its own `module.json` ships.
+fn scoped() -> (TempPool, Pool) {
+    let core = db::testing::temp_pool("acq-grant");
+    let grant = db::testing::grant_from_manifest(include_str!("../../module.json"));
+    let scoped = core.scoped("tv.kroma.acquisition", &grant);
+    (core, scoped)
 }
 
-// A migrated core database plus a scoped pool over the same file, as the
-// supervisor hands one to this module's process.
-fn scoped() -> (kroma_testing::TempDir, db::Pool, db::Pool) {
-    let dir = kroma_testing::temp_dir("acq-grant");
-    let path = dir.path().join("kroma.db");
-    let unscoped = db::init(&path).expect("core schema");
-    let scoped = db::init_scoped(&path, "tv.kroma.acquisition", &shipped_grant()).expect("scope");
-    (dir, unscoped, scoped)
-}
-
-fn seed(pool: &db::Pool) {
+fn seed(pool: &Pool) {
     let conn = pool.get().unwrap();
     conn.execute_batch(
         "INSERT INTO users (id,email,username,password_hash,created_at,permissions) \
@@ -49,8 +41,8 @@ fn seed(pool: &db::Pool) {
 
 #[test]
 fn the_grant_covers_every_core_query_this_module_makes() {
-    let (_dir, unscoped, scoped) = scoped();
-    seed(&unscoped);
+    let (core, scoped) = scoped();
+    seed(&core);
     let conn = scoped.get().unwrap();
 
     // The request / wanted ledger: read (auto.rs, search/, import.rs).
@@ -73,8 +65,8 @@ fn the_grant_covers_every_core_query_this_module_makes() {
 fn the_grant_stops_at_the_tables_this_module_has_no_business_in() {
     // The point of declaring one. A sidecar used to be handed the whole database
     // ambiently, session token hashes included.
-    let (_dir, unscoped, scoped) = scoped();
-    seed(&unscoped);
+    let (core, scoped) = scoped();
+    seed(&core);
     let conn = scoped.get().unwrap();
 
     for sql in [

@@ -6,21 +6,13 @@
 //! `cancel` and polls the rest; this sidecar does the reverse. Shared by
 //! definition, so it lives in the core schema and this module holds a grant.
 
-use kroma_module_sdk::db::{self, Grant};
-
-fn shipped_grant() -> Grant {
-    let manifest: serde_json::Value = serde_json::from_str(include_str!("../../module.json"))
-        .expect("this module's manifest parses");
-    serde_json::from_value(manifest["storage"]["core"].clone()).expect("storage.core is a grant")
-}
+use kroma_module_sdk::db;
 
 #[test]
 fn the_grant_covers_both_ends_of_the_progress_channel() {
-    let dir = kroma_testing::temp_dir("whisper-grant");
-    let path = dir.path().join("kroma.db");
-    db::init(&path).expect("core schema");
-    let scoped = db::init_scoped(&path, "tv.kroma.whisper", &shipped_grant()).expect("scope");
-    let conn = scoped.get().unwrap();
+    let core = db::testing::temp_pool("whisper-grant");
+    let grant = db::testing::grant_from_manifest(include_str!("../../module.json"));
+    let conn = core.scoped("tv.kroma.whisper", &grant).get().unwrap();
 
     conn.execute(
         "INSERT OR REPLACE INTO whisper_jobs (id, stage, done, total, cancel) VALUES (?1,'',0,0,0)",

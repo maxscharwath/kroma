@@ -61,8 +61,8 @@ candle-nn = { version = "0.11", default-features = false, features = ["metal"], 
 candle-transformers = { version = "0.11", default-features = false, features = ["metal"], optional = true }
 
 [dev-dependencies]
-# The scratch directory the storage-grant test builds its two pools in.
-kroma-testing = { path = "../../../server/crates/kroma-testing" }
+# `db::testing`: the scoped pool the storage-grant test asserts against.
+kroma-db = { path = "../../../server/crates/kroma-db", features = ["testing"] }
 
 # The profile `bun run modules:pack` builds this sidecar with: release + `panic =
 # "abort"`. Dropping the unwinding tables makes the binary ~11% smaller at NO

@@ -19,7 +19,15 @@ this repo breaks most often. See `CODE_STYLE.md` and `.claude/CLAUDE.md`.
 
 `unslop`, `typescript-best-practices`, `no-comments` and `comment-sicko` are
 derived from the [pstack plugin](https://github.com/cursor/plugins/tree/main/pstack)
-by Lauren Tan, MIT licensed, see [`LICENSE-pstack`](LICENSE-pstack).
+by Lauren Tan, used under the MIT licence:
+
+> Copyright (c) 2026 Lauren Tan. Permission is hereby granted, free of charge, to
+> any person obtaining a copy of this software and associated documentation files
+> to deal in the Software without restriction, subject to the above copyright
+> notice and this permission notice being included in all copies or substantial
+> portions of the Software. The Software is provided "as is", without warranty of
+> any kind. Full text:
+> [cursor/plugins/pstack/LICENSE](https://github.com/cursor/plugins/blob/main/pstack/LICENSE).
 
 They are edited, not vendored. Every reference to a skill pstack ships and this
 repository does not (`/architect`, `/how`, `/why`, the `principle-*` set) is

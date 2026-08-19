@@ -19,7 +19,7 @@ One idea underneath every rule: a wrong program should not compile. Every `any`,
 | Type guards | Must verify the claim. A lying guard is worse than `as` because the bug hides behind a name that says it's safe. Name them `isX` or `hasX`. |
 | Exhaustiveness | Inline `const _exhaustive: never = x;` in default arms so the compiler errors when a new variant is added. |
 | `satisfies` over `as` | Validates the value without widening literal types. |
-| Boundary validation | Validate where data crosses in, trust the types inside. In this repo that means a zod schema at every trust boundary, see `CONVENTIONS.md`. |
+| Boundary validation | Validate where data crosses in, trust the types inside. A schema at every trust boundary, never a `typeof` chain behind an `as` cast. |
 | Schema-derived types | Reach for `Pick`/`Omit`/`Parameters`/`ReturnType`/`Awaited`/`typeof` before declaring a new interface. |
 | Object args | Pass objects, not positional, so argument order is self-documenting. Skip on hot paths (per-frame render, tokenizers, parsers). |
 | Real tests | Don't mock what you can run. Prefer the framework's real test primitives with leak/disposable checks, and verify UI in a running build. Mock only what you can't run locally. |

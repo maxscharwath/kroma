@@ -41,6 +41,20 @@ any other change.
 `no-comments` and `comment-hunter` exist because the rule they enforce is the one
 this repo breaks most often. See `CODE_STYLE.md` and `.claude/CLAUDE.md`.
 
+## What is also installed globally
+
+Four of these are portable, so they also live in `~/.claude/skills` and load in
+every project on this machine: `unslop`, `typescript-best-practices`,
+`rust-best-practices` and `tdd`. They name no path, script or threshold that only
+exists here, and the copies are identical to these, so edit one and copy it
+across rather than letting the two drift.
+
+The other eight are about this repo. They cite `docs/spec`, this repo's labels,
+`bun run sonar:precheck`, `@kroma/*` package names, `test_support` and the
+300-line policy, so they stay here and travel with a clone.
+
+The `comment-hunter` agent is portable and is installed globally too.
+
 ## Editing one
 
 A skill is prose an agent reads, so the bar is the same as any other doc here: no

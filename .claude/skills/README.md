@@ -25,8 +25,8 @@ any other change.
 | Skill | What it does |
 |-------|--------------|
 | `tdd` | The failing test before the code, for new behaviour and for bugs, and when to skip the loop honestly rather than force a bad test. |
-| `typescript-tests` | Vitest in this repo: the name is a sentence, the body is three lines, no comments, and the two resolution projects decide where the file goes. |
-| `rust-tests` | Cargo tests: sentence names, setup in `test_support`, integration tests beside the handlers, no `sleep` for synchronisation. |
+| `typescript-tests` | Vitest in this repo: the name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines, no comments, and the two resolution projects decide where the file goes. |
+| `rust-tests` | Cargo tests: the same block shape, sentence names, setup in `test_support`, integration tests beside the handlers, no `sleep` for synchronisation. |
 | `sonar-loop` | Drives a PR to 0 issues, 0% duplication and near-total coverage on new logic, then watches the checks until every one passes. |
 
 ## Agents

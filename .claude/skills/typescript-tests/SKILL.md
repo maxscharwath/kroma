@@ -1,23 +1,28 @@
 ---
 name: typescript-tests
-description: Write vitest tests for this repo. A test name is a sentence, the body is three lines, there are no comments, and the two module-resolution projects decide where the file goes. Covers naming, size, fixtures, what not to assert, jsdom opt-in, native resolution, and running one test. Use when adding or changing any .test.ts or .test.tsx, or when coverage has to come up. Triggers - "write a test", "add tests", "test this", "vitest", "how do I test", "cover this file".
+description: Write vitest tests for this repo. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and the two module-resolution projects decide where the file goes. Covers naming, the block shape, size, fixtures, what not to assert, jsdom opt-in, native resolution, and running one test. Use when adding or changing any .test.ts or .test.tsx, or when coverage has to come up. Triggers - "write a test", "add tests", "test this", "vitest", "how do I test", "cover this file".
 ---
 
 # TypeScript tests
 
-A test earns its place by being read, not by existing. Two rules carry most of
-it: **the name is the sentence**, and **the body is short enough to hold in your
-head**.
+A test earns its place by being read, not by existing. Three rules carry most of
+it: **the name is the sentence**, **the body is blocks separated by blank lines**,
+and **there are no comments**.
 
 ```ts
-it('keeps the handed shape while there is no stage to read', () => {
-  const { result } = renderHook(() => useStageRatio('stage-missing', 1728 / 880));
-  expect(result.current).toBeCloseTo(1728 / 880, 6);
+it('falls back to the handed shape when the stage measures zero', () => {
+  const node = stage('stage-b', 0, 0);
+
+  vi.spyOn(node, 'getBoundingClientRect').mockReturnValue({ width: 0, height: 0 } as DOMRect);
+
+  const { result } = renderHook(() => useStageRatio('stage-b', 4 / 3));
+
+  expect(result.current).toBeCloseTo(4 / 3, 6);
 });
 ```
 
-Three lines. The name says what is guaranteed, so nothing needs a comment to say
-it again.
+The name says what is guaranteed and the blank lines say where each phase ends,
+so nothing is left for a comment to say.
 
 ## Naming
 
@@ -35,10 +40,49 @@ it('returns false when the second argument is undefined', ...)  // describes the
 
 If you cannot name it in a sentence, the test is doing two things. Split it.
 
-## Size
+## The four blocks
 
-A test sets up one situation, performs one action, and asserts one behaviour. No
-`// Arrange`, `// Act`, `// Assert` banners: the shape is already visible.
+A body is up to four blocks, always in this order, one blank line between them:
+
+| Block | Holds |
+|-------|-------|
+| **setup** | Fixtures, state, the world the behaviour needs |
+| **mock** | Stubs, spies, fakes, and what they are told to return |
+| **test** | The one action under test |
+| **verify** | The assertions |
+
+Rules that keep the shape readable:
+
+- **A blank line only ever separates two blocks.** Never one inside a block, and
+  never two in a row. A stray blank line reads as a phase boundary that is not
+  there.
+- **An empty block is absent, not blank.** A test with nothing to mock has three
+  blocks. A one-line setup and a one-line assertion is two.
+- **No comment names a block.** `// Arrange`, `// Act`, `// Assert`, `// setup`
+  and `// given` are all the blank line written twice. The order is the label.
+- **One action in the test block.** Two calls under test means two tests, unless
+  the second is the only way to observe the first.
+- **Every assertion in verify.** An `expect` sitting in the setup block is a
+  precondition check, and a precondition worth checking is its own test.
+
+```ts
+it('marks a file absent rather than deleting its history', async () => {
+  const library = await seedLibrary({ files: ['a.mkv'] });
+  await library.watch('a.mkv', { seconds: 640 });
+
+  vi.spyOn(fs, 'stat').mockRejectedValue(new Error('ENOENT'));
+
+  await rescan(library);
+
+  expect(library.get('a.mkv')).toMatchObject({ absent: true });
+  expect(library.progress('a.mkv')).toEqual({ seconds: 640 });
+});
+```
+
+Two assertions, because "marks absent" and "history survives" are one behaviour
+seen from two sides. Three unrelated assertions would be three tests.
+
+## Size
 
 A test that runs past roughly fifteen lines is usually one of three things:
 
@@ -63,8 +107,9 @@ function stage(id: string, width: number, height: number): HTMLElement {
 ## No comments
 
 The rule holds hardest here, because a test comment is nearly always the name
-saying it should have been rewritten. No file header explaining what the suite
-pins, no note above a case, no rationale paragraph.
+saying it should have been rewritten, or a block label the blank line already
+gave. No file header explaining what the suite pins, no note above a case, no
+rationale paragraph.
 
 The one comment that survives is a genuinely non-obvious fixture value: why *this*
 byte, why *this* timestamp. One line, stating the reason, not the value.

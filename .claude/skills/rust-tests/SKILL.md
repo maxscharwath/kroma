@@ -1,22 +1,50 @@
 ---
 name: rust-tests
-description: Write cargo tests for the server crates and the modules. A test name is a sentence, the body is short, there are no comments, and shared setup lives in test_support rather than in each test. Covers naming, size, where a test file goes, integration tests beside the handlers, async and time, and running one crate or one filter. Use when adding or changing any #[test] or #[tokio::test], or when Rust coverage has to come up. Triggers - "write a rust test", "cargo test", "test this crate", "cover this handler".
+description: Write cargo tests for the server crates and the modules. A test name is a sentence, the body is setup, mock, test and verify blocks separated by blank lines with no comments, and shared setup lives in test_support rather than in each test. Covers naming, the block shape, where a test file goes, integration tests beside the handlers, async and time, and running one crate or one filter. Use when adding or changing any #[test] or #[tokio::test], or when Rust coverage has to come up. Triggers - "write a rust test", "cargo test", "test this crate", "cover this handler".
 ---
 
 # Rust tests
 
-Same two rules as the TypeScript side: **the name is the sentence**, and **the
-body stays short enough to hold in your head**. The differences are where a test
-lives and what setup it is allowed to do.
+Same three rules as the TypeScript side: **the name is the sentence**, **the body
+is blocks separated by blank lines**, and **there are no comments**. The
+differences are where a test lives and what setup it is allowed to do.
 
 ```rust
 #[test]
 fn refuses_to_scan_without_tmdb() {
     let state = test_state();
-    let err = scan(&state, &noop_progress(), &never_cancelled()).unwrap_err();
+    let progress = Progress::default();
+
+    let err = scan(&state, &progress.record(), &never_cancelled()).unwrap_err();
+
     assert!(matches!(err, ScanError::NoTmdbKey));
+    assert_eq!(progress.seen(), vec![]);
 }
 ```
+
+## The four blocks
+
+A body is up to four blocks, always in this order, one blank line between them:
+
+| Block | Holds |
+|-------|-------|
+| **setup** | Fixtures, state, the world the behaviour needs |
+| **mock** | Fakes and the responses they are primed with |
+| **test** | The one call under test |
+| **verify** | The assertions |
+
+- **A blank line only ever separates two blocks.** Never one inside a block,
+  never two in a row.
+- **An empty block is absent, not blank.** Most tests here have three, because
+  `test_support` builds the world and there is nothing left to fake.
+- **No comment names a block.** The order is the label.
+- **Every assertion in verify.** An `assert!` in the setup block is a
+  precondition, and one worth checking is its own test.
+- `let` bindings that only feed the call belong in setup, not squeezed into the
+  test line. One statement under test, readable on its own.
+
+Rust makes the mock block rarer than TypeScript does: a trait with a small fake
+implementation is setup, not mocking, and it lives above the tests with a name.
 
 ## Naming
 
@@ -56,7 +84,7 @@ that needs too many collaborators to say anything.
 ## No comments
 
 No banner, no note above a case, no paragraph explaining what the module pins.
-The name carries it. A comment survives only for a genuinely non-obvious fixture
+The name carries the behaviour and the blank lines carry the phases. A comment survives only for a genuinely non-obvious fixture
 value, stating why that value and not another.
 
 `// SAFETY:` still applies inside `unsafe`, in tests as everywhere else.

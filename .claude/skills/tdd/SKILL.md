@@ -10,7 +10,11 @@ a test written first describes what the caller needs, while a test written after
 describes what the code happens to do.
 
 Write the test in the style the language skill sets: **typescript-tests** or
-**rust-tests**. Short, named as a sentence, no comments.
+**rust-tests**. Named as a sentence, built from setup, mock, test and verify
+blocks separated by blank lines, and carrying no comments.
+
+That shape is also the fastest way to write step 2. Name the behaviour, write the
+verify block first, then work backwards to the setup that makes it reachable.
 
 ## The loop
 

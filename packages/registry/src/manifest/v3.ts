@@ -15,7 +15,7 @@ const SCHEMA_VERSION = 3;
 
 // A table (`downloads`) or one of its columns (`users.username`). Anything not
 // listed is denied, so the spelling has to be exact.
-const TableOrColumn = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$/);
+const TableOrColumn = z.string().regex(/^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?$/);
 
 /** The slice of the SHARED core database a module may reach. */
 export const CoreScope = z.object({
@@ -40,7 +40,7 @@ export const Storage = z.object({
     "The slice of the shared core database this module may reach. Enforced per connection by SQLite's authorizer at prepare time, so it cannot be worked around by building the SQL as a string. Absent means none of it.",
   ),
   adopt: z
-    .array(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/))
+    .array(z.string().regex(/^[A-Za-z_]\w*$/))
     .nullish()
     .describe(
       "Tables this module used to keep in the core database and now owns. The core moves each one - schema, indexes and rows - into the module's own file before the module is spawned, then drops the core copy, so it happens exactly once.",

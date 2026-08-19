@@ -6,6 +6,7 @@
 
 import { z } from 'zod';
 import { Capability, CapabilityReq } from '../documents/v1.ts';
+import { speaksSchema } from './shared.ts';
 
 // Any optional field may arrive as an explicit null.
 const DependencyMap = z.record(z.string(), z.string()).nullish();
@@ -131,25 +132,10 @@ export const Manifest = z.object({
 });
 export type Manifest = z.infer<typeof Manifest>;
 
-/** Whether a module was built against the manifest contract this build speaks.
- *  A bundle that was not is refused rather than read on a best-effort basis: the
- *  fields that moved between versions parse as ABSENT, not as errors, so a stale
- *  one would install with its dependencies silently dropped. */
-export function speaksCurrentSchema(manifest: Pick<Manifest, 'schemaVersion'>): boolean {
-  return manifest.schemaVersion === SCHEMA_VERSION;
-}
+/** Whether a module was built against the manifest contract this file defines. */
+export const speaksCurrentSchema = speaksSchema(SCHEMA_VERSION);
 
-const mapOf = (raw: Manifest['dependencies']): Record<string, string> => raw ?? {};
-
-/** The versions a module requires, by id. */
-export function dependenciesOf(manifest: Manifest): Record<string, string> {
-  return mapOf(manifest.dependencies);
-}
-
-/** The versions a module suggests but does not require, by id. */
-export function optionalDependenciesOf(manifest: Manifest): Record<string, string> {
-  return mapOf(manifest.optionalDependencies);
-}
+export { dependenciesOf, optionalDependenciesOf } from './shared.ts';
 
 /** What a registry document says about one downloadable build. */
 export const ArtifactRef = z.object({

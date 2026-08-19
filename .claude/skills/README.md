@@ -4,36 +4,48 @@ Skills and agents this repository ships to any Claude Code session opened in it.
 They are checked in so a clone gets them, and so a change to one is reviewed like
 any other change.
 
-| Component | Where | What it does |
-|-----------|-------|--------------|
-| `unslop` | `skills/unslop` | Cuts AI tells from prose before it ships: puffery, "not just X but Y", em dashes, rule of three, chatbot filler. Applies to docs, commit messages, PR descriptions and copy. |
-| `typescript-best-practices` | `skills/typescript-best-practices` | Discriminated unions, branded types, `unknown` over `any`, no `as`, exhaustiveness, strict compiler options, errors as values, no floating promises. Examples in `references/patterns.md`. |
-| `rust-best-practices` | `skills/rust-best-practices` | The same table one language over: enums with data, newtypes, errors by layer, borrow in and own out, nothing blocking the async runtime, `SAFETY:` on every unsafe. |
-| `no-comments` | `skills/no-comments` | Runs the comment hunter over a diff and acts on what it finds. Slash-only, it never fires on its own. |
-| `comment-hunter` | `../agents/comment-hunter.md` | The agent behind it. Hunts comments that narrate code, spares the few that carry a reason, edits comment lines only. |
+## Writing
+
+| Skill | What it does |
+|-------|--------------|
+| `unslop` | Cuts AI tells from prose before it ships: puffery, "not just X but Y", em dashes, rule of three, chatbot filler. For docs, commit messages, PR descriptions and copy. |
+| `spec-writing` | Writes and changes `docs/spec`: what belongs there rather than in architecture, the status vocabulary, requirement IDs and keeping them stable, sizing one so it becomes one story. |
+| `ticket-writing` | Issues and PR descriptions: the epic and sub-issue structure, linking a requirement ID instead of copying spec text, the label axes, what a reviewer needs. |
+
+## Code
+
+| Skill | What it does |
+|-------|--------------|
+| `typescript-best-practices` | Discriminated unions, branded types, `unknown` over `any`, no `as`, exhaustiveness, strict compiler options, errors as values, no floating promises. Examples in `references/patterns.md`. |
+| `rust-best-practices` | The same table one language over: enums with data, newtypes, errors by layer, borrow in and own out, nothing blocking the async runtime, `SAFETY:` on every unsafe. |
+| `no-comments` | Runs the comment hunter over a diff and acts on what it finds. Slash-only, it never fires on its own. |
+
+## Tests and the gate
+
+| Skill | What it does |
+|-------|--------------|
+| `tdd` | The failing test before the code, for new behaviour and for bugs, and when to skip the loop honestly rather than force a bad test. |
+| `typescript-tests` | Vitest in this repo: the name is a sentence, the body is three lines, no comments, and the two resolution projects decide where the file goes. |
+| `rust-tests` | Cargo tests: sentence names, setup in `test_support`, integration tests beside the handlers, no `sleep` for synchronisation. |
+| `sonar-loop` | Drives a PR to 0 issues, 0% duplication and near-total coverage on new logic, then watches the checks until every one passes. |
+
+## Agents
+
+| Agent | What it does |
+|-------|--------------|
+| [`comment-hunter`](../agents/comment-hunter.md) | Hunts comments that narrate code, spares the few that carry a reason, edits comment lines only. |
+| [`spec-reviewer`](../agents/spec-reviewer.md) | Reviews `docs/spec` for readability, status and ID nomenclature, architecture leakage, and whether a requirement is atomic enough to become work. |
 
 `no-comments` and `comment-hunter` exist because the rule they enforce is the one
 this repo breaks most often. See `CODE_STYLE.md` and `.claude/CLAUDE.md`.
 
-## Origin
+## Editing one
 
-`unslop`, `typescript-best-practices`, `no-comments` and `comment-hunter` are
-derived from the [pstack plugin](https://github.com/cursor/plugins/tree/main/pstack)
-by Lauren Tan, used under the MIT licence:
+A skill is prose an agent reads, so the bar is the same as any other doc here: no
+em dashes, no comments narrating the work, and no reference to a skill or agent
+that is not in this tree. Check a change before committing it:
 
-> Copyright (c) 2026 Lauren Tan. Permission is hereby granted, free of charge, to
-> any person obtaining a copy of this software and associated documentation files
-> to deal in the Software without restriction, subject to the above copyright
-> notice and this permission notice being included in all copies or substantial
-> portions of the Software. The Software is provided "as is", without warranty of
-> any kind. Full text:
-> [cursor/plugins/pstack/LICENSE](https://github.com/cursor/plugins/blob/main/pstack/LICENSE).
-
-They are edited, not vendored: the agent is renamed from `comment-sicko` and
-rewritten in this repo's voice, and every reference to a skill pstack ships and
-this repository does not (`/architect`, `/how`, `/why`, the `principle-*` set) is
-replaced by the plain instruction it stood for, so nothing here points at
-something that is not in the tree. `rust-best-practices` is new.
-
-Upstream changes are not pulled automatically. To take one, read the diff and
-port it by hand.
+```bash
+claude plugin validate .claude/skills --strict
+claude plugin validate .claude/agents --strict
+```

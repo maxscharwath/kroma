@@ -1,11 +1,12 @@
 # RFC 110: a normalized Module Registry API anyone can host
 
-- Status: **DRAFT**
+- Status: **ACCEPTED** (implemented and deployed)
 - PR: #110
-- Affects: `packages/module-tools` (the contract + generator), `apps/modules` (the
-  `modules.kroma.tv` worker), `server/src/api/admin/store/` (catalog, registries, plan,
-  install), `server/crates/kroma-module-supervisor` (bounded fetch + checksum gate),
-  `.github/workflows/repo-worker.yml`
+- Affects: `packages/registry` (the contract), `packages/module-tools` (the generator and
+  the local tools), `apps/modules` (the `modules.kroma.tv` worker),
+  `server/src/api/admin/store/` (catalog, registries, plan, install),
+  `server/crates/kroma-module-manifest` + `kroma-module-supervisor` (the manifest, and the
+  bounded fetch + checksum + schema gates), `.github/workflows/repo-worker.yml`
 
 ## Summary
 
@@ -38,8 +39,8 @@ them. Where the wording below and those schemas ever disagree, the schemas are t
 
 ## Status
 
-Landed on `feat/module-registry` (#111), and **deployed**: `modules.kroma.tv` serves the
-documents and the schemas today.
+Merged in #111, and **deployed**: `modules.kroma.tv` serves the documents and the schemas
+today.
 
 The contract package (`@kroma/registry`), the generator, the paths on the reference
 registry — including per-module version history read off the `<id>@<version>` release tags —

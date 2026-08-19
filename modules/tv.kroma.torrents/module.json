@@ -1,12 +1,12 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
-  "schemaVersion": 3,
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
   "id": "tv.kroma.torrents",
   "name": "Torrent downloads",
   "version": "0.2.0",
   "description": "The embedded librqbit download engine + the downloads queue. Transmission and qBittorrent are their own engine sub-modules that plug into this one.",
   "engines": {
-    "server": ">=0.1.4"
+    "server": ">=0.1.38"
   },
   "dependencies": {
     "tv.kroma.indexer": "^0.2.0"

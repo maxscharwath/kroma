@@ -1,12 +1,12 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
-  "schemaVersion": 3,
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
   "id": "tv.kroma.mdns",
   "name": "mDNS discovery",
   "version": "0.2.0",
   "description": "mDNS / DNS-SD advertising so LAN clients find the server automatically.",
   "engines": {
-    "server": ">=0.1.4"
+    "server": ">=0.1.38"
   },
   "provides": [
     {

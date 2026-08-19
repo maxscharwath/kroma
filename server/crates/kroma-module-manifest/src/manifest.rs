@@ -185,11 +185,16 @@ pub struct CapabilityReq {
 /// versions parse as *absent*, never as errors: a v1 bundle still spelling its
 /// dependencies `dependsOn` would install with an empty dependency set and fail
 /// at runtime, somewhere else, with nothing pointing back here.
-pub const MODULE_SCHEMA_VERSION: u32 = 3;
+pub const MODULE_SCHEMA_VERSION: u32 = 2;
 
 /// A module's declared storage, and the capability itself: a manifest with no
 /// `storage` object gets no database at all, and the sidecar built for it does
 /// not link SQLite.
+///
+/// Additive, so it cost no [`MODULE_SCHEMA_VERSION`] bump: a reader that
+/// predates the field sees a module with no database, which is what such a
+/// module had. What a module needs from its HOST is `engines`, and that is where
+/// the floor for this one is declared.
 ///
 /// Presence alone grants the module its own file
 /// (`<data>/modules/<id>/module.sqlite`), which it owns outright. Reaching the

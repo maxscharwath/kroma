@@ -1,12 +1,12 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
-  "schemaVersion": 3,
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
   "id": "tv.kroma.acquisition",
   "name": "Acquisition",
   "version": "0.2.0",
   "description": "The acquisition feature: interactive/manual release search, quality scoring, grab + import, and the automatic wanted-list pass. Rides on the Downloads engine and the indexers. Disable it to remove search/grab/auto and hide the settings page.",
   "engines": {
-    "server": ">=0.1.4"
+    "server": ">=0.1.38"
   },
   "dependencies": {
     "tv.kroma.torrents": "^0.2.0"

@@ -1,12 +1,12 @@
 {
-  "$schema": "https://modules.kroma.tv/schemas/3/manifest.json",
-  "schemaVersion": 3,
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
   "id": "tv.kroma.engine.qbittorrent",
   "name": "qBittorrent engine",
   "version": "0.2.0",
   "description": "qBittorrent WebUI as a download sub-engine for the Downloads module. Toggle it to add/remove qBittorrent from the download-client picker.",
   "engines": {
-    "server": ">=0.1.4"
+    "server": ">=0.1.38"
   },
   "dependencies": {
     "tv.kroma.torrents": "^0.2.0"

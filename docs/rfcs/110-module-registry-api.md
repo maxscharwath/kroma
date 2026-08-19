@@ -38,13 +38,21 @@ them. Where the wording below and those schemas ever disagree, the schemas are t
 
 ## Status
 
-Landed on `feat/module-registry`: the contract package (`@kroma/registry`), the generator,
-the four paths on `modules.kroma.tv` — including per-module version history read off the
-`<id>@<version>` release tags — and the server's reading half: a descriptor is followed, an
-unknown `apiVersion` refused, and `integrity` verified through the existing install gate.
-The rename and the manifest `apiVersion` floor landed with it, so every older shape is
-deleted rather than tolerated. Still open, and listed under **Unresolved**: a store UI
-reading the new documents.
+Landed on `feat/module-registry` (#111), and **deployed**: `modules.kroma.tv` serves the
+documents and the schemas today.
+
+The contract package (`@kroma/registry`), the generator, the paths on the reference
+registry — including per-module version history read off the `<id>@<version>` release tags —
+and the server's reading half: a descriptor is followed, an unknown `apiVersion` refused,
+and `integrity` verified through the existing install gate. The `dependencies` rename, the
+`schemaVersion` floor and `engines` landed with it, so every older shape is deleted rather
+than tolerated.
+
+Two tools came out of writing it: `modules serve` runs a registry off a directory of
+bundles for local verification, and `modules install` uploads one to a running server (the
+install path refuses http, so a local registry can be browsed but not installed from).
+
+Still open, and listed under **Unresolved**: a store UI reading the new documents.
 
 ## Proposal
 
@@ -80,7 +88,8 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
     "distTags": { "latest": "0.1.7", "beta": "0.2.0-beta.3" },   // channels (§ pre-releases)
     "versions": {
       "0.1.7": {
-        "minServer": "0.1.4",
+        "schemaVersion": 2,                                      // the MANIFEST contract it was built against
+        "engines": { "server": ">=0.1.4" },
         "library": false,
         "dependencies": { "tv.kroma.x": "^0.1.0" },
         "optionalDependencies": { "tv.kroma.vpn": "^0.1.0" },
@@ -112,19 +121,20 @@ A registry is a set of JSON files a plain file host (Cloudflare, Pages, S3, ngin
   the two compose. A provider entry may also carry admin UI metadata (`label`,
   `fields`, `flow`) so the "add engine" picker is data-driven.
 - **`GET /index.json`** — one record per module, carrying the **installable version**: the
-  store metadata above, plus that version's `minServer`, `library`, `dependencies`,
+  store metadata above, plus that version's `schemaVersion`, `engines`, `library`, `dependencies`,
   `provides`/`requires` and `artifacts`. It is an array of exactly the `/m/{id}.json` fields
   minus the `versions` map, with a flat `version`.
 
   This is the document a store reads. A KROMA server's Store must render a listing *and*
-  decide, per module, whether this host can run it (`minServer`, a build for this target) —
+  decide, per module, whether this host can run it (`engines`, a build for this target) —
   which a name-and-description search index cannot answer, and which is not worth one
   request per module to discover. So the index is the listing and the search corpus at
   once, and `/m/{id}.json` is fetched only to install, or to show version history. See
   **Scaling** for what a registry does when this outgrows one file.
-- **`GET /schema/{registry,index,module}.json`** — the JSON Schema for each document, so a
-  publisher can validate its output. Derived from the reference implementation's zod
-  schemas via `z.toJSONSchema`, not hand-maintained beside them (see **JSON Schema**).
+- **`GET /schemas/{version}/{name}.json`** — the JSON Schema for `manifest`, `registry`,
+  `index` or `module`, so a publisher can validate its output. Derived from the reference
+  implementation's zod schemas via `z.toJSONSchema`, not hand-maintained beside them (see
+  **JSON Schema**). `/schemas/{name}.json` is the unversioned alias.
 - **The bundles** stay where they are (release assets today); `artifacts[].url` is absolute,
   so the metadata and the bytes can live on different hosts.
 
@@ -143,7 +153,7 @@ third-party registry safe — a compromised host cannot serve tampered bytes und
 ### 1b. Where the metadata comes from
 
 Every field in a version record already exists inside the `.kmod` it describes: the bundle
-is a tar of `module.json` (id, version, `minServer`, dependencies, `provides`/`requires`),
+is a tar of `module.json` (id, version, `engines`, dependencies, `provides`/`requires`),
 an icon, and the sidecar binary. `size` and `integrity` are functions of the bundle's bytes.
 
 So a registry document is **derived from the bundles, never authored beside them**. That is
@@ -155,8 +165,8 @@ only decides *what to publish*, not *what the documents say*.
 The record is a **cache of the bundle, and the bundle wins.** At install the server unpacks
 the `.kmod` and re-reads its `module.json`: the id must equal the one the registry offered
 (otherwise a registry could advertise one id and ship a bundle that overwrites another),
-and `minServer` is enforced from the *bundle*, not from the record. A registry that
-understates `minServer` to make a module look installable gets a refusal at unpack time.
+and `engines` are enforced from the *bundle*, not from the record. A registry that
+understates them to make a module look installable gets a refusal at unpack time.
 The record exists so a client can build a store listing and resolve a dependency graph
 *without downloading every bundle* — not so it can be believed over the bytes.
 
@@ -267,8 +277,28 @@ against the same documents, which is why the schema is the contract and the clie
 ## JSON Schema
 
 The wire format is published as JSON Schema (draft 2020-12) at
-`/schema/{registry,index,module}.json`, so a publisher in any language can validate its
-output.
+`/schemas/{version}/{name}.json` — `manifest`, `registry`, `index` and `module` — so a
+publisher in any language can validate its output. That path shape is Biome's and
+json-schema.org's, and already what this repo pins against in `biome.json`.
+
+**Versioned, because a `$id` is pinned against.** A later contract is a NEW document beside
+the old one, never an edit to the URL someone already validated with, so
+`packages/registry/src/{manifest,documents}/vN.ts` keeps each published version alive after
+the current one moves on. `/schemas/{name}.json` is the unversioned alias for whoever just
+wants the current one.
+
+A `module.json` points at its own:
+
+```json
+{ "$schema": "https://modules.kroma.tv/schemas/2/manifest.json" }
+```
+
+which is what gives an editor completion and inline docs while authoring one — and is why
+the manifest schema is published at all, rather than living only in the repo. It used to:
+`modules/module.schema.json` was 220 hand-written lines checked by a 199-line hand-rolled
+validator, i.e. the manifest defined twice and verified by a third implementation. Both are
+gone; the zod schema is the definition, `modules:validate` parses with it, and the JSON
+Schema is generated from it.
 
 It is **derived from the reference implementation's schemas, not hand-written beside them**.
 A spec maintained twice is a spec that drifts, and only one of the two copies ever runs; a
@@ -281,7 +311,8 @@ The constraints that matter, and that a third-party document is held to:
 
 | Field | Rule |
 |---|---|
-| `apiVersion` | integer ≥ 1, on `/registry.json` and `/m/{id}.json`. Higher than the client knows → refused. |
+| `apiVersion` | integer ≥ 1, on `/registry.json` and `/m/{id}.json` — the DOCUMENT contract. Higher than the client knows → refused. |
+| `schemaVersion` | integer ≥ 1, on a manifest and on each version record — the MANIFEST contract, which moves independently. Anything but the current one is refused. |
 | `id` | reverse-DNS. Checked before it reaches a URL: `../` in one would walk out of `/m/`. |
 | `integrity` | `sha256-<base64>` of exactly 32 bytes. A truncated or non-sha256 digest is not "weaker verification", it is no verification, so it is rejected rather than trusted. |
 | `artifacts[].target` | the Rust triple, or `null` for a bundle with no native binary. |
@@ -347,7 +378,7 @@ existing out-of-process module isolation.
 - **Dependency closure verified before load — on the server.** At install the server resolves
   the *full* transitive closure and refuses the operation unless: every `dependencies` range
   is satisfied by a resolvable version, every `optionalDependencies` that is present is in
-  range, every `requires` capability `kind` is provided by some module in the set, `minServer`
+  range, every `requires` capability `kind` is provided by some module in the set, `engines`
   is met, and the graph is acyclic. No module is loaded from a set that does not fully
   resolve — the same checks the workspace verification runs at publish, re-run
   authoritatively at install against what is actually there. A partial or contradictory
@@ -372,7 +403,8 @@ existing out-of-process module isolation.
 - A **published contract is a compatibility promise**: `apiVersion` must be bumped and old
   shapes tolerated once third parties depend on it. That is the point, but it is a cost.
 - **Metadata now lives in `module.json`** (author/keywords/tags) — a small authoring burden,
-  validated at publish.
+  validated at publish, and eased by a `$schema` pointing at the served schema so an editor
+  offers completion and inline docs while writing one.
 - **Integrity enforcement** can reject an already-installed bundle if a registry rehashes
   incorrectly; the installer needs a clear error, not a silent refusal.
 - **`/index.json` grows with the registry.** One request beats N at every size that exists
@@ -385,9 +417,15 @@ existing out-of-process module isolation.
 
 ## A single manifest contract
 
-`module.json` carries **`apiVersion`**, and a server refuses a bundle that does not
-declare the one it speaks — at install, at spawn, and in the Store's compatibility verdict
-so it is never offered.
+`module.json` carries **`schemaVersion`**, and a server refuses a bundle that does not
+declare the one it speaks — at install, at spawn, at publish, and in the Store's
+compatibility verdict so it is never offered.
+
+Named `schemaVersion`, not `apiVersion`, because these are **two contracts that move
+independently**: one versions a file a module author writes, the other versions the
+documents a registry serves. A record carries both — the document's own `apiVersion`, and
+the `schemaVersion` of the bundle each version describes — and one word for both would have
+made that record unreadable.
 
 That gate is what lets every older shape be deleted rather than tolerated: the array
 dependency form, schema-1's flat `url`/`size`/`sha256`, schema-2's `{ "modules": [...] }`.
@@ -399,11 +437,11 @@ refusal with a reason.
 
 So the contract is deliberately not backward compatible, and says so out loud:
 
-- **Readers speak exactly one version.** Not a range, not a floor — `apiVersion` must equal
-  what the build knows. A registry document is the same: higher is refused rather than
+- **Readers speak exactly one version.** Not a range, not a floor — `schemaVersion` must
+  equal what the build knows. A registry document is the same: higher is refused rather than
   half-read (§1).
-- **The refusal names the fix.** `'<id>' was built for module API v0, and this server speaks
-  v2; rebuild it against the current SDK`.
+- **The refusal names the fix.** `'<id>' was built for manifest schema v0, and this server
+  speaks v2; rebuild it against the current SDK`.
 - **Every module republishes on the bump.** Which is cheap while the modules are first-party
   and the tags are per-module, and is the reason to do it now rather than at 1.0.
 
@@ -447,7 +485,7 @@ So the contract is deliberately not backward compatible, and says so out loud:
   left for a focused security follow-up before `signed`/`pinned` is enforced by default.
 - **Yank/deprecate.** A way to mark a version withdrawn without deleting it (npm `deprecate`),
   and how the server treats an installed module whose version was later yanked.
-- **Re-checking the dependency set against the unpacked bundle.** `id` and `minServer` are
+- **Re-checking the dependency set against the unpacked bundle.** `id` and `engines` are
   already enforced from the bundle at install; `dependencies` / `requires` are still taken
   from the record (see §1b). Closing that means comparing the planned closure against each
   unpacked `module.json` and failing the install on disagreement.

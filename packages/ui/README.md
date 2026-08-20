@@ -109,7 +109,7 @@ Layout shorthands (`row`, `center`, `gap`, `p/px/pt…`, `w/h`, `absolute`, `fil
 `z`…) expand to React Native longhands. Colour takes a token name, a `/NN` alpha
 suffix (`'accent/45'`, `'white/12'`), or any raw CSS colour. `radius` and `shadow`
 take token names, and `ring: 'focusLift'` is the focus treatment, derived from the
-theme's accent. Declarations, though not `<Box>`, which is a View, additionally take
+theme's accent. Declarations, though not `<Box>`, which is a View, also take
 `text: 'label'` (a whole type role, spread under the layer so longhands beside it
 win) and `font: 'ui' | 'display'`.
 

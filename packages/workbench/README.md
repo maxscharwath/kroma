@@ -112,7 +112,7 @@ props out of its own JSDoc. Nothing is listed and nothing is registered: drop a
 of, so it draws whatever it is handed and nothing otherwise.
 
 **`provider` is app context, and its lens for free.** The recurring shape is a
-context every story needs in order to render at all, such as KROMA's i18n provider,
+context every story needs to render at all, such as KROMA's i18n provider,
 whose translated components call `useT()` and throw outside one, whose value is
 *also* worth flipping while looking at a design. Declaring it gets both: the
 workbench holds the state, wraps the tree, and puts a toolbar menu on it.

@@ -13,7 +13,7 @@ only what a module's FRONTEND may reach for.
 ## `src/admin/` is shared page furniture, not a design system
 
 `context`, `hooks`, `settings`, `engines`, `page-states` and `denied` are the
-pieces every module admin page needs in order to look like part of the same
+pieces every module admin page needs to look like part of the same
 product: the host handle, the settings form, the empty and error states, the
 permission wall.
 

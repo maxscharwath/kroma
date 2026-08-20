@@ -1,8 +1,8 @@
-# @kroma/webos LG TV (webOS)
+# @kroma/webos: LG TV (webOS)
 
-> Part of the [KROMA](../../README.md) monorepo the LG TV shell.
+> Part of the [KROMA](../../README.md) monorepo: the LG TV shell.
 
-Thin shell over **`@kroma/tv`** (the shared 10-foot experience). webOS TVs decode
+Thin shell over `@kroma/tv`, the shared 10-foot experience. webOS TVs decode
 HEVC/H.265 (incl. HDR) in hardware, so playback is direct-play.
 
 ## Two bundles, one package (old-TV support)
@@ -107,7 +107,7 @@ passing it since `_release-tv.yml`). Vite has already minified the output.
 ## Publishing to the LG Content Store
 
 See [STORE.md](./STORE.md) for the Seller Lounge account, assets, listing fields, the
-self-checklist items that need real attention, and what LG's QA needs in order to
+self-checklist items that need real attention, and what LG's QA needs to
 be able to test a client for a server it cannot reach.
 
 Notes:

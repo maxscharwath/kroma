@@ -14,7 +14,7 @@ An **account** is a person. It has credentials, its own watch state, its own
 settings, and a set of signed-in devices. Nothing else hangs off it.
 
 The first account created at first-run is the **owner**. The owner is an account
-like any other that additionally holds the server itself. See the roles below.
+like any other that also holds the server itself. See the roles below.
 Every subsequent account is an ordinary **user**, created by invitation from
 [`admin.md`](../admin/README.md); a KROMA server is never self-signup.
 

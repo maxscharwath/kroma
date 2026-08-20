@@ -354,7 +354,7 @@ until you tell that install otherwise:
 Every TV shell is driven by its `tv.target.ts` (platform, dev port, engine floors)
 through the shared pipeline in
 [`packages/bundler/src/shell.ts`](packages/bundler/src/shell.ts). webOS
-additionally ships a legacy tier (ES2015 + flattened CSS, runtime-gated) for
+also ships a legacy tier (ES2015 + flattened CSS, runtime-gated) for
 Chromium 53–94 TVs (2018–2023), with a compat guard that fails the build on
 anything a legacy engine cannot parse. `bun run build:tv` builds all TV shells.
 

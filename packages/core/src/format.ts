@@ -14,14 +14,9 @@ export function sizedImageUrl(url: string | null | undefined, displayWidth: numb
   return `${url}?w=${artworkWidth(displayWidth)}`;
 }
 
-// What an <img> may load, as ONE positive allow-list so every accepted shape is
-// named here rather than inferred from a scheme test that failed. `data:` is
-// narrowed to images: a bare `data:` would also admit `data:text/html`, which is
-// a navigation payload rather than artwork. The last alternative is a URL with no
-// scheme at all - our own /api/images/ paths - spelled as "no colon before the
-// first delimiter", which is what makes it an allow-list and not a `javascript:`
-// blocklist.
-const PAINTABLE = /^(?:https?:|blob:|data:image\/|[/?#]|[^:]*(?:[/?#]|$))/i;
+// Schemes an <img> may load. `data:` is narrowed to images: a bare `data:` allow-list would
+// also admit `data:text/html`, which is a navigation payload rather than artwork.
+const IMAGE_SCHEME = /^(?:https?:|blob:|data:image\/)/i;
 
 /** An artwork URL safe to hand to an `<img src>`, or null. Server-supplied poster
  * and backdrop URLs are third-party input; anything with a scheme must be one
@@ -35,7 +30,10 @@ export function safeImageUrl(url: string | null | undefined): string | null {
   // scheme the browser will.
   const trimmed = url.replace(/[\t\n\r]/g, '').trim();
   if (!trimmed) return null;
-  return PAINTABLE.test(trimmed) ? trimmed : null;
+  // No scheme at all: a path on the current origin, which is where our own
+  // /api/images/ URLs land. `//host/x` is scheme-relative and inherits https.
+  if (trimmed.startsWith('/') || !/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return IMAGE_SCHEME.test(trimmed) ? trimmed : null;
 }
 
 /** Rolling 31x unsigned hash, exposed raw so every derived colour (hue, avatar

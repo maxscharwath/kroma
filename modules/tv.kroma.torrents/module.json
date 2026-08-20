@@ -49,6 +49,9 @@
   ],
   "consumes": [
     {
+      "point": "tv.kroma.torrents/client"
+    },
+    {
       "point": "tv.kroma.indexer/torrent-fetch"
     },
     {

@@ -45,6 +45,9 @@
   ],
   "consumes": [
     {
+      "point": "tv.kroma.indexer/engine"
+    },
+    {
       "point": "tv.kroma.vpn/proxy",
       "optional": true
     }

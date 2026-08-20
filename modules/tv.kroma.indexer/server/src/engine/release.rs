@@ -55,7 +55,7 @@ pub fn to_release(def: &Definition, cfg: &IndexerConfig, r: &HashMap<String, Str
 // Strips everything but digits, so thousands separators and trailing labels
 // (e.g. "12 seeders") are tolerated rather than rejected.
 fn parse_int(s: &str) -> Option<u32> {
-    let cleaned: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
+    let cleaned: String = s.chars().filter(char::is_ascii_digit).collect();
     cleaned.parse().ok()
 }
 

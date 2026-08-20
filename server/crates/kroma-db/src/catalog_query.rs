@@ -9,7 +9,6 @@
 
 use super::*;
 
-use rusqlite::types::Value as SqlValue;
 use rusqlite::OptionalExtension;
 
 use kroma_domain::Metadata;

@@ -1,6 +1,11 @@
 import { vi } from 'vitest';
 import { KromaClient } from './api';
 
+function urlOf(target: RequestInfo | URL): string {
+  if (typeof target === 'string') return target;
+  return target instanceof URL ? target.href : target.url;
+}
+
 // A recording fetch: captures every request (url + method + body + headers) and
 // returns a configurable response. The default response is a 200 with `{}` so a
 // delegating method's request is issued (and recorded) even when its response
@@ -24,14 +29,15 @@ export function recordingFetch(
   }>,
 ): { fetch: typeof globalThis.fetch; calls: Recorded[] } {
   const calls: Recorded[] = [];
-  const fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+  const fetch = vi.fn(async (target: RequestInfo | URL, init?: RequestInit) => {
+    const url = urlOf(target);
     calls.push({
-      url: String(url),
+      url,
       method: init?.method ?? 'GET',
       body: init?.body,
       headers: new Headers(init?.headers),
     });
-    const r = responder?.(String(url), init) ?? {};
+    const r = responder?.(url, init) ?? {};
     return {
       ok: r.ok ?? true,
       status: r.status ?? 200,

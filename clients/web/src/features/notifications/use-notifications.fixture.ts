@@ -6,21 +6,22 @@ import { afterEach, beforeEach, expect, vi } from 'vitest';
 
 export type Listener = (e: { type: string; unread: number }) => void;
 
-/** The event streams the mocked `KromaEvents` records, newest last. */
+const freshClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+/** The event streams the mocked `KromaEvents` records (newest last), and the
+ *  query client the current test is rendering against. */
 export const H = {
   streams: [] as { url: string; emit: Listener; closed: boolean }[],
+  client: freshClient(),
 };
 
 export const listNotifications = vi.fn();
 export const markNotificationsRead = vi.fn();
 export const markNotificationsUnread = vi.fn();
 
-export let client: QueryClient;
-
-// Retries off so a rejected fetch settles.
 export function render<T>(hook: () => T) {
   const wrapper = ({ children }: { children: ReactNode }) =>
-    createElement(QueryClientProvider, { client }, children);
+    createElement(QueryClientProvider, { client: H.client }, children);
   return renderHook(hook, { wrapper });
 }
 
@@ -63,11 +64,11 @@ export function installHarness(): void {
     listNotifications.mockReset().mockResolvedValue(view(0));
     markNotificationsRead.mockReset().mockResolvedValue({ unread: 0 });
     markNotificationsUnread.mockReset().mockResolvedValue({ unread: 1 });
-    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    H.client = freshClient();
   });
 
   afterEach(() => {
     cleanup();
-    client.clear();
+    H.client.clear();
   });
 }

@@ -1,6 +1,11 @@
 //! The file rows a scan writes, and the probe data an unchanged file keeps.
 
-use super::*;
+use std::collections::HashMap;
+
+use anyhow::Result;
+use rusqlite::params;
+
+use kroma_domain::{MediaFile, MediaItem};
 
 pub(super) fn sync_files(
     tx: &rusqlite::Transaction,
@@ -162,6 +167,7 @@ fn upsert_scanned_file<'a>(
 mod tests {
     use super::*;
     use crate::ingest::test_support::*;
+    use crate::{item_has_probed_file, sync_all, unprobed_files};
 
     #[test]
     fn sync_preprobed_file_stores_streams_directly() {

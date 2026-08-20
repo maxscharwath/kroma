@@ -1,6 +1,6 @@
 //! What the library already holds for a requested title.
 
-use super::*;
+use rusqlite::{params, Connection, OptionalExtension};
 
 /// `video` items count: enrichment resolves both against TMDB's movie namespace.
 /// Joined back to `items` so a stale core row for a deleted item never matches.

@@ -1,6 +1,12 @@
 //! The long-lived device credential a session is minted from.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use kroma_domain::User;
+
+use crate::rows::row_to_user;
+use crate::{now_or_blank, Pool};
 
 /// `pin_verified` is true when the token was minted through a strong check
 /// (password login / correct PIN), so the exchange can skip the PIN on
@@ -129,6 +135,7 @@ pub fn delete_access_token(pool: &Pool, token: &str) -> Result<()> {
 mod tests {
     use super::*;
     use crate::accounts::test_support::*;
+    use crate::accounts::{create_session, session_user};
 
     #[test]
     fn access_tokens_lifecycle_and_pin_verified() {

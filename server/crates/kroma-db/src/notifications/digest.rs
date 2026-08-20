@@ -1,6 +1,8 @@
 //! Who a digest goes to, and what the library added since it last ran.
 
-use super::*;
+use rusqlite::{params, Connection};
+
+use kroma_domain::User;
 
 /// Every account, for audience resolution: a household-sized table, scanned and
 /// filtered in Rust rather than queried with `LIKE` on the permissions JSON.

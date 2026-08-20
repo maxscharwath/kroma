@@ -1,6 +1,9 @@
 //! The secrets on a user row: the password hash and the PIN hash.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, OptionalExtension};
+
+use crate::Pool;
 
 pub fn user_password_hash(pool: &Pool, user_id: &str) -> Result<Option<String>> {
     let conn = pool.get()?;
@@ -46,6 +49,7 @@ pub fn set_user_pin(pool: &Pool, user_id: &str, pin_hash: Option<&str>) -> Resul
 mod tests {
     use super::*;
     use crate::accounts::test_support::*;
+    use crate::accounts::{find_user_by_email, list_users, set_user_email, user_by_id};
 
     #[test]
     fn password_and_email_updates() {

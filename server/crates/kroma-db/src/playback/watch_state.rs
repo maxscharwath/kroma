@@ -1,6 +1,10 @@
 //! The per-user flags on an item: watched, and on my list.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::now_or_blank;
+use crate::pool::Pool;
 
 /// Mark an item as watched for a user, and drop any resume position so it leaves
 /// "Continue watching". Idempotent (re-marking just refreshes `watched_at`).
@@ -71,6 +75,7 @@ pub fn list_my_list(pool: &Pool, user_id: &str) -> Result<Vec<String>> {
 mod tests {
     use super::*;
     use crate::playback::test_support::*;
+    use crate::playback::{get_progress, upsert_progress};
 
     #[test]
     fn mark_unmark_round_trips_and_clears_progress() {

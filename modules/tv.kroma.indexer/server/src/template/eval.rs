@@ -153,7 +153,6 @@ mod tests {
     // tracker, so `render` falls back to the literal source instead.
 
     #[track_caller]
-
     #[test]
     fn a_pipeline_feeds_its_value_in_as_the_last_argument() {
         let d = Context::default();

@@ -1,6 +1,8 @@
 //! Moving a row between read and unread, and deleting it.
 
-use super::*;
+use crate::{Pool, IN_CHUNK};
+use anyhow::Result;
+use rusqlite::params;
 
 /// Mark some (or, with `None`, all) of a user's notifications read. Scoped to
 /// `user_id` so an id guessed from another account is a no-op, not a leak.
@@ -72,6 +74,7 @@ pub fn delete_notification(pool: &Pool, user_id: &str, id: &str) -> Result<bool>
 mod tests {
     use super::*;
     use crate::notifications::test_support::*;
+    use crate::notifications::{list_notifications, unread_count};
 
     #[test]
     fn mark_read_all_then_only_unread_listing_is_empty() {

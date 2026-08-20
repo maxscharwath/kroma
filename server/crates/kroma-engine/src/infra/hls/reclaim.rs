@@ -3,6 +3,7 @@
 //! session's retention window.
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -178,7 +179,7 @@ async fn lru_sibling(map: &HashMap<String, Arc<Session>>, key: &str) -> Option<S
 // this returns, so a key played again gets a clean directory rather than one the
 // pending delete is about to empty.
 pub(super) fn discard_dir(dir: &Path) {
-    let Some(name) = dir.file_name().and_then(|n| n.to_str()) else {
+    let Some(name) = dir.file_name().and_then(OsStr::to_str) else {
         return;
     };
     let doomed = dir.with_file_name(format!("{name}.gone-{}", kroma_primitives::random_token()));

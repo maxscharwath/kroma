@@ -63,7 +63,7 @@ fn parse_int(s: &str) -> Option<u32> {
 /// bytes.
 pub fn parse_size(s: &str) -> Option<u64> {
     let s = s.trim().replace(',', "");
-    let split = s.find(|c: char| c.is_alphabetic());
+    let split = s.find(char::is_alphabetic);
     let (num, unit) = match split {
         Some(i) => (s[..i].trim(), s[i..].trim().to_uppercase()),
         None => (s.as_str(), String::new()),

@@ -7,10 +7,10 @@
 export type WebEnginePref = 'auto' | 'direct' | 'remux' | 'shaka';
 
 const KEY = 'kroma:web-engine';
-const ALL: readonly string[] = ['auto', 'direct', 'remux', 'shaka'];
+const ALL: ReadonlySet<string> = new Set(['auto', 'direct', 'remux', 'shaka']);
 
 export function isWebEnginePref(value: string): value is WebEnginePref {
-  return ALL.includes(value);
+  return ALL.has(value);
 }
 
 /** The saved engine preference for this device, or `auto`. */

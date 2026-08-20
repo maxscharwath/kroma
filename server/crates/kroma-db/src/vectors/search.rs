@@ -1,6 +1,11 @@
 //! Brute-force cosine search over the stored vectors.
 
-use super::*;
+use std::collections::HashSet;
+
+use super::load_vectors;
+use crate::Pool;
+use anyhow::Result;
+use rusqlite::params;
 
 /// "More like this": the `n` nearest titles to `id` (excluding itself). Empty if
 /// the seed has no stored vector yet.

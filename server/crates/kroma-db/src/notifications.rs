@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use super::*;
 use kroma_domain::{
-    ActionSpec, CategoryPref, NotificationCategory, NotificationEvent, ParamValue, PushCategory,
+    ActionSpec, NotificationCategory, NotificationEvent, ParamValue, PushCategory,
 };
 
 mod digest;

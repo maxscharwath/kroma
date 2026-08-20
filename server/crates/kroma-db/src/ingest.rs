@@ -5,13 +5,6 @@
 //! what ffprobe found, and [`sync`] with [`scanned_files`] diff-sync what a
 //! library scan saw against what the database already holds.
 
-use std::collections::HashMap;
-
-use rusqlite::OptionalExtension;
-
-use super::*;
-use kroma_domain::{CastMember, Library, LibraryKind, Metadata, Show};
-
 mod metadata;
 mod probe;
 mod probe_result;

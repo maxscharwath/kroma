@@ -1,6 +1,11 @@
 //! The show listing: counted rows, and the stream that heads each one.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, Row};
+
+use kroma_domain::{Show, VideoStream};
+
+use crate::{parse_metadata, Pool, IN_CHUNK};
 
 // Callers append their own `WHERE`/`ORDER BY` and map rows with `row_to_show_counted`.
 pub(super) const SHOWS_COUNTED_SELECT: &str = "SELECT s.id,s.title,s.year,s.library,s.added_at,\
@@ -78,7 +83,7 @@ pub fn get_shows_by_ids(pool: &Pool, ids: &[String]) -> Result<Vec<Show>> {
     }
     let conn = pool.get()?;
     let mut shows: Vec<Show> = Vec::with_capacity(ids.len());
-    for chunk in ids.chunks(super::IN_CHUNK) {
+    for chunk in ids.chunks(IN_CHUNK) {
         let placeholders = vec!["?"; chunk.len()].join(",");
         let sql = format!("{SHOWS_COUNTED_SELECT} WHERE s.id IN ({placeholders})");
         let mut stmt = conn.prepare(&sql)?;
@@ -100,7 +105,7 @@ pub(super) fn apply_representative_videos(conn: &rusqlite::Connection, shows: &m
     use std::collections::HashMap;
     let ids: Vec<&str> = shows.iter().map(|s| s.id.as_str()).collect();
     let mut best: HashMap<String, VideoStream> = HashMap::new();
-    for chunk in ids.chunks(super::IN_CHUNK) {
+    for chunk in ids.chunks(IN_CHUNK) {
         let ph = vec!["?"; chunk.len()].join(",");
         let mut stmt = conn.prepare(&format!(
             "SELECT i.show_id,f.v_codec,f.v_width,f.v_height,f.v_hdr,f.v_bit_depth \

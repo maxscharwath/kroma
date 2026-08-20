@@ -197,7 +197,7 @@ fn set_request_air_roundtrips_and_last_refresh_is_internal() {
     assert_eq!(req.next_air_date, None);
     let json = serde_json::to_value(&req).unwrap();
     assert!(json.get("lastRefreshAt").is_none());
-    assert_eq!(json.get("airStatus").and_then(|v| v.as_str()), Some("Ended"));
+    assert_eq!(json.get("airStatus").and_then(serde_json::Value::as_str), Some("Ended"));
 }
 
 #[test]

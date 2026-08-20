@@ -1,6 +1,12 @@
 //! The filtered title listing a curating model browses with.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::types::Value as SqlValue;
+
+use crate::rows::parse_metadata;
+use crate::Pool;
+
+use super::{CAT_CTE, DIRECTING_JOBS_SQL};
 
 // Caps a single `find_titles` call so tool results re-entering the model's
 // context stay bounded.

@@ -1,4 +1,4 @@
-use super::*;
+use super::{allows, init_scoped, Grant};
 
 fn core(tag: &str) -> (crate::testing::TempPool, std::path::PathBuf) {
     let pool = crate::testing::temp_pool(tag);
@@ -17,8 +17,8 @@ fn core(tag: &str) -> (crate::testing::TempPool, std::path::PathBuf) {
 
 fn grant(read: &[&str], write: &[&str]) -> Grant {
     Grant {
-        read: read.iter().map(|s| s.to_string()).collect(),
-        write: write.iter().map(|s| s.to_string()).collect(),
+        read: read.iter().map(ToString::to_string).collect(),
+        write: write.iter().map(ToString::to_string).collect(),
     }
 }
 

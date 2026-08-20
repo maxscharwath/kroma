@@ -1,6 +1,6 @@
 // Minimal in-memory localStorage so the DOM-guarded helpers have real storage.
 export class MemStorage {
-  private m = new Map<string, string>();
+  private readonly m = new Map<string, string>();
   get length(): number {
     return this.m.size;
   }

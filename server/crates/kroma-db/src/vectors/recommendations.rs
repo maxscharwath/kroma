@@ -1,6 +1,10 @@
 //! Search results as render-ready items.
 
-use super::*;
+use super::{for_you, similar, themed};
+use crate::{items_by_ids_ordered, Pool};
+use anyhow::Result;
+
+use kroma_domain::MediaItem;
 
 fn hydrate(pool: &Pool, ranked: &[(String, f32)]) -> Result<Vec<MediaItem>> {
     let conn = pool.get()?;
@@ -75,7 +79,9 @@ pub fn themed_items(pool: &Pool, query: &[f32], n: usize, floor: f32) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::vectors::set_item_vector;
     use crate::vectors::test_support::*;
+    use rusqlite::params;
 
     #[test]
     fn a_rail_that_the_genre_guard_already_fills_is_not_topped_up() {

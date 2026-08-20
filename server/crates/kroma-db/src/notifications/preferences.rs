@@ -1,6 +1,12 @@
 //! The per-user delivery matrix: which categories reach which channel.
 
-use super::*;
+use std::collections::BTreeMap;
+
+use crate::Pool;
+use anyhow::Result;
+use rusqlite::{params, Connection};
+
+use kroma_domain::{CategoryPref, NotificationCategory};
 
 /// One user's full preference matrix, defaults filled in.
 ///

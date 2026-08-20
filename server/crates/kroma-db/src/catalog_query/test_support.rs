@@ -1,5 +1,5 @@
-use super::*;
 use crate::testing::TempPool;
+use rusqlite::params;
 
 // A fresh temp-file DB seeded with a small movies+shows catalog.
 pub(super) fn seeded_pool() -> TempPool {

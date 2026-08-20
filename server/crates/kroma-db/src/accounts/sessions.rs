@@ -1,6 +1,12 @@
 //! A signed-in session, and revoking the ones that are not this device.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, OptionalExtension};
+
+use kroma_domain::User;
+
+use crate::rows::row_to_user;
+use crate::{now_or_blank, Pool};
 
 /// `access_token` records the device credential this session was minted from,
 /// so the account's session list can flag the current device.
@@ -89,6 +95,7 @@ pub fn revoke_other_sessions(pool: &Pool, user_id: &str, keep_token: &str) -> Re
 mod tests {
     use super::*;
     use crate::accounts::test_support::*;
+    use crate::accounts::{access_token_user, create_access_token, list_access_tokens};
 
     #[test]
     fn sessions_resolve_and_expire() {

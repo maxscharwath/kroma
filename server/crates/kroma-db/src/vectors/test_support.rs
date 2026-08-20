@@ -1,5 +1,6 @@
-use super::*;
+use super::set_item_vector;
 use crate::testing::TempPool;
+use rusqlite::params;
 
 // Seed three movies a/b/c (with genres for the guard) + their unit vectors.
 // a=[1,0], b=[0.8,0.6], c=[0,1]: a is nearest b, orthogonal to c.

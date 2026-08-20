@@ -9,7 +9,7 @@
 use rusqlite::OptionalExtension;
 
 use super::*;
-use kroma_domain::{CalendarEntry, EpisodeRef, MediaRequest, RequestKind, RequestStatus};
+use kroma_domain::{EpisodeRef, MediaRequest, RequestKind, RequestStatus};
 
 mod availability;
 mod calendar;

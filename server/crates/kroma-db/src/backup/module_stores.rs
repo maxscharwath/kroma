@@ -1,7 +1,13 @@
 //! A module's own database, dumped whole and put back where it came from.
 
-use super::rows::is_ident;
-use super::*;
+use std::collections::BTreeMap;
+
+use anyhow::{Context, Result};
+use rusqlite::Connection;
+use serde_json::{Map, Value};
+
+use super::rows::{dump_query, is_ident, restore_rows};
+use super::{table_exists, BackupDoc};
 
 /// Every installed module's own database, as `(module id, path)`. Empty when
 /// nothing is installed, which is the zero-module base build.
@@ -10,7 +16,7 @@ pub(super) fn module_stores(data_dir: &std::path::Path) -> Vec<(String, std::pat
         return Vec::new();
     };
     let mut out: Vec<(String, std::path::PathBuf)> = entries
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter_map(|e| {
             let store = e.path().join("module.sqlite");
             let id = e.file_name().to_string_lossy().into_owned();
@@ -106,6 +112,7 @@ fn is_module_id(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backup::{export_portable, import_portable};
     use crate::backup::test_support::*;
 
     #[test]

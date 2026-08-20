@@ -1,6 +1,6 @@
 //! Routes through the schema itself: attach, DDL, views, triggers, pragmas.
 
-use super::*;
+use super::{fixture, refused};
 
 #[test]
 fn attach_is_refused_so_the_same_file_cannot_come_back_under_another_name() {

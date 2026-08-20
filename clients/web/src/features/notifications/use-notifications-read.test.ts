@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  client,
   H,
   inbox,
   installHarness,
@@ -70,15 +69,15 @@ describe('moving one row between read and unread', () => {
   it('answers in the frame it was pressed, then settles from the server', async () => {
     const key = userQueries.notifications().queryKey;
     listNotifications.mockReturnValue(new Promise(() => {}));
-    client.setQueryData(key, inbox(row('a', false), row('b', false)));
+    H.client.setQueryData(key, inbox(row('a', false), row('b', false)));
     const { result } = render(() => useReadState());
 
     act(() => result.current.markRead(['a']));
-    expect(client.getQueryData<NotificationsView>(key)?.unread).toBe(1);
+    expect(H.client.getQueryData<NotificationsView>(key)?.unread).toBe(1);
     expect(markNotificationsRead).toHaveBeenCalledWith(['a']);
 
     act(() => result.current.markUnread(['a']));
-    expect(client.getQueryData<NotificationsView>(key)?.unread).toBe(2);
+    expect(H.client.getQueryData<NotificationsView>(key)?.unread).toBe(2);
     expect(markNotificationsUnread).toHaveBeenCalledWith(['a']);
   });
 
@@ -114,14 +113,14 @@ describe('moving one row between read and unread', () => {
     const key = userQueries.notifications().queryKey;
     listNotifications.mockReturnValue(new Promise(() => {}));
     markNotificationsUnread.mockRejectedValue(new Error('no such route'));
-    client.setQueryData(key, inbox(row('a', true)));
+    H.client.setQueryData(key, inbox(row('a', true)));
     const { result } = render(() => useReadState());
 
     await act(async () => result.current.markUnread(['a']));
     await waitFor(() =>
-      expect(client.getQueryData<NotificationsView>(key)?.notifications[0]?.read).toBe(true),
+      expect(H.client.getQueryData<NotificationsView>(key)?.notifications[0]?.read).toBe(true),
     );
-    expect(client.getQueryData<NotificationsView>(key)?.unread).toBe(0);
+    expect(H.client.getQueryData<NotificationsView>(key)?.unread).toBe(0);
   });
 
   it('does not go to the server for an empty run', () => {

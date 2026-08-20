@@ -1,5 +1,10 @@
 import { vi } from 'vitest';
 
+function urlOf(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
 // A fetch stub driven by a URL -> health-body map; a URL absent from the map is
 // a dead host.
 export type Health = {
@@ -11,7 +16,7 @@ export type Health = {
 };
 export function fakeFetch(map: Record<string, Health>): typeof globalThis.fetch {
   return vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(input);
+    const url = urlOf(input);
     const h = map[url];
     if (!h) return { ok: false, url, json: async () => ({}) } as Response;
     return {

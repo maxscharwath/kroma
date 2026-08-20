@@ -1,6 +1,8 @@
 //! Reading the ledger as a calendar: what is coming, and what is still missing.
 
-use super::*;
+use rusqlite::{params, Connection, Row};
+
+use kroma_domain::{CalendarEntry, RequestKind};
 
 // Callers append their own `WHERE`/`ORDER BY`/`LIMIT` and map rows with `row_to_calendar_entry`.
 const CALENDAR_SELECT: &str = "SELECT w.request_id, w.tmdb_id, r.kind, w.title, w.year, r.poster_url, \
@@ -66,6 +68,8 @@ pub fn missing_items(
 mod tests {
     use super::*;
     use crate::requests::tests::*;
+    use crate::requests::{insert_request, insert_wanted, replace_wanted, WantedRow};
+    use kroma_domain::RequestStatus;
 
     #[test]
     fn missing_items_lists_aired_open_rows_only() {

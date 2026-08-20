@@ -54,7 +54,7 @@ pub(super) fn tarball(layout: &[(&str, &str)]) -> Vec<u8> {
     let archive = root.path().join("out.tar.gz");
     let entries: Vec<String> = std::fs::read_dir(root.path())
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .filter(|n| n != "out.tar.gz")
         .collect();

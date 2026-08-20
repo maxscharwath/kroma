@@ -1,4 +1,5 @@
-use super::*;
+use rusqlite::{params, Connection};
+
 use crate::testing::TempPool;
 
 pub(super) fn pool() -> TempPool {

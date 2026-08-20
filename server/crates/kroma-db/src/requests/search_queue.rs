@@ -1,6 +1,11 @@
 //! Which wanted rows an automatic search pass takes next, and their backoff.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, Connection};
+
+use crate::chunked::IN_CHUNK;
+use crate::pool::Pool;
+use super::wanted::{row_to_wanted, WantedRow, WANTED_COLS};
 
 /// Rows ready for an automatic search pass: still wanted, aired or undated, and
 /// past their backoff. Ordered freshest air date first, so an episode that aired
@@ -93,6 +98,8 @@ pub fn reset_wanted_search(pool: &Pool, ids: &[String], now_ms: i64) -> Result<(
 mod tests {
     use super::*;
     use crate::requests::tests::*;
+    use crate::requests::{insert_request, replace_wanted};
+    use kroma_domain::RequestKind;
 
     #[test]
     fn wanted_searchable_gates_on_air_date_and_status() {

@@ -101,7 +101,7 @@ export function useEngineLifecycle(
   // Tizen routes everything through native AVPlay (surround passthrough); webOS MSE
   // cannot decode AC3/EAC3, so it runs hls.js on the AAC master.
   const env = useMemo(detectTvEnv, []);
-  const [enginePref, setEnginePrefState] = useState<EnginePref>(getEnginePref);
+  const [enginePref, setEnginePref] = useState<EnginePref>(getEnginePref);
   // The last resort under `auto`: a title the platform player cannot decode goes to
   // the engine that carries its own decoders. Held as the item it applies to, so a
   // new title resets it by construction and one bad file cannot pin the session.
@@ -235,7 +235,7 @@ export function useEngineLifecycle(
       // Clears any automatic fallback: once the viewer names an engine, that is the
       // choice, and the plan must stop overriding it for the rest of the title.
       setVlcFallbackFor(null);
-      setEnginePrefState(p);
+      setEnginePref(p);
     },
     [enginePref, setStartSec],
   );

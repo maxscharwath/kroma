@@ -1,6 +1,8 @@
-use super::*;
-use crate::testing::TempPool;
 use std::sync::atomic::AtomicU32;
+
+use rusqlite::params;
+
+use crate::testing::TempPool;
 
 pub(super) static SEQ: AtomicU32 = AtomicU32::new(0);
 

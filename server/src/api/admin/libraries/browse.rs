@@ -1,6 +1,7 @@
 //! The library folder picker: the browseable sub-directories under the volume
 //! roots a library may be pointed at.
 
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use axum::extract::Query;
@@ -101,7 +102,7 @@ fn volume_roots() -> Vec<PathBuf> {
         .filter(|p| {
             p.is_dir()
                 && p.file_name()
-                    .and_then(|n| n.to_str())
+                    .and_then(OsStr::to_str)
                     .map(|n| n.starts_with("volume"))
                     .unwrap_or(false)
         })
@@ -131,7 +132,7 @@ fn to_entries(mut paths: Vec<PathBuf>) -> Vec<Value> {
         .iter()
         .map(|p| {
             json!({
-                "name": p.file_name().and_then(|n| n.to_str()).unwrap_or_default(),
+                "name": p.file_name().and_then(OsStr::to_str).unwrap_or_default(),
                 "path": p.to_string_lossy(),
             })
         })

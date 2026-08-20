@@ -1,6 +1,13 @@
 //! One show, with its seasons, its artwork and its stored metadata.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use kroma_domain::MediaItem;
+
+use super::shows::{representative_video, row_to_show_bare};
+use super::{Metadata, OptionalExtension, Season, ShowDetail};
+use crate::{attach_files_batch, parse_metadata, row_to_item, season_casts, Pool, ITEM_COLS};
 
 pub fn show_title(pool: &Pool, id: &str) -> Result<Option<String>> {
     let conn = pool.get()?;

@@ -4,8 +4,6 @@
 //! upgrade mid-flight and fails `SQLITE_BUSY` instead of waiting. Timestamps
 //! are epoch milliseconds.
 
-use crate::*;
-
 mod drain;
 mod reconcile;
 

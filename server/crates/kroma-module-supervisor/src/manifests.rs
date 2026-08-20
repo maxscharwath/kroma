@@ -43,7 +43,7 @@ impl Supervisor {
             return Vec::new();
         };
         entries
-            .filter_map(|e| e.ok())
+            .filter_map(Result::ok)
             .filter(|e| e.path().is_dir())
             // An install unpacks beside the installed modules, so a listing
             // taken mid-install would otherwise report the staged copy as a

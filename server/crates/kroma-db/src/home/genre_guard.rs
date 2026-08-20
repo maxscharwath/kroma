@@ -1,6 +1,9 @@
 //! Keeping a recommendation row to titles that share a genre with its seed.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::Pool;
 
 /// Of `candidates`, the subset sharing ≥1 genre with `seed` a coherence guard
 /// for the single-seed "Because you watched" row. The lexical embedder is weakly

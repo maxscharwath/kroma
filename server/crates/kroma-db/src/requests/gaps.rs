@@ -1,6 +1,10 @@
 //! Library-scan gaps: aired episodes a show on disk is missing.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, Connection};
+
+use crate::pool::Pool;
+use kroma_domain::{CalendarEntry, RequestKind};
 
 /// Replace one show's library-scan gaps (aired TMDB episodes not on disk) in one
 /// transaction. `rows` = (season, episode, air_date); empty clears the show.
@@ -73,6 +77,8 @@ pub fn library_gaps_list(conn: &Connection, limit: usize) -> rusqlite::Result<Ve
 mod tests {
     use super::*;
     use crate::requests::tests::*;
+    use crate::requests::{episodes_present, insert_request, set_request_status};
+    use kroma_domain::RequestStatus;
 
     #[test]
     fn replace_show_gaps_rewrites_only_that_show() {

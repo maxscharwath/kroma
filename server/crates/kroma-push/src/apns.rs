@@ -1,7 +1,7 @@
 //! Apple Push Notification service. The server holds a `.p8` auth key, not a
 //! certificate; each request carries a short-lived ES256 JWT signed with it.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 use anyhow::{Context, Result};
 use p256::pkcs8::DecodePrivateKey;
@@ -97,7 +97,7 @@ impl ApnsKey {
     }
 
     fn token(&self, now_secs: i64) -> String {
-        let mut cached = self.cached.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut cached = self.cached.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((token, minted_at)) = cached.as_ref() {
             if now_secs - minted_at < TOKEN_LIFETIME_SECS {
                 return token.clone();

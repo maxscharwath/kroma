@@ -1,6 +1,15 @@
 //! Attaching resolved metadata to a catalog row, and clearing it again.
 
-use super::*;
+use std::collections::HashMap;
+
+use anyhow::Result;
+use rusqlite::params;
+
+use kroma_domain::{CastMember, Metadata};
+
+use crate::metadata_core::{self, MetaCore};
+use crate::translations::{self, TransData};
+use crate::Pool;
 
 pub fn set_item_metadata(pool: &Pool, id: &str, meta: &Metadata) -> Result<()> {
     let conn = pool.get()?;
@@ -19,8 +28,6 @@ pub fn store_localized(
     core_meta: &Metadata,
     by_lang: &HashMap<String, Metadata>,
 ) -> Result<()> {
-    use super::metadata_core::{self, MetaCore};
-    use super::translations::{self, TransData};
     let conn = pool.get()?;
     let core = MetaCore {
         // `Metadata::tmdb_id` is 0 when unresolved; store NULL for that.

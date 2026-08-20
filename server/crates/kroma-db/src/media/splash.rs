@@ -1,6 +1,9 @@
 //! The backdrop sample behind the anonymous sign-in screen.
 
-use super::*;
+use anyhow::Result;
+
+use super::SplashEntry;
+use crate::{metadata_core, translations, Pool};
 
 /// A random sample of backdrop-carrying titles for the anonymous sign-in
 /// splash, captions overlaid in `locale`. A fixed-size random sample, never a
@@ -58,6 +61,8 @@ pub fn splash_entries(pool: &Pool, limit: u32, locale: &str) -> Result<Vec<Splas
 
 #[cfg(test)]
 mod tests {
+    use rusqlite::{params, Connection};
+
     use super::*;
     use crate::media::test_support::*;
 

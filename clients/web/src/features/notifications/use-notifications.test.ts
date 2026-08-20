@@ -3,7 +3,6 @@ import type { NotificationsView } from '@kroma/core';
 import { act } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  client,
   expectBadge,
   H,
   installHarness,
@@ -66,7 +65,7 @@ describe('the unread badge', () => {
 
     listNotifications.mockResolvedValue(view(2));
     await act(async () => {
-      await client.invalidateQueries({ queryKey: userQueries.notifications().queryKey });
+      await H.client.invalidateQueries({ queryKey: userQueries.notifications().queryKey });
     });
     await expectBadge(() => result.current, 2);
   });
@@ -80,7 +79,7 @@ describe('the event stream', () => {
 
   it('moves the badge from the event itself, without waiting for a refetch', async () => {
     listNotifications.mockReturnValue(new Promise(() => {}));
-    client.setQueryData(userQueries.notifications().queryKey, view(1));
+    H.client.setQueryData(userQueries.notifications().queryKey, view(1));
     const { result } = render(() => {
       useNotificationStream();
       return useUnreadCount();
@@ -93,7 +92,7 @@ describe('the event stream', () => {
 
   it('reacts to a read the same way it reacts to a new one', async () => {
     listNotifications.mockReturnValue(new Promise(() => {}));
-    client.setQueryData(userQueries.notifications().queryKey, view(5));
+    H.client.setQueryData(userQueries.notifications().queryKey, view(5));
     const { result } = render(() => {
       useNotificationStream();
       return useUnreadCount();
@@ -107,23 +106,23 @@ describe('the event stream', () => {
   it('ignores every other kind of server event', async () => {
     listNotifications.mockReturnValue(new Promise(() => {}));
     const key = userQueries.notifications().queryKey;
-    client.setQueryData(key, view(6));
+    H.client.setQueryData(key, view(6));
     const { result } = render(() => {
       useNotificationStream();
       return useUnreadCount();
     });
     await expectBadge(() => result.current, 6);
-    const before = client.getQueryData(key);
+    const before = H.client.getQueryData(key);
 
     await push({ type: 'scan.finished', unread: 99 });
     await expectBadge(() => result.current, 6);
-    expect(client.getQueryData(key)).toBe(before);
+    expect(H.client.getQueryData(key)).toBe(before);
   });
 
   it('does not invent an inbox for a user who has never loaded one', async () => {
     render(() => useNotificationStream());
     await push({ type: 'notification.created', unread: 4 });
-    expect(client.getQueryData(userQueries.notifications().queryKey)).toBeUndefined();
+    expect(H.client.getQueryData(userQueries.notifications().queryKey)).toBeUndefined();
   });
 
   it('closes the stream when the bell unmounts', () => {
@@ -172,7 +171,7 @@ describe('a press that lands before the inbox does', () => {
 
     act(() => result.current.markRead(['a']));
 
-    expect(client.getQueryData<NotificationsView>(key)).toBeUndefined();
+    expect(H.client.getQueryData<NotificationsView>(key)).toBeUndefined();
     expect(markNotificationsRead).toHaveBeenCalledWith(['a']);
   });
 });

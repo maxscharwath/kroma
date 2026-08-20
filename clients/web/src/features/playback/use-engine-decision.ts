@@ -32,7 +32,7 @@ export interface EngineChoice {
 export function useEngineDecision(item: MovieView): EngineChoice {
   const env = useMemo(detectWebEnv, []);
   const [forceHls, setForceHls] = useState(false);
-  const [enginePref, setEnginePrefState] = useState<WebEnginePref>(getWebEnginePref);
+  const [enginePref, setEnginePref] = useState<WebEnginePref>(getWebEnginePref);
   const decision = useMemo<EngineDecision>(() => {
     if (forceHls || enginePref === 'remux' || enginePref === 'shaka') {
       return {
@@ -44,5 +44,5 @@ export function useEngineDecision(item: MovieView): EngineChoice {
     return selectEngine(item, env);
   }, [item, env, forceHls, enginePref]);
 
-  return { env, decision, enginePref, setEnginePrefState, setForceHls };
+  return { env, decision, enginePref, setEnginePrefState: setEnginePref, setForceHls };
 }

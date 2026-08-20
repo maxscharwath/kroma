@@ -138,6 +138,7 @@ fn query_items(pool: &Pool, base: &str, library: Option<&str>, tail: &str) -> Re
 mod tests {
     use super::*;
     use crate::media::test_support::*;
+    use kroma_domain::Kind;
 
     #[test]
     fn counts_reflects_seeded_rows() {

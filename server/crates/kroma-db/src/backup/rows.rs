@@ -1,6 +1,10 @@
 //! One table row, as JSON and back.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::Connection;
+use serde_json::{Map, Value};
+
+use super::{SqlValue, ValueRef};
 
 // Run `sql` and map every row to a `{column: value}` JSON object.
 pub(super) fn dump_query(conn: &Connection, sql: &str) -> Result<Vec<Map<String, Value>>> {
@@ -73,6 +77,7 @@ pub(super) fn is_ident(s: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backup::import_portable;
     use crate::backup::test_support::*;
 
     #[test]

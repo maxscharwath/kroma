@@ -14,7 +14,7 @@
 use super::translations::{self, TransData};
 use super::*;
 
-use kroma_domain::{CastMember, Kind, MediaItem, Metadata, Season, SectionItem, Show, ShowDetail};
+use kroma_domain::{CastMember, Metadata, Season, Show};
 
 mod items;
 mod shows;

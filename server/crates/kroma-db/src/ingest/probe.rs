@@ -1,6 +1,9 @@
 //! What ffprobe found, and the representative columns it recomputes.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::Pool;
 
 /// (file_id, abs_path, owning item_id) for every file awaiting an ffprobe pass.
 pub fn unprobed_files(pool: &Pool) -> Result<Vec<(String, String, String)>> {
@@ -85,6 +88,7 @@ pub fn item_has_probed_file(pool: &Pool, item_id: &str) -> Result<bool> {
 mod tests {
     use super::*;
     use crate::ingest::test_support::*;
+    use std::collections::HashMap;
 
     #[test]
     fn probe_helpers_over_seeded_files() {

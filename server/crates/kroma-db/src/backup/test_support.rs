@@ -1,5 +1,10 @@
-use super::*;
+use std::collections::BTreeMap;
+
+use rusqlite::Connection;
+
+use super::{BackupDoc, VERSION};
 use crate::testing::TempPool;
+use crate::Pool;
 
 pub(super) fn fresh_pool(tag: &str) -> TempPool {
     crate::testing::temp_pool(&format!("bkp-{tag}"))

@@ -1,6 +1,13 @@
 //! The episode to play next, and the ones after it.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, OptionalExtension};
+
+use crate::hydrate::attach_files;
+use crate::pool::Pool;
+use crate::rows::row_to_item;
+use crate::schema::ITEM_COLS;
+use kroma_domain::MediaItem;
 
 /// The episode to play to CONTINUE a show, for a user: the most-recent in-progress
 /// episode (resume), else the first unwatched episode in order, else the first.
@@ -109,6 +116,7 @@ pub fn next_episode(pool: &Pool, item_id: &str) -> Result<Option<MediaItem>> {
 mod tests {
     use super::*;
     use crate::playback::test_support::*;
+    use crate::playback::{mark_watched, unmark_watched, upsert_progress};
 
     #[test]
     fn up_next_and_next_episode() {

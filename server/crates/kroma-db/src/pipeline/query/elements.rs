@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use super::*;
+use anyhow::Result;
+
+use crate::pool::Pool;
 
 /// Lean item row for the elements list: only the columns the view needs, with
 /// poster/genre/has-metadata pulled out of the JSON via `json_extract` so we

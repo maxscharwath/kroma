@@ -1,8 +1,10 @@
 //! Taking tasks off the ledger, writing their results back, and retrying.
 
-use rusqlite::TransactionBehavior;
+use anyhow::Result;
+use rusqlite::{params, TransactionBehavior};
 
-use super::*;
+use crate::pool::Pool;
+use super::{Subject, RETRY_BASE_MS};
 
 /// Claim up to `limit` pending tasks for a stage: pick the highest-priority /
 /// oldest, flip them to `running`, and return `(subject_id, input_sig)` for the
@@ -40,7 +42,7 @@ pub struct TaskResult {
 
 /// Write a batch of results back (one transaction). Success → `done`; failure →
 /// `failed` with `attempts` incremented (a later reconcile retries it while under
-/// [`MAX_ATTEMPTS`]).
+/// [`MAX_ATTEMPTS`](super::MAX_ATTEMPTS)).
 pub fn finish_batch(pool: &Pool, stage: &str, results: &[TaskResult], now: i64) -> Result<()> {
     let mut conn = pool.get()?;
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -128,6 +130,7 @@ pub fn reprocess(pool: &Pool, stage: &str) -> Result<usize> {
 mod tests {
     use super::*;
     use crate::pipeline::ops::test_support::*;
+    use crate::pipeline::ops::{enqueue, retry_backoff_ms};
 
     #[test]
     fn claim_takes_the_highest_priority_then_the_oldest() {

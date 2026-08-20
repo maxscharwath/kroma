@@ -1,6 +1,12 @@
 //! What a user can pick up again, newest first.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::hydrate::items_by_ids_ordered;
+use crate::pool::Pool;
+use crate::rows::parse_metadata;
+use kroma_domain::{ContinueItem, Kind, MediaItem};
 
 /// "Continue watching": resumable items (started, not yet ~finished), newest
 /// first, each carried as a full [`MediaItem`] so clients render normal cards.

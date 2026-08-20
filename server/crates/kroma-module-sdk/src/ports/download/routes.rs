@@ -21,7 +21,7 @@ pub fn download_routes<S: HostCtx + Clone + Send + Sync + 'static>(
     Router::new()
         .route("/_port/downloadgrab/grab", post(grab_h::<S>))
         .route("/_port/downloadgrab/list_files", post(list_files_h::<S>))
-        .route("/_port/downloadgrab/gate_open", post(gate_open_h::<S>))
+        .route("/_port/downloadgrab/gate_open", post(gate_open_h))
         .route("/_port/downloadgrab/activate", post(activate_h::<S>))
         .route("/_port/downloadgrab/drop_data", post(drop_data_h::<S>))
         .route("/_port/downloaddb/completed", post(completed_h::<S>))
@@ -63,9 +63,7 @@ async fn list_files_h<S: HostCtx + Clone + Send + Sync + 'static>(
     blocking_env(move || grab.list_files(&host, &req.magnet_or_url)).await
 }
 
-async fn gate_open_h<S: HostCtx + Clone + Send + Sync + 'static>(
-    Extension(grab): Extension<Arc<dyn DownloadGrabPort>>,
-) -> Json<bool> {
+async fn gate_open_h(Extension(grab): Extension<Arc<dyn DownloadGrabPort>>) -> Json<bool> {
     Json(grab.gate_open())
 }
 
@@ -163,11 +161,11 @@ mod tests {
     #[tokio::test]
     async fn gate_open_handler_reflects_engine() {
         let open: Arc<dyn DownloadGrabPort> = Arc::new(StubGrab::open());
-        let Json(v) = gate_open_h::<StubHost>(Extension(open)).await;
+        let Json(v) = gate_open_h(Extension(open)).await;
         assert!(v);
 
         let closed: Arc<dyn DownloadGrabPort> = Arc::new(StubGrab::closed());
-        let Json(v) = gate_open_h::<StubHost>(Extension(closed)).await;
+        let Json(v) = gate_open_h(Extension(closed)).await;
         assert!(!v);
     }
 
@@ -247,7 +245,7 @@ mod tests {
     #[tokio::test]
     async fn a_failing_grab_provider_still_reports_its_gate() {
         let grab: Arc<dyn DownloadGrabPort> = Arc::new(StubGrab::failing());
-        let Json(open) = gate_open_h::<StubHost>(Extension(grab)).await;
+        let Json(open) = gate_open_h(Extension(grab)).await;
         assert!(!open, "a provider that cannot grab must not advertise an open gate");
     }
 

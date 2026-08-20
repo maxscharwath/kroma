@@ -10,7 +10,7 @@ use super::*;
 
 use rusqlite::OptionalExtension;
 
-use kroma_domain::{Invite, PublicUser};
+use kroma_domain::PublicUser;
 
 mod access_tokens;
 mod credentials;

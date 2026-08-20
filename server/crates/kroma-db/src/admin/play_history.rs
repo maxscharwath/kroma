@@ -1,6 +1,10 @@
 //! The play log, and the analytics read off it.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::rows::parse_kind;
+use crate::Pool;
 
 /// Append one finished playback to the history log.
 #[allow(clippy::too_many_arguments)]

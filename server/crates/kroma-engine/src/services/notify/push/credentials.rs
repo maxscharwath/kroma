@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use kroma_module_host::HostStorage;
 use kroma_push::webpush::VapidKey;
@@ -85,7 +85,7 @@ pub(super) fn credentials<S: HostStorage>(state: &S) -> Credentials {
 
 pub(super) fn keys_for(credentials: &Credentials) -> Arc<Keys> {
     let slot = PARSED.get_or_init(|| Mutex::new(None));
-    let mut slot = slot.lock().unwrap_or_else(|e| e.into_inner());
+    let mut slot = slot.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some((known, keys)) = slot.as_ref() {
         if known == credentials {
             return Arc::clone(keys);

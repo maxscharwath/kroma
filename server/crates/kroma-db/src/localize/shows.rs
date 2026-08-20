@@ -1,6 +1,10 @@
 //! Overlaying a locale onto a show, its seasons and its episodes.
 
-use super::*;
+use super::{apply, apply_show, overlay_season_cast};
+use crate::{metadata_core, translations, Pool};
+use anyhow::Result;
+
+use kroma_domain::{Show, ShowDetail};
 
 /// Overlay `locale` onto a batch of shows (their top-level metadata only).
 pub fn overlay_shows(pool: &Pool, shows: &mut [Show], locale: &str) -> Result<()> {
@@ -47,7 +51,11 @@ pub fn overlay_show_detail(pool: &Pool, detail: &mut ShowDetail, locale: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::localize::overlay_section_items;
     use crate::localize::test_support::*;
+    use crate::translations::TransData;
+
+    use kroma_domain::{CastMember, Kind, Season, SectionItem};
 
     #[test]
     fn overlay_shows_and_section_items() {

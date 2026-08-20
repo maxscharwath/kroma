@@ -1,6 +1,10 @@
 //! Overlaying a locale onto items and home-section rows.
 
-use super::*;
+use super::{apply, apply_show};
+use crate::{metadata_core, translations, Pool};
+use anyhow::Result;
+
+use kroma_domain::{Kind, MediaItem, SectionItem};
 
 /// Overlay `locale` onto a batch of items (movies/videos + episodes). Episodes
 /// resolve under the `'episode'` subject kind, everything else under `'item'`.
@@ -67,6 +71,7 @@ pub fn overlay_section_items(pool: &Pool, items: &mut [SectionItem], locale: &st
 mod tests {
     use super::*;
     use crate::localize::test_support::*;
+    use crate::translations::TransData;
 
     #[test]
     fn overlay_items_applies_title_and_characters() {

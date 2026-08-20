@@ -1,6 +1,8 @@
 //! What the library holds: per-library counts, bytes on disk, enrichment cover.
 
-use super::*;
+use anyhow::Result;
+
+use crate::Pool;
 
 /// Per-library item count + total bytes on disk.
 pub fn library_stats(pool: &Pool) -> Result<Vec<kroma_domain::LibraryStat>> {

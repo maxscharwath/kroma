@@ -1,7 +1,17 @@
 //! The scan diff-sync: libraries, shows and items, then the orphans left behind.
 
+use std::collections::HashMap;
+
+use anyhow::Result;
+use rusqlite::params;
+
+use kroma_domain::{Kind, Library, LibraryKind, MediaItem, Show};
+
+use crate::vectors::prune_orphan_vectors;
+use crate::{now_or_blank, Pool};
+
+use super::probe_result::recompute_all_representatives;
 use super::scanned_files::sync_files;
-use super::*;
 
 /// Diff-syncs the scanned index into the DB in one transaction: preserves
 /// `items.metadata`/`shows.metadata` and a file's probed data when its
@@ -159,6 +169,9 @@ fn library_kind_str(k: &LibraryKind) -> &'static str {
 mod tests {
     use super::*;
     use crate::ingest::test_support::*;
+    use crate::{
+        item_has_probed_file, item_probed, set_file_probe, set_item_metadata, unprobed_files,
+    };
 
     #[test]
     fn sync_all_creates_updates_and_prunes() {

@@ -2,9 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rusqlite::TransactionBehavior;
+use anyhow::Result;
+use rusqlite::{params, TransactionBehavior};
 
-use super::*;
+use crate::pool::Pool;
+use super::{Subject, MAX_ATTEMPTS, UNREADABLE_SIG};
 
 /// Reconcile a stage's ledger against the freshly-enumerated `subjects` (one
 /// transaction). Insert missing subjects as `pending`; re-`pending` any whose
@@ -191,6 +193,7 @@ pub fn requeue_stage(pool: &Pool, stage: &str, now: i64) -> Result<usize> {
 mod tests {
     use super::*;
     use crate::pipeline::ops::test_support::*;
+    use crate::pipeline::ops::{claim_batch, finish_batch};
 
     #[test]
     fn enqueue_is_idempotent_and_keeps_the_higher_priority() {

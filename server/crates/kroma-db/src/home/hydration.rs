@@ -1,6 +1,10 @@
 //! Ranked ids turned back into the rows a section renders.
 
-use super::*;
+use anyhow::Result;
+
+use kroma_domain::MediaItem;
+
+use crate::{get_shows_by_ids, items_by_ids_ordered, Pool, IN_CHUNK};
 
 /// Hydrate item ids into full [`MediaItem`]s, preserving the given order and
 /// silently dropping ids without a backing `items` row (e.g. show vectors).
@@ -45,7 +49,7 @@ pub fn entities_by_ids(pool: &Pool, ids: &[&str]) -> Result<Vec<kroma_domain::Se
 
     let mut item_map: HashMap<String, MediaItem> =
         items_by_ids(pool, ids)?.into_iter().map(|i| (i.id.clone(), i)).collect();
-    let owned: Vec<String> = ids.iter().map(|s| s.to_string()).collect();
+    let owned: Vec<String> = ids.iter().map(ToString::to_string).collect();
     let mut show_map: HashMap<String, Show> =
         get_shows_by_ids(pool, &owned)?.into_iter().map(|s| (s.id.clone(), s)).collect();
 

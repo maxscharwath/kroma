@@ -1,6 +1,10 @@
 //! The wanted ledger: one row per unit a request covers.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, Connection, Row};
+
+use crate::chunked::IN_CHUNK;
+use crate::pool::Pool;
 
 /// One wanted unit: a movie, or one episode of a requested show season.
 #[derive(Debug, Clone)]
@@ -154,6 +158,8 @@ pub fn wanted_for_request(conn: &Connection, request_id: &str) -> rusqlite::Resu
 mod tests {
     use super::*;
     use crate::requests::tests::*;
+    use crate::requests::{insert_request, replace_show_gaps};
+    use kroma_domain::RequestKind;
 
     #[test]
     fn pruning_narrows_a_ledger_and_leaves_the_survivors_as_they_were() {

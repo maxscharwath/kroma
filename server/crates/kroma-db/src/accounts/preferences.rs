@@ -1,6 +1,9 @@
 //! What a user chose: their avatar and their languages.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::Pool;
 
 /// Uploaded avatars live in the same `images` dir as the regenerable art cache,
 /// so the cleanup job uses this to spare them — they can't be re-downloaded.
@@ -52,6 +55,7 @@ pub fn set_user_subtitle_language(pool: &Pool, user_id: &str, language: Option<&
 mod tests {
     use super::*;
     use crate::accounts::test_support::*;
+    use crate::accounts::user_by_id;
 
     #[test]
     fn avatar_get_set_and_urls() {

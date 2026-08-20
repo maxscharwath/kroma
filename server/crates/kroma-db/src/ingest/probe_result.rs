@@ -1,6 +1,11 @@
 //! Persisting one probe result, and the representative columns it moves.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::{params, Connection, OptionalExtension};
+
+use kroma_domain::{AudioStream, SubtitleTrack, VideoStream};
+
+use crate::Pool;
 
 /// Persists one file's probe result, then recomputes the owning item's representative columns.
 pub fn set_file_probe(
@@ -90,7 +95,9 @@ pub(super) fn recompute_all_representatives(pool: &Pool) -> Result<()> {
 mod tests {
     use super::*;
     use crate::ingest::test_support::*;
+    use crate::sync_all;
     use crate::testing::TempPool;
+    use std::collections::HashMap;
 
     fn pool_with_probed_movie() -> TempPool {
         let p = pool();

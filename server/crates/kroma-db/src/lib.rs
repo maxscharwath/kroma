@@ -17,9 +17,7 @@
 use anyhow::Result;
 use rusqlite::{params, Connection, Row};
 
-use kroma_domain::{
-    AudioStream, Kind, MediaFile, MediaItem, Metadata, Permission, SubtitleTrack, User, VideoStream,
-};
+use kroma_domain::{MediaItem, Metadata, Permission, User};
 
 mod pool;
 mod rows;

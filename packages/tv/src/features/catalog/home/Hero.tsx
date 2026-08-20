@@ -87,7 +87,7 @@ export interface HeroProps {
 }
 
 /** The home screen's cinematic spotlight, or a spacer while there is nothing to feature. */
-export function Hero({ info, onPlay, onSelectShow, onSelectEntry }: HeroProps) {
+export function Hero({ info, onPlay, onSelectShow, onSelectEntry }: Readonly<HeroProps>) {
   const t = useT();
   const { hero, heroId, heroMeta, heroBackdrop, heroBadge } = info;
   if (!hero || !heroId) return <Box h={HERO_EMPTY_HEIGHT} />;

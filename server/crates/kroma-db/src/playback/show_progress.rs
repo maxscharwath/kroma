@@ -1,6 +1,9 @@
 //! How far through a show a user is, as a percent.
 
-use super::*;
+use anyhow::Result;
+use rusqlite::params;
+
+use crate::pool::Pool;
 
 /// Per-user progress through each show, as a percent 0–100 (only shows with >0).
 /// `(watched episodes + the in-progress episode's fraction) / total episodes`
@@ -116,6 +119,7 @@ pub fn show_progress_one(pool: &Pool, user_id: &str, show_id: &str) -> Result<Op
 mod tests {
     use super::*;
     use crate::playback::test_support::*;
+    use crate::playback::{continue_watching, mark_watched, upsert_progress};
 
     #[test]
     fn show_progress_and_one_compute_percent() {

@@ -9,7 +9,7 @@
 // itself is in libmpv_shared.rs, shared with the Windows and Linux engines.
 
 use std::ffi::{c_char, c_void, CStr, CString};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use libmpv2::Mpv;
 use serde_json::Value;
@@ -96,7 +96,7 @@ pub fn init(app: &AppHandle, nswindow: *mut c_void) -> bool {
     if let Some(state) = app.try_state::<MpvState>() {
         state.set(mpv.clone());
     }
-    *MEDIA_APP.lock().unwrap_or_else(|e| e.into_inner()) = Some(app.clone());
+    *MEDIA_APP.lock().unwrap_or_else(PoisonError::into_inner) = Some(app.clone());
     // SAFETY: MPRemoteCommandCenter setup requires the main thread, which is
     // where `init` runs.
     unsafe { kroma_setup_media_keys() };

@@ -164,7 +164,7 @@ fn reassemble_vtt(chunks: &[&[Cue]], results: &[Mutex<Option<Vec<Option<String>>
             let line = res
                 .as_ref()
                 .and_then(|v| v.get(i))
-                .and_then(|o| o.as_deref())
+                .and_then(Option::as_deref)
                 .filter(|s| !s.is_empty())
                 .unwrap_or(&cue.text);
             out.push_str(&cue.timing);

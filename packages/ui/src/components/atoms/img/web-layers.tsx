@@ -15,10 +15,7 @@ interface WebLayersArgs {
   onError: () => void;
 }
 
-const PAINTING_URL = /^(?:https?:\/\/|\/|data:image\/|blob:)|^[a-z\d._~][a-z\d._~/+%,;=&?@-]*$/i;
-
 function webLayers(at: Readonly<WebLayersArgs>): ReactNode {
-  const { src, under } = at;
   // Four longhands, not the `inset` shorthand, which old webOS Chromium 53
   // does not know and would drop from an inline style.
   const layer: CSSProperties = {
@@ -37,13 +34,13 @@ function webLayers(at: Readonly<WebLayersArgs>): ReactNode {
   };
   return (
     <>
-      {under && under !== src && PAINTING_URL.test(under) ? (
-        <img key="under" src={under} alt="" aria-hidden draggable={false} style={layer} />
+      {at.under && at.under !== at.src ? (
+        <img key="under" src={at.under} alt="" aria-hidden draggable={false} style={layer} />
       ) : null}
-      {src && !at.errored && PAINTING_URL.test(src) ? (
+      {at.src && !at.errored ? (
         <img
-          key={src}
-          src={src}
+          key={at.src}
+          src={at.src}
           alt={at.alt}
           // Cached art can already be `complete` before React attaches onLoad,
           // so the event never fires: check the element the moment it mounts.

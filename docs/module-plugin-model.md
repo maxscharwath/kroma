@@ -154,14 +154,39 @@ passes. `metadata-provider` passes. `search-ranker` passes.
 An earlier draft of this rule failed `embedder` and `transcriber` too, on the
 grounds that they exist because a vector module and a whisper module exist. That
 was too strong, and worth recording as a correction rather than quietly fixing:
-the core's outbound ports are allowed to name a CAPABILITY it needs. What they may
+the core's outbound calls are allowed to name a CAPABILITY it needs. What they may
 not name is a vendor, a model or a module. By that reading `Whisper` was the only
-real offender and is now `Transcriber`, and `HostCtx::tmdb_api_key()` is now
-`secret(name)`.
+real offender, and `HostCtx::tmdb_api_key()` is now `secret(name)`.
 
-So the core's hook set is small, closed, and about the core's own concerns.
-Everything else is a point some module defined, and the core has no opinion about
-any of it.
+### The core names them, and declares nothing
+
+Naming a capability is as far as it goes: there is no trait a module implements.
+`kroma-engine/src/ports.rs` used to hold `Embedder` and `Transcriber` — two
+traits, in the core, describing what a module does — and it is gone. What the
+engine has instead is one generic type:
+
+```rust
+// kroma-engine/src/point.rs
+pub struct Point { /* a name, and how it resolves */ }
+impl Point {
+    pub fn call<B: Serialize, T: DeserializeOwned>(&self, method: &str, body: &B) -> Option<T>;
+}
+```
+
+`state.embedder` is a `Point`, and `services/embeddings.rs` is how the core's own
+search uses it: four free functions over JSON, which nothing outside the crate
+implements. Subtitle generation takes the transcription step as a closure the
+composition root supplies, so the engine holds no type for who transcribes. A
+module answering either point implements nothing this repo declares.
+
+`None` is the whole absence story: no module, an unreachable one, or an answer
+this build cannot read all read the same to the caller, and the feature degrades —
+no recommendations, or a generation that fails with a reason. `NoopEmbedder`, the
+in-process stand-in that used to exist for this, is gone with the trait.
+
+So the core's hook set is small, closed, about the core's own concerns, and
+type-free. Everything else is a point some module defined, and the core has no
+opinion about any of it.
 
 ## The wire
 
@@ -373,13 +398,15 @@ because no external client exposes a list-only add.
    of is reached with nothing changed on the indexer's side. A `prowlarr` row pins
    that.
 
+7. **The core's two traits are gone.** `kroma-engine/src/ports.rs` declared
+   `Embedder` and `Transcriber`; the engine now holds a generic `Point` and calls
+   JSON on it (see [the rule](#the-core-names-them-and-declares-nothing) above).
+   A module answering `embedder` or `transcriber` implements nothing declared
+   here, which is what makes a capability nobody has thought of — a video encoder,
+   say — no different from these two: a point name, a payload, and no core edit.
+
 What has NOT landed:
 
-7. ~~**`Embedder` and `Whisper` are still core traits.**~~ Half closed, half
-   withdrawn. `Whisper` named a model and is now `Transcriber`; `Embedder` names a
-   capability the search pipeline needs and stays, because the rule above only
-   forbids naming a vendor. Both are resolved by point name and the core links
-   neither module.
 8. **Module-declared permissions** (see above — it needs a decision about stored
    auth data, not a refactor) and **frontend slots** are untouched. The point graph
    in Admin has since landed.

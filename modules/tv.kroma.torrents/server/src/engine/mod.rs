@@ -116,7 +116,7 @@ pub fn magnet_info_hash(uri: &str) -> Option<String> {
     let idx = lower.find("xt=urn:btih:")?;
     let hash: String = lower[idx + "xt=urn:btih:".len()..]
         .chars()
-        .take_while(|c| c.is_ascii_alphanumeric())
+        .take_while(char::is_ascii_alphanumeric)
         .collect();
     // 40-char hex (v1) or 32-char base32.
     (hash.len() == 40 || hash.len() == 32).then_some(hash)

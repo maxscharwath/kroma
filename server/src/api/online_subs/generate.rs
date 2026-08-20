@@ -167,7 +167,7 @@ async fn run_generation(t: GenTask) {
                 std::path::Path::new(&abs),
                 &spec,
                 &handle,
-                transcriber.as_ref(),
+                &transcriber.step(),
             ),
             None => Err("no transcription module is installed".to_string()),
         };

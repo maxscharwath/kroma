@@ -93,13 +93,27 @@ pub(crate) fn unmet_of(
         .collect()
 }
 
+async fn icon(State(state): State<SharedState>, Path(id): Path<String>) -> impl IntoResponse {
+    match kroma_module_kernel::icon(&state, &id) {
+        Some((content_type, bytes)) => (
+            [
+                (header::CONTENT_TYPE, content_type),
+                (header::CACHE_CONTROL, "public, max-age=86400"),
+            ],
+            bytes,
+        )
+            .into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use kroma_module_manifest::{Contribution, ModuleManifest, PointReq};
 
-    const POINT: &str = "tv.kroma.torrents/download-client";
+    const POINT: &str = "tv.kroma.torrents/client";
 
     fn wanting(point: &str, id: Option<&str>) -> ModuleManifest {
         let mut m = ModuleManifest::new("tv.x.consumer", "Consumer", "1.0.0");
@@ -194,19 +208,5 @@ mod tests {
 
         assert!(unmet_of(&wanting(POINT, None), &live).is_empty());
         assert_eq!(unmet_of(&wanting(POINT, None), &[]), vec![POINT.to_string()]);
-    }
-}
-
-async fn icon(State(state): State<SharedState>, Path(id): Path<String>) -> impl IntoResponse {
-    match kroma_module_kernel::icon(&state, &id) {
-        Some((content_type, bytes)) => (
-            [
-                (header::CONTENT_TYPE, content_type),
-                (header::CACHE_CONTROL, "public, max-age=86400"),
-            ],
-            bytes,
-        )
-            .into_response(),
-        None => StatusCode::NOT_FOUND.into_response(),
     }
 }

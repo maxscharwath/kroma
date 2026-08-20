@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::services::activity;
 use crate::config::Config;
 use crate::db::Pool;
-use crate::ports::Embedder;
 use crate::infra::events::Bus;
 use crate::infra::metadata;
 use crate::infra::metrics::Metrics;
@@ -42,7 +41,9 @@ pub struct AppState {
     pub playback: Registry,
     pub cast: crate::services::cast::Registry,
     pub metrics: Metrics,
-    pub embedder: Arc<dyn Embedder>,
+    // The `embedder` point: the core's search asks whichever module answers it
+    // for vectors, and finds nothing when none does.
+    pub embedder: crate::point::Point,
     pub search: Arc<SearchEngine>,
     pub vectors: Arc<VectorCache>,
     pub jobs: Arc<JobManager>,
@@ -81,10 +82,10 @@ impl AppState {
         ffprobe_available: bool,
         db: Pool,
         settings: Settings,
-        // The content embedder, wrapped by the composition root (the binary) from
-        // the vector module's backend into the engine port, so the core names no
-        // concrete embedder crate. A `NoopEmbedder` stands in when absent.
-        embedder: Arc<dyn Embedder>,
+        // The `embedder` point, built by the composition root from the same
+        // resolver it passes below. A test hands in a stub; a server with no
+        // module answering it finds nothing rather than failing.
+        embedder: crate::point::Point,
         module_services: std::collections::HashMap<
             std::any::TypeId,
             std::sync::Arc<dyn std::any::Any + Send + Sync>,
@@ -218,7 +219,7 @@ mod tests {
             false,
             db,
             settings,
-            Arc::new(crate::ports::NoopEmbedder),
+            crate::point::Point::absent("embedder"),
             std::collections::HashMap::new(),
             MODULE_JOB,
             Arc::new(|_| Vec::new()),

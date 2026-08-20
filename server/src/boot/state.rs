@@ -9,7 +9,6 @@ use kroma_engine::services::settings::Settings;
 use kroma_engine::{infra, state};
 use kroma_module_supervisor::{Supervisor, SupervisorConfig};
 
-use crate::boot::embedder::EmbedderClient;
 use crate::boot::transcriber::TranscriberClient;
 
 /// Build the supervisor and the app state. The state is handed a FUNCTION for
@@ -59,12 +58,12 @@ pub fn build(
         Arc::new(move |point: &str| supervisor.contributions(point))
     };
 
-    // The core's own two consumers name a POINT, never a provider.
+    // Transcription is long-running and rides a DB row for progress, so the core
+    // holds a client for it. The embedder needs none: the state builds that point
+    // from the same resolver.
     let transcriber =
         Arc::new(TranscriberClient::new(point(&contributions, "transcriber"), db.clone()));
     services.insert(std::any::TypeId::of::<TranscriberClient>(), transcriber);
-    let embedder: Arc<dyn kroma_engine::ports::Embedder> =
-        Arc::new(EmbedderClient::new(point(&contributions, "embedder")));
 
     // Empty job roster: sidecars register their own jobs over `/_host/register-job`.
     let state = state::AppState::new(
@@ -72,7 +71,7 @@ pub fn build(
         ffprobe_available,
         db,
         settings,
-        embedder,
+        kroma_engine::point::Point::new("embedder", contributions.clone()),
         services,
         &[],
         contributions,

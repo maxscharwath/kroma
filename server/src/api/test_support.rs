@@ -113,13 +113,12 @@ fn build_app(tmdb_api_key: Option<&str>, web: &[(&str, &str)]) -> TestApp {
         config.web_dir = Some(web_dir);
     }
     let settings = Settings::load(&db);
-    let embedder: Arc<dyn kroma_engine::ports::Embedder> = Arc::new(kroma_engine::ports::NoopEmbedder);
     let state = AppState::new(
         config,
         false,
         db.clone(),
         settings,
-        embedder,
+        kroma_engine::point::Point::absent("embedder"),
         HashMap::new(),
         &[],
         std::sync::Arc::new(|_| Vec::new()),

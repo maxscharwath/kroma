@@ -373,34 +373,8 @@ pub async fn serve(
         module.on_enable(host.clone()).await;
     }
 
-    // job_fns backs /_job/run/{key}; job_specs registers with the core scheduler.
-    let mut job_fns: HashMap<&'static str, JobFn> = HashMap::new();
-    let mut job_specs: Vec<JobSpec> = Vec::new();
-    for module in modules.iter() {
-        for job in module.jobs() {
-            job_fns.insert(job.key, job.run);
-            job_specs.push(JobSpec {
-                key: job.key.to_string(),
-                category: job.category.to_string(),
-                schedule: job.schedule.map(str::to_string),
-            });
-        }
-    }
-
-    // The topics this process wants delivered, registered with the core the same
-    // way jobs are. Deduplicated: two modules in one process may both want a
-    // topic, and the core should be told about it once.
-    let topics: Vec<String> = {
-        let mut seen: Vec<String> = Vec::new();
-        for module in modules.iter() {
-            for topic in module.events() {
-                if !seen.iter().any(|t| t == topic) {
-                    seen.push(topic.to_string());
-                }
-            }
-        }
-        seen
-    };
+    let (job_fns, job_specs) = collect_jobs(&modules);
+    let topics = wanted_topics(&modules);
 
     // `extra`'s `/_port/*` routes are ALSO reachable through the core reverse
     // proxy, which sits outside the session gate — without this guard an
@@ -435,28 +409,7 @@ pub async fn serve(
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "module listening");
 
-    // Registered only after the listener is bound, so a run the core fires
-    // immediately queues on the accept backlog rather than failing to connect.
-    // Best-effort: a failed registration just leaves the job absent until respawn.
-    if !job_specs.is_empty() {
-        let register_url = format!("{}/api/_host/register-job", env.core_url.trim_end_matches('/'));
-        let module_id = env.module_id.clone();
-        let host_token = env.host_token.clone();
-        tokio::task::spawn_blocking(move || {
-            register_jobs(&register_url, &module_id, &host_token, &job_specs);
-        });
-    }
-
-    if !topics.is_empty() {
-        let register_url =
-            format!("{}/api/_host/register-events", env.core_url.trim_end_matches('/'));
-        let module_id = env.module_id.clone();
-        let host_token = env.host_token.clone();
-        let topics = topics.clone();
-        tokio::task::spawn_blocking(move || {
-            register_events(&register_url, &module_id, &host_token, &topics);
-        });
-    }
+    announce_to_core(&env, job_specs, &topics);
 
     let module_id = env.module_id.clone();
     axum::serve(listener, app)
@@ -474,6 +427,63 @@ pub async fn serve(
         })
         .await?;
     Ok(())
+}
+
+// What this process serves and what it asks the core for, gathered before the
+// router is built. Kept out of [`serve`] because each is a loop over the modules
+// with its own rule, and `serve`'s own job is the order the parts come up in.
+fn collect_jobs(
+    modules: &[Box<dyn ServerModule<RemoteHost>>],
+) -> (HashMap<&'static str, JobFn>, Vec<JobSpec>) {
+    // job_fns backs /_job/run/{key}; job_specs registers with the core scheduler.
+    let mut job_fns: HashMap<&'static str, JobFn> = HashMap::new();
+    let mut job_specs: Vec<JobSpec> = Vec::new();
+    for job in modules.iter().flat_map(|module| module.jobs()) {
+        job_fns.insert(job.key, job.run);
+        job_specs.push(JobSpec {
+            key: job.key.to_string(),
+            category: job.category.to_string(),
+            schedule: job.schedule.map(str::to_string),
+        });
+    }
+    (job_fns, job_specs)
+}
+
+// Deduplicated: two modules in one process may both want a topic, and the core
+// should be told about it once.
+fn wanted_topics(modules: &[Box<dyn ServerModule<RemoteHost>>]) -> Vec<String> {
+    let mut seen: Vec<String> = Vec::new();
+    for topic in modules.iter().flat_map(|module| module.events()) {
+        if !seen.iter().any(|t| t == topic) {
+            seen.push(topic.to_string());
+        }
+    }
+    seen
+}
+
+// Jobs and event topics, announced only after the listener is bound, so a run the
+// core fires immediately queues on the accept backlog rather than failing to
+// connect. Best-effort: a failed registration leaves the job or the subscription
+// absent until respawn.
+fn announce_to_core(env: &Env, job_specs: Vec<JobSpec>, topics: &[String]) {
+    let host_url = |path: &str| format!("{}/api/_host/{path}", env.core_url.trim_end_matches('/'));
+    if !job_specs.is_empty() {
+        let url = host_url("register-job");
+        let module_id = env.module_id.clone();
+        let host_token = env.host_token.clone();
+        tokio::task::spawn_blocking(move || {
+            register_jobs(&url, &module_id, &host_token, &job_specs);
+        });
+    }
+    if !topics.is_empty() {
+        let url = host_url("register-events");
+        let module_id = env.module_id.clone();
+        let host_token = env.host_token.clone();
+        let topics = topics.to_vec();
+        tokio::task::spawn_blocking(move || {
+            register_events(&url, &module_id, &host_token, &topics);
+        });
+    }
 }
 
 // A module's `migrations()` run against its OWN database, never the shared one:

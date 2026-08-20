@@ -1,6 +1,10 @@
-//! Whichever sidecar answers the `transcriber` point, behind the engine's
-//! `Transcriber` port. Transcription is long-running, so progress and
+//! Whichever sidecar answers the `transcriber` point, as the subtitle service's
+//! transcription step. Transcription is long-running, so progress and
 //! cancellation ride a shared DB row rather than the buffered HTTP call.
+//!
+//! Nothing here implements a trait the engine declared: the engine takes a
+//! closure, and [`TranscriberClient::step`] is what the composition root hands
+//! it. A module answers JSON and knows nothing about this file.
 
 /// Talks to that sidecar over the point bridge instead of transcribing
 /// in-process, so a heavy model and its Metal/CUDA deps run out of the core.
@@ -9,6 +13,8 @@
 /// row is the side-channel: the HTTP call blocks on a helper thread while THIS
 /// thread polls the row to drive the (thread-bound) `on_stage`/`on_progress`
 /// callbacks and writes the cancel flag.
+use kroma_engine::services::subtitles::TranscribeJob;
+
 pub struct TranscriberClient {
     resolve: kroma_module_host::Resolver,
     pool: kroma_db::Pool,
@@ -25,18 +31,23 @@ impl TranscriberClient {
     }
 }
 
-impl kroma_engine::ports::Transcriber for TranscriberClient {
-    fn transcribe(
-        &self,
-        data_dir: &std::path::Path,
-        model_spec: &str,
-        input: &std::path::Path,
-        track: u32,
-        lang: Option<&str>,
-        on_stage: &dyn Fn(&str),
-        on_progress: &dyn Fn(usize, usize),
-        cancel: &std::sync::atomic::AtomicBool,
-    ) -> Option<String> {
+impl TranscriberClient {
+    /// The transcription step, in the shape `subtitles::generate` takes.
+    pub fn step(&self) -> impl Fn(TranscribeJob<'_>) -> Option<String> + '_ {
+        move |job| self.run(job)
+    }
+
+    fn run(&self, job: TranscribeJob<'_>) -> Option<String> {
+        let TranscribeJob {
+            data_dir,
+            model_spec,
+            input,
+            track,
+            lang,
+            on_stage,
+            on_progress,
+            cancel,
+        } = job;
         use std::sync::mpsc::TryRecvError;
         use std::time::Duration;
 

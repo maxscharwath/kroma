@@ -17,13 +17,8 @@ interface WebLayersArgs {
 
 const PAINTING_URL = /^(?:https?:\/\/|\/|data:image\/|blob:)|^[a-z\d._~][a-z\d._~/+%,;=&?@-]*$/i;
 
-function paintingUrl(url: string | null): string | null {
-  return url && PAINTING_URL.test(url) ? url : null;
-}
-
 function webLayers(at: Readonly<WebLayersArgs>): ReactNode {
-  const src = paintingUrl(at.src);
-  const under = paintingUrl(at.under);
+  const { src, under } = at;
   // Four longhands, not the `inset` shorthand, which old webOS Chromium 53
   // does not know and would drop from an inline style.
   const layer: CSSProperties = {
@@ -42,10 +37,10 @@ function webLayers(at: Readonly<WebLayersArgs>): ReactNode {
   };
   return (
     <>
-      {under && under !== src ? (
+      {under && under !== src && PAINTING_URL.test(under) ? (
         <img key="under" src={under} alt="" aria-hidden draggable={false} style={layer} />
       ) : null}
-      {src && !at.errored ? (
+      {src && !at.errored && PAINTING_URL.test(src) ? (
         <img
           key={src}
           src={src}

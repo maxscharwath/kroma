@@ -1,6 +1,12 @@
-//! Built-in demo content. Seeded when there are no media dirs configured or a
-//! scan turns up nothing, so fresh clients have something to render. Demo items
-//! have `rel_path == None` / `abs_path == None` and cannot be streamed.
+//! Built-in demo content: rows with no file behind them, for a server that
+//! cannot write the real thing. Demo items have `rel_path == None` /
+//! `abs_path == None` and cannot be streamed.
+//!
+//! The file-backed demo library in [`media`] is what a server uses when it can:
+//! same titles, actual bytes, scanned like any other library. This module is the
+//! fallback for when there is no ffmpeg to write them with.
+
+pub mod media;
 
 use crate::model::{
     AudioStream, Kind, Library, LibraryKind, MediaFile, MediaItem, Show, SubtitleTrack, VideoStream,

@@ -1,13 +1,24 @@
-//! The download-client contract: the `DownloadClient` engine trait, the data
-//! types torrent engines exchange, and the `DownloadClientHost` port a download
-//! engine module resolves to register/unregister its kind. It lives here (not in
-//! the torrents crate) so an engine module (transmission / qBittorrent) depends
-//! only on the SDK. The embedded-engine handle in `DownloadClientCtx` is kept
-//! opaque (`dyn Any`) so this crate carries no torrent-internal type.
+//! What this module needs of a torrent engine, and how it reaches one.
+//!
+//! [`DownloadClient`] is this module's own trait, not a shared contract: the
+//! embedded librqbit engine implements it in-process, and [`remote`] implements it
+//! by calling whichever module contributes the `download-client` point under the
+//! client's `kind`. An engine module therefore links nothing of this crate. It
+//! serves the methods below over HTTP and declares its kind in its manifest, so a
+//! download client nobody here has written can be installed at runtime.
+
+pub mod remote;
+
+/// The embedded engine's client `kind`. This module answers the
+/// [`download-client`](remote::DOWNLOAD_CLIENT) point for it in its own process,
+/// because librqbit's session is a live handle and not something a wire carries.
+pub const EMBEDDED_KIND: &str = "rqbit";
 
 use serde::{Deserialize, Serialize};
 
-/// A torrent to hand to an engine.
+
+/// A torrent to hand to an engine. Borrowed, because the call is in-process:
+/// [`remote`] sends the subset an external engine reads.
 #[derive(Debug, Clone)]
 pub struct AddTorrentReq<'a> {
     pub magnet_or_url: &'a str,
@@ -89,8 +100,10 @@ pub trait DownloadClient: Send + Sync {
     fn remove(&self, client_ref: &str, delete_data: bool) -> anyhow::Result<()>;
 }
 
-/// A configured engine, crate-owned mirror of the server's client row.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// A configured engine, as this module holds it: one row of its own
+/// `download_clients` table, and what [`remote`] sends an engine per call.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ClientDef {
     pub kind: String,
     pub url: String,
@@ -98,78 +111,15 @@ pub struct ClientDef {
     pub password: String,
 }
 
-/// Runtime context a download-client factory needs to build its engine: the
-/// embedded librqbit handle (None when off / not compiled) and a scratch dir for
-/// per-client state (qBittorrent cookie jars).
-pub struct DownloadClientCtx<'a> {
-    pub rqbit: Option<std::sync::Arc<dyn std::any::Any + Send + Sync>>,
-    pub state_dir: &'a std::path::Path,
-}
-
-type DownloadClientFactory = std::sync::Arc<
-    dyn Fn(&ClientDef, &DownloadClientCtx) -> anyhow::Result<Box<dyn DownloadClient>> + Send + Sync,
->;
-
-/// The download-client sub-engine registry: maps a client `kind` ("rqbit",
-/// "transmission", ...) to a factory that builds it. This is the extension point
-/// a download sub-engine plugs into -- adding a new backend is registering one
-/// factory, not editing a central `match`. It is the runtime constructor half of
-/// the `download-client` capability the module declares in its `module.json`.
-#[derive(Clone, Default)]
-pub struct DownloadClientRegistry {
-    factories: std::collections::HashMap<String, DownloadClientFactory>,
-}
-
-impl DownloadClientRegistry {
-    /// Register (or replace) the factory for a client `kind`.
-    pub fn register(
-        &mut self,
-        kind: impl Into<String>,
-        factory: impl Fn(&ClientDef, &DownloadClientCtx) -> anyhow::Result<Box<dyn DownloadClient>>
-            + Send
-            + Sync
-            + 'static,
-    ) -> &mut Self {
-        self.factories.insert(kind.into(), std::sync::Arc::new(factory));
-        self
-    }
-
-    /// The kinds with a registered factory (diagnostics / capability checks).
-    pub fn kinds(&self) -> Vec<&str> {
-        self.factories.keys().map(String::as_str).collect()
-    }
-
-    /// Remove a client `kind`'s factory (a download sub-engine module was
-    /// disabled), so that kind is no longer offered / buildable.
-    pub fn unregister(&mut self, kind: &str) {
-        self.factories.remove(kind);
-    }
-
-    /// Build the engine for a client definition, or error if its kind has no
-    /// registered sub-engine.
-    pub fn build(
-        &self,
-        def: &ClientDef,
-        ctx: &DownloadClientCtx,
-    ) -> anyhow::Result<Box<dyn DownloadClient>> {
-        let factory = self
-            .factories
-            .get(&def.kind)
-            .ok_or_else(|| anyhow::anyhow!("unknown download client kind {:?}", def.kind))?;
-        factory(def, ctx)
-    }
-}
-
-/// The download manager's registration surface, exposed as a port so a download
-/// engine module plugs its client `kind` in on enable without depending on the
-/// torrents crate. Implemented by the Downloads module's `DownloadManager` and
-/// resolved via `kroma_module_host::resolve_port`.
-pub trait DownloadClientHost: Send + Sync {
-    // Add a download sub-engine by running its `register` fn against the shared
-    // client registry.
-    fn register_engine(&self, register: fn(&mut DownloadClientRegistry));
-    // Remove a download sub-engine `kind` (its module was disabled).
-    fn unregister_engine(&self, kind: &str);
+pub fn magnet_info_hash(uri: &str) -> Option<String> {
+    let lower = uri.to_ascii_lowercase();
+    let idx = lower.find("xt=urn:btih:")?;
+    let hash: String = lower[idx + "xt=urn:btih:".len()..]
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric())
+        .collect();
+    // 40-char hex (v1) or 32-char base32.
+    (hash.len() == 40 || hash.len() == 32).then_some(hash)
 }
 
 #[cfg(test)]
@@ -201,55 +151,48 @@ mod tests {
         }
     }
 
-    fn def(kind: &str) -> ClientDef {
-        ClientDef {
-            kind: kind.into(),
-            url: String::new(),
-            username: String::new(),
-            password: String::new(),
-        }
-    }
-
-    fn ctx() -> DownloadClientCtx<'static> {
-        DownloadClientCtx { rqbit: None, state_dir: std::path::Path::new("/tmp") }
-    }
     #[test]
-    fn registry_register_build_and_unregister() {
-        let mut reg = DownloadClientRegistry::default();
-        assert!(reg.kinds().is_empty());
-
-        reg.register("rqbit", |_def, _ctx| Ok(Box::new(Stub) as Box<dyn DownloadClient>))
-            .register("qbittorrent", |_def, _ctx| Ok(Box::new(Stub) as Box<dyn DownloadClient>));
-        let mut kinds = reg.kinds();
-        kinds.sort_unstable();
-        assert_eq!(kinds, vec!["qbittorrent", "rqbit"]);
-
-        let engine = reg.build(&def("rqbit"), &ctx()).expect("known kind builds");
-        assert_eq!(engine.kind(), "stub");
-
-        let err = reg.build(&def("transmission"), &ctx()).err().unwrap();
-        assert!(err.to_string().contains("unknown download client kind"));
-
-        reg.unregister("rqbit");
-        assert_eq!(reg.kinds(), vec!["qbittorrent"]);
-        assert!(reg.build(&def("rqbit"), &ctx()).is_err());
+    fn magnet_info_hash_v1_hex() {
+        let uri = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567&dn=movie";
+        assert_eq!(
+            magnet_info_hash(uri).as_deref(),
+            Some("0123456789abcdef0123456789abcdef01234567")
+        );
     }
 
     #[test]
-    fn registry_register_replaces_existing_kind() {
-        let mut reg = DownloadClientRegistry::default();
-        reg.register("k", |_, _| Err(anyhow::anyhow!("first")));
-        reg.register("k", |_, _| Ok(Box::new(Stub) as Box<dyn DownloadClient>));
-        // The second factory wins.
-        assert!(reg.build(&def("k"), &ctx()).is_ok());
-        assert_eq!(reg.kinds(), vec!["k"]);
+    fn magnet_info_hash_is_case_insensitive() {
+        // The scheme + hash are upper-cased; the result is normalized to lowercase.
+        let uri = "MAGNET:?XT=URN:BTIH:0123456789ABCDEF0123456789ABCDEF01234567";
+        assert_eq!(
+            magnet_info_hash(uri).as_deref(),
+            Some("0123456789abcdef0123456789abcdef01234567")
+        );
     }
 
     #[test]
-    fn an_engine_built_from_the_registry_answers_the_whole_client_contract() {
-        let mut reg = DownloadClientRegistry::default();
-        reg.register("stub", |_def, _ctx| Ok(Box::new(Stub) as Box<dyn DownloadClient>));
-        let engine = reg.build(&def("stub"), &ctx()).unwrap();
+    fn magnet_info_hash_base32_len_32() {
+        let uri = "magnet:?xt=urn:btih:abcdefghijklmnopqrstuvwxyz234567";
+        assert_eq!(
+            magnet_info_hash(uri).as_deref(),
+            Some("abcdefghijklmnopqrstuvwxyz234567")
+        );
+    }
+
+    #[test]
+    fn magnet_info_hash_rejects_bad_input() {
+        // No xt parameter.
+        assert_eq!(magnet_info_hash("magnet:?dn=nothing"), None);
+        assert_eq!(magnet_info_hash(""), None);
+        // Wrong length (neither 40 nor 32).
+        assert_eq!(magnet_info_hash("magnet:?xt=urn:btih:deadbeef"), None);
+        // Stops at the first non-alphanumeric, leaving an invalid length.
+        assert_eq!(magnet_info_hash("magnet:?xt=urn:btih:-&dn=x"), None);
+    }
+
+    #[test]
+    fn an_engine_answers_the_whole_client_contract() {
+        let engine: Box<dyn DownloadClient> = Box::new(Stub);
 
         assert_eq!(engine.test().unwrap(), "v1");
         let req = AddTorrentReq {

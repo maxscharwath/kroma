@@ -259,7 +259,7 @@ mod gate_tests {
             embedder,
             services(dir.path()),
             &[],
-            Arc::new(|_| None),
+            Arc::new(|_| Vec::new()),
         );
         (state, dir)
     }

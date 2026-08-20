@@ -30,8 +30,10 @@ impl Embedder for NoopEmbedder {
     fn relevance_floor(&self) -> f32 { 1.0 }
 }
 
-/// Audio -> text transcription (implemented by the whisper module).
-pub trait Whisper: Send + Sync {
+/// Audio -> text transcription. Named for what the core needs rather than for
+/// whichever module answers it: a `Whisper` port could only ever be answered by
+/// Whisper, and the module behind this one is resolved by point name at runtime.
+pub trait Transcriber: Send + Sync {
     #[allow(clippy::too_many_arguments)]
     fn transcribe(
         &self,

@@ -4,9 +4,9 @@
 /// Resolution, codec and source in the spellings Sonarr/Radarr use (`1080p`,
 /// `x265`, `Bluray`).
 pub fn quality_from_parsed(
-    parsed: &crate::scene::ParsedRelease,
+    parsed: &kroma_scene::ParsedRelease,
 ) -> (Option<String>, Option<String>, Option<String>) {
-    use crate::scene::{Codec, Res, Source};
+    use kroma_scene::{Codec, Res, Source};
     let res = parsed.resolution.map(|r| match r {
         Res::R720 => "720p",
         Res::R1080 => "1080p",
@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn quality_from_parsed_maps_every_variant() {
-        use crate::scene::{Codec, ParsedRelease, Res, Source};
+        use kroma_scene::{Codec, ParsedRelease, Res, Source};
         let mk = |r, c, s| ParsedRelease {
             resolution: Some(r),
             codec: Some(c),

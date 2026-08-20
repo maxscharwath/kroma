@@ -122,7 +122,7 @@ fn build_app(tmdb_api_key: Option<&str>, web: &[(&str, &str)]) -> TestApp {
         embedder,
         HashMap::new(),
         &[],
-        std::sync::Arc::new(|_| None),
+        std::sync::Arc::new(|_| Vec::new()),
     );
 
     let data = crate::services::demo::demo_data();
@@ -130,7 +130,10 @@ fn build_app(tmdb_api_key: Option<&str>, web: &[(&str, &str)]) -> TestApp {
     state.search.reindex_from_db(&db).expect("reindex search");
 
     let supervisor = test_supervisor(&data_dir);
-    let app = crate::api::router(state.clone(), supervisor);
+    // No delivery task: a handler test publishes nothing a module would hear, and
+    // spawning one would need a runtime the plain `#[test]` cases do not have.
+    let subscriptions = std::sync::Arc::new(crate::api::host_events::Subscriptions::default());
+    let app = crate::api::router(state.clone(), supervisor, subscriptions);
 
     let (user_id, token) = seed_session(&state, "owner@test.dev", "owner", &Permission::all());
     TestApp { app, state, token, user_id, _data_dir: tmp }

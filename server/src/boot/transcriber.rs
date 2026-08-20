@@ -1,31 +1,31 @@
-//! The whisper sidecar behind the engine's `Whisper` port. Transcription is
-//! long-running, so progress and cancellation ride a shared DB row rather than
-//! the buffered HTTP call.
+//! Whichever sidecar answers the `transcriber` point, behind the engine's
+//! `Transcriber` port. Transcription is long-running, so progress and
+//! cancellation ride a shared DB row rather than the buffered HTTP call.
 
-/// Talks to the Whisper module's `.kmod` sidecar (tv.kroma.whisper) over the port
-/// bridge instead of transcribing in-process, so the heavy candle model + its
-/// Metal/CUDA deps run out of the core. Transcription is long and drives live
-/// progress + mid-run cancel, which don't fit `kroma-http`'s buffered request/
-/// response, so a shared `whisper_jobs` DB row is the side-channel: the HTTP call
-/// blocks on a helper thread while THIS thread polls the row to drive the
-/// (thread-bound) `on_stage`/`on_progress` callbacks and writes the cancel flag.
-pub struct WhisperClient {
+/// Talks to that sidecar over the point bridge instead of transcribing
+/// in-process, so a heavy model and its Metal/CUDA deps run out of the core.
+/// Transcription is long and drives live progress + mid-run cancel, which don't
+/// fit `kroma-http`'s buffered request/response, so a shared `whisper_jobs` DB
+/// row is the side-channel: the HTTP call blocks on a helper thread while THIS
+/// thread polls the row to drive the (thread-bound) `on_stage`/`on_progress`
+/// callbacks and writes the cancel flag.
+pub struct TranscriberClient {
     resolve: kroma_module_host::Resolver,
     pool: kroma_db::Pool,
 }
 
-impl WhisperClient {
+impl TranscriberClient {
     pub fn new(resolve: kroma_module_host::Resolver, pool: kroma_db::Pool) -> Self {
         Self { resolve, pool }
     }
 
-    /// Whether the whisper sidecar is currently running (its port resolves).
+    /// Whether a transcriber is currently running (the point resolves).
     pub fn available(&self) -> bool {
         (self.resolve)().is_some()
     }
 }
 
-impl kroma_engine::ports::Whisper for WhisperClient {
+impl kroma_engine::ports::Transcriber for TranscriberClient {
     fn transcribe(
         &self,
         data_dir: &std::path::Path,
@@ -73,7 +73,7 @@ impl kroma_engine::ports::Whisper for WhisperClient {
                 let text: Option<String> = kroma_http::Fetch::new()
                     .header("authorization", format!("Bearer {token}"))
                     .max_time(3 * 60 * 60)
-                    .post_json(&format!("{base}/_port/whisper/transcribe"), &body)
+                    .post_json(&format!("{base}/_port/transcriber/transcribe"), &body)
                     .and_then(|r| r.ensure_ok())
                     .and_then(|r| r.json::<Option<String>>())
                     .ok()

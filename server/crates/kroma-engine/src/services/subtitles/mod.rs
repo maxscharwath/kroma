@@ -90,13 +90,13 @@ pub fn generate(
     input: &Path,
     spec: &GenSpec,
     handle: &Handle,
-    whisper: &dyn crate::ports::Whisper,
+    transcriber: &dyn crate::ports::Transcriber,
 ) -> std::result::Result<DownloadedSub, String> {
     let vtt = match spec.mode {
         GenMode::Transcribe => {
             let code = spec.spoken_lang.as_deref().and_then(lang_to_code);
             let cancel = handle.cancel_flag();
-            whisper
+            transcriber
                 .transcribe(
                     data_dir,
                     spec.quality.model(),
@@ -307,7 +307,7 @@ mod tests {
         }
     }
 
-    impl crate::ports::Whisper for FakeWhisper {
+    impl crate::ports::Transcriber for FakeWhisper {
         fn transcribe(
             &self,
             _data_dir: &Path,
@@ -375,7 +375,11 @@ mod tests {
         }
     }
 
-    fn run(env: &Env, spec: &GenSpec, whisper: &dyn crate::ports::Whisper) -> Result<DownloadedSub, String> {
+    fn run(
+        env: &Env,
+        spec: &GenSpec,
+        transcriber: &dyn crate::ports::Transcriber,
+    ) -> Result<DownloadedSub, String> {
         generate(
             &env.settings,
             env.dir.path(),
@@ -384,7 +388,7 @@ mod tests {
             Path::new("/media/itm-1.mkv"),
             spec,
             &handle(),
-            whisper,
+            transcriber,
         )
     }
 

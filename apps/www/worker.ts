@@ -33,6 +33,12 @@ type ExecCtx = { waitUntil(p: Promise<unknown>): void };
 
 const BASE = '/api/canary';
 
+function trimTrailingSlashes(pathname: string): string {
+  let end = pathname.length;
+  while (end > 0 && pathname[end - 1] === '/') end--;
+  return pathname.slice(0, end);
+}
+
 // The channel changes only when main does, so a short edge cache absorbs a burst
 // of readers on one fan-out rather than repeating it per visitor.
 const cacheKey = (limit: number) => `https://kroma-site.cache/canary/${limit}`;
@@ -105,7 +111,7 @@ async function download(env: Env, runId: number, target: string): Promise<Respon
 export default {
   async fetch(request: Request, env: Env, ctx: ExecCtx): Promise<Response> {
     const url = new URL(request.url);
-    const path = (url.pathname.replace(/\/+$/, '') || '/').slice(BASE.length) || '/';
+    const path = (trimTrailingSlashes(url.pathname) || '/').slice(BASE.length) || '/';
 
     if (!url.pathname.startsWith(BASE)) return renderPage(request);
     if (request.method !== 'GET' && request.method !== 'HEAD') {

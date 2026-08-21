@@ -19,7 +19,7 @@ export function Lockup({ className }: Readonly<LockupProps>) {
       viewBox={`${x} 0 ${width} ${KROMA_LOCKUP.height}`}
       fill="currentColor"
       className="h-full w-auto"
-      role="presentation"
+      aria-hidden="true"
     >
       <path d={path} />
     </svg>

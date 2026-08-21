@@ -57,8 +57,8 @@ export function groupByMonth<T>(
   const groups: { key: string | null; items: T[] }[] = [];
   for (const item of items) {
     const key = monthKey(at(item));
-    const last = groups[groups.length - 1];
-    if (last && last.key === key) last.items.push(item);
+    const last = groups.at(-1);
+    if (last?.key === key) last.items.push(item);
     else groups.push({ key, items: [item] });
   }
   return groups;

@@ -25,7 +25,7 @@ export interface ChannelBuild {
 // same time, is the same build.
 const RUN_WINDOW_MS = 45 * 60 * 1000;
 
-const VERSION = /(\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]*[0-9A-Za-z])?)/;
+const VERSION = /(\d+\.\d+\.\d+(?:[-.][0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)/;
 const EXTENSION = /\.[A-Za-z][A-Za-z0-9]*$/;
 
 /** The version a file name carries, or null for a name that carries none. */
@@ -96,7 +96,7 @@ export function toChannelBuilds(raw: Release | undefined): ChannelBuild[] {
     .map((bucket) => ({
       version: bucket.version,
       builtAt: new Date(bucket.at).toISOString(),
-      downloads: bucket.downloads.sort((a, b) => a.target.localeCompare(b.target)),
+      downloads: [...bucket.downloads].sort((a, b) => a.target.localeCompare(b.target)),
     }));
 }
 

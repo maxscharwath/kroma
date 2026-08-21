@@ -78,7 +78,7 @@ export function artifactFor(
 // Compared against the list, not `in TARGETS`: `in` walks the prototype chain,
 // so `/dl/constructor` would pass the guard and index the table with a function.
 export const isTargetId = (value: string): value is TargetId =>
-  TARGET_IDS.some((id) => id === value);
+  (TARGET_IDS as readonly string[]).includes(value);
 
 export function readRunId(raw: string): number | null {
   if (!/^\d{1,19}$/.test(raw)) return null;

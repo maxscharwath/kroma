@@ -25,12 +25,18 @@ export interface ChannelBuild {
 // same time, is the same build.
 const RUN_WINDOW_MS = 45 * 60 * 1000;
 
-const VERSION = /(\d+\.\d+\.\d+(?:[-.][0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)/;
+const VERSION = /\d+\.\d+\.\d+(?:[-.][0-9A-Za-z][0-9A-Za-z.]*)?/;
 const EXTENSION = /\.[A-Za-z][A-Za-z0-9]*$/;
 
 /** The version a file name carries, or null for a name that carries none. */
 export function versionOf(assetName: string): string | null {
-  return VERSION.exec(assetName.replace(EXTENSION, ''))?.[1] ?? null;
+  const found = VERSION.exec(assetName.replace(EXTENSION, ''))?.[0];
+  if (found === undefined) return null;
+  // The suffix run takes any trailing dot with it. Trimmed here rather than in
+  // the pattern, where the alternative backtracks.
+  let end = found.length;
+  while (end > 0 && found[end - 1] === '.') end--;
+  return found.slice(0, end);
 }
 
 interface Bucket {

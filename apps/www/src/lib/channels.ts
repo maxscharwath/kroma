@@ -25,7 +25,10 @@ export interface ChannelBuild {
 // same time, is the same build.
 const RUN_WINDOW_MS = 45 * 60 * 1000;
 
-const VERSION = /\d+\.\d+\.\d+(?:[-.][0-9A-Za-z][0-9A-Za-z.]*)?/;
+// Every quantifier is bounded. Unanchored, an unbounded `\d+` before a literal
+// makes the search super-linear on a long run of digits, and a version segment
+// is never near these limits anyway.
+const VERSION = /\d{1,10}\.\d{1,10}\.\d{1,10}(?:[-.][0-9A-Za-z][0-9A-Za-z.]{0,63})?/;
 const EXTENSION = /\.[A-Za-z][A-Za-z0-9]*$/;
 
 /** The version a file name carries, or null for a name that carries none. */

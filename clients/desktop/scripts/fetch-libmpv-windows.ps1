@@ -17,13 +17,18 @@ Outputs (for the caller / CI):
 
 Idempotent: skips the download when the archive is already present with the right sha.
 Bump VERSION_TAG + ASSET + SHA256 together to upgrade.
+
+The pin ROTS. zhongfly/mpv-winbuild keeps a rolling ~30-day window of releases
+and deletes what falls out of it, so a pin left alone stops resolving and the
+Windows job fails on a 404 rather than on anything this repo changed. When that
+happens, take the newest mpv-dev-x86_64 asset and bump all three values.
 #>
 $ErrorActionPreference = 'Stop'
 
 # --- pin (bump the three together) --------------------------------------------
-$VersionTag = '2026-07-21-94335ab87a'
-$Asset      = 'mpv-dev-x86_64-20260721-git-94335ab87a.7z'
-$Sha256     = '0377122DB231BF2AB1B708524C15F8D3FAF2E4FA8199318B33A921AEF7BBA83A'
+$VersionTag = '2026-08-21-a87a678573'
+$Asset      = 'mpv-dev-x86_64-20260821-git-a87a678573.7z'
+$Sha256     = '4229131B91AF65F5A2FF8A737A1F93E169ADDD76D42245F6F12898726EB56E65'
 # ------------------------------------------------------------------------------
 
 $here   = Split-Path -Parent $MyInvocation.MyCommand.Path

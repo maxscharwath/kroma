@@ -16,19 +16,21 @@ Outputs (for the caller / CI):
   - sets KROMA_MPV_LIB_DIR (GITHUB_ENV) = <outdir>, consumed by build.rs
 
 Idempotent: skips the download when the archive is already present with the right sha.
-Bump VERSION_TAG + ASSET + SHA256 together to upgrade.
+Bump ASSET + SHA256 together to upgrade.
 
-The pin ROTS. zhongfly/mpv-winbuild keeps a rolling ~30-day window of releases
-and deletes what falls out of it, so a pin left alone stops resolving and the
-Windows job fails on a 404 rather than on anything this repo changed. When that
-happens, take the newest mpv-dev-x86_64 asset and bump all three values.
+FROM SOURCEFORGE, NOT GITHUB. This used to pull zhongfly/mpv-winbuild releases,
+which are a rolling ~30-day window: everything older is deleted, so the pin
+eventually stopped resolving and the Windows job failed on a 404 with nothing in
+the diff to explain it. mpv-player-windows is shinchiro's own distribution and
+keeps every build ever published - the 2020-01-05 archive still downloads - so a
+pin here stays good and the build breaks only when we choose to move it.
 #>
 $ErrorActionPreference = 'Stop'
 
-# --- pin (bump the three together) --------------------------------------------
-$VersionTag = '2026-08-21-a87a678573'
-$Asset      = 'mpv-dev-x86_64-20260821-git-a87a678573.7z'
-$Sha256     = '4229131B91AF65F5A2FF8A737A1F93E169ADDD76D42245F6F12898726EB56E65'
+# --- pin (bump the two together) ----------------------------------------------
+# Listing: https://sourceforge.net/projects/mpv-player-windows/files/libmpv/
+$Asset  = 'mpv-dev-x86_64-20260809-git-dd5d17d328.7z'
+$Sha256 = 'C6AEBF40BB722EFE79090BFEB61E68625F0837770347E5A8B610AEF78900CF12'
 # ------------------------------------------------------------------------------
 
 $here   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -42,7 +44,7 @@ function Get-Sha256($path) {
 }
 
 if (-not (Test-Path $archive) -or (Get-Sha256 $archive) -ne $Sha256) {
-  $url = "https://github.com/zhongfly/mpv-winbuild/releases/download/$VersionTag/$Asset"
+  $url = "https://downloads.sourceforge.net/project/mpv-player-windows/libmpv/$Asset"
   Write-Host "fetch-libmpv-windows: downloading $Asset"
   Invoke-WebRequest -Uri $url -OutFile $archive
   $got = Get-Sha256 $archive

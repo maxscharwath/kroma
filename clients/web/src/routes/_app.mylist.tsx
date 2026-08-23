@@ -22,8 +22,9 @@ import { useWatched } from '#web/shared/lib/watched';
 import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
 
 type Tab = 'mylist' | 'watchlater' | 'watched';
-type Sort = 'title' | 'year' | 'rating';
+type Sort = 'title' | 'year' | 'rating' | 'recent';
 type KindFilter = 'all' | 'movie' | 'show';
+type DecadeFilter = 'all' | '2020s' | '2010s' | '2000s' | '1990s' | 'older';
 
 export const Route = createFileRoute('/_app/mylist')({
   loader: async ({ context: { queryClient } }) => {
@@ -118,6 +119,7 @@ interface UnifiedEntry {
   title: string;
   year: number | null;
   rating: number | null;
+  addedAt: string | null;
   render: (width: number) => React.ReactNode;
 }
 
@@ -130,6 +132,7 @@ function toUnifiedLocal(entries: CatalogEntry[]): UnifiedEntry[] {
         title: e.movie.title,
         year: e.movie.year ?? null,
         rating: e.movie.metadata?.rating ?? null,
+        addedAt: e.movie.addedAt ?? null,
         render: (width: number) => <MoviePoster item={e.movie} width={width} />,
       };
     }
@@ -139,6 +142,7 @@ function toUnifiedLocal(entries: CatalogEntry[]): UnifiedEntry[] {
       title: e.show.title,
       year: e.show.year ?? null,
       rating: e.show.metadata?.rating ?? null,
+      addedAt: e.show.addedAt ?? null,
       render: (width: number) => <ShowPoster show={e.show} width={width} />,
     };
   });
@@ -151,6 +155,7 @@ function toUnifiedDiscover(entries: DiscoverEntry[]): UnifiedEntry[] {
     title: e.title,
     year: e.year,
     rating: e.rating,
+    addedAt: null,
     render: (width: number) => <DiscoverCard entry={e} width={width} />,
   }));
 }
@@ -163,13 +168,29 @@ function sortEntries(entries: UnifiedEntry[], sort: Sort): UnifiedEntry[] {
     sorted.sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
   } else if (sort === 'rating') {
     sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  } else if (sort === 'recent') {
+    sorted.sort((a, b) => (b.addedAt ?? '').localeCompare(a.addedAt ?? ''));
   }
   return sorted;
 }
 
-function filterEntries(entries: UnifiedEntry[], filter: KindFilter): UnifiedEntry[] {
+function filterByKind(entries: UnifiedEntry[], filter: KindFilter): UnifiedEntry[] {
   if (filter === 'all') return entries;
   return entries.filter((e) => e.kind === filter);
+}
+
+function filterByDecade(entries: UnifiedEntry[], decade: DecadeFilter): UnifiedEntry[] {
+  if (decade === 'all') return entries;
+  return entries.filter((e) => {
+    const y = e.year;
+    if (y == null) return false;
+    if (decade === '2020s') return y >= 2020;
+    if (decade === '2010s') return y >= 2010 && y < 2020;
+    if (decade === '2000s') return y >= 2000 && y < 2010;
+    if (decade === '1990s') return y >= 1990 && y < 2000;
+    if (decade === 'older') return y < 1990;
+    return true;
+  });
 }
 
 interface ResolvedList {
@@ -218,6 +239,7 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
   const t = useT();
   const [sort, setSort] = useState<Sort>('title');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+  const [decadeFilter, setDecadeFilter] = useState<DecadeFilter>('all');
 
   if (list.ready && !list.loading && list.total === 0) {
     return (
@@ -228,8 +250,9 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
   }
   if (list.total === 0 && !list.ready) return null;
 
-  const filtered = filterEntries(list.entries, kindFilter);
-  const sorted = sortEntries(filtered, sort);
+  const byKind = filterByKind(list.entries, kindFilter);
+  const byDecade = filterByDecade(byKind, decadeFilter);
+  const sorted = sortEntries(byDecade, sort);
   const movieCount = list.entries.filter((e) => e.kind === 'movie').length;
   const showCount = list.entries.filter((e) => e.kind === 'show').length;
 
@@ -247,6 +270,19 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
           <Select.Item value="show" label={`${t('content.series')} (${showCount})`} />
         </Select.Root>
         <Select.Root
+          label={t('content.sortDecade')}
+          value={decadeFilter}
+          onValueChange={(v) => setDecadeFilter(v as DecadeFilter)}
+        >
+          <Select.Trigger size="sm" />
+          <Select.Item value="all" label={t('content.filterAll')} />
+          <Select.Item value="2020s" label="2020s" />
+          <Select.Item value="2010s" label="2010s" />
+          <Select.Item value="2000s" label="2000s" />
+          <Select.Item value="1990s" label="1990s" />
+          <Select.Item value="older" label={t('content.sortOlder')} />
+        </Select.Root>
+        <Select.Root
           label={t('content.sortTitle')}
           value={sort}
           onValueChange={(v) => setSort(v as Sort)}
@@ -255,6 +291,7 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
           <Select.Item value="title" label={t('content.sortTitle')} />
           <Select.Item value="year" label={t('content.sortYear')} />
           <Select.Item value="rating" label={t('content.sortRating')} />
+          <Select.Item value="recent" label={t('content.sortRecent')} />
         </Select.Root>
       </Row>
       <UnifiedGrid entries={sorted} />

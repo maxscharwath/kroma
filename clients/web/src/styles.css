@@ -129,21 +129,24 @@
   bottom: 14px;
   transition: opacity var(--dur-base) var(--ease-out);
 }
-.poster-toggle {
+.poster-actions {
   position: absolute;
   left: 10px;
   top: 10px;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 .poster-caption[data-reveal],
-.poster-toggle[data-reveal] {
+.poster-actions[data-reveal] {
   opacity: 0;
 }
 .poster-tile:hover .poster-caption[data-reveal],
-.poster-tile:hover .poster-toggle[data-reveal],
+.poster-tile:hover .poster-actions[data-reveal],
 .poster-tile:focus-within .poster-caption[data-reveal],
-.poster-tile:focus-within .poster-toggle[data-reveal] {
+.poster-tile:focus-within .poster-actions[data-reveal] {
   opacity: 1;
 }
 

@@ -12,6 +12,10 @@ export interface PosterProps {
   progress?: number | null;
   watched?: boolean | null;
   onToggleWatched?: () => void;
+  inList?: boolean | null;
+  onToggleList?: () => void;
+  inQueue?: boolean | null;
+  onToggleQueue?: () => void;
   width?: number;
   onClick?: () => void;
 }
@@ -63,6 +67,10 @@ export function Poster({
   progress = null,
   watched = null,
   onToggleWatched,
+  inList = null,
+  onToggleList,
+  inQueue = null,
+  onToggleQueue,
   width,
   onClick,
 }: Readonly<PosterProps>) {
@@ -70,7 +78,13 @@ export function Poster({
   const [imgOk, setImgOk] = useState(true);
   const showImg = Boolean(poster) && imgOk;
   const gradient = `linear-gradient(158deg, ${colors[0]} 0%, ${colors[1]} 70%)`;
-  const showToggle = watched != null && Boolean(onToggleWatched);
+  const showWatched = watched != null && Boolean(onToggleWatched);
+  const showList = inList != null && Boolean(onToggleList);
+  const showQueue = inQueue != null && Boolean(onToggleQueue);
+  const hasActions = showWatched || showList || showQueue;
+  // At least one action is active — keep the stack visible so the user sees
+  // their state without hovering.
+  const anyActive = Boolean(watched) || Boolean(inList) || Boolean(inQueue);
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile">
@@ -105,17 +119,39 @@ export function Poster({
           ) : null}
         </div>
       </button>
-      {showToggle ? (
-        <div className="poster-toggle" data-reveal={watched ? undefined : ''}>
+      {hasActions ? (
+        <div className="poster-actions" data-reveal={anyActive ? undefined : ''}>
           <Ground tone="dark">
-            <IconButton
-              variant={watched ? 'primary' : 'scrim'}
-              diameter={28}
-              glyph={15}
-              icon="check"
-              label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-              onPress={() => onToggleWatched?.()}
-            />
+            {showWatched ? (
+              <IconButton
+                variant={watched ? 'primary' : 'scrim'}
+                diameter={28}
+                glyph={15}
+                icon="check"
+                label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+                onPress={() => onToggleWatched?.()}
+              />
+            ) : null}
+            {showList ? (
+              <IconButton
+                variant={inList ? 'primary' : 'scrim'}
+                diameter={28}
+                glyph={15}
+                icon={inList ? 'check' : 'plus'}
+                label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
+                onPress={() => onToggleList?.()}
+              />
+            ) : null}
+            {showQueue ? (
+              <IconButton
+                variant={inQueue ? 'primary' : 'scrim'}
+                diameter={28}
+                glyph={15}
+                icon={inQueue ? 'bookmark-filled' : 'bookmark'}
+                label={inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
+                onPress={() => onToggleQueue?.()}
+              />
+            ) : null}
           </Ground>
         </div>
       ) : null}

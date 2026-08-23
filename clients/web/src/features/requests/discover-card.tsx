@@ -59,6 +59,10 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const localId = entry.localId ?? '';
   const queueId = owned ? localId : `tmdb:${entry.tmdbId}`;
   const canRequest = !owned && !optimisticStatus;
+  // All three list actions use queueId so they work for both owned and
+  // discover titles. Owned titles use their local item id; discover titles
+  // use `tmdb:<id>` so membership survives a library rescan.
+  const listId = queueId;
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
   let statusChip: ReactNode = null;
@@ -194,53 +198,49 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                     } as CSSProperties
                   }
                 >
-                  {owned ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleWatched(localId);
-                        }}
-                        aria-label={t('discover.markWatched')}
-                        style={QUICK_ACTION_BTN}
-                      >
-                        <Icon
-                          name={isWatched(localId) ? 'check' : 'eye'}
-                          size={16}
-                          color={isWatched(localId) ? 'accent' : 'white'}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMyList(localId);
-                        }}
-                        aria-label={t('discover.addToMyList')}
-                        style={QUICK_ACTION_BTN}
-                      >
-                        <Icon
-                          name={inList(localId) ? 'check' : 'plus'}
-                          size={16}
-                          color={inList(localId) ? 'accent' : 'white'}
-                        />
-                      </button>
-                    </>
-                  ) : null}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleWatchLater(queueId);
+                      toggleWatched(listId);
+                    }}
+                    aria-label={t('discover.markWatched')}
+                    style={QUICK_ACTION_BTN}
+                  >
+                    <Icon
+                      name={isWatched(listId) ? 'check' : 'eye'}
+                      size={16}
+                      color={isWatched(listId) ? 'accent' : 'white'}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMyList(listId);
+                    }}
+                    aria-label={t('discover.addToMyList')}
+                    style={QUICK_ACTION_BTN}
+                  >
+                    <Icon
+                      name={inList(listId) ? 'check' : 'plus'}
+                      size={16}
+                      color={inList(listId) ? 'accent' : 'white'}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatchLater(listId);
                     }}
                     aria-label={t('discover.watchLater')}
                     style={QUICK_ACTION_BTN}
                   >
                     <Icon
-                      name={inQueue(queueId) ? 'bookmark-filled' : 'bookmark'}
+                      name={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
                       size={16}
-                      color={inQueue(queueId) ? 'accent' : 'white'}
+                      color={inQueue(listId) ? 'accent' : 'white'}
                     />
                   </button>
                 </div>

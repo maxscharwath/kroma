@@ -46,9 +46,10 @@ export function TitleHero({
 }>) {
   const t = useT();
   const playable = owned ? view.playable : null;
-  // Watch-later works for both owned and discover titles. Owned titles use their
-  // local item id; discover titles use `tmdb:<id>` so the queue can survive a
-  // library rescan and still find the title via the discover route.
+  // All three list actions (watched, my-list, watch-later) work for both owned
+  // and discover titles. Owned titles use their local item id; discover titles
+  // use `tmdb:<id>` so the membership survives a library rescan and still finds
+  // the title via the discover route.
   const queueId = localId ?? (view.tmdbId != null ? `tmdb:${view.tmdbId}` : null);
   const listState: {
     watched?: boolean;
@@ -58,13 +59,11 @@ export function TitleHero({
     inQueue?: boolean;
     onToggleQueue?: () => void;
   } = {};
-  if (owned && localId) {
-    listState.watched = isWatched(localId);
-    listState.onToggleWatched = () => toggleWatched(localId);
-    listState.inList = inList(localId);
-    listState.onToggleList = () => toggleList(localId);
-  }
   if (queueId) {
+    listState.watched = isWatched(queueId);
+    listState.onToggleWatched = () => toggleWatched(queueId);
+    listState.inList = inList(queueId);
+    listState.onToggleList = () => toggleList(queueId);
     listState.inQueue = inQueue(queueId);
     listState.onToggleQueue = () => toggleQueue(queueId);
   }

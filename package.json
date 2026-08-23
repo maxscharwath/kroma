@@ -67,7 +67,7 @@
     "build:desktop": "bun run --filter '@kroma/desktop' build",
     "deploy:tizen": "bun run --filter '@kroma/tizen' deploy",
     "tizen:prepare": "bun run build:tizen && echo \"\u2713 Tizen app ready \u2192 clients/tizen/dist  (package: cd clients/tizen && tizen build-web && tizen package -t wgt -s <cert-profile> -- dist)\"",
-    "typecheck": "bun run --filter '*' typecheck",
+    "typecheck": "bun run ci typecheck",
     "test": "bun run test:codegen && vitest run",
     "test:coverage": "bun run test:codegen && vitest run --coverage",
     "test:codegen": "bun run --filter '@kroma/site' paraglide",

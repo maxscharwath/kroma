@@ -82,6 +82,17 @@ describe('certificateCommand', () => {
     ]);
   });
 
+  it('passes on what the Tizen tools said while they added the profile', async () => {
+    run.mockImplementation(async (_command, options) => {
+      (options as { log: (line: string) => void }).log('Succeed to add a profile');
+      return { code: 0, output: '' };
+    });
+
+    await generate({ name: 'kroma', register: true });
+
+    expect(printed).toContain('Succeed to add a profile');
+  });
+
   it('answers a failure when the tools would not add the profile', async () => {
     run.mockResolvedValue({ code: 1, output: 'profile already exists' });
 

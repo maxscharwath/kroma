@@ -47,7 +47,14 @@ export class SdbConnection implements StreamTransport {
   ): Promise<SdbConnection> {
     const socket = await dial(host, port, timeoutMs);
     const connection = new SdbConnection(socket);
-    await connection.handshake(timeoutMs);
+    try {
+      await connection.handshake(timeoutMs);
+    } catch (error) {
+      // A host that accepts 26101 without being a television leaves the socket
+      // open otherwise, and a sweep meets a few of those on every network.
+      connection.close();
+      throw error;
+    }
     return connection;
   }
 

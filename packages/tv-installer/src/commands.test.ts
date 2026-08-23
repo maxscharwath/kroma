@@ -310,6 +310,14 @@ describe('toolsCommand', () => {
     expect(installTool.mock.calls.map(([tool]) => (tool as Tool).id)).toEqual(['ares', 'adb']);
   });
 
+  it('says so about a platform that needs nothing this tool can install', async () => {
+    const code = await toolsCommand(['appletv']);
+
+    expect(code).toBe(0);
+    expect(printed.join('\n')).toContain('Apple TV needs nothing this tool can install');
+    expect(installTool).not.toHaveBeenCalled();
+  });
+
   it('refuses a platform no module answers for, and names the ones that do', async () => {
     const code = await toolsCommand(['sony']);
 

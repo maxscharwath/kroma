@@ -141,6 +141,13 @@ the client here skips it, and the push works without it.
 5. `shell:0 rmfile "<path>"` when the set advertises the secure protocol, else
    `shell:/bin/rm -f "<path>"`.
 
+This tool's client differs from that sequence twice, and the tests pin both.
+It reads `capability:` once per connection and caches it, so there is no step 3,
+and it never runs `profile_command`. And it does not read `secure_protocol` to
+choose how to delete the pushed file: it tries `0 rmfile` and falls back to
+`/bin/rm -f` only when the first reports a failure, which reaches the same end
+on a restricted sdbd by a different route.
+
 Which install command is chosen is decided in `sdb`'s `install()`, and reading
 the disassembly settles a question the string table only hints at: **stock `sdb`
 never uses `0 appinstall` for a `.wgt`.** The `0 appinstall` branch is taken only

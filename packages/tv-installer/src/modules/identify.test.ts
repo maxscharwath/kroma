@@ -114,6 +114,40 @@ describe('identify', () => {
     });
   });
 
+  it('falls back to a plain name for a Philips that answered with only a model', async () => {
+    answering({ 'http://192.168.1.37:1925/6/system': { model: '50PUS6704/12' } });
+
+    const tv = await identify('192.168.1.37', new Set([1925]));
+
+    expect(tv?.name).toBe('Philips TV');
+    expect(tv?.note).toContain('not Android');
+  });
+
+  it('carries no model for a Philips that answered with only a name', async () => {
+    answering({
+      'http://192.168.1.38:1925/6/system': { name: '43PUS7406/12', os_type: 'SAPHI' },
+    });
+
+    const tv = await identify('192.168.1.38', new Set([1925]));
+
+    expect(tv?.model).toBe('');
+  });
+
+  it('tells a Philips Android owner where the debugging switch is', async () => {
+    answering({
+      'http://192.168.1.34:1925/6/system': {
+        name: '55PUS7304/12',
+        model: '55PUS7304/12',
+        os_type: 'MSAF_2019_ANDROID_TV',
+      },
+    });
+
+    const tv = await identify('192.168.1.34', new Set([1925]));
+
+    expect(tv?.developerMode).toBe('off');
+    expect(tv?.note).toContain('Developer options, Network debugging ON');
+  });
+
   it('marks a Philips that runs Saphi as taking no sideloaded package', async () => {
     answering({
       'http://192.168.1.35:1925/6/system': {

@@ -1,22 +1,6 @@
-import { spawn } from 'node:child_process';
-import { Readable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { run, runOk } from './run';
-
-const webStream = (readable: Readable | null) => Readable.toWeb(readable ?? Readable.from([]));
-
-const nodeSpawn = (command: readonly string[], options: { cwd?: string }) => {
-  const [file, ...args] = command;
-  const child = spawn(String(file), args, { cwd: options.cwd, stdio: ['ignore', 'pipe', 'pipe'] });
-  return {
-    stdout: webStream(child.stdout),
-    stderr: webStream(child.stderr),
-    exited: new Promise<number>((resolve) => {
-      child.on('close', (code, signal) => resolve(code ?? (signal ? 137 : 1)));
-    }),
-    kill: (signal: NodeJS.Signals) => child.kill(signal),
-  };
-};
+import { nodeSpawn } from './run.fixture';
 
 beforeEach(() => vi.stubGlobal('Bun', { spawn: nodeSpawn }));
 
@@ -72,9 +56,10 @@ describe('run', () => {
   it('kills a command that outstays its timeout', async () => {
     const started = performance.now();
 
-    const { output } = await run(['/bin/sleep', '5'], { timeoutMs: 100 });
+    const { code, output } = await run(['/bin/sleep', '5'], { timeoutMs: 100 });
 
     expect(output).toBe('');
+    expect(code).toBe(137);
     expect(performance.now() - started).toBeLessThan(2000);
   });
 });

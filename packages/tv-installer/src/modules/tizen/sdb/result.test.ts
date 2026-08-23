@@ -56,6 +56,10 @@ describe('the description', () => {
     );
   });
 
+  it('says only the verdict when the set printed nothing at all', () => {
+    expect(describeResult('launch', parseResult(''))).toBe('launch unknown');
+  });
+
   it('keeps the last three lines only', () => {
     const result = parseResult('one\ntwo\nthree\nfour\n');
 

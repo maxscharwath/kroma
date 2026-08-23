@@ -78,8 +78,8 @@ describe('discover', () => {
     const chosen = await within(discover());
 
     expect(picker.upsert).toHaveBeenCalledWith({
-      value: '192.168.1.10',
-      label: 'Salon  192.168.1.10',
+      value: salon.host,
+      label: `${salon.name}  ${salon.host}`,
       hint: 'Samsung · Tizen 8.0 · ready',
       disabled: false,
       ticked: true,

@@ -25,6 +25,10 @@ describe('the remote path', () => {
     expect(remoteName('K R;rm -rf /.wgt')).toBe('K_R_rm_-rf__.wgt');
   });
 
+  it('names the package itself when the file name leaves nothing usable', () => {
+    expect(remoteName('...')).toBe('package.wgt');
+  });
+
   it('refuses a directory that is not an absolute plain path', () => {
     expect(() => remotePath('/tmp/$(id)', 'KROMA.wgt')).toThrow(/unquotable/);
   });

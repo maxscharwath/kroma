@@ -44,7 +44,7 @@ describe('installSets', () => {
 
     expect(failed).toEqual([]);
     expect(tasks.map((task) => task.title)).toEqual([
-      'Salon (192.168.1.10)',
+      `${salon.name} (${salon.host})`,
       'Cuisine (192.168.1.11)',
     ]);
   });
@@ -55,7 +55,7 @@ describe('installSets', () => {
     const failed = await installSets([salon, cuisine], { launch: true, moduleOptions: noOptions });
 
     expect(failed).toEqual([salon]);
-    expect(tasks[0]?.failed).toEqual(['Salon: no signing profile']);
+    expect(tasks[0]?.failed).toEqual([`${salon.name}: no signing profile`]);
     expect(tasks[1]?.done).toEqual(['Cuisine: installed and launched']);
   });
 
@@ -64,7 +64,7 @@ describe('installSets', () => {
 
     await installSets([salon], { launch: true, moduleOptions: noOptions });
 
-    expect(tasks[0]?.failed).toEqual(['Salon: sdb: device unauthorized']);
+    expect(tasks[0]?.failed).toEqual([`${salon.name}: sdb: device unauthorized`]);
   });
 
   it('claims only an install when it was told not to launch', async () => {
@@ -72,7 +72,7 @@ describe('installSets', () => {
 
     await installSets([salon], { launch: false, moduleOptions: noOptions });
 
-    expect(tasks[0]?.done).toEqual(['Salon: installed']);
+    expect(tasks[0]?.done).toEqual([`${salon.name}: installed`]);
   });
 
   it('hands each set the artifact, the source and its own module options', async () => {

@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'vitest';
-import { parseCapability } from './capability';
+import { afterEach, describe, expect, it } from 'vitest';
+import { parseCapability, readCapability } from './capability';
+import { SdbConnection } from './connection';
+import { capabilityPayload, deviceName, type FakeDevice, fakeDevice } from './fake-device.fixture';
+
+const PATIENT_MS = 200;
+
+const televisions: FakeDevice[] = [];
+const connections: SdbConnection[] = [];
+
+afterEach(async () => {
+  for (const connection of connections.splice(0)) connection.close();
+  await Promise.all(televisions.splice(0).map((set) => set.close()));
+});
 
 const framed = (text: string) => {
   const body = Buffer.from(text, 'utf8');
@@ -42,7 +54,28 @@ describe('the capability payload', () => {
     expect(parseCapability(payload)).toEqual({ profile_name: 'tv' });
   });
 
+  it('stops after the hundred and twenty-eighth key', () => {
+    const lines = Array.from({ length: 200 }, (_, at) => `key${at}:${at}`).join('\n');
+
+    expect(Object.keys(parseCapability(framed(lines)))).toHaveLength(128);
+  });
+
   it('is empty for a payload too short to be framed', () => {
     expect(parseCapability(Buffer.alloc(1))).toEqual({});
+  });
+});
+
+describe('asking a device what it can do', () => {
+  it('reads the framed lines the set answers with', async () => {
+    const set = await fakeDevice();
+    const name = deviceName();
+    televisions.push(set);
+    set.serve('capability:', (session) => session.end(capabilityPayload({ device_name: name })));
+    const connection = await SdbConnection.open(set.host, set.port, { timeoutMs: PATIENT_MS });
+    connections.push(connection);
+
+    const capability = await readCapability(connection);
+
+    expect(capability.device_name).toBe(name);
   });
 });

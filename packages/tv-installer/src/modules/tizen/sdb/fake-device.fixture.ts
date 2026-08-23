@@ -137,7 +137,7 @@ export async function fakeDevice({
   };
 
   const openService = (socket: Socket, packet: SdbPacket): void => {
-    const service = packet.data.toString('utf8').replace(/\0+$/, '');
+    const service = trimNul(packet.data.toString('utf8'));
     opened.push(service);
     const handler =
       services.get(service) ?? [...services].find(([prefix]) => service.startsWith(prefix))?.[1];
@@ -181,8 +181,12 @@ export async function fakeDevice({
     banner,
     received,
     opened,
-    serve: (service, handler) => void services.set(service, handler),
-    raw: (bytes) => void sockets.at(-1)?.write(bytes),
+    serve: (service, handler) => {
+      services.set(service, handler);
+    },
+    raw: (bytes) => {
+      sockets.at(-1)?.write(bytes);
+    },
     hungUpOn: () =>
       new Promise<void>((resolve) => {
         const socket = sockets.at(-1);
@@ -196,4 +200,10 @@ export async function fakeDevice({
         server.close(() => resolve());
       }),
   };
+}
+
+function trimNul(text: string): string {
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '\0') end -= 1;
+  return text.slice(0, end);
 }

@@ -47,7 +47,15 @@ export async function ssdpSearch(
     const reply = parseSsdpReply(buffer.toString('utf8'), from.address);
     if (reply) replies.set(`${reply.host}|${reply.location}`, reply);
   });
-  socket.on('error', () => socket.close());
+  // Closing twice throws, and a multicast send fails outright when the link is
+  // down, so a scan on a sleeping interface must come back empty rather than die.
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    socket.close();
+  };
+  socket.on('error', close);
 
   await new Promise<void>((resolve) => socket.bind(resolve));
   for (const target of [...SEARCH_TARGETS, ...extraTargets]) {
@@ -59,7 +67,7 @@ export async function ssdpSearch(
   }
 
   await listenFor(durationMs, signal);
-  socket.close();
+  close();
   return [...replies.values()];
 }
 

@@ -95,7 +95,7 @@ describe('appletv.resolve', () => {
     expect(resolveAppleTvApp.mock.calls[0]?.[0]).toMatchObject({ source: undefined });
   });
 
-  it('finds the set again by name when CoreDevice gave it another identifier', async () => {
+  it('finds the set by name when the scan recorded no identifier for it', async () => {
     await appletv.resolve({ tv: { ...tv, identifier: undefined }, log });
 
     expect(resolveAppleTvApp.mock.calls[0]?.[0]).toMatchObject({ udid: salon.udid });

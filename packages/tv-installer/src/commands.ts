@@ -42,13 +42,19 @@ export async function installCommand(target: string, options: CommandOptions): P
   const hosts = target === 'all' ? options.hosts : [target];
   await askForLocalNetwork();
   const found = await scan({ hosts });
-  const chosen = target === 'all' ? found : found.filter((tv) => tv.host === target);
+  const matched = target === 'all' ? found : found.filter((tv) => tv.host === target);
+  for (const tv of matched.filter((candidate) => !candidate.sideloadable)) {
+    console.error(style.yellow(`skipping ${tv.name} (${tv.host}): ${tv.note}`));
+  }
+
+  const chosen = matched.filter((tv) => tv.sideloadable);
   if (chosen.length === 0) {
     console.error(
       target === 'all'
-        ? 'no television answered'
+        ? 'no television to install onto'
         : `${target} is not a television this tool can install onto`,
     );
+    for (const hint of (await diagnoseEmptyScan()).hints) console.error(style.dim(hint));
     return 1;
   }
 
@@ -97,6 +103,10 @@ export async function toolsCommand(names: readonly string[]): Promise<number> {
     );
     return 1;
   }
+  for (const module of chosen.filter((candidate) => candidate.tools().length === 0)) {
+    console.log(style.dim(`${module.label} needs nothing this tool can install`));
+  }
+
   const wanted = new Set(chosen.flatMap((module) => [...module.tools()]));
   for (const tool of wanted) await installTool(tool, (line) => console.log(style.dim(`  ${line}`)));
   return 0;

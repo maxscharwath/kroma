@@ -34,16 +34,19 @@ let device: SdbDevice;
 beforeEach(() => {
   lines.length = 0;
   device = {
+    host: '192.168.1.31',
+    port: 26101,
     banner: 'sdbd::UE50AU7172',
-    info: { serial: '192.168.1.31:26101', model: 'UE50AU7172', platform: 'Tizen 6.5' },
-    capability: null,
+    capability: vi.fn(),
+    shell: vi.fn(),
+    push: vi.fn(),
     install: vi
       .fn()
       .mockResolvedValue({ verdict: 'success', code: 0, output: 'install completed' }),
     launch: vi.fn().mockResolvedValue({ verdict: 'success', code: 0, output: 'launched' }),
     uninstall: vi.fn(),
     close: vi.fn(),
-  } as unknown as SdbDevice;
+  };
   vi.mocked(connect).mockResolvedValue(device);
 });
 

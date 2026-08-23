@@ -140,7 +140,7 @@ describe('installAndroid', () => {
     await expect(installAndroid(context())).rejects.toThrow('adb sees the TV as absent');
   });
 
-  it('quotes what adb said when the install did not take', async () => {
+  it('answers the advice for the failure adb reported', async () => {
     run.mockResolvedValue({ code: 1, output: failure('INSTALL_FAILED_VERSION_DOWNGRADE') });
 
     await expect(installAndroid(context())).rejects.toThrow('the TV already has a newer build');

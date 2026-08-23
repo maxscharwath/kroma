@@ -6,7 +6,7 @@ import { root } from '../../root';
 import { runOk } from '../../run';
 import type { Television } from '../../television';
 import { requireTool } from '../../toolchain/detect';
-import { resolveWebosArtifact, WEBOS_PACKAGE, WEBOS_SHELL } from './artifact';
+import { resolveWebosArtifact, WEBOS_PACKAGE, WEBOS_SHELL, webosSources } from './artifact';
 
 const { globbed } = vi.hoisted(() => ({ globbed: new Map<string, string[]>() }));
 
@@ -29,7 +29,7 @@ class FakeGlob {
   }
 }
 
-vi.stubGlobal('Bun', { Glob: FakeGlob });
+vi.stubGlobal('Bun', { which: () => null, Glob: FakeGlob });
 
 const webosOut = '/kroma/clients/webos/out';
 
@@ -77,6 +77,12 @@ describe('rankArtifacts', () => {
 describe('buildable', () => {
   it('builds the shell whose sources live in this checkout', () => {
     expect(buildable(WEBOS_SHELL)).toBe(true);
+  });
+});
+
+describe('webosSources', () => {
+  it('offers a build from source on a machine with nothing built and no gh', () => {
+    expect(webosSources()).toEqual(['build']);
   });
 });
 

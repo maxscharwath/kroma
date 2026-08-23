@@ -171,6 +171,13 @@ describe('scan', () => {
     expect(vi.mocked(identify).mock.calls[0]?.[2]).toEqual(device);
   });
 
+  it('leaves out a host whose description says nothing any module recognises', async () => {
+    vi.mocked(ssdpSearch).mockResolvedValue([reply('10.0.0.7')]);
+    vi.mocked(fetchDeviceDescription).mockResolvedValue(device);
+
+    expect(await scan({ hosts: ['10.0.0.5'] })).toEqual([]);
+  });
+
   it('asks a set that answered every search target for its description once', async () => {
     vi.mocked(ssdpSearch).mockResolvedValue([reply('10.0.0.7'), reply('10.0.0.7')]);
 

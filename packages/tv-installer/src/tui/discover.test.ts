@@ -1,9 +1,9 @@
 import { confirm, log, note } from '@clack/prompts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { watch } from '../discovery/scan';
+import { type WatchOptions, watch } from '../discovery/scan';
 import { diagnoseEmptyScan } from '../hints';
 import { askForLocalNetwork, openPrivacySettings } from '../local-network';
-import type { Television } from '../television';
+import { television } from '../television.fixture';
 import { discover } from './discover';
 import { liveMultiselect } from './live-multiselect';
 import { within } from './terminal.fixture';
@@ -16,46 +16,25 @@ vi.mock('@clack/prompts', async (real) => ({
 }));
 vi.mock('../discovery/scan', () => ({ watch: vi.fn() }));
 vi.mock('../hints', () => ({ diagnoseEmptyScan: vi.fn() }));
-vi.mock('../local-network', () => ({
-  askForLocalNetwork: vi.fn(),
-  openPrivacySettings: vi.fn(),
-}));
+vi.mock('../local-network', () => ({ askForLocalNetwork: vi.fn(), openPrivacySettings: vi.fn() }));
 vi.mock('./live-multiselect', () => ({ liveMultiselect: vi.fn() }));
 
-const salon: Television = {
-  host: '192.168.1.10',
-  platform: 'tizen',
-  vendor: 'Samsung',
-  name: 'Salon',
-  model: 'QE55Q60A',
-  developerMode: 'on',
-  sideloadable: true,
-  note: '',
-  runtime: {
-    name: 'Tizen',
-    version: '8.0',
-    engine: { name: 'Chromium', version: '108' },
-    learned: 'reported',
-  },
-};
-
-const cuisine: Television = {
-  ...salon,
+const salon = television();
+const cuisine = television({
   host: '192.168.1.11',
   name: 'Cuisine',
   developerMode: 'off',
   runtime: null,
-};
-
-const chromecast: Television = {
-  ...cuisine,
+});
+const chromecast = television({
   host: '192.168.1.12',
   platform: 'androidtv',
   vendor: 'Google',
   name: 'Chromecast',
   developerMode: 'unknown',
   sideloadable: false,
-};
+  runtime: null,
+});
 
 function fakePicker() {
   let reply: (ticked: string[] | null) => void = () => undefined;
@@ -68,6 +47,17 @@ function fakePicker() {
 let picker = fakePicker();
 
 const lastStatus = () => picker.status.mock.lastCall?.[0];
+
+function scanReports(report: (options: WatchOptions) => void = () => undefined): void {
+  vi.mocked(watch).mockImplementation(async (options) => {
+    report(options);
+    return [];
+  });
+}
+
+function macosRefusesTheNetwork(): void {
+  vi.mocked(diagnoseEmptyScan).mockResolvedValue({ blocked: true, hints: ['macOS is refusing'] });
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -82,18 +72,15 @@ afterEach(() => {
 
 describe('discover', () => {
   it('lists a set the scan found, ticked and ready', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onFound }) => {
-      onFound?.(salon);
-      picker.reply([salon.host]);
-      return [salon];
-    });
+    scanReports(({ onFound }) => onFound?.(salon));
+    picker.reply([salon.host]);
 
     const chosen = await within(discover());
 
     expect(picker.upsert).toHaveBeenCalledWith({
       value: '192.168.1.10',
       label: 'Salon  192.168.1.10',
-      hint: 'Samsung · Tizen 8.0, Chromium 108 · ready',
+      hint: 'Samsung · Tizen 8.0 · ready',
       disabled: false,
       ticked: true,
     });
@@ -101,11 +88,8 @@ describe('discover', () => {
   });
 
   it('says what a set still needs before it can take the app', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onFound }) => {
-      onFound?.(cuisine);
-      picker.reply([]);
-      return [cuisine];
-    });
+    scanReports(({ onFound }) => onFound?.(cuisine));
+    picker.reply([]);
 
     await within(discover());
 
@@ -115,11 +99,8 @@ describe('discover', () => {
   });
 
   it('greys out a set no app can be sideloaded onto', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onFound }) => {
-      onFound?.(chromecast);
-      picker.reply([]);
-      return [chromecast];
-    });
+    scanReports(({ onFound }) => onFound?.(chromecast));
+    picker.reply([]);
 
     await within(discover());
 
@@ -128,27 +109,35 @@ describe('discover', () => {
     );
   });
 
-  it('stops the scan as soon as the picker answers', async () => {
-    let scanning: AbortSignal | undefined;
-    vi.mocked(watch).mockImplementation(async ({ signal }) => {
-      scanning = signal;
-      picker.reply([]);
-      return [];
+  it('counts every set it has found so far', async () => {
+    scanReports(({ onFound }) => {
+      onFound?.(salon);
+      onFound?.(cuisine);
     });
+    picker.reply([]);
+
+    await within(discover());
+
+    expect(lastStatus()).toBe('scanning · 2 televisions');
+  });
+
+  it('stops the scan as soon as the picker answers', async () => {
+    scanReports();
+    picker.reply([]);
 
     await within(discover(['192.168.1.10']));
 
-    expect(vi.mocked(watch).mock.calls[0]?.[0]).toMatchObject({ hosts: ['192.168.1.10'] });
-    expect(scanning?.aborted).toBe(true);
+    const asked = vi.mocked(watch).mock.calls[0]?.[0];
+    expect(asked).toMatchObject({ hosts: ['192.168.1.10'] });
+    expect(asked?.signal?.aborted).toBe(true);
   });
 
   it('gives up looking once the round cap is reached', async () => {
     let rounds = 0;
-    vi.mocked(watch).mockImplementation(async ({ onRound, signal }) => {
+    scanReports(({ onRound, signal }) => {
       while (!signal?.aborted && rounds < 100) onRound?.(++rounds);
-      picker.reply([]);
-      return [];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -157,13 +146,12 @@ describe('discover', () => {
   });
 
   it('says why the network is quiet after two rounds that found nothing', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onRound }) => {
+    scanReports(({ onRound }) => {
       onRound?.(1);
       onRound?.(2);
       onRound?.(3);
-      picker.reply([]);
-      return [];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -174,14 +162,13 @@ describe('discover', () => {
   });
 
   it('counts a round that found something as a reason to keep going', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onRound, onFound }) => {
+    scanReports(({ onRound, onFound }) => {
       onRound?.(1);
       onRound?.(2);
       onFound?.(salon);
       onRound?.(3);
-      picker.reply([]);
-      return [salon];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -189,27 +176,12 @@ describe('discover', () => {
     expect(lastStatus()).toBe('scanning again · 1 television');
   });
 
-  it('counts every television it has found so far', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onRound, onFound }) => {
-      onRound?.(1);
-      onFound?.(salon);
-      onFound?.(cuisine);
-      picker.reply([]);
-      return [salon, cuisine];
-    });
-
-    await within(discover());
-
-    expect(lastStatus()).toBe('scanning · 2 televisions');
-  });
-
   it('collapses a burst of progress into a handful of redraws', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onRound, onProgress }) => {
+    scanReports(({ onRound, onProgress }) => {
       onRound?.(1);
       for (let done = 1; done <= 256; done += 1) onProgress?.(done, 256);
-      picker.reply([]);
-      return [];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -218,14 +190,13 @@ describe('discover', () => {
 
   it('draws progress again once the redraw window has passed', async () => {
     vi.useFakeTimers({ toFake: ['performance'] });
-    vi.mocked(watch).mockImplementation(async ({ onRound, onProgress }) => {
+    scanReports(({ onRound, onProgress }) => {
       onRound?.(1);
       for (let done = 1; done <= 32; done += 1) onProgress?.(done, 256);
       vi.advanceTimersByTime(200);
       onProgress?.(200, 256);
-      picker.reply([]);
-      return [];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -233,13 +204,12 @@ describe('discover', () => {
   });
 
   it('reports no progress at all past the first round', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onRound, onProgress }) => {
+    scanReports(({ onRound, onProgress }) => {
       onRound?.(1);
       onRound?.(2);
       onProgress?.(128, 256);
-      picker.reply([]);
-      return [];
     });
+    picker.reply([]);
 
     await within(discover());
 
@@ -247,10 +217,8 @@ describe('discover', () => {
   });
 
   it('explains a scan that came back empty, and drops the hosts it never saw', async () => {
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply(['192.168.1.99']);
-      return [];
-    });
+    scanReports();
+    picker.reply(['192.168.1.99']);
 
     const chosen = await within(discover());
 
@@ -259,13 +227,11 @@ describe('discover', () => {
   });
 
   it('opens the Local Network pane when macOS is the one refusing', async () => {
-    vi.mocked(diagnoseEmptyScan).mockResolvedValue({ blocked: true, hints: ['macOS is refusing'] });
+    scanReports();
+    picker.reply([]);
+    macosRefusesTheNetwork();
     vi.mocked(confirm).mockResolvedValue(true);
     vi.mocked(openPrivacySettings).mockResolvedValue(true);
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply([]);
-      return [];
-    });
 
     await within(discover());
 
@@ -273,13 +239,11 @@ describe('discover', () => {
   });
 
   it('says so when the Local Network pane would not open', async () => {
-    vi.mocked(diagnoseEmptyScan).mockResolvedValue({ blocked: true, hints: ['macOS is refusing'] });
+    scanReports();
+    picker.reply([]);
+    macosRefusesTheNetwork();
     vi.mocked(confirm).mockResolvedValue(true);
     vi.mocked(openPrivacySettings).mockResolvedValue(false);
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply([]);
-      return [];
-    });
 
     await within(discover());
 
@@ -287,12 +251,10 @@ describe('discover', () => {
   });
 
   it('opens nothing when the offer to open System Settings is turned down', async () => {
-    vi.mocked(diagnoseEmptyScan).mockResolvedValue({ blocked: true, hints: ['macOS is refusing'] });
+    scanReports();
+    picker.reply([]);
+    macosRefusesTheNetwork();
     vi.mocked(confirm).mockResolvedValue(false);
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply([]);
-      return [];
-    });
 
     await within(discover());
 
@@ -300,10 +262,8 @@ describe('discover', () => {
   });
 
   it('answers null when the picker was quit, and explains nothing', async () => {
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply(null);
-      return [];
-    });
+    scanReports();
+    picker.reply(null);
 
     const chosen = await within(discover());
 
@@ -311,24 +271,9 @@ describe('discover', () => {
     expect(note).not.toHaveBeenCalled();
   });
 
-  it('counts every set it has found so far', async () => {
-    vi.mocked(watch).mockImplementation(async ({ onFound }) => {
-      onFound?.(salon);
-      onFound?.(cuisine);
-      picker.reply([]);
-      return [salon, cuisine];
-    });
-
-    await within(discover());
-
-    expect(lastStatus()).toBe('scanning · 2 televisions');
-  });
-
   it('asks macOS for the local network before it opens the picker', async () => {
-    vi.mocked(watch).mockImplementation(async () => {
-      picker.reply([]);
-      return [];
-    });
+    scanReports();
+    picker.reply([]);
 
     await within(discover());
 

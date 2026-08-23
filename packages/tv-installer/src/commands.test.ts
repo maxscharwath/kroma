@@ -1,6 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { docsCommand, doctorCommand, installCommand, scanCommand, toolsCommand } from './commands';
 import type { DeployOptions } from './install/deploy';
 import type { Television } from './television';
@@ -89,6 +89,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+afterAll(() => {
+  rmSync(checkout, { recursive: true, force: true });
 });
 
 const options = { launch: true, json: false } as const;
@@ -201,14 +205,24 @@ describe('installCommand', () => {
     const code = await installCommand('192.168.1.99', options);
 
     expect(code).toBe(1);
-    expect(failed).toEqual(['192.168.1.99 is not a television this tool can install onto']);
+    expect(failed[0]).toBe('192.168.1.99 is not a television this tool can install onto');
   });
 
   it('says nothing answered when a sweep for every set came back empty', async () => {
     const code = await installCommand('all', options);
 
     expect(code).toBe(1);
-    expect(failed).toEqual(['no television answered']);
+    expect(failed[0]).toBe('no television to install onto');
+  });
+
+  it('passes over a set whose platform takes no sideloaded app, and says why', async () => {
+    scan.mockResolvedValue([{ ...salon, sideloadable: false, note: 'SAPHI: takes no app' }]);
+
+    const code = await installCommand('all', options);
+
+    expect(code).toBe(1);
+    expect(failed[0]).toContain('SAPHI: takes no app');
+    expect(deployTo).not.toHaveBeenCalled();
   });
 
   it('answers a failure when a set refused the install', async () => {

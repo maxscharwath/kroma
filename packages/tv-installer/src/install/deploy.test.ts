@@ -34,12 +34,17 @@ const steps: string[] = [];
 const resolve = vi.fn(async () => '/out/KROMA.apk');
 const install = vi.fn(async (_context: unknown) => {});
 
-const androidtv = {
+const androidtv: TvModule = {
   id: 'androidtv',
+  label: 'Android TV',
+  brands: 'Philips, Sony, TCL, Shield, Chromecast',
+  package: '.apk',
+  notReadyHint: 'network debugging off',
   tools: () => [adb],
+  sources: () => [],
   resolve,
   install,
-} as unknown as TvModule;
+};
 
 const log = () => {};
 

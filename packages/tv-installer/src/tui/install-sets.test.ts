@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deployTo } from '../install/deploy';
 import type { ModuleOptions } from '../modules/module';
-import type { Television } from '../television';
+import { television } from '../television.fixture';
 import { installSets } from './install-sets';
 
 interface Task {
@@ -26,19 +26,8 @@ vi.mock('@clack/prompts', () => ({
   },
 }));
 
-const salon: Television = {
-  host: '192.168.1.10',
-  platform: 'tizen',
-  vendor: 'Samsung',
-  name: 'Salon',
-  model: 'QE55Q60A',
-  developerMode: 'on',
-  sideloadable: true,
-  note: '',
-  runtime: null,
-};
-
-const cuisine: Television = { ...salon, host: '192.168.1.11', name: 'Cuisine', platform: 'webos' };
+const salon = television();
+const cuisine = television({ host: '192.168.1.11', name: 'Cuisine', platform: 'webos' });
 
 const noOptions: ReadonlyMap<string, ModuleOptions> = new Map();
 

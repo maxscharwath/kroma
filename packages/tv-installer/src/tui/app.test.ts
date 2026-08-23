@@ -1,7 +1,7 @@
 import { cancel, outro } from '@clack/prompts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ModuleOptions } from '../modules/module';
-import type { Television } from '../television';
+import { television } from '../television.fixture';
 import { runTui } from './app';
 import { askModules, chooseSource } from './choose';
 import { discover } from './discover';
@@ -17,19 +17,8 @@ vi.mock('./choose', () => ({ askModules: vi.fn(), chooseSource: vi.fn() }));
 vi.mock('./discover', () => ({ discover: vi.fn() }));
 vi.mock('./install-sets', () => ({ installSets: vi.fn() }));
 
-const salon: Television = {
-  host: '192.168.1.10',
-  platform: 'tizen',
-  vendor: 'Samsung',
-  name: 'Salon',
-  model: 'QE55Q60A',
-  developerMode: 'on',
-  sideloadable: true,
-  note: '',
-  runtime: null,
-};
-
-const cuisine: Television = { ...salon, host: '192.168.1.11', name: 'Cuisine' };
+const salon = television();
+const cuisine = television({ host: '192.168.1.11', name: 'Cuisine' });
 const passphrases: Map<string, ModuleOptions> = new Map([['192.168.1.11', { passphrase: 'AB' }]]);
 
 beforeEach(() => {

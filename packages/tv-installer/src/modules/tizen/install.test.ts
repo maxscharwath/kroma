@@ -163,7 +163,7 @@ describe('installTizen', () => {
     expect(argv()).toEqual([]);
   });
 
-  it('drops every other target before it connects, since the CLI picks its own', async () => {
+  it('drops every other target before it connects to this one', async () => {
     await installTizen(context());
 
     expect(argv()).toContainEqual([SDB, 'disconnect']);

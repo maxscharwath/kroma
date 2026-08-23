@@ -79,7 +79,13 @@ export function liveMultiselect<TValue>({
     },
   });
 
-  const answer = prompt.prompt().then((value) => (isCancel(value) ? null : (value ?? [])));
+  // clack toggles whatever the cursor sits on, and the cursor has nowhere to go
+  // when every row is disabled, so a row that takes no app is dropped here.
+  const tickable = (value: TValue) =>
+    options.find((option) => option.value === value)?.disabled !== true;
+  const answer = prompt
+    .prompt()
+    .then((value) => (isCancel(value) ? null : (value ?? []).filter(tickable)));
 
   return {
     upsert(option) {

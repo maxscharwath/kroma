@@ -5,13 +5,21 @@ import { buildable } from '../../install/build';
 import { root } from '../../root';
 import { runOk } from '../../run';
 import type { Television } from '../../television';
-import { resolveTizenArtifact, TIZEN_PACKAGE, TIZEN_SHELL } from './artifact';
+import { resolveTizenArtifact, TIZEN_PACKAGE, TIZEN_SHELL, tizenSources } from './artifact';
 
 vi.mock('../../install/artifact', async (original) => ({
   ...(await original<typeof import('../../install/artifact')>()),
   resolveArtifact: vi.fn(),
 }));
 vi.mock('../../run', () => ({ runOk: vi.fn() }));
+
+class EmptyGlob {
+  scanSync(): string[] {
+    return [];
+  }
+}
+
+vi.stubGlobal('Bun', { which: () => null, Glob: EmptyGlob });
 
 const tizenOut = '/kroma/clients/tizen/out';
 
@@ -50,6 +58,12 @@ describe('rankArtifacts', () => {
 describe('buildable', () => {
   it('builds the shell whose sources live in this checkout', () => {
     expect(buildable(TIZEN_SHELL)).toBe(true);
+  });
+});
+
+describe('tizenSources', () => {
+  it('offers a build from source on a machine with nothing built and no gh', () => {
+    expect(tizenSources()).toEqual(['build']);
   });
 });
 

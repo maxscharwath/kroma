@@ -107,12 +107,12 @@ describe('ssdpSearch', () => {
     expect(socket.close).toHaveBeenCalled();
   });
 
-  it('closes the socket on an error as well as at the end of the window', async () => {
+  it('closes the socket once, whether the error or the window gets there first', async () => {
     const searching = ssdpSearch(10);
 
     socket.listeners.get('error')?.();
 
-    await searching;
-    expect(socket.close).toHaveBeenCalledTimes(2);
+    expect(await searching).toEqual([]);
+    expect(socket.close).toHaveBeenCalledTimes(1);
   });
 });

@@ -93,6 +93,21 @@ export async function removeFromList(ctx: RequestContext, itemId: string): Promi
   await ctx.json<void>(`/my-list/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
 }
 
+/** Item ids in the user's watch-later queue (newest first). */
+export function watchLater(ctx: RequestContext): Promise<string[]> {
+  return ctx.json<string[]>('/watch-later');
+}
+
+/** Add a title to the watch-later queue. */
+export async function addToWatchLater(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/watch-later/${encodeURIComponent(itemId)}`, { method: 'PUT' });
+}
+
+/** Remove a title from the watch-later queue. */
+export async function removeFromWatchLater(ctx: RequestContext, itemId: string): Promise<void> {
+  await ctx.json<void>(`/watch-later/${encodeURIComponent(itemId)}`, { method: 'DELETE' });
+}
+
 /** Report playback state so the admin dashboard can show a live session. */
 export async function pingPlayback(ctx: RequestContext, ping: PlaybackPing): Promise<void> {
   await ctx.json<void>('/playback/ping', {

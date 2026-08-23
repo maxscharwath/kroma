@@ -22,6 +22,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
+import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
@@ -47,6 +48,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const { client } = useAuth();
   const { isWatched, toggleWatched } = useWatched();
   const { inList, toggle: toggleMyList } = useMyList();
+  const { inQueue, toggle: toggleWatchLater } = useWatchLater();
   const [imgOk, setImgOk] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(entry.requestStatus);
@@ -219,6 +221,21 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                       name={inList(localId) ? 'check' : 'plus'}
                       size={16}
                       color={inList(localId) ? 'accent' : 'white'}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatchLater(localId);
+                    }}
+                    aria-label={t('discover.watchLater')}
+                    style={QUICK_ACTION_BTN}
+                  >
+                    <Icon
+                      name={inQueue(localId) ? 'bookmark-filled' : 'bookmark'}
+                      size={16}
+                      color={inQueue(localId) ? 'accent' : 'white'}
                     />
                   </button>
                 </div>

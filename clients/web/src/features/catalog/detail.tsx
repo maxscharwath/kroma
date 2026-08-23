@@ -19,6 +19,7 @@ import {
   ListButton,
   ReportButton,
   WatchedButton,
+  WatchLaterButton,
 } from '#web/features/catalog/detail-hero-parts';
 import { HeroBackdrop } from '#web/features/catalog/hero-backdrop';
 import type { QualityTone } from '#web/features/catalog/media-labels';
@@ -94,6 +95,8 @@ export interface DetailHeroProps {
   onToggleWatched?: () => void;
   inList?: boolean;
   onToggleList?: () => void;
+  inQueue?: boolean;
+  onToggleQueue?: () => void;
   playable?: MediaItem | null;
   themeUrl?: string | null;
   adminAction?: ReactNode;
@@ -124,6 +127,8 @@ export function DetailHero({
   onToggleWatched,
   inList,
   onToggleList,
+  inQueue,
+  onToggleQueue,
   playable,
   themeUrl,
   adminAction,
@@ -229,6 +234,7 @@ export function DetailHero({
               {castItemId ? <CastButton itemId={castItemId} /> : null}
               <WatchedButton watched={watched} onToggle={onToggleWatched} />
               <ListButton inList={inList} onToggle={onToggleList} />
+              <WatchLaterButton inQueue={inQueue} onToggle={onToggleQueue} />
               <ReportButton onReport={onReport} />
               {adminAction}
             </Box>

@@ -84,11 +84,19 @@ pub async fn details(
         .clone()
         .filter(|_| !name.is_empty())
     else {
-        return Ok(Json(PersonDetailResponse { name, person: None }).into_response());
+        return Ok(Json(PersonDetailResponse {
+            name,
+            person: None,
+            credits: Vec::new(),
+        })
+        .into_response());
     };
     let language = settings::metadata_language(&state.settings, &state.config);
     let data_dir = state.config.data_dir.clone();
     let lookup = name.clone();
+    let api_key2 = api_key.clone();
+    let language2 = language.clone();
+    let lookup2 = name.clone();
     // curl (twice, on a cache miss) plus an image download: blocking work.
     let person = blocking(move || {
         Ok(
@@ -105,7 +113,11 @@ pub async fn details(
         )
     })
     .await?;
-    Ok(Json(PersonDetailResponse { name, person }).into_response())
+    // Fetch TMDB filmography so the page can show credits even when the local
+    // catalogue has none. Same blocking context as the person detail lookup.
+    let credits = blocking(move || Ok(metadata::person::filmography(&api_key2, &language2, &lookup2)))
+        .await?;
+    Ok(Json(PersonDetailResponse { name, person, credits }).into_response())
 }
 
 fn collect(movies: Vec<MediaItem>, shows: Vec<Show>, library: Option<&str>) -> Vec<SearchHit> {

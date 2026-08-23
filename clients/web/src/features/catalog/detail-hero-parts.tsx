@@ -81,6 +81,25 @@ export function ListButton({
   );
 }
 
+export function WatchLaterButton({
+  inQueue,
+  onToggle,
+}: Readonly<{ inQueue?: boolean; onToggle?: () => void }>) {
+  const t = useT();
+  if (!onToggle) return null;
+  return (
+    <IconButton
+      diameter={50}
+      glyph={20}
+      radius="md"
+      active={inQueue ?? false}
+      icon={inQueue ? 'bookmark-filled' : 'bookmark'}
+      label={inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
+      onPress={onToggle}
+    />
+  );
+}
+
 export function ReportButton({ onReport }: Readonly<{ onReport?: () => void }>) {
   const t = useT();
   if (!onReport) return null;

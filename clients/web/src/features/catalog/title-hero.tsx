@@ -23,6 +23,8 @@ export function TitleHero({
   toggleWatched,
   inList,
   toggleList,
+  inQueue,
+  toggleQueue,
   onPlay,
   onRequest,
   onBack,
@@ -36,6 +38,8 @@ export function TitleHero({
   toggleWatched: (id: string) => void;
   inList: (id: string) => boolean;
   toggleList: (id: string) => void;
+  inQueue: (id: string) => boolean;
+  toggleQueue: (id: string) => void;
   onPlay: (id: string) => void;
   onRequest: () => void;
   onBack: () => void;
@@ -47,6 +51,8 @@ export function TitleHero({
     onToggleWatched?: () => void;
     inList?: boolean;
     onToggleList?: () => void;
+    inQueue?: boolean;
+    onToggleQueue?: () => void;
   } =
     owned && localId
       ? {
@@ -54,6 +60,8 @@ export function TitleHero({
           onToggleWatched: () => toggleWatched(localId),
           inList: inList(localId),
           onToggleList: () => toggleList(localId),
+          inQueue: inQueue(localId),
+          onToggleQueue: () => toggleQueue(localId),
         }
       : {};
   const trackInfo: { audio?: string; subtitles?: string } = playable
@@ -87,6 +95,8 @@ export function TitleHero({
       onToggleWatched={listState.onToggleWatched}
       inList={listState.inList}
       onToggleList={listState.onToggleList}
+      inQueue={listState.inQueue}
+      onToggleQueue={listState.onToggleQueue}
       primaryAction={
         owned ? undefined : <RequestCta view={view} busy={busy} onRequest={onRequest} />
       }

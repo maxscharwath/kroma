@@ -16,6 +16,7 @@ import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
 import { userQueries } from '#web/shared/lib/queries';
 import type { TitleView } from '#web/shared/lib/titleView';
+import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
 
 // The page gutter is a fluid CSS custom property, which no style number can
@@ -146,6 +147,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
   } = useTitleRequest(initial);
   const { isWatched, toggleWatched } = useWatched();
   const { inList, toggle: toggleList } = useMyList();
+  const { inQueue, toggle: toggleQueue } = useWatchLater();
 
   const owned = view.localId != null && view.playable != null;
   const localId = view.localId;
@@ -204,6 +206,8 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
         toggleWatched={toggleWatched}
         inList={inList}
         toggleList={toggleList}
+        inQueue={inQueue}
+        toggleQueue={toggleQueue}
         onPlay={play}
         onRequest={onRequestClick}
         onBack={() => navigate({ to: backTo })}

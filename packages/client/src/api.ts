@@ -568,6 +568,15 @@ export class KromaClient {
   removeFromList(itemId: string): Promise<void> {
     return playback.removeFromList(this.ctx, itemId);
   }
+  watchLater(): Promise<string[]> {
+    return playback.watchLater(this.ctx);
+  }
+  addToWatchLater(itemId: string): Promise<void> {
+    return playback.addToWatchLater(this.ctx, itemId);
+  }
+  removeFromWatchLater(itemId: string): Promise<void> {
+    return playback.removeFromWatchLater(this.ctx, itemId);
+  }
   pingPlayback(ping: PlaybackPing): Promise<void> {
     return playback.pingPlayback(this.ctx, ping);
   }

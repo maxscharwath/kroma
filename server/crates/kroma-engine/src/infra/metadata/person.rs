@@ -18,6 +18,33 @@ use kroma_domain::PersonDetail;
 
 use super::client::{api, curl_json, IMG};
 
+/// A single TMDB credit for the filmography fallback.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TmdbCredit {
+    #[serde(rename = "tmdbId")]
+    pub tmdb_id: u64,
+    pub title: String,
+    /// "movie" or "tv".
+    #[serde(rename = "mediaType")]
+    pub media_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "posterUrl")]
+    pub poster_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "backdropUrl")]
+    pub backdrop_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "character")]
+    pub character: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "job")]
+    pub job: Option<String>,
+}
+
 // Deliberately a module static rather than a field on the app state: it holds
 // no configuration and no per-install data. Unlike the sibling `Cache`, the
 // admin "reset metadata" action does not clear this one; a stale birthday is
@@ -47,6 +74,59 @@ pub fn detail(api_key: &str, language: &str, name: &str) -> Option<PersonDetail>
         c.insert(key, resolved.clone());
     }
     resolved
+}
+
+/// The person's combined movie + TV credits from TMDB, best-known first.
+/// Returns an empty vec when the person or provider is unavailable.
+/// Blocking: shells out to `curl` on a cache miss.
+pub fn filmography(api_key: &str, language: &str, name: &str) -> Vec<TmdbCredit> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Vec::new();
+    }
+    let Some(id) = best_id(api_key, language, name) else {
+        return Vec::new();
+    };
+    let params = [("language", language.to_string())];
+    let Ok(raw) =
+        curl_json::<CombinedCredits>(&format!("{}/person/{id}/combined_credits", api()), api_key, &params)
+    else {
+        return Vec::new();
+    };
+    let mut credits: Vec<TmdbCredit> = Vec::new();
+    for c in raw.cast.into_iter().filter(|c| c.media_type == "movie" || c.media_type == "tv") {
+        credits.push(credit_from(&c, "cast"));
+    }
+    for c in raw.crew.into_iter().filter(|c| c.media_type == "movie" || c.media_type == "tv") {
+        credits.push(credit_from(&c, "crew"));
+    }
+    // Deduplicate by (tmdbId, mediaType) keeping the first (cast wins over crew).
+    credits.sort_by(|a, b| b.tmdb_id.cmp(&a.tmdb_id));
+    credits.dedup_by(|a, b| a.tmdb_id == b.tmdb_id && a.media_type == b.media_type);
+    // Sort by popularity proxy: newest year first, nulls last.
+    credits.sort_by(|a, b| b.year.cmp(&a.year));
+    credits
+}
+
+fn credit_from(c: &RawCredit, role: &str) -> TmdbCredit {
+    let title = c.title.clone().or_else(|| c.name.clone()).unwrap_or_default();
+    let date = c.release_date.as_deref().or(c.first_air_date.as_deref());
+    let year = date.and_then(|d| d.get(0..4)).and_then(|y| y.parse::<u32>().ok());
+    let poster = c.poster_path.as_deref().map(|p| format!("{IMG}/w185{p}"));
+    let backdrop = c.backdrop_path.as_deref().map(|p| format!("{IMG}/w300{p}"));
+    let character = if role == "cast" { c.character.clone() } else { None };
+    let job = if role == "crew" { c.job.clone() } else { None };
+    TmdbCredit {
+        tmdb_id: c.id,
+        title,
+        media_type: c.media_type.clone(),
+        year,
+        poster_url: poster,
+        backdrop_url: backdrop,
+        overview: c.overview.clone().filter(|s| !s.is_empty()),
+        character,
+        job,
+    }
 }
 
 fn resolve(api_key: &str, language: &str, name: &str) -> Option<PersonDetail> {
@@ -130,6 +210,39 @@ struct RawPerson {
     known_for_department: Option<String>,
     #[serde(default)]
     profile_path: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CombinedCredits {
+    #[serde(default)]
+    cast: Vec<RawCredit>,
+    #[serde(default)]
+    crew: Vec<RawCredit>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawCredit {
+    id: u64,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default, rename = "media_type")]
+    media_type: String,
+    #[serde(default)]
+    character: Option<String>,
+    #[serde(default)]
+    job: Option<String>,
+    #[serde(default, rename = "release_date")]
+    release_date: Option<String>,
+    #[serde(default, rename = "first_air_date")]
+    first_air_date: Option<String>,
+    #[serde(default)]
+    overview: Option<String>,
+    #[serde(default, rename = "poster_path")]
+    poster_path: Option<String>,
+    #[serde(default, rename = "backdrop_path")]
+    backdrop_path: Option<String>,
 }
 
 #[cfg(test)]

@@ -13,6 +13,7 @@ import { AuthProvider } from '#web/shared/lib/auth';
 import { LocaleProvider } from '#web/shared/lib/locale';
 import { MyListProvider } from '#web/shared/lib/mylist';
 import { queryClient } from '#web/shared/lib/query';
+import { WatchLaterProvider } from '#web/shared/lib/watch-later';
 import { WatchedProvider } from '#web/shared/lib/watched';
 import { NavActionsProvider } from '#web/shared/ui/nav-actions';
 import appCss from '#web/styles.css?url';
@@ -80,11 +81,13 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           <AuthProvider>
             <WatchedProvider>
               <MyListProvider>
-                <LocaleProvider>
-                  <NavActionsProvider actions={<NotificationBell />}>
-                    <ModuleHostProvider>{children}</ModuleHostProvider>
-                  </NavActionsProvider>
-                </LocaleProvider>
+                <WatchLaterProvider>
+                  <LocaleProvider>
+                    <NavActionsProvider actions={<NotificationBell />}>
+                      <ModuleHostProvider>{children}</ModuleHostProvider>
+                    </NavActionsProvider>
+                  </LocaleProvider>
+                </WatchLaterProvider>
               </MyListProvider>
             </WatchedProvider>
           </AuthProvider>

@@ -211,6 +211,15 @@ pub(crate) const SCHEMA: &str = "
     CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_watched_user  ON watched(user_id);
     CREATE INDEX IF NOT EXISTS idx_my_list_user  ON my_list(user_id, added_at DESC);
+    -- Watch later: titles the user wants to see but has not yet. Same shape
+    -- as my_list; separate so the UI can distinguish bookmark from queue.
+    CREATE TABLE IF NOT EXISTS watch_later (
+        user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id  TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_watch_later_user ON watch_later(user_id, added_at DESC);
 
     CREATE TABLE IF NOT EXISTS settings (
         key        TEXT PRIMARY KEY,

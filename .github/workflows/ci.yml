@@ -196,11 +196,10 @@ jobs:
   # a change under clients/tv-native or to the install can reach it; the
   # Metro bundle check in `build` covers the TypeScript for everything else.
   #
-  # The job id is the release job's (`tv-native` in _release-tv.yml) and the
-  # build is the same `assembleRelease`: setup-gradle falls back to another
-  # job's Gradle home by job id, so this is what makes the read-only restore
-  # land on the TV app's dependencies and task outputs rather than the phone's
-  # (which is what a differently named job got, and a seven-minute compile).
+  # The job id is the release job's (`tv-native` in _release-tv.yml) because
+  # setup-gradle keys a Gradle home on it and falls back across workflows by
+  # it: named anything else, this job restored the PHONE app's home and
+  # compiled the TV app against it.
   tv-native:
     name: Android TV compile
     needs: lanes
@@ -217,13 +216,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      # Read-only: the release build on main writes the Gradle home this job
-      # restores, so a second copy of the dependency set never lands in the
-      # repository's 10 GB cache quota.
+      # Writes from main like every other cache here. Read-only, the job
+      # restored a Gradle home with neither this app's dependencies nor its
+      # task outputs and compiled everything (592 tasks, 74 from cache, 8.5
+      # min). Dependencies and task outputs are content-hashed entries that
+      # setup-gradle shares between jobs, so writing adds one small home
+      # entry rather than a second copy of the set.
       - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
         with:
           gradle-version: '8.13'
-          cache-read-only: true
           # Transforms (extracted AARs, instrumented jars) are derived from the
           # dependencies and come back in about a minute; as a cache entry they
           # were 0.6 GB per app, the largest single item in the repository's
@@ -236,9 +237,7 @@ jobs:
       # --build-cache reuses task outputs keyed on their inputs, which the
       # dependency cache alone does not. The heap is raised because the
       # generated gradle.properties asks for 2 GB, a third of the runner.
-      - run: |
-          gradle -p clients/tv-native/android assembleRelease --build-cache \
-            -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86_64
+      - run: gradle -p clients/tv-native/android assembleDebug --build-cache
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g
 

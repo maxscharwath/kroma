@@ -58,9 +58,9 @@ Measured over the last forty runs before the rebuild:
 
 | | before | after |
 |---|---|---|
-| PR, required checks green | 6 to 8 min (one job: typecheck 60 s, vitest 250 to 344 s, biome) | about 3 min (checks and four test shards in parallel) |
-| PR, Sonar done | 9 to 10 min (its own workflow, vitest with coverage again: 274 to 424 s) | about 5 min (scan reads the shards' coverage) |
-| main, Sonar done | 12 to 21 min | about 10 min |
+| PR, required checks green | 6 to 8 min (one job: typecheck 60 s, vitest 250 to 344 s, biome) | 3.5 min measured on #126 (checks 2:27, four shards merged at 3:24) |
+| PR, Sonar done | 9 to 10 min (its own workflow, vitest with coverage again: 274 to 424 s) | about 5.5 min on a JS change (the scan itself is 1:45 and reads the shards' coverage); a Rust change waits for the Rust job |
+| main, Sonar done | 12 to 21 min | about 10 min (the Rust job, then a 4.5 min main-branch scan) |
 | Android compile (6 min) | every fleet PR | only `clients/tv-native/**` and install changes |
 | Rust warm / cold | 4.5 min / 10 min | same build, but the cache stops being evicted (below) |
 | `bun install`, setup | 23 copies of `setup-bun` + a pinned version in 15 files | `.bun-version`, read by every job |

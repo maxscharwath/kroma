@@ -98,6 +98,14 @@ The two `.ipa` bundles are not on the channel: TestFlight is the only way onto
 an Apple device. The channel is not a gate either: a failed upload does not
 make a candidate unpromotable.
 
+Samsung ships as four files from one build (`clients/tizen/scripts/package-all.ts`):
+`KROMA-tizen-<v>.wgt` with every engine tier for the Store, and one package
+per Tizen version for sideloading (`KROMA-tizen8-`, `KROMA-tizen4to7-`,
+`KROMA-tizen3-`), each floored at its own `required_version`. The site's
+`release-targets.ts` matches `KROMA-tizen-` only, so the per-version files are
+on the tag and in the candidate but not yet on the page: offering them there
+is the channel-switch work below.
+
 ### How the site reads the channels
 
 `apps/www` (kroma.tv) is prerendered. At build time `vite/releases.ts` fetches

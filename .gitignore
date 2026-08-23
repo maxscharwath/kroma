@@ -153,3 +153,6 @@ clients/web/public/sw.js
 
 # vitest blob reports (CI test shards)
 .vitest-reports/
+
+# Signed Tizen packages (clients/tizen/scripts/package-all.ts)
+clients/tizen/out/

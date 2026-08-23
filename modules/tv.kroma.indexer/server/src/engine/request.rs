@@ -78,14 +78,39 @@ pub fn build_requests(
 }
 
 /// Join a base URL with a (possibly absolute) path.
+///
+/// The rendered path is sanitized for URL legality: characters a tracker
+/// template can legitimately produce but curl rejects (space, `"`, `<`, `>`,
+/// backtick, `{`, `}`, `|`, `\`, `^` and ASCII controls) are percent-encoded,
+/// while the structural characters a definition relies on (`? & = / : % # + ~
+/// . - _` and alphanumerics) pass through untouched. Existing `%20`-style
+/// escapes survive because `%` is preserved, so definitions that do their own
+/// escaping (e.g. `replace " " "+"`) are never double-encoded. Absolute and
+/// `magnet:` paths are returned verbatim by the early return above.
 pub fn join_url(base: &str, path: &str) -> String {
     let p = path.trim();
     if p.starts_with("http://") || p.starts_with("https://") || p.starts_with("magnet:") {
         return p.to_string();
     }
     let base = base.trim_end_matches('/');
-    let p = p.trim_start_matches('/');
+    let p = sanitize_url_path(p.trim_start_matches('/'));
     format!("{base}/{p}")
+}
+
+fn sanitize_url_path(p: &str) -> String {
+    let mut out = String::with_capacity(p.len());
+    for c in p.chars() {
+        match c {
+            ' ' | '"' | '<' | '>' | '`' | '{' | '}' | '|' | '\\' | '^' => {
+                out.push_str(&format!("%{:02X}", c as u32));
+            }
+            c if (c as u32) < 0x20 || (c as u32) == 0x7F => {
+                out.push_str(&format!("%{:02X}", c as u32));
+            }
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -103,6 +128,40 @@ mod tests {
         assert_eq!(join_url("https://x.to/", "https://cdn/z"), "https://cdn/z");
         assert_eq!(join_url("https://x.to/", "magnet:?xt=1"), "magnet:?xt=1");
     }
+
+    #[test]
+    fn url_joining_encodes_spaces_in_path_segments_and_query() {
+        assert_eq!(
+            join_url("https://x.to", "/sort-search/The Matrix 1999/time"),
+            "https://x.to/sort-search/The%20Matrix%201999/time"
+        );
+        assert_eq!(
+            join_url("https://x.to", "/search?q=The Matrix 1999"),
+            "https://x.to/search?q=The%20Matrix%201999"
+        );
+    }
+
+    #[test]
+    fn url_joining_leaves_existing_percent_escapes_and_structure_untouched() {
+        assert_eq!(
+            join_url("https://x.to", "/search?q=The%20Matrix"),
+            "https://x.to/search?q=The%20Matrix"
+        );
+        assert_eq!(
+            join_url("https://x.to", "/s?a=1&b=2#frag"),
+            "https://x.to/s?a=1&b=2#frag"
+        );
+        assert_eq!(join_url("https://x.to", "/p/100%25-off"), "https://x.to/p/100%25-off");
+    }
+
+    #[test]
+    fn url_joining_encodes_other_illegal_characters() {
+        assert_eq!(
+            join_url("https://x.to", "/q?a\"b<c>d`e{f}|g\\h^i"),
+            "https://x.to/q?a%22b%3Cc%3Ed%60e%7Bf%7D%7Cg%5Ch%5Ei"
+        );
+    }
+
 
     #[test]
     fn build_requests_get_movie_with_imdb_and_categories() {
@@ -136,7 +195,7 @@ search:
         };
         let reqs = build_requests(&def, &cfg, &q, &[2000]);
         assert_eq!(reqs.len(), 1);
-        assert_eq!(reqs[0].url, "https://site.to/search?q=The Matrix 1999");
+        assert_eq!(reqs[0].url, "https://site.to/search?q=The%20Matrix%201999");
         assert_eq!(reqs[0].method, "get");
         assert_eq!(reqs[0].response_kind, "html");
         // query_attributes rendered `.Query.IMDBID`; categories mapped to id 42.
@@ -178,4 +237,53 @@ search:
         assert_eq!(reqs[0].method, "post");
         assert_eq!(reqs[0].response_kind, "json");
     }
+
+    #[test]
+    fn build_requests_encodes_keywords_in_a_path_segment() {
+        let def = build_def(
+            r#"
+id: t
+name: T
+caps: {}
+search:
+  paths:
+    - path: "/sort-search/{{ .Keywords }}/time/desc/1/"
+  rows:
+    selector: "tr"
+"#,
+        );
+        let q = Query::Movie {
+            tmdb_id: None,
+            imdb_id: None,
+            title: "The Matrix".into(),
+            year: Some(1999),
+        };
+        let reqs = build_requests(&def, &cfg("https://1337x.to"), &q, &[]);
+        assert_eq!(reqs.len(), 1);
+        assert_eq!(reqs[0].url, "https://1337x.to/sort-search/The%20Matrix%201999/time/desc/1/");
+    }
+
+    #[test]
+    fn build_requests_post_inputs_keep_raw_values() {
+        let def = build_def(
+            r#"
+id: t
+name: T
+caps: {}
+search:
+  paths:
+    - path: /api
+      method: POST
+      inputs:
+        q: "{{ .Keywords }}"
+  rows:
+    selector: "$.rows"
+"#,
+        );
+        let q = Query::Text { query: "The Matrix".into() };
+        let reqs = build_requests(&def, &cfg("https://api.x/"), &q, &[]);
+        assert_eq!(reqs[0].url, "https://api.x/api");
+        assert!(reqs[0].inputs.contains(&("q".to_string(), "The Matrix".to_string())));
+    }
+
 }

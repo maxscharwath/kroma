@@ -4,13 +4,14 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type LogLine, run, runOk } from '../../run';
 import { createAuthorCertificate } from './certificate/authority';
+import { randomPassword } from './certificate/password';
 import { writeProfile } from './certificate/profile';
 import { signWidget } from './certificate/widget';
 import { activeProfile, type SigningProfile } from './profiles';
 
 const SIGNATURES = ['author-signature.xml', 'signature1.xml', 'signature2.xml'];
 const KROMA_PROFILE = 'kroma';
-const KROMA_PASSWORD = 'kroma-dev';
+
 const CERTIFICATES = join(homedir(), '.kroma', 'certificates');
 const PACKAGE_NAME = 'KROMA.wgt';
 const DUID_TIMEOUT_MS = 20_000;
@@ -34,7 +35,7 @@ export async function ensureProfile(log: LogLine): Promise<SigningProfile> {
   const author = await createAuthorCertificate({
     directory: join(CERTIFICATES, KROMA_PROFILE),
     alias: KROMA_PROFILE,
-    password: KROMA_PASSWORD,
+    password: randomPassword(),
     subject: { commonName: 'KROMA', organization: 'KROMA' },
   });
   log(`certificate at ${author.certificate}`);

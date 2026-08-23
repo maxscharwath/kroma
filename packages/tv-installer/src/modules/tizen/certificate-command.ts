@@ -6,10 +6,10 @@ import { run } from '../../run';
 import { requireTool } from '../../toolchain/detect';
 import { style } from '../../tui/ansi';
 import { createAuthorCertificate } from './certificate/authority';
+import { randomPassword } from './certificate/password';
 import { TIZEN_CLI } from './tools';
 
 const CERTIFICATES = join(homedir(), '.kroma', 'certificates');
-const PASSWORD = 'kroma-dev';
 
 export const certificateCommand = defineCommand({
   meta: {
@@ -42,35 +42,30 @@ async function certificate(options: CertificateOptions): Promise<number> {
   const author = await createAuthorCertificate({
     directory: join(CERTIFICATES, options.name),
     alias: options.name,
-    password: PASSWORD,
+    password: randomPassword(),
     subject: { commonName: 'KROMA', organization: 'KROMA' },
   });
 
   console.log(`${style.green('certificate')}  ${author.certificate}`);
   console.log(`${style.green('key')}          ${author.key}`);
-  console.log(`${style.green('archive')}      ${author.archive}  (password ${author.password})`);
+  console.log(`${style.green('archive')}      ${author.archive}`);
+  console.log(`${style.green('password')}     ${author.passwordFile}`);
   console.log(
     style.dim(
       'The author half only. A retail Samsung also wants a distributor certificate,\nwhich Samsung issues against the DUID of that one set: Tizen Studio, Certificate Manager.',
     ),
   );
 
-  const add = [
-    'security-profiles',
-    'add',
-    '-n',
-    options.name,
-    '-a',
-    author.archive,
-    '-p',
-    PASSWORD,
-  ];
+  const add = ['security-profiles', 'add', '-n', options.name, '-a', author.archive, '-p'];
   if (!options.register) {
-    console.log(`\nregister it, which also makes it the active profile:\n  tizen ${add.join(' ')}`);
+    // The password is handed over as a file read rather than printed: a shell
+    // history and a CI log are both places it must not end up.
+    const spelled = [...add, `"$(cat ${author.passwordFile})"`].join(' ');
+    console.log(`\nregister it, which also makes it the active profile:\n  tizen ${spelled}`);
     return 0;
   }
 
-  const { code } = await run([requireTool(TIZEN_CLI), ...add], {
+  const { code } = await run([requireTool(TIZEN_CLI), ...add, author.password], {
     log: (line) => console.log(line),
   });
   return code === 0 ? 0 : 1;

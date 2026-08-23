@@ -16,6 +16,8 @@ export interface AuthorCertificate {
   key: string;
   archive: string;
   password: string;
+  /** Where the password is kept, so nothing has to print it to hand it over. */
+  passwordFile: string;
 }
 
 export interface AuthorRequest {
@@ -48,9 +50,11 @@ export async function createAuthorCertificate(request: AuthorRequest): Promise<A
     certificate: join(directory, 'author.crt'),
     key: join(directory, 'author.key'),
     archive: join(directory, 'author.p12'),
+    passwordFile: join(directory, 'author.pwd'),
   };
   await writeFile(paths.certificate, toPem(certificate, 'CERTIFICATE'));
   await writeFile(paths.key, privateKey.export({ format: 'pem', type: 'pkcs8' }), { mode: 0o600 });
+  await writeFile(paths.passwordFile, password, { mode: 0o600 });
   await pack(paths, alias, password);
 
   return { directory, password, ...paths };

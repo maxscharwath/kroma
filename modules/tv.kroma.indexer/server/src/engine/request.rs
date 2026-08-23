@@ -85,12 +85,16 @@ pub fn build_requests(
 /// while the structural characters a definition relies on (`? & = / : % # + ~
 /// . - _` and alphanumerics) pass through untouched. Existing `%20`-style
 /// escapes survive because `%` is preserved, so definitions that do their own
-/// escaping (e.g. `replace " " "+"`) are never double-encoded. Absolute and
-/// `magnet:` paths are returned verbatim by the early return above.
+/// escaping (e.g. `replace " " "+"`) are never double-encoded. Absolute URLs
+/// are sanitized too (a template can produce `q=toy story` in a query value);
+/// `magnet:` URIs are returned verbatim.
 pub fn join_url(base: &str, path: &str) -> String {
     let p = path.trim();
-    if p.starts_with("http://") || p.starts_with("https://") || p.starts_with("magnet:") {
+    if p.starts_with("magnet:") {
         return p.to_string();
+    }
+    if p.starts_with("http://") || p.starts_with("https://") {
+        return sanitize_url_path(p);
     }
     let base = base.trim_end_matches('/');
     let p = sanitize_url_path(p.trim_start_matches('/'));
@@ -138,6 +142,15 @@ mod tests {
         assert_eq!(
             join_url("https://x.to", "/search?q=The Matrix 1999"),
             "https://x.to/search?q=The%20Matrix%201999"
+        );
+    }
+
+    #[test]
+    fn url_joining_encodes_spaces_in_absolute_urls() {
+        // Pirate Bay: template produces `q.php?q=toy story 5&cat=200,201`
+        assert_eq!(
+            join_url("https://x.to", "https://api.example/q.php?q=toy story 5&cat=200,201"),
+            "https://api.example/q.php?q=toy%20story%205&cat=200,201"
         );
     }
 

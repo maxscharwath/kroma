@@ -1,6 +1,8 @@
 // A TMDB discovery result as a poster tile: real art or gradient, overlaid
 // rating + availability/request chip, and a hover "request" affordance.
 // Clicks route to the local fiche when owned, else the discover detail.
+// The "+" overlay requests in-place on web (stopPropagation prevents the
+// card navigation); on TV the card still opens the detail page.
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
@@ -17,7 +19,8 @@ import {
   Text,
 } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type CSSProperties, type ReactNode, useState } from 'react';
+import { useAuth } from '#web/shared/lib/auth';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
 const RATING_PILL = backdropBlur(4);
@@ -39,27 +42,23 @@ const s = styles({
 export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; width?: number }>) {
   const t = useT();
   const navigate = useNavigate();
+  const { client } = useAuth();
   const [imgOk, setImgOk] = useState(true);
+  const [requesting, setRequesting] = useState(false);
+  const [optimisticStatus, setOptimisticStatus] = useState(entry.requestStatus);
   const [c1, c2] = posterColors(String(entry.tmdbId));
-  // 208 = the fluid --card-w maximum, so the art stays sharp at every size.
   const art = sizedImageUrl(entry.posterUrl, width ?? 208);
   const showImg = Boolean(art) && imgOk;
   const owned = entry.inLibrary && entry.localId;
-  const canRequest = !owned && !entry.requestStatus;
+  const canRequest = !owned && !optimisticStatus;
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
-  // The overlaid availability/request chip: owned titles show "available",
-  // requested ones show their live request status, and the rest show nothing.
   let statusChip: ReactNode = null;
   if (owned) {
     statusChip = <RequestStatusChip status="available" size="card" />;
-  } else if (entry.requestStatus) {
+  } else if (optimisticStatus) {
     statusChip = (
-      <RequestStatusChip
-        status={entry.requestStatus}
-        size="card"
-        progress={entry.requestProgress}
-      />
+      <RequestStatusChip status={optimisticStatus} size="card" progress={entry.requestProgress} />
     );
   }
 
@@ -75,6 +74,17 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
         params: { type: entry.kind === 'show' ? 'tv' : 'movie', tmdbId: String(entry.tmdbId) },
       });
     }
+  };
+
+  const requestInPlace = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    if (requesting) return;
+    setRequesting(true);
+    client
+      .createRequest({ kind: entry.kind, tmdbId: entry.tmdbId, seasons: null })
+      .then((req) => setOptimisticStatus(req.status))
+      .catch(() => undefined)
+      .finally(() => setRequesting(false));
   };
 
   return (
@@ -134,24 +144,30 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                 </Row>
               ) : null}
 
-              {/* Visual only: the press opens the detail where the real request action lives. */}
               {canRequest ? (
-                <Row
-                  absolute
-                  left={0}
-                  right={0}
-                  bottom={0}
-                  justify="center"
-                  gap={6}
-                  pt={32}
-                  pb={12}
-                  style={[s.overlay, lit ? s.overlayLit : null, CTA_SCRIM]}
+                <button
+                  type="button"
+                  onClick={requestInPlace}
+                  disabled={requesting}
+                  aria-label={t('discover.request')}
+                  style={
+                    {
+                      ...CTA_BUTTON,
+                      backgroundImage: CTA_SCRIM_CSS,
+                      opacity: lit ? 1 : 0,
+                      pointerEvents: lit ? 'auto' : 'none',
+                    } as CSSProperties
+                  }
                 >
-                  <Icon name="plus" size={14} thickness={2.6} color="white" />
+                  {requesting ? (
+                    <Icon name="loader-2" size={14} color="white" />
+                  ) : (
+                    <Icon name="plus" size={14} thickness={2.6} color="white" />
+                  )}
                   <Text color="white" style={REQUEST_LABEL}>
-                    {t('discover.request')}
+                    {requesting ? t('discover.requesting') : t('discover.request')}
                   </Text>
-                </Row>
+                </button>
               ) : null}
             </Box>
           );
@@ -183,4 +199,22 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 
 const TOP_SCRIM = gradient(`linear-gradient(to bottom, ${color('black/55')}, transparent)`);
 
-const CTA_SCRIM = gradient(`linear-gradient(to top, ${color('black/75')}, transparent)`);
+const CTA_SCRIM_CSS = `linear-gradient(to top, ${color('black/75')}, transparent)`;
+
+const CTA_BUTTON = {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: 0,
+  display: 'flex',
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  paddingTop: 32,
+  paddingBottom: 12,
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  pointerEvents: 'auto',
+} as const;

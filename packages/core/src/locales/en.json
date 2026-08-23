@@ -950,6 +950,7 @@
   "discover.prev": "Previous",
   "discover.request": "Request",
   "discover.requestFailed": "Request failed",
+  "discover.requesting": "Requesting…",
   "discover.requestN": "Request {n} season(s)",
   "discover.requestSeasons": "Choose seasons",
   "discover.requestSeasonsHint": "Request the missing seasons of this show",

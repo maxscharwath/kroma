@@ -6,12 +6,12 @@ import {
   ShowId,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, EmptyState, PageHeader, SegmentGroup } from '@kroma/ui/kit';
+import { Box, EmptyState, PageHeader, Row, SegmentGroup, Select } from '@kroma/ui/kit';
 
 import { useQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { type CatalogEntry, CatalogGrid } from '#web/features/catalog/cards';
+import { type CatalogEntry, MoviePoster, ShowPoster } from '#web/features/catalog/cards';
 import { TileGrid } from '#web/features/catalog/tile-grid';
 import { DiscoverCard } from '#web/features/requests/discover-card';
 import { isAuthed, kromaClient, type MovieView, type ShowView } from '#web/shared/lib/api';
@@ -22,6 +22,8 @@ import { useWatched } from '#web/shared/lib/watched';
 import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
 
 type Tab = 'mylist' | 'watchlater' | 'watched';
+type Sort = 'title' | 'year' | 'rating';
+type KindFilter = 'all' | 'movie' | 'show';
 
 export const Route = createFileRoute('/_app/mylist')({
   loader: async ({ context: { queryClient } }) => {
@@ -110,21 +112,69 @@ function useDiscoverEntries(ids: number[]): { entries: DiscoverEntry[]; loading:
   return { entries, loading };
 }
 
-function DiscoverGrid({ entries }: Readonly<{ entries: DiscoverEntry[] }>) {
-  if (entries.length === 0) return null;
-  return (
-    <TileGrid>
-      {(width) =>
-        entries.map((e) => <DiscoverCard key={`tmdb:${e.tmdbId}`} entry={e} width={width} />)
-      }
-    </TileGrid>
-  );
+interface UnifiedEntry {
+  key: string;
+  kind: 'movie' | 'show';
+  title: string;
+  year: number | null;
+  rating: number | null;
+  render: (width: number) => React.ReactNode;
+}
+
+function toUnifiedLocal(entries: CatalogEntry[]): UnifiedEntry[] {
+  return entries.map((e) => {
+    if (e.kind === 'movie') {
+      return {
+        key: e.movie.id,
+        kind: 'movie' as const,
+        title: e.movie.title,
+        year: e.movie.year ?? null,
+        rating: e.movie.metadata?.rating ?? null,
+        render: (width: number) => <MoviePoster item={e.movie} width={width} />,
+      };
+    }
+    return {
+      key: e.show.id,
+      kind: 'show' as const,
+      title: e.show.title,
+      year: e.show.year ?? null,
+      rating: e.show.metadata?.rating ?? null,
+      render: (width: number) => <ShowPoster show={e.show} width={width} />,
+    };
+  });
+}
+
+function toUnifiedDiscover(entries: DiscoverEntry[]): UnifiedEntry[] {
+  return entries.map((e) => ({
+    key: `tmdb:${e.tmdbId}`,
+    kind: e.kind,
+    title: e.title,
+    year: e.year,
+    rating: e.rating,
+    render: (width: number) => <DiscoverCard entry={e} width={width} />,
+  }));
+}
+
+function sortEntries(entries: UnifiedEntry[], sort: Sort): UnifiedEntry[] {
+  const sorted = [...entries];
+  if (sort === 'title') {
+    sorted.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (sort === 'year') {
+    sorted.sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+  } else if (sort === 'rating') {
+    sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  }
+  return sorted;
+}
+
+function filterEntries(entries: UnifiedEntry[], filter: KindFilter): UnifiedEntry[] {
+  if (filter === 'all') return entries;
+  return entries.filter((e) => e.kind === filter);
 }
 
 interface ResolvedList {
-  local: CatalogEntry[];
-  tmdb: DiscoverEntry[];
-  tmdbLoading: boolean;
+  entries: UnifiedEntry[];
+  loading: boolean;
   total: number;
   ready: boolean;
 }
@@ -135,30 +185,41 @@ function useResolvedList(
   movieById: Map<string, MovieView>,
   showById: Map<string, ShowView>,
 ): ResolvedList {
-  const split = splitIds(ids);
-  const local: CatalogEntry[] = [];
-  for (const id of split.local) {
-    const movie = movieById.get(ItemId.of(id));
-    if (movie) {
-      local.push({ kind: 'movie', movie });
-      continue;
+  const split = useMemo(() => splitIds(ids), [ids]);
+  const local = useMemo(() => {
+    const out: CatalogEntry[] = [];
+    for (const id of split.local) {
+      const movie = movieById.get(ItemId.of(id));
+      if (movie) {
+        out.push({ kind: 'movie', movie });
+        continue;
+      }
+      const show = showById.get(ShowId.of(id));
+      if (show) out.push({ kind: 'show', show });
     }
-    const show = showById.get(ShowId.of(id));
-    if (show) local.push({ kind: 'show', show });
-  }
+    return out;
+  }, [split.local, movieById, showById]);
   const { entries, loading } = useDiscoverEntries(split.tmdb);
-  return {
-    local,
-    tmdb: entries,
-    tmdbLoading: loading,
-    total: local.length + entries.length,
-    ready,
-  };
+  const unified = useMemo(
+    () => [...toUnifiedLocal(local), ...toUnifiedDiscover(entries)],
+    [local, entries],
+  );
+  return { entries: unified, loading, total: unified.length, ready };
+}
+
+function UnifiedGrid({ entries }: Readonly<{ entries: UnifiedEntry[] }>) {
+  if (entries.length === 0) return null;
+  return (
+    <TileGrid>{(width) => entries.map((e) => <div key={e.key}>{e.render(width)}</div>)}</TileGrid>
+  );
 }
 
 function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey: MessageKey }>) {
   const t = useT();
-  if (list.ready && !list.tmdbLoading && list.total === 0) {
+  const [sort, setSort] = useState<Sort>('title');
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+
+  if (list.ready && !list.loading && list.total === 0) {
     return (
       <EmptyState.Root icon="list-details">
         <EmptyState.Title>{t(emptyKey)}</EmptyState.Title>
@@ -166,10 +227,37 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
     );
   }
   if (list.total === 0 && !list.ready) return null;
+
+  const filtered = filterEntries(list.entries, kindFilter);
+  const sorted = sortEntries(filtered, sort);
+  const movieCount = list.entries.filter((e) => e.kind === 'movie').length;
+  const showCount = list.entries.filter((e) => e.kind === 'show').length;
+
   return (
-    <Box>
-      {list.local.length > 0 ? <CatalogGrid entries={list.local} /> : null}
-      {list.tmdb.length > 0 ? <DiscoverGrid entries={list.tmdb} /> : null}
+    <Box gap={16}>
+      <Row gap={12} align="center" wrap>
+        <Select.Root
+          label={t('content.filterAll')}
+          value={kindFilter}
+          onValueChange={(v) => setKindFilter(v as KindFilter)}
+        >
+          <Select.Trigger size="sm" />
+          <Select.Item value="all" label={t('content.filterAll')} />
+          <Select.Item value="movie" label={`${t('content.film')} (${movieCount})`} />
+          <Select.Item value="show" label={`${t('content.series')} (${showCount})`} />
+        </Select.Root>
+        <Select.Root
+          label={t('content.sortTitle')}
+          value={sort}
+          onValueChange={(v) => setSort(v as Sort)}
+        >
+          <Select.Trigger size="sm" />
+          <Select.Item value="title" label={t('content.sortTitle')} />
+          <Select.Item value="year" label={t('content.sortYear')} />
+          <Select.Item value="rating" label={t('content.sortRating')} />
+        </Select.Root>
+      </Row>
+      <UnifiedGrid entries={sorted} />
     </Box>
   );
 }
@@ -192,13 +280,13 @@ function MyListPage() {
 
   const allEmpty =
     myList.ready &&
-    !myList.tmdbLoading &&
+    !myList.loading &&
     myList.total === 0 &&
     watchLater.ready &&
-    !watchLater.tmdbLoading &&
+    !watchLater.loading &&
     watchLater.total === 0 &&
     watched.ready &&
-    !watched.tmdbLoading &&
+    !watched.loading &&
     watched.total === 0;
 
   const lists: Record<Tab, ResolvedList> = { mylist: myList, watchlater: watchLater, watched };

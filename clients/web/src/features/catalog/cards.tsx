@@ -145,7 +145,7 @@ export function Hero({ entry }: Readonly<{ entry: HeroEntry }>) {
 
 // Cards are memo()d: a home page renders hundreds of them, and without memo any
 // parent state change (hover, a poll refetch, router transitions) re-renders every card.
-const MoviePoster = memo(function MoviePoster({
+export const MoviePoster = memo(function MoviePoster({
   item,
   width,
 }: Readonly<{ item: MovieView; width?: number }>) {
@@ -166,7 +166,7 @@ const MoviePoster = memo(function MoviePoster({
   );
 });
 
-const ShowPoster = memo(function ShowPoster({
+export const ShowPoster = memo(function ShowPoster({
   show,
   width,
 }: Readonly<{ show: ShowView; width?: number }>) {

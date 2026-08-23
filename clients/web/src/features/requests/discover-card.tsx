@@ -187,9 +187,9 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                   {
                     position: 'absolute',
                     right: 8,
-                    bottom: 8,
+                    top: 36,
                     display: 'flex',
-                    flexDirection: 'row',
+                    flexDirection: 'column',
                     gap: 6,
                     opacity: lit ? 1 : 0,
                     pointerEvents: lit ? 'auto' : 'none',

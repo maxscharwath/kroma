@@ -941,6 +941,8 @@
   "discover.fillGapsHint": "Demander pour compléter les épisodes manquants",
   "discover.kindMovie": "Film",
   "discover.kindShow": "Série",
+  "discover.markWatched": "Marquer comme vu",
+  "discover.addToMyList": "Ajouter à ma liste",
   "discover.movies": "Films",
   "discover.next": "Suivant",
   "discover.noResults": "Aucun résultat.",

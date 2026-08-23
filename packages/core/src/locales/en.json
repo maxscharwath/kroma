@@ -941,6 +941,8 @@
   "discover.fillGapsHint": "Request to fill the missing episodes",
   "discover.kindMovie": "Movie",
   "discover.kindShow": "Show",
+  "discover.markWatched": "Mark watched",
+  "discover.addToMyList": "Add to my list",
   "discover.movies": "Movies",
   "discover.next": "Next",
   "discover.noResults": "No results.",

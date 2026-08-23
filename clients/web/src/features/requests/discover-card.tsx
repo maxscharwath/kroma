@@ -21,6 +21,8 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
+import { useMyList } from '#web/shared/lib/mylist';
+import { useWatched } from '#web/shared/lib/watched';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
 const RATING_PILL = backdropBlur(4);
@@ -43,6 +45,8 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const t = useT();
   const navigate = useNavigate();
   const { client } = useAuth();
+  const { isWatched, toggleWatched } = useWatched();
+  const { inList, toggle: toggleMyList } = useMyList();
   const [imgOk, setImgOk] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(entry.requestStatus);
@@ -50,6 +54,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const art = sizedImageUrl(entry.posterUrl, width ?? 208);
   const showImg = Boolean(art) && imgOk;
   const owned = entry.inLibrary && entry.localId;
+  const localId = entry.localId ?? '';
   const canRequest = !owned && !optimisticStatus;
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
@@ -169,6 +174,55 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                   </Text>
                 </button>
               ) : null}
+
+              {owned ? (
+                <div
+                  style={
+                    {
+                      position: 'absolute',
+                      right: 8,
+                      bottom: 8,
+                      display: 'flex',
+                      flexDirection: 'row',
+                      gap: 6,
+                      opacity: lit ? 1 : 0,
+                      pointerEvents: lit ? 'auto' : 'none',
+                      zIndex: 2,
+                    } as CSSProperties
+                  }
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleWatched(localId);
+                    }}
+                    aria-label={t('discover.markWatched')}
+                    style={QUICK_ACTION_BTN}
+                  >
+                    <Icon
+                      name={isWatched(localId) ? 'check' : 'eye'}
+                      size={16}
+                      color={isWatched(localId) ? 'accent' : 'white'}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMyList(localId);
+                    }}
+                    aria-label={t('discover.addToMyList')}
+                    style={QUICK_ACTION_BTN}
+                  >
+                    <Icon
+                      name={inList(localId) ? 'check' : 'plus'}
+                      size={16}
+                      color={inList(localId) ? 'accent' : 'white'}
+                    />
+                  </button>
+                </div>
+              ) : null}
             </Box>
           );
         }}
@@ -200,6 +254,19 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 const TOP_SCRIM = gradient(`linear-gradient(to bottom, ${color('black/55')}, transparent)`);
 
 const CTA_SCRIM_CSS = `linear-gradient(to top, ${color('black/75')}, transparent)`;
+
+const QUICK_ACTION_BTN = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  border: 'none',
+  background: color('black/55'),
+  cursor: 'pointer',
+  backdropFilter: 'blur(4px)',
+} as const;
 
 const CTA_BUTTON = {
   position: 'absolute',

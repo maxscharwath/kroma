@@ -164,8 +164,10 @@ jobs:
       # refuses to install rather than showing a black screen. The version is
       # in the name because `tizen package` names every build KROMA.wgt.
       - name: Package the .wgt files
+        env:
+          TIZEN_PROFILE: kroma-ci
         run: |
-          bun run --filter '@kroma/tizen' package:all -- --profile kroma-ci --version "${{ inputs.version }}"
+          bun run --filter '@kroma/tizen' package:all
           ls -l clients/tizen/out
 
       - name: Upload .wgt artifact

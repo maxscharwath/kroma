@@ -32,7 +32,8 @@ Authoring rules that keep the legacy tier working: flex only (no CSS grid), no
 `dist/` carries every tier because a Store submission has to: Samsung offers one
 package to a range of models. A sideloaded set is the opposite case, its Tizen
 version is known, so the release job also packages each tier on its own
-(`bun run package:all -- --profile <profile> --version <x.y.z>`, into `out/`):
+(`TIZEN_PROFILE=<profile> bun run package:all`, into `out/`, with the version
+`dist/config.xml` carries):
 
 | file | runs on | floor in its `config.xml` |
 |---|---|---|

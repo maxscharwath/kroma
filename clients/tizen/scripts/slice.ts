@@ -25,7 +25,7 @@ import {
 } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isTier, TIER_NAMES, TIERS, type Tier } from './tiers';
+import { TIER_NAMES, TIERS, type Tier } from './tiers';
 
 const SHELL = fileURLToPath(new URL('..', import.meta.url));
 const DIST = join(SHELL, 'dist');
@@ -33,8 +33,8 @@ const TEXT = /\.(js|css|html|json)$/;
 
 // Matched against the list rather than cast from it: what the rest of the file
 // builds paths from is then one of these literals, never the argument.
-const tier = process.argv[2];
-if (!isTier(tier)) {
+const tier = TIER_NAMES.find((known) => known === process.argv[2]);
+if (!tier) {
   console.error(`usage: slice.ts <${TIER_NAMES.join('|')}>`);
   process.exit(1);
 }

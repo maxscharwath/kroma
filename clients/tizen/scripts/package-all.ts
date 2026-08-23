@@ -5,43 +5,43 @@
 //   KROMA-tizen4to7-<version>.wgt   Tizen 4.0 to 7.0 (2018 to 2023)
 //   KROMA-tizen3-<version>.wgt      Tizen 3.0 (2017)
 //
-//   bun scripts/package-all.ts --profile kroma-ci --version 0.1.39
+//   TIZEN_PROFILE=kroma-ci bun scripts/package-all.ts
 //
-// Needs `tizen` (Tizen Studio CLI) on the PATH and a signing profile; the
-// release job creates a throwaway one, `make package` uses yours.
+// The version is the one `dist/config.xml` carries (stamped before packaging),
+// the signing profile is TIZEN_PROFILE, or the active one when unset. Needs
+// `tizen` (Tizen Studio CLI) on the PATH.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
 import { TIER_NAMES, TIERS } from './tiers';
 
 const SHELL = fileURLToPath(new URL('..', import.meta.url));
+const DIST = join(SHELL, 'dist');
 const OUT = join(SHELL, 'out');
 
-const { values } = parseArgs({
-  options: {
-    profile: { type: 'string' },
-    version: { type: 'string' },
-  },
-});
-if (!values.profile || !values.version) {
-  console.error('usage: package-all.ts --profile <signing profile> --version <x.y.z>');
-  process.exit(1);
-}
-const { profile, version } = values;
-
-if (!existsSync(join(SHELL, 'dist/index.html'))) {
+if (!existsSync(join(DIST, 'index.html'))) {
   console.error('[package] no build at dist/. Run `bun run build:tizen` first.');
   process.exit(1);
 }
 
-const run = (command: string, args: string[]) =>
-  execFileSync(command, args, { cwd: SHELL, stdio: 'inherit' });
+const version = /<widget[^>]*\sversion="(\d+\.\d+\.\d+)"/.exec(
+  readFileSync(join(DIST, 'config.xml'), 'utf8'),
+)?.[1];
+if (!version) {
+  console.error('[package] dist/config.xml carries no x.y.z version');
+  process.exit(1);
+}
+
+const profile = process.env.TIZEN_PROFILE;
+const signing = profile ? ['-s', profile] : [];
 
 function pack(dir: string, name: string): void {
-  run('tizen', ['package', '-t', 'wgt', '-s', profile, '--', dir]);
+  execFileSync('tizen', ['package', '-t', 'wgt', ...signing, '--', dir], {
+    cwd: SHELL,
+    stdio: 'inherit',
+  });
   const wgt = readdirSync(dir).find((f) => f.endsWith('.wgt'));
   if (!wgt) throw new Error(`tizen package left no .wgt in ${dir}`);
   renameSync(join(dir, wgt), join(OUT, name));
@@ -51,8 +51,8 @@ function pack(dir: string, name: string): void {
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-pack(join(SHELL, 'dist'), `KROMA-tizen-${version}.wgt`);
+pack(DIST, `KROMA-tizen-${version}.wgt`);
 for (const tier of TIER_NAMES) {
-  run('bun', ['scripts/slice.ts', tier]);
+  execFileSync('bun', ['scripts/slice.ts', tier], { cwd: SHELL, stdio: 'inherit' });
   pack(join(SHELL, `dist-${tier}`), `KROMA-${TIERS[tier].name}-${version}.wgt`);
 }

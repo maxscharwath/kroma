@@ -22,6 +22,3 @@ export const TIERS: Readonly<Record<Tier, TierPackage>> = {
 };
 
 export const TIER_NAMES = Object.keys(TIERS) as Tier[];
-
-export const isTier = (value: string | undefined): value is Tier =>
-  value !== undefined && value in TIERS;

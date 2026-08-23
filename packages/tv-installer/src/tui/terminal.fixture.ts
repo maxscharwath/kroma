@@ -1,7 +1,7 @@
 import { PassThrough } from 'node:stream';
 
 const ESCAPE = '\x1b';
-const ANSI = new RegExp(`${ESCAPE}\\[[0-9;?]*[A-Za-z]`, 'g');
+const ANSI = new RegExp(String.raw`${ESCAPE}\[[0-9;?]*[A-Za-z]`, 'g');
 const ANSWER_MS = 250;
 
 export const KEY = {

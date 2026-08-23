@@ -46,6 +46,10 @@ export function TitleHero({
 }>) {
   const t = useT();
   const playable = owned ? view.playable : null;
+  // Watch-later works for both owned and discover titles. Owned titles use their
+  // local item id; discover titles use `tmdb:<id>` so the queue can survive a
+  // library rescan and still find the title via the discover route.
+  const queueId = localId ?? (view.tmdbId != null ? `tmdb:${view.tmdbId}` : null);
   const listState: {
     watched?: boolean;
     onToggleWatched?: () => void;
@@ -53,17 +57,17 @@ export function TitleHero({
     onToggleList?: () => void;
     inQueue?: boolean;
     onToggleQueue?: () => void;
-  } =
-    owned && localId
-      ? {
-          watched: isWatched(localId),
-          onToggleWatched: () => toggleWatched(localId),
-          inList: inList(localId),
-          onToggleList: () => toggleList(localId),
-          inQueue: inQueue(localId),
-          onToggleQueue: () => toggleQueue(localId),
-        }
-      : {};
+  } = {};
+  if (owned && localId) {
+    listState.watched = isWatched(localId);
+    listState.onToggleWatched = () => toggleWatched(localId);
+    listState.inList = inList(localId);
+    listState.onToggleList = () => toggleList(localId);
+  }
+  if (queueId) {
+    listState.inQueue = inQueue(queueId);
+    listState.onToggleQueue = () => toggleQueue(queueId);
+  }
   const trackInfo: { audio?: string; subtitles?: string } = playable
     ? { audio: audioString(t, playable), subtitles: subString(t, playable) }
     : {};

@@ -57,6 +57,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const showImg = Boolean(art) && imgOk;
   const owned = entry.inLibrary && entry.localId;
   const localId = entry.localId ?? '';
+  const queueId = owned ? localId : `tmdb:${entry.tmdbId}`;
   const canRequest = !owned && !optimisticStatus;
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
@@ -177,7 +178,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                 </button>
               ) : null}
 
-              {owned ? (
+              {owned || !canRequest ? (
                 <div
                   style={
                     {
@@ -193,49 +194,53 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                     } as CSSProperties
                   }
                 >
+                  {owned ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWatched(localId);
+                        }}
+                        aria-label={t('discover.markWatched')}
+                        style={QUICK_ACTION_BTN}
+                      >
+                        <Icon
+                          name={isWatched(localId) ? 'check' : 'eye'}
+                          size={16}
+                          color={isWatched(localId) ? 'accent' : 'white'}
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleMyList(localId);
+                        }}
+                        aria-label={t('discover.addToMyList')}
+                        style={QUICK_ACTION_BTN}
+                      >
+                        <Icon
+                          name={inList(localId) ? 'check' : 'plus'}
+                          size={16}
+                          color={inList(localId) ? 'accent' : 'white'}
+                        />
+                      </button>
+                    </>
+                  ) : null}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleWatched(localId);
-                    }}
-                    aria-label={t('discover.markWatched')}
-                    style={QUICK_ACTION_BTN}
-                  >
-                    <Icon
-                      name={isWatched(localId) ? 'check' : 'eye'}
-                      size={16}
-                      color={isWatched(localId) ? 'accent' : 'white'}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleMyList(localId);
-                    }}
-                    aria-label={t('discover.addToMyList')}
-                    style={QUICK_ACTION_BTN}
-                  >
-                    <Icon
-                      name={inList(localId) ? 'check' : 'plus'}
-                      size={16}
-                      color={inList(localId) ? 'accent' : 'white'}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWatchLater(localId);
+                      toggleWatchLater(queueId);
                     }}
                     aria-label={t('discover.watchLater')}
                     style={QUICK_ACTION_BTN}
                   >
                     <Icon
-                      name={inQueue(localId) ? 'bookmark-filled' : 'bookmark'}
+                      name={inQueue(queueId) ? 'bookmark-filled' : 'bookmark'}
                       size={16}
-                      color={inQueue(localId) ? 'accent' : 'white'}
+                      color={inQueue(queueId) ? 'accent' : 'white'}
                     />
                   </button>
                 </div>

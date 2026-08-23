@@ -32,6 +32,7 @@ import {
   toggleEpisode,
   toggleSeason,
 } from './coverage-draft';
+import { MagnetPasteFallback } from './magnet-paste-fallback';
 import { ReleaseTable } from './release-table';
 import { RequestFreeSearch } from './request-free-search';
 import { RequestLedger } from './request-ledger';
@@ -163,6 +164,8 @@ export function RequestSearchPanel({
       <ResultsDialog
         state={search.state}
         canGrab={canGrab}
+        kind={kind}
+        title={title}
         onGrab={search.grab}
         onClose={search.reset}
       />
@@ -297,16 +300,21 @@ function Catalog({
 function ResultsDialog({
   state,
   canGrab,
+  kind,
+  title,
   onGrab,
   onClose,
 }: Readonly<{
   state: SearchState;
   canGrab: boolean;
+  kind: 'movie' | 'show';
+  title: string;
   onGrab: (release: ScoredReleaseView) => void;
   onClose: () => void;
 }>) {
   const t = useT();
   const open = state.busy || state.view != null || state.error != null;
+  const empty = state.view != null && state.view.releases.length === 0;
   return (
     <Dialog.Root open={open} onClose={onClose} width="xl" title={t('requests.interactiveSearch')}>
       <Dialog.Header>
@@ -342,6 +350,9 @@ function ResultsDialog({
               busy={state.grabbing}
               onGrab={onGrab}
             />
+          ) : null}
+          {!state.busy && empty ? (
+            <MagnetPasteFallback kind={kind} title={title} season={null} episode={null} />
           ) : null}
         </Box>
       </Dialog.Panel>

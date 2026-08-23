@@ -2,9 +2,13 @@
 // say whether the other trackers were asked, answered, or were never reached:
 // one row per indexer, so "nothing found" and "the tracker is down" stop looking
 // like the same result.
+//
+// Each pill is also a filter toggle: click to show only that indexer's releases,
+// click again to clear. The active state is owned by the caller so it survives
+// re-renders from the search hook.
 
 import { useT } from '@kroma/module-sdk';
-import { Box, Row, Text } from '@kroma/ui/kit';
+import { Box, Chip, Row, Text } from '@kroma/ui/kit';
 
 /** What the strip needs of an indexer's answer. Structural rather than the
  *  branded `IndexerReport`, because the free-text sweep is a module's own wire
@@ -17,15 +21,31 @@ export interface IndexerAnswer {
   elapsedMs: number;
 }
 
-export function IndexerReportStrip({ indexers = [] }: Readonly<{ indexers?: IndexerAnswer[] }>) {
+export function IndexerReportStrip({
+  indexers = [],
+  activeIndexer = null,
+  onToggleIndexer,
+}: Readonly<{
+  indexers?: IndexerAnswer[];
+  /** The indexer id currently filtering results, or null for "all". */
+  activeIndexer?: string | null;
+  /** Called with the indexer id to toggle, or null to clear. */
+  onToggleIndexer?: (id: string | null) => void;
+}>) {
   const t = useT();
   if (indexers.length === 0) return null;
   const failed = indexers.filter((i) => i.error).length;
+  const interactive = onToggleIndexer != null;
   return (
     <Box gap={8}>
       <Row wrap gap={8}>
         {indexers.map((i) => (
-          <IndexerPill key={i.id} report={i} />
+          <IndexerPill
+            key={i.id}
+            report={i}
+            active={interactive && activeIndexer === i.id}
+            onPress={interactive ? () => onToggleIndexer(i.id) : undefined}
+          />
         ))}
       </Row>
       {failed > 0 ? (
@@ -37,22 +57,28 @@ export function IndexerReportStrip({ indexers = [] }: Readonly<{ indexers?: Inde
   );
 }
 
-function IndexerPill({ report }: Readonly<{ report: IndexerAnswer }>) {
+function IndexerPill({
+  report,
+  active,
+  onPress,
+}: Readonly<{
+  report: IndexerAnswer;
+  active: boolean;
+  onPress?: () => void;
+}>) {
   const t = useT();
   const tone = pillTone(report);
+  const label = report.error
+    ? `${report.name} · ${t('requests.indexerDown')}`
+    : `${report.name} · ${report.found} · ${formatElapsed(report.elapsedMs)}`;
   return (
-    <Row align="center" gap={7} radius="pill" px={10} py={4} bg={`${tone}/14`}>
-      <Box w={6} h={6} shrink={0} radius="circle" bg={tone} />
-      <Text variant="meta" color="textDim" lines={1}>
-        {report.name}
-      </Text>
-      <Text variant="meta" color={tone}>
-        {report.error ? t('requests.indexerDown') : String(report.found)}
-      </Text>
-      <Text variant="meta" color="text/30">
-        {formatElapsed(report.elapsedMs)}
-      </Text>
-    </Row>
+    <Chip
+      label={label}
+      dot={tone}
+      active={active}
+      variant={active ? 'solid' : 'subtle'}
+      onPress={onPress}
+    />
   );
 }
 

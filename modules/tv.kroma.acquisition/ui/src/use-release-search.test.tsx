@@ -35,6 +35,10 @@ function release(): ScoredReleaseView {
     grabbable: true,
     upgrade: false,
     detailsUrl: null,
+    resolution: null,
+    codec: null,
+    source: null,
+    hdr: false,
   };
 }
 

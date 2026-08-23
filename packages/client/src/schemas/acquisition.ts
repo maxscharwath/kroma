@@ -144,6 +144,10 @@ export const ScoredReleaseView = z.object({
   grabbable: z.boolean(),
   upgrade: z.boolean(),
   detailsUrl: z.string().nullable(),
+  resolution: z.string().nullable(),
+  codec: z.string().nullable(),
+  source: z.string().nullable(),
+  hdr: z.boolean(),
 });
 export type ScoredReleaseView = z.infer<typeof ScoredReleaseView>;
 

@@ -149,6 +149,8 @@ pub fn groups(
                 Some("admin.acqQualityDesc"),
                 vec![
                     row("acqResolution", t("admin.acqResolution"), None, "select", &["720p", "1080p", "2160p"], g("acqResolution"), true),
+                    row("acqRequiredResolution", t("admin.acqRequiredResolution"), Some(t("admin.acqRequiredResolutionHint")), "select", &["", "720p", "1080p", "2160p"], g("acqRequiredResolution"), true),
+                    row("acqRequiredCodec", t("admin.acqRequiredCodec"), Some(t("admin.acqRequiredCodecHint")), "select", &["", "hevc", "h264", "av1"], g("acqRequiredCodec"), true),
                     row("acqPreferHevc", t("admin.acqPreferHevc"), Some(t("admin.acqPreferHevcHint")), "toggle", &[], g("acqPreferHevc"), true),
                     row("acqMinSeeders", t("admin.acqMinSeeders"), None, "select", &["0", "1", "2", "5", "10"], g("acqMinSeeders"), true),
                     row("acqMaxSizeGbMovie", t("admin.acqMaxSizeGbMovie"), None, "select", &["5", "10", "15", "25", "40", "80"], g("acqMaxSizeGbMovie"), true),

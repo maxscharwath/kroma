@@ -188,6 +188,8 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("acqDeleteAfterImport".into(), json!(false));
     m.insert("acqReplaceOnUpgrade".into(), json!(true));
     m.insert("acqResolution".into(), json!("1080p"));
+    m.insert("acqRequiredResolution".into(), json!(""));
+    m.insert("acqRequiredCodec".into(), json!(""));
     m.insert("acqPreferHevc".into(), json!(true));
     m.insert("acqMinSeeders".into(), json!(2));
     m.insert("acqMaxSizeGbMovie".into(), json!(15));

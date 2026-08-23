@@ -1,0 +1,37 @@
+{
+  "$schema": "https://modules.kroma.tv/schemas/2/manifest.json",
+  "schemaVersion": 2,
+  "id": "tv.kroma.engine.aria2",
+  "name": "aria2 engine",
+  "version": "0.1.0",
+  "description": "aria2 JSON-RPC as a download sub-engine for the Downloads module. Toggle it to add/remove aria2 from the download-client picker. Supports HTTP, FTP, SFTP, BitTorrent and Metalink downloads.",
+  "engines": {
+    "server": ">=0.1.39"
+  },
+  "dependencies": {
+    "tv.kroma.torrents": "^0.3.0"
+  },
+  "contributes": [
+    {
+      "point": "tv.kroma.torrents/client",
+      "id": "aria2",
+      "label": "aria2",
+      "fields": [
+        {
+          "key": "url",
+          "label": "field.url",
+          "type": "string",
+          "placeholder": "http://nas:6800/jsonrpc",
+          "required": true
+        },
+        {
+          "key": "password",
+          "label": "field.secret",
+          "type": "string",
+          "secret": true,
+          "placeholder": "rpc-secret token"
+        }
+      ]
+    }
+  ]
+}

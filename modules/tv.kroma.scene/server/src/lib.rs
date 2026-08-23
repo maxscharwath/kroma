@@ -73,6 +73,8 @@ pub struct Profile {
     pub max_size_bytes_episode: u64,
     pub required_keywords: Vec<String>,
     pub forbidden_keywords: Vec<String>,
+    pub required_resolution: Option<Res>,
+    pub required_codec: Option<Codec>,
 }
 
 /// One line of the score explanation, persisted with the grab so "why this

@@ -98,6 +98,8 @@ fn profile() -> Profile {
         max_size_bytes_episode: 3 * GB,
         required_keywords: vec![],
         forbidden_keywords: vec!["cam".into(), "hdcam".into(), "screener".into()],
+        required_resolution: None,
+        required_codec: None,
     }
 }
 
@@ -393,4 +395,46 @@ fn a_profile_with_no_size_ceiling_lets_any_release_through() {
 
     assert_eq!(line(&s, "size"), None);
     assert_eq!(line(&s, "source"), Some(250));
+}
+
+#[test]
+fn a_required_resolution_releases_below_it() {
+    let t = Target::Movie { year: None };
+    let pr = Profile { required_resolution: Some(Res::R2160), ..profile() };
+    let name = "Movie.2020.1080p.BluRay.x265";
+
+    let r = score(&p(name), &cand(8, 10), &t, &pr, name);
+    assert!(r.is_err());
+    assert_eq!(r.unwrap_err().rule, "required-resolution");
+}
+
+#[test]
+fn a_required_resolution_lets_matching_through() {
+    let t = Target::Movie { year: None };
+    let pr = Profile { required_resolution: Some(Res::R2160), ..profile() };
+    let name = "Movie.2020.2160p.BluRay.x265";
+
+    let s = score(&p(name), &cand(8, 10), &t, &pr, name).unwrap();
+    assert!(s.score > 0);
+}
+
+#[test]
+fn a_required_codec_releases_without_it() {
+    let t = Target::Movie { year: None };
+    let pr = Profile { required_codec: Some(Codec::Hevc), ..profile() };
+    let name = "Movie.2020.1080p.BluRay.x264";
+
+    let r = score(&p(name), &cand(8, 10), &t, &pr, name);
+    assert!(r.is_err());
+    assert_eq!(r.unwrap_err().rule, "required-codec");
+}
+
+#[test]
+fn a_required_codec_lets_matching_through() {
+    let t = Target::Movie { year: None };
+    let pr = Profile { required_codec: Some(Codec::Hevc), ..profile() };
+    let name = "Movie.2020.1080p.BluRay.x265";
+
+    let s = score(&p(name), &cand(8, 10), &t, &pr, name).unwrap();
+    assert!(s.score > 0);
 }

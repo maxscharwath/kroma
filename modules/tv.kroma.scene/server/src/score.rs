@@ -38,6 +38,22 @@ pub fn score(
     let Some(resolution) = parsed.resolution else {
         return Err(reject("resolution", "no recognizable resolution"));
     };
+    if let Some(req_res) = profile.required_resolution {
+        if resolution != req_res {
+            return Err(reject(
+                "required-resolution",
+                format!("{resolution:?} != required {req_res:?}"),
+            ));
+        }
+    }
+    if let Some(req_codec) = profile.required_codec {
+        if parsed.codec != Some(req_codec) {
+            return Err(reject(
+                "required-codec",
+                format!("{:?} != required {req_codec:?}", parsed.codec),
+            ));
+        }
+    }
 
     // Target shape checks + the size budget for this kind of grab.
     let max_size = target_budget(parsed, target, profile)?;

@@ -67,6 +67,18 @@ pub fn profile_from_settings<S: HostStorage>(state: &S) -> Profile {
         max_size_bytes_episode: (state.setting_i64("acqMaxSizeGbEpisode", 3).max(0) as u64) * GB,
         required_keywords: list("acqRequiredKeywords"),
         forbidden_keywords: list("acqForbiddenKeywords"),
+        required_resolution: match state.setting_str("acqRequiredResolution", "").as_str() {
+            "720p" => Some(Res::R720),
+            "1080p" => Some(Res::R1080),
+            "2160p" => Some(Res::R2160),
+            _ => None,
+        },
+        required_codec: match state.setting_str("acqRequiredCodec", "").as_str() {
+            "hevc" => Some(kroma_scene::Codec::Hevc),
+            "h264" => Some(kroma_scene::Codec::H264),
+            "av1" => Some(kroma_scene::Codec::Av1),
+            _ => None,
+        },
     }
 }
 

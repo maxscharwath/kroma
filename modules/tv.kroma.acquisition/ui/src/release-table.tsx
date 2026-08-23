@@ -8,9 +8,12 @@ import { TABULAR, Table, useT } from '@kroma/module-sdk';
 import { Box, Chip, Divider, EmptyState, Icon, Row, SegmentGroup, Text } from '@kroma/ui/kit';
 import { useMemo, useState } from 'react';
 import { IndexerReportStrip } from './indexer-report';
+import { QualityFilterBar } from './quality-filter-bar';
 import { ReleaseFacts } from './release-cells';
 import {
+  EMPTY_QUALITY_FILTER,
   filterReleases,
+  type QualityFilter,
   type ReleaseFilter,
   type ReleaseSort,
   sortReleases,
@@ -45,17 +48,27 @@ export function ReleaseTable({
   const t = useT();
   const [sort, setSort] = useState<ReleaseSort>('score');
   const [filter, setFilter] = useState<ReleaseFilter>('accepted');
+  const [indexerFilter, setIndexerFilter] = useState<string | null>(null);
+  const [quality, setQuality] = useState<QualityFilter>(EMPTY_QUALITY_FILTER);
 
   const acceptedCount = releases.filter((r) => r.score != null).length;
   const rejectedCount = releases.length - acceptedCount;
   const rows = useMemo(
-    () => sortReleases(filterReleases(releases, filter), sort),
-    [releases, filter, sort],
+    () => sortReleases(filterReleases(releases, filter, indexerFilter, quality), sort),
+    [releases, filter, sort, indexerFilter, quality],
   );
+
+  const toggleIndexer = (id: string | null) => {
+    setIndexerFilter((prev) => (prev === id ? null : id));
+  };
 
   return (
     <Box gap={12}>
-      <IndexerReportStrip indexers={indexers} />
+      <IndexerReportStrip
+        indexers={indexers}
+        activeIndexer={indexerFilter}
+        onToggleIndexer={toggleIndexer}
+      />
 
       <Row wrap between gap={10}>
         <Row wrap gap={8}>
@@ -88,6 +101,8 @@ export function ReleaseTable({
           ))}
         </SegmentGroup.Root>
       </Row>
+
+      <QualityFilterBar filter={quality} onChange={setQuality} />
 
       {rows.length === 0 ? (
         <Box py={20}>

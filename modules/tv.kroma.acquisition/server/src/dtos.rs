@@ -38,6 +38,10 @@ pub struct ScoredReleaseView {
     /// same scope the grab will use, because it is what the grab acts on.
     pub upgrade: bool,
     pub details_url: Option<String>,
+    pub resolution: Option<String>,
+    pub codec: Option<String>,
+    pub source: Option<String>,
+    pub hdr: bool,
 }
 
 /// What one indexer made of a sweep. Every enabled indexer gets a row whether it

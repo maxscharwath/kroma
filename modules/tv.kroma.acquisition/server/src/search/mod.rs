@@ -79,6 +79,10 @@ mod tests {
             grabbable: true,
             upgrade: false,
             details_url: Some("https://t/1".into()),
+            resolution: None,
+            codec: None,
+            source: None,
+            hdr: false,
         }
     }
 

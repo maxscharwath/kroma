@@ -58,8 +58,9 @@ async function certificate(options: CertificateOptions): Promise<number> {
 
   const add = ['security-profiles', 'add', '-n', options.name, '-a', author.archive, '-p'];
   if (!options.register) {
-    // The password is handed over as a file read rather than printed: a shell
-    // history and a CI log are both places it must not end up.
+    // Handed over as a file read rather than printed: a terminal and a shell
+    // history both keep what they are shown. The Tizen CLI takes the password
+    // only as an argument, so it is briefly in `ps` either way.
     const spelled = [...add, `"$(cat ${author.passwordFile})"`].join(' ');
     console.log(`\nregister it, which also makes it the active profile:\n  tizen ${spelled}`);
     return 0;

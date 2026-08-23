@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import { exitAfter } from '../../exit-after';
 import { style } from '../../tui/ansi';
-import { connect } from './sdb';
+import { connect, SDB_PORT } from './sdb';
 
 const INTERESTING = new Set([
   'platform_version',
@@ -53,5 +53,5 @@ function label(name: string): string {
 
 function reason(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  return `${message}. Nothing answered on 26101: developer mode has to be on, naming this computer as the host PC, and the set rebooted since.`;
+  return `${message}. Nothing answered on ${SDB_PORT}: developer mode has to be on, naming this computer as the host PC, and the set rebooted since.`;
 }

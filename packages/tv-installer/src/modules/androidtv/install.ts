@@ -46,9 +46,9 @@ export async function installAndroid({ tv, artifact, log, launch }: InstallConte
   });
 }
 
-export function installFailure(output: string): string {
+export function installFailure(output: string, application = androidAppId()): string {
   if (output.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
-    return 'a KROMA signed with another key is already there: adb uninstall tv.kroma.tv, then install again';
+    return `a KROMA signed with another key is already there: adb uninstall ${application}, then install again`;
   }
   if (output.includes('INSTALL_FAILED_VERSION_DOWNGRADE')) {
     return 'the TV already has a newer build: uninstall it first, or install a newer .apk';

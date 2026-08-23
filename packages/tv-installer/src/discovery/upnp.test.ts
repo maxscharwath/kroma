@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { parseDeviceDescription } from './upnp';
+import { describe, expect, it, vi } from 'vitest';
+import { fetchText } from './http';
+import { fetchDeviceDescription, parseDeviceDescription } from './upnp';
+
+vi.mock('./http', () => ({ fetchText: vi.fn() }));
 
 const description = `<?xml version="1.0" encoding="utf-8"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0">
@@ -37,5 +40,28 @@ describe('parseDeviceDescription', () => {
       modelName: '',
       modelNumber: '',
     });
+  });
+});
+
+describe('fetchDeviceDescription', () => {
+  it('answers the names the description at that location carries', async () => {
+    vi.mocked(fetchText).mockResolvedValue(description);
+
+    expect(await fetchDeviceDescription('http://192.168.1.32:1754/')).toMatchObject({
+      friendlyName: '[LG] webOS TV OLED55C16LA',
+      manufacturer: 'LG Electronics',
+    });
+  });
+
+  it('answers nothing when the location answers nothing', async () => {
+    vi.mocked(fetchText).mockResolvedValue(null);
+
+    expect(await fetchDeviceDescription('http://192.168.1.32:1754/')).toBeNull();
+  });
+
+  it('answers nothing for a description that names neither a set nor a maker', async () => {
+    vi.mocked(fetchText).mockResolvedValue('<root><device><UDN>uuid:8e3</UDN></device></root>');
+
+    expect(await fetchDeviceDescription('http://192.168.1.32:1754/')).toBeNull();
   });
 });

@@ -1,5 +1,25 @@
-import { describe, expect, it } from 'vitest';
-import { devicectlAdvice, failureText } from './devicectl';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { devicectl, devicectlAdvice, failureText } from './devicectl';
+
+const { run, requireAppleTvTool, unlink, wrote } = vi.hoisted(() => ({
+  run: vi.fn(async (_command: readonly string[], _options?: unknown) => ({ code: 0, output: '' })),
+  requireAppleTvTool: vi.fn(() => '/usr/bin/devicectl'),
+  unlink: vi.fn(async (_path: string) => {}),
+  wrote: { text: '', exists: true, size: 0 },
+}));
+vi.mock('../../run', () => ({ run }));
+vi.mock('./toolchain', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  requireAppleTvTool,
+}));
+vi.mock('node:fs/promises', () => ({ unlink }));
+vi.stubGlobal('Bun', {
+  file: () => ({
+    exists: async () => wrote.exists,
+    size: wrote.size,
+    text: async () => wrote.text,
+  }),
+});
 
 const report = (description: string) => ({
   error: {
@@ -73,6 +93,60 @@ describe('devicectlAdvice', () => {
 
     expect(devicectlAdvice(said)).toBe(
       'devicectl failed: The operation failed since the device is out of storage.',
+    );
+  });
+});
+
+describe('devicectl', () => {
+  beforeEach(() => {
+    run.mockReset();
+    unlink.mockReset();
+    run.mockResolvedValue({ code: 0, output: '' });
+    wrote.exists = true;
+    wrote.text = JSON.stringify(report('The specified device was not found.'));
+    wrote.size = wrote.text.length;
+  });
+
+  it('tells devicectl where to write the report, and hands back what it wrote', async () => {
+    const outcome = await devicectl(['list', 'devices']);
+
+    const [binary, list, devices, flag, path] = run.mock.calls[0]?.[0] ?? [];
+    expect([binary, list, devices, flag]).toEqual([
+      '/usr/bin/devicectl',
+      'list',
+      'devices',
+      '--json-output',
+    ]);
+    expect(path).toMatch(/kroma-devicectl-[0-9a-f-]+\.json$/);
+    expect(failureText(outcome.report)).toBe('The specified device was not found.');
+  });
+
+  it('deletes the report it asked for, whatever devicectl did', async () => {
+    run.mockResolvedValue({ code: 1, output: 'failed' });
+
+    await devicectl(['list', 'devices']);
+
+    expect(unlink).toHaveBeenCalledOnce();
+  });
+
+  it('answers no report when devicectl wrote none', async () => {
+    wrote.exists = false;
+
+    expect((await devicectl(['list', 'devices'])).report).toBeNull();
+  });
+
+  it('answers no report when what devicectl wrote is not JSON', async () => {
+    wrote.text = 'not json at all';
+    wrote.size = wrote.text.length;
+
+    expect((await devicectl(['list', 'devices'])).report).toBeNull();
+  });
+
+  it('refuses a report too big to read into memory', async () => {
+    wrote.size = 4_000_001;
+
+    await expect(devicectl(['list', 'devices'])).rejects.toThrow(
+      'devicectl wrote a 4000001 byte report, past the 4000000 read',
     );
   });
 });

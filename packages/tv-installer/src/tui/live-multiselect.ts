@@ -1,3 +1,4 @@
+import type { Readable, Writable } from 'node:stream';
 import { styleText } from 'node:util';
 import { isCancel, MultiSelectPrompt } from '@clack/core';
 import {
@@ -28,6 +29,8 @@ export interface LiveMultiselect<TValue> {
 export interface LiveMultiselectOptions {
   message: string;
   status: string;
+  input?: Readable;
+  output?: Writable;
 }
 
 const BAR_COLUMNS = 3;
@@ -42,6 +45,8 @@ const KEYS = [
 export function liveMultiselect<TValue>({
   message,
   status,
+  input,
+  output,
 }: LiveMultiselectOptions): LiveMultiselect<TValue> {
   const options: LiveOption<TValue>[] = [];
   let statusLine = status;
@@ -49,6 +54,8 @@ export function liveMultiselect<TValue>({
 
   const prompt = new GrowingMultiSelect<TValue>({
     options,
+    input,
+    output,
     render() {
       const head = `${styleText('gray', S_BAR)}\n${symbol(this.state)}  ${message}\n`;
       const ticked = this.value ?? [];
@@ -62,6 +69,7 @@ export function liveMultiselect<TValue>({
       const rows = limitOptions({
         options: this.options,
         cursor: this.cursor,
+        output,
         columnPadding: BAR_COLUMNS,
         rowPadding: head.split('\n').length + under.length + keys.length + 1,
         style: (option, active) => row(option, active, ticked.includes(option.value)),

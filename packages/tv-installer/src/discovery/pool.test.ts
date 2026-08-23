@@ -38,4 +38,14 @@ describe('mapPool', () => {
 
     expect(results).toEqual([]);
   });
+
+  it('skips a hole in the list rather than working on nothing', async () => {
+    const items = [1, undefined, 3];
+
+    const results = await mapPool(items, 2, (item) => Promise.resolve(String(item)));
+
+    expect(results).toHaveLength(3);
+    expect(results[1]).toBeUndefined();
+    expect([results[0], results[2]]).toEqual(['1', '3']);
+  });
 });

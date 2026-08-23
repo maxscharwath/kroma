@@ -51,9 +51,17 @@ export async function scan(options: ScanOptions = {}): Promise<Television[]> {
     options.signal?.aborted ? Promise.resolve() : visit(host),
   );
 
+  // A set that answered a port was identified before its description arrived,
+  // so it is asked again once there is a name and a model to give it.
   for (const [host, device] of await describe(await announced)) {
     upnp.set(host, device);
-    if (!found.some((television) => television.host === host)) await visit(host);
+    const television = await examine(host, device, options.signal);
+    if (!television) continue;
+
+    const at = found.findIndex((seen) => seen.host === host);
+    if (at === -1) found.push(television);
+    else found[at] = television;
+    options.onFound?.(television);
   }
   return found.sort(byHost);
 }

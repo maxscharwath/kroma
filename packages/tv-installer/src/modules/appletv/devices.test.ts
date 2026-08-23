@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { readAppleTvs } from './devices';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { devicectl } from './devicectl';
+import { listAppleTvs, readAppleTvs } from './devices';
+
+vi.mock('./devicectl', () => ({ devicectl: vi.fn() }));
 
 const salon = {
   identifier: '54519807-3629-5FCC-9B92-0FE3B890595A',
@@ -102,5 +105,32 @@ describe('readAppleTvs', () => {
 
   it('refuses a document that is not the one devicectl writes', () => {
     expect(() => readAppleTvs({ result: {} })).toThrow();
+  });
+});
+
+describe('listAppleTvs', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('asks CoreDevice for every device it is paired with', async () => {
+    vi.mocked(devicectl).mockResolvedValue({ code: 0, output: '', report: listing([salon]) });
+
+    const paired = await listAppleTvs();
+
+    expect(vi.mocked(devicectl).mock.calls[0]?.[0]).toEqual(['list', 'devices']);
+    expect(paired.map((tv) => tv.identifier)).toEqual([salon.identifier]);
+  });
+
+  it('quotes what devicectl said when it could not list anything', async () => {
+    vi.mocked(devicectl).mockResolvedValue({
+      code: 1,
+      output: '  ERROR: Xcode is not installed\n',
+      report: null,
+    });
+
+    await expect(listAppleTvs()).rejects.toThrow(
+      'devicectl could not list the paired devices: ERROR: Xcode is not installed',
+    );
   });
 });

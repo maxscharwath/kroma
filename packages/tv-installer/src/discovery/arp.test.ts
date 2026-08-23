@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { parseArpTable } from './arp';
+import { describe, expect, it, vi } from 'vitest';
+import { run } from '../run';
+import { arpHosts, parseArpTable } from './arp';
+
+vi.mock('../run', () => ({ run: vi.fn() }));
 
 const table = [
   '? (192.168.1.1) at dc:f5:1b:75:c6:c0 on en0 ifscope [ethernet]',
@@ -25,5 +28,19 @@ describe('parseArpTable', () => {
 
   it('answers nothing for an empty table', () => {
     expect(parseArpTable('')).toEqual([]);
+  });
+});
+
+describe('arpHosts', () => {
+  it('answers every address the system table already knows', async () => {
+    vi.mocked(run).mockResolvedValue({ code: 0, output: table });
+
+    expect(await arpHosts()).toEqual(['192.168.1.1', '192.168.1.107', '224.0.0.251']);
+  });
+
+  it('answers nothing when arp refuses to print its table', async () => {
+    vi.mocked(run).mockResolvedValue({ code: 1, output: table });
+
+    expect(await arpHosts()).toEqual([]);
   });
 });

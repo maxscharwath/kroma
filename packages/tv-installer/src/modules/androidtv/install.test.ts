@@ -1,5 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { installFailure, parseAdbState } from './install';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Television } from '../../television';
+import type { InstallContext } from '../module';
+import { installAndroid, installFailure, parseAdbState } from './install';
+
+const { run, runOk, requireTool } = vi.hoisted(() => ({
+  run: vi.fn(async (_command: readonly string[], _options?: unknown) => ({ code: 0, output: '' })),
+  runOk: vi.fn(async (_command: readonly string[], _options?: unknown) => ''),
+  requireTool: vi.fn(() => '/usr/bin/adb'),
+}));
+vi.mock('../../run', () => ({ run, runOk }));
+vi.mock('../../toolchain/detect', async (original) => ({
+  ...(await original<Record<string, unknown>>()),
+  requireTool,
+}));
+vi.mock('./app-id', () => ({ androidAppId: () => 'tv.kroma.tv' }));
 
 const devices = [
   'List of devices attached',
@@ -15,6 +29,38 @@ const failure = (reason: string) =>
     '',
   ].join('\n');
 
+const shield: Television = {
+  host: '192.168.1.34',
+  platform: 'androidtv',
+  vendor: 'Nvidia',
+  name: 'Shield',
+  model: 'SHIELD Android TV',
+  developerMode: 'on',
+  sideloadable: true,
+  note: 'network debugging open on 5555',
+  runtime: null,
+};
+
+const context = (overrides: Partial<InstallContext> = {}): InstallContext => ({
+  tv: shield,
+  artifact: '/out/KROMA.apk',
+  log: () => {},
+  launch: true,
+  options: {},
+  ...overrides,
+});
+
+const argv = () => [
+  ...runOk.mock.calls.map(([command]) => command),
+  ...run.mock.calls.map(([command]) => command),
+];
+
+beforeEach(() => {
+  run.mockReset();
+  runOk.mockReset();
+  runOk.mockImplementation(async (command) => (command.includes('devices') ? devices : ''));
+});
+
 describe('parseAdbState', () => {
   it('reads the state adb holds the television in', () => {
     expect(parseAdbState(devices, '192.168.1.34:5555')).toBe('device');
@@ -26,6 +72,78 @@ describe('parseAdbState', () => {
 
   it('answers nothing for a serial adb does not list', () => {
     expect(parseAdbState(devices, '192.168.1.99:5555')).toBeNull();
+  });
+});
+
+describe('installAndroid', () => {
+  it('connects to the set on the network debugging port', async () => {
+    await installAndroid(context());
+
+    expect(argv()).toContainEqual(['/usr/bin/adb', 'connect', '192.168.1.34:5555']);
+  });
+
+  it('installs over whatever build the set already carries', async () => {
+    await installAndroid(context());
+
+    expect(argv()).toContainEqual([
+      '/usr/bin/adb',
+      '-s',
+      '192.168.1.34:5555',
+      'install',
+      '-r',
+      '/out/KROMA.apk',
+    ]);
+  });
+
+  it('starts the app through the launcher a television has', async () => {
+    await installAndroid(context());
+
+    expect(argv()).toContainEqual([
+      '/usr/bin/adb',
+      '-s',
+      '192.168.1.34:5555',
+      'shell',
+      'monkey',
+      '-p',
+      'tv.kroma.tv',
+      '-c',
+      'android.intent.category.LEANBACK_LAUNCHER',
+      '1',
+    ]);
+  });
+
+  it('leaves the app alone when the install was told not to launch', async () => {
+    await installAndroid(context({ launch: false }));
+
+    expect(argv().flat()).not.toContain('monkey');
+  });
+
+  it('tells the owner to accept the prompt a set is still showing', async () => {
+    await expect(
+      installAndroid(context({ tv: { ...shield, host: '192.168.1.44' } })),
+    ).rejects.toThrow(
+      'the TV is asking to allow this computer: accept the prompt on screen, then run this again',
+    );
+  });
+
+  it('refuses a set adb holds in any other state', async () => {
+    runOk.mockImplementation(async () => 'List of devices attached\n192.168.1.34:5555\toffline');
+
+    await expect(installAndroid(context())).rejects.toThrow(
+      'adb sees the TV as offline: turn Network debugging on in Developer options',
+    );
+  });
+
+  it('refuses a set adb never listed at all', async () => {
+    runOk.mockImplementation(async () => 'List of devices attached');
+
+    await expect(installAndroid(context())).rejects.toThrow('adb sees the TV as absent');
+  });
+
+  it('quotes what adb said when the install did not take', async () => {
+    run.mockResolvedValue({ code: 1, output: failure('INSTALL_FAILED_VERSION_DOWNGRADE') });
+
+    await expect(installAndroid(context())).rejects.toThrow('the TV already has a newer build');
   });
 });
 

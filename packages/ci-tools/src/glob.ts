@@ -4,26 +4,27 @@ function alternatives(body: string): string {
   return `(?:${body.split(',').map(translate).join('|')})`;
 }
 
+function token(glob: string, at: number): [piece: string, width: number] {
+  const ch = glob[at] ?? '';
+  if (ch === '{') {
+    const end = glob.indexOf('}', at);
+    if (end === -1) throw new Error(`unclosed brace in '${glob}'`);
+    return [alternatives(glob.slice(at + 1, end)), end - at + 1];
+  }
+  if (glob.startsWith('**/', at)) return ['(?:.*/)?', 3];
+  if (glob.startsWith('**', at)) return ['.*', 2];
+  if (ch === '*') return ['[^/]*', 1];
+  if (ch === '?') return ['[^/]', 1];
+  return [ch.replace(SPECIAL, String.raw`\$&`), 1];
+}
+
 function translate(glob: string): string {
   let out = '';
-  for (let i = 0; i < glob.length; i++) {
-    const ch = glob[i];
-    if (ch === '{') {
-      const end = glob.indexOf('}', i);
-      if (end === -1) throw new Error(`unclosed brace in '${glob}'`);
-      out += alternatives(glob.slice(i + 1, end));
-      i = end;
-    } else if (ch === '*' && glob[i + 1] === '*') {
-      const slashAfter = glob[i + 2] === '/';
-      out += slashAfter ? '(?:.*/)?' : '.*';
-      i += slashAfter ? 2 : 1;
-    } else if (ch === '*') {
-      out += '[^/]*';
-    } else if (ch === '?') {
-      out += '[^/]';
-    } else {
-      out += (ch ?? '').replace(SPECIAL, '\\$&');
-    }
+  let at = 0;
+  while (at < glob.length) {
+    const [piece, width] = token(glob, at);
+    out += piece;
+    at += width;
   }
   return out;
 }

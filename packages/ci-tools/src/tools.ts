@@ -30,7 +30,8 @@ async function apt(packages: readonly string[], attempts = 3): Promise<void> {
 
 async function ffmpeg(): Promise<void> {
   if (await present('ffmpeg')) {
-    console.log(`already on the image: ${(await $`ffmpeg -version`.text()).split('\n')[0]}`);
+    const [banner] = (await $`ffmpeg -version`.text()).split('\n');
+    console.log(`already on the image: ${banner}`);
     return;
   }
   await apt(['ffmpeg']);

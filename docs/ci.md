@@ -7,6 +7,7 @@ TypeScript with tests rather than YAML and shell.
 
 ```
 bun run ci lanes [--json] [--lane rust]   which jobs a change can reach
+bun run ci typecheck [--jobs N]           every workspace's typecheck, N at a time (the root `typecheck` script)
 bun run ci test --shard 2/4 | --merge     vitest shards (blob + coverage), then one report
 bun run ci rust clippy | test             every cargo workspace; `test` runs under cargo llvm-cov
 bun run ci build <target> [--slice]       a fleet build, with its dist path as a step output
@@ -38,6 +39,11 @@ the push's compare) and matches them against `packages/ci-tools/src/lanes.ts`.
 A change under `.github/workflows`, `.github/scripts` or `packages/ci-tools`
 opens every lane; so does a push with no parent or a manual run.
 
+`bun run typecheck` is `ci typecheck`: every workspace's own script, one per
+core at a time. `bun run --filter '*'` starts all thirty-seven at once, and
+thirty-six native `tsc` processes on a four-core runner took the runner itself
+down ("The runner has received a shutdown signal") twice in three runs.
+
 Unit tests run as four shards, each with coverage, and `test-report` merges
 the blobs into one `coverage/lcov.info` and one summary. The shards are not
 required checks; the merge is, so a shard that never ran cannot pass as a
@@ -58,7 +64,7 @@ Measured over the last forty runs before the rebuild:
 
 | | before | after |
 |---|---|---|
-| PR, required checks green | 6 to 8 min (one job: typecheck 60 s, vitest 250 to 344 s, biome) | 3.5 min measured on #126 (checks 2:27, four shards merged at 3:24) |
+| PR, required checks green | 6 to 8 min (one job: typecheck 60 s, vitest 250 to 344 s, biome) | 3.5 min measured on #126 (typecheck + lint 1:12, four shards merged at 3:40) |
 | PR, Sonar done | 9 to 10 min (its own workflow, vitest with coverage again: 274 to 424 s) | about 5.5 min on a JS change (the scan itself is 1:45 and reads the shards' coverage); a Rust change waits for the Rust job |
 | main, Sonar done | 12 to 21 min | about 10 min (the Rust job, then a 4.5 min main-branch scan) |
 | Android compile (6 min) | every fleet PR | only `clients/tv-native/**` and install changes |

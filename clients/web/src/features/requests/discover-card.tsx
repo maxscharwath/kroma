@@ -182,69 +182,67 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                 </button>
               ) : null}
 
-              {owned || !canRequest ? (
-                <div
-                  style={
-                    {
-                      position: 'absolute',
-                      right: 8,
-                      bottom: 8,
-                      display: 'flex',
-                      flexDirection: 'row',
-                      gap: 6,
-                      opacity: lit ? 1 : 0,
-                      pointerEvents: lit ? 'auto' : 'none',
-                      zIndex: 2,
-                    } as CSSProperties
-                  }
+              <div
+                style={
+                  {
+                    position: 'absolute',
+                    right: 8,
+                    bottom: 8,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: 6,
+                    opacity: lit ? 1 : 0,
+                    pointerEvents: lit ? 'auto' : 'none',
+                    zIndex: 2,
+                  } as CSSProperties
+                }
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleWatched(listId);
+                  }}
+                  aria-label={t('discover.markWatched')}
+                  style={QUICK_ACTION_BTN}
                 >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWatched(listId);
-                    }}
-                    aria-label={t('discover.markWatched')}
-                    style={QUICK_ACTION_BTN}
-                  >
-                    <Icon
-                      name={isWatched(listId) ? 'check' : 'eye'}
-                      size={16}
-                      color={isWatched(listId) ? 'accent' : 'white'}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleMyList(listId);
-                    }}
-                    aria-label={t('discover.addToMyList')}
-                    style={QUICK_ACTION_BTN}
-                  >
-                    <Icon
-                      name={inList(listId) ? 'check' : 'plus'}
-                      size={16}
-                      color={inList(listId) ? 'accent' : 'white'}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWatchLater(listId);
-                    }}
-                    aria-label={t('discover.watchLater')}
-                    style={QUICK_ACTION_BTN}
-                  >
-                    <Icon
-                      name={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
-                      size={16}
-                      color={inQueue(listId) ? 'accent' : 'white'}
-                    />
-                  </button>
-                </div>
-              ) : null}
+                  <Icon
+                    name={isWatched(listId) ? 'check' : 'eye'}
+                    size={16}
+                    color={isWatched(listId) ? 'accent' : 'white'}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleMyList(listId);
+                  }}
+                  aria-label={t('discover.addToMyList')}
+                  style={QUICK_ACTION_BTN}
+                >
+                  <Icon
+                    name={inList(listId) ? 'check' : 'plus'}
+                    size={16}
+                    color={inList(listId) ? 'accent' : 'white'}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleWatchLater(listId);
+                  }}
+                  aria-label={t('discover.watchLater')}
+                  style={QUICK_ACTION_BTN}
+                >
+                  <Icon
+                    name={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
+                    size={16}
+                    color={inQueue(listId) ? 'accent' : 'white'}
+                  />
+                </button>
+              </div>
             </Box>
           );
         }}

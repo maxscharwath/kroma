@@ -6,22 +6,24 @@ import {
   ShowId,
 } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, EmptyState, PageHeader } from '@kroma/ui/kit';
+import { Box, EmptyState, PageHeader, SegmentGroup } from '@kroma/ui/kit';
 
 import { useQueries, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { type CatalogEntry, CatalogGrid, SectionHeading } from '#web/features/catalog/cards';
+import { useMemo, useState } from 'react';
+import { type CatalogEntry, CatalogGrid } from '#web/features/catalog/cards';
 import { TileGrid } from '#web/features/catalog/tile-grid';
 import { DiscoverCard } from '#web/features/requests/discover-card';
-import { isAuthed, kromaClient } from '#web/shared/lib/api';
+import { isAuthed, kromaClient, type MovieView, type ShowView } from '#web/shared/lib/api';
 import { useMyList } from '#web/shared/lib/mylist';
 import { catalogQueries } from '#web/shared/lib/queries';
 import { useWatchLater } from '#web/shared/lib/watch-later';
+import { useWatched } from '#web/shared/lib/watched';
 import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
 
+type Tab = 'mylist' | 'watchlater' | 'watched';
+
 export const Route = createFileRoute('/_app/mylist')({
-  // The catalogue is public/SSR while the per-user list hydrates client-side,
-  // so everything loads here and the component filters by the user's ids.
   loader: async ({ context: { queryClient } }) => {
     if (!isAuthed()) return;
     await Promise.all([
@@ -47,8 +49,6 @@ function MyListPending() {
   );
 }
 
-// Split a list of ids into local ids and `tmdb:` ids. Local ids resolve against
-// the catalog views; tmdb ids need a discover detail fetch to render.
 function splitIds(ids: readonly string[]): { local: string[]; tmdb: number[] } {
   const local: string[] = [];
   const tmdb: number[] = [];
@@ -63,16 +63,12 @@ function splitIds(ids: readonly string[]): { local: string[]; tmdb: number[] } {
   return { local, tmdb };
 }
 
-// The discover detail endpoint takes `movie` | `tv`, but the queue stores only
-// the numeric TMDB id. Try `movie` first; on failure try `tv`.
 async function fetchDiscoverEntry(id: number): Promise<DiscoverEntry> {
   const client = kromaClient();
   try {
-    const d = await client.discoverDetail('movie', id);
-    return discoverEntryFromDetail(d);
+    return discoverEntryFromDetail(await client.discoverDetail('movie', id));
   } catch {
-    const d = await client.discoverDetail('tv', id);
-    return discoverEntryFromDetail(d);
+    return discoverEntryFromDetail(await client.discoverDetail('tv', id));
   }
 }
 
@@ -125,82 +121,94 @@ function DiscoverGrid({ entries }: Readonly<{ entries: DiscoverEntry[] }>) {
   );
 }
 
-function ListSection({
-  title,
-  emptyKey,
-  ready,
-  local,
-  tmdbEntries,
-  tmdbLoading,
-}: Readonly<{
-  title: string;
-  emptyKey: MessageKey;
-  ready: boolean;
+interface ResolvedList {
   local: CatalogEntry[];
-  tmdbEntries: DiscoverEntry[];
+  tmdb: DiscoverEntry[];
   tmdbLoading: boolean;
-}>) {
+  total: number;
+  ready: boolean;
+}
+
+function useResolvedList(
+  ids: readonly string[],
+  ready: boolean,
+  movieById: Map<string, MovieView>,
+  showById: Map<string, ShowView>,
+): ResolvedList {
+  const split = splitIds(ids);
+  const local: CatalogEntry[] = [];
+  for (const id of split.local) {
+    const movie = movieById.get(ItemId.of(id));
+    if (movie) {
+      local.push({ kind: 'movie', movie });
+      continue;
+    }
+    const show = showById.get(ShowId.of(id));
+    if (show) local.push({ kind: 'show', show });
+  }
+  const { entries, loading } = useDiscoverEntries(split.tmdb);
+  return {
+    local,
+    tmdb: entries,
+    tmdbLoading: loading,
+    total: local.length + entries.length,
+    ready,
+  };
+}
+
+function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey: MessageKey }>) {
   const t = useT();
-  const empty = ready && !tmdbLoading && local.length === 0 && tmdbEntries.length === 0;
-  if (empty) {
+  if (list.ready && !list.tmdbLoading && list.total === 0) {
     return (
       <EmptyState.Root icon="list-details">
         <EmptyState.Title>{t(emptyKey)}</EmptyState.Title>
       </EmptyState.Root>
     );
   }
-  if (local.length === 0 && tmdbEntries.length === 0 && !ready) return null;
+  if (list.total === 0 && !list.ready) return null;
   return (
     <Box>
-      <SectionHeading>{title}</SectionHeading>
-      {local.length > 0 ? <CatalogGrid entries={local} /> : null}
-      {tmdbEntries.length > 0 ? <DiscoverGrid entries={tmdbEntries} /> : null}
+      {list.local.length > 0 ? <CatalogGrid entries={list.local} /> : null}
+      {list.tmdb.length > 0 ? <DiscoverGrid entries={list.tmdb} /> : null}
     </Box>
   );
 }
 
 function MyListPage() {
   const t = useT();
+  const [tab, setTab] = useState<Tab>('mylist');
   const { data: movies } = useSuspenseQuery(catalogQueries.moviesView());
   const { data: shows } = useSuspenseQuery(catalogQueries.showsView());
   const { ids: myListIds, ready: myListReady } = useMyList();
   const { ids: watchLaterIds, ready: watchLaterReady } = useWatchLater();
+  const { ids: watchedIds, ready: watchedReady } = useWatched();
 
-  const movieById = new Map(movies.map((m) => [m.id, m]));
-  const showById = new Map(shows.map((s) => [s.id, s]));
+  const movieById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);
+  const showById = useMemo(() => new Map(shows.map((s) => [s.id, s])), [shows]);
 
-  function resolveLocal(ids: string[]): CatalogEntry[] {
-    const out: CatalogEntry[] = [];
-    for (const id of ids) {
-      const movie = movieById.get(ItemId.of(id));
-      if (movie) {
-        out.push({ kind: 'movie', movie });
-        continue;
-      }
-      const show = showById.get(ShowId.of(id));
-      if (show) out.push({ kind: 'show', show });
-    }
-    return out;
-  }
+  const myList = useResolvedList(myListIds, myListReady, movieById, showById);
+  const watchLater = useResolvedList(watchLaterIds, watchLaterReady, movieById, showById);
+  const watched = useResolvedList(watchedIds, watchedReady, movieById, showById);
 
-  const myListSplit = splitIds(myListIds);
-  const myListLocal = resolveLocal(myListSplit.local);
-  const myListTmdb = useDiscoverEntries(myListSplit.tmdb);
+  const allEmpty =
+    myList.ready &&
+    !myList.tmdbLoading &&
+    myList.total === 0 &&
+    watchLater.ready &&
+    !watchLater.tmdbLoading &&
+    watchLater.total === 0 &&
+    watched.ready &&
+    !watched.tmdbLoading &&
+    watched.total === 0;
 
-  const watchLaterSplit = splitIds(watchLaterIds);
-  const watchLaterLocal = resolveLocal(watchLaterSplit.local);
-  const watchLaterTmdb = useDiscoverEntries(watchLaterSplit.tmdb);
-
-  const myListEmpty =
-    myListReady &&
-    !myListTmdb.loading &&
-    myListLocal.length === 0 &&
-    myListTmdb.entries.length === 0;
-  const watchLaterEmpty =
-    watchLaterReady &&
-    !watchLaterTmdb.loading &&
-    watchLaterLocal.length === 0 &&
-    watchLaterTmdb.entries.length === 0;
+  const lists: Record<Tab, ResolvedList> = { mylist: myList, watchlater: watchLater, watched };
+  const active = lists[tab];
+  const emptyKeys: Record<Tab, MessageKey> = {
+    mylist: 'content.myListEmpty',
+    watchlater: 'content.watchLaterEmpty',
+    watched: 'content.watchedEmpty',
+  };
+  const activeEmptyKey = emptyKeys[tab];
 
   return (
     <main className={PAGE_MAIN}>
@@ -208,28 +216,27 @@ function MyListPage() {
         <PageHeader.Title>{t('nav.myList')}</PageHeader.Title>
       </PageHeader.Root>
 
-      {myListEmpty && watchLaterEmpty ? (
-        <EmptyState.Root icon="list-details">
-          <EmptyState.Title>{t('content.myListEmpty')}</EmptyState.Title>
-        </EmptyState.Root>
+      {allEmpty ? (
+        <Box mt={24}>
+          <EmptyState.Root icon="list-details">
+            <EmptyState.Title>{t('content.myListEmpty')}</EmptyState.Title>
+          </EmptyState.Root>
+        </Box>
       ) : (
-        <Box mt={24} gap={40}>
-          <ListSection
-            title={t('nav.myList')}
-            emptyKey="content.myListEmpty"
-            ready={myListReady}
-            local={myListLocal}
-            tmdbEntries={myListTmdb.entries}
-            tmdbLoading={myListTmdb.loading}
-          />
-          <ListSection
-            title={t('discover.watchLater')}
-            emptyKey="content.watchLaterEmpty"
-            ready={watchLaterReady}
-            local={watchLaterLocal}
-            tmdbEntries={watchLaterTmdb.entries}
-            tmdbLoading={watchLaterTmdb.loading}
-          />
+        <Box mt={24} gap={24}>
+          <SegmentGroup.Root<Tab> value={tab} onValueChange={setTab} size="sm" stretch>
+            <SegmentGroup.Item value="mylist">
+              <SegmentGroup.Label>{t('nav.myList')}</SegmentGroup.Label>
+            </SegmentGroup.Item>
+            <SegmentGroup.Item value="watchlater">
+              <SegmentGroup.Label>{t('discover.watchLater')}</SegmentGroup.Label>
+            </SegmentGroup.Item>
+            <SegmentGroup.Item value="watched">
+              <SegmentGroup.Label>{t('content.watched')}</SegmentGroup.Label>
+            </SegmentGroup.Item>
+          </SegmentGroup.Root>
+
+          <ListContent list={active} emptyKey={activeEmptyKey} />
         </Box>
       )}
     </main>

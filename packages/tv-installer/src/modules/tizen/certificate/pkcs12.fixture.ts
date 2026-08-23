@@ -1,14 +1,15 @@
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import { OPENSSL } from './openssl';
+import { randomPassword } from './password';
 import type { ProfileKey } from './profile';
 
-const PASSWORD = 'kroma-dev';
 const RSA = ['-newkey', 'rsa:2048', '-nodes'];
 const ONE_DAY = ['-days', '1'];
 const subject = (name: string) => ['-subj', `/CN=${name}/O=KROMA/C=CH`];
 
 function openssl(args: string[]): void {
-  const result = spawnSync('openssl', args, { encoding: 'utf8' });
+  const result = spawnSync(OPENSSL, args, { encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`openssl ${args[0]}: ${result.stderr ?? result.error}`);
 }
 
@@ -18,6 +19,7 @@ function openssl(args: string[]): void {
  */
 export function writeArchive(directory: string, name: string): ProfileKey {
   const at = (suffix: string) => join(directory, `${name}.${suffix}`);
+  const password = randomPassword();
 
   openssl([
     'req',
@@ -57,8 +59,8 @@ export function writeArchive(directory: string, name: string): ProfileKey {
     '-out',
     at('p12'),
     '-passout',
-    `pass:${PASSWORD}`,
+    `pass:${password}`,
   ]);
 
-  return { archive: at('p12'), password: PASSWORD };
+  return { archive: at('p12'), password };
 }

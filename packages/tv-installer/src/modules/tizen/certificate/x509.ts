@@ -60,8 +60,8 @@ export function selfSignedCertificate(request: CertificateRequest): Buffer {
 }
 
 export function toPem(contents: Buffer, label: string): string {
-  const body = contents.toString('base64').replace(/(.{64})/g, '$1\n');
-  return `-----BEGIN ${label}-----\n${body}\n-----END ${label}-----\n`;
+  const body = contents.toString('base64').match(/.{1,64}/g) ?? [];
+  return [`-----BEGIN ${label}-----`, ...body, `-----END ${label}-----`, ''].join('\n');
 }
 
 function extensions(): Buffer[] {

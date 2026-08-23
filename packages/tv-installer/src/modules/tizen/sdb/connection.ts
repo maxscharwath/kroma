@@ -116,7 +116,7 @@ export class SdbConnection implements StreamTransport {
   private dispatch(packet: SdbPacket): void {
     if (packet.command === SDB_COMMAND.CNXN) {
       this.maxData = Math.min(HOST_MAX_DATA, packet.arg1 || HOST_MAX_DATA);
-      this.onConnected?.(packet.data.toString('utf8').replace(/\0+$/, ''));
+      this.onConnected?.(bannerFrom(packet.data));
       return;
     }
     if (packet.command === SDB_COMMAND.AUTH) {
@@ -137,10 +137,16 @@ export class SdbConnection implements StreamTransport {
     if (this.failure) return;
     this.failure = error;
     this.onRejected?.(error);
-    for (const stream of [...this.streams.values()]) stream.onFail(error);
+    for (const stream of this.streams.values()) stream.onFail(error);
     this.streams.clear();
     this.socket.destroy();
   }
+}
+
+function bannerFrom(data: Buffer): string {
+  let end = data.length;
+  while (end > 0 && data[end - 1] === 0) end -= 1;
+  return data.subarray(0, end).toString('utf8');
 }
 
 function dial(host: string, port: number, timeoutMs: number): Promise<Socket> {

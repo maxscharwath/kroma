@@ -10,7 +10,7 @@ export const SDB_COMMAND = {
 export type SdbCommand = (typeof SDB_COMMAND)[keyof typeof SDB_COMMAND];
 
 export const HEADER_BYTES = 24;
-export const PROTOCOL_VERSION = 0x0010_0000;
+export const PROTOCOL_VERSION = 0x00100000;
 export const HOST_MAX_DATA = 256 * 1024;
 export const HOST_BANNER = 'host::\0';
 

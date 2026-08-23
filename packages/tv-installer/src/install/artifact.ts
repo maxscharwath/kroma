@@ -78,7 +78,8 @@ export async function resolveArtifact(
 
   const local = localArtifact(from.kind);
   if (local) {
-    log(`package: ${local.replace(`${root}/`, '')}`);
+    const relative = local.replace(`${root}/`, '');
+    log(`package: ${relative}`);
     return local;
   }
   return fromRelease(from, 'stable', log);

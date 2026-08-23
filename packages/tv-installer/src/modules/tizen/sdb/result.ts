@@ -7,7 +7,7 @@ export interface SdbResult {
 }
 
 const APPCMD_EXIT = /appcmd_exitcode:\s*(-?\d+)/;
-const PROCESSING = /processing result\s*:\s*([A-Za-z_]+)\s*\[\s*(-?\d+)\s*\]/i;
+const PROCESSING = /processing result\s*:\s*([A-Z_]+)\s*\[\s*(-?\d+)\s*\]/i;
 const SUCCESS =
   /(install completed|uninstall completed|successfully installed|succeeded|result:\s*launched|app_id is)/i;
 const FAILURE =
@@ -42,5 +42,6 @@ export function parseResult(output: string): SdbResult {
 export function describeResult(action: string, result: SdbResult): string {
   const tail = result.output.split('\n').filter(Boolean).slice(-3).join(' / ');
   const code = result.code === null ? '' : ` [${result.code}]`;
-  return `${action} ${result.verdict}${code}${tail ? `: ${tail}` : ''}`;
+  const said = tail ? `: ${tail}` : '';
+  return `${action} ${result.verdict}${code}${said}`;
 }

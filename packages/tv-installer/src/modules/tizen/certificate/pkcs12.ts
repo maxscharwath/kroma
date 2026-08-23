@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createPrivateKey, type KeyObject, X509Certificate } from 'node:crypto';
+import { OPENSSL } from './openssl';
 import type { ProfileKey } from './profile';
 
 const PEM_BLOCK = /-----BEGIN ([A-Z ]+)-----[^-]+-----END \1-----/g;
@@ -15,7 +16,7 @@ export interface Pkcs12 {
  * key comes back over a pipe, so neither reaches the process table or the disk.
  */
 export function readPkcs12({ archive, password }: ProfileKey): Pkcs12 {
-  const openssl = spawnSync('openssl', ['pkcs12', '-in', archive, '-passin', 'stdin', '-nodes'], {
+  const openssl = spawnSync(OPENSSL, ['pkcs12', '-in', archive, '-passin', 'stdin', '-nodes'], {
     input: `${password}\n`,
     encoding: 'utf8',
   });
@@ -42,7 +43,7 @@ function chainFrom(certificates: X509Certificate[], key: KeyObject): X509Certifi
   const chain = [leaf];
   const rest = certificates.filter((certificate) => certificate !== leaf);
   while (rest.length > 0) {
-    const issuer = chain[chain.length - 1]?.issuer;
+    const issuer = chain.at(-1)?.issuer;
     const next = rest.findIndex((certificate) => certificate.subject === issuer);
     if (next < 0) break;
     chain.push(...rest.splice(next, 1));

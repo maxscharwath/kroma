@@ -50,7 +50,8 @@ export async function runOk(command: readonly string[], options: RunOptions = {}
   const { code, output } = await run(command, options);
   if (code !== 0) {
     const tail = output.split('\n').filter(Boolean).slice(-4).join(' / ');
-    throw new Error(`${command[0]} exited ${code}${tail ? `: ${tail}` : ''}`);
+    const said = tail ? `: ${tail}` : '';
+    throw new Error(`${command[0]} exited ${code}${said}`);
   }
   return output;
 }

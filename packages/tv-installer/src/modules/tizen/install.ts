@@ -92,7 +92,8 @@ export function installFailure(
 ): string {
   if (!output.includes('certificate')) {
     const tail = output.split('\n').filter(Boolean).slice(-2).join(' / ');
-    return `the install failed${tail ? `: ${tail}` : ''}`;
+    const said = tail ? `: ${tail}` : '';
+    return `the install failed${said}`;
   }
   const rejected = profile ? `profile ${profile} signed it and the set refused that chain. ` : '';
   const set = duid ? ` The DUID to register is ${duid}.` : '';

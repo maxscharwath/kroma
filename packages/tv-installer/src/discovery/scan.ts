@@ -17,7 +17,6 @@ export interface ScanOptions {
   hosts?: readonly string[];
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
-  /** Called the moment a set is identified, before the sweep finishes. */
   onFound?: (tv: Television) => void;
 }
 
@@ -28,7 +27,7 @@ export interface WatchOptions extends ScanOptions {
 /** One pass over the network. */
 export async function scan(options: ScanOptions = {}): Promise<Television[]> {
   const found: Television[] = [];
-  const discovered = Promise.all(modules().map((module) => module.discover?.() ?? []));
+  const discovered = Promise.all(modules().map(async (module) => module.discover?.() ?? []));
   const announced = ssdpSearch(SSDP_WINDOW_MS, options.signal, searchTargets());
   const targets = options.hosts?.length ? [...options.hosts] : await sweepTargets();
 
@@ -65,14 +64,16 @@ export async function scan(options: ScanOptions = {}): Promise<Television[]> {
  */
 export async function watch(options: WatchOptions): Promise<Television[]> {
   const seen = new Map<string, Television>();
-  for (let round = 1; !options.signal?.aborted; round++) {
+  let round = 0;
+  while (!options.signal?.aborted) {
+    round += 1;
     options.onRound?.(round);
     await scan({
       ...options,
       onFound: (tv) => {
         const before = seen.get(tv.host);
         seen.set(tv.host, tv);
-        if (!before || before.developerMode !== tv.developerMode || before.name !== tv.name) {
+        if (before?.developerMode !== tv.developerMode || before?.name !== tv.name) {
           options.onFound?.(tv);
         }
       },

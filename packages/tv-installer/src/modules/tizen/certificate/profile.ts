@@ -21,7 +21,7 @@ export interface ProfileRequest {
 }
 
 const attribute = (value: string) =>
-  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 
 export function profilesXml(request: ProfileRequest): string {
   const item = (index: number, key: ProfileKey | undefined) =>

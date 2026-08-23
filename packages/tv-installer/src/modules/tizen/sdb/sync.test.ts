@@ -12,7 +12,7 @@ describe('a sync request', () => {
   it('is four ascii letters and a little-endian length', () => {
     const request = syncRequest('DONE', 1_700_000_000);
 
-    expect(request.length).toBe(SYNC_HEADER_BYTES);
+    expect(request).toHaveLength(SYNC_HEADER_BYTES);
     expect(request.subarray(0, 4).toString('ascii')).toBe('DONE');
     expect(request.readUInt32LE(4)).toBe(1_700_000_000);
   });
@@ -21,7 +21,7 @@ describe('a sync request', () => {
     const payload = syncPayload('DATA', Buffer.alloc(4096));
 
     expect(payload.readUInt32LE(4)).toBe(4096);
-    expect(payload.length).toBe(SYNC_HEADER_BYTES + 4096);
+    expect(payload).toHaveLength(SYNC_HEADER_BYTES + 4096);
   });
 
   it('names the file and its mode in one comma-joined field', () => {

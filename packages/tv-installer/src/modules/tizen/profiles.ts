@@ -5,7 +5,7 @@ import { PROFILES_XML } from './certificate/profile';
 
 const PROFILE_BLOCK = /<profile\s+name="([^"]*)"\s*>([\s\S]*?)<\/profile>/g;
 const PROFILE_ITEM = /<profileitem\b([^>]*)\/>/g;
-const ATTRIBUTE = /(\w+)="([^"]*)"/g;
+const ATTRIBUTE = /(\w{1,64})="([^"]*)"/g;
 const ACTIVE = /<profiles[^>]*\bactive="([^"]*)"/;
 const KEYCHAIN_TIMEOUT_MS = 20_000;
 

@@ -66,6 +66,17 @@ describe('toPem', () => {
     expect(pem.trimEnd().endsWith('-----END CERTIFICATE-----')).toBe(true);
   });
 
+  it('leaves no blank line when the body ends exactly on a full line', () => {
+    const exactlyOneLine = Buffer.alloc(48, 3);
+
+    const pem = toPem(exactlyOneLine, 'CERTIFICATE');
+
+    expect(pem.split('\n').filter((line) => line === '')).toHaveLength(1);
+    expect(pem).toBe(
+      `-----BEGIN CERTIFICATE-----\n${exactlyOneLine.toString('base64')}\n-----END CERTIFICATE-----\n`,
+    );
+  });
+
   it('breaks the body at 64 characters', () => {
     const pem = toPem(Buffer.alloc(120, 7), 'CERTIFICATE');
     const [, ...body] = pem.split('\n');

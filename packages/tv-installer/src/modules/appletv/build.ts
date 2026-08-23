@@ -48,7 +48,8 @@ export async function resolveAppleTvApp({
 
   const local = source === 'build' ? null : localAppleTvApp();
   if (local) {
-    log(`app: ${local.replace(`${root}/`, '')}`);
+    const relative = local.replace(`${root}/`, '');
+    log(`app: ${relative}`);
     return local;
   }
   return buildAppleTvApp(udid, log);

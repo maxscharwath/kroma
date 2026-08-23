@@ -54,5 +54,6 @@ export function installFailure(output: string): string {
     return 'the TV already has a newer build: uninstall it first, or install a newer .apk';
   }
   const tail = output.split('\n').filter(Boolean).slice(-2).join(' / ');
-  return `adb install failed${tail ? `: ${tail}` : ''}`;
+  const said = tail ? `: ${tail}` : '';
+  return `adb install failed${said}`;
 }

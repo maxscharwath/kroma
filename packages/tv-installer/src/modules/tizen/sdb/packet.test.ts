@@ -29,13 +29,13 @@ describe('the header', () => {
     expect(header.command).toBe(SDB_COMMAND.CNXN);
     expect(header.arg0).toBe(PROTOCOL_VERSION);
     expect(header.arg1).toBe(HOST_MAX_DATA);
-    expect(header.length).toBe(packet.data.length);
+    expect(header).toHaveLength(packet.data.length);
   });
 
   it('is 24 bytes ahead of the payload', () => {
     const encoded = encodePacket(connect());
 
-    expect(encoded.length).toBe(HEADER_BYTES + HOST_BANNER.length);
+    expect(encoded).toHaveLength(HEADER_BYTES + HOST_BANNER.length);
     expect(encoded.subarray(HEADER_BYTES).toString('utf8')).toBe(HOST_BANNER);
   });
 

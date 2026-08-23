@@ -1,6 +1,6 @@
 import { createSocket } from 'node:dgram';
 
-const SSDP_ADDRESS = '239.255.255.250';
+const SSDP_MULTICAST_GROUP = '239.255.255.250';
 const SSDP_PORT = 1900;
 const MAX_WAIT_SECONDS = 2;
 
@@ -52,10 +52,10 @@ export async function ssdpSearch(
   await new Promise<void>((resolve) => socket.bind(resolve));
   for (const target of [...SEARCH_TARGETS, ...extraTargets]) {
     const probe = Buffer.from(
-      `M-SEARCH * HTTP/1.1\r\nHOST: ${SSDP_ADDRESS}:${SSDP_PORT}\r\n` +
+      `M-SEARCH * HTTP/1.1\r\nHOST: ${SSDP_MULTICAST_GROUP}:${SSDP_PORT}\r\n` +
         `MAN: "ssdp:discover"\r\nMX: ${MAX_WAIT_SECONDS}\r\nST: ${target}\r\n\r\n`,
     );
-    socket.send(probe, SSDP_PORT, SSDP_ADDRESS);
+    socket.send(probe, SSDP_PORT, SSDP_MULTICAST_GROUP);
   }
 
   await listenFor(durationMs, signal);

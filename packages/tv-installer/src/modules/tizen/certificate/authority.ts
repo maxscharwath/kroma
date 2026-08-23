@@ -1,7 +1,9 @@
 import { generateKeyPairSync } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { runOk } from '../../../run';
+import { OPENSSL } from './openssl';
 import { type Subject, selfSignedCertificate, toPem } from './x509';
 
 const KEY_BITS = 2048;
@@ -16,7 +18,6 @@ export interface AuthorCertificate {
   key: string;
   archive: string;
   password: string;
-  /** Where the password is kept, so nothing has to print it to hand it over. */
   passwordFile: string;
 }
 
@@ -65,9 +66,9 @@ async function pack(
   alias: string,
   password: string,
 ): Promise<void> {
-  if (!Bun.which('openssl')) throw new Error('openssl is needed to write the .p12 and is not here');
+  if (!existsSync(OPENSSL)) throw new Error('openssl is needed to write the .p12 and is not here');
   await runOk([
-    'openssl',
+    OPENSSL,
     'pkcs12',
     '-export',
     '-inkey',

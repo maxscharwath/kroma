@@ -66,7 +66,8 @@ export function liveMultiselect<TValue>({
         rowPadding: head.split('\n').length + under.length + keys.length + 1,
         style: (option, active) => row(option, active, ticked.includes(option.value)),
       });
-      return `${head}${bar}${rows.join(`\n${bar}`)}\n${[...under, ...keys].join('\n')}\n`;
+      const body = rows.join(`\n${bar}`);
+      return `${head}${bar}${body}\n${[...under, ...keys].join('\n')}\n`;
     },
   });
 
@@ -103,12 +104,15 @@ class GrowingMultiSelect<TValue> extends MultiSelectPrompt<LiveOption<TValue>> {
 }
 
 function firstTickable<TValue>(options: readonly LiveOption<TValue>[]): number {
-  const tickable = options.findIndex((option) => option.disabled !== true);
-  return tickable >= 0 ? tickable : 0;
+  return Math.max(
+    options.findIndex((option) => option.disabled !== true),
+    0,
+  );
 }
 
 function row<TValue>(option: LiveOption<TValue>, active: boolean, ticked: boolean): string {
-  const hint = option.hint ? ` ${dim(`(${option.hint})`)}` : '';
+  const note = option.hint ? `(${option.hint})` : '';
+  const hint = note ? ` ${dim(note)}` : '';
   if (option.disabled) {
     const label = styleText(['strikethrough', 'gray'], option.label);
     return `${styleText('gray', S_CHECKBOX_INACTIVE)} ${label}${hint}`;

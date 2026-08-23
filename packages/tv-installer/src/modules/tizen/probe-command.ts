@@ -3,7 +3,7 @@ import { exitAfter } from '../../exit-after';
 import { style } from '../../tui/ansi';
 import { connect } from './sdb';
 
-const INTERESTING = [
+const INTERESTING = new Set([
   'platform_version',
   'product_name',
   'model_name',
@@ -13,7 +13,7 @@ const INTERESTING = [
   'appcmd_support',
   'sdbd_rootperm',
   'syncwinsz_support',
-];
+]);
 
 export const probeCommand = defineCommand({
   meta: {
@@ -26,7 +26,6 @@ export const probeCommand = defineCommand({
   run: ({ args }) => exitAfter(probe(args.host)),
 });
 
-/** What a Samsung set says about itself over sdb, without installing anything. */
 async function probe(host: string): Promise<number> {
   const device = await connect(host).catch((error: unknown) => {
     console.error(reason(error));
@@ -40,7 +39,7 @@ async function probe(host: string): Promise<number> {
     for (const key of INTERESTING) {
       if (capability[key]) console.log(`${label(key)}${capability[key]}`);
     }
-    const rest = Object.keys(capability).filter((key) => !INTERESTING.includes(key));
+    const rest = Object.keys(capability).filter((key) => !INTERESTING.has(key));
     if (rest.length > 0) console.log(style.dim(`${label('also')}${rest.join(', ')}`));
   } finally {
     device.close();

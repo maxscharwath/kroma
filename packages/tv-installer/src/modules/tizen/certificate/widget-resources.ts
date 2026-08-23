@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SignatureRole } from './widget-signature';
 
-const BUILD_LEFTOVERS = ['.manifest.tmp', '.delta.lst'];
+const BUILD_LEFTOVERS = new Set(['.manifest.tmp', '.delta.lst']);
 const AUTHOR_SIGNATURE = 'author-signature.xml';
 const DISTRIBUTOR_SIGNATURE = /^signature[1-9]\d*\.xml$/;
 const UNSAFE = '% <>#{}|\\^~[]`;/?@=&$!*:+';
@@ -45,7 +45,7 @@ function walk(directory: string, prefix: string): string[] {
 }
 
 function excluded(name: string, role: SignatureRole): boolean {
-  if (BUILD_LEFTOVERS.includes(name) || DISTRIBUTOR_SIGNATURE.test(name)) return true;
+  if (BUILD_LEFTOVERS.has(name) || DISTRIBUTOR_SIGNATURE.test(name)) return true;
   return role === 'author' && name === AUTHOR_SIGNATURE;
 }
 

@@ -19,9 +19,11 @@ export async function chooseSource(
   sets: readonly Television[],
 ): Promise<Source | undefined | null> {
   const platforms = [...new Set(sets.map((tv) => tv.platform))];
-  const shared = platforms
-    .map((platform) => [...moduleFor(platform).sources()])
-    .reduce((all, sources) => all.filter((source) => sources.includes(source)));
+  const [first = [], ...rest] = platforms.map((platform) => [...moduleFor(platform).sources()]);
+  const shared = rest.reduce(
+    (all, sources) => all.filter((source) => sources.includes(source)),
+    first,
+  );
   if (shared.length === 0) return undefined;
 
   const chosen = await p.select({

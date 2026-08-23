@@ -8,7 +8,8 @@ if (target && !TARGETS.includes(target)) {
   process.exit(1);
 }
 
-const name = `kroma-tv${target ? `-${target.replace('bun-', '')}` : ''}`;
+const suffix = target ? `-${target.replace('bun-', '')}` : '';
+const name = `kroma-tv${suffix}`;
 const out = `dist/${name}${target?.includes('windows') ? '.exe' : ''}`;
 
 await $`bun build --compile ${target ? ['--target', target] : []} ./src/cli.ts --outfile ${out}`;

@@ -10,9 +10,9 @@ export interface UsageArg {
 
 /** The shape of a citty command, structurally, so the renderer owns no framework. */
 export interface UsageCommand {
-  meta?: Resolvable<{ name?: string; description?: string } | undefined>;
-  args?: Resolvable<Record<string, UsageArg> | undefined>;
-  subCommands?: Resolvable<Record<string, Resolvable<UsageCommand>> | undefined>;
+  meta?: Resolvable<{ name?: string; description?: string }>;
+  args?: Resolvable<Record<string, UsageArg>>;
+  subCommands?: Resolvable<Record<string, Resolvable<UsageCommand>>>;
 }
 
 const START = '<!-- usage:start -->';

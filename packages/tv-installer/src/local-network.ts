@@ -35,7 +35,7 @@ export async function localNetworkBlocked(): Promise<boolean> {
 }
 
 const APP_BUNDLE = /\/([^/]+)\.app\/Contents\/MacOS\//;
-const PROCESS_LINE = /^\s*(\d+)\s+(.*)$/;
+const PROCESS_LINE = /^[ \t]*(\d+)[ \t]+(\S.*)$/;
 const MAX_DEPTH = 12;
 
 /**
@@ -65,7 +65,7 @@ export async function openPrivacySettings(): Promise<boolean> {
   return code === 0;
 }
 
-const MDNS_ADDRESS = '224.0.0.251';
+const MDNS_MULTICAST_GROUP = '224.0.0.251';
 const MDNS_PORT = 5353;
 const SETTLE_MS = 300;
 
@@ -85,7 +85,7 @@ export function mdnsQuery(name: string): Buffer {
 function queryOn(socket: Socket, address: string, query: Buffer): void {
   try {
     socket.setMulticastInterface(address);
-    socket.send(query, MDNS_PORT, MDNS_ADDRESS, () => undefined);
+    socket.send(query, MDNS_PORT, MDNS_MULTICAST_GROUP, () => undefined);
   } catch {
     return;
   }

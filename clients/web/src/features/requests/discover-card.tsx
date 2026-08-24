@@ -1,23 +1,21 @@
-// A TMDB discovery result as a poster tile: real art or gradient, an
-// availability/request chip, and a hover "request" affordance, with the same
-// overflow (⋮) menu a library poster wears for watched / my-list / watch-later.
-// Clicks route to the local fiche when owned, else the discover detail.
-// The "+" overlay requests in-place on web (stopPropagation prevents the
-// card navigation); on TV the card still opens the detail page.
+// A TMDB discovery result as a poster tile: real art or gradient and an
+// availability/request chip, wearing the same overflow (⋮) menu a library
+// poster does. The menu carries request (when the title is unowned and
+// unrequested) alongside watched / my-list / watch-later, so a card needs no
+// separate request button. Clicks route to the local fiche when owned, else
+// the discover detail.
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, color, Focusable, gradient, Icon, Img, Menu, Row, styles, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
-import { type CSSProperties, type ReactNode, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
 import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
 import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
-
-const REQUEST_LABEL = { fontSize: 12.5, fontWeight: '700' } as const;
 
 // A touch screen has no hover, so what a pointer reveals is always up there.
 const COARSE =
@@ -77,8 +75,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
     }
   };
 
-  const requestInPlace = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
+  const request = () => {
     if (requesting) return;
     setRequesting(true);
     client
@@ -91,6 +88,9 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   return (
     <div className="poster-frame" style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
       <PosterActionsMenu label={t('content.moreActions')}>
+        {canRequest ? (
+          <Menu.Item icon="download" label={t('discover.request')} onSelect={request} />
+        ) : null}
         <Menu.Item
           icon={isWatched(listId) ? 'check' : 'eye'}
           label={t('discover.markWatched')}
@@ -142,32 +142,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
               <Box absolute left={8} top={8} gap={6}>
                 {statusChip}
               </Box>
-
-              {canRequest ? (
-                <button
-                  type="button"
-                  onClick={requestInPlace}
-                  disabled={requesting}
-                  aria-label={t('discover.request')}
-                  style={
-                    {
-                      ...CTA_BUTTON,
-                      backgroundImage: CTA_SCRIM_CSS,
-                      opacity: lit ? 1 : 0,
-                      pointerEvents: lit ? 'auto' : 'none',
-                    } as CSSProperties
-                  }
-                >
-                  {requesting ? (
-                    <Icon name="loader-2" size={14} color="white" />
-                  ) : (
-                    <Icon name="plus" size={14} thickness={2.6} color="white" />
-                  )}
-                  <Text color="white" style={REQUEST_LABEL}>
-                    {requesting ? t('discover.requesting') : t('discover.request')}
-                  </Text>
-                </button>
-              ) : null}
             </Box>
           );
         }}
@@ -210,23 +184,3 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 }
 
 const TOP_SCRIM = gradient(`linear-gradient(to bottom, ${color('black/55')}, transparent)`);
-
-const CTA_SCRIM_CSS = `linear-gradient(to top, ${color('black/75')}, transparent)`;
-
-const CTA_BUTTON = {
-  position: 'absolute',
-  left: 0,
-  right: 0,
-  bottom: 0,
-  display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 6,
-  paddingTop: 32,
-  paddingBottom: 12,
-  border: 'none',
-  background: 'transparent',
-  cursor: 'pointer',
-  pointerEvents: 'auto',
-} as const;

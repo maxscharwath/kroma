@@ -77,17 +77,11 @@ pub fn build_requests(
     requests
 }
 
-/// Join a base URL with a (possibly absolute) path.
-///
-/// The rendered path is sanitized for URL legality: characters a tracker
-/// template can legitimately produce but curl rejects (space, `"`, `<`, `>`,
-/// backtick, `{`, `}`, `|`, `\`, `^` and ASCII controls) are percent-encoded,
-/// while the structural characters a definition relies on (`? & = / : % # + ~
-/// . - _` and alphanumerics) pass through untouched. Existing `%20`-style
-/// escapes survive because `%` is preserved, so definitions that do their own
-/// escaping (e.g. `replace " " "+"`) are never double-encoded. Absolute URLs
-/// are sanitized too (a template can produce `q=toy story` in a query value);
-/// `magnet:` URIs are returned verbatim.
+/// Join a base URL with a rendered path, percent-encoding URL-illegal
+/// characters a definition template can emit (space, `"`, `<`, `>`, backtick,
+/// `{}`, `|`, `\`, `^`, controls) while leaving structural characters and
+/// existing `%`-escapes untouched, so self-escaping definitions are not
+/// double-encoded. Absolute URLs are sanitized too; `magnet:` URIs pass through.
 pub fn join_url(base: &str, path: &str) -> String {
     let p = path.trim();
     if p.starts_with("magnet:") {
@@ -149,7 +143,10 @@ mod tests {
     fn url_joining_encodes_spaces_in_absolute_urls() {
         // Pirate Bay: template produces `q.php?q=toy story 5&cat=200,201`
         assert_eq!(
-            join_url("https://x.to", "https://api.example/q.php?q=toy story 5&cat=200,201"),
+            join_url(
+                "https://x.to",
+                "https://api.example/q.php?q=toy story 5&cat=200,201"
+            ),
             "https://api.example/q.php?q=toy%20story%205&cat=200,201"
         );
     }
@@ -164,7 +161,10 @@ mod tests {
             join_url("https://x.to", "/s?a=1&b=2#frag"),
             "https://x.to/s?a=1&b=2#frag"
         );
-        assert_eq!(join_url("https://x.to", "/p/100%25-off"), "https://x.to/p/100%25-off");
+        assert_eq!(
+            join_url("https://x.to", "/p/100%25-off"),
+            "https://x.to/p/100%25-off"
+        );
     }
 
     #[test]
@@ -174,7 +174,6 @@ mod tests {
             "https://x.to/q?a%22b%3Cc%3Ed%60e%7Bf%7D%7Cg%5Ch%5Ei"
         );
     }
-
 
     #[test]
     fn build_requests_get_movie_with_imdb_and_categories() {
@@ -273,7 +272,10 @@ search:
         };
         let reqs = build_requests(&def, &cfg("https://1337x.to"), &q, &[]);
         assert_eq!(reqs.len(), 1);
-        assert_eq!(reqs[0].url, "https://1337x.to/sort-search/The%20Matrix%201999/time/desc/1/");
+        assert_eq!(
+            reqs[0].url,
+            "https://1337x.to/sort-search/The%20Matrix%201999/time/desc/1/"
+        );
     }
 
     #[test]
@@ -293,10 +295,13 @@ search:
     selector: "$.rows"
 "#,
         );
-        let q = Query::Text { query: "The Matrix".into() };
+        let q = Query::Text {
+            query: "The Matrix".into(),
+        };
         let reqs = build_requests(&def, &cfg("https://api.x/"), &q, &[]);
         assert_eq!(reqs[0].url, "https://api.x/api");
-        assert!(reqs[0].inputs.contains(&("q".to_string(), "The Matrix".to_string())));
+        assert!(reqs[0]
+            .inputs
+            .contains(&("q".to_string(), "The Matrix".to_string())));
     }
-
 }

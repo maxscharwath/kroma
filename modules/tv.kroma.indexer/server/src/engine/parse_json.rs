@@ -119,8 +119,8 @@ fn resolve_field_json(
     Some(filters::apply(&value, &field.filters, ctx))
 }
 
-/// Resolve a field selector against the row, with `..` prefix traversing to
-/// the parent element (Cardigann parent traversal for `rows.attribute`).
+// A `..` prefix traverses to the parent element (Cardigann parent traversal
+// for `rows.attribute`); otherwise the selector resolves against the row.
 fn resolve_selector<'a>(
     row: &'a serde_json::Value,
     parent: Option<&'a serde_json::Value>,
@@ -332,13 +332,9 @@ search:
         let rels = parse_json(&def, &cfg("https://x/"), body).unwrap();
         assert_eq!(rels.len(), 3);
         assert_eq!(rels[0].title, "Film A");
-        // quality is parsed into the release title suffix by to_release;
-        // check the raw parsed quality via the release's codec/source fields instead.
         assert_eq!(rels[0].seeders, Some(10));
         assert_eq!(rels[1].seeders, Some(5));
         assert_eq!(rels[2].title, "Film B");
         assert_eq!(rels[2].seeders, Some(1));
     }
-
-
 }

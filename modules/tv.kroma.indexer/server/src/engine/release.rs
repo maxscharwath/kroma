@@ -224,7 +224,11 @@ mod tests {
         r.insert("details".into(), "/torrent/123".into());
         let rel = to_release(&def, &cfg, &r);
         assert!(rel.magnet.is_some());
-        assert!(rel.magnet.as_deref().unwrap().starts_with("magnet:?xt=urn:btih:ABC123DEF456"));
+        assert!(rel
+            .magnet
+            .as_deref()
+            .unwrap()
+            .starts_with("magnet:?xt=urn:btih:ABC123DEF456"));
         assert!(rel.magnet.as_deref().unwrap().contains("dn="));
         assert_eq!(rel.link, None);
     }
@@ -241,5 +245,4 @@ mod tests {
         assert_eq!(rel.magnet, None);
         assert_eq!(rel.link, None);
     }
-
 }

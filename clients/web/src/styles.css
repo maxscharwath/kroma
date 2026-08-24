@@ -127,6 +127,9 @@
   left: 14px;
   right: 14px;
   bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   transition: opacity var(--dur-base) var(--ease-out);
 }
 .poster-caption[data-reveal] {

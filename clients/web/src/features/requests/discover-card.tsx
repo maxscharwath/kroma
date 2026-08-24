@@ -1,33 +1,22 @@
-// A TMDB discovery result as a poster tile: real art or gradient, overlaid
-// rating + availability/request chip, and a hover "request" affordance.
+// A TMDB discovery result as a poster tile: real art or gradient, an
+// availability/request chip, and a hover "request" affordance, with the same
+// overflow (⋮) menu a library poster wears for watched / my-list / watch-later.
 // Clicks route to the local fiche when owned, else the discover detail.
 // The "+" overlay requests in-place on web (stopPropagation prevents the
 // card navigation); on TV the card still opens the detail page.
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import {
-  Box,
-  backdropBlur,
-  color,
-  Focusable,
-  gradient,
-  Icon,
-  Img,
-  Row,
-  styles,
-  Text,
-} from '@kroma/ui/kit';
+import { Box, color, Focusable, gradient, Icon, Img, Menu, Row, styles, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type CSSProperties, type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
 import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
+import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
-const RATING_PILL = backdropBlur(4);
-const RATING_LABEL = { fontSize: 10.5, fontWeight: '700' } as const;
 const REQUEST_LABEL = { fontSize: 12.5, fontWeight: '700' } as const;
 
 // A touch screen has no hover, so what a pointer reveals is always up there.
@@ -100,7 +89,24 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   };
 
   return (
-    <div style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
+    <div className="poster-frame" style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
+      <PosterActionsMenu label={t('content.moreActions')}>
+        <Menu.Item
+          icon={isWatched(listId) ? 'check' : 'eye'}
+          label={t('discover.markWatched')}
+          onSelect={() => toggleWatched(listId)}
+        />
+        <Menu.Item
+          icon={inList(listId) ? 'check' : 'plus'}
+          label={t('discover.addToMyList')}
+          onSelect={() => toggleMyList(listId)}
+        />
+        <Menu.Item
+          icon={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
+          label={inQueue(listId) ? t('discover.inWatchLater') : t('discover.watchLater')}
+          onSelect={() => toggleWatchLater(listId)}
+        />
+      </PosterActionsMenu>
       <Focusable label={entry.title} onPress={open} focusScale={1.03} style={s.tile}>
         {(state) => {
           const lit = COARSE || state.hovered || state.focused;
@@ -137,25 +143,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                 {statusChip}
               </Box>
 
-              {entry.rating ? (
-                <Row
-                  absolute
-                  top={8}
-                  right={8}
-                  gap={2}
-                  px={6}
-                  py={2}
-                  radius="pill"
-                  bg="black/55"
-                  style={RATING_PILL}
-                >
-                  <Icon name="star-filled" size={9} color="accent" />
-                  <Text color="accent" style={RATING_LABEL}>
-                    {entry.rating.toFixed(1)}
-                  </Text>
-                </Row>
-              ) : null}
-
               {canRequest ? (
                 <button
                   type="button"
@@ -181,68 +168,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                   </Text>
                 </button>
               ) : null}
-
-              <div
-                style={
-                  {
-                    position: 'absolute',
-                    right: 8,
-                    top: 36,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                    opacity: lit ? 1 : 0,
-                    pointerEvents: lit ? 'auto' : 'none',
-                    zIndex: 2,
-                  } as CSSProperties
-                }
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleWatched(listId);
-                  }}
-                  aria-label={t('discover.markWatched')}
-                  style={QUICK_ACTION_BTN}
-                >
-                  <Icon
-                    name={isWatched(listId) ? 'check' : 'eye'}
-                    size={16}
-                    color={isWatched(listId) ? 'accent' : 'white'}
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleMyList(listId);
-                  }}
-                  aria-label={t('discover.addToMyList')}
-                  style={QUICK_ACTION_BTN}
-                >
-                  <Icon
-                    name={inList(listId) ? 'check' : 'plus'}
-                    size={16}
-                    color={inList(listId) ? 'accent' : 'white'}
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleWatchLater(listId);
-                  }}
-                  aria-label={t('discover.watchLater')}
-                  style={QUICK_ACTION_BTN}
-                >
-                  <Icon
-                    name={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
-                    size={16}
-                    color={inQueue(listId) ? 'accent' : 'white'}
-                  />
-                </button>
-              </div>
             </Box>
           );
         }}
@@ -251,7 +176,20 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
         <Text variant="label" lines={1}>
           {entry.title}
         </Text>
-        <Row gap={6} mt={2}>
+        <Row gap={6} mt={2} align="center">
+          {entry.rating ? (
+            <>
+              <Row gap={3} align="center">
+                <Icon name="star-filled" size={10} color="accent" />
+                <Text variant="meta" color="accent">
+                  {entry.rating.toFixed(1)}
+                </Text>
+              </Row>
+              <Text variant="meta" color="white/20">
+                ·
+              </Text>
+            </>
+          ) : null}
           <Text variant="meta" color="textDim">
             {entry.kind === 'show' ? t('discover.kindShow') : t('discover.kindMovie')}
           </Text>
@@ -274,19 +212,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 const TOP_SCRIM = gradient(`linear-gradient(to bottom, ${color('black/55')}, transparent)`);
 
 const CTA_SCRIM_CSS = `linear-gradient(to top, ${color('black/75')}, transparent)`;
-
-const QUICK_ACTION_BTN = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  border: 'none',
-  background: color('black/55'),
-  cursor: 'pointer',
-  backdropFilter: 'blur(4px)',
-} as const;
 
 const CTA_BUTTON = {
   position: 'absolute',

@@ -129,25 +129,43 @@
   bottom: 14px;
   transition: opacity var(--dur-base) var(--ease-out);
 }
-.poster-actions {
-  position: absolute;
-  left: 10px;
-  top: 10px;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.poster-caption[data-reveal],
-.poster-actions[data-reveal] {
+.poster-caption[data-reveal] {
   opacity: 0;
 }
 .poster-tile:hover .poster-caption[data-reveal],
-.poster-tile:hover .poster-actions[data-reveal],
-.poster-tile:focus-within .poster-caption[data-reveal],
-.poster-tile:focus-within .poster-actions[data-reveal] {
+.poster-tile:focus-within .poster-caption[data-reveal] {
   opacity: 1;
+}
+
+/* THE OVERFLOW (⋮) MENU (shared/ui/poster-actions-menu.tsx). The one kebab a
+   library poster and a discover/trending card both wear, pinned to the top-right
+   of the 2:3 art. A frame is any tile that carries one; the trigger stays hidden
+   until the frame is hovered or focused, is held up while its menu is open
+   (`data-open`, since the panel takes focus out of the frame), and is always up
+   where there is no pointer to hover with. */
+.poster-frame {
+  position: relative;
+}
+.poster-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.poster-frame:hover .poster-menu,
+.poster-frame:focus-within .poster-menu,
+.poster-menu[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (pointer: coarse) {
+  .poster-menu {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* THE BROWSE PAGES' DISPLAY TITLE (features/catalog/browse-hero.tsx), also

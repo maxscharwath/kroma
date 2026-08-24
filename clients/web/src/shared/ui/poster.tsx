@@ -1,8 +1,9 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { ArtScrim, Box, Ground, IconButton, Progress, Text, VirtualRail } from '@kroma/ui/kit';
+import { ArtScrim, Box, Menu, Progress, Text, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
+import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
 
 export interface PosterProps {
   title: string;
@@ -82,12 +83,34 @@ export function Poster({
   const showList = inList != null && Boolean(onToggleList);
   const showQueue = inQueue != null && Boolean(onToggleQueue);
   const hasActions = showWatched || showList || showQueue;
-  // At least one action is active — keep the stack visible so the user sees
-  // their state without hovering.
-  const anyActive = Boolean(watched) || Boolean(inList) || Boolean(inQueue);
 
   return (
-    <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile">
+    <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">
+      {hasActions ? (
+        <PosterActionsMenu label={t('content.moreActions')}>
+          {showWatched ? (
+            <Menu.Item
+              icon="check"
+              label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+              onSelect={() => onToggleWatched?.()}
+            />
+          ) : null}
+          {showList ? (
+            <Menu.Item
+              icon={inList ? 'check' : 'plus'}
+              label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
+              onSelect={() => onToggleList?.()}
+            />
+          ) : null}
+          {showQueue ? (
+            <Menu.Item
+              icon={inQueue ? 'bookmark-filled' : 'bookmark'}
+              label={inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
+              onSelect={() => onToggleQueue?.()}
+            />
+          ) : null}
+        </PosterActionsMenu>
+      ) : null}
       <button type="button" onClick={onClick} className="poster-hit">
         <div className="poster-art" style={{ background: gradient }}>
           <Image
@@ -119,42 +142,6 @@ export function Poster({
           ) : null}
         </div>
       </button>
-      {hasActions ? (
-        <div className="poster-actions" data-reveal={anyActive ? undefined : ''}>
-          <Ground tone="dark">
-            {showWatched ? (
-              <IconButton
-                variant={watched ? 'primary' : 'scrim'}
-                diameter={28}
-                glyph={15}
-                icon="check"
-                label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-                onPress={() => onToggleWatched?.()}
-              />
-            ) : null}
-            {showList ? (
-              <IconButton
-                variant={inList ? 'primary' : 'scrim'}
-                diameter={28}
-                glyph={15}
-                icon={inList ? 'check' : 'plus'}
-                label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
-                onPress={() => onToggleList?.()}
-              />
-            ) : null}
-            {showQueue ? (
-              <IconButton
-                variant={inQueue ? 'primary' : 'scrim'}
-                diameter={28}
-                glyph={15}
-                icon={inQueue ? 'bookmark-filled' : 'bookmark'}
-                label={inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
-                onPress={() => onToggleQueue?.()}
-              />
-            ) : null}
-          </Ground>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -3,6 +3,7 @@ export { Image } from '#web/shared/ui/image';
 export { MODAL_SCRIM, PAGE_MAIN, PAGE_RADIAL, POSTER_GRID } from '#web/shared/ui/page';
 export type { PosterProps, PosterRailProps } from '#web/shared/ui/poster';
 export { Poster, PosterRail } from '#web/shared/ui/poster';
+export { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
 export {
   CardSkeleton,
   DetailSkeleton,

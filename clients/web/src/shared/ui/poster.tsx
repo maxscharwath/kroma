@@ -1,6 +1,6 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { ArtScrim, Box, IconButton, Progress, Show, Text, VirtualRail } from '@kroma/ui/kit';
+import { ArtScrim, Box, IconButton, If, Progress, Text, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
 import { PosterActionBar } from '#web/shared/ui/poster-action-bar';
@@ -80,24 +80,24 @@ export function Poster({
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">
-      <Show when={showWatched || showList}>
+      <If condition={showWatched || showList}>
         <PosterActionBar>
-          <Show when={showWatched}>
+          <If condition={showWatched}>
             <IconButton
-              icon="eye"
+              icon={watched ? 'eye-filled' : 'eye'}
               label={watched ? t('content.markUnwatched') : t('content.markWatched')}
               onPress={() => onToggleWatched?.()}
             />
-          </Show>
-          <Show when={showList}>
+          </If>
+          <If condition={showList}>
             <IconButton
               icon={inList ? 'bookmark-filled' : 'bookmark'}
               label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
               onPress={() => onToggleList?.()}
             />
-          </Show>
+          </If>
         </PosterActionBar>
-      </Show>
+      </If>
       <button type="button" onClick={onClick} className="poster-hit">
         <div className="poster-art" style={{ background: gradient }}>
           <Image

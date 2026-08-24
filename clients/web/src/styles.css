@@ -170,6 +170,13 @@
   transform: none;
   pointer-events: auto;
 }
+/* Netflix/YouTube touch: each pill lifts a little as the pointer lands on it. */
+.poster-actions button {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.poster-actions button:hover {
+  transform: scale(1.12);
+}
 @media (pointer: coarse) {
   .poster-actions {
     opacity: 1;

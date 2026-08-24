@@ -1,23 +1,23 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { Show } from './show';
+import { If } from './if';
 
-describe('Show', () => {
-  it('renders children when `when` is truthy', () => {
+describe('If', () => {
+  it('renders children when the condition is truthy', () => {
     render(
-      <Show when={1}>
+      <If condition={1}>
         <span>on</span>
-      </Show>,
+      </If>,
     );
     expect(screen.getByText('on')).toBeTruthy();
   });
 
-  it('renders the fallback when `when` is falsy', () => {
+  it('renders the fallback when the condition is falsy', () => {
     render(
-      <Show when={0} fallback={<span>off</span>}>
+      <If condition={0} fallback={<span>off</span>}>
         <span>on</span>
-      </Show>,
+      </If>,
     );
     expect(screen.queryByText('on')).toBeNull();
     expect(screen.getByText('off')).toBeTruthy();
@@ -25,9 +25,9 @@ describe('Show', () => {
 
   it('renders nothing when falsy with no fallback', () => {
     const { container } = render(
-      <Show when={false}>
+      <If condition={false}>
         <span>on</span>
-      </Show>,
+      </If>,
     );
     expect(container.textContent).toBe('');
   });
@@ -36,9 +36,9 @@ describe('Show', () => {
     const taken = vi.fn(() => <span>on</span>);
     const skipped = vi.fn(() => <span>off</span>);
     render(
-      <Show when fallback={skipped}>
+      <If condition fallback={skipped}>
         {taken}
-      </Show>,
+      </If>,
     );
     expect(taken).toHaveBeenCalledTimes(1);
     expect(skipped).not.toHaveBeenCalled();

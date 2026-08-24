@@ -53,8 +53,6 @@ export type { ProgressRingProps } from './progress-ring';
 export { ProgressRing } from './progress-ring';
 export type { RadioFaceProps, RadioProps, RadioSize } from './radio';
 export { Radio, RadioFace, radioVariants } from './radio';
-export type { ShowProps } from './show';
-export { Show } from './show';
 export type {
   CardSkeletonProps,
   PosterSkeletonProps,

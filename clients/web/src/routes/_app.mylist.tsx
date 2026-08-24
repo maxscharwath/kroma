@@ -23,6 +23,7 @@ import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
 type Tab = 'mylist' | 'watched';
 type Sort = 'title' | 'year' | 'rating' | 'recent';
 type KindFilter = 'all' | 'movie' | 'show';
+type AvailFilter = 'all' | 'available' | 'unavailable';
 type DecadeFilter = 'all' | '2020s' | '2010s' | '2000s' | '1990s' | 'older';
 
 export const Route = createFileRoute('/_app/mylist')({
@@ -119,6 +120,8 @@ interface UnifiedEntry {
   year: number | null;
   rating: number | null;
   addedAt: string | null;
+  /** In the library and playable now, vs bookmarked from TMDB and not yet here. */
+  available: boolean;
   render: (width: number) => React.ReactNode;
 }
 
@@ -132,6 +135,7 @@ function toUnifiedLocal(entries: CatalogEntry[]): UnifiedEntry[] {
         year: e.movie.year ?? null,
         rating: e.movie.metadata?.rating ?? null,
         addedAt: e.movie.addedAt ?? null,
+        available: true,
         render: (width: number) => <MoviePoster item={e.movie} width={width} />,
       };
     }
@@ -142,6 +146,7 @@ function toUnifiedLocal(entries: CatalogEntry[]): UnifiedEntry[] {
       year: e.show.year ?? null,
       rating: e.show.metadata?.rating ?? null,
       addedAt: e.show.addedAt ?? null,
+      available: true,
       render: (width: number) => <ShowPoster show={e.show} width={width} />,
     };
   });
@@ -155,6 +160,7 @@ function toUnifiedDiscover(entries: DiscoverEntry[]): UnifiedEntry[] {
     year: e.year,
     rating: e.rating,
     addedAt: null,
+    available: false,
     render: (width: number) => <DiscoverCard entry={e} width={width} />,
   }));
 }
@@ -176,6 +182,11 @@ function sortEntries(entries: UnifiedEntry[], sort: Sort): UnifiedEntry[] {
 function filterByKind(entries: UnifiedEntry[], filter: KindFilter): UnifiedEntry[] {
   if (filter === 'all') return entries;
   return entries.filter((e) => e.kind === filter);
+}
+
+function filterByAvailability(entries: UnifiedEntry[], filter: AvailFilter): UnifiedEntry[] {
+  if (filter === 'all') return entries;
+  return entries.filter((e) => e.available === (filter === 'available'));
 }
 
 function filterByDecade(entries: UnifiedEntry[], decade: DecadeFilter): UnifiedEntry[] {
@@ -238,6 +249,7 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
   const t = useT();
   const [sort, setSort] = useState<Sort>('title');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
+  const [availFilter, setAvailFilter] = useState<AvailFilter>('all');
   const [decadeFilter, setDecadeFilter] = useState<DecadeFilter>('all');
 
   if (list.ready && !list.loading && list.total === 0) {
@@ -250,10 +262,13 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
   if (list.total === 0 && !list.ready) return null;
 
   const byKind = filterByKind(list.entries, kindFilter);
-  const byDecade = filterByDecade(byKind, decadeFilter);
+  const byAvail = filterByAvailability(byKind, availFilter);
+  const byDecade = filterByDecade(byAvail, decadeFilter);
   const sorted = sortEntries(byDecade, sort);
   const movieCount = list.entries.filter((e) => e.kind === 'movie').length;
   const showCount = list.entries.filter((e) => e.kind === 'show').length;
+  const availCount = list.entries.filter((e) => e.available).length;
+  const unavailCount = list.entries.length - availCount;
 
   return (
     <Box gap={16}>
@@ -267,6 +282,22 @@ function ListContent({ list, emptyKey }: Readonly<{ list: ResolvedList; emptyKey
           <Select.Item value="all" label={t('content.filterAll')} />
           <Select.Item value="movie" label={`${t('content.film')} (${movieCount})`} />
           <Select.Item value="show" label={`${t('content.series')} (${showCount})`} />
+        </Select.Root>
+        <Select.Root
+          label={t('content.filterAll')}
+          value={availFilter}
+          onValueChange={(v) => setAvailFilter(v as AvailFilter)}
+        >
+          <Select.Trigger size="sm" />
+          <Select.Item value="all" label={t('content.filterAll')} />
+          <Select.Item
+            value="available"
+            label={`${t('content.filterAvailable')} (${availCount})`}
+          />
+          <Select.Item
+            value="unavailable"
+            label={`${t('content.filterUnavailable')} (${unavailCount})`}
+          />
         </Select.Root>
         <Select.Root
           label={t('content.sortDecade')}

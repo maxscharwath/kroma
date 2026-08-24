@@ -13,9 +13,9 @@ import {
   gradient,
   Icon,
   IconButton,
+  If,
   Img,
   Row,
-  Show,
   styles,
   Text,
 } from '@kroma/ui/kit';
@@ -43,8 +43,8 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const t = useT();
   const navigate = useNavigate();
   const { client } = useAuth();
-  const { toggleWatched } = useWatched();
-  const { toggle: toggleMyList } = useMyList();
+  const { isWatched, toggleWatched } = useWatched();
+  const { inList, toggle: toggleMyList } = useMyList();
   const [imgOk, setImgOk] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(entry.requestStatus);
@@ -131,16 +131,16 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
               </Box>
 
               <PosterActionBar>
-                <Show when={canRequest}>
+                <If condition={canRequest}>
                   <IconButton icon="download" label={t('discover.request')} onPress={request} />
-                </Show>
+                </If>
                 <IconButton
-                  icon="eye"
+                  icon={isWatched(listId) ? 'eye-filled' : 'eye'}
                   label={t('discover.markWatched')}
                   onPress={() => toggleWatched(listId)}
                 />
                 <IconButton
-                  icon="bookmark"
+                  icon={inList(listId) ? 'bookmark-filled' : 'bookmark'}
                   label={t('discover.addToMyList')}
                   onPress={() => toggleMyList(listId)}
                 />

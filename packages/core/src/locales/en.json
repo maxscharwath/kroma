@@ -875,6 +875,8 @@
   "content.film": "Movie",
   "content.filmsEmpty": "No movies in the library yet.",
   "content.filterAll": "All",
+  "content.filterAvailable": "Available",
+  "content.filterUnavailable": "Not available",
   "content.sortTitle": "Title A-Z",
   "content.sortYear": "Year",
   "content.sortRating": "Rating",

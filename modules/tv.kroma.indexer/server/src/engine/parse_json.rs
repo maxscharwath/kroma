@@ -29,40 +29,46 @@ pub fn parse_json(
     // The rows selector can itself be templated (Pirate Bay:
     // `${{ if .Config.uploader }}:has(...){{ end }}`).
     let row_sel = template::render(row_sel, &base_ctx);
-    let matched = match json_get(&root, &row_sel) {
+    let matched = matched_rows(&root, &row_sel);
+    let rows = expand_rows(&matched, def.search.rows.attribute.as_deref());
+
+    let releases = rows
+        .iter()
+        .filter_map(|(row, parent)| extract_row_json(def, &base_ctx, row, *parent))
+        .map(|result| to_release(def, cfg, &result))
+        .collect();
+    Ok(releases)
+}
+
+/// Resolve the rows selector to the matched elements: an array yields its
+/// items, a single object yields one row, anything else yields nothing.
+fn matched_rows(root: &serde_json::Value, row_sel: &str) -> Vec<serde_json::Value> {
+    match json_get(root, row_sel) {
         Some(serde_json::Value::Array(arr)) => arr.clone(),
         Some(v @ serde_json::Value::Object(_)) => vec![v.clone()],
         _ => Vec::new(),
-    };
-    // Cardigann `rows.attribute`: each matched element is expanded by that
-    // sub-key's array into individual rows (YTS: movies → torrents). The parent
-    // element is kept so `..foo` field selectors can traverse up to it.
-    let attr = def.search.rows.attribute.as_deref();
-    let rows: Vec<(&serde_json::Value, Option<&serde_json::Value>)> = if let Some(attr) = attr {
-        let mut expanded = Vec::new();
-        for el in &matched {
-            if let Some(sub) = json_get(el, attr) {
-                if let Some(arr) = sub.as_array() {
-                    for item in arr {
-                        expanded.push((item, Some(el)));
-                    }
-                } else {
-                    expanded.push((sub, Some(el)));
-                }
-            }
-        }
-        expanded
-    } else {
-        matched.iter().map(|r| (r, None)).collect()
-    };
-
-    let mut releases = Vec::new();
-    for (row, parent) in &rows {
-        if let Some(result) = extract_row_json(def, &base_ctx, row, *parent) {
-            releases.push(to_release(def, cfg, &result));
-        }
     }
-    Ok(releases)
+}
+
+/// Apply Cardigann `rows.attribute`: each matched element is expanded by that
+/// sub-key's array into individual rows (YTS: movies → torrents). The parent
+/// element is kept so `..foo` field selectors can traverse up to it. Without
+/// an attribute, each matched element is a row with no parent.
+fn expand_rows<'a>(
+    matched: &'a [serde_json::Value],
+    attr: Option<&str>,
+) -> Vec<(&'a serde_json::Value, Option<&'a serde_json::Value>)> {
+    let Some(attr) = attr else {
+        return matched.iter().map(|r| (r, None)).collect();
+    };
+    matched
+        .iter()
+        .filter_map(|el| json_get(el, attr).map(|sub| (el, sub)))
+        .flat_map(|(el, sub)| match sub.as_array() {
+            Some(arr) => arr.iter().map(|item| (item, Some(el))).collect::<Vec<_>>(),
+            None => vec![(sub, Some(el))],
+        })
+        .collect()
 }
 
 fn extract_row_json(

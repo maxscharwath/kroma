@@ -1,6 +1,6 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { ArtScrim, Box, Menu, Progress, Text, VirtualRail } from '@kroma/ui/kit';
+import { ArtScrim, Box, Progress, Text, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
 import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
@@ -82,32 +82,31 @@ export function Poster({
   const showWatched = watched != null && Boolean(onToggleWatched);
   const showList = inList != null && Boolean(onToggleList);
   const showQueue = inQueue != null && Boolean(onToggleQueue);
-  const hasActions = showWatched || showList || showQueue;
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">
-      {hasActions ? (
+      {showWatched || showList || showQueue ? (
         <PosterActionsMenu label={t('content.moreActions')}>
           {showWatched ? (
-            <Menu.Item
-              icon="check"
-              label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-              onSelect={() => onToggleWatched?.()}
-            />
+            <PosterActionsMenu.Item icon="check" onSelect={() => onToggleWatched?.()}>
+              {watched ? t('content.markUnwatched') : t('content.markWatched')}
+            </PosterActionsMenu.Item>
           ) : null}
           {showList ? (
-            <Menu.Item
+            <PosterActionsMenu.Item
               icon={inList ? 'check' : 'plus'}
-              label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
               onSelect={() => onToggleList?.()}
-            />
+            >
+              {inList ? t('content.removeFromList') : t('discover.addToMyList')}
+            </PosterActionsMenu.Item>
           ) : null}
           {showQueue ? (
-            <Menu.Item
+            <PosterActionsMenu.Item
               icon={inQueue ? 'bookmark-filled' : 'bookmark'}
-              label={inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
               onSelect={() => onToggleQueue?.()}
-            />
+            >
+              {inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
+            </PosterActionsMenu.Item>
           ) : null}
         </PosterActionsMenu>
       ) : null}

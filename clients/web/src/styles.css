@@ -142,10 +142,10 @@
 
 /* THE OVERFLOW (⋮) MENU (shared/ui/poster-actions-menu.tsx). The one kebab a
    library poster and a discover/trending card both wear, pinned to the top-right
-   of the 2:3 art. A frame is any tile that carries one; the trigger stays hidden
-   until the frame is hovered or focused, is held up while its menu is open
-   (`data-open`, since the panel takes focus out of the frame), and is always up
-   where there is no pointer to hover with. */
+   of the 2:3 art. Its glass trigger stays out of the way until wanted: hidden at
+   rest, it scales up from the corner when the frame is hovered or focused, or
+   while its menu is open (`data-open`, since the panel takes focus out of the
+   frame). Always up where there is no pointer to hover with. */
 .poster-frame {
   position: relative;
 }
@@ -155,18 +155,24 @@
   right: 8px;
   z-index: 2;
   opacity: 0;
+  transform: scale(0.92);
+  transform-origin: top right;
   pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease-out);
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .poster-frame:hover .poster-menu,
 .poster-frame:focus-within .poster-menu,
 .poster-menu[data-open] {
   opacity: 1;
+  transform: scale(1);
   pointer-events: auto;
 }
 @media (pointer: coarse) {
   .poster-menu {
     opacity: 1;
+    transform: scale(1);
     pointer-events: auto;
   }
 }

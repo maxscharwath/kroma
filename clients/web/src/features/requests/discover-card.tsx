@@ -7,7 +7,7 @@
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, color, Focusable, gradient, Icon, Img, Menu, Row, styles, Text } from '@kroma/ui/kit';
+import { Box, color, Focusable, gradient, Icon, Img, Row, styles, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
@@ -89,23 +89,29 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
     <div className="poster-frame" style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
       <PosterActionsMenu label={t('content.moreActions')}>
         {canRequest ? (
-          <Menu.Item icon="download" label={t('discover.request')} onSelect={request} />
+          <PosterActionsMenu.Item icon="download" onSelect={request}>
+            {t('discover.request')}
+          </PosterActionsMenu.Item>
         ) : null}
-        <Menu.Item
+        {canRequest ? <PosterActionsMenu.Separator /> : null}
+        <PosterActionsMenu.Item
           icon={isWatched(listId) ? 'check' : 'eye'}
-          label={t('discover.markWatched')}
           onSelect={() => toggleWatched(listId)}
-        />
-        <Menu.Item
+        >
+          {t('discover.markWatched')}
+        </PosterActionsMenu.Item>
+        <PosterActionsMenu.Item
           icon={inList(listId) ? 'check' : 'plus'}
-          label={t('discover.addToMyList')}
           onSelect={() => toggleMyList(listId)}
-        />
-        <Menu.Item
+        >
+          {t('discover.addToMyList')}
+        </PosterActionsMenu.Item>
+        <PosterActionsMenu.Item
           icon={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
-          label={inQueue(listId) ? t('discover.inWatchLater') : t('discover.watchLater')}
           onSelect={() => toggleWatchLater(listId)}
-        />
+        >
+          {inQueue(listId) ? t('discover.inWatchLater') : t('discover.watchLater')}
+        </PosterActionsMenu.Item>
       </PosterActionsMenu>
       <Focusable label={entry.title} onPress={open} focusScale={1.03} style={s.tile}>
         {(state) => {

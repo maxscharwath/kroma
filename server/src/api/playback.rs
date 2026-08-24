@@ -36,8 +36,6 @@ pub fn routes() -> Router<SharedState> {
         .route("/watched/{id}", put(mark_watched).delete(unmark_watched))
         .route("/my-list", get(list_my_list))
         .route("/my-list/{id}", put(add_to_list).delete(remove_from_list))
-        .route("/watch-later", get(list_watch_later))
-        .route("/watch-later/{id}", put(add_to_watch_later).delete(remove_from_watch_later))
         .route("/playback/ping", post(ping))
         .route("/playback/stop", post(stop))
 }
@@ -387,43 +385,6 @@ pub async fn remove_from_list(
 /// `GET /api/my-list` (Bearer) → `string[]` (item ids in the user's list).
 pub async fn list_my_list(State(state): State<SharedState>, AuthUser(user): AuthUser) -> Response {
     match query(&state.db, move |pool| db::list_my_list(&pool, &user.id)).await {
-        Ok(ids) => Json(ids).into_response(),
-        Err(resp) => resp,
-    }
-}
-
-/// `PUT /api/watch-later/:id` (Bearer) → 204. Adds a title to the watch-later queue.
-pub async fn add_to_watch_later(
-    State(state): State<SharedState>,
-    AuthUser(user): AuthUser,
-    Path(item_id): Path<String>,
-) -> Response {
-    match query(&state.db, move |pool| db::add_to_watch_later(&pool, &user.id, &item_id)).await {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(resp) => resp,
-    }
-}
-
-/// `DELETE /api/watch-later/:id` (Bearer) → 204. Removes a title from the queue.
-pub async fn remove_from_watch_later(
-    State(state): State<SharedState>,
-    AuthUser(user): AuthUser,
-    Path(item_id): Path<String>,
-) -> Response {
-    match query(&state.db, move |pool| db::remove_from_watch_later(&pool, &user.id, &item_id))
-        .await
-    {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(resp) => resp,
-    }
-}
-
-/// `GET /api/watch-later` (Bearer) → `string[]` (item ids in the watch-later queue).
-pub async fn list_watch_later(
-    State(state): State<SharedState>,
-    AuthUser(user): AuthUser,
-) -> Response {
-    match query(&state.db, move |pool| db::list_watch_later(&pool, &user.id)).await {
         Ok(ids) => Json(ids).into_response(),
         Err(resp) => resp,
     }

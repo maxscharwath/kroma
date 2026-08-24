@@ -23,8 +23,6 @@ export function TitleHero({
   toggleWatched,
   inList,
   toggleList,
-  inQueue,
-  toggleQueue,
   onPlay,
   onRequest,
   onBack,
@@ -38,34 +36,28 @@ export function TitleHero({
   toggleWatched: (id: string) => void;
   inList: (id: string) => boolean;
   toggleList: (id: string) => void;
-  inQueue: (id: string) => boolean;
-  toggleQueue: (id: string) => void;
   onPlay: (id: string) => void;
   onRequest: () => void;
   onBack: () => void;
 }>) {
   const t = useT();
   const playable = owned ? view.playable : null;
-  // All three list actions (watched, my-list, watch-later) work for both owned
-  // and discover titles. Owned titles use their local item id; discover titles
-  // use `tmdb:<id>` so the membership survives a library rescan and still finds
-  // the title via the discover route.
-  const queueId = localId ?? (view.tmdbId != null ? `tmdb:${view.tmdbId}` : null);
+  // Both list actions (watched, my-list) work for both owned and discover
+  // titles. Owned titles use their local item id; discover titles use
+  // `tmdb:<id>` so the membership survives a library rescan and still finds the
+  // title via the discover route.
+  const listId = localId ?? (view.tmdbId != null ? `tmdb:${view.tmdbId}` : null);
   const listState: {
     watched?: boolean;
     onToggleWatched?: () => void;
     inList?: boolean;
     onToggleList?: () => void;
-    inQueue?: boolean;
-    onToggleQueue?: () => void;
   } = {};
-  if (queueId) {
-    listState.watched = isWatched(queueId);
-    listState.onToggleWatched = () => toggleWatched(queueId);
-    listState.inList = inList(queueId);
-    listState.onToggleList = () => toggleList(queueId);
-    listState.inQueue = inQueue(queueId);
-    listState.onToggleQueue = () => toggleQueue(queueId);
+  if (listId) {
+    listState.watched = isWatched(listId);
+    listState.onToggleWatched = () => toggleWatched(listId);
+    listState.inList = inList(listId);
+    listState.onToggleList = () => toggleList(listId);
   }
   const trackInfo: { audio?: string; subtitles?: string } = playable
     ? { audio: audioString(t, playable), subtitles: subString(t, playable) }
@@ -98,8 +90,6 @@ export function TitleHero({
       onToggleWatched={listState.onToggleWatched}
       inList={listState.inList}
       onToggleList={listState.onToggleList}
-      inQueue={listState.inQueue}
-      onToggleQueue={listState.onToggleQueue}
       primaryAction={
         owned ? undefined : <RequestCta view={view} busy={busy} onRequest={onRequest} />
       }

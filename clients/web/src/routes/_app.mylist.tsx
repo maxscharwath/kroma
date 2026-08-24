@@ -17,11 +17,10 @@ import { DiscoverCard } from '#web/features/requests/discover-card';
 import { isAuthed, kromaClient, type MovieView, type ShowView } from '#web/shared/lib/api';
 import { useMyList } from '#web/shared/lib/mylist';
 import { catalogQueries } from '#web/shared/lib/queries';
-import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
 import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
 
-type Tab = 'mylist' | 'watchlater' | 'watched';
+type Tab = 'mylist' | 'watched';
 type Sort = 'title' | 'year' | 'rating' | 'recent';
 type KindFilter = 'all' | 'movie' | 'show';
 type DecadeFilter = 'all' | '2020s' | '2010s' | '2000s' | '1990s' | 'older';
@@ -305,32 +304,26 @@ function MyListPage() {
   const { data: movies } = useSuspenseQuery(catalogQueries.moviesView());
   const { data: shows } = useSuspenseQuery(catalogQueries.showsView());
   const { ids: myListIds, ready: myListReady } = useMyList();
-  const { ids: watchLaterIds, ready: watchLaterReady } = useWatchLater();
   const { ids: watchedIds, ready: watchedReady } = useWatched();
 
   const movieById = useMemo(() => new Map(movies.map((m) => [m.id, m])), [movies]);
   const showById = useMemo(() => new Map(shows.map((s) => [s.id, s])), [shows]);
 
   const myList = useResolvedList(myListIds, myListReady, movieById, showById);
-  const watchLater = useResolvedList(watchLaterIds, watchLaterReady, movieById, showById);
   const watched = useResolvedList(watchedIds, watchedReady, movieById, showById);
 
   const allEmpty =
     myList.ready &&
     !myList.loading &&
     myList.total === 0 &&
-    watchLater.ready &&
-    !watchLater.loading &&
-    watchLater.total === 0 &&
     watched.ready &&
     !watched.loading &&
     watched.total === 0;
 
-  const lists: Record<Tab, ResolvedList> = { mylist: myList, watchlater: watchLater, watched };
+  const lists: Record<Tab, ResolvedList> = { mylist: myList, watched };
   const active = lists[tab];
   const emptyKeys: Record<Tab, MessageKey> = {
     mylist: 'content.myListEmpty',
-    watchlater: 'content.watchLaterEmpty',
     watched: 'content.watchedEmpty',
   };
   const activeEmptyKey = emptyKeys[tab];
@@ -352,9 +345,6 @@ function MyListPage() {
           <SegmentGroup.Root<Tab> value={tab} onValueChange={setTab} size="sm" stretch>
             <SegmentGroup.Item value="mylist">
               <SegmentGroup.Label>{t('nav.myList')}</SegmentGroup.Label>
-            </SegmentGroup.Item>
-            <SegmentGroup.Item value="watchlater">
-              <SegmentGroup.Label>{t('discover.watchLater')}</SegmentGroup.Label>
             </SegmentGroup.Item>
             <SegmentGroup.Item value="watched">
               <SegmentGroup.Label>{t('content.watched')}</SegmentGroup.Label>

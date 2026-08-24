@@ -1,9 +1,9 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { ArtScrim, Box, Progress, Text, VirtualRail } from '@kroma/ui/kit';
+import { ArtScrim, Box, IconButton, Progress, Show, Text, VirtualRail } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
-import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
+import { PosterActionBar } from '#web/shared/ui/poster-action-bar';
 
 export interface PosterProps {
   title: string;
@@ -15,8 +15,6 @@ export interface PosterProps {
   onToggleWatched?: () => void;
   inList?: boolean | null;
   onToggleList?: () => void;
-  inQueue?: boolean | null;
-  onToggleQueue?: () => void;
   width?: number;
   onClick?: () => void;
 }
@@ -70,8 +68,6 @@ export function Poster({
   onToggleWatched,
   inList = null,
   onToggleList,
-  inQueue = null,
-  onToggleQueue,
   width,
   onClick,
 }: Readonly<PosterProps>) {
@@ -81,35 +77,27 @@ export function Poster({
   const gradient = `linear-gradient(158deg, ${colors[0]} 0%, ${colors[1]} 70%)`;
   const showWatched = watched != null && Boolean(onToggleWatched);
   const showList = inList != null && Boolean(onToggleList);
-  const showQueue = inQueue != null && Boolean(onToggleQueue);
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">
-      {showWatched || showList || showQueue ? (
-        <PosterActionsMenu label={t('content.moreActions')}>
-          {showWatched ? (
-            <PosterActionsMenu.Item icon="check" onSelect={() => onToggleWatched?.()}>
-              {watched ? t('content.markUnwatched') : t('content.markWatched')}
-            </PosterActionsMenu.Item>
-          ) : null}
-          {showList ? (
-            <PosterActionsMenu.Item
-              icon={inList ? 'check' : 'plus'}
-              onSelect={() => onToggleList?.()}
-            >
-              {inList ? t('content.removeFromList') : t('discover.addToMyList')}
-            </PosterActionsMenu.Item>
-          ) : null}
-          {showQueue ? (
-            <PosterActionsMenu.Item
-              icon={inQueue ? 'bookmark-filled' : 'bookmark'}
-              onSelect={() => onToggleQueue?.()}
-            >
-              {inQueue ? t('discover.inWatchLater') : t('discover.watchLater')}
-            </PosterActionsMenu.Item>
-          ) : null}
-        </PosterActionsMenu>
-      ) : null}
+      <Show when={showWatched || showList}>
+        <PosterActionBar>
+          <Show when={showWatched}>
+            <IconButton
+              icon="eye"
+              label={watched ? t('content.markUnwatched') : t('content.markWatched')}
+              onPress={() => onToggleWatched?.()}
+            />
+          </Show>
+          <Show when={showList}>
+            <IconButton
+              icon={inList ? 'bookmark-filled' : 'bookmark'}
+              label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
+              onPress={() => onToggleList?.()}
+            />
+          </Show>
+        </PosterActionBar>
+      </Show>
       <button type="button" onClick={onClick} className="poster-hit">
         <div className="poster-art" style={{ background: gradient }}>
           <Image

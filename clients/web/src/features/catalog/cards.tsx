@@ -8,7 +8,6 @@ import type { MovieView, ShowView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
 import type { HeroEntry } from '#web/shared/lib/queries';
-import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
 import { Image, Poster, PosterRail } from '#web/shared/ui';
 
@@ -155,7 +154,6 @@ export const MoviePoster = memo(function MoviePoster({
   const navigate = useNavigate();
   const { isWatched, toggleWatched } = useWatched();
   const { inList, toggle: toggleList } = useMyList();
-  const { inQueue, toggle: toggleQueue } = useWatchLater();
   return (
     <Poster
       title={item.title}
@@ -167,8 +165,6 @@ export const MoviePoster = memo(function MoviePoster({
       onToggleWatched={() => toggleWatched(item.id)}
       inList={inList(item.id)}
       onToggleList={() => toggleList(item.id)}
-      inQueue={inQueue(item.id)}
-      onToggleQueue={() => toggleQueue(item.id)}
       onClick={() => navigate({ to: '/movie/$id', params: { id: item.id } })}
     />
   );
@@ -182,7 +178,6 @@ export const ShowPoster = memo(function ShowPoster({
   const navigate = useNavigate();
   const { isWatched, toggleWatched } = useWatched();
   const { inList, toggle: toggleList } = useMyList();
-  const { inQueue, toggle: toggleQueue } = useWatchLater();
   return (
     <Poster
       title={show.title}
@@ -195,8 +190,6 @@ export const ShowPoster = memo(function ShowPoster({
       onToggleWatched={() => toggleWatched(show.id)}
       inList={inList(show.id)}
       onToggleList={() => toggleList(show.id)}
-      inQueue={inQueue(show.id)}
-      onToggleQueue={() => toggleQueue(show.id)}
       onClick={() => navigate({ to: '/show/$id', params: { id: show.id } })}
     />
   );
@@ -215,7 +208,6 @@ export const SectionPoster = memo(function SectionPoster({
   const { client } = useAuth();
   const { isWatched, toggleWatched } = useWatched();
   const { inList, toggle: toggleList } = useMyList();
-  const { inQueue, toggle: toggleQueue } = useWatchLater();
   if (entry.type === 'show') {
     const { show } = entry;
     return (
@@ -230,8 +222,6 @@ export const SectionPoster = memo(function SectionPoster({
         onToggleWatched={() => toggleWatched(show.id)}
         inList={inList(show.id)}
         onToggleList={() => toggleList(show.id)}
-        inQueue={inQueue(show.id)}
-        onToggleQueue={() => toggleQueue(show.id)}
         onClick={() => navigate({ to: '/show/$id', params: { id: show.id } })}
       />
     );
@@ -249,8 +239,6 @@ export const SectionPoster = memo(function SectionPoster({
       onToggleWatched={() => toggleWatched(item.id)}
       inList={inList(item.id)}
       onToggleList={() => toggleList(item.id)}
-      inQueue={inQueue(item.id)}
-      onToggleQueue={() => toggleQueue(item.id)}
       onClick={() =>
         isEpisode
           ? navigate({ to: '/show/$id', params: { id: item.showId ?? item.id } })

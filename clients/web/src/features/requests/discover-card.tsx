@@ -1,20 +1,30 @@
 // A TMDB discovery result as a poster tile: real art or gradient and an
-// availability/request chip, wearing the same overflow (⋮) menu a library
-// poster does. The menu carries request (when the title is unowned and
-// unrequested) alongside watched / my-list / watch-later, so a card needs no
-// separate request button. Clicks route to the local fiche when owned, else
-// the discover detail.
+// availability/request chip, wearing the same hover action bar a library poster
+// does. The bar carries request (when the title is unowned and unrequested)
+// alongside watched and bookmark, so a card needs no separate request button.
+// Clicks route to the local fiche when owned, else the discover detail.
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, color, Focusable, gradient, Icon, Img, Row, styles, Text } from '@kroma/ui/kit';
+import {
+  Box,
+  color,
+  Focusable,
+  gradient,
+  Icon,
+  IconButton,
+  Img,
+  Row,
+  Show,
+  styles,
+  Text,
+} from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
-import { useWatchLater } from '#web/shared/lib/watch-later';
 import { useWatched } from '#web/shared/lib/watched';
-import { PosterActionsMenu } from '#web/shared/ui/poster-actions-menu';
+import { PosterActionBar } from '#web/shared/ui/poster-action-bar';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
 // A touch screen has no hover, so what a pointer reveals is always up there.
@@ -33,9 +43,8 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const t = useT();
   const navigate = useNavigate();
   const { client } = useAuth();
-  const { isWatched, toggleWatched } = useWatched();
-  const { inList, toggle: toggleMyList } = useMyList();
-  const { inQueue, toggle: toggleWatchLater } = useWatchLater();
+  const { toggleWatched } = useWatched();
+  const { toggle: toggleMyList } = useMyList();
   const [imgOk, setImgOk] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(entry.requestStatus);
@@ -43,13 +52,11 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const art = sizedImageUrl(entry.posterUrl, width ?? 208);
   const showImg = Boolean(art) && imgOk;
   const owned = entry.inLibrary && entry.localId;
-  const localId = entry.localId ?? '';
-  const queueId = owned ? localId : `tmdb:${entry.tmdbId}`;
   const canRequest = !owned && !optimisticStatus;
-  // All three list actions use queueId so they work for both owned and
-  // discover titles. Owned titles use their local item id; discover titles
-  // use `tmdb:<id>` so membership survives a library rescan.
-  const listId = queueId;
+  // Watched and bookmark use one id for both owned and discover titles: the
+  // local item id when owned, else `tmdb:<id>` so membership survives a library
+  // rescan — which is what lets a not-yet-available title be bookmarked.
+  const listId = owned ? (entry.localId ?? '') : `tmdb:${entry.tmdbId}`;
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
   let statusChip: ReactNode = null;
@@ -87,32 +94,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 
   return (
     <div className="poster-frame" style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
-      <PosterActionsMenu label={t('content.moreActions')}>
-        {canRequest ? (
-          <PosterActionsMenu.Item icon="download" onSelect={request}>
-            {t('discover.request')}
-          </PosterActionsMenu.Item>
-        ) : null}
-        {canRequest ? <PosterActionsMenu.Separator /> : null}
-        <PosterActionsMenu.Item
-          icon={isWatched(listId) ? 'check' : 'eye'}
-          onSelect={() => toggleWatched(listId)}
-        >
-          {t('discover.markWatched')}
-        </PosterActionsMenu.Item>
-        <PosterActionsMenu.Item
-          icon={inList(listId) ? 'check' : 'plus'}
-          onSelect={() => toggleMyList(listId)}
-        >
-          {t('discover.addToMyList')}
-        </PosterActionsMenu.Item>
-        <PosterActionsMenu.Item
-          icon={inQueue(listId) ? 'bookmark-filled' : 'bookmark'}
-          onSelect={() => toggleWatchLater(listId)}
-        >
-          {inQueue(listId) ? t('discover.inWatchLater') : t('discover.watchLater')}
-        </PosterActionsMenu.Item>
-      </PosterActionsMenu>
       <Focusable label={entry.title} onPress={open} focusScale={1.03} style={s.tile}>
         {(state) => {
           const lit = COARSE || state.hovered || state.focused;
@@ -148,6 +129,22 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
               <Box absolute left={8} top={8} gap={6}>
                 {statusChip}
               </Box>
+
+              <PosterActionBar>
+                <Show when={canRequest}>
+                  <IconButton icon="download" label={t('discover.request')} onPress={request} />
+                </Show>
+                <IconButton
+                  icon="eye"
+                  label={t('discover.markWatched')}
+                  onPress={() => toggleWatched(listId)}
+                />
+                <IconButton
+                  icon="bookmark"
+                  label={t('discover.addToMyList')}
+                  onPress={() => toggleMyList(listId)}
+                />
+              </PosterActionBar>
             </Box>
           );
         }}

@@ -140,39 +140,40 @@
   opacity: 1;
 }
 
-/* THE OVERFLOW (⋮) MENU (shared/ui/poster-actions-menu.tsx). The one kebab a
-   library poster and a discover/trending card both wear, pinned to the top-right
-   of the 2:3 art. Its glass trigger stays out of the way until wanted: hidden at
-   rest, it scales up from the corner when the frame is hovered or focused, or
-   while its menu is open (`data-open`, since the panel takes focus out of the
-   frame). Always up where there is no pointer to hover with. */
+/* THE QUICK-ACTION BAR (shared/ui/poster-action-bar.tsx). The vertical column of
+   glass buttons a library poster and a discover/trending card both wear in the
+   art's top-right corner — clear of the title the library poster paints along
+   the bottom. It stays out of the way until wanted: hidden at rest, it fades and
+   slides in from the right when the frame is hovered or focused. Always up where
+   there is no pointer to hover with. */
 .poster-frame {
   position: relative;
 }
-.poster-menu {
+.poster-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   opacity: 0;
-  transform: scale(0.92);
-  transform-origin: top right;
+  transform: translateX(6px);
   pointer-events: none;
   transition:
     opacity var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
 }
-.poster-frame:hover .poster-menu,
-.poster-frame:focus-within .poster-menu,
-.poster-menu[data-open] {
+.poster-frame:hover .poster-actions,
+.poster-frame:focus-within .poster-actions {
   opacity: 1;
-  transform: scale(1);
+  transform: none;
   pointer-events: auto;
 }
 @media (pointer: coarse) {
-  .poster-menu {
+  .poster-actions {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
     pointer-events: auto;
   }
 }

@@ -143,7 +143,9 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     // Per-request quality preferences (NULL = use system-wide defaults).
     "ALTER TABLE requests ADD COLUMN max_resolution TEXT",
     "ALTER TABLE requests ADD COLUMN max_size_gb INTEGER",
-    // Watch later: user's "to watch" queue, separate from my_list bookmarks.
-    "CREATE TABLE IF NOT EXISTS watch_later (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, item_id TEXT NOT NULL, added_at TEXT NOT NULL, PRIMARY KEY (user_id, item_id))",
-    "CREATE INDEX IF NOT EXISTS idx_watch_later_user ON watch_later(user_id, added_at DESC)",
+    // Fold the old watch_later queue into my_list, then drop it: My list now
+    // covers not-yet-available titles too, so the separate queue is redundant.
+    "INSERT OR IGNORE INTO my_list (user_id, item_id, added_at) SELECT user_id, item_id, added_at FROM watch_later",
+    "DROP INDEX IF EXISTS idx_watch_later_user",
+    "DROP TABLE IF EXISTS watch_later",
 ];

@@ -71,36 +71,6 @@ pub fn list_my_list(pool: &Pool, user_id: &str) -> Result<Vec<String>> {
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-/// Add a title to the user's watch-later queue. Idempotent.
-pub fn add_to_watch_later(pool: &Pool, user_id: &str, item_id: &str) -> Result<()> {
-    let conn = pool.get()?;
-    conn.execute(
-        "INSERT INTO watch_later (user_id,item_id,added_at) VALUES (?1,?2,?3) \
-         ON CONFLICT(user_id,item_id) DO UPDATE SET added_at=excluded.added_at",
-        params![user_id, item_id, now_or_blank()],
-    )?;
-    Ok(())
-}
-
-/// Remove a title from the user's watch-later queue. Idempotent.
-pub fn remove_from_watch_later(pool: &Pool, user_id: &str, item_id: &str) -> Result<()> {
-    let conn = pool.get()?;
-    conn.execute(
-        "DELETE FROM watch_later WHERE user_id = ?1 AND item_id = ?2",
-        params![user_id, item_id],
-    )?;
-    Ok(())
-}
-
-/// Every item id in the user's watch-later queue, most-recently-added first.
-pub fn list_watch_later(pool: &Pool, user_id: &str) -> Result<Vec<String>> {
-    let conn = pool.get()?;
-    let mut stmt =
-        conn.prepare("SELECT item_id FROM watch_later WHERE user_id = ?1 ORDER BY added_at DESC")?;
-    let rows = stmt.query_map(params![user_id], |r| r.get::<_, String>(0))?;
-    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,21 +125,5 @@ mod tests {
             list_my_list(&pool, &uid).unwrap(),
             vec!["show-7".to_string()]
         );
-    }
-
-    #[test]
-    fn watch_later_add_remove_round_trips() {
-        let (pool, uid) = pool_with_user();
-        assert!(list_watch_later(&pool, &uid).unwrap().is_empty());
-
-        add_to_watch_later(&pool, &uid, "m1").unwrap();
-        add_to_watch_later(&pool, &uid, "show-7").unwrap();
-        add_to_watch_later(&pool, &uid, "m1").unwrap(); // idempotent
-        let mut ids = list_watch_later(&pool, &uid).unwrap();
-        ids.sort();
-        assert_eq!(ids, vec!["m1".to_string(), "show-7".to_string()]);
-
-        remove_from_watch_later(&pool, &uid, "m1").unwrap();
-        assert_eq!(list_watch_later(&pool, &uid).unwrap(), vec!["show-7".to_string()]);
     }
 }

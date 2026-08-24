@@ -1,42 +1,29 @@
 // A TMDB discovery result as a poster tile: real art or gradient and an
 // availability/request chip, wearing the same hover action bar a library poster
-// does. The bar carries request (when the title is unowned and unrequested)
-// alongside watched and bookmark, so a card needs no separate request button.
-// Clicks route to the local fiche when owned, else the discover detail.
+// does. Clicks route to the local fiche when owned, else the discover detail.
 
 import { type DiscoverEntry, posterColors, sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import {
-  Box,
-  color,
-  Focusable,
-  gradient,
-  Icon,
-  IconButton,
-  If,
-  Img,
-  Row,
-  styles,
-  Text,
-} from '@kroma/ui/kit';
+import { Box, Focusable, gradient, Img, styles, Text, WatchedBadge } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
 import { useWatched } from '#web/shared/lib/watched';
-import { PosterActionBar } from '#web/shared/ui/poster-action-bar';
+import { type PosterAction, PosterActionBar } from '#web/shared/ui/poster-action-bar';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
+import { TileCaption } from '#web/shared/ui/tile-caption';
 
 // A touch screen has no hover, so what a pointer reveals is always up there.
 const COARSE =
   typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
 
 const s = styles({
-  tile: { w: '100%' },
+  // The ring is an outline and takes the corners of the element it is on, so
+  // the tile carries the art's radius rather than leaving a square ring on it.
+  tile: { w: '100%', radius: 'lg' },
   art: { aspect: 2 / 3, radius: 'lg', overflow: 'hidden', shadow: 'card' },
   artLit: { shadow: 'pop' },
-  overlay: { opacity: 0, pointerEvents: 'none' },
-  overlayLit: { opacity: 1 },
 });
 
 export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; width?: number }>) {
@@ -83,7 +70,6 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   };
 
   const request = () => {
-    if (requesting) return;
     setRequesting(true);
     client
       .createRequest({ kind: entry.kind, tmdbId: entry.tmdbId, seasons: null })
@@ -91,6 +77,35 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
       .catch(() => undefined)
       .finally(() => setRequesting(false));
   };
+
+  const bookmarked = inList(listId);
+  const seen = isWatched(listId);
+  const actions: PosterAction[] = [];
+  if (canRequest) {
+    actions.push({
+      key: 'request',
+      icon: 'download',
+      label: t('discover.request'),
+      disabled: requesting,
+      onSelect: request,
+    });
+  }
+  actions.push(
+    {
+      key: 'list',
+      icon: bookmarked ? 'bookmark-filled' : 'bookmark',
+      label: t(bookmarked ? 'content.removeFromList' : 'content.addToList'),
+      active: bookmarked,
+      onSelect: () => toggleMyList(listId),
+    },
+    {
+      key: 'watched',
+      icon: 'eye',
+      label: t(seen ? 'content.markUnwatched' : 'content.markWatched'),
+      active: seen,
+      onSelect: () => toggleWatched(listId),
+    },
+  );
 
   return (
     <div className="poster-frame" style={{ width: width ?? 'var(--card-w)', flexShrink: 0 }}>
@@ -116,74 +131,23 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
                 </Box>
               )}
 
-              {/* top gradient scrim keeps the chips legible over bright art */}
-              <Box
-                absolute
-                left={0}
-                right={0}
-                top={0}
-                h={64}
-                style={[s.overlay, lit ? s.overlayLit : null, TOP_SCRIM]}
-              />
-
-              <Box absolute left={8} top={8} gap={6}>
+              {seen ? <WatchedBadge /> : null}
+              {/* Clear of the fold when there is one: it owns the top-left 40px. */}
+              <Box absolute left={12} top={seen ? 46 : 12} gap={8}>
                 {statusChip}
               </Box>
 
-              <PosterActionBar>
-                <If condition={canRequest}>
-                  <IconButton icon="download" label={t('discover.request')} onPress={request} />
-                </If>
-                <IconButton
-                  icon={isWatched(listId) ? 'eye-filled' : 'eye'}
-                  label={t('discover.markWatched')}
-                  onPress={() => toggleWatched(listId)}
-                />
-                <IconButton
-                  icon={inList(listId) ? 'bookmark-filled' : 'bookmark'}
-                  label={t('discover.addToMyList')}
-                  onPress={() => toggleMyList(listId)}
-                />
-              </PosterActionBar>
+              <PosterActionBar actions={actions} />
             </Box>
           );
         }}
       </Focusable>
-      <Box mt={8} px={2}>
-        <Text variant="label" lines={1}>
-          {entry.title}
-        </Text>
-        <Row gap={6} mt={2} align="center">
-          {entry.rating ? (
-            <>
-              <Row gap={3} align="center">
-                <Icon name="star-filled" size={10} color="accent" />
-                <Text variant="meta" color="accent">
-                  {entry.rating.toFixed(1)}
-                </Text>
-              </Row>
-              <Text variant="meta" color="white/20">
-                ·
-              </Text>
-            </>
-          ) : null}
-          <Text variant="meta" color="textDim">
-            {entry.kind === 'show' ? t('discover.kindShow') : t('discover.kindMovie')}
-          </Text>
-          {entry.year ? (
-            <>
-              <Text variant="meta" color="white/20">
-                ·
-              </Text>
-              <Text variant="meta" color="textDim">
-                {entry.year}
-              </Text>
-            </>
-          ) : null}
-        </Row>
-      </Box>
+      <TileCaption
+        title={entry.title}
+        kind={entry.kind}
+        year={entry.year ?? null}
+        rating={entry.rating ?? null}
+      />
     </div>
   );
 }
-
-const TOP_SCRIM = gradient(`linear-gradient(to bottom, ${color('black/55')}, transparent)`);

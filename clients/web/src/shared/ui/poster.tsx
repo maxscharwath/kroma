@@ -1,9 +1,9 @@
 import { sizedImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { ArtScrim, Box, IconButton, If, Progress, Text, VirtualRail } from '@kroma/ui/kit';
+import { ArtScrim, Box, Progress, Text, VirtualRail, WatchedBadge } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
 import { Image } from '#web/shared/ui/image';
-import { PosterActionBar } from '#web/shared/ui/poster-action-bar';
+import { type PosterAction, PosterActionBar } from '#web/shared/ui/poster-action-bar';
 
 export interface PosterProps {
   title: string;
@@ -19,6 +19,7 @@ export interface PosterProps {
   onClick?: () => void;
 }
 
+/** Read by the `[data-watched-mark]` rule in `styles.css`. */
 const RAIL_TILE = 208;
 const RAIL_GAP = 18;
 const RAIL_PAD = 12;
@@ -55,8 +56,8 @@ export function PosterRail<T>({
 }
 
 /**
- * The tile wrapper is a `<div>`, not a `<button>`, so the watched toggle can be
- * a focusable `<button>` sibling without nesting interactive elements.
+ * The tile wrapper is a `<div>`, not a `<button>`, so the quick actions can be
+ * focusable siblings without nesting interactive elements.
  */
 export function Poster({
   title,
@@ -75,29 +76,29 @@ export function Poster({
   const [imgOk, setImgOk] = useState(true);
   const showImg = Boolean(poster) && imgOk;
   const gradient = `linear-gradient(158deg, ${colors[0]} 0%, ${colors[1]} 70%)`;
-  const showWatched = watched != null && Boolean(onToggleWatched);
-  const showList = inList != null && Boolean(onToggleList);
+
+  const actions: PosterAction[] = [];
+  if (inList != null && onToggleList) {
+    actions.push({
+      key: 'list',
+      icon: inList ? 'bookmark-filled' : 'bookmark',
+      label: t(inList ? 'content.removeFromList' : 'content.addToList'),
+      active: inList,
+      onSelect: onToggleList,
+    });
+  }
+  if (watched != null && onToggleWatched) {
+    actions.push({
+      key: 'watched',
+      icon: 'eye',
+      label: t(watched ? 'content.markUnwatched' : 'content.markWatched'),
+      active: watched,
+      onSelect: onToggleWatched,
+    });
+  }
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">
-      <If condition={showWatched || showList}>
-        <PosterActionBar>
-          <If condition={showWatched}>
-            <IconButton
-              icon={watched ? 'eye-filled' : 'eye'}
-              label={watched ? t('content.markUnwatched') : t('content.markWatched')}
-              onPress={() => onToggleWatched?.()}
-            />
-          </If>
-          <If condition={showList}>
-            <IconButton
-              icon={inList ? 'bookmark-filled' : 'bookmark'}
-              label={inList ? t('content.removeFromList') : t('discover.addToMyList')}
-              onPress={() => onToggleList?.()}
-            />
-          </If>
-        </PosterActionBar>
-      </If>
       <button type="button" onClick={onClick} className="poster-hit">
         <div className="poster-art" style={{ background: gradient }}>
           <Image
@@ -106,7 +107,8 @@ export function Poster({
             fill
             onError={() => setImgOk(false)}
           />
-          <ArtScrim radius="lg" />
+          <ArtScrim variant="deep" radius="lg" />
+          {watched ? <WatchedBadge /> : null}
           <div className="poster-caption" data-reveal={showImg ? '' : undefined}>
             {genre ? (
               <Text variant="overline" color="white/60" mb={4}>
@@ -129,6 +131,7 @@ export function Poster({
           ) : null}
         </div>
       </button>
+      <PosterActionBar actions={actions} />
     </div>
   );
 }

@@ -1,28 +1,18 @@
 // <If>: the kit's conditional, so a tree spells "this only when …" as part of
-// its markup instead of a `cond ? … : null`. It renders `children` when
-// `condition` is truthy, else `fallback` (nothing by default). A branch may be a
-// thunk (`() => <A/>`) to build it only when it is taken — the lazy path other
-// <If>/<When> helpers lack. Pure and hook-free: one component on the web, on
-// Apple TV and on Android TV, and nothing for the React Compiler to trip on.
+// its markup instead of a `cond ? … : null`. Pure and hook-free: one component
+// on the web, on Apple TV and on Android TV, and nothing for the React Compiler
+// to trip on.
 
 import type { ReactNode } from 'react';
-
-/** A branch: nodes, or a thunk that builds them only when the branch is taken. */
-type Branch = ReactNode | (() => ReactNode);
 
 export interface IfProps {
   /** Render `children` when truthy, otherwise `fallback`. */
   condition: unknown;
   /** Rendered when `condition` is falsy. Defaults to nothing. */
-  fallback?: Branch;
-  children: Branch;
+  fallback?: ReactNode;
+  children: ReactNode;
 }
 
-function take(branch: Branch): ReactNode {
-  if (typeof branch === 'function') return branch();
-  return branch;
-}
-
-export function If({ condition, fallback = null, children }: Readonly<IfProps>) {
-  return <>{condition ? take(children) : take(fallback)}</>;
+export function If({ condition, fallback = null, children }: Readonly<IfProps>): ReactNode {
+  return condition ? children : fallback;
 }

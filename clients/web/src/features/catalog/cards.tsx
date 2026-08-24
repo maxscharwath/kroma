@@ -3,7 +3,7 @@ import { useT } from '@kroma/ui';
 import { Badge, Box, Button, gradient, Row, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { type CSSProperties, memo } from 'react';
-import { TileGrid } from '#web/features/catalog/tile-grid';
+import { VirtualTileGrid } from '#web/features/catalog/virtual-tile-grid';
 import type { MovieView, ShowView } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
@@ -260,17 +260,21 @@ export function ShowRail({ title, shows }: Readonly<{ title: string; shows: Show
 
 export function MovieGrid({ movies }: Readonly<{ movies: MovieView[] }>) {
   return (
-    <TileGrid>
-      {(width) => movies.map((item) => <MoviePoster key={item.id} item={item} width={width} />)}
-    </TileGrid>
+    <VirtualTileGrid
+      data={movies}
+      keyOf={(item) => item.id}
+      renderItem={(item, width) => <MoviePoster item={item} width={width} />}
+    />
   );
 }
 
 export function ShowGrid({ shows }: Readonly<{ shows: ShowView[] }>) {
   return (
-    <TileGrid>
-      {(width) => shows.map((show) => <ShowPoster key={show.id} show={show} width={width} />)}
-    </TileGrid>
+    <VirtualTileGrid
+      data={shows}
+      keyOf={(show) => show.id}
+      renderItem={(show, width) => <ShowPoster show={show} width={width} />}
+    />
   );
 }
 
@@ -281,16 +285,16 @@ export type CatalogEntry = { kind: 'movie'; movie: MovieView } | { kind: 'show';
 /** A grid mixing movies and shows in the given order (server-ranked). */
 export function CatalogGrid({ entries }: Readonly<{ entries: CatalogEntry[] }>) {
   return (
-    <TileGrid>
-      {(width) =>
-        entries.map((e) =>
-          e.kind === 'movie' ? (
-            <MoviePoster key={e.movie.id} item={e.movie} width={width} />
-          ) : (
-            <ShowPoster key={e.show.id} show={e.show} width={width} />
-          ),
+    <VirtualTileGrid
+      data={entries}
+      keyOf={(e) => (e.kind === 'movie' ? e.movie.id : e.show.id)}
+      renderItem={(e, width) =>
+        e.kind === 'movie' ? (
+          <MoviePoster item={e.movie} width={width} />
+        ) : (
+          <ShowPoster show={e.show} width={width} />
         )
       }
-    </TileGrid>
+    />
   );
 }

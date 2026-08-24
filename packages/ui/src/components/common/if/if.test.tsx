@@ -32,16 +32,14 @@ describe('If', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('takes only the active branch when branches are thunks', () => {
-    const taken = vi.fn(() => <span>on</span>);
-    const skipped = vi.fn(() => <span>off</span>);
+  it('does not render the untaken branch', () => {
+    const Skipped = vi.fn(() => <span>off</span>);
     render(
-      <If condition fallback={skipped}>
-        {taken}
+      <If condition fallback={<Skipped />}>
+        <span>on</span>
       </If>,
     );
-    expect(taken).toHaveBeenCalledTimes(1);
-    expect(skipped).not.toHaveBeenCalled();
+    expect(Skipped).not.toHaveBeenCalled();
     expect(screen.getByText('on')).toBeTruthy();
   });
 });

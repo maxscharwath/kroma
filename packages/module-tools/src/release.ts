@@ -215,6 +215,42 @@ function flag(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
+function reportPlan(plan: Plan): void {
+  for (const r of plan.publish) {
+    const label = r.reason === 'new' ? 'new' : 'update';
+    console.log(`  publish  ${r.tag}  (${label}, ${r.files.length / 2} artifact(s))`);
+  }
+  for (const id of plan.unchanged) console.log(`  unchanged ${id}`);
+  for (const id of plan.carried) console.log(`  carried  ${id} (not built in this run)`);
+}
+
+function reportStale(stale: string[], strict: boolean): void {
+  if (stale.length === 0) return;
+  console.warn(`\n⚠  ${stale.length} module(s) changed without a version bump - NOT published:\n`);
+  for (const s of stale) console.warn(`  ! ${s}\n`);
+  console.warn(
+    strict
+      ? '  --strict: treating unbumped modules as a failure.'
+      : '  The ready modules above still ship. Bump these and re-push to release them.',
+  );
+}
+
+function reportErrors(errors: string[]): void {
+  if (errors.length === 0) return;
+  console.error(`\n${errors.length} module(s) cannot be released:\n`);
+  for (const e of errors) console.error(`  ✗ ${e}\n`);
+  process.exit(1);
+}
+
+function writeArtifacts(outDir: string, catalog: Catalog, plan: Plan): void {
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'modules.json'), `${JSON.stringify(catalog, null, 2)}\n`);
+  writeFileSync(join(outDir, 'plan.json'), `${JSON.stringify(plan, null, 2)}\n`);
+  console.log(
+    `\n${plan.publish.length} release(s) to cut; catalog describes ${catalog.modules.length} module(s) -> ${outDir}`,
+  );
+}
+
 export async function main(): Promise<void> {
   const repo = flag('repo') ?? process.env.GITHUB_REPOSITORY;
   if (!repo) throw new Error('--repo owner/name is required (or set GITHUB_REPOSITORY)');
@@ -236,30 +272,9 @@ export async function main(): Promise<void> {
     new Date().toISOString(),
   );
 
-  for (const r of plan.publish) {
-    const label = r.reason === 'new' ? 'new' : 'update';
-    console.log(`  publish  ${r.tag}  (${label}, ${r.files.length / 2} artifact(s))`);
-  }
-  for (const id of plan.unchanged) console.log(`  unchanged ${id}`);
-  for (const id of plan.carried) console.log(`  carried  ${id} (not built in this run)`);
-
-  if (stale.length > 0) {
-    console.warn(
-      `\n⚠  ${stale.length} module(s) changed without a version bump - NOT published:\n`,
-    );
-    for (const s of stale) console.warn(`  ! ${s}\n`);
-    console.warn(
-      strict
-        ? '  --strict: treating unbumped modules as a failure.'
-        : '  The ready modules above still ship. Bump these and re-push to release them.',
-    );
-  }
-
-  if (errors.length > 0) {
-    console.error(`\n${errors.length} module(s) cannot be released:\n`);
-    for (const e of errors) console.error(`  ✗ ${e}\n`);
-    process.exit(1);
-  }
+  reportPlan(plan);
+  reportStale(stale, strict);
+  reportErrors(errors);
 
   if (strict && stale.length > 0) process.exit(1);
 
@@ -267,10 +282,5 @@ export async function main(): Promise<void> {
     console.log('\n--dry-run: wrote nothing');
     return;
   }
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, 'modules.json'), `${JSON.stringify(catalog, null, 2)}\n`);
-  writeFileSync(join(outDir, 'plan.json'), `${JSON.stringify(plan, null, 2)}\n`);
-  console.log(
-    `\n${plan.publish.length} release(s) to cut; catalog describes ${catalog.modules.length} module(s) -> ${outDir}`,
-  );
+  writeArtifacts(outDir, catalog, plan);
 }

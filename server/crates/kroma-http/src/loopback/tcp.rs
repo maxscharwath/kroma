@@ -1,12 +1,20 @@
-//! A redirect is refused rather than followed: a sidecar answering 302 is trying
-//! to move the core somewhere, and the only correct destination is the one the
-//! supervisor named.
+//! Built on hyper's own client rather than a batteries-included one: axum
+//! already puts hyper in every sidecar, and a peer at 127.0.0.1 needs none of
+//! the TLS, proxy or cookie machinery the size would buy. It also cannot follow
+//! a redirect, which is what this seam wants -- a sidecar answering 302 is
+//! trying to move the core somewhere, and the only correct destination is the
+//! one the supervisor named.
 
 use std::sync::OnceLock;
 
 use anyhow::{bail, Context, Result};
+use bytes::Bytes;
+use http_body_util::{BodyExt, Full, Limited};
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 
-use super::transport::{Method, Request, Transport};
+use super::transport::{Request, Transport};
 use crate::response::Response;
 
 /// Memory guard on a response body: what one wrong peer may make this process
@@ -28,23 +36,28 @@ impl Transport for Tcp {
 
     fn send(&self, request: &Request<'_>) -> Result<Response> {
         ensure_loopback(request.url)?;
-        let method = match request.method {
-            Method::Get => reqwest::Method::GET,
-            Method::Post => reqwest::Method::POST,
-        };
-        let mut prepared = client()
-            .request(method, request.url)
-            .timeout(request.timeout);
+        let mut prepared = hyper::Request::builder()
+            .method(request.method.as_str())
+            .uri(request.url);
         for (name, value) in request.headers {
             prepared = prepared.header(name, value);
         }
-        if let Some((content_type, bytes)) = request.body {
-            prepared = prepared
-                .header("content-type", content_type)
-                .body(bytes.to_vec());
-        }
+        let body = match request.body {
+            Some((content_type, bytes)) => {
+                prepared = prepared.header("content-type", content_type);
+                Bytes::copy_from_slice(bytes)
+            }
+            None => Bytes::new(),
+        };
+        let prepared = prepared
+            .body(Full::new(body))
+            .context("build the loopback request")?;
+        let timeout = request.timeout;
         block_on(async move {
-            let response = prepared.send().await.context("send the loopback request")?;
+            let response = tokio::time::timeout(timeout, client().request(prepared))
+                .await
+                .context("the loopback peer did not answer in time")?
+                .context("send the loopback request")?;
             let status = response.status().as_u16();
             let headers = response
                 .headers()
@@ -56,23 +69,22 @@ impl Transport for Tcp {
                     )
                 })
                 .collect();
+            let body = Limited::new(response.into_body(), MAX_BODY_BYTES)
+                .collect()
+                .await
+                .map_err(|e| anyhow::anyhow!("read the loopback response body: {e}"))?;
             Ok(Response {
                 status,
                 headers,
-                body: read_bounded(response).await?,
+                body: body.to_bytes().to_vec(),
             })
         })
     }
 }
 
-fn client() -> &'static reqwest::Client {
-    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .expect("build the loopback client")
-    })
+fn client() -> &'static Client<HttpConnector, Full<Bytes>> {
+    static CLIENT: OnceLock<Client<HttpConnector, Full<Bytes>>> = OnceLock::new();
+    CLIENT.get_or_init(|| Client::builder(TokioExecutor::new()).build_http())
 }
 
 // `Handle::block_on` panics on a worker thread and `spawn_blocking` threads still
@@ -106,27 +118,17 @@ where
     }
 }
 
-async fn read_bounded(mut response: reqwest::Response) -> Result<Vec<u8>> {
-    let mut body = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .context("read the loopback response body")?
-    {
-        if body.len() + chunk.len() > MAX_BODY_BYTES {
-            bail!("loopback response is larger than {MAX_BODY_BYTES} bytes");
-        }
-        body.extend_from_slice(&chunk);
-    }
-    Ok(body)
-}
-
 fn is_loopback(url: &str) -> Result<bool> {
-    let parsed = reqwest::Url::parse(url).with_context(|| format!("parse the URL: {url}"))?;
-    if parsed.scheme() != "http" {
+    let uri: hyper::Uri = url.parse().with_context(|| format!("parse the URL: {url}"))?;
+    if uri.scheme_str() != Some("http") {
         return Ok(false);
     }
-    let host = parsed.host_str().unwrap_or_default();
+    let Some(host) = uri.host() else {
+        return Ok(false);
+    };
+    // An IPv6 host keeps its brackets through `host`, and loopback is a range
+    // rather than the one literal the supervisor happens to hand out, so this
+    // parses rather than matching strings.
     let bare = host.trim_start_matches('[').trim_end_matches(']');
     Ok(bare == "localhost"
         || bare

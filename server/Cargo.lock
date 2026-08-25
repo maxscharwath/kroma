@@ -1705,9 +1705,12 @@ name = "kroma-http"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "form_urlencoded",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "kroma-testing",
- "reqwest",
  "serde",
  "serde_json",
  "tempfile",

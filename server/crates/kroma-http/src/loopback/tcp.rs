@@ -71,8 +71,6 @@ fn client() -> &'static reqwest::Client {
         reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            // Not `unwrap_or_default`: the default client follows redirects,
-            // so falling back to it would quietly undo the line above.
             .expect("build the loopback client")
     })
 }
@@ -92,16 +90,20 @@ fn runtime() -> &'static tokio::runtime::Runtime {
     })
 }
 
-fn block_on<F>(future: F) -> F::Output
+// A sidecar builds with `panic = "abort"`, so a panic here would take the whole
+// module process down where the caller expects a recoverable error.
+fn block_on<T>(future: impl std::future::Future<Output = Result<T>> + Send + 'static) -> Result<T>
 where
-    F: std::future::Future + Send + 'static,
-    F::Output: Send + 'static,
+    T: Send + 'static,
 {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
     runtime().spawn(async move {
         let _ = tx.send(future.await);
     });
-    rx.recv().expect("the loopback runtime dropped a response")
+    match rx.recv() {
+        Ok(outcome) => outcome,
+        Err(_) => bail!("the loopback exchange ended without a response"),
+    }
 }
 
 async fn read_bounded(mut response: reqwest::Response) -> Result<Vec<u8>> {

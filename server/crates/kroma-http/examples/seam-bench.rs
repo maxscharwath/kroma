@@ -69,5 +69,5 @@ fn main() {
     });
 
     let ratio = curl.as_secs_f64() / tcp.as_secs_f64();
-    println!("\n  tcp is {ratio:.0}x the curl-per-call reference\n");
+    println!("\n  tcp is {ratio:.0}x faster than a curl process per call\n");
 }

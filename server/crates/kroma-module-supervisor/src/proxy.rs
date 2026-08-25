@@ -77,10 +77,8 @@ pub async fn proxy_to(port: u16, path_and_query: &str, req: Request) -> Response
             builder = builder.header(name, value);
         }
     }
-    // The status line is already committed by the time a streamed body fails, so
-    // this cannot become the 502 a buffered read could answer with. The client
-    // sees a chunked stream that stops without its terminator, and the log is the
-    // only place the cause survives.
+    // The status line is already sent, so a body that dies here cannot be
+    // answered with a 502; the log is the only place the cause survives.
     let body = resp.bytes_stream().inspect_err(move |e| {
         tracing::warn!(port, error = %e, "module response body failed mid-stream");
     });

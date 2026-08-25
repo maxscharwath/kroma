@@ -112,8 +112,15 @@ impl Loopback {
         let encoded = form_urlencoded::Serializer::new(String::new())
             .extend_pairs(self.query.iter().map(|(k, v)| (k.as_str(), v.as_str())))
             .finish();
-        let separator = if url.contains('?') { '&' } else { '?' };
-        format!("{url}{separator}{encoded}")
+        let (before, fragment) = match url.split_once('#') {
+            Some((before, fragment)) => (before, Some(fragment)),
+            None => (url, None),
+        };
+        let separator = if before.contains('?') { '&' } else { '?' };
+        match fragment {
+            Some(fragment) => format!("{before}{separator}{encoded}#{fragment}"),
+            None => format!("{before}{separator}{encoded}"),
+        }
     }
 
     fn send(&self, method: Method, url: &str, body: Option<(&str, &[u8])>) -> Result<Response> {
@@ -183,6 +190,15 @@ mod tests {
             .unwrap();
 
         assert_eq!(resp.text(), "POST stub://peer/_port/x?id=a+b");
+    }
+
+    #[test]
+    fn a_query_goes_before_a_fragment_rather_than_inside_it() {
+        let call = Loopback::new().query("k", "v");
+        assert_eq!(
+            call.with_query("http://127.0.0.1:9/x#frag"),
+            "http://127.0.0.1:9/x?k=v#frag"
+        );
     }
 
     #[test]

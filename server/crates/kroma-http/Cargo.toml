@@ -3,7 +3,7 @@ name = "kroma-http"
 version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
-description = "HTTP transport over the system curl binary, shared by KROMA's acquisition stack"
+description = "KROMA's two HTTP transports: a curl process per call for the outside world, and a pooled client for the loopback seam between the core and its module sidecars"
 license.workspace = true
 
 [dependencies]
@@ -12,6 +12,14 @@ anyhow = { workspace = true }
 tempfile = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# The loopback transport's pooled client, and the runtime it drives futures on.
+# No TLS feature: this seam is plain http on 127.0.0.1, and a sidecar that links
+# a TLS stack it can never use pays for it in bytes.
+reqwest = { workspace = true }
+tokio = { workspace = true }
+# Query-string encoding for the loopback builder, so `mod.rs` composes a URL
+# without reaching into whichever transport ends up carrying it.
+form_urlencoded = "1"
 
 [dev-dependencies]
 kroma-testing = { workspace = true }

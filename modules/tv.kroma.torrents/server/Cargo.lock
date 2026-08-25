@@ -1821,9 +1821,12 @@ name = "kroma-http"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "form_urlencoded",
+ "reqwest",
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

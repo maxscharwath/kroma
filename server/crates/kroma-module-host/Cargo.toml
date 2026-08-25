@@ -25,7 +25,8 @@ storage = ["dep:kroma-db"]
 [dependencies]
 kroma-domain = { workspace = true }
 kroma-db = { workspace = true, optional = true }
-# Sync curl client for the consumer-side port proxies (port methods are sync).
+# The loopback transport the consumer-side port proxies call a provider over
+# (port methods are sync, and so are its executors).
 kroma-http = { workspace = true }
 kroma-testing = { workspace = true, optional = true }
 axum = { workspace = true }

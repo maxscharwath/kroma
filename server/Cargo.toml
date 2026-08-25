@@ -77,6 +77,10 @@ rusqlite = { version = "0.40", features = ["bundled", "hooks"] }
 # HTTP / async runtime, shared by kroma-engine (i18n extractor, stream, services)
 # and the binary (router + handlers).
 axum = { version = "0.8", features = ["macros", "ws"] }
+# Pooled HTTP client. TLS-free by default because the crate that pulls it into
+# every sidecar (kroma-http's loopback transport) never leaves 127.0.0.1; the
+# supervisor, which fetches a `.kmod` over https, adds rustls on its own line.
+reqwest = { version = "0.12", default-features = false }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = "0.5"

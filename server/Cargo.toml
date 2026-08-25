@@ -81,6 +81,9 @@ axum = { version = "0.8", features = ["macros", "ws"] }
 # every sidecar (kroma-http's loopback transport) never leaves 127.0.0.1; the
 # supervisor, which fetches a `.kmod` over https, adds rustls on its own line.
 reqwest = { version = "0.12", default-features = false }
+# `TryStreamExt`, to see a proxied body die mid-stream. Already in the graph
+# under reqwest and hyper; this only names it.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
 tower = "0.5"

@@ -1,13 +1,6 @@
 //! What one exchange on the internal seam costs, per transport.
 //!
 //!     cargo run -p kroma-http --release --example seam-bench
-//!
-//! The server is a fixed-response HTTP/1.1 responder on loopback, so what is
-//! timed is the transport and nothing else. `Fetch` is in the table as the
-//! reference point it used to be: it reaches the same address by spawning a
-//! curl process, which is what this seam stopped doing.
-//!
-//! A new [`kroma_http::Transport`] joins the table by being registered here.
 
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -26,11 +19,10 @@ fn serve() -> u16 {
         BODY.len()
     );
     std::thread::spawn(move || {
-        for stream in listener.incoming().flatten() {
+        for mut stream in listener.incoming().flatten() {
             stream.set_nodelay(true).ok();
             let response = response.clone();
             std::thread::spawn(move || {
-                let mut stream = stream;
                 let mut buf = [0u8; 16384];
                 while matches!(stream.read(&mut buf), Ok(n) if n > 0) {
                     if stream.write_all(response.as_bytes()).is_err() {
@@ -57,7 +49,6 @@ fn time(label: &str, mut call: impl FnMut()) -> Duration {
 
 fn main() {
     let port = serve();
-    std::thread::sleep(Duration::from_millis(200));
     let url = format!("http://127.0.0.1:{port}/_port/acquisition/search");
     let body = serde_json::json!({ "query": "test", "limit": 50 });
 

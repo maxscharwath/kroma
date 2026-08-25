@@ -1,17 +1,5 @@
 //! The transport for the internal seam: the core and its module sidecars
 //! calling each other on this machine.
-//!
-//! [`crate::Fetch`] answers the opposite problem. It reaches the outside world
-//! -- an indexer behind a SOCKS proxy, a download client holding cookie state --
-//! where the peer is untrusted and the option surface is wide. Nothing on this
-//! seam wants any of that: the peer is a process KROMA started itself, reached
-//! thousands of times in a session, over a token-authed connection that never
-//! leaves the box.
-//!
-//! A caller holds a [`Loopback`], never a transport. Which transport carries the
-//! exchange is decided by the URL, so a second one -- a unix socket, a shared
-//! ring -- is added by implementing [`Transport`] and calling [`register`],
-//! without a single call site moving.
 
 mod tcp;
 mod transport;
@@ -33,10 +21,7 @@ fn registry() -> &'static RwLock<Vec<Arc<dyn Transport>>> {
 }
 
 /// Add a transport ahead of the built-in ones, for the URLs its
-/// [`Transport::accepts`] claims.
-///
-/// Registered last wins, so a process that speaks something faster than TCP to
-/// its peers installs it at boot and every existing call site follows.
+/// [`Transport::accepts`] claims. Registered last wins.
 pub fn register(transport: Arc<dyn Transport>) {
     registry()
         .write()
@@ -44,22 +29,25 @@ pub fn register(transport: Arc<dyn Transport>) {
         .push(transport);
 }
 
-fn transport_for(url: &str) -> Option<Arc<dyn Transport>> {
-    registry()
+fn transport_for(url: &str) -> Result<Arc<dyn Transport>> {
+    let transports = registry()
         .read()
-        .expect("the transport registry was poisoned")
-        .iter()
-        .rev()
-        .find(|t| t.accepts(url))
-        .map(Arc::clone)
+        .expect("the transport registry was poisoned");
+    if let Some(transport) = transports.iter().rev().find(|t| t.accepts(url)) {
+        return Ok(Arc::clone(transport));
+    }
+    let declined = transports.iter().map(|t| t.name()).collect::<Vec<_>>();
+    bail!(
+        "no loopback transport reaches {url} (declined by: {})",
+        declined.join(", ")
+    )
 }
 
 /// A prepared exchange with another KROMA process.
 ///
 /// Builder-style options, then one of the executors ([`Loopback::get`],
 /// [`Loopback::post_json`], [`Loopback::post_bytes`]). Each blocks the calling
-/// thread and answers with the same [`Response`] as [`crate::Fetch`], so a call
-/// site moves between the two by changing the constructor alone.
+/// thread.
 #[derive(Debug, Clone)]
 pub struct Loopback {
     headers: Vec<(String, String)>,
@@ -87,7 +75,7 @@ impl Loopback {
         self
     }
 
-    /// URL-encoded query parameter (GET only).
+    /// URL-encoded query parameter.
     pub fn query(mut self, name: &str, value: impl Into<String>) -> Self {
         self.query.push((name.to_string(), value.into()));
         self
@@ -100,10 +88,10 @@ impl Loopback {
     }
 
     pub fn get(&self, url: &str) -> Result<Response> {
-        self.send(Method::Get, &self.with_query(url), None)
+        self.send(Method::Get, url, None)
     }
 
-    /// GET expecting a 2xx JSON body; the common happy path in one call.
+    /// GET expecting a 2xx JSON body.
     pub fn get_json<T: serde::de::DeserializeOwned>(&self, url: &str) -> Result<T> {
         self.get(url)?.ensure_ok()?.json()
     }
@@ -129,12 +117,10 @@ impl Loopback {
     }
 
     fn send(&self, method: Method, url: &str, body: Option<(&str, &[u8])>) -> Result<Response> {
-        let Some(transport) = transport_for(url) else {
-            bail!("no loopback transport reaches {url}");
-        };
-        transport.send(&Request {
+        let url = self.with_query(url);
+        transport_for(&url)?.send(&Request {
             method,
-            url,
+            url: &url,
             headers: &self.headers,
             body,
             timeout: Duration::from_secs(u64::from(self.max_time_secs)),
@@ -185,6 +171,18 @@ mod tests {
         assert_eq!(resp.status, 200);
         assert_eq!(resp.header("x-transport"), Some("stub"));
         assert_eq!(resp.text(), "GET stub://peer/_port/x");
+    }
+
+    #[test]
+    fn a_post_carries_its_query_rather_than_dropping_it() {
+        register(Arc::new(Stub("stub://")));
+
+        let resp = Loopback::new()
+            .query("id", "a b")
+            .post_json("stub://peer/_port/x", &serde_json::json!({}))
+            .unwrap();
+
+        assert_eq!(resp.text(), "POST stub://peer/_port/x?id=a+b");
     }
 
     #[test]

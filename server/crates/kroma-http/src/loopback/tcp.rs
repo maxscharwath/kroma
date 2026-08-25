@@ -1,12 +1,6 @@
-//! The transport every KROMA process has today: pooled HTTP/1.1 over the
-//! loopback interface.
-//!
-//! What it deliberately cannot do is as much of the contract as what it can.
-//! There is no TLS stack, no proxy and no cookie jar, and a redirect is refused
-//! rather than followed: a sidecar answering 302 is trying to move the core
-//! somewhere, and the only correct destination is the one the supervisor named.
-//! [`MAX_BODY_BYTES`] bounds the answer, because the peer is a separate program
-//! that can be wrong.
+//! A redirect is refused rather than followed: a sidecar answering 302 is trying
+//! to move the core somewhere, and the only correct destination is the one the
+//! supervisor named.
 
 use std::sync::OnceLock;
 
@@ -15,9 +9,8 @@ use anyhow::{bail, Context, Result};
 use super::transport::{Method, Request, Transport};
 use crate::response::Response;
 
-/// Ceiling on a response body. Every payload on this seam is a control message
-/// -- settings, an event, a point call's JSON -- and the largest real one is an
-/// indexer search result page.
+/// Memory guard on a response body: what one wrong peer may make this process
+/// allocate, not a size any real payload on the seam approaches.
 pub const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 
 /// Pooled HTTP/1.1 to another process on this machine.
@@ -78,15 +71,15 @@ fn client() -> &'static reqwest::Client {
         reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .unwrap_or_default()
+            // Not `unwrap_or_default`: the default client follows redirects,
+            // so falling back to it would quietly undo the line above.
+            .expect("build the loopback client")
     })
 }
 
-// Its own runtime, on its own thread, so a blocking caller never drives a future
-// on the runtime it is already blocking. `Handle::block_on` panics on a worker
-// thread and `spawn_blocking` threads still carry the ambient handle, so the
-// only shape safe from every caller is to hand the work to a runtime that is not
-// the caller's and wait on a channel.
+// `Handle::block_on` panics on a worker thread and `spawn_blocking` threads still
+// carry the ambient handle, so the work goes to a runtime that is not the
+// caller's.
 fn runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
@@ -132,9 +125,6 @@ fn is_loopback(url: &str) -> Result<bool> {
         return Ok(false);
     }
     let host = parsed.host_str().unwrap_or_default();
-    // An IPv6 host keeps its brackets through `host_str`, and loopback is a
-    // range rather than the one literal the supervisor happens to hand out, so
-    // this parses rather than matching strings.
     let bare = host.trim_start_matches('[').trim_end_matches(']');
     Ok(bare == "localhost"
         || bare
@@ -142,9 +132,6 @@ fn is_loopback(url: &str) -> Result<bool> {
             .is_ok_and(|ip| ip.is_loopback()))
 }
 
-/// The invariant this transport is allowed to assume: every peer on the internal
-/// seam is a process on this machine, addressed by the loopback literal the
-/// supervisor assigned it.
 fn ensure_loopback(url: &str) -> Result<()> {
     if !is_loopback(url)? {
         bail!("the tcp transport refuses {url}: not plain http on this machine");

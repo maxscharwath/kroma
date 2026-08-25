@@ -7,13 +7,13 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use futures_util::TryStreamExt as _;
 
 const MAX_PROXY_BODY_BYTES: usize = 256 * 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-// Bounds the gap BETWEEN reads, not the length of the response. A whole-request
-// deadline would cap how long a module may stream, which is the wrong shape for
-// an SSE feed that is supposed to stay open; what has to be caught is a sidecar
-// that stops producing, and that is a silent gap.
+// Bounds the gap between reads, not the length of the response: a whole-request
+// deadline would cap how long a module may stream an SSE feed that is supposed
+// to stay open.
 const READ_TIMEOUT: Duration = Duration::from_secs(600);
 
 // Shared by every proxied request: a client owns the connection pool, so one
@@ -58,9 +58,7 @@ pub async fn proxy_to(port: u16, path_and_query: &str, req: Request) -> Response
         Ok(b) => b,
         Err(_) => return (StatusCode::PAYLOAD_TOO_LARGE, "body too large").into_response(),
     };
-    let mut out = proxy_client()
-        .request(parts.method, &url)
-        .body(bytes.to_vec());
+    let mut out = proxy_client().request(parts.method, &url).body(bytes);
     for (name, value) in &parts.headers {
         if !is_hop_by_hop(name) {
             out = out.header(name.as_str(), value.as_bytes());
@@ -73,20 +71,20 @@ pub async fn proxy_to(port: u16, path_and_query: &str, req: Request) -> Response
             return (StatusCode::BAD_GATEWAY, "module unavailable").into_response();
         }
     };
-    let status = resp.status();
-    let headers = resp.headers().clone();
-    let mut builder = Response::builder().status(status);
-    for (name, value) in &headers {
+    let mut builder = Response::builder().status(resp.status());
+    for (name, value) in resp.headers() {
         if !is_hop_by_hop(name) {
             builder = builder.header(name, value);
         }
     }
-    // Streamed, not buffered: a module serving an SSE feed or a large file would
-    // otherwise be held here until its last byte -- forever, for a stream that by
-    // design does not end -- and every in-flight response would be resident. A
-    // body that dies mid-stream still reaches the client as a truncated 200, but
-    // that is the price of not holding it, and the error is logged either side.
+    // The status line is already committed by the time a streamed body fails, so
+    // this cannot become the 502 a buffered read could answer with. The client
+    // sees a chunked stream that stops without its terminator, and the log is the
+    // only place the cause survives.
+    let body = resp.bytes_stream().inspect_err(move |e| {
+        tracing::warn!(port, error = %e, "module response body failed mid-stream");
+    });
     builder
-        .body(Body::from_stream(resp.bytes_stream()))
+        .body(Body::from_stream(body))
         .unwrap_or_else(|_| (StatusCode::BAD_GATEWAY, "bad upstream response").into_response())
 }

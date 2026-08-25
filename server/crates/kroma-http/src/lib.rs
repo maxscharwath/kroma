@@ -11,11 +11,7 @@
 //!
 //! [`Loopback`] reaches a process KROMA started itself -- the core from a
 //! module, a module from the core. It holds no transport of its own: a
-//! [`Transport`] is chosen per URL, so the seam gains a faster carrier by
-//! [`loopback::register`]ing one rather than by editing its callers.
-//!
-//! Both answer with the same [`Response`], so a call site picks its side of the
-//! trust boundary by which constructor it names.
+//! [`Transport`] is chosen per URL.
 
 mod config;
 mod curl;

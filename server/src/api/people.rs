@@ -94,29 +94,22 @@ pub async fn details(
     let language = settings::metadata_language(&state.settings, &state.config);
     let data_dir = state.config.data_dir.clone();
     let lookup = name.clone();
-    let api_key2 = api_key.clone();
-    let language2 = language.clone();
-    let lookup2 = name.clone();
     // curl (twice, on a cache miss) plus an image download: blocking work.
-    let person = blocking(move || {
-        Ok(
-            metadata::person::detail(&api_key, &language, &lookup).map(|mut p| {
-                if let Some(local) = p
-                    .profile_url
-                    .as_deref()
-                    .and_then(|u| image::cache_remote(&data_dir, u))
-                {
-                    p.profile_url = Some(local);
-                }
-                p
-            }),
-        )
+    let (person, credits) = blocking(move || {
+        let person = metadata::person::detail(&api_key, &language, &lookup).map(|mut p| {
+            if let Some(local) = p
+                .profile_url
+                .as_deref()
+                .and_then(|u| image::cache_remote(&data_dir, u))
+            {
+                p.profile_url = Some(local);
+            }
+            p
+        });
+        let credits = metadata::person::filmography(&api_key, &language, &lookup);
+        Ok((person, credits))
     })
     .await?;
-    // Fetch TMDB filmography so the page can show credits even when the local
-    // catalogue has none. Same blocking context as the person detail lookup.
-    let credits = blocking(move || Ok(metadata::person::filmography(&api_key2, &language2, &lookup2)))
-        .await?;
     Ok(Json(PersonDetailResponse { name, person, credits }).into_response())
 }
 

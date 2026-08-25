@@ -140,9 +140,6 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     // recomputed logical id that orphaned on a title-parse mismatch; replaced
     // by `acq_file_tmdb(abs_path)` (created in SCHEMA above).
     "DROP TABLE IF EXISTS acq_tmdb",
-    // Per-request quality preferences (NULL = use system-wide defaults).
-    "ALTER TABLE requests ADD COLUMN max_resolution TEXT",
-    "ALTER TABLE requests ADD COLUMN max_size_gb INTEGER",
     // Fold the old watch_later queue into my_list, then drop it: My list now
     // covers not-yet-available titles too, so the separate queue is redundant.
     "INSERT OR IGNORE INTO my_list (user_id, item_id, added_at) SELECT user_id, item_id, added_at FROM watch_later",

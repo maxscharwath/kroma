@@ -9,7 +9,8 @@
 //! changes about as often as a birthday. An empty localized biography falls
 //! back to English rather than reading as "we know nothing about this person".
 
-use std::collections::HashMap;
+use std::cmp::Reverse;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 
 use serde::Deserialize;
@@ -55,6 +56,12 @@ fn cache() -> &'static Mutex<HashMap<String, Option<PersonDetail>>> {
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+static CREDITS: OnceLock<Mutex<HashMap<String, Vec<TmdbCredit>>>> = OnceLock::new();
+
+fn credits_cache() -> &'static Mutex<HashMap<String, Vec<TmdbCredit>>> {
+    CREDITS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 /// The person TMDB knows under `name`, or `None` when nobody matches (or the
 /// provider is unreachable a miss no worse than an absent biography).
 ///
@@ -76,35 +83,54 @@ pub fn detail(api_key: &str, language: &str, name: &str) -> Option<PersonDetail>
     resolved
 }
 
-/// The person's combined movie + TV credits from TMDB, best-known first.
+/// The person's combined movie + TV credits from TMDB, newest first, with a
+/// credit the person appears in twice (cast and crew) kept once as cast.
 /// Returns an empty vec when the person or provider is unavailable.
-/// Blocking: shells out to `curl` on a cache miss.
+///
+/// Blocking: shells out to `curl` twice on a cache miss. Call it from a blocking
+/// context, never straight off the async runtime.
 pub fn filmography(api_key: &str, language: &str, name: &str) -> Vec<TmdbCredit> {
     let name = name.trim();
     if name.is_empty() {
         return Vec::new();
     }
+    let key = format!("{language}|{}", name.to_lowercase());
+    if let Some(hit) = credits_cache().lock().ok().and_then(|c| c.get(&key).cloned()) {
+        return hit;
+    }
+    let resolved = resolve_credits(api_key, language, name);
+    if let Ok(mut c) = credits_cache().lock() {
+        c.insert(key, resolved.clone());
+    }
+    resolved
+}
+
+fn resolve_credits(api_key: &str, language: &str, name: &str) -> Vec<TmdbCredit> {
     let Some(id) = best_id(api_key, language, name) else {
         return Vec::new();
     };
     let params = [("language", language.to_string())];
-    let Ok(raw) =
-        curl_json::<CombinedCredits>(&format!("{}/person/{id}/combined_credits", api()), api_key, &params)
-    else {
+    let Ok(raw) = curl_json::<CombinedCredits>(
+        &format!("{}/person/{id}/combined_credits", api()),
+        api_key,
+        &params,
+    ) else {
         return Vec::new();
     };
+    let cast = raw.cast.iter().map(|c| (c, "cast"));
+    let crew = raw.crew.iter().map(|c| (c, "crew"));
+    let mut seen: HashSet<(u64, &str)> = HashSet::new();
     let mut credits: Vec<TmdbCredit> = Vec::new();
-    for c in raw.cast.into_iter().filter(|c| c.media_type == "movie" || c.media_type == "tv") {
-        credits.push(credit_from(&c, "cast"));
+    for (c, role) in cast.chain(crew) {
+        if c.media_type != "movie" && c.media_type != "tv" {
+            continue;
+        }
+        if !seen.insert((c.id, c.media_type.as_str())) {
+            continue;
+        }
+        credits.push(credit_from(c, role));
     }
-    for c in raw.crew.into_iter().filter(|c| c.media_type == "movie" || c.media_type == "tv") {
-        credits.push(credit_from(&c, "crew"));
-    }
-    // Deduplicate by (tmdbId, mediaType) keeping the first (cast wins over crew).
-    credits.sort_by(|a, b| b.tmdb_id.cmp(&a.tmdb_id));
-    credits.dedup_by(|a, b| a.tmdb_id == b.tmdb_id && a.media_type == b.media_type);
-    // Sort by popularity proxy: newest year first, nulls last.
-    credits.sort_by(|a, b| b.year.cmp(&a.year));
+    credits.sort_by_key(|c| Reverse(c.year));
     credits
 }
 

@@ -103,6 +103,8 @@
   "icon/scene:A name it does not have": [13, 3, 1],
   "icon/scene:In use": [61, 3, 1],
   "icon/scene:Sizes": [19, 3, 1],
+  "if/preview": [3, 3, 1],
+  "if/scene:Both branches": [3, 3, 1],
   "img/preview": [3, 3, 1],
   "img/scene:Contain": [3, 3, 1],
   "img/scene:Focal point": [3, 3, 1],

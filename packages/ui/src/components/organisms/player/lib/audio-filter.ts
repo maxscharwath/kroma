@@ -62,6 +62,7 @@ interface Graph {
   source: MediaElementAudioSourceNode;
   comp: DynamicsCompressorNode;
   gain: GainNode;
+  volGain: GainNode;
 }
 
 interface FilterDebugHandle {
@@ -116,7 +117,7 @@ function configure(g: Graph, mode: Exclude<AudioFilterMode, 'off'>): void {
 }
 
 // Once a graph exists the element's audio always flows through it, so "off"
-// becomes a straight source → destination wire rather than a teardown.
+// becomes a straight source → volGain → destination wire rather than a teardown.
 function wire(el: HTMLMediaElement, mode: AudioFilterMode): void {
   if (mode === 'off' && !graphs.has(el)) return;
   const ctx = audioCtx();
@@ -127,15 +128,18 @@ function wire(el: HTMLMediaElement, mode: AudioFilterMode): void {
     const source = ctx.createMediaElementSource(el);
     const comp = ctx.createDynamicsCompressor();
     const gain = ctx.createGain();
+    const volGain = ctx.createGain();
+    volGain.gain.value = 1;
     comp.connect(gain);
-    gain.connect(ctx.destination);
-    g = { source, comp, gain };
+    gain.connect(volGain);
+    volGain.connect(ctx.destination);
+    g = { source, comp, gain, volGain };
     graphs.set(el, g);
   }
 
   g.source.disconnect();
   if (mode === 'off') {
-    g.source.connect(ctx.destination);
+    g.source.connect(g.volGain);
   } else {
     configure(g, mode);
     g.source.connect(g.comp);
@@ -149,6 +153,25 @@ function persistAudioFilter(m: AudioFilterMode): void {
   } catch {
     /* ignore */
   }
+}
+
+// Volume boost: when volume > 1.0 the <video> element is pinned at 1.0 and the
+// excess is applied as Web Audio gain on the volGain node. When <= 1.0 the
+// volGain stays at unity and the element's own volume handles it. If no graph
+// exists yet (filter is 'off'), one is created on demand so boost works even
+// without an active audio filter.
+export function setVolumeBoost(el: HTMLMediaElement, volume: number): void {
+  if (volume <= 1.0) {
+    el.volume = Math.max(0, volume);
+    const g = graphs.get(el);
+    if (g) g.volGain.gain.value = 1;
+    return;
+  }
+  el.volume = 1;
+  // Ensure a graph exists so the gain node is reachable.
+  if (!graphs.has(el)) wire(el, 'off');
+  const g = graphs.get(el);
+  if (g) g.volGain.gain.value = volume;
 }
 
 /** `remountKey` must change whenever the parent remounts the <video>, so the

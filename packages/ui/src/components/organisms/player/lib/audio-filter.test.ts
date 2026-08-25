@@ -199,12 +199,14 @@ describe('useAudioFilter', () => {
   });
 
   it('routes straight to the output when switched back off', () => {
-    const { ctx, source } = stubAudio();
+    const { source, gain } = stubAudio();
     const ref = videoRef();
     const { result } = renderHook(() => useAudioFilter(ref, 'k1'));
     act(() => result.current.setMode('standard'));
     act(() => result.current.setMode('off'));
-    expect(source.connect).toHaveBeenLastCalledWith(ctx.destination);
+    // 'off' bypasses the compressor but still flows through the volGain node
+    // (unity gain) so volume boost can reach the destination.
+    expect(source.connect).toHaveBeenLastCalledWith(gain);
   });
 
   describe('tuning', () => {

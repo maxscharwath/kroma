@@ -8,6 +8,7 @@ import {
   attachDirectPlay,
   type BufferPlan,
   decodableAudioCodecs,
+  decodableVideoCodecs,
   hlsBufferConfig,
   itemBufferPlan,
   type KromaClient,
@@ -163,7 +164,7 @@ export class HtmlEngine implements TvEngine {
       this.opts.masterAac,
       this.baseSec,
       this.rendition,
-      { copyCodecs: decodableAudioCodecs() },
+      { copyCodecs: decodableAudioCodecs(), videoCodecs: decodableVideoCodecs() },
     );
     // Safari / WKWebView: prefer native HLS, whose stack decodes Dolby
     // (AC3 / E-AC3) in full surround where hls.js + MSE cannot.

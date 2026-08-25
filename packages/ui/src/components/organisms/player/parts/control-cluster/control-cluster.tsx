@@ -4,7 +4,12 @@ import { type GestureResponderEvent, PanResponder, View } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { IconButton } from '#ui/components/atoms/icon-button';
 import { useDragTrack } from '#ui/components/organisms/player/hooks/use-drag-track';
-import { clamp01, sliderToVolume, volumeToSlider } from '#ui/components/organisms/player/lib/fmt';
+import {
+  clamp01,
+  sliderToVolume,
+  VOLUME_MAX,
+  volumeToSlider,
+} from '#ui/components/organisms/player/lib/fmt';
 import {
   type ChromeMetrics,
   CLUSTER_GAP,
@@ -297,6 +302,7 @@ function VolumeControl({
   const { ref: trackRef, onLayout: onTrackLayout } = track;
   const level = muted ? 0 : volume;
   const percent = Math.round(level * 100);
+  const maxPercent = Math.round(VOLUME_MAX * 100);
   // Fill and thumb track the perceptual slider position, not raw amplitude, so
   // the handle sits under the pointer while the audio follows the loudness curve.
   const sliderPos = muted ? 0 : volumeToSlider(volume);
@@ -364,7 +370,7 @@ function VolumeControl({
         {...pan.panHandlers}
         accessibilityRole="adjustable"
         accessibilityLabel={label}
-        {...a11yValue({ min: 0, max: 100, now: percent, text: `${percent}%` })}
+        {...a11yValue({ min: 0, max: maxPercent, now: percent, text: `${percent}%` })}
         style={{
           height: size,
           width: px(VOLUME_RAIL),

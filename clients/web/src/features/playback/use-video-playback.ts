@@ -182,6 +182,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     knownDurationMs,
     dur,
     setAnchor,
+    setVolume,
   });
 
   // For HLS, re-anchors at the current position rather than hls.js's in-place

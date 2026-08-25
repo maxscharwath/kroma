@@ -1,0 +1,93 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - complementary [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - img "KROMA" [ref=f3e5]
+        - button "Notifications" [ref=f3e18] [cursor=pointer]
+      - navigation [ref=f3e23]:
+        - link "Home" [ref=f3e24] [cursor=pointer]:
+          - /url: /
+        - link "Search" [ref=f3e30] [cursor=pointer]:
+          - /url: /search
+        - link "Movies" [ref=f3e35] [cursor=pointer]:
+          - /url: /films
+        - link "Series" [ref=f3e39] [cursor=pointer]:
+          - /url: /series
+        - link "Genres" [ref=f3e44] [cursor=pointer]:
+          - /url: /genres
+        - link "My list" [ref=f3e51] [cursor=pointer]:
+          - /url: /mylist
+        - link "My requests" [ref=f3e56] [cursor=pointer]:
+          - /url: /requests
+        - link "Coming soon" [ref=f3e61] [cursor=pointer]:
+          - /url: /coming-soon
+        - link "Missing" [ref=f3e67] [cursor=pointer]:
+          - /url: /missing
+        - generic [ref=f3e71]:
+          - link "Invite a user" [ref=f3e72] [cursor=pointer]:
+            - /url: /invite
+          - link "Connect a device" [ref=f3e77] [cursor=pointer]:
+            - /url: /connect
+          - link "Server" [ref=f3e81] [cursor=pointer]:
+            - /url: /admin
+          - button "AD admin Account" [ref=f3e86] [cursor=pointer]:
+            - generic [ref=f3e87]:
+              - generic [ref=f3e88]: AD
+              - generic [ref=f3e94]:
+                - generic [ref=f3e95]: admin
+                - generic [ref=f3e96]: Account
+          - generic [ref=f3e97]:
+            - generic [ref=f3e98]:
+              - generic [ref=f3e99]: This device
+              - generic [ref=f3e101]:
+                - generic [ref=f3e102]: H.265 OK
+                - generic [ref=f3e104]: AV1
+            - generic [ref=f3e106]:
+              - generic "ed170c82-dirty · main · 2026-08-23T09:09:04.993Z" [ref=f3e107]: Client v0.1.39
+              - generic [ref=f3e109]: ·
+              - generic [ref=f3e110]: Server v0.1.39
+    - generic [ref=f3e259]:
+      - button "Play" [ref=f3e260] [cursor=pointer]
+      - generic:
+        - generic:
+          - button "Back" [ref=f3e263] [cursor=pointer]
+          - generic [ref=f3e266]:
+            - generic [ref=f3e267]: Spirited Away
+            - generic [ref=f3e268]: 2001 · 0min · H.264
+      - button "Back"
+      - generic [ref=f3e355]:
+        - button "Up next" [ref=f3e357] [cursor=pointer]
+        - generic [ref=f3e367]:
+          - generic [ref=f3e371]:
+            - generic [ref=f3e372]: Science Fiction
+            - generic [ref=f3e373]: Blade Runner 2049
+            - generic [ref=f3e374]: 2017 · 0min · H.265 · HDR
+          - generic [ref=f3e378]:
+            - generic [ref=f3e379]: Science Fiction
+            - generic [ref=f3e380]: Dune Part Two
+            - generic [ref=f3e381]: 2024 · 0min · H.264
+          - generic [ref=f3e385]:
+            - generic [ref=f3e386]: Action
+            - generic [ref=f3e387]: The Matrix
+            - generic [ref=f3e388]: 1999 · 0min · H.264
+      - generic [ref=f3e304]:
+        - generic [ref=f3e305]:
+          - generic [ref=f3e306]:
+            - generic [ref=f3e307]: 0:12
+            - generic [ref=f3e308]: 0:12
+          - slider "Seek bar" [ref=f3e309]
+        - generic [ref=f3e311]:
+          - generic [ref=f3e312]:
+            - button "Back 10 s" [ref=f3e313] [cursor=pointer]
+            - button "Play" [ref=f3e317] [cursor=pointer]
+            - button "Forward 10 s" [ref=f3e320] [cursor=pointer]
+          - generic [ref=f3e324]:
+            - generic [ref=f3e325]:
+              - button "Mute" [ref=f3e326] [cursor=pointer]
+              - slider "Volume" [ref=f3e331]
+            - button "Subtitles" [ref=f3e332] [cursor=pointer]
+            - button "Audio track" [ref=f3e337] [cursor=pointer]
+            - button "Settings" [ref=f3e340] [cursor=pointer]
+            - button "Picture in picture" [ref=f3e344] [cursor=pointer]
+            - button "Fullscreen" [ref=f3e348] [cursor=pointer]
+  - button "Open Tanstack query devtools" [ref=f3e209] [cursor=pointer]

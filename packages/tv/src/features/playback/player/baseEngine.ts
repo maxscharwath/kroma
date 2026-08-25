@@ -3,7 +3,12 @@
 // timeline, and a `master` mode on the server's HLS remux anchored at `baseSec`
 // (its clock restarts at 0, so the absolute position is `baseSec + elSec`).
 
-import { decodableAudioCodecs, type KromaClient, type MediaItem } from '@kroma/core';
+import {
+  decodableAudioCodecs,
+  decodableVideoCodecs,
+  type KromaClient,
+  type MediaItem,
+} from '@kroma/core';
 import type { AudioFilterMode } from '@kroma/ui';
 import type { EngineListeners, TvEngine } from '#tv/features/playback/player/engine';
 
@@ -75,7 +80,10 @@ export abstract class BaseTvEngine implements TvEngine {
           // Declared on every master, not just the fallback one: the server copies
           // audio unless it is told what this device decodes, so a master that says
           // nothing is served a codec it may only be able to play as silence.
-          { copyCodecs: decodableAudioCodecs() },
+          // The same holds for video: a client that declares nothing gets a stream
+          // copy of the source codec, which plays black on a runtime whose decoder
+          // cannot handle it (HEVC on WebView2 without the Microsoft extension).
+          { copyCodecs: decodableAudioCodecs(), videoCodecs: decodableVideoCodecs() },
         );
   }
 

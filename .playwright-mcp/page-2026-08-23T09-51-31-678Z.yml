@@ -1,0 +1,152 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "KROMA" [ref=e5]
+        - button "Notifications" [ref=e18] [cursor=pointer]
+      - navigation [ref=e23]:
+        - link "Home" [ref=e24] [cursor=pointer]:
+          - /url: /
+        - link "Search" [ref=e30] [cursor=pointer]:
+          - /url: /search
+        - link "Movies" [ref=e35] [cursor=pointer]:
+          - /url: /films
+        - link "Series" [ref=e39] [cursor=pointer]:
+          - /url: /series
+        - link "Genres" [ref=e44] [cursor=pointer]:
+          - /url: /genres
+        - link "My list" [ref=e51] [cursor=pointer]:
+          - /url: /mylist
+        - link "My requests" [ref=e56] [cursor=pointer]:
+          - /url: /requests
+        - link "Coming soon" [ref=e61] [cursor=pointer]:
+          - /url: /coming-soon
+        - link "Missing" [ref=e67] [cursor=pointer]:
+          - /url: /missing
+        - generic [ref=e71]:
+          - link "Invite a user" [ref=e72] [cursor=pointer]:
+            - /url: /invite
+          - link "Connect a device" [ref=e77] [cursor=pointer]:
+            - /url: /connect
+          - link "Server" [ref=e81] [cursor=pointer]:
+            - /url: /admin
+          - button "AD admin Account" [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: AD
+              - generic [ref=e94]:
+                - generic [ref=e95]: admin
+                - generic [ref=e96]: Account
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: This device
+              - generic [ref=e101]:
+                - generic [ref=e102]: H.265 OK
+                - generic [ref=e104]: AV1
+            - generic [ref=e106]:
+              - generic "ed170c82-dirty · main · 2026-08-23T09:09:04.993Z" [ref=e107]: Client v0.1.39
+              - generic [ref=e109]: ·
+              - generic [ref=e110]: Server v0.1.39
+    - main [ref=e753]:
+      - generic [ref=e754]:
+        - button "Back" [ref=e763] [cursor=pointer]
+        - generic [ref=e771]:
+          - generic [ref=e772]: Science Fiction · Adventure
+          - heading "Dune" [level=1] [ref=e773]
+          - generic [ref=e774]:
+            - generic [ref=e775]: 7.8★
+            - generic [ref=e776]: ·
+            - generic [ref=e777]: 2021 · 2h35
+          - generic [ref=e778]:
+            - text: Directed by
+            - button "See titles with Denis Villeneuve" [ref=e780] [cursor=pointer]: Denis Villeneuve
+          - generic [ref=e781]: It begins.
+          - generic [ref=e782]: Paul Atreides, a brilliant and gifted young man born into a great destiny beyond his understanding, must travel to the most dangerous planet in the universe to ensure the future of his family and his people. As malevolent forces explode into conflict over the planet's exclusive supply of the most precious resource in existence - a commodity capable of unlocking humanity's greatest potential - only those who can conquer their fear will survive.
+          - button "Request" [ref=e784] [cursor=pointer]
+      - generic [ref=e787]:
+        - heading "Cast" [level=2] [ref=e788]
+        - region "Cast" [ref=e789]:
+          - button "See titles with Timothée Chalamet" [ref=e790] [cursor=pointer]:
+            - img "Timothée Chalamet" [ref=e793]
+            - generic [ref=e794]: Timothée Chalamet
+            - generic [ref=e795]: Paul Atreides
+          - button "See titles with Rebecca Ferguson" [ref=e796] [cursor=pointer]:
+            - generic [ref=e798]:
+              - generic [ref=e799]: RF
+              - img "Rebecca Ferguson" [ref=e803]
+            - generic [ref=e804]: Rebecca Ferguson
+            - generic [ref=e805]: Lady Jessica Atreides
+          - button "See titles with Oscar Isaac" [ref=e806] [cursor=pointer]:
+            - generic [ref=e808]:
+              - generic [ref=e809]: OI
+              - img "Oscar Isaac" [ref=e813]
+            - generic [ref=e814]: Oscar Isaac
+            - generic [ref=e815]: Duke Leto Atreides
+          - button "See titles with Jason Momoa" [ref=e816] [cursor=pointer]:
+            - generic [ref=e818]:
+              - generic [ref=e819]: JM
+              - img "Jason Momoa" [ref=e823]
+            - generic [ref=e824]: Jason Momoa
+            - generic [ref=e825]: Duncan Idaho
+          - button "See titles with Stellan Skarsgård" [ref=e826] [cursor=pointer]:
+            - generic [ref=e828]:
+              - generic [ref=e829]: SS
+              - img "Stellan Skarsgård" [ref=e833]
+            - generic [ref=e834]: Stellan Skarsgård
+            - generic [ref=e835]: Baron Vladimir Harkonnen
+          - button "See titles with Stephen McKinley Henderson" [ref=e836] [cursor=pointer]:
+            - generic [ref=e838]:
+              - generic [ref=e839]: SH
+              - img "Stephen McKinley Henderson" [ref=e843]
+            - generic [ref=e844]: Stephen McKinley Henderson
+            - generic [ref=e845]: Thufir Hawat
+          - button "See titles with Josh Brolin" [ref=e846] [cursor=pointer]:
+            - img "Josh Brolin" [ref=e849]
+            - generic [ref=e850]: Josh Brolin
+            - generic [ref=e851]: Gurney Halleck
+          - button "See titles with Javier Bardem" [ref=e852] [cursor=pointer]:
+            - generic [ref=e854]:
+              - generic [ref=e855]: JB
+              - img "Javier Bardem" [ref=e859]
+            - generic [ref=e860]: Javier Bardem
+            - generic [ref=e861]: Stilgar
+          - button "See titles with Sharon Duncan-Brewster" [ref=e862] [cursor=pointer]:
+            - generic [ref=e864]:
+              - generic [ref=e865]: SD
+              - img "Sharon Duncan-Brewster" [ref=e869]
+            - generic [ref=e870]: Sharon Duncan-Brewster
+            - generic [ref=e871]: Dr. Liet Kynes
+          - button "See titles with Chang Chen" [ref=e872] [cursor=pointer]:
+            - generic [ref=e874]:
+              - generic [ref=e875]: CC
+              - img "Chang Chen" [ref=e879]
+            - generic [ref=e880]: Chang Chen
+            - generic [ref=e881]: Dr. Wellington Yueh
+          - button "See titles with Dave Bautista" [ref=e882] [cursor=pointer]:
+            - generic [ref=e884]:
+              - generic [ref=e885]: DB
+              - img "Dave Bautista" [ref=e889]
+            - generic [ref=e890]: Dave Bautista
+            - generic [ref=e891]: Beast Rabban Harkonnen
+          - button "See titles with David Dastmalchian" [ref=e892] [cursor=pointer]:
+            - generic [ref=e894]:
+              - generic [ref=e895]: DD
+              - img "David Dastmalchian" [ref=e899]
+            - generic [ref=e900]: David Dastmalchian
+            - generic [ref=e901]: Piter de Vries
+      - generic [ref=e902]:
+        - heading "Similar titles" [level=2] [ref=e903]
+        - generic [ref=e905]:
+          - generic [ref=e908]:
+            - 'button "MovieDune: Part Two" [ref=e912] [cursor=pointer]'
+            - button "MovieChaos Walking" [ref=e920] [cursor=pointer]
+            - button "MovieThe 5th Wave" [ref=e928] [cursor=pointer]
+            - button "MovieValerian and the City of a Thousand Planets" [ref=e936] [cursor=pointer]
+            - button "MovieMortal Engines" [ref=e944] [cursor=pointer]
+            - 'button "MovieThe Hunger Games: The Ballad of Songbirds & Snakes" [ref=e952] [cursor=pointer]'
+            - 'button "MovieStar Wars: Episode III - Revenge of the Sith" [ref=e960] [cursor=pointer]'
+            - button "MovieTimescape" [ref=e968] [cursor=pointer]
+          - generic:
+            - button "Scroll left"
+          - generic:
+            - button "Scroll right"
+  - button "Open Tanstack query devtools" [ref=e485] [cursor=pointer]

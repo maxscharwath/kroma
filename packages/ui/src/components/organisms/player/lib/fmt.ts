@@ -29,12 +29,21 @@ export function pct(value: number, total: number): number {
 // instead. Gamma 3 is the default: the midpoint sits at ~0.125 amplitude.
 export const VOLUME_GAMMA = 3;
 
-/** Slider position [0,1] → audio volume [0,1] (perceptual). */
-export function sliderToVolume(position: number): number {
-  return clamp01(position) ** VOLUME_GAMMA;
+// The volume slider may exceed unity (1.0) to boost quiet tracks. The HTML5
+// <video> element caps at 1.0, so values above that are applied as Web Audio
+// gain (web) or mpv's soft-clip range (desktop). 1.5 = 150%.
+export const VOLUME_MAX = 1.5;
+
+function clampVolume(v: number): number {
+  return Math.max(0, Math.min(VOLUME_MAX, v));
 }
 
-/** Audio volume [0,1] → slider position [0,1] (inverse of {@link sliderToVolume}). */
+/** Slider position [0,1] → audio volume [0,VOLUME_MAX] (perceptual). */
+export function sliderToVolume(position: number): number {
+  return clampVolume(clamp01(position) ** VOLUME_GAMMA * VOLUME_MAX);
+}
+
+/** Audio volume [0,VOLUME_MAX] → slider position [0,1] (inverse of {@link sliderToVolume}). */
 export function volumeToSlider(volume: number): number {
-  return clamp01(volume) ** (1 / VOLUME_GAMMA);
+  return clamp01(clampVolume(volume) / VOLUME_MAX) ** (1 / VOLUME_GAMMA);
 }

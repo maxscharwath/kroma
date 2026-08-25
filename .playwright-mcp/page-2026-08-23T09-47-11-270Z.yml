@@ -1,0 +1,213 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "KROMA" [ref=e5]
+        - button "Notifications" [ref=e18] [cursor=pointer]
+      - navigation [ref=e23]:
+        - link "Home" [ref=e24] [cursor=pointer]:
+          - /url: /
+        - link "Search" [ref=e30] [cursor=pointer]:
+          - /url: /search
+        - link "Movies" [ref=e35] [cursor=pointer]:
+          - /url: /films
+        - link "Series" [ref=e39] [cursor=pointer]:
+          - /url: /series
+        - link "Genres" [ref=e44] [cursor=pointer]:
+          - /url: /genres
+        - link "My list" [ref=e51] [cursor=pointer]:
+          - /url: /mylist
+        - link "My requests" [ref=e56] [cursor=pointer]:
+          - /url: /requests
+        - link "Coming soon" [ref=e61] [cursor=pointer]:
+          - /url: /coming-soon
+        - link "Missing" [ref=e67] [cursor=pointer]:
+          - /url: /missing
+        - generic [ref=e71]:
+          - link "Invite a user" [ref=e72] [cursor=pointer]:
+            - /url: /invite
+          - link "Connect a device" [ref=e77] [cursor=pointer]:
+            - /url: /connect
+          - link "Server" [ref=e81] [cursor=pointer]:
+            - /url: /admin
+          - button "AD admin Account" [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: AD
+              - generic [ref=e94]:
+                - generic [ref=e95]: admin
+                - generic [ref=e96]: Account
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: This device
+              - generic [ref=e101]:
+                - generic [ref=e102]: H.265 OK
+                - generic [ref=e104]: AV1
+            - generic [ref=e106]:
+              - generic "ed170c82-dirty · main · 2026-08-23T09:09:04.993Z" [ref=e107]: Client v0.1.39
+              - generic [ref=e109]: ·
+              - generic [ref=e110]: Server v0.1.39
+    - main [ref=e111]:
+      - generic [ref=e113]:
+        - generic [ref=e116]:
+          - heading "Search" [level=1] [ref=e117]
+          - generic [ref=e118]: Search your library and TMDB to request new titles.
+        - generic [ref=e119]:
+          - group "Search" [ref=e120]:
+            - generic [ref=e121] [cursor=pointer]
+            - searchbox "Search" [active] [ref=e126]: dune
+            - button "Clear" [ref=e535] [cursor=pointer]
+          - radiogroup "Search" [ref=e128]:
+            - radio "All" [checked] [ref=e129] [cursor=pointer]
+            - radio "Movies" [ref=e131] [cursor=pointer]
+            - radio "Shows" [ref=e133] [cursor=pointer]
+      - generic [ref=e539]:
+        - generic [ref=e540]:
+          - heading "In your library 6" [level=2] [ref=e541]:
+            - generic [ref=e542]:
+              - generic [ref=e543]: In your library
+              - generic [ref=e544]: "6"
+          - generic [ref=e545]:
+            - button "Dune Part Two" [ref=e547] [cursor=pointer]
+            - button "Spirited Away" [ref=e553] [cursor=pointer]
+            - button "The Matrix" [ref=e559] [cursor=pointer]
+            - button "Blade Runner 2049" [ref=e565] [cursor=pointer]
+            - button "Planet Earth II · S01E02Mountains" [ref=e571] [cursor=pointer]
+            - button "The Office" [ref=e577] [cursor=pointer]
+        - generic [ref=e582]:
+          - heading "Discover 11" [level=2] [ref=e583]:
+            - generic [ref=e584]:
+              - generic [ref=e585]: Discover
+              - generic [ref=e586]: "11"
+          - generic [ref=e587]:
+            - generic [ref=e588]:
+              - button "Dune" [ref=e589] [cursor=pointer]:
+                - generic [ref=e590]:
+                  - img "Dune" [ref=e592]
+                  - generic [ref=e593]: "7.8"
+                  - generic: Request
+              - generic [ref=e597]:
+                - generic [ref=e598]: Dune
+                - generic [ref=e599]:
+                  - generic [ref=e600]: Movie
+                  - generic [ref=e601]: ·
+                  - generic [ref=e602]: "2021"
+            - generic [ref=e603]:
+              - 'button "Dune: Prophecy" [ref=e604] [cursor=pointer]':
+                - generic [ref=e605]:
+                  - 'img "Dune: Prophecy" [ref=e607]'
+                  - generic [ref=e608]: "7.2"
+                  - generic: Request
+              - generic [ref=e612]:
+                - generic [ref=e613]: "Dune: Prophecy"
+                - generic [ref=e614]:
+                  - generic [ref=e615]: Show
+                  - generic [ref=e616]: ·
+                  - generic [ref=e617]: "2024"
+            - generic [ref=e618]:
+              - 'button "Dune: Part Two" [ref=e619] [cursor=pointer]':
+                - generic [ref=e620]:
+                  - 'img "Dune: Part Two" [ref=e622]'
+                  - generic [ref=e623]: Available
+                  - generic [ref=e627]: "8.1"
+              - generic [ref=e631]:
+                - generic [ref=e632]: "Dune: Part Two"
+                - generic [ref=e633]:
+                  - generic [ref=e634]: Movie
+                  - generic [ref=e635]: ·
+                  - generic [ref=e636]: "2024"
+            - generic [ref=e637]:
+              - 'button "Dune: Part Three" [ref=e638] [cursor=pointer]':
+                - generic [ref=e639]:
+                  - 'img "Dune: Part Three" [ref=e641]'
+                  - generic: Request
+              - generic [ref=e642]:
+                - generic [ref=e643]: "Dune: Part Three"
+                - generic [ref=e644]:
+                  - generic [ref=e645]: Movie
+                  - generic [ref=e646]: ·
+                  - generic [ref=e647]: "2026"
+            - generic [ref=e648]:
+              - button "Dune" [ref=e649] [cursor=pointer]:
+                - generic [ref=e650]:
+                  - img "Dune" [ref=e652]
+                  - generic [ref=e653]: "6.2"
+                  - generic: Request
+              - generic [ref=e657]:
+                - generic [ref=e658]: Dune
+                - generic [ref=e659]:
+                  - generic [ref=e660]: Movie
+                  - generic [ref=e661]: ·
+                  - generic [ref=e662]: "1984"
+            - generic [ref=e663]:
+              - button "Dune" [ref=e664] [cursor=pointer]:
+                - generic [ref=e665]:
+                  - img "Dune" [ref=e667]
+                  - generic [ref=e668]: "7.4"
+                  - generic: Request
+              - generic [ref=e672]:
+                - generic [ref=e673]: Dune
+                - generic [ref=e674]:
+                  - generic [ref=e675]: Movie
+                  - generic [ref=e676]: ·
+                  - generic [ref=e677]: "2020"
+            - generic [ref=e678]:
+              - button "The Dune" [ref=e679] [cursor=pointer]:
+                - generic [ref=e680]:
+                  - img "The Dune" [ref=e682]
+                  - generic [ref=e683]: "5.5"
+                  - generic: Request
+              - generic [ref=e687]:
+                - generic [ref=e688]: The Dune
+                - generic [ref=e689]:
+                  - generic [ref=e690]: Movie
+                  - generic [ref=e691]: ·
+                  - generic [ref=e692]: "2014"
+            - generic [ref=e693]:
+              - button "Anatomy of a Fall" [ref=e694] [cursor=pointer]:
+                - generic [ref=e695]:
+                  - img "Anatomy of a Fall" [ref=e697]
+                  - generic [ref=e698]: "7.5"
+                  - generic: Request
+              - generic [ref=e702]:
+                - generic [ref=e703]: Anatomy of a Fall
+                - generic [ref=e704]:
+                  - generic [ref=e705]: Movie
+                  - generic [ref=e706]: ·
+                  - generic [ref=e707]: "2023"
+            - generic [ref=e708]:
+              - button "Dune" [ref=e709] [cursor=pointer]:
+                - generic [ref=e710]:
+                  - img "Dune" [ref=e712]
+                  - generic [ref=e713]: "6.7"
+                  - generic: Request
+              - generic [ref=e717]:
+                - generic [ref=e718]: Dune
+                - generic [ref=e719]:
+                  - generic [ref=e720]: Movie
+                  - generic [ref=e721]: ·
+                  - generic [ref=e722]: "1989"
+            - generic [ref=e723]:
+              - button "Frank Herbert's Dune" [ref=e724] [cursor=pointer]:
+                - generic [ref=e725]:
+                  - img "Frank Herbert's Dune" [ref=e727]
+                  - generic [ref=e728]: "6.8"
+                  - generic: Request
+              - generic [ref=e732]:
+                - generic [ref=e733]: Frank Herbert's Dune
+                - generic [ref=e734]:
+                  - generic [ref=e735]: Show
+                  - generic [ref=e736]: ·
+                  - generic [ref=e737]: "2000"
+            - generic [ref=e738]:
+              - button "Planet Dune" [ref=e739] [cursor=pointer]:
+                - generic [ref=e740]:
+                  - img "Planet Dune" [ref=e742]
+                  - generic [ref=e743]: "5.1"
+                  - generic: Request
+              - generic [ref=e747]:
+                - generic [ref=e748]: Planet Dune
+                - generic [ref=e749]:
+                  - generic [ref=e750]: Movie
+                  - generic [ref=e751]: ·
+                  - generic [ref=e752]: "2021"
+  - button "Open Tanstack query devtools" [ref=e485] [cursor=pointer]

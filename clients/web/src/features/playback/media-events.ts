@@ -10,7 +10,10 @@ export interface MediaEventSetters {
   setBufEnd: (n: number) => void;
   setPlaying: (b: boolean) => void;
   setWaiting: (b: boolean) => void;
-  setVolume: (n: number) => void;
+  /** No longer called on `volumechange`: the element's volume is capped at 1.0
+   * and boost is handled by Web Audio gain, so React volume state is owned by
+   * the transport's `setVol`. Kept for compatibility. */
+  setVolume?: (n: number) => void;
   setMuted: (b: boolean) => void;
   setRate: (n: number) => void;
   setReady: (b: boolean) => void;
@@ -27,17 +30,8 @@ export function bindMediaEvents(
   // playlist is only the produced edge, not the whole movie. 0 = unknown.
   knownDurationMs = 0,
 ): () => void {
-  const {
-    setCur,
-    setDur,
-    setBufEnd,
-    setPlaying,
-    setWaiting,
-    setVolume,
-    setMuted,
-    setRate,
-    setReady,
-  } = setters;
+  const { setCur, setDur, setBufEnd, setPlaying, setWaiting, setMuted, setRate, setReady } =
+    setters;
   const durMs = knownDurationMs || item.durationMs || 0;
   const onTime = () => setCur(baseSec + v.currentTime);
   const onDur = () => {
@@ -53,7 +47,9 @@ export function bindMediaEvents(
   const onWaiting = () => setWaiting(true);
   const onPlaying = () => setWaiting(false);
   const onVol = () => {
-    setVolume(v.volume);
+    // The element's `volume` is capped at 1.0 by the browser; values above that
+    // are applied as Web Audio gain, so the React state is owned by `setVol`.
+    // Here we only sync `muted` (toggled by the browser's own controls / autoplay).
     setMuted(v.muted);
   };
   const onRate = () => setRate(v.playbackRate);

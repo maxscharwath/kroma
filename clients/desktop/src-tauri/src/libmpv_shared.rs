@@ -92,7 +92,7 @@ pub fn apply_common_options(init: &MpvInitializer) -> MpvResult<()> {
     Ok(())
 }
 
-/// Observe the properties the frontend `MpvEngine` reacts to. The ids (1..5)
+/// Observe the properties the frontend `MpvEngine` reacts to. The ids (1..6)
 /// are part of that protocol: keep them, and their order, stable.
 pub fn observe_playback_properties(mpv: &Mpv) {
     let _ = mpv.observe_property("time-pos", Format::Double, 1);
@@ -100,6 +100,11 @@ pub fn observe_playback_properties(mpv: &Mpv) {
     let _ = mpv.observe_property("demuxer-cache-time", Format::Double, 3);
     let _ = mpv.observe_property("pause", Format::Flag, 4);
     let _ = mpv.observe_property("paused-for-cache", Format::Flag, 5);
+    // False until the first video frame is rendered. A file that loads with
+    // audio but no decodable video (a codec the bundled libmpv lacks a decoder
+    // for) never flips this to true, which the frontend watches as a white-
+    // screen signal to fall back to the server remux.
+    let _ = mpv.observe_property("vo-configured", Format::Flag, 6);
 }
 
 pub fn spawn_pump(app: &AppHandle, mpv: Arc<Mpv>) {

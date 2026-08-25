@@ -1,0 +1,276 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - img "KROMA" [ref=e5]
+        - button "Notifications" [ref=e18] [cursor=pointer]
+      - navigation [ref=e23]:
+        - link "Home" [ref=e24] [cursor=pointer]:
+          - /url: /
+        - link "Search" [ref=e30] [cursor=pointer]:
+          - /url: /search
+        - link "Movies" [ref=e35] [cursor=pointer]:
+          - /url: /films
+        - link "Series" [ref=e39] [cursor=pointer]:
+          - /url: /series
+        - link "Genres" [ref=e44] [cursor=pointer]:
+          - /url: /genres
+        - link "My list" [ref=e51] [cursor=pointer]:
+          - /url: /mylist
+        - link "My requests" [ref=e56] [cursor=pointer]:
+          - /url: /requests
+        - link "Coming soon" [ref=e61] [cursor=pointer]:
+          - /url: /coming-soon
+        - link "Missing" [ref=e67] [cursor=pointer]:
+          - /url: /missing
+        - generic [ref=e71]:
+          - link "Invite a user" [ref=e72] [cursor=pointer]:
+            - /url: /invite
+          - link "Connect a device" [ref=e77] [cursor=pointer]:
+            - /url: /connect
+          - link "Server" [ref=e81] [cursor=pointer]:
+            - /url: /admin
+          - button "AD admin Account" [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]:
+              - generic [ref=e88]: AD
+              - generic [ref=e94]:
+                - generic [ref=e95]: admin
+                - generic [ref=e96]: Account
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - generic [ref=e99]: This device
+              - generic [ref=e101]:
+                - generic [ref=e102]: H.265 OK
+                - generic [ref=e104]: AV1
+            - generic [ref=e106]:
+              - generic "ed170c82-dirty · main · 2026-08-23T09:09:04.993Z" [ref=e107]: Client v0.1.39
+              - generic [ref=e109]: ·
+              - generic [ref=e110]: Server v0.1.39
+    - main [ref=e973]:
+      - generic [ref=e975]:
+        - generic [ref=e978]:
+          - heading "Search" [level=1] [ref=e979]
+          - generic [ref=e980]: Search your library and TMDB to request new titles.
+        - generic [ref=e981]:
+          - group "Search" [ref=e982]:
+            - generic [ref=e983] [cursor=pointer]
+            - searchbox "Search" [ref=e988]
+          - radiogroup "Search" [ref=e990]:
+            - radio "All" [checked] [ref=e991] [cursor=pointer]
+            - radio "Movies" [ref=e993] [cursor=pointer]
+            - radio "Shows" [ref=e995] [cursor=pointer]
+      - generic [ref=e998]:
+        - generic [ref=e999]:
+          - generic [ref=e1000]:
+            - heading "Trending movies" [level=2] [ref=e1001]
+            - link "See all" [ref=e1006] [cursor=pointer]:
+              - /url: /trending/movie
+          - generic [ref=e1010]:
+            - generic [ref=e1013]:
+              - generic [ref=e1016]:
+                - button "Toy Story 5" [ref=e1017] [cursor=pointer]:
+                  - generic [ref=e1018]:
+                    - img "Toy Story 5" [ref=e1020]
+                    - generic [ref=e1021]: "8.1"
+                    - generic: Request
+                - generic [ref=e1025]:
+                  - generic [ref=e1026]: Toy Story 5
+                  - generic [ref=e1027]:
+                    - generic [ref=e1028]: Movie
+                    - generic [ref=e1029]: ·
+                    - generic [ref=e1030]: "2026"
+              - generic [ref=e1033]:
+                - button "Mutiny" [ref=e1034] [cursor=pointer]:
+                  - generic [ref=e1035]:
+                    - img "Mutiny" [ref=e1037]
+                    - generic [ref=e1038]: "6.8"
+                    - generic: Request
+                - generic [ref=e1042]:
+                  - generic [ref=e1043]: Mutiny
+                  - generic [ref=e1044]:
+                    - generic [ref=e1045]: Movie
+                    - generic [ref=e1046]: ·
+                    - generic [ref=e1047]: "2026"
+              - generic [ref=e1050]:
+                - 'button "Spider-Man: Brand New Day" [ref=e1051] [cursor=pointer]':
+                  - generic [ref=e1052]:
+                    - 'img "Spider-Man: Brand New Day" [ref=e1054]'
+                    - generic [ref=e1055]: "7.9"
+                    - generic: Request
+                - generic [ref=e1059]:
+                  - generic [ref=e1060]: "Spider-Man: Brand New Day"
+                  - generic [ref=e1061]:
+                    - generic [ref=e1062]: Movie
+                    - generic [ref=e1063]: ·
+                    - generic [ref=e1064]: "2026"
+              - generic [ref=e1067]:
+                - button "The Odyssey" [ref=e1068] [cursor=pointer]:
+                  - generic [ref=e1069]:
+                    - img "The Odyssey" [ref=e1071]
+                    - generic [ref=e1072]: "8.0"
+                    - generic: Request
+                - generic [ref=e1076]:
+                  - generic [ref=e1077]: The Odyssey
+                  - generic [ref=e1078]:
+                    - generic [ref=e1079]: Movie
+                    - generic [ref=e1080]: ·
+                    - generic [ref=e1081]: "2026"
+              - generic [ref=e1084]:
+                - button "Obsession" [ref=e1085] [cursor=pointer]:
+                  - generic [ref=e1086]:
+                    - img "Obsession" [ref=e1088]
+                    - generic [ref=e1089]: "8.2"
+                    - generic: Request
+                - generic [ref=e1093]:
+                  - generic [ref=e1094]: Obsession
+                  - generic [ref=e1095]:
+                    - generic [ref=e1096]: Movie
+                    - generic [ref=e1097]: ·
+                    - generic [ref=e1098]: "2026"
+              - generic [ref=e1101]:
+                - 'button "Insidious: Out of the Further" [ref=e1102] [cursor=pointer]':
+                  - generic [ref=e1103]:
+                    - 'img "Insidious: Out of the Further" [ref=e1105]'
+                    - generic [ref=e1106]: "6.7"
+                    - generic: Request
+                - generic [ref=e1110]:
+                  - generic [ref=e1111]: "Insidious: Out of the Further"
+                  - generic [ref=e1112]:
+                    - generic [ref=e1113]: Movie
+                    - generic [ref=e1114]: ·
+                    - generic [ref=e1115]: "2026"
+              - generic [ref=e1118]:
+                - button "Minions & Monsters" [ref=e1119] [cursor=pointer]:
+                  - generic [ref=e1120]:
+                    - img "Minions & Monsters" [ref=e1122]
+                    - generic [ref=e1123]: "7.5"
+                    - generic: Request
+                - generic [ref=e1127]:
+                  - generic [ref=e1128]: Minions & Monsters
+                  - generic [ref=e1129]:
+                    - generic [ref=e1130]: Movie
+                    - generic [ref=e1131]: ·
+                    - generic [ref=e1132]: "2026"
+              - generic [ref=e1135]:
+                - 'button "Avengers: Doomsday" [ref=e1136] [cursor=pointer]':
+                  - generic [ref=e1137]:
+                    - 'img "Avengers: Doomsday" [ref=e1139]'
+                    - generic: Request
+                - generic [ref=e1140]:
+                  - generic [ref=e1141]: "Avengers: Doomsday"
+                  - generic [ref=e1142]:
+                    - generic [ref=e1143]: Movie
+                    - generic [ref=e1144]: ·
+                    - generic [ref=e1145]: "2026"
+            - generic:
+              - button "Scroll left"
+            - generic:
+              - button "Scroll right"
+        - generic [ref=e1146]:
+          - generic [ref=e1147]:
+            - heading "Trending shows" [level=2] [ref=e1148]
+            - link "See all" [ref=e1153] [cursor=pointer]:
+              - /url: /trending/tv
+          - generic [ref=e1157]:
+            - generic [ref=e1160]:
+              - generic [ref=e1163]:
+                - button "Lanterns" [ref=e1164] [cursor=pointer]:
+                  - generic [ref=e1165]:
+                    - img "Lanterns" [ref=e1167]
+                    - generic [ref=e1168]: "8.2"
+                    - generic: Request
+                - generic [ref=e1172]:
+                  - generic [ref=e1173]: Lanterns
+                  - generic [ref=e1174]:
+                    - generic [ref=e1175]: Show
+                    - generic [ref=e1176]: ·
+                    - generic [ref=e1177]: "2026"
+              - generic [ref=e1180]:
+                - button "Silo" [ref=e1181] [cursor=pointer]:
+                  - generic [ref=e1182]:
+                    - img "Silo" [ref=e1184]
+                    - generic [ref=e1185]: "8.2"
+                    - generic: Request
+                - generic [ref=e1189]:
+                  - generic [ref=e1190]: Silo
+                  - generic [ref=e1191]:
+                    - generic [ref=e1192]: Show
+                    - generic [ref=e1193]: ·
+                    - generic [ref=e1194]: "2023"
+              - generic [ref=e1197]:
+                - button "Reacher" [ref=e1198] [cursor=pointer]:
+                  - generic [ref=e1199]:
+                    - img "Reacher" [ref=e1201]
+                    - generic [ref=e1202]: "8.1"
+                    - generic: Request
+                - generic [ref=e1206]:
+                  - generic [ref=e1207]: Reacher
+                  - generic [ref=e1208]:
+                    - generic [ref=e1209]: Show
+                    - generic [ref=e1210]: ·
+                    - generic [ref=e1211]: "2022"
+              - generic [ref=e1214]:
+                - button "Bleach" [ref=e1215] [cursor=pointer]:
+                  - generic [ref=e1216]:
+                    - img "Bleach" [ref=e1218]
+                    - generic [ref=e1219]: "8.4"
+                    - generic: Request
+                - generic [ref=e1223]:
+                  - generic [ref=e1224]: Bleach
+                  - generic [ref=e1225]:
+                    - generic [ref=e1226]: Show
+                    - generic [ref=e1227]: ·
+                    - generic [ref=e1228]: "2004"
+              - generic [ref=e1231]:
+                - button "Lucky" [ref=e1232] [cursor=pointer]:
+                  - generic [ref=e1233]:
+                    - img "Lucky" [ref=e1235]
+                    - generic [ref=e1236]: "7.2"
+                    - generic: Request
+                - generic [ref=e1240]:
+                  - generic [ref=e1241]: Lucky
+                  - generic [ref=e1242]:
+                    - generic [ref=e1243]: Show
+                    - generic [ref=e1244]: ·
+                    - generic [ref=e1245]: "2026"
+              - generic [ref=e1248]:
+                - button "Lioness" [ref=e1249] [cursor=pointer]:
+                  - generic [ref=e1250]:
+                    - img "Lioness" [ref=e1252]
+                    - generic [ref=e1253]: "8.1"
+                    - generic: Request
+                - generic [ref=e1257]:
+                  - generic [ref=e1258]: Lioness
+                  - generic [ref=e1259]:
+                    - generic [ref=e1260]: Show
+                    - generic [ref=e1261]: ·
+                    - generic [ref=e1262]: "2023"
+              - generic [ref=e1265]:
+                - button "Outer Banks" [ref=e1266] [cursor=pointer]:
+                  - generic [ref=e1267]:
+                    - img "Outer Banks" [ref=e1269]
+                    - generic [ref=e1270]: "8.2"
+                    - generic: Request
+                - generic [ref=e1274]:
+                  - generic [ref=e1275]: Outer Banks
+                  - generic [ref=e1276]:
+                    - generic [ref=e1277]: Show
+                    - generic [ref=e1278]: ·
+                    - generic [ref=e1279]: "2020"
+              - generic [ref=e1282]:
+                - button "House of the Dragon" [ref=e1283] [cursor=pointer]:
+                  - generic [ref=e1284]:
+                    - img "House of the Dragon" [ref=e1286]
+                    - generic [ref=e1287]: "8.4"
+                    - generic: Request
+                - generic [ref=e1291]:
+                  - generic [ref=e1292]: House of the Dragon
+                  - generic [ref=e1293]:
+                    - generic [ref=e1294]: Show
+                    - generic [ref=e1295]: ·
+                    - generic [ref=e1296]: "2022"
+            - generic:
+              - button "Scroll left"
+            - generic:
+              - button "Scroll right"
+  - button "Open Tanstack query devtools" [ref=e485] [cursor=pointer]

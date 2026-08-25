@@ -9,7 +9,7 @@
 // transparent `<object type="application/avplayer">` with the HTML chrome
 // and subtitle overlay on top.
 
-import { decodableAudioCodecs } from '@kroma/core';
+import { decodableAudioCodecs, decodableVideoCodecs } from '@kroma/core';
 import type { AudioFilterMode, PlaneRect } from '@kroma/ui';
 import {
   BaseTvEngine,
@@ -61,6 +61,7 @@ export class AvplayEngine extends BaseTvEngine {
       return this.client.hlsMasterUrl(this.item.id, false, this.baseSec, this.rendition, {
         filter: serverAudioFilter(this.filter),
         copyCodecs: decodableAudioCodecs(),
+        videoCodecs: decodableVideoCodecs(),
       });
     }
     return super.sourceUrl();

@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e164]:
+    - banner [ref=e165]:
+      - generic [ref=e166]:
+        - button "Menu" [ref=e167] [cursor=pointer]
+        - link "KROMA" [ref=e169] [cursor=pointer]:
+          - /url: /
+          - img "KROMA" [ref=e170]
+      - button "Notifications" [ref=e184] [cursor=pointer]
+    - main [ref=e188]:
+      - generic [ref=e192]:
+        - generic [ref=e193]: Featured
+        - generic [ref=e194]: Spirited Away
+        - generic [ref=e195]:
+          - generic [ref=e196]: 8.5★
+          - generic [ref=e197]: 2001 · 0min · H.264
+        - generic [ref=e198]: A young girl, Chihiro, becomes trapped in a strange new world of spirits. When her parents undergo a mysterious transformation, she must call upon the courage she never knew she had to free her family.
+        - generic [ref=e199]:
+          - button "Play" [ref=e200] [cursor=pointer]
+          - button "More info" [ref=e202] [cursor=pointer]
+      - generic [ref=e204]:
+        - heading "Series" [level=2] [ref=e205]
+        - generic [ref=e206]:
+          - generic [ref=e209]:
+            - generic [ref=e212]:
+              - button "1 seasonPlanet Earth II" [ref=e213] [cursor=pointer]
+              - button "Mark as watched" [ref=e220] [cursor=pointer]
+            - generic [ref=e225]:
+              - button "1 seasonThe Office" [ref=e226] [cursor=pointer]
+              - button "Mark as watched" [ref=e233] [cursor=pointer]
+          - generic:
+            - button "Scroll left"
+          - generic:
+            - button "Scroll right"
+  - button "Open Tanstack query devtools" [ref=e112] [cursor=pointer]

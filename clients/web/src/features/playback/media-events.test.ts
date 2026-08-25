@@ -120,7 +120,7 @@ describe('bindMediaEvents', () => {
     fv.set('volume', 0.5);
     fv.set('muted', true);
     fv.fire('volumechange');
-    expect(s.setVolume).toHaveBeenCalledWith(0.5);
+    // volumechange only syncs muted; volume state is owned by setVol (boost).
     expect(s.setMuted).toHaveBeenCalledWith(true);
     fv.set('playbackRate', 1.5);
     fv.fire('ratechange');

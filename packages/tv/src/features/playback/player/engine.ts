@@ -63,6 +63,9 @@ export interface TvEngine {
   // Playback speed. Only the engines that can vary it implement this; the shared
   // chrome hides the row where it is absent.
   setRate?(rate: number): void;
+  // Volume [0,1] → engine volume. Only the native engines implement it; the
+  // HTML engine taps its in-page element directly via the controller.
+  setVolume?(volume: number): void;
   // Rows for the stats panel that only this engine can answer, already
   // localized. The panel shows what it is given and asks for nothing.
   debugRows?(): { label: string; value: string }[];

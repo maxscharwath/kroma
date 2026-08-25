@@ -1,5 +1,6 @@
 import type { EngineDecision } from '@kroma/core';
 import { useCallback, useRef, useState } from 'react';
+import { setVolumeBoost } from '#ui/components/organisms/player/lib/audio-filter';
 import type { VideoPlayback } from '#web/features/playback/video-engine';
 
 export interface VideoTransportOptions {
@@ -11,6 +12,7 @@ export interface VideoTransportOptions {
   knownDurationMs: number;
   dur: number;
   setAnchor: (sec: number) => void;
+  setVolume: (v: number) => void;
 }
 
 export type VideoTransport = Pick<
@@ -38,8 +40,17 @@ export type VideoTransport = Pick<
  * state that only those actions read. Positions crossing this boundary are
  * absolute; the anchored HLS clock is converted against `baseSec`. */
 export function useVideoTransport(opts: VideoTransportOptions): VideoTransport {
-  const { videoRef, containerRef, barRef, decisionKind, baseSec, knownDurationMs, dur, setAnchor } =
-    opts;
+  const {
+    videoRef,
+    containerRef,
+    barRef,
+    decisionKind,
+    baseSec,
+    knownDurationMs,
+    dur,
+    setAnchor,
+    setVolume,
+  } = opts;
 
   const [hover, setHover] = useState<{ x: number; t: number; w: number } | null>(null);
   const [scrubbing, setScrubbing] = useState(false);
@@ -154,10 +165,11 @@ export function useVideoTransport(opts: VideoTransportOptions): VideoTransport {
     (val: number) => {
       const v = videoRef.current;
       if (!v) return;
-      v.volume = Math.max(0, Math.min(1, val));
-      v.muted = v.volume === 0;
+      setVolumeBoost(v, val);
+      v.muted = val === 0;
+      setVolume(val);
     },
-    [videoRef],
+    [videoRef, setVolume],
   );
 
   const toggleMute = useCallback(() => {

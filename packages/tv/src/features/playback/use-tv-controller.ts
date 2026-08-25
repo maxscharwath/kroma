@@ -5,6 +5,7 @@ import {
   refineTrackLang,
 } from '@kroma/core';
 import { buildLeanStats, type PlayerController, useAudioFilter, useT } from '@kroma/ui';
+import { webWindow } from '@kroma/ui/kit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   availableEngines,
@@ -13,6 +14,7 @@ import {
   type EnginePref,
 } from '#tv/app/enginePref';
 import { useLangPrefs } from '#tv/app/langPref';
+import { getTauri, type TauriBridge } from '#tv/features/playback/player/engine';
 import { type Playback, useDirectPlayback } from '#tv/features/playback/player/useDirectPlayback';
 import { type TvSubtitles, useTvSubtitles } from '#tv/features/playback/use-tv-subtitles';
 
@@ -29,9 +31,14 @@ export interface TvController {
 /**
  * Adapts the TV engine + subtitle state into the shared {@link PlayerController}.
  * Volume, PiP, fullscreen and rate are no-ops on a TV, so the shared chrome hides
- * or disables them.
+ * or disables them. On desktop (`desktop: true`), volume is wired to the mpv
+ * engine and fullscreen toggles the Tauri window.
  */
-export function useTvController(client: KromaClient, item: MediaItem): TvController {
+export function useTvController(
+  client: KromaClient,
+  item: MediaItem,
+  desktop = false,
+): TvController {
   const t = useT();
   const langs = useLangPrefs();
   const pb = useDirectPlayback(client, item, langs.audio);
@@ -97,6 +104,53 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     pb.engineRef.current?.setRate?.(rate);
   }, [pb.engineRef, rate, pb.surfaceNonce]);
 
+  // Desktop volume: wired to the mpv engine's `setVolume` (0–1 → 0–100).
+  // On a TV the flag is off and these stay inert at their defaults.
+  const [volume, setVolumeState] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const setVolume = useCallback(
+    (v: number) => {
+      const clamped = Math.max(0, Math.min(1, v));
+      setVolumeState(clamped);
+      if (desktop) pb.engineRef.current?.setVolume?.(muted ? 0 : clamped);
+    },
+    [desktop, pb.engineRef, muted],
+  );
+  const toggleMute = useCallback(() => {
+    setMuted((m) => {
+      const next = !m;
+      if (desktop) pb.engineRef.current?.setVolume?.(next ? 0 : volume);
+      return next;
+    });
+  }, [desktop, pb.engineRef, volume]);
+  // Re-assert volume when a new engine is built (filter change reopens the stream).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: audited - surfaceNonce IS the trigger; volume/muted are read via the ref-less closure
+  useEffect(() => {
+    if (desktop) pb.engineRef.current?.setVolume?.(muted ? 0 : volume);
+  }, [pb.surfaceNonce]);
+
+  // Desktop fullscreen: toggles the Tauri window, not mpv (which is already
+  // fullscreen behind the page). Falls back to the Fullscreen API when not in
+  // Tauri (dev preview in a browser).
+  const tauri = useRef<TauriBridge | null>(getTauri());
+  const [fullscreen, setFullscreen] = useState(false);
+  const toggleFullscreen = useCallback(() => {
+    if (tauri.current) {
+      void tauri.current.core.invoke('toggle_fullscreen').then(() => {
+        setFullscreen((f) => !f);
+      });
+    } else {
+      const w = webWindow();
+      if (!w) return;
+      const doc = w.document;
+      if (doc.fullscreenElement) {
+        void doc.exitFullscreen().then(() => setFullscreen(false));
+      } else {
+        void doc.documentElement.requestFullscreen().then(() => setFullscreen(true));
+      }
+    }
+  }, []);
+
   const statsRef = useRef<() => ReturnType<typeof buildLeanStats>>(() => ({}));
   statsRef.current = () =>
     buildLeanStats({
@@ -133,10 +187,10 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     skip: pb.seek,
     scrubPreview,
     scrubCommit: pb.seekScrubCommit,
-    volume: 1,
-    muted: false,
-    setVolume: NOOP,
-    toggleMute: NOOP,
+    volume: desktop ? volume : 1,
+    muted: desktop ? muted : false,
+    setVolume: desktop ? setVolume : NOOP,
+    toggleMute: desktop ? toggleMute : NOOP,
     rate,
     setRate,
     audioTracks: pb.audioTracks,
@@ -158,8 +212,8 @@ export function useTvController(client: KromaClient, item: MediaItem): TvControl
     audioFilterSupported: pb.surface === 'video' ? filter.supported : pb.audioFilterSupported,
     pipActive: false,
     togglePip: NOOP,
-    fullscreen: false,
-    toggleFullscreen: NOOP,
+    fullscreen: desktop ? fullscreen : false,
+    toggleFullscreen: desktop ? toggleFullscreen : NOOP,
     setPlaneRect: pb.setPlaneRect,
     getStats,
   };

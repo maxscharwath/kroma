@@ -13,7 +13,7 @@ import {
   useSubtitleAppearance,
   useT,
 } from '@kroma/ui';
-import { Box, Button, Icon, Text } from '@kroma/ui/kit';
+import { Box, Button, Icon, Text, webWindow } from '@kroma/ui/kit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEnv } from '#tv/app/providers/env';
 import { useClient, useNav, useParams } from '#tv/app/router';
@@ -52,10 +52,14 @@ export function TvPlayer() {
   // Reveal-on-pointer only with a real desktop mouse: a TV remote emits
   // phantom pointermove that would pin the chrome open, so there the D-pad
   // drives reveal instead (see env.mousePointer).
-  const { mousePointer } = useEnv();
-  const playerFlags = useMemo(() => ({ ...TV_FLAGS, pointer: mousePointer }), [mousePointer]);
+  const { mousePointer, platform } = useEnv();
+  const isDesktop = platform === 'Desktop';
+  const playerFlags = useMemo(
+    () => ({ ...TV_FLAGS, pointer: mousePointer, volume: isDesktop, fullscreen: isDesktop }),
+    [mousePointer, isDesktop],
+  );
 
-  const { controller, pb, subtitleGen } = useTvController(client, item);
+  const { controller, pb, subtitleGen } = useTvController(client, item, isDesktop);
   // Publish this player to the cast receiver, so a phone can drive it (and pick
   // up the position a cast "play" asked to start from).
   useCastTarget(item, controller);
@@ -123,6 +127,32 @@ export function TvPlayer() {
     el.classList.add('kroma-native-surface');
     return () => el.classList.remove('kroma-native-surface');
   }, [pb.surface, pb.ready]);
+
+  // Desktop cursor hide: hide the OS cursor when the film is playing and no
+  // pointer has moved for 3s. A TV has no cursor (flags.pointer false), so
+  // this is inert there.
+  useEffect(() => {
+    if (!isDesktop || !mousePointer) return;
+    const w = webWindow();
+    if (!w) return;
+    const doc = w.document;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const hide = () => (doc.body.style.cursor = 'none');
+    const show = () => {
+      doc.body.style.cursor = '';
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(hide, 3000);
+    };
+    if (pb.playing) {
+      show();
+      w.addEventListener('pointermove', show);
+    }
+    return () => {
+      w.removeEventListener('pointermove', show);
+      if (timer) clearTimeout(timer);
+      doc.body.style.cursor = '';
+    };
+  }, [isDesktop, mousePointer, pb.playing]);
 
   const warn = playerWarn(pb, item, t);
 

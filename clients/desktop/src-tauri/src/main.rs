@@ -171,6 +171,16 @@ fn app_quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// Toggle the Tauri window fullscreen state (the mpv binary is already
+/// fullscreen behind the page; this toggles the UI window on top of it).
+#[tauri::command]
+fn toggle_fullscreen(app: tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.set_fullscreen(!win.is_fullscreen().unwrap_or(false));
+    }
+}
+
 /// Relaunch the app (used after flipping a boot-time setting like the webview
 /// GPU renderer). `restart` re-execs without flowing through `RunEvent::Exit`,
 /// so the mpv teardown must run here first (idempotent with the Exit handler).
@@ -222,7 +232,7 @@ fn main() {
             webview_gpu::webview_gpu_get,
             webview_gpu::webview_gpu_set,
             webview_gpu::webview_boot_ok,
-            app_quit,
+            app_quit, toggle_fullscreen,
             app_relaunch
         ]);
     }
@@ -234,7 +244,7 @@ fn main() {
                 libmpv_mac::mpv_load,
                 libmpv_mac::mpv_command,
                 libmpv_mac::set_now_playing,
-                app_quit,
+                app_quit, toggle_fullscreen,
                 app_relaunch
             ]);
     }
@@ -245,7 +255,7 @@ fn main() {
             .invoke_handler(tauri::generate_handler![
                 libmpv_win::mpv_load,
                 libmpv_win::mpv_command,
-                app_quit,
+                app_quit, toggle_fullscreen,
                 app_relaunch
             ]);
     }
@@ -256,7 +266,7 @@ fn main() {
         all(target_os = "windows", feature = "libmpv")
     )))]
     {
-        builder = builder.invoke_handler(tauri::generate_handler![app_quit, app_relaunch]);
+        builder = builder.invoke_handler(tauri::generate_handler![app_quit, toggle_fullscreen, app_relaunch]);
     }
 
     // Self-update (all desktop OSes): checks the GitHub Release, verifies the

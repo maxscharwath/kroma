@@ -4,13 +4,14 @@ import type { LayoutChangeEvent, View } from 'react-native';
 import { Dimensions } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Ground } from '#ui/components/atoms/ground';
+import { Text } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
 import type { StoryboardTile } from '#ui/services/storyboard';
 import { usePlayerCredits } from './hooks/use-player-credits';
 import { usePlayerKeys } from './hooks/use-player-keys';
 import { usePlayerNav } from './hooks/use-player-nav';
 import { useSeekNudge } from './hooks/use-seek-nudge';
-import { clamp01, sliderToVolume, volumeToSlider } from './lib/fmt';
+import { VOLUME_MAX, volumeToSlider } from './lib/fmt';
 import { chromeMetrics, panelGeometry, scaler, TRANSPORT_HEIGHT } from './lib/metrics';
 import { type ControlId, controlOrder, type PanelHandle } from './lib/nav';
 import type { SubtitleAppearance } from './lib/subtitle-appearance';
@@ -141,6 +142,29 @@ function Root({
     if (credits.show) setCreditsFocus('play');
   }, [credits.show]);
 
+  // Volume OSD: show the percentage briefly whenever volume changes.
+  const [volOsd, setVolOsd] = useState<number | null>(null);
+  const volTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: volOsd IS the trigger — each change restarts the hide timer.
+  useEffect(() => {
+    if (volTimer.current) clearTimeout(volTimer.current);
+    volTimer.current = setTimeout(() => setVolOsd(null), 800);
+    return () => {
+      if (volTimer.current) clearTimeout(volTimer.current);
+    };
+  }, [volOsd]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: track volume changes only — muted is read via the closure.
+  useEffect(() => {
+    if (c.volume === 0 || c.muted) {
+      setVolOsd(0);
+    } else {
+      setVolOsd(c.volume);
+    }
+  }, [c.volume]);
+  useEffect(() => {
+    if (c.muted) setVolOsd(0);
+  }, [c.muted]);
+
   // Measured BEFORE the nav machine, which is then given the row that is drawn:
   // a shed control must not keep a focus stop.
   const row = useMemo(() => controlOrder(flags, Boolean(onPlayNext)), [flags, onPlayNext]);
@@ -155,8 +179,8 @@ function Root({
       seekNudge,
       onNext: () => onPlayNext?.(),
       hasNext: Boolean(onPlayNext),
-      // Step in perceptual slider space so a nudge feels even across the range.
-      volumeNudge: (d) => c.setVolume(sliderToVolume(clamp01(volumeToSlider(c.volume) + d * 0.05))),
+      // Step 5% in real volume, clamped to 0–VOLUME_MAX.
+      volumeNudge: (d) => c.setVolume(Math.max(0, Math.min(VOLUME_MAX, c.volume + d * 0.05))),
       toggleMute: c.toggleMute,
       togglePip: c.togglePip,
       toggleFullscreen: c.toggleFullscreen,
@@ -235,6 +259,42 @@ function Root({
           >
             {slots.media}
           </Stage>
+
+          {/* Volume OSD: transient centered percentage on volume change */}
+          {volOsd != null && !nav.overlay ? (
+            <Box absolute z={50} fill center pointerEvents="none">
+              <Box
+                radius={12}
+                bg="black/80"
+                px={20}
+                py={12}
+                center
+                gap={8}
+                style={{ minWidth: px(120) }}
+              >
+                <Text variant="body" color="white" style={{ fontSize: px(28), fontWeight: '600' }}>
+                  {c.muted ? 'Muted' : `${Math.round(volOsd * 100)}%`}
+                </Text>
+                <Box
+                  style={{
+                    width: px(100),
+                    height: px(4),
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  <Box
+                    style={{
+                      width: `${Math.round(volumeToSlider(volOsd) * 100)}%`,
+                      height: '100%',
+                      borderRadius: 2,
+                      backgroundColor: '#fff',
+                    }}
+                  />
+                </Box>
+              </Box>
+            </Box>
+          ) : null}
 
           {/* skip intro (§13) */}
           {intro ? (

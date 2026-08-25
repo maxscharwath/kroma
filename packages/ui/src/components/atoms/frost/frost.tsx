@@ -143,7 +143,7 @@ function Frost({ children, ...options }: Readonly<FrostProps>) {
   if (coat.layer) {
     const inner = el.props.children;
     if (typeof inner === 'function') {
-      throw new Error('<Frost> cannot layer a render-function child; call frostCoat() instead');
+      throw new TypeError('<Frost> cannot layer a render-function child; call frostCoat() instead');
     }
     merged.children = [
       cloneElement(coat.layer as ReactElement, { key: 'frost' }),

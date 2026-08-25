@@ -1,4 +1,4 @@
-import { sizedImageUrl } from '@kroma/core';
+import { sizedImageUrl, type Translate } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { ArtScrim, Box, Progress, Text, VirtualRail, WatchedBadge } from '@kroma/ui/kit';
 import { type ReactElement, useState } from 'react';
@@ -55,6 +55,34 @@ export function PosterRail<T>({
   );
 }
 
+type TileToggles = Pick<PosterProps, 'inList' | 'onToggleList' | 'watched' | 'onToggleWatched'>;
+
+function tileActions(
+  t: Translate,
+  { inList, onToggleList, watched, onToggleWatched }: Readonly<TileToggles>,
+): PosterAction[] {
+  const actions: PosterAction[] = [];
+  if (inList != null && onToggleList) {
+    actions.push({
+      key: 'list',
+      icon: inList ? 'bookmark-filled' : 'bookmark',
+      label: t(inList ? 'content.removeFromList' : 'content.addToList'),
+      active: inList,
+      onSelect: onToggleList,
+    });
+  }
+  if (watched != null && onToggleWatched) {
+    actions.push({
+      key: 'watched',
+      icon: 'eye',
+      label: t(watched ? 'content.markUnwatched' : 'content.markWatched'),
+      active: watched,
+      onSelect: onToggleWatched,
+    });
+  }
+  return actions;
+}
+
 /**
  * The tile wrapper is a `<div>`, not a `<button>`, so the quick actions can be
  * focusable siblings without nesting interactive elements.
@@ -77,25 +105,7 @@ export function Poster({
   const showImg = Boolean(poster) && imgOk;
   const gradient = `linear-gradient(158deg, ${colors[0]} 0%, ${colors[1]} 70%)`;
 
-  const actions: PosterAction[] = [];
-  if (inList != null && onToggleList) {
-    actions.push({
-      key: 'list',
-      icon: inList ? 'bookmark-filled' : 'bookmark',
-      label: t(inList ? 'content.removeFromList' : 'content.addToList'),
-      active: inList,
-      onSelect: onToggleList,
-    });
-  }
-  if (watched != null && onToggleWatched) {
-    actions.push({
-      key: 'watched',
-      icon: 'eye',
-      label: t(watched ? 'content.markUnwatched' : 'content.markWatched'),
-      active: watched,
-      onSelect: onToggleWatched,
-    });
-  }
+  const actions = tileActions(t, { inList, onToggleList, watched, onToggleWatched });
 
   return (
     <div style={{ width: width ?? 'var(--card-w)' }} className="poster-tile poster-frame">

@@ -36,12 +36,12 @@ export function SearchPage({
   type,
   setQuery,
   setType,
-}: {
+}: Readonly<{
   query: string;
   type: DiscoverType;
   setQuery: (q: string) => void;
   setType: (t: DiscoverType) => void;
-}) {
+}>) {
   const t = useT();
   const { user } = useAuth();
   const canDiscover = !!user && hasPermission(user, 'requests.create');

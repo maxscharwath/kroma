@@ -1,0 +1,119 @@
+// Locale-aware rendering of values, next door to i18n.ts which renders
+// messages. The split is what varies with the language: a separator or a unit
+// symbol is a convention this file can hold, so those functions take a Locale
+// and stay callable outside React. Anything with words in it takes a Translate
+// instead and reads them from the catalogs, because the words belong to
+// whoever writes the language, not to this file.
+
+import type { Translate } from './i18n';
+import type { Locale } from './i18n-locales';
+
+const BYTE_UNITS: Record<Locale, readonly string[]> = {
+  fr: ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'],
+  en: ['B', 'KB', 'MB', 'GB', 'TB', 'PB'],
+};
+
+const DATES = new Map<Locale, Intl.DateTimeFormat>();
+
+function dateFormat(locale: Locale): Intl.DateTimeFormat {
+  const cached = DATES.get(locale);
+  if (cached) return cached;
+  const made = new Intl.DateTimeFormat(locale, { dateStyle: 'short' });
+  DATES.set(locale, made);
+  return made;
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** A fixed-point number with the locale's decimal separator: `1,5` in French,
+ *  `1.5` in English. */
+export function decimal(n: number, locale: Locale, digits = 1): string {
+  const s = n.toFixed(digits);
+  return locale === 'fr' ? s.replace('.', ',') : s;
+}
+
+/** A byte size in the locale's units: `1,5 Go` in French, `1.5 GB` in English.
+ *  Zero and negatives render as the smallest unit rather than empty. */
+export function formatBytes(bytes: number, locale: Locale): string {
+  const units = BYTE_UNITS[locale];
+  const smallest = units[0] as string;
+  if (!bytes || bytes < 0) return `0 ${smallest}`;
+  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const v = bytes / 1024 ** i;
+  return `${decimal(v, locale, v >= 100 || i <= 1 ? 0 : 1)} ${units[i] ?? smallest}`;
+}
+
+/** A throughput figure, one decimal, no unit: the caller supplies `Mb/s`. */
+export function formatMbps(n: number, locale: Locale): string {
+  return decimal(n || 0, locale, 1);
+}
+
+/** A scrub-bar timecode, `1:04:07` or `4:07`, with no leading hours under one
+ *  hour. Digits only, so no locale. */
+export function formatTimecode(seconds: number): string {
+  const total = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+/** {@link formatTimecode} fed milliseconds, which is what the APIs return. */
+export function formatTimecodeMs(ms: number): string {
+  return formatTimecode((ms || 0) / 1000);
+}
+
+/** Hours with one decimal for a chart axis: `14,3 h`. */
+export function formatHours(ms: number, locale: Locale): string {
+  return `${decimal((ms || 0) / 3_600_000, locale, 1)} h`;
+}
+
+/** Watch time from milliseconds, to the minute: `4 h 29 min` / `65 min`. */
+export function formatDuration(t: Translate, ms: number): string {
+  const total = Math.round((ms || 0) / 60000);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return hours > 0
+    ? t('format.durationHours', { hours, minutes: pad(minutes) })
+    : t('format.durationMinutes', { minutes });
+}
+
+/** How long the server has been up, at the coarsest useful scale:
+ *  `18 j 04 h` / `4 h 12 min` / `8 min`. */
+export function formatUptime(t: Translate, seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return t('format.uptimeDays', { count: days, days, hours: pad(hours) });
+  if (hours > 0) return t('format.uptimeHours', { hours, minutes: pad(minutes) });
+  return t('format.uptimeMinutes', { minutes });
+}
+
+/** How long ago an ISO timestamp was, in words: `il y a 5 min`, `hier`,
+ *  `jamais` for a null. Beyond a month it becomes a short absolute date, since
+ *  "il y a 74 j" is no longer something anyone counts. Takes `now` so a caller
+ *  can pin it; tests should. */
+export function formatElapsed(
+  t: Translate,
+  locale: Locale,
+  iso: string | null | undefined,
+  now: number = Date.now(),
+): string {
+  if (!iso) return t('format.never');
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return t('format.unknownTime');
+
+  const minutes = Math.floor((now - then) / 60000);
+  if (minutes < 1) return t('format.justNow');
+  if (minutes < 60) return t('format.minutesAgo', { count: minutes });
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('format.hoursAgo', { count: hours });
+
+  const days = Math.floor(hours / 24);
+  if (days === 1) return t('format.yesterday');
+  if (days < 30) return t('format.daysAgo', { count: days });
+  return dateFormat(locale).format(then);
+}

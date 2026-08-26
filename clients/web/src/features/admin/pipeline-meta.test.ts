@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDur, kindMeta, overallMeta, posterGrad, statusMeta } from './pipeline-meta';
+import { fmtDur, kindMeta, overallMeta, statusMeta } from './pipeline-meta';
 
 describe('fmtDur', () => {
   it('returns an empty string when there is no duration', () => {
@@ -55,18 +55,5 @@ describe('kindMeta', () => {
 
   it('defaults an unknown kind to the film badge', () => {
     expect(kindMeta('other')).toEqual(kindMeta('film'));
-  });
-});
-
-describe('posterGrad', () => {
-  it('is deterministic for a given seed', () => {
-    expect(posterGrad('Dune')).toBe(posterGrad('Dune'));
-  });
-
-  it('differs for different seeds and is a CSS gradient', () => {
-    const a = posterGrad('Dune');
-    expect(a.startsWith('radial-gradient(')).toBe(true);
-    expect(a).toContain('linear-gradient(');
-    expect(a).not.toBe(posterGrad('Arrival'));
   });
 });

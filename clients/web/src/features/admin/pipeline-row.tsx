@@ -7,15 +7,10 @@ import { Table } from '@kroma/module-sdk';
 import { useT } from '@kroma/ui';
 import { Box, type ColorValue, Icon, Row, Spinner, Text, Tooltip } from '@kroma/ui/kit';
 import { Pill, PillDot } from '#web/features/admin/pill';
-import {
-  fmtDur,
-  kindMeta,
-  overallMeta,
-  posterGrad,
-  statusMeta,
-} from '#web/features/admin/pipeline-meta';
+import { fmtDur, kindMeta, overallMeta, statusMeta } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
 import { Image } from '#web/shared/ui';
+import { posterGradient } from '#web/shared/ui/poster-gradient';
 
 function subLine(t: Translate, el: ElementRow): { text: string; color: ColorValue } {
   const names = (pred: (x: Treatment) => boolean) =>
@@ -63,7 +58,7 @@ function Poster({
     (kind === 'series' ? client.showPosterUrl(id) : client.posterUrl(id));
   return (
     <Box w={32} h={46} shrink={0} radius={4} overflow="hidden" shadow="card">
-      <div style={{ position: 'absolute', inset: 0, background: posterGrad(seed) }} />
+      <div style={{ position: 'absolute', inset: 0, background: posterGradient(seed) }} />
       <Image src={src} fit="cover" fill />
     </Box>
   );

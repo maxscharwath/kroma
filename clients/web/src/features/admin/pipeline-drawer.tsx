@@ -3,9 +3,10 @@ import { useT } from '@kroma/ui';
 import { Box, Button, Callout, color, Drawer, IconButton, Row, Text } from '@kroma/ui/kit';
 import { createCallable } from 'react-call';
 import { Pill, PillDot } from '#web/features/admin/pill';
-import { fmtDur, kindMeta, posterGrad, statusMeta } from '#web/features/admin/pipeline-meta';
+import { fmtDur, kindMeta, statusMeta } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
 import { Image } from '#web/shared/ui';
+import { posterGradient } from '#web/shared/ui/poster-gradient';
 
 function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
   const { client } = useAuth();
@@ -14,7 +15,7 @@ function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
     (el.kind === 'series' ? client.showPosterUrl(el.id) : client.posterUrl(el.id));
   return (
     <Box w={70} h={104} shrink={0} radius="xs" overflow="hidden" shadow="pop">
-      <div style={{ position: 'absolute', inset: 0, background: posterGrad(el.title) }} />
+      <div style={{ position: 'absolute', inset: 0, background: posterGradient(el.title) }} />
       <Image src={src} fit="cover" fill />
     </Box>
   );

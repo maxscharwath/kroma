@@ -74,4 +74,3 @@ export const kindMeta = (k: string): KindMeta => KIND_META[k] ?? FILM_KIND;
 /** Deterministic poster gradient from a seed (shown behind / until a real poster
  *  loads). The shared helper, so the pipeline rows and the dashboard compute the
  *  SAME hue for the same title. */
-export { posterGradient as posterGrad } from '#web/shared/lib/adminFormat';

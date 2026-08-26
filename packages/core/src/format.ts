@@ -129,31 +129,6 @@ export function resolveImageUrl(apiBase: string, url: string | null | undefined)
   return /^https?:\/\//.test(url) ? url : `${apiBase}${url}`;
 }
 
-/** French-style decimal: a comma separator. */
-export function decimal(n: number, digits = 1): string {
-  return n.toFixed(digits).replace('.', ',');
-}
-
-/** Human byte size in French units: o / Ko / Mo / Go / To / Po. */
-export function formatBytes(bytes: number): string {
-  if (!bytes || bytes < 0) return '0 o';
-  const units = ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'];
-  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  const v = bytes / 1024 ** i;
-  return `${decimal(v, v >= 100 || i <= 1 ? 0 : 1)} ${units[i]}`;
-}
-
-/** Player scrub-bar timecode "1:04:07" / "4:07" (no leading hours when < 1h). */
-export function formatTimecode(s: number): string {
-  if (!Number.isFinite(s) || s < 0) s = 0;
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  const mm = h ? String(m).padStart(2, '0') : String(m);
-  const hh = h ? `${h}:` : '';
-  return `${hh}${mm}:${String(sec).padStart(2, '0')}`;
-}
-
 /** Two-letter language code for a track badge, e.g. "FR" (or "ST" when unknown). */
 export function langCode(lang: string | null | undefined): string {
   if (!lang) return 'ST';

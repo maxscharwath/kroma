@@ -2,7 +2,7 @@
 // touches a catalogue, so a screen that only needs to know the locale (to format
 // a number, to pick a flag) does not pay for 200 kB of messages.
 
-import { createLocales } from './i18n-engine';
+import { createLocales } from '@kroma/i18n';
 
 const LOCALE_NAMES = { fr: 'Français', en: 'English' } as const;
 

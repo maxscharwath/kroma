@@ -1,0 +1,25 @@
+{
+  "name": "@kroma/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KROMA's message engine: catalog interpolation, build-time key references, CLDR pluralisation and locale detection. The TypeScript counterpart of the kroma-i18n crate, with no KROMA vocabulary of its own.",
+  "author": "Maxime Scharwath <maxscharwath@gmail.com>",
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxscharwath/kroma.git",
+    "directory": "packages/i18n"
+  },
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

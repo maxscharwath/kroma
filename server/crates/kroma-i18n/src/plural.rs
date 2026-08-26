@@ -46,6 +46,19 @@ pub fn one_other(_locale: &str, count: i64) -> Category {
     }
 }
 
+/// `one` for 0 and 1, else `other`: the CLDR rule for French, Portuguese and
+/// the other Romance languages that keep the singular at zero ("0 saison").
+/// Pair it with [`one_other`] in a rule that dispatches on the locale, because
+/// getting this wrong makes the server and a JavaScript client, which reads
+/// `Intl.PluralRules`, disagree about the same catalog.
+pub fn zero_one_other(_locale: &str, count: i64) -> Category {
+    if count == 0 || count == 1 {
+        Category::One
+    } else {
+        Category::Other
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,6 +71,14 @@ mod tests {
         assert_eq!(Category::Few.suffix(), "few");
         assert_eq!(Category::Many.suffix(), "many");
         assert_eq!(Category::Other.suffix(), "other");
+    }
+
+    #[test]
+    fn the_romance_rule_keeps_the_singular_at_zero() {
+        assert_eq!(zero_one_other("fr", 0), Category::One);
+        assert_eq!(zero_one_other("fr", 1), Category::One);
+        assert_eq!(zero_one_other("fr", 2), Category::Other);
+        assert_eq!(zero_one_other("fr", -1), Category::Other);
     }
 
     #[test]

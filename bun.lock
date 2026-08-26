@@ -562,6 +562,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@kroma/client": "workspace:*",
+        "@kroma/i18n": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -577,6 +578,13 @@
         "react",
         "react-native",
       ],
+    },
+    "packages/i18n": {
+      "name": "@kroma/i18n",
+      "version": "0.0.0",
+      "devDependencies": {
+        "typescript": "^7.0.2",
+      },
     },
     "packages/lan-beacon": {
       "name": "@kroma/lan-beacon",
@@ -1415,6 +1423,8 @@
     "@kroma/core": ["@kroma/core@workspace:packages/core"],
 
     "@kroma/desktop": ["@kroma/desktop@workspace:clients/desktop"],
+
+    "@kroma/i18n": ["@kroma/i18n@workspace:packages/i18n"],
 
     "@kroma/kit": ["@kroma/kit@workspace:apps/kit"],
 

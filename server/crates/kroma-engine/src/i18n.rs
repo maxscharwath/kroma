@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use kroma_i18n::I18n;
+use kroma_i18n::{Category, I18n};
 
 use crate::state::SharedState;
 
@@ -27,11 +27,24 @@ macro_rules! catalog {
     };
 }
 
+// The catalogs are shared with the TypeScript clients, which select a variant
+// through `Intl.PluralRules`. French puts zero in `one` there and English does
+// not, so the same key has to resolve the same way on both sides or a count of
+// zero renders differently in a notification than it does on screen.
+fn plural_rule(locale: &str, count: i64) -> Category {
+    if locale.starts_with("fr") {
+        kroma_i18n::zero_one_other(locale, count)
+    } else {
+        kroma_i18n::one_other(locale, count)
+    }
+}
+
 fn i18n() -> &'static I18n {
     static ENGINE: OnceLock<I18n> = OnceLock::new();
     ENGINE.get_or_init(|| {
         I18n::builder()
             .default_locale(DEFAULT_LOCALE)
+            .plural_rule(plural_rule)
             .catalog_json("fr", catalog!("fr"))
             .catalog_json("en", catalog!("en"))
             .build()
@@ -114,5 +127,17 @@ mod tests {
             "1 season"
         );
         assert_eq!(normalize("en-US"), Some("en"));
+    }
+
+    #[test]
+    fn zero_pluralizes_the_way_intl_pluralrules_does_on_the_clients() {
+        assert_eq!(
+            t("fr", "content.seasonCount", &[("count", "0")]),
+            "0 saison"
+        );
+        assert_eq!(
+            t("en", "content.seasonCount", &[("count", "0")]),
+            "0 seasons"
+        );
     }
 }

@@ -60,6 +60,17 @@ fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
     if !tr.genres.is_empty() {
         meta.genres = tr.genres.clone();
     }
+    // Art only where this language has its own; `store_localized` writes it
+    // only when it differs from the core, so absent means "the core's is right".
+    if tr.poster_url.is_some() {
+        meta.poster_url = tr.poster_url.clone();
+    }
+    if tr.backdrop_url.is_some() {
+        meta.backdrop_url = tr.backdrop_url.clone();
+    }
+    if tr.logo_url.is_some() {
+        meta.logo_url = tr.logo_url.clone();
+    }
     apply_characters(&mut meta.cast, &tr.characters);
 }
 

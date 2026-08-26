@@ -47,6 +47,9 @@ pub fn store_localized(
         tmdb_genre_ids: core_meta.tmdb_genre_ids.clone(),
     };
     metadata_core::write_core(&conn, kind, id, &core)?;
+    fn differing(lang: &Option<String>, core: &Option<String>) -> Option<String> {
+        lang.as_ref().filter(|v| Some(*v) != core.as_ref()).cloned()
+    }
     for (lang, m) in by_lang {
         let data = TransData {
             title: m.title.clone(),
@@ -55,12 +58,56 @@ pub fn store_localized(
             genres: m.genres.clone(),
             characters: m.cast.iter().map(|c| c.character.clone()).collect(),
             reason: None,
+            // Only where this language's art differs from the core's, so a
+            // language that reuses the same poster stores nothing.
+            poster_url: differing(&m.poster_url, &core.poster_url),
+            backdrop_url: differing(&m.backdrop_url, &core.backdrop_url),
+            logo_url: differing(&m.logo_url, &core.logo_url),
         };
         if !data.is_empty() {
             translations::write(&conn, kind, id, lang, translations::TMDB, &data)?;
         }
     }
     Ok(())
+}
+
+/// Write only the per-language rows, leaving the core alone.
+///
+/// For a title that resolved long ago and is missing a language added since:
+/// its ids, dates, rating and cast are already right, and re-deriving the core
+/// from whichever language happened to be fetched would move the artwork every
+/// reader falls back to.
+pub fn fill_languages(
+    pool: &Pool,
+    kind: &str,
+    id: &str,
+    by_lang: &HashMap<String, Metadata>,
+) -> Result<()> {
+    let core = metadata_core::get_core(pool, kind, id)?;
+    let conn = pool.get()?;
+    for (lang, m) in by_lang {
+        let data = TransData {
+            title: m.title.clone(),
+            tagline: m.tagline.clone(),
+            overview: m.overview.clone(),
+            genres: m.genres.clone(),
+            characters: m.cast.iter().map(|c| c.character.clone()).collect(),
+            reason: None,
+            poster_url: differing_from(&m.poster_url, core.as_ref().map(|c| &c.poster_url)),
+            backdrop_url: differing_from(&m.backdrop_url, core.as_ref().map(|c| &c.backdrop_url)),
+            logo_url: differing_from(&m.logo_url, core.as_ref().map(|c| &c.logo_url)),
+        };
+        if !data.is_empty() {
+            translations::write(&conn, kind, id, lang, translations::TMDB, &data)?;
+        }
+    }
+    Ok(())
+}
+
+fn differing_from(lang: &Option<String>, core: Option<&Option<String>>) -> Option<String> {
+    lang.as_ref()
+        .filter(|v| core.and_then(|c| c.as_ref()) != Some(*v))
+        .cloned()
 }
 
 /// Wipes all resolved TMDB metadata so the next enrichment starts from
@@ -174,6 +221,49 @@ pub fn clear_subject_metadata(pool: &Pool, kind: &str, id: &str) -> Result<()> {
 mod tests {
     use super::*;
     use crate::ingest::test_support::*;
+
+    #[test]
+    fn a_language_added_later_is_filled_without_moving_the_core() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','Dune','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+        }
+        // Enriched when the server spoke English only.
+        let mut core = meta(603, "Dune");
+        core.poster_url = Some("/en.webp".to_string());
+        let mut first = HashMap::new();
+        first.insert("en".to_string(), core.clone());
+        store_localized(&p, metadata_core::ITEM, "m1", &core, &first).unwrap();
+
+        // French is added later; the id is already known, so only French is fetched.
+        let mut fr = meta(603, "Dune VF");
+        fr.poster_url = Some("/fr.webp".to_string());
+        let mut later = HashMap::new();
+        later.insert("fr".to_string(), fr);
+        fill_languages(&p, metadata_core::ITEM, "m1", &later).unwrap();
+
+        let stored = crate::translations::resolve_one(&p, metadata_core::ITEM, "m1", "fr")
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.title.as_deref(), Some("Dune VF"));
+        assert_eq!(stored.poster_url.as_deref(), Some("/fr.webp"));
+
+        // The core keeps the art every fallback reader still sees.
+        let after = metadata_core::get_core(&p, metadata_core::ITEM, "m1")
+            .unwrap()
+            .unwrap();
+        assert_eq!(after.poster_url.as_deref(), Some("/en.webp"));
+    }
 
     #[test]
     fn metadata_write_localized_and_reset() {

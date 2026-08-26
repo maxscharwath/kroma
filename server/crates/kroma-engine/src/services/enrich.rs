@@ -361,6 +361,44 @@ fn store_season_cast(
     }
 }
 
+/// Which of `langs` this subject has no stored row for.
+fn missing_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Vec<String> {
+    let have = db::translations::languages_for(pool, kind, id).unwrap_or_default();
+    langs
+        .iter()
+        .filter(|l| !have.iter().any(|h| h == *l))
+        .map(|l| (*l).to_string())
+        .collect()
+}
+
+fn subject_kind(is_show: bool) -> &'static str {
+    if is_show {
+        db::metadata_core::SHOW
+    } else {
+        db::metadata_core::ITEM
+    }
+}
+
+/// Fetch and store only the languages a resolved title is missing, by id.
+/// The core row is left alone: the title already has its ids, dates and cast,
+/// and only the per-language text and art are being filled in.
+fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
+    let want: Vec<&str> = missing.iter().map(String::as_str).collect();
+    let Some(resolved) =
+        metadata::lookup_all_by_id(&eng.cache, &eng.api_key, &want, job.target, tmdb_id)
+    else {
+        return;
+    };
+    let by_lang: std::collections::HashMap<String, Metadata> = resolved
+        .by_lang
+        .into_iter()
+        .map(|(lang, m)| (lang, image::localize_art(&eng.data_dir, m)))
+        .collect();
+    if let Err(e) = db::fill_languages(&eng.pool, subject_kind(job.is_show), &job.id, &by_lang) {
+        warn!(id = %job.id, error = %e, "failed to fill missing languages");
+    }
+}
+
 fn process_job(
     eng: &Engine,
     counters: &Counters,
@@ -381,6 +419,15 @@ fn process_job(
                 &job.id,
                 tmdb_id,
             );
+        }
+        // A title resolved once is not re-matched, but a language added since
+        // has nothing stored for it. The id is known, so this fills the gap by
+        // id: no search, no chance of landing on a different film, and one
+        // detail call per language actually missing rather than per language.
+        let kind = subject_kind(job.is_show);
+        let missing = missing_langs(&eng.pool, kind, &job.id, &langs);
+        if !missing.is_empty() {
+            fill_langs(eng, &job, tmdb_id, &missing);
         }
         counters.resolved.fetch_add(1, Ordering::Relaxed);
         bump(eng, counters, total, activity);
@@ -411,9 +458,23 @@ fn process_job(
         bump(eng, counters, total, activity);
         return;
     };
-    // Art is language-invariant: localized once on the primary, shared by every
-    // language row.
+    // Art is NOT language-invariant: a TMDB poster carries the title printed on
+    // it, so each language's own art is cached and stored beside its text.
+    // Cast portraits genuinely are invariant, and `cache` is keyed by remote
+    // URL, so the languages that share one share the file too.
     let meta = image::localize(&eng.data_dir, meta);
+    let by_lang: std::collections::HashMap<String, Metadata> = resolved
+        .by_lang
+        .into_iter()
+        .map(|(lang, m)| {
+            let m = if lang == primary_key {
+                meta.clone()
+            } else {
+                image::localize_art(&eng.data_dir, m)
+            };
+            (lang, m)
+        })
+        .collect();
     // Disabled leaves `theme_url` None, so a re-scan also clears any theme
     // cached while the feature was on.
     let meta = if eng.theme_songs {
@@ -429,15 +490,7 @@ fn process_job(
         db::set_item_metadata(&eng.pool, &job.id, &meta)
     };
     match write {
-        Ok(()) => on_write_ok(
-            eng,
-            counters,
-            &job,
-            &meta,
-            &vector,
-            &resolved.by_lang,
-            &langs,
-        ),
+        Ok(()) => on_write_ok(eng, counters, &job, &meta, &vector, &by_lang, &langs),
         Err(e) => {
             counters.failed.fetch_add(1, Ordering::Relaxed);
             warn!(id = %job.id, error = %e, "failed to store metadata");

@@ -27,10 +27,16 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
     // done under its old `title:year` and a correction never gets revisited.
     let item_pins = crate::db::tmdb_pin::all_for_kind(&state.db, ITEM)?;
     let show_pins = crate::db::tmdb_pin::all_for_kind(&state.db, SHOW)?;
+    // The languages are part of the signature: adding one has to re-enrich the
+    // catalog, or a new language reaches only titles scanned after it.
+    let langs = crate::i18n::SUPPORTED_LOCALES.join(",");
     for i in crate::db::list_items(&state.db, None)? {
         if matches!(i.kind, Kind::Movie | Kind::Video) {
             let pin = item_pins.get(&i.id).copied().unwrap_or(0);
-            out.push((i.id, format!("{}:{}:{pin}", i.title, i.year.unwrap_or(0))));
+            out.push((
+                i.id,
+                format!("{}:{}:{pin}:{langs}", i.title, i.year.unwrap_or(0)),
+            ));
         }
     }
     for s in crate::db::list_shows(&state.db, None)? {
@@ -38,7 +44,7 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
         out.push((
             s.id,
             format!(
-                "{}:{}:{}:{pin}",
+                "{}:{}:{}:{pin}:{langs}",
                 s.title,
                 s.year.unwrap_or(0),
                 s.episode_count

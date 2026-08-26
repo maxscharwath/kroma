@@ -51,9 +51,11 @@ pub fn lookup(
 }
 
 /// The same title resolved in several languages, one [`Metadata`] per language
-/// that fetched. Invariant fields (ids, art, people) are identical across
-/// entries; only the localized text differs. Keyed by base language code
-/// (e.g. `"en"`).
+/// that fetched. Ids and people are identical across entries. Art is NOT: a
+/// TMDB poster carries the title printed on it, so `poster_url`, `backdrop_url`
+/// and `logo_url` are the ones TMDB holds for that language, and a language
+/// with none of its own repeats whatever the request fell back to. Keyed by
+/// base language code (e.g. `"en"`).
 pub struct Resolved {
     pub by_lang: std::collections::HashMap<String, Metadata>,
 }

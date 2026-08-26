@@ -51,6 +51,29 @@ pub fn localize(data_dir: &Path, mut meta: Metadata) -> Metadata {
     meta
 }
 
+/// [`localize`] for one language's artwork only. Cast portraits are the same
+/// person whatever the language, and the primary pass has already cached them;
+/// caching them again per language would be the same bytes under the same key.
+pub fn localize_art(data_dir: &Path, mut meta: Metadata) -> Metadata {
+    if let Some(url) = meta.poster_url.as_deref() {
+        if let Some(local) = cache(data_dir, url) {
+            meta.poster_url = Some(local);
+        }
+    }
+    if let Some(url) = meta.backdrop_url.as_deref() {
+        if let Some(local) = cache(data_dir, url) {
+            meta.backdrop_url = Some(local);
+        }
+    }
+    // Logo kept as PNG, not transcoded: transparency must survive.
+    if let Some(url) = meta.logo_url.as_deref() {
+        if let Some(local) = cache_verbatim(data_dir, url, "png") {
+            meta.logo_url = Some(local);
+        }
+    }
+    meta
+}
+
 fn cache_verbatim(data_dir: &Path, remote_url: &str, ext: &str) -> Option<String> {
     if !remote_url.starts_with("http") {
         return Some(remote_url.to_string());

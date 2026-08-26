@@ -35,6 +35,20 @@ pub struct TransData {
     pub characters: Vec<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    // Art is not language-invariant: a TMDB poster has the title printed on it,
+    // so a French reader wants the French one. Absent where TMDB has no artwork
+    // for the language, which is per FIELD, not per row: a language routinely
+    // has its own poster and no backdrop of its own.
+    #[serde(rename = "posterUrl", default, skip_serializing_if = "Option::is_none")]
+    pub poster_url: Option<String>,
+    #[serde(
+        rename = "backdropUrl",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub backdrop_url: Option<String>,
+    #[serde(rename = "logoUrl", default, skip_serializing_if = "Option::is_none")]
+    pub logo_url: Option<String>,
 }
 
 impl TransData {
@@ -45,7 +59,34 @@ impl TransData {
             && self.genres.is_empty()
             && self.characters.is_empty()
             && self.reason.is_none()
+            && self.poster_url.is_none()
+            && self.backdrop_url.is_none()
+            && self.logo_url.is_none()
     }
+
+    /// This row's art, else the fallback's, field by field: a language often has
+    /// its own poster and no backdrop of its own, and taking the whole row from
+    /// one language would throw the poster away.
+    pub fn art_over(&self, fallback: Option<&TransData>) -> Art {
+        let from = |pick: fn(&TransData) -> &Option<String>| {
+            pick(self)
+                .clone()
+                .or_else(|| fallback.and_then(|f| pick(f).clone()))
+        };
+        Art {
+            poster_url: from(|t| &t.poster_url),
+            backdrop_url: from(|t| &t.backdrop_url),
+            logo_url: from(|t| &t.logo_url),
+        }
+    }
+}
+
+/// One subject's artwork in one language, each field resolved on its own.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Art {
+    pub poster_url: Option<String>,
+    pub backdrop_url: Option<String>,
+    pub logo_url: Option<String>,
 }
 
 /// Upsert one `(subject, lang)` translation.
@@ -151,8 +192,17 @@ pub fn delete_all(conn: &Connection, kind: &str, id: &str) -> Result<()> {
 /// The reader's language, else English. A subject that has neither keeps the
 /// primary-language blob it was already being served, which is a better answer
 /// than handing a French reader whichever third language happened to be stored.
+///
+/// Text comes from one row; art is merged field by field, because a language
+/// routinely has its own poster and no backdrop of its own.
 fn pick(mut by_lang: HashMap<String, TransData>, lang: &str) -> Option<TransData> {
-    by_lang.remove(lang).or_else(|| by_lang.remove(FALLBACK))
+    let fallback = by_lang.remove(FALLBACK);
+    let mut chosen = by_lang.remove(lang).or_else(|| fallback.clone())?;
+    let art = chosen.art_over(fallback.as_ref());
+    chosen.poster_url = art.poster_url;
+    chosen.backdrop_url = art.backdrop_url;
+    chosen.logo_url = art.logo_url;
+    Some(chosen)
 }
 
 /// Every language a subject has. Only the callers that genuinely want them all
@@ -308,6 +358,44 @@ mod tests {
         let mut langs = languages_for(&p, "item", "m1").unwrap();
         langs.sort();
         assert_eq!(langs, vec!["en".to_string(), "fr".to_string()]);
+    }
+
+    #[test]
+    fn an_english_reader_gets_the_english_poster() {
+        let p = pool();
+        let art = |lang: &str, poster: Option<&str>, backdrop: Option<&str>| TransData {
+            title: Some(lang.to_string()),
+            poster_url: poster.map(str::to_string),
+            backdrop_url: backdrop.map(str::to_string),
+            ..TransData::default()
+        };
+        put(
+            &p,
+            "item",
+            "m1",
+            "fr",
+            TMDB,
+            &art("fr", Some("/fr.webp"), None),
+        )
+        .unwrap();
+        put(
+            &p,
+            "item",
+            "m1",
+            "en",
+            TMDB,
+            &art("en", Some("/en.webp"), Some("/en-back.webp")),
+        )
+        .unwrap();
+
+        let en = resolve_one(&p, "item", "m1", "en").unwrap().unwrap();
+        assert_eq!(en.poster_url.as_deref(), Some("/en.webp"));
+
+        let fr = resolve_one(&p, "item", "m1", "fr").unwrap().unwrap();
+        assert_eq!(fr.poster_url.as_deref(), Some("/fr.webp"));
+        // French has no backdrop of its own, so it takes English's rather than
+        // losing the French poster along with it.
+        assert_eq!(fr.backdrop_url.as_deref(), Some("/en-back.webp"));
     }
 
     #[test]

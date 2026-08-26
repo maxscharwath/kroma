@@ -15,8 +15,76 @@ use super::taste::Cluster;
 
 // How many sections we ask the model for (and cap to).
 const MAX_SECTIONS: usize = 6;
-// Cap on a single section title, defended on parse (catchy, not an essay).
-const MAX_TITLE: usize = 48;
+// TMDB's English genre vocabulary, closed on purpose: the model picks from it
+// and the same strings are matched against the English catalogue, so a row can
+// be held to what it promised without a synonym table in between.
+const TMDB_GENRES: &[&str] = &[
+    "Action",
+    "Adventure",
+    "Animation",
+    "Comedy",
+    "Crime",
+    "Documentary",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "History",
+    "Horror",
+    "Music",
+    "Mystery",
+    "Romance",
+    "Science Fiction",
+    "Thriller",
+    "War",
+    "Western",
+];
+
+/// TMDB's name for `raw`, or `None` when it names no genre TMDB has.
+///
+/// Matched loosely on purpose: a model writes "sci-fi", "Sci Fi" and "comedy"
+/// for genres the catalogue spells "Science Fiction" and "Comedy", and a
+/// silently dropped name leaves a row with nothing to be held to.
+fn canonical_genre(raw: &str) -> Option<String> {
+    let key: String = raw
+        .trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+    if key.is_empty() {
+        return None;
+    }
+    let alias = match key.as_str() {
+        "scifi" | "sciencefiction" | "sf" => "Science Fiction",
+        "kids" | "children" => "Family",
+        "docu" | "documentaries" => "Documentary",
+        "animated" | "anime" => "Animation",
+        "thrillers" | "suspense" => "Thriller",
+        "horrors" | "scary" => "Horror",
+        "comedies" | "funny" => "Comedy",
+        "dramas" => "Drama",
+        "adventures" => "Adventure",
+        _ => "",
+    };
+    if !alias.is_empty() {
+        return Some(alias.to_string());
+    }
+    TMDB_GENRES
+        .iter()
+        .find(|g| {
+            g.to_lowercase()
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>()
+                == key
+        })
+        .map(|g| (*g).to_string())
+}
+
+// Cap on a single section title, defended on parse (catchy, not an essay). A
+// real home-screen row runs longer than it looks: "Films parfaits pour un
+// moment de grand divertissement" is 52 characters, and 48 cut it mid-word.
+const MAX_TITLE: usize = 64;
 
 /// A row's name, written by the model in every language the server serves.
 ///
@@ -76,6 +144,15 @@ pub struct GenSection {
     pub query: String,
     #[serde(default)]
     pub reason: Localized,
+    /// TMDB's English genre names for what the row promises. The nearest-vector
+    /// search alone put Gladiator II under a horror heading; this is what keeps
+    /// a row's contents to what its name said they would be.
+    #[serde(default)]
+    pub genres: Vec<String>,
+    /// `movies`, `shows`, or anything else for both. A row headed "Series" that
+    /// opens on films is as wrong as one headed horror that opens on a comedy.
+    #[serde(default)]
+    pub form: String,
 }
 
 /// Load a user's cached personalized sections (empty if none / malformed).
@@ -104,6 +181,7 @@ pub fn build_prompt(
         .map(|l| format!("\"{l}\" ({})", language_name(l)))
         .collect::<Vec<_>>()
         .join(", ");
+    let genres = TMDB_GENRES.join(", ");
     let shape = crate::i18n::SUPPORTED_LOCALES
         .iter()
         .map(|l| format!("\"{l}\": string"))
@@ -114,12 +192,25 @@ pub fn build_prompt(
          taste groups you write a short taste profile and name a few personalized rows for \
          their home screen.\n\
          Reply with STRICT JSON only no prose, no markdown, no code fences shaped exactly:\n\
-         {{\"profile\": string, \"sections\": [{{\"title\": {{{shape}}}, \"query\": string, \"reason\": {{{shape}}}}}]}}\n\
+         {{\"profile\": string, \"sections\": [{{\"title\": {{{shape}}}, \"query\": string, \"genres\": [string], \"form\": string, \"reason\": {{{shape}}}}}]}}\n\
          Rules:\n\
          - Write \"profile\" (2-3 sentences) in {lang}.\n\
-         - Every \"title\" and \"reason\" is an object carrying that text in EVERY one of \
-         these languages: {langs}. Write each one idiomatically, not word for word.\n\
-         - \"title\": a catchy row name under 6 words. \"reason\": one short clause ('because you …').\n\
+         - \"title\" and \"reason\" are objects carrying that text in EVERY one of \
+         these languages: {langs}.\n\
+         - A \"title\" is a home-screen row name: a PLURAL noun for what is on the \
+         shelf, qualified by an adjective or by a short phrase naming the mood or the \
+         occasion. Two to eight words, playful, idiomatic.\n\
+         - NEVER name a row by listing the group's genres: \"Drama and Adventure\" is \
+         a genre list, not a row name. The genres tell you what the group IS, never \
+         what to call it. No two genres joined by \"and\" or \"et\", no naming of the \
+         audience (Fans, Lovers, Enthusiasts), never singular.\n\
+         - Those are patterns, not a menu: every title you return must be your own \
+         wording, invented for THESE groups. Reusing an example verbatim is a failure.\n\
+         - \"form\": \"movies\" if the row is films, \"shows\" if it is series, \
+         \"both\" if it is either. The row is filtered to it, so name the form \
+         the title claims: a title saying Series with a form of movies is a lie the \
+         reader sees.\n\
+         - \"reason\": one short clause ('because you …').\n\
          - \"query\": an ENGLISH phrase (5-12 words) describing the vibe/genre/mood, used to \
          search the library by meaning. Do NOT put specific movie titles in \"query\".\n\
          - Give between 3 and {MAX_SECTIONS} distinct sections covering the groups below."
@@ -159,6 +250,10 @@ struct LlmSection {
     query: String,
     #[serde(default)]
     reason: Localized,
+    #[serde(default)]
+    genres: Vec<String>,
+    #[serde(default)]
+    form: String,
 }
 
 /// Parse a model reply into `(profile, sections)`. Tolerant of code fences and
@@ -196,6 +291,8 @@ pub fn parse_response(text: &str) -> anyhow::Result<(String, Vec<GenSection>)> {
             title,
             query: query.to_string(),
             reason: s.reason.trimmed_and_capped(),
+            genres: s.genres.iter().filter_map(|g| canonical_genre(g)).collect(),
+            form: s.form.trim().to_lowercase(),
         });
         if sections.len() >= MAX_SECTIONS {
             break;
@@ -302,6 +399,23 @@ mod tests {
                 "the shape does not ask for {lang}: {system}"
             );
         }
+    }
+
+    #[test]
+    fn a_genre_the_model_spelled_its_own_way_still_counts() {
+        // Dropped silently, these leave the row with nothing to be held to, and
+        // an unguarded row is what put Don't Breathe under Comedies.
+        assert_eq!(
+            canonical_genre("sci-fi").as_deref(),
+            Some("Science Fiction")
+        );
+        assert_eq!(canonical_genre("Comedies").as_deref(), Some("Comedy"));
+        assert_eq!(canonical_genre(" horror ").as_deref(), Some("Horror"));
+        assert_eq!(
+            canonical_genre("Science Fiction").as_deref(),
+            Some("Science Fiction")
+        );
+        assert_eq!(canonical_genre("nonsense"), None);
     }
 
     #[test]

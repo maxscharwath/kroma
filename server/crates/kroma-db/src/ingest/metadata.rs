@@ -66,6 +66,7 @@ pub fn store_localized(
             // language that reuses the same poster stores nothing.
             poster_url: differing(&m.poster_url, &core.poster_url),
             logo_url: differing(&m.logo_url, &core.logo_url),
+            rev: translations::REV,
         };
         if !data.is_empty() {
             translations::write(&conn, kind, id, lang, translations::TMDB, &data)?;
@@ -98,6 +99,7 @@ pub fn fill_languages(
             reason: None,
             poster_url: differing_from(&m.poster_url, core.as_ref().map(|c| &c.poster_url)),
             logo_url: differing_from(&m.logo_url, core.as_ref().map(|c| &c.logo_url)),
+            rev: translations::REV,
         };
         if !data.is_empty() {
             translations::write(&conn, kind, id, lang, translations::TMDB, &data)?;

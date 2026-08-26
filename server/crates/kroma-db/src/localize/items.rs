@@ -33,6 +33,13 @@ pub fn overlay_items(pool: &Pool, items: &mut [MediaItem], locale: &str) -> Resu
         };
         if let Some(tr) = table.get(&item.id) {
             apply(item.metadata.as_mut(), tr);
+            // The item's own `title` is the one the scan derived from the file,
+            // so it never changed language and every card and hero renders it.
+            // The metadata title is the localized one; prefer it when there is
+            // one, and keep the scan title when there is not.
+            if let Some(t) = &tr.title {
+                item.title = t.clone();
+            }
         }
     }
     Ok(())
@@ -82,6 +89,28 @@ mod tests {
     use super::*;
     use crate::localize::test_support::*;
     use crate::translations::TransData;
+
+    #[test]
+    fn the_items_own_title_is_localized_not_only_its_metadata() {
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &td("Minions: The Rise of Gru", vec![]),
+        )
+        .unwrap();
+
+        let mut items = vec![item("m1", Kind::Movie)];
+        overlay_items(&p, &mut items, "en").unwrap();
+
+        // Every card and hero renders `title`, not `metadata.title`, so leaving
+        // it as the scan's would show the filename's language whatever the
+        // reader asked for.
+        assert_eq!(items[0].title, "Minions: The Rise of Gru");
+    }
 
     #[test]
     fn overlay_items_applies_title_and_characters() {

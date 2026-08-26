@@ -9,6 +9,14 @@ use std::collections::HashMap;
 /// The language every other falls back to; the default catalog is the complete one.
 const FALLBACK: &str = "en";
 
+/// What a row is expected to carry. Bumped when the payload grows a field that
+/// existing rows cannot have, so a catalog written before the change is refilled
+/// instead of being mistaken for complete: a row is not "the language we have",
+/// it is "the language we have, in this shape".
+///
+/// 1: the poster and logo joined the payload.
+pub const REV: u32 = 1;
+
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -44,6 +52,14 @@ pub struct TransData {
     pub poster_url: Option<String>,
     #[serde(rename = "logoUrl", default, skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
+    /// The [`REV`] this row was written at; absent on everything written before
+    /// revisions existed, which reads as 0 and so as stale.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub rev: u32,
+}
+
+fn is_zero(v: &u32) -> bool {
+    *v == 0
 }
 
 impl TransData {
@@ -130,6 +146,35 @@ pub fn all_for_kind(pool: &Pool, kind: &str) -> Result<HashMap<String, Vec<Trans
         }
     }
     Ok(out)
+}
+
+/// Which of `langs` this subject cannot serve from a current row: absent
+/// entirely, or written before [`REV`] and so missing whatever that revision
+/// added. What tells an enrichment pass there is still work to do.
+pub fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Result<Vec<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT lang, data FROM translations \
+         WHERE subject_kind=?1 AND subject_id=?2 AND source=?3",
+    )?;
+    let rows = stmt.query_map(params![kind, id, TMDB], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    })?;
+    let mut current: Vec<String> = Vec::new();
+    for row in rows {
+        let (lang, json) = row?;
+        let rev = serde_json::from_str::<TransData>(&json)
+            .map(|d| d.rev)
+            .unwrap_or(0);
+        if rev >= REV {
+            current.push(lang);
+        }
+    }
+    Ok(langs
+        .iter()
+        .filter(|l| !current.iter().any(|c| c == *l))
+        .map(|l| (*l).to_string())
+        .collect())
 }
 
 pub fn languages_for(pool: &Pool, kind: &str, id: &str) -> Result<Vec<String>> {
@@ -363,6 +408,50 @@ mod tests {
         // Borrowing English's poster here would hand a French reader the
         // English art, which is the whole thing this is meant to stop.
         assert_eq!(fr.poster_url, None);
+    }
+
+    #[test]
+    fn a_row_written_before_the_payload_grew_counts_as_stale() {
+        let p = pool();
+        // What an existing install holds: both languages, written before art
+        // was part of the payload, so no `rev`.
+        for lang in ["fr", "en"] {
+            put(
+                &p,
+                "item",
+                "m1",
+                lang,
+                TMDB,
+                &TransData {
+                    title: Some(lang.into()),
+                    ..TransData::default()
+                },
+            )
+            .unwrap();
+        }
+
+        // Having the language is not enough; it has to be the shape we serve.
+        let stale = stale_langs(&p, "item", "m1", &["fr", "en"]).unwrap();
+        assert_eq!(stale.len(), 2);
+
+        put(
+            &p,
+            "item",
+            "m1",
+            "en",
+            TMDB,
+            &TransData {
+                title: Some("EN".into()),
+                rev: REV,
+                ..TransData::default()
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            stale_langs(&p, "item", "m1", &["fr", "en"]).unwrap(),
+            ["fr"]
+        );
     }
 
     #[test]

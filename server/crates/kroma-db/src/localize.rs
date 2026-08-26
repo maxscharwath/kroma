@@ -72,8 +72,12 @@ fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
 }
 
 // A show's metadata overlay (same fields; shows carry no per-title cast here).
+// The show's own `title` is the scan's, so it takes the localized one too.
 fn apply_show(show: &mut Show, tr: &TransData) {
     apply(show.metadata.as_mut(), tr);
+    if let Some(t) = &tr.title {
+        show.title = t.clone();
+    }
 }
 
 // Overlay localized character names onto a cast list, aligned by index (the

@@ -361,14 +361,10 @@ fn store_season_cast(
     }
 }
 
-/// Which of `langs` this subject has no stored row for.
-fn missing_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Vec<String> {
-    let have = db::translations::languages_for(pool, kind, id).unwrap_or_default();
-    langs
-        .iter()
-        .filter(|l| !have.iter().any(|h| h == *l))
-        .map(|l| (*l).to_string())
-        .collect()
+/// Which of `langs` this subject cannot serve from a current row: absent, or
+/// written before the payload grew the field it is now missing.
+fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Vec<String> {
+    db::translations::stale_langs(pool, kind, id, langs).unwrap_or_default()
 }
 
 fn subject_kind(is_show: bool) -> &'static str {
@@ -421,13 +417,14 @@ fn process_job(
             );
         }
         // A title resolved once is not re-matched, but a language added since
-        // has nothing stored for it. The id is known, so this fills the gap by
-        // id: no search, no chance of landing on a different film, and one
-        // detail call per language actually missing rather than per language.
+        // has nothing stored for it, and one stored before the payload grew a
+        // field is missing that field. The id is known, so this fills by id: no
+        // search, no chance of landing on a different film, and one detail call
+        // per language that actually needs one.
         let kind = subject_kind(job.is_show);
-        let missing = missing_langs(&eng.pool, kind, &job.id, &langs);
-        if !missing.is_empty() {
-            fill_langs(eng, &job, tmdb_id, &missing);
+        let stale = stale_langs(&eng.pool, kind, &job.id, &langs);
+        if !stale.is_empty() {
+            fill_langs(eng, &job, tmdb_id, &stale);
         }
         counters.resolved.fetch_add(1, Ordering::Relaxed);
         bump(eng, counters, total, activity);

@@ -13,12 +13,29 @@ const BYTE_UNITS: Record<Locale, readonly string[]> = {
   en: ['B', 'KB', 'MB', 'GB', 'TB', 'PB'],
 };
 
-const DATES = new Map<Locale, Intl.DateTimeFormat>();
+const DATES = new Map<Locale, Intl.DateTimeFormat | null>();
 
-function dateFormat(locale: Locale): Intl.DateTimeFormat {
+// `dateStyle` is Chromium 76, and the legacy television tier runs engines older
+// than that; Hermes without full ICU refuses it too. Both throw at construction
+// rather than ignoring it, so the shape is tried once per locale and a plain
+// numeric bag stands in.
+function dateFormat(locale: Locale): Intl.DateTimeFormat | null {
   const cached = DATES.get(locale);
-  if (cached) return cached;
-  const made = new Intl.DateTimeFormat(locale, { dateStyle: 'short' });
+  if (cached !== undefined) return cached;
+  let made: Intl.DateTimeFormat | null = null;
+  try {
+    made = new Intl.DateTimeFormat(locale, { dateStyle: 'short' });
+  } catch {
+    try {
+      made = new Intl.DateTimeFormat(locale, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    } catch {
+      made = null;
+    }
+  }
   DATES.set(locale, made);
   return made;
 }
@@ -115,5 +132,5 @@ export function formatElapsed(
   const days = Math.floor(hours / 24);
   if (days === 1) return t('format.yesterday');
   if (days < 30) return t('format.daysAgo', { count: days });
-  return dateFormat(locale).format(then);
+  return dateFormat(locale)?.format(then) ?? new Date(then).toISOString().slice(0, 10);
 }

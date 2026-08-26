@@ -1,9 +1,13 @@
 //! One table for every localized string, keyed `(subject_kind, subject_id, lang)`
 //! with `subject_kind` in `'item'|'show'|'episode'|'season_cast'|'curated'|'suggestion'`.
-//! Reads fall back requested lang -> `en` -> any available.
+//! Reads fall back requested lang -> `en`, and read only those two, so a
+//! catalog page costs the same whether the server stores two languages or ten.
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+
+/// The language every other falls back to; the default catalog is the complete one.
+const FALLBACK: &str = "en";
 
 use serde::{Deserialize, Serialize};
 
@@ -81,7 +85,7 @@ pub(crate) fn write(
 /// `None` only when the subject has no translations at all.
 pub fn resolve_one(pool: &Pool, kind: &str, id: &str, lang: &str) -> Result<Option<TransData>> {
     let conn = pool.get()?;
-    let mut raw = load(&conn, kind, &[id])?;
+    let mut raw = load_for(&conn, kind, &[id], lang)?;
     Ok(raw.remove(id).and_then(|by_lang| pick(by_lang, lang)))
 }
 
@@ -92,7 +96,7 @@ pub fn resolve_many(
     ids: &[&str],
     lang: &str,
 ) -> Result<HashMap<String, TransData>> {
-    let raw = load(conn, kind, ids)?;
+    let raw = load_for(conn, kind, ids, lang)?;
     Ok(raw
         .into_iter()
         .filter_map(|(id, by_lang)| pick(by_lang, lang).map(|d| (id, d)))
@@ -144,27 +148,56 @@ pub fn delete_all(conn: &Connection, kind: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// The reader's language, else English. A subject that has neither keeps the
+/// primary-language blob it was already being served, which is a better answer
+/// than handing a French reader whichever third language happened to be stored.
 fn pick(mut by_lang: HashMap<String, TransData>, lang: &str) -> Option<TransData> {
-    by_lang
-        .remove(lang)
-        .or_else(|| by_lang.remove("en"))
-        .or_else(|| by_lang.into_values().next())
+    by_lang.remove(lang).or_else(|| by_lang.remove(FALLBACK))
 }
 
+/// Every language a subject has. Only the callers that genuinely want them all
+/// (the search index, curated rows) should reach for this: it is linear in the
+/// number of languages the server stores.
 fn load(
     conn: &Connection,
     kind: &str,
     ids: &[&str],
 ) -> Result<HashMap<String, HashMap<String, TransData>>> {
+    load_langs(conn, kind, ids, &[])
+}
+
+/// The two languages a reader can actually be served, which is what makes a
+/// catalog page cost the same whether the server stores two languages or ten.
+/// Hits `idx_translations_lang`; the unfiltered form scans every row for the id.
+fn load_for(
+    conn: &Connection,
+    kind: &str,
+    ids: &[&str],
+    lang: &str,
+) -> Result<HashMap<String, HashMap<String, TransData>>> {
+    load_langs(conn, kind, ids, &[lang, FALLBACK])
+}
+
+fn load_langs(
+    conn: &Connection,
+    kind: &str,
+    ids: &[&str],
+    langs: &[&str],
+) -> Result<HashMap<String, HashMap<String, TransData>>> {
     let mut out: HashMap<String, HashMap<String, TransData>> = HashMap::new();
+    let filter = match langs.len() {
+        0 => String::new(),
+        n => format!(" AND lang IN ({})", vec!["?"; n].join(",")),
+    };
     let rows = super::query_by_subject_ids(
         conn,
         kind,
         ids,
+        langs,
         |ph| {
             format!(
                 "SELECT subject_id,lang,data FROM translations \
-                 WHERE subject_kind=? AND subject_id IN ({ph})"
+                 WHERE subject_kind=? AND subject_id IN ({ph}){filter}"
             )
         },
         |r| {
@@ -249,15 +282,10 @@ mod tests {
             Some("Severance")
         );
 
+        // A language the reader did not ask for and cannot read is not an
+        // answer: the caller keeps the primary-language blob instead.
         put(&p, "show", "s2", "ja", TMDB, &td("only ja")).unwrap();
-        assert_eq!(
-            resolve_one(&p, "show", "s2", "de")
-                .unwrap()
-                .unwrap()
-                .title
-                .as_deref(),
-            Some("only ja")
-        );
+        assert!(resolve_one(&p, "show", "s2", "de").unwrap().is_none());
 
         assert!(resolve_one(&p, "show", "missing", "fr").unwrap().is_none());
     }
@@ -283,6 +311,24 @@ mod tests {
     }
 
     #[test]
+    fn a_reader_costs_two_rows_however_many_languages_the_server_stores() {
+        let p = pool();
+        for lang in ["en", "fr", "de", "ja", "pt", "es", "it", "nl"] {
+            put(&p, "show", "s1", lang, TMDB, &td(lang)).unwrap();
+        }
+
+        let conn = p.get().unwrap();
+        let served = load_for(&conn, "show", &["s1"], "fr").unwrap();
+
+        // The query reads what it can serve, not what exists: the reader's
+        // language and the fallback. Adding a ninth language adds no work here.
+        let langs = &served["s1"];
+        assert_eq!(langs.len(), 2);
+        assert!(langs.contains_key("fr"));
+        assert!(langs.contains_key("en"));
+    }
+
+    #[test]
     fn resolve_many_all_for_kind_and_load_all() {
         let p = pool();
         put(&p, "show", "s1", "en", TMDB, &td("A en")).unwrap();
@@ -293,9 +339,10 @@ mod tests {
 
         let conn = p.get().unwrap();
         let many = resolve_many(&conn, "show", &["s1", "s2", "ghost"], "fr").unwrap();
-        assert_eq!(many.len(), 2);
+        assert_eq!(many.len(), 1);
         assert_eq!(many["s1"].title.as_deref(), Some("A fr"));
-        assert_eq!(many["s2"].title.as_deref(), Some("B ja"));
+        // s2 is Japanese only, so it is not in a French reader's answer at all.
+        assert!(!many.contains_key("s2"));
         drop(conn);
 
         let all = all_for_kind(&p, "show").unwrap();

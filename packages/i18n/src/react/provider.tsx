@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import type { I18n } from '../i18n';
 import type { Locale } from '../registry';
 import type { Catalog } from '../types';
@@ -20,9 +20,13 @@ export function I18nProvider({
   onLocaleChange,
   children,
 }: Readonly<I18nProviderProps>) {
+  // One subscription for the whole tree. `useT` is called from hundreds of
+  // components, and a store watch in each of them would mean a set insert per
+  // mount for something that changes only when a module registers a catalog.
+  const version = useSyncExternalStore(i18n.subscribe, i18n.version, i18n.version);
   const value = useMemo<I18nValue>(
-    () => ({ i18n, locale, setLocale: (next) => onLocaleChange?.(next) }),
-    [i18n, locale, onLocaleChange],
+    () => ({ i18n, locale, version, setLocale: (next) => onLocaleChange?.(next) }),
+    [i18n, locale, version, onLocaleChange],
   );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

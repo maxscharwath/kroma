@@ -1,4 +1,4 @@
-import { type PlaybackSession, resolveImageUrl } from '@kroma/core';
+import { type PlaybackSession, posterGradient, resolveImageUrl } from '@kroma/core';
 import { TABULAR } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
 import {
@@ -23,7 +23,6 @@ import { apiBase, kromaClient } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { useStoryboard } from '#web/shared/lib/use-storyboard';
 import { Image } from '#web/shared/ui';
-import { posterGradient } from '#web/shared/ui/poster-gradient';
 
 const THUMB_W = 132;
 

@@ -1,6 +1,5 @@
-import { createI18n, type I18n, type I18nConfig, type Messages } from './i18n';
-import { createLocales } from './locales';
-import type { LocaleSet } from './types';
+import { createI18n, type I18nConfig } from './i18n';
+import { createLocales, labelKey } from './locales';
 
 export interface DefineI18nConfig<
   C extends Record<string, Record<string, string>>,
@@ -21,10 +20,10 @@ export interface DefineI18nConfig<
 function endonyms<C extends Record<string, Record<string, string>>>(
   catalogs: C,
   given: Partial<Record<string, string>> | undefined,
-): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const code of Object.keys(catalogs)) {
-    out[code] = given?.[code] ?? catalogs[code]?.[`lang.${code}`] ?? code;
+): Record<keyof C & string, string> {
+  const out = {} as Record<keyof C & string, string>;
+  for (const code of Object.keys(catalogs) as Array<keyof C & string>) {
+    out[code] = given?.[code] ?? catalogs[code]?.[labelKey(code)] ?? code;
   }
   return out;
 }
@@ -58,19 +57,7 @@ function endonyms<C extends Record<string, Record<string, string>>>(
 export function defineI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
->(
-  config: DefineI18nConfig<C, D>,
-): LocaleSet<keyof C & string, D> & {
-  i18n: I18n<keyof C & string, Messages<C[D]>>;
-  /** Render one message in a given locale. */
-  translate: I18n<keyof C & string, Messages<C[D]>>['translate'];
-  /** A translator bound to one locale, optionally scoped to catalogs added at
-   *  runtime. */
-  translator: I18n<keyof C & string, Messages<C[D]>>['translator'];
-  /** Register catalogs that arrive at runtime, as a module being loaded would.
-   *  Returns a disposer. */
-  addCatalogs: I18n<keyof C & string, Messages<C[D]>>['add'];
-} {
+>(config: DefineI18nConfig<C, D>) {
   const { locales, catalogs, defaultLocale, ...rest } = config;
   const set = createLocales(endonyms(catalogs, locales), defaultLocale);
   const i18n = createI18n({ ...rest, catalogs, defaultLocale });
@@ -80,5 +67,5 @@ export function defineI18n<
     translate: i18n.translate,
     translator: i18n.translator,
     addCatalogs: i18n.add,
-  } as never;
+  };
 }

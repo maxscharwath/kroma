@@ -17,7 +17,7 @@ import {
   formatTimecodeMs,
   formatUptime,
 } from '@kroma/core';
-import { useMemo } from 'react';
+import type { Locale, Translate } from '@kroma/i18n';
 import { useLocaleDefault, useTDefault } from './i18n';
 
 export interface Format {
@@ -39,21 +39,29 @@ export interface Format {
   timecode: (ms: number) => string;
 }
 
+// One set per locale for the whole app, not one per mounted component: these
+// are called from table cells and download rows, where fifty of them would mean
+// fifty identical objects and four hundred identical closures.
+const BOUND = new Map<Locale, Format>();
+
+function formatFor(locale: Locale, t: Translate): Format {
+  const cached = BOUND.get(locale);
+  if (cached) return cached;
+  const bound: Format = {
+    bytes: (bytes) => formatBytes(bytes, locale),
+    decimal: (n, digits) => decimal(n, locale, digits),
+    elapsed: (iso) => formatElapsed(t, locale, iso),
+    uptime: (seconds) => formatUptime(t, seconds),
+    duration: (ms) => formatDuration(t, ms),
+    hours: (ms) => formatHours(ms, locale),
+    mbps: (n) => formatMbps(n, locale),
+    timecode: formatTimecodeMs,
+  };
+  BOUND.set(locale, bound);
+  return bound;
+}
+
 /** Every value formatter, bound to the locale on screen. */
 export function useFormat(): Format {
-  const locale = useLocaleDefault();
-  const t = useTDefault();
-  return useMemo(
-    () => ({
-      bytes: (bytes) => formatBytes(bytes, locale),
-      decimal: (n, digits) => decimal(n, locale, digits),
-      elapsed: (iso) => formatElapsed(t, locale, iso),
-      uptime: (seconds) => formatUptime(t, seconds),
-      duration: (ms) => formatDuration(t, ms),
-      hours: (ms) => formatHours(ms, locale),
-      mbps: (n) => formatMbps(n, locale),
-      timecode: formatTimecodeMs,
-    }),
-    [locale, t],
-  );
+  return formatFor(useLocaleDefault(), useTDefault());
 }

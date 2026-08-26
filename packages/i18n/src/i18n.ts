@@ -1,9 +1,10 @@
 import { translateChain } from './chain';
-import { CatalogStore } from './store';
+import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
-/** A catalog's messages: everything but the `$schema` pointer. */
-export type Messages<C> = Omit<C, '$schema'>;
+/** A catalog's messages: everything but the `$schema` pointer. Distinct from
+ *  `Messages` in ./registry, which is the augmented map for the whole app. */
+export type CatalogMessages<C> = Omit<C, typeof SCHEMA_KEY>;
 
 /** A translator bound to one scope: the scope's own keys are not knowable from
  *  here, so any string is accepted while the base keys still autocomplete. */
@@ -57,9 +58,9 @@ export type InferRegister<I> =
 export function createI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
->(config: I18nConfig<C> & { defaultLocale: D }): I18n<keyof C & string, Messages<C[D]>> {
+>(config: I18nConfig<C> & { defaultLocale: D }): I18n<keyof C & string, CatalogMessages<C[D]>> {
   type L = keyof C & string;
-  type K = keyof Messages<C[D]> & string;
+  type K = keyof CatalogMessages<C[D]> & string;
 
   const { catalogs, defaultLocale, plural } = config;
   const store = new CatalogStore<L>(catalogs as unknown as Catalogs<L>, defaultLocale as L);
@@ -92,5 +93,5 @@ export function createI18n<
     has: (key) => store.has(key),
     version: () => store.version(),
     subscribe: (listener) => store.subscribe(listener),
-  } as I18n<L, Messages<C[D]>>;
+  } as I18n<L, CatalogMessages<C[D]>>;
 }

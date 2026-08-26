@@ -20,7 +20,7 @@ pub use builder::{BuildError, Builder};
 pub use interpolate::interpolate;
 pub(crate) use nest::expand_refs;
 pub use nest::has_unresolved_ref;
-pub use plural::{one_other, zero_one_other, Category, PluralRule};
+pub use plural::{cldr, one_other, zero_one_other, Category, PluralRule};
 
 fn numeric(vars: &[(&str, &str)], name: &str) -> Option<i64> {
     vars.iter()
@@ -92,8 +92,8 @@ impl I18n {
             .map(String::as_str)
     }
 
-    // The plural category uses the caller's original `tag` (so a custom rule
-    // sees `pt_BR` vs `pt_PT`); the variant is then looked up under `code`.
+    // The category is chosen from `tag` (see `translate`); the variant is then
+    // looked up under the resolved `code`.
     fn variant_in(&self, code: &str, tag: &str, stem: &str, count: i64) -> Option<String> {
         // An explicit `_zero` wins at zero even where the rule has no zero
         // category, because "nothing yet" is usually its own sentence.
@@ -165,11 +165,17 @@ impl I18n {
     /// numeric `count` var selects a plural variant and, like every var, is
     /// interpolated into `{count}`.
     pub fn translate(&self, locale: &str, key: &str, vars: &[(&str, &str)]) -> String {
-        let code = self.resolve_code(locale).unwrap_or(&self.default);
+        let resolved = self.resolve_code(locale);
+        let code = resolved.unwrap_or(&self.default);
+        // A plural rule can only read a language tag, so it sees the caller's
+        // own when that is what it is (a rule telling `pt_BR` from `pt_PT`
+        // needs the region), and the resolved code when the caller passed
+        // something else a rule cannot parse, such as the endonym "Français".
+        let tag = resolved.unwrap_or(code);
         let lookup_key = if vars.is_empty() {
             key.to_string()
         } else {
-            self.resolve_plural_key(locale, code, key, vars)
+            self.resolve_plural_key(tag, code, key, vars)
         };
         let template = self
             .lookup(code, &lookup_key)

@@ -112,14 +112,16 @@ impl Builder {
         // Default locale leads the ordering.
         locales.sort_by_key(|l| l.code != default);
         // `$t(key)` references expand once, here, so translating stays a single
-        // interpolation pass. Mirrors `expandRefs` in @kroma/i18n.
-        let fallback = locales
-            .iter()
-            .find(|l| l.code == default)
-            .map(|l| l.entries.clone())
-            .unwrap_or_default();
-        for locale in &mut locales {
-            locale.entries = crate::expand_refs(&locale.entries, &fallback);
+        // interpolation pass. Mirrors `expandRefs` in @kroma/i18n. The default
+        // locale leads the ordering, so the rest borrow its entries as the
+        // fallback rather than each taking a copy of a few thousand strings.
+        if let Some((first, rest)) = locales.split_first_mut() {
+            let fallback = std::mem::take(&mut first.entries);
+            for locale in rest {
+                let entries = std::mem::take(&mut locale.entries);
+                locale.entries = crate::expand_refs(entries, &fallback);
+            }
+            first.entries = crate::expand_refs(fallback, &HashMap::new());
         }
         Ok(I18n {
             default,

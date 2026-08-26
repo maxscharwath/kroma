@@ -14,23 +14,26 @@ struct Ref {
     key: String,
 }
 
-fn next_ref(template: &str, from: usize) -> Option<Ref> {
-    let start = template[from..].find("$t(")? + from;
-    let open = start + 3;
-    let close = template[open..].find(')')? + open;
-    let key = template[open..close].trim();
-    if key.is_empty()
-        || !key
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
-    {
-        return next_ref(template, start + 3);
+fn next_ref(template: &str, mut from: usize) -> Option<Ref> {
+    loop {
+        let start = template[from..].find("$t(")? + from;
+        let open = start + 3;
+        let close = template[open..].find(')')? + open;
+        let key = template[open..close].trim();
+        if key.is_empty()
+            || !key
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        {
+            from = open;
+            continue;
+        }
+        return Some(Ref {
+            start,
+            end: close + 1,
+            key: key.to_string(),
+        });
     }
-    Some(Ref {
-        start,
-        end: close + 1,
-        key: key.to_string(),
-    })
 }
 
 /// Whether `template` still names a key, i.e. [`expand_refs`] could not resolve
@@ -78,14 +81,24 @@ fn resolve(
 /// entry must not stop the server from booting. Guard the shipped catalogs with
 /// [`has_unresolved_ref`] in a test instead.
 pub fn expand_refs(
-    own: &HashMap<String, String>,
+    own: HashMap<String, String>,
     fallback: &HashMap<String, String>,
 ) -> HashMap<String, String> {
+    // Most catalogs quote nothing. Reproducing a few thousand entries exactly,
+    // allocating twice per key to do it, is the whole cost of the feature for
+    // everyone not using it, and this runs at boot.
+    if !own.values().any(|t| t.contains("$t(")) {
+        return own;
+    }
     let mut done = HashMap::with_capacity(own.len());
     let mut visiting = HashSet::new();
     let mut out = HashMap::with_capacity(own.len());
-    for (key, template) in own {
-        let value = resolve(key, own, fallback, &mut done, &mut visiting)
+    for (key, template) in &own {
+        if !template.contains("$t(") {
+            out.insert(key.clone(), template.clone());
+            continue;
+        }
+        let value = resolve(key, &own, fallback, &mut done, &mut visiting)
             .unwrap_or_else(|| template.clone());
         out.insert(key.clone(), value);
     }
@@ -107,7 +120,7 @@ mod tests {
     fn a_reference_is_replaced_by_the_value_it_names() {
         let own = cat(&[("brand", "KROMA"), ("hi", "Welcome to $t(brand)")]);
 
-        let out = expand_refs(&own, &HashMap::new());
+        let out = expand_refs(own, &HashMap::new());
 
         assert_eq!(out["hi"], "Welcome to KROMA");
     }
@@ -117,7 +130,7 @@ mod tests {
         let own = cat(&[("unit", "saison"), ("of", "Une $t(unit)")]);
         let fallback = cat(&[("unit", "season")]);
 
-        let out = expand_refs(&own, &fallback);
+        let out = expand_refs(own, &fallback);
 
         assert_eq!(out["of"], "Une saison");
     }
@@ -127,7 +140,7 @@ mod tests {
         let own = cat(&[("hi", "Bonjour $t(brand)")]);
         let fallback = cat(&[("brand", "KROMA")]);
 
-        let out = expand_refs(&own, &fallback);
+        let out = expand_refs(own, &fallback);
 
         assert_eq!(out["hi"], "Bonjour KROMA");
     }
@@ -136,7 +149,7 @@ mod tests {
     fn a_chain_of_references_expands_all_the_way_down() {
         let own = cat(&[("a", "A"), ("b", "$t(a)B"), ("c", "$t(b)C")]);
 
-        let out = expand_refs(&own, &HashMap::new());
+        let out = expand_refs(own, &HashMap::new());
 
         assert_eq!(out["c"], "ABC");
     }
@@ -145,7 +158,7 @@ mod tests {
     fn a_reference_to_a_missing_key_is_left_standing() {
         let own = cat(&[("hi", "Hello $t(nope)")]);
 
-        let out = expand_refs(&own, &HashMap::new());
+        let out = expand_refs(own, &HashMap::new());
 
         assert_eq!(out["hi"], "Hello $t(nope)");
         assert!(has_unresolved_ref(&out["hi"]));
@@ -155,7 +168,7 @@ mod tests {
     fn a_cycle_is_broken_rather_than_recursed_forever() {
         let own = cat(&[("a", "x$t(b)"), ("b", "y$t(a)")]);
 
-        let out = expand_refs(&own, &HashMap::new());
+        let out = expand_refs(own, &HashMap::new());
 
         assert!(has_unresolved_ref(&out["a"]));
     }
@@ -164,7 +177,7 @@ mod tests {
     fn a_value_with_no_reference_is_untouched() {
         let own = cat(&[("hi", "Hello {name}"), ("odd", "cost: $t( ) and $tx")]);
 
-        let out = expand_refs(&own, &HashMap::new());
+        let out = expand_refs(own, &HashMap::new());
 
         assert_eq!(out["hi"], "Hello {name}");
         assert_eq!(out["odd"], "cost: $t( ) and $tx");

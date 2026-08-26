@@ -13,6 +13,7 @@ import {
   metaLine,
   playerSubtitle,
   posterColors,
+  posterGradient,
   qualityBadge,
   qualityBadgeForVideo,
   repoLabel,
@@ -404,5 +405,19 @@ describe('resolveImageUrl', () => {
       'http://kroma.local:4040/api/images/x',
     );
     expect(resolveImageUrl('http://kroma.local:4040', null)).toBeNull();
+  });
+});
+
+describe('posterGradient', () => {
+  it('is deterministic for a given seed', () => {
+    expect(posterGradient('Dune')).toBe(posterGradient('Dune'));
+  });
+
+  it('differs for different seeds and is a CSS gradient', () => {
+    const a = posterGradient('Dune');
+
+    expect(a.startsWith('radial-gradient(')).toBe(true);
+    expect(a).toContain('linear-gradient(');
+    expect(a).not.toBe(posterGradient('Arrival'));
   });
 });

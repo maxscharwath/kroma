@@ -3,6 +3,7 @@
 // itself stays data + layout.
 
 import type { MediaRequest } from '@kroma/core';
+import { posterGradient } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Avatar,
@@ -21,7 +22,6 @@ import { useNavigate } from '@tanstack/react-router';
 import { Pill } from '#web/features/admin/pill';
 import { kindMeta } from '#web/features/admin/pipeline-meta';
 import { Image } from '#web/shared/ui';
-import { posterGradient } from '#web/shared/ui/poster-gradient';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
 export function IdentityCard({

@@ -1,4 +1,3 @@
-export { type Chain, translateChain } from './chain';
 export { type DefineI18nConfig, defineI18n } from './define';
 export {
   createI18n,
@@ -12,6 +11,5 @@ export { createLocales } from './locales';
 export { expandRefs, hasUnresolvedRef } from './nest';
 export { resolvePluralKey, selectCategory } from './plural';
 export type { Locale, MessageKey, Messages, Register, Translate } from './registry';
-export { CatalogStore } from './store';
-export { translateIn } from './translate';
+export { SCHEMA_KEY } from './store';
 export type { Catalog, Catalogs, LocaleSet, PluralCategory, PluralRule, TVars } from './types';

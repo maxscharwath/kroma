@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
-use kroma_i18n::{Category, I18n};
+use kroma_i18n::I18n;
 
 use crate::state::SharedState;
 
@@ -31,24 +31,12 @@ macro_rules! catalog {
 // through `Intl.PluralRules`. French puts zero in `one` there and English does
 // not, so the same key has to resolve the same way on both sides or a count of
 // zero renders differently in a notification than it does on screen.
-fn plural_rule(locale: &str, count: i64) -> Category {
-    // The rule is handed the CALLER's tag rather than the resolved catalog
-    // code, so it has to normalize for itself: `normalize` accepts "FR" and the
-    // endonym "Français" as readily as "fr", and a case-sensitive prefix test
-    // would hand both of those the English rule and reopen the split this is
-    // here to close.
-    match normalize(locale) {
-        Some("fr") => kroma_i18n::zero_one_other(locale, count),
-        _ => kroma_i18n::one_other(locale, count),
-    }
-}
-
 fn i18n() -> &'static I18n {
     static ENGINE: OnceLock<I18n> = OnceLock::new();
     ENGINE.get_or_init(|| {
         I18n::builder()
             .default_locale(DEFAULT_LOCALE)
-            .plural_rule(plural_rule)
+            .plural_rule(kroma_i18n::cldr)
             .catalog_json("fr", catalog!("fr"))
             .catalog_json("en", catalog!("en"))
             .build()

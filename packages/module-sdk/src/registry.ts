@@ -67,11 +67,6 @@ export class ModuleRegistry {
     return [...this.modules.keys()];
   }
 
-  /** A module's own message catalogs (locale -> key -> string), if it ships any. */
-  localesOf(id: string): Record<string, Record<string, string>> | undefined {
-    return this.modules.get(id)?.locales;
-  }
-
   /** Modules in initialization order (dependencies first). Throws on a missing
    *  hard dependency or a cycle; version ranges are the backend's business. */
   order(): KromaModule[] {

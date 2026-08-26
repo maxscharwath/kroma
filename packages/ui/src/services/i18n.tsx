@@ -33,16 +33,11 @@ export function useLocaleDefault(): Locale {
   return (useContext(I18nContext)?.locale as Locale) ?? DEFAULT_LOCALE;
 }
 
-// Built once, on first use: the fallback is a constant of the default locale.
-let fallback: Translate | undefined;
-
 /** Like `useT`, but standing alone: outside an <I18nProvider> it speaks the
  * default locale instead of throwing. For the kit's own chrome (an overlay
  * backdrop's accessible name), which must not make the provider a mount
  * requirement for every consumer of a dialog. */
 export function useTDefault(): Translate {
   const ctx = useContext(I18nContext);
-  if (ctx) return ctx.i18n.translator(ctx.locale) as Translate;
-  fallback ??= i18n.translator(DEFAULT_LOCALE);
-  return fallback;
+  return i18n.translator((ctx?.locale as Locale) ?? DEFAULT_LOCALE) as Translate;
 }

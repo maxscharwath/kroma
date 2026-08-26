@@ -1,4 +1,4 @@
-import { apiErrorText, type DiscoverEntry } from '@kroma/core';
+import { apiErrorText, type DiscoverEntry, posterGradient } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,
@@ -19,7 +19,6 @@ import {
 import { useEffect, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { Image } from '#web/shared/ui';
-import { posterGradient } from '#web/shared/ui/poster-gradient';
 
 type Scope = 'all' | 'movie' | 'tv';
 

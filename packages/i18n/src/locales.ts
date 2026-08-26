@@ -1,5 +1,11 @@
 import type { LocaleSet } from './types';
 
+/** Where a locale's name for itself lives in its own catalog. One spelling,
+ *  because both the locale set and `defineI18n` read it. */
+export function labelKey<L extends string>(code: L): `lang.${L}` {
+  return `lang.${code}`;
+}
+
 /** The locales a product ships, knowable without loading a single message:
  *  `createLocales({ fr: 'Français', en: 'English' }, 'fr')`. The value of each
  *  entry is the endonym `normalizeLocale` accepts next to a BCP 47 tag, because
@@ -48,7 +54,7 @@ export function createLocales<
 
   const LOCALES = codes.map((code): LocaleSet<L, D>['LOCALES'][number] => ({
     code,
-    labelKey: `lang.${code}`,
+    labelKey: labelKey(code),
   }));
 
   return {

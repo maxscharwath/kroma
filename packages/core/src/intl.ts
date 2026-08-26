@@ -13,6 +13,20 @@ const BYTE_UNITS: Record<Locale, readonly string[]> = {
 };
 
 const DATES = new Map<Locale, Intl.DateTimeFormat | null>();
+const NUMBERS = new Map<string, Intl.NumberFormat>();
+
+function numberFormat(locale: Locale, digits: number): Intl.NumberFormat {
+  const key = `${locale}${digits}`;
+  const cached = NUMBERS.get(key);
+  if (cached) return cached;
+  const made = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    useGrouping: false,
+  });
+  NUMBERS.set(key, made);
+  return made;
+}
 
 // `dateStyle` is Chromium 76, and the legacy television tier runs engines older
 // than that; Hermes without full ICU refuses it too. Both throw at construction
@@ -44,10 +58,10 @@ function pad(n: number): string {
 }
 
 /** A fixed-point number with the locale's decimal separator: `1,5` in French,
- *  `1.5` in English. */
+ *  `1.5` in English. Grouping is off: these sit in tabular columns beside a
+ *  unit, where a thousands separator reads as a second number. */
 export function decimal(n: number, locale: Locale, digits = 1): string {
-  const s = n.toFixed(digits);
-  return locale === 'fr' ? s.replace('.', ',') : s;
+  return numberFormat(locale, digits).format(n);
 }
 
 /** A byte size in the locale's units: `1,5 Go` in French, `1.5 GB` in English.

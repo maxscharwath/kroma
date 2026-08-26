@@ -1,4 +1,5 @@
 import type { ElementRow, MessageKey } from '@kroma/core';
+import { posterGradient } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, Button, Callout, color, Drawer, IconButton, Row, Text } from '@kroma/ui/kit';
 import { createCallable } from 'react-call';
@@ -6,7 +7,6 @@ import { Pill, PillDot } from '#web/features/admin/pill';
 import { fmtDur, kindMeta, statusMeta } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
 import { Image } from '#web/shared/ui';
-import { posterGradient } from '#web/shared/ui/poster-gradient';
 
 function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
   const { client } = useAuth();

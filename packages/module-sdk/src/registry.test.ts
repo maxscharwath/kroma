@@ -61,15 +61,6 @@ describe('ModuleRegistry register/unregister/has/ids', () => {
     expect(r.has('a')).toBe(false);
     expect(() => r.unregister('nope')).not.toThrow();
   });
-
-  it('localesOf returns a module catalog or undefined', () => {
-    const r = new ModuleRegistry();
-    r.register(mod('a', { locales: { en: { hi: 'Hi' } } }));
-    r.register(mod('b'));
-    expect(r.localesOf('a')).toEqual({ en: { hi: 'Hi' } });
-    expect(r.localesOf('b')).toBeUndefined();
-    expect(r.localesOf('missing')).toBeUndefined();
-  });
 });
 
 describe('ModuleRegistry.order (topological)', () => {

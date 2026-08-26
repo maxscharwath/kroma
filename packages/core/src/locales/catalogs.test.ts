@@ -1,11 +1,11 @@
-import { hasUnresolvedRef } from '@kroma/i18n';
+import { hasUnresolvedRef, SCHEMA_KEY } from '@kroma/i18n';
 import { describe, expect, it } from 'vitest';
 import { i18n } from '../i18n';
 import en from './en.json';
 import fr from './fr.json';
 
 const CATEGORY = /_(zero|one|two|few|many|other)$/;
-const NOT_A_MESSAGE = new Set(['$schema']);
+const NOT_A_MESSAGE = new Set<string>([SCHEMA_KEY]);
 const catalogs = { fr, en } as Record<string, Record<string, string>>;
 
 function baseKeys(catalog: Record<string, string>): string[] {

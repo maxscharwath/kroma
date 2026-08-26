@@ -1,6 +1,26 @@
 import type { Catalog, PluralCategory, PluralRule, TVars } from './types';
 
 const RULES = new Map<string, Intl.PluralRules | null>();
+const SUFFIX = /_(zero|one|two|few|many|other)$/;
+const STEMS = new WeakMap<Catalog, ReadonlySet<string>>();
+
+// Which keys in a catalog have plural variants at all. Roughly one key in a
+// hundred does, so without this every message carrying a number probes two or
+// three keys that were never going to exist, in every catalog of the chain.
+// Walked once per catalog, on first use.
+function stemsOf(catalog: Catalog): ReadonlySet<string> {
+  let stems = STEMS.get(catalog);
+  if (!stems) {
+    const found = new Set<string>();
+    for (const key of Object.keys(catalog)) {
+      const suffix = SUFFIX.exec(key);
+      if (suffix) found.add(key.slice(0, key.length - suffix[0].length));
+    }
+    stems = found;
+    STEMS.set(catalog, stems);
+  }
+  return stems;
+}
 
 function rulesFor(locale: string): Intl.PluralRules | null {
   const cached = RULES.get(locale);
@@ -31,6 +51,7 @@ function variantIn(
   n: number,
   rule?: PluralRule,
 ): string | undefined {
+  if (!stemsOf(catalog).has(stem)) return undefined;
   // An explicit `_zero` wins at zero even where CLDR has no `zero` category,
   // because "no results" is usually its own sentence rather than a plural.
   if (n === 0 && catalog[`${stem}_zero`] !== undefined) return `${stem}_zero`;

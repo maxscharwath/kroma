@@ -28,14 +28,18 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
     let item_pins = crate::db::tmdb_pin::all_for_kind(&state.db, ITEM)?;
     let show_pins = crate::db::tmdb_pin::all_for_kind(&state.db, SHOW)?;
     // The languages are part of the signature: adding one has to re-enrich the
-    // catalog, or a new language reaches only titles scanned after it.
+    // catalog, or a new language reaches only titles scanned after it. The
+    // stored payload's revision is part of it for the same reason: growing the
+    // payload (the poster and logo joined it) leaves every existing row without
+    // the new field, and nothing revisits a title whose signature still matches.
     let langs = crate::i18n::SUPPORTED_LOCALES.join(",");
+    let rev = crate::db::translations::REV;
     for i in crate::db::list_items(&state.db, None)? {
         if matches!(i.kind, Kind::Movie | Kind::Video) {
             let pin = item_pins.get(&i.id).copied().unwrap_or(0);
             out.push((
                 i.id,
-                format!("{}:{}:{pin}:{langs}", i.title, i.year.unwrap_or(0)),
+                format!("{}:{}:{pin}:{langs}:r{rev}", i.title, i.year.unwrap_or(0)),
             ));
         }
     }
@@ -44,7 +48,7 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
         out.push((
             s.id,
             format!(
-                "{}:{}:{}:{pin}:{langs}",
+                "{}:{}:{}:{pin}:{langs}:r{rev}",
                 s.title,
                 s.year.unwrap_or(0),
                 s.episode_count
@@ -58,4 +62,27 @@ fn process(ctx: &JobContext, id: &str) -> Result<()> {
     // Movies are `items`; shows are not, so a hit on `get_item` means "movie".
     let is_show = crate::db::get_item(&ctx.state.db, id)?.is_none();
     crate::services::enrich::enrich_one(&ctx.state, id, is_show)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support;
+
+    #[test]
+    fn the_signature_carries_the_stored_payloads_revision() {
+        let state = test_support::test_state();
+        test_support::seed_movie(&state, "m1");
+
+        let sigs = enumerate(&state).unwrap();
+
+        let (_, sig) = sigs.iter().find(|(id, _)| id == "m1").expect("the movie");
+        // Growing the payload bumps REV, which has to move the signature, or
+        // every title already `done` keeps whatever it was stored with and the
+        // new field never reaches the catalog.
+        assert!(
+            sig.ends_with(&format!(":r{}", crate::db::translations::REV)),
+            "signature {sig} does not carry the revision"
+        );
+    }
 }

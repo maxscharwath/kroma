@@ -5,6 +5,8 @@
 //! the orchestration (iterate users, call the model, persist) is the
 //! `sections.personalize` job in [`crate::services::jobs`].
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::db::{self, Pool};
@@ -16,16 +18,64 @@ const MAX_SECTIONS: usize = 6;
 // Cap on a single section title, defended on parse (catchy, not an essay).
 const MAX_TITLE: usize = 48;
 
+/// A row's name, written by the model in every language the server serves.
+///
+/// Also reads a bare string, which is what rows cached before the model was
+/// asked for more than one language hold: those keep working, in the single
+/// language they were written in, instead of vanishing from the home screen.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Localized {
+    Single(String),
+    ByLang(HashMap<String, String>),
+}
+
+impl Default for Localized {
+    fn default() -> Self {
+        Self::Single(String::new())
+    }
+}
+
+impl Localized {
+    /// The reader's language, else the default one, else whatever there is.
+    pub fn get(&self, locale: &str) -> &str {
+        match self {
+            Self::Single(s) => s,
+            Self::ByLang(by) => by
+                .get(locale)
+                .or_else(|| by.get(crate::i18n::DEFAULT_LOCALE))
+                .or_else(|| by.values().next())
+                .map(String::as_str)
+                .unwrap_or_default(),
+        }
+    }
+
+    fn is_blank(&self) -> bool {
+        match self {
+            Self::Single(s) => s.trim().is_empty(),
+            Self::ByLang(by) => by.values().all(|v| v.trim().is_empty()),
+        }
+    }
+
+    fn trimmed_and_capped(self) -> Self {
+        let cap = |s: String| -> String { s.trim().chars().take(MAX_TITLE).collect() };
+        match self {
+            Self::Single(s) => Self::Single(cap(s)),
+            Self::ByLang(by) => Self::ByLang(by.into_iter().map(|(k, v)| (k, cap(v))).collect()),
+        }
+    }
+}
+
 /// A personalized section authored by the LLM and cached per user. `query` is the
-/// embedding search phrase (English vibe); `title`/`reason` are in the user's
-/// locale. Stored as a JSON array in `user_taste.sections`.
+/// embedding search phrase (English vibe); `title`/`reason` carry every language.
+/// Stored as a JSON array in `user_taste.sections`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenSection {
     pub key: String,
-    pub title: String,
+    pub title: Localized,
     pub query: String,
     #[serde(default)]
-    pub reason: String,
+    pub reason: Localized,
 }
 
 /// Load a user's cached personalized sections (empty if none / malformed).
@@ -45,14 +95,30 @@ pub fn build_prompt(
     clusters: &[Cluster],
 ) -> (String, String) {
     let lang = language_name(locale);
+    // Every language the server serves, asked for in one call: a row named in
+    // one language is a French heading over an English library for everyone
+    // else in the household, and a second call per language would pay the model
+    // again to think the same thought.
+    let langs = crate::i18n::SUPPORTED_LOCALES
+        .iter()
+        .map(|l| format!("\"{l}\" ({})", language_name(l)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let shape = crate::i18n::SUPPORTED_LOCALES
+        .iter()
+        .map(|l| format!("\"{l}\": string"))
+        .collect::<Vec<_>>()
+        .join(", ");
     let system = format!(
         "You are the personalization curator for a home-media library. From a viewer's \
          taste groups you write a short taste profile and name a few personalized rows for \
          their home screen.\n\
          Reply with STRICT JSON only no prose, no markdown, no code fences shaped exactly:\n\
-         {{\"profile\": string, \"sections\": [{{\"title\": string, \"query\": string, \"reason\": string}}]}}\n\
+         {{\"profile\": string, \"sections\": [{{\"title\": {{{shape}}}, \"query\": string, \"reason\": {{{shape}}}}}]}}\n\
          Rules:\n\
-         - Write \"profile\" (2-3 sentences) and every \"title\" and \"reason\" in {lang}.\n\
+         - Write \"profile\" (2-3 sentences) in {lang}.\n\
+         - Every \"title\" and \"reason\" is an object carrying that text in EVERY one of \
+         these languages: {langs}. Write each one idiomatically, not word for word.\n\
          - \"title\": a catchy row name under 6 words. \"reason\": one short clause ('because you …').\n\
          - \"query\": an ENGLISH phrase (5-12 words) describing the vibe/genre/mood, used to \
          search the library by meaning. Do NOT put specific movie titles in \"query\".\n\
@@ -88,11 +154,11 @@ struct LlmOut {
 #[derive(Deserialize)]
 struct LlmSection {
     #[serde(default)]
-    title: String,
+    title: Localized,
     #[serde(default)]
     query: String,
     #[serde(default)]
-    reason: String,
+    reason: Localized,
 }
 
 /// Parse a model reply into `(profile, sections)`. Tolerant of code fences and
@@ -103,25 +169,33 @@ pub fn parse_response(text: &str) -> anyhow::Result<(String, Vec<GenSection>)> {
 
     let mut sections = Vec::new();
     let mut seen = std::collections::HashSet::new();
+    let mut named = std::collections::HashSet::new();
     for s in out.sections {
-        let title = s.title.trim();
         let query = s.query.trim();
-        if title.is_empty() || query.is_empty() {
+        if s.title.is_blank() || query.is_empty() {
             continue;
         }
-        let title: String = title.chars().take(MAX_TITLE).collect();
-        let mut key = slug(&title);
+        let title = s.title.trimmed_and_capped();
+        // Keyed off the query, which is English whatever the reader speaks: a
+        // key cut from the title would change with the language it happened to
+        // be read in, and the same row would count as two.
+        let mut key = slug(query);
         if key.is_empty() {
             key = format!("s{}", sections.len() + 1);
         }
-        if !seen.insert(key.clone()) {
-            continue; // drop duplicate rows
+        // Two rows are the same row if they search for the same thing OR if
+        // they would print the same heading, whatever their queries were. A
+        // heading made only of punctuation slugs to nothing and is no evidence
+        // of anything, so it is not compared.
+        let heading = slug(title.get(crate::i18n::DEFAULT_LOCALE));
+        if !seen.insert(key.clone()) || (!heading.is_empty() && !named.insert(heading)) {
+            continue;
         }
         sections.push(GenSection {
             key,
             title,
             query: query.to_string(),
-            reason: s.reason.trim().to_string(),
+            reason: s.reason.trimmed_and_capped(),
         });
         if sections.len() >= MAX_SECTIONS {
             break;
@@ -177,8 +251,57 @@ mod tests {
         let (profile, sections) = parse_response(reply).unwrap();
         assert_eq!(profile, "You love stylish crime.");
         assert_eq!(sections.len(), 2);
-        assert_eq!(sections[0].key, "neon-noir-nights");
+        assert_eq!(sections[0].key, "neon-soaked-night-crime-thriller");
         assert_eq!(sections[1].query, "surreal mind-bending science fiction");
+    }
+
+    #[test]
+    fn a_row_is_named_in_every_language_the_server_serves() {
+        let reply = r#"{"sections":[{
+            "title":{"fr":"Science-Fiction Epique","en":"Epic Science Fiction"},
+            "query":"epic space opera science fiction",
+            "reason":{"fr":"parce que vous aimez","en":"because you like"}
+        }]}"#;
+
+        let (_, sections) = parse_response(reply).unwrap();
+
+        assert_eq!(sections[0].title.get("fr"), "Science-Fiction Epique");
+        assert_eq!(sections[0].title.get("en"), "Epic Science Fiction");
+        assert_eq!(sections[0].reason.get("en"), "because you like");
+    }
+
+    #[test]
+    fn a_row_cached_before_the_model_was_asked_for_more_than_one_language_still_reads() {
+        let one: GenSection =
+            serde_json::from_str(r#"{"key":"k","title":"Comedies Fantastiques","query":"q"}"#)
+                .unwrap();
+
+        // It only has the language it was written in, but a home screen missing
+        // a row is worse than one row in the wrong language until it regenerates.
+        assert_eq!(one.title.get("en"), "Comedies Fantastiques");
+        assert_eq!(one.reason.get("en"), "");
+    }
+
+    #[test]
+    fn an_unknown_language_falls_back_rather_than_printing_nothing() {
+        let s: GenSection =
+            serde_json::from_str(r#"{"key":"k","title":{"fr":"Titre","en":"Title"},"query":"q"}"#)
+                .unwrap();
+
+        assert_eq!(s.title.get("de"), s.title.get(crate::i18n::DEFAULT_LOCALE));
+        assert!(!s.title.get("de").is_empty());
+    }
+
+    #[test]
+    fn the_prompt_asks_for_every_supported_language() {
+        let (system, _) = build_prompt("fr", None, &[]);
+
+        for lang in crate::i18n::SUPPORTED_LOCALES {
+            assert!(
+                system.contains(&format!("\"{lang}\": string")),
+                "the shape does not ask for {lang}: {system}"
+            );
+        }
     }
 
     #[test]
@@ -186,7 +309,7 @@ mod tests {
         let reply = "Sure! Here you go:\n```json\n{\"profile\":\"p\",\"sections\":[{\"title\":\"Cozy Classics\",\"query\":\"warm cozy classic comfort films\",\"reason\":\"r\"}]}\n```\nEnjoy!";
         let (_, sections) = parse_response(reply).unwrap();
         assert_eq!(sections.len(), 1);
-        assert_eq!(sections[0].title, "Cozy Classics");
+        assert_eq!(sections[0].title.get("en"), "Cozy Classics");
     }
 
     #[test]
@@ -199,7 +322,7 @@ mod tests {
         ]}"#;
         let (_, sections) = parse_response(reply).unwrap();
         assert_eq!(sections.len(), 1);
-        assert_eq!(sections[0].key, "action-fix");
+        assert_eq!(sections[0].key, "high-octane-action");
     }
 
     #[test]
@@ -273,9 +396,9 @@ mod tests {
     }
 
     #[test]
-    fn a_title_that_slugs_to_nothing_still_gets_a_stable_key() {
-        let reply = r#"{"sections":[{"title":"!!!","query":"loud and proud"},
-                                    {"title":"???","query":"quiet and unsure"}]}"#;
+    fn a_query_that_slugs_to_nothing_still_gets_a_stable_key() {
+        let reply = r#"{"sections":[{"title":"Loud","query":"!!!"},
+                                    {"title":"Quiet","query":"???"}]}"#;
         let (_, sections) = parse_response(reply).unwrap();
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].key, "s1");

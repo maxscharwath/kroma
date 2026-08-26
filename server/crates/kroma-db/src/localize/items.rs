@@ -1,10 +1,22 @@
 //! Overlaying a locale onto items and home-section rows.
 
 use super::{apply, apply_show};
+use crate::translations::TransData;
 use crate::{metadata_core, translations, Pool};
 use anyhow::Result;
 
 use kroma_domain::{Kind, MediaItem, SectionItem};
+
+// The item's own `title` is the one the scan derived from the file, so it never
+// changed language, and every card and hero renders it rather than the
+// metadata's. Localizing one without the other is what leaves a French title
+// over an English synopsis.
+fn apply_item(item: &mut MediaItem, tr: &TransData) {
+    apply(item.metadata.as_mut(), tr);
+    if let Some(t) = &tr.title {
+        item.title = t.clone();
+    }
+}
 
 /// Overlay `locale` onto a batch of items (movies/videos + episodes). Episodes
 /// resolve under the `'episode'` subject kind, everything else under `'item'`.
@@ -32,14 +44,7 @@ pub fn overlay_items(pool: &Pool, items: &mut [MediaItem], locale: &str) -> Resu
             &movie_tr
         };
         if let Some(tr) = table.get(&item.id) {
-            apply(item.metadata.as_mut(), tr);
-            // The item's own `title` is the one the scan derived from the file,
-            // so it never changed language and every card and hero renders it.
-            // The metadata title is the localized one; prefer it when there is
-            // one, and keep the scan title when there is not.
-            if let Some(t) = &tr.title {
-                item.title = t.clone();
-            }
+            apply_item(item, tr);
         }
     }
     Ok(())
@@ -71,7 +76,7 @@ pub fn overlay_section_items(pool: &Pool, items: &mut [SectionItem], locale: &st
         match it {
             SectionItem::Movie { item } => {
                 if let Some(t) = m_tr.get(&item.id) {
-                    apply(item.metadata.as_mut(), t);
+                    apply_item(item, t);
                 }
             }
             SectionItem::Show { show } => {
@@ -110,6 +115,30 @@ mod tests {
         // it as the scan's would show the filename's language whatever the
         // reader asked for.
         assert_eq!(items[0].title, "Minions: The Rise of Gru");
+    }
+
+    #[test]
+    fn the_home_rows_localize_the_title_the_card_renders() {
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &td("Arrival", vec![]),
+        )
+        .unwrap();
+
+        let mut rows = vec![SectionItem::Movie {
+            item: Box::new(item("m1", Kind::Movie)),
+        }];
+        overlay_section_items(&p, &mut rows, "en").unwrap();
+
+        let SectionItem::Movie { item } = &rows[0] else {
+            panic!("expected a movie row");
+        };
+        assert_eq!(item.title, "Arrival");
     }
 
     #[test]

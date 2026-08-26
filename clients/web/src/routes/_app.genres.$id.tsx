@@ -1,24 +1,43 @@
-import { compareTitles, hasGenre, isSortMode, type Sortable, type SortMode } from '@kroma/core';
+import {
+  compareTitles,
+  genreLabel,
+  genreOfSegment,
+  genreSegment,
+  hasGenre,
+  isSortMode,
+  type Sortable,
+  type SortMode,
+} from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, EmptyState, PageHeader } from '@kroma/ui/kit';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { BrowseBar } from '#web/features/catalog/browse-bar';
 import { type CatalogEntry, CatalogGrid } from '#web/features/catalog/cards';
 import { isAuthed } from '#web/shared/lib/api';
 import { genreIcon } from '#web/shared/lib/genre-icon';
 import { catalogQueries } from '#web/shared/lib/queries';
-import { PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
+import { PageFrame, SkeletonRow } from '#web/shared/ui';
 
 interface GenreSearch {
   sort?: SortMode;
 }
 
-export const Route = createFileRoute('/_app/genre/$genre')({
+export const Route = createFileRoute('/_app/genres/$id')({
   validateSearch: (s: Record<string, unknown>): GenreSearch =>
     isSortMode(s.sort) ? { sort: s.sort } : {},
+  // A slug and a display name are both bookmarkable: `/genre/Family` and
+  // `/genre/family` both predate the id and may sit in a history.
+  beforeLoad: ({ params, search }) => {
+    const slug = genreOfSegment(params.id);
+    if (!slug) throw redirect({ to: '/genres', replace: true });
+    const canonical = genreSegment(slug);
+    if (canonical !== params.id) {
+      throw redirect({ to: '/genres/$id', params: { id: canonical }, search, replace: true });
+    }
+  },
   loader: async ({ context: { queryClient } }) => {
     if (!isAuthed()) return;
     await Promise.all([
@@ -30,23 +49,32 @@ export const Route = createFileRoute('/_app/genre/$genre')({
   component: GenrePage,
 });
 
-function GenrePending() {
-  const { genre } = Route.useParams();
+function GenreHeader({ genre }: Readonly<{ genre: string }>) {
+  const t = useT();
+  const navigate = useNavigate();
   return (
-    <main className={PAGE_MAIN}>
-      <PageHeader.Root>
-        <PageHeader.Title icon={genreIcon(genre)}>{genre}</PageHeader.Title>
-      </PageHeader.Root>
+    <PageHeader.Root>
+      <PageHeader.Back label={t('nav.genres')} onPress={() => void navigate({ to: '/genres' })} />
+      <PageHeader.Title icon={genreIcon(genre)}>{genreLabel(t, genre)}</PageHeader.Title>
+    </PageHeader.Root>
+  );
+}
+
+function GenrePending() {
+  const genre = genreOfSegment(Route.useParams().id);
+  return (
+    <PageFrame>
+      <GenreHeader genre={genre} />
       <Box mt={24}>
         <SkeletonRow count={14} />
       </Box>
-    </main>
+    </PageFrame>
   );
 }
 
 function GenrePage() {
   const t = useT();
-  const { genre } = Route.useParams();
+  const genre = genreOfSegment(Route.useParams().id);
   const { sort = 'added' } = Route.useSearch();
   const navigate = Route.useNavigate();
   const { data: movies } = useSuspenseQuery(catalogQueries.moviesView());
@@ -67,10 +95,8 @@ function GenrePage() {
   }, [movies, shows, genre, sort]);
 
   return (
-    <main className={PAGE_MAIN}>
-      <PageHeader.Root>
-        <PageHeader.Title icon={genreIcon(genre)}>{genre}</PageHeader.Title>
-      </PageHeader.Root>
+    <PageFrame>
+      <GenreHeader genre={genre} />
       {entries.length === 0 ? (
         <EmptyState.Root icon="category">
           <EmptyState.Title>{t('search.noResults')}</EmptyState.Title>
@@ -86,6 +112,6 @@ function GenrePage() {
           <CatalogGrid entries={entries} />
         </>
       )}
-    </main>
+    </PageFrame>
   );
 }

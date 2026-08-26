@@ -1,4 +1,4 @@
-import { genreSlug } from '@kroma/core';
+import { genreSlugs } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
@@ -39,11 +39,9 @@ function MovieDetailPage() {
 
   // "Titres similaires" prefers content-embedding neighbours, falling back to
   // genre overlap, then any other movie.
-  const genres = new Set((item.metadata?.genres ?? []).map(genreSlug));
+  const genres = new Set(genreSlugs(item.metadata));
   const others = movies.filter((m) => m.id !== item.id);
-  const related = others.filter((m) =>
-    (m.metadata?.genres ?? []).some((g) => genres.has(genreSlug(g))),
-  );
+  const related = others.filter((m) => genreSlugs(m.metadata).some((g) => genres.has(g)));
   let pool = others;
   if (embed.length >= 3) pool = embed;
   else if (related.length >= 3) pool = related;

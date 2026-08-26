@@ -1,23 +1,22 @@
-import {
-  collectGenres,
-  type GenreCount,
-  genreColors,
-  genreShowcases,
-  genreTint,
-  sizedImageUrl,
-} from '@kroma/core';
+import { collectGenres, genreShowcases } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, EmptyState, Icon, PageHeader, Text } from '@kroma/ui/kit';
+import { Box, EmptyState, Grid, PageHeader } from '@kroma/ui/kit';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useMemo } from 'react';
+import { useWindowDimensions } from 'react-native';
+import { GenreTile } from '#web/features/catalog/genre-tile';
 import { isAuthed } from '#web/shared/lib/api';
-import { genreIcon } from '#web/shared/lib/genre-icon';
 import { catalogQueries } from '#web/shared/lib/queries';
-import { Image, PAGE_MAIN, SkeletonRow } from '#web/shared/ui';
+import { PageFrame, SkeletonRow } from '#web/shared/ui';
 
-export const Route = createFileRoute('/_app/genres')({
+const CELL_SHARE = 0.22;
+const CELL_MIN = 176;
+const CELL_MAX = 304;
+const CELL_GAP = 16;
+
+export const Route = createFileRoute('/_app/genres/')({
   loader: async ({ context: { queryClient } }) => {
     if (!isAuthed()) return;
     await Promise.all([
@@ -32,31 +31,30 @@ export const Route = createFileRoute('/_app/genres')({
 function GenresPending() {
   const t = useT();
   return (
-    <main className={PAGE_MAIN}>
+    <PageFrame>
       <PageHeader.Root>
         <PageHeader.Title>{t('nav.genres')}</PageHeader.Title>
       </PageHeader.Root>
       <Box mt={24}>
         <SkeletonRow count={10} />
       </Box>
-    </main>
+    </PageFrame>
   );
 }
 
 function GenresPage() {
   const t = useT();
+  const { width } = useWindowDimensions();
   const { data: movies } = useSuspenseQuery(catalogQueries.moviesView());
   const { data: shows } = useSuspenseQuery(catalogQueries.showsView());
 
-  // Genres are derived from the whole catalogue (movies + shows), already
-  // localized server-side, ranked most-common first; each card is fronted by
-  // the genre's best-rated backdrop from the library.
   const catalogue = useMemo(() => [...movies, ...shows], [movies, shows]);
   const genres = useMemo(() => collectGenres(catalogue), [catalogue]);
   const showcases = useMemo(() => genreShowcases(catalogue), [catalogue]);
+  const cellMin = Math.round(Math.min(Math.max(width * CELL_SHARE, CELL_MIN), CELL_MAX));
 
   return (
-    <main className={PAGE_MAIN}>
+    <PageFrame>
       <PageHeader.Root>
         <PageHeader.Title>{t('nav.genres')}</PageHeader.Title>
       </PageHeader.Root>
@@ -66,60 +64,18 @@ function GenresPage() {
         </EmptyState.Root>
       ) : (
         <Box mt={24}>
-          <div className="genre-grid">
+          <Grid min={cellMin} gap={CELL_GAP}>
             {genres.map((g) => (
               <GenreTile
-                key={g.name}
+                key={g.slug}
                 genre={g}
                 count={t('person.titleCount', { count: g.count })}
-                backdrop={showcases.get(g.name)?.backdrop ?? null}
+                backdrop={showcases.get(g.slug)?.backdrop ?? null}
               />
             ))}
-          </div>
+          </Grid>
         </Box>
       )}
-    </main>
-  );
-}
-
-function GenreTile({
-  genre,
-  count,
-  backdrop,
-}: Readonly<{ genre: GenreCount; count: string; backdrop: string | null }>) {
-  const [c1, c2] = genreColors(genre.name);
-  const icon = genreIcon(genre.name);
-  return (
-    <Link
-      to="/genre/$genre"
-      params={{ genre: genre.name }}
-      className="genre-tile"
-      style={{ background: `linear-gradient(150deg, ${c1}, ${c2})` }}
-    >
-      <Image
-        src={backdrop ? sizedImageUrl(backdrop, 420) : null}
-        fit="cover"
-        position="50% 25%"
-        fill
-        className="genre-tile-art"
-      />
-      <div style={{ position: 'absolute', inset: 0, background: genreTint(genre.name) }} />
-      <Box
-        absolute
-        left={{ base: 16, md: 20 }}
-        right={{ base: 16, md: 20 }}
-        bottom={{ base: 14, md: 16 }}
-      >
-        <Box row align="center" gap={8}>
-          {icon ? <Icon name={icon} size={18} color="white" /> : null}
-          <Text variant="cardTitle" color="white">
-            {genre.name}
-          </Text>
-        </Box>
-        <Text variant="meta" color="white/70" mt={2}>
-          {count}
-        </Text>
-      </Box>
-    </Link>
+    </PageFrame>
   );
 }

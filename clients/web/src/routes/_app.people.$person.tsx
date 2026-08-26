@@ -1,10 +1,4 @@
-import {
-  personDisplayName,
-  personInvolvement,
-  posterColors,
-  roleLabels,
-  type TmdbCredit,
-} from '@kroma/core';
+import { personInvolvement, posterColors, roleLabels, type TmdbCredit } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,
@@ -28,13 +22,11 @@ import { catalogQueries } from '#web/shared/lib/queries';
 import { Image, PageFrame, PageSkeleton } from '#web/shared/ui';
 import { RouteLink } from '#web/shared/ui/route-link';
 
-export const Route = createFileRoute('/_app/people/$name')({
+export const Route = createFileRoute('/_app/people/$person')({
   loader: async ({ params, context: { queryClient } }) => {
     if (!isAuthed()) throw redirect({ to: '/' });
-    // Prefetched, not awaited: a provider round trip must not hold the page back
-    // once the credits are in.
-    void queryClient.prefetchQuery(catalogQueries.personDetails(params.name));
-    await queryClient.ensureQueryData(catalogQueries.personCredits(params.name));
+    void queryClient.prefetchQuery(catalogQueries.personDetails(params.person));
+    await queryClient.ensureQueryData(catalogQueries.personCredits(params.person));
   },
   pendingComponent: () => <PageSkeleton rails={0} />,
   component: PersonPage,
@@ -42,23 +34,21 @@ export const Route = createFileRoute('/_app/people/$name')({
 
 function PersonPage() {
   const t = useT();
-  const { name: rawName } = Route.useParams();
-  const { data } = useSuspenseQuery(catalogQueries.personCredits(rawName));
-  const { data: profile } = useQuery(catalogQueries.personDetails(rawName));
+  const { person } = Route.useParams();
+  const { data } = useSuspenseQuery(catalogQueries.personCredits(person));
+  const { data: profile } = useQuery(catalogQueries.personDetails(person));
   const detail = profile?.person ?? null;
   const tmdbCredits = profile?.credits ?? [];
   const c = kromaClient();
-  const results = data.results;
+  const { name: creditedName, results } = data;
   const entries: CatalogEntry[] = results.map((hit) =>
     hit.type === 'show'
       ? { kind: 'show', show: toShowView(c, hit.show) }
       : { kind: 'movie', movie: toMovieView(c, hit.item) },
   );
-  // The credits alone carry roles and a usable photo; the provider profile only
-  // ever improves on them.
   const metas = results.map((hit) => (hit.type === 'show' ? hit.show.metadata : hit.item.metadata));
-  const name = detail?.name ?? personDisplayName(metas, rawName);
-  const involvement = personInvolvement(metas, rawName);
+  const name = detail?.name ?? creditedName;
+  const involvement = personInvolvement(metas, creditedName);
   const photo = imageUrl(detail?.profileUrl ?? involvement.profileUrl);
   const [g1, g2] = posterColors(name);
   const roles = roleLabels(t, involvement);

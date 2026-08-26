@@ -9,7 +9,9 @@ import { Permission } from './accounts';
 import { ItemId, LibraryId, UserId } from './ids';
 
 /** One account in the admin "Membres & partage" table carries email, a derived
- * role, last-activity and a live `online` flag. */
+ * role, last-activity and a live `online` flag. `role` is a message key
+ * (`admin.roleOwner`), not words: the server has no business choosing the
+ * reader's language, and a caller can match on it without comparing prose. */
 export const AdminUser = z.object({
   id: UserId,
   email: z.string(),

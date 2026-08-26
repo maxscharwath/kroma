@@ -135,4 +135,40 @@ describe('LocaleProvider', () => {
     );
     expect(document.documentElement.lang).toBe('untouched');
   });
+
+  // The detection effect runs on mount, but auth hasn't resolved yet at that
+  // point so onAccountChange is undefined. The sync must fire when the user
+  // becomes available, not just on mount — otherwise the server never learns
+  // the browser locale and renders notifications in the default (fr).
+  it('syncs the detected locale to the server when onAccountChange arrives after mount', () => {
+    saveLocalePref('en');
+    const client = fakeClient();
+    const onAccountChange = vi.fn();
+    const { rerender } = render(
+      <LocaleProvider client={client}>
+        <Probe />
+      </LocaleProvider>,
+    );
+    // Auth resolves: the user is signed in with no account-level language.
+    rerender(
+      <LocaleProvider client={client} onAccountChange={onAccountChange}>
+        <Probe />
+      </LocaleProvider>,
+    );
+    expect(onAccountChange).toHaveBeenCalledWith('en');
+    expect(client.updateLanguage).toHaveBeenCalledWith('en');
+  });
+
+  it('does not sync when the account already has a language set', () => {
+    saveLocalePref('en');
+    const client = fakeClient();
+    const onAccountChange = vi.fn();
+    render(
+      <LocaleProvider client={client} accountLanguage="fr" onAccountChange={onAccountChange}>
+        <Probe />
+      </LocaleProvider>,
+    );
+    expect(onAccountChange).not.toHaveBeenCalled();
+    expect(client.updateLanguage).not.toHaveBeenCalled();
+  });
 });

@@ -19,7 +19,7 @@ import {
   normalizeLocale,
   saveLocalePref,
 } from '@kroma/core';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { I18nProvider } from './i18n';
 
 export interface LocaleProviderProps {
@@ -55,20 +55,31 @@ export function LocaleProvider({
 
   // Post-hydration: adopt the device override (localStorage) or the browser
   // locale, unless the signed-in account's preference already applies (handled
-  // by the effect below). Runs once on mount, client-side only. When the user is
-  // signed in but has no account-level language set, sync the detected locale to
-  // the server so server-rendered content (notifications, push) matches the UI.
+  // by the effect below). Runs once on mount, client-side only.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only; account changes are handled separately.
   useEffect(() => {
     if (accountLocale) return;
     const stored = loadLocalePref();
     const detected = isLocale(stored) ? stored : detectLocale();
     setOverride(detected);
-    if (onAccountChange) {
-      onAccountChange(detected);
-      client?.updateLanguage(detected).catch(() => {});
-    }
   }, []);
+
+  // Sync the detected locale to the server when a user signs in with no
+  // account-level language set. The detection effect above runs on mount, but
+  // auth hasn't resolved yet at that point so onAccountChange is undefined.
+  // This effect fires when the user becomes available, closing the gap so
+  // server-rendered content (notifications, push) matches the UI language.
+  // Values are captured in a ref so the effect only fires on the transition,
+  // not on every override/onAccountChange identity change.
+  const syncRef = useRef({ onAccountChange, client, override });
+  syncRef.current = { onAccountChange, client, override };
+  const wantsSync = Boolean(onAccountChange) && !accountLocale;
+  useEffect(() => {
+    if (!wantsSync) return;
+    const { onAccountChange: sync, client: c, override: loc } = syncRef.current;
+    sync?.(loc);
+    c?.updateLanguage(loc).catch(() => {});
+  }, [wantsSync]);
 
   // The signed-in account's preference is authoritative: adopt it whenever it
   // becomes known or changes (sign-in, profile switch, or an `me()` refresh that

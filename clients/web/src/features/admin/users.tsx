@@ -1,4 +1,4 @@
-import { type AdminUser, resolveImageUrl } from '@kroma/core';
+import { type AdminUser, type MessageKey, resolveImageUrl } from '@kroma/core';
 import { Table } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
 import {
@@ -20,11 +20,11 @@ import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
 // Roles arrive already localized from the server (Accept-Language synced), so we
-// match both locale spellings to keep the accent color right regardless of UI lang.
+// The server sends the message key, not the words, so this matches on something
+// that does not move when the reader's language does.
 function roleStyle(role: string): { ink: ColorValue; bg: ColorValue } {
-  if (role === 'Propriétaire' || role === 'Owner')
-    return { ink: 'accentText', bg: 'accentWash/16' };
-  if (role === 'Restreint' || role === 'Restricted') return { ink: 'info', bg: 'info/14' };
+  if (role === 'admin.roleOwner') return { ink: 'accentText', bg: 'accentWash/16' };
+  if (role === 'admin.roleRestricted') return { ink: 'info', bg: 'info/14' };
   return { ink: 'success', bg: 'success/14' };
 }
 
@@ -101,7 +101,7 @@ function UsersPageInner() {
           {users.map((u) => {
             const rs = roleStyle(u.role);
             const access =
-              u.role === 'Propriétaire' || u.role === 'Owner'
+              u.role === 'admin.roleOwner'
                 ? t('admin.allLibraries')
                 : t('admin.libraryCount', { count: libraryCount });
             return (
@@ -125,7 +125,7 @@ function UsersPageInner() {
                 </Table.Cell>
                 <Table.Cell wide>
                   <Pill ink={rs.ink} bg={rs.bg}>
-                    {u.role}
+                    {t(u.role as MessageKey)}
                   </Pill>
                 </Table.Cell>
                 <Table.Cell wide>

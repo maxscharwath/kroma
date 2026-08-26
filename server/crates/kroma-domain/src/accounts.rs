@@ -105,15 +105,17 @@ impl Permission {
     }
 }
 
-/// Derive a display role label from a capability set. The backend is
-/// capability-based; this is purely for the admin UI's "Rôle" badge.
+/// The message key naming the role a capability set adds up to. The backend is
+/// capability-based; this is purely for the admin UI's role badge, and it is a
+/// key rather than words so that this crate carries no copy and no locale, and
+/// so a caller can match on it without comparing translated prose.
 pub fn role_label(perms: &[Permission]) -> &'static str {
     if perms.contains(&Permission::UsersManage) && perms.contains(&Permission::SettingsManage) {
-        "Propriétaire"
+        "admin.roleOwner"
     } else if perms.contains(&Permission::Playback) {
-        "Membre"
+        "admin.roleMember"
     } else {
-        "Restreint"
+        "admin.roleRestricted"
     }
 }
 
@@ -165,17 +167,23 @@ mod tests {
 
     #[test]
     fn the_role_badge_follows_the_capability_set() {
-        assert_eq!(role_label(&Permission::all()), "Propriétaire");
+        assert_eq!(role_label(&Permission::all()), "admin.roleOwner");
         assert_eq!(
             role_label(&[Permission::UsersManage, Permission::SettingsManage]),
-            "Propriétaire"
+            "admin.roleOwner"
         );
         assert_eq!(
             role_label(&[Permission::Playback, Permission::RequestsCreate]),
-            "Membre"
+            "admin.roleMember"
         );
-        assert_eq!(role_label(&[Permission::RequestsCreate]), "Restreint");
-        assert_eq!(role_label(&[]), "Restreint");
-        assert_eq!(role_label(&[Permission::UsersManage]), "Restreint");
+        assert_eq!(
+            role_label(&[Permission::RequestsCreate]),
+            "admin.roleRestricted"
+        );
+        assert_eq!(role_label(&[]), "admin.roleRestricted");
+        assert_eq!(
+            role_label(&[Permission::UsersManage]),
+            "admin.roleRestricted"
+        );
     }
 }

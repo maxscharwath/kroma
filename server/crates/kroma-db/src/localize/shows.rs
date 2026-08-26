@@ -1,6 +1,6 @@
 //! Overlaying a locale onto a show, its seasons and its episodes.
 
-use super::{apply, apply_show, overlay_season_cast};
+use super::{apply_item, apply_show, overlay_season_cast};
 use crate::{metadata_core, translations, Pool};
 use anyhow::Result;
 
@@ -48,7 +48,7 @@ pub fn overlay_show_detail(pool: &Pool, detail: &mut ShowDetail, locale: &str) -
     for season in &mut detail.seasons {
         for ep in &mut season.episodes {
             if let Some(t) = ep_tr.get(&ep.id) {
-                apply(ep.metadata.as_mut(), t);
+                apply_item(ep, t);
             }
         }
         overlay_season_cast(&conn, &detail.show.id, season, locale)?;

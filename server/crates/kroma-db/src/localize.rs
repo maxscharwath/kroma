@@ -44,6 +44,17 @@ fn overlay_season_cast(
     Ok(())
 }
 
+// The title in the requested locale, or `None` to keep whatever the caller has.
+//
+// Its own function because the entity's OWN `title` is what every list, card and
+// hero renders; `metadata.title` is the enriched blob's copy, and a client that
+// happens to read the first while the overlay only wrote the second shows the
+// household language to a reader who asked for another. `splash_entries` has
+// always overwritten the entity's title, and these overlays now agree with it.
+fn localized_title(tr: &TransData) -> Option<String> {
+    tr.title.clone().filter(|t| !t.trim().is_empty())
+}
+
 // Overlay the localized text fields onto an item's metadata (no-op when the item
 // has no blob metadata yet, i.e. not enriched).
 fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
@@ -64,7 +75,17 @@ fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
 }
 
 // A show's metadata overlay (same fields; shows carry no per-title cast here).
+fn apply_item(item: &mut kroma_domain::MediaItem, tr: &TransData) {
+    if let Some(title) = localized_title(tr) {
+        item.title = title;
+    }
+    apply(item.metadata.as_mut(), tr);
+}
+
 fn apply_show(show: &mut Show, tr: &TransData) {
+    if let Some(title) = localized_title(tr) {
+        show.title = title;
+    }
     apply(show.metadata.as_mut(), tr);
 }
 

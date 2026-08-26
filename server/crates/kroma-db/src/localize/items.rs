@@ -1,6 +1,6 @@
 //! Overlaying a locale onto items and home-section rows.
 
-use super::{apply, apply_show};
+use super::{apply_item, apply_show};
 use crate::{metadata_core, translations, Pool};
 use anyhow::Result;
 
@@ -32,7 +32,7 @@ pub fn overlay_items(pool: &Pool, items: &mut [MediaItem], locale: &str) -> Resu
             &movie_tr
         };
         if let Some(tr) = table.get(&item.id) {
-            apply(item.metadata.as_mut(), tr);
+            apply_item(item, tr);
         }
     }
     Ok(())
@@ -64,7 +64,7 @@ pub fn overlay_section_items(pool: &Pool, items: &mut [SectionItem], locale: &st
         match it {
             SectionItem::Movie { item } => {
                 if let Some(t) = m_tr.get(&item.id) {
-                    apply(item.metadata.as_mut(), t);
+                    apply_item(item, t);
                 }
             }
             SectionItem::Show { show } => {
@@ -82,6 +82,79 @@ mod tests {
     use super::*;
     use crate::localize::test_support::*;
     use crate::translations::TransData;
+
+    #[test]
+    fn the_entity_title_is_localized_and_not_only_the_blobs_copy() {
+        // The bug this pins: every card, rail and hero renders the item's own
+        // `title`, and the overlay used to write only `metadata.title`, so a
+        // reader asking for English saw the household language in the one place
+        // the eye lands first.
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &td("Arrival", vec![]),
+        )
+        .unwrap();
+
+        let mut items = vec![item("m1", Kind::Movie)];
+        overlay_items(&p, &mut items, "en").unwrap();
+
+        assert_eq!(items[0].title, "Arrival");
+        assert_eq!(
+            items[0].metadata.as_ref().unwrap().title.as_deref(),
+            Some("Arrival")
+        );
+    }
+
+    #[test]
+    fn an_item_the_locale_has_no_title_for_keeps_the_one_it_had() {
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &TransData {
+                overview: Some("only an overview".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let before = item("m1", Kind::Movie).title;
+
+        let mut items = vec![item("m1", Kind::Movie)];
+        overlay_items(&p, &mut items, "en").unwrap();
+
+        assert_eq!(items[0].title, before);
+    }
+
+    #[test]
+    fn a_blank_translated_title_is_not_a_title() {
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &TransData {
+                title: Some("   ".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let before = item("m1", Kind::Movie).title;
+
+        let mut items = vec![item("m1", Kind::Movie)];
+        overlay_items(&p, &mut items, "en").unwrap();
+
+        assert_eq!(items[0].title, before);
+    }
 
     #[test]
     fn overlay_items_applies_title_and_characters() {

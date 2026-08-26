@@ -1,4 +1,4 @@
-import type { Catalog, PluralCategory, TVars } from './types';
+import type { Catalog, PluralCategory, PluralRule, TVars } from './types';
 
 const RULES = new Map<string, Intl.PluralRules | null>();
 
@@ -17,44 +17,37 @@ function rulesFor(locale: string): Intl.PluralRules | null {
 
 /** The CLDR plural category `count` falls in for `locale`. Falls back to a
  *  one/other split where `Intl.PluralRules` is missing, which is the older
- *  television engines. Note that French puts 0 in `one` and English does not. */
-export function selectCategory(locale: string, count: number): PluralCategory {
+ *  television engines. Note that French puts 0 in `one` and English does not,
+ *  so a server rendering the same catalog has to agree with this. */
+export function selectCategory(locale: string, count: number, rule?: PluralRule): PluralCategory {
+  if (rule) return rule(locale, count);
   return rulesFor(locale)?.select(count) ?? (count === 1 ? 'one' : 'other');
 }
 
-function variantIn(catalog: Catalog, locale: string, stem: string, n: number): string | undefined {
+function variantIn(
+  catalog: Catalog,
+  locale: string,
+  stem: string,
+  n: number,
+  rule?: PluralRule,
+): string | undefined {
   // An explicit `_zero` wins at zero even where CLDR has no `zero` category,
   // because "no results" is usually its own sentence rather than a plural.
   if (n === 0 && catalog[`${stem}_zero`] !== undefined) return `${stem}_zero`;
-  const category = `${stem}_${selectCategory(locale, n)}`;
+  const category = `${stem}_${selectCategory(locale, n, rule)}`;
   if (catalog[category] !== undefined) return category;
   const other = `${stem}_other`;
   if (catalog[other] !== undefined) return other;
   return undefined;
 }
 
-function resolveIn(catalog: Catalog, locale: string, key: string, vars: TVars): string | undefined {
-  const count = vars.count;
-  if (typeof count === 'number') {
-    const hit = variantIn(catalog, locale, key, count);
-    if (hit) return hit;
-  }
-  for (const name in vars) {
-    if (name === 'count' || !Object.hasOwn(vars, name)) continue;
-    const value = vars[name];
-    if (typeof value !== 'number') continue;
-    const hit = variantIn(catalog, locale, `${key}_${name}`, value);
-    if (hit) return hit;
-  }
-  return undefined;
-}
-
-/** The catalog key a message resolves to once its numeric variables have
- *  chosen a plural variant.
+/** The key `catalog` should be read at once the message's numeric variables
+ *  have chosen a plural variant, or `key` itself when it declares none.
  *
- *  A variant is only ever taken from the catalog that will also supply the
- *  template, so a locale cannot borrow another language's singular just
- *  because it happens to define one.
+ *  Resolution is per catalog rather than across a fallback chain, so a locale
+ *  can never borrow another language's singular purely because that language
+ *  happens to declare one; the caller moves on to the next catalog only when
+ *  this one has no template at all.
  *
  *  `count` selects `key_one` / `key_other` / `key_zero`. Any other numeric
  *  variable selects `key_<name>_one` and so on, which is how a message whose
@@ -62,14 +55,23 @@ function resolveIn(catalog: Catalog, locale: string, key: string, vars: TVars): 
  *  since one key names one template: `count` is tried first, then the rest in
  *  declaration order. */
 export function resolvePluralKey(
-  own: Catalog,
-  fallback: Catalog,
+  catalog: Catalog,
   locale: string,
   key: string,
   vars: TVars,
+  rule?: PluralRule,
 ): string {
-  const mine = resolveIn(own, locale, key, vars);
-  if (mine) return mine;
-  if (own[key] !== undefined) return key;
-  return resolveIn(fallback, locale, key, vars) ?? key;
+  const count = vars.count;
+  if (typeof count === 'number') {
+    const hit = variantIn(catalog, locale, key, count, rule);
+    if (hit) return hit;
+  }
+  for (const name in vars) {
+    if (name === 'count' || !Object.hasOwn(vars, name)) continue;
+    const value = vars[name];
+    if (typeof value !== 'number') continue;
+    const hit = variantIn(catalog, locale, `${key}_${name}`, value, rule);
+    if (hit) return hit;
+  }
+  return key;
 }

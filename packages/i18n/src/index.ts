@@ -1,16 +1,17 @@
-export { createI18n } from './i18n';
+export { type Chain, translateChain } from './chain';
+export { type DefineI18nConfig, defineI18n } from './define';
+export {
+  createI18n,
+  type I18n,
+  type I18nConfig,
+  type InferRegister,
+  type ScopedTranslate,
+} from './i18n';
 export { interpolate } from './interpolate';
 export { createLocales } from './locales';
 export { expandRefs, hasUnresolvedRef } from './nest';
 export { resolvePluralKey, selectCategory } from './plural';
+export type { Locale, MessageKey, Messages, Register, Translate } from './registry';
+export { CatalogStore } from './store';
 export { translateIn } from './translate';
-export type {
-  Catalog,
-  Catalogs,
-  I18nInstance,
-  LocaleSet,
-  MessageKeyOf,
-  PluralCategory,
-  Translate,
-  TVars,
-} from './types';
+export type { Catalog, Catalogs, LocaleSet, PluralCategory, PluralRule, TVars } from './types';

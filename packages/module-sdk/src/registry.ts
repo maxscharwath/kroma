@@ -1,5 +1,6 @@
 // The frontend module registry: the host-side mirror of the Rust `Registry`.
 
+import { addCatalogs } from '@kroma/core';
 import type { HostBase, KromaHost } from './host';
 import type {
   AnySlotContribution,
@@ -38,12 +39,14 @@ export interface ModuleStatus {
 export class ModuleRegistry {
   private readonly modules = new Map<string, KromaModule>();
   private readonly setupDone = new Set<string>();
+  private readonly disposers = new Map<string, () => void>();
 
   register(module: KromaModule): this {
     if (this.modules.has(module.id)) {
       throw new Error(`module "${module.id}" registered twice`);
     }
     this.modules.set(module.id, module);
+    if (module.locales) this.disposers.set(module.id, addCatalogs(module.id, module.locales));
     return this;
   }
 
@@ -52,6 +55,8 @@ export class ModuleRegistry {
   unregister(id: string): void {
     this.modules.delete(id);
     this.setupDone.delete(id);
+    this.disposers.get(id)?.();
+    this.disposers.delete(id);
   }
 
   has(id: string): boolean {

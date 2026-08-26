@@ -2,6 +2,10 @@
 // a screen never has to carry one around. Lives here rather than in core
 // because this is where the locale context is, and it is what every shell and
 // every module already reaches for when it wants `useT`.
+//
+// Standing alone rather than throwing outside an <I18nProvider>: five of these
+// never touch a catalog, and a byte size is exactly what a kit component or an
+// error boundary rendered above the provider wants to show.
 
 import {
   decimal,
@@ -14,7 +18,7 @@ import {
   formatUptime,
 } from '@kroma/core';
 import { useMemo } from 'react';
-import { useLocale, useT } from './i18n-context';
+import { useLocaleDefault, useTDefault } from './i18n';
 
 export interface Format {
   /** A byte size in the locale's units: `1,5 Go` / `1.5 GB`. */
@@ -37,8 +41,8 @@ export interface Format {
 
 /** Every value formatter, bound to the locale on screen. */
 export function useFormat(): Format {
-  const locale = useLocale();
-  const t = useT();
+  const locale = useLocaleDefault();
+  const t = useTDefault();
   return useMemo(
     () => ({
       bytes: (bytes) => formatBytes(bytes, locale),

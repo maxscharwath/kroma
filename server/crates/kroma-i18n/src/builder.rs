@@ -87,15 +87,19 @@ impl Builder {
         let default = self.default.ok_or(BuildError::MissingDefault)?;
         let mut locales = Vec::with_capacity(self.raw.len() + self.parsed.len());
         for (code, json) in self.raw {
-            let entries =
+            let mut entries: HashMap<String, String> =
                 serde_json::from_str(&json).map_err(|e| BuildError::Catalog(code.clone(), e))?;
+            // `$schema` points an editor at the catalog schema; it is not a
+            // message, and the TypeScript half drops it for the same reason.
+            entries.remove("$schema");
             locales.push(Locale {
                 label_key: (self.label_key)(&code),
                 code,
                 entries,
             });
         }
-        for (code, entries) in self.parsed {
+        for (code, mut entries) in self.parsed {
+            entries.remove("$schema");
             locales.push(Locale {
                 label_key: (self.label_key)(&code),
                 code,

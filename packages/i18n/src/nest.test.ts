@@ -55,7 +55,10 @@ describe('expandRefs', () => {
 
 describe('createI18n with references', () => {
   it('expands at construction, so a variable can never reach a key', () => {
-    const i18n = createI18n({ en: { brand: 'KROMA', hi: 'Welcome to $t(brand)' } }, 'en');
+    const i18n = createI18n({
+      catalogs: { en: { brand: 'KROMA', hi: 'Welcome to $t(brand)' } },
+      defaultLocale: 'en',
+    });
 
     expect(i18n.translate('en', 'hi')).toBe('Welcome to KROMA');
     expect(i18n.translate('en', 'brand', { brand: '$t(hi)' })).toBe('KROMA');

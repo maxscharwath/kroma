@@ -5,8 +5,7 @@
 // instead and reads them from the catalogs, because the words belong to
 // whoever writes the language, not to this file.
 
-import type { Translate } from './i18n';
-import type { Locale } from './i18n-locales';
+import type { Locale, Translate } from '@kroma/i18n';
 
 const BYTE_UNITS: Record<Locale, readonly string[]> = {
   fr: ['o', 'Ko', 'Mo', 'Go', 'To', 'Po'],
@@ -57,7 +56,11 @@ export function formatBytes(bytes: number, locale: Locale): string {
   const units = BYTE_UNITS[locale];
   const smallest = units[0] as string;
   if (!bytes || bytes < 0) return `0 ${smallest}`;
-  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  // Clamped at both ends: a fractional byte count logs negative, and an
+  // unclamped index would divide by 1024 to the minus one and read a
+  // half-byte transfer rate back as 512.
+  const step = Math.floor(Math.log(bytes) / Math.log(1024));
+  const i = Math.max(0, Math.min(units.length - 1, step));
   const v = bytes / 1024 ** i;
   return `${decimal(v, locale, v >= 100 || i <= 1 ? 0 : 1)} ${units[i] ?? smallest}`;
 }

@@ -32,10 +32,14 @@ macro_rules! catalog {
 // not, so the same key has to resolve the same way on both sides or a count of
 // zero renders differently in a notification than it does on screen.
 fn plural_rule(locale: &str, count: i64) -> Category {
-    if locale.starts_with("fr") {
-        kroma_i18n::zero_one_other(locale, count)
-    } else {
-        kroma_i18n::one_other(locale, count)
+    // The rule is handed the CALLER's tag rather than the resolved catalog
+    // code, so it has to normalize for itself: `normalize` accepts "FR" and the
+    // endonym "Français" as readily as "fr", and a case-sensitive prefix test
+    // would hand both of those the English rule and reopen the split this is
+    // here to close.
+    match normalize(locale) {
+        Some("fr") => kroma_i18n::zero_one_other(locale, count),
+        _ => kroma_i18n::one_other(locale, count),
     }
 }
 
@@ -127,6 +131,27 @@ mod tests {
             "1 season"
         );
         assert_eq!(normalize("en-US"), Some("en"));
+    }
+
+    #[test]
+    fn the_schema_pointer_is_not_a_message() {
+        assert!(!is_message_key("$schema"));
+        assert!(is_message_key("nav.home"));
+    }
+
+    #[test]
+    fn the_plural_rule_reads_a_tag_the_way_the_catalog_lookup_does() {
+        for tag in ["fr", "FR", "fr-CH", "Français"] {
+            assert_eq!(
+                t(tag, "content.seasonCount", &[("count", "0")]),
+                "0 saison",
+                "{tag}"
+            );
+        }
+        assert_eq!(
+            t("en-US", "content.seasonCount", &[("count", "0")]),
+            "0 seasons"
+        );
     }
 
     #[test]

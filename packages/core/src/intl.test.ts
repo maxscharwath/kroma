@@ -37,6 +37,11 @@ describe('formatBytes', () => {
     expect(formatBytes(0, 'en')).toBe('0 B');
   });
 
+  it('rounds a fractional byte count up rather than reading it as 512', () => {
+    expect(formatBytes(0.5, 'fr')).toBe('1 o');
+    expect(formatBytes(0.5, 'en')).toBe('1 B');
+  });
+
   it('keeps bytes and kilobytes at zero decimals', () => {
     expect(formatBytes(500, 'fr')).toBe('500 o');
     expect(formatBytes(1024, 'fr')).toBe('1 Ko');

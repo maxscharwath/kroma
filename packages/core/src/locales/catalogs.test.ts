@@ -5,10 +5,11 @@ import en from './en.json';
 import fr from './fr.json';
 
 const CATEGORY = /_(zero|one|two|few|many|other)$/;
+const NOT_A_MESSAGE = new Set(['$schema']);
 const catalogs = { fr, en } as Record<string, Record<string, string>>;
 
 function baseKeys(catalog: Record<string, string>): string[] {
-  return Object.keys(catalog).filter((k) => !CATEGORY.test(k));
+  return Object.keys(catalog).filter((k) => !CATEGORY.test(k) && !NOT_A_MESSAGE.has(k));
 }
 
 function stemOf(key: string): string {

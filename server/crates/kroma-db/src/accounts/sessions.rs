@@ -124,8 +124,8 @@ mod tests {
         let p = pool();
         let user = mk_user(&p, "a@b.c", "alice");
 
-        create_access_token(&p, "dev-phone", &user.id, FUTURE, true, Some("iPhone")).unwrap();
-        create_access_token(&p, "dev-laptop", &user.id, FUTURE, true, Some("Mac")).unwrap();
+        create_access_token(&p, "dev-phone", &user.id, FUTURE, true, &ua("iPhone")).unwrap();
+        create_access_token(&p, "dev-laptop", &user.id, FUTURE, true, &ua("Mac")).unwrap();
         create_session(&p, "sess-phone", &user.id, FUTURE, Some("dev-phone")).unwrap();
         create_session(&p, "sess-laptop", &user.id, FUTURE, Some("dev-laptop")).unwrap();
 
@@ -141,7 +141,7 @@ mod tests {
     fn an_unknown_keep_token_revokes_every_device_credential() {
         let p = pool();
         let user = mk_user(&p, "a@b.c", "alice");
-        create_access_token(&p, "dev-phone", &user.id, FUTURE, true, Some("iPhone")).unwrap();
+        create_access_token(&p, "dev-phone", &user.id, FUTURE, true, &ua("iPhone")).unwrap();
         create_session(&p, "sess-phone", &user.id, FUTURE, Some("dev-phone")).unwrap();
 
         revoke_other_sessions(&p, &user.id, "sess-gone").unwrap();

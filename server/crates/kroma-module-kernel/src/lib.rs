@@ -299,6 +299,7 @@ mod gate_tests {
                 services: services(dir.path()),
                 jobs: &[],
                 contributions: Arc::new(|_| Vec::new()),
+                official_modules: Arc::new(Vec::new),
             },
         );
         (state, dir)

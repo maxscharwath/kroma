@@ -21,6 +21,19 @@ fn apply_item(item: &mut MediaItem, tr: &TransData) {
 /// Overlay `locale` onto a batch of items (movies/videos + episodes). Episodes
 /// resolve under the `'episode'` subject kind, everything else under `'item'`.
 pub fn overlay_items(pool: &Pool, items: &mut [MediaItem], locale: &str) -> Result<()> {
+    overlay_each(pool, items.iter_mut(), locale)
+}
+
+/// Overlay `locale` onto items reached through something other than a slice: a
+/// resume row's inner item, the next episode, one `Option`. Every endpoint that
+/// serves a [`MediaItem`] has to go through here, whatever it wraps it in, or
+/// that one screen reads in the language the files were scanned in.
+pub fn overlay_each<'a>(
+    pool: &Pool,
+    items: impl IntoIterator<Item = &'a mut MediaItem>,
+    locale: &str,
+) -> Result<()> {
+    let mut items: Vec<&mut MediaItem> = items.into_iter().collect();
     if items.is_empty() {
         return Ok(());
     }
@@ -139,6 +152,28 @@ mod tests {
             panic!("expected a movie row");
         };
         assert_eq!(item.title, "Arrival");
+    }
+
+    #[test]
+    fn an_item_reached_through_a_wrapper_is_localized_like_any_other() {
+        let p = pool();
+        translations::put(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            "en",
+            translations::TMDB,
+            &td("Arrival", vec![]),
+        )
+        .unwrap();
+
+        // Continue watching, up-next and the player's rail all hand out a
+        // MediaItem wrapped in something. Reaching them by slice only is how
+        // one row ends up reading in the language the files were scanned in.
+        let mut resume = (item("m1", Kind::Movie), 1234);
+        overlay_each(&p, std::iter::once(&mut resume.0), "en").unwrap();
+
+        assert_eq!(resume.0.title, "Arrival");
     }
 
     #[test]

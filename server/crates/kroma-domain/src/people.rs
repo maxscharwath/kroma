@@ -1,7 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::slug::slugify;
+use crate::slug::{slug_eq, slugify};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CreditedTitle {
@@ -63,7 +63,7 @@ fn by_folded_name(credits: &[Credit], lookup: &str) -> Option<PersonMatch> {
     if want.is_empty() {
         return None;
     }
-    let mut spellings = group_by_spelling(credits.iter().filter(|c| slugify(&c.name) == want));
+    let mut spellings = group_by_spelling(credits.iter().filter(|c| slug_eq(&c.name, &want)));
     let name = most_credited_then_alphabetical(&spellings)?.clone();
     let titles = spellings.remove(&name).unwrap_or_default();
     let id = titles.lone_id();

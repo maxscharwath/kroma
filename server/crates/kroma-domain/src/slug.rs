@@ -51,6 +51,39 @@ pub fn slugify(raw: &str) -> String {
     out.trim_end_matches('-').to_string()
 }
 
+/// Whether `raw` slugifies to `slug`, without building the slug. The credit
+/// scan asks this of every name in the library, so the allocation slugify makes
+/// per call is the cost being avoided rather than a micro-optimisation.
+pub fn slug_eq(raw: &str, slug: &str) -> bool {
+    let mut want = slug.chars();
+    let mut pending_separator = false;
+    let mut any = false;
+    for ch in raw.chars().flat_map(char::to_lowercase) {
+        if is_combining_mark(ch) {
+            continue;
+        }
+        match base_letter(ch) {
+            Some(base) => {
+                if pending_separator {
+                    if want.next() != Some('-') {
+                        return false;
+                    }
+                    pending_separator = false;
+                }
+                if want.next() != Some(base) {
+                    return false;
+                }
+                any = true;
+            }
+            // A run of anything else is one separator, and a trailing run is
+            // none at all: the same shape `slugify` produces.
+            None if any => pending_separator = true,
+            None => {}
+        }
+    }
+    want.next().is_none()
+}
+
 fn is_combining_mark(ch: char) -> bool {
     matches!(ch, '\u{0300}'..='\u{036F}')
 }
@@ -89,6 +122,29 @@ mod tests {
         for Case { name, slug } in shared_cases() {
             assert_eq!(slugify(&name), slug, "folding {name:?}");
         }
+    }
+
+    #[test]
+    fn slug_eq_answers_for_every_shared_case_what_slugify_would_have_built() {
+        for Case { name, slug } in shared_cases() {
+            assert!(slug_eq(&name, &slug), "{name:?} should equal {slug:?}");
+            assert!(!slug_eq(&name, &format!("{slug}x")), "{name:?} vs a longer slug");
+            if !slug.is_empty() {
+                assert!(
+                    !slug_eq(&name, &slug[..slug.len() - 1]),
+                    "{name:?} vs a shorter slug"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn slug_eq_reads_a_separator_run_and_a_trailing_run_as_slugify_does() {
+        assert!(slug_eq("Ana  de  Armas", "ana-de-armas"));
+        assert!(slug_eq("Sammy Davis Jr.", "sammy-davis-jr"));
+        assert!(slug_eq("  Michelle Yeoh  ", "michelle-yeoh"));
+        assert!(!slug_eq("Ana de Armas", "ana--de-armas"));
+        assert!(!slug_eq("Sammy Davis Jr.", "sammy-davis-jr-"));
     }
 
     #[test]

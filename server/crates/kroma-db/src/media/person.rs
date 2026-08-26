@@ -7,7 +7,7 @@ use anyhow::Result;
 use rusqlite::Connection;
 
 use kroma_domain::people::{self, Credit, CreditedTitle, PersonMatch};
-use kroma_domain::slug::slugify;
+use kroma_domain::slug::{slug_eq, slugify};
 
 use crate::Pool;
 
@@ -34,12 +34,20 @@ const SHOW_CREDITS: &str = "\
 /// casing; see [`people::resolve_person`] for which one answers. Episodes are
 /// excluded: they inherit their show's credits.
 pub fn resolve_person(pool: &Pool, lookup: &str) -> Result<Option<PersonMatch>> {
-    if slugify(lookup).is_empty() {
+    let want = slugify(lookup);
+    if want.is_empty() {
         return Ok(None);
     }
+    let id = lookup.parse::<u64>().ok();
+    // The id and the fold are both answered here so that a credit which is
+    // neither never becomes a `Credit`: `people::resolve_person` re-applies the
+    // same rules over the survivors, which is where the namesake tie-break lives.
+    let keep = |name: &str, credit_id: Option<u64>| {
+        (id.is_some() && credit_id == id) || slug_eq(name, &want)
+    };
     let conn = pool.get()?;
-    let mut credits = read_credits(&conn, MOVIE_CREDITS, CreditedTitle::Movie)?;
-    credits.extend(read_credits(&conn, SHOW_CREDITS, CreditedTitle::Show)?);
+    let mut credits = read_credits(&conn, MOVIE_CREDITS, CreditedTitle::Movie, &keep)?;
+    credits.extend(read_credits(&conn, SHOW_CREDITS, CreditedTitle::Show, &keep)?);
     Ok(people::resolve_person(credits, lookup))
 }
 
@@ -47,25 +55,30 @@ fn read_credits(
     conn: &Connection,
     sql: &str,
     title: fn(String) -> CreditedTitle,
+    keep: &dyn Fn(&str, Option<u64>) -> bool,
 ) -> Result<Vec<Credit>> {
     let mut stmt = conn.prepare(sql)?;
-    let rows = stmt.query_map([], |r| {
-        Ok((
-            r.get::<_, String>(0)?,
-            r.get::<_, Option<String>>(1)?,
-            r.get::<_, Option<i64>>(2)?,
-        ))
-    })?;
+    let mut rows = stmt.query([])?;
     let mut credits = Vec::new();
-    for row in rows {
-        let (title_id, name, tmdb_id) = row?;
-        if let Some(name) = name {
-            credits.push(Credit {
-                name,
-                tmdb_id: tmdb_id.and_then(|id| u64::try_from(id).ok()),
-                title: title(title_id),
-            });
+    // `get_ref` BORROWS out of the statement; `get` would build a String for
+    // every credit in the library before anything could reject it, and only a
+    // handful are ever the person being looked up.
+    while let Some(row) = rows.next()? {
+        let Ok(name) = row.get_ref(1)?.as_str() else {
+            continue;
+        };
+        let tmdb_id = row
+            .get_ref(2)?
+            .as_i64_or_null()?
+            .and_then(|id| u64::try_from(id).ok());
+        if !keep(name, tmdb_id) {
+            continue;
         }
+        credits.push(Credit {
+            name: name.to_string(),
+            tmdb_id,
+            title: title(row.get::<_, String>(0)?),
+        });
     }
     Ok(credits)
 }

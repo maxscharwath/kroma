@@ -637,7 +637,7 @@
   "admin.throttleBuffer": "Tampon (throttle buffer)",
   "admin.timezone": "Fuseau horaire",
   "admin.tmdbLanguage": "Langue de repli des métadonnées (TMDB)",
-  "admin.tmdbLanguageHint": "Sert à faire correspondre un titre à TMDB, et à tout ce qui n'a pas de lecteur en face : enrichissement, tâches, modules. Un lecteur connecté obtient sa propre langue lorsqu'elle est disponible. Code TMDB, par ex. fr-FR, en-US. Vide = valeur par défaut du serveur.",
+  "admin.tmdbLanguageHint": "Sert à faire correspondre un titre à TMDB, et à tout ce qui n'a pas de lecteur en face : enrichissement, tâches, modules. Un lecteur connecté obtient sa propre langue lorsqu'elle est disponible. Auto = valeur par défaut du serveur.",
   "admin.topUsers": "Top des utilisateurs",
   "admin.totalCapacity": "Capacité totale",
   "admin.transcodeCacheBudget": "sur {limit} alloués",

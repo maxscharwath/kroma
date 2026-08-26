@@ -1,6 +1,7 @@
 //! The admin settings-view schema: the grouped, localised rows the console
 //! renders, with each row's current value overlaid from the store.
 
+use super::TMDB_LANGUAGE_AUTO;
 use std::sync::OnceLock;
 
 use serde::Serialize;
@@ -98,8 +99,11 @@ pub fn groups(
                         "tmdbLanguage",
                         t("admin.tmdbLanguage"),
                         Some(t("admin.tmdbLanguageHint")),
-                        "text",
-                        &[],
+                        "select",
+                        &tmdb_language_options()
+                            .iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>(),
                         g("tmdbLanguage"),
                         true,
                     ),
@@ -484,6 +488,38 @@ pub fn groups(
             ],
         )],
         _ => Vec::new(),
+    }
+}
+
+/// The languages the fallback can be set to: the ones this server actually
+/// keeps catalogs in, so adding a locale adds a choice here and nothing has to
+/// be edited to keep the two in step. `Auto` defers to the server default.
+///
+/// TMDB takes a regional code and the region changes the artwork it picks, so
+/// each language offers the one it is usually wanted in; a code set by hand
+/// before, or through the environment, stays selected because the control keeps
+/// a stored value it does not name.
+fn tmdb_language_options() -> Vec<String> {
+    let mut opts = vec![TMDB_LANGUAGE_AUTO.to_string()];
+    opts.extend(
+        crate::i18n::SUPPORTED_LOCALES
+            .iter()
+            .map(|l| tmdb_region_of(l).to_string()),
+    );
+    opts
+}
+
+fn tmdb_region_of(lang: &str) -> &str {
+    match lang {
+        "en" => "en-US",
+        "fr" => "fr-FR",
+        "es" => "es-ES",
+        "de" => "de-DE",
+        "it" => "it-IT",
+        "pt" => "pt-BR",
+        "nl" => "nl-NL",
+        "ja" => "ja-JP",
+        other => other,
     }
 }
 

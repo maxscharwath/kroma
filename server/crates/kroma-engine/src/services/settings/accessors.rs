@@ -2,6 +2,7 @@
 //! actually reads to change behaviour (LAN nets, server name, transcode cap),
 //! plus the persisted multi-folder library definitions.
 
+use super::TMDB_LANGUAGE_AUTO;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -104,10 +105,11 @@ pub fn theme_songs_enabled(settings: &Settings) -> bool {
 /// per-user UI choice.
 pub fn metadata_language(settings: &Settings, config: &crate::config::Config) -> String {
     let v = settings.get_str("tmdbLanguage", "");
-    if v.trim().is_empty() {
+    let v = v.trim();
+    if v.is_empty() || v == TMDB_LANGUAGE_AUTO {
         config.tmdb_language.clone()
     } else {
-        v
+        v.to_string()
     }
 }
 
@@ -335,6 +337,25 @@ mod tests {
             tmdb_language: "en-US".to_string(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn auto_defers_to_the_server_default_the_way_an_empty_value_does() {
+        let pool = test_pool();
+        let s = settings(&pool);
+        let c = test_config();
+
+        s.set_patch(
+            &pool,
+            BTreeMap::from([("tmdbLanguage".to_string(), json!("Auto"))]),
+        );
+        assert_eq!(metadata_language(&s, &c), "en-US");
+
+        s.set_patch(
+            &pool,
+            BTreeMap::from([("tmdbLanguage".to_string(), json!("fr-FR"))]),
+        );
+        assert_eq!(metadata_language(&s, &c), "fr-FR");
     }
 
     #[test]

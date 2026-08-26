@@ -13,6 +13,7 @@
 //! module, a module from the core. It holds no transport of its own: a
 //! [`Transport`] is chosen per URL.
 
+mod builder;
 mod config;
 mod curl;
 mod fetch;

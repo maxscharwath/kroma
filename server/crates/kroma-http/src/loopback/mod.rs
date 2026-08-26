@@ -65,28 +65,9 @@ impl Default for Loopback {
     }
 }
 
+crate::builder::request_builder!(Loopback, query = "URL-encoded query parameter.");
+
 impl Loopback {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn header(mut self, name: &str, value: impl Into<String>) -> Self {
-        self.headers.push((name.to_string(), value.into()));
-        self
-    }
-
-    /// URL-encoded query parameter.
-    pub fn query(mut self, name: &str, value: impl Into<String>) -> Self {
-        self.query.push((name.to_string(), value.into()));
-        self
-    }
-
-    /// Budget for the whole exchange (default 30s).
-    pub fn max_time(mut self, secs: u32) -> Self {
-        self.max_time_secs = secs;
-        self
-    }
-
     pub fn get(&self, url: &str) -> Result<Response> {
         self.send(Method::Get, url, None)
     }

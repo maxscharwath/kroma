@@ -47,7 +47,11 @@ function PersonPage() {
       : { kind: 'movie', movie: toMovieView(c, hit.item) },
   );
   const metas = results.map((hit) => (hit.type === 'show' ? hit.show.metadata : hit.item.metadata));
-  const name = detail?.name ?? creditedName;
+  // A segment that is only a provider id is not a name: reached from a discover
+  // title's cast, nothing local carries the credit, so with no provider answer
+  // there is no name to show and printing the id would be worse than saying so.
+  const credited = /^\d+$/.test(creditedName) ? null : creditedName;
+  const name = detail?.name ?? credited ?? t('person.unnamed');
   const involvement = personInvolvement(metas, creditedName);
   const photo = imageUrl(detail?.profileUrl ?? involvement.profileUrl);
   const [g1, g2] = posterColors(name);

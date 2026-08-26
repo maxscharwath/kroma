@@ -1,27 +1,36 @@
-// Every Latin letter whose NFD form is an ASCII letter plus a combining mark,
-// which is the set the TypeScript side folds by decomposing. A letter with no
+// Every Latin letter whose NFD form is an ASCII letter plus combining marks,
+// which is the set the TypeScript side folds by decomposing. Generated over
+// Latin-1, Extended-A/B and Extended Additional, so the Vietnamese vowels and
+// the dotted-below transliteration letters fold here too rather than becoming
+// separators on this side only. A letter with no
 // such decomposition (`ß`, `æ`, `ø`, `ð`, `ł`) is NOT here: both sides turn it
 // into a separator, and `slug.fixture.json` holds them to that.
-const LATIN_FOLD: [(&str, char); 19] = [
-    ("àáâãäåāăąǎǟǡǻȁȃȧ", 'a'),
-    ("çćĉċč", 'c'),
-    ("ď", 'd'),
-    ("èéêëēĕėęěȅȇȩ", 'e'),
-    ("ĝğġģǧǵ", 'g'),
-    ("ĥȟ", 'h'),
-    ("ìíîïĩīĭįǐȉȋ", 'i'),
+const LATIN_FOLD: [(&str, char); 25] = [
+    ("àáâãäåāăąǎǟǡǻȁȃȧḁạảấầẩẫậắằẳẵặ", 'a'),
+    ("ḃḅḇ", 'b'),
+    ("çćĉċčḉ", 'c'),
+    ("ďḋḍḏḑḓ", 'd'),
+    ("èéêëēĕėęěȅȇȩḕḗḙḛḝẹẻẽếềểễệ", 'e'),
+    ("ḟ", 'f'),
+    ("ĝğġģǧǵḡ", 'g'),
+    ("ĥȟḣḥḧḩḫẖ", 'h'),
+    ("ìíîïĩīĭįǐȉȋḭḯỉị", 'i'),
     ("ĵǰ", 'j'),
-    ("ķǩ", 'k'),
-    ("ĺļľ", 'l'),
-    ("ñńņňǹ", 'n'),
-    ("òóôõöōŏőơǒǫǭȍȏȫȭȯȱ", 'o'),
-    ("ŕŗřȑȓ", 'r'),
-    ("śŝşšș", 's'),
-    ("ţťț", 't'),
-    ("ùúûüũūŭůűųưǔǖǘǚǜȕȗ", 'u'),
-    ("ŵ", 'w'),
-    ("ýÿŷȳ", 'y'),
-    ("źżž", 'z'),
+    ("ķǩḱḳḵ", 'k'),
+    ("ĺļľḷḹḻḽ", 'l'),
+    ("ḿṁṃ", 'm'),
+    ("ñńņňǹṅṇṉṋ", 'n'),
+    ("òóôõöōŏőơǒǫǭȍȏȫȭȯȱṍṏṑṓọỏốồổỗộớờởỡợ", 'o'),
+    ("ṕṗ", 'p'),
+    ("ŕŗřȑȓṙṛṝṟ", 'r'),
+    ("śŝşšșṡṣṥṧṩ", 's'),
+    ("ţťțṫṭṯṱẗ", 't'),
+    ("ùúûüũūŭůűųưǔǖǘǚǜȕȗṳṵṷṹṻụủứừửữự", 'u'),
+    ("ṽṿ", 'v'),
+    ("ŵẁẃẅẇẉẘ", 'w'),
+    ("ẋẍ", 'x'),
+    ("ýÿŷȳẏẙỳỵỷỹ", 'y'),
+    ("źżžẑẓẕ", 'z'),
 ];
 
 /// The URL segment a display name folds to: lowercased, accents dropped, every

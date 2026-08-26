@@ -3,7 +3,7 @@
 
 import type { Metadata } from '@kroma/client';
 
-import { genreSlug, genreSlugs } from './genre';
+import { genreEntries, genreSlug, genreSlugs } from './genre';
 
 /** The minimal shape every browse helper reads; `MediaItem`, `Show` and the web
  * view-models all satisfy it. */
@@ -92,12 +92,11 @@ export interface GenreCount {
 export function collectGenres(items: readonly Sortable[]): GenreCount[] {
   const counts = new Map<string, GenreCount>();
   for (const it of items) {
-    const names = it.metadata?.genres ?? [];
-    genreSlugs(it.metadata).forEach((slug, index) => {
+    for (const { slug, name } of genreEntries(it.metadata)) {
       const seen = counts.get(slug);
       if (seen) seen.count += 1;
-      else counts.set(slug, { slug, name: (names[index] ?? slug).trim(), count: 1 });
-    });
+      else counts.set(slug, { slug, name: name.trim() || slug, count: 1 });
+    }
   }
   return [...counts.values()].sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug));
 }

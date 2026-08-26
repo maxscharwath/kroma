@@ -21,6 +21,7 @@ import { useT } from '@kroma/ui';
 import { Badge, Box, Icon, IconButton, ListRow, Text } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
+import { notificationLink } from '#web/features/notifications/notification-link';
 import { useExactTime, useRelativeTime } from '#web/features/notifications/notification-time';
 import { useReadState } from '#web/features/notifications/use-notifications';
 import { NotificationCard } from '#web/shared/ui/notification-card';
@@ -62,7 +63,7 @@ export function NotificationEntry({
 
   function go(one: Notification) {
     markRead(ids);
-    const to = destinationOf(one);
+    const to = notificationLink(one);
     if (to) {
       onNavigate();
       void navigate({ to });
@@ -166,12 +167,4 @@ function Occurrences({
       ))}
     </Box>
   );
-}
-
-// The notification's own `link`, else its first `link`-kind action. `api`
-// actions (Approve, Deny) have no destination, deliberately not offered here,
-// since their notification links to the queue where the decision belongs.
-function destinationOf(notification: Notification): string | undefined {
-  if (notification.link) return notification.link;
-  return notification.actions.find((a) => a.kind === 'link')?.href;
 }

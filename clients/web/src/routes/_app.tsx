@@ -24,6 +24,8 @@ export const Route = createFileRoute('/_app')({
 const BROWSER_LABEL =
   typeof navigator === 'undefined' ? 'Web' : deviceInfo(navigator.userAgent, 'Web').label;
 
+const UNPOSITIONED = { position: 'static' } as const;
+
 const RAIL_WIDTH = 248;
 
 function AppLayout() {
@@ -42,7 +44,11 @@ function AppLayout() {
         ) : (
           <MobileTopbar />
         )}
-        <Box flex minW={0}>
+        {/* Unpositioned, as the frame's own element was: a `View` is
+            `position: relative` by default, and the player's root fills its
+            nearest positioned ancestor, so a positioned column here sizes
+            "fullscreen" to the content beside the rail. */}
+        <Box flex minW={0} style={UNPOSITIONED}>
           <Outlet />
         </Box>
         <CatalogModalHosts />

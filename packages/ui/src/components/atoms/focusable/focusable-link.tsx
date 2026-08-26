@@ -37,15 +37,22 @@ function LinkForm({ as, at }: Readonly<{ as: HostElement; at: HostAt }>): ReactN
     onPointerDown: at.onPointerDown,
     onPointerUp: at.onPointerUp,
     onPointerCancel: at.onPointerUp,
-    children:
-      typeof at.children === 'function'
-        ? at.children({
-            focused: at.focused,
-            pressed: at.pressed,
-            hovered: at.hovered,
-            slots: at.resolve(at.pressed),
-          })
-        : at.children,
+    // Omitted entirely when this control has none of its own: cloneElement
+    // copies the key over, so passing `undefined` would erase whatever the
+    // delegated element was already carrying.
+    ...(at.children === undefined
+      ? null
+      : {
+          children:
+            typeof at.children === 'function'
+              ? at.children({
+                  focused: at.focused,
+                  pressed: at.pressed,
+                  hovered: at.hovered,
+                  slots: at.resolve(at.pressed),
+                })
+              : at.children,
+        }),
   });
 }
 

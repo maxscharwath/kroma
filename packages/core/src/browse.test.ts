@@ -191,6 +191,19 @@ describe('collectGenres', () => {
     expect(collectGenres(items)).toEqual([{ slug: 'family', name: 'Family', count: 2 }]);
   });
 
+  // A genre with neither a row nor a foldable name is dropped, so anything
+  // pairing the surviving slugs with the raw `genres` array by POSITION reads
+  // its neighbour's name from there on.
+  it('names each genre from its own spelling, not the one at its old index', () => {
+    const blank = collectGenres([title({ title: 'a', genres: ['  ', 'Horror'] })]);
+    expect(blank).toEqual([{ slug: 'horror', name: 'Horror', count: 1 }]);
+
+    const unknown = collectGenres([
+      title({ title: 'b', tmdbGenreIds: [10751, 4242, 27], genres: ['Family', '!!!', 'Horror'] }),
+    ]);
+    expect(unknown.find((g) => g.slug === 'horror')?.name).toBe('Horror');
+  });
+
   it('counts one genre once across the languages its titles were enriched in', () => {
     const items = [
       title({ title: 'a', tmdbGenreIds: [10751], genres: ['Family'] }),

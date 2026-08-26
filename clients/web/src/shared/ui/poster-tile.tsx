@@ -81,7 +81,11 @@ export function PosterTile({
   // so a cursor moving onto a disc leaves the control and would drop the tile's
   // hover with it.
   const engaged = NO_HOVER || hovered || keyboardWithin;
-  const fold = watched && (NO_HOVER || !engaged);
+  // The fold and the action bar share the top-right corner, so the mark stands
+  // down whenever the bar is up - including on a coarse pointer, which keeps the
+  // bar up permanently. Nothing is lost: the bar's own watched toggle is lit,
+  // which is the same fact said by the control that changes it.
+  const fold = watched && !engaged;
 
   return (
     // Two boxes, because the one that reports hover must not be the one that

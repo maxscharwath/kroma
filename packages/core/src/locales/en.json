@@ -1691,6 +1691,7 @@
   "person.role.writer": "Writer",
   "person.titleCount": "{count} titles",
   "person.titleCount_one": "{count} title",
+  "person.unnamed": "Unnamed person",
   "person.viewWorks": "See titles with {name}",
   "pin.backHint": "Back to return to profiles",
   "pin.changeSubtitle": "Enter your current PIN",

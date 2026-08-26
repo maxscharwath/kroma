@@ -123,7 +123,13 @@ async fn credited_person(
 ) -> Result<(String, Option<u64>), Response> {
     let wanted = lookup.clone();
     let found = query(&state.db, move |pool| db::resolve_person(&pool, &wanted)).await?;
-    Ok(found.map_or((lookup, None), |person| (person.name, person.tmdb_id)))
+    // A person credited in no LOCAL title still has a page, reached from a
+    // discover title's cast: there is no credit to fold, so a numeric segment is
+    // the provider's own id and the only thing that can answer.
+    Ok(found.map_or_else(
+        || (lookup.clone(), lookup.parse::<u64>().ok()),
+        |person| (person.name, person.tmdb_id),
+    ))
 }
 
 fn hits_best_known_first(

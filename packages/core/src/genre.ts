@@ -108,7 +108,17 @@ export function genreLabel(t: Translate, nameOrSlug: string): string {
 /** The identity of each genre a title carries, read off the provider ids where
  * enrichment stored them and off the display names otherwise. */
 export function genreSlugs(title: TitleGenres | null | undefined): string[] {
-  return rowsOf(title).map(({ row, name }) => row?.slug ?? fold(name));
+  return genreEntries(title).map(({ slug }) => slug);
+}
+
+/** Each genre a title carries, as the slug it resolves to paired with the
+ * spelling it was stored with. Paired rather than two lists: a genre with
+ * neither a row nor a foldable name is dropped, so a caller indexing the raw
+ * `genres` array by position reads a neighbour's name. */
+export function genreEntries(
+  title: TitleGenres | null | undefined,
+): { slug: string; name: string }[] {
+  return rowsOf(title).map(({ row, name }) => ({ slug: row?.slug ?? fold(name), name }));
 }
 
 /** Each of a title's genres in the reader's language, falling back to the

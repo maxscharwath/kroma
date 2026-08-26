@@ -38,7 +38,6 @@ const SIDEBAR: CSSProperties = {
   height: '100vh',
   display: 'flex',
   flexDirection: 'column',
-  alignSelf: 'flex-start',
   borderRightWidth: 1,
   borderRightStyle: 'solid',
   borderRightColor: 'var(--kroma-border)',

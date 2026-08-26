@@ -1,4 +1,5 @@
 import { cssRef } from '../core/tokens/css-var.ts';
+import { breakpoint } from '../core/tokens/layout.ts';
 import { atMedia, rule, type SheetEntry } from './sheet.ts';
 
 export const PAGE: readonly SheetEntry[] = [
@@ -25,11 +26,18 @@ export const PAGE: readonly SheetEntry[] = [
   // stretched row drew the wrong shape on all three, and it outranked the coats
   // a control had chosen for itself.
   rule(['input:focus-visible', 'textarea:focus-visible'], { boxShadow: 'none' }),
-  // Fluid, unlayered so they beat the token defaults, which are TV constants.
+  // Unlayered so they beat the token defaults, which are TV constants. The
+  // gutter STEPS rather than being fluid, and steps at the same widths as the
+  // `PAGE_GUTTER` a page frame pads with: an element that bleeds to the content
+  // edge cancels that padding with a negative margin, so the two have to be the
+  // same number at every width or the bleed overhangs the frame.
   rule(':root', {
-    '--gutter-web': 'clamp(1rem, 4vw, 3.5rem)',
+    '--gutter-web': '16px',
     '--card-w': 'clamp(8.25rem, 30vw, 13rem)',
   }),
+  atMedia(`(min-width: ${breakpoint.md}px)`, [rule(':root', { '--gutter-web': '24px' })]),
+  atMedia(`(min-width: ${breakpoint.lg}px)`, [rule(':root', { '--gutter-web': '40px' })]),
+  atMedia(`(min-width: ${breakpoint.tv}px)`, [rule(':root', { '--gutter-web': '56px' })]),
   rule('*', {
     scrollbarColor: `${cssRef('borderStrong')} transparent`,
     scrollbarWidth: 'thin',

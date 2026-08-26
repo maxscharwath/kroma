@@ -1691,6 +1691,7 @@
   "person.role.writer": "Scénariste",
   "person.titleCount": "{count} titres",
   "person.titleCount_one": "{count} titre",
+  "person.unnamed": "Personne inconnue",
   "person.viewWorks": "Voir les titres avec {name}",
   "pin.backHint": "Retour pour revenir aux profils",
   "pin.changeSubtitle": "Saisissez votre code actuel",

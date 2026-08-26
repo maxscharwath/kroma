@@ -132,7 +132,7 @@ pub fn fill_languages(
 
 fn differing_from(lang: &Option<String>, core: Option<&Option<String>>) -> Option<String> {
     lang.as_ref()
-        .filter(|v| core.and_then(|c| c.as_ref()) != Some(*v))
+        .filter(|v| core.and_then(Option::as_ref) != Some(*v))
         .cloned()
 }
 

@@ -1,4 +1,4 @@
-import type { Locale } from '@kroma/core';
+import { activeLocale, type Locale } from '@kroma/core';
 import { LocaleProvider as UiLocaleProvider, useLocale } from '@kroma/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef } from 'react';
@@ -14,11 +14,16 @@ function RefetchOnLocaleChange({ children }: Readonly<{ children: ReactNode }>) 
   const queryClient = useQueryClient();
   const served = useRef<string | null>(null);
   useEffect(() => {
+    // The tree renders the project default for one commit before it adopts the
+    // device's or the account's, so `locale` alone reports a change on every
+    // load for anyone not on the default. `activeLocale()` is what the requests
+    // actually carried: while the two disagree the locale is still settling and
+    // there is nothing to throw away.
+    const asked = activeLocale();
+    if (asked !== locale) return;
     const before = served.current;
-    served.current = locale;
-    // Nothing has been fetched in the wrong language on the first pass, and
-    // invalidating there would throw away the work the first paint just did.
-    if (before === null || before === locale) return;
+    served.current = asked;
+    if (before === null || before === asked) return;
     void queryClient.invalidateQueries();
   }, [locale, queryClient]);
   return children;

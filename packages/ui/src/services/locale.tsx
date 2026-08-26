@@ -18,7 +18,7 @@ import {
   saveLocalePref,
   setActiveLocale,
 } from '@kroma/core';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { I18nProvider } from './i18n';
 
 export interface LocaleProviderProps {
@@ -56,8 +56,10 @@ export function LocaleProvider({
   // later effect: a consumer that refetches when the locale changes runs its own
   // effect before this component's, and would ask for the new screens under the
   // old header.
+  const applied = useRef<Locale>(DEFAULT_LOCALE);
   const apply = useCallback(
     (next: Locale) => {
+      applied.current = next;
       setOverride(next);
       setActiveLocale(next);
       client?.setLocale(next);
@@ -96,12 +98,18 @@ export function LocaleProvider({
   const locale = override;
 
   // Catches the client arriving after the locale did (the TV reaches a server
-  // late), and keeps <html lang> in step.
+  // late). It reads the ref, never this render's `locale`: on the commit that
+  // adopts a locale the state is still the previous one, so telling the client
+  // that value here would undo what `apply` just did and send the next request
+  // in the language the viewer is leaving.
   useEffect(() => {
-    client?.setLocale(locale);
+    client?.setLocale(applied.current);
+  }, [client]);
+
+  useEffect(() => {
     // biome-ignore lint/style/noRestrictedGlobals: audited - guarded; there is no <html lang> to sync on a native target.
     if (syncHtmlLang && typeof document !== 'undefined') document.documentElement.lang = locale;
-  }, [client, locale, syncHtmlLang]);
+  }, [locale, syncHtmlLang]);
 
   const handleChange = useCallback(
     (next: Locale) => {

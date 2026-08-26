@@ -37,11 +37,15 @@ fn weights(f: &Fields) -> [(Field, f32, bool); 6] {
 // tolerance, it is a different word: at 2, "arrival" reaches "arrive" and
 // "rival", which appear in enough synopses to bury the film of that name. Only a
 // long token, where two edits are a small fraction of it, gets the full budget.
+//
+// Four characters still gets one, because a four-letter title is a whole query
+// and the token is required: "dume" has to find Dune, or a single slip on a
+// remote's on-screen keyboard returns an empty screen.
 // tantivy caps fuzzy distance at 2.
 fn distance(token: &str) -> u8 {
     match token.chars().count() {
-        0..=4 => 0,
-        5..=8 => 1,
+        0..=3 => 0,
+        4..=8 => 1,
         _ => 2,
     }
 }

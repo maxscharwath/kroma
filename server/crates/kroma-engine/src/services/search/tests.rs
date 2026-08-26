@@ -273,6 +273,17 @@ fn a_query_of_nothing_but_articles_still_searches_for_them() {
 }
 
 #[test]
+fn a_slip_on_a_short_title_still_finds_it() {
+    let e = SearchEngine::new().unwrap();
+    e.rebuild(&[movie("m-dune", "Dune", None)], &[], &[])
+        .unwrap();
+
+    // A four-letter title is the whole query and the token is required, so no
+    // budget at all means one wrong letter returns an empty screen.
+    assert_eq!(ids(&e, "dume", 24), ["m-dune"]);
+}
+
+#[test]
 fn blank_query_is_empty() {
     let e = engine();
     assert!(e.search("   ", 5).is_empty());

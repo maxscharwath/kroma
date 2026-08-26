@@ -13,11 +13,11 @@ import {
   Chip,
   color,
   genreIcon,
-  type IconName,
   Row,
   ringRoomBlock,
   ringRoomInline,
   Select,
+  SORT_ICON,
   useBreakpoint,
 } from '@kroma/ui/kit';
 import {
@@ -36,13 +36,6 @@ const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {
   release: 'browse.sort.release',
   title: 'browse.sort.title',
   rating: 'browse.sort.rating',
-};
-
-const SORT_ICON: Record<SortMode, IconName> = {
-  added: 'history',
-  release: 'calendar',
-  title: 'sort-ascending-letters',
-  rating: 'star',
 };
 
 // Matches the mobile topbar's height, so the pinned bar docks under it below lg

@@ -130,6 +130,7 @@ export { RingScopeProvider } from './lib/ring-scope';
 export { useShake } from './lib/shake';
 export type { SlotProps } from './lib/slot';
 export { Slot } from './lib/slot';
+export { SORT_ICON } from './lib/sort-icon';
 export type { SurfacePresentation } from './lib/surface-presentation';
 export { setSurfacePresentation } from './lib/surface-presentation';
 export type { SurfaceWidth } from './lib/surface-shell';

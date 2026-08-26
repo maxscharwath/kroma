@@ -14,13 +14,6 @@ export type Meta = {
 };
 export type KindMeta = { color: ColorValue; bg: ColorValue; typeKey: 'movie' | 'show' | 'episode' };
 
-/** Compact duration label from milliseconds ("1 h 42" / "42 min"; empty if none). */
-export function fmtDur(ms?: number | null): string {
-  if (!ms) return '';
-  const m = Math.round(ms / 60000);
-  return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
-}
-
 const PENDING: Meta = {
   color: 'text/55',
   bg: 'tint/5',

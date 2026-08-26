@@ -1,10 +1,10 @@
 import type { ElementRow, MessageKey } from '@kroma/core';
 import { posterGradient } from '@kroma/core';
-import { useT } from '@kroma/ui';
+import { useFormat, useT } from '@kroma/ui';
 import { Box, Button, Callout, color, Drawer, IconButton, Row, Text } from '@kroma/ui/kit';
 import { createCallable } from 'react-call';
 import { Pill, PillDot } from '#web/features/admin/pill';
-import { fmtDur, kindMeta, statusMeta } from '#web/features/admin/pipeline-meta';
+import { kindMeta, statusMeta } from '#web/features/admin/pipeline-meta';
 import { useAuth } from '#web/shared/lib/auth';
 import { Image } from '#web/shared/ui';
 
@@ -41,11 +41,12 @@ export const PipelineDrawer = createCallable<
   void
 >(({ call, el, busy, onReprocess, onRetryStage }) => {
   const t = useT();
+  const fmt = useFormat();
   // react-call keeps us mounted for `unmountingDelay` ms after `call.end()`,
   // which is the window the kit Drawer's slide-out plays in.
   const close = () => call.end();
   const km = kindMeta(el.kind);
-  const dur = fmtDur(el.durationMs);
+  const dur = el.durationMs ? fmt.duration(el.durationMs) : '';
   const eps = el.epStats;
 
   return (

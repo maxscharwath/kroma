@@ -13,6 +13,23 @@ const BYTE_UNITS: Record<Locale, readonly string[]> = {
 };
 
 const DATES = new Map<Locale, Intl.DateTimeFormat | null>();
+const RELATIVE = new Map<Locale, Intl.RelativeTimeFormat | null>();
+
+// `Intl.RelativeTimeFormat` is Chromium 71 and the legacy television tier
+// floors at 53, so an absent one falls through to the absolute date rather
+// than taking the app down.
+function relativeFormat(locale: Locale): Intl.RelativeTimeFormat | null {
+  const cached = RELATIVE.get(locale);
+  if (cached !== undefined) return cached;
+  let made: Intl.RelativeTimeFormat | null = null;
+  try {
+    made = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'short' });
+  } catch {
+    made = null;
+  }
+  RELATIVE.set(locale, made);
+  return made;
+}
 const NUMBERS = new Map<string, Intl.NumberFormat>();
 
 function numberFormat(locale: Locale, digits: number): Intl.NumberFormat {
@@ -128,7 +145,13 @@ export function formatUptime(t: Translate, seconds: number): string {
 /** How long ago an ISO timestamp was, in words: `il y a 5 min`, `hier`,
  *  `jamais` for a null. Beyond a month it becomes a short absolute date, since
  *  "il y a 74 j" is no longer something anyone counts. Takes `now` so a caller
- *  can pin it; tests should. */
+ *  can pin it; tests should.
+ *
+ *  The ladder itself is `Intl.RelativeTimeFormat`, which already knows every
+ *  language's wording and gives French "avant-hier" for free. Only the three
+ *  cases it has no notion of are catalog keys: no timestamp at all, one it
+ *  cannot read, and "just now" (it renders zero as the current unit, "this
+ *  minute", rather than an elapsed one). */
 export function formatElapsed(
   t: Translate,
   locale: Locale,
@@ -141,13 +164,14 @@ export function formatElapsed(
 
   const minutes = Math.floor((now - then) / 60000);
   if (minutes < 1) return t('format.justNow');
-  if (minutes < 60) return t('format.minutesAgo', { count: minutes });
 
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t('format.hoursAgo', { count: hours });
-
-  const days = Math.floor(hours / 24);
-  if (days === 1) return t('format.yesterday');
-  if (days < 30) return t('format.daysAgo', { count: days });
+  const relative = relativeFormat(locale);
+  if (relative) {
+    if (minutes < 60) return relative.format(-minutes, 'minute');
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return relative.format(-hours, 'hour');
+    const days = Math.floor(hours / 24);
+    if (days < 30) return relative.format(-days, 'day');
+  }
   return dateFormat(locale)?.format(then) ?? new Date(then).toISOString().slice(0, 10);
 }

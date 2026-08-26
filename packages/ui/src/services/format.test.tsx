@@ -40,6 +40,15 @@ describe('useFormat', () => {
     expect(read('en', (f) => f.timecode(3_847_000))).toBe('1:04:07');
   });
 
+  it('answers in the default locale above a provider instead of throwing', () => {
+    function Probe() {
+      const f = useFormat();
+      return <>{`${f.bytes(1024 ** 3)} ${f.elapsed(null)}`}</>;
+    }
+
+    expect(render(<Probe />).container.textContent).toBe('1,0 Go jamais');
+  });
+
   it('keeps one identity while the locale holds still', () => {
     const seen: Array<ReturnType<typeof useFormat>> = [];
     function Probe() {

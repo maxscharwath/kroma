@@ -137,20 +137,26 @@ describe('formatElapsed', () => {
     expect(formatElapsed(fr, 'fr', 'not-a-date', NOW)).toBe('-');
   });
 
+  // French puts a no-break space before the unit, which is what stops "5 min"
+  // wrapping across two lines. Intl knows that; the keys this replaced did not.
   it('reads a French relative label from an ISO timestamp', () => {
     expect(formatElapsed(fr, 'fr', '2024-06-15T11:59:30Z', NOW)).toBe("à l'instant");
-    expect(formatElapsed(fr, 'fr', '2024-06-15T11:55:00Z', NOW)).toBe('il y a 5 min');
-    expect(formatElapsed(fr, 'fr', '2024-06-15T09:00:00Z', NOW)).toBe('il y a 3 h');
+    expect(formatElapsed(fr, 'fr', '2024-06-15T11:55:00Z', NOW)).toBe('il y a 5\u00a0min');
+    expect(formatElapsed(fr, 'fr', '2024-06-15T09:00:00Z', NOW)).toBe('il y a 3\u00a0h');
     expect(formatElapsed(fr, 'fr', '2024-06-14T11:00:00Z', NOW)).toBe('hier');
-    expect(formatElapsed(fr, 'fr', '2024-06-12T12:00:00Z', NOW)).toBe('il y a 3 j');
+    expect(formatElapsed(fr, 'fr', '2024-06-12T12:00:00Z', NOW)).toBe('il y a 3\u00a0j');
+  });
+
+  it('says avant-hier in French, which no hand-written ladder here ever did', () => {
+    expect(formatElapsed(fr, 'fr', '2024-06-13T11:00:00Z', NOW)).toBe('avant-hier');
   });
 
   it('reads an English relative label from the same timestamps', () => {
     expect(formatElapsed(en, 'en', '2024-06-15T11:59:30Z', NOW)).toBe('just now');
-    expect(formatElapsed(en, 'en', '2024-06-15T11:55:00Z', NOW)).toBe('5 min ago');
-    expect(formatElapsed(en, 'en', '2024-06-15T09:00:00Z', NOW)).toBe('3 h ago');
+    expect(formatElapsed(en, 'en', '2024-06-15T11:55:00Z', NOW)).toBe('5 min. ago');
+    expect(formatElapsed(en, 'en', '2024-06-15T09:00:00Z', NOW)).toBe('3 hr. ago');
     expect(formatElapsed(en, 'en', '2024-06-14T11:00:00Z', NOW)).toBe('yesterday');
-    expect(formatElapsed(en, 'en', '2024-06-12T12:00:00Z', NOW)).toBe('3 d ago');
+    expect(formatElapsed(en, 'en', '2024-06-12T12:00:00Z', NOW)).toBe('3 days ago');
   });
 
   it('falls back to an absolute date past a month, ordered for the locale', () => {

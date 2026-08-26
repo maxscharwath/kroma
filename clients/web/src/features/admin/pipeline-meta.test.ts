@@ -1,23 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fmtDur, kindMeta, overallMeta, statusMeta } from './pipeline-meta';
-
-describe('fmtDur', () => {
-  it('returns an empty string when there is no duration', () => {
-    expect(fmtDur(0)).toBe('');
-    expect(fmtDur(null)).toBe('');
-    expect(fmtDur(undefined)).toBe('');
-  });
-
-  it('shows minutes below an hour', () => {
-    expect(fmtDur(42 * 60_000)).toBe('42 min');
-  });
-
-  it('shows "H h MM" from an hour up, zero-padding the minutes', () => {
-    expect(fmtDur(60 * 60_000)).toBe('1 h 00');
-    expect(fmtDur(65 * 60_000)).toBe('1 h 05');
-    expect(fmtDur(102 * 60_000)).toBe('1 h 42');
-  });
-});
+import { kindMeta, overallMeta, statusMeta } from './pipeline-meta';
 
 describe('statusMeta', () => {
   it('resolves the known per-treatment statuses', () => {

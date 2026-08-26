@@ -1,6 +1,5 @@
 // The frontend module registry: the host-side mirror of the Rust `Registry`.
 
-import { addCatalogs } from '@kroma/core';
 import type { HostBase, KromaHost } from './host';
 import type {
   AnySlotContribution,
@@ -36,17 +35,32 @@ export interface ModuleStatus {
   manifest?: ModuleManifest;
 }
 
+/** Where a module's own message catalogs go when it registers. The host passes
+ *  its i18n instance's `addCatalogs`; a registry built without one, as a test
+ *  or a story does, simply keeps the messages to itself. */
+export type CatalogSink = (
+  scope: string,
+  catalogs: Record<string, Record<string, string>>,
+) => () => void;
+
+const KEEP_TO_ITSELF: CatalogSink = () => () => {};
+
 export class ModuleRegistry {
   private readonly modules = new Map<string, KromaModule>();
   private readonly setupDone = new Set<string>();
   private readonly disposers = new Map<string, () => void>();
+
+  /** @param catalogs where a registering module's messages are published. The
+   *  default drops them, so a registry is inert until a host wires one in and
+   *  two registries in one process cannot tread on each other. */
+  constructor(private readonly catalogs: CatalogSink = KEEP_TO_ITSELF) {}
 
   register(module: KromaModule): this {
     if (this.modules.has(module.id)) {
       throw new Error(`module "${module.id}" registered twice`);
     }
     this.modules.set(module.id, module);
-    if (module.locales) this.disposers.set(module.id, addCatalogs(module.id, module.locales));
+    if (module.locales) this.disposers.set(module.id, this.catalogs(module.id, module.locales));
     return this;
   }
 

@@ -241,9 +241,14 @@ function Stage({
           texture's surface does not survive its subtree being rebuilt. */}
         <Animated.View style={[pictureBox, { borderRadius: ANDROID ? 0 : radius }]}>
           <SurfaceRadiusProvider radius={ANDROID ? 0 : radius}>{children}</SurfaceRadiusProvider>
-          {ANDROID ? (
+          {/* Every native surface takes the mask, not just Android's texture: an
+            AVPlayerLayer is not clipped by a rounded ancestor either (see
+            PlayerSurface), so on Apple TV the card came out square-cornered.
+            Cutting the corners with a frame over the picture is the one way
+            that works whatever the platform hands the layer to. */}
+          {WEB ? null : (
             <Animated.View style={[CORNER_MASK, { opacity: zoom }]} pointerEvents="none" />
-          ) : null}
+          )}
         </Animated.View>
         {/* Carries the spinner + subtitles onto the card. The stage itself does
           not move on a plane shrink, so there this box takes the scale. */}

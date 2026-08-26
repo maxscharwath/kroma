@@ -4,6 +4,7 @@
 
 import type { ReactNode } from 'react';
 import { useWindowDimensions, View } from 'react-native';
+import { FrostTarget } from '#ui/components/atoms/frost';
 import { styles } from '#ui/core';
 import { CANVAS } from '#ui/core/tokens';
 
@@ -18,7 +19,13 @@ function TvStage({ children }: Readonly<TvStageProps>) {
 
   return (
     <View style={s.viewport}>
-      <View style={[s.canvas, { transform: [{ scale }] }]}>{children}</View>
+      {/* Outside the scale, not inside it: expo-blur on Android blurs one named
+          view (see atoms/frost) and places each blur by where it sits on the
+          SCREEN, so a target under the canvas transform samples the wrong
+          region by exactly that factor. */}
+      <FrostTarget style={s.fill}>
+        <View style={[s.canvas, { transform: [{ scale }] }]}>{children}</View>
+      </FrostTarget>
     </View>
   );
 }
@@ -26,6 +33,7 @@ function TvStage({ children }: Readonly<TvStageProps>) {
 const s = styles({
   viewport: { flex: true, bg: 'bg', center: true, overflow: 'hidden' },
   canvas: { w: CANVAS.width, h: CANVAS.height, bg: 'bg', overflow: 'hidden' },
+  fill: { flex: true, center: true },
 });
 
 export type { TvStageProps };

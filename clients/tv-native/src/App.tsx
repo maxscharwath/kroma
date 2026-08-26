@@ -19,7 +19,7 @@ import {
 } from '@kroma/tv';
 import { KIT_FONTS } from '@kroma/ui/fonts';
 import { registerFrost, TvStage } from '@kroma/ui/kit';
-import { BlurView } from 'expo-blur';
+import { BlurTargetView, BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { useFonts } from 'expo-font';
@@ -74,7 +74,11 @@ setServerBrowse(browseForServers);
 // The platform's backdrop blur, which frosts the kit's glass surfaces (episode
 // cards, glass buttons). tvOS composites UIVisualEffectView on the GPU, so the
 // shell hands it over; the kit itself stays free of the dependency (see Frost).
-registerFrost(BlurView);
+//
+// Android needs the second half: its blur reads ONE named view rather than
+// whatever is behind it, and with no target it draws its tint over nothing.
+// tvOS has no such notion, so it is handed none.
+registerFrost(BlurView, Platform.OS === 'android' ? BlurTargetView : undefined);
 
 // Android builds the libVLC plane; Apple has no module and registers nothing,
 // which is what keeps that engine out of its picker.

@@ -76,6 +76,13 @@ const LAYERS = [BROWSE_CHROME, AUTH_BACKDROP] as const;
 
 const TOAST_INSET = { x: 64, y: 132 } as const;
 
+// Rendered inside <TvNavProvider>, which is what lets it offer Back: TvApp is
+// the component that MOUNTS that provider, so it cannot read the nav itself.
+function CrashFallback({ onRetry }: Readonly<{ onRetry: () => void }>) {
+  const nav = useNav();
+  return <CrashScreen onRetry={onRetry} onBack={nav.canGoBack ? nav.back : undefined} />;
+}
+
 export function TvApp({
   platform = 'TV',
   capabilities,
@@ -99,7 +106,11 @@ export function TvApp({
               onSignedInChange={setSignedIn}
             >
               <LocaleProvider client={client}>
-                <CrashBoundary client={client} platform={platform} fallback={<CrashScreen />}>
+                <CrashBoundary
+                  client={client}
+                  platform={platform}
+                  fallback={(retry) => <CrashFallback onRetry={retry} />}
+                >
                   <CompatBanner />
                   <ContinueProvider>
                     <RecommendProvider>

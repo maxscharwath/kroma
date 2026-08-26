@@ -80,7 +80,7 @@ function CategoryTile({
       // gap and a corner nobody could keep concentric.
       style={[s.frame, { width: width ?? '100%' }, style]}
     >
-      <Box aspect={aspect} radius="lg" overflow="hidden" bg="surface1" shadow="card">
+      <Box aspect={aspect} radius="lg" overflow="hidden" bg="surface1">
         <Img src={art} background={background} position="50% 25%" fill />
         {wash ? <Box fill style={[NO_POINTER, gradient(wash)]} /> : null}
         <Box absolute left={20} right={20} bottom={16} gap={2}>

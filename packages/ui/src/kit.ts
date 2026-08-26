@@ -138,6 +138,7 @@ export type { CopyState } from './lib/use-copy';
 export { useCopy } from './lib/use-copy';
 export type { GrowingCount } from './lib/use-growing-count';
 export { useGrowingCount } from './lib/use-growing-count';
+export { useSettledValue } from './lib/use-settled-value';
 export type { WheelSpin } from './lib/wheel-paths';
 export {
   KROMA_WHEEL_COLORS,

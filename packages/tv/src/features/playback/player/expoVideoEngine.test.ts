@@ -2,6 +2,7 @@ import type { KromaClient, MediaItem } from '@kroma/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineOptions } from './baseEngine';
 import { NATIVE_SEEK_AHEAD } from './baseEngine';
+import { nativeBufferBudget } from './bufferBudget';
 import type { EngineListeners } from './engine';
 import { ExpoVideoEngine } from './expoVideoEngine';
 
@@ -21,6 +22,7 @@ const { players, FakePlayer } = vi.hoisted(() => {
     timeUpdateEventInterval = 0;
     availableAudioTracks: { id: string }[] = [];
     audioTrack: unknown = null;
+    bufferOptions: unknown = null;
     plays = 0;
     pauses = 0;
     released = false;
@@ -92,6 +94,8 @@ vi.mock('expo-video', () => ({
   },
 }));
 
+vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+
 type Fake = InstanceType<typeof FakePlayer>;
 
 const client = {
@@ -100,6 +104,7 @@ const client = {
     `master:${id}:${aac}:${startSec}:${audio}`,
 } as unknown as KromaClient;
 const item = { id: 'ev1' } as unknown as MediaItem;
+const budget = nativeBufferBudget();
 
 function mkListeners(): EngineListeners {
   return {
@@ -180,6 +185,17 @@ describe('ExpoVideoEngine construction', () => {
     const { e } = make();
     expect(current(e).timeUpdateEventInterval).toBeGreaterThan(0);
   });
+
+  it('bounds what Media3 may buffer, on every player it opens', () => {
+    const { e } = make({ direct: false, startSec: 0 });
+    expect(current(e).bufferOptions).toEqual(budget);
+
+    e.seekTo(NATIVE_SEEK_AHEAD + 120);
+
+    expect(players).toHaveLength(1);
+    expect(current(e).replaced).toHaveLength(1);
+    expect(current(e).bufferOptions).toEqual(budget);
+  });
 });
 
 describe('ExpoVideoEngine resume seek', () => {
@@ -217,6 +233,19 @@ describe('ExpoVideoEngine event mapping', () => {
     expect(e.position()).toBe(15);
     expect(listeners.onTime).toHaveBeenCalledWith(15);
     expect(listeners.onBuffered).toHaveBeenCalledWith(30);
+  });
+
+  it('takes the buffer off the event, so a player that throws still reports one', () => {
+    const { e, listeners } = make({ direct: true });
+    // Reading the property back off a player mid-swap throws, and the engine
+    // answers a throw with 0 - which the seek bar draws as nothing buffered.
+    Object.defineProperty(current(e), 'bufferedPosition', {
+      get() {
+        throw new Error('released');
+      },
+    });
+    current(e).emit('timeUpdate', { currentTime: 15, bufferedPosition: 42 });
+    expect(listeners.onBuffered).toHaveBeenCalledWith(42);
   });
 
   it('master reports position and buffer relative to the anchor', () => {
@@ -500,6 +529,19 @@ describe('ExpoVideoEngine player lifetime', () => {
     expect(first.released).toBe(false);
     vi.advanceTimersByTime(5000);
     expect(first.released).toBe(true);
+  });
+
+  it('releases at once when the ENGINE is destroyed, not a beat later', () => {
+    // Switching engines: whatever replaces this one opens its own decoder
+    // immediately, and a 2 GB television cannot hold two. There is no successor
+    // <VideoView> to wait for here, so the grace above buys nothing.
+    vi.useFakeTimers();
+    const { e } = make({ direct: true, startSec: 0 });
+    const player = current(e);
+
+    e.destroy();
+
+    expect(player.released).toBe(true);
   });
 
   it('a retired player cannot write over the one that replaced it', () => {

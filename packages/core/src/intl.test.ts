@@ -159,6 +159,12 @@ describe('formatElapsed', () => {
     expect(formatElapsed(en, 'en', '2024-06-12T12:00:00Z', NOW)).toBe('3 days ago');
   });
 
+  it('reads epoch milliseconds as readily as an ISO string', () => {
+    const iso = '2024-06-15T11:55:00Z';
+
+    expect(formatElapsed(fr, 'fr', Date.parse(iso), NOW)).toBe(formatElapsed(fr, 'fr', iso, NOW));
+  });
+
   it('falls back to an absolute date past a month, ordered for the locale', () => {
     expect(formatElapsed(fr, 'fr', '2024-05-06T12:00:00Z', NOW)).toBe('06/05/2024');
     expect(formatElapsed(en, 'en', '2024-05-06T12:00:00Z', NOW)).toBe('5/6/24');

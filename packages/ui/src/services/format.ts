@@ -28,8 +28,9 @@ export interface Format {
   bytes: (bytes: number) => string;
   /** A fixed-point number with the locale's separator. One decimal by default. */
   decimal: (n: number, digits?: number) => string;
-  /** How long ago an ISO timestamp was, in words. Null reads as "never". */
-  elapsed: (iso: string | null | undefined) => string;
+  /** How long ago a timestamp was, in words, from an ISO string or epoch
+   *  milliseconds. Null reads as "never". */
+  elapsed: (at: string | number | null | undefined) => string;
   /** Uptime at the coarsest useful scale, from seconds. */
   uptime: (seconds: number) => string;
   /** Watch time to the minute, from milliseconds. */
@@ -53,7 +54,7 @@ function formatFor(locale: Locale, t: Translate): Format {
   const bound: Format = {
     bytes: (bytes) => formatBytes(bytes, locale),
     decimal: (n, digits) => decimal(n, locale, digits),
-    elapsed: (iso) => formatElapsed(t, locale, iso),
+    elapsed: (at) => formatElapsed(t, locale, at),
     uptime: (seconds) => formatUptime(t, seconds),
     duration: (ms) => formatDuration(t, ms),
     hours: (ms) => formatHours(ms, locale),

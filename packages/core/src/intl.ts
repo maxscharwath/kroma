@@ -142,7 +142,8 @@ export function formatUptime(t: Translate, seconds: number): string {
   return t('format.uptimeMinutes', { minutes });
 }
 
-/** How long ago an ISO timestamp was, in words: `il y a 5 min`, `hier`,
+/** How long ago a timestamp was, in words, from an ISO string or epoch
+ *  milliseconds: `il y a 5 min`, `hier`,
  *  `jamais` for a null. Beyond a month it becomes a short absolute date, since
  *  "il y a 74 j" is no longer something anyone counts. Takes `now` so a caller
  *  can pin it; tests should.
@@ -155,11 +156,11 @@ export function formatUptime(t: Translate, seconds: number): string {
 export function formatElapsed(
   t: Translate,
   locale: Locale,
-  iso: string | null | undefined,
+  at: string | number | null | undefined,
   now: number = Date.now(),
 ): string {
-  if (!iso) return t('format.never');
-  const then = Date.parse(iso);
+  if (at === null || at === undefined || at === '') return t('format.never');
+  const then = typeof at === 'number' ? at : Date.parse(at);
   if (Number.isNaN(then)) return t('format.unknownTime');
 
   const minutes = Math.floor((now - then) / 60000);

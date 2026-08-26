@@ -190,8 +190,8 @@ impl SearchEngine {
 fn kind_weight(kind: HitKind) -> f32 {
     match kind {
         HitKind::Movie => 1.0,
-        HitKind::Show => 0.9,
-        HitKind::Episode => 0.75,
+        HitKind::Show => 0.75,
+        HitKind::Episode => 0.4,
     }
 }
 

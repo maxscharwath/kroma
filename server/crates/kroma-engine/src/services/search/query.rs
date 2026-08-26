@@ -29,7 +29,7 @@ fn weights(f: &Fields) -> [(Field, f32, bool); 6] {
         (f.show_title, 1.5, true),
         (f.cast, 3.0, true),
         (f.genres, 2.0, false),
-        (f.overview, 1.0, false),
+        (f.overview, 0.3, false),
     ]
 }
 
@@ -51,6 +51,24 @@ fn distance(token: &str) -> u8 {
 const EXACT_BONUS: f32 = 1.5;
 const PREFIX_PENALTY: f32 = 0.5;
 
+// Words that carry no intent. They sit in a large share of titles and synopses,
+// so left at full strength "the arrival" ranks every title that merely owns a
+// "the" above the film: measured on a real catalogue, adding the article moved
+// Arrival from second to seventh. English and French, since a catalogue holds
+// both.
+const STOPWORDS: &[&str] = &[
+    "a", "an", "and", "at", "for", "in", "of", "on", "the", "to", "au", "aux", "de", "des", "du",
+    "en", "et", "la", "le", "les", "un", "une",
+];
+
+// What is left of a stopword's weight: enough to break a tie between two titles
+// that are otherwise equal, not enough to order the results.
+const STOPWORD_WEIGHT: f32 = 0.05;
+
+fn is_stopword(token: &str) -> bool {
+    STOPWORDS.contains(&token)
+}
+
 /// Build a query from already-normalized tokens (lowercased + diacritic-folded
 /// by the index analyzer). Returns `None` when there are no tokens, so the caller
 /// returns an empty result set rather than matching everything.
@@ -59,8 +77,16 @@ pub(super) fn build(fields: &Fields, tokens: &[String]) -> Option<Box<dyn Query>
         return None;
     }
     let weights = weights(fields);
+    // A query of nothing but stopwords still has to search for them, so they
+    // only step aside when the reader gave something else to go on.
+    let has_meaning = tokens.iter().any(|t| !is_stopword(t));
     let mut per_token: Vec<(Occur, Box<dyn Query>)> = Vec::with_capacity(tokens.len());
     for token in tokens {
+        let empty = has_meaning && is_stopword(token);
+        // Optional, not required: "the arrival" must still find a film called
+        // Arrival, which carries no article at all.
+        let occur = if empty { Occur::Should } else { Occur::Must };
+        let scale = if empty { STOPWORD_WEIGHT } else { 1.0 };
         let dist = distance(token);
         let mut variants: Vec<(Occur, Box<dyn Query>)> = Vec::with_capacity(weights.len() * 3);
         for (field, boost, fuzzy_ok) in weights {
@@ -68,21 +94,24 @@ pub(super) fn build(fields: &Fields, tokens: &[String]) -> Option<Box<dyn Query>
             let exact: Box<dyn Query> = Box::new(FuzzyTermQuery::new(term.clone(), 0, true));
             variants.push((
                 Occur::Should,
-                Box::new(BoostQuery::new(exact, boost * EXACT_BONUS)),
+                Box::new(BoostQuery::new(exact, boost * EXACT_BONUS * scale)),
             ));
             // Fuzzy match (transposition_cost_one = treat swaps as one edit).
             if fuzzy_ok && dist > 0 {
                 let fuzzy: Box<dyn Query> = Box::new(FuzzyTermQuery::new(term.clone(), dist, true));
-                variants.push((Occur::Should, Box::new(BoostQuery::new(fuzzy, boost))));
+                variants.push((
+                    Occur::Should,
+                    Box::new(BoostQuery::new(fuzzy, boost * scale)),
+                ));
             }
             // Prefix match for partial words ("brea" → "Breaking").
             let prefix: Box<dyn Query> = Box::new(FuzzyTermQuery::new_prefix(term, 0, true));
             variants.push((
                 Occur::Should,
-                Box::new(BoostQuery::new(prefix, boost * PREFIX_PENALTY)),
+                Box::new(BoostQuery::new(prefix, boost * PREFIX_PENALTY * scale)),
             ));
         }
-        per_token.push((Occur::Must, Box::new(BooleanQuery::new(variants))));
+        per_token.push((occur, Box::new(BooleanQuery::new(variants))));
     }
     Some(Box::new(BooleanQuery::new(per_token)))
 }

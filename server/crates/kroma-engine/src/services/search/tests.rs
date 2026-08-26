@@ -245,6 +245,34 @@ fn a_film_comes_before_a_show_and_a_show_before_an_episode() {
 }
 
 #[test]
+fn an_article_does_not_reorder_the_results() {
+    let e = SearchEngine::new().unwrap();
+    e.rebuild(
+        &[
+            movie("m-arrival", "Arrival", None),
+            movie("m-artist", "The Artist", None),
+        ],
+        &[],
+        &[],
+    )
+    .unwrap();
+
+    // Measured on a real catalogue, typing the article moved Arrival from
+    // second to seventh: every title owning a "the" climbed over it.
+    assert_eq!(ids(&e, "arrival", 24)[0], "m-arrival");
+    assert_eq!(ids(&e, "the arrival", 24)[0], "m-arrival");
+}
+
+#[test]
+fn a_query_of_nothing_but_articles_still_searches_for_them() {
+    let e = SearchEngine::new().unwrap();
+    e.rebuild(&[movie("m-artist", "The Artist", None)], &[], &[])
+        .unwrap();
+
+    assert_eq!(ids(&e, "the", 24), ["m-artist"]);
+}
+
+#[test]
 fn blank_query_is_empty() {
     let e = engine();
     assert!(e.search("   ", 5).is_empty());

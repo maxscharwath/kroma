@@ -379,10 +379,23 @@ fn subject_kind(is_show: bool) -> &'static str {
 /// The core row is left alone: the title already has its ids, dates and cast,
 /// and only the per-language text and art are being filled in.
 fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
-    let want: Vec<&str> = missing.iter().map(String::as_str).collect();
+    // Only the languages this server keeps catalogs in are ever fetched: a
+    // language nothing can read is a TMDB call and a row for nobody.
+    let want: Vec<&str> = missing
+        .iter()
+        .map(String::as_str)
+        .filter(|l| crate::i18n::SUPPORTED_LOCALES.contains(l))
+        .collect();
+    if want.is_empty() {
+        return;
+    }
+    // Nothing came back at all: TMDB is unreachable, rate-limiting, or the id
+    // is gone. Write nothing and leave the languages outstanding, so a blip
+    // costs a retry next pass rather than a title stuck in one language.
     let Some(resolved) =
         metadata::lookup_all_by_id(&eng.cache, &eng.api_key, &want, job.target, tmdb_id)
     else {
+        warn!(id = %job.id, "metadata unreachable; keeping the language it already has");
         return;
     };
     let by_lang: std::collections::HashMap<String, Metadata> = resolved
@@ -390,7 +403,14 @@ fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
         .into_iter()
         .map(|(lang, m)| (lang, image::localize_art(&eng.data_dir, m)))
         .collect();
-    if let Err(e) = db::fill_languages(&eng.pool, subject_kind(job.is_show), &job.id, &by_lang) {
+    let asked: Vec<String> = want.iter().map(|l| (*l).to_string()).collect();
+    if let Err(e) = db::fill_languages(
+        &eng.pool,
+        subject_kind(job.is_show),
+        &job.id,
+        &by_lang,
+        &asked,
+    ) {
         warn!(id = %job.id, error = %e, "failed to fill missing languages");
     }
 }

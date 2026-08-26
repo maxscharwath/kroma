@@ -86,9 +86,31 @@ pub fn fill_languages(
     kind: &str,
     id: &str,
     by_lang: &HashMap<String, Metadata>,
+    asked: &[String],
 ) -> Result<()> {
     let core = metadata_core::get_core(pool, kind, id)?;
     let conn = pool.get()?;
+    // A language TMDB answered nothing for gets a row carrying only the
+    // revision. It says "this was asked and there is nothing", so the reader
+    // falls back to the default and the next pass does not ask again. A blank
+    // answer is a fact about the title; an unreachable TMDB is not, and never
+    // reaches here because the caller writes nothing when the whole call fails.
+    for lang in asked {
+        if by_lang.contains_key(lang) {
+            continue;
+        }
+        translations::write(
+            &conn,
+            kind,
+            id,
+            lang,
+            translations::TMDB,
+            &TransData {
+                rev: translations::REV,
+                ..TransData::default()
+            },
+        )?;
+    }
     for (lang, m) in by_lang {
         let data = TransData {
             title: m.title.clone(),
@@ -227,6 +249,49 @@ mod tests {
     use crate::ingest::test_support::*;
 
     #[test]
+    fn a_language_tmdb_has_nothing_for_is_asked_once_and_not_again() {
+        let p = pool();
+        {
+            let conn = p.get().unwrap();
+            conn.execute(
+                "INSERT INTO libraries (id,name,kind,path,added_at) VALUES ('lib','L','movies','/x','t')",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO items (id,kind,title,container,library,added_at) VALUES ('m1','movie','Dune','mkv','lib','t')",
+                [],
+            )
+            .unwrap();
+        }
+        let core = meta(603, "Dune");
+        let mut first = HashMap::new();
+        first.insert("en".to_string(), core.clone());
+        store_localized(&p, metadata_core::ITEM, "m1", &core, &first).unwrap();
+
+        // Asked for French, TMDB answered with nothing for it.
+        fill_languages(
+            &p,
+            metadata_core::ITEM,
+            "m1",
+            &HashMap::new(),
+            &["fr".to_string()],
+        )
+        .unwrap();
+
+        // The reader falls back, because the row carries no text to overlay.
+        let fr = crate::translations::resolve_one(&p, metadata_core::ITEM, "m1", "fr")
+            .unwrap()
+            .unwrap();
+        assert_eq!(fr.title, None);
+
+        // And it is not asked again: the row is current, not missing.
+        let stale =
+            crate::translations::stale_langs(&p, metadata_core::ITEM, "m1", &["fr", "en"]).unwrap();
+        assert!(stale.is_empty(), "still stale: {stale:?}");
+    }
+
+    #[test]
     fn a_language_added_later_is_filled_without_moving_the_core() {
         let p = pool();
         {
@@ -254,7 +319,7 @@ mod tests {
         fr.poster_url = Some("/fr.webp".to_string());
         let mut later = HashMap::new();
         later.insert("fr".to_string(), fr);
-        fill_languages(&p, metadata_core::ITEM, "m1", &later).unwrap();
+        fill_languages(&p, metadata_core::ITEM, "m1", &later, &["fr".to_string()]).unwrap();
 
         let stored = crate::translations::resolve_one(&p, metadata_core::ITEM, "m1", "fr")
             .unwrap()

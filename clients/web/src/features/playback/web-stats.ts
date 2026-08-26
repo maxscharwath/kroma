@@ -20,6 +20,12 @@ function kbps(k: number | undefined, locale: Locale): string | undefined {
   return k >= 1000 ? `${decimal(k / 1000, locale, 2)} Mb/s` : `${Math.round(k)} kb/s`;
 }
 
+// Absent rather than zero: the overlay leaves a figure out instead of showing
+// a hollow one, and keeps that decision out of the row builder.
+function bytesH(b: number | undefined, locale: Locale): string | undefined {
+  return b && b > 0 ? formatBytes(b, locale) : undefined;
+}
+
 interface ConnLike {
   downlink?: number;
   effectiveType?: string;
@@ -118,7 +124,7 @@ function statsRows(s: WebStatsInput, m: StatsMetrics): ExtraRow[] {
     {
       group: media,
       label: t('stats.size'),
-      value: s.bytes ? formatBytes(s.bytes, s.locale) : '…',
+      value: bytesH(s.bytes, s.locale) ?? '…',
     },
   ];
   if (useHls) {
@@ -136,11 +142,7 @@ function statsRows(s: WebStatsInput, m: StatsMetrics): ExtraRow[] {
       const buffering = engine.bufferingSec ? ` (${engine.bufferingSec.toFixed(1)}s)` : '';
       push(transport, t('stats.stalls'), `${engine.stalls}${buffering}`);
     }
-    push(
-      transport,
-      t('stats.downloaded'),
-      engine.bytesDownloaded ? formatBytes(engine.bytesDownloaded, s.locale) : undefined,
-    );
+    push(transport, t('stats.downloaded'), bytesH(engine.bytesDownloaded, s.locale));
     push(transport, t('stats.codecs'), engine.currentCodecs);
   }
   push(

@@ -88,7 +88,9 @@ export class CatalogStore<L extends string> {
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
-    return () => void this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   private changed(): void {

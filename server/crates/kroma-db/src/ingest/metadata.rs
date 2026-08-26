@@ -24,6 +24,10 @@ pub fn set_item_metadata(pool: &Pool, id: &str, meta: &Metadata) -> Result<()> {
 /// Dual-writes one subject's metadata: a language-agnostic [`metadata_core`]
 /// row plus a [`translations`] row per language. Character names align by
 /// index to `core_meta`'s cast (TMDB keeps cast order across languages).
+///
+/// A language row carries the poster and the logo only where they differ from
+/// the core, because those two carry the title as printed artwork. The backdrop
+/// has no text on it and stays one per title on the core row.
 pub fn store_localized(
     pool: &Pool,
     kind: &str,
@@ -61,7 +65,6 @@ pub fn store_localized(
             // Only where this language's art differs from the core's, so a
             // language that reuses the same poster stores nothing.
             poster_url: differing(&m.poster_url, &core.poster_url),
-            backdrop_url: differing(&m.backdrop_url, &core.backdrop_url),
             logo_url: differing(&m.logo_url, &core.logo_url),
         };
         if !data.is_empty() {
@@ -94,7 +97,6 @@ pub fn fill_languages(
             characters: m.cast.iter().map(|c| c.character.clone()).collect(),
             reason: None,
             poster_url: differing_from(&m.poster_url, core.as_ref().map(|c| &c.poster_url)),
-            backdrop_url: differing_from(&m.backdrop_url, core.as_ref().map(|c| &c.backdrop_url)),
             logo_url: differing_from(&m.logo_url, core.as_ref().map(|c| &c.logo_url)),
         };
         if !data.is_empty() {

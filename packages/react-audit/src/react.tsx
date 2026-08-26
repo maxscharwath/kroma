@@ -44,9 +44,11 @@ function firstControl(
 }
 
 interface MeasureOptions {
-  /** What to press: the first control the view offers, a CSS selector, or an
-   *  element you already have. */
-  press?: 'first' | string | Element;
+  /** What to press: `'first'` for the first control the view offers (the
+   *  default), a CSS selector, or an element you already have. A union naming
+   *  the sentinel beside `string` says nothing the compiler can use, so it
+   *  lives here where it can be read. */
+  press?: string | Element;
   /** Type into the first text field instead of pressing. */
   type?: string;
   /** Anything the two above cannot express. Receives the rendered roots. */

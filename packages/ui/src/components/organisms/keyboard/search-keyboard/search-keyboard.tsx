@@ -76,7 +76,7 @@ function SearchKeyboard({
     keyText: { fontSize: m.fontSize },
   } as const;
   const letterRows = LAYOUT_LETTER_ROWS[letters];
-  const lastRow = letterRows[letterRows.length - 1] ?? NO_ROW;
+  const lastRow = letterRows.at(-1) ?? NO_ROW;
   // One handler for the whole grid, whose identity never moves: a closure over
   // `value` is rebuilt on every keystroke, and every key element with it.
   const type = useStableCallback((k: string) => onValueChange(value + k.toLowerCase()));

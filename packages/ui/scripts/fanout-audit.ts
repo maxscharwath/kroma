@@ -23,7 +23,7 @@ for (const alloc of allocs) byFile.set(alloc.file, [...(byFile.get(alloc.file) ?
 console.log(`${allocs.length} allocations inside a list render, in ${byFile.size} files\n`);
 for (const [file, list] of [...byFile].sort(([, a], [, b]) => b.length - a.length)) {
   console.log(`  ${String(list.length).padStart(3)}  ${file}`);
-  for (const alloc of list.sort((a, b) => a.line - b.line)) {
+  for (const alloc of [...list].sort((a, b) => a.line - b.line)) {
     console.log(`         :${alloc.line}  ${alloc.prop}  (${alloc.kind})`);
   }
 }

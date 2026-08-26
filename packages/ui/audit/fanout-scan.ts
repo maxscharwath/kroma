@@ -90,7 +90,7 @@ function* sources(dir: string): Generator<string> {
     const at = join(dir, entry.name);
     if (entry.isDirectory()) yield* sources(at);
     else if (
-      /\.tsx$/.test(entry.name) &&
+      entry.name.endsWith('.tsx') &&
       !/\.(test|story|stories|demo|fixtures)\./.test(entry.name)
     )
       yield at;
@@ -155,7 +155,7 @@ async function scanKit(root: string): Promise<Alloc[]> {
       const key = `${alloc.prop}:${alloc.kind}`;
       budget.set(key, (budget.get(key) ?? 0) + 1);
     }
-    for (const alloc of written.sort((a, b) => a.line - b.line)) {
+    for (const alloc of [...written].sort((a, b) => a.line - b.line)) {
       const key = `${alloc.prop}:${alloc.kind}`;
       const left = budget.get(key) ?? 0;
       if (left === 0) continue;

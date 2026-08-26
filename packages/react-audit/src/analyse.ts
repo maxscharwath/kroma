@@ -63,7 +63,7 @@ function components(commits: readonly Commit[]): ReadonlyArray<readonly [string,
 function churn(commits: readonly Commit[]): ReadonlyArray<readonly [string, number]> {
   const [first, ...rest] = commits;
   if (!first || rest.length === 0) return [];
-  const after = rest[rest.length - 1]?.census ?? {};
+  const after = rest.at(-1)?.census ?? {};
 
   const deleted: Record<string, number> = {};
   for (const commit of rest) add(deleted, commit.deleted);
@@ -87,7 +87,7 @@ function rerenders(commits: readonly Commit[]): number {
 /** Elements the platform is drawing once everything has settled, by type, most
  * numerous first. The count a DOM or native tree is actually judged on. */
 function hosts(commits: readonly Commit[]): ReadonlyArray<readonly [string, number]> {
-  const last = commits[commits.length - 1];
+  const last = commits.at(-1);
   if (!last) return [];
   return Object.entries(last.hosts).sort(([, a], [, b]) => b - a);
 }

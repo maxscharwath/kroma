@@ -162,6 +162,41 @@ interface StageProps {
   children?: ReactNode;
 }
 
+// Where the picture sits, and where its captions and spinner sit with it. Its
+// own function because this is geometry rather than rendering, and reading
+// <Stage> should not mean holding three box ternaries at the same time.
+function stageBoxes(card: StageCard, settingsShrink: boolean, planeShrink: boolean) {
+  // Clipped, so the card's corners round whatever the host mounted; a surface
+  // that must round ITSELF (a hardware plane is not clipped by a parent) still
+  // reads the same radius off SurfaceRadiusProvider.
+  const picture: ViewStyle = card.picture
+    ? {
+        position: 'absolute',
+        overflow: 'hidden',
+        left: pct(card.picture.x),
+        top: pct(card.picture.y),
+        width: pct(card.picture.width),
+        height: pct(card.picture.height),
+      }
+    : s.picture;
+  // On a plane shrink the stage stays put, so this wrapper carries the spinner
+  // and subtitles down itself, with the scale the stage would have taken.
+  if (planeShrink) {
+    return {
+      picture,
+      content: {
+        ...picture,
+        transformOrigin: `${pct(card.origin)} 50%`,
+        transform: [{ scale: card.scale }],
+      },
+    };
+  }
+  // Anchored to the PICTURE once the card is out, rather than to the stage: the
+  // card IS the picture's box, and a caption left on the stage's bottom edge
+  // would sit outside it on a letterboxed film.
+  return { picture, content: settingsShrink ? picture : s.picture };
+}
+
 function Stage({
   controller: c,
   stageSize,
@@ -192,32 +227,11 @@ function Stage({
   useNativePlaneShrink(planeShrink, card.rect, c.setPlaneRect);
   const zoom = useStageZoom(settingsShrink, shrink === 'transform' && !WEB);
   const radius = useCardRadius(settingsShrink);
-  // Clipped, so the card's corners round whatever the host mounted; a surface
-  // that must round ITSELF (a hardware plane is not clipped by a parent) still
-  // reads the same radius off SurfaceRadiusProvider.
-  const pictureBox: ViewStyle = card.picture
-    ? {
-        position: 'absolute',
-        overflow: 'hidden',
-        left: pct(card.picture.x),
-        top: pct(card.picture.y),
-        width: pct(card.picture.width),
-        height: pct(card.picture.height),
-      }
-    : s.picture;
-  // Anchored to the PICTURE once the card is out, rather than to the stage: the
-  // card IS the picture's box, and a caption left on the stage's bottom edge
-  // would sit outside it on a letterboxed film.
-  const contentBox = settingsShrink ? pictureBox : s.picture;
-  // On a plane shrink the stage stays put, so this wrapper carries the spinner
-  // and subtitles down itself, with the scale the stage would have taken.
-  const contentShrink = planeShrink
-    ? {
-        ...pictureBox,
-        transformOrigin: `${pct(card.origin)} 50%`,
-        transform: [{ scale: card.scale }],
-      }
-    : contentBox;
+  const { picture: pictureBox, content: contentShrink } = stageBoxes(
+    card,
+    settingsShrink,
+    planeShrink,
+  );
 
   return (
     <>

@@ -83,6 +83,8 @@ function CrashFallback({ onRetry }: Readonly<{ onRetry: () => void }>) {
   return <CrashScreen onRetry={onRetry} onBack={nav.canGoBack ? nav.back : undefined} />;
 }
 
+const crashFallback = (retry: () => void) => <CrashFallback onRetry={retry} />;
+
 export function TvApp({
   platform = 'TV',
   capabilities,
@@ -106,11 +108,7 @@ export function TvApp({
               onSignedInChange={setSignedIn}
             >
               <LocaleProvider client={client}>
-                <CrashBoundary
-                  client={client}
-                  platform={platform}
-                  fallback={(retry) => <CrashFallback onRetry={retry} />}
-                >
+                <CrashBoundary client={client} platform={platform} fallback={crashFallback}>
                   <CompatBanner />
                   <ContinueProvider>
                     <RecommendProvider>

@@ -626,3 +626,76 @@ describe('ExpoVideoEngine player lifetime', () => {
     expect(listeners.onError).not.toHaveBeenCalled();
   });
 });
+
+describe('what the stats panel asks the engine', () => {
+  const rowsOf = (e: ReturnType<typeof make>['e']) =>
+    Object.fromEntries((e.debugRows?.() ?? []).map((r) => [r.label, r.value]));
+
+  it('names the plane even before a player exists', () => {
+    const { e } = make({ direct: true });
+    e.destroy();
+    expect(rowsOf(e).Plane).toBeTruthy();
+  });
+
+  it('reports only what the player answered, never a zero standing for unknown', () => {
+    const { e } = make({ direct: true });
+    Object.assign(current(e), {
+      status: 'readyToPlay',
+      playbackRate: 1,
+      videoTrack: {
+        mimeType: 'video/hevc',
+        size: { width: 3840, height: 2160 },
+        frameRate: 23.976,
+        peakBitrate: 42_000_000,
+        averageBitrate: null,
+        bitrate: null,
+        videoRange: 'HLG',
+        isSupported: true,
+      },
+    });
+
+    const rows = rowsOf(e);
+    expect(rows['Player state']).toBe('readyToPlay');
+    expect(rows.Track).toBe('video/hevc');
+    expect(rows['Track size']).toBe('3840×2160');
+    expect(rows['Frame rate']).toBe('23.98 fps');
+    expect(rows.Bitrate).toBe('42.0 Mb/s');
+    expect(rows.Range).toBe('HLG');
+    // Playing at 1x is not a fact worth a row, and the device CAN decode it.
+    expect(rows.Rate).toBeUndefined();
+    expect(rows.Decoder).toBeUndefined();
+  });
+
+  it('says so when the device has no decoder for the track', () => {
+    const { e } = make({ direct: true });
+    Object.assign(current(e), {
+      status: 'readyToPlay',
+      playbackRate: 1.5,
+      videoTrack: {
+        mimeType: null,
+        size: { width: 0, height: 0 },
+        frameRate: null,
+        peakBitrate: null,
+        averageBitrate: null,
+        bitrate: null,
+        videoRange: null,
+        isSupported: false,
+      },
+    });
+
+    const rows = rowsOf(e);
+    expect(rows.Decoder).toBe('unsupported');
+    expect(rows.Rate).toBe('1.5x');
+    // Nothing the track left null is invented.
+    expect(rows.Track).toBeUndefined();
+    expect(rows['Track size']).toBeUndefined();
+    expect(rows.Bitrate).toBeUndefined();
+  });
+
+  it('survives a player that throws on every read, which is what a swap looks like', () => {
+    const { e } = make({ direct: true });
+    current(e).throwOnRead = true;
+    expect(() => e.debugRows?.()).not.toThrow();
+    expect(rowsOf(e).Plane).toBeTruthy();
+  });
+});

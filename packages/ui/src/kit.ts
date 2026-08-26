@@ -94,6 +94,7 @@ export type {
   ToggleBinding,
 } from './lib/form';
 export { msg, useForm } from './lib/form';
+export { genreIcon } from './lib/genre-icon';
 export {
   DEFAULT_ICON_SIZE,
   DEFAULT_ICON_THICKNESS,

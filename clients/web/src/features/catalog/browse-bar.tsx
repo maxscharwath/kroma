@@ -12,6 +12,7 @@ import {
   Box,
   Chip,
   color,
+  genreIcon,
   type IconName,
   Row,
   ringRoomBlock,
@@ -27,7 +28,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { genreIcon } from '#web/shared/lib/genre-icon';
+
 import { PAGE_GUTTER } from '#web/shared/ui/page';
 
 const SORT_LABEL_KEY: Record<SortMode, MessageKey> = {

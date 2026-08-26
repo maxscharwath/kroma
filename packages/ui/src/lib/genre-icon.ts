@@ -1,5 +1,5 @@
 import { genreGlyph } from '@kroma/core';
-import { hasGlyph, type IconName } from '@kroma/ui/kit';
+import { hasGlyph, type IconName } from '#ui/lib/glyph';
 
 /** The icon for a genre, or `undefined` when the table has none for it, or the
  * build's glyph subset does not ship the one it names. */

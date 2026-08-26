@@ -1,6 +1,6 @@
 import { GENRES } from '@kroma/core';
-import { hasGlyph } from '@kroma/ui/kit';
 import { describe, expect, it } from 'vitest';
+import { hasGlyph } from '#ui/lib/glyph';
 import { genreIcon } from './genre-icon';
 
 describe('genreIcon', () => {

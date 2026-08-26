@@ -5,22 +5,13 @@
 
 import { GENRES, type GenreCopyKey, type GenreRow, type GenreSlug } from './genre-table';
 import { SUPPORTED_LOCALES, type Translate, translate } from './i18n';
+import { slugify as fold } from './slug';
 
 export type { GenreRow, GenreSlug } from './genre-table';
 export { GENRES } from './genre-table';
 
 // The combining-marks range, not `\p{M}`: this module ships to the legacy webOS
 // tier, whose engine cannot parse unicode property escapes.
-function fold(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '');
-}
-
 function labelKey(slug: GenreSlug): GenreCopyKey {
   return `genre.${slug}`;
 }

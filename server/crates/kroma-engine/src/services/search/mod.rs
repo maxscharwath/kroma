@@ -158,8 +158,8 @@ impl SearchEngine {
         else {
             return Vec::new();
         };
-        let mut hits = Vec::with_capacity(top.len());
-        for (_score, addr) in top {
+        let mut scored = Vec::with_capacity(top.len());
+        for (score, addr) in top {
             let Ok(doc) = searcher.doc::<TantivyDocument>(addr) else {
                 continue;
             };
@@ -175,9 +175,23 @@ impl SearchEngine {
             let show_id = (kind == HitKind::Episode)
                 .then(|| field_str(&doc, self.fields.show_id))
                 .filter(|s| !s.is_empty());
-            hits.push(Hit { id, kind, show_id });
+            scored.push((Hit { id, kind, show_id }, score * kind_weight(kind)));
         }
+        scored.sort_by(|a, b| b.1.total_cmp(&a.1));
+        let hits = scored.into_iter().map(|(hit, _)| hit).collect();
         collapse_episodes(hits, limit)
+    }
+}
+
+// What the reader is most likely to have meant when two hits score alike: a
+// film, then the show itself, then one episode of it. A multiplier rather than a
+// hard tier, so naming an episode outright still beats a film the query only
+// brushed.
+fn kind_weight(kind: HitKind) -> f32 {
+    match kind {
+        HitKind::Movie => 1.0,
+        HitKind::Show => 0.9,
+        HitKind::Episode => 0.75,
     }
 }
 

@@ -2,6 +2,8 @@ import { cssRef } from '../core/tokens/css-var.ts';
 import { breakpoint } from '../core/tokens/layout.ts';
 import { atMedia, rule, type SheetEntry } from './sheet.ts';
 
+const ROW_PAD_Y = 12;
+
 const INSET_RING = 'calc(-1 * (var(--ring-gap) + var(--ring-width)))';
 
 const tint = (percent: number) => `color-mix(in srgb, ${cssRef('tint')} ${percent}%, transparent)`;
@@ -19,7 +21,7 @@ export const ADMIN_TABLE: readonly SheetEntry[] = [
     gap: '16px',
     width: '100%',
     margin: 0,
-    padding: '12px 20px',
+    padding: `${ROW_PAD_Y}px 20px`,
     appearance: 'none',
     border: 0,
     background: 'none',
@@ -43,6 +45,18 @@ export const ADMIN_TABLE: readonly SheetEntry[] = [
   rule('[data-pressable] > *:not(.admin-press)', { pointerEvents: 'none' }),
   rule('[data-pressable] :is(a, button, input, select, textarea, [tabindex], [data-hoverable])', {
     pointerEvents: 'auto',
+  }),
+  // A heading cell is only as tall as its overline, while the row's height comes
+  // from its own vertical padding, so a press layer inset to the cell would be a
+  // sliver. It spans the row instead.
+  rule('.admin-table-head > [data-pressable]', {
+    alignSelf: 'stretch',
+    display: 'flex',
+    alignItems: 'center',
+  }),
+  rule('.admin-table-head > [data-pressable] > .admin-press', {
+    top: `-${ROW_PAD_Y}px`,
+    bottom: `-${ROW_PAD_Y}px`,
   }),
   rule('.admin-press', {
     position: 'absolute',

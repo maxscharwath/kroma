@@ -226,8 +226,6 @@ fn a_film_the_query_names_beats_a_synopsis_that_merely_rhymes_with_it() {
     )
     .unwrap();
 
-    // "arrive" and "rival" are both two edits from "arrival". Forgiving that
-    // much inside a synopsis matches half the catalogue and buries the film.
     assert_eq!(ids(&e, "arrival", 24), ["m-arrival"]);
 }
 
@@ -244,32 +242,41 @@ fn a_film_comes_before_a_show_and_a_show_before_an_episode() {
     assert_eq!(ids(&e, "dragons", 24), ["m1", "s1", "e1"]);
 }
 
+fn wordy_engine() -> SearchEngine {
+    let mut films: Vec<MediaItem> = (0..40)
+        .map(|n| movie(&format!("m{n}"), &format!("The Story of {n}"), None))
+        .collect();
+    films.push(movie("m-arrival", "Arrival", None));
+    let e = SearchEngine::new().unwrap();
+    e.rebuild(&films, &[], &[]).unwrap();
+    e
+}
+
 #[test]
 fn an_article_does_not_reorder_the_results() {
-    let e = SearchEngine::new().unwrap();
-    e.rebuild(
-        &[
-            movie("m-arrival", "Arrival", None),
-            movie("m-artist", "The Artist", None),
-        ],
-        &[],
-        &[],
-    )
-    .unwrap();
+    let e = wordy_engine();
 
-    // Measured on a real catalogue, typing the article moved Arrival from
-    // second to seventh: every title owning a "the" climbed over it.
     assert_eq!(ids(&e, "arrival", 24)[0], "m-arrival");
     assert_eq!(ids(&e, "the arrival", 24)[0], "m-arrival");
 }
 
 #[test]
-fn a_query_of_nothing_but_articles_still_searches_for_them() {
+fn a_query_of_nothing_but_common_words_still_searches_for_them() {
+    let e = wordy_engine();
+
+    let got = ids(&e, "the", 24);
+
+    assert!(!got.is_empty());
+    assert!(!got.contains(&"m-arrival".to_string()));
+}
+
+#[test]
+fn a_word_is_only_common_where_the_catalogue_says_so() {
     let e = SearchEngine::new().unwrap();
-    e.rebuild(&[movie("m-artist", "The Artist", None)], &[], &[])
+    e.rebuild(&[movie("m1", "The Thing", None)], &[], &[])
         .unwrap();
 
-    assert_eq!(ids(&e, "the", 24), ["m-artist"]);
+    assert_eq!(ids(&e, "the thing", 24), ["m1"]);
 }
 
 #[test]
@@ -278,8 +285,6 @@ fn a_slip_on_a_short_title_still_finds_it() {
     e.rebuild(&[movie("m-dune", "Dune", None)], &[], &[])
         .unwrap();
 
-    // A four-letter title is the whole query and the token is required, so no
-    // budget at all means one wrong letter returns an empty screen.
     assert_eq!(ids(&e, "dume", 24), ["m-dune"]);
 }
 

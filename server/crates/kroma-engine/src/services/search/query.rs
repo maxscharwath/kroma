@@ -8,7 +8,7 @@
 
 use tantivy::query::{BooleanQuery, BoostQuery, FuzzyTermQuery, Occur, Query};
 use tantivy::schema::Field;
-use tantivy::Term;
+use tantivy::{Searcher, Term};
 
 use super::schema::Fields;
 
@@ -18,10 +18,8 @@ use super::schema::Fields;
 // "breaking bad ozymandias" resolves to the episode, not so that every episode
 // of a show competes with the show itself.
 //
-// Fuzziness belongs on the fields that hold a name, where the reader is
-// reproducing one from memory. An overview is prose: at any useful edit
-// distance a long synopsis matches most queries by accident, burying the title
-// they actually typed.
+// Fuzziness only on the fields that hold a name: at any useful edit distance a
+// synopsis matches most queries by accident, burying the title actually typed.
 fn weights(f: &Fields) -> [(Field, f32, bool); 6] {
     [
         (f.title, 6.0, true),
@@ -33,15 +31,9 @@ fn weights(f: &Fields) -> [(Field, f32, bool); 6] {
     ]
 }
 
-// Edit-distance budget for a token. A budget of 2 on a middling word is not typo
-// tolerance, it is a different word: at 2, "arrival" reaches "arrive" and
-// "rival", which appear in enough synopses to bury the film of that name. Only a
-// long token, where two edits are a small fraction of it, gets the full budget.
-//
-// Four characters still gets one, because a four-letter title is a whole query
-// and the token is required: "dume" has to find Dune, or a single slip on a
-// remote's on-screen keyboard returns an empty screen.
-// tantivy caps fuzzy distance at 2.
+// Edit-distance budget for a token. At 2, "arrival" reaches "arrive" and
+// "rival", so only a long token, where two edits are a small fraction of it,
+// gets the full budget. tantivy caps fuzzy distance at 2.
 fn distance(token: &str) -> u8 {
     match token.chars().count() {
         0..=3 => 0,
@@ -50,45 +42,45 @@ fn distance(token: &str) -> u8 {
     }
 }
 
-// An exact hit is worth more than a forgiven one: without this a fuzzy match in
-// a heavier field outscores the reader typing the title correctly.
 const EXACT_BONUS: f32 = 1.5;
 const PREFIX_PENALTY: f32 = 0.5;
 
-// Words that carry no intent. They sit in a large share of titles and synopses,
-// so left at full strength "the arrival" ranks every title that merely owns a
-// "the" above the film: measured on a real catalogue, adding the article moved
-// Arrival from second to seventh. English and French, since a catalogue holds
-// both.
-const STOPWORDS: &[&str] = &[
-    "a", "an", "and", "at", "for", "in", "of", "on", "the", "to", "au", "aux", "de", "des", "du",
-    "en", "et", "la", "le", "les", "un", "une",
-];
+const COMMON_SHARE: f64 = 0.3;
 
-// What is left of a stopword's weight: enough to break a tie between two titles
-// that are otherwise equal, not enough to order the results.
+// Document frequency is not a statistic under this many titles: in a catalogue
+// of two, every word is in half of it.
+const MIN_CORPUS: u64 = 30;
+
 const STOPWORD_WEIGHT: f32 = 0.05;
 
-fn is_stopword(token: &str) -> bool {
-    STOPWORDS.contains(&token)
+/// Whether `token` is in enough of the index to have stopped meaning anything.
+/// Measured against the field it is most common in, since an article saturates
+/// the synopses long before it saturates the titles.
+pub(super) fn is_common(searcher: &Searcher, fields: &Fields, token: &str) -> bool {
+    let total = searcher.num_docs();
+    if total < MIN_CORPUS {
+        return false;
+    }
+    weights(fields).iter().any(|(field, _, _)| {
+        let term = Term::from_field_text(*field, token);
+        searcher
+            .doc_freq(&term)
+            .is_ok_and(|df| df as f64 > total as f64 * COMMON_SHARE)
+    })
 }
 
 /// Build a query from already-normalized tokens (lowercased + diacritic-folded
 /// by the index analyzer). Returns `None` when there are no tokens, so the caller
 /// returns an empty result set rather than matching everything.
-pub(super) fn build(fields: &Fields, tokens: &[String]) -> Option<Box<dyn Query>> {
+pub(super) fn build(fields: &Fields, tokens: &[String], common: &[bool]) -> Option<Box<dyn Query>> {
     if tokens.is_empty() {
         return None;
     }
     let weights = weights(fields);
-    // A query of nothing but stopwords still has to search for them, so they
-    // only step aside when the reader gave something else to go on.
-    let has_meaning = tokens.iter().any(|t| !is_stopword(t));
+    let has_meaning = common.iter().any(|c| !c);
     let mut per_token: Vec<(Occur, Box<dyn Query>)> = Vec::with_capacity(tokens.len());
-    for token in tokens {
-        let empty = has_meaning && is_stopword(token);
-        // Optional, not required: "the arrival" must still find a film called
-        // Arrival, which carries no article at all.
+    for (i, token) in tokens.iter().enumerate() {
+        let empty = has_meaning && common.get(i).copied().unwrap_or(false);
         let occur = if empty { Occur::Should } else { Occur::Must };
         let scale = if empty { STOPWORD_WEIGHT } else { 1.0 };
         let dist = distance(token);

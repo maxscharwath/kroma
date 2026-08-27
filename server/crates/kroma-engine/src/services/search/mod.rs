@@ -143,10 +143,14 @@ impl SearchEngine {
     pub fn search(&self, raw: &str, limit: usize) -> Vec<Hit> {
         let active = self.active.read().unwrap().clone();
         let tokens = normalize(&active._index, raw);
-        let Some(query) = query::build(&self.fields, &tokens) else {
+        let searcher = active.reader.searcher();
+        let common: Vec<bool> = tokens
+            .iter()
+            .map(|t| query::is_common(&searcher, &self.fields, t))
+            .collect();
+        let Some(query) = query::build(&self.fields, &tokens, &common) else {
             return Vec::new();
         };
-        let searcher = active.reader.searcher();
         let limit = limit.max(1);
         let candidates = limit
             .saturating_mul(CANDIDATE_FACTOR)
@@ -183,10 +187,6 @@ impl SearchEngine {
     }
 }
 
-// What the reader is most likely to have meant when two hits score alike: a
-// film, then the show itself, then one episode of it. A multiplier rather than a
-// hard tier, so naming an episode outright still beats a film the query only
-// brushed.
 fn kind_weight(kind: HitKind) -> f32 {
     match kind {
         HitKind::Movie => 1.0,

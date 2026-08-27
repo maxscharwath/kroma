@@ -58,6 +58,10 @@ pub fn lookup(
 /// base language code (e.g. `"en"`).
 pub struct Resolved {
     pub by_lang: std::collections::HashMap<String, Metadata>,
+    /// Languages whose request failed rather than came back empty. Absent from
+    /// `by_lang` for a reason that says nothing about the title, so a caller
+    /// must not record "this language has nothing" for them.
+    pub unreachable: std::collections::HashSet<String>,
 }
 
 /// Resolve `title`/`year` in every language in `langs`. The TMDB id is resolved
@@ -78,10 +82,13 @@ pub fn lookup_all(
         // No match or a transient search failure: retried on the next pass.
         _ => return None,
     };
-    let by_lang = details_by_lang(cache, api_key, langs, target, id, |lang| {
+    let (by_lang, unreachable) = details_by_lang(cache, api_key, langs, target, id, |lang| {
         detail_key(target, lang, title, year)
     });
-    (!by_lang.is_empty()).then_some(Resolved { by_lang })
+    (!by_lang.is_empty()).then_some(Resolved {
+        by_lang,
+        unreachable,
+    })
 }
 
 /// Same as [`lookup_all`] but for an already-known TMDB id: no search. Used for
@@ -94,10 +101,13 @@ pub fn lookup_all_by_id(
     target: Target,
     id: u64,
 ) -> Option<Resolved> {
-    let by_lang = details_by_lang(cache, api_key, langs, target, id, |lang| {
+    let (by_lang, unreachable) = details_by_lang(cache, api_key, langs, target, id, |lang| {
         detail_key_id(target, lang, id)
     });
-    (!by_lang.is_empty()).then_some(Resolved { by_lang })
+    (!by_lang.is_empty()).then_some(Resolved {
+        by_lang,
+        unreachable,
+    })
 }
 
 fn details_by_lang(
@@ -107,8 +117,12 @@ fn details_by_lang(
     target: Target,
     id: u64,
     key_for: impl Fn(&str) -> String,
-) -> std::collections::HashMap<String, Metadata> {
+) -> (
+    std::collections::HashMap<String, Metadata>,
+    std::collections::HashSet<String>,
+) {
     let mut by_lang = std::collections::HashMap::new();
+    let mut unreachable = std::collections::HashSet::new();
     for &lang in langs {
         let key = key_for(lang);
         let meta = match cache.get(&key) {
@@ -119,12 +133,15 @@ fn details_by_lang(
                     cache.put(key, Some(m.clone()));
                     m
                 }
-                Err(()) => continue,
+                Err(()) => {
+                    unreachable.insert(lang.to_string());
+                    continue;
+                }
             },
         };
         by_lang.insert(lang.to_string(), meta);
     }
-    by_lang
+    (by_lang, unreachable)
 }
 
 // `Ok(Some)` = resolved, `Ok(None)` = no match (cacheable), `Err(())` =

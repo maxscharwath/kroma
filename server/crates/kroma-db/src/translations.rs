@@ -144,6 +144,24 @@ pub fn all_for_kind(pool: &Pool, kind: &str) -> Result<HashMap<String, Vec<Trans
 /// Which of `langs` this subject cannot serve from a current row: absent
 /// entirely, or written before [`REV`] and so missing whatever that revision
 /// added.
+/// Whether any of `ids` still owes a current row for one of `langs`.
+///
+/// One query for a whole season, where asking per episode would be one each.
+pub fn any_stale(pool: &Pool, kind: &str, ids: &[&str], langs: &[&str]) -> Result<bool> {
+    if ids.is_empty() || langs.is_empty() {
+        return Ok(false);
+    }
+    let stored = load_all(pool, kind, ids)?;
+    Ok(ids.iter().any(|id| {
+        let by_lang = stored.get(*id);
+        langs.iter().any(|lang| {
+            by_lang
+                .and_then(|m| m.get(*lang))
+                .is_none_or(|d| d.rev < REV)
+        })
+    }))
+}
+
 pub fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Result<Vec<String>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(

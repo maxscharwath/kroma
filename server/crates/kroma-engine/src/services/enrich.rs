@@ -84,17 +84,19 @@ fn build_jobs(items: &[MediaItem], shows: &[Show], pins: &Pins) -> Vec<Job> {
         let on_file = i.metadata.as_ref().map(|m| m.tmdb_id).filter(|&id| id != 0);
         let pin = pins.items.get(&i.id).copied();
         // A pin that disagrees with the id on file is a correction that has not
-        // landed yet, so it re-enters the queue even though the movie looks done.
-        if on_file.is_some() && (pin.is_none() || pin == on_file) {
-            continue;
-        }
+        // landed yet, so it re-matches even though the movie looks done.
+        let settled = on_file.is_some() && (pin.is_none() || pin == on_file);
         jobs.push(Job {
             id: i.id.clone(),
             target: Target::Movie,
             title: i.title.clone(),
             year: i.year,
             is_show: false,
-            resolved_tmdb: None,
+            // Enqueued even when already enriched, as a show is: carrying the
+            // id it resolved to means no search and no chance of landing on a
+            // different film, and it is the only way a language added since is
+            // ever noticed outside the nightly stage.
+            resolved_tmdb: settled.then(|| on_file).flatten(),
             pin,
         });
     }
@@ -242,7 +244,17 @@ fn enrich_episodes(
             })
             .collect();
         let needs_cast = !have_cast.contains(&season.number);
-        if missing.is_empty() && !needs_cast {
+        // Stills and a cast list say nothing about languages, so on their own
+        // they let a language added since, or a payload that grew a field, pass
+        // straight over every episode in a season that already has its artwork.
+        let ep_ids: Vec<&str> = season.episodes.iter().map(|e| e.id.as_str()).collect();
+        let stale_text =
+            db::translations::any_stale(pool, "episode", &ep_ids, langs).unwrap_or(true);
+        let cast_id = format!("{show_id}:{}", season.number);
+        let stale_cast = !db::translations::stale_langs(pool, "season_cast", &cast_id, langs)
+            .unwrap_or_default()
+            .is_empty();
+        if missing.is_empty() && !needs_cast && !stale_text && !stale_cast {
             continue;
         }
         let per_lang = metadata::season_episodes_multi(api_key, langs, tv_id, season.number);
@@ -311,6 +323,7 @@ fn store_episode_translations(
             let td = TransData {
                 title: art.name.clone(),
                 overview: art.overview.clone(),
+                rev: translations::REV,
                 ..Default::default()
             };
             if !td.is_empty() {
@@ -333,18 +346,20 @@ fn store_season_cast(
     data: &metadata::SeasonData,
 ) {
     use db::translations::{self, TransData};
-    if !needs_cast || data.cast.is_empty() {
+    if data.cast.is_empty() {
         return;
     }
-    let carrier = image::localize(
-        data_dir,
-        Metadata {
-            cast: data.cast.clone(),
-            ..blank_metadata()
-        },
-    );
-    if let Err(e) = db::set_season_cast(pool, show_id, season_number, &carrier.cast) {
-        warn!(show = %show_id, season = season_number, error = %e, "failed to store season cast");
+    if needs_cast {
+        let carrier = image::localize(
+            data_dir,
+            Metadata {
+                cast: data.cast.clone(),
+                ..blank_metadata()
+            },
+        );
+        if let Err(e) = db::set_season_cast(pool, show_id, season_number, &carrier.cast) {
+            warn!(show = %show_id, season = season_number, error = %e, "failed to store season cast");
+        }
     }
     let sc_id = format!("{show_id}:{season_number}");
     for (lang, sdata) in per_lang {
@@ -353,8 +368,14 @@ fn store_season_cast(
         }
         let characters: Vec<Option<String>> =
             sdata.cast.iter().map(|c| c.character.clone()).collect();
+        // Index-aligned to the cast row, so only written where the two came
+        // from the same response and cannot have drifted apart.
+        if characters.len() != data.cast.len() {
+            continue;
+        }
         let td = TransData {
             characters,
+            rev: translations::REV,
             ..Default::default()
         };
         let _ = translations::put(pool, "season_cast", &sc_id, lang, translations::TMDB, &td);
@@ -393,7 +414,18 @@ fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
         .into_iter()
         .map(|(lang, m)| (lang, image::localize_art(&eng.data_dir, m)))
         .collect();
-    let asked: Vec<String> = want.iter().map(|l| (*l).to_string()).collect();
+    // Only the languages TMDB actually answered for. One whose request failed
+    // says nothing about the title, and recording "there is nothing here" for it
+    // would overwrite what is stored and stamp it current, so nothing would ever
+    // ask again.
+    let asked: Vec<String> = want
+        .iter()
+        .filter(|l| !resolved.unreachable.contains(**l))
+        .map(|l| (*l).to_string())
+        .collect();
+    if asked.is_empty() && by_lang.is_empty() {
+        return;
+    }
     if let Err(e) = db::fill_languages(
         &eng.pool,
         subject_kind(job.is_show),
@@ -760,5 +792,88 @@ pub fn run_tracked(
         missed: counters.missed.load(Ordering::Relaxed),
         failed: counters.failed.load(Ordering::Relaxed),
         cancelled: cancel.load(Ordering::Relaxed),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn movie_with(id: &str, tmdb: u64) -> MediaItem {
+        MediaItem {
+            id: id.into(),
+            title: "Dune".into(),
+            kind: Kind::Movie,
+            year: None,
+            duration_ms: None,
+            container: String::new(),
+            video: None,
+            audio: None,
+            audio_tracks: Vec::new(),
+            subtitles: Vec::new(),
+            library: "lib".into(),
+            show_id: None,
+            show_title: None,
+            season: None,
+            episode: None,
+            episode_end: None,
+            episode_title: None,
+            rel_path: None,
+            added_at: String::new(),
+            metadata: (tmdb != 0).then(|| Metadata {
+                provider: "tmdb",
+                tmdb_id: tmdb,
+                imdb_id: None,
+                title: None,
+                tagline: None,
+                overview: None,
+                release_date: None,
+                genres: Vec::new(),
+                tmdb_genre_ids: Vec::new(),
+                rating: None,
+                poster_url: None,
+                backdrop_url: None,
+                logo_url: None,
+                theme_url: None,
+                cast: Vec::new(),
+                crew: Vec::new(),
+                keywords: Vec::new(),
+                tvdb_id: None,
+                tmdb_url: String::new(),
+            }),
+            abs_path: None,
+            files: Vec::new(),
+            default_file_id: None,
+            markers: Vec::new(),
+            audio_analysis: None,
+        }
+    }
+
+    #[test]
+    fn a_movie_already_matched_still_enters_the_queue_carrying_its_id() {
+        let jobs = build_jobs(&[movie_with("m1", 603)], &[], &Pins::default());
+
+        let job = jobs.iter().find(|j| j.id == "m1").expect("the movie");
+        assert_eq!(job.resolved_tmdb, Some(603));
+    }
+
+    #[test]
+    fn a_movie_that_never_matched_is_queued_to_be_matched() {
+        let jobs = build_jobs(&[movie_with("m1", 0)], &[], &Pins::default());
+
+        let job = jobs.iter().find(|j| j.id == "m1").expect("the movie");
+        assert_eq!(job.resolved_tmdb, None);
+    }
+
+    #[test]
+    fn a_pin_that_disagrees_with_the_id_on_file_re_matches() {
+        let mut pins = Pins::default();
+        pins.items.insert("m1".into(), 999);
+
+        let jobs = build_jobs(&[movie_with("m1", 603)], &[], &pins);
+
+        let job = jobs.iter().find(|j| j.id == "m1").expect("the movie");
+        assert_eq!(job.resolved_tmdb, None);
+        assert_eq!(job.pin, Some(999));
     }
 }

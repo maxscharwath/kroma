@@ -230,10 +230,6 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("namingCase".into(), json!("default"));
     // openai = any OpenAI-compatible server (Ollama, llama.cpp, LM Studio, …);
     // anthropic = Claude.
-    // On by default: with no provider configured `from_settings` still yields a
-    // client whose `available()` is false, so the features that ask for one warn
-    // once and skip. Off by default only meant an operator who had filled in a
-    // key and a model still saw nothing until they found a second switch.
     m.insert("llmEnabled".into(), json!(true));
     m.insert("llmProvider".into(), json!("openai"));
     m.insert("llmBaseUrl".into(), json!(""));

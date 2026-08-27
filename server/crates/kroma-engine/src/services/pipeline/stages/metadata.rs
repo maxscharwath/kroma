@@ -27,11 +27,8 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
     // done under its old `title:year` and a correction never gets revisited.
     let item_pins = crate::db::tmdb_pin::all_for_kind(&state.db, ITEM)?;
     let show_pins = crate::db::tmdb_pin::all_for_kind(&state.db, SHOW)?;
-    // The languages are part of the signature: adding one has to re-enrich the
-    // catalog, or a new language reaches only titles scanned after it. The
-    // stored payload's revision is part of it for the same reason: growing the
-    // payload (the poster and logo joined it) leaves every existing row without
-    // the new field, and nothing revisits a title whose signature still matches.
+    // The languages and the stored payload's revision are part of it too, or a
+    // title already done is never revisited when either of them changes.
     let langs = crate::i18n::SUPPORTED_LOCALES.join(",");
     let rev = crate::db::translations::REV;
     for i in crate::db::list_items(&state.db, None)? {
@@ -77,9 +74,6 @@ mod tests {
         let sigs = enumerate(&state).unwrap();
 
         let (_, sig) = sigs.iter().find(|(id, _)| id == "m1").expect("the movie");
-        // Growing the payload bumps REV, which has to move the signature, or
-        // every title already `done` keeps whatever it was stored with and the
-        // new field never reaches the catalog.
         assert!(
             sig.ends_with(&format!(":r{}", crate::db::translations::REV)),
             "signature {sig} does not carry the revision"

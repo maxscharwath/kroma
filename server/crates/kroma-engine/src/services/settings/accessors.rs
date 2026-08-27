@@ -116,14 +116,9 @@ pub fn metadata_language(settings: &Settings, config: &crate::config::Config) ->
 /// The TMDB language for a request made by a reader, which is the reader's own
 /// unless the operator asked for a regional variant of it.
 ///
-/// [`metadata_language`] stays the server's answer for everything with no reader
-/// in front of it: the enrichment pass, background jobs, and the module host.
-/// This is for the handlers that DO have one, so a French reader gets a French
-/// biography from a server whose catalog was enriched in English.
-///
-/// A configured `fr-FR` beats a reader's bare `fr`, because the region is a
-/// choice the operator made and the base language still matches. `en` against a
-/// configured `fr-FR` is the reader's, because it does not.
+/// [`metadata_language`] stays the answer where there is no reader: enrichment,
+/// background jobs, the module host. A configured `fr-FR` beats a reader's bare
+/// `fr`; `en` against a configured `fr-FR` does not.
 pub fn metadata_language_for(
     settings: &Settings,
     config: &crate::config::Config,
@@ -364,11 +359,8 @@ mod tests {
         let s = settings(&pool);
         let c = test_config();
 
-        // en-US is configured, so an English reader keeps the operator's region.
         assert_eq!(metadata_language_for(&s, &c, "en"), "en-US");
-        // A French reader does not get an English catalog.
         assert_eq!(metadata_language_for(&s, &c, "fr"), "fr");
-        // A language nobody configured is still the reader's own.
         assert_eq!(metadata_language_for(&s, &c, "de"), "de");
 
         s.set_patch(

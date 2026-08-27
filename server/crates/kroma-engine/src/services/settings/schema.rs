@@ -491,14 +491,8 @@ pub fn groups(
     }
 }
 
-/// The languages the fallback can be set to: the ones this server actually
-/// keeps catalogs in, so adding a locale adds a choice here and nothing has to
-/// be edited to keep the two in step. `Auto` defers to the server default.
-///
-/// TMDB takes a regional code and the region changes the artwork it picks, so
-/// each language offers the one it is usually wanted in; a code set by hand
-/// before, or through the environment, stays selected because the control keeps
-/// a stored value it does not name.
+// TMDB takes a regional code and the region changes the artwork it picks, so
+// each language offers the one it is usually wanted in.
 fn tmdb_language_options() -> Vec<String> {
     let mut opts = vec![TMDB_LANGUAGE_AUTO.to_string()];
     opts.extend(

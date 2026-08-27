@@ -31,13 +31,11 @@ export function deviceLocale(): Locale {
 let active: Locale | null = null;
 
 /** The locale a request should ask for: whatever `<LocaleProvider>` last
- *  resolved, else the device's. Clients built outside the React tree read it
- *  here, so they speak the language the tree is showing. */
+ *  resolved, else the device's. */
 export function activeLocale(): Locale {
   return active ?? deviceLocale();
 }
 
-/** Called by `<LocaleProvider>` as the resolved locale changes. */
 export function setActiveLocale(locale: Locale): void {
   active = locale;
 }

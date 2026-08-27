@@ -11,9 +11,7 @@ pub(crate) const IN_CHUNK: usize = 800;
 /// [`IN_CHUNK`]-sized batches, prepending `kind` to each chunk's bound params
 /// and appending `tail`. `build_sql` receives the `?,?,…` placeholder list and
 /// returns the full statement; `map` turns each row into a `T`. Rows come back
-/// flat in DB order, for the caller to fold into whatever shape it needs (the
-/// shared scaffold behind `metadata_core::get_cores` and the `translations`
-/// loader, which appends the languages it will actually read).
+/// flat in DB order, for the caller to fold into whatever shape it needs.
 pub(crate) fn query_by_subject_ids<T>(
     conn: &Connection,
     kind: &str,

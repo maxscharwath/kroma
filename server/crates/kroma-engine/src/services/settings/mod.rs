@@ -17,7 +17,7 @@
 //! [`accessors`] (+ library defs), and the admin view-model [`schema`].
 
 /// The dropdown value that means "no explicit choice": the fallback language
-/// defers to the server's own default. Follows `Auto` on the library selects.
+/// defers to the server's own default.
 pub const TMDB_LANGUAGE_AUTO: &str = "Auto";
 
 mod accessors;

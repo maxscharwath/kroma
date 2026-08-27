@@ -60,8 +60,6 @@ fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
     if !tr.genres.is_empty() {
         meta.genres = tr.genres.clone();
     }
-    // Poster and logo only: those carry the title as artwork. The backdrop is
-    // one per title and stays on the core. Absent means the core's is right.
     if tr.poster_url.is_some() {
         meta.poster_url = tr.poster_url.clone();
     }
@@ -72,7 +70,6 @@ fn apply(meta: Option<&mut Metadata>, tr: &TransData) {
 }
 
 // A show's metadata overlay (same fields; shows carry no per-title cast here).
-// The show's own `title` is the scan's, so it takes the localized one too.
 fn apply_show(show: &mut Show, tr: &TransData) {
     apply(show.metadata.as_mut(), tr);
     if let Some(t) = &tr.title {

@@ -26,8 +26,6 @@ const KromaClient = vi.hoisted(() =>
   }),
 );
 
-// `clientUserAgent` too: these hooks build their client through
-// `#mobile/lib/device`, which stamps the phone's own User-Agent onto it.
 vi.mock('@kroma/core', () => ({
   KromaClient,
   activeLocale: () => 'fr',

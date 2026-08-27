@@ -7,10 +7,6 @@ use anyhow::Result;
 
 use kroma_domain::{Kind, MediaItem, SectionItem};
 
-// The item's own `title` is the one the scan derived from the file, so it never
-// changed language, and every card and hero renders it rather than the
-// metadata's. Localizing one without the other is what leaves a French title
-// over an English synopsis.
 fn apply_item(item: &mut MediaItem, tr: &TransData) {
     apply(item.metadata.as_mut(), tr);
     if let Some(t) = &tr.title {
@@ -25,9 +21,7 @@ pub fn overlay_items(pool: &Pool, items: &mut [MediaItem], locale: &str) -> Resu
 }
 
 /// Overlay `locale` onto items reached through something other than a slice: a
-/// resume row's inner item, the next episode, one `Option`. Every endpoint that
-/// serves a [`MediaItem`] has to go through here, whatever it wraps it in, or
-/// that one screen reads in the language the files were scanned in.
+/// resume row's inner item, the next episode, one `Option`.
 pub fn overlay_each<'a>(
     pool: &Pool,
     items: impl IntoIterator<Item = &'a mut MediaItem>,
@@ -124,9 +118,6 @@ mod tests {
         let mut items = vec![item("m1", Kind::Movie)];
         overlay_items(&p, &mut items, "en").unwrap();
 
-        // Every card and hero renders `title`, not `metadata.title`, so leaving
-        // it as the scan's would show the filename's language whatever the
-        // reader asked for.
         assert_eq!(items[0].title, "Minions: The Rise of Gru");
     }
 
@@ -167,9 +158,6 @@ mod tests {
         )
         .unwrap();
 
-        // Continue watching, up-next and the player's rail all hand out a
-        // MediaItem wrapped in something. Reaching them by slice only is how
-        // one row ends up reading in the language the files were scanned in.
         let mut resume = (item("m1", Kind::Movie), 1234);
         overlay_each(&p, std::iter::once(&mut resume.0), "en").unwrap();
 

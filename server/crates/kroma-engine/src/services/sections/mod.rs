@@ -28,7 +28,6 @@ const SECTION_CAP: usize = 20;
 // Over-fetch margin so a row still fills after cross-row de-duplication.
 const FETCH: usize = SECTION_CAP + 16;
 const MIN_ITEMS: usize = 5;
-// Below this a personalized row is not worth a shelf on the home screen.
 const MIN_AI_ROW: usize = 5;
 const MAX_SECTIONS: usize = 9;
 const MAX_THEMED: usize = 4;
@@ -142,13 +141,6 @@ fn push_ai_rows(
         }
         let query = embeddings::embed(&state.embedder, &gs.query);
         let ranked = state.vectors.nearest(&query, FETCH, &HashSet::new());
-        // The embedder is weakly discriminative item<->item, so the nearest
-        // neighbours of "spooky and mysterious stories" included Gladiator II
-        // and Les Tontons Flingueurs. A row that promises horror and opens on a
-        // comedy is worse than no row, so one that cannot be filled with what it
-        // said it holds is not shown at all.
-        // A row that cannot say what is on it cannot be held to it, and an
-        // unfiltered row is how Don't Breathe ended up under Comedies.
         if gs.genres.is_empty() {
             continue;
         }

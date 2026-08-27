@@ -26,8 +26,7 @@ pub fn set_item_metadata(pool: &Pool, id: &str, meta: &Metadata) -> Result<()> {
 /// index to `core_meta`'s cast (TMDB keeps cast order across languages).
 ///
 /// A language row carries the poster and the logo only where they differ from
-/// the core, because those two carry the title as printed artwork. The backdrop
-/// has no text on it and stays one per title on the core row.
+/// the core.
 pub fn store_localized(
     pool: &Pool,
     kind: &str,
@@ -62,8 +61,6 @@ pub fn store_localized(
             genres: m.genres.clone(),
             characters: m.cast.iter().map(|c| c.character.clone()).collect(),
             reason: None,
-            // Only where this language's art differs from the core's, so a
-            // language that reuses the same poster stores nothing.
             poster_url: differing(&m.poster_url, &core.poster_url),
             logo_url: differing(&m.logo_url, &core.logo_url),
             rev: translations::REV,
@@ -75,12 +72,9 @@ pub fn store_localized(
     Ok(())
 }
 
-/// Write only the per-language rows, leaving the core alone.
-///
-/// For a title that resolved long ago and is missing a language added since:
-/// its ids, dates, rating and cast are already right, and re-deriving the core
-/// from whichever language happened to be fetched would move the artwork every
-/// reader falls back to.
+/// Write only the per-language rows, leaving the core alone: re-deriving it from
+/// whichever language happened to be fetched would move the artwork every
+/// fallback reader sees.
 pub fn fill_languages(
     pool: &Pool,
     kind: &str,
@@ -91,10 +85,7 @@ pub fn fill_languages(
     let core = metadata_core::get_core(pool, kind, id)?;
     let conn = pool.get()?;
     // A language TMDB answered nothing for gets a row carrying only the
-    // revision. It says "this was asked and there is nothing", so the reader
-    // falls back to the default and the next pass does not ask again. A blank
-    // answer is a fact about the title; an unreachable TMDB is not, and never
-    // reaches here because the caller writes nothing when the whole call fails.
+    // revision, so the reader falls back and the next pass does not ask again.
     for lang in asked {
         if by_lang.contains_key(lang) {
             continue;
@@ -269,7 +260,6 @@ mod tests {
         first.insert("en".to_string(), core.clone());
         store_localized(&p, metadata_core::ITEM, "m1", &core, &first).unwrap();
 
-        // Asked for French, TMDB answered with nothing for it.
         fill_languages(
             &p,
             metadata_core::ITEM,
@@ -279,13 +269,11 @@ mod tests {
         )
         .unwrap();
 
-        // The reader falls back, because the row carries no text to overlay.
         let fr = crate::translations::resolve_one(&p, metadata_core::ITEM, "m1", "fr")
             .unwrap()
             .unwrap();
         assert_eq!(fr.title, None);
 
-        // And it is not asked again: the row is current, not missing.
         let stale =
             crate::translations::stale_langs(&p, metadata_core::ITEM, "m1", &["fr", "en"]).unwrap();
         assert!(stale.is_empty(), "still stale: {stale:?}");
@@ -307,14 +295,12 @@ mod tests {
             )
             .unwrap();
         }
-        // Enriched when the server spoke English only.
         let mut core = meta(603, "Dune");
         core.poster_url = Some("/en.webp".to_string());
         let mut first = HashMap::new();
         first.insert("en".to_string(), core.clone());
         store_localized(&p, metadata_core::ITEM, "m1", &core, &first).unwrap();
 
-        // French is added later; the id is already known, so only French is fetched.
         let mut fr = meta(603, "Dune VF");
         fr.poster_url = Some("/fr.webp".to_string());
         let mut later = HashMap::new();
@@ -327,7 +313,6 @@ mod tests {
         assert_eq!(stored.title.as_deref(), Some("Dune VF"));
         assert_eq!(stored.poster_url.as_deref(), Some("/fr.webp"));
 
-        // The core keeps the art every fallback reader still sees.
         let after = metadata_core::get_core(&p, metadata_core::ITEM, "m1")
             .unwrap()
             .unwrap();

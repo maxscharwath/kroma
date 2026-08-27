@@ -6,15 +6,11 @@
 
 use std::collections::HashMap;
 
-/// The language every other falls back to; the default catalog is the complete one.
 const FALLBACK: &str = "en";
 
 /// What a row is expected to carry. Bumped when the payload grows a field that
 /// existing rows cannot have, so a catalog written before the change is refilled
-/// instead of being mistaken for complete: a row is not "the language we have",
-/// it is "the language we have, in this shape".
-///
-/// 1: the poster and logo joined the payload.
+/// instead of being mistaken for complete.
 pub const REV: u32 = 1;
 
 use serde::{Deserialize, Serialize};
@@ -43,11 +39,8 @@ pub struct TransData {
     pub characters: Vec<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
-    // The poster and the logo carry the title as printed artwork, so they are
-    // the reader's language or they are wrong. The backdrop is a still from the
-    // film with no text on it, so one is kept per title and lives on the core
-    // row: it is the largest image of the three and duplicating it per language
-    // would be the bulk of the disk for none of the benefit.
+    // The poster and the logo carry the title as printed artwork; the backdrop
+    // has no text on it and is kept once per title on the core row.
     #[serde(rename = "posterUrl", default, skip_serializing_if = "Option::is_none")]
     pub poster_url: Option<String>,
     #[serde(rename = "logoUrl", default, skip_serializing_if = "Option::is_none")]
@@ -150,7 +143,7 @@ pub fn all_for_kind(pool: &Pool, kind: &str) -> Result<HashMap<String, Vec<Trans
 
 /// Which of `langs` this subject cannot serve from a current row: absent
 /// entirely, or written before [`REV`] and so missing whatever that revision
-/// added. What tells an enrichment pass there is still work to do.
+/// added.
 pub fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Result<Vec<String>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
@@ -204,22 +197,14 @@ pub fn delete_all(conn: &Connection, kind: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// The reader's language, else English. A subject that has neither keeps the
-/// primary-language blob it was already being served, which is a better answer
-/// than handing a French reader whichever third language happened to be stored.
-///
-/// Art is never merged across rows. A row carries art only where it differs
-/// from the core, so an absent field means the core's art is the right one, and
-/// borrowing the fallback language's would hand a French reader an English
-/// poster on every title whose French art is the core's.
+/// Art is never merged across rows: an absent field means the core's art is the
+/// right one, so borrowing the fallback language's would hand a French reader an
+/// English poster on every title whose French art is the core's.
 fn pick(mut by_lang: HashMap<String, TransData>, lang: &str) -> Option<TransData> {
     let fallback = by_lang.remove(FALLBACK);
     by_lang.remove(lang).or(fallback)
 }
 
-/// Every language a subject has. Only the callers that genuinely want them all
-/// (the search index, curated rows) should reach for this: it is linear in the
-/// number of languages the server stores.
 fn load(
     conn: &Connection,
     kind: &str,
@@ -228,9 +213,6 @@ fn load(
     load_langs(conn, kind, ids, &[])
 }
 
-/// The two languages a reader can actually be served, which is what makes a
-/// catalog page cost the same whether the server stores two languages or ten.
-/// Hits `idx_translations_lang`; the unfiltered form scans every row for the id.
 fn load_for(
     conn: &Connection,
     kind: &str,
@@ -344,8 +326,6 @@ mod tests {
             Some("Severance")
         );
 
-        // A language the reader did not ask for and cannot read is not an
-        // answer: the caller keeps the primary-language blob instead.
         put(&p, "show", "s2", "ja", TMDB, &td("only ja")).unwrap();
         assert!(resolve_one(&p, "show", "s2", "de").unwrap().is_none());
 
@@ -375,8 +355,6 @@ mod tests {
     #[test]
     fn a_reader_in_the_primary_language_keeps_the_primary_art() {
         let p = pool();
-        // The primary language stores no art of its own: it does not differ
-        // from the core, and absent means "the core's is right".
         put(
             &p,
             "item",
@@ -405,16 +383,12 @@ mod tests {
 
         let fr = resolve_one(&p, "item", "m1", "fr").unwrap().unwrap();
 
-        // Borrowing English's poster here would hand a French reader the
-        // English art, which is the whole thing this is meant to stop.
         assert_eq!(fr.poster_url, None);
     }
 
     #[test]
     fn a_row_written_before_the_payload_grew_counts_as_stale() {
         let p = pool();
-        // What an existing install holds: both languages, written before art
-        // was part of the payload, so no `rev`.
         for lang in ["fr", "en"] {
             put(
                 &p,
@@ -430,7 +404,6 @@ mod tests {
             .unwrap();
         }
 
-        // Having the language is not enough; it has to be the shape we serve.
         let stale = stale_langs(&p, "item", "m1", &["fr", "en"]).unwrap();
         assert_eq!(stale.len(), 2);
 
@@ -484,13 +457,10 @@ mod tests {
         )
         .unwrap();
 
-        // English has its own cover and title logo, both of which are printed
-        // artwork carrying the title.
         let en = resolve_one(&p, "item", "m1", "en").unwrap().unwrap();
         assert_eq!(en.poster_url.as_deref(), Some("/en.webp"));
         assert_eq!(en.logo_url.as_deref(), Some("/en-logo.png"));
 
-        // French is the primary here, so it stores no art and keeps the core's.
         let fr = resolve_one(&p, "item", "m1", "fr").unwrap().unwrap();
         assert_eq!(fr.poster_url, None);
         assert_eq!(fr.logo_url, None);
@@ -506,8 +476,6 @@ mod tests {
         let conn = p.get().unwrap();
         let served = load_for(&conn, "show", &["s1"], "fr").unwrap();
 
-        // The query reads what it can serve, not what exists: the reader's
-        // language and the fallback. Adding a ninth language adds no work here.
         let langs = &served["s1"];
         assert_eq!(langs.len(), 2);
         assert!(langs.contains_key("fr"));
@@ -527,7 +495,6 @@ mod tests {
         let many = resolve_many(&conn, "show", &["s1", "s2", "ghost"], "fr").unwrap();
         assert_eq!(many.len(), 1);
         assert_eq!(many["s1"].title.as_deref(), Some("A fr"));
-        // s2 is Japanese only, so it is not in a French reader's answer at all.
         assert!(!many.contains_key("s2"));
         drop(conn);
 

@@ -361,8 +361,6 @@ fn store_season_cast(
     }
 }
 
-/// Which of `langs` this subject cannot serve from a current row: absent, or
-/// written before the payload grew the field it is now missing.
 fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Vec<String> {
     db::translations::stale_langs(pool, kind, id, langs).unwrap_or_default()
 }
@@ -375,12 +373,7 @@ fn subject_kind(is_show: bool) -> &'static str {
     }
 }
 
-/// Fetch and store only the languages a resolved title is missing, by id.
-/// The core row is left alone: the title already has its ids, dates and cast,
-/// and only the per-language text and art are being filled in.
 fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
-    // Only the languages this server keeps catalogs in are ever fetched: a
-    // language nothing can read is a TMDB call and a row for nobody.
     let want: Vec<&str> = missing
         .iter()
         .map(String::as_str)
@@ -389,9 +382,6 @@ fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
     if want.is_empty() {
         return;
     }
-    // Nothing came back at all: TMDB is unreachable, rate-limiting, or the id
-    // is gone. Write nothing and leave the languages outstanding, so a blip
-    // costs a retry next pass rather than a title stuck in one language.
     let Some(resolved) =
         metadata::lookup_all_by_id(&eng.cache, &eng.api_key, &want, job.target, tmdb_id)
     else {
@@ -436,11 +426,6 @@ fn process_job(
                 tmdb_id,
             );
         }
-        // A title resolved once is not re-matched, but a language added since
-        // has nothing stored for it, and one stored before the payload grew a
-        // field is missing that field. The id is known, so this fills by id: no
-        // search, no chance of landing on a different film, and one detail call
-        // per language that actually needs one.
         let kind = subject_kind(job.is_show);
         let stale = stale_langs(&eng.pool, kind, &job.id, &langs);
         if !stale.is_empty() {
@@ -475,10 +460,6 @@ fn process_job(
         bump(eng, counters, total, activity);
         return;
     };
-    // Art is NOT language-invariant: a TMDB poster carries the title printed on
-    // it, so each language's own art is cached and stored beside its text.
-    // Cast portraits genuinely are invariant, and `cache` is keyed by remote
-    // URL, so the languages that share one share the file too.
     let meta = image::localize(&eng.data_dir, meta);
     let by_lang: std::collections::HashMap<String, Metadata> = resolved
         .by_lang

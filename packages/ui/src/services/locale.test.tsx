@@ -105,9 +105,6 @@ describe('LocaleProvider', () => {
     expect(client.setLocale).toHaveBeenCalledWith('en');
   });
 
-  // A child reacting to the change is what refetches the catalogue, and it runs
-  // its effect before this component's. Told a render late, the client would ask
-  // for every screen again under the language the viewer just left.
   it('has told the client before a child sees the new locale', () => {
     saveLocalePref('fr');
     const client = fakeClient();

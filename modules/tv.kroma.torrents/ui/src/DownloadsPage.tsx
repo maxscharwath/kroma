@@ -7,6 +7,7 @@ import {
   Denied,
   ModuleFailed,
   ModuleLoading,
+  Table,
   useCap,
   usePoll,
   useServerEvents,
@@ -16,41 +17,33 @@ import type { VpnStatusEvent } from '@kroma/module-vpn/schemas';
 import {
   Box,
   Button,
-  Callout,
-  Dialog,
   EmptyState,
   IconButton,
   PageHeader,
   Pagination,
   Row,
-  Surface,
   Text,
 } from '@kroma/ui/kit';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTorrentsApi } from './api';
 import { ContentsModal } from './contents-modal';
 import { DownloadClientsSection } from './download-clients';
-import { DownloadRowView, DownloadTableHead, type LiveDl } from './download-row';
+import { DownloadRowView, type LiveDl } from './download-row';
+import { DownloadTableHead } from './download-table-head';
 import { DownloadFilters } from './downloads-filters';
 import { DownloadStats } from './downloads-stats';
+import { DownloadsVpnBanner } from './downloads-vpn-banner';
 import { LimitsModal } from './limits-modal';
 import { LinkModal } from './link-modal';
 import { ManualGrabModal } from './manual-grab';
+import { RemoveDownloadDialog } from './remove-download-dialog';
 import type {
   DownloadCompletedEvent,
   DownloadProgressEvent,
   DownloadQuery,
   DownloadView,
 } from './schemas';
-
-const WIPE_ROW: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  cursor: 'pointer',
-};
-
-const WIPE_BOX: CSSProperties = { width: 16, height: 16, accentColor: 'var(--kroma-danger)' };
+import { DOWNLOAD_COLUMNS, useDownloadsTable } from './use-downloads-table';
 
 const POLL_MS = 10000;
 const RELOAD_THROTTLE_MS = 1500;
@@ -69,7 +62,6 @@ export default function DownloadsPage() {
   const [live, setLive] = useState<Record<string, LiveDl>>({});
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<DownloadView | null>(null);
-  const [wipeData, setWipeData] = useState(true);
   const [manual, setManual] = useState(false);
   const [query, setQuery] = useState<DownloadQuery>({ page: 1 });
   // What is in the search box, which is NOT what is being asked for: a keystroke
@@ -94,6 +86,12 @@ export default function DownloadsPage() {
   if (data) shownRef.current = data;
   const shown = data ?? shownRef.current;
   const clientsPoll = usePoll(['admin', 'downloads', 'clients'], () => torrents.clients(), 60000);
+  const { table, headings } = useDownloadsTable({
+    downloads: shown?.downloads,
+    page: shown?.page,
+    query,
+    onQueryChange: setQuery,
+  });
 
   const lastReloadRef = useRef(0);
   const throttledReload = useCallback(() => {
@@ -158,7 +156,7 @@ export default function DownloadsPage() {
         onSettings={canSettings ? editLimits : undefined}
       />
 
-      {vpn ? <VpnBanner vpn={vpn} /> : null}
+      {vpn ? <DownloadsVpnBanner vpn={vpn} /> : null}
 
       <DownloadStats stats={stats} />
 
@@ -200,11 +198,11 @@ export default function DownloadsPage() {
         </Row>
       ) : null}
 
-      <Surface elevated pad="none" radius="2xl" border="border" overflow="hidden">
-        <DownloadTableHead />
-        {downloads.map((dl) => (
+      <Table.Root columns={DOWNLOAD_COLUMNS} label={t('admin.downloadsTitle')}>
+        <DownloadTableHead headings={headings} />
+        {table.getRowModel().rows.map(({ id, original: dl }) => (
           <DownloadRowView
-            key={dl.id}
+            key={id}
             dl={dl}
             live={live[dl.id]}
             busy={busy}
@@ -214,10 +212,7 @@ export default function DownloadsPage() {
             onAskPeers={() => act(() => torrents.reannounce(dl.id))}
             onRelink={() => relink(dl)}
             onContents={() => void ContentsModal.call({ dl })}
-            onRemove={() => {
-              setWipeData(true);
-              setConfirm(dl);
-            }}
+            onRemove={() => setConfirm(dl)}
           />
         ))}
         {downloads.length === 0 ? (
@@ -227,9 +222,9 @@ export default function DownloadsPage() {
             </EmptyState.Root>
           </Box>
         ) : null}
-      </Surface>
+      </Table.Root>
 
-      {page.pageCount > 1 ? (
+      {page.total > 0 ? (
         <Row between wrap gap={12} mt={16}>
           <Text variant="meta" color="text/40">
             {t('downloads.pageOf', {
@@ -240,8 +235,8 @@ export default function DownloadsPage() {
           </Text>
           <Pagination.Root
             page={page.page}
-            pageCount={page.pageCount}
-            onPageChange={(next) => setQuery((q) => ({ ...q, page: next }))}
+            pageCount={Math.max(1, table.getPageCount())}
+            onPageChange={(next) => table.setPageIndex(next - 1)}
             label={t('admin.downloadsTitle')}
             size="sm"
           />
@@ -251,38 +246,16 @@ export default function DownloadsPage() {
       {canSettings ? <DownloadClientsSection /> : null}
 
       {confirm ? (
-        <Dialog.Root
-          open
-          title={t('downloads.removeTitle')}
-          onClose={() => setConfirm(null)}
-          width="sm"
-        >
-          <Text variant="meta" color="text/70">
-            {t('downloads.removeBody', { title: confirm.title })}
-          </Text>
-          <label style={WIPE_ROW}>
-            <input
-              type="checkbox"
-              checked={wipeData}
-              onChange={(e) => setWipeData(e.target.checked)}
-              style={WIPE_BOX}
-            />
-            <Text variant="label" color="text/80">
-              {t('downloads.removeData')}
-            </Text>
-          </label>
-          <Dialog.Actions
-            onCancel={() => setConfirm(null)}
-            cancelLabel={t('common.cancel')}
-            onConfirm={() => {
-              const dl = confirm;
-              setConfirm(null);
-              act(() => torrents.remove(dl.id, { deleteData: wipeData }));
-            }}
-            confirmLabel={t('downloads.removeConfirm')}
-            busy={busy}
-          />
-        </Dialog.Root>
+        <RemoveDownloadDialog
+          dl={confirm}
+          busy={busy}
+          onCancel={() => setConfirm(null)}
+          onConfirm={({ deleteData }) => {
+            const dl = confirm;
+            setConfirm(null);
+            act(() => torrents.remove(dl.id, { deleteData }));
+          }}
+        />
       ) : null}
 
       {manual ? <ManualGrabModal onClose={() => setManual(false)} onAdded={reload} /> : null}
@@ -313,26 +286,5 @@ function PageChrome({
       {/* spacer to match the standard PageHeader → content rhythm */}
       <Box h={24} />
     </>
-  );
-}
-
-function VpnBanner({
-  vpn,
-}: Readonly<{ vpn: { connected: boolean; exitIp: string | null; paused: boolean } }>) {
-  const t = useT();
-  let message: string;
-  if (vpn.connected) message = t('downloads.vpnOk', { ip: vpn.exitIp ?? '?' });
-  else if (vpn.paused) message = t('downloads.vpnBlocked');
-  else message = t('downloads.vpnDown');
-  return (
-    <Box mb={16}>
-      <Callout.Root
-        size="sm"
-        tone={vpn.connected ? 'success' : 'accent'}
-        icon={vpn.connected ? 'shield-check' : 'shield-x'}
-      >
-        <Callout.Title>{message}</Callout.Title>
-      </Callout.Root>
-    </Box>
   );
 }

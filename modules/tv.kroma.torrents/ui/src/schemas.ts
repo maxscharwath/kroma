@@ -145,6 +145,12 @@ export const DownloadsView = z.object({
 });
 export type DownloadsView = z.infer<typeof DownloadsView>;
 
+export const DownloadSort = z.enum(['release', 'progress', 'status', 'added']);
+export type DownloadSort = z.infer<typeof DownloadSort>;
+
+export const SortDirection = z.enum(['asc', 'desc']);
+export type SortDirection = z.infer<typeof SortDirection>;
+
 /** How the queue is narrowed. Everything is optional; an empty query is the
  * whole ledger, newest first. */
 export interface DownloadQuery {
@@ -156,6 +162,8 @@ export interface DownloadQuery {
   kind?: string;
   q?: string;
   unlinked?: boolean;
+  sort?: DownloadSort;
+  dir?: SortDirection;
 }
 
 /** The engine-wide ceilings. `0` is unlimited in every field. */

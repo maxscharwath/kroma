@@ -13,10 +13,10 @@ use kroma_module_sdk::host::{query, AuthUser, HostStorage};
 
 use super::view::{to_view, LiveStat, RowContext};
 use super::{dm, require_downloads};
-use crate::db::{self, DownloadFilter};
+use crate::db::{self, DownloadFilter, DownloadOrder};
 use crate::{DownloadStatsView, DownloadsView, PageView};
 
-const DEFAULT_PER_PAGE: u32 = 25;
+const DEFAULT_PER_PAGE: u32 = 10;
 // One page has to stay small enough that the per-row request/catalog lookups
 // below cost less than the poll interval.
 const MAX_PER_PAGE: u32 = 100;
@@ -82,6 +82,10 @@ pub struct ListParams {
     q: Option<String>,
     #[serde(default)]
     unlinked: Option<bool>,
+    #[serde(default)]
+    sort: Option<String>,
+    #[serde(default)]
+    dir: Option<String>,
 }
 
 fn trimmed(value: Option<String>) -> Option<String> {
@@ -101,8 +105,14 @@ impl ListParams {
         }
     }
 
+    fn order(&self) -> DownloadOrder {
+        DownloadOrder::parse(self.sort.as_deref(), self.dir.as_deref())
+    }
+
     fn per_page(&self) -> u32 {
-        self.per_page.unwrap_or(DEFAULT_PER_PAGE).clamp(1, MAX_PER_PAGE)
+        self.per_page
+            .unwrap_or(DEFAULT_PER_PAGE)
+            .clamp(1, MAX_PER_PAGE)
     }
 }
 
@@ -147,6 +157,7 @@ pub async fn list<S: HostStorage + Clone + Send + Sync + 'static>(
     .unwrap_or_default();
 
     let filter = params.filter();
+    let order = params.order();
     let per_page = params.per_page();
     let view = query(state.db(), move |pool| {
         let conn = pool.get()?;
@@ -154,7 +165,7 @@ pub async fn list<S: HostStorage + Clone + Send + Sync + 'static>(
         let page_count = (total as f64 / f64::from(per_page)).ceil().max(1.0) as u32;
         let page = params.page.unwrap_or(1).clamp(1, page_count);
         let offset = i64::from(page - 1) * i64::from(per_page);
-        let rows = db::page_downloads(&conn, &filter, offset, i64::from(per_page))?;
+        let rows = db::page_downloads(&conn, &filter, order, offset, i64::from(per_page))?;
         let totals = db::download_totals(&conn)?;
 
         let ctx = RowContext {
@@ -195,6 +206,7 @@ pub async fn list<S: HostStorage + Clone + Send + Sync + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::{DownloadSort, SortDirection};
 
     #[test]
     fn a_group_expands_to_its_statuses_and_a_bare_status_stands_for_itself() {
@@ -240,6 +252,24 @@ mod tests {
         );
         assert_eq!(filter.kinds, ["movie", "season"]);
         assert_eq!(filter.client_ids, ["embedded", "box"]);
+    }
+
+    #[test]
+    fn a_sort_name_nobody_defined_orders_by_the_default_instead_of_failing() {
+        let hostile = ListParams {
+            sort: Some("grabbed_at) --".into()),
+            dir: Some("'; DROP TABLE downloads".into()),
+            ..ListParams::default()
+        };
+        let asked = ListParams {
+            sort: Some("progress".into()),
+            dir: Some("asc".into()),
+            ..ListParams::default()
+        };
+
+        assert_eq!(hostile.order(), DownloadOrder::default());
+        assert_eq!(asked.order().sort, DownloadSort::Progress);
+        assert_eq!(asked.order().direction, SortDirection::Ascending);
     }
 
     #[test]

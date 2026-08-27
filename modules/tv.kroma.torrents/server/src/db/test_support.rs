@@ -66,13 +66,27 @@ pub(super) fn download(id: &str, status: &str, grabbed_at: i64) -> DownloadRow {
 }
 
 // Seeds a bare `requests` row so a download's `request_id` FK is satisfiable.
-pub(super) fn seed_request(pool: &Pool, id: &str) {
+pub(super) fn seed_request(pool: &Pool, id: &str, title: &str) {
     pool.get()
         .unwrap()
         .execute(
             "INSERT INTO requests (id,kind,tmdb_id,title,status,created_at,updated_at) \
-             VALUES (?1,'movie',1,'T','pending',0,0)",
-            params![id],
+             VALUES (?1,'movie',1,?2,'pending',0,0)",
+            params![id, title],
         )
         .unwrap();
+}
+
+pub(super) fn seeded_ledger() -> TempPool {
+    let pool = test_db();
+    for (id, status, at) in [
+        ("d_q", "queued", 10),
+        ("d_d", "downloading", 20),
+        ("d_s", "seeding", 30),
+        ("d_c", "completed", 40),
+        ("d_f", "failed", 50),
+    ] {
+        super::insert_download(&pool, &download(id, status, at)).unwrap();
+    }
+    pool
 }

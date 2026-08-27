@@ -1,8 +1,13 @@
-import { useT } from '@kroma/module-sdk';
-import { type ColorValue, Menu, Row, Text, useBreakpoint } from '@kroma/ui/kit';
+import { Table, useT } from '@kroma/module-sdk';
+import { type ColorValue, Menu, Row } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
-import type { CSSProperties, ReactNode } from 'react';
-import { RowProgressCell, RowSpeedCell, RowStatusCell, RowTitleCell } from './download-cells';
+import {
+  RowAddedCell,
+  RowProgressCell,
+  RowSpeedCell,
+  RowStatusCell,
+  RowTitleCell,
+} from './download-cells';
 import type { DownloadView } from './schemas';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
@@ -25,56 +30,6 @@ const STATUS_TONE: Record<string, ColorValue> = {
   failed: 'danger',
   removed: 'text/40',
 };
-
-const WIDE_COLUMNS = 'minmax(0, 1fr) 208px 136px 132px 48px';
-const NARROW_COLUMNS = 'minmax(0, 1fr) auto';
-
-const TABLE_CELLS: CSSProperties = {
-  display: 'grid',
-  alignItems: 'center',
-  gap: 16,
-  padding: '12px 20px',
-};
-
-const TABLE_HEAD: CSSProperties = {
-  ...TABLE_CELLS,
-  background: 'var(--kroma-surface-1)',
-  borderBottom: '1px solid color-mix(in srgb, var(--kroma-tint) 6%, transparent)',
-};
-
-const TABLE_ROW: CSSProperties = {
-  ...TABLE_CELLS,
-  borderBottom: '1px solid color-mix(in srgb, var(--kroma-tint) 4%, transparent)',
-};
-
-const TABLE_HEAD_WIDE: CSSProperties = { ...TABLE_HEAD, gridTemplateColumns: WIDE_COLUMNS };
-const TABLE_HEAD_NARROW: CSSProperties = { ...TABLE_HEAD, gridTemplateColumns: NARROW_COLUMNS };
-const TABLE_ROW_WIDE: CSSProperties = { ...TABLE_ROW, gridTemplateColumns: WIDE_COLUMNS };
-const TABLE_ROW_NARROW: CSSProperties = { ...TABLE_ROW, gridTemplateColumns: NARROW_COLUMNS };
-
-/** The heading band of the download table. It shares its column template with
- *  <DownloadRowView>, which is why the two live together. */
-export function DownloadTableHead() {
-  const t = useT();
-  const wide = useBreakpoint() !== 'base';
-  return (
-    <div style={wide ? TABLE_HEAD_WIDE : TABLE_HEAD_NARROW}>
-      <HeadCell>{t('downloads.colRelease')}</HeadCell>
-      {wide ? <HeadCell>{t('downloads.colProgress')}</HeadCell> : null}
-      {wide ? <HeadCell>{t('downloads.colSpeed')}</HeadCell> : null}
-      {wide ? <HeadCell>{t('downloads.colStatus')}</HeadCell> : null}
-      <span />
-    </div>
-  );
-}
-
-function HeadCell({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <Text variant="overline" color="textDim">
-      {children}
-    </Text>
-  );
-}
 
 export function DownloadRowView({
   dl,
@@ -103,7 +58,6 @@ export function DownloadRowView({
    *  same word all the way down. */
   showClient?: boolean;
 }>) {
-  const wide = useBreakpoint() !== 'base';
   const status = live?.state && dl.status !== 'imported' ? live.state : dl.status;
   const progress = live?.progress ?? dl.progress;
   // Fall back to the polled row so speed + peers still show when the WebSocket
@@ -118,11 +72,17 @@ export function DownloadRowView({
   const active = status === 'downloading' || status === 'queued' || status === 'seeding';
 
   return (
-    <div style={wide ? TABLE_ROW_WIDE : TABLE_ROW_NARROW}>
-      <RowTitleCell dl={dl} />
-      {wide ? <RowProgressCell dl={dl} progress={progress} tone={tone} /> : null}
-      {wide ? <RowSpeedCell dl={dl} active={active} stat={stat} /> : null}
-      {wide ? (
+    <Table.Row>
+      <Table.Cell>
+        <RowTitleCell dl={dl} />
+      </Table.Cell>
+      <Table.Cell wide>
+        <RowProgressCell dl={dl} progress={progress} tone={tone} />
+      </Table.Cell>
+      <Table.Cell wide>
+        <RowSpeedCell dl={dl} active={active} stat={stat} />
+      </Table.Cell>
+      <Table.Cell wide>
         <RowStatusCell
           dl={dl}
           status={status}
@@ -130,21 +90,26 @@ export function DownloadRowView({
           active={active}
           showClient={showClient}
         />
-      ) : null}
-      <RowActionsMenu
-        dl={dl}
-        status={status}
-        active={active}
-        busy={busy}
-        onPause={onPause}
-        onResume={onResume}
-        onRetry={onRetry}
-        onAskPeers={onAskPeers}
-        onRelink={onRelink}
-        onContents={onContents}
-        onRemove={onRemove}
-      />
-    </div>
+      </Table.Cell>
+      <Table.Cell wide>
+        <RowAddedCell dl={dl} />
+      </Table.Cell>
+      <Table.Cell>
+        <RowActionsMenu
+          dl={dl}
+          status={status}
+          active={active}
+          busy={busy}
+          onPause={onPause}
+          onResume={onResume}
+          onRetry={onRetry}
+          onAskPeers={onAskPeers}
+          onRelink={onRelink}
+          onContents={onContents}
+          onRemove={onRemove}
+        />
+      </Table.Cell>
+    </Table.Row>
   );
 }
 

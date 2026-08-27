@@ -72,5 +72,24 @@ export type {
   ModuleManifest,
   PointReq,
 } from './types';
-export type { TableActionProps, TableCellProps, TableRootProps, TableRowProps } from './ui/table';
+export type {
+  TableActionProps,
+  TableCellProps,
+  TableColumnProps,
+  TableRootProps,
+  TableRowProps,
+} from './ui/table';
 export { TABULAR, Table } from './ui/table';
+export type {
+  PlainColumn,
+  SortableColumn,
+  SortDirection,
+  SortedColumn,
+  SortedTable,
+  SortedTableOptions,
+  TableHeading,
+  TableOrder,
+  TablePage,
+  TableQuery,
+} from './use-sorted-table';
+export { useSortedTable } from './use-sorted-table';

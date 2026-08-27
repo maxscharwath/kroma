@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
-
 use rusqlite::types::ToSqlOutput;
 use rusqlite::{Connection, ToSql};
 
-use super::{row_to_download, DownloadRow, DL_COLS};
+use super::{row_to_download, DownloadOrder, DownloadRow, DL_COLS};
 
 /// What the queue is narrowed to. Fields are additive and an empty filter is
 /// the whole ledger, so the unfiltered page is the same query path as any
@@ -101,14 +99,16 @@ pub fn count_downloads(conn: &Connection, filter: &DownloadFilter) -> rusqlite::
     )
 }
 
-/// One page of the filtered ledger, newest grab first.
+/// One page of the filtered ledger, in the asked-for order.
 pub fn page_downloads(
     conn: &Connection,
     filter: &DownloadFilter,
+    order: DownloadOrder,
     offset: i64,
     limit: i64,
 ) -> rusqlite::Result<Vec<DownloadRow>> {
     let (where_sql, mut binds) = where_clause(filter);
+    let order_sql = order.clause();
     let limit_slot = format!("?{}", binds.len() + 1);
     let offset_slot = format!("?{}", binds.len() + 2);
     binds.push(Bound::Int(limit));
@@ -116,57 +116,9 @@ pub fn page_downloads(
     let params: Vec<&dyn ToSql> = binds.iter().map(|b| b as &dyn ToSql).collect();
     let mut stmt = conn.prepare(&format!(
         "SELECT {DL_COLS} FROM downloads{where_sql} \
-         ORDER BY grabbed_at DESC, id DESC LIMIT {limit_slot} OFFSET {offset_slot}"
+         {order_sql} LIMIT {limit_slot} OFFSET {offset_slot}"
     ))?;
     let rows = stmt.query_map(params.as_slice(), row_to_download)?;
-    rows.collect()
-}
-
-/// The whole-ledger rollup behind the filter chips and the totals cards: it is
-/// deliberately NOT filtered, because a chip has to say how many rows it would
-/// reveal.
-#[derive(Debug, Clone, Default)]
-pub struct DownloadTotals {
-    pub by_status: BTreeMap<String, i64>,
-    pub downloaded_bytes: u64,
-    pub uploaded_bytes: u64,
-}
-
-pub fn download_totals(conn: &Connection) -> rusqlite::Result<DownloadTotals> {
-    let mut stmt = conn.prepare("SELECT status, COUNT(*) FROM downloads GROUP BY status")?;
-    let by_status = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?
-        .collect::<rusqlite::Result<BTreeMap<String, i64>>>()?;
-    let (down, up) = conn.query_row(
-        "SELECT COALESCE(SUM(downloaded_bytes), 0), COALESCE(SUM(uploaded_bytes), 0) FROM downloads",
-        [],
-        |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)),
-    )?;
-    Ok(DownloadTotals {
-        by_status,
-        downloaded_bytes: down.max(0) as u64,
-        uploaded_bytes: up.max(0) as u64,
-    })
-}
-
-/// How many downloads are occupying an engine slot right now, for the
-/// parallelism cap. `queued` rows are the ones waiting for one, so they do not
-/// count against it.
-pub fn running_download_count(conn: &Connection) -> rusqlite::Result<i64> {
-    conn.query_row(
-        "SELECT COUNT(*) FROM downloads WHERE status IN ('downloading', 'seeding')",
-        [],
-        |r| r.get(0),
-    )
-}
-
-/// Queued rows in grab order, so the slot that just freed goes to the download
-/// that has been waiting longest.
-pub fn queued_downloads(conn: &Connection) -> rusqlite::Result<Vec<DownloadRow>> {
-    let mut stmt = conn.prepare(&format!(
-        "SELECT {DL_COLS} FROM downloads WHERE status = 'queued' ORDER BY grabbed_at"
-    ))?;
-    let rows = stmt.query_map([], row_to_download)?;
     rows.collect()
 }
 
@@ -174,30 +126,17 @@ pub fn queued_downloads(conn: &Connection) -> rusqlite::Result<Vec<DownloadRow>>
 mod tests {
     use super::super::write::*;
     use super::*;
-    use crate::db::test_support::{download, test_db};
-
-    fn seed() -> kroma_module_sdk::db::testing::TempPool {
-        let pool = test_db();
-        for (id, status, at) in [
-            ("d_q", "queued", 10),
-            ("d_d", "downloading", 20),
-            ("d_s", "seeding", 30),
-            ("d_c", "completed", 40),
-            ("d_f", "failed", 50),
-        ] {
-            insert_download(&pool, &download(id, status, at)).unwrap();
-        }
-        pool
-    }
+    use crate::db::test_support::{download, seed_request, seeded_ledger, test_db};
+    use crate::db::{DownloadSort, SortDirection};
 
     #[test]
     fn an_empty_filter_pages_the_whole_ledger_newest_first() {
-        let pool = seed();
+        let pool = seeded_ledger();
         let conn = pool.get().unwrap();
         let filter = DownloadFilter::default();
 
-        let first = page_downloads(&conn, &filter, 0, 2).unwrap();
-        let second = page_downloads(&conn, &filter, 2, 2).unwrap();
+        let first = page_downloads(&conn, &filter, DownloadOrder::default(), 0, 2).unwrap();
+        let second = page_downloads(&conn, &filter, DownloadOrder::default(), 2, 2).unwrap();
 
         assert_eq!(count_downloads(&conn, &filter).unwrap(), 5);
         assert_eq!(
@@ -212,14 +151,14 @@ mod tests {
 
     #[test]
     fn a_status_filter_narrows_the_count_and_the_page_together() {
-        let pool = seed();
+        let pool = seeded_ledger();
         let conn = pool.get().unwrap();
         let filter = DownloadFilter {
             statuses: vec!["downloading".into(), "seeding".into()],
             ..DownloadFilter::default()
         };
 
-        let page = page_downloads(&conn, &filter, 0, 25).unwrap();
+        let page = page_downloads(&conn, &filter, DownloadOrder::default(), 0, 25).unwrap();
 
         assert_eq!(count_downloads(&conn, &filter).unwrap(), 2);
         assert_eq!(
@@ -251,57 +190,70 @@ mod tests {
         assert_eq!(count_downloads(&conn, &hit).unwrap(), 1);
         assert_eq!(count_downloads(&conn, &literal).unwrap(), 1);
         assert_eq!(
-            page_downloads(&conn, &literal, 0, 25).unwrap()[0].id,
+            page_downloads(&conn, &literal, DownloadOrder::default(), 0, 25).unwrap()[0].id,
             "percent"
         );
     }
 
     #[test]
-    fn totals_roll_up_every_status_and_both_byte_counters() {
-        let pool = seed();
-        update_download_bytes(&pool, "d_s", 900, 450).unwrap();
-        update_download_bytes(&pool, "d_c", 100, 50).unwrap();
+    fn a_sort_narrows_with_the_filter_and_carries_across_the_page_break() {
+        let pool = test_db();
+        for (id, title) in [("z", "Zulu"), ("a", "Alpha"), ("m", "Mike")] {
+            let mut row = download(id, "queued", 10);
+            row.title = Some(title.into());
+            insert_download(&pool, &row).unwrap();
+        }
+        insert_download(&pool, &download("done", "completed", 99)).unwrap();
         let conn = pool.get().unwrap();
+        let filter = DownloadFilter {
+            statuses: vec!["queued".into()],
+            ..DownloadFilter::default()
+        };
+        let order = DownloadOrder {
+            sort: DownloadSort::Release,
+            direction: SortDirection::Ascending,
+        };
 
-        let totals = download_totals(&conn).unwrap();
+        let first = page_downloads(&conn, &filter, order, 0, 2).unwrap();
+        let second = page_downloads(&conn, &filter, order, 2, 2).unwrap();
 
-        assert_eq!(totals.by_status.get("queued"), Some(&1));
-        assert_eq!(totals.by_status.get("downloading"), Some(&1));
-        assert_eq!(totals.downloaded_bytes, 1000);
-        assert_eq!(totals.uploaded_bytes, 500);
-    }
-
-    #[test]
-    fn a_queued_row_that_never_reached_an_engine_is_the_one_waiting_to_start() {
-        let pool = seed();
-        let mut started = download("d_started", "queued", 5);
-        started.client_ref = "already-added".into();
-        insert_download(&pool, &started).unwrap();
-        let conn = pool.get().unwrap();
-
-        let waiting: Vec<String> = queued_downloads(&conn)
-            .unwrap()
-            .into_iter()
-            .filter(|row| row.client_ref.is_empty())
-            .map(|row| row.id)
-            .collect();
-
-        assert_eq!(waiting, ["d_q"]);
-    }
-
-    #[test]
-    fn only_rows_holding_an_engine_slot_count_against_the_parallelism_cap() {
-        let pool = seed();
-        let conn = pool.get().unwrap();
-
-        assert_eq!(running_download_count(&conn).unwrap(), 2);
         assert_eq!(
-            queued_downloads(&conn)
-                .unwrap()
-                .iter()
-                .map(|d| d.id.as_str())
-                .collect::<Vec<_>>(),
-            ["d_q"]
+            first.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(),
+            ["a", "m"]
+        );
+        assert_eq!(
+            second.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(),
+            ["z"]
+        );
+    }
+
+    #[test]
+    fn sorting_by_release_follows_the_name_the_row_shows_not_the_scene_string() {
+        let pool = test_db();
+        seed_request(&pool, "req_a", "Alien");
+        let mut requested = download("requested", "queued", 10);
+        requested.request_id = Some("req_a".into());
+        requested.title = Some("Zulu".into());
+        let mut pinned = download("pinned", "queued", 20);
+        pinned.title = Some("Mike".into());
+        let mut orphan = download("orphan", "queued", 30);
+        orphan.title = None;
+        orphan.tmdb_id = 0;
+        orphan.release_title = "Bravo.2021".into();
+        for row in [&requested, &pinned, &orphan] {
+            insert_download(&pool, row).unwrap();
+        }
+        let conn = pool.get().unwrap();
+        let order = DownloadOrder {
+            sort: DownloadSort::Release,
+            direction: SortDirection::Ascending,
+        };
+
+        let page = page_downloads(&conn, &DownloadFilter::default(), order, 0, 25).unwrap();
+
+        assert_eq!(
+            page.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(),
+            ["requested", "orphan", "pinned"]
         );
     }
 
@@ -322,6 +274,9 @@ mod tests {
         };
 
         assert_eq!(count_downloads(&conn, &filter).unwrap(), 1);
-        assert_eq!(page_downloads(&conn, &filter, 0, 25).unwrap()[0].id, "orphan");
+        assert_eq!(
+            page_downloads(&conn, &filter, DownloadOrder::default(), 0, 25).unwrap()[0].id,
+            "orphan"
+        );
     }
 }

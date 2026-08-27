@@ -2,10 +2,14 @@ use rusqlite::Row;
 
 mod query;
 mod read;
+mod rollup;
+mod sort;
 mod write;
 
 pub use query::*;
 pub use read::*;
+pub use rollup::*;
+pub use sort::*;
 pub use write::*;
 
 /// A stored download row.

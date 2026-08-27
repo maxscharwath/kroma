@@ -209,6 +209,15 @@ function Rate({
   );
 }
 
+export function RowAddedCell({ dl }: Readonly<{ dl: DownloadView }>) {
+  const fmt = useFormat();
+  return (
+    <Text variant="meta" color="text/45" lines={1} style={s.tabular}>
+      {fmt.elapsed(dl.grabbedAt)}
+    </Text>
+  );
+}
+
 export function RowStatusCell({
   dl,
   status,

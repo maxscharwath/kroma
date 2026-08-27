@@ -1,29 +1,24 @@
 // The bar that narrows the queue.
-//
-// Every filter is a SET, not a single choice: an operator watching a busy queue
-// wants "failed and paused", or "seasons and episodes", and being made to look
-// at one at a time is what made the old single-select bar useless. So each
-// filter is a row of toggles, nothing selected means everything, and each one
-// carries a glyph and its count so the row is read by shape.
 
 import { useT } from '@kroma/module-sdk';
 import type { IconName } from '@kroma/ui/kit';
-import { Box, Button, Chip, Divider, Field, Row } from '@kroma/ui/kit';
+import { Button, Field, Icon, Row, Select, Text } from '@kroma/ui/kit';
+import { useMemo } from 'react';
 import type { DownloadClientView, DownloadQuery, DownloadStatsView } from './schemas';
 
-interface Facet {
+interface FilterOption {
   value: string;
+  label: string;
   icon: IconName;
+  note?: string;
 }
 
-// The status groups, expanded by the server. `all` is not offered: clearing
-// every chip is what "all" means, and a chip that undoes the others is a
-// different control wearing the same clothes.
+// The status groups, expanded by the server.
 const GROUPS = [
   { value: 'active', icon: 'download' },
   { value: 'done', icon: 'circle-check' },
   { value: 'failed', icon: 'alert-triangle' },
-] as const satisfies readonly Facet[];
+] as const satisfies readonly { value: string; icon: IconName }[];
 
 const GROUP_STATUSES: Record<string, readonly string[]> = {
   active: ['queued', 'downloading', 'seeding', 'paused'],
@@ -35,26 +30,63 @@ const KINDS = [
   { value: 'movie', icon: 'movie' },
   { value: 'season', icon: 'stack' },
   { value: 'episode', icon: 'device-tv' },
-] as const satisfies readonly Facet[];
+] as const satisfies readonly { value: string; icon: IconName }[];
 
 const SEPARATOR = ',';
+const ALL = 'all';
 
 function selected(value: string | undefined): string[] {
   return value ? value.split(SEPARATOR).filter(Boolean) : [];
 }
 
-// Adding what is missing and removing what is there, which is what every one of
-// these toggles does.
-function toggled(current: string | undefined, value: string): string | undefined {
-  const list = selected(current);
-  const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-  return next.length > 0 ? next.join(SEPARATOR) : undefined;
+function joined(values: readonly string[]): string | undefined {
+  return values.length > 0 ? values.join(SEPARATOR) : undefined;
 }
 
-// How many rows a status chip would add, from the whole-ledger rollup rather
-// than from the page in hand.
+// How many rows a status would add, from the whole-ledger rollup rather than
+// from the page in hand.
 function countFor(group: string, byStatus: Record<string, number>): number {
   return (GROUP_STATUSES[group] ?? []).reduce((sum, status) => sum + (byStatus[status] ?? 0), 0);
+}
+
+interface FilterSelectProps {
+  label: string;
+  all: string;
+  value: string | undefined;
+  options: readonly FilterOption[];
+  onValueChange: (next: string | undefined) => void;
+}
+
+function FilterSelect({ label, all, value, options, onValueChange }: Readonly<FilterSelectProps>) {
+  const picked = useMemo(() => selected(value), [value]);
+  return (
+    <Select.Root
+      multiple
+      label={label}
+      placeholder={label}
+      value={picked}
+      onValueChange={(next, { item }) =>
+        onValueChange(
+          options.some((option) => option.value === item.value) ? joined(next) : undefined,
+        )
+      }
+    >
+      <Select.Trigger size="sm" />
+      {/* Written out of the parts so it carries no checkbox: it is the row that
+          undoes the others, and a box that never ticks would say otherwise. */}
+      <Select.Item value={ALL} label={all}>
+        <Icon name="list" size={18} color="textMuted" />
+        <Text variant="body" color="textMuted">
+          {all}
+        </Text>
+      </Select.Item>
+      {options.map((option) => (
+        <Select.Item key={option.value} value={option.value} icon={option.icon} note={option.note}>
+          {option.label}
+        </Select.Item>
+      ))}
+    </Select.Root>
+  );
 }
 
 interface DownloadFiltersProps {
@@ -80,87 +112,74 @@ export function DownloadFilters({
 }: Readonly<DownloadFiltersProps>) {
   const t = useT();
   const set = (patch: Partial<DownloadQuery>) => onQueryChange({ ...query, ...patch, page: 1 });
-  const narrowed =
-    Boolean(query.status || query.kind || query.clientId || query.unlinked) ||
-    Boolean(search.trim());
+  const narrowed = Boolean(query.status || query.kind || query.clientId || search.trim());
 
   return (
-    <Box mb={14} gap={10}>
-      <Row wrap gap={10} align="center">
-        <Field.Root
-          label={t('downloads.searchLabel')}
-          hideLabel
-          flex
-          minW={240}
-          size="sm"
-          value={search}
-          onValueChange={onSearchChange}
-        >
-          <Field.Input icon="search" placeholder={t('downloads.searchPlaceholder')} />
-        </Field.Root>
-        {narrowed ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="x"
-            label={t('downloads.clearFilters')}
-            onPress={() => {
-              onSearchChange('');
-              onQueryChange({ page: 1 });
-            }}
-          />
-        ) : null}
-      </Row>
+    <Row wrap gap={10} align="center" mb={14}>
+      <Field.Root
+        label={t('downloads.searchLabel')}
+        hideLabel
+        flex
+        minW={240}
+        size="sm"
+        value={search}
+        onValueChange={onSearchChange}
+      >
+        <Field.Input icon="search" placeholder={t('downloads.searchPlaceholder')} />
+      </Field.Root>
 
-      <Row wrap gap={8} align="center">
-        {GROUPS.map(({ value, icon }) => (
-          <Chip
-            key={value}
-            variant="surface"
-            icon={icon}
-            label={t(`downloads.group.${value}`)}
-            count={countFor(value, stats.byStatus)}
-            active={selected(query.status).includes(value)}
-            onPress={() => set({ status: toggled(query.status, value) })}
-          />
-        ))}
-        <Box h={20} center>
-          <Divider vertical />
-        </Box>
-        {KINDS.map(({ value, icon }) => (
-          <Chip
-            key={value}
-            variant="surface"
-            icon={icon}
-            label={t(`downloads.kind.${value}`)}
-            active={selected(query.kind).includes(value)}
-            onPress={() => set({ kind: toggled(query.kind, value) })}
-          />
-        ))}
-        <Box h={20} center>
-          <Divider vertical />
-        </Box>
-        <Chip
-          variant="surface"
-          icon="link-off"
-          label={t('downloads.filterUnlinked')}
-          active={query.unlinked === true}
-          onPress={() => set({ unlinked: query.unlinked ? undefined : true })}
+      <FilterSelect
+        label={t('downloads.filterStatus')}
+        all={t('downloads.group.all')}
+        value={query.status}
+        options={GROUPS.map(({ value, icon }) => ({
+          value,
+          icon,
+          label: t(`downloads.group.${value}`),
+          note: String(countFor(value, stats.byStatus)),
+        }))}
+        onValueChange={(status) => set({ status })}
+      />
+
+      <FilterSelect
+        label={t('downloads.filterKind')}
+        all={t('downloads.kind.all')}
+        value={query.kind}
+        options={KINDS.map(({ value, icon }) => ({
+          value,
+          icon,
+          label: t(`downloads.kind.${value}`),
+        }))}
+        onValueChange={(kind) => set({ kind })}
+      />
+
+      {/* One engine is not a choice; naming it would only take up room. */}
+      {clients.length > 1 ? (
+        <FilterSelect
+          label={t('downloads.filterClient')}
+          all={t('downloads.client.all')}
+          value={query.clientId}
+          options={clients.map((client) => ({
+            value: client.id,
+            icon: 'server',
+            label: client.name,
+          }))}
+          onValueChange={(clientId) => set({ clientId })}
         />
-        {/* One engine is not a choice; naming it would only take up room. */}
-        {clients.length > 1
-          ? clients.map((client) => (
-              <Chip
-                key={client.id}
-                variant="surface"
-                icon="server"
-                label={client.name}
-                active={selected(query.clientId).includes(client.id)}
-                onPress={() => set({ clientId: toggled(query.clientId, client.id) })}
-              />
-            ))
-          : null}
-      </Row>
-    </Box>
+      ) : null}
+
+      {narrowed ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="x"
+          label={t('downloads.clearFilters')}
+          onPress={() => {
+            onSearchChange('');
+            onQueryChange({ page: 1 });
+          }}
+        />
+      ) : null}
+    </Row>
   );
 }

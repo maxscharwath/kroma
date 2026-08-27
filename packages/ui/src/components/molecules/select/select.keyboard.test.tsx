@@ -16,7 +16,7 @@ import { configureRemote } from '#ui/lib/focus-remote';
 import { FocusScope } from '#ui/lib/focus-scope';
 import { clearPressGuard } from '#ui/lib/press-guard';
 import { layout } from '#ui/testing';
-import { Select, type SelectRootProps } from './select';
+import { Select, type SelectSingleRootProps } from './select';
 
 beforeAll(() => configureRemote());
 
@@ -352,7 +352,7 @@ const RATES = ['1080p', '720p', '480p', '360p', '240p'];
 const ROW_HEIGHT = 44;
 const FOLD = ROW_HEIGHT * 2;
 
-function Quality({ onValueChange }: Readonly<Pick<SelectRootProps, 'onValueChange'>>) {
+function Quality({ onValueChange }: Readonly<Pick<SelectSingleRootProps, 'onValueChange'>>) {
   return (
     <Select.Root label="Qualité" defaultValue="1080p" onValueChange={onValueChange}>
       <Select.Trigger />

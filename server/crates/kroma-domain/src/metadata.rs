@@ -144,6 +144,19 @@ pub fn build_doc(title: &str, year: Option<u32>, meta: &Metadata) -> String {
     parts.join(". ")
 }
 
+/// One episode of a season, as the provider names it. Every field but the
+/// number is optional: a season that has aired carries all of them, one that
+/// has not may carry only a title.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodeInfo {
+    pub episode: u32,
+    pub name: Option<String>,
+    pub overview: Option<String>,
+    pub air_date: Option<String>,
+    pub still_url: Option<String>,
+}
+
 /// One TMDB title offered by the "fix the match" picker, with the confidence
 /// [`crate::matching`] gives it against what the filename parsed to.
 #[derive(Debug, Clone, Serialize, Deserialize)]

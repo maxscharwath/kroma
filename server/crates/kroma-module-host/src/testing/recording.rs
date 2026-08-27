@@ -117,6 +117,14 @@ impl<H: HostCtx> HostCtx for Recording<H> {
     ) -> Vec<kroma_domain::metadata::MatchCandidate> {
         self.inner.metadata_candidates(query, kind, year)
     }
+
+    fn metadata_episodes(
+        &self,
+        tmdb_id: u64,
+        season: u32,
+    ) -> Vec<kroma_domain::metadata::EpisodeInfo> {
+        self.inner.metadata_episodes(tmdb_id, season)
+    }
     fn contributions(&self, point: &str) -> Vec<crate::Contribution> {
         self.inner.contributions(point)
     }

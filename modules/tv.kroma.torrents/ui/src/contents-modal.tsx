@@ -13,6 +13,7 @@ import { useTorrentsApi } from './api';
 import { detect, summaryOf } from './manual-grab-content';
 import type { DownloadView } from './schemas';
 import { TorrentContents } from './torrent-contents';
+import { useEpisodeNames } from './use-episode-names';
 
 /** Opened with `ContentsModal.call({ dl })`. */
 export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call, dl }) => {
@@ -29,6 +30,7 @@ export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call,
   }, [torrents, dl.id, t]);
 
   const found = contents ? detect(contents) : null;
+  const episodeNames = useEpisodeNames(dl.tmdbId || null, dl.season);
   const summary = found?.certain ? summaryOf(found) : null;
 
   return (
@@ -59,7 +61,7 @@ export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call,
 
       {contents ? (
         <Box mt={4}>
-          <TorrentContents analysis={contents} />
+          <TorrentContents analysis={contents} episodes={episodeNames} />
         </Box>
       ) : null}
     </Dialog.Root>

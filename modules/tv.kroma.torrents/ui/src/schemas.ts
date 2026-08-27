@@ -200,6 +200,18 @@ export interface LinkBody {
   episodes?: number[] | null;
 }
 
+/** One episode of a season, as the provider names it. Everything but the number
+ * is optional: a season that has aired carries it all, one that has not may
+ * carry only a title. */
+export const EpisodeInfo = z.object({
+  episode: z.number(),
+  name: z.string().nullable(),
+  overview: z.string().nullable(),
+  airDate: z.string().nullable(),
+  stillUrl: z.string().nullable(),
+});
+export type EpisodeInfo = z.infer<typeof EpisodeInfo>;
+
 /** `POST /downloads/torrent`: what an uploaded `.torrent` says about itself, in
  * the shape the manual-add flow already speaks. Queues nothing. */
 export const InspectedTorrent = z.object({

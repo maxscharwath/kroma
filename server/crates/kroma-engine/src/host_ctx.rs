@@ -171,6 +171,28 @@ impl HostCtx for AppState {
         crate::services::rematch::ranked(self, scope, query, &target).unwrap_or_default()
     }
 
+    fn metadata_episodes(
+        &self,
+        tmdb_id: u64,
+        season: u32,
+    ) -> Vec<kroma_domain::metadata::EpisodeInfo> {
+        let Some(api_key) = self.config.tmdb_api_key.as_deref() else {
+            return Vec::new();
+        };
+        let lang = crate::services::settings::metadata_language(&self.settings, &self.config);
+        crate::infra::metadata::season_episodes(api_key, &lang, tmdb_id, season)
+            .episodes
+            .into_iter()
+            .map(|e| kroma_domain::metadata::EpisodeInfo {
+                episode: e.episode,
+                name: e.name,
+                overview: e.overview,
+                air_date: e.air_date,
+                still_url: e.still_url,
+            })
+            .collect()
+    }
+
     fn get_service(
         &self,
         type_id: std::any::TypeId,

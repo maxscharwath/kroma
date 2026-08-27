@@ -8,7 +8,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use kroma_domain::metadata::MatchCandidate;
+use kroma_domain::metadata::{EpisodeInfo, MatchCandidate};
 use kroma_domain::{Audience, NotificationSpec, Permission, User};
 
 use super::{Contribution, Event, LibraryFolders};
@@ -82,6 +82,11 @@ pub trait HostCtx: Send + Sync + 'static {
     // would need the operator's API key.
     fn metadata_candidates(&self, query: &str, kind: &str, year: Option<u32>)
         -> Vec<MatchCandidate>;
+
+    // One season's episodes, as the provider names them. Best-effort: an empty
+    // list is "nothing to add", never an error, because a file list is readable
+    // with or without the titles beside it.
+    fn metadata_episodes(&self, tmdb_id: u64, season: u32) -> Vec<EpisodeInfo>;
 
     // Prefer the typed [`service`] helper.
     fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>>;
@@ -161,6 +166,10 @@ impl<T: HostCtx + ?Sized> HostCtx for std::sync::Arc<T> {
         year: Option<u32>,
     ) -> Vec<MatchCandidate> {
         (**self).metadata_candidates(query, kind, year)
+    }
+
+    fn metadata_episodes(&self, tmdb_id: u64, season: u32) -> Vec<EpisodeInfo> {
+        (**self).metadata_episodes(tmdb_id, season)
     }
     fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
         (**self).get_service(type_id)
@@ -293,6 +302,10 @@ mod tests {
             _year: Option<u32>,
         ) -> Vec<MatchCandidate> {
             self.note(&format!("metadata_candidates:{query}"));
+            Vec::new()
+        }
+        fn metadata_episodes(&self, tmdb_id: u64, season: u32) -> Vec<EpisodeInfo> {
+            self.note(&format!("metadata_episodes:{tmdb_id}:{season}"));
             Vec::new()
         }
         fn contributions(&self, _point: &str) -> Vec<Contribution> {

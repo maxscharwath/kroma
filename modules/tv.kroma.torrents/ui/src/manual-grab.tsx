@@ -26,6 +26,7 @@ import { useIndexerSearch } from './manual-grab-search';
 import { SourceStep, type TorrentSource } from './manual-grab-source';
 import { type GrabTarget, type Kind, TargetStep } from './manual-grab-target';
 import { TorrentContents } from './torrent-contents';
+import { useEpisodeNames } from './use-episode-names';
 
 const STEPS = ['source', 'target', 'files'] as const;
 type Step = (typeof STEPS)[number];
@@ -70,6 +71,10 @@ export function ManualGrabModal({
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const search = useIndexerSearch(target.kind, target.season, target.episode);
+  const episodeNames = useEpisodeNames(
+    target.tmdbId,
+    target.season ? Number.parseInt(target.season, 10) : null,
+  );
 
   const takeSource = (picked: TorrentSource) => {
     setSource(picked);
@@ -187,6 +192,7 @@ export function ManualGrabModal({
           {analysis ? (
             <TorrentContents
               analysis={analysis}
+              episodes={episodeNames}
               selection={{
                 selected,
                 onSet: setSelected,

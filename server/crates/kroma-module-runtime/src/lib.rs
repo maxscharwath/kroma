@@ -332,6 +332,18 @@ impl HostCtx for RemoteHost {
         .unwrap_or_default()
     }
 
+    fn metadata_episodes(
+        &self,
+        tmdb_id: u64,
+        season: u32,
+    ) -> Vec<kroma_domain::metadata::EpisodeInfo> {
+        self.callback()
+            .query("tmdbId", &tmdb_id.to_string())
+            .query("season", &season.to_string())
+            .get_json::<Vec<kroma_domain::metadata::EpisodeInfo>>(&self.host_url("metadata-episodes"))
+            .unwrap_or_default()
+    }
+
     // Asked of the core, which owns the supervisor: a sidecar cannot see which
     // of its peers is installed or running, and must not care.
     fn contributions(&self, point: &str) -> Vec<kroma_module_host::Contribution> {

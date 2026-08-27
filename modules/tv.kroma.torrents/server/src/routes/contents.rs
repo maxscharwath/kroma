@@ -18,7 +18,29 @@ use crate::db;
 use crate::{TorrentContentsView, TorrentFileView};
 
 pub fn routes<S: HostStorage + Clone + Send + Sync + 'static>() -> Router<S> {
-    Router::new().route("/downloads/{id}/contents", get(contents::<S>))
+    Router::new()
+        .route("/downloads/{id}/contents", get(contents::<S>))
+        // Before the `{id}` route, which would otherwise read `episodes` as one.
+        .route("/downloads/episodes", get(episodes::<S>))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpisodesParams {
+    tmdb_id: u64,
+    season: u32,
+}
+
+/// `GET /downloads/episodes?tmdbId=&season=` what the provider calls each
+/// episode of one season, so a file list reads as episodes rather than as
+/// filenames. Best-effort: an empty list is "nothing to add".
+pub async fn episodes<S: HostStorage + Clone + Send + Sync + 'static>(
+    State(state): State<S>,
+    AuthUser(user): AuthUser,
+    axum::extract::Query(params): axum::extract::Query<EpisodesParams>,
+) -> Result<Response, Response> {
+    require_downloads(&state, &user)?;
+    Ok(Json(state.metadata_episodes(params.tmdb_id, params.season)).into_response())
 }
 
 pub async fn contents<S: HostStorage + Clone + Send + Sync + 'static>(

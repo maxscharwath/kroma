@@ -10,6 +10,7 @@ import type {
   DownloadClientView,
   DownloadQuery,
   DownloadsView,
+  EpisodeInfo,
   InspectedTorrent,
   LimitsView,
   LinkBody,
@@ -80,6 +81,10 @@ export const useTorrentsApi = moduleApiHook((api) => ({
   /** What a queued torrent actually holds. The row carries its own link on
    *  the server, so nothing hands a magnet back to the browser to ask. */
   contents: (id: string) => api.get<TorrentAnalysis>(`/downloads/${enc(id)}/contents`),
+  /** What the provider calls each episode of one season, so a file list reads
+   *  as episodes rather than as filenames. Empty when it knows none. */
+  episodes: (tmdbId: number, season: number) =>
+    api.get<EpisodeInfo[]>(`/downloads/episodes${queryString({ tmdbId, season })}`),
   /** Pin the title, at any stage of the download. */
   link: (id: string, body: LinkBody) => api.put<void>(`/downloads/${enc(id)}/link`, body),
 

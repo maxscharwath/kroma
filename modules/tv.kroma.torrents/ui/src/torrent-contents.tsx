@@ -14,6 +14,7 @@ import { useFormat, useT } from '@kroma/module-sdk';
 import type { IconName } from '@kroma/ui/kit';
 import { Badge, Box, Button, Checkbox, Icon, Row, styles, Text } from '@kroma/ui/kit';
 import { useMemo } from 'react';
+import type { EpisodeInfo } from './schemas';
 
 const s = styles({
   tabular: { fontVariant: ['tabular-nums'] },
@@ -87,9 +88,12 @@ interface TorrentContentsProps {
   analysis: TorrentAnalysis;
   /** Given, every video row becomes a checkbox and each group gets a toggle. */
   selection?: ContentsSelection;
+  /** What the provider calls each episode, by number. A file list reads far
+   *  better as "Bitchcraft" than as the release string it is named with. */
+  episodes?: Map<number, EpisodeInfo>;
 }
 
-export function TorrentContents({ analysis, selection }: Readonly<TorrentContentsProps>) {
+export function TorrentContents({ analysis, selection, episodes }: Readonly<TorrentContentsProps>) {
   const t = useT();
   const fmt = useFormat();
   const groups = useMemo(() => group(analysis.files), [analysis.files]);
@@ -126,7 +130,7 @@ export function TorrentContents({ analysis, selection }: Readonly<TorrentContent
 
       <Box gap={12} maxH={340} overflow="scroll">
         {groups.map((found) => (
-          <GroupBlock key={found.key} group={found} selection={selection} />
+          <GroupBlock key={found.key} group={found} selection={selection} episodes={episodes} />
         ))}
       </Box>
     </Box>
@@ -136,7 +140,8 @@ export function TorrentContents({ analysis, selection }: Readonly<TorrentContent
 function GroupBlock({
   group: found,
   selection,
-}: Readonly<{ group: Group; selection?: ContentsSelection }>) {
+  episodes,
+}: Readonly<{ group: Group; selection?: ContentsSelection; episodes?: Map<number, EpisodeInfo> }>) {
   const t = useT();
   const fmt = useFormat();
   const selectable = selection && found.kind !== 'extras';
@@ -174,7 +179,12 @@ function GroupBlock({
       </Row>
       <Box>
         {found.files.map((file) => (
-          <FileRow key={file.index} file={file} selection={selectable ? selection : undefined} />
+          <FileRow
+            key={file.index}
+            file={file}
+            selection={selectable ? selection : undefined}
+            episode={file.episode === null ? undefined : episodes?.get(file.episode)}
+          />
         ))}
       </Box>
     </Box>
@@ -194,29 +204,42 @@ function headingOf(found: Group, t: ReturnType<typeof useT>): string {
 function FileRow({
   file,
   selection,
-}: Readonly<{ file: TorrentFileView; selection?: ContentsSelection }>) {
+  episode,
+}: Readonly<{
+  file: TorrentFileView;
+  selection?: ContentsSelection;
+  episode?: EpisodeInfo;
+}>) {
   const fmt = useFormat();
   const tag = file.episode === null ? null : `E${String(file.episode).padStart(2, '0')}`;
+  // The provider's title leads when there is one; the release string it is
+  // named with drops to the line under it, where it is still checkable.
+  const named = episode?.name ?? null;
   return (
     <Row gap={10} align="center" py={5} px={6} radius="sm" minW={0} bg="transparent">
       {selection ? (
         <Checkbox
           checked={selection.selected.has(file.index)}
           onCheckedChange={() => selection.onToggle(file.index)}
-          label={fileName(file.path)}
+          label={named ?? fileName(file.path)}
         />
       ) : null}
       {tag ? <Badge tone="info">{tag}</Badge> : null}
-      <Text
-        variant="meta"
-        color={file.isVideo ? 'text/70' : 'text/35'}
-        flex
-        minW={0}
-        lines={1}
-        accessibilityLabel={file.path}
-      >
-        {fileName(file.path)}
-      </Text>
+      <Box flex minW={0}>
+        <Text
+          variant="meta"
+          color={file.isVideo ? 'text/75' : 'text/35'}
+          lines={1}
+          accessibilityLabel={file.path}
+        >
+          {named ?? fileName(file.path)}
+        </Text>
+        {named ? (
+          <Text variant="meta" color="text/25" lines={1}>
+            {fileName(file.path)}
+          </Text>
+        ) : null}
+      </Box>
       <Text variant="meta" color="text/35" shrink={0} style={s.tabular}>
         {fmt.bytes(file.sizeBytes)}
       </Text>

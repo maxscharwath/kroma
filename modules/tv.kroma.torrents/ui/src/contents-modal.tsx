@@ -76,6 +76,10 @@ export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call,
           <TorrentContents analysis={contents} episodes={episodeNames} />
         </Box>
       ) : null}
+
+      <Dialog.Footer>
+        <Dialog.Actions onCancel={() => call.end()} cancelLabel={t('common.close')} />
+      </Dialog.Footer>
     </Dialog.Root>
   );
 });

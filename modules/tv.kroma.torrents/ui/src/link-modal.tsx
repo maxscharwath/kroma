@@ -171,6 +171,10 @@ export const LinkModal = createCallable<LinkModalProps, boolean>(({ call, dl }) 
           />
         ))}
       </Box>
+
+      <Dialog.Footer>
+        <Dialog.Actions onCancel={() => call.end(false)} cancelLabel={t('common.cancel')} />
+      </Dialog.Footer>
     </Dialog.Root>
   );
 });

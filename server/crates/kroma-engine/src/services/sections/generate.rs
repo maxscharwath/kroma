@@ -15,82 +15,40 @@ use super::taste::Cluster;
 
 // How many sections we ask the model for (and cap to).
 const MAX_SECTIONS: usize = 6;
-// TMDB's English genre vocabulary, closed on purpose: the model picks from it
-// and the same strings are matched against the English catalogue, so a row can
-// be held to what it promised without a synonym table in between.
-const TMDB_GENRES: &[&str] = &[
-    "Action",
-    "Adventure",
-    "Animation",
-    "Comedy",
-    "Crime",
-    "Documentary",
-    "Drama",
-    "Family",
-    "Fantasy",
-    "History",
-    "Horror",
-    "Music",
-    "Mystery",
-    "Romance",
-    "Science Fiction",
-    "Thriller",
-    "War",
-    "Western",
-];
 
-/// TMDB's name for `raw`, or `None` when it names no genre TMDB has.
-///
-/// Matched loosely on purpose: a model writes "sci-fi", "Sci Fi" and "comedy"
-/// for genres the catalogue spells "Science Fiction" and "Comedy", and a
-/// silently dropped name leaves a row with nothing to be held to.
-fn canonical_genre(raw: &str) -> Option<String> {
-    let key: String = raw
-        .trim()
-        .to_lowercase()
-        .chars()
-        .filter(|c| c.is_alphanumeric())
-        .collect();
+fn canonical_genre(raw: &str, vocabulary: &[String]) -> Option<String> {
+    fn stem(s: &str) -> String {
+        let folded: String = s
+            .to_lowercase()
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect();
+        let folded = match folded.as_str() {
+            "scifi" | "sf" => "sciencefiction",
+            "kids" | "children" => "family",
+            "docu" => "documentary",
+            "animated" | "anime" => "animation",
+            other => other,
+        };
+        match folded.strip_suffix("ies") {
+            Some(base) => format!("{base}y"),
+            None => folded.trim_end_matches('s').to_string(),
+        }
+    }
+    let key = stem(raw);
     if key.is_empty() {
         return None;
     }
-    let alias = match key.as_str() {
-        "scifi" | "sciencefiction" | "sf" => "Science Fiction",
-        "kids" | "children" => "Family",
-        "docu" | "documentaries" => "Documentary",
-        "animated" | "anime" => "Animation",
-        "thrillers" | "suspense" => "Thriller",
-        "horrors" | "scary" => "Horror",
-        "comedies" | "funny" => "Comedy",
-        "dramas" => "Drama",
-        "adventures" => "Adventure",
-        _ => "",
-    };
-    if !alias.is_empty() {
-        return Some(alias.to_string());
-    }
-    TMDB_GENRES
-        .iter()
-        .find(|g| {
-            g.to_lowercase()
-                .chars()
-                .filter(|c| c.is_alphanumeric())
-                .collect::<String>()
-                == key
-        })
-        .map(|g| (*g).to_string())
+    vocabulary.iter().find(|g| stem(g) == key).cloned()
 }
 
-// Cap on a single section title, defended on parse (catchy, not an essay). A
-// real home-screen row runs longer than it looks: "Films parfaits pour un
-// moment de grand divertissement" is 52 characters, and 48 cut it mid-word.
+// Cap on a single section title, defended on parse (catchy, not an essay).
 const MAX_TITLE: usize = 64;
 
 /// A row's name, written by the model in every language the server serves.
 ///
 /// Also reads a bare string, which is what rows cached before the model was
-/// asked for more than one language hold: those keep working, in the single
-/// language they were written in, instead of vanishing from the home screen.
+/// asked for more than one language hold.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Localized {
@@ -144,13 +102,10 @@ pub struct GenSection {
     pub query: String,
     #[serde(default)]
     pub reason: Localized,
-    /// TMDB's English genre names for what the row promises. The nearest-vector
-    /// search alone put Gladiator II under a horror heading; this is what keeps
-    /// a row's contents to what its name said they would be.
+    /// TMDB's English genre names for what the row promises.
     #[serde(default)]
     pub genres: Vec<String>,
-    /// `movies`, `shows`, or anything else for both. A row headed "Series" that
-    /// opens on films is as wrong as one headed horror that opens on a comedy.
+    /// `movies`, `shows`, or anything else for both.
     #[serde(default)]
     pub form: String,
 }
@@ -170,18 +125,15 @@ pub fn build_prompt(
     locale: &str,
     prev_profile: Option<&str>,
     clusters: &[Cluster],
+    vocabulary: &[String],
 ) -> (String, String) {
     let lang = language_name(locale);
-    // Every language the server serves, asked for in one call: a row named in
-    // one language is a French heading over an English library for everyone
-    // else in the household, and a second call per language would pay the model
-    // again to think the same thought.
     let langs = crate::i18n::SUPPORTED_LOCALES
         .iter()
         .map(|l| format!("\"{l}\" ({})", language_name(l)))
         .collect::<Vec<_>>()
         .join(", ");
-    let genres = TMDB_GENRES.join(", ");
+    let genres = vocabulary.join(", ");
     let shape = crate::i18n::SUPPORTED_LOCALES
         .iter()
         .map(|l| format!("\"{l}\": string"))
@@ -206,6 +158,10 @@ pub fn build_prompt(
          audience (Fans, Lovers, Enthusiasts), never singular.\n\
          - Those are patterns, not a menu: every title you return must be your own \
          wording, invented for THESE groups. Reusing an example verbatim is a failure.\n\
+         - \"genres\": one to three, VERBATIM from this list and nothing \
+         else, naming what the row actually holds. The row is filtered to them, so a \
+         row that names none is dropped and a genre you did not mean empties it. The \
+         list is this library's own: {genres}.\n\
          - \"form\": \"movies\" if the row is films, \"shows\" if it is series, \
          \"both\" if it is either. The row is filtered to it, so name the form \
          the title claims: a title saying Series with a form of movies is a lie the \
@@ -258,7 +214,10 @@ struct LlmSection {
 
 /// Parse a model reply into `(profile, sections)`. Tolerant of code fences and
 /// surrounding prose: extracts the outermost `{…}` and validates each section.
-pub fn parse_response(text: &str) -> anyhow::Result<(String, Vec<GenSection>)> {
+pub fn parse_response(
+    text: &str,
+    vocabulary: &[String],
+) -> anyhow::Result<(String, Vec<GenSection>)> {
     let json = extract_json(text).ok_or_else(|| anyhow::anyhow!("no JSON object in reply"))?;
     let out: LlmOut = serde_json::from_str(json)?;
 
@@ -272,16 +231,11 @@ pub fn parse_response(text: &str) -> anyhow::Result<(String, Vec<GenSection>)> {
         }
         let title = s.title.trimmed_and_capped();
         // Keyed off the query, which is English whatever the reader speaks: a
-        // key cut from the title would change with the language it happened to
-        // be read in, and the same row would count as two.
+        // key cut from the title would change with the language it was read in.
         let mut key = slug(query);
         if key.is_empty() {
             key = format!("s{}", sections.len() + 1);
         }
-        // Two rows are the same row if they search for the same thing OR if
-        // they would print the same heading, whatever their queries were. A
-        // heading made only of punctuation slugs to nothing and is no evidence
-        // of anything, so it is not compared.
         let heading = slug(title.get(crate::i18n::DEFAULT_LOCALE));
         if !seen.insert(key.clone()) || (!heading.is_empty() && !named.insert(heading)) {
             continue;
@@ -291,7 +245,11 @@ pub fn parse_response(text: &str) -> anyhow::Result<(String, Vec<GenSection>)> {
             title,
             query: query.to_string(),
             reason: s.reason.trimmed_and_capped(),
-            genres: s.genres.iter().filter_map(|g| canonical_genre(g)).collect(),
+            genres: s
+                .genres
+                .iter()
+                .filter_map(|g| canonical_genre(g, vocabulary))
+                .collect(),
             form: s.form.trim().to_lowercase(),
         });
         if sections.len() >= MAX_SECTIONS {
@@ -339,13 +297,31 @@ fn language_name(locale: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    fn vocab() -> Vec<String> {
+        [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Comedy",
+            "Drama",
+            "Fantasy",
+            "Horror",
+            "Mystery",
+            "Science Fiction",
+            "Thriller",
+        ]
+        .iter()
+        .map(|g| (*g).to_string())
+        .collect()
+    }
+
     #[test]
     fn parses_clean_json() {
         let reply = r#"{"profile":"You love stylish crime.","sections":[
             {"title":"Neon Noir Nights","query":"neon-soaked night crime thriller","reason":"because you love stylish crime"},
             {"title":"Mind Benders","query":"surreal mind-bending science fiction","reason":"you enjoy puzzles"}
         ]}"#;
-        let (profile, sections) = parse_response(reply).unwrap();
+        let (profile, sections) = parse_response(reply, &vocab()).unwrap();
         assert_eq!(profile, "You love stylish crime.");
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].key, "neon-soaked-night-crime-thriller");
@@ -360,7 +336,7 @@ mod tests {
             "reason":{"fr":"parce que vous aimez","en":"because you like"}
         }]}"#;
 
-        let (_, sections) = parse_response(reply).unwrap();
+        let (_, sections) = parse_response(reply, &vocab()).unwrap();
 
         assert_eq!(sections[0].title.get("fr"), "Science-Fiction Epique");
         assert_eq!(sections[0].title.get("en"), "Epic Science Fiction");
@@ -373,8 +349,6 @@ mod tests {
             serde_json::from_str(r#"{"key":"k","title":"Comedies Fantastiques","query":"q"}"#)
                 .unwrap();
 
-        // It only has the language it was written in, but a home screen missing
-        // a row is worse than one row in the wrong language until it regenerates.
         assert_eq!(one.title.get("en"), "Comedies Fantastiques");
         assert_eq!(one.reason.get("en"), "");
     }
@@ -391,7 +365,7 @@ mod tests {
 
     #[test]
     fn the_prompt_asks_for_every_supported_language() {
-        let (system, _) = build_prompt("fr", None, &[]);
+        let (system, _) = build_prompt("fr", None, &[], &vocab());
 
         for lang in crate::i18n::SUPPORTED_LOCALES {
             assert!(
@@ -403,25 +377,29 @@ mod tests {
 
     #[test]
     fn a_genre_the_model_spelled_its_own_way_still_counts() {
-        // Dropped silently, these leave the row with nothing to be held to, and
-        // an unguarded row is what put Don't Breathe under Comedies.
         assert_eq!(
-            canonical_genre("sci-fi").as_deref(),
+            canonical_genre("sci-fi", &vocab()).as_deref(),
             Some("Science Fiction")
         );
-        assert_eq!(canonical_genre("Comedies").as_deref(), Some("Comedy"));
-        assert_eq!(canonical_genre(" horror ").as_deref(), Some("Horror"));
         assert_eq!(
-            canonical_genre("Science Fiction").as_deref(),
+            canonical_genre("Comedies", &vocab()).as_deref(),
+            Some("Comedy")
+        );
+        assert_eq!(
+            canonical_genre(" horror ", &vocab()).as_deref(),
+            Some("Horror")
+        );
+        assert_eq!(
+            canonical_genre("Science Fiction", &vocab()).as_deref(),
             Some("Science Fiction")
         );
-        assert_eq!(canonical_genre("nonsense"), None);
+        assert_eq!(canonical_genre("nonsense", &vocab()), None);
     }
 
     #[test]
     fn tolerates_code_fences_and_prose() {
         let reply = "Sure! Here you go:\n```json\n{\"profile\":\"p\",\"sections\":[{\"title\":\"Cozy Classics\",\"query\":\"warm cozy classic comfort films\",\"reason\":\"r\"}]}\n```\nEnjoy!";
-        let (_, sections) = parse_response(reply).unwrap();
+        let (_, sections) = parse_response(reply, &vocab()).unwrap();
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].title.get("en"), "Cozy Classics");
     }
@@ -434,7 +412,7 @@ mod tests {
             {"title":"Action Fix","query":"high octane action"},
             {"title":"Action Fix","query":"another action"}
         ]}"#;
-        let (_, sections) = parse_response(reply).unwrap();
+        let (_, sections) = parse_response(reply, &vocab()).unwrap();
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].key, "high-octane-action");
     }
@@ -447,7 +425,7 @@ mod tests {
             genres: vec!["Science Fiction".into()],
             keywords: vec!["dystopia".into()],
         }];
-        let (system, user) = build_prompt("en", Some("prev"), &clusters);
+        let (system, user) = build_prompt("en", Some("prev"), &clusters, &vocab());
         assert!(system.contains("English"));
         assert!(user.contains("Blade Runner"));
         assert!(user.contains("Previous taste profile"));
@@ -461,10 +439,10 @@ mod tests {
             genres: vec![],
             keywords: vec![],
         }];
-        let (system, user) = build_prompt("fr", Some("   "), &clusters);
+        let (system, user) = build_prompt("fr", Some("   "), &clusters, &vocab());
         assert!(system.contains("French"));
         assert!(!user.contains("Previous taste profile")); // blank prev skipped
-        let (_s, user2) = build_prompt("de", None, &clusters);
+        let (_s, user2) = build_prompt("de", None, &clusters, &vocab());
         assert!(!user2.contains("Previous taste profile"));
     }
 
@@ -500,20 +478,20 @@ mod tests {
             ));
         }
         let reply = format!("{{\"sections\":[{}]}}", secs.trim_end_matches(','));
-        let (_, sections) = parse_response(&reply).unwrap();
+        let (_, sections) = parse_response(&reply, &vocab()).unwrap();
         assert_eq!(sections.len(), MAX_SECTIONS);
     }
 
     #[test]
     fn parse_response_errors_without_json() {
-        assert!(parse_response("no json here").is_err());
+        assert!(parse_response("no json here", &vocab()).is_err());
     }
 
     #[test]
     fn a_query_that_slugs_to_nothing_still_gets_a_stable_key() {
         let reply = r#"{"sections":[{"title":"Loud","query":"!!!"},
                                     {"title":"Quiet","query":"???"}]}"#;
-        let (_, sections) = parse_response(reply).unwrap();
+        let (_, sections) = parse_response(reply, &vocab()).unwrap();
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].key, "s1");
         assert_eq!(sections[1].key, "s2");

@@ -69,6 +69,19 @@ pub fn genre_guard(pool: &Pool, seed: &str, ranked: Vec<(String, f32)>) -> Vec<(
     }
 }
 
+/// Every genre the catalogue actually holds, in English, sorted.
+pub fn catalogue_genres(pool: &Pool) -> Result<Vec<String>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT g.value FROM translations t, json_each(t.data,'$.genres') g \
+         WHERE t.lang = 'en' AND t.subject_kind IN ('item','show') ORDER BY g.value",
+    )?;
+    let out = stmt
+        .query_map([], |r| r.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(out)
+}
+
 /// Of `candidates`, those carrying at least one of `genres`.
 ///
 /// Matched against the ENGLISH catalogue, because that is the vocabulary TMDB
@@ -108,8 +121,7 @@ pub fn ids_with_genres(
 }
 
 /// Drop from a ranked list everything that does not carry one of `genres`
-/// (order preserved). A row that promises horror and opens on a comedy is worse
-/// than no row, so unlike [`genre_guard`] this one does not fall back to the
+/// (order preserved). Unlike [`genre_guard`], it does not fall back to the
 /// unfiltered list when it matches nothing.
 pub fn keep_shelf(
     pool: &Pool,

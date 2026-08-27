@@ -58,6 +58,15 @@ export const ADMIN_TABLE: readonly SheetEntry[] = [
     top: `-${ROW_PAD_Y}px`,
     bottom: `-${ROW_PAD_Y}px`,
   }),
+  // The whole cell is the target, but a column is as wide as its widest ROW, so
+  // ringing the cell draws a rule across empty space. The ring goes on the
+  // label beside it, which is the part a reader is aiming at.
+  rule('.admin-table-head .admin-press:focus-visible', { outline: 'none' }),
+  rule('.admin-table-head .admin-press:focus-visible + *', {
+    outline: 'var(--ring-outline)',
+    outlineOffset: '3px',
+    borderRadius: '4px',
+  }),
   rule('.admin-press', {
     position: 'absolute',
     inset: 0,

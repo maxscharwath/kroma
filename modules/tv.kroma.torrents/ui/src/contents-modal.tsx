@@ -1,21 +1,16 @@
-// "What is actually in this one?", asked of a download already in the queue.
-//
-// The row carries its link on the server, so this asks the module rather than
-// handing a magnet back to the browser. Read-only: the torrent is running, and
-// which files it takes was settled when it was added.
-
 import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { apiErrorText, useT } from '@kroma/module-sdk';
-import { Box, Callout, Dialog, Row, Spinner, Text } from '@kroma/ui/kit';
+import { Box, Callout, Dialog, Icon, Img, Row, Spinner, Text } from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { useTorrentsApi } from './api';
-import { detect, summaryOf } from './manual-grab-content';
 import type { DownloadView } from './schemas';
 import { TorrentContents } from './torrent-contents';
 import { useEpisodeNames } from './use-episode-names';
 
-/** Opened with `ContentsModal.call({ dl })`. */
+const POSTER_WIDTH = 46;
+const POSTER_HEIGHT = 69;
+
 export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call, dl }) => {
   const t = useT();
   const torrents = useTorrentsApi();
@@ -29,20 +24,37 @@ export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call,
       .catch((e) => setError(apiErrorText(e, t('contents.failed'))));
   }, [torrents, dl.id, t]);
 
-  const found = contents ? detect(contents) : null;
   const episodeNames = useEpisodeNames(dl.tmdbId || null, dl.season);
-  const summary = found?.certain ? summaryOf(found) : null;
 
   return (
     <Dialog.Root open title={t('contents.title')} onClose={() => call.end()} width="md">
-      <Text variant="meta" color="text/50" lines={2}>
-        {dl.releaseTitle}
-      </Text>
-      {summary ? (
-        <Text variant="meta" color="text/60">
-          {t(`manual.found.${summary.key}`, summary.vars)}
-        </Text>
-      ) : null}
+      <Row gap={12} align="center">
+        <Box
+          w={POSTER_WIDTH}
+          h={POSTER_HEIGHT}
+          shrink={0}
+          center
+          radius={4}
+          overflow="hidden"
+          bg="tint/5"
+        >
+          {dl.posterUrl ? (
+            <Img src={dl.posterUrl} fill />
+          ) : (
+            <Icon name="movie" size={16} color="glyphDim" />
+          )}
+        </Box>
+        <Box flex minW={0} gap={2}>
+          <Text variant="label" lines={1}>
+            {dl.title}
+          </Text>
+          {dl.releaseTitle === dl.title ? null : (
+            <Text variant="meta" color="text/40" lines={2}>
+              {dl.releaseTitle}
+            </Text>
+          )}
+        </Box>
+      </Row>
 
       {error ? (
         <Callout.Root size="sm" tone="danger" icon="alert-triangle">

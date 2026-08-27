@@ -1,21 +1,3 @@
-// Manual grab: three questions, one at a time.
-//
-//   1. Where is the torrent?   search the indexers, paste a magnet, drop a file
-//   2. What is it FOR?         a real title, picked from the metadata provider
-//   3. Which files?            the torrent's own list, when there is a choice
-//
-// The old version asked all three at once on a single tall form, and never
-// actually linked the grab to a title: it sent no tmdb id, so a manual add
-// landed in the queue unlinked. Steps make the order obvious and let step 2 be
-// a picker rather than two text boxes.
-//
-// NOTE an inversion: the backend graph has acquisition dependencies torrents, yet
-// this file (torrents) drives acquisition's search/analyze/add. The entangle-
-// ment is real (a manual grab needs both halves) and predates this layout. If it
-// ever needs untangling, the manual-grab flow moves INTO acquisition and reaches
-// this page via module exports (`getModuleApi`), not by a package import in this
-// direction.
-
 import { useAcquisitionApi } from '@kroma/module-acquisition/api';
 import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { apiErrorText, useAsyncAction, useT } from '@kroma/module-sdk';
@@ -40,8 +22,6 @@ const EMPTY_TARGET: GrabTarget = {
   episode: '',
 };
 
-// What the source already read off the release name, so step 2 opens on a title
-// the provider can actually find rather than on the raw scene string.
 function targetFrom(source: TorrentSource): GrabTarget {
   return {
     kind: (source.kind as Kind) || 'movie',
@@ -80,13 +60,9 @@ export function ManualGrabModal({
     setSource(picked);
     setTarget((current) => {
       const seeded = targetFrom(picked);
-      // A title the operator already pinned survives going back a step.
       return current.tmdbId ? { ...seeded, ...current } : seeded;
     });
     setStep('target');
-    // Straight away, because what the torrent HOLDS is what decides the rest:
-    // the kind scopes the title search, and the seasons and episodes are read
-    // off the files instead of being typed.
     analyze(picked.magnet);
   };
 
@@ -99,10 +75,7 @@ export function ManualGrabModal({
       .analyze(magnet)
       .then((found) => {
         setAnalysis(found);
-        // Default selection is every video file: narrowing it is the point of
-        // the files step, but taking everything is the right starting answer.
         setSelected(new Set(found.files.filter((f) => f.isVideo).map((f) => f.index)));
-        // The files outrank the release name, which was only ever a guess.
         const content = detect(found);
         if (content.certain) {
           setTarget((current) => ({
@@ -123,8 +96,6 @@ export function ManualGrabModal({
     run(
       async () => {
         if (!source) return;
-        // Only sent when the operator narrowed the selection; everything else
-        // means "take the torrent as it is".
         const onlyFiles =
           analysis && selected.size > 0 && selected.size < videoFiles.length
             ? [...selected].sort((a, b) => a - b)
@@ -193,17 +164,7 @@ export function ManualGrabModal({
             <TorrentContents
               analysis={analysis}
               episodes={episodeNames}
-              selection={{
-                selected,
-                onSet: setSelected,
-                onToggle: (index) =>
-                  setSelected((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(index)) next.delete(index);
-                    else next.add(index);
-                    return next;
-                  }),
-              }}
+              selection={{ selected, onSelectedChange: setSelected }}
             />
           ) : null}
         </Box>
@@ -228,8 +189,6 @@ export function ManualGrabModal({
   );
 }
 
-// Where the flow is, and a way back to a step already answered. Forward is
-// earned by answering, so a step ahead is not a link.
 function StepBar({
   step,
   onStep,

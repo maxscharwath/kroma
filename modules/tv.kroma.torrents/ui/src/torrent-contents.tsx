@@ -1,189 +1,172 @@
-// Everything a torrent turns out to hold, laid out the way it is shaped.
-//
-// A flat list of paths is what the torrent gives you; it is not what an operator
-// is looking at. A season pack is seasons of episodes, a film is one file beside
-// its extras, and grouping it that way is what makes "is this the whole season?"
-// answerable at a glance instead of by counting rows.
-//
-// One component for both callers: the manual add, where the rows are selectable
-// because narrowing the grab is the point, and the queue's own menu, where they
-// are not because the torrent is already running.
-
 import type { TorrentAnalysis, TorrentFileView } from '@kroma/module-acquisition/schemas';
 import { useFormat, useT } from '@kroma/module-sdk';
 import type { IconName } from '@kroma/ui/kit';
-import { Badge, Box, Button, Checkbox, Icon, Row, styles, Text } from '@kroma/ui/kit';
+import { Badge, Box, Checkbox, Icon, Img, Row, styles, Text } from '@kroma/ui/kit';
 import { useMemo } from 'react';
+import {
+  bytesOf,
+  type ContentsGroup,
+  type ContentsGroupKind,
+  type ContentsSelection,
+  contentsLayout,
+  groupContents,
+  withFilesSelected,
+} from './contents-files';
 import type { EpisodeInfo } from './schemas';
+
+const STILL_WIDTH = 64;
+const STILL_HEIGHT = 36;
 
 const s = styles({
   tabular: { fontVariant: ['tabular-nums'] },
 });
 
-/** Selectable rows. Omit the whole thing for a read-only view. */
-export interface ContentsSelection {
-  selected: Set<number>;
-  onToggle: (index: number) => void;
-  /** Replaces the whole set, for a group's select-all. */
-  onSet: (next: Set<number>) => void;
-}
-
-/** One run of files that belong together. */
-type GroupKind = 'season' | 'film' | 'extras';
-
-interface Group {
-  key: string;
-  kind: GroupKind;
-  /** Only a `season` group has one. */
-  season: number | null;
-  files: TorrentFileView[];
-}
-
-const GROUP_ICON: Record<GroupKind, IconName> = {
+const GROUP_ICON: Record<ContentsGroupKind, IconName> = {
   season: 'stack',
   film: 'movie',
   extras: 'file-text',
 };
 
-const bytesOf = (files: readonly TorrentFileView[]) =>
-  files.reduce((sum, file) => sum + file.sizeBytes, 0);
-
 const fileName = (path: string) => path.split('/').pop() ?? path;
-
-// Episodes by season, then the video with no episode (a film), then everything
-// that is not video at all. Sorted, because a torrent's own order is arbitrary.
-function group(files: readonly TorrentFileView[]): Group[] {
-  const bySeason = new Map<number, TorrentFileView[]>();
-  const loose: TorrentFileView[] = [];
-  const extras: TorrentFileView[] = [];
-  for (const file of files) {
-    if (!file.isVideo) {
-      extras.push(file);
-      continue;
-    }
-    if (file.episode === null) {
-      loose.push(file);
-      continue;
-    }
-    const season = file.season ?? 0;
-    const at = bySeason.get(season) ?? [];
-    at.push(file);
-    bySeason.set(season, at);
-  }
-
-  const out: Group[] = [...bySeason.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([season, seasonFiles]) => ({
-      key: `s${season}`,
-      kind: 'season' as const,
-      season,
-      files: [...seasonFiles].sort((a, b) => (a.episode ?? 0) - (b.episode ?? 0)),
-    }));
-  if (loose.length > 0) out.push({ key: 'film', kind: 'film', season: null, files: loose });
-  if (extras.length > 0) out.push({ key: 'extras', kind: 'extras', season: null, files: extras });
-  return out;
-}
 
 interface TorrentContentsProps {
   analysis: TorrentAnalysis;
-  /** Given, every video row becomes a checkbox and each group gets a toggle. */
   selection?: ContentsSelection;
-  /** What the provider calls each episode, by number. A file list reads far
-   *  better as "Bitchcraft" than as the release string it is named with. */
   episodes?: Map<number, EpisodeInfo>;
 }
 
 export function TorrentContents({ analysis, selection, episodes }: Readonly<TorrentContentsProps>) {
-  const t = useT();
-  const fmt = useFormat();
-  const groups = useMemo(() => group(analysis.files), [analysis.files]);
-  const videos = useMemo(() => analysis.files.filter((f) => f.isVideo), [analysis.files]);
+  const groups = useMemo(() => groupContents(analysis.files), [analysis.files]);
+  const { showHeadings, showTotal } = contentsLayout(groups);
+  const showStills = (episodes?.size ?? 0) > 0;
 
   return (
     <Box gap={10}>
-      <Row between wrap gap={12} align="center">
-        <Text variant="meta" color="text/50">
-          {t('contents.total', {
-            files: String(videos.length),
-            size: fmt.bytes(bytesOf(analysis.files)),
-          })}
-        </Text>
-        {selection && videos.length > 1 ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            label={
-              selection.selected.size === videos.length
-                ? t('contents.selectNone')
-                : t('contents.selectAll')
-            }
-            onPress={() =>
-              selection.onSet(
-                selection.selected.size === videos.length
-                  ? new Set()
-                  : new Set(videos.map((f) => f.index)),
-              )
-            }
+      {showTotal ? <TotalRow analysis={analysis} selection={selection} /> : null}
+      <Box gap={12} maxH={360} overflow="scroll">
+        {groups.map((group) => (
+          <GroupBlock
+            key={group.key}
+            group={group}
+            selection={selection}
+            episodes={episodes}
+            showHeading={showHeadings}
+            showStills={showStills}
           />
-        ) : null}
-      </Row>
-
-      <Box gap={12} maxH={340} overflow="scroll">
-        {groups.map((found) => (
-          <GroupBlock key={found.key} group={found} selection={selection} episodes={episodes} />
         ))}
       </Box>
     </Box>
+  );
+}
+
+function TotalRow({
+  analysis,
+  selection,
+}: Readonly<{ analysis: TorrentAnalysis; selection?: ContentsSelection }>) {
+  const t = useT();
+  const fmt = useFormat();
+  const videos = analysis.files.filter((file) => file.isVideo);
+  const picked = videos.filter((file) => selection?.selected.has(file.index));
+
+  return (
+    <Row between gap={12} align="center" px={6}>
+      <Row gap={8} align="center" minW={0}>
+        {selection ? (
+          <GroupCheckbox
+            selection={selection}
+            files={videos}
+            picked={picked.length}
+            label={t('contents.selectAll')}
+          />
+        ) : null}
+        <Text variant="meta" color="text/50">
+          {selection
+            ? t('contents.selected', { count: picked.length, total: videos.length })
+            : t('contents.videos', { count: videos.length })}
+        </Text>
+      </Row>
+      <Text variant="meta" color="text/35" shrink={0} style={s.tabular}>
+        {fmt.bytes(bytesOf(selection ? picked : analysis.files))}
+      </Text>
+    </Row>
+  );
+}
+
+function GroupCheckbox({
+  selection,
+  files,
+  picked,
+  label,
+}: Readonly<{
+  selection: ContentsSelection;
+  files: readonly TorrentFileView[];
+  picked: number;
+  label: string;
+}>) {
+  return (
+    <Checkbox
+      checked={picked === files.length}
+      indeterminate={picked > 0 && picked < files.length}
+      onCheckedChange={(next) =>
+        selection.onSelectedChange(withFilesSelected(selection.selected, files, { include: next }))
+      }
+      label={label}
+    />
   );
 }
 
 function GroupBlock({
-  group: found,
+  group,
   selection,
   episodes,
-}: Readonly<{ group: Group; selection?: ContentsSelection; episodes?: Map<number, EpisodeInfo> }>) {
+  showHeading,
+  showStills,
+}: Readonly<{
+  group: ContentsGroup;
+  selection?: ContentsSelection;
+  episodes?: Map<number, EpisodeInfo>;
+  showHeading: boolean;
+  showStills: boolean;
+}>) {
   const t = useT();
   const fmt = useFormat();
-  const selectable = selection && found.kind !== 'extras';
-  const picked = found.files.filter((f) => selection?.selected.has(f.index)).length;
-  const all = picked === found.files.length;
-  const heading = headingOf(found, t);
+  const selectable = selection && group.kind !== 'extras' ? selection : undefined;
+  const picked = group.files.filter((file) => selectable?.selected.has(file.index));
+  const heading = headingOf(group, t);
 
   return (
     <Box gap={4}>
-      <Row between gap={10} align="center">
-        <Row gap={6} align="center" minW={0}>
-          <Icon name={GROUP_ICON[found.kind]} size={12} thickness={2} color="glyphDim" />
-          <Text variant="overline" color="textDim" lines={1}>
-            {heading}
-          </Text>
-          <Text variant="meta" color="text/30" shrink={0} style={s.tabular}>
-            {fmt.bytes(bytesOf(found.files))}
-          </Text>
+      {showHeading ? (
+        <Row between gap={10} align="center" px={6}>
+          <Row gap={8} align="center" minW={0}>
+            {selectable ? (
+              <GroupCheckbox
+                selection={selectable}
+                files={group.files}
+                picked={picked.length}
+                label={heading}
+              />
+            ) : null}
+            <Icon name={GROUP_ICON[group.kind]} size={12} thickness={2} color="glyphDim" />
+            <Text variant="overline" color="textDim" lines={1}>
+              {heading}
+            </Text>
+          </Row>
+          {group.files.length > 1 ? (
+            <Text variant="meta" color="text/30" shrink={0} style={s.tabular}>
+              {fmt.bytes(bytesOf(selectable ? picked : group.files))}
+            </Text>
+          ) : null}
         </Row>
-        {selectable && found.files.length > 1 ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            label={all ? t('contents.selectNone') : t('contents.selectAll')}
-            onPress={() => {
-              const next = new Set(selection.selected);
-              for (const file of found.files) {
-                if (all) next.delete(file.index);
-                else next.add(file.index);
-              }
-              selection.onSet(next);
-            }}
-          />
-        ) : null}
-      </Row>
+      ) : null}
       <Box>
-        {found.files.map((file) => (
+        {group.files.map((file) => (
           <FileRow
             key={file.index}
             file={file}
-            selection={selectable ? selection : undefined}
             episode={file.episode === null ? undefined : episodes?.get(file.episode)}
+            showStill={showStills && file.episode !== null}
+            selection={selectable}
           />
         ))}
       </Box>
@@ -191,48 +174,67 @@ function GroupBlock({
   );
 }
 
-// What the group is called, which is the one thing that differs per kind.
-function headingOf(found: Group, t: ReturnType<typeof useT>): string {
-  if (found.kind === 'extras') return t('contents.extras', { count: String(found.files.length) });
-  if (found.kind === 'film') return t('contents.film');
-  return t('contents.season', {
-    season: String(found.season ?? 0),
-    episodes: String(found.files.length),
-  });
+function headingOf(group: ContentsGroup, t: ReturnType<typeof useT>): string {
+  if (group.kind === 'extras') return t('contents.extras', { count: group.files.length });
+  if (group.kind === 'film') return t('contents.film');
+  return t('contents.season', { season: group.season ?? 0, count: group.files.length });
 }
 
 function FileRow({
   file,
-  selection,
   episode,
+  showStill,
+  selection,
 }: Readonly<{
   file: TorrentFileView;
-  selection?: ContentsSelection;
   episode?: EpisodeInfo;
+  showStill: boolean;
+  selection?: ContentsSelection;
 }>) {
   const fmt = useFormat();
   const tag = file.episode === null ? null : `E${String(file.episode).padStart(2, '0')}`;
-  // The provider's title leads when there is one; the release string it is
-  // named with drops to the line under it, where it is still checkable.
   const named = episode?.name ?? null;
+  const title = named ?? fileName(file.path);
+
   return (
-    <Row gap={10} align="center" py={5} px={6} radius="sm" minW={0} bg="transparent">
+    <Row gap={10} align="center" py={4} px={6} radius="sm" minW={0}>
       {selection ? (
         <Checkbox
           checked={selection.selected.has(file.index)}
-          onCheckedChange={() => selection.onToggle(file.index)}
-          label={named ?? fileName(file.path)}
+          onCheckedChange={(next) =>
+            selection.onSelectedChange(
+              withFilesSelected(selection.selected, [file], { include: next }),
+            )
+          }
+          label={title}
         />
+      ) : null}
+      {showStill ? (
+        <Box
+          w={STILL_WIDTH}
+          h={STILL_HEIGHT}
+          shrink={0}
+          center
+          radius={4}
+          overflow="hidden"
+          bg="tint/5"
+        >
+          {episode?.stillUrl ? (
+            <Img src={episode.stillUrl} fill />
+          ) : (
+            <Icon name="movie" size={14} color="glyphDim" />
+          )}
+        </Box>
       ) : null}
       {tag ? <Badge tone="info">{tag}</Badge> : null}
       <Box flex minW={0}>
         <Text
-          variant="meta"
-          color={file.isVideo ? 'text/75' : 'text/35'}
+          variant={named ? 'label' : 'meta'}
+          color={file.isVideo ? 'text' : 'text/35'}
           lines={1}
           accessibilityLabel={file.path}
         >
-          {named ?? fileName(file.path)}
+          {title}
         </Text>
         {named ? (
           <Text variant="meta" color="text/25" lines={1}>
@@ -240,11 +242,16 @@ function FileRow({
           </Text>
         ) : null}
       </Box>
-      <Text variant="meta" color="text/35" shrink={0} style={s.tabular}>
-        {fmt.bytes(file.sizeBytes)}
-      </Text>
+      <Box shrink={0} align="flex-end">
+        <Text variant="meta" color="text/35" style={s.tabular}>
+          {fmt.bytes(file.sizeBytes)}
+        </Text>
+        {episode?.airDate ? (
+          <Text variant="meta" color="text/20" style={s.tabular}>
+            {fmt.elapsed(episode.airDate)}
+          </Text>
+        ) : null}
+      </Box>
     </Row>
   );
 }
-
-export { bytesOf, group as groupContents };

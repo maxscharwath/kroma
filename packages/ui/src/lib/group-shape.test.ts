@@ -3,7 +3,6 @@
 import { renderHook } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { ring } from '#ui/core';
 import { type GroupPosition, GroupSlotContext, groupSlot, useGroupShape } from './group-shape';
 
 const at =
@@ -31,15 +30,15 @@ describe('useGroupShape', () => {
     });
   });
 
-  it('wears the ring INSIDE while it joins a neighbour, so it never lands on one', () => {
+  it('rises above its neighbours while focused, so its ring is not painted over', () => {
     const { result } = renderHook(() => useGroupShape(true), { wrapper: at('first') });
 
-    expect(result.current).toMatchObject(ring.focusInset);
+    expect(result.current).toMatchObject({ zIndex: 1 });
   });
 
-  it('keeps the standing ring when it is the only member, which has an outside', () => {
-    const { result } = renderHook(() => useGroupShape(true), { wrapper: at('only') });
+  it('sits back down when it is not, so it does not cover the member after it', () => {
+    const { result } = renderHook(() => useGroupShape(false), { wrapper: at('first') });
 
-    expect(result.current).not.toHaveProperty('outlineOffset');
+    expect(result.current).not.toHaveProperty('zIndex');
   });
 });

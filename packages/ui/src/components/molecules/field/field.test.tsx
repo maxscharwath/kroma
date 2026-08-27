@@ -3,6 +3,8 @@
 import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Button } from '#ui/components/atoms/button';
+import { ButtonGroup } from '#ui/components/molecules/button-group';
 import { Select } from '#ui/components/molecules/select';
 import { setEntryDefaults } from '#ui/lib/field-shell';
 import { onScreen } from '#ui/testing';
@@ -164,5 +166,45 @@ describe('a part outside its Root', () => {
       '<Field.Hint> must be used inside <Field.Root>',
     );
     quiet.mockRestore();
+  });
+});
+
+describe('a field welded into a <ButtonGroup>', () => {
+  // The ring is drawn OUTSIDE the entry, and the Root is the child the group
+  // sees: without the Root rising, the member after it paints over the ring.
+  const grouped = () =>
+    render(
+      <ButtonGroup.Root label="Rate">
+        <Field.Root label="Amount" hideLabel>
+          <Field.Input />
+        </Field.Root>
+        <Button label="Unlimited" />
+      </ButtonGroup.Root>,
+    );
+
+  // The Root's own box, which is what the group positions.
+  const fieldBox = (entry: HTMLElement) => {
+    let at: HTMLElement | null = entry;
+    while (at && !at.className.includes('r-zIndex')) at = at.parentElement;
+    return at;
+  };
+
+  it('rises above the member beside it while its entry has focus', () => {
+    grouped();
+    const entry = screen.getByLabelText('Amount');
+
+    fireEvent.focus(entry);
+
+    expect(fieldBox(entry)).not.toBeNull();
+  });
+
+  it('sits back down when focus leaves', () => {
+    grouped();
+    const entry = screen.getByLabelText('Amount');
+
+    fireEvent.focus(entry);
+    fireEvent.blur(entry);
+
+    expect(fieldBox(entry)).toBeNull();
   });
 });

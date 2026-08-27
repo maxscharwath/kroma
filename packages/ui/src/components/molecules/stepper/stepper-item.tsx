@@ -1,6 +1,3 @@
-// One step: the marker, the words beside it, and the shell the whole row is
-// drawn in.
-
 import type { ReactNode } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
@@ -111,16 +108,16 @@ interface StepperItemProps {
   icon?: IconName;
   /** Names the step to assistive tech. It draws NOTHING, and the position and
    *  the state are added to it: reach for it only where the children carry no
-   *  plain text, such as a glyph-only step. */
+   *  plain text. */
   label?: string;
-  /** A step nothing may enter: the two steps and the arrow keys pass over it
-   *  rather than stopping on it. */
+  /** A step nothing may enter: `Previous`, `Next` and the arrow keys pass over
+   *  it rather than stopping on it. */
   disabled?: boolean;
   children?: ReactNode;
 }
 
-/** One step of the flow. The WHOLE row is the control: one D-pad stop, and the
- *  marker is a face rather than a second target. */
+/** The WHOLE row is the control: one D-pad stop, and the marker is a face
+ *  rather than a second target. */
 function Item({ value, icon, label, disabled, children }: Readonly<StepperItemProps>) {
   const { flow, size, orientation, stepLabel } = useStepperPart('Item');
   const { index, active, complete, reachable, select } = useStepperItem(value);
@@ -129,7 +126,7 @@ function Item({ value, icon, label, disabled, children }: Readonly<StepperItemPr
   const name = stepLabel({
     position: index + 1,
     count: flow.count,
-    name: label ?? nameOf(children),
+    title: label ?? nameOf(children),
     complete,
   });
   return (
@@ -163,14 +160,11 @@ function Label({ children }: Readonly<{ children: ReactNode }>) {
   return <Text style={slots.label}>{children}</Text>;
 }
 
-/** The quieter line under the title: what the step wants, in a few words. */
 function Hint({ children }: Readonly<{ children: ReactNode }>) {
   const slots = useStepperFace('Hint');
   return <Text style={slots.hint}>{children}</Text>;
 }
 
-// A vertical stepper's steps share one column, so each row takes the whole of
-// it rather than hugging its own words.
 const STRETCH = { alignSelf: 'stretch' } as const;
 
 export type { StepperItemProps };

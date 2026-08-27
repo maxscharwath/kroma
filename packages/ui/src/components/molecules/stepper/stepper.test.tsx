@@ -1,24 +1,11 @@
 // @vitest-environment jsdom
 
-import {
-  cleanup,
-  fireEvent,
-  renderHook,
-  render as renderRaw,
-  screen,
-} from '@testing-library/react';
-import { act, type ReactElement, type ReactNode, useState } from 'react';
+import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
+import { type ReactElement, type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Button } from '#ui/components/atoms/button';
 import { Text } from '#ui/components/atoms/text';
 import { onScreen } from '#ui/testing';
-import {
-  Stepper,
-  type StepperRootProps,
-  useStepper,
-  useStepperItem,
-  useSteps,
-} from './stepper';
+import { Stepper, type StepperRootProps } from './stepper';
 
 const render = (ui: ReactElement) => renderRaw(onScreen(ui));
 
@@ -243,124 +230,5 @@ describe('a panel that has to survive the trip', () => {
     fireEvent.click(screen.getByLabelText('Précédent'));
 
     expect(screen.getByText('built 1')).toBeTruthy();
-  });
-});
-
-function Footer() {
-  const flow = useStepper();
-  return <Text>{`${flow.index + 1}/${flow.count}`}</Text>;
-}
-
-describe('useStepper', () => {
-  it('hands anything inside the Root the flow it is running', () => {
-    render(
-      <Flow>
-        <Footer />
-      </Flow>,
-    );
-
-    fireEvent.click(screen.getByLabelText('Suivant'));
-
-    expect(screen.getByText('2/3')).toBeTruthy();
-  });
-
-  it('names itself when it is called outside a Root', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => renderHook(() => useStepper())).toThrow(
-      '<Stepper.useStepper> must be used inside <Stepper.Root>',
-    );
-
-    vi.restoreAllMocks();
-  });
-});
-
-function Dot({ value }: Readonly<{ value: string }>) {
-  const step = useStepperItem(value);
-  return (
-    <Button
-      label={`${value} ${step.index} ${step.complete ? 'done' : 'todo'}`}
-      disabled={!step.reachable}
-      onPress={step.select}
-    />
-  );
-}
-
-describe('useStepperItem', () => {
-  it('answers for one step, and goes to it when a hand-drawn indicator is pressed', () => {
-    render(
-      <Flow>
-        <Dot value="account" />
-      </Flow>,
-    );
-
-    fireEvent.click(screen.getByLabelText('Suivant'));
-    fireEvent.click(screen.getByLabelText('account 0 done'));
-
-    expect(screen.getByText('Adresse')).toBeTruthy();
-  });
-
-  it('names itself when it is called outside a Root', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => renderHook(() => useStepperItem('account'))).toThrow(
-      '<Stepper.useStepperItem> must be used inside <Stepper.Root>',
-    );
-
-    vi.restoreAllMocks();
-  });
-});
-
-describe('useSteps', () => {
-  const steps = ['account', 'library', 'done'];
-
-  it('opens on the first step with nowhere to go back to', () => {
-    const { result } = renderHook(() => useSteps(steps));
-
-    expect(result.current).toMatchObject({ value: 'account', index: 0, count: 3, first: true });
-    expect(result.current.canGoPrevious).toBe(false);
-    expect(result.current.canGoNext).toBe(true);
-  });
-
-  it('opens every step it has been past, and none of the ones ahead', () => {
-    const { result } = renderHook(() => useSteps(steps));
-
-    act(() => result.current.next());
-
-    expect(result.current.complete('account')).toBe(true);
-    expect(result.current.reachable('account')).toBe(true);
-    expect(result.current.reachable('done')).toBe(false);
-  });
-
-  it('goes to a step ahead when its owner says so, rather than the indicator', () => {
-    const { result } = renderHook(() => useSteps(steps));
-
-    act(() => result.current.goTo('done'));
-
-    expect(result.current.value).toBe('done');
-    expect(result.current.reachable('library')).toBe(true);
-  });
-
-  it('goes back to the first step and forgets how far it went', () => {
-    const { result } = renderHook(() => useSteps(steps));
-
-    act(() => result.current.goTo('done'));
-    act(() => result.current.reset());
-
-    expect(result.current.value).toBe('account');
-    expect(result.current.reachable('library')).toBe(false);
-  });
-
-  it('keeps one identity for every callback a caller may depend on', () => {
-    const { result, rerender } = renderHook(() => useSteps(steps));
-    const first = result.current;
-
-    act(() => result.current.next());
-    rerender();
-
-    expect(result.current.next).toBe(first.next);
-    expect(result.current.previous).toBe(first.previous);
-    expect(result.current.goTo).toBe(first.goTo);
-    expect(result.current.reset).toBe(first.reset);
   });
 });

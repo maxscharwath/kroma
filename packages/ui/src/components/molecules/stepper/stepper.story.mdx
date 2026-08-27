@@ -48,7 +48,7 @@ The sequence is the rule. The Root remembers the furthest step the flow has been
 </Scene>
 
 <Scene name="Your own footer">
-  `useStepper()` hands anything inside the Root the flow it is running: where it is, how many steps there are, whether it may move, and `next`, `previous`, `goTo` and `reset`. Every one of those callbacks keeps its identity for the life of the flow, so it can sit in a dependency array. `<Stepper.Previous>` and `<Stepper.Next>` are thin wrappers over the same hook, which is why writing the row by hand costs nothing.
+  `useStepper()` hands anything inside the Root the flow it is running: where it is, how many steps there are, whether it may move, and `next`, `previous`, `goTo` and `reset`. `reset` puts it back at the first step and forgets how far it went, which is the other half of a wizard that ends in "Recommencer". Every one of those callbacks keeps its identity for the life of the flow, so it can sit in a dependency array. `<Stepper.Previous>` and `<Stepper.Next>` are thin wrappers over the same hook, which is why writing the row by hand costs nothing.
 
   <Footer />
 </Scene>

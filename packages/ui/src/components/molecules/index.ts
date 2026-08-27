@@ -105,11 +105,11 @@ export type {
   StepperItemProps,
   StepperItemState,
   StepperListProps,
+  StepperMoveProps,
   StepperOrientation,
   StepperPanelProps,
   StepperRootProps,
-  StepperStepName,
-  StepperStepProps,
+  StepperStep,
   StepperValueDetails,
 } from './stepper';
 export { Stepper, stepperVariants, useStepper, useStepperItem, useSteps } from './stepper';

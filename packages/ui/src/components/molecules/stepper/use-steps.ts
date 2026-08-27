@@ -1,15 +1,7 @@
-// The flow a <Stepper> runs: where it is, how far it has been, and which steps
-// it will answer to.
-//
-// Its own file because the machine is worth having without the chrome: a screen
-// drawing its own wizard calls useSteps() directly, and <Stepper.Root> is one of
-// its callers rather than its owner.
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStableCallback } from '#ui/lib/stable-callback';
 import { useControllable } from '#ui/lib/use-controllable';
 
-/** What moved the flow: the two steps, a jump, or a restart. */
 type StepReason = 'next' | 'previous' | 'goTo' | 'reset';
 
 interface StepperValueDetails {
@@ -18,9 +10,8 @@ interface StepperValueDetails {
 
 interface StepperFlowOptions {
   value?: string;
-  /** Where an uncontrolled flow opens. Defaults to the first step, and seeds how
-   *  far the flow counts as having been, so resuming at step three leaves the
-   *  three behind it reachable. */
+  /** Where an uncontrolled flow opens. Defaults to the first step, and seeds
+   *  how far the flow counts as having been. */
   defaultValue?: string;
   onValueChange?: (next: string, details: StepperValueDetails) => void;
   /** The steps that are done, when the caller keeps that itself. Left out, a
@@ -42,8 +33,7 @@ interface StepperFlow {
   canGoPrevious: boolean;
   next: () => void;
   previous: () => void;
-  /** Goes to any step the flow holds, ahead of its furthest point included: the
-   *  sequence binds what the indicator OFFERS, not what its owner may do. */
+  /** Goes to any step the flow holds, ahead of its furthest point included. */
   goTo: (step: string) => void;
   /** Back to the first step, forgetting how far the flow had been. */
   reset: () => void;
@@ -51,11 +41,8 @@ interface StepperFlow {
   reachable: (step: string) => boolean;
 }
 
-/**
- * The wizard state machine, with no component around it: hand it the step ids in
- * order and it answers where the flow is, what it may do next, and which steps
- * are behind it. `<Stepper.Root>` runs one and publishes it as {@link useStepper}.
- */
+/** The wizard state machine, with no component around it: hand it the step ids
+ *  in order. */
 function useSteps(steps: readonly string[], options: StepperFlowOptions = {}): StepperFlow {
   const { value, defaultValue, onValueChange, complete, disabled } = options;
   const [held, setHeld] = useControllable(value, defaultValue ?? steps[0] ?? '');
@@ -63,8 +50,8 @@ function useSteps(steps: readonly string[], options: StepperFlowOptions = {}): S
   const index = seat === -1 ? 0 : seat;
   const current = steps[index] ?? '';
 
-  // The high-water mark, raised in an effect so a controlled value that jumps
-  // forward and comes back does not take the steps it opened away again.
+  // Raised in an effect so a controlled value that jumps forward and comes back
+  // does not take the steps it opened away again.
   const [visited, setVisited] = useState(index);
   const reached = Math.max(visited, index);
   useEffect(() => {
@@ -90,7 +77,6 @@ function useSteps(steps: readonly string[], options: StepperFlowOptions = {}): S
     onValueChange?.(key, { reason });
   });
 
-  // Stable, because a footer written by hand puts them in a dependency array.
   const next = useStableCallback(() => land(seek(index, 1), 'next'));
   const previous = useStableCallback(() => land(seek(index, -1), 'previous'));
 

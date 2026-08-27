@@ -53,9 +53,8 @@ export function LocaleProvider({
   const [override, setOverride] = useState<Locale>(DEFAULT_LOCALE);
 
   // The client's Accept-Language moves in the same step as the state, never in a
-  // later effect: a consumer that refetches when the locale changes runs its own
-  // effect before this component's, and would ask for the new screens under the
-  // old header.
+  // later effect: a consumer's own effect runs before this component's, and would
+  // refetch under the old header.
   const applied = useRef<Locale>(DEFAULT_LOCALE);
   const apply = useCallback(
     (next: Locale) => {
@@ -98,10 +97,8 @@ export function LocaleProvider({
   const locale = override;
 
   // Catches the client arriving after the locale did (the TV reaches a server
-  // late). It reads the ref, never this render's `locale`: on the commit that
-  // adopts a locale the state is still the previous one, so telling the client
-  // that value here would undo what `apply` just did and send the next request
-  // in the language the viewer is leaving.
+  // late). Reads the ref, never this render's `locale`, which on the commit that
+  // adopts a locale is still the previous one.
   useEffect(() => {
     client?.setLocale(applied.current);
   }, [client]);

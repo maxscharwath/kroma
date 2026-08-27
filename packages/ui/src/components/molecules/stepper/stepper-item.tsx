@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useLayoutEffect } from 'react';
 import { Box } from '#ui/components/atoms/box';
 import { Focusable } from '#ui/components/atoms/focusable';
 import { Icon, type IconName, type IconProps } from '#ui/components/atoms/icon';
 import { Text } from '#ui/components/atoms/text';
 import { type StyleDecl, svFor } from '#ui/core';
-import { bySize } from '#ui/lib/field-shell';
+import { bySize, CONTROL } from '#ui/lib/field-shell';
 import { nameOf } from '#ui/lib/name-of';
 import { partContext } from '#ui/lib/part-context';
 import { stepShape, useStepperItem, useStepperPart } from './stepper-context';
@@ -117,41 +117,99 @@ interface StepperItemProps {
 }
 
 /** The WHOLE row is the control: one D-pad stop, and the marker is a face
- *  rather than a second target. */
+ *  rather than a second target. Rendering one is what puts the step in the
+ *  flow, at whatever depth it sits. */
 function Item({ value, icon, label, disabled, children }: Readonly<StepperItemProps>) {
-  const { flow, size, orientation, stepLabel } = useStepperPart('Item');
-  const { index, active, complete, reachable, select } = useStepperItem(value);
-  const state = stepStateOf(active, complete);
+  const { flow, size, orientation, stepLabel, join, mark } = useStepperPart('Item');
+  const step = useStepperItem(value);
+  // Layout effects, not passive ones: they run before the first paint, so the
+  // flow is whole by the time anything is drawn.
+  useLayoutEffect(() => join(value), [join, value]);
+  useLayoutEffect(() => mark(value, disabled === true), [mark, value, disabled]);
+
+  const state = stepStateOf(step.active, step.complete);
   const slots = stepperVariants({ size, state });
-  const name = stepLabel({
-    position: index + 1,
-    count: flow.count,
-    title: label ?? nameOf(children),
-    complete,
-  });
+  const metrics = CONTROL[size];
+  const shape = stepShape(metrics);
+  const vertical = orientation === 'vertical';
   return (
-    <ItemContext.Provider value={slots}>
-      <Focusable
-        role="tab"
-        selected={active}
-        current={active ? 'step' : undefined}
-        disabled={disabled || !reachable}
-        label={name}
-        onPress={select}
-        ring="focusInset"
-        sv={stepperVariants}
-        vars={{ size, state }}
-        style={orientation === 'vertical' ? STRETCH : undefined}
-      >
-        <Marker position={index + 1} icon={icon} complete={complete} slots={slots} />
-        {children ? (
-          <Box gap={2} shrink={1}>
-            {children}
-          </Box>
-        ) : null}
-      </Focusable>
-    </ItemContext.Provider>
+    <>
+      <ItemContext.Provider value={slots}>
+        <Focusable
+          role="tab"
+          selected={step.active}
+          current={step.active ? 'step' : undefined}
+          disabled={disabled || !step.reachable}
+          label={stepLabel({
+            position: step.index + 1,
+            count: flow.count,
+            title: label ?? nameOf(children),
+            complete: step.complete,
+          })}
+          onPress={step.select}
+          ring="focusInset"
+          sv={stepperVariants}
+          vars={{ size, state }}
+          style={vertical ? STRETCH : undefined}
+        >
+          <Marker position={step.index + 1} icon={icon} complete={step.complete} slots={slots} />
+          {children ? (
+            <Box gap={2} shrink={1}>
+              {children}
+            </Box>
+          ) : null}
+        </Focusable>
+      </ItemContext.Provider>
+      {step.last ? null : (
+        <Connector
+          vertical={vertical}
+          thickness={shape.connector}
+          length={shape.step}
+          indent={Math.round(metrics.px / 2 + (shape.marker - shape.connector) / 2)}
+          inset={Math.round(metrics.py / 2)}
+          complete={step.complete}
+        />
+      )}
+    </>
   );
+}
+
+// Drawn by the step rather than the list, which cannot see which of its
+// children are steps once they are one component deep.
+function Connector({
+  vertical,
+  thickness,
+  length,
+  indent,
+  inset,
+  complete,
+}: Readonly<{
+  vertical: boolean;
+  thickness: number;
+  length: number;
+  indent: number;
+  /** The step's own vertical padding, which the rule grows by at each end and
+   *  pulls back with a margin, so it touches both markers without moving them
+   *  apart. */
+  inset: number;
+  complete: boolean;
+}>) {
+  const paint = complete ? 'accent' : 'border';
+  if (vertical) {
+    return (
+      <Box
+        w={thickness}
+        h={length + inset * 2}
+        mt={-inset}
+        mb={-inset}
+        ml={indent}
+        radius="pill"
+        bg={paint}
+        aria-hidden
+      />
+    );
+  }
+  return <Box grow={1} h={thickness} minW={length} radius="pill" bg={paint} aria-hidden />;
 }
 
 /** The step's drawn title; its plain text is the step's accessible name. */

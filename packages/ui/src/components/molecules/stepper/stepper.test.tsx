@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render as renderRaw, screen } from '@testing-library/react';
-import { type ReactElement, type ReactNode, useState } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Text } from '#ui/components/atoms/text';
 import { onScreen } from '#ui/testing';
@@ -172,63 +172,84 @@ describe('Stepper', () => {
   });
 });
 
-let built = 0;
-
-function Counted() {
-  const [seen] = useState(() => {
-    built += 1;
-    return built;
-  });
-  return <Text>{`built ${seen}`}</Text>;
+function OwnSteps() {
+  return (
+    <Stepper.List>
+      <Stepper.Item value="account">
+        <Stepper.Label>Compte</Stepper.Label>
+      </Stepper.Item>
+      <Stepper.Item value="library">
+        <Stepper.Label>Bibliothèque</Stepper.Label>
+      </Stepper.Item>
+    </Stepper.List>
+  );
 }
 
-describe('a panel that has to survive the trip', () => {
-  afterEach(() => {
-    built = 0;
-  });
+function OwnPanels() {
+  return (
+    <>
+      <Stepper.Panel value="account">
+        <Text>Adresse</Text>
+      </Stepper.Panel>
+      <Stepper.Panel value="library">
+        <Text>Dossiers</Text>
+      </Stepper.Panel>
+    </>
+  );
+}
 
-  it('builds its children again every time by default', () => {
+function MappedSteps({ steps }: Readonly<{ steps: readonly string[] }>) {
+  return (
+    <Stepper.List>
+      {steps.map((step) => (
+        <Stepper.Item key={step} value={step}>
+          <Stepper.Label>{step}</Stepper.Label>
+        </Stepper.Item>
+      ))}
+    </Stepper.List>
+  );
+}
+
+describe('where a step comes from', () => {
+  it('runs a flow whose steps sit inside a component the caller wrote', () => {
     render(
-      <Flow>
-        <Stepper.Panel value="account">
-          <Counted />
-        </Stepper.Panel>
-      </Flow>,
+      <Stepper.Root label="Configuration">
+        <OwnSteps />
+        <OwnPanels />
+        <Stepper.Next />
+      </Stepper.Root>,
     );
 
-    fireEvent.click(screen.getByLabelText('Suivant'));
-    fireEvent.click(screen.getByLabelText('Précédent'));
+    expect(step(/Compte/).getAttribute('aria-current')).toBe('step');
+    expect(screen.getByText('Adresse')).toBeTruthy();
 
-    expect(screen.getByText('built 2')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Suivant'));
+
+    expect(screen.getByText('Dossiers')).toBeTruthy();
+    expect(disabled(screen.getByLabelText('Suivant'))).toBe(true);
   });
 
-  it('takes a kept panel off the page while another step is showing', () => {
+  it('counts the steps a map rendered, in the order they were rendered', () => {
     render(
-      <Flow>
-        <Stepper.Panel value="account" keepMounted>
-          <Counted />
-        </Stepper.Panel>
-      </Flow>,
+      <Stepper.Root label="Configuration">
+        <MappedSteps steps={['un', 'deux', 'trois']} />
+      </Stepper.Root>,
     );
 
-    fireEvent.click(screen.getByLabelText('Suivant'));
-
-    const kept = screen.getByText('built 1').closest('[role="tabpanel"]');
-    expect(kept?.getAttribute('style')).toBe('display: none !important;');
+    expect(screen.getByRole('tab', { name: 'Étape 3 sur 3 : trois' })).toBeTruthy();
   });
 
-  it('keeps what was typed in it when it asks to stay mounted', () => {
-    render(
-      <Flow>
-        <Stepper.Panel value="account" keepMounted>
-          <Counted />
-        </Stepper.Panel>
-      </Flow>,
-    );
+  it('says so rather than drawing a dead control when no step joined the flow', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    fireEvent.click(screen.getByLabelText('Suivant'));
-    fireEvent.click(screen.getByLabelText('Précédent'));
+    expect(() =>
+      render(
+        <Stepper.Root label="Configuration">
+          <Stepper.List />
+        </Stepper.Root>,
+      ),
+    ).toThrow('<Stepper.Root> has no steps');
 
-    expect(screen.getByText('built 1')).toBeTruthy();
+    vi.restoreAllMocks();
   });
 });

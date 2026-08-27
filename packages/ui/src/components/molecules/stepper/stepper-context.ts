@@ -19,6 +19,10 @@ interface StepperState {
   orientation: StepperOrientation;
   label: string;
   stepLabel: (step: StepperStep) => string;
+  /** Puts the step in the flow and hands back what takes it out again. Called
+   *  from a layout effect, so the flow is settled before the first paint. */
+  join: (value: string) => () => void;
+  mark: (value: string, disabled: boolean) => void;
 }
 
 const [Context, useStepperPart] = partContext<StepperState>('Stepper.Root');
@@ -36,18 +40,22 @@ interface StepperItemState {
   active: boolean;
   complete: boolean;
   reachable: boolean;
+  last: boolean;
   select: () => void;
 }
 
-/** One step's own state, for a caller drawing an indicator of its own. */
+/** One step's own state, for a caller drawing an indicator of its own. It
+ *  reports; what puts a step IN the flow is rendering a `<Stepper.Item>`. */
 function useStepperItem(value: string): StepperItemState {
   const { flow } = useStepperPart('useStepperItem');
   const select = useStableCallback(() => flow.goTo(value));
+  const index = flow.steps.indexOf(value);
   return {
-    index: flow.steps.indexOf(value),
+    index,
     active: flow.value === value,
     complete: flow.complete(value),
     reachable: flow.reachable(value),
+    last: index === flow.count - 1,
     select,
   };
 }

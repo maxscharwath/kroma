@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Box, Row } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
+import { Switch } from '#ui/components/atoms/switch';
 import { Text } from '#ui/components/atoms/text';
-import { TextField } from '#ui/components/atoms/text-field';
+import { SegmentGroup } from '#ui/components/molecules/segment-group';
 import type { ControlSize } from '#ui/lib/field-shell';
 import { Stepper, type StepperOrientation, useStepper } from './stepper';
 
@@ -61,14 +62,16 @@ export function Walkthrough({ orientation, size }: Readonly<DemoProps>) {
 }
 
 export function Validated({ size }: Readonly<DemoProps>) {
-  const [address, setAddress] = useState('');
-  const named = address.trim().length > 0;
+  const [agreed, setAgreed] = useState(false);
   return (
     <Box w={640}>
-      <Stepper.Root label="Configuration" size={size} complete={named ? DONE : NONE}>
+      <Stepper.Root label="Configuration" size={size} complete={agreed ? DONE : NONE}>
         <Steps />
         <Stepper.Panel value="account">
-          <TextField placeholder="vous@exemple.tv" value={address} onValueChange={setAddress} />
+          <Row gap={12}>
+            <Switch checked={agreed} onCheckedChange={setAgreed} label="Je confirme mon compte" />
+            <Text color="textDim">Je confirme mon compte</Text>
+          </Row>
         </Stepper.Panel>
         <Stepper.Panel value="library">
           <Text color="textDim">Les dossiers à parcourir.</Text>
@@ -78,7 +81,7 @@ export function Validated({ size }: Readonly<DemoProps>) {
         </Stepper.Panel>
         <Row gap={12}>
           <Stepper.Previous />
-          <Stepper.Next disabled={!named} />
+          <Stepper.Next disabled={!agreed} />
         </Row>
       </Stepper.Root>
     </Box>
@@ -118,16 +121,38 @@ export function Footer({ size }: Readonly<DemoProps>) {
   );
 }
 
+function Quality() {
+  const [quality, setQuality] = useState('auto');
+  return (
+    <Box gap={10}>
+      <SegmentGroup.Root value={quality} onValueChange={setQuality} label="Qualité">
+        <SegmentGroup.Item value="auto">
+          <SegmentGroup.Label>Auto</SegmentGroup.Label>
+        </SegmentGroup.Item>
+        <SegmentGroup.Item value="1080p">
+          <SegmentGroup.Label>1080p</SegmentGroup.Label>
+        </SegmentGroup.Item>
+        <SegmentGroup.Item value="4k">
+          <SegmentGroup.Label>4K</SegmentGroup.Label>
+        </SegmentGroup.Item>
+      </SegmentGroup.Root>
+      <Text variant="meta" color="textDim">
+        {`Choisi : ${quality}`}
+      </Text>
+    </Box>
+  );
+}
+
 export function Kept({ size }: Readonly<DemoProps>) {
   return (
     <Box w={640}>
       <Stepper.Root label="Configuration" size={size}>
         <Steps />
         <Stepper.Panel value="account" keepMounted>
-          <TextField placeholder="Tapez ici, puis revenez" />
+          <Quality />
         </Stepper.Panel>
         <Stepper.Panel value="library">
-          <Text color="textDim">Repartez en arrière : le texte est encore là.</Text>
+          <Text color="textDim">Repartez en arrière : le choix est encore là.</Text>
         </Stepper.Panel>
         <Stepper.Panel value="done">
           <Text color="textDim">Tout est prêt.</Text>

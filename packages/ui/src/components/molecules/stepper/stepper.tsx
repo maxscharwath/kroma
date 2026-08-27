@@ -1,8 +1,9 @@
-import { Activity, Children, isValidElement, type ReactNode, useMemo } from 'react';
+import { Activity, type ReactNode, useLayoutEffect, useMemo, useState } from 'react';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { CONTROL, type ControlSize, entryDefaultSize } from '#ui/lib/field-shell';
+import { useStableCallback } from '#ui/lib/stable-callback';
 import {
   Context,
   type StepperOrientation,
@@ -20,27 +21,41 @@ function numberedStep({ position, count, title, complete }: StepperStep): string
   return complete ? `${named}, terminée` : named;
 }
 
-interface Written {
-  order: string[];
-  disabled: string[];
+// Deliberately not the direct-children walk every other compound here uses: a
+// caller's own <Steps /> holding the items is the first thing anyone writes,
+// and no walk of the JSX can see through one.
+interface Member {
+  value: string;
+  disabled: boolean;
 }
 
-function readSteps(children: ReactNode): Written {
-  const written: Written = { order: [], disabled: [] };
-  for (const child of Children.toArray(children)) {
-    if (!isValidElement(child)) continue;
-    if (child.type === List) {
-      const inner = readSteps((child.props as { children?: ReactNode }).children);
-      written.order.push(...inner.order);
-      written.disabled.push(...inner.disabled);
-      continue;
-    }
-    if (child.type !== Item) continue;
-    const step = child.props as StepperItemProps;
-    written.order.push(step.value);
-    if (step.disabled) written.disabled.push(step.value);
-  }
-  return written;
+const NO_MEMBERS: readonly Member[] = [];
+
+function useStepRegistry() {
+  const [members, setMembers] = useState(NO_MEMBERS);
+
+  const join = useStableCallback((value: string) => {
+    setMembers((current) =>
+      current.some((member) => member.value === value)
+        ? current
+        : [...current, { value, disabled: false }],
+    );
+    return () => setMembers((current) => current.filter((member) => member.value !== value));
+  });
+
+  // Its own channel rather than part of the membership, so a step that turns
+  // disabled keeps its place instead of leaving and rejoining at the end.
+  const mark = useStableCallback((value: string, disabled: boolean) => {
+    setMembers((current) => {
+      const at = current.findIndex((member) => member.value === value);
+      if (at === -1 || current[at]?.disabled === disabled) return current;
+      const next = [...current];
+      next[at] = { value, disabled };
+      return next;
+    });
+  });
+
+  return { members, join, mark };
 }
 
 interface StepperRootProps {
@@ -64,8 +79,10 @@ interface StepperRootProps {
   /** The accessible name of one step, defaulting to `Étape 2 sur 4 : Compte`
    *  with `, terminée` on a step the flow is past. */
   stepLabel?: (step: StepperStep) => string;
-  /** A `<Stepper.List>`, the `<Stepper.Panel>`s and whatever drives them. The
-   *  ORDER is read off this tree, so a step is declared by being drawn. */
+  /** A `<Stepper.List>`, the `<Stepper.Panel>`s and whatever drives them. A
+   *  step joins the flow by RENDERING, at any depth and through a component of
+   *  your own, in the order the steps mount. A Root that ends up with none
+   *  throws rather than drawing a dead control. */
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
@@ -83,15 +100,23 @@ function Root({
   style,
 }: Readonly<StepperRootProps>) {
   const shell = size ?? entryDefaultSize();
-  const written = useMemo(() => readSteps(children), [children]);
-  const flow = useSteps(written.order, {
-    value,
-    defaultValue,
-    onValueChange,
-    complete,
-    disabled: written.disabled,
-  });
-  const state: StepperState = { flow, size: shell, orientation, label, stepLabel };
+  const { members, join, mark } = useStepRegistry();
+  const order = useMemo(() => members.map((member) => member.value), [members]);
+  const off = useMemo(
+    () => members.filter((member) => member.disabled).map((member) => member.value),
+    [members],
+  );
+  const flow = useSteps(order, { value, defaultValue, onValueChange, complete, disabled: off });
+
+  // The Root's own layout effect runs after every step's, so an empty flow here
+  // is a flow nothing joined rather than one that has not settled yet.
+  const [settled, setSettled] = useState(false);
+  useLayoutEffect(() => setSettled(true), []);
+  if (settled && order.length === 0) {
+    throw new Error('<Stepper.Root> has no steps: a step is a <Stepper.Item> rendered inside it.');
+  }
+
+  const state: StepperState = { flow, size: shell, orientation, label, stepLabel, join, mark };
   return (
     <Context.Provider value={state}>
       <Box gap={CONTROL[shell].gap} style={style}>

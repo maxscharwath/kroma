@@ -1,4 +1,5 @@
 import { Children, isValidElement, type ReactElement, type ReactNode, useMemo } from 'react';
+import type { ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { styles, useBreakpointStep } from '#ui/core';
 import { useStableCallback } from '#ui/lib/stable-callback';
@@ -7,9 +8,9 @@ import {
   columnBox,
   fromMask,
   GridContext,
+  minWidthOf,
   NO_COLUMNS,
   type TableColumn,
-  type TableGrid,
 } from './table-columns';
 import {
   type Place,
@@ -18,6 +19,7 @@ import {
   type TableVariant,
   useTable,
 } from './table-context';
+import { Frame } from './table-frame';
 import {
   nextSort,
   type SortColumn,
@@ -80,10 +82,6 @@ function Root({
     const list = columns ?? NO_COLUMNS;
     return { list, boxes: list.map(columnBox), mask: fromMask(list) };
   }, [columns]);
-  const grid = useMemo<TableGrid>(
-    () => ({ columns: declared.list, boxes: declared.boxes, step: 0 }),
-    [declared],
-  );
   const press = useStableCallback((column: string) => {
     onSortChange?.(nextSort(sort ?? NO_SORT, column, multiple), { column });
   });
@@ -93,10 +91,10 @@ function Root({
   }, [sort, onSortChange, press]);
   return (
     <SortContext.Provider value={sorting}>
-      <GridScope grid={grid} mask={declared.mask}>
-        <Box role="table" aria-label={label} style={variant === 'framed' ? s.framed : undefined}>
+      <GridScope columns={declared.list} boxes={declared.boxes} mask={declared.mask}>
+        <Frame variant={variant} label={label}>
           <Placed places={places} items={sections} />
-        </Box>
+        </Frame>
       </GridScope>
     </SortContext.Provider>
   );
@@ -106,12 +104,21 @@ function Root({
 // beside the table rather than inside it: a table whose columns never drop out
 // passes a mask of 0 and is never re-rendered by a resize.
 function GridScope({
-  grid,
+  columns,
+  boxes,
   mask,
   children,
-}: Readonly<{ grid: TableGrid; mask: number; children: ReactNode }>) {
+}: Readonly<{
+  columns: readonly TableColumn[];
+  boxes: readonly ViewStyle[];
+  mask: number;
+  children: ReactNode;
+}>) {
   const step = useBreakpointStep(mask);
-  const value = useMemo(() => ({ ...grid, step }), [grid, step]);
+  const value = useMemo(
+    () => ({ columns, boxes, step, minWidth: minWidthOf(columns, step) }),
+    [columns, boxes, step],
+  );
   return <GridContext.Provider value={value}>{children}</GridContext.Provider>;
 }
 
@@ -159,7 +166,6 @@ function Row({ children }: Readonly<TableRowProps>) {
 }
 
 const s = styles({
-  framed: { border: 'border', radius: 'md', bg: 'surface1', overflow: 'hidden' },
   rule: { borderTopWidth: 1, borderTopColor: 'border' },
 });
 

@@ -23,6 +23,9 @@ interface TableGrid {
   columns: readonly TableColumn[];
   boxes: readonly ViewStyle[];
   step: number;
+  /** What the drawn columns cannot shrink below. Zero means nothing can
+   *  overflow, so the table needs no scroller at all. */
+  minWidth: number;
 }
 
 const GridContext = createContext<TableGrid | null>(null);
@@ -63,5 +66,13 @@ function drawn(column: TableColumn | undefined, step: number): boolean {
   return !column?.from || step >= stepOf(column.from);
 }
 
+function minWidthOf(columns: readonly TableColumn[], step: number): number {
+  let total = 0;
+  for (const column of columns) {
+    if (drawn(column, step)) total += column.width ?? column.min ?? 0;
+  }
+  return total;
+}
+
 export type { TableColumn, TableGrid };
-export { columnBox, drawn, FILL, fromMask, GridContext, NO_COLUMNS, useTableGrid };
+export { columnBox, drawn, FILL, fromMask, GridContext, minWidthOf, NO_COLUMNS, useTableGrid };

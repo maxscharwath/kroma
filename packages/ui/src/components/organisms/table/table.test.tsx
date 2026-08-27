@@ -387,3 +387,64 @@ describe('a row the caller reorders', () => {
     expect(mounts).toBe(2);
   });
 });
+
+const grid = () => screen.getByRole('table') as HTMLElement;
+
+const scroller = () => grid().parentElement?.parentElement as HTMLElement;
+
+describe('a table wider than the room it is given', () => {
+  it('scrolls sideways rather than clipping, and will not shrink past its columns', () => {
+    pinDesignWidth(1200);
+    render(<Declared />);
+
+    expect(getComputedStyle(scroller()).overflowX).toBe('auto');
+    expect(getComputedStyle(grid()).minWidth).toBe('436px');
+  });
+
+  it('leaves a dropped column out of the width it refuses to shrink past', () => {
+    pinDesignWidth(480);
+    render(<Declared />);
+
+    expect(getComputedStyle(grid()).minWidth).toBe('308px');
+  });
+
+  it('keeps the rows directly under the table, with the scroller outside it', () => {
+    pinDesignWidth(1200);
+    render(<Declared />);
+
+    expect(grid().firstElementChild?.getAttribute('role')).toBe('rowgroup');
+    expect(scroller().getAttribute('role')).toBeNull();
+  });
+
+  it('is not wrapped in a scroller at all when nothing can overflow', () => {
+    render(<Grid />);
+
+    expect(getComputedStyle(scroller()).overflowX).not.toBe('auto');
+  });
+});
+
+describe('a sorting heading in a column that reads from the end', () => {
+  it('keeps the whole cell as the control and moves its face instead', () => {
+    render(
+      <Table.Root
+        label="Modules"
+        columns={[{ column: 'port', align: 'end' }, { align: 'end' }]}
+        sort={[]}
+        onSortChange={() => undefined}
+      >
+        <Table.Header>
+          <Table.Row>
+            <Table.Cell>Port</Table.Cell>
+            <Table.Cell>State</Table.Cell>
+          </Table.Row>
+        </Table.Header>
+      </Table.Root>,
+    );
+
+    const control = within(heading(0)).getByRole('button');
+
+    expect(getComputedStyle(heading(0)).alignItems).not.toBe('flex-end');
+    expect(getComputedStyle(control).justifyContent).toBe('flex-end');
+    expect(getComputedStyle(heading(1)).alignItems).toBe('flex-end');
+  });
+});

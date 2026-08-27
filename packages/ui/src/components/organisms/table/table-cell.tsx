@@ -21,7 +21,11 @@ function Cell({ children }: Readonly<TableCellProps>) {
   const column = grid?.columns[at];
   if (!drawn(column, grid?.step ?? 0)) return null;
   const pad = variant === 'framed' ? s.cell : s.cellPlain;
-  const box = [grid?.boxes[at] ?? FILL, column?.align === 'end' ? s.end : null];
+  const sortsBy = head && sorting ? column?.column : undefined;
+  const size = grid?.boxes[at] ?? FILL;
+  // A sorting heading fills its cell, so the column's alignment rides on the
+  // row inside the control rather than on the cell, which would shrink it.
+  const box = column?.align === 'end' && sortsBy === undefined ? [size, s.end] : size;
   const body =
     typeof children === 'string' ? (
       <Text variant={head ? 'label' : 'body'} color={head ? 'text' : 'textMuted'}>
@@ -30,9 +34,9 @@ function Cell({ children }: Readonly<TableCellProps>) {
     ) : (
       children
     );
-  if (head && column?.column && sorting) {
+  if (sortsBy !== undefined && sorting) {
     return (
-      <SortCell column={column.column} align={column.align} sort={sorting} box={box} pad={pad}>
+      <SortCell column={sortsBy} align={column?.align} sort={sorting} box={box} pad={pad}>
         {body}
       </SortCell>
     );

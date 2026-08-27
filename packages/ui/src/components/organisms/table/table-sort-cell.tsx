@@ -37,7 +37,7 @@ function SortCell({ column, align, sort, box, pad, children }: Readonly<SortCell
     <Box role="columnheader" style={box} {...sortClaim(state)}>
       {press ? (
         <Focusable
-          ring="focusInset"
+          ring="focusEdge"
           states={HEAD_STATES}
           style={inside}
           onPress={() => press(column)}

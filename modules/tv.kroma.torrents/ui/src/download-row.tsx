@@ -85,6 +85,7 @@ export function DownloadRowView({
   onRetry,
   onAskPeers,
   onRelink,
+  onContents,
   onRemove,
   showClient = false,
 }: Readonly<{
@@ -96,6 +97,7 @@ export function DownloadRowView({
   onRetry: () => void;
   onAskPeers: () => void;
   onRelink: () => void;
+  onContents: () => void;
   onRemove: () => void;
   /** Name the engine on each row. Off with a single engine, where it is the
    *  same word all the way down. */
@@ -139,6 +141,7 @@ export function DownloadRowView({
         onRetry={onRetry}
         onAskPeers={onAskPeers}
         onRelink={onRelink}
+        onContents={onContents}
         onRemove={onRemove}
       />
     </div>
@@ -173,6 +176,7 @@ function RowActionsMenu({
   onRetry,
   onAskPeers,
   onRelink,
+  onContents,
   onRemove,
 }: Readonly<{
   dl: DownloadView;
@@ -184,6 +188,7 @@ function RowActionsMenu({
   onRetry: () => void;
   onAskPeers: () => void;
   onRelink: () => void;
+  onContents: () => void;
   onRemove: () => void;
 }>) {
   const t = useT();
@@ -226,6 +231,7 @@ function RowActionsMenu({
             and resets + re-adds anything else. */}
         <Menu.Item icon="refresh" label={t('downloads.retry')} onSelect={onRetry} disabled={busy} />
         <Menu.Item icon="link" label={t('downloads.relink')} onSelect={onRelink} disabled={busy} />
+        <Menu.Item icon="list" label={t('contents.title')} onSelect={onContents} />
         {openInKroma ? (
           <Menu.Item icon="info-circle" label={t('downloads.openInKroma')} onSelect={openInKroma} />
         ) : null}

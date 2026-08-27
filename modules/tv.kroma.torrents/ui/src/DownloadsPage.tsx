@@ -28,6 +28,7 @@ import {
 } from '@kroma/ui/kit';
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTorrentsApi } from './api';
+import { ContentsModal } from './contents-modal';
 import { DownloadClientsSection } from './download-clients';
 import { DownloadRowView, DownloadTableHead, type LiveDl } from './download-row';
 import { DownloadFilters } from './downloads-filters';
@@ -212,6 +213,7 @@ export default function DownloadsPage() {
             onRetry={() => act(() => torrents.retry(dl.id))}
             onAskPeers={() => act(() => torrents.reannounce(dl.id))}
             onRelink={() => relink(dl)}
+            onContents={() => void ContentsModal.call({ dl })}
             onRemove={() => {
               setWipeData(true);
               setConfirm(dl);
@@ -284,6 +286,7 @@ export default function DownloadsPage() {
       ) : null}
 
       {manual ? <ManualGrabModal onClose={() => setManual(false)} onAdded={reload} /> : null}
+      <ContentsModal.Root />
       <LinkModal.Root />
       <LimitsModal.Root />
     </>

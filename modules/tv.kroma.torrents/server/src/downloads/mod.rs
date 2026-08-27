@@ -136,13 +136,31 @@ impl DownloadManager {
         let client = db::preferred_download_client(&conn)?
             .ok_or_else(|| anyhow!("no enabled download client"))?;
         drop(conn);
+        // Metadata already on disk beats asking the swarm for it: a magnet has
+        // to find a peer before it can say what is inside, and for a private
+        // tracker that is the difference between instant and half a minute.
+        let cached = self.cached_metadata(magnet_or_url);
         // Direct, bypassing the VPN: a LAN indexer is unreachable via the tunnel.
-        let prefetched: Option<Vec<u8>> = (client.kind == "rqbit"
-            && magnet_or_url.starts_with("http"))
-        .then(|| fetch_torrent_file(magnet_or_url))
-        .transpose()?;
-        self.engine_for(&client)?
-            .list_files(magnet_or_url, prefetched.as_deref())
+        let fetched: Option<Vec<u8>> = match cached {
+            Some(_) => None,
+            None => (client.kind == "rqbit" && magnet_or_url.starts_with("http"))
+                .then(|| fetch_torrent_file(magnet_or_url))
+                .transpose()?,
+        };
+        let bytes = cached.as_deref().or(fetched.as_deref());
+        self.engine_for(&client)?.list_files(magnet_or_url, bytes)
+    }
+
+    /// This torrent's metadata, if we already hold it: an operator's uploaded
+    /// `.torrent`, or the copy the engine cached when it first resolved one.
+    /// `None` means it has to be found on the network.
+    pub fn cached_metadata(&self, magnet_or_url: &str) -> Option<Vec<u8>> {
+        let hash = crate::engine::magnet_info_hash(magnet_or_url)?;
+        crate::torrent_file::stored_bytes(&self.state_dir, Some(&hash)).or_else(|| {
+            std::fs::read(self.state_dir.join("session").join(format!("{hash}.torrent")))
+                .ok()
+                .filter(|bytes| !bytes.is_empty())
+        })
     }
 
     /// Whether this client's engine is merely not up YET, rather than absent.

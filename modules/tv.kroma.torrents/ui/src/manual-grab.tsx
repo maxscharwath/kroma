@@ -21,11 +21,11 @@ import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { apiErrorText, useAsyncAction, useT } from '@kroma/module-sdk';
 import { Box, Button, Callout, Dialog, Row, Text } from '@kroma/ui/kit';
 import { useState } from 'react';
-import { AnalysisPanel } from './manual-grab-analysis';
 import { detect } from './manual-grab-content';
 import { useIndexerSearch } from './manual-grab-search';
 import { SourceStep, type TorrentSource } from './manual-grab-source';
 import { type GrabTarget, type Kind, TargetStep } from './manual-grab-target';
+import { TorrentContents } from './torrent-contents';
 
 const STEPS = ['source', 'target', 'files'] as const;
 type Step = (typeof STEPS)[number];
@@ -113,7 +113,6 @@ export function ManualGrabModal({
   };
 
   const videoFiles = analysis?.files.filter((f) => f.isVideo) ?? [];
-  const allVideoSelected = videoFiles.length > 0 && videoFiles.every((f) => selected.has(f.index));
 
   const add = () =>
     run(
@@ -186,20 +185,19 @@ export function ManualGrabModal({
             </Text>
           ) : null}
           {analysis ? (
-            <AnalysisPanel
+            <TorrentContents
               analysis={analysis}
-              videoFiles={videoFiles}
-              selected={selected}
-              allVideoSelected={allVideoSelected}
-              setSelected={setSelected}
-              onToggleFile={(index) =>
-                setSelected((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(index)) next.delete(index);
-                  else next.add(index);
-                  return next;
-                })
-              }
+              selection={{
+                selected,
+                onSet: setSelected,
+                onToggle: (index) =>
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(index)) next.delete(index);
+                    else next.add(index);
+                    return next;
+                  }),
+              }}
             />
           ) : null}
         </Box>

@@ -1,4 +1,13 @@
 {
+  "contents.extras": "Other files · {count}",
+  "contents.failed": "The file list could not be read.",
+  "contents.film": "Film",
+  "contents.reading": "Reading the torrent…",
+  "contents.season": "Season {season} · {episodes} episodes",
+  "contents.selectAll": "All",
+  "contents.selectNone": "None",
+  "contents.title": "Contents",
+  "contents.total": "{files} video files · {size}",
   "dlclients.add": "Add a client",
   "dlclients.addTitle": "Add a client",
   "dlclients.delete": "Delete",

@@ -2,6 +2,7 @@
 // the naming/organize tools. `moduleApiHook` binds it to the module the host is
 // rendering, so the id is never repeated here.
 
+import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { moduleApiHook } from '@kroma/module-sdk';
 import type {
   ClientTestResult,
@@ -76,6 +77,9 @@ export const useTorrentsApi = moduleApiHook((api) => ({
    *  the manual-add flow pins a title with before anything is queued. */
   searchTitles: (q: string, kind?: string, year?: number) =>
     api.get<MatchCandidatesView>(`/downloads/candidates${queryString({ q, kind, year })}`),
+  /** What a queued torrent actually holds. The row carries its own link on
+   *  the server, so nothing hands a magnet back to the browser to ask. */
+  contents: (id: string) => api.get<TorrentAnalysis>(`/downloads/${enc(id)}/contents`),
   /** Pin the title, at any stage of the download. */
   link: (id: string, body: LinkBody) => api.put<void>(`/downloads/${enc(id)}/link`, body),
 

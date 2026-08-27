@@ -224,6 +224,31 @@ pub struct InspectedTorrent {
     pub episodes: Option<Vec<u32>>,
 }
 
+/// One file inside a torrent, with what the release parser read off its name.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TorrentFileView {
+    pub index: usize,
+    pub path: String,
+    pub size_bytes: u64,
+    pub is_video: bool,
+    pub season: Option<u32>,
+    pub episode: Option<u32>,
+}
+
+/// `GET /downloads/{id}/contents`: what a torrent actually holds.
+///
+/// The same shape the acquisition module answers its own analysis with, so one
+/// component renders a torrent being added and a torrent already in the queue.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TorrentContentsView {
+    /// `movie` | `episode` | `season` | `series` | `unknown`.
+    pub kind: String,
+    pub seasons: Vec<u32>,
+    pub files: Vec<TorrentFileView>,
+}
+
 /// `PUT /downloads/{id}/link`: the title an operator pinned the row to.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

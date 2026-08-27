@@ -7,6 +7,7 @@
 mod actions;
 mod add;
 mod clients;
+mod contents;
 mod limits;
 mod link;
 mod organize;
@@ -32,6 +33,7 @@ pub fn routes<S: HostStorage + Clone + Send + Sync + 'static>() -> Router<S> {
         .merge(limits::routes::<S>())
         .merge(add::routes::<S>())
         .merge(link::routes::<S>())
+        .merge(contents::routes::<S>())
         .merge(organize::routes::<S>())
 }
 

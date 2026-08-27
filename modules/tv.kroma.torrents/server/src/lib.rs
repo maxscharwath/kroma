@@ -30,6 +30,7 @@ pub mod organize;
 pub mod port;
 pub mod proxycheck;
 pub mod routes;
+mod rqbit_session;
 pub mod torrent_file;
 #[cfg(feature = "rqbit")]
 mod rqbit;

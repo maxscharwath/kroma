@@ -20,14 +20,23 @@ use super::schema::Fields;
 //
 // Fuzziness only on the fields that hold a name: at any useful edit distance a
 // synopsis matches most queries by accident, burying the title actually typed.
-fn weights(f: &Fields) -> [(Field, f32, bool); 6] {
+/// Whether a typo may be forgiven in a field. Names are reproduced from memory
+/// and deserve it; prose matches most queries by accident at any useful edit
+/// distance.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Fuzzy {
+    Allowed,
+    Exact,
+}
+
+fn weights(f: &Fields) -> [(Field, f32, Fuzzy); 6] {
     [
-        (f.title, 6.0, true),
-        (f.alt_title, 4.0, true),
-        (f.show_title, 1.5, true),
-        (f.cast, 3.0, true),
-        (f.genres, 2.0, false),
-        (f.overview, 0.3, false),
+        (f.title, 6.0, Fuzzy::Allowed),
+        (f.alt_title, 4.0, Fuzzy::Allowed),
+        (f.show_title, 1.5, Fuzzy::Allowed),
+        (f.cast, 3.0, Fuzzy::Allowed),
+        (f.genres, 2.0, Fuzzy::Exact),
+        (f.overview, 0.3, Fuzzy::Exact),
     ]
 }
 
@@ -85,7 +94,7 @@ pub(super) fn build(fields: &Fields, tokens: &[String], common: &[bool]) -> Opti
         let scale = if empty { STOPWORD_WEIGHT } else { 1.0 };
         let dist = distance(token);
         let mut variants: Vec<(Occur, Box<dyn Query>)> = Vec::with_capacity(weights.len() * 3);
-        for (field, boost, fuzzy_ok) in weights {
+        for (field, boost, fuzzy) in weights {
             let term = Term::from_field_text(field, token);
             let exact: Box<dyn Query> = Box::new(FuzzyTermQuery::new(term.clone(), 0, true));
             variants.push((
@@ -93,7 +102,7 @@ pub(super) fn build(fields: &Fields, tokens: &[String], common: &[bool]) -> Opti
                 Box::new(BoostQuery::new(exact, boost * EXACT_BONUS * scale)),
             ));
             // Fuzzy match (transposition_cost_one = treat swaps as one edit).
-            if fuzzy_ok && dist > 0 {
+            if fuzzy == Fuzzy::Allowed && dist > 0 {
                 let fuzzy: Box<dyn Query> = Box::new(FuzzyTermQuery::new(term.clone(), dist, true));
                 variants.push((
                     Occur::Should,

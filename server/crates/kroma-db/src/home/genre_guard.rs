@@ -145,6 +145,85 @@ mod tests {
     use super::*;
     use crate::home::test_support::*;
 
+    fn with_english_genres(p: &crate::Pool, id: &str, kind: &str, genres: &[&str]) {
+        crate::translations::put(
+            p,
+            kind,
+            id,
+            "en",
+            crate::translations::TMDB,
+            &crate::translations::TransData {
+                genres: genres.iter().map(|g| (*g).to_string()).collect(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn a_shelf_keeps_only_what_carries_one_of_its_genres() {
+        let p = seeded();
+        with_english_genres(&p, "c1", "item", &["Horror", "Thriller"]);
+        with_english_genres(&p, "c2", "item", &["Comedy"]);
+
+        let ranked = vec![("c1".to_string(), 1.0), ("c2".to_string(), 0.9)];
+        let kept = keep_shelf(&p, ranked, &["Horror".to_string()], &["item"]);
+
+        assert_eq!(
+            kept.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(),
+            ["c1"]
+        );
+    }
+
+    #[test]
+    fn a_shelf_of_films_does_not_keep_a_show() {
+        let p = seeded();
+        with_english_genres(&p, "c1", "item", &["Horror"]);
+        with_english_genres(&p, "s1", "show", &["Horror"]);
+
+        let ranked = vec![("c1".to_string(), 1.0), ("s1".to_string(), 0.9)];
+        let kept = keep_shelf(&p, ranked, &["Horror".to_string()], &["item"]);
+
+        assert_eq!(
+            kept.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(),
+            ["c1"]
+        );
+    }
+
+    #[test]
+    fn a_shelf_that_names_no_genre_is_left_for_the_caller_to_drop() {
+        let p = seeded();
+        with_english_genres(&p, "c1", "item", &["Horror"]);
+
+        // Nothing to guard on: the guard returns the list untouched rather than
+        // silently emptying it, and the caller decides the row is unshowable.
+        let ranked = vec![("c1".to_string(), 1.0)];
+        let kept = keep_shelf(&p, ranked, &[], &["item"]);
+
+        assert_eq!(kept.len(), 1);
+    }
+
+    #[test]
+    fn the_genres_offered_are_the_ones_the_library_actually_has() {
+        let p = seeded();
+        with_english_genres(&p, "c1", "item", &["Horror", "Thriller"]);
+        with_english_genres(&p, "s1", "show", &["Sci-Fi & Fantasy"]);
+
+        let got = catalogue_genres(&p).unwrap();
+
+        assert_eq!(got, ["Horror", "Sci-Fi & Fantasy", "Thriller"]);
+    }
+
+    #[test]
+    fn an_empty_catalogue_offers_nothing_rather_than_guessing() {
+        let p = crate::testing::temp_pool("home-empty");
+
+        assert!(catalogue_genres(&p).unwrap().is_empty());
+        assert!(ids_with_genres(&p, &[], &["Horror".to_string()], &["item"])
+            .unwrap()
+            .is_none());
+    }
+
     #[test]
     fn genre_coherence_and_guard() {
         let p = seeded();

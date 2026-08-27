@@ -43,7 +43,11 @@ pub struct Hit {
 // matches the whole season list. Collect several pages' worth of raw hits, fold
 // the episodes back under their show, and only then cut to `limit`.
 const CANDIDATE_FACTOR: usize = 8;
-const MAX_CANDIDATES: usize = 400;
+// tantivy cuts to this on raw score, before anything here has weighed a hit by
+// what kind of thing it is. A film that lost that race to a wall of episodes
+// matching on show_title is gone before the weighing runs, and no multiplier
+// brings back a document that was never collected, so the window is generous.
+const MAX_CANDIDATES: usize = 1200;
 // A show that did NOT match itself is represented by its best few episodes.
 const MAX_EPISODES_PER_SHOW: usize = 3;
 
@@ -187,6 +191,7 @@ impl SearchEngine {
     }
 }
 
+// Reorders the collected window only, which is why MAX_CANDIDATES is wide.
 fn kind_weight(kind: HitKind) -> f32 {
     match kind {
         HitKind::Movie => 1.0,

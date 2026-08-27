@@ -144,12 +144,7 @@ fn push_ai_rows(
         if gs.genres.is_empty() {
             continue;
         }
-        let kinds: &[&str] = match gs.form.as_str() {
-            "movies" => &["item"],
-            "shows" => &["show"],
-            _ => &["item", "show"],
-        };
-        let ranked = db::keep_shelf(pool, ranked, &gs.genres, kinds);
+        let ranked = db::keep_shelf(pool, ranked, &gs.genres, gs.form.kinds());
         if ranked.len() < MIN_AI_ROW {
             continue;
         }

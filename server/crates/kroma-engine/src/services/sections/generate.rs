@@ -107,7 +107,30 @@ pub struct GenSection {
     pub genres: Vec<String>,
     /// `movies`, `shows`, or anything else for both.
     #[serde(default)]
-    pub form: String,
+    pub form: Form,
+}
+
+/// What a row is a shelf of. A heading saying "Series" over a shelf of films is
+/// as wrong as one saying horror over a comedy, so the row is filtered to it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Form {
+    Movies,
+    Shows,
+    #[default]
+    #[serde(other)]
+    Both,
+}
+
+impl Form {
+    /// The subject kinds a shelf of this form may draw from.
+    pub fn kinds(self) -> &'static [&'static str] {
+        match self {
+            Self::Movies => &["item"],
+            Self::Shows => &["show"],
+            Self::Both => &["item", "show"],
+        }
+    }
 }
 
 /// Load a user's cached personalized sections (empty if none / malformed).
@@ -209,7 +232,7 @@ struct LlmSection {
     #[serde(default)]
     genres: Vec<String>,
     #[serde(default)]
-    form: String,
+    form: Form,
 }
 
 /// Parse a model reply into `(profile, sections)`. Tolerant of code fences and
@@ -250,7 +273,7 @@ pub fn parse_response(
                 .iter()
                 .filter_map(|g| canonical_genre(g, vocabulary))
                 .collect(),
-            form: s.form.trim().to_lowercase(),
+            form: s.form,
         });
         if sections.len() >= MAX_SECTIONS {
             break;

@@ -50,9 +50,6 @@ pub fn store_localized(
         tmdb_genre_ids: core_meta.tmdb_genre_ids.clone(),
     };
     metadata_core::write_core(&conn, kind, id, &core)?;
-    fn differing(lang: &Option<String>, core: &Option<String>) -> Option<String> {
-        lang.as_ref().filter(|v| Some(*v) != core.as_ref()).cloned()
-    }
     for (lang, m) in by_lang {
         let data = TransData {
             title: m.title.clone(),
@@ -61,8 +58,8 @@ pub fn store_localized(
             genres: m.genres.clone(),
             characters: m.cast.iter().map(|c| c.character.clone()).collect(),
             reason: None,
-            poster_url: differing(&m.poster_url, &core.poster_url),
-            logo_url: differing(&m.logo_url, &core.logo_url),
+            poster_url: differing_from(&m.poster_url, Some(&core.poster_url)),
+            logo_url: differing_from(&m.logo_url, Some(&core.logo_url)),
             rev: translations::REV,
         };
         if !data.is_empty() {

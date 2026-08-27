@@ -242,7 +242,7 @@ fn a_film_comes_before_a_show_and_a_show_before_an_episode() {
     assert_eq!(ids(&e, "dragons", 24), ["m1", "s1", "e1"]);
 }
 
-fn wordy_engine() -> SearchEngine {
+fn engine_above_the_corpus_floor() -> SearchEngine {
     let mut films: Vec<MediaItem> = (0..40)
         .map(|n| movie(&format!("m{n}"), &format!("The Story of {n}"), None))
         .collect();
@@ -254,7 +254,7 @@ fn wordy_engine() -> SearchEngine {
 
 #[test]
 fn an_article_does_not_reorder_the_results() {
-    let e = wordy_engine();
+    let e = engine_above_the_corpus_floor();
 
     assert_eq!(ids(&e, "arrival", 24)[0], "m-arrival");
     assert_eq!(ids(&e, "the arrival", 24)[0], "m-arrival");
@@ -262,7 +262,7 @@ fn an_article_does_not_reorder_the_results() {
 
 #[test]
 fn a_query_of_nothing_but_common_words_still_searches_for_them() {
-    let e = wordy_engine();
+    let e = engine_above_the_corpus_floor();
 
     let got = ids(&e, "the", 24);
 

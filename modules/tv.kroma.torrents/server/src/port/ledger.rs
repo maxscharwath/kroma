@@ -401,6 +401,9 @@ mod tests {
             details_url: None,
             only_files: None,
             upgrade: false,
+            downloaded_bytes: 0,
+            uploaded_bytes: 0,
+            match_source: None,
         }
     }
 }

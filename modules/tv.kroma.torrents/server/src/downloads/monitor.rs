@@ -134,12 +134,51 @@ impl DownloadManager {
                 completed_any = true;
             }
         }
+        self.link_unresolved(host, &rows);
+        self.sample_throughput(&rows);
+        // Re-asserted every tick rather than only at session start, so a
+        // ceiling changed while a torrent is mid-flight takes hold without one.
+        self.apply_rate_limits(host);
+        self.fill_free_slots(host);
 
         if completed_any {
             // Import runs as a tracked job so its work shows in the console.
             host.trigger_job("acquisition.import", "download-complete");
         }
         true
+    }
+
+    // Best-effort titles for rows nothing has resolved. One row per tick: a
+    // provider lookup is a network call, and a queue that arrived unlinked all
+    // at once must not become a burst of them.
+    fn link_unresolved(&self, host: &dyn HostCtx, rows: &[db::DownloadRow]) {
+        let Some(row) = rows
+            .iter()
+            .find(|row| row.tmdb_id == 0 && row.match_source.is_none())
+        else {
+            return;
+        };
+        self.auto_link(host, &row.id);
+    }
+
+    // One throughput sample for the queue's chart, summed over the rows this
+    // tick just polled rather than asked of the engine again.
+    fn sample_throughput(&self, rows: &[db::DownloadRow]) {
+        let live = self.live_stats();
+        let (down, up) = rows.iter().fold((0, 0), |(down, up), row| {
+            let (d, u, _, _) = live.get(&row.id).copied().unwrap_or_default();
+            (down + d, up + u)
+        });
+        self.record_speed(down, up);
+    }
+
+    // Starts whatever the parallelism cap was holding back. Each promoted row
+    // goes through the same background activate a fresh grab does.
+    fn fill_free_slots(&self, host: &dyn HostCtx) {
+        for row in self.claim_free_slots(host) {
+            tracing::info!(release = %row.release_title, "queue slot free; starting held download");
+            self.activate(host, &row);
+        }
     }
 
     // Returns whether the row just completed (so the caller chains the import
@@ -232,6 +271,12 @@ impl DownloadManager {
                 _ => "downloading",
             }
         };
+        let _ = db::update_download_bytes(
+            self.core(),
+            &row.id,
+            status.downloaded_bytes,
+            status.uploaded_bytes,
+        );
         if finished {
             // save_path may only be known now (external clients).
             let _ = db::update_download_progress(

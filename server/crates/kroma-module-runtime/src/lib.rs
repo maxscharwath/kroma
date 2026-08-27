@@ -313,6 +313,25 @@ impl HostCtx for RemoteHost {
         }
     }
 
+    // Asked of the core, which holds the provider credential. Never cached: the
+    // answer is per query, and a miss is a legitimate answer to cache nothing
+    // about.
+    fn metadata_candidates(
+        &self,
+        query: &str,
+        kind: &str,
+        year: Option<u32>,
+    ) -> Vec<kroma_domain::metadata::MatchCandidate> {
+        let mut call = self.callback().query("q", query).query("kind", kind);
+        if let Some(year) = year {
+            call = call.query("year", &year.to_string());
+        }
+        call.get_json::<Vec<kroma_domain::metadata::MatchCandidate>>(
+            &self.host_url("metadata-search"),
+        )
+        .unwrap_or_default()
+    }
+
     // Asked of the core, which owns the supervisor: a sidecar cannot see which
     // of its peers is installed or running, and must not care.
     fn contributions(&self, point: &str) -> Vec<kroma_module_host::Contribution> {

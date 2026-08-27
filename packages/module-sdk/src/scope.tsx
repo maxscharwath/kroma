@@ -7,6 +7,7 @@
 // module is then reserved for what it should mean: addressing a DIFFERENT one.
 
 import type { ModuleApi } from '@kroma/core';
+import { useScopedT } from '@kroma/ui';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 import { useAdminHost } from './admin/context';
 
@@ -15,6 +16,21 @@ const ModuleIdContext = createContext<string | null>(null);
 /** Mounted by the host around a module's page, carrying that module's id. */
 export function ModuleScope({ id, children }: Readonly<{ id: string; children: ReactNode }>) {
   return <ModuleIdContext.Provider value={id}>{children}</ModuleIdContext.Provider>;
+}
+
+/** Translate against THIS module's catalog first, then the app's.
+ *
+ *  A module ships its own `locales/*.json` inside its `.kmod`, and the host
+ *  registers them under the module's id when it installs it. This is the read
+ *  side of that: a page calls `useT()` with no argument and reaches its own
+ *  messages, so a module never has to add a key to the app's catalogs to say
+ *  something. Outside a module page it is the app's translator unchanged, which
+ *  is what a shared component rendered inside one wants. */
+export function useT(): ReturnType<ReturnType<typeof useScopedT>> {
+  const id = useContext(ModuleIdContext);
+  // An empty scope resolves to the app's catalogs alone, which is what a
+  // component rendered outside any module should see.
+  return useScopedT()(id ?? '');
 }
 
 /** This module's own admin API, bound to `/api/admin/m/<its id>`. Paths are

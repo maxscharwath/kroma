@@ -46,6 +46,9 @@ fn row(id: &str, request_id: Option<&str>) -> kroma_torrent::db::DownloadRow {
         details_url: None,
         only_files: None,
         upgrade: false,
+        downloaded_bytes: 0,
+        uploaded_bytes: 0,
+        match_source: None,
     }
 }
 

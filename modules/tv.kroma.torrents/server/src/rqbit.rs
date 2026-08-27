@@ -100,6 +100,15 @@ impl RqbitEngine {
         }))
     }
 
+    /// Re-cap the session's throughput without restarting it: librqbit swaps
+    /// the limiter behind an `ArcSwap`, so a running torrent picks up the new
+    /// ceiling on its next block. `None` is unlimited.
+    pub fn set_rate_limits(&self, download_bps: Option<u32>, upload_bps: Option<u32>) {
+        let limits = &self.session.ratelimits;
+        limits.set_download_bps(download_bps.and_then(std::num::NonZeroU32::new));
+        limits.set_upload_bps(upload_bps.and_then(std::num::NonZeroU32::new));
+    }
+
     /// Drain the session (stops all torrent activity). Used before a restart
     /// when proxy/port settings change. Async shutdown runs detached; the
     /// replacement session is safe to start immediately (fresh sockets).
@@ -227,6 +236,8 @@ fn status_of(handle: &ManagedTorrentHandle) -> TorrentStatus {
         save_path: None,
         files,
         error: stats.error,
+        downloaded_bytes: stats.progress_bytes,
+        uploaded_bytes: stats.uploaded_bytes,
     }
 }
 

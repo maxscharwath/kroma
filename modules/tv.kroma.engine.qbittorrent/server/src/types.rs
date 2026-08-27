@@ -57,6 +57,9 @@ pub struct TorrentStatus {
     pub save_path: Option<String>,
     pub files: Vec<String>,
     pub error: Option<String>,
+    /// Lifetime bytes for this torrent as the engine counts them.
+    pub downloaded_bytes: u64,
+    pub uploaded_bytes: u64,
 }
 
 /// The info hash out of a magnet URI, when it carries one. qBittorrent's add

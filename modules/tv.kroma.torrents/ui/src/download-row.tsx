@@ -1,21 +1,8 @@
-import { type MessageKey, useFormat, useT } from '@kroma/module-sdk';
-import {
-  Badge,
-  Box,
-  type ColorValue,
-  color,
-  Icon,
-  Img,
-  Menu,
-  Progress,
-  Row,
-  styles,
-  Text,
-  Tooltip,
-  useBreakpoint,
-} from '@kroma/ui/kit';
+import { useT } from '@kroma/module-sdk';
+import { type ColorValue, Menu, Row, Text, useBreakpoint } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import type { CSSProperties, ReactNode } from 'react';
+import { RowProgressCell, RowSpeedCell, RowStatusCell, RowTitleCell } from './download-cells';
 import type { DownloadView } from './schemas';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
@@ -39,7 +26,7 @@ const STATUS_TONE: Record<string, ColorValue> = {
   removed: 'text/40',
 };
 
-const WIDE_COLUMNS = 'minmax(0, 1fr) 190px 120px 110px 84px';
+const WIDE_COLUMNS = 'minmax(0, 1fr) 208px 136px 132px 48px';
 const NARROW_COLUMNS = 'minmax(0, 1fr) auto';
 
 const TABLE_CELLS: CSSProperties = {
@@ -64,23 +51,6 @@ const TABLE_HEAD_WIDE: CSSProperties = { ...TABLE_HEAD, gridTemplateColumns: WID
 const TABLE_HEAD_NARROW: CSSProperties = { ...TABLE_HEAD, gridTemplateColumns: NARROW_COLUMNS };
 const TABLE_ROW_WIDE: CSSProperties = { ...TABLE_ROW, gridTemplateColumns: WIDE_COLUMNS };
 const TABLE_ROW_NARROW: CSSProperties = { ...TABLE_ROW, gridTemplateColumns: NARROW_COLUMNS };
-
-const STATUS_DOT: CSSProperties = { width: 6, height: 6, borderRadius: '50%', flex: '0 0 auto' };
-const BREATHE = 'kroma-breathe 2s ease-in-out infinite';
-const TRACKER_LINK: CSSProperties = { display: 'inline-flex', flex: '0 0 auto' };
-
-const s = styles({
-  tabular: { fontVariant: ['tabular-nums'] },
-});
-
-function targetPill(dl: DownloadView): string | null {
-  const season = String(dl.season ?? 0).padStart(2, '0');
-  if (dl.kind === 'season') return `S${season}`;
-  if (dl.kind === 'episode') {
-    return `S${season}E${String(dl.episodes?.[0] ?? 0).padStart(2, '0')}`;
-  }
-  return null;
-}
 
 /** The heading band of the download table. It shares its column template with
  *  <DownloadRowView>, which is why the two live together. */
@@ -114,7 +84,9 @@ export function DownloadRowView({
   onResume,
   onRetry,
   onAskPeers,
+  onRelink,
   onRemove,
+  showClient = false,
 }: Readonly<{
   dl: DownloadView;
   live?: LiveDl;
@@ -123,7 +95,11 @@ export function DownloadRowView({
   onResume: () => void;
   onRetry: () => void;
   onAskPeers: () => void;
+  onRelink: () => void;
   onRemove: () => void;
+  /** Name the engine on each row. Off with a single engine, where it is the
+   *  same word all the way down. */
+  showClient?: boolean;
 }>) {
   const wide = useBreakpoint() !== 'base';
   const status = live?.state && dl.status !== 'imported' ? live.state : dl.status;
@@ -137,14 +113,22 @@ export function DownloadRowView({
     peersSeen: dl.peersSeen,
   };
   const tone = STATUS_TONE[status] ?? 'text/55';
-  const active = status === 'downloading' || status === 'queued';
+  const active = status === 'downloading' || status === 'queued' || status === 'seeding';
 
   return (
     <div style={wide ? TABLE_ROW_WIDE : TABLE_ROW_NARROW}>
       <RowTitleCell dl={dl} />
       {wide ? <RowProgressCell dl={dl} progress={progress} tone={tone} /> : null}
-      {wide ? <RowSpeedCell active={active} stat={stat} /> : null}
-      {wide ? <RowStatusCell dl={dl} status={status} tone={tone} active={active} /> : null}
+      {wide ? <RowSpeedCell dl={dl} active={active} stat={stat} /> : null}
+      {wide ? (
+        <RowStatusCell
+          dl={dl}
+          status={status}
+          tone={tone}
+          active={active}
+          showClient={showClient}
+        />
+      ) : null}
       <RowActionsMenu
         dl={dl}
         status={status}
@@ -154,156 +138,10 @@ export function DownloadRowView({
         onResume={onResume}
         onRetry={onRetry}
         onAskPeers={onAskPeers}
+        onRelink={onRelink}
         onRemove={onRemove}
       />
     </div>
-  );
-}
-
-function RowTitleCell({ dl }: Readonly<{ dl: DownloadView }>) {
-  const t = useT();
-  const targetLabel = targetPill(dl);
-  return (
-    <Row gap={12} minW={0}>
-      <Box w={30} h={44} shrink={0} center radius={3} overflow="hidden" bg="tint/5">
-        {dl.posterUrl ? (
-          <Img src={dl.posterUrl} fill />
-        ) : (
-          <Icon name="movie" size={13} color="glyphDim" />
-        )}
-      </Box>
-      <Box minW={0}>
-        <Row gap={10}>
-          <Text variant="label" lines={1}>
-            {dl.title}
-          </Text>
-          {targetLabel ? <Badge tone="info">{targetLabel}</Badge> : null}
-        </Row>
-        <Row gap={6} mt={3} minW={0}>
-          <Text variant="meta" color="text/40" lines={1}>
-            {dl.releaseTitle}
-          </Text>
-          {dl.indexerName ? (
-            <Text variant="meta" color="text/30" shrink={0}>
-              · {dl.indexerName}
-            </Text>
-          ) : null}
-          {dl.detailsUrl ? (
-            <a
-              href={dl.detailsUrl}
-              target="_blank"
-              rel="noreferrer"
-              title={t('downloads.viewOnTracker')}
-              style={TRACKER_LINK}
-            >
-              <Icon name="external-link" size={12} thickness={2} color="glyph" />
-            </a>
-          ) : null}
-        </Row>
-        {dl.error ? (
-          <Text variant="meta" color="dangerHover" lines={1} mt={4}>
-            {dl.error}
-          </Text>
-        ) : null}
-      </Box>
-    </Row>
-  );
-}
-
-function RowProgressCell({
-  dl,
-  progress,
-  tone,
-}: Readonly<{ dl: DownloadView; progress: number; tone: ColorValue }>) {
-  const fmt = useFormat();
-  return (
-    <Box>
-      <Progress value={progress} color={tone} thickness={5} rounded />
-      <Row between mt={4}>
-        <Text variant="meta" color="text/45" style={s.tabular}>
-          {Math.round(progress * 100)}%
-        </Text>
-        {dl.sizeBytes != null ? (
-          <Text variant="meta" color="text/45" style={s.tabular}>
-            {fmt.bytes(dl.sizeBytes)}
-          </Text>
-        ) : null}
-      </Row>
-    </Box>
-  );
-}
-
-function RowSpeedCell({
-  active,
-  stat,
-}: Readonly<{
-  active: boolean;
-  stat: { downBps: number; upBps: number; peers: number; peersSeen: number };
-}>) {
-  const t = useT();
-  const fmt = useFormat();
-  if (!active) {
-    return (
-      <Text variant="meta" color="text/30">
-        -
-      </Text>
-    );
-  }
-  const peerTone = stat.peers > 0 ? 'info' : 'accent';
-  return (
-    <Box>
-      <Text variant="meta" color="success" style={s.tabular}>
-        {fmt.bytes(stat.downBps)}/s
-      </Text>
-      <Row gap={6}>
-        <Text variant="meta" color="text/35" style={s.tabular}>
-          {fmt.bytes(stat.upBps)}/s
-        </Text>
-        <Tooltip
-          label={t('downloads.peersDetail', {
-            live: String(stat.peers),
-            seen: String(stat.peersSeen),
-          })}
-        >
-          <Row gap={2}>
-            <Icon name="users" size={11} thickness={2} color={peerTone} />
-            <Text variant="meta" color={peerTone} style={s.tabular}>
-              {stat.peersSeen > stat.peers ? `${stat.peers}/${stat.peersSeen}` : stat.peers}
-            </Text>
-          </Row>
-        </Tooltip>
-      </Row>
-    </Box>
-  );
-}
-
-function RowStatusCell({
-  dl,
-  status,
-  tone,
-  active,
-}: Readonly<{ dl: DownloadView; status: string; tone: ColorValue; active: boolean }>) {
-  const t = useT();
-  const ink = color(tone);
-  return (
-    <Box>
-      <Row
-        self="flex-start"
-        gap={6}
-        px={10}
-        py={4}
-        radius="pill"
-        style={{ backgroundColor: `color-mix(in srgb, ${ink} 13%, transparent)` }}
-      >
-        <span style={{ ...STATUS_DOT, background: ink, animation: active ? BREATHE : undefined }} />
-        <Text variant="meta" color={tone}>
-          {t(`downloads.st.${status}` as MessageKey)}
-        </Text>
-      </Row>
-      <Text variant="meta" color="text/35" mt={4}>
-        {dl.clientName}
-      </Text>
-    </Box>
   );
 }
 
@@ -334,6 +172,7 @@ function RowActionsMenu({
   onResume,
   onRetry,
   onAskPeers,
+  onRelink,
   onRemove,
 }: Readonly<{
   dl: DownloadView;
@@ -344,6 +183,7 @@ function RowActionsMenu({
   onResume: () => void;
   onRetry: () => void;
   onAskPeers: () => void;
+  onRelink: () => void;
   onRemove: () => void;
 }>) {
   const t = useT();
@@ -385,6 +225,7 @@ function RowActionsMenu({
         {/* Offered in every state: the backend re-imports a completed download
             and resets + re-adds anything else. */}
         <Menu.Item icon="refresh" label={t('downloads.retry')} onSelect={onRetry} disabled={busy} />
+        <Menu.Item icon="link" label={t('downloads.relink')} onSelect={onRelink} disabled={busy} />
         {openInKroma ? (
           <Menu.Item icon="info-circle" label={t('downloads.openInKroma')} onSelect={openInKroma} />
         ) : null}

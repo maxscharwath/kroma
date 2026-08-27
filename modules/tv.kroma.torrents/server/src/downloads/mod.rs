@@ -21,9 +21,12 @@ mod engine;
 mod fetch;
 mod gate;
 mod grab;
+pub mod matching;
 mod ledger;
+mod throughput;
 
 pub use gate::active_proxy_url;
+pub use throughput::{bps_setting, DOWN_KBPS_KEY, MAX_ACTIVE_KEY, UP_KBPS_KEY};
 
 use fetch::fetch_torrent_file;
 
@@ -36,6 +39,7 @@ pub struct DownloadManager {
     vpn_status: Mutex<Option<VpnStatusView>>,
     paused_by_killswitch: Mutex<Vec<String>>,
     paused_by_disable: Mutex<Vec<String>>,
+    speed_history: Mutex<Vec<crate::SpeedSample>>,
     state_dir: PathBuf,
     downloads_dir: PathBuf,
     // Held rather than threaded through: `engine_for` is called from the monitor
@@ -69,6 +73,7 @@ impl DownloadManager {
             vpn_status: Mutex::new(None),
             paused_by_killswitch: Mutex::new(Vec::new()),
             paused_by_disable: Mutex::new(Vec::new()),
+            speed_history: Mutex::new(Vec::new()),
             downloads_dir: state_dir.join("downloads"),
             state_dir,
             host,
@@ -134,6 +139,13 @@ impl DownloadManager {
         .transpose()?;
         self.engine_for(&client)?
             .list_files(magnet_or_url, prefetched.as_deref())
+    }
+
+    /// Whether this client's engine is merely not up YET, rather than absent.
+    /// Only the embedded engine warms up in the background; an external one is
+    /// a daemon that is either reachable or not.
+    pub fn engine_pending(&self, row: &DownloadClientRow) -> bool {
+        row.kind == crate::engine::EMBEDDED_KIND && crate::RQBIT_COMPILED && self.rqbit().is_none()
     }
 
     /// The engine for one configured client. The embedded one is in this process;

@@ -38,8 +38,8 @@ impl DownloadManager {
             download_dir: self.downloads_dir.clone(),
             socks_proxy_url: proxy,
             listen_port: u16::try_from(host.setting_i64("rqbitPort", 0).max(0)).ok(),
-            download_bps: kbps_setting(host, "rqbitDownKbps"),
-            upload_bps: kbps_setting(host, "rqbitUpKbps"),
+            download_bps: super::bps_setting(host, super::DOWN_KBPS_KEY),
+            upload_bps: super::bps_setting(host, super::UP_KBPS_KEY),
         };
         match RqbitEngine::start(&cfg).await {
             Ok(engine) => {
@@ -60,6 +60,24 @@ impl DownloadManager {
 
     pub fn rqbit(&self) -> Option<Arc<RqbitEngine>> {
         self.rqbit.read().unwrap().clone()
+    }
+
+    /// Where the embedded engine is in its lifecycle, so a panel can say
+    /// "starting" instead of showing the error a probe would have returned.
+    /// `None` for an external engine: that one is a daemon this process can only
+    /// learn about by asking it, which is what the Test button is for.
+    pub fn embedded_state(&self, enabled: bool) -> Option<crate::EngineState> {
+        if !crate::RQBIT_COMPILED {
+            return Some(crate::EngineState::NotCompiled);
+        }
+        if !enabled {
+            return Some(crate::EngineState::Stopped);
+        }
+        Some(if self.rqbit().is_some() {
+            crate::EngineState::Ready
+        } else {
+            crate::EngineState::Starting
+        })
     }
 
     /// Per download id: down/up bps, peers, peers seen. Blocking.
@@ -186,9 +204,4 @@ impl DownloadManager {
             let _ = db::set_download_status(self.core(), &id, "downloading", None);
         }
     }
-}
-
-fn kbps_setting(host: &dyn HostCtx, key: &str) -> Option<u32> {
-    let kbps = host.setting_i64(key, 0);
-    (kbps > 0).then(|| u32::try_from(kbps.saturating_mul(1024)).unwrap_or(u32::MAX))
 }

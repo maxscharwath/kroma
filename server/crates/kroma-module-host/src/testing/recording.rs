@@ -108,6 +108,15 @@ impl<H: HostCtx> HostCtx for Recording<H> {
     fn metadata_language(&self) -> String {
         self.inner.metadata_language()
     }
+
+    fn metadata_candidates(
+        &self,
+        query: &str,
+        kind: &str,
+        year: Option<u32>,
+    ) -> Vec<kroma_domain::metadata::MatchCandidate> {
+        self.inner.metadata_candidates(query, kind, year)
+    }
     fn contributions(&self, point: &str) -> Vec<crate::Contribution> {
         self.inner.contributions(point)
     }

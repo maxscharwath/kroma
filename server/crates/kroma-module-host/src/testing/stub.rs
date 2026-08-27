@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 use axum::http::StatusCode;
 use axum::response::Response;
 use kroma_db::Pool;
+use kroma_domain::metadata::MatchCandidate;
 use kroma_domain::{Audience, NotificationSpec, Permission, User};
 use kroma_testing::TempDir;
 
@@ -45,6 +46,7 @@ pub struct StubHost {
     data_dir: Arc<TempDir>,
     tmdb_key: Option<String>,
     metadata_language: String,
+    metadata_candidates: Vec<MatchCandidate>,
     module_enabled: bool,
     libraries: Vec<LibraryFolders>,
     settings: Arc<Mutex<BTreeMap<String, serde_json::Value>>>,
@@ -91,6 +93,7 @@ impl StubHost {
             data_dir: Arc::new(data_dir),
             tmdb_key: None,
             metadata_language: "en".into(),
+            metadata_candidates: Vec::new(),
             module_enabled: true,
             libraries: Vec::new(),
             settings: Arc::new(Mutex::new(BTreeMap::new())),
@@ -145,6 +148,13 @@ impl StubHost {
     /// Answer `secret("tmdb")` with `key`.
     pub fn with_tmdb_key(mut self, key: &str) -> Self {
         self.tmdb_key = Some(key.into());
+        self
+    }
+
+    /// Answer `metadata_candidates()` with `candidates`, whatever is asked
+    /// (default: none, i.e. nothing matched).
+    pub fn with_metadata_candidates(mut self, candidates: Vec<MatchCandidate>) -> Self {
+        self.metadata_candidates = candidates;
         self
     }
 
@@ -327,6 +337,15 @@ impl HostCtx for StubHost {
     }
     fn metadata_language(&self) -> String {
         self.metadata_language.clone()
+    }
+
+    fn metadata_candidates(
+        &self,
+        _query: &str,
+        _kind: &str,
+        _year: Option<u32>,
+    ) -> Vec<MatchCandidate> {
+        self.metadata_candidates.clone()
     }
     fn contributions(&self, point: &str) -> Vec<crate::Contribution> {
         let prefix = format!("test.{point}");

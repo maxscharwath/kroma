@@ -2,10 +2,58 @@
 // scoped by whatever the target block above it says (a season/episode there
 // makes this a TV search), and the picked row pre-fills the magnet + title.
 
+import { useAcquisitionApi } from '@kroma/module-acquisition/api';
 import type { ManualReleaseView } from '@kroma/module-acquisition/schemas';
-import { useFormat, useT } from '@kroma/module-sdk';
+import { apiErrorText, useFormat, useT } from '@kroma/module-sdk';
 import { Box, Button, Field, Focusable, Icon, Row, sv, Text } from '@kroma/ui/kit';
-import type { CSSProperties } from 'react';
+import { type CSSProperties, useState } from 'react';
+
+/** The indexer sweep, scoped by whatever the target step says: a season or an
+ *  episode there makes it a TV search, which is the only way to find one. */
+export function useIndexerSearch(kind: string, season: string, episode: string) {
+  const t = useT();
+  const acquisition = useAcquisitionApi();
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<ManualReleaseView[] | null>(null);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
+
+  const scope = () => scopeOf(kind, season, episode);
+
+  const onSearch = () => {
+    const words = query.trim();
+    if (!words) return;
+    setSearching(true);
+    setSearchErr(null);
+    acquisition
+      .search({
+        query: words,
+        kind,
+        season: kind !== 'movie' && season ? Number.parseInt(season, 10) : null,
+        episode: kind === 'episode' && episode ? Number.parseInt(episode, 10) : null,
+      })
+      .then((found) => {
+        setResults(found.releases);
+        // An indexer that failed is worth saying so: the sweep still returned,
+        // just not from everywhere.
+        const failed = found.indexers.filter((i) => i.error);
+        if (failed.length) setSearchErr(failed.map((i) => `${i.name}: ${i.error}`).join(' · '));
+      })
+      .catch((e) => setSearchErr(apiErrorText(e, t('manual.searchFailed'))))
+      .finally(() => setSearching(false));
+  };
+
+  return { query, setQuery, searching, searchErr, results, onSearch, scopeLabel: scope() };
+}
+
+const pad = (v: string) => v.padStart(2, '0');
+
+// What the sweep is narrowed to, for the hint under the search field. Null when
+// nothing narrows it: a film search, or a show with no season named yet.
+function scopeOf(kind: string, season: string, episode: string): string | null {
+  if (kind === 'movie' || !season) return null;
+  return kind === 'episode' && episode ? `S${pad(season)}E${pad(episode)}` : `S${pad(season)}`;
+}
 
 // The card the result rows are flush inside, which is why it clips their focus
 // ring inward (`data-focus-ring-inset`, in @kroma/ui's styles/base.css).

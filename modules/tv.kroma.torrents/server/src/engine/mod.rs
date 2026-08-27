@@ -56,6 +56,13 @@ pub struct TorrentStatus {
     pub save_path: Option<String>,
     pub files: Vec<String>,
     pub error: Option<String>,
+    // Lifetime bytes for this torrent as the engine counts them. Defaulted,
+    // because an engine module released before these existed sends neither and
+    // the two halves ship on separate tags.
+    #[serde(default)]
+    pub downloaded_bytes: u64,
+    #[serde(default)]
+    pub uploaded_bytes: u64,
 }
 
 /// One file inside a torrent, from a metadata-only listing.

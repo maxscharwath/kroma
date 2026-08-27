@@ -59,6 +59,9 @@ pub(super) fn download(id: &str, status: &str, grabbed_at: i64) -> DownloadRow {
         details_url: None,
         only_files: None,
         upgrade: false,
+        downloaded_bytes: 0,
+        uploaded_bytes: 0,
+        match_source: None,
     }
 }
 

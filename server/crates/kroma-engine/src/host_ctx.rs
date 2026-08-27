@@ -147,6 +147,30 @@ impl HostCtx for AppState {
         crate::services::settings::metadata_language(&self.settings, &self.config)
     }
 
+    fn metadata_candidates(
+        &self,
+        query: &str,
+        kind: &str,
+        year: Option<u32>,
+    ) -> Vec<kroma_domain::metadata::MatchCandidate> {
+        let scope = match kind {
+            "show" | "tv" | "season" | "episode" => {
+                crate::infra::metadata::discover::DiscoverScope::Shows
+            }
+            "movie" | "item" => crate::infra::metadata::discover::DiscoverScope::Movies,
+            _ => crate::infra::metadata::discover::DiscoverScope::All,
+        };
+        let target = crate::services::rematch::MatchTarget {
+            title: query.to_string(),
+            year,
+            current_tmdb_id: None,
+        };
+        // A provider that is off or unreachable is "nothing matched": a module
+        // asking what a release could be has a sane answer for an empty list,
+        // and none for an error it cannot act on.
+        crate::services::rematch::ranked(self, scope, query, &target).unwrap_or_default()
+    }
+
     fn get_service(
         &self,
         type_id: std::any::TypeId,

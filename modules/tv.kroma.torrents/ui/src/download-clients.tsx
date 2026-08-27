@@ -13,6 +13,7 @@ import {
   IconButton,
   Row,
   Section,
+  Spinner,
   Surface,
   Switch,
   styles,
@@ -145,7 +146,7 @@ export function DownloadClientsSection() {
               <Switch checked={c.enabled} onCheckedChange={(v) => toggle(c, v)} label={c.name} />
             </Row>
             <Row between gap={12} mt={14} pt={12} style={s.footRule}>
-              <TestLine test={tests[c.id]} />
+              <EngineLine client={c} test={tests[c.id]} />
               <Row gap={8}>
                 <Button
                   variant="glass"
@@ -176,6 +177,31 @@ export function DownloadClientsSection() {
       <DownloadClientModal />
     </Section.Root>
   );
+}
+
+// The engine's own lifecycle outranks a stale probe: an engine that is still
+// warming up is not a failure, and saying so is the whole point of the state.
+const STATE_TONE = {
+  ready: 'success',
+  starting: 'text/45',
+  stopped: 'text/30',
+  notCompiled: 'text/30',
+  unknown: 'text/30',
+} as const;
+
+function EngineLine({ client, test }: Readonly<{ client: DownloadClientView; test?: TestState }>) {
+  const t = useT();
+  if (!test && client.state !== 'unknown') {
+    return (
+      <Row gap={6} align="center" shrink={1} minW={0}>
+        {client.state === 'starting' ? <Spinner size={12} /> : null}
+        <Text variant="meta" color={STATE_TONE[client.state]} lines={1}>
+          {t(`dlclients.state.${client.state}`)}
+        </Text>
+      </Row>
+    );
+  }
+  return <TestLine test={test} />;
 }
 
 function TestLine({ test }: Readonly<{ test?: TestState }>) {

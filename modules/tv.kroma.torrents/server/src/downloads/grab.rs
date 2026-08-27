@@ -73,6 +73,12 @@ impl DownloadManager {
             details_url: spec.details_url,
             only_files: spec.only_files,
             upgrade: spec.upgrade,
+            downloaded_bytes: 0,
+            uploaded_bytes: 0,
+            // A grab that already names a title was pointed at one by an
+            // operator (a request, or an interactive pick), so the automatic
+            // matcher must leave it alone. A bare magnet arrives unlinked.
+            match_source: (spec.tmdb_id != 0).then(|| "manual".to_string()),
         };
         db::insert_download(self.core(), &row)?;
         db::set_wanted_status(self.core(), &spec.wanted_ids, "grabbed", now_ms())?;
@@ -91,6 +97,16 @@ impl DownloadManager {
     /// Background phase of a grab: slow (up to a couple of minutes), and safe
     /// to run detached from the request that queued it.
     pub fn activate(&self, host: &dyn HostCtx, row: &DownloadRow) {
+        // Over the parallelism cap: the row stays `queued` and the monitor
+        // starts it as soon as a slot frees. Nothing is lost by returning here,
+        // because `fill_free_slots` re-enters through this same method.
+        if !self.slot_available(host) {
+            tracing::info!(
+                release = %row.release_title,
+                "parallelism cap reached; download held in the queue"
+            );
+            return;
+        }
         let client = match self
             .store()
             .get()
@@ -109,6 +125,17 @@ impl DownloadManager {
         };
         let engine = match self.engine_for(&client) {
             Ok(e) => e,
+            // The embedded engine warms up in the background, so "not started
+            // yet" is a moment rather than a fault: leave the row queued and let
+            // the monitor start it once the session is up. Anything else is a
+            // real misconfiguration and fails the row.
+            Err(_) if self.engine_pending(&client) => {
+                tracing::info!(
+                    release = %row.release_title,
+                    "engine still starting; download held in the queue"
+                );
+                return;
+            }
             Err(e) => {
                 let _ = db::set_download_status(
                     self.core(),
@@ -149,7 +176,19 @@ impl DownloadManager {
         row: &DownloadRow,
         client: &DownloadClientRow,
     ) -> Result<Option<Vec<u8>>, ()> {
-        if client.kind != "rqbit" || !row.magnet_or_url.starts_with("http") {
+        if client.kind != "rqbit" {
+            return Ok(None);
+        }
+        // An uploaded `.torrent` we still hold beats resolving the magnet we
+        // minted from it: the engine starts on the metadata instead of waiting
+        // for the DHT.
+        if let Some(bytes) =
+            crate::torrent_file::stored_bytes(&self.state_dir, self.uploaded_hash(row).as_deref())
+        {
+            tracing::info!(id = %row.id, bytes = bytes.len(), "starting from the uploaded .torrent");
+            return Ok(Some(bytes));
+        }
+        if !row.magnet_or_url.starts_with("http") {
             return Ok(None);
         }
         match fetch_torrent_for(host, row) {
@@ -164,6 +203,20 @@ impl DownloadManager {
                 Err(())
             }
         }
+    }
+
+    /// Keeps an uploaded `.torrent` beside the ledger, keyed by its info hash.
+    pub fn keep_uploaded_torrent(&self, info_hash: &str, bytes: &[u8]) -> anyhow::Result<()> {
+        crate::torrent_file::store(&self.state_dir, info_hash, bytes)?;
+        Ok(())
+    }
+
+    // The info hash to look for an uploaded file under: the row's own once the
+    // engine has reported one, else the one in the magnet we minted at upload.
+    fn uploaded_hash(&self, row: &DownloadRow) -> Option<String> {
+        row.info_hash
+            .clone()
+            .or_else(|| crate::engine::magnet_info_hash(&row.magnet_or_url))
     }
 
     fn reconcile_added(&self, row: &DownloadRow, engine: &dyn DownloadClient, client_ref: &str) {

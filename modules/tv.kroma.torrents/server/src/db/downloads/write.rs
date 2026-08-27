@@ -11,8 +11,8 @@ pub fn insert_download(pool: &Pool, d: &DownloadRow) -> Result<()> {
         "INSERT INTO downloads (id, client_id, client_ref, request_id, kind, tmdb_id, title, year, \
             season, episodes, release_title, indexer_id, info_hash, magnet_or_url, size_bytes, \
             score, score_breakdown, status, progress, save_path, grabbed_at, details_url, only_files, \
-            upgrade) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24)",
+            upgrade, match_source) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25)",
         params![
             d.id,
             d.client_id,
@@ -37,10 +37,71 @@ pub fn insert_download(pool: &Pool, d: &DownloadRow) -> Result<()> {
             d.grabbed_at,
             d.details_url,
             d.only_files.as_ref().map(|f| serde_json::to_string(f).unwrap_or_default()),
-            d.upgrade
+            d.upgrade,
+            d.match_source
         ],
     )?;
     Ok(())
+}
+
+/// The lifetime byte counters for one row. Written every monitor tick from the
+/// engine's own totals, so they outlive the engine session that produced them.
+pub fn update_download_bytes(pool: &Pool, id: &str, downloaded: u64, uploaded: u64) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE downloads SET downloaded_bytes = ?2, uploaded_bytes = ?3 WHERE id = ?1",
+        params![id, downloaded as i64, uploaded as i64],
+    )?;
+    Ok(())
+}
+
+/// Record that the automatic matcher looked and found nothing good enough, so
+/// the background pass stops asking about this row. An operator's correction
+/// replaces it.
+pub fn mark_download_match_tried(pool: &Pool, id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    conn.execute(
+        "UPDATE downloads SET match_source = 'none' WHERE id = ?1 AND match_source IS NULL",
+        params![id],
+    )?;
+    Ok(())
+}
+
+/// The title a download belongs to. `season` and `episodes` only mean anything
+/// for the matching `kind`; a movie carries neither.
+#[derive(Debug, Clone)]
+pub struct DownloadLink {
+    pub kind: String,
+    pub tmdb_id: u64,
+    pub title: Option<String>,
+    pub year: Option<u32>,
+    pub season: Option<u32>,
+    pub episodes: Option<Vec<u32>>,
+    /// `auto` from the release name, `manual` from an operator correction.
+    pub source: String,
+}
+
+/// Pin (or re-pin) the title a download is for. Nothing else about the row
+/// moves: the torrent keeps downloading through a correction.
+pub fn link_download(pool: &Pool, id: &str, link: &DownloadLink) -> Result<bool> {
+    let conn = pool.get()?;
+    let n = conn.execute(
+        "UPDATE downloads SET kind = ?2, tmdb_id = ?3, title = ?4, year = ?5, season = ?6, \
+            episodes = ?7, match_source = ?8 WHERE id = ?1",
+        params![
+            id,
+            link.kind,
+            link.tmdb_id as i64,
+            link.title,
+            link.year,
+            link.season,
+            link.episodes
+                .as_ref()
+                .map(|e| serde_json::to_string(e).unwrap_or_default()),
+            link.source
+        ],
+    )?;
+    Ok(n > 0)
 }
 
 /// Monitor tick write: progress + status (+ save_path once known).

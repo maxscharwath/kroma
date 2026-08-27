@@ -146,7 +146,7 @@ pub fn build_doc(title: &str, year: Option<u32>, meta: &Metadata) -> String {
 
 /// One TMDB title offered by the "fix the match" picker, with the confidence
 /// [`crate::matching`] gives it against what the filename parsed to.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MatchCandidate {
     pub tmdb_id: u64,

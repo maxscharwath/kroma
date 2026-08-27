@@ -8,6 +8,7 @@ use std::sync::Arc;
 use axum::http::StatusCode;
 use axum::response::Response;
 
+use kroma_domain::metadata::MatchCandidate;
 use kroma_domain::{Audience, NotificationSpec, Permission, User};
 
 use super::{Contribution, Event, LibraryFolders};
@@ -70,6 +71,17 @@ pub trait HostCtx: Send + Sync + 'static {
 
     // The metadata language tag (e.g. `"fr-FR"`) for TMDB lookups.
     fn metadata_language(&self) -> String;
+
+    // Provider titles matching `query`, ranked most-likely-first against
+    // `(query, year)` by the same scoring the automatic path uses. `kind` is
+    // `movie` | `show`. Empty when no provider is configured, so a caller
+    // degrades to "nothing matched" rather than failing.
+    //
+    // Here rather than in each module because the provider credential and the
+    // ranking both live in the core, and a module that resolved titles itself
+    // would need the operator's API key.
+    fn metadata_candidates(&self, query: &str, kind: &str, year: Option<u32>)
+        -> Vec<MatchCandidate>;
 
     // Prefer the typed [`service`] helper.
     fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>>;
@@ -140,6 +152,15 @@ impl<T: HostCtx + ?Sized> HostCtx for std::sync::Arc<T> {
     }
     fn metadata_language(&self) -> String {
         (**self).metadata_language()
+    }
+
+    fn metadata_candidates(
+        &self,
+        query: &str,
+        kind: &str,
+        year: Option<u32>,
+    ) -> Vec<MatchCandidate> {
+        (**self).metadata_candidates(query, kind, year)
     }
     fn get_service(&self, type_id: TypeId) -> Option<Arc<dyn Any + Send + Sync>> {
         (**self).get_service(type_id)
@@ -264,6 +285,15 @@ mod tests {
         fn metadata_language(&self) -> String {
             self.note("metadata_language");
             "fr-FR".into()
+        }
+        fn metadata_candidates(
+            &self,
+            query: &str,
+            _kind: &str,
+            _year: Option<u32>,
+        ) -> Vec<MatchCandidate> {
+            self.note(&format!("metadata_candidates:{query}"));
+            Vec::new()
         }
         fn contributions(&self, _point: &str) -> Vec<Contribution> {
             Vec::new()

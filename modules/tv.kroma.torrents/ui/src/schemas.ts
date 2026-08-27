@@ -23,6 +23,9 @@ export const DownloadClientView = z.object({
   priority: z.number(),
   createdAt: z.number(),
   builtin: z.boolean(),
+  // Where the engine is in its lifecycle. `unknown` for an external daemon,
+  // which only answers when asked (the test action).
+  state: z.enum(['ready', 'starting', 'stopped', 'notCompiled', 'unknown']).catch('unknown'),
 });
 export type DownloadClientView = z.infer<typeof DownloadClientView>;
 
@@ -85,15 +88,129 @@ export const DownloadView = z.object({
   infoHash: z.string().nullable(),
   posterUrl: z.string().nullable(),
   localId: ItemId.nullable(),
+  year: z.number().nullable(),
+  // 0 while nothing has resolved the release name to a title.
+  tmdbId: z.number(),
+  // `auto` from the release name, `manual` once an operator corrected it.
+  matchSource: z.string().nullable(),
+  // Lifetime counters, kept across engine restarts.
+  downloadedBytes: z.number(),
+  uploadedBytes: z.number(),
 });
 export type DownloadView = z.infer<typeof DownloadView>;
+
+/** Where the returned page sits in the filtered ledger. */
+export const PageView = z.object({
+  page: z.number(),
+  perPage: z.number(),
+  total: z.number(),
+  pageCount: z.number(),
+});
+export type PageView = z.infer<typeof PageView>;
+
+/** One throughput sample, oldest first. */
+export const SpeedSample = z.object({
+  atMs: z.number(),
+  downBps: z.number(),
+  upBps: z.number(),
+});
+export type SpeedSample = z.infer<typeof SpeedSample>;
+
+/** The queue's headline numbers: what is moving now, what has moved ever. */
+export const DownloadStatsView = z.object({
+  downBps: z.number(),
+  upBps: z.number(),
+  peers: z.number(),
+  active: z.number(),
+  // Row count per status across the WHOLE ledger, so a filter chip can say how
+  // many rows it would reveal.
+  byStatus: z.record(z.string(), z.number()),
+  totalDownloadedBytes: z.number(),
+  totalUploadedBytes: z.number(),
+  history: z.array(SpeedSample),
+});
+export type DownloadStatsView = z.infer<typeof DownloadStatsView>;
 
 /** `GET /downloads`. */
 export const DownloadsView = z.object({
   downloads: z.array(DownloadView),
   vpn: VpnStatusView.nullable(),
+  page: PageView,
+  stats: DownloadStatsView,
 });
 export type DownloadsView = z.infer<typeof DownloadsView>;
+
+/** How the queue is narrowed. Everything is optional; an empty query is the
+ * whole ledger, newest first. */
+export interface DownloadQuery {
+  page?: number;
+  perPage?: number;
+  /** A group (`active` | `done` | `failed` | `all`) or one exact status. */
+  status?: string;
+  clientId?: string;
+  kind?: string;
+  q?: string;
+  unlinked?: boolean;
+}
+
+/** The engine-wide ceilings. `0` is unlimited in every field. */
+export const LimitsView = z.object({
+  downKbps: z.number(),
+  upKbps: z.number(),
+  maxActive: z.number(),
+});
+export type LimitsView = z.infer<typeof LimitsView>;
+
+/** One title a download could be for, ranked best first. */
+export const MatchCandidateView = z.object({
+  tmdbId: z.number(),
+  kind: z.string(),
+  title: z.string(),
+  year: z.number().nullable(),
+  overview: z.string().nullable(),
+  posterUrl: z.string().nullable(),
+  // 0..1, from the same ranking the automatic pass uses.
+  score: z.number(),
+});
+export type MatchCandidateView = z.infer<typeof MatchCandidateView>;
+
+/** `GET /downloads/:id/candidates`. */
+export const MatchCandidatesView = z.object({
+  query: z.string(),
+  kind: z.string(),
+  year: z.number().nullable(),
+  currentTmdbId: z.number().nullable(),
+  // The current title was chosen by an operator, not resolved automatically.
+  pinned: z.boolean(),
+  results: z.array(MatchCandidateView),
+});
+export type MatchCandidatesView = z.infer<typeof MatchCandidatesView>;
+
+/** `PUT /downloads/:id/link` body: the title to pin the row to. */
+export interface LinkBody {
+  /** `movie` | `season` | `episode`. */
+  kind: string;
+  tmdbId: number;
+  title?: string | null;
+  year?: number | null;
+  season?: number | null;
+  episodes?: number[] | null;
+}
+
+/** `POST /downloads/torrent`: what an uploaded `.torrent` says about itself, in
+ * the shape the manual-add flow already speaks. Queues nothing. */
+export const InspectedTorrent = z.object({
+  magnet: z.string(),
+  infoHash: z.string(),
+  releaseTitle: z.string(),
+  sizeBytes: z.number(),
+  kind: z.string(),
+  title: z.string().nullable(),
+  year: z.number().nullable(),
+  season: z.number().nullable(),
+  episodes: z.array(z.number()).nullable(),
+});
+export type InspectedTorrent = z.infer<typeof InspectedTorrent>;
 
 /** Example rendered names for the live preview. */
 export const SampleNames = z.object({

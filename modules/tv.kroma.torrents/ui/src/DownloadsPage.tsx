@@ -1,13 +1,13 @@
-// Admin "Téléchargements": the live download queue (progress fed by a
+// Admin "Téléchargements": one page of the download queue (progress fed by a
 // page-scoped download.progress stream, slow poll as the safety net), a VPN
-// status banner, aggregate stat cards and the download-clients section.
+// status banner, the throughput cards above it and the download-clients section
+// below.
 
 import {
   Denied,
   ModuleFailed,
   ModuleLoading,
   useCap,
-  useFormat,
   usePoll,
   useServerEvents,
   useT,
@@ -19,20 +19,27 @@ import {
   Callout,
   Dialog,
   EmptyState,
-  Grid,
   PageHeader,
+  Pagination,
   Row,
-  StatCard,
   Surface,
-  TableSkeleton,
   Text,
 } from '@kroma/ui/kit';
-import { type CSSProperties, useCallback, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTorrentsApi } from './api';
 import { DownloadClientsSection } from './download-clients';
 import { DownloadRowView, DownloadTableHead, type LiveDl } from './download-row';
+import { DownloadFilters } from './downloads-filters';
+import { DownloadStats } from './downloads-stats';
+import { LimitsModal } from './limits-modal';
+import { LinkModal } from './link-modal';
 import { ManualGrabModal } from './manual-grab';
-import type { DownloadCompletedEvent, DownloadProgressEvent, DownloadView } from './schemas';
+import type {
+  DownloadCompletedEvent,
+  DownloadProgressEvent,
+  DownloadQuery,
+  DownloadView,
+} from './schemas';
 
 const WIPE_ROW: CSSProperties = {
   display: 'flex',
@@ -43,12 +50,16 @@ const WIPE_ROW: CSSProperties = {
 
 const WIPE_BOX: CSSProperties = { width: 16, height: 16, accentColor: 'var(--kroma-danger)' };
 
+const POLL_MS = 10000;
+const RELOAD_THROTTLE_MS = 1500;
+// Long enough that a word is one request, short enough to feel like filtering.
+const SEARCH_SETTLE_MS = 350;
+
 /** The Downloads module page (`/admin/downloads`): the live download queue,
  *  VPN status banner, aggregate stats, and the download-clients section. Default
  *  export so the module runtime can `React.lazy` it into its own chunk. */
 export default function DownloadsPage() {
   const t = useT();
-  const fmt = useFormat();
   const torrents = useTorrentsApi();
   const canSettings = useCap('settings.manage');
   const canQueue = useCap('requests.manage') || canSettings;
@@ -58,18 +69,34 @@ export default function DownloadsPage() {
   const [confirm, setConfirm] = useState<DownloadView | null>(null);
   const [wipeData, setWipeData] = useState(true);
   const [manual, setManual] = useState(false);
+  const [query, setQuery] = useState<DownloadQuery>({ page: 1 });
+  // What is in the search box, which is NOT what is being asked for: a keystroke
+  // is not a query. It settles into `query` after a pause, so typing costs one
+  // request rather than one per letter.
+  const [typed, setTyped] = useState('');
+  useEffect(() => {
+    const at = setTimeout(
+      () => setQuery((q) => (q.q === (typed || undefined) ? q : { ...q, q: typed, page: 1 })),
+      SEARCH_SETTLE_MS,
+    );
+    return () => clearTimeout(at);
+  }, [typed]);
 
-  // Slow poll = reconnect/missed-event safety net; progress rides the WS.
-  const { data, failed, reload } = usePoll(
-    ['admin', 'downloads'],
-    () => torrents.downloads(),
-    10000,
-  );
+  // The query is part of the key, so changing a filter refetches rather than
+  // re-slicing a page that was already narrowed by the server.
+  const queryKey = useMemo(() => ['admin', 'downloads', query] as const, [query]);
+  const { data, failed, reload } = usePoll(queryKey, () => torrents.downloads(query), POLL_MS);
+  // A new key starts empty. Rendering the previous answer while the next one is
+  // in flight is what keeps the filter bar (and the caret in it) on screen.
+  const shownRef = useRef(data);
+  if (data) shownRef.current = data;
+  const shown = data ?? shownRef.current;
+  const clientsPoll = usePoll(['admin', 'downloads', 'clients'], () => torrents.clients(), 60000);
 
   const lastReloadRef = useRef(0);
   const throttledReload = useCallback(() => {
     const now = Date.now();
-    if (now - lastReloadRef.current < 1500) return;
+    if (now - lastReloadRef.current < RELOAD_THROTTLE_MS) return;
     lastReloadRef.current = now;
     reload();
   }, [reload]);
@@ -108,64 +135,39 @@ export default function DownloadsPage() {
       });
   };
 
-  const downloads = data?.downloads ?? [];
-  const activeRows = downloads.filter((d) =>
-    ['queued', 'downloading', 'seeding', 'paused'].includes(d.status),
-  );
-  const doneRows = downloads.filter(
-    (d) => !['queued', 'downloading', 'seeding', 'paused'].includes(d.status),
-  );
-  // Aggregate from the live WS event when present, else the polled row, so the
-  // totals are right even without the WebSocket (e.g. through a tunnel).
-  const totalDown = activeRows.reduce((sum, d) => sum + (live[d.id]?.downBps ?? d.downBps), 0);
-  const totalUp = activeRows.reduce((sum, d) => sum + (live[d.id]?.upBps ?? d.upBps), 0);
-  const vpn = data?.vpn ?? null;
+  const relink = async (dl: DownloadView) => {
+    if (await LinkModal.call({ dl })) reload();
+  };
+
+  const editLimits = async () => {
+    if (await LimitsModal.call()) reload();
+  };
 
   if (!canQueue) return <Denied />;
-  if (!data) return failed ? <ModuleFailed retry={reload} /> : <ModuleLoading />;
+  if (!shown) return failed ? <ModuleFailed retry={reload} /> : <ModuleLoading />;
+
+  const { downloads, page, stats, vpn } = shown;
+  const hasActive = stats.active > 0;
 
   return (
     <>
-      <PageHeader.Root>
-        <PageHeader.Title>{t('admin.downloadsTitle')}</PageHeader.Title>
-        <PageHeader.Subtitle>{t('admin.downloadsSub')}</PageHeader.Subtitle>
-        <PageHeader.Actions>
-          <Button
-            variant="primary"
-            icon="download"
-            label={t('manual.title')}
-            onPress={() => setManual(true)}
-          />
-        </PageHeader.Actions>
-      </PageHeader.Root>
-
-      {/* spacer to match the standard PageHeader → content rhythm */}
-      <Box h={24} />
+      <PageChrome onManual={() => setManual(true)} />
 
       {vpn ? <VpnBanner vpn={vpn} /> : null}
 
-      <Box mb={20}>
-        <Grid min={200} gap={16}>
-          <StatCard.Root>
-            <StatCard.Label>{t('downloads.statActive')}</StatCard.Label>
-            <StatCard.Value>{String(activeRows.length)}</StatCard.Value>
-          </StatCard.Root>
-          <StatCard.Root>
-            <StatCard.Label>{t('downloads.statDown')}</StatCard.Label>
-            <StatCard.Value>{`${fmt.bytes(totalDown)}/s`}</StatCard.Value>
-          </StatCard.Root>
-          <StatCard.Root>
-            <StatCard.Label>{t('downloads.statUp')}</StatCard.Label>
-            <StatCard.Value>{`${fmt.bytes(totalUp)}/s`}</StatCard.Value>
-          </StatCard.Root>
-          <StatCard.Root>
-            <StatCard.Label>{t('downloads.statHistory')}</StatCard.Label>
-            <StatCard.Value>{String(doneRows.length)}</StatCard.Value>
-          </StatCard.Root>
-        </Grid>
-      </Box>
+      <DownloadStats stats={stats} />
 
-      {activeRows.length > 0 ? (
+      <DownloadFilters
+        query={query}
+        onQueryChange={setQuery}
+        search={typed}
+        onSearchChange={setTyped}
+        stats={stats}
+        clients={clientsPoll.data?.clients ?? []}
+        onEditLimits={canSettings ? editLimits : undefined}
+      />
+
+      {hasActive ? (
         <Row wrap gap={8} mb={12}>
           <Button
             variant="glass"
@@ -206,14 +208,14 @@ export default function DownloadsPage() {
             onResume={() => act(() => torrents.resume(dl.id))}
             onRetry={() => act(() => torrents.retry(dl.id))}
             onAskPeers={() => act(() => torrents.reannounce(dl.id))}
+            onRelink={() => relink(dl)}
             onRemove={() => {
               setWipeData(true);
               setConfirm(dl);
             }}
           />
         ))}
-        {data === null ? <TableSkeleton rows={6} /> : null}
-        {data && downloads.length === 0 ? (
+        {downloads.length === 0 ? (
           <Box py={24}>
             <EmptyState.Root icon="download">
               <EmptyState.Title>{t('downloads.empty')}</EmptyState.Title>
@@ -221,6 +223,25 @@ export default function DownloadsPage() {
           </Box>
         ) : null}
       </Surface>
+
+      {page.pageCount > 1 ? (
+        <Row between wrap gap={12} mt={16}>
+          <Text variant="meta" color="text/40">
+            {t('downloads.pageOf', {
+              first: String((page.page - 1) * page.perPage + 1),
+              last: String(Math.min(page.page * page.perPage, page.total)),
+              total: String(page.total),
+            })}
+          </Text>
+          <Pagination.Root
+            page={page.page}
+            pageCount={page.pageCount}
+            onPageChange={(next) => setQuery((q) => ({ ...q, page: next }))}
+            label={t('admin.downloadsTitle')}
+            size="sm"
+          />
+        </Row>
+      ) : null}
 
       {canSettings ? <DownloadClientsSection /> : null}
 
@@ -260,6 +281,25 @@ export default function DownloadsPage() {
       ) : null}
 
       {manual ? <ManualGrabModal onClose={() => setManual(false)} onAdded={reload} /> : null}
+      <LinkModal.Root />
+      <LimitsModal.Root />
+    </>
+  );
+}
+
+function PageChrome({ onManual }: Readonly<{ onManual: () => void }>) {
+  const t = useT();
+  return (
+    <>
+      <PageHeader.Root>
+        <PageHeader.Title>{t('admin.downloadsTitle')}</PageHeader.Title>
+        <PageHeader.Subtitle>{t('admin.downloadsSub')}</PageHeader.Subtitle>
+        <PageHeader.Actions>
+          <Button variant="primary" icon="plus" label={t('manual.title')} onPress={onManual} />
+        </PageHeader.Actions>
+      </PageHeader.Root>
+      {/* spacer to match the standard PageHeader → content rhythm */}
+      <Box h={24} />
     </>
   );
 }

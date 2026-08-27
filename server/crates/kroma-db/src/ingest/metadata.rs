@@ -364,10 +364,13 @@ mod tests {
         )
         .unwrap();
 
+        // The marker records that French was asked for and had nothing, so it
+        // stops being asked. It must not shadow the fallback while doing it: a
+        // French reader reads English, which is the whole point of having one.
         let fr = crate::translations::resolve_one(&p, metadata_core::ITEM, "m1", "fr")
             .unwrap()
             .unwrap();
-        assert_eq!(fr.title, None);
+        assert_eq!(fr.title.as_deref(), Some("Dune"));
 
         let stale =
             crate::translations::stale_langs(&p, metadata_core::ITEM, "m1", &["fr", "en"]).unwrap();
@@ -600,7 +603,7 @@ mod tests {
     }
 
     #[test]
-    fn a_language_that_translates_nothing_leaves_no_row_behind() {
+    fn a_language_that_translates_nothing_is_recorded_but_never_served() {
         let p = pool();
         let bare = Metadata {
             title: None,
@@ -612,8 +615,13 @@ mod tests {
         let by_lang = HashMap::from([("de".to_string(), bare)]);
         store_localized(&p, metadata_core::ITEM, "m1", &meta(603, "Dune"), &by_lang).unwrap();
 
+        // A reader must not resolve to it: with no text of its own it would
+        // shadow the fallback and serve them the household's blob instead.
         assert!(crate::translations::resolve_one(&p, "item", "m1", "de")
             .unwrap()
             .is_none());
+        // The row is there all the same, so nothing asks TMDB for German again.
+        let stored = crate::translations::load_all(&p, metadata_core::ITEM, &["m1"]).unwrap();
+        assert!(stored.get("m1").is_some_and(|by| by.contains_key("de")));
     }
 }

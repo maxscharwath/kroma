@@ -383,7 +383,15 @@ fn store_season_cast(
 }
 
 fn stale_langs(pool: &Pool, kind: &str, id: &str, langs: &[&str]) -> Vec<String> {
-    db::translations::stale_langs(pool, kind, id, langs).unwrap_or_default()
+    match db::translations::stale_langs(pool, kind, id, langs) {
+        Ok(stale) => stale,
+        // A read that failed is not an answer. Taking it for "nothing is stale"
+        // marks the title complete in whatever languages it happens to hold.
+        Err(e) => {
+            warn!(id = %id, error = %e, "could not tell which languages are stale; assuming all");
+            langs.iter().map(|l| (*l).to_string()).collect()
+        }
+    }
 }
 
 fn subject_kind(is_show: bool) -> &'static str {

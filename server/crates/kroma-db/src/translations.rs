@@ -56,15 +56,25 @@ fn is_zero(v: &u32) -> bool {
 }
 
 impl TransData {
+    /// Whether the row would carry nothing at all. A revision on its own still
+    /// carries something: it records that the language was asked for and had
+    /// nothing, which is what stops it being asked again every pass.
     pub fn is_empty(&self) -> bool {
-        self.title.is_none()
+        self.rev == 0 && !self.has_text()
+    }
+
+    /// Whether the row says anything a reader would see. A row carrying only a
+    /// revision is a marker that the language was asked for and had nothing:
+    /// enough to stop asking, never enough to serve.
+    fn has_text(&self) -> bool {
+        !(self.title.is_none()
             && self.tagline.is_none()
             && self.overview.is_none()
             && self.genres.is_empty()
             && self.characters.is_empty()
             && self.reason.is_none()
             && self.poster_url.is_none()
-            && self.logo_url.is_none()
+            && self.logo_url.is_none())
     }
 }
 
@@ -219,8 +229,11 @@ pub fn delete_all(conn: &Connection, kind: &str, id: &str) -> Result<()> {
 /// right one, so borrowing the fallback language's would hand a French reader an
 /// English poster on every title whose French art is the core's.
 fn pick(mut by_lang: HashMap<String, TransData>, lang: &str) -> Option<TransData> {
-    let fallback = by_lang.remove(FALLBACK);
-    by_lang.remove(lang).or(fallback)
+    let fallback = by_lang.remove(FALLBACK).filter(TransData::has_text);
+    by_lang
+        .remove(lang)
+        .filter(TransData::has_text)
+        .or(fallback)
 }
 
 fn load(

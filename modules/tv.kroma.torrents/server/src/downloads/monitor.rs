@@ -135,7 +135,7 @@ impl DownloadManager {
             }
         }
         self.link_unresolved(host, &rows);
-        self.sample_throughput(&rows);
+        self.sample_throughput(host, &rows);
         // Re-asserted every tick rather than only at session start, so a
         // ceiling changed while a torrent is mid-flight takes hold without one.
         self.apply_rate_limits(host);
@@ -163,13 +163,24 @@ impl DownloadManager {
 
     // One throughput sample for the queue's chart, summed over the rows this
     // tick just polled rather than asked of the engine again.
-    fn sample_throughput(&self, rows: &[db::DownloadRow]) {
+    fn sample_throughput(&self, host: &dyn HostCtx, rows: &[db::DownloadRow]) {
         let live = self.live_stats();
-        let (down, up) = rows.iter().fold((0, 0), |(down, up), row| {
-            let (d, u, _, _) = live.get(&row.id).copied().unwrap_or_default();
-            (down + d, up + u)
+        let (down, up, peers) = rows.iter().fold((0, 0, 0), |(down, up, peers), row| {
+            let (d, u, p, _) = live.get(&row.id).copied().unwrap_or_default();
+            (down + d, up + u, peers + p)
         });
         self.record_speed(down, up);
+        // The queue's own cards read this rather than the ten-second poll, so
+        // the rates and their traces move at the cadence they are sampled at.
+        host.publish(Event::new(
+            "downloads.stats",
+            json!({
+                "downBps": down,
+                "upBps": up,
+                "active": rows.len(),
+                "peers": peers,
+            }),
+        ));
     }
 
     // Starts whatever the parallelism cap was holding back. Each promoted row

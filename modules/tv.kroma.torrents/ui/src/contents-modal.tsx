@@ -1,7 +1,5 @@
-import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
-import { apiErrorText, useT } from '@kroma/module-sdk';
+import { apiErrorText, useFetch, useT } from '@kroma/module-sdk';
 import { Box, Callout, Dialog, Icon, Img, Row, Spinner, Text } from '@kroma/ui/kit';
-import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { useTorrentsApi } from './api';
 import type { DownloadView } from './schemas';
@@ -14,15 +12,12 @@ const POSTER_HEIGHT = 69;
 export const ContentsModal = createCallable<{ dl: DownloadView }, void>(({ call, dl }) => {
   const t = useT();
   const torrents = useTorrentsApi();
-  const [contents, setContents] = useState<TorrentAnalysis | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    torrents
-      .contents(dl.id)
-      .then(setContents)
-      .catch((e) => setError(apiErrorText(e, t('contents.failed'))));
-  }, [torrents, dl.id, t]);
+  const {
+    data: contents,
+    failed,
+    error: cause,
+  } = useFetch(['admin', 'torrents', 'contents', dl.id], () => torrents.contents(dl.id));
+  const error = failed ? apiErrorText(cause, t('contents.failed')) : null;
 
   const episodeNames = useEpisodeNames(dl.tmdbId || null, dl.season);
 

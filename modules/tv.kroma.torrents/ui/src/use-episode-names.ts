@@ -1,10 +1,5 @@
-// What the provider calls each episode of one season, keyed by number.
-//
-// Both places that show a file list want it: a list of release strings is
-// technically the truth and practically unreadable, and the episode titles are
-// what an operator is actually checking against.
-
-import { useEffect, useState } from 'react';
+import { useFetch } from '@kroma/module-sdk';
+import { useMemo } from 'react';
 import { useTorrentsApi } from './api';
 import type { EpisodeInfo } from './schemas';
 
@@ -18,26 +13,9 @@ export function useEpisodeNames(
   season: number | null | undefined,
 ): Map<number, EpisodeInfo> {
   const torrents = useTorrentsApi();
-  const [names, setNames] = useState<Map<number, EpisodeInfo>>(NONE);
-
-  useEffect(() => {
-    if (!tmdbId || season === null || season === undefined) {
-      setNames(NONE);
-      return;
-    }
-    let live = true;
-    torrents
-      .episodes(tmdbId, season)
-      .then((found) => {
-        if (live) setNames(new Map(found.map((e) => [e.episode, e])));
-      })
-      .catch(() => {
-        if (live) setNames(NONE);
-      });
-    return () => {
-      live = false;
-    };
-  }, [torrents, tmdbId, season]);
-
-  return names;
+  const known = !!tmdbId && season !== null && season !== undefined;
+  const { data } = useFetch(known ? ['admin', 'torrents', 'episodes', tmdbId, season] : null, () =>
+    torrents.episodes(tmdbId as number, season as number),
+  );
+  return useMemo(() => (data ? new Map(data.map((e) => [e.episode, e])) : NONE), [data]);
 }

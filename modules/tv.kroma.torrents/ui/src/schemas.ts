@@ -288,3 +288,14 @@ export interface DownloadCompletedEvent {
   id: string;
   title: string;
 }
+
+/** One throughput sample, published by the monitor at the cadence it samples,
+ *  so the queue's cards move without waiting for the next poll. The totals stay
+ *  on the poll: they are a foot line, not a rate. */
+export interface DownloadStatsEvent {
+  type: 'downloads.stats';
+  downBps: number;
+  upBps: number;
+  active: number;
+  peers: number;
+}

@@ -1,34 +1,20 @@
-// The numbers above the queue: what is moving right now, and what has moved
-// since the ledger began.
-//
-// Each rate carries its own trace INSIDE its card, because a number and its
-// recent shape are one fact and splitting them across two panels made the page
-// mostly empty. The samples come from the monitor rather than from this page,
-// so a browser that was closed for ten minutes opens on the same picture as one
-// that was not.
-
 import { useFormat, useT } from '@kroma/module-sdk';
 import type { IconName } from '@kroma/ui/kit';
 import { Box, Chart, Grid, Icon, Row, Surface, Text } from '@kroma/ui/kit';
 import { useMemo } from 'react';
 import type { DownloadStatsView } from './schemas';
+import { useLiveStats } from './use-live-stats';
 
-// Tall enough to read a trend, short enough that four of these still fit above
-// the queue without pushing it off the screen.
-const SPARK_HEIGHT = 44;
+const CARD_HEIGHT = 152;
+const SPARK_HEIGHT = 46;
 
-// A trace of nothing but zeroes is a flat line along the floor of an empty box:
-// it says less than the number above it and leaves the card taller than the
-// ones beside it. Below this the card simply does not draw one.
-const IDLE_BPS = 1;
-
-// A ratio only means anything once something has actually been downloaded.
 function ratioOf(stats: DownloadStatsView): string | null {
   if (stats.totalDownloadedBytes <= 0) return null;
   return (stats.totalUploadedBytes / stats.totalDownloadedBytes).toFixed(2);
 }
 
-export function DownloadStats({ stats }: Readonly<{ stats: DownloadStatsView }>) {
+export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStatsView }>) {
+  const stats = useLiveStats(polled);
   const t = useT();
   const fmt = useFormat();
   const perSecond = (bytes: number) => `${fmt.bytes(bytes)}/s`;
@@ -100,8 +86,9 @@ interface StatTileProps {
   tone: 'accent' | 'success' | 'text';
   /** The quiet line under the number: what the rate adds up to over time. */
   foot: string;
-  /** The field on a sample this tile traces. Omit for a tile with no history. */
-  series?: string;
+  /** The field on a sample this tile traces. Omit for a tile with no history,
+   *  which keeps the card's height and leaves the strip empty. */
+  series?: 'down' | 'up';
   points?: readonly { down: number; up: number }[];
   format?: (value: number) => string;
   chartLabel?: string;
@@ -118,16 +105,10 @@ function StatTile({
   format,
   chartLabel,
 }: Readonly<StatTileProps>) {
-  // Two samples are the fewest that can be a line; one is a dot nobody can read.
-  // And a series that never left zero has no shape to show.
-  const traced =
-    series !== undefined &&
-    points !== undefined &&
-    points.length > 1 &&
-    points.some((point) => (point[series as 'down' | 'up'] ?? 0) >= IDLE_BPS);
+  const traced = series !== undefined && points !== undefined && points.length > 1;
   return (
-    <Surface elevated radius="2xl" border="border" pad="none" overflow="hidden">
-      <Box p={16} pb={traced ? 8 : 16} gap={6} flex>
+    <Surface elevated radius="2xl" border="border" pad="none" overflow="hidden" h={CARD_HEIGHT}>
+      <Box p={16} gap={6} flex>
         <Row gap={6} align="center">
           <Icon name={icon} size={13} thickness={2} color={tone === 'text' ? 'glyphDim' : tone} />
           <Text variant="overline" color="textDim">
@@ -141,11 +122,20 @@ function StatTile({
           {foot}
         </Text>
       </Box>
-      {traced ? (
-        <Chart.Root data={points} height={SPARK_HEIGHT} min={0} format={format} label={chartLabel}>
-          <Chart.Area series={series} color={tone === 'text' ? 'accent' : tone} />
-        </Chart.Root>
-      ) : null}
+      <Box h={SPARK_HEIGHT}>
+        {traced ? (
+          <Chart.Root
+            data={points}
+            height={SPARK_HEIGHT}
+            min={0}
+            format={format}
+            label={chartLabel}
+          >
+            <Chart.Area series={series} color={tone === 'text' ? 'accent' : tone} />
+            <Chart.Line series={series} color={tone === 'text' ? 'accent' : tone} thickness={1.5} />
+          </Chart.Root>
+        ) : null}
+      </Box>
     </Surface>
   );
 }

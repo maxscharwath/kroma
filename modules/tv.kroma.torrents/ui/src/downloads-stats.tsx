@@ -1,46 +1,72 @@
 import { useFormat, useT } from '@kroma/module-sdk';
 import type { IconName } from '@kroma/ui/kit';
-import { Box, Chart, Grid, Icon, Row, Surface, Text } from '@kroma/ui/kit';
+import { Box, Chart, Icon, Legend, Row, Surface, styles, Text } from '@kroma/ui/kit';
 import { useMemo } from 'react';
 import type { DownloadStatsView } from './schemas';
 import { useLiveStats } from './use-live-stats';
 
-const CHART_HEIGHT = 148;
-// The window the plot covers. The ledger keeps three times this, and drawing it
-// whole turns a burst into a needle against a floor of zeroes.
-const SAMPLES = 60;
+const SERIES = { down: 'accent', up: 'success' } as const;
 
-function ratioOf(stats: DownloadStatsView): string | null {
+const GAP = 10;
+const ZONE_GAP = 14;
+const ZONE_MIN = 340;
+const CELL_HEIGHT = 74;
+const TILES_HEIGHT = CELL_HEIGHT * 2 + GAP;
+const HEAD_HEIGHT = 18;
+const HEAD_GAP = 8;
+const PLOT_HEIGHT = TILES_HEIGHT - HEAD_HEIGHT - HEAD_GAP;
+
+const WINDOW_SAMPLES = 36;
+const SCALE_HEADROOM = 1.15;
+const QUIET_CEILING_BPS = 128 * 1024;
+const FLOOR_BELOW_ZERO = 0.06;
+
+type StatTone = 'accent' | 'success' | 'text';
+
+function shareRatioOf(stats: DownloadStatsView): string | null {
   if (stats.totalDownloadedBytes <= 0) return null;
   return (stats.totalUploadedBytes / stats.totalDownloadedBytes).toFixed(2);
 }
 
+function rateFormat(fmt: ReturnType<typeof useFormat>) {
+  return (bytes: number) => `${fmt.bytes(bytes)}/s`;
+}
+
 export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStatsView }>) {
   const stats = useLiveStats(polled);
+  return (
+    <Surface elevated radius="xl" border="border" pad="sm" mb={18}>
+      <Row wrap align="stretch" gap={ZONE_GAP}>
+        <StatTiles stats={stats} />
+        <ThroughputChart stats={stats} />
+      </Row>
+    </Surface>
+  );
+}
+
+function StatTiles({ stats }: Readonly<{ stats: DownloadStatsView }>) {
   const t = useT();
   const fmt = useFormat();
-  const perSecond = (bytes: number) => `${fmt.bytes(bytes)}/s`;
+  const rate = rateFormat(fmt);
 
-  const ratio = ratioOf(stats);
-  const queued = Object.entries(stats.byStatus)
-    .filter(([status]) => status === 'queued' || status === 'paused')
-    .reduce((sum, [, n]) => sum + n, 0);
+  const ratio = shareRatioOf(stats);
+  const queued = (stats.byStatus.queued ?? 0) + (stats.byStatus.paused ?? 0);
 
   return (
-    <Box mb={18} gap={12}>
-      <Grid min={200} gap={12}>
+    <Box flex minW={ZONE_MIN} gap={GAP}>
+      <Row gap={GAP}>
         <StatTile
           icon="download"
           label={t('downloads.statDown')}
-          value={perSecond(stats.downBps)}
-          tone="accent"
+          value={rate(stats.downBps)}
+          tone={SERIES.down}
           foot={t('downloads.totalDown', { total: fmt.bytes(stats.totalDownloadedBytes) })}
         />
         <StatTile
           icon="upload"
           label={t('downloads.statUp')}
-          value={perSecond(stats.upBps)}
-          tone="success"
+          value={rate(stats.upBps)}
+          tone={SERIES.up}
           foot={
             ratio
               ? t('downloads.totalUpRatio', {
@@ -50,6 +76,8 @@ export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStats
               : t('downloads.totalUp', { total: fmt.bytes(stats.totalUploadedBytes) })
           }
         />
+      </Row>
+      <Row gap={GAP}>
         <StatTile
           icon="player-play"
           label={t('downloads.statActive')}
@@ -64,8 +92,7 @@ export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStats
           tone="text"
           foot={t('downloads.peersFoot')}
         />
-      </Grid>
-      <ThroughputChart stats={stats} />
+      </Row>
     </Box>
   );
 }
@@ -80,25 +107,23 @@ function StatTile({
   icon: IconName;
   label: string;
   value: string;
-  tone: 'accent' | 'success' | 'text';
+  tone: StatTone;
   foot: string;
 }>) {
   return (
-    <Surface elevated radius="xl" border="border" pad="none">
-      <Box px={14} py={12} gap={2}>
-        <Row gap={6} align="center">
-          <Icon name={icon} size={12} thickness={2} color={tone === 'text' ? 'glyphDim' : tone} />
-          <Text variant="overline" color="textDim">
-            {label}
-          </Text>
-        </Row>
-        <Text variant="title" color={tone}>
-          {value}
+    <Surface tone="raised" flex h={CELL_HEIGHT} px={12} pad="none" justify="center" gap={2}>
+      <Row gap={6}>
+        <Icon name={icon} size={12} thickness={2} color={tone === 'text' ? 'glyphDim' : tone} />
+        <Text variant="overline" color="textDim" lines={1}>
+          {label}
         </Text>
-        <Text variant="meta" color="text/35" lines={1}>
-          {foot}
-        </Text>
-      </Box>
+      </Row>
+      <Text variant="cardTitle" color={tone} style={s.value} lines={1}>
+        {value}
+      </Text>
+      <Text variant="meta" color="text/35" lines={1}>
+        {foot}
+      </Text>
     </Surface>
   );
 }
@@ -106,45 +131,48 @@ function StatTile({
 function ThroughputChart({ stats }: Readonly<{ stats: DownloadStatsView }>) {
   const t = useT();
   const fmt = useFormat();
-  const perSecond = (bytes: number) => `${fmt.bytes(bytes)}/s`;
+  const rate = rateFormat(fmt);
 
   const points = useMemo(
     () =>
-      stats.history.slice(-SAMPLES).map((s) => ({
-        at: new Date(s.atMs).toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        down: s.downBps,
-        up: s.upBps,
-      })),
+      stats.history
+        .slice(-WINDOW_SAMPLES)
+        .map((sample) => ({ down: sample.downBps, up: sample.upBps })),
     [stats.history],
   );
-  if (points.length < 2) return null;
+  const peak = points.reduce((top, sample) => Math.max(top, sample.down, sample.up), 0);
+  const ceiling = Math.max(peak * SCALE_HEADROOM, QUIET_CEILING_BPS);
+  const floor = -ceiling * FLOOR_BELOW_ZERO;
 
   return (
-    <Surface elevated radius="xl" border="border" pad="none">
-      <Box px={14} pt={12} pb={4}>
-        <Chart.Root
-          data={points}
-          x="at"
-          height={CHART_HEIGHT}
-          min={0}
-          format={perSecond}
-          label={t('downloads.chartThroughput', {
-            down: perSecond(stats.downBps),
-            up: perSecond(stats.upBps),
-          })}
-        >
-          <Chart.Grid />
-          <Chart.Area series="down" label={t('downloads.statDown')} color="accent" />
-          <Chart.Line series="up" label={t('downloads.statUp')} color="success" />
-          <Chart.Axis edge="left" />
-          <Chart.Axis edge="bottom" />
-          <Chart.Tooltip />
-          <Chart.Legend />
-        </Chart.Root>
-      </Box>
-    </Surface>
+    <Box flex minW={ZONE_MIN} gap={HEAD_GAP}>
+      <Row between h={HEAD_HEIGHT}>
+        <Text variant="overline" color="textDim" lines={1}>
+          {t('downloads.throughput')}
+        </Text>
+        <Legend.Root>
+          <Legend.Item color={SERIES.down}>{t('downloads.statDown')}</Legend.Item>
+          <Legend.Item color={SERIES.up}>{t('downloads.statUp')}</Legend.Item>
+        </Legend.Root>
+      </Row>
+      <Chart.Root
+        data={points}
+        height={PLOT_HEIGHT}
+        min={floor}
+        max={ceiling}
+        format={rate}
+        label={t('downloads.chartThroughput', {
+          down: rate(stats.downBps),
+          up: rate(stats.upBps),
+        })}
+      >
+        <Chart.Grid ticks={4} />
+        <Chart.Area series="down" label={t('downloads.statDown')} color={SERIES.down} />
+        <Chart.Line series="up" label={t('downloads.statUp')} color={SERIES.up} />
+        <Chart.Tooltip />
+      </Chart.Root>
+    </Box>
   );
 }
+
+const s = styles({ value: { fontVariant: ['tabular-nums'] } });

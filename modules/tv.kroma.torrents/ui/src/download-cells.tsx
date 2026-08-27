@@ -36,7 +36,7 @@ const s = styles({
 });
 
 /** The season/episode this grab is for, or nothing for a film. */
-export function targetPill(dl: DownloadView): string | null {
+function targetPill(dl: DownloadView): string | null {
   const season = String(dl.season ?? 0).padStart(2, '0');
   if (dl.kind === 'season') return `S${season}`;
   if (dl.kind === 'episode') {

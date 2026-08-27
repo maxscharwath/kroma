@@ -17,13 +17,12 @@ import {
   Button,
   Callout,
   Field,
-  Icon,
   Row,
   Spinner,
   Surface,
   Text,
 } from '@kroma/ui/kit';
-import { type DetectedContent, detect, summaryOf } from './manual-grab-content';
+import { detect } from './manual-grab-content';
 import type { MatchCandidateView } from './schemas';
 import { TitlePicker } from './title-picker';
 
@@ -79,12 +78,7 @@ export function TargetStep({
 
   return (
     <Box gap={14}>
-      <ContentLine
-        found={found}
-        analyzing={analyzing}
-        error={analyzeError}
-        onRetry={onRetryAnalyze}
-      />
+      <AnalysisStatus analyzing={analyzing} error={analyzeError} onRetry={onRetryAnalyze} />
 
       {target.tmdbId ? (
         <Surface radius="xl" border="border" p={12}>
@@ -113,25 +107,16 @@ export function TargetStep({
         />
       )}
 
-      {/* Only when the files did not settle it: a magnet whose metadata never
-          resolved, or a torrent with no video the classifier recognised. */}
       {found?.certain ? null : <ManualShape target={target} onChange={set} />}
     </Box>
   );
 }
 
-// What the torrent holds, said once, as a fact rather than a form.
-function ContentLine({
-  found,
+function AnalysisStatus({
   analyzing,
   error,
   onRetry,
-}: Readonly<{
-  found: DetectedContent | null;
-  analyzing: boolean;
-  error: string | null;
-  onRetry: () => void;
-}>) {
+}: Readonly<{ analyzing: boolean; error: string | null; onRetry: () => void }>) {
   const t = useT();
   if (analyzing) {
     return (
@@ -153,20 +138,9 @@ function ContentLine({
       </Callout.Root>
     );
   }
-  if (!found?.certain) return null;
-  const summary = summaryOf(found);
-  return (
-    <Row gap={8} align="center">
-      <Icon name="circle-check" size={14} thickness={2} color="success" />
-      <Text variant="meta" color="text/60">
-        {t(`manual.found.${summary.key}`, summary.vars)}
-      </Text>
-    </Row>
-  );
+  return null;
 }
 
-// The fallback the files could not answer. Reached only when the analysis came
-// back empty, so it is never in the way of the flow that worked.
 function ManualShape({
   target,
   onChange,

@@ -10,7 +10,7 @@ import type { TorrentAnalysis, TorrentFileView } from '@kroma/module-acquisition
 import type { Kind } from './manual-grab-target';
 
 /** What the contents say the grab is for. */
-export interface DetectedContent {
+interface DetectedContent {
   kind: Kind;
   season: string;
   episode: string;
@@ -68,22 +68,3 @@ export function detect(analysis: TorrentAnalysis): DetectedContent {
 }
 
 /** The one-line summary of what was found, as message-key arguments. */
-export function summaryOf(found: DetectedContent): {
-  key: 'movie' | 'episode' | 'season' | 'series';
-  vars: Record<string, string>;
-} {
-  if (found.kind === 'movie') return { key: 'movie', vars: {} };
-  if (found.kind === 'episode') {
-    return { key: 'episode', vars: { season: found.season, episode: found.episode } };
-  }
-  if (found.seasons.length > 1) {
-    return {
-      key: 'series',
-      vars: { seasons: String(found.seasons.length), episodes: String(found.episodeCount) },
-    };
-  }
-  return {
-    key: 'season',
-    vars: { season: found.season || '?', episodes: String(found.episodeCount) },
-  };
-}

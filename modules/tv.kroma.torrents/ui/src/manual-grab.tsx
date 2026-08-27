@@ -1,7 +1,7 @@
 import { useAcquisitionApi } from '@kroma/module-acquisition/api';
 import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { apiErrorText, useAsyncAction, useT } from '@kroma/module-sdk';
-import { Box, Button, Callout, Dialog, Row, Text } from '@kroma/ui/kit';
+import { Box, Button, Callout, Dialog, Row, Stepper, Text, useStepper } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { detect } from './manual-grab-content';
 import { useIndexerSearch } from './manual-grab-search';
@@ -9,6 +9,9 @@ import { SourceStep, type TorrentSource } from './manual-grab-source';
 import { type GrabTarget, type Kind, TargetStep } from './manual-grab-target';
 import { TorrentContents } from './torrent-contents';
 import { useEpisodeNames } from './use-episode-names';
+
+const FLOW = { gap: 22 } as const;
+const BAR = { paddingHorizontal: 4 } as const;
 
 const STEPS = ['source', 'target', 'files'] as const;
 type Step = (typeof STEPS)[number];
@@ -123,153 +126,118 @@ export function ManualGrabModal({
 
   return (
     <Dialog.Root open title={t('manual.title')} onClose={onClose} width="lg">
-      <StepBar step={step} onStep={setStep} reached={source !== null} />
+      <Stepper.Root
+        label={t('manual.title')}
+        size="md"
+        value={step}
+        onValueChange={(next) => setStep(next as Step)}
+        style={FLOW}
+      >
+        <Stepper.List style={BAR}>
+          <Stepper.Item value="source" icon="search">
+            <Stepper.Label>{t('manual.step.source')}</Stepper.Label>
+          </Stepper.Item>
+          <Stepper.Item value="target" icon="movie" disabled={source === null}>
+            <Stepper.Label>{t('manual.step.target')}</Stepper.Label>
+          </Stepper.Item>
+          <Stepper.Item value="files" icon="file-text" disabled={source === null}>
+            <Stepper.Label>{t('manual.step.files')}</Stepper.Label>
+          </Stepper.Item>
+        </Stepper.List>
 
-      {step === 'source' ? <SourceStep search={search} onPicked={takeSource} /> : null}
+        <Stepper.Panel value="source">
+          <SourceStep search={search} onPicked={takeSource} />
+        </Stepper.Panel>
 
-      {step === 'target' && source ? (
-        <TargetStep
-          releaseTitle={source.releaseTitle}
-          target={target}
-          onTargetChange={setTarget}
-          analysis={analysis}
-          analyzing={analyzing}
-          analyzeError={analyzeErr}
-          onRetryAnalyze={() => analyze(source.magnet)}
-        />
-      ) : null}
-
-      {step === 'files' && source ? (
-        <Box gap={12}>
-          {analyzeErr ? (
-            <Callout.Root size="sm" tone="danger" icon="alert-triangle">
-              <Callout.Title>{analyzeErr}</Callout.Title>
-              <Callout.Actions>
-                <Button
-                  variant="glass"
-                  size="sm"
-                  label={t('manual.analyze')}
-                  onPress={() => analyze(source.magnet)}
-                  loading={analyzing}
-                />
-              </Callout.Actions>
-            </Callout.Root>
-          ) : null}
-          {analyzing ? (
-            <Text variant="meta" color="text/45">
-              {t('manual.analyzing')}
-            </Text>
-          ) : null}
-          {analysis ? (
-            <TorrentContents
+        <Stepper.Panel value="target">
+          {source ? (
+            <TargetStep
+              releaseTitle={source.releaseTitle}
+              target={target}
+              onTargetChange={setTarget}
               analysis={analysis}
-              episodes={episodeNames}
-              selection={{ selected, onSelectedChange: setSelected }}
+              analyzing={analyzing}
+              analyzeError={analyzeErr}
+              onRetryAnalyze={() => analyze(source.magnet)}
             />
           ) : null}
-        </Box>
-      ) : null}
+        </Stepper.Panel>
 
-      {error ? (
-        <Callout.Root size="sm" tone="danger" icon="alert-triangle">
-          <Callout.Title>{error}</Callout.Title>
-        </Callout.Root>
-      ) : null}
+        <Stepper.Panel value="files">
+          {source ? (
+            <Box gap={12}>
+              {analyzeErr ? (
+                <Callout.Root size="sm" tone="danger" icon="alert-triangle">
+                  <Callout.Title>{analyzeErr}</Callout.Title>
+                  <Callout.Actions>
+                    <Button
+                      variant="glass"
+                      size="sm"
+                      label={t('manual.analyze')}
+                      onPress={() => analyze(source.magnet)}
+                      loading={analyzing}
+                    />
+                  </Callout.Actions>
+                </Callout.Root>
+              ) : null}
+              {analyzing ? (
+                <Text variant="meta" color="text/45">
+                  {t('manual.analyzing')}
+                </Text>
+              ) : null}
+              {analysis ? (
+                <TorrentContents
+                  analysis={analysis}
+                  episodes={episodeNames}
+                  selection={{ selected, onSelectedChange: setSelected }}
+                />
+              ) : null}
+            </Box>
+          ) : null}
+        </Stepper.Panel>
 
-      <Footer
-        step={step}
-        canContinue={source !== null}
-        busy={busy}
-        onBack={() => setStep(step === 'files' ? 'target' : 'source')}
-        onNext={() => setStep('files')}
-        onCancel={onClose}
-        onAdd={add}
-      />
+        {error ? (
+          <Callout.Root size="sm" tone="danger" icon="alert-triangle">
+            <Callout.Title>{error}</Callout.Title>
+          </Callout.Root>
+        ) : null}
+
+        <Footer busy={busy} onCancel={onClose} onAdd={add} />
+      </Stepper.Root>
     </Dialog.Root>
   );
 }
 
-function StepBar({
-  step,
-  onStep,
-  reached,
-}: Readonly<{ step: Step; onStep: (next: Step) => void; reached: boolean }>) {
-  const t = useT();
-  const at = STEPS.indexOf(step);
-  return (
-    <Row gap={8} align="center" mb={4}>
-      {STEPS.map((name, index) => {
-        const done = index < at;
-        const behind = index <= at && reached;
-        return (
-          <Row key={name} gap={8} align="center" shrink={1} minW={0}>
-            <Button
-              variant={index === at ? 'glass' : 'ghost'}
-              size="sm"
-              icon={done ? 'circle-check' : undefined}
-              label={`${index + 1}. ${t(`manual.step.${name}`)}`}
-              disabled={!behind || index === at}
-              onPress={() => onStep(name)}
-            />
-            {index < STEPS.length - 1 ? (
-              <Text variant="meta" color="text/20">
-                ›
-              </Text>
-            ) : null}
-          </Row>
-        );
-      })}
-    </Row>
-  );
-}
-
 function Footer({
-  step,
-  canContinue,
   busy,
-  onBack,
-  onNext,
   onCancel,
   onAdd,
-}: Readonly<{
-  step: Step;
-  canContinue: boolean;
-  busy: boolean;
-  onBack: () => void;
-  onNext: () => void;
-  onCancel: () => void;
-  onAdd: () => void;
-}>) {
+}: Readonly<{ busy: boolean; onCancel: () => void; onAdd: () => void }>) {
   const t = useT();
-  if (step === 'source') {
+  const flow = useStepper();
+
+  if (flow.first) {
     return (
-      <Row justify="flex-end" gap={8} mt={4}>
+      <Row justify="flex-end" gap={8} mt={6}>
         <Button variant="ghost" label={t('common.cancel')} onPress={onCancel} />
       </Row>
     );
   }
   return (
-    <Row between gap={8} mt={4}>
-      <Button variant="ghost" icon="arrow-left" label={t('manual.back')} onPress={onBack} />
+    <Row between gap={8} mt={6}>
+      <Stepper.Previous label={t('manual.back')} />
       <Row gap={8}>
         <Button variant="ghost" label={t('common.cancel')} onPress={onCancel} />
-        {step === 'target' ? (
-          <Button
-            variant="primary"
-            icon="arrow-right"
-            label={t('manual.next')}
-            onPress={onNext}
-            disabled={!canContinue}
-          />
-        ) : (
+        {flow.last ? (
           <Button
             variant="primary"
             icon="download"
             label={busy ? t('manual.adding') : t('manual.add')}
             onPress={onAdd}
             loading={busy}
-            disabled={!canContinue}
           />
+        ) : (
+          <Stepper.Next label={t('manual.next')} />
         )}
       </Row>
     </Row>

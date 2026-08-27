@@ -10,7 +10,7 @@ type BadgeTone = Variant<typeof badgeVariants, 'tone'>;
 
 const badgeVariants = sv({
   slots: {
-    root: { self: 'flex-start', radius: 'xs' },
+    root: { self: 'flex-start', radius: 'xs', shrink: 1, minW: 0 },
     label: { font: 'ui', fontWeight: '700' },
   },
   variants: {
@@ -56,7 +56,9 @@ function Badge({ tone = '4K', size = 'sm', children }: Readonly<BadgeProps>) {
   const s = badgeVariants({ tone: known, size });
   return (
     <Box style={s.root}>
-      <Text style={s.label}>{children ?? tone}</Text>
+      <Text lines={1} style={s.label}>
+        {children ?? tone}
+      </Text>
     </Box>
   );
 }

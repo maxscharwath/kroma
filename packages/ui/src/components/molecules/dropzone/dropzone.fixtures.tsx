@@ -4,13 +4,17 @@ import { Box } from '#ui/components/atoms/box';
 
 import { Text } from '#ui/components/atoms/text';
 
-import { Dropzone, type DropzoneRejection } from './dropzone';
+import { Dropzone, type DropzoneRejection, type DropzoneRootProps } from './dropzone';
 
-export function Default() {
+export function Demo(props: Readonly<Partial<DropzoneRootProps>>) {
   const [picked, setPicked] = useState<string | null>(null);
   return (
     <Box w={420} gap={10}>
-      <Dropzone.Root label="Upload a file" onDrop={(files) => setPicked(files[0]?.name ?? null)}>
+      <Dropzone.Root
+        label="Upload a file"
+        {...props}
+        onDrop={(files) => setPicked(files[0]?.name ?? null)}
+      >
         <Dropzone.Icon />
         <Dropzone.Title>Drop a file here</Dropzone.Title>
         <Dropzone.Description>or click to browse</Dropzone.Description>

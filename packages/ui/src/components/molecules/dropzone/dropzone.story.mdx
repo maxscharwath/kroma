@@ -1,10 +1,9 @@
 import { defineStory } from '@kroma/workbench/story';
-import { Dropzone } from './dropzone';
-import { Bounded, Busy, Default, OneKind } from './dropzone.fixtures';
+import { Bounded, Busy, Demo, OneKind } from './dropzone.fixtures';
 
 export const story = defineStory({
   group: 'Input',
-  component: Dropzone.Root,
+  component: Demo,
   args: {
     label: 'Upload a file',
     accept: '.torrent',
@@ -26,7 +25,7 @@ Dragging a file is a pointer-and-filesystem idea and a television has neither, s
 </Dropzone.Root>
 ```
 
-<Default />
+<Demo />
 
 ## Only one kind of file
 

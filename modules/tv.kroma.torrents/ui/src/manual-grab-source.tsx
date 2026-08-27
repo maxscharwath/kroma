@@ -7,12 +7,15 @@
 
 import type { ManualReleaseView } from '@kroma/module-acquisition/schemas';
 import { apiErrorText, useAsyncAction, useT } from '@kroma/module-sdk';
-import { Box, Button, Callout, Field, SegmentGroup, Text } from '@kroma/ui/kit';
-import { type CSSProperties, useRef, useState } from 'react';
+import type { DropzoneRejection } from '@kroma/ui/kit';
+import { Box, Button, Callout, Dropzone, Field, SegmentGroup } from '@kroma/ui/kit';
+import { useState } from 'react';
 import { useTorrentsApi } from './api';
 import { SearchPanel } from './manual-grab-search';
 
-const HIDDEN: CSSProperties = { display: 'none' };
+// The server refuses anything larger before it parses it; saying so here saves
+// the round trip.
+const MAX_TORRENT_BYTES = 1024 * 1024;
 
 // A pasted magnet says nothing about itself until it is resolved, so the title
 // step opens on an empty search rather than on a guess.
@@ -72,10 +75,11 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
   const { busy, error, run } = useAsyncAction();
   const [door, setDoor] = useState<Door>('search');
   const [magnet, setMagnet] = useState('');
-  const input = useRef<HTMLInputElement>(null);
+  const [refused, setRefused] = useState<DropzoneRejection | null>(null);
 
   const takeFile = (file: File | undefined) => {
     if (!file) return;
+    setRefused(null);
     run(
       async () => {
         const inspected = await torrents.inspectTorrent(file);
@@ -156,29 +160,28 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
       ) : null}
 
       {door === 'file' ? (
-        <Box gap={10} py={8} center>
-          <input
-            ref={input}
-            type="file"
-            accept=".torrent,application/x-bittorrent"
-            style={HIDDEN}
-            onChange={(e) => {
-              takeFile(e.target.files?.[0]);
-              // Cleared so picking the SAME file again still fires a change.
-              e.target.value = '';
-            }}
-          />
-          <Button
-            variant="glass"
-            icon="file-upload"
-            label={t('manual.chooseFile')}
-            onPress={() => input.current?.click()}
-            loading={busy}
-          />
-          <Text variant="meta" color="text/40">
-            {t('manual.fileHint')}
-          </Text>
-        </Box>
+        <Dropzone.Root
+          label={t('manual.chooseFile')}
+          accept=".torrent,application/x-bittorrent"
+          maxSize={MAX_TORRENT_BYTES}
+          loading={busy}
+          onDrop={([file]) => takeFile(file)}
+          onReject={([turned]) => setRefused(turned ?? null)}
+        >
+          <Dropzone.Icon />
+          <Dropzone.Title>{t('manual.chooseFile')}</Dropzone.Title>
+          <Dropzone.Description>{t('manual.fileHint')}</Dropzone.Description>
+        </Dropzone.Root>
+      ) : null}
+
+      {refused ? (
+        <Callout.Root size="sm" tone="danger" icon="alert-triangle">
+          <Callout.Title>
+            {t(refused.reason === 'size' ? 'manual.fileTooBig' : 'manual.fileWrongKind', {
+              name: refused.file.name,
+            })}
+          </Callout.Title>
+        </Callout.Root>
       ) : null}
 
       {error ? (

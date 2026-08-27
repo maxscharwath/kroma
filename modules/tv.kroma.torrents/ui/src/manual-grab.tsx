@@ -22,6 +22,7 @@ import { apiErrorText, useAsyncAction, useT } from '@kroma/module-sdk';
 import { Box, Button, Callout, Dialog, Row, Text } from '@kroma/ui/kit';
 import { useState } from 'react';
 import { AnalysisPanel } from './manual-grab-analysis';
+import { detect } from './manual-grab-content';
 import { useIndexerSearch } from './manual-grab-search';
 import { SourceStep, type TorrentSource } from './manual-grab-source';
 import { type GrabTarget, type Kind, TargetStep } from './manual-grab-target';
@@ -78,27 +79,37 @@ export function ManualGrabModal({
       return current.tmdbId ? { ...seeded, ...current } : seeded;
     });
     setStep('target');
+    // Straight away, because what the torrent HOLDS is what decides the rest:
+    // the kind scopes the title search, and the seasons and episodes are read
+    // off the files instead of being typed.
+    analyze(picked.magnet);
   };
 
-  const analyze = () => {
-    if (!source?.magnet) return;
+  const analyze = (magnet: string) => {
+    if (!magnet) return;
     setAnalyzing(true);
     setAnalyzeErr(null);
+    setAnalysis(null);
     acquisition
-      .analyze(source.magnet)
+      .analyze(magnet)
       .then((found) => {
         setAnalysis(found);
         // Default selection is every video file: narrowing it is the point of
-        // the step, but taking everything is the right starting answer.
+        // the files step, but taking everything is the right starting answer.
         setSelected(new Set(found.files.filter((f) => f.isVideo).map((f) => f.index)));
+        // The files outrank the release name, which was only ever a guess.
+        const content = detect(found);
+        if (content.certain) {
+          setTarget((current) => ({
+            ...current,
+            kind: content.kind,
+            season: content.season,
+            episode: content.episode,
+          }));
+        }
       })
       .catch((e) => setAnalyzeErr(apiErrorText(e, t('manual.analyzeFailed'))))
       .finally(() => setAnalyzing(false));
-  };
-
-  const toFiles = () => {
-    setStep('files');
-    if (!analysis) analyze();
   };
 
   const videoFiles = analysis?.files.filter((f) => f.isVideo) ?? [];
@@ -142,7 +153,15 @@ export function ManualGrabModal({
       {step === 'source' ? <SourceStep search={search} onPicked={takeSource} /> : null}
 
       {step === 'target' && source ? (
-        <TargetStep releaseTitle={source.releaseTitle} target={target} onTargetChange={setTarget} />
+        <TargetStep
+          releaseTitle={source.releaseTitle}
+          target={target}
+          onTargetChange={setTarget}
+          analysis={analysis}
+          analyzing={analyzing}
+          analyzeError={analyzeErr}
+          onRetryAnalyze={() => analyze(source.magnet)}
+        />
       ) : null}
 
       {step === 'files' && source ? (
@@ -155,7 +174,7 @@ export function ManualGrabModal({
                   variant="glass"
                   size="sm"
                   label={t('manual.analyze')}
-                  onPress={analyze}
+                  onPress={() => analyze(source.magnet)}
                   loading={analyzing}
                 />
               </Callout.Actions>
@@ -197,7 +216,7 @@ export function ManualGrabModal({
         canContinue={source !== null}
         busy={busy}
         onBack={() => setStep(step === 'files' ? 'target' : 'source')}
-        onNext={toFiles}
+        onNext={() => setStep('files')}
         onCancel={onClose}
         onAdd={add}
       />

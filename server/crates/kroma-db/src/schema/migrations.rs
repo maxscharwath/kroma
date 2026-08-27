@@ -148,4 +148,7 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     "INSERT OR IGNORE INTO my_list (user_id, item_id, added_at) SELECT user_id, item_id, added_at FROM watch_later",
     "DROP INDEX IF EXISTS idx_watch_later_user",
     "DROP TABLE IF EXISTS watch_later",
+    // The language tag the device asked for, beside the label it goes by. Read
+    // only in aggregate, by the opt-in anonymous statistics.
+    "ALTER TABLE access_tokens ADD COLUMN language TEXT",
 ];

@@ -10,13 +10,24 @@
 // ceiling; the form never asks anyone to know that.
 
 import { useAsyncAction, useT } from '@kroma/module-sdk';
-import { Box, Callout, Dialog, Field, InputGroup, Row, Spinner } from '@kroma/ui/kit';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  Callout,
+  Dialog,
+  Field,
+  Row,
+  Spinner,
+  Text,
+} from '@kroma/ui/kit';
 import { useEffect, useState } from 'react';
 import { createCallable } from 'react-call';
 import { useTorrentsApi } from './api';
 import type { LimitsView } from './schemas';
 
 const UNLIMITED = 0;
+const STRETCH = { alignSelf: 'stretch' } as const;
 // What switching a limit on starts from when none was set: a number an operator
 // recognises as a starting point rather than an empty box.
 const DEFAULT_RATE_KBPS = 5120;
@@ -118,8 +129,8 @@ interface CeilingProps {
   onValueChange: (next: number) => void;
 }
 
-// One ceiling, as ONE control: the number on the left, the unit welded to it,
-// and the switch on the right that says whether there is a ceiling at all.
+// One ceiling, as ONE welded control: the number on the left, the unit after
+// it, and the toggle on the right that says whether there is a ceiling at all.
 // Turning the limit off greys the entry rather than hiding it, so the row never
 // changes height and the number an operator typed is still there when they turn
 // it back on.
@@ -139,26 +150,42 @@ function Ceiling({ label, unit, value, whenOn, onValueChange }: Readonly<Ceiling
   };
 
   return (
-    <Field.Root label={label} size="sm">
-      <InputGroup.Root label={label} size="sm">
-        <InputGroup.Input
+    <Box gap={6}>
+      <Text variant="label" color="textMuted">
+        {label}
+      </Text>
+      {/* A group hugs its content by default, which would leave three rows of
+          three different widths. */}
+      <ButtonGroup.Root label={label} size="sm" style={STRETCH}>
+        <Field.Root
+          label={label}
+          hideLabel
+          flex
+          minW={0}
           value={limited ? String(value) : ''}
           onValueChange={(next) => onValueChange(digitsOf(next))}
-          placeholder={t('downloads.unlimited')}
-          readOnly={!limited}
-          selectOnFocus
-        />
-        <InputGroup.Addon align="inline-end">
-          <InputGroup.Text>{limited ? unit : ''}</InputGroup.Text>
-        </InputGroup.Addon>
-        <InputGroup.IconButton
+        >
+          <Field.Input
+            placeholder={t('downloads.unlimited')}
+            readOnly={!limited}
+            selectOnFocus
+            trailing={
+              limited ? (
+                <Text variant="meta" color="text/35">
+                  {unit}
+                </Text>
+              ) : undefined
+            }
+          />
+        </Field.Root>
+        <Button
+          variant="outline"
           icon="infinity"
-          label={t('downloads.unlimitedToggle', { what: label })}
+          label={t('downloads.unlimited')}
           active={!limited}
-          pressed={!limited}
           onPress={toggle}
         />
-      </InputGroup.Root>
-    </Field.Root>
+      </ButtonGroup.Root>
+    </Box>
   );
 }

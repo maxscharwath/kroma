@@ -19,6 +19,7 @@ import {
   Callout,
   Dialog,
   EmptyState,
+  IconButton,
   PageHeader,
   Pagination,
   Row,
@@ -151,7 +152,10 @@ export default function DownloadsPage() {
 
   return (
     <>
-      <PageChrome onManual={() => setManual(true)} />
+      <PageChrome
+        onManual={() => setManual(true)}
+        onSettings={canSettings ? editLimits : undefined}
+      />
 
       {vpn ? <VpnBanner vpn={vpn} /> : null}
 
@@ -164,7 +168,6 @@ export default function DownloadsPage() {
         onSearchChange={setTyped}
         stats={stats}
         clients={clientsPoll.data?.clients ?? []}
-        onEditLimits={canSettings ? editLimits : undefined}
       />
 
       {hasActive ? (
@@ -287,7 +290,10 @@ export default function DownloadsPage() {
   );
 }
 
-function PageChrome({ onManual }: Readonly<{ onManual: () => void }>) {
+function PageChrome({
+  onManual,
+  onSettings,
+}: Readonly<{ onManual: () => void; onSettings?: () => void }>) {
   const t = useT();
   return (
     <>
@@ -295,6 +301,9 @@ function PageChrome({ onManual }: Readonly<{ onManual: () => void }>) {
         <PageHeader.Title>{t('admin.downloadsTitle')}</PageHeader.Title>
         <PageHeader.Subtitle>{t('admin.downloadsSub')}</PageHeader.Subtitle>
         <PageHeader.Actions>
+          {onSettings ? (
+            <IconButton icon="settings" label={t('downloads.settings')} onPress={onSettings} />
+          ) : null}
           <Button variant="primary" icon="plus" label={t('manual.title')} onPress={onManual} />
         </PageHeader.Actions>
       </PageHeader.Root>

@@ -66,9 +66,6 @@ interface DownloadFiltersProps {
    *  Held by the caller so a keystroke never re-keys the queue's poll. */
   search: string;
   onSearchChange: (next: string) => void;
-  /** Opens the throughput and parallelism form. Omitted for an operator who
-   *  cannot change engine-wide settings. */
-  onEditLimits?: () => void;
 }
 
 /** The queue's filter bar. Changing anything resets to the first page, because
@@ -80,7 +77,6 @@ export function DownloadFilters({
   clients,
   search,
   onSearchChange,
-  onEditLimits,
 }: Readonly<DownloadFiltersProps>) {
   const t = useT();
   const set = (patch: Partial<DownloadQuery>) => onQueryChange({ ...query, ...patch, page: 1 });
@@ -112,15 +108,6 @@ export function DownloadFilters({
               onSearchChange('');
               onQueryChange({ page: 1 });
             }}
-          />
-        ) : null}
-        {onEditLimits ? (
-          <Button
-            variant="glass"
-            size="sm"
-            icon="gauge"
-            label={t('downloads.limits')}
-            onPress={onEditLimits}
           />
         ) : null}
       </Row>

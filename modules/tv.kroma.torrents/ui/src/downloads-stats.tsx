@@ -1,27 +1,32 @@
 import { useFormat, useT } from '@kroma/module-sdk';
-import type { IconName } from '@kroma/ui/kit';
-import { Box, Chart, Icon, Legend, Row, Surface, styles, Text } from '@kroma/ui/kit';
+import type { ChartCurve, IconName } from '@kroma/ui/kit';
+import { Box, Chart, Icon, Row, Surface, styles, Text } from '@kroma/ui/kit';
 import { useMemo } from 'react';
-import type { DownloadStatsView } from './schemas';
+import type { DownloadStatsView, SpeedSample } from './schemas';
 import { useLiveStats } from './use-live-stats';
 
-const SERIES = { down: 'accent', up: 'success' } as const;
+const STAT_TONES = { down: 'accent', up: 'success', active: 'text', peers: 'text' } as const;
 
 const GAP = 10;
-const ZONE_GAP = 14;
-const ZONE_MIN = 340;
-const CELL_HEIGHT = 74;
-const TILES_HEIGHT = CELL_HEIGHT * 2 + GAP;
-const HEAD_HEIGHT = 18;
-const HEAD_GAP = 8;
-const PLOT_HEIGHT = TILES_HEIGHT - HEAD_HEIGHT - HEAD_GAP;
+const PAIR_MIN = 360;
+const TEXT_GAP = 2;
+const SPARK_GAP = 8;
+const SPARK_HEIGHT = 30;
+const ZERO_LIFT_PX = 5;
 
 const WINDOW_SAMPLES = 36;
 const SCALE_HEADROOM = 1.15;
-const QUIET_CEILING_BPS = 128 * 1024;
-const FLOOR_BELOW_ZERO = 0.06;
+const QUIET_BPS = 128 * 1024;
+const QUIET_COUNT = 4;
 
-type StatTone = 'accent' | 'success' | 'text';
+type StatTone = (typeof STAT_TONES)[keyof typeof STAT_TONES];
+type SpeedField = Exclude<keyof SpeedSample, 'atMs'>;
+
+const paintOf = (tone: StatTone) => (tone === 'text' ? 'glyphDim' : tone);
+
+function floorFor(ceiling: number): number {
+  return -ceiling * (ZERO_LIFT_PX / (SPARK_HEIGHT - ZERO_LIFT_PX));
+}
 
 function shareRatioOf(stats: DownloadStatsView): string | null {
   if (stats.totalDownloadedBytes <= 0) return null;
@@ -34,39 +39,33 @@ function rateFormat(fmt: ReturnType<typeof useFormat>) {
 
 export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStatsView }>) {
   const stats = useLiveStats(polled);
-  return (
-    <Surface elevated radius="xl" border="border" pad="sm" mb={18}>
-      <Row wrap align="stretch" gap={ZONE_GAP}>
-        <StatTiles stats={stats} />
-        <ThroughputChart stats={stats} />
-      </Row>
-    </Surface>
-  );
-}
-
-function StatTiles({ stats }: Readonly<{ stats: DownloadStatsView }>) {
   const t = useT();
   const fmt = useFormat();
   const rate = rateFormat(fmt);
 
+  const samples = useMemo(() => stats.history.slice(-WINDOW_SAMPLES), [stats.history]);
   const ratio = shareRatioOf(stats);
   const queued = (stats.byStatus.queued ?? 0) + (stats.byStatus.paused ?? 0);
 
   return (
-    <Box flex minW={ZONE_MIN} gap={GAP}>
-      <Row gap={GAP}>
+    <Row wrap align="stretch" gap={GAP} mb={18}>
+      <Row flex minW={PAIR_MIN} align="stretch" gap={GAP}>
         <StatTile
           icon="download"
           label={t('downloads.statDown')}
           value={rate(stats.downBps)}
-          tone={SERIES.down}
+          tone={STAT_TONES.down}
           foot={t('downloads.totalDown', { total: fmt.bytes(stats.totalDownloadedBytes) })}
+          samples={samples}
+          field="downBps"
+          quietCeiling={QUIET_BPS}
+          curve="monotone"
         />
         <StatTile
           icon="upload"
           label={t('downloads.statUp')}
           value={rate(stats.upBps)}
-          tone={SERIES.up}
+          tone={STAT_TONES.up}
           foot={
             ratio
               ? t('downloads.totalUpRatio', {
@@ -75,25 +74,37 @@ function StatTiles({ stats }: Readonly<{ stats: DownloadStatsView }>) {
                 })
               : t('downloads.totalUp', { total: fmt.bytes(stats.totalUploadedBytes) })
           }
+          samples={samples}
+          field="upBps"
+          quietCeiling={QUIET_BPS}
+          curve="monotone"
         />
       </Row>
-      <Row gap={GAP}>
+      <Row flex minW={PAIR_MIN} align="stretch" gap={GAP}>
         <StatTile
           icon="player-play"
           label={t('downloads.statActive')}
           value={String(stats.active)}
-          tone="text"
+          tone={STAT_TONES.active}
           foot={t('downloads.waiting', { count: String(queued) })}
+          samples={samples}
+          field="active"
+          quietCeiling={QUIET_COUNT}
+          curve="linear"
         />
         <StatTile
           icon="users"
           label={t('downloads.statPeers')}
           value={String(stats.peers)}
-          tone="text"
+          tone={STAT_TONES.peers}
           foot={t('downloads.peersFoot')}
+          samples={samples}
+          field="peers"
+          quietCeiling={QUIET_COUNT}
+          curve="linear"
         />
       </Row>
-    </Box>
+    </Row>
   );
 }
 
@@ -103,75 +114,46 @@ function StatTile({
   value,
   tone,
   foot,
+  samples,
+  field,
+  quietCeiling,
+  curve,
 }: Readonly<{
   icon: IconName;
   label: string;
   value: string;
   tone: StatTone;
   foot: string;
+  samples: readonly SpeedSample[];
+  field: SpeedField;
+  quietCeiling: number;
+  curve: ChartCurve;
 }>) {
-  return (
-    <Surface tone="raised" flex h={CELL_HEIGHT} px={12} pad="none" justify="center" gap={2}>
-      <Row gap={6}>
-        <Icon name={icon} size={12} thickness={2} color={tone === 'text' ? 'glyphDim' : tone} />
-        <Text variant="overline" color="textDim" lines={1}>
-          {label}
-        </Text>
-      </Row>
-      <Text variant="cardTitle" color={tone} style={s.value} lines={1}>
-        {value}
-      </Text>
-      <Text variant="meta" color="text/35" lines={1}>
-        {foot}
-      </Text>
-    </Surface>
-  );
-}
-
-function ThroughputChart({ stats }: Readonly<{ stats: DownloadStatsView }>) {
-  const t = useT();
-  const fmt = useFormat();
-  const rate = rateFormat(fmt);
-
-  const points = useMemo(
-    () =>
-      stats.history
-        .slice(-WINDOW_SAMPLES)
-        .map((sample) => ({ down: sample.downBps, up: sample.upBps })),
-    [stats.history],
-  );
-  const peak = points.reduce((top, sample) => Math.max(top, sample.down, sample.up), 0);
-  const ceiling = Math.max(peak * SCALE_HEADROOM, QUIET_CEILING_BPS);
-  const floor = -ceiling * FLOOR_BELOW_ZERO;
+  const peak = samples.reduce((top, sample) => Math.max(top, sample[field]), 0);
+  const ceiling = Math.max(peak * SCALE_HEADROOM, quietCeiling);
+  const floor = floorFor(ceiling);
+  const paint = paintOf(tone);
 
   return (
-    <Box flex minW={ZONE_MIN} gap={HEAD_GAP}>
-      <Row between h={HEAD_HEIGHT}>
-        <Text variant="overline" color="textDim" lines={1}>
-          {t('downloads.throughput')}
+    <Surface elevated radius="xl" border="border" flex pad="none" px={12} py={10} gap={SPARK_GAP}>
+      <Box gap={TEXT_GAP}>
+        <Row gap={6}>
+          <Icon name={icon} size={12} thickness={2} color={paint} />
+          <Text variant="overline" color="textDim" lines={1}>
+            {label}
+          </Text>
+        </Row>
+        <Text variant="cardTitle" color={tone} style={s.value} lines={1}>
+          {value}
         </Text>
-        <Legend.Root>
-          <Legend.Item color={SERIES.down}>{t('downloads.statDown')}</Legend.Item>
-          <Legend.Item color={SERIES.up}>{t('downloads.statUp')}</Legend.Item>
-        </Legend.Root>
-      </Row>
-      <Chart.Root
-        data={points}
-        height={PLOT_HEIGHT}
-        min={floor}
-        max={ceiling}
-        format={rate}
-        label={t('downloads.chartThroughput', {
-          down: rate(stats.downBps),
-          up: rate(stats.upBps),
-        })}
-      >
-        <Chart.Grid ticks={4} />
-        <Chart.Area series="down" label={t('downloads.statDown')} color={SERIES.down} />
-        <Chart.Line series="up" label={t('downloads.statUp')} color={SERIES.up} />
-        <Chart.Tooltip />
+        <Text variant="meta" color="text/35" lines={1}>
+          {foot}
+        </Text>
+      </Box>
+      <Chart.Root data={samples} height={SPARK_HEIGHT} min={floor} max={ceiling}>
+        <Chart.Area series={field} color={paint} curve={curve} thickness={2} />
       </Chart.Root>
-    </Box>
+    </Surface>
   );
 }
 

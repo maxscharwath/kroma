@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::api::dto::{PersonDetailResponse, PersonResponse, SearchHit};
 use crate::api::util::{blocking, query};
 use crate::db;
-use crate::i18n::ReqLocale;
+use crate::i18n::{AskedLocale, ReqLocale};
 use crate::infra::{image, metadata};
 use crate::model::{MediaItem, Metadata, Show};
 use crate::services::settings;
@@ -73,7 +73,7 @@ pub struct NameParams {
 /// The portrait is cached locally and served from `/api/images` like other art.
 pub async fn details(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     Query(p): Query<NameParams>,
 ) -> Result<Response, Response> {
     let lookup = p.name.unwrap_or_default().trim().to_string();

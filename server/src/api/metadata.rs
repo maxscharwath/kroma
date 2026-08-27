@@ -9,7 +9,7 @@ use axum::Json;
 use crate::api::error::json_error;
 use crate::api::util::{blocking, query};
 use crate::db;
-use crate::i18n::ReqLocale;
+use crate::i18n::AskedLocale;
 use crate::infra::metadata::{self, Target};
 use crate::model::Kind;
 use crate::state::SharedState;
@@ -29,7 +29,7 @@ pub fn routes() -> Router<SharedState> {
 /// the item is unknown or TMDB has no match.
 pub async fn item_metadata(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     Path(id): Path<String>,
 ) -> Result<Response, Response> {
     let api_key = require_tmdb_key(&state)?;
@@ -53,7 +53,7 @@ pub async fn item_metadata(
 /// `GET /api/shows/:id/metadata` → TMDB details + IDs for one show.
 pub async fn show_metadata(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     Path(id): Path<String>,
 ) -> Result<Response, Response> {
     let api_key = require_tmdb_key(&state)?;
@@ -81,7 +81,7 @@ async fn resolve_metadata(
     target: Target,
     title: String,
     year: Option<u32>,
-    reader: &str,
+    reader: Option<&str>,
 ) -> Result<Response, Response> {
     let language =
         crate::services::settings::metadata_language_for(&state.settings, &state.config, reader);

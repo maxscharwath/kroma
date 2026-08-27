@@ -498,23 +498,9 @@ fn tmdb_language_options() -> Vec<String> {
     opts.extend(
         crate::i18n::SUPPORTED_LOCALES
             .iter()
-            .map(|l| tmdb_region_of(l).to_string()),
+            .map(|l| super::tmdb_region_of(l).to_string()),
     );
     opts
-}
-
-fn tmdb_region_of(lang: &str) -> &str {
-    match lang {
-        "en" => "en-US",
-        "fr" => "fr-FR",
-        "es" => "es-ES",
-        "de" => "de-DE",
-        "it" => "it-IT",
-        "pt" => "pt-BR",
-        "nl" => "nl-NL",
-        "ja" => "ja-JP",
-        other => other,
-    }
 }
 
 fn row(

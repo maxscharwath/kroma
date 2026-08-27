@@ -17,7 +17,7 @@ use crate::api::extract::AuthUser;
 use crate::api::util::blocking;
 use crate::db;
 use crate::i18n;
-use crate::i18n::ReqLocale;
+use crate::i18n::AskedLocale;
 use crate::infra::metadata::discover;
 use crate::model::{
     DiscoverDetail, DiscoverEntry, DiscoverResponse, DiscoverSeason, Permission, RequestKind,
@@ -84,7 +84,7 @@ pub struct SearchParams {
 
 pub async fn search(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     AuthUser(user): AuthUser,
     Query(params): Query<SearchParams>,
 ) -> Result<Response, Response> {
@@ -129,7 +129,7 @@ pub struct TrendingParams {
 /// `type=movie|tv` = a paginated single-kind list backing the full page.
 pub async fn trending(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     AuthUser(user): AuthUser,
     Query(params): Query<TrendingParams>,
 ) -> Result<Response, Response> {
@@ -155,7 +155,7 @@ pub async fn trending(
 /// `GET /api/discover/{movie|tv}/:tmdbId` detail + seasons + availability.
 pub async fn detail(
     State(state): State<SharedState>,
-    ReqLocale(reader): ReqLocale,
+    AskedLocale(reader): AskedLocale,
     AuthUser(user): AuthUser,
     Path((kind, tmdb_id)): Path<(String, u64)>,
 ) -> Result<Response, Response> {

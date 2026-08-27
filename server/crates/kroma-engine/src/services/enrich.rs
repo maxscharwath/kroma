@@ -412,7 +412,7 @@ fn fill_langs(eng: &Engine, job: &Job, tmdb_id: u64, missing: &[String]) {
     let by_lang: std::collections::HashMap<String, Metadata> = resolved
         .by_lang
         .into_iter()
-        .map(|(lang, m)| (lang, image::localize_art(&eng.data_dir, m)))
+        .map(|(lang, m)| (lang, image::localize_title_art(&eng.data_dir, m)))
         .collect();
     // Only the languages TMDB actually answered for. One whose request failed
     // says nothing about the title, and recording "there is nothing here" for it
@@ -500,7 +500,7 @@ fn process_job(
             let m = if lang == primary_key {
                 meta.clone()
             } else {
-                image::localize_art(&eng.data_dir, m)
+                image::localize_title_art(&eng.data_dir, m)
             };
             (lang, m)
         })

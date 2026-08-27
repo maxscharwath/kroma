@@ -113,6 +113,22 @@ pub fn metadata_language(settings: &Settings, config: &crate::config::Config) ->
     }
 }
 
+/// TMDB's regional tag for a bare language code, which is what decides the
+/// release dates and the artwork it hands back. Unknown codes pass through.
+pub fn tmdb_region_of(lang: &str) -> &str {
+    match lang {
+        "en" => "en-US",
+        "fr" => "fr-FR",
+        "es" => "es-ES",
+        "de" => "de-DE",
+        "it" => "it-IT",
+        "pt" => "pt-BR",
+        "nl" => "nl-NL",
+        "ja" => "ja-JP",
+        other => other,
+    }
+}
+
 /// The TMDB language for a request made by a reader, which is the reader's own
 /// unless the operator asked for a regional variant of it.
 ///
@@ -122,9 +138,15 @@ pub fn metadata_language(settings: &Settings, config: &crate::config::Config) ->
 pub fn metadata_language_for(
     settings: &Settings,
     config: &crate::config::Config,
-    reader: &str,
+    reader: Option<&str>,
 ) -> String {
     let configured = metadata_language(settings, config);
+    // Nothing was asked for: a request with no Accept-Language is a script or
+    // an older client, and the operator's setting is the answer. Treating the
+    // fallback locale as a preference let any such call quietly override it.
+    let Some(reader) = reader else {
+        return configured;
+    };
     let base = |tag: &str| {
         tag.split(['-', '_'])
             .next()
@@ -134,7 +156,9 @@ pub fn metadata_language_for(
     if base(&configured) == base(reader) {
         configured
     } else {
-        reader.to_string()
+        // Regioned, because a bare code leaves TMDB to pick release dates and
+        // artwork for no region in particular.
+        tmdb_region_of(&base(reader)).to_string()
     }
 }
 
@@ -359,16 +383,33 @@ mod tests {
         let s = settings(&pool);
         let c = test_config();
 
-        assert_eq!(metadata_language_for(&s, &c, "en"), "en-US");
-        assert_eq!(metadata_language_for(&s, &c, "fr"), "fr");
-        assert_eq!(metadata_language_for(&s, &c, "de"), "de");
+        assert_eq!(metadata_language_for(&s, &c, Some("en")), "en-US");
+        // Regioned, not bare: TMDB picks release dates and artwork by region.
+        assert_eq!(metadata_language_for(&s, &c, Some("fr")), "fr-FR");
+        assert_eq!(metadata_language_for(&s, &c, Some("de")), "de-DE");
 
         s.set_patch(
             &pool,
             BTreeMap::from([("tmdbLanguage".to_string(), json!("fr-FR"))]),
         );
-        assert_eq!(metadata_language_for(&s, &c, "fr"), "fr-FR");
-        assert_eq!(metadata_language_for(&s, &c, "en"), "en");
+        assert_eq!(metadata_language_for(&s, &c, Some("fr")), "fr-FR");
+        assert_eq!(metadata_language_for(&s, &c, Some("en")), "en-US");
+    }
+
+    #[test]
+    fn a_request_that_asked_for_nothing_leaves_the_operators_language_alone() {
+        let pool = test_pool();
+        let s = settings(&pool);
+        let c = test_config();
+        s.set_patch(
+            &pool,
+            BTreeMap::from([("tmdbLanguage".to_string(), json!("fr-FR"))]),
+        );
+
+        // A curl, a module or an older client sends no Accept-Language. Reading
+        // the fallback locale as a preference let any of them quietly override
+        // a server configured for something else.
+        assert_eq!(metadata_language_for(&s, &c, None), "fr-FR");
     }
 
     #[test]

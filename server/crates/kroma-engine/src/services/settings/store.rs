@@ -132,7 +132,7 @@ fn defaults() -> BTreeMap<String, Value> {
     m.insert("moduleRegistries".into(), json!([]));
     m.insert("uiLanguage".into(), json!("Français"));
     // Empty → the env-configured `KROMA_TMDB_LANGUAGE` (default "en-US").
-    m.insert("tmdbLanguage".into(), json!(""));
+    m.insert("tmdbLanguage".into(), json!(super::TMDB_LANGUAGE_AUTO));
     m.insert("timezone".into(), json!("Europe/Zurich (UTC+1)"));
     m.insert("autoUpdate".into(), json!(true));
     m.insert("updateChannel".into(), json!("Stable"));

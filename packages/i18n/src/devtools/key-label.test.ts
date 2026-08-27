@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createI18n } from '../i18n';
-import { installKeyInspector } from '../inspect';
+import { installKeyInspector } from '../dev-overrides';
 import { keyLabel } from './key-label';
 
 function build() {

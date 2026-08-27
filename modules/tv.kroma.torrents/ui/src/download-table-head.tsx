@@ -1,16 +1,29 @@
-import { Table, type TableHeading, useT } from '@kroma/module-sdk';
+import { type TableHeading, useT } from '@kroma/module-sdk';
+import { Box, Table, Text } from '@kroma/ui/kit';
+import { COLUMN_GAP, FRAME_INSET } from './download-columns';
 
-/** The queue's heading band, where a sortable column's whole cell is the
- *  control. */
 export function DownloadTableHead({ headings }: Readonly<{ headings: TableHeading[] }>) {
   const t = useT();
   return (
-    <Table.Header>
-      {headings.map(({ id, label, wide, sorted, onSortPress }) => (
-        <Table.Column key={id} wide={wide} sorted={sorted} onSortPress={onSortPress}>
-          {label ? t(label) : null}
-        </Table.Column>
-      ))}
-    </Table.Header>
+    <Box bg="surface2">
+      <Table.Header>
+        <Table.Row>
+          {headings.map(({ id, label, sorted }, at) => (
+            <Table.Cell key={id}>
+              {label ? (
+                <Text
+                  variant="overline"
+                  color={sorted ? 'accent' : 'textDim'}
+                  lines={1}
+                  pl={at === 0 ? FRAME_INSET : COLUMN_GAP}
+                >
+                  {t(label)}
+                </Text>
+              ) : null}
+            </Table.Cell>
+          ))}
+        </Table.Row>
+      </Table.Header>
+    </Box>
   );
 }

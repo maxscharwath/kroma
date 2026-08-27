@@ -1,5 +1,10 @@
 export { type DefineI18nConfig, defineI18n } from './define';
 export {
+  installKeyInspector,
+  installLocaleOverride,
+  type KeyInspector,
+} from './dev-overrides';
+export {
   createI18n,
   type I18n,
   type I18nConfig,

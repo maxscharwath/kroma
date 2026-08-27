@@ -46,11 +46,14 @@ export interface Format {
 // One set per locale for the whole app, not one per mounted component: these
 // are called from table cells and download rows, where fifty of them would mean
 // fifty identical objects and four hundred identical closures.
-const BOUND = new Map<Locale, Format>();
+const BOUND = new Map<Locale, { t: Translate; format: Format }>();
 
 function formatFor(locale: Locale, t: Translate): Format {
   const cached = BOUND.get(locale);
-  if (cached) return cached;
+  // The translator is part of the key: `elapsed` and `uptime` render their unit
+  // through it, so a Format built against an older one keeps saying what that
+  // one said, and a catalog registered since would never reach it.
+  if (cached?.t === t) return cached.format;
   const bound: Format = {
     bytes: (bytes) => formatBytes(bytes, locale),
     decimal: (n, digits) => decimal(n, locale, digits),
@@ -61,7 +64,7 @@ function formatFor(locale: Locale, t: Translate): Format {
     mbps: (n) => formatMbps(n, locale),
     timecode: formatTimecodeMs,
   };
-  BOUND.set(locale, bound);
+  BOUND.set(locale, { t, format: bound });
   return bound;
 }
 

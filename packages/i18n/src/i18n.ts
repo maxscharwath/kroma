@@ -1,5 +1,5 @@
 import { translateChain } from './chain';
-import { activeKeyInspector, inspectorRevision, onKeyInspectorChange } from './inspect';
+import { activeKeyInspector, onOverridesChange, overridesRevision } from './dev-overrides';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
@@ -81,7 +81,7 @@ export function createI18n<
   const bound = new Map<string, (key: K | (string & {}), vars?: TVars) => string>();
 
   const translator = (locale: L, scope?: string) => {
-    const cacheKey = scope === undefined ? locale : `${locale}\u0000${scope}`;
+    const cacheKey = `${locale}\u0000${scope ?? ''}\u0000${overridesRevision()}`;
     let fn = bound.get(cacheKey);
     if (!fn) {
       fn = (key, vars) => render(locale, scope, key, vars);
@@ -96,10 +96,10 @@ export function createI18n<
     translator,
     add: (scope, added) => store.add(scope, added),
     has: (key) => store.has(key),
-    version: () => store.version() + inspectorRevision(),
+    version: () => store.version() + overridesRevision(),
     subscribe: (listener) => {
       const stopStore = store.subscribe(listener);
-      const stopInspector = onKeyInspectorChange(listener);
+      const stopInspector = onOverridesChange(listener);
       return () => {
         stopStore();
         stopInspector();

@@ -7,7 +7,6 @@ import {
   Denied,
   ModuleFailed,
   ModuleLoading,
-  Table,
   useCap,
   usePoll,
   useServerEvents,
@@ -22,12 +21,15 @@ import {
   PageHeader,
   Pagination,
   Row,
+  Surface,
+  Table,
   Text,
 } from '@kroma/ui/kit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTorrentsApi } from './api';
 import { ContentsModal } from './contents-modal';
 import { DownloadClientsSection } from './download-clients';
+import { DOWNLOAD_BOXES } from './download-columns';
 import { DownloadRowView, type LiveDl } from './download-row';
 import { DownloadTableHead } from './download-table-head';
 import { DownloadFilters } from './downloads-filters';
@@ -43,7 +45,7 @@ import type {
   DownloadQuery,
   DownloadView,
 } from './schemas';
-import { DOWNLOAD_COLUMNS, useDownloadsTable } from './use-downloads-table';
+import { useDownloadsTable } from './use-downloads-table';
 
 const POLL_MS = 10000;
 const RELOAD_THROTTLE_MS = 1500;
@@ -86,7 +88,7 @@ export default function DownloadsPage() {
   if (data) shownRef.current = data;
   const shown = data ?? shownRef.current;
   const clientsPoll = usePoll(['admin', 'downloads', 'clients'], () => torrents.clients(), 60000);
-  const { table, headings } = useDownloadsTable({
+  const { table, headings, sort, onSortChange } = useDownloadsTable({
     downloads: shown?.downloads,
     page: shown?.page,
     query,
@@ -198,23 +200,33 @@ export default function DownloadsPage() {
         </Row>
       ) : null}
 
-      <Table.Root columns={DOWNLOAD_COLUMNS} label={t('admin.downloadsTitle')}>
-        <DownloadTableHead headings={headings} />
-        {table.getRowModel().rows.map(({ id, original: dl }) => (
-          <DownloadRowView
-            key={id}
-            dl={dl}
-            live={live[dl.id]}
-            busy={busy}
-            onPause={() => act(() => torrents.pause(dl.id))}
-            onResume={() => act(() => torrents.resume(dl.id))}
-            onRetry={() => act(() => torrents.retry(dl.id))}
-            onAskPeers={() => act(() => torrents.reannounce(dl.id))}
-            onRelink={() => relink(dl)}
-            onContents={() => void ContentsModal.call({ dl })}
-            onRemove={() => setConfirm(dl)}
-          />
-        ))}
+      <Surface elevated pad="none" overflow="hidden" radius="xl">
+        <Table.Root
+          variant="plain"
+          columns={DOWNLOAD_BOXES}
+          label={t('admin.downloadsTitle')}
+          sort={sort}
+          onSortChange={onSortChange}
+        >
+          <DownloadTableHead headings={headings} />
+          <Table.Body>
+            {table.getRowModel().rows.map(({ id, original: dl }) => (
+              <DownloadRowView
+                key={id}
+                dl={dl}
+                live={live[dl.id]}
+                busy={busy}
+                onPause={() => act(() => torrents.pause(dl.id))}
+                onResume={() => act(() => torrents.resume(dl.id))}
+                onRetry={() => act(() => torrents.retry(dl.id))}
+                onAskPeers={() => act(() => torrents.reannounce(dl.id))}
+                onRelink={() => relink(dl)}
+                onContents={() => void ContentsModal.call({ dl })}
+                onRemove={() => setConfirm(dl)}
+              />
+            ))}
+          </Table.Body>
+        </Table.Root>
         {downloads.length === 0 ? (
           <Box py={24}>
             <EmptyState.Root icon="download">
@@ -222,7 +234,7 @@ export default function DownloadsPage() {
             </EmptyState.Root>
           </Box>
         ) : null}
-      </Table.Root>
+      </Surface>
 
       {page.total > 0 ? (
         <Row between wrap gap={12} mt={16}>

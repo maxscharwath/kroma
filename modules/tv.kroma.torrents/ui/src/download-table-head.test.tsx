@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
-import { Table } from '@kroma/module-sdk';
 import { I18nProvider } from '@kroma/ui';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { pinDesignWidth, Table } from '@kroma/ui/kit';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { memo, useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { DOWNLOAD_BOXES } from './download-columns';
 import { DownloadTableHead } from './download-table-head';
 import type { DownloadQuery, PageView } from './schemas';
-import { DOWNLOAD_COLUMNS, useDownloadsTable } from './use-downloads-table';
+import { useDownloadsTable } from './use-downloads-table';
 
 const PAGE: PageView = { page: 1, perPage: 10, total: 3, pageCount: 1 };
 
@@ -21,10 +22,20 @@ const Band = memo(DownloadTableHead);
 
 function Queue() {
   const [query, setQuery] = useState<DownloadQuery>({});
-  const { headings } = useDownloadsTable({ page: PAGE, query, onQueryChange: setQuery });
+  const { headings, sort, onSortChange } = useDownloadsTable({
+    page: PAGE,
+    query,
+    onQueryChange: setQuery,
+  });
   return (
     <I18nProvider locale="en">
-      <Table.Root columns={DOWNLOAD_COLUMNS} label="queue">
+      <Table.Root
+        variant="plain"
+        columns={DOWNLOAD_BOXES}
+        label="queue"
+        sort={sort}
+        onSortChange={onSortChange}
+      >
         <Band headings={headings} />
       </Table.Root>
     </I18nProvider>
@@ -42,10 +53,16 @@ const announced = (label: string) => heading(label).getAttribute('aria-sort');
 const glyph = (label: string) => heading(label).querySelector('svg')?.getAttribute('class') ?? null;
 
 function press(label: string) {
-  const control = heading(label).querySelector('button');
-  if (!control) throw new Error(`${label} is not a control`);
-  fireEvent.click(control);
+  fireEvent.click(within(heading(label)).getByRole('button'));
 }
+
+beforeEach(() => {
+  pinDesignWidth(1200);
+});
+
+afterEach(() => {
+  pinDesignWidth();
+});
 
 describe('the downloads heading band', () => {
   it('opens with the newest grab named as the column doing the ordering', () => {
@@ -64,7 +81,6 @@ describe('the downloads heading band', () => {
     expect(announced(RELEASE)).toBe('ascending');
     expect(glyph(RELEASE)).toContain('tabler-icon-arrow-narrow-up');
     expect(announced(ADDED)).toBe('none');
-    expect(glyph(ADDED)).toBeNull();
   });
 
   it('turns the arrow over when the column already ordering is pressed again', () => {
@@ -77,11 +93,8 @@ describe('the downloads heading band', () => {
     expect(glyph(RELEASE)).toContain('tabler-icon-arrow-narrow-down');
   });
 
-  it('offers a column its glyph once it is focused, for a remote that cannot hover', () => {
+  it('draws the idle glyph on a column that can order but is not', () => {
     render(<Queue />);
-
-    expect(glyph(RELEASE)).toBeNull();
-    fireEvent.focus(heading(RELEASE));
 
     expect(glyph(RELEASE)).toContain('tabler-icon-arrows-sort');
   });
@@ -92,6 +105,16 @@ describe('the downloads heading band', () => {
     const speed = heading('downloads.colSpeed');
 
     expect(speed.getAttribute('aria-sort')).toBeNull();
-    expect(speed.querySelector('button')).toBeNull();
+    expect(within(speed).queryByRole('button')).toBeNull();
+  });
+
+  it('drops the columns the narrow shell has no room for, header and all', () => {
+    pinDesignWidth(480);
+    render(<Queue />);
+
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+      RELEASE,
+      '',
+    ]);
   });
 });

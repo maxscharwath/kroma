@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { pointerDriving } from '#ui/lib/input-source';
 
 /**
@@ -22,15 +22,9 @@ import { pointerDriving } from '#ui/lib/input-source';
  * would mean two different things depending on how it was reached.
  */
 export function useFocusVisible(focus: unknown): boolean {
-  const held = focus !== false && focus != null;
   const [visible, setVisible] = useState(() => !pointerDriving());
-  // Read during render rather than in an effect. An effect runs after the
-  // paint, so a control focused by a click drew its ring for one frame and
-  // then dropped it, which reads as a flash.
-  const [seen, setSeen] = useState(focus);
-  if (held && focus !== seen) {
-    setSeen(focus);
-    setVisible(!pointerDriving());
-  }
-  return held && visible;
+  useEffect(() => {
+    if (focus !== false && focus != null) setVisible(!pointerDriving());
+  }, [focus]);
+  return focus !== false && focus != null && visible;
 }

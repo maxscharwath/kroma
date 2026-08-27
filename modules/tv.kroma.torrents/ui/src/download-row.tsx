@@ -1,5 +1,5 @@
-import { Table, useT } from '@kroma/module-sdk';
-import { type ColorValue, Menu, Row } from '@kroma/ui/kit';
+import { useT } from '@kroma/module-sdk';
+import { Box, type ColorValue, Menu, Row, Table } from '@kroma/ui/kit';
 import { useNavigate } from '@tanstack/react-router';
 import {
   RowAddedCell,
@@ -8,6 +8,7 @@ import {
   RowStatusCell,
   RowTitleCell,
 } from './download-cells';
+import { CELL } from './download-columns';
 import type { DownloadView } from './schemas';
 
 /** Live per-download overlay fed by `download.progress` WS frames. */
@@ -74,40 +75,52 @@ export function DownloadRowView({
   return (
     <Table.Row>
       <Table.Cell>
-        <RowTitleCell dl={dl} />
-      </Table.Cell>
-      <Table.Cell wide>
-        <RowProgressCell dl={dl} progress={progress} tone={tone} />
-      </Table.Cell>
-      <Table.Cell wide>
-        <RowSpeedCell dl={dl} active={active} stat={stat} />
-      </Table.Cell>
-      <Table.Cell wide>
-        <RowStatusCell
-          dl={dl}
-          status={status}
-          tone={tone}
-          active={active}
-          showClient={showClient}
-        />
-      </Table.Cell>
-      <Table.Cell wide>
-        <RowAddedCell dl={dl} />
+        <Box style={CELL.start}>
+          <RowTitleCell dl={dl} />
+        </Box>
       </Table.Cell>
       <Table.Cell>
-        <RowActionsMenu
-          dl={dl}
-          status={status}
-          active={active}
-          busy={busy}
-          onPause={onPause}
-          onResume={onResume}
-          onRetry={onRetry}
-          onAskPeers={onAskPeers}
-          onRelink={onRelink}
-          onContents={onContents}
-          onRemove={onRemove}
-        />
+        <Box style={CELL.inner}>
+          <RowProgressCell dl={dl} progress={progress} tone={tone} />
+        </Box>
+      </Table.Cell>
+      <Table.Cell>
+        <Box style={CELL.inner}>
+          <RowSpeedCell dl={dl} active={active} stat={stat} />
+        </Box>
+      </Table.Cell>
+      <Table.Cell>
+        <Box style={CELL.inner}>
+          <RowStatusCell
+            dl={dl}
+            status={status}
+            tone={tone}
+            active={active}
+            showClient={showClient}
+          />
+        </Box>
+      </Table.Cell>
+      <Table.Cell>
+        <Box style={CELL.inner}>
+          <RowAddedCell dl={dl} />
+        </Box>
+      </Table.Cell>
+      <Table.Cell>
+        <Box style={CELL.end}>
+          <RowActionsMenu
+            dl={dl}
+            status={status}
+            active={active}
+            busy={busy}
+            onPause={onPause}
+            onResume={onResume}
+            onRetry={onRetry}
+            onAskPeers={onAskPeers}
+            onRelink={onRelink}
+            onContents={onContents}
+            onRemove={onRemove}
+          />
+        </Box>
       </Table.Cell>
     </Table.Row>
   );

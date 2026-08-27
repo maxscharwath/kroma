@@ -53,4 +53,34 @@ describe('useDownloadsTable', () => {
       undefined,
     ]);
   });
+
+  it('reports the order the query holds as the one column the table is sorted by', () => {
+    const { result } = queue({ sort: 'status', dir: 'asc' });
+
+    expect(result.current.sort).toEqual([{ column: 'status', direction: 'asc' }]);
+  });
+
+  it('asks the server for the pressed column, ascending where that column reads better', () => {
+    const { asked, result } = queue();
+
+    result.current.onSortChange([], { column: 'release' });
+
+    expect(asked).toEqual([{ sort: 'release', dir: 'asc', page: 1 }]);
+  });
+
+  it('turns a date column over on its first press rather than starting oldest', () => {
+    const { asked, result } = queue({ sort: 'release', dir: 'asc' });
+
+    result.current.onSortChange([], { column: 'added' });
+
+    expect(asked).toEqual([{ sort: 'added', dir: 'desc', page: 1 }]);
+  });
+
+  it('keeps the ordering rather than dropping it when its column is pressed twice', () => {
+    const { asked, result } = queue({ sort: 'release', dir: 'desc' });
+
+    result.current.onSortChange([], { column: 'release' });
+
+    expect(asked).toEqual([{ sort: 'release', dir: 'asc', page: 1 }]);
+  });
 });

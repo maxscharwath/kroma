@@ -1,5 +1,5 @@
 import { answeringLayer, type CatalogLayer } from '../chain';
-import type { KeyInspector } from '../inspect';
+import type { KeyInspector } from '../dev-overrides';
 
 const BASE = 'core';
 const UNANSWERED = 'missing';

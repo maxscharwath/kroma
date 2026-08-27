@@ -1,11 +1,6 @@
-// <Stepper>: a flow walked one step at a time - an account being set up, a
-// television being paired, a file being imported.
-//
-// A tablist to assistive tech: the indicator is the list, each step is a tab
-// carrying its position and its state, and the step being shown claims
-// `aria-current="step"`. The Root owns the flow (lib/use-steps), so the two
-// buttons, the panels and anything a caller writes with useStepper() all read
-// one answer to "where are we".
+// <Stepper>: a flow walked one step at a time. A tablist to assistive tech,
+// where each step is a tab carrying its position and the one being shown claims
+// `aria-current="step"`.
 //
 // The order comes from the JSX, the way <SegmentGroup> and <Disclosure> read
 // theirs: the Root walks its own children and the list's, so a step is declared
@@ -111,7 +106,6 @@ function Root({
     complete,
     disabled: written.disabled,
   });
-  // Left to the React Compiler, which memoises this on the inputs it reads.
   const state: StepperState = { flow, size: shell, orientation, label, stepLabel };
   return (
     <Context.Provider value={state}>
@@ -155,9 +149,8 @@ function List({ children, style }: Readonly<StepperListProps>) {
     drawn.push(child);
   }
 
-  // A physical keyboard walks the indicator the way a tablist does. It stops at
-  // the ends rather than wrapping: a sequence has a first step and a last one,
-  // and stepping off either is not a move the flow has.
+  // Stops at the ends rather than wrapping the way <SegmentGroup> does: a
+  // sequence has a first step and a last one.
   const walk = (delta: -1 | 1) => {
     for (let at = flow.index + delta; at >= 0 && at < flow.count; at += delta) {
       const key = flow.steps[at];
@@ -189,9 +182,8 @@ function List({ children, style }: Readonly<StepperListProps>) {
   );
 }
 
-// The rule between two steps, drawn by the list because only the list knows
-// which gap it fills: a step written by hand could not say, and a hand-written
-// index is a number the tree already holds.
+// The rule between two steps. The list draws it because only the list knows
+// which gap it fills; a step written by hand could not say.
 function Connector({
   vertical,
   thickness,

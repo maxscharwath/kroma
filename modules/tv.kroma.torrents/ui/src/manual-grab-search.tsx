@@ -18,8 +18,6 @@ export function useIndexerSearch(kind: string, season: string, episode: string) 
   const [results, setResults] = useState<ManualReleaseView[] | null>(null);
   const [searchErr, setSearchErr] = useState<string | null>(null);
 
-  const scope = () => scopeOf(kind, season, episode);
-
   const onSearch = () => {
     const words = query.trim();
     if (!words) return;
@@ -43,16 +41,7 @@ export function useIndexerSearch(kind: string, season: string, episode: string) 
       .finally(() => setSearching(false));
   };
 
-  return { query, setQuery, searching, searchErr, results, onSearch, scopeLabel: scope() };
-}
-
-const pad = (v: string) => v.padStart(2, '0');
-
-// What the sweep is narrowed to, for the hint under the search field. Null when
-// nothing narrows it: a film search, or a show with no season named yet.
-function scopeOf(kind: string, season: string, episode: string): string | null {
-  if (kind === 'movie' || !season) return null;
-  return kind === 'episode' && episode ? `S${pad(season)}E${pad(episode)}` : `S${pad(season)}`;
+  return { query, setQuery, searching, searchErr, results, onSearch };
 }
 
 // The card the result rows are flush inside, which is why it clips their focus
@@ -86,7 +75,6 @@ const resultRow = sv({
 
 export function SearchPanel({
   query,
-  scopeLabel,
   setQuery,
   searching,
   searchErr,
@@ -95,9 +83,6 @@ export function SearchPanel({
   onPick,
 }: Readonly<{
   query: string;
-  /** What the sweep is narrowed to (`S03E07`), from the target block; absent
-   *  for a movie search. */
-  scopeLabel: string | null;
   setQuery: (v: string) => void;
   searching: boolean;
   searchErr: string | null;
@@ -131,11 +116,6 @@ export function SearchPanel({
           loading={searching}
         />
       </Box>
-      {scopeLabel ? (
-        <Text variant="meta" color="info" mt={6}>
-          {t('manual.searchScoped', { scope: scopeLabel })}
-        </Text>
-      ) : null}
       {searchErr ? (
         <Text variant="meta" color="accentText" mt={6}>
           {searchErr}

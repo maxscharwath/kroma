@@ -142,5 +142,5 @@ function useSteps(steps: readonly string[], options: StepperFlowOptions = {}): S
   };
 }
 
-export type { StepperFlow, StepperFlowOptions, StepperValueDetails, StepReason };
+export type { StepperFlow, StepperFlowOptions, StepperValueDetails };
 export { useSteps };

@@ -173,5 +173,5 @@ function Hint({ children }: Readonly<{ children: ReactNode }>) {
 // it rather than hugging its own words.
 const STRETCH = { alignSelf: 'stretch' } as const;
 
-export type { StepperItemProps, StepState };
-export { Hint, Item, Label, stepperVariants, useStepperFace };
+export type { StepperItemProps };
+export { Hint, Item, Label, stepperVariants };

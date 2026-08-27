@@ -9,9 +9,16 @@ import {
 } from '@testing-library/react';
 import { act, type ReactElement, type ReactNode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Button } from '#ui/components/atoms/button';
 import { Text } from '#ui/components/atoms/text';
 import { onScreen } from '#ui/testing';
-import { Stepper, type StepperRootProps, useStepper, useSteps } from './stepper';
+import {
+  Stepper,
+  type StepperRootProps,
+  useStepper,
+  useStepperItem,
+  useSteps,
+} from './stepper';
 
 const render = (ui: ReactElement) => renderRaw(onScreen(ui));
 
@@ -208,6 +215,21 @@ describe('a panel that has to survive the trip', () => {
     expect(screen.getByText('built 2')).toBeTruthy();
   });
 
+  it('takes a kept panel off the page while another step is showing', () => {
+    render(
+      <Flow>
+        <Stepper.Panel value="account" keepMounted>
+          <Counted />
+        </Stepper.Panel>
+      </Flow>,
+    );
+
+    fireEvent.click(screen.getByLabelText('Suivant'));
+
+    const kept = screen.getByText('built 1').closest('[role="tabpanel"]');
+    expect(kept?.getAttribute('style')).toBe('display: none !important;');
+  });
+
   it('keeps what was typed in it when it asks to stay mounted', () => {
     render(
       <Flow>
@@ -247,6 +269,42 @@ describe('useStepper', () => {
 
     expect(() => renderHook(() => useStepper())).toThrow(
       '<Stepper.useStepper> must be used inside <Stepper.Root>',
+    );
+
+    vi.restoreAllMocks();
+  });
+});
+
+function Dot({ value }: Readonly<{ value: string }>) {
+  const step = useStepperItem(value);
+  return (
+    <Button
+      label={`${value} ${step.index} ${step.complete ? 'done' : 'todo'}`}
+      disabled={!step.reachable}
+      onPress={step.select}
+    />
+  );
+}
+
+describe('useStepperItem', () => {
+  it('answers for one step, and goes to it when a hand-drawn indicator is pressed', () => {
+    render(
+      <Flow>
+        <Dot value="account" />
+      </Flow>,
+    );
+
+    fireEvent.click(screen.getByLabelText('Suivant'));
+    fireEvent.click(screen.getByLabelText('account 0 done'));
+
+    expect(screen.getByText('Adresse')).toBeTruthy();
+  });
+
+  it('names itself when it is called outside a Root', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(() => renderHook(() => useStepperItem('account'))).toThrow(
+      '<Stepper.useStepperItem> must be used inside <Stepper.Root>',
     );
 
     vi.restoreAllMocks();

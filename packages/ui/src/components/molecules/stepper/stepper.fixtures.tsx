@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { Box, Row } from '#ui/components/atoms/box';
 import { Button } from '#ui/components/atoms/button';
 import { Text } from '#ui/components/atoms/text';
@@ -137,17 +137,6 @@ export function Kept({ size }: Readonly<DemoProps>) {
           <Stepper.Next />
         </Row>
       </Stepper.Root>
-    </Box>
-  );
-}
-
-export function Labelled({ children, name }: Readonly<{ children: ReactNode; name: string }>) {
-  return (
-    <Box gap={10}>
-      <Text variant="overline" color="textDim">
-        {name}
-      </Text>
-      {children}
     </Box>
   );
 }

@@ -162,7 +162,6 @@
   "manual.search": "Search",
   "manual.searchFailed": "Search failed",
   "manual.searchPlaceholder": "Search indexers...",
-  "manual.searchScoped": "Narrowed to {scope}: the sweep uses the tracker's TV categories.",
   "manual.season": "Season",
   "manual.selectAll": "Select all",
   "manual.selectNone": "Select none",

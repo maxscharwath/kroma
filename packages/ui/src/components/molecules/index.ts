@@ -99,6 +99,20 @@ export type {
 export { Select, selectTriggerVariants } from './select';
 export type { StatCardRootProps, StatCardValueProps } from './stat-card';
 export { StatCard } from './stat-card';
+export type {
+  StepperFlow,
+  StepperFlowOptions,
+  StepperItemProps,
+  StepperItemState,
+  StepperListProps,
+  StepperOrientation,
+  StepperPanelProps,
+  StepperRootProps,
+  StepperStepName,
+  StepperStepProps,
+  StepperValueDetails,
+} from './stepper';
+export { Stepper, stepperVariants, useStepper, useStepperItem, useSteps } from './stepper';
 export type { ThemeSwitchProps } from './theme-switch';
 export { ThemeSwitch } from './theme-switch';
 export type { TimelineItemProps, TimelineRootProps, TimelineTone } from './timeline';

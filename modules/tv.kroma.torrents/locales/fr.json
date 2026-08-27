@@ -162,7 +162,6 @@
   "manual.search": "Rechercher",
   "manual.searchFailed": "La recherche a échoué",
   "manual.searchPlaceholder": "Rechercher sur les indexeurs...",
-  "manual.searchScoped": "Limité à {scope} : la recherche utilise les catégories séries du tracker.",
   "manual.season": "Saison",
   "manual.selectAll": "Tout sélectionner",
   "manual.selectNone": "Tout désélectionner",

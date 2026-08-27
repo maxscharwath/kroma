@@ -60,7 +60,6 @@ interface SourceStepProps {
   search: {
     query: string;
     setQuery: (next: string) => void;
-    scopeLabel: string | null;
     searching: boolean;
     searchErr: string | null;
     results: ManualReleaseView[] | null;
@@ -120,7 +119,6 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
       {door === 'search' ? (
         <SearchPanel
           query={search.query}
-          scopeLabel={search.scopeLabel}
           setQuery={search.setQuery}
           searching={search.searching}
           searchErr={search.searchErr}

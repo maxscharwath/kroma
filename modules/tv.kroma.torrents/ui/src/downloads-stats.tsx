@@ -17,6 +17,11 @@ import type { DownloadStatsView } from './schemas';
 // the queue without pushing it off the screen.
 const SPARK_HEIGHT = 44;
 
+// A trace of nothing but zeroes is a flat line along the floor of an empty box:
+// it says less than the number above it and leaves the card taller than the
+// ones beside it. Below this the card simply does not draw one.
+const IDLE_BPS = 1;
+
 // A ratio only means anything once something has actually been downloaded.
 function ratioOf(stats: DownloadStatsView): string | null {
   if (stats.totalDownloadedBytes <= 0) return null;
@@ -114,10 +119,15 @@ function StatTile({
   chartLabel,
 }: Readonly<StatTileProps>) {
   // Two samples are the fewest that can be a line; one is a dot nobody can read.
-  const traced = series && points && points.length > 1;
+  // And a series that never left zero has no shape to show.
+  const traced =
+    series !== undefined &&
+    points !== undefined &&
+    points.length > 1 &&
+    points.some((point) => (point[series as 'down' | 'up'] ?? 0) >= IDLE_BPS);
   return (
     <Surface elevated radius="2xl" border="border" pad="none" overflow="hidden">
-      <Box p={16} pb={traced ? 8 : 16} gap={6}>
+      <Box p={16} pb={traced ? 8 : 16} gap={6} flex>
         <Row gap={6} align="center">
           <Icon name={icon} size={13} thickness={2} color={tone === 'text' ? 'glyphDim' : tone} />
           <Text variant="overline" color="textDim">

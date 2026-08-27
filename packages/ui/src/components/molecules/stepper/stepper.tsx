@@ -25,7 +25,7 @@ import {
   stepShape,
   useStepperPart,
 } from './stepper-context';
-import { Hint, Item, type StepperItemProps, Label } from './stepper-item';
+import { Hint, Item, Label, type StepperItemProps } from './stepper-item';
 import { type StepperValueDetails, useSteps } from './use-steps';
 
 function numberedStep({ position, count, name, complete }: StepperStepName): string {
@@ -309,13 +309,6 @@ function Next({ label = 'Suivant', disabled = false }: Readonly<StepperStepProps
 const Stepper = { Root, List, Item, Label, Hint, Panel, Previous, Next };
 
 export type {
-  StepperItemProps,
-  StepperListProps,
-  StepperPanelProps,
-  StepperRootProps,
-  StepperStepProps,
-};
-export type {
   StepperItemState,
   StepperOrientation,
   StepperStepName,
@@ -324,4 +317,11 @@ export { useStepper, useStepperItem } from './stepper-context';
 export { stepperVariants } from './stepper-item';
 export type { StepperFlow, StepperFlowOptions, StepperValueDetails } from './use-steps';
 export { useSteps } from './use-steps';
+export type {
+  StepperItemProps,
+  StepperListProps,
+  StepperPanelProps,
+  StepperRootProps,
+  StepperStepProps,
+};
 export { Stepper };

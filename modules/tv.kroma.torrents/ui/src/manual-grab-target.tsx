@@ -11,17 +11,7 @@
 
 import type { TorrentAnalysis } from '@kroma/module-acquisition/schemas';
 import { useT } from '@kroma/module-sdk';
-import {
-  Badge,
-  Box,
-  Button,
-  Callout,
-  Field,
-  Row,
-  Spinner,
-  Surface,
-  Text,
-} from '@kroma/ui/kit';
+import { Badge, Box, Button, Callout, Field, Row, Spinner, Surface, Text } from '@kroma/ui/kit';
 import { detect } from './manual-grab-content';
 import type { MatchCandidateView } from './schemas';
 import { TitlePicker } from './title-picker';

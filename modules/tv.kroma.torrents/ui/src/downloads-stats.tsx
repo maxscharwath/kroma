@@ -7,6 +7,10 @@ import { useLiveStats } from './use-live-stats';
 
 const CARD_HEIGHT = 152;
 const SPARK_HEIGHT = 46;
+// The window the trace covers. The ledger keeps three times this, which drawn
+// whole turns a burst into a needle: the card is asking what is happening now,
+// not what happened in the last half hour.
+const SPARK_SAMPLES = 60;
 
 function ratioOf(stats: DownloadStatsView): string | null {
   if (stats.totalDownloadedBytes <= 0) return null;
@@ -20,7 +24,10 @@ export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStats
   const perSecond = (bytes: number) => `${fmt.bytes(bytes)}/s`;
 
   const points = useMemo(
-    () => stats.history.map((s) => ({ down: s.downBps, up: s.upBps })),
+    () =>
+      stats.history
+        .slice(-SPARK_SAMPLES)
+        .map((s) => ({ down: s.downBps, up: s.upBps, active: s.active, peers: s.peers })),
     [stats.history],
   );
   const ratio = ratioOf(stats);
@@ -66,6 +73,10 @@ export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStats
           value={String(stats.active)}
           tone="text"
           foot={t('downloads.waiting', { count: String(queued) })}
+          series="active"
+          points={points}
+          format={String}
+          chartLabel={t('downloads.chartActive', { count: String(stats.active) })}
         />
         <StatTile
           icon="users"
@@ -73,6 +84,10 @@ export function DownloadStats({ stats: polled }: Readonly<{ stats: DownloadStats
           value={String(stats.peers)}
           tone="text"
           foot={t('downloads.peersFoot')}
+          series="peers"
+          points={points}
+          format={String}
+          chartLabel={t('downloads.chartPeers', { count: String(stats.peers) })}
         />
       </Grid>
     </Box>
@@ -88,8 +103,8 @@ interface StatTileProps {
   foot: string;
   /** The field on a sample this tile traces. Omit for a tile with no history,
    *  which keeps the card's height and leaves the strip empty. */
-  series?: 'down' | 'up';
-  points?: readonly { down: number; up: number }[];
+  series?: 'down' | 'up' | 'active' | 'peers';
+  points?: readonly { down: number; up: number; active: number; peers: number }[];
   format?: (value: number) => string;
   chartLabel?: string;
 }
@@ -122,20 +137,11 @@ function StatTile({
           {foot}
         </Text>
       </Box>
-      <Box h={SPARK_HEIGHT}>
-        {traced ? (
-          <Chart.Root
-            data={points}
-            height={SPARK_HEIGHT}
-            min={0}
-            format={format}
-            label={chartLabel}
-          >
-            <Chart.Area series={series} color={tone === 'text' ? 'accent' : tone} />
-            <Chart.Line series={series} color={tone === 'text' ? 'accent' : tone} thickness={1.5} />
-          </Chart.Root>
-        ) : null}
-      </Box>
+      {traced ? (
+        <Chart.Root data={points} height={SPARK_HEIGHT} min={0} format={format} label={chartLabel}>
+          <Chart.Area series={series} color={tone === 'text' ? 'textDim' : tone} />
+        </Chart.Root>
+      ) : null}
     </Surface>
   );
 }

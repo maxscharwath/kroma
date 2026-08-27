@@ -16,18 +16,23 @@ export function useLiveStats(polled: DownloadStatsView): DownloadStatsView {
     if (e.type !== 'downloads.stats') return;
     trail.current = [
       ...trail.current.slice(-(HISTORY_LEN - 1)),
-      { atMs: Date.now(), downBps: e.downBps, upBps: e.upBps },
+      { atMs: Date.now(), downBps: e.downBps, upBps: e.upBps, active: e.active, peers: e.peers },
     ];
     setLive(e);
   });
 
   if (!live) return polled;
+  // The poll's history already holds every sample the monitor recorded up to
+  // the moment it answered, and those are the same samples these frames
+  // carried. Only what arrived SINCE extends it.
+  const polledThrough = polled.history.at(-1)?.atMs ?? 0;
+  const since = trail.current.filter((sample) => sample.atMs > polledThrough);
   return {
     ...polled,
     downBps: live.downBps,
     upBps: live.upBps,
     active: live.active,
     peers: live.peers,
-    history: [...polled.history, ...trail.current].slice(-HISTORY_LEN),
+    history: [...polled.history, ...since].slice(-HISTORY_LEN),
   };
 }

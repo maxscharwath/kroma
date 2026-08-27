@@ -25,6 +25,7 @@ import { createCallable } from 'react-call';
 import { useTorrentsApi } from './api';
 import type { DownloadView, MatchCandidatesView, MatchCandidateView } from './schemas';
 
+const NUMBER_WIDTH = 132;
 const POSTER_WIDTH = 46;
 const POSTER_HEIGHT = 69;
 
@@ -100,10 +101,9 @@ export const LinkModal = createCallable<LinkModalProps, boolean>(({ call, dl }) 
         {dl.releaseTitle}
       </Text>
 
-      <Row gap={8}>
+      <Row gap={8} align="flex-end">
         <Field.Root
           label={t('downloads.linkSearchLabel')}
-          hideLabel
           flex
           value={query}
           onValueChange={setQuery}
@@ -124,22 +124,31 @@ export const LinkModal = createCallable<LinkModalProps, boolean>(({ call, dl }) 
       </Row>
 
       {dl.kind !== 'movie' ? (
-        <Row gap={10}>
-          <NumberField
-            value={season}
-            onValueChange={setSeason}
-            label={t('downloads.season')}
-            min={0}
-          />
-          {dl.kind === 'episode' ? (
-            <NumberField
-              value={episode}
-              onValueChange={setEpisode}
-              label={t('downloads.episode')}
-              min={0}
-            />
-          ) : null}
-        </Row>
+        <Box gap={6}>
+          <Row gap={10}>
+            <Field.Root label={t('downloads.season')} w={NUMBER_WIDTH}>
+              <NumberField
+                value={season}
+                onValueChange={setSeason}
+                label={t('downloads.season')}
+                min={0}
+              />
+            </Field.Root>
+            {dl.kind === 'episode' ? (
+              <Field.Root label={t('downloads.episode')} w={NUMBER_WIDTH}>
+                <NumberField
+                  value={episode}
+                  onValueChange={setEpisode}
+                  label={t('downloads.episode')}
+                  min={0}
+                />
+              </Field.Root>
+            ) : null}
+          </Row>
+          <Text variant="meta" color="text/35">
+            {t('downloads.linkNumbersHint')}
+          </Text>
+        </Box>
       ) : null}
 
       {error ? (

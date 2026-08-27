@@ -169,7 +169,8 @@ impl DownloadManager {
             let (d, u, p, _) = live.get(&row.id).copied().unwrap_or_default();
             (down + d, up + u, peers + p)
         });
-        self.record_speed(down, up);
+        let active = rows.len() as u32;
+        self.record_speed(down, up, active, peers);
         // The queue's own cards read this rather than the ten-second poll, so
         // the rates and their traces move at the cadence they are sampled at.
         host.publish(Event::new(
@@ -177,7 +178,7 @@ impl DownloadManager {
             json!({
                 "downBps": down,
                 "upBps": up,
-                "active": rows.len(),
+                "active": active,
                 "peers": peers,
             }),
         ));

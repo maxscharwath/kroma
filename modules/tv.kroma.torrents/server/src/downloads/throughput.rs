@@ -33,7 +33,7 @@ pub fn bps_setting(host: &dyn HostCtx, key: &str) -> Option<u32> {
 impl DownloadManager {
     /// Records one throughput sample, dropping the oldest once the window is
     /// full.
-    pub fn record_speed(&self, down_bps: u64, up_bps: u64) {
+    pub fn record_speed(&self, down_bps: u64, up_bps: u64, active: u32, peers: u32) {
         let mut history = self.speed_history.lock().unwrap();
         if history.len() >= HISTORY_LEN {
             history.remove(0);
@@ -42,6 +42,8 @@ impl DownloadManager {
             at_ms: now_ms(),
             down_bps,
             up_bps,
+            active,
+            peers,
         });
     }
 

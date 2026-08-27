@@ -54,7 +54,7 @@ const stats = {
   byStatus: { downloading: 1 },
   totalDownloadedBytes: 3607101440,
   totalUploadedBytes: 0,
-  history: [{ atMs: 1, downBps: 1024, upBps: 0 }],
+  history: [{ atMs: 1, downBps: 1024, upBps: 0, active: 1, peers: 3 }],
 };
 
 describe('DownloadsView', () => {

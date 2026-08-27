@@ -149,6 +149,8 @@ pub struct SpeedSample {
     pub at_ms: i64,
     pub down_bps: u64,
     pub up_bps: u64,
+    pub active: u32,
+    pub peers: u32,
 }
 
 /// The queue's headline numbers: what is moving now, what has moved ever.

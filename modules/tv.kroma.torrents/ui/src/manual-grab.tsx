@@ -128,7 +128,6 @@ export function ManualGrabModal({
     <Dialog.Root open title={t('manual.title')} onClose={onClose} width="lg">
       <Stepper.Root
         label={t('manual.title')}
-        size="md"
         value={step}
         onValueChange={(next) => setStep(next as Step)}
         style={FLOW}

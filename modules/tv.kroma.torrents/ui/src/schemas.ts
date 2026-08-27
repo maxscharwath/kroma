@@ -116,6 +116,8 @@ export const SpeedSample = z.object({
   atMs: z.number(),
   downBps: z.number(),
   upBps: z.number(),
+  active: z.number(),
+  peers: z.number(),
 });
 export type SpeedSample = z.infer<typeof SpeedSample>;
 

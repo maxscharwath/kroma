@@ -22,7 +22,7 @@ async function pluginNames(command: 'build' | 'serve'): Promise<string[]> {
 
 describe('kromaI18nDevtools', () => {
   it('mounts the dev tools from the provider, which every shell renders', () => {
-    expect(transform(PROVIDER)).toContain('@kroma/i18n/devtools');
+    expect(transform(PROVIDER)).toContain('@kroma/i18n-devtools');
   });
 
   it('disposes on a hot reload rather than binding the shortcut twice', () => {
@@ -35,7 +35,7 @@ describe('kromaI18nDevtools', () => {
   });
 
   it('reaches the provider through the query a dev server appends', () => {
-    expect(transform(`${PROVIDER}?t=1735689600000`)).toContain('@kroma/i18n/devtools');
+    expect(transform(`${PROVIDER}?t=1735689600000`)).toContain('@kroma/i18n-devtools');
   });
 
   it('leaves the server pass alone, so a prerender renders the real copy', () => {

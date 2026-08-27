@@ -49,11 +49,16 @@ export class CatalogStore<L extends string> {
     const key = scope === undefined ? locale : `${locale}\u0000${scope}`;
     let chain = this.chains.get(key);
     if (!chain) {
-      const own = scope ? this.scopes.get(scope) : undefined;
       const codes = locale === this.defaultLocale ? [locale] : [locale, this.defaultLocale];
-      chain = [own, this.base]
-        .flatMap((source) => codes.map((code) => source?.[code]))
-        .filter((catalog): catalog is Catalog => catalog !== undefined);
+      const layers = (from: string | null, source: Record<string, Catalog> | undefined) =>
+        codes.flatMap((code) => {
+          const catalog = source?.[code];
+          return catalog ? [{ catalog, scope: from, locale: code }] : [];
+        });
+      chain = [
+        ...layers(scope ?? null, scope ? this.scopes.get(scope) : undefined),
+        ...layers(null, this.base),
+      ];
       this.chains.set(key, chain);
     }
     return chain;

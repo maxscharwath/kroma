@@ -1,4 +1,5 @@
 import { translateChain } from './chain';
+import { activeKeyInspector, inspectorRevision, onKeyInspectorChange } from './inspect';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
@@ -65,8 +66,12 @@ export function createI18n<
   const { catalogs, defaultLocale, plural } = config;
   const store = new CatalogStore<L>(catalogs as unknown as Catalogs<L>, defaultLocale as L);
 
-  const render = (locale: L, scope: string | undefined, key: string, vars?: TVars): string =>
-    translateChain(store.chain(locale, scope), locale, key, vars, plural) ?? key;
+  const render = (locale: L, scope: string | undefined, key: string, vars?: TVars): string => {
+    const chain = store.chain(locale, scope);
+    const inspector = activeKeyInspector();
+    if (inspector) return inspector(chain, locale, key, vars, plural);
+    return translateChain(chain, locale, key, vars, plural) ?? key;
+  };
 
   // One translator per locale and scope, forever. The closure reads the chain
   // on every call rather than capturing it, so an added catalog still reaches
@@ -91,7 +96,14 @@ export function createI18n<
     translator,
     add: (scope, added) => store.add(scope, added),
     has: (key) => store.has(key),
-    version: () => store.version(),
-    subscribe: (listener) => store.subscribe(listener),
+    version: () => store.version() + inspectorRevision(),
+    subscribe: (listener) => {
+      const stopStore = store.subscribe(listener);
+      const stopInspector = onKeyInspectorChange(listener);
+      return () => {
+        stopStore();
+        stopInspector();
+      };
+    },
   } as I18n<L, CatalogMessages<C[D]>>;
 }

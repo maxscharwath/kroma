@@ -15,6 +15,7 @@
   "dlclients.state.notCompiled": "Not in this build",
   "dlclients.state.ready": "Running",
   "dlclients.state.starting": "Starting…",
+  "dlclients.state.startingSlow": "Starting for {minutes} min — waiting on the swarm for a torrent it has no metadata for.",
   "dlclients.state.stopped": "Switched off",
   "dlclients.state.unknown": "Not tested",
   "dlclients.test": "Test",

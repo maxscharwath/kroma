@@ -15,6 +15,7 @@
   "dlclients.state.notCompiled": "Absent de cette version",
   "dlclients.state.ready": "En marche",
   "dlclients.state.starting": "Démarrage…",
+  "dlclients.state.startingSlow": "Démarrage depuis {minutes} min — en attente du swarm pour un torrent sans métadonnées.",
   "dlclients.state.stopped": "Désactivé",
   "dlclients.state.unknown": "Non testé",
   "dlclients.test": "Tester",

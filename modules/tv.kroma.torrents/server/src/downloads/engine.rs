@@ -2,8 +2,14 @@ use std::sync::Arc;
 
 use kroma_module_sdk::host::HostCtx;
 
+use kroma_module_sdk::primitives::now_ms;
+
 use crate::db;
 use crate::{RqbitConfig, RqbitEngine};
+
+// Past this a start is worth a line in the log: it is no longer "booting", it
+// is waiting on a swarm.
+const SLOW_START: std::time::Duration = std::time::Duration::from_secs(30);
 
 use super::gate::{active_proxy_url, vpn_sealed_expected};
 use super::DownloadManager;
@@ -41,7 +47,22 @@ impl DownloadManager {
             download_bps: super::bps_setting(host, super::DOWN_KBPS_KEY),
             upload_bps: super::bps_setting(host, super::UP_KBPS_KEY),
         };
-        match RqbitEngine::start(&cfg).await {
+        // Restoring the session is one await over EVERY persisted torrent, and a
+        // magnet with no cached `.torrent` blocks in the DHT until it finds a
+        // peer. One dead swarm therefore holds the whole engine, so the start is
+        // timed and said out loud rather than looking like a hung module.
+        *self.starting_since.lock().unwrap() = Some(now_ms());
+        let began = std::time::Instant::now();
+        let outcome = RqbitEngine::start(&cfg).await;
+        *self.starting_since.lock().unwrap() = None;
+        if began.elapsed() >= SLOW_START {
+            tracing::warn!(
+                seconds = began.elapsed().as_secs(),
+                "the embedded engine took a long time to restore its session; a torrent with no \
+                 cached metadata blocks the restore until the DHT answers for it"
+            );
+        }
+        match outcome {
             Ok(engine) => {
                 tracing::info!(
                     proxy = cfg.socks_proxy_url.is_some(),
@@ -56,6 +77,12 @@ impl DownloadManager {
                 tracing::warn!(error = %format!("{e:#}"), "embedded torrent engine restart failed; keeping the previous session");
             }
         }
+    }
+
+    /// How long the engine has been starting, in ms. `None` when it is not.
+    pub fn starting_for(&self) -> Option<i64> {
+        let since = (*self.starting_since.lock().unwrap())?;
+        Some((now_ms() - since).max(0))
     }
 
     pub fn rqbit(&self) -> Option<Arc<RqbitEngine>> {

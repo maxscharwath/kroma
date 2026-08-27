@@ -34,6 +34,9 @@ pub struct DownloadClientView {
     /// Where this engine is in its lifecycle. `unknown` for an external daemon,
     /// which can only be asked (see the test action).
     pub state: EngineState,
+    /// How long `starting` has been going, in ms. A restore waits on the DHT for
+    /// any torrent it has no cached metadata for, so this is worth saying.
+    pub starting_for_ms: Option<i64>,
 }
 
 /// What an engine is doing right now, as a state a panel can render rather than

@@ -32,8 +32,59 @@ pub fn parse_release_name(name: &str) -> ParsedRelease {
     }
 
     let title_end = first_marker.unwrap_or(tokens.len());
-    out.title = tokens[..title_end].join(" ");
+    out.title = title_of(&tokens[..title_end]);
     out
+}
+
+// Words that trail a title without being part of it: the language tags and the
+// completeness markers French and multi-language releases carry.
+//
+// These are stripped from the END of the title run and NEVER used as a title
+// boundary, because most of them are ordinary words in the middle of one: a
+// marker at `complete` would cut "A Complete Unknown" down to "A", and one at
+// `french` would cut "The French Dispatch" to "The". Trailing, they are always
+// noise; leading or medial, they are usually the title.
+fn is_trailing_noise(token: &str) -> bool {
+    matches!(
+        token,
+        "complete"
+            | "completa"
+            | "integrale"
+            | "intégrale"
+            | "integral"
+            | "series"
+            | "serie"
+            | "multi"
+            | "multi3"
+            | "multi5"
+            | "dual"
+            | "dualaudio"
+            | "french"
+            | "truefrench"
+            | "vf"
+            | "vf2"
+            | "vff"
+            | "vfi"
+            | "vfq"
+            | "vo"
+            | "vost"
+            | "vostfr"
+            | "subfrench"
+            | "stfr"
+            | "english"
+            | "eng"
+    )
+}
+
+// The title, with its trailing noise removed. Never empties the title: a name
+// that is nothing BUT noise keeps its first token, because an empty title
+// matches everything and a wrong one at least matches nothing.
+fn title_of(run: &[String]) -> String {
+    let mut end = run.len();
+    while end > 1 && is_trailing_noise(&run[end - 1].to_ascii_lowercase()) {
+        end -= 1;
+    }
+    run[..end].join(" ")
 }
 
 // Remembers the earliest structural-marker index (the title ends before it).

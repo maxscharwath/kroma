@@ -181,6 +181,9 @@ export function DownloadClientsSection() {
 
 // The engine's own lifecycle outranks a stale probe: an engine that is still
 // warming up is not a failure, and saying so is the whole point of the state.
+// Past this the restore is waiting on a swarm rather than booting.
+const SLOW_START_MS = 45_000;
+
 const STATE_TONE = {
   ready: 'success',
   starting: 'text/45',
@@ -192,11 +195,18 @@ const STATE_TONE = {
 function EngineLine({ client, test }: Readonly<{ client: DownloadClientView; test?: TestState }>) {
   const t = useT();
   if (!test && client.state !== 'unknown') {
+    // A start that has been going for minutes is not "booting" any more: say
+    // how long, and why it can take that long.
+    const slow = client.state === 'starting' && (client.startingForMs ?? 0) >= SLOW_START_MS;
     return (
       <Row gap={6} align="center" shrink={1} minW={0}>
         {client.state === 'starting' ? <Spinner size={12} /> : null}
-        <Text variant="meta" color={STATE_TONE[client.state]} lines={1}>
-          {t(`dlclients.state.${client.state}`)}
+        <Text variant="meta" color={slow ? 'warning' : STATE_TONE[client.state]} lines={1}>
+          {slow
+            ? t('dlclients.state.startingSlow', {
+                minutes: String(Math.floor((client.startingForMs ?? 0) / 60_000)),
+              })
+            : t(`dlclients.state.${client.state}`)}
         </Text>
       </Row>
     );

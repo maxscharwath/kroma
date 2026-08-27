@@ -38,18 +38,16 @@ const EMPTY_TARGET: GrabTarget = {
   episode: '',
 };
 
-// What the source already knows about the title, so step 2 opens on it rather
-// than on an empty box.
+// What the source already read off the release name, so step 2 opens on a title
+// the provider can actually find rather than on the raw scene string.
 function targetFrom(source: TorrentSource): GrabTarget {
-  const facts = source.inspected;
-  if (!facts) return EMPTY_TARGET;
   return {
-    kind: facts.kind as Kind,
+    kind: (source.kind as Kind) || 'movie',
     tmdbId: null,
-    title: facts.title ?? '',
-    year: facts.year ? String(facts.year) : '',
-    season: facts.season ? String(facts.season) : '',
-    episode: facts.episodes?.[0] ? String(facts.episodes[0]) : '',
+    title: source.title,
+    year: source.year ? String(source.year) : '',
+    season: source.season ? String(source.season) : '',
+    episode: source.episodes?.[0] ? String(source.episodes[0]) : '',
   };
 }
 

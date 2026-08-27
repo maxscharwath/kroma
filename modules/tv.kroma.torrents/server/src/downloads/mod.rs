@@ -40,6 +40,9 @@ pub struct DownloadManager {
     paused_by_killswitch: Mutex<Vec<String>>,
     paused_by_disable: Mutex<Vec<String>>,
     speed_history: Mutex<Vec<crate::SpeedSample>>,
+    // When the current engine start began, so a panel can say how long it has
+    // been rather than showing a spinner that means nothing after a minute.
+    starting_since: Mutex<Option<i64>>,
     state_dir: PathBuf,
     downloads_dir: PathBuf,
     // Held rather than threaded through: `engine_for` is called from the monitor
@@ -74,6 +77,7 @@ impl DownloadManager {
             paused_by_killswitch: Mutex::new(Vec::new()),
             paused_by_disable: Mutex::new(Vec::new()),
             speed_history: Mutex::new(Vec::new()),
+            starting_since: Mutex::new(None),
             downloads_dir: state_dir.join("downloads"),
             state_dir,
             host,

@@ -11,19 +11,45 @@ import { Box, Button, Callout, Field, SegmentGroup, Text } from '@kroma/ui/kit';
 import { type CSSProperties, useRef, useState } from 'react';
 import { useTorrentsApi } from './api';
 import { SearchPanel } from './manual-grab-search';
-import type { InspectedTorrent } from './schemas';
 
 const HIDDEN: CSSProperties = { display: 'none' };
 
+// A pasted magnet says nothing about itself until it is resolved, so the title
+// step opens on an empty search rather than on a guess.
+const BARE_SOURCE = {
+  magnet: '',
+  releaseTitle: '',
+  detailsUrl: null,
+  kind: 'movie',
+  title: '',
+  year: null,
+  season: null,
+  episodes: null,
+} satisfies TorrentSource;
+
+// What a season/episode pair says the grab is for.
+function kindOf(season: number | null, episode: number | null): string {
+  if (season === null) return 'movie';
+  return episode === null ? 'season' : 'episode';
+}
+
 type Door = 'search' | 'magnet' | 'file';
 
-/** What every door hands back: the link, and what it is called. */
+/** What every door hands back. The parsed facts matter as much as the link: the
+ *  title step searches the metadata provider with them, and a raw release name
+ *  ("Stargate Atlantis iNTEGRALE MULTi") matches nothing. Every door fills them
+ *  from the SAME parser the acquisition stack scores releases with. */
 export interface TorrentSource {
   magnet: string;
   releaseTitle: string;
   detailsUrl: string | null;
-  /** Set by the file door, which has already read the release name for us. */
-  inspected?: InspectedTorrent;
+  /** `movie` | `season` | `episode`, read off the release name. */
+  kind: string;
+  /** The release name with its scene noise removed. */
+  title: string;
+  year: number | null;
+  season: number | null;
+  episodes: number[] | null;
 }
 
 interface SourceStepProps {
@@ -57,7 +83,11 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
           magnet: inspected.magnet,
           releaseTitle: inspected.releaseTitle,
           detailsUrl: null,
-          inspected,
+          kind: inspected.kind,
+          title: inspected.title ?? '',
+          year: inspected.year,
+          season: inspected.season,
+          episodes: inspected.episodes,
         });
       },
       (e) => apiErrorText(e, t('manual.fileFailed')),
@@ -97,6 +127,13 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
               magnet: release.downloadUrl ?? '',
               releaseTitle: release.title,
               detailsUrl: release.detailsUrl ?? null,
+              // The indexer result was parsed by the acquisition stack already;
+              // re-reading the name here would be a second, worse answer.
+              kind: kindOf(release.season, release.episode),
+              title: release.parsedTitle,
+              year: release.year,
+              season: release.season,
+              episodes: release.episode === null ? null : [release.episode],
             })
           }
         />
@@ -113,7 +150,7 @@ export function SourceStep({ search, onPicked }: Readonly<SourceStepProps>) {
             icon="arrow-right"
             label={t('manual.next')}
             disabled={!magnet.trim()}
-            onPress={() => onPicked({ magnet: magnet.trim(), releaseTitle: '', detailsUrl: null })}
+            onPress={() => onPicked({ ...BARE_SOURCE, magnet: magnet.trim() })}
           />
         </Box>
       ) : null}

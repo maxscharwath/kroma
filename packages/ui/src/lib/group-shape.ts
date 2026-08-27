@@ -9,7 +9,7 @@
 
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { ViewStyle } from 'react-native';
-import { sharedStyle } from '#ui/core';
+import { ring, sharedStyle } from '#ui/core';
 import type { ControlSize } from '#ui/lib/field-shell';
 
 type GroupOrientation = 'horizontal' | 'vertical';
@@ -78,17 +78,26 @@ function corners(
   };
 }
 
-// The focus ring is a boxShadow painted OUTSIDE the box, and a group collapses
-// the borders, so a focused member is otherwise overpainted by the one after it.
-// Only the member knows it is focused, which is why the group cannot lift it,
-// and why the group must never clip: an `overflow` there would cut the ring.
+// A focused member is otherwise overpainted by the one after it, and the group
+// must never clip: an `overflow` there would cut the ring.
 const RAISED = { zIndex: 1 };
+
+// A member that JOINS a neighbour wears the ring on the inside.
+//
+// The standing ring is drawn outside the box with a gap, which is right for a
+// control that has an outside. A grouped member does not: on the welded side
+// there is no gap to draw in, so the ring lands on top of the neighbour and
+// reads as a box around the wrong thing. Drawn inside, it follows the member's
+// own welded shape and stops where the member does.
+const JOINED_RING = ring.focusInset;
 
 function shapeOf(slot: GroupSlot, focused: boolean): ViewStyle {
   const { orientation, position, radius } = slot;
+  const joined = position !== 'only';
   return sharedStyle(`group-shape:${orientation}:${position}:${radius}:${focused}`, {
     ...corners(orientation, position, radius),
     ...(focused ? RAISED : null),
+    ...(focused && joined ? JOINED_RING : null),
   }) as ViewStyle;
 }
 

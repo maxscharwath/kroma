@@ -26,6 +26,9 @@ export const DownloadClientView = z.object({
   // Where the engine is in its lifecycle. `unknown` for an external daemon,
   // which only answers when asked (the test action).
   state: z.enum(['ready', 'starting', 'stopped', 'notCompiled', 'unknown']).catch('unknown'),
+  // How long `starting` has been going. A restore waits on the DHT for any
+  // torrent it holds no cached metadata for, so a slow start is worth saying.
+  startingForMs: z.number().nullable().catch(null),
 });
 export type DownloadClientView = z.infer<typeof DownloadClientView>;
 

@@ -36,9 +36,14 @@ pub fn routes<S: HostStorage + Clone + Send + Sync + 'static>() -> Router<S> {
         .route("/download-clients/{id}/test", post(test::<S>))
 }
 
-fn view_of(row: &DownloadClientRow, state: crate::EngineState) -> DownloadClientView {
+fn view_of(
+    row: &DownloadClientRow,
+    state: crate::EngineState,
+    starting_for_ms: Option<i64>,
+) -> DownloadClientView {
     DownloadClientView {
         state,
+        starting_for_ms,
         id: row.id.clone(),
         kind: row.kind.clone(),
         name: row.name.clone(),
@@ -68,7 +73,10 @@ pub async fn list<S: HostStorage + Clone + Send + Sync + 'static>(
                     .then(|| manager.embedded_state(row.enabled))
                     .flatten()
                     .unwrap_or(crate::EngineState::Unknown);
-                view_of(row, state)
+                let starting = (state == crate::EngineState::Starting)
+                    .then(|| manager.starting_for())
+                    .flatten();
+                view_of(row, state, starting)
             })
             .collect();
         Ok(DownloadClientsView {
@@ -120,7 +128,7 @@ pub async fn create<S: HostStorage + Clone + Send + Sync + 'static>(
         priority: body.priority.unwrap_or(0),
         created_at: now_ms(),
     };
-    let view = view_of(&row, crate::EngineState::Unknown);
+    let view = view_of(&row, crate::EngineState::Unknown, None);
     query(state.store(), move |pool| {
         db::insert_download_client(&pool, &row)
     })
@@ -187,7 +195,7 @@ pub async fn update<S: HostStorage + Clone + Send + Sync + 'static>(
     })
     .await?;
     match row {
-        Some(r) => Ok(Json(view_of(&r, crate::EngineState::Unknown)).into_response()),
+        Some(r) => Ok(Json(view_of(&r, crate::EngineState::Unknown, None)).into_response()),
         None => Err(state.lerr(&user, StatusCode::NOT_FOUND, "error.clientNotFound")),
     }
 }

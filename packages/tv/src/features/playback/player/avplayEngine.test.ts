@@ -296,6 +296,19 @@ describe('AvplayEngine visibility + destroy', () => {
     expect(lastArgs('restore')?.[2]).toBe('PLAYING');
   });
 
+  it('comes back paused where the viewer had paused it', () => {
+    const { e, names, lastArgs } = make({ direct: true, startSec: 0 });
+    e.pause();
+
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(names()).toContain('restore');
+    expect(lastArgs('restore')?.[2]).toBe('PAUSED');
+  });
+
   it('destroy stops + closes the singleton and detaches the visibility listener', () => {
     const { e, names } = make();
     e.destroy();

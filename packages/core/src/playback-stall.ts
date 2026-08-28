@@ -1,18 +1,8 @@
-// A playhead that stops while its own buffer runs on ahead: the freeze that
-// still reads as a full bar. Every engine nudges such a stall a few times and
-// then stops for good - hls.js raises a fatal `bufferStalledError` whose own
-// error policy is to do nothing at all - so what happens after that is the
-// application's to decide.
-
 const STALL_MS = 2000;
-// Under this the playhead has honestly run out, and the engine's own rebuffering
-// owns it. This watch is only for a stall with something left to play.
 const MIN_AHEAD_SEC = 0.5;
 // HAVE_FUTURE_DATA: the element itself saying it holds enough to advance.
 const READY_TO_ADVANCE = 3;
 const MOVED_SEC = 0.02;
-// A step moves the playhead exactly once, so a single sample of progress is not
-// a recovery; the ladder is only cleared once it keeps moving.
 const RESUMED_POLLS = 2;
 const RECOVERY_WINDOW_MS = 60_000;
 const MAX_RECOVERIES = 2;
@@ -20,7 +10,6 @@ const MAX_RECOVERIES = 2;
 /** How often [`StallWatch.observe`] expects to be fed. */
 export const STALL_POLL_MS = 500;
 
-/** How far a `nudge` should move the playhead. */
 export const STALL_NUDGE_SEC = 0.1;
 
 /**
@@ -49,12 +38,9 @@ export interface StallWatch {
    * Each rung is handed out once, `STALL_MS` apart, and the ladder resets only
    * when playback actually resumes. */
   observe(sample: StallSample, nowMs: number): StallStep | null;
-  /** Whether the playhead is stuck with something left to play. */
   stalled(): boolean;
-  reset(): void;
 }
 
-/** A fresh watch, its ladder unclimbed. */
 export function stallWatch(): StallWatch {
   let mark = Number.NaN;
   let since = 0;
@@ -71,7 +57,6 @@ export function stallWatch(): StallWatch {
   };
 
   return {
-    reset,
     stalled: () => stuck,
     observe(sample, nowMs) {
       const ahead = sample.bufferedEnd - sample.currentTime;
@@ -108,13 +93,68 @@ export function stallWatch(): StallWatch {
   };
 }
 
-/** The `Hls` class itself, for the two error types worth recovering from. */
+// A restart re-anchors the stream, which costs a fresh remux session on the
+// server (one ffmpeg per program + anchor).
+const RESTART_COOLDOWN_MS = 30_000;
+
+/**
+ * Whatever is playing, as a stall driver needs it: one sample per poll, and one
+ * way to carry out each rung of the ladder. `sample` answers `null` where there
+ * is nothing to read yet, or where the backend reports no buffered range and so
+ * cannot tell a stall from an honest rebuffer. `recover` answers `false` when it
+ * has no recovery of its own and the driver should restart instead.
+ */
+export interface StallTarget {
+  sample(): StallSample | null;
+  nudge(): void;
+  recover(): boolean;
+  restart(): void;
+}
+
+/**
+ * Polls `target` every [`STALL_POLL_MS`] and works a stuck playhead back up the
+ * ladder, holding a restart to one per 30 seconds. `onStalled` is handed whether
+ * the playhead is stuck with something left to play, which is what the chrome
+ * shows as buffering. Returns the stop function.
+ */
+export function driveStallRecovery(
+  target: StallTarget,
+  onStalled: (stalled: boolean) => void,
+): () => void {
+  const watch = stallWatch();
+  let restartedAt = 0;
+
+  const apply = (step: StallStep): void => {
+    if (step === 'nudge') {
+      target.nudge();
+      return;
+    }
+    if (step === 'recover' && target.recover()) return;
+    const now = Date.now();
+    if (now - restartedAt < RESTART_COOLDOWN_MS) return;
+    restartedAt = now;
+    target.restart();
+  };
+
+  const id = setInterval(() => {
+    const sample = target.sample();
+    if (!sample) return;
+    const step = watch.observe(sample, Date.now());
+    onStalled(watch.stalled());
+    if (step) apply(step);
+  }, STALL_POLL_MS);
+
+  return () => {
+    clearInterval(id);
+    onStalled(false);
+  };
+}
+
 export interface HlsClassLike {
   Events: { ERROR: string };
   ErrorTypes: { NETWORK_ERROR: string; MEDIA_ERROR: string };
 }
 
-/** The slice of an hls.js instance a recovery drives. */
 export interface HlsInstanceLike {
   on(
     event: string,

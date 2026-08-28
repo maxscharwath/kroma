@@ -174,21 +174,25 @@ export class ExpoVideoEngine extends BaseTvEngine implements TvEngine {
     if (retiring) retire(retiring, now);
   }
 
-  /** In master mode, re-anchors at `absSec` on the server; in direct mode, seeks
-   * within the file. */
-  protected reanchor(absSec: number): void {
+  // Every path that moves the anchor comes through here, so none can leave the
+  // previous source's buffered depth to be drawn against the new one.
+  private resetClock(absSec: number): void {
     if (this.mode === 'master') {
       this.baseSec = absSec;
       this.elSec = 0;
     }
+    this.pendingSeek = this.mode === 'direct' && absSec > 0 ? absSec : null;
+    this.bufSec = null;
+  }
+
+  /** In master mode, re-anchors at `absSec` on the server; in direct mode, seeks
+   * within the file. */
+  protected reanchor(absSec: number): void {
+    this.resetClock(absSec);
     const player = this.player;
     // `replace` keeps the existing player and <VideoView>; swapping the whole
     // VideoPlayer would black the picture out for the handover.
     if (player && !this.destroyed) {
-      this.pendingSeek = this.mode === 'direct' && absSec > 0 ? absSec : null;
-      // `teardown` is the only other place this is cleared, and `replace` skips
-      // it: the old source's depth would otherwise be drawn against the new anchor.
-      this.bufSec = null;
       try {
         player.replace({ uri: this.sourceUrl() });
         if (!this.paused) player.play();

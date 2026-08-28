@@ -9,7 +9,7 @@
 // copy-audio master retries once as AAC.
 
 import type { KromaClient, MediaItem } from '@kroma/core';
-import { type AudioTrack, useVideoPlayer } from 'expo-video';
+import { type AudioTrack, useVideoPlayer, type VideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { decideSource } from '#mobile/player/caps';
 import { useEngineControls } from './controls';
@@ -22,6 +22,11 @@ import {
 } from './types';
 
 export type { AudioFilterMode, Engine, EngineState } from './types';
+
+// Must be read before `started` is cleared for the new source.
+function resumeOnLoad(core: EngineCore, player: VideoPlayer): boolean {
+  return !core.started || player.playing;
+}
 
 export function useKromaEngine(
   client: KromaClient,
@@ -85,10 +90,7 @@ export function useKromaEngine(
   const load = useCallback(
     async (absSec: number) => {
       const id = ++core.loadId;
-      // Read before `started` is cleared below: a reload under a viewer who had
-      // paused (a far scrub, an audio track, the volume filter) must not start
-      // the film again. Nothing has played yet on the first open, so that autoplays.
-      const resume = !core.started || player.playing;
+      const resume = resumeOnLoad(core, player);
       setWaiting(true);
       setReady(false);
       let uri: string;

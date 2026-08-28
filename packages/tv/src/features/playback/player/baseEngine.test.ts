@@ -222,3 +222,13 @@ describe('BaseTvEngine fail / direct->master fallback', () => {
     expect(e.reanchorCalls).toEqual([]);
   });
 });
+
+describe('BaseTvEngine restart', () => {
+  it('hands a fresh source at the given position to the backend re-anchor', () => {
+    const e = make({ direct: false, startSec: 0 });
+
+    e.restart(1800);
+
+    expect(e.reanchorCalls).toEqual([1800]);
+  });
+});

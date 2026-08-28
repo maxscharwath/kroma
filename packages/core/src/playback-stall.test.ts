@@ -147,18 +147,6 @@ describe('stallWatch', () => {
       expect(watch.stalled()).toBe(false);
     }
   });
-
-  it('starts the ladder again after a reset', () => {
-    const watch = stallWatch();
-    watch.observe(playing(), 0);
-    hold(watch, 0, 20);
-
-    watch.reset();
-    watch.observe(playing(), 0);
-    const steps = hold(watch, 0, 4);
-
-    expect(steps).toEqual(['nudge']);
-  });
 });
 
 describe('attachHlsRecovery', () => {

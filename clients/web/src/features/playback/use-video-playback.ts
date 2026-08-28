@@ -39,8 +39,6 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
   const { anchor, setAnchor, bootAnchor } = useResumeAnchor(item, client, user);
   const audioIndexRef = useRef(0);
   audioIndexRef.current = audioIndex;
-  // Survives the remount a re-anchor causes, so a recovery resumes only what the
-  // viewer had left running.
   const wantPlay = useRef(true);
   const setPlayingIntent = useCallback((on: boolean) => {
     wantPlay.current = on;

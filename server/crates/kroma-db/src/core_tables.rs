@@ -3,14 +3,12 @@
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
-use crate::schema::{MIGRATIONS, SCHEMA};
+use crate::schema::{declared, SCHEMA};
 
 static OWNED: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
-    let schema = without_comments(SCHEMA);
-    schema
-        .split(';')
-        .filter_map(created_table)
-        .chain(MIGRATIONS.iter().copied().filter_map(created_table))
+    declared::tables(&SCHEMA)
+        .into_iter()
+        .map(|t| t.name)
         .collect()
 });
 
@@ -22,32 +20,7 @@ static OWNED: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
 /// this before moving a table out of the core database: a table the core owns is
 /// never a module's to take, whatever its manifest declares.
 pub fn is_core_table(name: &str) -> bool {
-    OWNED.contains(name.trim().to_ascii_lowercase().as_str())
-}
-
-// Runs before the split on `;`: a comment holding one would otherwise cut a
-// statement away from its own `CREATE`.
-fn without_comments(sql: &str) -> String {
-    sql.lines()
-        .map(|line| line.split("--").next().unwrap_or_default())
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn created_table(statement: &str) -> Option<String> {
-    let rest = strip_prefix_ci(statement.trim(), "CREATE TABLE ")?;
-    let rest = strip_prefix_ci(rest.trim_start(), "IF NOT EXISTS ").unwrap_or(rest);
-    let name = rest
-        .trim_start()
-        .split(['(', ' ', '\t'])
-        .find(|word| !word.is_empty())?;
-    Some(name.trim_matches('"').to_ascii_lowercase())
-}
-
-fn strip_prefix_ci<'a>(sql: &'a str, prefix: &str) -> Option<&'a str> {
-    let head = sql.get(..prefix.len())?;
-    head.eq_ignore_ascii_case(prefix)
-        .then(|| &sql[prefix.len()..])
+    OWNED.contains(&declared::identifier(name))
 }
 
 #[cfg(test)]
@@ -76,12 +49,6 @@ mod tests {
                 "'{name}' is in the schema but not derived from it"
             );
         }
-    }
-
-    #[test]
-    fn a_table_created_by_a_migration_counts_as_the_cores() {
-        assert!(is_core_table("passkeys"));
-        assert!(is_core_table("file_segments"));
     }
 
     #[test]

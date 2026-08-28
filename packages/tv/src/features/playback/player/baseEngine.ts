@@ -122,6 +122,9 @@ export abstract class BaseTvEngine implements TvEngine {
   isPaused(): boolean {
     return this.paused;
   }
+  restart(absSec: number): void {
+    this.reanchor(absSec);
+  }
 
   protected abstract reanchor(absSec: number): void;
 

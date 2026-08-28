@@ -194,12 +194,15 @@ describe('AvplayEngine prepared (resume + audio mapping)', () => {
 });
 
 describe('AvplayEngine native listener events', () => {
-  it('current-play-time updates the absolute position + buffered', () => {
+  it('current-play-time moves the clock without calling the playhead a buffer', () => {
     const { e, a, listeners } = make({ direct: true, startSec: 0 });
+
     a.listener().oncurrentplaytime?.(5000);
+
     expect(e.position()).toBe(5);
     expect(listeners.onTime).toHaveBeenCalledWith(5);
-    expect(listeners.onBuffered).toHaveBeenCalledWith(5);
+    expect(listeners.onBuffered).not.toHaveBeenCalled();
+    expect(e.bufferedEnd()).toBeNull();
   });
 
   it('buffering + stream-completed + error map to the right callbacks', () => {

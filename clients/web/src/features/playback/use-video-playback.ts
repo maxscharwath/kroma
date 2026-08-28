@@ -4,6 +4,7 @@ import { setWebEnginePref, type WebEnginePref } from '#web/features/playback/eng
 import { bindMediaEvents } from '#web/features/playback/media-events';
 import { useEngineDecision } from '#web/features/playback/use-engine-decision';
 import { useResumeAnchor } from '#web/features/playback/use-resume-anchor';
+import { useStallRecovery } from '#web/features/playback/use-stall-recovery';
 import { useVideoTransport } from '#web/features/playback/use-video-transport';
 import { attachMediaSource, type VideoPlayback } from '#web/features/playback/video-engine';
 import { kromaClient, type MovieView } from '#web/shared/lib/api';
@@ -38,6 +39,13 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
   const { anchor, setAnchor, bootAnchor } = useResumeAnchor(item, client, user);
   const audioIndexRef = useRef(0);
   audioIndexRef.current = audioIndex;
+  // Survives the remount a re-anchor causes, so a recovery resumes only what the
+  // viewer had left running.
+  const wantPlay = useRef(true);
+  const setPlayingIntent = useCallback((on: boolean) => {
+    wantPlay.current = on;
+    setPlaying(on);
+  }, []);
 
   const audioTracks = audioTracksOf(item);
 
@@ -115,7 +123,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
         setCur,
         setDur,
         setBufEnd,
-        setPlaying,
+        setPlaying: setPlayingIntent,
         setWaiting,
         setVolume,
         setMuted,
@@ -124,8 +132,15 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       },
       baseSec,
       knownDurationMs,
+      wantPlay.current,
     );
-  }, [item, anchor, audioIndex, baseSec, knownDurationMs]);
+  }, [item, anchor, audioIndex, baseSec, knownDurationMs, setPlayingIntent]);
+
+  const restartAt = useCallback((absSec: number) => setAnchor(Math.max(0, absSec)), [setAnchor]);
+  const giveUp = useCallback(
+    () => restartAt(baseSec + (videoRef.current?.currentTime ?? 0)),
+    [baseSec, restartAt],
+  );
 
   // The chosen audio is muxed into the stream URL, so a language change remounts
   // the element rather than switching renditions in place.
@@ -147,8 +162,18 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       shakaRef,
       setUseHls,
       setReady,
+      onGiveUp: giveUp,
     });
-  }, [item, decision, env.safari, enginePref, anchor, audioIndex, bootAnchor, srcReady]);
+  }, [item, decision, env.safari, enginePref, anchor, audioIndex, bootAnchor, srcReady, giveUp]);
+
+  const stalled = useStallRecovery({
+    videoRef,
+    hlsRef,
+    shakaRef,
+    baseSec,
+    active: ready && srcReady,
+    onRestart: restartAt,
+  });
 
   useEffect(() => {
     const onFs = () => setFs(Boolean(document.fullscreenElement));
@@ -215,7 +240,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     enginePref,
     setEnginePref,
     playing,
-    waiting,
+    waiting: waiting || stalled,
     ready,
     cur,
     dur,

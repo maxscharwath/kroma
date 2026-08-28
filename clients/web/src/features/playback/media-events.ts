@@ -26,6 +26,10 @@ export function bindMediaEvents(
   // Preferred over the element's `duration`, which for a growing HLS EVENT
   // playlist is only the produced edge, not the whole movie. 0 = unknown.
   knownDurationMs = 0,
+  // False where the element is being re-attached under a viewer who had paused.
+  // Every binding is fresh, so without this a recovery reads its own first
+  // `canplay` as a reason to start a film nobody asked to resume.
+  autoplay = true,
 ): () => void {
   const {
     setCur,
@@ -62,7 +66,7 @@ export function bindMediaEvents(
   let started = false;
   const onReady = () => {
     setReady(true);
-    if (started || !v.paused) return;
+    if (started || !autoplay || !v.paused) return;
     const p = v.play();
     p?.catch(() => undefined);
   };

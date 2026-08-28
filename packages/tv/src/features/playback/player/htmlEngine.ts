@@ -6,9 +6,11 @@
 
 import {
   attachDirectPlay,
+  attachHlsRecovery,
   type BufferPlan,
   decodableAudioCodecs,
   hlsBufferConfig,
+  isPlayableAt,
   itemBufferPlan,
   type KromaClient,
   type MediaItem,
@@ -31,6 +33,7 @@ interface ShakaPlayerLike {
   load(uri: string, startTime?: number | null): Promise<void>;
   destroy(): Promise<void>;
   configure(config: Record<string, unknown>): boolean;
+  retryStreaming(retryDelaySeconds?: number): boolean;
 }
 interface ShakaStatic {
   Player: { new (): ShakaPlayerLike; isBrowserSupported(): boolean };
@@ -233,6 +236,7 @@ export class HtmlEngine implements TvEngine {
         ...hlsBufferConfig(this.plan),
       });
       this.hls = hls;
+      attachHlsRecovery(Hls, hls, () => this.reanchor(this.position()));
       hls.loadSource(url);
       hls.attachMedia(v);
     });
@@ -287,20 +291,24 @@ export class HtmlEngine implements TvEngine {
     return end > 0 ? this.baseSec + end : 0;
   }
 
+  recoverStall(): boolean {
+    if (this.shaka) return this.shaka.retryStreaming();
+    if (!this.hls) return false;
+    this.hls.recoverMediaError();
+    return true;
+  }
+
+  restart(absSec: number): void {
+    this.reanchor(absSec);
+  }
+
   seekTo(absSec: number): void {
     if (this.opts.direct) {
       this.v.currentTime = absSec; // direct-play timeline is absolute
       return;
     }
     const rel = absSec - this.baseSec;
-    let buffered = false;
-    for (let i = 0; i < this.v.buffered.length; i += 1) {
-      if (rel >= this.v.buffered.start(i) - 0.1 && rel <= this.v.buffered.end(i) - 0.3) {
-        buffered = true;
-        break;
-      }
-    }
-    if (rel >= 0 && buffered) {
+    if (rel >= 0 && isPlayableAt(this.v.buffered, rel)) {
       this.v.currentTime = rel;
       return;
     }

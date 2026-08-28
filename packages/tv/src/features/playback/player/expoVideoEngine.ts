@@ -186,6 +186,9 @@ export class ExpoVideoEngine extends BaseTvEngine implements TvEngine {
     // VideoPlayer would black the picture out for the handover.
     if (player && !this.destroyed) {
       this.pendingSeek = this.mode === 'direct' && absSec > 0 ? absSec : null;
+      // `teardown` is the only other place this is cleared, and `replace` skips
+      // it: the old source's depth would otherwise be drawn against the new anchor.
+      this.bufSec = null;
       try {
         player.replace({ uri: this.sourceUrl() });
         if (!this.paused) player.play();

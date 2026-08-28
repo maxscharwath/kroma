@@ -1,0 +1,162 @@
+// A playhead that stops while its own buffer runs on ahead: the freeze that
+// still reads as a full bar. Every engine nudges such a stall a few times and
+// then stops for good - hls.js raises a fatal `bufferStalledError` whose own
+// error policy is to do nothing at all - so what happens after that is the
+// application's to decide.
+
+const STALL_MS = 2000;
+// Under this the playhead has honestly run out, and the engine's own rebuffering
+// owns it. This watch is only for a stall with something left to play.
+const MIN_AHEAD_SEC = 0.5;
+// HAVE_FUTURE_DATA: the element itself saying it holds enough to advance.
+const READY_TO_ADVANCE = 3;
+const MOVED_SEC = 0.02;
+// A step moves the playhead exactly once, so a single sample of progress is not
+// a recovery; the ladder is only cleared once it keeps moving.
+const RESUMED_POLLS = 2;
+const RECOVERY_WINDOW_MS = 60_000;
+const MAX_RECOVERIES = 2;
+
+/** How often [`StallWatch.observe`] expects to be fed. */
+export const STALL_POLL_MS = 500;
+
+/** How far a `nudge` should move the playhead. */
+export const STALL_NUDGE_SEC = 0.1;
+
+/**
+ * One poll of a media element. `currentTime` and `bufferedEnd` need only share a
+ * clock, so either the element's own or an anchored absolute one will do.
+ */
+export interface StallSample {
+  currentTime: number;
+  bufferedEnd: number;
+  paused: boolean;
+  ended?: boolean;
+  seeking?: boolean;
+  /** The element's `readyState`, where the backend has one. A backend that
+   * exposes none is taken at its buffer's word. */
+  readyState?: number;
+}
+
+/** What to do about a stall, in ascending cost. */
+export type StallStep = 'nudge' | 'recover' | 'restart';
+
+const LADDER: readonly StallStep[] = ['nudge', 'nudge', 'recover', 'restart'];
+
+/** Watches one element for a playhead that has stopped with buffer ahead of it. */
+export interface StallWatch {
+  /** The step this sample calls for, or `null` while the picture still moves.
+   * Each rung is handed out once, `STALL_MS` apart, and the ladder resets only
+   * when playback actually resumes. */
+  observe(sample: StallSample, nowMs: number): StallStep | null;
+  /** Whether the playhead is stuck with something left to play. */
+  stalled(): boolean;
+  reset(): void;
+}
+
+/** A fresh watch, its ladder unclimbed. */
+export function stallWatch(): StallWatch {
+  let mark = Number.NaN;
+  let since = 0;
+  let taken = 0;
+  let advances = 0;
+  let stuck = false;
+
+  const reset = (): void => {
+    mark = Number.NaN;
+    since = 0;
+    taken = 0;
+    advances = 0;
+    stuck = false;
+  };
+
+  return {
+    reset,
+    stalled: () => stuck,
+    observe(sample, nowMs) {
+      const ahead = sample.bufferedEnd - sample.currentTime;
+      const idle =
+        sample.paused ||
+        sample.ended === true ||
+        sample.seeking === true ||
+        (sample.readyState ?? READY_TO_ADVANCE) < READY_TO_ADVANCE ||
+        ahead < MIN_AHEAD_SEC;
+      if (idle) {
+        reset();
+        return null;
+      }
+
+      const moved = Number.isNaN(mark) || Math.abs(sample.currentTime - mark) > MOVED_SEC;
+      mark = sample.currentTime;
+      if (moved) {
+        since = nowMs;
+        stuck = false;
+        advances += 1;
+        if (advances >= RESUMED_POLLS) taken = 0;
+        return null;
+      }
+
+      advances = 0;
+      if (nowMs - since < STALL_MS) return null;
+      stuck = true;
+      const step = LADDER[taken];
+      if (!step) return null;
+      taken += 1;
+      since = nowMs;
+      return step;
+    },
+  };
+}
+
+/** The `Hls` class itself, for the two error types worth recovering from. */
+export interface HlsClassLike {
+  Events: { ERROR: string };
+  ErrorTypes: { NETWORK_ERROR: string; MEDIA_ERROR: string };
+}
+
+/** The slice of an hls.js instance a recovery drives. */
+export interface HlsInstanceLike {
+  on(
+    event: string,
+    listener: (event: string, data: { type: string; fatal: boolean }) => void,
+  ): void;
+  startLoad(): void;
+  recoverMediaError(): void;
+}
+
+/**
+ * Recover the fatal errors hls.js hands back to its caller. Its own action for a
+ * stalled buffer is to do nothing, so an unhandled `bufferStalledError` is a
+ * frozen picture over a full buffer, permanently. `onGiveUp` runs once the same
+ * class of failure has survived `MAX_RECOVERIES` attempts inside a minute.
+ */
+export function attachHlsRecovery(
+  hlsClass: HlsClassLike,
+  hls: HlsInstanceLike,
+  onGiveUp: () => void,
+): void {
+  let network = 0;
+  let media = 0;
+  let last = 0;
+
+  hls.on(hlsClass.Events.ERROR, (_event, data) => {
+    if (!data.fatal) return;
+    const now = Date.now();
+    if (now - last > RECOVERY_WINDOW_MS) {
+      network = 0;
+      media = 0;
+    }
+    last = now;
+    if (data.type === hlsClass.ErrorTypes.NETWORK_ERROR && network < MAX_RECOVERIES) {
+      network += 1;
+      hls.startLoad();
+      return;
+    }
+    if (data.type === hlsClass.ErrorTypes.MEDIA_ERROR && media < MAX_RECOVERIES) {
+      media += 1;
+      hls.recoverMediaError();
+      return;
+    }
+    onGiveUp();
+  });
+}

@@ -35,15 +35,23 @@ vi.mock('shaka-player/dist/shaka-player.compiled.js', () => ({
 }));
 const hlsMock = vi.hoisted(() => ({
   supported: false,
+  on: vi.fn(),
+  startLoad: vi.fn(),
+  recoverMediaError: vi.fn(),
   loadSource: vi.fn(),
   attachMedia: vi.fn(),
   destroy: vi.fn(),
 }));
 vi.mock('hls.js', () => ({
   default: class {
+    static Events = { ERROR: 'hlsError' };
+    static ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };
     static isSupported() {
       return hlsMock.supported;
     }
+    on = hlsMock.on;
+    startLoad = hlsMock.startLoad;
+    recoverMediaError = hlsMock.recoverMediaError;
     loadSource = hlsMock.loadSource;
     attachMedia = hlsMock.attachMedia;
     destroy = hlsMock.destroy;

@@ -85,6 +85,10 @@ export function useKromaEngine(
   const load = useCallback(
     async (absSec: number) => {
       const id = ++core.loadId;
+      // Read before `started` is cleared below: a reload under a viewer who had
+      // paused (a far scrub, an audio track, the volume filter) must not start
+      // the film again. Nothing has played yet on the first open, so that autoplays.
+      const resume = !core.started || player.playing;
       setWaiting(true);
       setReady(false);
       let uri: string;
@@ -101,10 +105,12 @@ export function useKromaEngine(
       }
       if (id !== core.loadId) return;
       core.elSec = 0;
+      core.bufSec = 0;
       core.started = false;
-      core.resumeOnLoad = true;
+      core.resumeOnLoad = resume;
       setMode(core.mode);
       setCur(core.baseSec + (core.pendingSeek ?? 0));
+      setBuffered(core.baseSec + (core.pendingSeek ?? 0));
       const meta = item.metadata;
       await player
         .replaceAsync({

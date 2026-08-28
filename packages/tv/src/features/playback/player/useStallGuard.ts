@@ -1,4 +1,4 @@
-import { driveStallRecovery, STALL_NUDGE_SEC } from '@kroma/core';
+import { driveStallRecovery } from '@kroma/core';
 import { useEffect, useState } from 'react';
 import type { TvEngine } from '#tv/features/playback/player/engine';
 
@@ -24,9 +24,9 @@ export function useStallGuard(
           if (bufferedEnd == null) return null;
           return { currentTime: engine.position(), bufferedEnd, paused: engine.isPaused() };
         },
-        nudge: () => engine.seekTo(engine.position() + STALL_NUDGE_SEC),
+        nudge: () => engine.nudge(),
         recover: () => engine.recoverStall?.() === true,
-        restart: () => engine.restart?.(engine.position()),
+        restart: () => engine.restart(engine.position()),
       },
       setStalled,
     );

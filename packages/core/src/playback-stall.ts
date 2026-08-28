@@ -1,11 +1,8 @@
 const STALL_MS = 2000;
 const MIN_AHEAD_SEC = 0.5;
-// HAVE_FUTURE_DATA: the element itself saying it holds enough to advance.
-const READY_TO_ADVANCE = 3;
+const HAVE_FUTURE_DATA = 3;
 const MOVED_SEC = 0.02;
 const RESUMED_POLLS = 2;
-const RECOVERY_WINDOW_MS = 60_000;
-const MAX_RECOVERIES = 2;
 
 /** How often [`StallWatch.observe`] expects to be fed. */
 export const STALL_POLL_MS = 500;
@@ -32,13 +29,20 @@ export type StallStep = 'nudge' | 'recover' | 'restart';
 
 const LADDER: readonly StallStep[] = ['nudge', 'nudge', 'recover', 'restart'];
 
-/** Watches one element for a playhead that has stopped with buffer ahead of it. */
+/** What one sample amounts to: whether the playhead is stuck with something left
+ * to play, and the rung to take about it. `step` is `null` on every sample but
+ * the one that hands a rung out, which is one per `STALL_MS`. */
+export interface StallVerdict {
+  step: StallStep | null;
+  stalled: boolean;
+}
+
+const MOVING: StallVerdict = { step: null, stalled: false };
+
+/** Watches one element for a playhead that has stopped with buffer ahead of it.
+ * The ladder resets only when playback actually resumes. */
 export interface StallWatch {
-  /** The step this sample calls for, or `null` while the picture still moves.
-   * Each rung is handed out once, `STALL_MS` apart, and the ladder resets only
-   * when playback actually resumes. */
-  observe(sample: StallSample, nowMs: number): StallStep | null;
-  stalled(): boolean;
+  observe(sample: StallSample, nowMs: number): StallVerdict;
 }
 
 export function stallWatch(): StallWatch {
@@ -57,18 +61,17 @@ export function stallWatch(): StallWatch {
   };
 
   return {
-    stalled: () => stuck,
     observe(sample, nowMs) {
       const ahead = sample.bufferedEnd - sample.currentTime;
       const idle =
         sample.paused ||
         sample.ended === true ||
         sample.seeking === true ||
-        (sample.readyState ?? READY_TO_ADVANCE) < READY_TO_ADVANCE ||
+        (sample.readyState ?? HAVE_FUTURE_DATA) < HAVE_FUTURE_DATA ||
         ahead < MIN_AHEAD_SEC;
       if (idle) {
         reset();
-        return null;
+        return MOVING;
       }
 
       const moved = Number.isNaN(mark) || Math.abs(sample.currentTime - mark) > MOVED_SEC;
@@ -78,17 +81,19 @@ export function stallWatch(): StallWatch {
         stuck = false;
         advances += 1;
         if (advances >= RESUMED_POLLS) taken = 0;
-        return null;
+        return MOVING;
       }
 
       advances = 0;
-      if (nowMs - since < STALL_MS) return null;
+      // A stall persists between rungs: only movement ends it.
+      if (nowMs - since < STALL_MS) return { step: null, stalled: stuck };
       stuck = true;
-      const step = LADDER[taken];
-      if (!step) return null;
-      taken += 1;
-      since = nowMs;
-      return step;
+      const step = LADDER[taken] ?? null;
+      if (step) {
+        taken += 1;
+        since = nowMs;
+      }
+      return { step, stalled: true };
     },
   };
 }
@@ -124,30 +129,53 @@ export function driveStallRecovery(
   const watch = stallWatch();
   let restartedAt = 0;
 
-  const apply = (step: StallStep): void => {
+  const apply = (step: StallStep, nowMs: number): void => {
     if (step === 'nudge') {
       target.nudge();
       return;
     }
     if (step === 'recover' && target.recover()) return;
-    const now = Date.now();
-    if (now - restartedAt < RESTART_COOLDOWN_MS) return;
-    restartedAt = now;
+    if (nowMs - restartedAt < RESTART_COOLDOWN_MS) return;
+    restartedAt = nowMs;
     target.restart();
   };
 
   const id = setInterval(() => {
     const sample = target.sample();
     if (!sample) return;
-    const step = watch.observe(sample, Date.now());
-    onStalled(watch.stalled());
-    if (step) apply(step);
+    const now = Date.now();
+    const { step, stalled } = watch.observe(sample, now);
+    onStalled(stalled);
+    if (step) apply(step, now);
   }, STALL_POLL_MS);
 
   return () => {
     clearInterval(id);
     onStalled(false);
   };
+}
+
+const RECOVERY_WINDOW_MS = 60_000;
+const MAX_RECOVERIES = 2;
+
+/** The Shaka slice a stall recovery drives. */
+export interface ShakaRecoverable {
+  retryStreaming(retryDelaySeconds?: number): boolean;
+}
+
+/**
+ * The MSE recovery rung, for whichever engine is attached: ask Shaka to retry
+ * the stream, else ask hls.js to recover its media error. `false` where neither
+ * is attached and the caller should reach for a fresh source instead.
+ */
+export function recoverMse(
+  shaka: ShakaRecoverable | null,
+  hls: Pick<HlsInstanceLike, 'recoverMediaError'> | null,
+): boolean {
+  if (shaka) return shaka.retryStreaming();
+  if (!hls) return false;
+  hls.recoverMediaError();
+  return true;
 }
 
 export interface HlsClassLike {

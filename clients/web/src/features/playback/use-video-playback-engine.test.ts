@@ -242,6 +242,7 @@ describe('useVideoPlayback on Safari', () => {
 
 describe('useVideoPlayback stall recovery', () => {
   const lastBind = () => vi.mocked(bindMediaEvents).mock.calls.at(-1);
+  const boundAutoplay = () => lastBind()?.[5];
 
   async function attached() {
     H.decision = { kind: 'direct', aacMaster: false };
@@ -273,7 +274,7 @@ describe('useVideoPlayback stall recovery', () => {
     act(() => lastAttach().onGiveUp());
     await settle();
 
-    expect(lastBind()?.[5]).toBe(false);
+    expect(boundAutoplay()).toBe(false);
   });
 
   it('re-anchors at the anchor itself when the element is already gone', async () => {
@@ -305,6 +306,6 @@ describe('useVideoPlayback stall recovery', () => {
     act(() => lastAttach().onGiveUp());
     await settle();
 
-    expect(lastBind()?.[5]).toBe(true);
+    expect(boundAutoplay()).toBe(true);
   });
 });

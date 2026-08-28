@@ -1,4 +1,4 @@
-import { driveStallRecovery, reachableBufferEnd, STALL_NUDGE_SEC } from '@kroma/core';
+import { driveStallRecovery, reachableBufferEnd, recoverMse, STALL_NUDGE_SEC } from '@kroma/core';
 import { useEffect, useState } from 'react';
 import type { HlsInstance, ShakaPlayerLike } from '#web/features/playback/video-engine';
 
@@ -36,12 +36,7 @@ export function useStallRecovery(opts: StallRecoveryOptions): boolean {
         nudge: () => {
           v.currentTime += STALL_NUDGE_SEC;
         },
-        recover: () => {
-          if (shakaRef.current) return shakaRef.current.retryStreaming();
-          if (!hlsRef.current) return false;
-          hlsRef.current.recoverMediaError();
-          return true;
-        },
+        recover: () => recoverMse(shakaRef.current, hlsRef.current),
         restart: () => onRestart(baseSec + v.currentTime),
       },
       setStalled,

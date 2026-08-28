@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   attachHlsRecovery,
+  driveStallRecovery,
   type HlsClassLike,
   STALL_POLL_MS,
   type StallSample,
@@ -21,13 +22,15 @@ function playing(over: Partial<StallSample> = {}): StallSample {
   };
 }
 
-function hold(watch: StallWatch, from: number, polls: number, at = 100): StallStep[] {
+function hold(watch: StallWatch, from: number, polls: number, at = 100) {
   const steps: StallStep[] = [];
+  let stalled = false;
   for (let i = 1; i <= polls; i += 1) {
-    const step = watch.observe(playing({ currentTime: at }), from + i * STALL_POLL_MS);
-    if (step) steps.push(step);
+    const verdict = watch.observe(playing({ currentTime: at }), from + i * STALL_POLL_MS);
+    stalled = verdict.stalled;
+    if (verdict.step) steps.push(verdict.step);
   }
-  return steps;
+  return { steps, stalled };
 }
 
 const HLS_CLASS: HlsClassLike = {
@@ -55,29 +58,28 @@ describe('stallWatch', () => {
   it('asks for nothing while the picture is moving', () => {
     const watch = stallWatch();
 
-    const steps = [0, 1, 2, 3, 4].map((i) =>
+    const verdicts = [0, 1, 2, 3, 4].map((i) =>
       watch.observe(playing({ currentTime: 100 + i }), i * STALL_POLL_MS),
     );
 
-    expect(steps).toEqual([null, null, null, null, null]);
-    expect(watch.stalled()).toBe(false);
+    expect(verdicts.every((v) => v.step === null && !v.stalled)).toBe(true);
   });
 
   it('nudges a playhead that has stopped with buffer still ahead of it', () => {
     const watch = stallWatch();
     watch.observe(playing(), 0);
 
-    const steps = hold(watch, 0, 4);
+    const { steps, stalled } = hold(watch, 0, 4);
 
     expect(steps).toEqual(['nudge']);
-    expect(watch.stalled()).toBe(true);
+    expect(stalled).toBe(true);
   });
 
   it('climbs the ladder while the nudges do not take', () => {
     const watch = stallWatch();
     watch.observe(playing(), 0);
 
-    const steps = hold(watch, 0, 20);
+    const { steps } = hold(watch, 0, 20);
 
     expect(steps).toEqual(['nudge', 'nudge', 'recover', 'restart']);
   });
@@ -87,19 +89,19 @@ describe('stallWatch', () => {
     watch.observe(playing(), 0);
     hold(watch, 0, 20);
 
-    const steps = hold(watch, 20 * STALL_POLL_MS, 20);
+    const { steps, stalled } = hold(watch, 20 * STALL_POLL_MS, 20);
 
     expect(steps).toEqual([]);
-    expect(watch.stalled()).toBe(true);
+    expect(stalled).toBe(true);
   });
 
   it('does not read the jump a nudge itself makes as a recovery', () => {
     const watch = stallWatch();
     watch.observe(playing(), 0);
-    expect(hold(watch, 0, 4)).toEqual(['nudge']);
+    expect(hold(watch, 0, 4).steps).toEqual(['nudge']);
 
     watch.observe(playing({ currentTime: 100.1 }), 2500);
-    const steps = hold(watch, 2500, 5, 100.1);
+    const { steps } = hold(watch, 2500, 5, 100.1);
 
     expect(steps).toEqual(['nudge']);
   });
@@ -111,21 +113,20 @@ describe('stallWatch', () => {
 
     watch.observe(playing({ currentTime: 100.1 }), 2500);
     watch.observe(playing({ currentTime: 100.6 }), 3000);
-    const steps = hold(watch, 3000, 5, 100.6);
+    const { steps, stalled } = hold(watch, 3000, 5, 100.6);
 
     expect(steps).toEqual(['nudge']);
-    expect(watch.stalled()).toBe(true);
+    expect(stalled).toBe(true);
   });
 
   it('leaves a playhead that has genuinely run out to the engine', () => {
     const watch = stallWatch();
 
-    const steps = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
+    const verdicts = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
       watch.observe(playing({ bufferedEnd: 100.2 }), i * STALL_POLL_MS),
     );
 
-    expect(steps.every((s) => s === null)).toBe(true);
-    expect(watch.stalled()).toBe(false);
+    expect(verdicts.every((v) => v.step === null && !v.stalled)).toBe(true);
   });
 
   it('is not a stall when nothing is meant to be playing', () => {
@@ -139,12 +140,11 @@ describe('stallWatch', () => {
       watch.observe(playing(), 0);
       hold(watch, 0, 4);
 
-      const steps = [1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
+      const verdicts = [1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
         watch.observe(playing(over), 2000 + i * STALL_POLL_MS),
       );
 
-      expect(steps.every((s) => s === null)).toBe(true);
-      expect(watch.stalled()).toBe(false);
+      expect(verdicts.every((v) => v.step === null && !v.stalled)).toBe(true);
     }
   });
 });
@@ -202,5 +202,91 @@ describe('attachHlsRecovery', () => {
     expect(hls.recoverMediaError).toHaveBeenCalledTimes(3);
     expect(giveUp).not.toHaveBeenCalled();
     clock.mockRestore();
+  });
+});
+
+describe('driveStallRecovery', () => {
+  function target(over: Partial<Record<string, unknown>> = {}) {
+    let at = 100;
+    const calls = {
+      sample: () => ({ currentTime: at, bufferedEnd: at + 60, paused: false }),
+      nudge: vi.fn(() => {
+        at += 0.1;
+      }),
+      recover: vi.fn(() => true),
+      restart: vi.fn(),
+      ...over,
+    };
+    return { calls, move: (by: number) => (at += by) };
+  }
+
+  it('climbs the ladder in order and stops the interval when told', () => {
+    vi.useFakeTimers();
+    const t = target({ nudge: vi.fn() });
+
+    const stop = driveStallRecovery(t.calls, vi.fn());
+    vi.advanceTimersByTime(STALL_POLL_MS * 18);
+    stop();
+    vi.advanceTimersByTime(STALL_POLL_MS * 18);
+
+    expect(t.calls.nudge).toHaveBeenCalledTimes(2);
+    expect(t.calls.recover).toHaveBeenCalledTimes(1);
+    expect(t.calls.restart).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('falls through to a fresh source when the recovery declines', () => {
+    vi.useFakeTimers();
+    const t = target({ nudge: vi.fn(), recover: vi.fn(() => false) });
+
+    driveStallRecovery(t.calls, vi.fn());
+    vi.advanceTimersByTime(STALL_POLL_MS * 14);
+
+    expect(t.calls.recover).toHaveBeenCalledTimes(1);
+    expect(t.calls.restart).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('reports the stuck state, and clears it on the way out', () => {
+    vi.useFakeTimers();
+    const t = target({ nudge: vi.fn() });
+    const onStalled = vi.fn();
+
+    const stop = driveStallRecovery(t.calls, onStalled);
+    vi.advanceTimersByTime(STALL_POLL_MS * 6);
+    const whileStuck = onStalled.mock.calls.at(-1)?.[0];
+    stop();
+
+    expect(whileStuck).toBe(true);
+    expect(onStalled).toHaveBeenLastCalledWith(false);
+    vi.useRealTimers();
+  });
+
+  it('polls nothing into the watch while the target has no sample', () => {
+    vi.useFakeTimers();
+    const t = target({ sample: () => null, nudge: vi.fn() });
+
+    driveStallRecovery(t.calls, vi.fn());
+    vi.advanceTimersByTime(STALL_POLL_MS * 18);
+
+    expect(t.calls.nudge).not.toHaveBeenCalled();
+    expect(t.calls.restart).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('holds a restart to one per cooldown', () => {
+    vi.useFakeTimers();
+    const t = target({ nudge: vi.fn() });
+
+    driveStallRecovery(t.calls, vi.fn());
+    vi.advanceTimersByTime(STALL_POLL_MS * 18);
+    t.move(5);
+    vi.advanceTimersByTime(STALL_POLL_MS);
+    t.move(5);
+    vi.advanceTimersByTime(STALL_POLL_MS);
+    vi.advanceTimersByTime(STALL_POLL_MS * 18);
+
+    expect(t.calls.restart).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

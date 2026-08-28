@@ -15,6 +15,7 @@ function fakeEngine(over: Partial<Record<string, unknown>> = {}) {
     position: vi.fn(() => at),
     bufferedEnd: vi.fn((): number | null => at + ahead),
     isPaused: vi.fn(() => false),
+    nudge: vi.fn(),
     seekTo: vi.fn(),
     recoverStall: vi.fn(() => true),
     restart: vi.fn(),
@@ -54,7 +55,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS + POLL_MS);
     });
 
-    expect(f.calls.seekTo).toHaveBeenCalledWith(100.1);
+    expect(f.calls.nudge).toHaveBeenCalledTimes(1);
     expect(result.current).toBe(true);
   });
 
@@ -66,7 +67,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4 + POLL_MS);
     });
 
-    expect(f.calls.seekTo).toHaveBeenCalledTimes(2);
+    expect(f.calls.nudge).toHaveBeenCalledTimes(2);
     expect(f.calls.recoverStall).toHaveBeenCalledTimes(1);
     expect(f.calls.restart).toHaveBeenCalledWith(100);
   });
@@ -112,17 +113,6 @@ describe('useStallGuard', () => {
     expect(f.calls.restart).toHaveBeenCalledTimes(1);
   });
 
-  it('survives a backend with neither recovery nor restart of its own', () => {
-    const f = fakeEngine({ recoverStall: undefined, restart: undefined });
-
-    renderHook(() => useStallGuard(f.ref, true));
-    act(() => {
-      vi.advanceTimersByTime(RUNG_MS * 4 + POLL_MS);
-    });
-
-    expect(f.calls.seekTo).toHaveBeenCalledTimes(2);
-  });
-
   it('leaves a paused film alone', () => {
     const f = fakeEngine({ isPaused: vi.fn(() => true) });
 
@@ -131,7 +121,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4);
     });
 
-    expect(f.calls.seekTo).not.toHaveBeenCalled();
+    expect(f.calls.nudge).not.toHaveBeenCalled();
     expect(result.current).toBe(false);
   });
 
@@ -144,7 +134,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4);
     });
 
-    expect(f.calls.seekTo).not.toHaveBeenCalled();
+    expect(f.calls.nudge).not.toHaveBeenCalled();
     expect(result.current).toBe(false);
   });
 
@@ -156,7 +146,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4);
     });
 
-    expect(f.calls.seekTo).not.toHaveBeenCalled();
+    expect(f.calls.nudge).not.toHaveBeenCalled();
   });
 
   it('watches nothing while it is not armed, or before an engine exists', () => {
@@ -169,7 +159,7 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4);
     });
 
-    expect(f.calls.seekTo).not.toHaveBeenCalled();
+    expect(f.calls.nudge).not.toHaveBeenCalled();
     expect(idle.result.current).toBe(false);
     expect(engineless.result.current).toBe(false);
   });
@@ -183,6 +173,6 @@ describe('useStallGuard', () => {
       vi.advanceTimersByTime(RUNG_MS * 4);
     });
 
-    expect(f.calls.seekTo).not.toHaveBeenCalled();
+    expect(f.calls.nudge).not.toHaveBeenCalled();
   });
 });

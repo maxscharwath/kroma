@@ -15,6 +15,8 @@ import {
   type KromaClient,
   type MediaItem,
   reachableBufferEnd,
+  recoverMse,
+  STALL_NUDGE_SEC,
   shakaStreamingConfig,
 } from '@kroma/core';
 import {
@@ -291,11 +293,12 @@ export class HtmlEngine implements TvEngine {
     return end > 0 ? this.baseSec + end : 0;
   }
 
+  nudge(): void {
+    this.v.currentTime += STALL_NUDGE_SEC;
+  }
+
   recoverStall(): boolean {
-    if (this.shaka) return this.shaka.retryStreaming();
-    if (!this.hls) return false;
-    this.hls.recoverMediaError();
-    return true;
+    return recoverMse(this.shaka, this.hls);
   }
 
   restart(absSec: number): void {

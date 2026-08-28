@@ -40,10 +40,6 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
   const audioIndexRef = useRef(0);
   audioIndexRef.current = audioIndex;
   const wantPlay = useRef(true);
-  const setPlayingIntent = useCallback((on: boolean) => {
-    wantPlay.current = on;
-    setPlaying(on);
-  }, []);
 
   const audioTracks = audioTracksOf(item);
 
@@ -121,7 +117,10 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
         setCur,
         setDur,
         setBufEnd,
-        setPlaying: setPlayingIntent,
+        setPlaying: (on: boolean) => {
+          wantPlay.current = on;
+          setPlaying(on);
+        },
         setWaiting,
         setVolume,
         setMuted,
@@ -132,13 +131,11 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       knownDurationMs,
       wantPlay.current,
     );
-  }, [item, anchor, audioIndex, baseSec, knownDurationMs, setPlayingIntent]);
+  }, [item, anchor, audioIndex, baseSec, knownDurationMs]);
 
+  const absNow = useCallback(() => baseSec + (videoRef.current?.currentTime ?? 0), [baseSec]);
   const restartAt = useCallback((absSec: number) => setAnchor(Math.max(0, absSec)), [setAnchor]);
-  const giveUp = useCallback(
-    () => restartAt(baseSec + (videoRef.current?.currentTime ?? 0)),
-    [baseSec, restartAt],
-  );
+  const giveUp = useCallback(() => restartAt(absNow()), [absNow, restartAt]);
 
   // The chosen audio is muxed into the stream URL, so a language change remounts
   // the element rather than switching renditions in place.
@@ -169,7 +166,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     hlsRef,
     shakaRef,
     baseSec,
-    active: ready && srcReady,
+    active: ready && srcReady && playing,
     onRestart: restartAt,
   });
 
@@ -213,12 +210,9 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     (index: number) => {
       if (index === audioIndexRef.current) return;
       setAudioIndex(index);
-      if (decision.kind !== 'direct') {
-        const pos = baseSec + (videoRef.current?.currentTime ?? 0);
-        setAnchor(Math.max(0, Math.floor(pos)));
-      }
+      if (decision.kind !== 'direct') setAnchor(Math.max(0, Math.floor(absNow())));
     },
-    [decision.kind, baseSec, setAnchor],
+    [decision.kind, absNow, setAnchor],
   );
 
   const setEnginePref = useCallback(
@@ -226,9 +220,9 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
       setWebEnginePref(p);
       setForceHls(false);
       setEnginePrefState(p);
-      setAnchor(Math.max(0, Math.floor(baseSec + (videoRef.current?.currentTime ?? 0))));
+      setAnchor(Math.max(0, Math.floor(absNow())));
     },
-    [baseSec, setAnchor, setForceHls, setEnginePrefState],
+    [absNow, setAnchor, setForceHls, setEnginePrefState],
   );
 
   return {

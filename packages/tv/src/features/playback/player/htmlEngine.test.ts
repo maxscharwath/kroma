@@ -657,6 +657,19 @@ describe('HtmlEngine stall recovery', () => {
     hlsMock.startLoad.mockClear();
   });
 
+  it('nudges the element itself, never through the seek policy', async () => {
+    const fv = fakeVideo();
+    const { engine, hlsMasterUrl } = makeEngine({ fv, direct: false, forceNativeHls: true });
+    await tick();
+    fv.set('currentTime', 42);
+    hlsMasterUrl.mockClear();
+
+    engine.nudge();
+
+    expect(fv.get('currentTime')).toBeCloseTo(42.1, 5);
+    expect(hlsMasterUrl).not.toHaveBeenCalled();
+  });
+
   it('asks Shaka to retry the stream', async () => {
     const fv = fakeVideo();
     const { engine } = makeEngine({ fv, direct: false, masterShaka: true, forceNativeHls: false });

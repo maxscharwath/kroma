@@ -276,6 +276,26 @@ describe('useVideoPlayback stall recovery', () => {
     expect(lastBind()?.[5]).toBe(false);
   });
 
+  it('re-anchors at the anchor itself when the element is already gone', async () => {
+    const { result } = await attached();
+    result.current.videoRef.current = null;
+
+    act(() => lastAttach().onGiveUp());
+    await settle();
+
+    expect(result.current.anchor).toBe(0);
+  });
+
+  it('arms the watch once the element is ready and the source resolved', async () => {
+    const { result } = await attached();
+
+    act(() => lastBind()?.[2].setReady(true));
+    await settle();
+
+    expect(result.current.ready).toBe(true);
+    expect(result.current.waiting).toBe(false);
+  });
+
   it('lets a film the viewer had running start itself again', async () => {
     const { v } = await attached();
     act(() => lastBind()?.[2].setPlaying(false));

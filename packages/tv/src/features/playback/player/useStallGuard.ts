@@ -1,4 +1,4 @@
-import { driveStallRecovery, STALL_NUDGE_SEC, type StallSample } from '@kroma/core';
+import { driveStallRecovery, STALL_NUDGE_SEC } from '@kroma/core';
 import { useEffect, useState } from 'react';
 import type { TvEngine } from '#tv/features/playback/player/engine';
 
@@ -15,28 +15,18 @@ export function useStallGuard(
   const [stalled, setStalled] = useState(false);
 
   useEffect(() => {
-    if (!active) return;
+    const engine = engineRef.current;
+    if (!active || !engine) return;
     return driveStallRecovery(
       {
-        sample: (): StallSample | null => {
-          const engine = engineRef.current;
-          const bufferedEnd = engine?.bufferedEnd();
-          if (!engine || bufferedEnd == null) return null;
-          return {
-            currentTime: engine.position(),
-            bufferedEnd,
-            paused: engine.isPaused(),
-          };
+        sample: () => {
+          const bufferedEnd = engine.bufferedEnd();
+          if (bufferedEnd == null) return null;
+          return { currentTime: engine.position(), bufferedEnd, paused: engine.isPaused() };
         },
-        nudge: () => {
-          const engine = engineRef.current;
-          if (engine) engine.seekTo(engine.position() + STALL_NUDGE_SEC);
-        },
-        recover: () => engineRef.current?.recoverStall?.() === true,
-        restart: () => {
-          const engine = engineRef.current;
-          engine?.restart?.(engine.position());
-        },
+        nudge: () => engine.seekTo(engine.position() + STALL_NUDGE_SEC),
+        recover: () => engine.recoverStall?.() === true,
+        restart: () => engine.restart?.(engine.position()),
       },
       setStalled,
     );

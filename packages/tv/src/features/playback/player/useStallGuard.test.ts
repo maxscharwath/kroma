@@ -112,6 +112,17 @@ describe('useStallGuard', () => {
     expect(f.calls.restart).toHaveBeenCalledTimes(1);
   });
 
+  it('survives a backend with neither recovery nor restart of its own', () => {
+    const f = fakeEngine({ recoverStall: undefined, restart: undefined });
+
+    renderHook(() => useStallGuard(f.ref, true));
+    act(() => {
+      vi.advanceTimersByTime(RUNG_MS * 4 + POLL_MS);
+    });
+
+    expect(f.calls.seekTo).toHaveBeenCalledTimes(2);
+  });
+
   it('leaves a paused film alone', () => {
     const f = fakeEngine({ isPaused: vi.fn(() => true) });
 

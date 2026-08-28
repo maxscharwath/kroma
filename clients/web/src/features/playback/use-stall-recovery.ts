@@ -1,9 +1,4 @@
-import {
-  driveStallRecovery,
-  reachableBufferEnd,
-  STALL_NUDGE_SEC,
-  type StallSample,
-} from '@kroma/core';
+import { driveStallRecovery, reachableBufferEnd, STALL_NUDGE_SEC } from '@kroma/core';
 import { useEffect, useState } from 'react';
 import type { HlsInstance, ShakaPlayerLike } from '#web/features/playback/video-engine';
 
@@ -26,24 +21,20 @@ export function useStallRecovery(opts: StallRecoveryOptions): boolean {
   const [stalled, setStalled] = useState(false);
 
   useEffect(() => {
-    if (!active) return;
+    const v = videoRef.current;
+    if (!active || !v) return;
     return driveStallRecovery(
       {
-        sample: (): StallSample | null => {
-          const v = videoRef.current;
-          if (!v) return null;
-          return {
-            currentTime: v.currentTime,
-            bufferedEnd: reachableBufferEnd(v.buffered, v.currentTime),
-            paused: v.paused,
-            ended: v.ended,
-            seeking: v.seeking,
-            readyState: v.readyState,
-          };
-        },
+        sample: () => ({
+          currentTime: v.currentTime,
+          bufferedEnd: reachableBufferEnd(v.buffered, v.currentTime),
+          paused: v.paused,
+          ended: v.ended,
+          seeking: v.seeking,
+          readyState: v.readyState,
+        }),
         nudge: () => {
-          const v = videoRef.current;
-          if (v) v.currentTime += STALL_NUDGE_SEC;
+          v.currentTime += STALL_NUDGE_SEC;
         },
         recover: () => {
           if (shakaRef.current) return shakaRef.current.retryStreaming();
@@ -51,10 +42,7 @@ export function useStallRecovery(opts: StallRecoveryOptions): boolean {
           hlsRef.current.recoverMediaError();
           return true;
         },
-        restart: () => {
-          const v = videoRef.current;
-          if (v) onRestart(baseSec + v.currentTime);
-        },
+        restart: () => onRestart(baseSec + v.currentTime),
       },
       setStalled,
     );

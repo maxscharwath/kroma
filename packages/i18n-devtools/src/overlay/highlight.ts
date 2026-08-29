@@ -112,13 +112,24 @@ export function walkGraded(take: (grade: Grade, node: Text) => void): void {
  * one element routinely draws several, and nothing of the page's own DOM is
  * touched to say so. Returns a disposer that takes the page back.
  */
+// `::highlight(name)` matches nothing while nothing is registered under that
+// name, so the rules cost nothing when the overlay is down - and adding or
+// removing a stylesheet dirties style for the whole document, which is a price
+// worth paying once rather than on every change of mode.
+let rules: HTMLStyleElement | null = null;
+
+function installRules(): void {
+  if (rules?.isConnected) return;
+  rules = document.createElement('style');
+  rules.textContent = CSS_RULES;
+  document.head.append(rules);
+}
+
 export function installHighlight(outline: Outline): () => void {
   const registry = CSS.highlights;
   if (!registry) return () => {};
 
-  const style = document.createElement('style');
-  style.textContent = CSS_RULES;
-  document.head.append(style);
+  installRules();
 
   const marks = new Map(GRADES.map((grade) => [grade, new Highlight()]));
   for (const [grade, highlight] of marks) registry.set(`${NAME}-${grade}`, highlight);
@@ -139,8 +150,11 @@ export function installHighlight(outline: Outline): () => void {
       if (shows(outline, grade)) found.push([grade, node]);
     });
 
-    for (const highlight of marks.values()) highlight.clear();
+    // Before the clear, not after: a page with nothing marked yet is one whose
+    // engine has not answered, and emptying every highlight to wait for it
+    // takes the overlay off the page for as long as that takes.
     if (!marked) return;
+    for (const highlight of marks.values()) highlight.clear();
     for (const [grade, node] of found) {
       marks.get(grade)?.add(
         new StaticRange({
@@ -163,7 +177,6 @@ export function installHighlight(outline: Outline): () => void {
   return () => {
     observer.disconnect();
     repaint.stop();
-    style.remove();
     for (const grade of GRADES) registry.delete(`${NAME}-${grade}`);
   };
 }

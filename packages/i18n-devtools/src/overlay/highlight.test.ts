@@ -121,7 +121,7 @@ describe('putting the overlay up', () => {
     stop();
   });
 
-  it('installs the rules that draw them, and takes them away again', () => {
+  it('installs the rules that draw them, and gives the registry back', () => {
     const held = registry();
     page(`<p>${drew('Films', FR)}</p>`);
 
@@ -132,7 +132,16 @@ describe('putting the overlay up', () => {
     stop();
 
     expect(held.size).toBe(0);
-    expect(document.head.querySelector('style')).toBeNull();
+  });
+
+  it('installs the rules once for the page, however often a mode changes', () => {
+    registry();
+    page(`<p>${drew('Films', FR)}</p>`);
+
+    installHighlight('all')();
+    installHighlight('problems')();
+
+    expect(document.head.querySelectorAll('style')).toHaveLength(1);
   });
 
   it('paints again when the page draws something new', async () => {

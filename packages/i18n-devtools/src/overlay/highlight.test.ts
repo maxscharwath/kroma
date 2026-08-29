@@ -151,4 +151,38 @@ describe('putting the overlay up', () => {
 
     expect(() => installHighlight('all')()).not.toThrow();
   });
+
+  it('repaints for a change the page made', async () => {
+    const held = registry();
+    vi.useFakeTimers();
+    page('<p id="a">Blade Runner 2049</p>');
+    const stop = installHighlight('all');
+
+    document.querySelector('#a')?.replaceChildren(drew('Films', FR));
+    await Promise.resolve();
+    vi.runAllTimers();
+    const drawn = held.get('kroma-i18n-catalog')?.size;
+    stop();
+    vi.useRealTimers();
+
+    expect(drawn).toBe(1);
+  });
+
+  it('leaves the page alone for a change the tools made to their own panel', async () => {
+    const held = registry();
+    vi.useFakeTimers();
+    page(`<p>${drew('Films', FR)}</p>`);
+    const stop = installHighlight('all');
+    held.get('kroma-i18n-catalog')?.clear();
+
+    const panel = document.querySelector('[data-kroma-devtool="i18n"]');
+    if (panel?.firstChild) panel.firstChild.nodeValue = 'redrawn';
+    await Promise.resolve();
+    vi.runAllTimers();
+    const drawn = held.get('kroma-i18n-catalog')?.size;
+    stop();
+    vi.useRealTimers();
+
+    expect(drawn).toBe(0);
+  });
 });

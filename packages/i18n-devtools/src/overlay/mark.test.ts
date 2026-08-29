@@ -59,6 +59,22 @@ describe('the mark a message carries', () => {
   });
 });
 
+describe('the worst mark in a run of text', () => {
+  it('keeps the worse of two, whichever order they were drawn in', () => {
+    const clean = mark(rendered('Connexion'), 'Connexion');
+    const fallback = mark(rendered('Sign in', { from: EN }), 'Sign in');
+
+    expect([markIn(clean + fallback), markIn(fallback + clean)]).toEqual(['fallback', 'fallback']);
+  });
+
+  it('stops at a key nothing answered, there being nothing worse', () => {
+    const clean = mark(rendered('Connexion'), 'Connexion');
+    const missing = mark(rendered('auth.login', { from: undefined }), 'auth.login');
+
+    expect(markIn(clean + missing)).toBe('missing');
+  });
+});
+
 describe('remembering what drew a string', () => {
   it('names the key, the catalog and the variables behind the text', () => {
     const marked = mark(rendered('Bonjour Maxime', { vars: { name: 'Maxime' } }), 'Bonjour Maxime');

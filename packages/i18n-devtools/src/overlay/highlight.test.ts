@@ -71,6 +71,15 @@ describe('what the overlay marks', () => {
   });
 });
 
+describe('what the overlay walks past', () => {
+  it('skips a text node with nothing written in it', () => {
+    page('<span id="a"></span>');
+    document.querySelector('#a')?.append(document.createTextNode(''));
+
+    expect(graded('all')).toEqual({});
+  });
+});
+
 describe('the grades a mode shows', () => {
   it('leaves a clean translation out of problems and in all', () => {
     expect(shows('problems', 'catalog' as Grade)).toBe(false);

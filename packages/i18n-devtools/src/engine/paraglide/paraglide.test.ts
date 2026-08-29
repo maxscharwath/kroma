@@ -176,6 +176,24 @@ describe('the messages the app renders', () => {
     expect(seen[0]?.vars).toEqual({ count: 2 });
   });
 
+  it('reports an object input as what it holds, not as its default stringification', () => {
+    const engine = adapter();
+    const seen = inspected(engine);
+
+    engine.messages.unread({ count: { of: 2 }, name: 'Ada' });
+
+    expect(seen[0]?.vars).toEqual({ count: '{"of":2}', name: 'Ada' });
+  });
+
+  it('reports a null input as null rather than as an object', () => {
+    const engine = adapter();
+    const seen = inspected(engine);
+
+    engine.messages.unread({ count: null, name: 'Ada' });
+
+    expect(seen[0]?.vars).toEqual({ count: 'null', name: 'Ada' });
+  });
+
   it('reports no variables for a message given none', () => {
     const engine = adapter();
     const seen = inspected(engine);

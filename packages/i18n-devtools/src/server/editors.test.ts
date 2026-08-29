@@ -42,6 +42,16 @@ describe('what this machine can open a file in', () => {
 
     expect(result.current).toEqual([]);
   });
+
+  it('is dropped where the panel is gone before the answer arrives', async () => {
+    const { result, unmount } = renderHook(() => useEditors());
+
+    unmount();
+    answer('kroma:i18n:editors', { editors: [{ id: 'zed', name: 'Zed' }] });
+    await Promise.resolve();
+
+    expect(result.current).toEqual([]);
+  });
 });
 
 describe('opening a file', () => {

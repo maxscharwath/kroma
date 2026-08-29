@@ -95,3 +95,16 @@ describe('asking for a fresh render', () => {
     expect(sent).toEqual([]);
   });
 });
+
+describe('a question already answered', () => {
+  it('has nothing left for its own timeout to answer', async () => {
+    const asked = ask('kroma:i18n:editors', {});
+    const at = sent[0]?.data.at ?? 0;
+    answer('kroma:i18n:editors', { at, editors: [] });
+    await asked;
+
+    vi.advanceTimersByTime(60_000);
+
+    await expect(asked).resolves.toMatchObject({ editors: [] });
+  });
+});

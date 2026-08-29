@@ -113,6 +113,7 @@ function serving(
     transform?: unknown;
     known?: string[];
     importers?: string[];
+    refusing?: string[];
     plugin?: Plugin;
   } = {},
 ) {
@@ -134,7 +135,15 @@ function serving(
         moduleGraph: {
           getModuleById: (id: string) =>
             (over.known ?? []).includes(id)
-              ? { id, importers: new Set((over.importers ?? []).map((at) => ({ id: at }))) }
+              ? {
+                  id,
+                  importers: new Set(
+                    (over.importers ?? []).map((at) => ({
+                      id: at,
+                      isSelfAccepting: !(over.refusing ?? []).includes(at),
+                    })),
+                  ),
+                }
               : undefined,
         },
         reloadModule: ({ id }: { id: string }) => {
@@ -310,6 +319,15 @@ describe('asking the dev server for a fresh render', () => {
     await at.ask('kroma:i18n:refresh', {});
 
     expect(at.reloaded).toEqual(['/a.tsx', '/b.tsx']);
+  });
+
+  it('leaves alone an importer React Refresh cannot re-render in place', async () => {
+    const at = serving({ known: [PROVIDER], importers: ['/route.tsx'], refusing: ['/route.tsx'] });
+    at.injectInto(PROVIDER);
+
+    await at.ask('kroma:i18n:refresh', {});
+
+    expect(at.reloaded).toEqual([]);
   });
 
   it('does nothing before the tools have gone into anything', async () => {

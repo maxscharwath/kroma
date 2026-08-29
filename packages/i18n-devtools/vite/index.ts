@@ -202,16 +202,19 @@ export function kromaI18nDevtools({ ignore = OVERLAYS, adapter }: DevtoolsOption
         const opened = open(ask.file, ask.editor ?? '', server);
         client.send('kroma:i18n:open', { at: ask.at, opened });
       });
-      // The importers, never the module itself. Re-running the module the
-      // messages come from would rebuild the object the app renders through
-      // and re-run the tools inside it, both while the app may be hydrating -
-      // and a component holding the old one then answers for a message it no
-      // longer has. Its importers are the React Refresh boundaries, which is
-      // all a fresh render needs.
+      // Only the importers that accept their own updates, and never the module
+      // itself. Re-running the module the messages come from would rebuild the
+      // object the app renders through while the app may be hydrating; and an
+      // importer that does NOT accept is one React Refresh cannot re-render in
+      // place, so re-running it throws its component away and builds a new one
+      // - which is a flash on screen and lost focus, for a switch that changed
+      // no code. What is left re-renders with its DOM intact.
       hot.on('kroma:i18n:refresh', () => {
         const { client } = server.environments;
         const module = anchored === null ? undefined : client.moduleGraph.getModuleById(anchored);
-        for (const importer of module?.importers ?? []) void client.reloadModule(importer);
+        for (const importer of module?.importers ?? []) {
+          if (importer.isSelfAccepting) void client.reloadModule(importer);
+        }
       });
       server.watcher.on('change', forgetMaps);
     },

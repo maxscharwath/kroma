@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 import { testEngine } from '../testing';
 import { setEngine } from './engine';
@@ -65,5 +66,14 @@ describe('the locales the panel offers', () => {
     unmount();
 
     expect(result.current).toEqual(['fr', 'en']);
+  });
+
+  it('offers none on a server, where the engine has rendered nothing yet', () => {
+    setEngine(testEngine());
+    function Offered() {
+      return useLocales().join(',');
+    }
+
+    expect(renderToString(<Offered />)).toBe('');
   });
 });

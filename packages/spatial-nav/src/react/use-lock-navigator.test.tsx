@@ -17,5 +17,5 @@ function Surface() {
 it('no-ops with no navigator above it, so a dialog still opens on a phone', () => {
   render(<Surface />);
 
-  expect(screen.queryByTestId('label')).not.toBeNull();
+  expect(screen.getByTestId('label')).toBeTruthy();
 });

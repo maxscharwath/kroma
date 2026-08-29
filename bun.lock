@@ -928,12 +928,14 @@
         "zod": "^4.4.3",
       },
       "peerDependencies": {
+        "expo-image": "~57.0.3",
         "expo-video": "~57.0.2",
         "react": ">=18",
         "react-dom": ">=18",
         "react-native": "*",
       },
       "optionalPeers": [
+        "expo-image",
         "expo-video",
       ],
     },

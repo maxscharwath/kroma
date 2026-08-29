@@ -15,7 +15,7 @@ describe('a container with no navigator above it', () => {
       </NavigatorNode>,
     );
 
-    expect(screen.queryByTestId('label')).not.toBeNull();
+    expect(screen.getByTestId('label')).toBeTruthy();
   });
 
   it('tells a render prop it holds no focus', () => {
@@ -25,7 +25,7 @@ describe('a container with no navigator above it', () => {
       </NavigatorNode>,
     );
 
-    expect(screen.queryByTestId('idle')).not.toBeNull();
+    expect(screen.getByTestId('idle')).toBeTruthy();
   });
 
   it('renders a view as the box it would have been', () => {
@@ -35,6 +35,6 @@ describe('a container with no navigator above it', () => {
       </NavigatorView>,
     );
 
-    expect(screen.queryByTestId('label')).not.toBeNull();
+    expect(screen.getByTestId('label')).toBeTruthy();
   });
 });

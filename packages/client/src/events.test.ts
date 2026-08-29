@@ -3,7 +3,7 @@ import { KromaEvents, type ServerEvent } from './events';
 import { FakeWS, WSImpl } from './events.fixture';
 
 beforeEach(() => {
-  FakeWS.instances = [];
+  FakeWS.reset();
   vi.useFakeTimers();
 });
 afterEach(() => {

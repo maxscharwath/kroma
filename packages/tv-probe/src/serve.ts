@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 
 const SHELL = fileURLToPath(new URL('../../../clients/tv-web', import.meta.url));
 const READY_TIMEOUT_MS = 90_000;
+// The running bun, by absolute path: what serves the shell must not be whatever
+// a writable PATH resolves `bunx` to.
+const BUN = process.execPath;
 
 interface Serving {
   url: string;
@@ -38,10 +41,10 @@ async function answering(url: string): Promise<boolean> {
  */
 export async function serveTvShell(): Promise<Serving> {
   const port = await freePort();
-  // Its own process GROUP, and killed as one: `bunx` hands off to a node vite
+  // Its own process GROUP, and killed as one: `bun x` hands off to a node vite
   // that outlives its wrapper, so killing the child alone leaves a dev server
   // holding a port for the rest of the session.
-  const vite = spawn('bunx', ['vite', '--port', String(port), '--strictPort'], {
+  const vite = spawn(BUN, ['x', 'vite', '--port', String(port), '--strictPort'], {
     cwd: SHELL,
     stdio: 'ignore',
     detached: true,

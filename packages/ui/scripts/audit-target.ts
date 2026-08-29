@@ -47,7 +47,7 @@ function shippedTrees(root = ROOT): string[] {
       if (existsSync(resolve(root, src))) out.push(src);
     }
   }
-  return out.sort();
+  return out.sort((a, b) => a.localeCompare(b));
 }
 
 const compiler = (): Babel => babelAt(COMPILER_AT);

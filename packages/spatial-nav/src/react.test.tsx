@@ -179,7 +179,7 @@ describe('<NavigatorRoot>', () => {
 
     press('right');
 
-    expect(screen.queryByTestId('b')).not.toBeNull();
+    expect(screen.getByTestId('b')).toBeTruthy();
   });
 
   it('answers again once it is active', () => {
@@ -265,7 +265,7 @@ describe('useLockNavigator', () => {
 
     press('right');
 
-    expect(screen.queryByTestId('b')).not.toBeNull();
+    expect(screen.getByTestId('b')).toBeTruthy();
   });
 
   it('stays locked while one of two surfaces is still up', () => {
@@ -274,7 +274,7 @@ describe('useLockNavigator', () => {
     rerender(<Surfaces first second={false} />);
     press('right');
 
-    expect(screen.queryByTestId('b')).not.toBeNull();
+    expect(screen.getByTestId('b')).toBeTruthy();
   });
 
   it('unlocks whichever order the surfaces close in', () => {

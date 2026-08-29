@@ -1,7 +1,7 @@
 /** A controllable WebSocket stand-in. Each construction is recorded in
  *  {@link FakeWS.instances} so a test can drive its lifecycle callbacks by hand. */
 export class FakeWS {
-  static instances: FakeWS[] = [];
+  static readonly instances: FakeWS[] = [];
   url: string;
   protocol: string | undefined;
   readyState = 0;
@@ -23,6 +23,9 @@ export class FakeWS {
   }
   close(): void {
     this.closed = true;
+  }
+  static reset(): void {
+    FakeWS.instances.length = 0;
   }
 }
 

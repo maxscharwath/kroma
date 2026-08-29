@@ -17,6 +17,7 @@ import {
   setVoiceSearchBackend,
   TvApp,
 } from '@kroma/tv';
+import { expoImageBackend } from '@kroma/ui/expo-image';
 import { KIT_FONTS } from '@kroma/ui/fonts';
 import { registerFrost, setImageBackend, TvStage } from '@kroma/ui/kit';
 import { BlurView } from 'expo-blur';
@@ -31,7 +32,6 @@ LogBox.ignoreAllLogs(true);
 import { lanBeacon } from '@kroma/lan-beacon';
 import { useEffect, useState } from 'react';
 import { browseForServers } from '../modules/server-discovery';
-import { expoImageBackend } from './lib/image-backend';
 import { startLauncherLinks } from './lib/launcher-links';
 import { nativeHardware } from './lib/native-hardware';
 import { nativeLauncher } from './lib/native-launcher';
@@ -72,8 +72,6 @@ setLauncherBackend(nativeLauncher);
 // DNS-SD, and it is the one route that finds a server on a port nothing would
 // have thought to scan - or behind a reverse proxy on 443 (see the module).
 setServerBrowse(browseForServers);
-// The design system draws artwork through whichever decoder the app registers,
-// and a browse screen is mostly artwork; see lib/image-backend.
 setImageBackend(expoImageBackend);
 // The platform's backdrop blur, which frosts the kit's glass surfaces (episode
 // cards, glass buttons). tvOS composites UIVisualEffectView on the GPU, so the

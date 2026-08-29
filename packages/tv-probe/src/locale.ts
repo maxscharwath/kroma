@@ -3,10 +3,9 @@ import { fileURLToPath } from 'node:url';
 
 const CATALOGS = fileURLToPath(new URL('../../core/src/locales/', import.meta.url));
 
-function catalog(locale: string): Record<string, string> {
+function catalog(locale: string): Map<string, unknown> {
   const parsed: unknown = JSON.parse(readFileSync(`${CATALOGS}${locale}.json`, 'utf8'));
-  if (!parsed || typeof parsed !== 'object') throw new Error(`${locale}: not a catalog`);
-  return parsed as Record<string, string>;
+  return new Map(Object.entries(parsed ?? {}));
 }
 
 export function locales(): string[] {
@@ -21,7 +20,7 @@ export function locales(): string[] {
  * the run instead of quietly never matching anything on screen.
  */
 export function message(locale: string, key: string): string {
-  const text = catalog(locale)[key];
-  if (!text) throw new Error(`${locale}: no message "${key}"`);
+  const text = catalog(locale).get(key);
+  if (typeof text !== 'string') throw new Error(`${locale}: no message "${key}"`);
   return text;
 }

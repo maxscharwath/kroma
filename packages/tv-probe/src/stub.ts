@@ -49,19 +49,29 @@ function payload(path: string, movies: readonly MediaItem[]): unknown {
   return {};
 }
 
-/** Answers every `/api/*` call the shell makes, so a run measures the app and
- * never a server. `/movies` is the only populated catalogue. */
-export async function stubApi(page: Page, items: number): Promise<void> {
-  const movies = Array.from({ length: items }, (_, at) => movie(at));
-  await page.route('**/api/**', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(
-        payload(new URL(route.request().url()).pathname.replace(/^\/api/, ''), movies),
-      ),
-    }),
-  );
+export function catalogue(items: number): MediaItem[] {
+  return Array.from({ length: items }, (_, at) => movie(at));
+}
+
+interface Answer {
+  status: number;
+  contentType: string;
+  body: string;
+}
+
+/** What the stub answers for an `/api/*` URL. `/movies` is the only populated
+ * catalogue; everything else answers empty rather than 404, so a run measures
+ * the app and never a server. */
+export function answer(url: string, movies: readonly MediaItem[]): Answer {
+  return {
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(payload(new URL(url).pathname.replace(/^\/api/, ''), movies)),
+  };
+}
+
+export async function stubApi(page: Page, movies: readonly MediaItem[]): Promise<void> {
+  await page.route('**/api/**', (route) => route.fulfill(answer(route.request().url(), movies)));
 }
 
 /** The localStorage a signed-in television boots from, in the language the run

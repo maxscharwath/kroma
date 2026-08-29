@@ -142,7 +142,7 @@ function collector(into: Finding[], file: string, forked = true) {
           });
         }
       }
-      const why = [...layout].sort();
+      const why = [...layout].sort((a, b) => a.localeCompare(b));
       for (const line of driven) {
         into.push(
           why.length > 0

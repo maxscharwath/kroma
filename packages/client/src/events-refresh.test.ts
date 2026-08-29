@@ -6,7 +6,7 @@ import { FakeWS, WSImpl } from './events.fixture';
 const flush = () => vi.advanceTimersByTimeAsync(0);
 
 beforeEach(() => {
-  FakeWS.instances = [];
+  FakeWS.reset();
   vi.useFakeTimers();
 });
 afterEach(() => {

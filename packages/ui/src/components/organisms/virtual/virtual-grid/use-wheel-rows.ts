@@ -58,11 +58,6 @@ export function useWheelScroll(
       if (settle.current) clearTimeout(settle.current);
       settle.current = setTimeout(() => {
         active.current = false;
-        const target = Math.round(frac.current);
-        if (target !== committed.current) {
-          committed.current = target;
-          focusRow(target);
-        }
         setFraction(null);
       }, SNAP_AFTER_MS);
     },

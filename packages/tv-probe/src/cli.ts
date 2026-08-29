@@ -12,48 +12,24 @@
 
 import { chromium } from 'playwright';
 import { checks } from './check';
-import { boot, openDestination, walk } from './drive';
+import { boot, openDestination, remote } from './drive';
+import { flags } from './flags';
 import { locales, message } from './locale';
 import { frames, read, startFrames } from './read';
+import { report } from './report';
 import { serveTvShell } from './serve';
-import { deviceEntries, SESSION_ENTRIES, stubApi } from './stub';
+import { catalogue, deviceEntries, SESSION_ENTRIES, stubApi } from './stub';
+import { walk } from './walk';
 
 const DESTINATION = 'nav.films';
 const STAGE = { width: 1920, height: 1080 };
-const TALL = { width: 2260, height: 1778 };
-const COMPLAINTS_SHOWN = 8;
-const COMPLAINT_CHARS = 150;
-
-const args = process.argv.slice(2);
-const flag = (name: string, fallback: string): string => {
-  const at = args.indexOf(`--${name}`);
-  return at === -1 ? fallback : (args[at + 1] ?? fallback);
-};
-
-const url = flag('url', '');
-const locale = flag('locale', 'en');
-const presses = Number(flag('keys', '24'));
-const items = Number(flag('items', '120'));
-const growth = Number(flag('growth', '3'));
-const minFps = Number(flag('min-fps', '20'));
-const shot = flag('shot', '');
 // A viewport that leaves a row half in view: the overscan row a grid mounts
 // below the fold is where a ring on every tile shows up.
-const tall = args.includes('--tall');
-// A television's browser is roughly six times slower than a developer laptop,
-// and a race the remote can win on a laptop is a race it loses on the set.
-const throttle = Number(flag('throttle', '6'));
+const TALL = { width: 2260, height: 1778 };
 
-// Five copies of one React warning are one bug, so a run prints the distinct
-// complaints and how often each fired.
-function tally(complaints: readonly string[]): Array<[string, number]> {
-  const seen = new Map<string, number>();
-  for (const complaint of complaints) {
-    const line = complaint.replace(/\s+/g, ' ').slice(0, COMPLAINT_CHARS);
-    seen.set(line, (seen.get(line) ?? 0) + 1);
-  }
-  return [...seen].slice(0, COMPLAINTS_SHOWN);
-}
+const { url, locale, presses, items, growth, minFps, shot, tall, throttle } = flags(
+  process.argv.slice(2),
+);
 
 if (!locales().includes(locale)) {
   throw new Error(`unknown locale "${locale}"; the app speaks ${locales().join(', ')}`);
@@ -77,7 +53,7 @@ try {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
   }
 
-  await stubApi(page, items);
+  await stubApi(page, catalogue(items));
   await page.addInitScript(
     ([device, session]) => {
       for (const [key, value] of Object.entries(device)) localStorage.setItem(key, value);
@@ -91,7 +67,7 @@ try {
 
   const atRest = await read(page);
   await startFrames(page);
-  const walked = await walk(page, presses, read);
+  const walked = await walk(remote(page), presses);
   const measured = await frames(page);
   if (shot) await page.screenshot({ path: shot });
 
@@ -104,16 +80,8 @@ try {
     minFps,
   });
 
-  console.log(
-    `\n  ${origin}   ${destination}   ${presses} presses   ${items} items   CPU /${throttle}\n`,
-  );
-  for (const { name, reads, ok } of verdicts) {
-    console.log(`  ${ok ? ' ok ' : 'FAIL'}  ${name.padEnd(24)} ${reads}`);
-  }
-  for (const [complaint, count] of tally(complaints)) {
-    console.log(`\n        ${count} x  ${complaint}`);
-  }
-  console.log('');
+  const printed = report({ origin, destination, presses, items, throttle, verdicts, complaints });
+  for (const line of printed) console.log(line);
 
   if (verdicts.some(({ ok }) => !ok)) process.exitCode = 1;
 } finally {

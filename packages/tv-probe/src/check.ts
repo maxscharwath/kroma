@@ -1,6 +1,7 @@
-import type { Frames, Reading } from './read';
+import type { Frames } from './read';
+import type { Reading } from './reading';
 
-interface Check {
+export interface Check {
   name: string;
   reads: string;
   ok: boolean;

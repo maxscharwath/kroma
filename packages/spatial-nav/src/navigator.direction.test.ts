@@ -8,6 +8,8 @@ const ROWS = [
   ['c0', 'c1', 'c2'],
 ];
 
+const HEADED_GRID = [['head'], ['g0', 'g1', 'g2']];
+
 describe('within a row', () => {
   it('walks right along the row', () => {
     const { nav } = row(['a0', 'a1', 'a2']);
@@ -162,35 +164,65 @@ describe('in a grid', () => {
     expect(nav.focusedId).toBe('c1');
   });
 
-  it('falls back to the nearest lower index when the column has no tile', () => {
-    const { nav } = board([['head'], ['g0', 'g1', 'g2']], true);
-    nav.focus('g2');
+  it.each([
+    {
+      behaviour: 'falls back to the nearest lower index when the column has no tile',
+      from: 'g2',
+      direction: 'up',
+      lands: 'head',
+    },
+    {
+      behaviour: 'enters the grid from the control above it',
+      from: 'head',
+      direction: 'down',
+      lands: 'g0',
+    },
+    {
+      behaviour: 'leaves the grid onto the control above it',
+      from: 'g0',
+      direction: 'up',
+      lands: 'head',
+    },
+  ] as const)('$behaviour', ({ from, direction, lands }) => {
+    const { nav } = board(HEADED_GRID, true);
+    nav.focus(from);
 
-    nav.handle('up');
+    nav.handle(direction);
 
-    expect(nav.focusedId).toBe('head');
+    expect(nav.focusedId).toBe(lands);
   });
 
-  it('enters the grid from the control above it', () => {
-    const { nav } = board([['head'], ['g0', 'g1', 'g2']], true);
-    nav.focus('head');
+  it('walks past a grid row that holds nothing, keeping the column', () => {
+    const { nav } = board([['g0', 'g1', 'g2'], [], ['h0', 'h1', 'h2']], true);
+    nav.focus('g1');
 
     nav.handle('down');
 
-    expect(nav.focusedId).toBe('g0');
+    expect(nav.focusedId).toBe('h1');
   });
 
-  it('leaves the grid onto the control above it', () => {
-    const { nav } = board([['head'], ['g0', 'g1', 'g2']], true);
-    nav.focus('g0');
+  it('refuses to leave a grid row when every row ahead holds nothing', () => {
+    const { nav } = board([['g0', 'g1', 'g2'], []], true);
+    nav.focus('g1');
 
-    nav.handle('up');
+    expect(nav.handle('down')).toBe(false);
+    expect(nav.focusedId).toBe('g1');
+  });
 
-    expect(nav.focusedId).toBe('head');
+  it('walks a grid whose children are tiles, which have no column of their own', () => {
+    const nav = new SpatialNavigator();
+    nav.registerNode('page', { orientation: 'vertical', alignInGrid: true });
+    nav.registerNode('a', { parent: 'page', focusable: true });
+    nav.registerNode('b', { parent: 'page', focusable: true });
+    nav.focus('a');
+
+    nav.handle('down');
+
+    expect(nav.focusedId).toBe('b');
   });
 
   it('lands on the remembered row rather than the first, entering an unaligned page', () => {
-    const { nav } = board([['head'], ['g0', 'g1', 'g2']]);
+    const { nav } = board(HEADED_GRID);
     nav.focus('g2');
     nav.handle('up');
 

@@ -15,13 +15,13 @@ interface FocusQueue {
  */
 function focusQueue(navigator: SpatialNavigator): FocusQueue {
   let pending: string | null = null;
-  let forced = false;
+  let requested = false;
 
   return {
     request(id) {
       if (navigator.focus(id)) return;
       pending = id;
-      forced = true;
+      requested = true;
     },
     claim(id) {
       if (navigator.focusedId || pending) return;
@@ -30,15 +30,13 @@ function focusQueue(navigator: SpatialNavigator): FocusQueue {
     },
     flush() {
       if (pending === null) return;
-      // A claim is what a screen would OPEN on, so anything that has since
-      // taken the focus outranks it. A request was asked for out loud.
-      if (!forced && navigator.focusedId) {
+      if (!requested && navigator.focusedId) {
         pending = null;
         return;
       }
       if (!navigator.focus(pending)) return;
       pending = null;
-      forced = false;
+      requested = false;
     },
   };
 }

@@ -29,5 +29,6 @@ export function firstFocusable(tree: FocusTree): TreeNode | null {
  *  nearest lower index and then to whatever the container itself prefers. */
 export function alignedIn(tree: FocusTree, node: TreeNode, column: number): TreeNode | null {
   const atOrBefore = tree.childrenOf(node.id).filter((child) => child.index <= column);
-  return firstAmong(tree, atOrBefore.reverse()) ?? focusableIn(tree, node);
+  atOrBefore.reverse();
+  return firstAmong(tree, atOrBefore) ?? focusableIn(tree, node);
 }

@@ -20,6 +20,7 @@
     "./kit": "./src/kit.ts",
     "./kit/*": "./src/components/*/index.ts",
     "./ssr": "./src/ssr.ts",
+    "./expo-image": "./src/lib/expo-image-backend.tsx",
     "./testing": "./src/testing.tsx",
     "./bundler": "./bundler/index.ts",
     "./workbench-config": "./src/workbench-config.tsx",
@@ -50,6 +51,7 @@
     "react": ">=18",
     "react-dom": ">=18",
     "react-native": "*",
+    "expo-image": "~57.0.3",
     "expo-video": "~57.0.2"
   },
   "devDependencies": {
@@ -67,6 +69,9 @@
     "zod": "^4.4.3"
   },
   "peerDependenciesMeta": {
+    "expo-image": {
+      "optional": true
+    },
     "expo-video": {
       "optional": true
     }

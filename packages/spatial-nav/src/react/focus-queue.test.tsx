@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { SpatialNavigator } from '@kroma/spatial-nav';
 import {
   NavigatorItem,
   NavigatorRoot,
@@ -10,13 +11,11 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { afterEach, describe, expect, it } from 'vitest';
+import { focusQueue } from './focus-queue';
 
 afterEach(cleanup);
 
-// Asks in its own mount effect, which is the earliest a control can ask and
-// the moment its ancestors are still unregistered: effects run child-first, so
-// the view wrapping this tile registers after it does.
-function EntryTile() {
+function TileAskingOnMount() {
   const entry = useRef<NodeHandle>(null);
   useEffect(() => {
     entry.current?.focus();
@@ -28,13 +27,7 @@ function EntryTile() {
   );
 }
 
-// The screen whose entry point arrives with its data: the view AND the tile
-// under it mount together, in a commit the root itself does not take part in.
-// That is the ONE shape that needs the queue, and the one the app is: the tile
-// registers, asks, and is refused because its own parent has not registered
-// yet; the parent registers a moment later; and nothing re-renders the root to
-// go back for the ask.
-function LateBranch() {
+function BranchArrivingWhole() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
     setReady(true);
@@ -42,7 +35,7 @@ function LateBranch() {
   if (!ready) return null;
   return (
     <NavigatorView direction="horizontal">
-      <EntryTile />
+      <TileAskingOnMount />
     </NavigatorView>
   );
 }
@@ -52,7 +45,7 @@ describe('focus asked for before the tree that holds it is whole', () => {
     render(
       <NavigatorRoot>
         <NavigatorView direction="horizontal">
-          <EntryTile />
+          <TileAskingOnMount />
         </NavigatorView>
       </NavigatorRoot>,
     );
@@ -62,7 +55,7 @@ describe('focus asked for before the tree that holds it is whole', () => {
   it('lands when the branch holding it mounts whole, under a root that does not re-render', () => {
     render(
       <NavigatorRoot>
-        <LateBranch />
+        <BranchArrivingWhole />
       </NavigatorRoot>,
     );
     expect(screen.getByTestId('lit')).toBeTruthy();
@@ -74,7 +67,7 @@ describe('focus asked for before the tree that holds it is whole', () => {
       useEffect(() => {
         setReady(true);
       }, []);
-      return ready ? <EntryTile /> : null;
+      return ready ? <TileAskingOnMount /> : null;
     }
     render(
       <NavigatorRoot>
@@ -84,5 +77,59 @@ describe('focus asked for before the tree that holds it is whole', () => {
       </NavigatorRoot>,
     );
     expect(screen.getByTestId('lit')).toBeTruthy();
+  });
+});
+
+function rowHolding(id: string): SpatialNavigator {
+  const nav = new SpatialNavigator();
+  nav.registerNode('row', { orientation: 'horizontal' });
+  nav.registerNode(id, { parent: 'row', focusable: true });
+  return nav;
+}
+
+describe('the focus queue', () => {
+  it('lands a claim at once on a tree that already holds the node', () => {
+    const nav = rowHolding('here');
+    const queue = focusQueue(nav);
+
+    queue.claim('here');
+
+    expect(nav.focusedId).toBe('here');
+  });
+
+  it('keeps an ask a flush could not land, and lands it on the next one', () => {
+    const nav = rowHolding('here');
+    const queue = focusQueue(nav);
+    queue.request('late');
+    queue.flush();
+    nav.registerNode('late', { parent: 'row', focusable: true });
+
+    queue.flush();
+
+    expect(nav.focusedId).toBe('late');
+  });
+
+  it('drops a claim rather than pulling the focus off what took it', () => {
+    const nav = rowHolding('here');
+    const queue = focusQueue(nav);
+    queue.claim('late');
+    nav.focus('here');
+    nav.registerNode('late', { parent: 'row', focusable: true });
+
+    queue.flush();
+
+    expect(nav.focusedId).toBe('here');
+  });
+
+  it('lands a request, which outranks whatever took the focus since', () => {
+    const nav = rowHolding('here');
+    const queue = focusQueue(nav);
+    queue.request('late');
+    nav.focus('here');
+    nav.registerNode('late', { parent: 'row', focusable: true });
+
+    queue.flush();
+
+    expect(nav.focusedId).toBe('late');
   });
 });

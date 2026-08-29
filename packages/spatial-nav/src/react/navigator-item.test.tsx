@@ -91,6 +91,6 @@ describe('hovering an item', () => {
 
     fireEvent.mouseEnter(screen.getByTestId('b-box'));
 
-    expect(screen.queryByTestId('b')).not.toBeNull();
+    expect(screen.getByTestId('b')).toBeTruthy();
   });
 });

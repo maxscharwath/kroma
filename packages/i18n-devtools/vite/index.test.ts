@@ -345,3 +345,44 @@ async function pluginWhoseEditorFails(error: string | undefined): Promise<Plugin
   const { kromaI18nDevtools: withBadEditor } = await import('./index.ts');
   return withBadEditor();
 }
+
+describe('which engine an app translates through', () => {
+  async function speaking(manifest: object): Promise<Plugin> {
+    vi.doMock('node:fs', () => ({
+      existsSync: () => true,
+      readFileSync: () => JSON.stringify(manifest),
+    }));
+    vi.resetModules();
+    const { kromaI18nDevtools: reading } = await import('./index.ts');
+    return reading();
+  }
+
+  it('reads paraglide off what the app depends on', async () => {
+    const plugin = await speaking({ dependencies: { '@inlang/paraglide-js': '^2' } });
+
+    expect(inject(plugin, '/app/src/paraglide/messages.js')).toContain('paraglide');
+  });
+
+  it('reads it out of devDependencies just the same', async () => {
+    const plugin = await speaking({ devDependencies: { '@kroma/i18n': 'workspace:*' } });
+
+    expect(inject(plugin, PROVIDER)).toContain('@kroma/i18n-devtools/kroma');
+  });
+
+  it('falls back to the engine this repository ships where nothing says', async () => {
+    const plugin = await speaking({ dependencies: { react: '^19' } });
+
+    expect(inject(plugin, PROVIDER)).toContain('@kroma/i18n-devtools/kroma');
+  });
+
+  it('stays out of the way where the adapter is not installed beside the panel', async () => {
+    vi.doMock('node:fs', () => ({
+      existsSync: (at: string) => !String(at).includes('engine/'),
+      readFileSync: () => '{}',
+    }));
+    vi.resetModules();
+    const { kromaI18nDevtools: withoutAdapter } = await import('./index.ts');
+
+    expect(inject(withoutAdapter(), PROVIDER)).toBeNull();
+  });
+});

@@ -162,8 +162,42 @@ describe('where a hard-coded string was drawn from', () => {
     expect(originAt(node)).toBeNull();
   });
 
+  it('walks off the top of the tree rather than past it', () => {
+    const element = { parentElement: null } as unknown as Element;
+    const node = { parentElement: element } as unknown as Node;
+    Reflect.set(element, '__reactFiber$abc', { _debugStack: { stack: 'Error' } });
+
+    expect(originAt(node)).toBeNull();
+  });
+
+  it('says nothing for an element React left a key on and nothing behind it', () => {
+    const element = { parentElement: null } as unknown as Element;
+    const node = { parentElement: element } as unknown as Node;
+    Reflect.set(element, '__reactFiber$abc', null);
+
+    expect(originAt(node)).toBeNull();
+  });
+
   it('says nothing where React drew nothing', () => {
     expect(originAt({ parentElement: null } as unknown as Node)).toBeNull();
     expect(originAt({ parentElement: {} } as unknown as Node)).toBeNull();
+  });
+
+  it('reads a frame the browser wrote without an @fs prefix', () => {
+    const stack = stackOf('Row (http://localhost:3000/src/app.tsx:9:2)');
+
+    expect(screenFrame(stack)).toMatchObject({ file: '/src/app.tsx', line: 9 });
+  });
+
+  it('passes over a line with nowhere near enough colons to be a frame', () => {
+    expect(screenFrame(stackOf('http://localhost'))).toBeNull();
+  });
+
+  it('passes over a frame whose line is not a number', () => {
+    expect(screenFrame(stackOf(`Row (${AT}/a.tsx:nine:2)`))).toBeNull();
+  });
+
+  it('passes over a frame whose column is not a number', () => {
+    expect(screenFrame(stackOf(`Row (${AT}/a.tsx:9:two)`))).toBeNull();
   });
 });

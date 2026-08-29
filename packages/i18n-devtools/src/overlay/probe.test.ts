@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openChannel } from '../server/host';
 import { mark } from './mark';
 import { installProbe, probed } from './probe';
 
@@ -150,5 +151,91 @@ describe('alt-clicking a message', () => {
     expect(pressed).toHaveBeenCalledTimes(1);
 
     document.removeEventListener('click', pressed);
+  });
+
+  it('says nothing for a text node with no text in it', () => {
+    page('<span id="a"></span>');
+    document.querySelector('#a')?.append(document.createTextNode(''));
+
+    pointAt('#a');
+
+    expect(probed()).toBeNull();
+  });
+
+  it('says nothing once the pointer is over no text at all', () => {
+    page(`<span id="a">${drew('Connexion')}</span>`);
+    pointAt('#a');
+
+    pointAt(null);
+
+    expect(probed()).toBeNull();
+  });
+
+  it('does not act on an alt-click over text no catalog marked', () => {
+    const pressed = vi.fn();
+    page('<button id="a">plain</button>');
+    document.caretPositionFromPoint = (() => ({
+      offsetNode: document.querySelector('#a')?.firstChild,
+    })) as never;
+    document.addEventListener('click', pressed);
+
+    document
+      .querySelector('#a')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true }));
+    document.removeEventListener('click', pressed);
+
+    expect(pressed).toHaveBeenCalled();
+  });
+
+  it('does not act on a click that is not alt-held', () => {
+    const pressed = vi.fn();
+    page(`<button id="a">${drew('Connexion')}</button>`);
+    document.addEventListener('click', pressed);
+
+    document.querySelector('#a')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.removeEventListener('click', pressed);
+
+    expect(pressed).toHaveBeenCalled();
+  });
+
+  function drawnBy(selector: string, at: string): void {
+    const element = document.querySelector(selector);
+    if (element) {
+      Reflect.set(element, '__reactFiber$abc', {
+        _debugStack: { stack: ['Error', `    at Row (${at})`].join('\n') },
+      });
+    }
+    document.caretPositionFromPoint = (() => ({
+      offsetNode: element?.firstChild,
+    })) as never;
+  }
+
+  it('asks the dev server to open the file the tree says drew it', async () => {
+    const sent: string[] = [];
+    openChannel({ send: (event) => sent.push(event), on: () => {} });
+    page(`<button id="a">${drew('Connexion')}</button>`);
+    drawnBy('#a', 'http://localhost:3000/@fs/kroma/clients/web/src/app.tsx:12:4');
+
+    document
+      .querySelector('#a')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true, shiftKey: true }));
+    await Promise.resolve();
+    openChannel(null);
+
+    expect(sent).toContain('kroma:i18n:open');
+  });
+
+  it('copies nothing for text no catalog answered, having only where it is written', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    page('<button id="a">plain</button>');
+    drawnBy('#a', 'http://localhost:3000/@fs/kroma/clients/web/src/app.tsx:12:4');
+
+    document
+      .querySelector('#a')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true }));
+    await Promise.resolve();
+
+    expect(writeText).not.toHaveBeenCalled();
   });
 });

@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   activeAppLocales,
   installAppLocales,
+  installKeyInspector,
   installLocaleOverride,
   onOverridesChange,
   overridesRevision,
 } from './dev-overrides';
+import { createI18n } from './i18n';
 
 afterEach(() => {
   installAppLocales(null);
@@ -91,5 +93,26 @@ describe('what the app says it renders', () => {
     installLocaleOverride('en');
 
     expect(overridesRevision()).toBeGreaterThan(before);
+  });
+});
+
+describe('a message an inspector watches', () => {
+  it('reaches the inspector even where no catalog in the chain answers', () => {
+    const seen: Array<{ key: string; from: unknown; text: string }> = [];
+    const i18n = createI18n({ catalogs: { en: { greeting: 'Hi' } }, defaultLocale: 'en' });
+    installKeyInspector((rendered) => {
+      seen.push({ key: rendered.key, from: rendered.from, text: rendered.text });
+      return rendered.text;
+    });
+
+    const rendered = i18n.translator('en', 'tv.kroma.notes')('nothing.answers');
+    installKeyInspector(null);
+
+    expect(rendered).toBe('nothing.answers');
+    expect(seen[0]).toEqual({
+      key: 'nothing.answers',
+      from: undefined,
+      text: 'nothing.answers',
+    });
   });
 });

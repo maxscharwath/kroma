@@ -309,3 +309,13 @@ describe('asking the dev server for a fresh render', () => {
     expect(at.reloaded).toEqual([]);
   });
 });
+
+describe('an editor that will not open', () => {
+  it('says which one and why, rather than failing quietly', async () => {
+    const at = serving();
+
+    await at.ask('kroma:i18n:open', { at: 1, file: '/repo/clients/web/src/app.tsx:1:1' });
+
+    expect(at.said[0]?.event).toBe('kroma:i18n:open');
+  });
+});

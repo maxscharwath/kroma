@@ -1,4 +1,5 @@
 import { liveState, onLiveChange } from '../live';
+import { forgetMarks } from '../overlay/mark';
 import { engine } from './engine';
 import { inspectorFor } from './inspector';
 
@@ -15,7 +16,12 @@ import { inspectorFor } from './inspector';
 export function bindEngine(): () => void {
   const apply = () => {
     const { keys, outline, locale } = liveState();
-    engine().inspect(inspectorFor(keys, outline));
+    const inspector = inspectorFor(keys, outline);
+    // What a mark stands for is remembered beside it, and only for as long as
+    // marks are being drawn: forgetting when the panel unmounts would take the
+    // keys off text a refresh had just marked.
+    if (!inspector) forgetMarks();
+    engine().inspect(inspector);
     engine().overrideLocale(locale);
   };
   apply();

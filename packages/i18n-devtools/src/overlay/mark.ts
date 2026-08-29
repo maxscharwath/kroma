@@ -81,9 +81,23 @@ export function forgetMarks(): void {
   remembered.clear();
 }
 
-/** What drew the string `text`, where it was one of ours. */
+/**
+ * What drew the string `text`, where it was one of ours.
+ *
+ * A message is stamped whole, but the page need not draw it whole: a component
+ * that emphasises half a heading splits it across text nodes, and the mark
+ * rides on the first of them. So a node that is the start of something
+ * remembered is that thing, which is what the fall-through looks for.
+ */
 export function sightingIn(text: string): Sighting | null {
-  return remembered.get(text) ?? remembered.get(text.trim()) ?? null;
+  const whole = remembered.get(text) ?? remembered.get(text.trim());
+  if (whole) return whole;
+  const start = text.trim();
+  if (!start) return null;
+  for (const [marked, sighting] of remembered) {
+    if (marked.startsWith(start)) return sighting;
+  }
+  return null;
 }
 
 /** The worst grade marked in `text`, or `null` where nothing is: a string with

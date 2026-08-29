@@ -116,4 +116,23 @@ describe('forgetting what was drawn', () => {
     expect(markIn(`${worse} ${mild}`)).toBe('missing');
     expect(markIn(`${mild} ${worse}`)).toBe('missing');
   });
+
+  it('names the message a fragment of it started, where the page split one', () => {
+    const drawn = mark(rendered('Your media library, at home.'), 'Your media library, at home.');
+    const [half] = drawn.split(' at home.');
+
+    expect(sightingIn(half ?? '')?.key).toBe('auth.login');
+  });
+
+  it('names nothing for a fragment that started no message', () => {
+    mark(rendered('Your media library, at home.'), 'Your media library, at home.');
+
+    expect(sightingIn('Blade Runner')).toBeNull();
+  });
+
+  it('names nothing for whitespace, which starts everything and means nothing', () => {
+    mark(rendered('Connexion'), 'Connexion');
+
+    expect(sightingIn('   ')).toBeNull();
+  });
 });

@@ -3,7 +3,6 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { engine } from '../engine/engine';
 import { liveState, type Outline, onLiveChange, setLive } from '../live';
 import { installHighlight } from '../overlay/highlight';
-import { forgetMarks } from '../overlay/mark';
 import { installProbe } from '../overlay/probe';
 import { ProbeCard } from '../overlay/probe-card';
 import { type DevtoolsSession, readSession, writeSession } from '../session';
@@ -40,7 +39,6 @@ export function Devtools({ host }: Readonly<{ host: HTMLElement }>) {
     return () => {
       stopProbe();
       stopHighlight();
-      forgetMarks();
     };
   }, [outline, editor]);
 

@@ -8,7 +8,7 @@ export interface EditorPickerProps {
 }
 
 const GLYPH = 16;
-const GUESS = 'guess';
+const AUTOMATIC = 'automatic';
 
 /** Which editor a file opens in. Absent until the machine running the dev
  *  server reports more than one: with a single editor there is nothing to
@@ -27,12 +27,12 @@ export function EditorPicker({ editor, onEditor }: Readonly<EditorPickerProps>) 
       </Row>
       <Select.Root
         label="Editor"
-        placeholder="Guess"
-        value={editor ?? GUESS}
-        onValueChange={(next) => onEditor(next === GUESS ? null : next)}
+        placeholder="Default"
+        value={editor ?? AUTOMATIC}
+        onValueChange={(next) => onEditor(next === AUTOMATIC ? null : next)}
       >
         <Select.Trigger size="sm" />
-        <Select.Item value={GUESS}>Guess</Select.Item>
+        <Select.Item value={AUTOMATIC}>Default</Select.Item>
         {editors.map(({ id, name }) => (
           <Select.Item key={id} value={id}>
             {name}

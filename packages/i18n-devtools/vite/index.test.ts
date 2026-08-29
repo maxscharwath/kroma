@@ -386,3 +386,20 @@ describe('which engine an app translates through', () => {
     expect(inject(withoutAdapter(), PROVIDER)).toBeNull();
   });
 });
+
+describe('finding the panel to inject', () => {
+  it('falls back to the copy beside this plugin where the shell cannot resolve it', async () => {
+    vi.doMock('node:module', () => ({
+      createRequire: () => ({
+        resolve: () => {
+          throw new Error('Cannot find module');
+        },
+      }),
+    }));
+    vi.doMock('node:fs', () => ({ existsSync: () => true, readFileSync: () => '{}' }));
+    vi.resetModules();
+    const { kromaI18nDevtools: beside } = await import('./index.ts');
+
+    expect(inject(beside(), PROVIDER)).toContain('@kroma/i18n-devtools');
+  });
+});

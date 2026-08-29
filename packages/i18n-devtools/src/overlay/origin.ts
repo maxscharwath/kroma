@@ -20,7 +20,7 @@ const asked = new Map<string, Promise<Origin | null>>();
 const listeners = new Set<() => void>();
 
 function servedAt(url: string): string {
-  return (url.split('?')[0] ?? url).replace(/^https?:\/\/[^/]+/, '');
+  return url.replace(/\?.*$/, '').replace(/^https?:\/\/[^/]+/, '');
 }
 
 function fileOf(url: string): string {

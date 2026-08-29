@@ -96,7 +96,7 @@ export function walkGraded(outline: Outline, take: (grade: Grade, node: Text) =>
     },
   );
   for (let node = walk.nextNode(); node; node = walk.nextNode()) {
-    const grade = gradeOfNode(node.nodeValue ?? '');
+    const grade = gradeOfNode((node as Text).data);
     if (grade && shows(outline, grade)) take(grade, node as Text);
   }
 }

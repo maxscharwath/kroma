@@ -12,6 +12,10 @@ function build() {
 }
 
 describe('createI18n', () => {
+  it('names every locale it answers in, the default one first', () => {
+    expect(build().locales()).toEqual(['en', 'fr']);
+  });
+
   it('translates, pluralises and falls back to the default locale', () => {
     const i18n = build();
 

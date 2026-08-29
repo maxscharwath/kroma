@@ -47,7 +47,12 @@ async function aliases(plugin: Plugin): Promise<Record<string, string>> {
     { command: 'serve', mode: 'development' },
   );
   const alias = config?.resolve?.alias;
-  return alias === undefined || Array.isArray(alias) ? {} : alias;
+  if (!Array.isArray(alias)) return alias ?? {};
+  const found: Record<string, string> = {};
+  for (const { find, replacement } of alias as Array<{ find: unknown; replacement: string }>) {
+    if (typeof find === 'string') found[find] = replacement;
+  }
+  return found;
 }
 
 afterEach(() => {
@@ -94,5 +99,88 @@ describe('kromaI18nDevtools', () => {
 
   it('injects nothing without the panel, so a shell that lacks it still starts', async () => {
     expect(inject(await withoutPanel(), PROVIDER)).toBeNull();
+  });
+});
+
+interface Asked {
+  event: string;
+  data: Record<string, unknown>;
+}
+
+function serving(over: { allow?: string[]; transform?: unknown } = {}) {
+  const handlers = new Map<string, (data: unknown, client: unknown) => void>();
+  const said: Asked[] = [];
+  const warned: string[] = [];
+  const watching = new Map<string, () => void>();
+  const client = {
+    send: (event: string, data: Record<string, unknown>) => said.push({ event, data }),
+  };
+  const server = {
+    environments: {
+      client: {
+        hot: {
+          on: (event: string, run: (data: unknown, c: unknown) => void) => handlers.set(event, run),
+        },
+        transformRequest: () => Promise.resolve(over.transform ?? null),
+      },
+    },
+    config: {
+      root: '/repo/clients/web',
+      logger: { warn: (line: string) => warned.push(line) },
+      server: { fs: { allow: over.allow ?? ['/repo'] } },
+    },
+    watcher: { on: (event: string, run: () => void) => watching.set(event, run) },
+  };
+  const plugin = kromaI18nDevtools();
+  (plugin.configureServer as (s: unknown) => void).call({} as never, server);
+  const ask = async (event: string, data: object) => {
+    handlers.get(event)?.(data, client);
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+  return { ask, said, warned, watching, handlers };
+}
+
+describe('what the panel may ask the dev server', () => {
+  it('answers which editors this machine has', async () => {
+    const at = serving();
+
+    await at.ask('kroma:i18n:editors', { at: 1 });
+
+    expect(at.said[0]?.event).toBe('kroma:i18n:editors');
+    expect(at.said[0]?.data).toMatchObject({ at: 1 });
+    expect(Array.isArray(at.said[0]?.data.editors)).toBe(true);
+  });
+
+  it('answers where a served line was written, and says nothing without a map', async () => {
+    const at = serving();
+
+    await at.ask('kroma:i18n:where', { at: 2, url: '/src/who.tsx', line: 9, column: 1 });
+
+    expect(at.said[0]).toMatchObject({ event: 'kroma:i18n:where', data: { at: 2, line: null } });
+  });
+
+  it('refuses to open a file outside the trees it serves', async () => {
+    const at = serving({ allow: ['/repo/clients/web'] });
+
+    await at.ask('kroma:i18n:open', { at: 3, file: '/etc/passwd:1:1', editor: '' });
+
+    expect(at.said[0]).toMatchObject({ data: { at: 3, opened: false } });
+    expect(at.warned[0]).toContain('refused to open');
+  });
+
+  it('refuses a file that is nowhere at all', async () => {
+    const at = serving();
+
+    await at.ask('kroma:i18n:open', { at: 4, file: '/repo/nope.tsx:1:1' });
+
+    expect(at.said[0]).toMatchObject({ data: { opened: false } });
+  });
+
+  it('forgets what it traced when a file changes', () => {
+    const at = serving();
+
+    expect(at.watching.has('change')).toBe(true);
+    expect(() => at.watching.get('change')?.()).not.toThrow();
   });
 });

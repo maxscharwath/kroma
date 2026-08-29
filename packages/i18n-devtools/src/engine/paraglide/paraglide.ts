@@ -31,7 +31,7 @@ export interface ParaglideEngine<M extends Messages> extends Engine {
 }
 
 function ships<L extends string>(locales: readonly L[], locale: string): locale is L {
-  return locales.some((shipped) => shipped === locale);
+  return (locales as readonly string[]).includes(locale);
 }
 
 function watched(inputs: Inputs, read: Set<string>): Inputs {
@@ -43,10 +43,17 @@ function watched(inputs: Inputs, read: Set<string>): Inputs {
   });
 }
 
+// An input is whatever the app passed, and `String(x)` on an object reads
+// `[object Object]`, which says nothing about what was rendered.
+function text(value: unknown): string {
+  return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+}
+
 function varsIn(inputs: Inputs): Vars | undefined {
   const vars: Vars = {};
   for (const [name, value] of Object.entries(inputs)) {
-    if (value !== undefined) vars[name] = typeof value === 'number' ? value : String(value);
+    if (value === undefined) continue;
+    vars[name] = typeof value === 'number' ? value : text(value);
   }
   return Object.keys(vars).length > 0 ? vars : undefined;
 }

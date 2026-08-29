@@ -10,5 +10,6 @@ const UNANSWERED = 'missing';
 export function keyLabel({ key, from, locale }: Rendered): string {
   if (!from) return `[${UNANSWERED}/${key}]`;
   const scope = from.scope ?? BASE;
-  return `[${from.locale === locale ? scope : `${scope}@${from.locale}`}/${key}]`;
+  const answered = from.locale === locale ? scope : `${scope}@${from.locale}`;
+  return `[${answered}/${key}]`;
 }

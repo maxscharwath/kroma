@@ -81,7 +81,7 @@ export function installAppLocales(next: AppLocales | null): void {
   const state = overrides();
   const held = state.app;
   if (held === next) return;
-  if (held && next && held.resolved === next.resolved && same(held.codes, next.codes)) return;
+  if (next && held?.resolved === next.resolved && same(held.codes, next.codes)) return;
   state.app = next;
   notify();
 }

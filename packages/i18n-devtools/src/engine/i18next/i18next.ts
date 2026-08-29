@@ -71,12 +71,10 @@ function holeScanner({
   prefix = '{{',
   suffix = '}}',
 }: NonNullable<I18nOptions['interpolation']> = {}): (text: string) => string[] {
-  const pattern = new RegExp(
-    `${prefix.replace(METACHARACTER, '\\$&')}.+?${suffix.replace(METACHARACTER, '\\$&')}`,
-    'g',
-  );
+  const quoted = (delimiter: string) => delimiter.replace(METACHARACTER, String.raw`\$&`);
+  const pattern = new RegExp(`${quoted(prefix)}.+?${quoted(suffix)}`, 'g');
   return (text) =>
-    (text.match(pattern) ?? []).map((hole) => nameOf(hole.slice(prefix.length, -suffix.length)));
+    [...text.matchAll(pattern)].map(([hole]) => nameOf(hole.slice(prefix.length, -suffix.length)));
 }
 
 /**
@@ -103,7 +101,7 @@ export function i18next(instance: I18n): Engine {
     return {
       key: resolved?.exactUsedKey ?? key,
       from:
-        resolved && resolved.res !== undefined
+        resolved?.res !== undefined
           ? { scope: resolved.usedNS ?? null, locale: resolved.usedLng ?? locale }
           : undefined,
       locale,

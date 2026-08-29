@@ -1,7 +1,8 @@
 import { ask } from '../server/host';
 
 const MACHINERY = /\/(packages\/(i18n|i18n-devtools|ui)|node_modules|\.vite)\//;
-const FRAME = /\(?((?:https?:)?\/\/[^\s)]+?):(\d+):(\d+)\)?$/;
+const URL_AT = /(?:https?:)?\/\//;
+const POSITION = /^\d+$/;
 
 /** Where a string is written. `line` is the module the browser was served
  *  until the dev server says where that came from, which it can and the
@@ -27,16 +28,34 @@ function fileOf(url: string): string {
   return path.startsWith('/@fs') ? path.slice(4) : path;
 }
 
+// A frame ends in `:line:column`, and everything before it is the URL. Read
+// from the end rather than matching the whole line at once: a URL may hold any
+// number of colons, so one pattern over the lot backtracks through every one of
+// them on a line that turns out not to be a frame.
+function frameOf(line: string): { url: string; line: number; column: number } | null {
+  const text = line.trim().replace(/\)$/, '');
+  const start = text.search(URL_AT);
+  if (start === -1) return null;
+  const at = text.slice(start);
+  const lastColon = at.lastIndexOf(':');
+  const firstColon = at.lastIndexOf(':', lastColon - 1);
+  if (firstColon < 1) return null;
+  const row = at.slice(firstColon + 1, lastColon);
+  const column = at.slice(lastColon + 1);
+  if (!POSITION.test(row) || !POSITION.test(column)) return null;
+  return { url: at.slice(0, firstColon), line: Number(row), column: Number(column) };
+}
+
 /** The first frame of `stack` that is the screen rather than the machinery. */
 export function screenFrame(stack: string): Origin | null {
   for (const line of stack.split('\n').slice(1)) {
-    const at = FRAME.exec(line.trim());
-    if (!at?.[1] || MACHINERY.test(at[1])) continue;
+    const at = frameOf(line);
+    if (!at || MACHINERY.test(at.url)) continue;
     return {
-      url: servedAt(at[1]),
-      line: Number(at[2]),
-      column: Number(at[3]),
-      file: fileOf(at[1]),
+      url: servedAt(at.url),
+      line: at.line,
+      column: at.column,
+      file: fileOf(at.url),
       source: false,
     };
   }

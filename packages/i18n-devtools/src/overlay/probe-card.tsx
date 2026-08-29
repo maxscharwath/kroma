@@ -23,6 +23,10 @@ function source(scope: string | null, locale: string | null): string | null {
   return locale ? `${scope ?? 'core'}@${locale}` : null;
 }
 
+function namedHoles(holes: readonly string[]): string {
+  return holes.map((hole) => `{${hole}}`).join(' ');
+}
+
 function said(name: string, value: string | number, locale: string | null): string {
   if (name !== 'count' || typeof value !== 'number') return `${name} = ${value}`;
   return `${name} = ${value} → ${categoryOf(locale ?? 'en', value)}`;
@@ -62,7 +66,7 @@ export function ProbeCard() {
         ))}
         {probe.holes.length > 0 && (
           <Text variant="meta" font="mono" color="danger" lines={2}>
-            {`${probe.holes.map((hole) => `{${hole}}`).join(' ')} given no value`}
+            {`${namedHoles(probe.holes)} given no value`}
           </Text>
         )}
         {probe.copied ? (

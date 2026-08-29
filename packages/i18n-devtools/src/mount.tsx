@@ -56,38 +56,12 @@ function leaveDocumentUnstamped(before: readonly string[]): void {
  * Put the dev tools on the page: a badge in the bottom-right corner that opens
  * the panel. Returns a disposer, and does nothing where there is no document.
  *
- * Its own React root in its own element, created once the page has settled so
- * the shell claims the document first, and giving back the stamp above so it
+ * Its own React root in its own element, created one task late so the shell
+ * claims the document first, and giving back the stamp above so it
  * does not matter if the shell is later still. It also takes down whatever it
  * finds already running: a hot update inside this package re-runs the module
  * that calls this without ever reaching that module's own disposer.
  */
-// A marked string is still a string, and React hydrates by comparing the
-// server's text with the client's, so anything that renders a message
-// differently has to wait until that comparison is over. React 19 hydrates
-// concurrently and can run past the load event, so the wait is for the first
-// idle moment after it: two things every shell here has, and neither of them
-// React's, which offers nothing to wait on. Returns its own canceller.
-function onceIdle(run: () => void): () => void {
-  let cancel = () => {};
-  const idle = () => {
-    const wait = globalThis.requestIdleCallback;
-    if (!wait) {
-      const at = setTimeout(run, 0);
-      cancel = () => clearTimeout(at);
-      return;
-    }
-    const at = wait(() => run(), { timeout: 1000 });
-    cancel = () => globalThis.cancelIdleCallback(at);
-  };
-  if (document.readyState === 'complete') idle();
-  else {
-    window.addEventListener('load', idle, { once: true });
-    cancel = () => window.removeEventListener('load', idle);
-  }
-  return () => cancel();
-}
-
 export function mount(options: MountOptions = {}): () => void {
   if (typeof document === 'undefined') return () => {};
   ignoreTools(options.ignore ?? []);
@@ -107,7 +81,7 @@ export function mount(options: MountOptions = {}): () => void {
   const stopClamp = keepInView(host);
 
   let root: Root | null = null;
-  const start = onceIdle(() => {
+  const start = setTimeout(() => {
     const before = stamps();
     root = createRoot(host);
     root.render(
@@ -120,7 +94,7 @@ export function mount(options: MountOptions = {}): () => void {
 
   const dispose = () => {
     unbind();
-    start();
+    clearTimeout(start);
     stopClamp();
     stopDrag();
     // A hot reload disposes while React may still be rendering the tree above.

@@ -75,13 +75,14 @@ export function onThePage(node: Node): boolean {
 }
 
 /**
- * Hand every graded text node the page is drawing to `take`.
+ * Hand every graded text node the page is drawing to `take`, whatever its
+ * grade: which of them a mode shows is the caller's to decide.
  *
  * The walk sees elements as well as text so that a tool's whole subtree is
  * rejected at its root, which costs one test per element rather than one per
  * text node climbing back to `<html>`.
  */
-export function walkGraded(outline: Outline, take: (grade: Grade, node: Text) => void): void {
+export function walkGraded(take: (grade: Grade, node: Text) => void): void {
   const walk = document.createTreeWalker(
     document.body,
     NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
@@ -97,7 +98,7 @@ export function walkGraded(outline: Outline, take: (grade: Grade, node: Text) =>
   );
   for (let node = walk.nextNode(); node; node = walk.nextNode()) {
     const grade = gradeOfNode((node as Text).data);
-    if (grade && shows(outline, grade)) take(grade, node as Text);
+    if (grade) take(grade, node as Text);
   }
 }
 
@@ -131,9 +132,9 @@ export function installHighlight(outline: Outline): () => void {
   const paint = () => {
     const found: Array<[Grade, Text]> = [];
     let marked = false;
-    // Walked whole and filtered here: `problems` hides the strings that are
-    // right, and those are exactly the evidence that the engine is marking.
-    walkGraded('all', (grade, node) => {
+    // Filtered here rather than in the walk: `problems` hides the strings that
+    // are right, and those are exactly the evidence that the engine is marking.
+    walkGraded((grade, node) => {
       if (grade !== 'raw') marked = true;
       if (shows(outline, grade)) found.push([grade, node]);
     });

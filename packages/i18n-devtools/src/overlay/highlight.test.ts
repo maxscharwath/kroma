@@ -17,7 +17,8 @@ function page(html: string): void {
 
 function graded(outline: 'problems' | 'all'): Record<string, number> {
   const found: Record<string, number> = {};
-  walkGraded(outline, (grade) => {
+  walkGraded((grade) => {
+    if (!shows(outline, grade)) return;
     found[grade] = (found[grade] ?? 0) + 1;
   });
   return found;

@@ -171,8 +171,8 @@ export function kromaI18nDevtools({ ignore = OVERLAYS, adapter }: DevtoolsOption
     // it out of the build.
     config() {
       if (!entry || !adapterEntry) return {};
-      const web = webResolve() ?? {};
-      const aliased = (web.alias ?? []) as AliasEntry[];
+      const web = webResolve();
+      const aliased = web.alias as AliasEntry[];
       return {
         define: RNW_DEFINE,
         resolve: {

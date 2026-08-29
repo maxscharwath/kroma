@@ -42,8 +42,8 @@ const MAX_REQUEST_BYTES = 8 * 1024;
 // long body can shape what the log says.
 const REASON_MAX = 200;
 
-function printable(reason: string | undefined): string {
-  return (reason ?? '').replace(/[^ -~]/g, '').slice(0, REASON_MAX);
+function printable(reason: string): string {
+  return reason.replace(/[^ -~]/g, '').slice(0, REASON_MAX);
 }
 
 const app = new Hono<{ Bindings: Env }>();

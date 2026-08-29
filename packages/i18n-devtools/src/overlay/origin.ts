@@ -19,8 +19,16 @@ const known = new Map<string, Origin | null>();
 const asked = new Map<string, Promise<Origin | null>>();
 const listeners = new Set<() => void>();
 
+// Thrown by nobody: the stack is the answer, and the message only says so to a
+// reader who finds one in a log.
+const STACK_PROBE = 'kroma i18n devtools: where a string is written';
+
 function servedAt(url: string): string {
-  return url.replace(/\?.*$/, '').replace(/^https?:\/\/[^/]+/, '');
+  // Found rather than matched: a pattern for the query would scan the whole URL
+  // to decide there is none, on every text node the overlay grades.
+  const query = url.indexOf('?');
+  const path = query === -1 ? url : url.slice(0, query);
+  return path.replace(/^https?:\/\/[^/]+/, '');
 }
 
 function fileOf(url: string): string {
@@ -117,7 +125,7 @@ export function onOriginTraced(listener: () => void): () => void {
 export function originOf(key: string): Origin | null {
   const hit = seen.get(key);
   if (hit !== undefined) return hit;
-  const found = screenFrame(new Error().stack);
+  const found = screenFrame(new Error(STACK_PROBE).stack);
   seen.set(key, found);
   return found;
 }

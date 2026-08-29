@@ -130,25 +130,27 @@ function serving(
       client: {
         hot: {
           on: (event: string, run: (data: unknown, c: unknown) => void) => handlers.set(event, run),
+          send: (payload: { updates?: Array<{ path: string }> }) => {
+            for (const u of payload.updates ?? []) reloaded.push(u.path);
+          },
         },
         transformRequest: () => Promise.resolve(over.transform ?? null),
         moduleGraph: {
+          invalidateModule: () => {},
           getModuleById: (id: string) =>
             (over.known ?? []).includes(id)
               ? {
                   id,
+                  url: id,
                   importers: new Set(
                     (over.importers ?? []).map((at) => ({
                       id: at,
+                      url: at,
                       isSelfAccepting: !(over.refusing ?? []).includes(at),
                     })),
                   ),
                 }
               : undefined,
-        },
-        reloadModule: ({ id }: { id: string }) => {
-          reloaded.push(id);
-          return Promise.resolve();
         },
       },
     },

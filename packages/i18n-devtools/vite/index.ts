@@ -212,9 +212,23 @@ export function kromaI18nDevtools({ ignore = OVERLAYS, adapter }: DevtoolsOption
       hot.on('kroma:i18n:refresh', () => {
         const { client } = server.environments;
         const module = anchored === null ? undefined : client.moduleGraph.getModuleById(anchored);
+        const at = Date.now();
+        const updates = [];
         for (const importer of module?.importers ?? []) {
-          if (importer.isSelfAccepting) void client.reloadModule(importer);
+          if (!importer.isSelfAccepting || !importer.url) continue;
+          client.moduleGraph.invalidateModule(importer);
+          updates.push({
+            type: 'js-update' as const,
+            path: importer.url,
+            acceptedPath: importer.url,
+            timestamp: at,
+          });
         }
+        // One message, not one per module: a reload each would be its own round
+        // trip, its own render and its own paint, and the page would be seen
+        // rebuilding itself a piece at a time. This is the shape Vite sends
+        // when one file reaches many boundaries.
+        if (updates.length > 0) hot.send({ type: 'update', updates });
       });
       server.watcher.on('change', forgetMaps);
     },

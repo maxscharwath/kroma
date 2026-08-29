@@ -807,6 +807,30 @@
         "typescript": "^7.0.2",
       },
     },
+    "packages/spatial-nav": {
+      "name": "@kroma/spatial-nav",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@testing-library/react": "^16.3.0",
+        "@types/node": "^22.20.1",
+        "@types/react": "^19.2.18",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "react-native": "npm:react-native-tvos@0.86.0-2",
+        "react-native-web": "^0.21.2",
+        "typescript": "^7.0.2",
+        "vite": "^8.2.1",
+        "vitest": "^4.1.10",
+      },
+      "peerDependencies": {
+        "react": ">=18",
+        "react-native": "*",
+      },
+      "optionalPeers": [
+        "react",
+        "react-native",
+      ],
+    },
     "packages/synology-repo": {
       "name": "@kroma/synology-repo",
       "version": "0.0.0",
@@ -866,24 +890,33 @@
         "vitest": "^4.1.10",
       },
     },
+    "packages/tv-probe": {
+      "name": "@kroma/tv-probe",
+      "version": "0.0.0",
+      "dependencies": {
+        "@kroma/client": "workspace:*",
+        "playwright": "1.62.1",
+      },
+      "devDependencies": {
+        "@types/node": "^22.20.1",
+        "typescript": "^7.0.2",
+      },
+    },
     "packages/ui": {
       "name": "@kroma/ui",
       "version": "0.0.0",
       "dependencies": {
-        "@bam.tech/lrud": "^8.0.2",
         "@kroma/core": "workspace:*",
         "@kroma/i18n": "workspace:*",
+        "@kroma/spatial-nav": "workspace:*",
         "@tabler/icons-react": "^3.46.0",
         "@tabler/icons-react-native": "^3.46.0",
-        "lodash.uniqueid": "^4.0.1",
         "react-native-svg": "^15.15.5",
-        "react-tv-space-navigation": "6.0.0-beta1",
       },
       "devDependencies": {
         "@kroma/react-audit": "workspace:*",
         "@kroma/workbench": "workspace:*",
         "@tabler/icons": "^3.46.0",
-        "@types/lodash.uniqueid": "^4.0.9",
         "@types/node": "^22.20.1",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.4",
@@ -948,7 +981,6 @@
     "expo-video@57.0.2": "patches/expo-video@57.0.2.patch",
     "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
     "@expo/require-utils@57.0.4": "patches/@expo%2Frequire-utils@57.0.4.patch",
-    "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch",
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
   },
   "overrides": {
@@ -1189,8 +1221,6 @@
     "@babel/traverse": ["@babel/traverse@7.29.8", "", { "dependencies": { "@babel/code-frame": "^7.29.7", "@babel/generator": "^7.29.8", "@babel/helper-globals": "^7.29.7", "@babel/parser": "^7.29.8", "@babel/template": "^7.29.7", "@babel/types": "^7.29.8", "debug": "^4.3.1" } }, "sha512-I5z7H3bf/41ktsNVLtpN0wAa336HkqIHQ5BuPLEhTkt1jVSyZpeNKIzTgEWmlxjdg81R0IgUCcaE+Ok3NvrfZg=="],
 
     "@babel/types": ["@babel/types@7.29.8", "", { "dependencies": { "@babel/helper-string-parser": "^7.29.7", "@babel/helper-validator-identifier": "^7.29.7" } }, "sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg=="],
-
-    "@bam.tech/lrud": ["@bam.tech/lrud@8.0.2", "", { "dependencies": { "mitt": "3.0.1" } }, "sha512-ISpdACGAJBZF5SbG2YxS7l2yH9/Rtl1mleEKqhaipnEzMCUsHPbbTB65h91aS0POccKjTIqpZQLCS+ySVePbuw=="],
 
     "@biomejs/biome": ["@biomejs/biome@2.5.8", "", { "optionalDependencies": { "@biomejs/cli-darwin-arm64": "2.5.8", "@biomejs/cli-darwin-x64": "2.5.8", "@biomejs/cli-linux-arm64": "2.5.8", "@biomejs/cli-linux-arm64-musl": "2.5.8", "@biomejs/cli-linux-x64": "2.5.8", "@biomejs/cli-linux-x64-musl": "2.5.8", "@biomejs/cli-win32-arm64": "2.5.8", "@biomejs/cli-win32-x64": "2.5.8" }, "bin": { "biome": "bin/biome" } }, "sha512-aeAeeJB9fSDc7Gq+2GqpQxA0qBj6gj1k2R6L1cYqGePKP/baIq1WX8y6B+D+nRsO5ViQL22K/8IwbqERW0q1nw=="],
 
@@ -1530,6 +1560,8 @@
 
     "@kroma/sonar-tools": ["@kroma/sonar-tools@workspace:packages/sonar-tools"],
 
+    "@kroma/spatial-nav": ["@kroma/spatial-nav@workspace:packages/spatial-nav"],
+
     "@kroma/synology-repo": ["@kroma/synology-repo@workspace:packages/synology-repo"],
 
     "@kroma/tizen": ["@kroma/tizen@workspace:clients/tizen"],
@@ -1541,6 +1573,8 @@
     "@kroma/tv-installer": ["@kroma/tv-installer@workspace:packages/tv-installer"],
 
     "@kroma/tv-native": ["@kroma/tv-native@workspace:clients/tv-native"],
+
+    "@kroma/tv-probe": ["@kroma/tv-probe@workspace:packages/tv-probe"],
 
     "@kroma/tv-web": ["@kroma/tv-web@workspace:clients/tv-web"],
 
@@ -1961,10 +1995,6 @@
     "@types/istanbul-reports": ["@types/istanbul-reports@3.0.4", "", { "dependencies": { "@types/istanbul-lib-report": "*" } }, "sha512-pk2B1NWalF9toCRu6gjBzR69syFjP4Od8WRAX+0mmf9lAjCRicLOWc+ZrxZHx/0XRjotgkF9t6iaMJ+aXcOdZQ=="],
 
     "@types/jsesc": ["@types/jsesc@2.5.1", "", {}, "sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw=="],
-
-    "@types/lodash": ["@types/lodash@4.17.25", "", {}, "sha512-+K1NIO8I+F9/wNulfVvu23QYd0Pe9/OCqRrim4NoYIf1VoEDL90Ve4ClzpyqBLc7NpGGWRvYNCKZ1BE/Jpf8dQ=="],
-
-    "@types/lodash.uniqueid": ["@types/lodash.uniqueid@4.0.9", "", { "dependencies": { "@types/lodash": "*" } }, "sha512-SEzkJBS8t+tqAUnSmyqbuWqxKU+Z/Xu2cgPtD+Ik0l+M7L2q7So9VoN2rQ8H0mmL87lJ00ykxal8oB54QRet6g=="],
 
     "@types/mdast": ["@types/mdast@4.0.4", "", { "dependencies": { "@types/unist": "*" } }, "sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA=="],
 
@@ -2684,8 +2714,6 @@
 
     "lodash.throttle": ["lodash.throttle@4.1.1", "", {}, "sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ=="],
 
-    "lodash.uniqueid": ["lodash.uniqueid@4.0.1", "", {}, "sha512-GQQWaIeGlL6DIIr06kj1j6sSmBxyNMwI8kaX9aKpHR/XsMTiaXDVPNPAkiboOTK9OJpTJF/dXT3xYoFQnj386Q=="],
-
     "log-symbols": ["log-symbols@2.2.0", "", { "dependencies": { "chalk": "^2.0.1" } }, "sha512-VeIAFslyIerEJLXHziedo2basKbMKtTw3vfn5IzG0XTjhAVEJyNHnL2p7vc+wBDSdQuUpNw3M2u6xb9QsAY5Eg=="],
 
     "longest-streak": ["longest-streak@3.1.0", "", {}, "sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g=="],
@@ -2876,8 +2904,6 @@
 
     "minipass": ["minipass@7.1.3", "", {}, "sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A=="],
 
-    "mitt": ["mitt@3.0.1", "", {}, "sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw=="],
-
     "mkdirp": ["mkdirp@1.0.4", "", { "bin": { "mkdirp": "bin/cmd.js" } }, "sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw=="],
 
     "morgan": ["morgan@1.11.0", "", { "dependencies": { "basic-auth": "~2.0.1", "debug": "2.6.9", "depd": "~2.0.0", "on-finished": "~2.4.1", "on-headers": "~1.1.0" } }, "sha512-zSkVu3t18r39pw4ixfBKvfZi3y2UOqr7d4WYwcj3m8nXpEQK4rPO6GLzs/CExoRgmX3y9EjmmcXqv6jq0SK46g=="],
@@ -3037,8 +3063,6 @@
     "react-remove-scroll-bar": ["react-remove-scroll-bar@2.3.8", "", { "dependencies": { "react-style-singleton": "^2.2.2", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q=="],
 
     "react-style-singleton": ["react-style-singleton@2.2.3", "", { "dependencies": { "get-nonce": "^1.0.0", "tslib": "^2.0.0" }, "peerDependencies": { "@types/react": "*", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-b6jSvxvVnyptAiLjbkWLE/lOnR4lfTtDAl+eUC7RZy+QQWc6wRzIV2CE6xBuMmDxc2qIihtDCZD5NPOFl7fRBQ=="],
-
-    "react-tv-space-navigation": ["react-tv-space-navigation@6.0.0-beta1", "", { "dependencies": { "@bam.tech/lrud": "^8.0.2", "lodash.uniqueid": "^4.0.1" } }, "sha512-OGy0tlyEg0roKVp2o9Bi9gWKz5ThZ+k4it5cOmBUPT0MieM1KFb3GH7DdYmNrDVlNXt/1+y+2mVDyO6spjExiA=="],
 
     "readdirp": ["readdirp@5.1.1", "", {}, "sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA=="],
 

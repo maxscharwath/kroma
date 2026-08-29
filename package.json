@@ -26,6 +26,7 @@
     "modules:clippy": "bun run modules cargo clippy --all-targets",
     "modules:check": "bun run modules:validate && bun run modules:gen && git diff --exit-code -- modules server/crates/kroma-modules-generated packages/modules-generated",
     "tv": "bun packages/tv-installer/src/cli.ts",
+    "tv:probe": "bun packages/tv-probe/src/cli.ts",
     "build:tv-cli": "bun run --filter '@kroma/tv-installer' compile",
     "spec:index": "bun docs/spec/scripts/spec-index.ts",
     "spec:check": "bun docs/spec/scripts/spec-index.ts --check",
@@ -150,8 +151,7 @@
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
     "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
     "@expo/require-utils@57.0.4": "patches/@expo%2Frequire-utils@57.0.4.patch",
-    "expo-video@57.0.2": "patches/expo-video@57.0.2.patch",
-    "react-tv-space-navigation@6.0.0-beta1": "patches/react-tv-space-navigation@6.0.0-beta1.patch"
+    "expo-video@57.0.2": "patches/expo-video@57.0.2.patch"
   },
   "//overrides": [
     "ONE copy of every type-bearing package, forced onto transitive peers.",

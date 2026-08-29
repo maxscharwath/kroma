@@ -3,9 +3,9 @@
 // native on purpose so behaviour can't drift between them (only the screen
 // root is forked, into focus-root.tsx / focus-root.web.tsx).
 
+import { NavigatorView, useLockNavigator } from '@kroma/spatial-nav/react';
 import { type ReactNode, useEffect } from 'react';
 import { type StyleProp, View, type ViewStyle } from 'react-native';
-import { SpatialNavigationView, useLockSpatialNavigation } from 'react-tv-space-navigation';
 import { useFocusEntryScope } from './focus-entry';
 import { FocusLiftHost, GROUNDED, LIFTED } from './focus-lift';
 import { PlatformFocusProvider, usePlatformFocusHost } from './focus-platform';
@@ -90,7 +90,7 @@ function FocusScope({
  * than the dialog opened over it.
  */
 function useLockFocusBehind(active: boolean): void {
-  const { lock, unlock } = useLockSpatialNavigation();
+  const { lock, unlock } = useLockNavigator();
   useEffect(() => {
     if (!active) return;
     lock();
@@ -120,12 +120,9 @@ function FocusRegion({ children, style }: Readonly<FocusScopeProps>) {
         // The row lifts ITSELF while it holds the focus: rows are separate
         // stacking contexts, so a lifted tile is still under the whole of the
         // row after it. No wrapper view - one would collapse the row.
-        <SpatialNavigationView
-          direction="horizontal"
-          style={flat([style, held ? LIFTED : GROUNDED])}
-        >
+        <NavigatorView direction="horizontal" style={flat([style, held ? LIFTED : GROUNDED])}>
           {children}
-        </SpatialNavigationView>
+        </NavigatorView>
       )}
     </FocusLiftHost>
   );
@@ -143,13 +140,13 @@ function FocusColumn({ children, style, grid = false }: Readonly<FocusColumnProp
   return (
     <FocusLiftHost>
       {(held) => (
-        <SpatialNavigationView
+        <NavigatorView
           direction="vertical"
           alignInGrid={grid}
           style={flat([style, held ? LIFTED : GROUNDED])}
         >
           {children}
-        </SpatialNavigationView>
+        </NavigatorView>
       )}
     </FocusLiftHost>
   );

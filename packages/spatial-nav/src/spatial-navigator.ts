@@ -15,6 +15,10 @@ export class SpatialNavigator {
 
   onEdge?: (direction: Direction) => void;
 
+  /** A node joined the tree. The moment a focus that named an unreachable node
+   *  is worth trying again. */
+  onRegister?: () => void;
+
   get focusedId(): string | null {
     return this.owner.focusedNode?.id ?? null;
   }
@@ -25,6 +29,7 @@ export class SpatialNavigator {
 
   registerNode(id: string, config: NodeConfig): void {
     this.tree.register(id, config);
+    this.onRegister?.();
   }
 
   unregisterNode(id: string): void {

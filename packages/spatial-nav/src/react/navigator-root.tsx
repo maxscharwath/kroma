@@ -58,8 +58,18 @@ function NavigatorRoot({ children, active = true, onEdge }: Readonly<NavigatorRo
     return () => navigator.unlock();
   }, [active, navigator]);
 
-  // Last, and on every commit: a child's effects run before its parent's, so
-  // this is the first moment the whole of what just mounted is registered.
+  // A branch that mounts whole under a root that does not re-render is the
+  // shape the queue exists for: the tile registers and asks before its own
+  // parent has registered, and no render of this component follows to go back
+  // for it. So the retry hangs off registration, which is where the tree
+  // becomes whole, and the effect below stays only as the backstop.
+  useEffect(() => {
+    navigator.onRegister = queue.flush;
+    return () => {
+      navigator.onRegister = undefined;
+    };
+  }, [navigator, queue]);
+
   useEffect(queue.flush);
 
   return (

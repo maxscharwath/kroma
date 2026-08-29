@@ -9,9 +9,9 @@ interface FocusQueue {
 /**
  * Focus asked for before the tree it names is whole. A node registers in its
  * mount effect and its parent registers after it, so focus asked for on mount
- * lands on a node the navigator is still holding for a parent that has not
- * arrived. The root flushes this after every commit, which is where the tree
- * always is complete.
+ * names a node the navigator cannot reach yet. The request is KEPT until it
+ * lands: the root retries it on every registration, which is the only moment
+ * the tree can have become whole, and after its own renders.
  */
 function focusQueue(navigator: SpatialNavigator): FocusQueue {
   let pending: string | null = null;
@@ -29,13 +29,16 @@ function focusQueue(navigator: SpatialNavigator): FocusQueue {
       pending = id;
     },
     flush() {
-      const id = pending;
-      const wanted = forced;
+      if (pending === null) return;
+      // A claim is what a screen would OPEN on, so anything that has since
+      // taken the focus outranks it. A request was asked for out loud.
+      if (!forced && navigator.focusedId) {
+        pending = null;
+        return;
+      }
+      if (!navigator.focus(pending)) return;
       pending = null;
       forced = false;
-      if (!id) return;
-      if (!wanted && navigator.focusedId) return;
-      navigator.focus(id);
     },
   };
 }

@@ -16,12 +16,7 @@ function useEntryFocus(autoFocus: boolean | undefined, press: () => void) {
   // also asks for focus itself once on mount.
   const entry = useRef<NodeHandle>(null);
   useEffect(() => {
-    if (!isEntry) return;
-    // A microtask, not this effect: a node registers in its own mount effect
-    // and its ancestors register in theirs, which run after this one, so the
-    // navigator cannot yet reach the node this names. The microtask is the
-    // first moment every effect of the commit has run.
-    queueMicrotask(() => entry.current?.focus());
+    if (isEntry) entry.current?.focus();
   }, [isEntry]);
 
   // Moves the ring before it acts: a click reaches a control the navigator does

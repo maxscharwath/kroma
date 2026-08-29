@@ -146,9 +146,18 @@ export class FocusTree {
 
   private link(node: TreeNode): void {
     const siblings = this.children.get(node.parent) ?? [];
+    this.children.set(node.parent, siblings);
+    // The end first. Children arrive in order almost always - a rail's tiles,
+    // a grid's rows - and that is the case the scan below is worst at: it walks
+    // every sibling only to fall off the end and append anyway, which is what
+    // made a wide container cost the square of its width to fill.
+    const last = siblings.at(-1);
+    if (last === undefined || sortsAfter(node, last)) {
+      siblings.push(node);
+      return;
+    }
     const at = siblings.findIndex((sibling) => sortsAfter(sibling, node));
     siblings.splice(at < 0 ? siblings.length : at, 0, node);
-    this.children.set(node.parent, siblings);
   }
 
   private unlink(node: TreeNode): void {

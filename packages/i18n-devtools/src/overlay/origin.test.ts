@@ -131,6 +131,37 @@ describe('where a hard-coded string was drawn from', () => {
     expect(originAt(node)).toMatchObject({ line: 12 });
   });
 
+  it('walks up to the owner that has a stack worth reading', () => {
+    const element = { parentElement: null } as unknown as Element;
+    const node = { parentElement: element } as unknown as Node;
+    Reflect.set(element, '__reactFiber$abc', {
+      _debugStack: { stack: stackOf(`Text (${AT}/packages/ui/src/components/atoms/text.tsx:3:1)`) },
+      return: {
+        _debugStack: undefined,
+        return: {
+          _debugStack: {
+            stack: stackOf(`Row (${AT}/packages/tv/src/features/home/row.tsx:12:4)`),
+          },
+        },
+      },
+    });
+
+    expect(originAt(node)).toMatchObject({ line: 12 });
+  });
+
+  it('gives up rather than walking a tree forever', () => {
+    const element = { parentElement: null } as unknown as Element;
+    const node = { parentElement: element } as unknown as Node;
+    const loop: { _debugStack: undefined; return: unknown } = {
+      _debugStack: undefined,
+      return: null,
+    };
+    loop.return = loop;
+    Reflect.set(element, '__reactFiber$abc', loop);
+
+    expect(originAt(node)).toBeNull();
+  });
+
   it('says nothing where React drew nothing', () => {
     expect(originAt({ parentElement: null } as unknown as Node)).toBeNull();
     expect(originAt({ parentElement: {} } as unknown as Node)).toBeNull();

@@ -84,6 +84,23 @@ describe('pointing at a message', () => {
 });
 
 describe('alt-clicking a message', () => {
+  it('still says what it read when the clipboard refuses', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    page(`<button id="a">${drew('Connexion')}</button>`);
+    document.caretPositionFromPoint = (() => ({
+      offsetNode: document.querySelector('#a')?.firstChild,
+    })) as never;
+
+    document
+      .querySelector('#a')
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true, altKey: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(writeText).toHaveBeenCalledWith('auth.login');
+  });
+
   it('copies its key instead of pressing the control it sits in', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });

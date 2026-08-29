@@ -107,7 +107,9 @@ interface Asked {
   data: Record<string, unknown>;
 }
 
-function serving(over: { allow?: string[]; transform?: unknown; known?: string[] } = {}) {
+function serving(
+  over: { allow?: string[]; transform?: unknown; known?: string[]; plugin?: Plugin } = {},
+) {
   const handlers = new Map<string, (data: unknown, client: unknown) => void>();
   const said: Asked[] = [];
   const warned: string[] = [];
@@ -139,7 +141,7 @@ function serving(over: { allow?: string[]; transform?: unknown; known?: string[]
     },
     watcher: { on: (event: string, run: () => void) => watching.set(event, run) },
   };
-  const plugin = kromaI18nDevtools();
+  const plugin = over.plugin ?? kromaI18nDevtools();
   (plugin.configureServer as (s: unknown) => void).call({} as never, server);
   const injectInto = (id: string) => inject(plugin, id);
   const ask = async (event: string, data: object) => {
@@ -312,10 +314,34 @@ describe('asking the dev server for a fresh render', () => {
 
 describe('an editor that will not open', () => {
   it('says which one and why, rather than failing quietly', async () => {
-    const at = serving();
+    const at = serving({ plugin: await pluginWhoseEditorFails('no such editor') });
 
     await at.ask('kroma:i18n:open', { at: 1, file: '/repo/clients/web/src/app.tsx:1:1' });
 
-    expect(at.said[0]?.event).toBe('kroma:i18n:open');
+    expect(at.warned.join(' ')).toContain('could not open zed');
+  });
+
+  it('names no reason where the launcher gives none', async () => {
+    const at = serving({ plugin: await pluginWhoseEditorFails(undefined) });
+
+    await at.ask('kroma:i18n:open', { at: 1, file: '/repo/clients/web/src/app.tsx:1:1' });
+
+    expect(at.warned.join(' ')).toContain('no editor found');
   });
 });
+
+type Onerror = (name: string, error?: string) => void;
+
+// The launcher is the last thing `open` reaches, so the file has to look real
+// enough to get there.
+async function pluginWhoseEditorFails(error: string | undefined): Promise<Plugin> {
+  vi.doMock('node:fs', () => ({ existsSync: () => true, readFileSync: () => '{}' }));
+  vi.doMock('launch-editor', () => ({
+    default: (_file: string, _editor: string | undefined, onError: Onerror) => {
+      onError('zed', error);
+    },
+  }));
+  vi.resetModules();
+  const { kromaI18nDevtools: withBadEditor } = await import('./index.ts');
+  return withBadEditor();
+}

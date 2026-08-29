@@ -122,9 +122,25 @@ export function installHighlight(outline: Outline): () => void {
   const marks = new Map(GRADES.map((grade) => [grade, new Highlight()]));
   for (const [grade, highlight] of marks) registry.set(`${NAME}-${grade}`, highlight);
 
+  // An unmarked string reads as `raw` - text no catalog ever answered - and
+  // that is only true once the engine is marking at all. An engine whose
+  // messages repaint through the dev server is a round trip away from its first
+  // mark, and painting the whole page uncatalogued until it lands says
+  // something false about every string on it. So the verdict waits for the
+  // evidence: one marked string anywhere is enough to trust the rest.
   const paint = () => {
+    const found: Array<[Grade, Text]> = [];
+    let marked = false;
+    // Walked whole and filtered here: `problems` hides the strings that are
+    // right, and those are exactly the evidence that the engine is marking.
+    walkGraded('all', (grade, node) => {
+      if (grade !== 'raw') marked = true;
+      if (shows(outline, grade)) found.push([grade, node]);
+    });
+
     for (const highlight of marks.values()) highlight.clear();
-    walkGraded(outline, (grade, node) => {
+    if (!marked) return;
+    for (const [grade, node] of found) {
       marks.get(grade)?.add(
         new StaticRange({
           startContainer: node,
@@ -133,7 +149,7 @@ export function installHighlight(outline: Outline): () => void {
           endOffset: node.length,
         }),
       );
-    });
+    }
   };
 
   const repaint = perFrame(paint);

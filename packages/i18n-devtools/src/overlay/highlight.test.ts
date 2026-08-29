@@ -152,6 +152,40 @@ describe('putting the overlay up', () => {
     expect(() => installHighlight('all')()).not.toThrow();
   });
 
+  it('waits for the first mark before calling anything uncatalogued', () => {
+    const held = registry();
+    page('<p>Blade Runner 2049</p>');
+
+    const stop = installHighlight('all');
+
+    expect(held.get('kroma-i18n-raw')?.size).toBe(0);
+    stop();
+  });
+
+  it('still marks the problems where the mode hides what is right', () => {
+    const held = registry();
+    page(`<p>${drew('Films', FR)}</p><p>Blade Runner 2049</p>`);
+
+    const stop = installHighlight('problems');
+
+    expect([held.get('kroma-i18n-catalog')?.size, held.get('kroma-i18n-raw')?.size]).toEqual([
+      0, 1,
+    ]);
+    stop();
+  });
+
+  it('trusts the reading once one string is marked', () => {
+    const held = registry();
+    page(`<p>${drew('Films', FR)}</p><p>Blade Runner 2049</p>`);
+
+    const stop = installHighlight('all');
+
+    expect([held.get('kroma-i18n-catalog')?.size, held.get('kroma-i18n-raw')?.size]).toEqual([
+      1, 1,
+    ]);
+    stop();
+  });
+
   it('repaints for a change the page made', async () => {
     const held = registry();
     vi.useFakeTimers();

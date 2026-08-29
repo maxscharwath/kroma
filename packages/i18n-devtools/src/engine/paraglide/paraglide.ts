@@ -1,3 +1,4 @@
+import { pageRecord } from '../../page';
 import { refresh } from '../../server/host';
 import type { Engine, Inspector, Vars } from '../engine';
 
@@ -52,25 +53,19 @@ function varsIn(inputs: Inputs): Vars | undefined {
 
 const NOTHING: readonly string[] = [];
 
-// The tools are injected into the module the messages come from, so asking the
-// dev server to re-run that module is what puts a switch on the page - and the
-// same run rebuilds this adapter. Anything held in a module variable would be
-// cleared by the very refresh meant to show it, so both the engine and the
-// switch it is set to are kept on the page and a rebuild inherits them.
-const SHARED = '__kromaI18nParaglide';
-
 interface Wiring {
   engine: Engine | null;
   inspector: Inspector | null;
 }
 
-function wiring(): Wiring {
-  const found = Reflect.get(globalThis, SHARED) as Wiring | undefined;
-  if (found) return found;
-  const fresh: Wiring = { engine: null, inspector: null };
-  Reflect.set(globalThis, SHARED, fresh);
-  return fresh;
-}
+// Asking the dev server to re-run the module the messages come from is what
+// puts a switch on the page, and that same run rebuilds this adapter. Both the
+// engine and the switch it is set to are kept on the page, so a rebuild
+// inherits them rather than clearing what the refresh was for.
+const wiring = pageRecord<Wiring>('__kromaI18nParaglide', () => ({
+  engine: null,
+  inspector: null,
+}));
 
 /** The paraglide engine the app wired, doing nothing until it has. One page
  *  compiles one set of messages, so the last one built is the one to inspect. */

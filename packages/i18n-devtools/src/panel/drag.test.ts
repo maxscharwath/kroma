@@ -36,7 +36,7 @@ describe('dragging the tools', () => {
     expect(element.style.right).toBe('auto');
   });
 
-  it('ignores a pointer that moves without having taken the grip', () => {
+  it('follows no pointer until the grip is taken', () => {
     const element = host();
     const dropped = vi.fn();
     draggable(element, dropped);
@@ -44,7 +44,7 @@ describe('dragging the tools', () => {
     window.dispatchEvent(pointer('pointermove', 160, 140));
     window.dispatchEvent(pointer('pointerup', 160, 140));
 
-    expect(dropped).not.toHaveBeenCalled();
+    expect([dropped.mock.calls.length, element.style.left]).toEqual([0, '']);
   });
 
   it('reports where it was dropped, once, at the end of the drag', () => {

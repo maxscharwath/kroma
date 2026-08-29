@@ -46,9 +46,11 @@ function frameOf(line: string): { url: string; line: number; column: number } | 
   return { url: at.slice(0, firstColon), line: Number(row), column: Number(column) };
 }
 
-/** The first frame of `stack` that is the screen rather than the machinery. */
-export function screenFrame(stack: string): Origin | null {
-  for (const line of stack.split('\n').slice(1)) {
+/** The first frame of `stack` that is the screen rather than the machinery.
+ *  `Error.stack` is optional by spec, and an engine that omits it leaves the
+ *  tools nothing to read. */
+export function screenFrame(stack: string | undefined): Origin | null {
+  for (const line of (stack ?? '').split('\n').slice(1)) {
     const at = frameOf(line);
     if (!at || MACHINERY.test(at.url)) continue;
     return {
@@ -115,8 +117,7 @@ export function onOriginTraced(listener: () => void): () => void {
 export function originOf(key: string): Origin | null {
   const hit = seen.get(key);
   if (hit !== undefined) return hit;
-  const stack = new Error().stack;
-  const found = stack ? screenFrame(stack) : null;
+  const found = screenFrame(new Error().stack);
   seen.set(key, found);
   return found;
 }
@@ -140,8 +141,7 @@ function fiberOf(element: Element | null): Fiber | null {
 export function originAt(node: Node): Origin | null {
   let fiber = fiberOf(node.parentElement);
   for (let up = 0; fiber && up < 24; up += 1) {
-    const stack = fiber._debugStack?.stack;
-    const found = stack ? screenFrame(stack) : null;
+    const found = screenFrame(fiber._debugStack?.stack);
     if (found) return found;
     fiber = fiber.return ?? null;
   }

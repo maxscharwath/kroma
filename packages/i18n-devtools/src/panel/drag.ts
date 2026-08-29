@@ -77,36 +77,15 @@ export function keepInView(host: HTMLElement): () => void {
  * have become.
  */
 export function draggable(host: HTMLElement, onDrop: (x: number, y: number) => void): () => void {
-  let grab: Grab | null = null;
   let dragged = false;
-
-  const move = (event: PointerEvent) => {
-    if (!grab) return;
-    const dx = event.clientX - grab.pointerX;
-    const dy = event.clientY - grab.pointerY;
-    if (!dragged && Math.hypot(dx, dy) < THRESHOLD_PX) return;
-    dragged = true;
-    moveTo(host, grab.left + dx, grab.top + dy, grab);
-  };
-
-  const release = () => {
-    grab = null;
-    window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
-  };
-
-  function up(): void {
-    if (grab && dragged) {
-      const box = host.getBoundingClientRect();
-      onDrop(box.left, box.top);
-    }
-    release();
-  }
+  // The pointer is only followed while the grip is held, so what follows it
+  // exists only then: nothing has to ask whether there is a grab.
+  let release = () => {};
 
   const down = (event: PointerEvent) => {
     if (!(event.target as Element | null)?.closest?.(GRIP)) return;
     const box = host.getBoundingClientRect();
-    grab = {
+    const grab: Grab = {
       pointerX: event.clientX,
       pointerY: event.clientY,
       left: box.left,
@@ -115,6 +94,28 @@ export function draggable(host: HTMLElement, onDrop: (x: number, y: number) => v
       height: box.height,
     };
     dragged = false;
+
+    const move = (moved: PointerEvent) => {
+      const dx = moved.clientX - grab.pointerX;
+      const dy = moved.clientY - grab.pointerY;
+      if (!dragged && Math.hypot(dx, dy) < THRESHOLD_PX) return;
+      dragged = true;
+      moveTo(host, grab.left + dx, grab.top + dy, grab);
+    };
+
+    const up = () => {
+      if (dragged) {
+        const dropped = host.getBoundingClientRect();
+        onDrop(dropped.left, dropped.top);
+      }
+      release();
+    };
+
+    release = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      release = () => {};
+    };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };

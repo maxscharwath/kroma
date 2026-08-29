@@ -189,6 +189,10 @@ describe('where a hard-coded string was drawn from', () => {
     expect(screenFrame(stack)).toMatchObject({ file: '/src/app.tsx', line: 9 });
   });
 
+  it('reads nothing off an engine that wrote no stack at all', () => {
+    expect(screenFrame(undefined)).toBeNull();
+  });
+
   it('passes over a line with nowhere near enough colons to be a frame', () => {
     expect(screenFrame(stackOf('http://localhost'))).toBeNull();
   });

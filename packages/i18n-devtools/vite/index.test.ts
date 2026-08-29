@@ -108,7 +108,13 @@ interface Asked {
 }
 
 function serving(
-  over: { allow?: string[]; transform?: unknown; known?: string[]; plugin?: Plugin } = {},
+  over: {
+    allow?: string[];
+    transform?: unknown;
+    known?: string[];
+    importers?: string[];
+    plugin?: Plugin;
+  } = {},
 ) {
   const handlers = new Map<string, (data: unknown, client: unknown) => void>();
   const said: Asked[] = [];
@@ -126,7 +132,10 @@ function serving(
         },
         transformRequest: () => Promise.resolve(over.transform ?? null),
         moduleGraph: {
-          getModuleById: (id: string) => ((over.known ?? []).includes(id) ? { id } : undefined),
+          getModuleById: (id: string) =>
+            (over.known ?? []).includes(id)
+              ? { id, importers: new Set((over.importers ?? []).map((at) => ({ id: at }))) }
+              : undefined,
         },
         reloadModule: ({ id }: { id: string }) => {
           reloaded.push(id);
@@ -285,13 +294,22 @@ describe('what the panel needs to render at all', () => {
 });
 
 describe('asking the dev server for a fresh render', () => {
-  it('re-runs the module the tools went into, which every message comes from', async () => {
-    const at = serving({ known: [PROVIDER] });
+  it('re-runs what renders the messages, not the module they come from', async () => {
+    const at = serving({ known: [PROVIDER], importers: ['/repo/clients/web/src/app.tsx'] });
     at.injectInto(PROVIDER);
 
     await at.ask('kroma:i18n:refresh', {});
 
-    expect(at.reloaded).toEqual([PROVIDER]);
+    expect(at.reloaded).toEqual(['/repo/clients/web/src/app.tsx']);
+  });
+
+  it('re-runs every one of them', async () => {
+    const at = serving({ known: [PROVIDER], importers: ['/a.tsx', '/b.tsx'] });
+    at.injectInto(PROVIDER);
+
+    await at.ask('kroma:i18n:refresh', {});
+
+    expect(at.reloaded).toEqual(['/a.tsx', '/b.tsx']);
   });
 
   it('does nothing before the tools have gone into anything', async () => {
@@ -303,7 +321,7 @@ describe('asking the dev server for a fresh render', () => {
   });
 
   it('does nothing for a module the server no longer holds', async () => {
-    const at = serving({ known: [] });
+    const at = serving({ known: [], importers: ['/a.tsx'] });
     at.injectInto(PROVIDER);
 
     await at.ask('kroma:i18n:refresh', {});

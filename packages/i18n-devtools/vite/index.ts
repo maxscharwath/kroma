@@ -202,10 +202,16 @@ export function kromaI18nDevtools({ ignore = OVERLAYS, adapter }: DevtoolsOption
         const opened = open(ask.file, ask.editor ?? '', server);
         client.send('kroma:i18n:open', { at: ask.at, opened });
       });
+      // The importers, never the module itself. Re-running the module the
+      // messages come from would rebuild the object the app renders through
+      // and re-run the tools inside it, both while the app may be hydrating -
+      // and a component holding the old one then answers for a message it no
+      // longer has. Its importers are the React Refresh boundaries, which is
+      // all a fresh render needs.
       hot.on('kroma:i18n:refresh', () => {
         const { client } = server.environments;
         const module = anchored === null ? undefined : client.moduleGraph.getModuleById(anchored);
-        if (module) void client.reloadModule(module);
+        for (const importer of module?.importers ?? []) void client.reloadModule(importer);
       });
       server.watcher.on('change', forgetMaps);
     },
@@ -213,8 +219,11 @@ export function kromaI18nDevtools({ ignore = OVERLAYS, adapter }: DevtoolsOption
     transform(code, id, options) {
       if (entry === null || adapterEntry === null || options?.ssr) return null;
       const query = id.indexOf('?');
-      if (!anchor.test(query === -1 ? id : id.slice(0, query))) return null;
-      anchored = id;
+      const file = query === -1 ? id : id.slice(0, query);
+      if (!anchor.test(file)) return null;
+      // Without the query a dev server appends, so the graph can be asked for
+      // it by the same name whichever version was served.
+      anchored = file;
       const wired = wire ? wire(code, engine) : code;
       return { code: wired + injected(ignore, engine), map: null };
     },

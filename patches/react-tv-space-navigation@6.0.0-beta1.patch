@@ -124,8 +124,46 @@ index 654d9aebde58bce7296031ef1a47641ef470ef89..967415114eb29c18ac48750943fd7281
    | 'testID'
  > &
    PointerScrollProps & {
+diff --git a/src/spatial-navigation/components/virtualizedList/SpatialNavigationVirtualizedListWithVirtualNodes.tsx b/src/spatial-navigation/components/virtualizedList/SpatialNavigationVirtualizedListWithVirtualNodes.tsx
+index 62dc3a7977a9c3eb68c04e541a07f661999587ba..b8ce5e9b0f824c6f0abda7a846200cf6578cad4a 100644
+--- a/src/spatial-navigation/components/virtualizedList/SpatialNavigationVirtualizedListWithVirtualNodes.tsx
++++ b/src/spatial-navigation/components/virtualizedList/SpatialNavigationVirtualizedListWithVirtualNodes.tsx
+@@ -89,8 +89,21 @@ const useRegisterVirtualNodes = <T,>({
+   // invert the orientation of children in grids so we can register rows in columns in rows, etc...
+   const nodeOrientation = isGrid ? invertOrientation(orientation) : 'vertical';
+ 
++  // PATCH(kroma): registration is idempotent, tracked here rather than inferred
++  // from the effects. Two effects register these nodes - one keyed on parentId
++  // registering every item, one keyed on allItems registering what the data
++  // grew by - and neither can see what the other did. When both run in one
++  // commit the second re-registers the tail, lrud THROWS, and the throw aborts
++  // the forEach that was registering the rest: the remaining nodes never exist,
++  // so focus lands on nodes that are not there and blurs never fire. A set of
++  // what is currently held makes every interleaving safe, which enumerating
++  // them one at a time did not (see upstream #94, closed and since regressed).
++  const held = useRef<Set<number>>(new Set());
++
+   const registerNthVirtualNode = useCallback(
+     (index: number) => {
++      if (held.current.has(index)) return;
++      held.current.add(index);
+       return spatialNavigator.registerNode(getNthVirtualNodeID(index), {
+         parent: parentId,
+         orientation: nodeOrientation,
+@@ -101,7 +114,10 @@ const useRegisterVirtualNodes = <T,>({
+   );
+ 
+   const unregisterNthVirtualNode = useCallback(
+-    (index: number) => spatialNavigator.unregisterNode(getNthVirtualNodeID(index)),
++    (index: number) => {
++      if (!held.current.delete(index)) return;
++      spatialNavigator.unregisterNode(getNthVirtualNodeID(index));
++    },
+     [getNthVirtualNodeID, spatialNavigator],
+   );
+ 
 diff --git a/src/spatial-navigation/components/virtualizedList/VirtualizedList.tsx b/src/spatial-navigation/components/virtualizedList/VirtualizedList.tsx
-index 12a599deb1172d2b434df9f2498bf28a248d7b46..d0351015fc33473ad121e76321ce25a080b606db 100644
+index 12a599deb1172d2b434df9f2498bf28a248d7b46..5c33d5393fd6b11a81f2ddd69aca5dd68426e678 100644
 --- a/src/spatial-navigation/components/virtualizedList/VirtualizedList.tsx
 +++ b/src/spatial-navigation/components/virtualizedList/VirtualizedList.tsx
 @@ -45,6 +45,8 @@ export interface VirtualizedListProps<T> {
@@ -153,6 +191,25 @@ index 12a599deb1172d2b434df9f2498bf28a248d7b46..d0351015fc33473ad121e76321ce25a0
            })
          : useVirtualizedListAnimation({
              currentlyFocusedItemIndex,
+@@ -220,9 +224,16 @@ export const VirtualizedList = typedMemo(
+      * Normally, if I scroll right, the first element needs to be unmounted and a new one needs to be mounted on the right side.
+      * But with recycling, the first element won't be unmounted : it is moved to the end and its props are updated.
+      * See https://medium.com/@moshe_31114/building-our-recycle-list-solution-in-react-17a21a9605a0  */
++    // PATCH(kroma): the modulus is whichever is LARGER, the window or what is
++    // actually rendered. `getRange` can return more items than
++    // numberOfItemsToRender - under jump-on-scroll with fewer than 3 rows
++    // visible it returns visible+6 against a modulus of 2*visible+3 - and two
++    // indices then share a key. React will not reconcile two children with one
++    // key, so the mounted tile count climbs without bound as the row is walked.
+     const recycledKeyExtractor = useCallback(
+-      (index: number) => `recycled_item_${index % numberOfItemsToRender}`,
+-      [numberOfItemsToRender],
++      (index: number) =>
++        `recycled_item_${index % Math.max(numberOfItemsToRender, dataSliceToRender.length)}`,
++      [numberOfItemsToRender, dataSliceToRender.length],
+     );
+ 
+     const directionStyle = useMemo(
 diff --git a/src/spatial-navigation/components/virtualizedList/hooks/useVirtualizedListAnimation.ts b/src/spatial-navigation/components/virtualizedList/hooks/useVirtualizedListAnimation.ts
 index c2c033f168c055f1bc3ebfaa0da4885a2a1823db..06091d3113c2fccada62af0628b092e1edcd009e 100644
 --- a/src/spatial-navigation/components/virtualizedList/hooks/useVirtualizedListAnimation.ts

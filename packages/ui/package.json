@@ -41,8 +41,10 @@
   "dependencies": {
     "@kroma/core": "workspace:*",
     "@kroma/i18n": "workspace:*",
+    "@bam.tech/lrud": "^8.0.2",
     "@tabler/icons-react": "^3.46.0",
     "@tabler/icons-react-native": "^3.46.0",
+    "lodash.uniqueid": "^4.0.1",
     "react-native-svg": "^15.15.5",
     "react-tv-space-navigation": "6.0.0-beta1"
   },
@@ -56,6 +58,7 @@
     "@kroma/react-audit": "workspace:*",
     "@kroma/workbench": "workspace:*",
     "@tabler/icons": "^3.46.0",
+    "@types/lodash.uniqueid": "^4.0.9",
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

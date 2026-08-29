@@ -362,4 +362,18 @@ describe('one physical press', () => {
     keyDown(host.result.current, { code: 'ArrowRight' });
     expect(ring.moves).toEqual(['right']);
   });
+
+  it('moves the ring once when a nested scope draws a second key host', async () => {
+    const { remote } = await load('android');
+    const ring = navigator();
+
+    const screen = renderHook(() => remote.useRemoteHostProps());
+    const nested = renderHook(() => remote.useRemoteHostProps(false));
+
+    keyDown(screen.result.current, { code: 'ArrowRight' });
+    keyDown(nested.result.current, { code: 'ArrowRight' });
+
+    expect(ring.moves).toEqual(['right']);
+    expect(nested.result.current).toEqual({});
+  });
 });

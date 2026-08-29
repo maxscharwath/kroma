@@ -155,7 +155,10 @@ const remoteKeys = new Set<(key: RemoteKey) => void>();
 const NO_HOST_PROPS: RemoteHostProps = {};
 const IS_ANDROID = Platform.OS === 'android';
 
-export function useRemoteHostProps(): RemoteHostProps {
+/** Spread by <FocusRoot>. `on` takes <FocusScope>'s `bridge`: the key events
+ * BUBBLE, so a scope nested inside another must not carry a second host or one
+ * press walks the ring twice. */
+export function useRemoteHostProps(on = true): RemoteHostProps {
   const onKeyDown = useCallback((event: NativeSyntheticEvent<TVKeyEvent>) => {
     // This is the DOWN event; `onKeyUp` is a separate prop nothing subscribes to.
     if (inputHeld()) return;
@@ -178,7 +181,7 @@ export function useRemoteHostProps(): RemoteHostProps {
     if (key !== 'Backspace' && key.length !== 1) return;
     for (const handle of typists) handle(key);
   }, []);
-  return IS_ANDROID ? { onKeyDown } : NO_HOST_PROPS;
+  return IS_ANDROID && on ? { onKeyDown } : NO_HOST_PROPS;
 }
 
 /**

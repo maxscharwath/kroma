@@ -26,11 +26,12 @@ interface ScreenScopeProps extends FocusScopeProps {
    *  its own mount. Omit for the usual case: one scope per screen. */
   entryKey?: string | number;
   /**
-   * Mount a remote bridge for this scope. Default true; only a scope drawn
-   * INSIDE another one passes `false`: the bridge fans events to every
-   * registered navigator, so a nested one would double-fire each press. An
-   * `<OverlayHost>` dialog reuses the screen's bridge; a `<Modal>`-backed one
-   * is in its own view controller and needs its own.
+   * Mount this scope's remote transports. Default true; only a scope drawn
+   * INSIDE another one passes `false`: the event bridge fans to every
+   * registered navigator and Android's key events bubble, so a nested one
+   * would deliver each press twice. An `<OverlayHost>` dialog reuses the
+   * screen's, a `<Modal>`-backed one is in its own view controller and needs
+   * its own.
    */
   bridge?: boolean;
   /** Whether this scope answers the remote. See {@link FocusRootProps.active}. */
@@ -61,7 +62,8 @@ function FocusScope({
   // Hooks cannot be conditional, so the flag is read INSIDE the bridge rather
   // than around it. A chrome typing on the platform's own keyboard is heard by
   // this bridge too, and posting those presses would walk the ring behind it.
-  useRemoteBridge(bridge && platform.owner !== 'platform');
+  const remote = bridge && platform.owner !== 'platform';
+  useRemoteBridge(remote);
   useFocusEntryScope(entryKey);
   return (
     // Lets a kit control exist OUTSIDE any scope (a phone screen, a plain web
@@ -71,6 +73,7 @@ function FocusScope({
         <FocusRoot
           style={style}
           active={active}
+          bridge={remote}
           keyHost={platform.owner === null}
           onEdge={platform.onEdge}
         >

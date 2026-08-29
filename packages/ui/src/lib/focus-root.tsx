@@ -29,6 +29,10 @@ export interface FocusRootProps {
    *  owns the television's focus, which is Apple TV's search screen and nothing
    *  else (see focus-platform). */
   keyHost?: boolean;
+  /** Whether this root carries the Android key transport. Default true; false
+   *  for a scope nested inside another, whose second host would deliver each
+   *  press again on the way up. See {@link ScreenScopeProps.bridge}. */
+  bridge?: boolean;
   /** A direction the navigator handled with nothing to move to. */
   onEdge?: (direction: string) => void;
 }
@@ -38,11 +42,12 @@ export function FocusRoot({
   style,
   active = true,
   keyHost = true,
+  bridge = true,
   onEdge,
 }: Readonly<FocusRootProps>) {
   // Android delivers keys to the focused VIEW rather than through a global
   // stream, so the key host below is also where they arrive. Empty elsewhere.
-  const hostProps = useRemoteHostProps();
+  const hostProps = useRemoteHostProps(bridge);
   return (
     <SpatialNavigationRoot isActive={active} onDirectionHandledWithoutMovement={onEdge}>
       {/* The one thing tvOS focuses, and the reason the remote is heard at all: a

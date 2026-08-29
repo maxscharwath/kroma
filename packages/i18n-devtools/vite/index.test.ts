@@ -107,11 +107,12 @@ interface Asked {
   data: Record<string, unknown>;
 }
 
-function serving(over: { allow?: string[]; transform?: unknown } = {}) {
+function serving(over: { allow?: string[]; transform?: unknown; known?: string[] } = {}) {
   const handlers = new Map<string, (data: unknown, client: unknown) => void>();
   const said: Asked[] = [];
   const warned: string[] = [];
   const watching = new Map<string, () => void>();
+  const reloaded: string[] = [];
   const client = {
     send: (event: string, data: Record<string, unknown>) => said.push({ event, data }),
   };
@@ -122,6 +123,13 @@ function serving(over: { allow?: string[]; transform?: unknown } = {}) {
           on: (event: string, run: (data: unknown, c: unknown) => void) => handlers.set(event, run),
         },
         transformRequest: () => Promise.resolve(over.transform ?? null),
+        moduleGraph: {
+          getModuleById: (id: string) => ((over.known ?? []).includes(id) ? { id } : undefined),
+        },
+        reloadModule: ({ id }: { id: string }) => {
+          reloaded.push(id);
+          return Promise.resolve();
+        },
       },
     },
     config: {
@@ -133,12 +141,13 @@ function serving(over: { allow?: string[]; transform?: unknown } = {}) {
   };
   const plugin = kromaI18nDevtools();
   (plugin.configureServer as (s: unknown) => void).call({} as never, server);
+  const injectInto = (id: string) => inject(plugin, id);
   const ask = async (event: string, data: object) => {
     handlers.get(event)?.(data, client);
     await Promise.resolve();
     await Promise.resolve();
   };
-  return { ask, said, warned, watching, handlers };
+  return { ask, said, warned, watching, handlers, reloaded, injectInto };
 }
 
 describe('what the panel may ask the dev server', () => {
@@ -182,5 +191,121 @@ describe('what the panel may ask the dev server', () => {
 
     expect(at.watching.has('change')).toBe(true);
     expect(() => at.watching.get('change')?.()).not.toThrow();
+  });
+});
+
+const MESSAGES = '/repo/apps/www/src/paraglide/messages.js';
+const NAMESPACE =
+  "export * from './messages/_index.js'\nexport * as m from './messages/_index.js'\n";
+
+function paraglidePlugin(): Plugin {
+  return kromaI18nDevtools({ adapter: 'paraglide' });
+}
+
+function wired(code: string): string | null {
+  const plugin = paraglidePlugin();
+  if (typeof plugin.transform !== 'function') throw new Error('the plugin lost its transform');
+  const result = plugin.transform.call({} as never, code, MESSAGES, undefined);
+  if (result === null || result === undefined || typeof result === 'string') return null;
+  return 'code' in result ? (result.code ?? null) : null;
+}
+
+describe('the module an engine renders every message through', () => {
+  it('routes the namespace an app auto-imports through the adapter', () => {
+    const code = wired(NAMESPACE) ?? '';
+
+    expect(code).toContain('export const m = __kromaI18nParaglide({');
+    expect(code).not.toContain("export * as m from './messages/_index.js'");
+  });
+
+  it('reaches the runtime and the messages beside it, by the path the file names', () => {
+    const code = wired(NAMESPACE) ?? '';
+
+    expect(code).toContain("import * as __kromaI18nRuntime from './runtime.js';");
+    expect(code).toContain("import * as __kromaI18nMessages from './messages/_index.js';");
+  });
+
+  it('leaves the named exports alone, which resolve past the wrapper anyway', () => {
+    expect(wired(NAMESPACE)).toContain("export * from './messages/_index.js'");
+  });
+
+  it('leaves a module that exports no such namespace as it found it', () => {
+    const code = wired('export const hello = () => "Hi";\n') ?? '';
+
+    expect(code).toContain('export const hello = () => "Hi";');
+    expect(code).not.toContain('__kromaI18nParaglide');
+  });
+
+  it('still puts the tools in, an engine it cannot wrap being one it can still switch', () => {
+    expect(wired('export const hello = () => "Hi";\n')).toContain('__kromaI18nDevtools');
+  });
+});
+
+describe('what the panel needs to render at all', () => {
+  it('brings the react-native pipeline the kit is authored against', async () => {
+    const plugin = kromaI18nDevtools();
+    if (typeof plugin.config !== 'function') throw new Error('the plugin lost its config');
+
+    const config = await plugin.config.call(
+      {} as never,
+      {},
+      {
+        command: 'serve',
+        mode: 'development',
+      },
+    );
+
+    expect(config?.optimizeDeps?.include).toContain('react-native-web');
+    expect(config?.define).toMatchObject({ global: 'globalThis' });
+  });
+
+  it('redirects react-native at the web build, for a host that never asked for one', async () => {
+    const found = await aliases(kromaI18nDevtools());
+
+    expect(Object.keys(found)).toContain('@kroma/i18n-devtools');
+  });
+
+  it('asks for none of it where the panel is not installed beside the shell', async () => {
+    const plugin = await withoutPanel();
+    if (typeof plugin.config !== 'function') throw new Error('the plugin lost its config');
+
+    const config = await plugin.config.call(
+      {} as never,
+      {},
+      {
+        command: 'serve',
+        mode: 'development',
+      },
+    );
+
+    expect(config).toEqual({});
+  });
+});
+
+describe('asking the dev server for a fresh render', () => {
+  it('re-runs the module the tools went into, which every message comes from', async () => {
+    const at = serving({ known: [PROVIDER] });
+    at.injectInto(PROVIDER);
+
+    await at.ask('kroma:i18n:refresh', {});
+
+    expect(at.reloaded).toEqual([PROVIDER]);
+  });
+
+  it('does nothing before the tools have gone into anything', async () => {
+    const at = serving({ known: [PROVIDER] });
+
+    await at.ask('kroma:i18n:refresh', {});
+
+    expect(at.reloaded).toEqual([]);
+  });
+
+  it('does nothing for a module the server no longer holds', async () => {
+    const at = serving({ known: [] });
+    at.injectInto(PROVIDER);
+
+    await at.ask('kroma:i18n:refresh', {});
+
+    expect(at.reloaded).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ask, type Channel, openChannel } from './host';
+import { ask, type Channel, openChannel, refresh } from './host';
 
 const sent: Array<{ event: string; data: { at: number } }> = [];
 const heard = new Map<string, (answer: unknown) => void>();
@@ -77,5 +77,21 @@ describe('asking the dev server', () => {
 
     expect(await ask('kroma:i18n:editors', {})).toBeNull();
     expect(sent).toHaveLength(0);
+  });
+});
+
+describe('asking for a fresh render', () => {
+  it('asks the dev server, which is the only thing that can give one', () => {
+    refresh();
+
+    expect(sent.map(({ event }) => event)).toEqual(['kroma:i18n:refresh']);
+  });
+
+  it('asks nothing where there is no dev server to ask', () => {
+    openChannel(null);
+
+    refresh();
+
+    expect(sent).toEqual([]);
   });
 });

@@ -21,6 +21,21 @@ describe('the locales the panel offers', () => {
     expect(renderHook(() => useLocales()).result.current).toEqual(['fr', 'en']);
   });
 
+  it('lets go of an engine it did subscribe to', () => {
+    let held = 1;
+    setEngine(
+      testEngine({
+        subscribe: () => () => {
+          held = 0;
+        },
+      }),
+    );
+
+    renderHook(() => useLocales()).unmount();
+
+    expect(held).toBe(0);
+  });
+
   it('follows an engine that settles its answer after the panel mounts', () => {
     let announce = () => {};
     let codes: readonly string[] = [];
@@ -42,11 +57,12 @@ describe('the locales the panel offers', () => {
     expect(result.current).toEqual(['de']);
   });
 
-  it('holds still for an engine with nothing to subscribe to', () => {
+  it('holds still for an engine with nothing to subscribe to, and unmounts clean', () => {
     setEngine(testEngine({ subscribe: undefined }));
-    const { result, rerender } = renderHook(() => useLocales());
+    const { result, rerender, unmount } = renderHook(() => useLocales());
 
     rerender();
+    unmount();
 
     expect(result.current).toEqual(['fr', 'en']);
   });

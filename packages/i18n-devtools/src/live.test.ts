@@ -63,3 +63,19 @@ describe('the switches the tools are set to', () => {
     expect(again.liveState().outline).toBe('problems');
   });
 });
+
+describe('the engine a test inspects', () => {
+  it('answers for every method the panel calls on it', async () => {
+    const { testEngine } = await import('./testing');
+    const engine = testEngine();
+
+    engine.inspect(null);
+    engine.overrideLocale('fr');
+
+    expect([engine.name, engine.activeLocale(), engine.locales()]).toEqual([
+      'test',
+      'fr',
+      ['fr', 'en'],
+    ]);
+  });
+});

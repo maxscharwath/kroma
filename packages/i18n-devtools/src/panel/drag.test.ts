@@ -129,20 +129,26 @@ describe('keeping the tools in view', () => {
     expect(element.style.top).toBe('152px');
   });
 
-  it('still follows the window on a platform with no ResizeObserver', () => {
-    const observer = globalThis.ResizeObserver;
-    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+  it('watches its own size where the platform has a ResizeObserver', () => {
+    const watched: unknown[] = [];
+    let disconnected = 0;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe(target: unknown) {
+          watched.push(target);
+        }
+        disconnect() {
+          disconnected += 1;
+        }
+      },
+    );
     const element = host(300, 340);
-    place(element, 690, 450);
-    const stop = keepInView(element);
 
-    window.innerWidth = 600;
-    window.innerHeight = 500;
-    window.dispatchEvent(new Event('resize'));
-    stop();
-    globalThis.ResizeObserver = observer;
+    keepInView(element)();
+    vi.unstubAllGlobals();
 
-    expect(element.style.left).toBe('292px');
+    expect([watched, disconnected]).toEqual([[element], 1]);
   });
 
   it('leaves a badge that never moved anchored to its corner', () => {

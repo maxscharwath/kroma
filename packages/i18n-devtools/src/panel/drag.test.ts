@@ -36,6 +36,17 @@ describe('dragging the tools', () => {
     expect(element.style.right).toBe('auto');
   });
 
+  it('ignores a pointer that moves without having taken the grip', () => {
+    const element = host();
+    const dropped = vi.fn();
+    draggable(element, dropped);
+
+    window.dispatchEvent(pointer('pointermove', 160, 140));
+    window.dispatchEvent(pointer('pointerup', 160, 140));
+
+    expect(dropped).not.toHaveBeenCalled();
+  });
+
   it('reports where it was dropped, once, at the end of the drag', () => {
     const element = host();
     const dropped = vi.fn();
@@ -116,6 +127,22 @@ describe('keeping the tools in view', () => {
 
     expect(element.style.left).toBe('292px');
     expect(element.style.top).toBe('152px');
+  });
+
+  it('still follows the window on a platform with no ResizeObserver', () => {
+    const observer = globalThis.ResizeObserver;
+    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+    const element = host(300, 340);
+    place(element, 690, 450);
+    const stop = keepInView(element);
+
+    window.innerWidth = 600;
+    window.innerHeight = 500;
+    window.dispatchEvent(new Event('resize'));
+    stop();
+    globalThis.ResizeObserver = observer;
+
+    expect(element.style.left).toBe('292px');
   });
 
   it('leaves a badge that never moved anchored to its corner', () => {

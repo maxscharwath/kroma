@@ -24,6 +24,10 @@ describe('what a command is called', () => {
     expect(commandNames('zed', 'darwin')).toEqual(['zed']);
   });
 
+  it('falls back to the extensions Windows ships with where PATHEXT says nothing', () => {
+    expect(commandNames('code', 'win32')).toEqual(['code.com', 'code.exe', 'code.bat', 'code.cmd']);
+  });
+
   it('wears every extension Windows counts as runnable', () => {
     expect(commandNames('code', 'win32', '.EXE;.CMD')).toEqual(['code.exe', 'code.cmd']);
   });
@@ -199,5 +203,11 @@ describe('asking the machine this is actually running on', () => {
     );
 
     expect(at).toBe('/repo/who.tsx');
+  });
+
+  it('finds nothing on a machine with no PATH at all', () => {
+    const where = { path: undefined, platform: 'darwin', exists: () => true };
+
+    expect(runnable('zed', where)).toBe(false);
   });
 });

@@ -13,6 +13,7 @@ export const CHART_SERIES = {
   local: colors.accent,
   remote: colors.info,
   kroma: colors.success,
+  cpuMedia: colors.accent,
   cpuSystem: colors.danger,
   ramSystem: colors.hdr,
   films: colors.success,

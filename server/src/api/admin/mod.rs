@@ -22,6 +22,7 @@ mod settings;
 mod stats;
 mod storage;
 pub mod store;
+mod transcodes;
 mod users;
 
 use std::sync::Arc;
@@ -66,6 +67,7 @@ pub fn routes(state: SharedState) -> Router<SharedState> {
         .merge(settings::routes())
         .merge(storage::routes())
         .merge(stats::routes())
+        .merge(transcodes::routes())
         .merge(jobs::routes())
         .merge(llm::routes())
         .merge(logs::routes())

@@ -1,24 +1,33 @@
-//! System metrics sampler the data behind the dashboard's Débit / Processeur /
+//! System metrics sampler: the data behind the dashboard's Débit / Processeur /
 //! RAM charts and the Stockage page.
 //!
 //! A background task samples CPU + RAM via `sysinfo` every [`SAMPLE_INTERVAL`]
 //! and keeps a rolling ring buffer (~[`HISTORY`] samples ≈ the design's 6-minute
-//! window). Bandwidth is the REAL throughput: the media-delivery handlers feed
-//! every byte they stream into cumulative LAN/WAN counters (via [`ByteSink`]),
-//! and each tick converts the byte delta over the elapsed interval into Mb/s.
-//! That tracks what is actually on the wire (buffering bursts, transcode
-//! throttling, paused-but-buffered clients), unlike a nominal per-title bitrate.
-//! Disk usage is read on demand for the storage page.
+//! window). The KROMA figures cover the whole process TREE (see [`tree`]),
+//! because every transcode is a child ffmpeg and a server that reported only
+//! itself read as idle while it saturated the box.
+//!
+//! Bandwidth is the REAL throughput: the media-delivery handlers feed every byte
+//! they stream into cumulative LAN/WAN counters (via [`ByteSink`]), and each tick
+//! converts the byte delta over the elapsed interval into Mb/s. That tracks what
+//! is actually on the wire (buffering bursts, transcode throttling,
+//! paused-but-buffered clients), unlike a nominal per-title bitrate. Disk usage
+//! is read on demand for the storage page.
 
-use std::collections::VecDeque;
+mod disks;
+mod tree;
+
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use sysinfo::{Disks, System};
+use sysinfo::System;
 
 use crate::process_started;
+
+pub use disks::{read_disks, DiskInfo};
 
 // 3s still reads as live on the dashboard while keeping the permanent
 // background procfs churn low; this loop runs forever, viewer or not, so it
@@ -33,6 +42,8 @@ const HISTORY: usize = 120;
 pub struct Series {
     pub cpu_kroma: Vec<f32>,
     pub cpu_system: Vec<f32>,
+    /// The child-process share of `cpu_kroma`: on this server, ffmpeg.
+    pub cpu_media: Vec<f32>,
     pub ram_kroma: Vec<f32>,
     pub ram_system: Vec<f32>,
     pub bw_local: Vec<f64>,
@@ -43,14 +54,20 @@ pub struct Series {
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    /// The whole process tree, not the server process alone.
     pub cpu_kroma: f32,
     pub cpu_system: f32,
+    /// What the ffmpeg children alone are costing, out of `cpu_kroma`.
+    pub cpu_media: f32,
+    /// How many child processes the server is holding open.
+    pub media_procs: usize,
     pub ram_kroma_bytes: u64,
     pub ram_used_bytes: u64,
     pub ram_total_bytes: u64,
     pub bw_local_mbps: f64,
     pub bw_remote_mbps: f64,
     pub uptime_secs: u64,
+    pub cores: usize,
     // So the client's chart labels the time axis with the server's real
     // interval instead of a hardcoded (drift-prone) one.
     pub sample_interval_ms: u64,
@@ -90,10 +107,12 @@ impl ByteSink {
 struct Hist {
     cpu_kroma: VecDeque<f32>,
     cpu_system: VecDeque<f32>,
+    cpu_media: VecDeque<f32>,
     ram_kroma: VecDeque<f32>,
     ram_system: VecDeque<f32>,
     bw_local: VecDeque<f64>,
     bw_remote: VecDeque<f64>,
+    by_pid: HashMap<u32, f32>,
     cur: Snapshot,
 }
 
@@ -132,6 +151,7 @@ impl Metrics {
         snap.series = Series {
             cpu_kroma: h.cpu_kroma.iter().copied().collect(),
             cpu_system: h.cpu_system.iter().copied().collect(),
+            cpu_media: h.cpu_media.iter().copied().collect(),
             ram_kroma: h.ram_kroma.iter().copied().collect(),
             ram_system: h.ram_system.iter().copied().collect(),
             bw_local: h.bw_local.iter().copied().collect(),
@@ -140,14 +160,23 @@ impl Metrics {
         snap
     }
 
-    fn push(&self, snap: Snapshot, ram_kroma_pct: f32, ram_sys_pct: f32) {
+    /// What one child process is costing the box, as a percentage of it. Lets a
+    /// caller holding a pid (a live remux) say what that remux is spending,
+    /// rather than only what the tree spends together.
+    pub fn process_cpu(&self, pid: u32) -> Option<f32> {
+        self.inner.read().unwrap().by_pid.get(&pid).copied()
+    }
+
+    fn push(&self, snap: Snapshot, ram_kroma_pct: f32, ram_sys_pct: f32, by_pid: HashMap<u32, f32>) {
         let mut h = self.inner.write().unwrap();
         push_cap(&mut h.cpu_kroma, snap.cpu_kroma);
         push_cap(&mut h.cpu_system, snap.cpu_system);
+        push_cap(&mut h.cpu_media, snap.cpu_media);
         push_cap(&mut h.ram_kroma, ram_kroma_pct);
         push_cap(&mut h.ram_system, ram_sys_pct);
         push_cap(&mut h.bw_local, snap.bw_local_mbps);
         push_cap(&mut h.bw_remote, snap.bw_remote_mbps);
+        h.by_pid = by_pid;
         h.cur = snap;
     }
 
@@ -158,29 +187,22 @@ impl Metrics {
         // sysinfo work is blocking-ish but cheap; a dedicated OS thread keeps it
         // off the async runtime and lets us sleep precisely.
         std::thread::spawn(move || {
-            let pid = sysinfo::get_current_pid().ok();
             let mut sys = System::new();
-            let cpus = num_cpus_safe(&mut sys);
+            let cores = num_cpus_safe(&mut sys);
+            let mut tree = tree::Tree::new();
             let mut last_lan = metrics.bytes.lan.load(Ordering::Relaxed);
             let mut last_wan = metrics.bytes.wan.load(Ordering::Relaxed);
             let mut last_at = Instant::now();
             loop {
                 sys.refresh_cpu_usage();
                 sys.refresh_memory();
-                if let Some(pid) = pid {
-                    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
-                }
+                let usage = tree.sample(&mut sys, cores);
 
                 let cpu_system = sys.global_cpu_usage();
-                let (cpu_kroma, ram_kroma_bytes) = pid
-                    .and_then(|p| sys.process(p))
-                    .map(|proc| ((proc.cpu_usage() / cpus).min(100.0), proc.memory()))
-                    .unwrap_or((0.0, 0));
-
                 let ram_total = sys.total_memory().max(1);
                 let ram_used = sys.used_memory();
                 let ram_sys_pct = (ram_used as f32 / ram_total as f32) * 100.0;
-                let ram_kroma_pct = (ram_kroma_bytes as f32 / ram_total as f32) * 100.0;
+                let ram_kroma_pct = (usage.ram_bytes as f32 / ram_total as f32) * 100.0;
 
                 // Bytes delivered since the previous tick / real elapsed time →
                 // Mb/s. `wrapping_sub` is just defensive; the counters only grow.
@@ -201,19 +223,23 @@ impl Metrics {
 
                 metrics.push(
                     Snapshot {
-                        cpu_kroma,
+                        cpu_kroma: usage.cpu,
                         cpu_system,
-                        ram_kroma_bytes,
+                        cpu_media: usage.children_cpu,
+                        media_procs: usage.children,
+                        ram_kroma_bytes: usage.ram_bytes,
                         ram_used_bytes: ram_used,
                         ram_total_bytes: ram_total,
                         bw_local_mbps: bw_local,
                         bw_remote_mbps: bw_remote,
                         uptime_secs: 0,
+                        cores: cores as usize,
                         sample_interval_ms: 0,
                         series: Series::default(),
                     },
                     ram_kroma_pct,
                     ram_sys_pct,
+                    usage.by_pid,
                 );
 
                 std::thread::sleep(SAMPLE_INTERVAL);
@@ -247,64 +273,6 @@ fn num_cpus_safe(sys: &mut System) -> f32 {
     } else {
         n as f32
     }
-}
-
-/// One mounted volume's usage.
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DiskInfo {
-    pub name: String,
-    pub mount: String,
-    pub fs: String,
-    pub total_bytes: u64,
-    pub used_bytes: u64,
-    pub available_bytes: u64,
-}
-
-/// Read all mounted volumes (deduped by mount point), largest first. Enumerating
-/// + statfs'ing every mount is comparatively expensive on a NAS with many
-///   volumes, and usage moves slowly, so results are cached for a short window
-///   (the storage page and dashboard poll this endpoint repeatedly).
-pub fn read_disks() -> Vec<DiskInfo> {
-    use std::sync::OnceLock;
-    type DiskCache = OnceLock<RwLock<Option<(Instant, Vec<DiskInfo>)>>>;
-    static CACHE: DiskCache = OnceLock::new();
-    const TTL: Duration = Duration::from_secs(15);
-
-    let cache = CACHE.get_or_init(|| RwLock::new(None));
-    if let Some((at, disks)) = cache.read().unwrap().as_ref() {
-        if at.elapsed() < TTL {
-            return disks.clone();
-        }
-    }
-    let fresh = read_disks_uncached();
-    *cache.write().unwrap() = Some((Instant::now(), fresh.clone()));
-    fresh
-}
-
-fn read_disks_uncached() -> Vec<DiskInfo> {
-    let disks = Disks::new_with_refreshed_list();
-    let mut seen = std::collections::HashSet::new();
-    let mut out: Vec<DiskInfo> = Vec::new();
-    for d in disks.list() {
-        let mount = d.mount_point().to_string_lossy().to_string();
-        // Skip pseudo/duplicate mounts and anything with no capacity.
-        if d.total_space() == 0 || !seen.insert(mount.clone()) {
-            continue;
-        }
-        let total = d.total_space();
-        let avail = d.available_space();
-        out.push(DiskInfo {
-            name: d.name().to_string_lossy().to_string(),
-            mount,
-            fs: d.file_system().to_string_lossy().to_string(),
-            total_bytes: total,
-            used_bytes: total.saturating_sub(avail),
-            available_bytes: avail,
-        });
-    }
-    out.sort_by_key(|b| std::cmp::Reverse(b.total_bytes));
-    out
 }
 
 #[cfg(test)]
@@ -343,5 +311,37 @@ mod tests {
             m.snapshot().sample_interval_ms,
             SAMPLE_INTERVAL.as_millis() as u64
         );
+    }
+
+    #[test]
+    fn one_childs_cost_can_be_read_back_by_its_pid() {
+        let m = Metrics::new();
+
+        m.push(Snapshot::default(), 0.0, 0.0, HashMap::from([(4242, 87.5)]));
+
+        assert_eq!(m.process_cpu(4242), Some(87.5));
+        assert_eq!(m.process_cpu(1), None);
+    }
+
+    #[test]
+    fn the_media_share_is_kept_beside_the_tree_it_belongs_to() {
+        let m = Metrics::new();
+
+        m.push(
+            Snapshot {
+                cpu_kroma: 62.0,
+                cpu_media: 58.0,
+                media_procs: 2,
+                ..Snapshot::default()
+            },
+            0.0,
+            0.0,
+            HashMap::new(),
+        );
+
+        let snap = m.snapshot();
+        assert_eq!(snap.cpu_media, 58.0);
+        assert_eq!(snap.media_procs, 2);
+        assert_eq!(snap.series.cpu_media, vec![58.0]);
     }
 }

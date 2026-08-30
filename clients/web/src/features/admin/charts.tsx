@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import { CHART_SERIES } from '#web/features/admin/chart-palette';
 
 // Fallback only; the server is authoritative via `sampleIntervalMs`
-// (see server/crates/kroma-engine/src/infra/metrics.rs).
+// (see server/crates/kroma-engine/src/infra/metrics/mod.rs).
 const DEFAULT_SAMPLE_SEC = 3;
 
 const METRICS_HEIGHT = 208;

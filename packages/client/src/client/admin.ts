@@ -14,10 +14,12 @@ import type {
   Notification,
   Permission,
   PlaybackSession,
+  PlaysPage,
   ServerInfo,
   SettingsView,
   StorageInfo,
   TopUser,
+  Transcodes,
 } from '../types';
 import { JSON_HEADERS, type RequestContext } from './base';
 
@@ -47,6 +49,12 @@ export async function terminateSession(
 
 export function adminMetrics(ctx: RequestContext): Promise<MetricsSnapshot> {
   return ctx.json<MetricsSnapshot>('/admin/metrics');
+}
+
+/** Every remux running now, the silicon they run on, and whether each is keeping
+ *  ahead of the player. */
+export function adminTranscodes(ctx: RequestContext): Promise<Transcodes> {
+  return ctx.json<Transcodes>('/admin/transcodes');
 }
 
 export function adminStorage(ctx: RequestContext): Promise<StorageInfo> {
@@ -170,6 +178,20 @@ export function topUsers(ctx: RequestContext, days = 7): Promise<{ users: TopUse
 /** Weekly films-vs-TV watch buckets. */
 export function playHistory(ctx: RequestContext, days = 28): Promise<HistoryStats> {
   return ctx.json<HistoryStats>(`/admin/stats/history?days=${days}`);
+}
+
+/** The watch log, newest first: who watched what, when, and on which device.
+ *  `user` narrows it to one account. */
+export function adminPlays(
+  ctx: RequestContext,
+  opts: { days?: number; user?: string; limit?: number; offset?: number } = {},
+): Promise<PlaysPage> {
+  const params = new URLSearchParams();
+  params.set('days', String(opts.days ?? 30));
+  if (opts.user) params.set('user', opts.user);
+  if (opts.limit !== undefined) params.set('limit', String(opts.limit));
+  if (opts.offset) params.set('offset', String(opts.offset));
+  return ctx.json<PlaysPage>(`/admin/stats/plays?${params}`);
 }
 
 export function adminOverview(ctx: RequestContext): Promise<AdminOverview> {

@@ -163,4 +163,18 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     // by client is a full scan without this.
     "CREATE INDEX IF NOT EXISTS idx_downloads_grabbed ON downloads(grabbed_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_downloads_client ON downloads(client_id, grabbed_at DESC)",
+    // The play log kept who and what and threw away the how: the registry knew
+    // the device, the player, whether the stream was transcoded and which side
+    // of the router it left by, and none of it survived the session. An admin
+    // asking "who watched this, on what, and did the box have to re-encode it"
+    // had nothing to read.
+    "ALTER TABLE play_history ADD COLUMN device TEXT",
+    "ALTER TABLE play_history ADD COLUMN player TEXT",
+    "ALTER TABLE play_history ADD COLUMN mode TEXT",
+    "ALTER TABLE play_history ADD COLUMN network TEXT",
+    "ALTER TABLE play_history ADD COLUMN video_label TEXT",
+    "ALTER TABLE play_history ADD COLUMN audio_label TEXT",
+    "ALTER TABLE play_history ADD COLUMN show_title TEXT",
+    "ALTER TABLE play_history ADD COLUMN season INTEGER",
+    "ALTER TABLE play_history ADD COLUMN episode INTEGER",
 ];

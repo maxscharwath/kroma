@@ -78,8 +78,8 @@ export function NowPlayingCard({
   const playing = s.state === 'playing';
   const pct = s.durationMs ? (s.positionMs / s.durationMs) * 100 : 0;
   const buffering = s.state === 'buffering';
-  // `transcode` = the audio was re-encoded to AAC; `remux` = HLS repackage with
-  // both streams copied. Video is NEVER transcoded, so it always reads as direct.
+  // What the CLIENT reported it is doing. The server's own account of a session,
+  // including a picture it had to re-encode, is the Transcodage section.
   const transcode = s.mode === 'transcode';
   const remux = s.mode === 'remux';
   const lan = s.network === 'LAN';

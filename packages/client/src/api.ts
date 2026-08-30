@@ -84,6 +84,7 @@ import type {
   PipelineView,
   PlaybackPing,
   PlaybackSession,
+  PlaysPage,
   ProgressEntry,
   PublicUser,
   QuickConnectInit,
@@ -106,6 +107,7 @@ import type {
   StorageInfo,
   SubscribeBody,
   TopUser,
+  Transcodes,
   UpNext,
   User,
   WantedEntry,
@@ -765,6 +767,9 @@ export class KromaClient {
   adminMetrics(): Promise<MetricsSnapshot> {
     return admin.adminMetrics(this.ctx);
   }
+  adminTranscodes(): Promise<Transcodes> {
+    return admin.adminTranscodes(this.ctx);
+  }
   adminStorage(): Promise<StorageInfo> {
     return admin.adminStorage(this.ctx);
   }
@@ -802,6 +807,14 @@ export class KromaClient {
   }
   playHistory(days = 28): Promise<HistoryStats> {
     return admin.playHistory(this.ctx, days);
+  }
+  adminPlays(opts?: {
+    days?: number;
+    user?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<PlaysPage> {
+    return admin.adminPlays(this.ctx, opts);
   }
   adminOverview(): Promise<AdminOverview> {
     return admin.adminOverview(this.ctx);

@@ -18,6 +18,8 @@ import { useMemo, useState } from 'react';
 import { HistoryBars } from '#web/features/admin/charts';
 import { BandwidthSection, CpuSection, RamSection } from '#web/features/admin/dashboard-metrics';
 import { NowPlayingCard, StopStreamModal } from '#web/features/admin/dashboard-now-playing';
+import { TranscodingSection } from '#web/features/admin/dashboard-transcoding';
+import { WatchLogSection } from '#web/features/admin/dashboard-watch-log';
 import { RealtimeBadge } from '#web/features/admin/realtime-badge';
 import { PageHeader, useAdmin, usePoll } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
@@ -59,6 +61,12 @@ export function DashboardScreen() {
   );
   // The server samples every 3s; polling faster only redraws identical charts.
   const { data: metrics } = usePoll(['admin', 'metrics'], () => client.adminMetrics(), 5000);
+  // ffmpeg reports its rate once a second, so anything faster reads the same block.
+  const { data: transcodes } = usePoll(
+    ['admin', 'transcodes'],
+    () => client.adminTranscodes(),
+    3000,
+  );
   const { data: top } = usePoll(
     ['admin', 'topUsers', topDays],
     () => client.topUsers(topDays),
@@ -116,6 +124,8 @@ export function DashboardScreen() {
         )}
       </Section.Root>
 
+      <TranscodingSection data={transcodes} />
+
       <BandwidthSection metrics={metrics} />
       <CpuSection metrics={metrics} />
       <RamSection metrics={metrics} />
@@ -159,6 +169,8 @@ export function DashboardScreen() {
         </Section.Header>
         {history ? <HistoryBars buckets={history.buckets} label={t('admin.playHistory')} /> : null}
       </Section.Root>
+
+      <WatchLogSection users={usersData?.users ?? []} />
     </>
   );
 }

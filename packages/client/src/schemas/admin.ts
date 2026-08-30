@@ -126,6 +126,8 @@ export type StorageInfo = z.infer<typeof StorageInfo>;
 export const MetricsSeries = z.object({
   cpuKroma: z.array(z.number()),
   cpuSystem: z.array(z.number()),
+  /** The ffmpeg share of `cpuKroma`. */
+  cpuMedia: z.array(z.number()).default([]),
   ramKroma: z.array(z.number()),
   ramSystem: z.array(z.number()),
   bwLocal: z.array(z.number()),
@@ -135,8 +137,14 @@ export type MetricsSeries = z.infer<typeof MetricsSeries>;
 
 /** A point-in-time metrics snapshot plus the recent history series. */
 export const MetricsSnapshot = z.object({
+  /** The whole process tree, ffmpeg children included, not the server alone. */
   cpuKroma: z.number(),
   cpuSystem: z.number(),
+  /** What the ffmpeg children alone cost, out of `cpuKroma`. */
+  cpuMedia: z.number().default(0),
+  /** How many child processes the server is holding open. */
+  mediaProcs: z.number().default(0),
+  cores: z.number().default(0),
   ramKromaBytes: z.number(),
   ramUsedBytes: z.number(),
   ramTotalBytes: z.number(),
@@ -147,6 +155,97 @@ export const MetricsSnapshot = z.object({
   series: MetricsSeries,
 });
 export type MetricsSnapshot = z.infer<typeof MetricsSnapshot>;
+
+/** The pipeline the host re-encodes on, and the sentence explaining it: a device
+ *  that is present, listed and unusable looks exactly like no device at all. */
+export const TranscodeHardware = z.object({
+  accel: z.string(),
+  reason: z.string(),
+  accelerated: z.boolean(),
+});
+export type TranscodeHardware = z.infer<typeof TranscodeHardware>;
+
+/** One live remux. `speed` is the figure to read first: under 1.0 the encoder is
+ *  producing less than a second of film per second and the player will run dry. */
+export const LiveTranscode = z.object({
+  id: z.string(),
+  itemId: z.string(),
+  audioTrack: z.number(),
+  /** `copy` | `h264` | `h264-1080` | `h264-720`. */
+  video: z.string(),
+  /** `copy` | `aac` | `aac-standard` | `aac-night`. */
+  audio: z.string(),
+  transcodesVideo: z.boolean(),
+  transcodesAudio: z.boolean(),
+  /** `videotoolbox` | `qsv` | `vaapi` | `nvenc` | `software`. */
+  accel: z.string(),
+  /** `quality` | `realtime`; only means anything on the software path. */
+  effort: z.string(),
+  onTheCpu: z.boolean(),
+  pid: z.number().nullish(),
+  sourceWidth: z.number().nullish(),
+  sourceHeight: z.number().nullish(),
+  targetWidth: z.number().nullish(),
+  targetHeight: z.number().nullish(),
+  anchorSecs: z.number(),
+  startedAt: z.number(),
+  speed: z.number(),
+  fps: z.number(),
+  frames: z.number(),
+  dropped: z.number(),
+  outTimeMs: z.number(),
+  segments: z.number(),
+  bytes: z.number(),
+  running: z.boolean(),
+  title: z.string().nullish(),
+  showTitle: z.string().nullish(),
+  season: z.number().nullish(),
+  episode: z.number().nullish(),
+  /** Percent of the whole box this one ffmpeg is spending. */
+  cpu: z.number().nullish(),
+});
+export type LiveTranscode = z.infer<typeof LiveTranscode>;
+
+/** `GET /api/admin/transcodes`. */
+export const Transcodes = z.object({
+  hardware: TranscodeHardware,
+  sessions: z.array(LiveTranscode),
+  encoding: z.number(),
+  cacheBytes: z.number(),
+});
+export type Transcodes = z.infer<typeof Transcodes>;
+
+/** One finished playback: who watched what, when, and on which device. */
+export const PlayEntry = z.object({
+  id: z.string(),
+  userId: z.string().nullish(),
+  username: z.string(),
+  itemId: z.string().nullish(),
+  kind: z.string(),
+  title: z.string(),
+  showTitle: z.string().nullish(),
+  season: z.number().nullish(),
+  episode: z.number().nullish(),
+  device: z.string().nullish(),
+  player: z.string().nullish(),
+  /** `direct` | `transcode`. */
+  mode: z.string().nullish(),
+  /** `LAN` | `WAN`. */
+  network: z.string().nullish(),
+  videoLabel: z.string().nullish(),
+  audioLabel: z.string().nullish(),
+  startedAt: z.number(),
+  endedAt: z.number(),
+  watchedMs: z.number(),
+});
+export type PlayEntry = z.infer<typeof PlayEntry>;
+
+/** `GET /api/admin/stats/plays`: one page of the watch log, newest first. */
+export const PlaysPage = z.object({
+  plays: z.array(PlayEntry),
+  total: z.number(),
+});
+export type PlaysPage = z.infer<typeof PlaysPage>;
 
 /** One weekly bucket of the play-history chart. */
 export const HistoryBucket = z.object({

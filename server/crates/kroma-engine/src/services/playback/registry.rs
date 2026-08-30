@@ -252,21 +252,34 @@ impl Default for Registry {
     }
 }
 
-/// Append one ended session to the play-history log; best-effort.
+/// Append one ended session to the play-history log; best-effort. Everything the
+/// card showed is written with it: once the session is reaped there is nowhere
+/// left to learn who watched this, on what, or whether the box re-encoded it.
 pub fn record(pool: &Pool, s: &Session) {
     let ended = unix_now();
-    let watched = ((ended - s.started_at).max(0)) * 1000;
+    let some = |v: &str| (!v.is_empty()).then(|| v.to_owned());
     let _ = crate::db::record_play(
         pool,
-        s.user_id.as_deref(),
-        Some(&s.username),
-        Some(&s.item_id),
-        &s.kind,
-        &s.title,
-        None,
-        s.started_at,
-        ended,
-        watched,
+        &kroma_domain::PlayRecord {
+            user_id: s.user_id.clone(),
+            username: Some(s.username.clone()),
+            item_id: Some(s.item_id.clone()),
+            kind: s.kind.clone(),
+            title: s.title.clone(),
+            library: None,
+            show_title: s.show_title.clone(),
+            season: s.season,
+            episode: s.episode,
+            device: some(&s.device),
+            player: some(&s.player),
+            mode: some(&s.mode),
+            network: some(&s.network),
+            video_label: some(&s.video_label),
+            audio_label: some(&s.audio_label),
+            started_at: s.started_at,
+            ended_at: ended,
+            watched_ms: ((ended - s.started_at).max(0)) * 1000,
+        },
     );
 }
 

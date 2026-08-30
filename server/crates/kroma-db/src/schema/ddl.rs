@@ -227,7 +227,16 @@ pub(crate) const SCHEMA: &str = "
         library    TEXT,
         started_at INTEGER NOT NULL,
         ended_at   INTEGER NOT NULL,
-        watched_ms INTEGER NOT NULL DEFAULT 0
+        watched_ms INTEGER NOT NULL DEFAULT 0,
+        device      TEXT,
+        player      TEXT,
+        mode        TEXT,
+        network     TEXT,
+        video_label TEXT,
+        audio_label TEXT,
+        show_title  TEXT,
+        season      INTEGER,
+        episode     INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_history_user  ON play_history(user_id, ended_at DESC);
     CREATE INDEX IF NOT EXISTS idx_history_ended ON play_history(ended_at DESC);

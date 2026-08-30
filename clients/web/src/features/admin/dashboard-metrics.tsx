@@ -73,6 +73,10 @@ export function CpuSection({ metrics }: Metrics) {
   const fmt = useFormat();
   const kroma = metrics?.series.cpuKroma ?? [];
   const sys = metrics?.series.cpuSystem ?? [];
+  // The transcode share, drawn under the tree it belongs to: the KROMA line
+  // covers the server AND its ffmpeg children, and this says how much of it is
+  // the encoder. Without it a box at 100% names no culprit.
+  const media = metrics?.series.cpuMedia ?? [];
   return (
     <Section.Root mt={28}>
       <Section.Header>
@@ -94,9 +98,17 @@ export function CpuSection({ metrics }: Metrics) {
             data: kroma,
             color: CHART_SERIES.kroma,
           },
+          {
+            id: 'media',
+            label: t('admin.legendTranscoding'),
+            data: media,
+            color: CHART_SERIES.cpuMedia,
+            fill: true,
+          },
         ]}
-        footer={t('admin.cpuAverages', {
+        footer={t('admin.cpuAveragesWithMedia', {
           kroma: fmt.decimal(avg(kroma), 1),
+          media: fmt.decimal(avg(media), 1),
           sys: fmt.decimal(avg(sys), 1),
         })}
       />

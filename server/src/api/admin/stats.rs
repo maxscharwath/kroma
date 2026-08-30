@@ -20,6 +20,7 @@ pub fn routes() -> Router<SharedState> {
         .route("/stats/top-users", get(top_users))
         .route("/stats/history", get(history))
         .route("/stats/overview", get(overview))
+        .route("/stats/plays", get(plays))
 }
 
 fn now_unix() -> i64 {
@@ -30,6 +31,43 @@ fn now_unix() -> i64 {
 pub struct DaysQuery {
     #[serde(default)]
     pub days: Option<i64>,
+}
+
+/// One page of the watch log. `user` narrows it to one account.
+#[derive(Debug, Deserialize)]
+pub struct PlaysQuery {
+    #[serde(default)]
+    pub days: Option<i64>,
+    #[serde(default)]
+    pub user: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub offset: Option<usize>,
+}
+
+/// `GET /api/admin/stats/plays?days=30&user=&limit=50&offset=0` → who watched
+/// what, when, and on which device, newest first.
+pub async fn plays(
+    State(state): State<SharedState>,
+    AuthUser(user): AuthUser,
+    Query(q): Query<PlaysQuery>,
+) -> Result<Response, Response> {
+    super::require_any_admin(&user)?;
+    let days = q.days.unwrap_or(30).clamp(1, 3650);
+    let since = now_unix() - days * 86_400;
+    let limit = q.limit.unwrap_or(50).clamp(1, 200);
+    let offset = q.offset.unwrap_or(0).min(100_000);
+    let who = q.user.filter(|u| !u.is_empty());
+    let (entries, total) = query(&state.db, move |pool| {
+        let who = who.as_deref();
+        Ok((
+            db::plays(&pool, since, who, limit, offset)?,
+            db::plays_count(&pool, since, who)?,
+        ))
+    })
+    .await?;
+    Ok(Json(json!({ "plays": entries, "total": total })).into_response())
 }
 
 /// `GET /api/admin/stats/top-users?days=7` → per-user watch aggregates.

@@ -1,16 +1,3 @@
-//! What the VPN bridge actually carried, over a window a reader picks.
-//!
-//! The engine keeps LIFETIME byte counters, not a time series, so [`meter`]
-//! takes deltas on the monitor's tick and stores one row per closed minute; the
-//! retention ladder folds older rows coarser, and [`window`] buckets whatever
-//! width it finds back into the points a chart draws.
-//!
-//! Every figure here is split three ways, because "how much went through the
-//! VPN" is only answerable if the bytes that did NOT are kept apart: `sealed`
-//! moved on the engine the bridge carries while the seal probe was holding,
-//! `unsealed` moved on that engine while it was not, and `bypass` moved on an
-//! external daemon the bridge never carries at all.
-
 pub mod meter;
 mod range;
 mod window;
@@ -37,8 +24,6 @@ pub struct Series {
     pub unsealed_up: Vec<u64>,
     pub bypass_down: Vec<u64>,
     pub bypass_up: Vec<u64>,
-    /// Seconds of each bucket a bridge was configured and the seal did not
-    /// hold, so a bucket with no traffic can still say the bridge was down.
     pub unsealed_secs: Vec<i64>,
 }
 
@@ -74,8 +59,6 @@ impl Series {
     }
 }
 
-/// What the whole window is worth, so a reader gets the number without adding
-/// up the chart.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Totals {
@@ -102,14 +85,10 @@ impl Totals {
     }
 }
 
-/// The answer to `bandwidth`: the series, its totals, and whether a bridge was
-/// configured at all, without which "sealed" would be a claim about nothing.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BandwidthView {
     pub range: Range,
-    /// The unix second the first bucket opens on. Equal to now on an empty
-    /// record, where the series has no points.
     pub started_at: i64,
     pub step_secs: i64,
     pub series: Series,
@@ -117,8 +96,7 @@ pub struct BandwidthView {
     pub bridge_configured: bool,
 }
 
-/// Read `range` out of the module's own store. Blocking: call it off the async
-/// runtime.
+/// Blocking: call it off the async runtime.
 pub fn read(
     store: &Pool,
     range: Range,
@@ -150,10 +128,10 @@ pub fn read(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{record_bandwidth_sample, test_support::test_db};
+    use crate::db::{add_bandwidth_sample, test_support::test_db};
 
     fn store_sealed(pool: &Pool, at: i64, down: u64) {
-        record_bandwidth_sample(
+        add_bandwidth_sample(
             pool,
             &BandwidthSample {
                 at,

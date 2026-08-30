@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{DAY, HOUR};
 
-/// The span a bandwidth chart covers, in the words the admin's own range
-/// control uses. There is no live window: a byte total needs a closed one.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Range {
     #[serde(rename = "12h")]

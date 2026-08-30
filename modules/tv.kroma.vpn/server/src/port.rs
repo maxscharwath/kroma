@@ -79,7 +79,7 @@ fn ask<T: serde::de::DeserializeOwned>(host: &dyn HostCtx, method: &str) -> Opti
 }
 
 /// One [`DOWNLOAD_VPN`] method, with a body. `None` when nothing answers the
-/// point or the call failed: the card renders either way.
+/// point or the call failed.
 pub(crate) fn ask_with<T: serde::de::DeserializeOwned>(
     host: &dyn HostCtx,
     method: &str,

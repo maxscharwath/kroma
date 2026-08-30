@@ -48,10 +48,6 @@ pub const MIGRATIONS: &str = "
         created_at INTEGER NOT NULL
     );
 
-    -- The tunnel's throughput series: one row per closed window, holding the
-    -- BYTES that moved in it rather than a rate, so the retention ladder folds
-    -- coarser rows with a plain SUM. Split three ways because only the first
-    -- pair is traffic the VPN bridge actually carried (see `db::bandwidth`).
     CREATE TABLE IF NOT EXISTS vpn_bandwidth (
         at                  INTEGER NOT NULL,
         step_secs           INTEGER NOT NULL,

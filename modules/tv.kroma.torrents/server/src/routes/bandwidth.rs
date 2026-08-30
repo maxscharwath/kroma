@@ -1,5 +1,4 @@
-//! `GET /downloads/bandwidth` how much the engine moved over a window, and how
-//! much of it the VPN bridge actually carried.
+//! `/downloads/bandwidth` what the engine moved, and what the tunnel carried.
 
 use axum::extract::{Query as AxQuery, State};
 use axum::response::{IntoResponse, Response};
@@ -12,10 +11,6 @@ use kroma_module_sdk::host::{blocking, AuthUser, HostStorage};
 use super::{dm, require_downloads};
 use crate::bandwidth::Range;
 
-// A window is named by one short word; anything longer cannot be one, and
-// reading it would only hand a bigger string to the parser.
-const MAX_RANGE_LEN: usize = 8;
-
 #[derive(Debug, Default, Deserialize)]
 struct RangeParams {
     #[serde(default)]
@@ -24,10 +19,7 @@ struct RangeParams {
 
 impl RangeParams {
     fn range(&self) -> Range {
-        match self.range.as_deref() {
-            Some(raw) if raw.len() <= MAX_RANGE_LEN => Range::parse(raw),
-            _ => Range::default(),
-        }
+        Range::parse(self.range.as_deref().unwrap_or_default())
     }
 }
 

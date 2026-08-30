@@ -11,9 +11,6 @@ pub(super) struct Window {
     pub step: i64,
 }
 
-/// The buckets `range` asks for, trimmed to where the record actually starts so
-/// a young server does not draw a week of zeros it never observed. `None` when
-/// nothing has been recorded yet.
 pub(super) fn window(range: Range, now: i64, earliest: Option<i64>) -> Option<Window> {
     let earliest = earliest?;
     let (span, step) = match (range.span_secs(), range.bucket_secs()) {
@@ -40,10 +37,6 @@ fn whole_record(span: i64) -> (i64, i64) {
     (days * DAY, step)
 }
 
-/// Fold every stored window into the buckets of `window`, one point per bucket.
-///
-/// A bucket nothing landed in is a real zero rather than a gap: these are byte
-/// totals, and no traffic is a fact the chart should draw.
 pub(super) fn bucket(samples: &[BandwidthSample], window: &Window) -> (Series, Totals) {
     let count = ((window.to - window.from) / window.step).max(0) as usize;
     let mut series = Series::of_length(count);

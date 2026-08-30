@@ -39,7 +39,6 @@ struct RangeParams {
     range: Option<String>,
 }
 
-// `GET /vpn/bandwidth` what the engine says the bridge carried over one window.
 async fn bandwidth<S: HostCtx + Clone + Send + Sync + 'static>(
     State(state): State<S>,
     AuthUser(user): AuthUser,

@@ -1,33 +1,19 @@
 use crate::db::{BandwidthSample, TransferredBytes};
 
-/// How wide a stored window is before the retention ladder folds it.
 pub const STEP: i64 = 60;
 
-/// The longest a reading may credit to one interval. A machine that slept, or a
-/// module that was disabled for a week, comes back with a huge gap; charging
-/// the whole of it to the seal state we happen to observe on return would claim
-/// a week of tunnel we never watched.
 const MAX_GAP: i64 = 2 * STEP;
 
 /// Whether the bridge was carrying the embedded engine's traffic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Seal {
-    /// No bridge is configured, so traffic is meant to leave directly and
-    /// there is nothing to be sealed against.
-    Off,
-    /// A bridge is configured and the last seal probe reached a different exit.
+    NoBridge,
     Held,
-    /// A bridge is configured and the last probe did not confirm it. Traffic
-    /// that moved here is not protected, whatever the operator intended.
     Broken,
 }
 
-/// Turns the engine's lifetime counters into closed windows of bytes.
-///
-/// It holds the previous reading and emits a window only when the clock crosses
-/// into the next one, so a caller ticking every few seconds writes one row a
-/// minute. The FIRST reading of a process seeds the baseline and emits nothing:
-/// without that, a restart would charge the whole lifetime total to one window.
+/// Turns the engine's lifetime counters into closed windows of bytes. The first
+/// reading of a process seeds the baseline and emits nothing.
 #[derive(Debug, Default)]
 pub struct Meter {
     last: Option<(i64, TransferredBytes)>,
@@ -35,25 +21,23 @@ pub struct Meter {
 }
 
 impl Meter {
-    /// Fold one reading in, and hand back the window it closed if it closed
-    /// one. `at` is a unix second.
     pub fn read(
         &mut self,
-        at: i64,
+        at_secs: i64,
         counters: TransferredBytes,
         seal: Seal,
     ) -> Option<BandwidthSample> {
-        let previous = self.last.replace((at, counters))?;
-        let elapsed = (at - previous.0).clamp(0, MAX_GAP);
+        let previous = self.last.replace((at_secs, counters))?;
+        let elapsed = (at_secs - previous.0).clamp(0, MAX_GAP);
         let moved = moved_since(previous.1, counters);
-        let closed = self.close_if_stale(at);
+        let closed = self.close_if_stale(at_secs);
         if moved == TransferredBytes::default() && seal != Seal::Broken {
             return closed;
         }
         let open = self
             .open
             .get_or_insert_with(|| BandwidthSample {
-                at: at.div_euclid(STEP) * STEP,
+                at: at_secs.div_euclid(STEP) * STEP,
                 step_secs: STEP,
                 ..BandwidthSample::default()
             });
@@ -68,7 +52,7 @@ impl Meter {
                 open.unsealed_up_bytes += moved.embedded_up;
                 open.unsealed_secs += elapsed;
             }
-            Seal::Off => {
+            Seal::NoBridge => {
                 open.bypass_down_bytes += moved.embedded_down;
                 open.bypass_up_bytes += moved.embedded_up;
             }
@@ -78,8 +62,8 @@ impl Meter {
         closed
     }
 
-    fn close_if_stale(&mut self, at: i64) -> Option<BandwidthSample> {
-        let opened_at = at.div_euclid(STEP) * STEP;
+    fn close_if_stale(&mut self, at_secs: i64) -> Option<BandwidthSample> {
+        let opened_at = at_secs.div_euclid(STEP) * STEP;
         if self.open.as_ref().is_some_and(|open| open.at != opened_at) {
             return self.open.take();
         }
@@ -87,9 +71,6 @@ impl Meter {
     }
 }
 
-/// The counters can only fall when a row leaves the ledger, which moved no
-/// bytes: a component that went backwards contributes nothing rather than
-/// wrapping into an enormous positive.
 fn moved_since(previous: TransferredBytes, now: TransferredBytes) -> TransferredBytes {
     TransferredBytes {
         embedded_down: now.embedded_down.saturating_sub(previous.embedded_down),
@@ -163,10 +144,10 @@ mod tests {
     #[test]
     fn an_idle_engine_with_no_bridge_opens_no_window_at_all() {
         let mut meter = Meter::default();
-        meter.read(0, embedded(500, 0), Seal::Off);
-        meter.read(30, embedded(500, 0), Seal::Off);
+        meter.read(0, embedded(500, 0), Seal::NoBridge);
+        meter.read(30, embedded(500, 0), Seal::NoBridge);
 
-        let closed = meter.read(600, embedded(500, 0), Seal::Off);
+        let closed = meter.read(600, embedded(500, 0), Seal::NoBridge);
 
         assert_eq!(closed, None);
     }

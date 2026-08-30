@@ -7,14 +7,11 @@ const COLS: &str = "at,step_secs,sealed_down_bytes,sealed_up_bytes,unsealed_down
     unsealed_up_bytes,bypass_down_bytes,bypass_up_bytes,sealed_secs,unsealed_secs";
 
 /// One stored window of the tunnel's throughput. `at` is the unix second it
-/// opens on and `step_secs` how wide it is, because the retention ladder folds
-/// older rows coarser and one read spans several widths.
+/// opens on and `step_secs` how wide it is.
 ///
-/// The three byte pairs are what the window's traffic is worth telling apart:
 /// `sealed` moved through the bridge with the seal probe holding, `unsealed`
 /// moved on the engine the bridge carries while it did not, and `bypass` moved
-/// on an engine the bridge never carries (an external daemon). Summing them
-/// gives the engine's whole transfer; reading only `sealed` gives the tunnel's.
+/// on an engine the bridge never carries.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BandwidthSample {
     pub at: i64,
@@ -25,9 +22,7 @@ pub struct BandwidthSample {
     pub unsealed_up_bytes: u64,
     pub bypass_down_bytes: u64,
     pub bypass_up_bytes: u64,
-    /// Seconds of this window the seal probe was holding.
     pub sealed_secs: i64,
-    /// Seconds of it a bridge was configured and the probe was not holding.
     pub unsealed_secs: i64,
 }
 
@@ -41,11 +36,7 @@ const ADD_EXCLUDED: &str = "sealed_down_bytes = sealed_down_bytes + excluded.sea
     unsealed_secs = unsealed_secs + excluded.unsealed_secs";
 
 /// Add one window's totals to whatever already sits at the same `(step, at)`.
-///
-/// Additive rather than replacing, because a process that restarted mid-window
-/// opens a fresh one on the same second and its bytes moved just as much as the
-/// ones already stored.
-pub fn record_bandwidth_sample(pool: &Pool, sample: &BandwidthSample) -> Result<()> {
+pub fn add_bandwidth_sample(pool: &Pool, sample: &BandwidthSample) -> Result<()> {
     let conn = pool.get()?;
     conn.execute(
         &format!(
@@ -148,7 +139,7 @@ mod tests {
     fn reads_back_only_the_windows_opening_inside_the_asked_span() {
         let pool = test_db();
         for at in [0, 60, 120, 180] {
-            record_bandwidth_sample(&pool, &sample(at, 60, 1000, 0)).unwrap();
+            add_bandwidth_sample(&pool, &sample(at, 60, 1000, 0)).unwrap();
         }
 
         let read = bandwidth_samples(&pool, 60, 180).unwrap();
@@ -159,9 +150,9 @@ mod tests {
     #[test]
     fn a_second_write_on_one_window_adds_to_it_rather_than_replacing_it() {
         let pool = test_db();
-        record_bandwidth_sample(&pool, &sample(0, 60, 1000, 0)).unwrap();
+        add_bandwidth_sample(&pool, &sample(0, 60, 1000, 0)).unwrap();
 
-        record_bandwidth_sample(&pool, &sample(0, 60, 250, 0)).unwrap();
+        add_bandwidth_sample(&pool, &sample(0, 60, 250, 0)).unwrap();
 
         let read = bandwidth_samples(&pool, 0, 60).unwrap();
         assert_eq!(read.len(), 1);
@@ -172,8 +163,8 @@ mod tests {
     #[test]
     fn folding_sums_the_windows_it_replaces_and_drops_them() {
         let pool = test_db();
-        record_bandwidth_sample(&pool, &sample(0, 60, 1000, 0)).unwrap();
-        record_bandwidth_sample(&pool, &sample(60, 60, 400, 50)).unwrap();
+        add_bandwidth_sample(&pool, &sample(0, 60, 1000, 0)).unwrap();
+        add_bandwidth_sample(&pool, &sample(60, 60, 400, 50)).unwrap();
 
         let folded = fold_bandwidth_samples(&pool, 300, 300).unwrap();
 
@@ -189,7 +180,7 @@ mod tests {
     #[test]
     fn a_window_the_threshold_falls_inside_is_left_alone_until_it_closes() {
         let pool = test_db();
-        record_bandwidth_sample(&pool, &sample(360, 60, 1000, 0)).unwrap();
+        add_bandwidth_sample(&pool, &sample(360, 60, 1000, 0)).unwrap();
 
         let folded = fold_bandwidth_samples(&pool, 420, 300).unwrap();
 
@@ -203,7 +194,7 @@ mod tests {
 
         assert_eq!(earliest_bandwidth_sample(&pool).unwrap(), None);
 
-        record_bandwidth_sample(&pool, &sample(900, 60, 1, 0)).unwrap();
+        add_bandwidth_sample(&pool, &sample(900, 60, 1, 0)).unwrap();
         assert_eq!(earliest_bandwidth_sample(&pool).unwrap(), Some(900));
     }
 }

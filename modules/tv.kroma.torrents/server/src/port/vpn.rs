@@ -86,8 +86,6 @@ async fn seal_check<S: HostCtx + Clone + Send + Sync + 'static>(
     Json(seal)
 }
 
-/// What a caller asks a window with. Its own struct, and tolerant: an older
-/// peer that names no window gets the day rather than a 422.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(default)]
 struct BandwidthAsk {
@@ -186,8 +184,6 @@ mod tests {
         assert_eq!(json["paused"], false);
     }
 
-    // A separately released caller may be older than the window vocabulary, and
-    // the day is a better answer than a 422.
     #[test]
     fn a_caller_that_names_no_window_is_answered_with_the_day() {
         let ask: BandwidthAsk = serde_json::from_value(json!({})).unwrap();

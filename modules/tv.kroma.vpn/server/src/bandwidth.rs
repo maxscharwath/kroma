@@ -1,22 +1,12 @@
-//! What the download engine says the bridge carried, as this module's admin
-//! page draws it.
-//!
 //! The engine is the only side that can answer: the bridge is a userspace
 //! WireGuard with no kernel interface to read counters off, so the throughput
-//! IS the engine's transfer while it dials the bridge. That equivalence is only
-//! good for the engine the bridge actually carries, which is why the answer
-//! keeps three byte pairs apart rather than one.
-//!
-//! These structs are this module's own, declaring only what its page reads, and
-//! tolerant: the engine ships on its own tag, so a field it stops sending has to
-//! default rather than blank the panel.
+//! IS the engine's transfer while it dials the bridge.
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use kroma_module_sdk::host::HostCtx;
 
-/// The windows the panel offers, in the words the admin's range control uses.
 pub const RANGES: [&str; 7] = ["12h", "24h", "7d", "30d", "90d", "1y", "all"];
 
 const FALLBACK_RANGE: &str = "24h";
@@ -44,7 +34,6 @@ pub struct BandwidthSeries {
     pub unsealed_secs: Vec<i64>,
 }
 
-/// What the whole window came to.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BandwidthTotals {
@@ -58,7 +47,6 @@ pub struct BandwidthTotals {
     pub unsealed_secs: i64,
 }
 
-/// `GET /vpn/bandwidth`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BandwidthView {
@@ -97,8 +85,6 @@ mod tests {
         assert_eq!(engine_bandwidth(&host, "24h"), None);
     }
 
-    // The engine sends camelCase and ships on its own tag: a field it drops must
-    // default rather than blank the panel.
     #[test]
     fn a_view_deserializes_from_camel_case_and_defaults_what_is_missing() {
         let json = json!({

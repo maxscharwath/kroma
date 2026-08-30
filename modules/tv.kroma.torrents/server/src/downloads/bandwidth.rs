@@ -11,7 +11,6 @@ use super::DownloadManager;
 const HOUR: i64 = 3_600;
 const DAY: i64 = 24 * HOUR;
 
-/// How coarse a stored window becomes once it is this old.
 const LADDER: &[(i64, i64)] = &[
     (DAY, 5 * 60),
     (7 * DAY, 30 * 60),
@@ -26,9 +25,6 @@ fn now_secs() -> i64 {
 }
 
 impl DownloadManager {
-    /// Take one throughput reading and store the window it closes, if any.
-    /// Called on every monitor tick, idle ones included, so a bridge that broke
-    /// while nothing was downloading is still on the record. Blocking.
     pub(super) fn sample_bandwidth(&self, host: &dyn HostCtx) {
         let Ok(conn) = self.core().get() else { return };
         let Ok(counters) = db::transferred_bytes(&conn, db::EMBEDDED_CLIENT_ID) else {
@@ -41,7 +37,7 @@ impl DownloadManager {
             .unwrap()
             .read(now_secs(), counters, self.seal_now(host));
         let Some(closed) = closed else { return };
-        if let Err(e) = db::record_bandwidth_sample(self.store(), &closed) {
+        if let Err(e) = db::add_bandwidth_sample(self.store(), &closed) {
             tracing::warn!(error = %format!("{e:#}"), "vpn bandwidth sample not stored");
             return;
         }
@@ -59,13 +55,9 @@ impl DownloadManager {
         }
     }
 
-    /// The state the last seal probe left the bridge in. It is at most a minute
-    /// old (the monitor's probe cadence), and holding the previous verdict is
-    /// the conservative reading: a bridge is only called sealed while a probe
-    /// says so.
     fn seal_now(&self, host: &dyn HostCtx) -> Seal {
         if !vpn_sealed_expected(host) {
-            return Seal::Off;
+            return Seal::NoBridge;
         }
         match self.vpn_status() {
             Some(status) if status.connected => Seal::Held,
@@ -73,8 +65,7 @@ impl DownloadManager {
         }
     }
 
-    /// The stored series over `range`, for this module's own admin route and
-    /// for whoever asks over the VPN point. Blocking.
+    /// Blocking.
     pub fn bandwidth(&self, host: &dyn HostCtx, range: Range) -> anyhow::Result<BandwidthView> {
         bandwidth::read(self.store(), range, now_secs(), vpn_sealed_expected(host))
     }

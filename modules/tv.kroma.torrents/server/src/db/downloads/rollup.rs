@@ -33,10 +33,6 @@ pub fn download_totals(conn: &Connection) -> rusqlite::Result<DownloadTotals> {
 
 /// The same lifetime counters as [`download_totals`], split by whether the row
 /// runs on the engine `embedded_client_id` names.
-///
-/// The split is the whole point: only the embedded engine's session dials the
-/// VPN bridge, so an external daemon's bytes never touched the tunnel however
-/// sealed it was.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TransferredBytes {
     pub embedded_down: u64,

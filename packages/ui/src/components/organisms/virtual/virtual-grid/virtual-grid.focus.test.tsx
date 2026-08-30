@@ -105,6 +105,51 @@ describe('a windowed grid opened on a row', () => {
   });
 });
 
+function openWithHeader(initialIndex: number) {
+  const view = render(
+    <StrictMode>
+      {onScreen(
+        <VirtualGrid
+          data={OPTIONS}
+          columns={1}
+          itemHeight={ROW}
+          rowGap={GAP}
+          width={520}
+          style={{ height: LIST, width: 520 }}
+          header={
+            <Focusable label="the header" style={{ width: 520, height: ROW }}>
+              {null}
+            </Focusable>
+          }
+          headerHeight={ROW}
+          initialIndex={initialIndex}
+          renderItem={(option) => (
+            <Focusable label={option} style={{ width: 520, height: ROW }}>
+              {null}
+            </Focusable>
+          )}
+        />,
+      )}
+    </StrictMode>,
+  );
+  layout(view.container.firstElementChild as Element, { width: 520, height: LIST });
+  return view;
+}
+
+describe('a grid whose first row is its header', () => {
+  it('opens on the header, which is row 0 like any other', () => {
+    openWithHeader(0);
+
+    expect(ringed()).toEqual(['the header']);
+  });
+
+  it('counts the header when a data row is the one asked for', () => {
+    openWithHeader(1);
+
+    expect(ringed()).toEqual(['row 0']);
+  });
+});
+
 // The strip is translated rather than scrolled, so how far the list has
 // travelled is readable only off its transform.
 function strip(): number {

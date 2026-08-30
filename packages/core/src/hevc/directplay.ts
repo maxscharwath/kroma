@@ -101,6 +101,23 @@ export function decoderMaxFrame(
   };
 }
 
+/**
+ * How an overrun reads to a viewer: the tier the picture is in, and the tier the
+ * decoder stops at. The two tables answer different questions, so they can land
+ * on the same name for a frame that genuinely does not fit: a 2048x858 scope
+ * print is 1080p, and so is the 1920x1920 decoder it overruns on width. The
+ * frame gives its own size there, because a sentence naming one tier twice tells
+ * the viewer nothing.
+ */
+export function overrunLabels({ frame, limit }: FrameOverrun): {
+  source: string;
+  ceiling: string;
+} {
+  const ceiling = ceilingLabel(limit);
+  const source = frameLabel(frame);
+  return { source: source === ceiling ? `${frame.width}x${frame.height}` : source, ceiling };
+}
+
 // Every codec this device cannot decode ends the same way for a viewer, so they
 // share the line that says what to do about it. The headline stays per-codec
 // because the browser shows it alone, with no room for a second line.
@@ -120,7 +137,7 @@ export function canDirectPlay(
     return {
       canDirectPlay: false,
       messageKey: 'player.frameTooLarge',
-      messageVars: { source: frameLabel(over.frame), ceiling: ceilingLabel(over.limit) },
+      messageVars: overrunLabels(over),
       hintKey: 'player.frameTooLargeHint',
     };
 

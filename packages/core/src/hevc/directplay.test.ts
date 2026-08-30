@@ -13,6 +13,7 @@ import {
   decoderMaxFrame,
   frameLabel,
   MSE_CAPS,
+  overrunLabels,
 } from './directplay';
 import { makeItem, track } from './directplay.fixture';
 
@@ -113,6 +114,22 @@ describe('beyondDecoder', () => {
     });
     expect(beyondDecoder(wide, caps)).not.toBeNull();
     expect(beyondDecoder(uhd, MSE_CAPS)).toBeNull();
+  });
+});
+
+describe('overrunLabels', () => {
+  it('names the two tiers when they differ', () => {
+    expect(
+      overrunLabels({ frame: { width: 3840, height: 2160 }, limit: { width: 1920, height: 1920 } }),
+    ).toEqual({ source: '4K', ceiling: '1080p' });
+  });
+
+  it('gives the frame its own size rather than saying 1080p twice', () => {
+    // A 2048x858 scope print overruns a 1920x1920 decoder on width, and both
+    // sides of the sentence would otherwise read 1080p.
+    expect(
+      overrunLabels({ frame: { width: 2048, height: 858 }, limit: { width: 1920, height: 1920 } }),
+    ).toEqual({ source: '2048x858', ceiling: '1080p' });
   });
 });
 

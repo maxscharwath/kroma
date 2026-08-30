@@ -160,7 +160,8 @@ function VirtualGrid<T>({
   // this runs after every commit until the row REPORTS the ring. Asking once is
   // not enough - a row registers, unregisters and registers again as the window
   // settles, and the navigator hands the focus to a neighbour each time the row
-  // holding it leaves the tree.
+  // holding it leaves the tree. The header registers under row 0 like any other,
+  // so a request can always name something that will answer it.
   useEffect(() => {
     const row = wanted.current;
     if (row === null) return;
@@ -186,6 +187,8 @@ function VirtualGrid<T>({
     if (node) nodes.current.set(row, node);
     else nodes.current.delete(row);
   });
+
+  const onHeaderNode = useStableCallback((node: NodeHandle | null) => onNode(0, node));
 
   const onHeaderFocus = useStableCallback(() => {
     ringed.current = 0;
@@ -253,7 +256,7 @@ function VirtualGrid<T>({
           <MovingStrip axis="y" offset={offset} still={fraction !== null} style={contentStyle}>
             <NavigatorView direction="vertical" alignInGrid>
               {hasHeader && shown.start === 0 ? (
-                <NavigatorNode index={0} orientation="horizontal">
+                <NavigatorNode ref={onHeaderNode} index={0} orientation="horizontal">
                   <FocusReporter onFocus={onHeaderFocus}>
                     <View style={HEADER_BOX}>{header}</View>
                   </FocusReporter>

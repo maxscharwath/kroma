@@ -489,6 +489,7 @@
   "admin.noSubfolders": "No subfolders",
   "admin.noUsersPermission": "You don't have permission to manage users.",
   "admin.noVolumes": "No volume detected.",
+  "admin.notRecorded": "Not recorded",
   "admin.notifBodyPlaceholder": "The server reboots at nine.",
   "admin.notifFieldBody": "Message",
   "admin.notifFieldCategory": "Category",

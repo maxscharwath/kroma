@@ -489,6 +489,7 @@
   "admin.noSubfolders": "Aucun sous-dossier",
   "admin.noUsersPermission": "Tu n'as pas la permission de gérer les utilisateurs.",
   "admin.noVolumes": "Aucun volume détecté.",
+  "admin.notRecorded": "Non enregistré",
   "admin.notifBodyPlaceholder": "Le serveur redémarre à 21 h.",
   "admin.notifFieldBody": "Message",
   "admin.notifFieldCategory": "Catégorie",

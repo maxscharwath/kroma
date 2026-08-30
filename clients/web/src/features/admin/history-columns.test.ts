@@ -11,6 +11,7 @@ import {
 const play = (fields: Partial<PlayEntry>): PlayEntry => ({
   id: 'p1',
   username: 'max',
+  inCatalog: true,
   kind: 'movie',
   title: 'Arrival',
   startedAt: 0,

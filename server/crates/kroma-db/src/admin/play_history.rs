@@ -61,7 +61,7 @@ pub struct PlayFilter {
 const COLUMNS: &str = "h.id,h.user_id,COALESCE(h.username,'?'),h.item_id,h.kind,h.title,\
                        h.show_title,h.season,h.episode,h.device,h.player,h.mode,h.network,\
                        h.video_label,h.audio_label,COALESCE(h.library,i.library),\
-                       h.started_at,h.ended_at,h.watched_ms";
+                       h.started_at,h.ended_at,h.watched_ms,i.show_id,i.id IS NOT NULL";
 
 const SCOPE: &str = "FROM play_history h LEFT JOIN items i ON i.id = h.item_id \
                      WHERE h.ended_at >= ?1 \
@@ -151,6 +151,8 @@ fn entry(r: &Row<'_>) -> rusqlite::Result<PlayEntry> {
         started_at: r.get(16)?,
         ended_at: r.get(17)?,
         watched_ms: r.get(18)?,
+        show_id: r.get(19)?,
+        in_catalog: r.get(20)?,
     })
 }
 

@@ -256,6 +256,12 @@ export const PlayEntry = z.object({
   userId: z.string().nullish(),
   username: z.string(),
   itemId: z.string().nullish(),
+  /** The series an episode belongs to, so a row opens the show rather than one
+   *  episode. Absent for a film. */
+  showId: z.string().nullish(),
+  /** False where the title has left the catalog, so a row does not offer a link
+   *  into a page that no longer exists. */
+  inCatalog: z.boolean().default(true),
   kind: z.string(),
   title: z.string(),
   showTitle: z.string().nullish(),

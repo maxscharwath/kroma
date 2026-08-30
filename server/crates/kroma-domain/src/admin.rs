@@ -121,6 +121,12 @@ pub struct PlayEntry {
     pub user_id: Option<String>,
     pub username: String,
     pub item_id: Option<String>,
+    /// The series an episode belongs to, so a row opens the show rather than one
+    /// episode. None for a film, and for an episode the catalog has lost.
+    pub show_id: Option<String>,
+    /// Whether the title is still in the catalog. The log outlives it, so a row
+    /// can name something there is no longer a page for.
+    pub in_catalog: bool,
     pub kind: String,
     pub title: String,
     pub show_title: Option<String>,

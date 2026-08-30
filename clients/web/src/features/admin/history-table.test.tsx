@@ -19,6 +19,7 @@ import { HistoryTable } from '#web/features/admin/history-table';
 const play = (fields: Partial<PlayEntry>): PlayEntry => ({
   id: 'p1',
   username: 'maxime',
+  inCatalog: true,
   kind: 'movie',
   title: 'Les Affranchis',
   startedAt: 0,

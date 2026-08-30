@@ -10,8 +10,8 @@ function base(over: Partial<Opts> = {}): Opts {
   return {
     endedNonce: 0,
     hasNext: false,
-    hasSuggestions: true,
-    onSuggest: vi.fn(),
+    canOffer: true,
+    onOffer: vi.fn(),
     onLeave: vi.fn(),
     ...over,
   };
@@ -22,69 +22,69 @@ describe('usePlayerOutro', () => {
     const opts = base();
     renderHook(() => usePlayerOutro(opts));
 
-    expect(opts.onSuggest).not.toHaveBeenCalled();
+    expect(opts.onOffer).not.toHaveBeenCalled();
     expect(opts.onLeave).not.toHaveBeenCalled();
   });
 
-  it('offers the suggestions when the film ends with something to show', () => {
-    const onSuggest = vi.fn();
+  it('offers the next film when the film ends with one to offer', () => {
+    const onOffer = vi.fn();
     const onLeave = vi.fn();
     const { rerender } = renderHook((opts: Opts) => usePlayerOutro(opts), {
-      initialProps: base({ onSuggest, onLeave }),
+      initialProps: base({ onOffer, onLeave }),
     });
 
-    rerender(base({ endedNonce: 1, onSuggest, onLeave }));
+    rerender(base({ endedNonce: 1, onOffer, onLeave }));
 
-    expect(onSuggest).toHaveBeenCalledTimes(1);
+    expect(onOffer).toHaveBeenCalledTimes(1);
     expect(onLeave).not.toHaveBeenCalled();
   });
 
-  it('leaves the player when the film ends with nothing to show', () => {
-    const onSuggest = vi.fn();
+  it('leaves the player when the film ends with nothing to offer', () => {
+    const onOffer = vi.fn();
     const onLeave = vi.fn();
     const { rerender } = renderHook((opts: Opts) => usePlayerOutro(opts), {
-      initialProps: base({ hasSuggestions: false, onSuggest, onLeave }),
+      initialProps: base({ canOffer: false, onOffer, onLeave }),
     });
 
-    rerender(base({ endedNonce: 1, hasSuggestions: false, onSuggest, onLeave }));
+    rerender(base({ endedNonce: 1, canOffer: false, onOffer, onLeave }));
 
     expect(onLeave).toHaveBeenCalledTimes(1);
-    expect(onSuggest).not.toHaveBeenCalled();
+    expect(onOffer).not.toHaveBeenCalled();
   });
 
   it('stands aside for the credits countdown when an episode is queued', () => {
-    const onSuggest = vi.fn();
+    const onOffer = vi.fn();
     const onLeave = vi.fn();
     const { rerender } = renderHook((opts: Opts) => usePlayerOutro(opts), {
-      initialProps: base({ hasNext: true, onSuggest, onLeave }),
+      initialProps: base({ hasNext: true, onOffer, onLeave }),
     });
 
-    rerender(base({ endedNonce: 1, hasNext: true, onSuggest, onLeave }));
+    rerender(base({ endedNonce: 1, hasNext: true, onOffer, onLeave }));
 
-    expect(onSuggest).not.toHaveBeenCalled();
+    expect(onOffer).not.toHaveBeenCalled();
     expect(onLeave).not.toHaveBeenCalled();
   });
 
-  it('fires once per end, so closing the sheet does not reopen it', () => {
-    const onSuggest = vi.fn();
+  it('fires once per end, so a re-render does not offer twice', () => {
+    const onOffer = vi.fn();
     const { rerender } = renderHook((opts: Opts) => usePlayerOutro(opts), {
-      initialProps: base({ onSuggest }),
+      initialProps: base({ onOffer }),
     });
 
-    rerender(base({ endedNonce: 1, onSuggest }));
-    rerender(base({ endedNonce: 1, onSuggest }));
+    rerender(base({ endedNonce: 1, onOffer }));
+    rerender(base({ endedNonce: 1, onOffer }));
 
-    expect(onSuggest).toHaveBeenCalledTimes(1);
+    expect(onOffer).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a nonce inherited from the title that came before', () => {
-    const onSuggest = vi.fn();
+    const onOffer = vi.fn();
     const onLeave = vi.fn();
     renderHook((opts: Opts) => usePlayerOutro(opts), {
-      initialProps: base({ endedNonce: 3, onSuggest, onLeave }),
+      initialProps: base({ endedNonce: 3, onOffer, onLeave }),
     });
 
-    expect(onSuggest).not.toHaveBeenCalled();
+    expect(onOffer).not.toHaveBeenCalled();
     expect(onLeave).not.toHaveBeenCalled();
   });
 });

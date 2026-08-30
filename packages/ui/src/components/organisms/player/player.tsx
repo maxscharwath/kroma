@@ -1,15 +1,14 @@
-import type { Marker, RemoteKey, ReportCategory } from '@kroma/core';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Marker, ReportCategory } from '@kroma/core';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent, View } from 'react-native';
 import { Dimensions } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
 import { Ground } from '#ui/components/atoms/ground';
 import { styles } from '#ui/core';
 import type { StoryboardTile } from '#ui/services/storyboard';
-import { usePlayerCredits } from './hooks/use-player-credits';
+import { usePlayerEnding } from './hooks/use-player-ending';
 import { usePlayerKeys } from './hooks/use-player-keys';
 import { usePlayerNav } from './hooks/use-player-nav';
-import { usePlayerOutro } from './hooks/use-player-outro';
 import { useSeekNudge } from './hooks/use-seek-nudge';
 import { clamp01, sliderToVolume, volumeToSlider } from './lib/fmt';
 import { chromeMetrics, panelGeometry, scaler, TRANSPORT_HEIGHT } from './lib/metrics';
@@ -18,6 +17,7 @@ import { usePanelSlide } from './lib/panel-slide';
 import type { SubtitleAppearance } from './lib/subtitle-appearance';
 import { surfaceShrink } from './lib/surface-shrink';
 import { CreditsCard, type CreditsCardItem } from './parts/credits-card';
+import { PostPlay, type PostPlayItem } from './parts/post-play';
 import { SettingsPanel } from './parts/settings-panel';
 import type { SubtitleGenBundle } from './parts/settings-panel/settings/gen';
 import { SkipIntroButton } from './parts/skip-intro-button';
@@ -27,7 +27,7 @@ import { TopBar } from './parts/top-bar';
 import { Transport } from './parts/transport';
 import { PEEK_HEIGHT, type UpNextData, type UpNextItem, UpNextSheet } from './parts/up-next-sheet';
 import { deriveChrome, initialSettingsView } from './player-chrome-state';
-import { handleCreditsKey, playerInputHandlers } from './player-input';
+import { playerInputHandlers } from './player-input';
 import { Actions, Media, Panel, PlayerSlotContext, sortSlots } from './player-parts';
 import type {
   Chapter,
@@ -56,6 +56,12 @@ export interface PlayerRootProps {
   /** Given one, the chrome grows a "next" control and plays the credits card. */
   onPlayNext?: () => void;
   nextTitle?: CreditsCardItem | null;
+  /** The film offered when this one ends with no next episode queued. Given
+   *  one, the end raises the full-screen post-play; with none the player
+   *  leaves instead of parking on a dead frame. */
+  postPlay?: PostPlayItem | null;
+  /** Where the post-play's second action goes. Falls back to {@link onClose}. */
+  onGoHome?: () => void;
   /** Whether the film is inside its detected intro window. The skip pill is only
    *  offered while this is true AND `onSkipIntro` is given. */
   introActive?: boolean;
@@ -98,6 +104,8 @@ function Root({
   onPlayItem,
   onPlayNext,
   nextTitle,
+  postPlay,
+  onGoHome,
   introActive,
   onSkipIntro,
   onCast,
@@ -130,20 +138,6 @@ function Root({
     [introActive, onSkipIntro],
   );
 
-  const credits = usePlayerCredits({
-    markers,
-    dur: c.dur,
-    cur: c.cur,
-    seeking: c.seekPreview != null,
-    endedNonce: c.endedNonce,
-    hasNext: Boolean(onPlayNext),
-    onAdvance: () => onPlayNext?.(),
-  });
-  const [creditsFocus, setCreditsFocus] = useState<'play' | 'cancel'>('play');
-  useEffect(() => {
-    if (credits.show) setCreditsFocus('play');
-  }, [credits.show]);
-
   // Measured BEFORE the nav machine, which is then given the row that is drawn:
   // a shed control must not keep a focus stop.
   const row = useMemo(() => controlOrder(flags, Boolean(onPlayNext)), [flags, onPlayNext]);
@@ -169,8 +163,17 @@ function Root({
     metrics.controls,
   );
 
-  const creditsKey = (key: RemoteKey): boolean =>
-    handleCreditsKey(key, creditsFocus, setCreditsFocus, () => onPlayNext?.(), credits.cancel);
+  const ending = usePlayerEnding({
+    controller: c,
+    markers,
+    postPlay,
+    onPlayNext,
+    onPlayItem,
+    onGoHome,
+    onLeave: () => close('ended'),
+    onClearOverlay: nav.closeOverlay,
+  });
+  const credits = ending.credits;
 
   usePlayerKeys({
     nav,
@@ -179,15 +182,8 @@ function Root({
     panelRef,
     locked,
     intro,
-    credits: { active: credits.show, onKey: creditsKey },
-  });
-
-  usePlayerOutro({
-    endedNonce: c.endedNonce,
-    hasNext: Boolean(onPlayNext),
-    hasSuggestions: upNext.recommendations.length + upNext.nextEpisodes.length > 0,
-    onSuggest: () => nav.openOverlay('sheet'),
-    onLeave: () => close('ended'),
+    credits: { active: credits.show, onKey: ending.onCreditsKey },
+    postPlay: { active: ending.over, onKey: ending.onPostPlayKey },
   });
 
   const panel = useMemo(() => panelGeometry(stageSize.width), [stageSize.width]);
@@ -196,6 +192,7 @@ function Root({
     nav,
     upNext,
     panel.covers,
+    ending.over,
   );
   const settings = usePanelSlide(settingsOpen);
   const initialView = initialSettingsView(nav.overlay);
@@ -264,8 +261,8 @@ function Root({
               item={nextTitle}
               secondsLeft={credits.secondsLeft}
               total={credits.total}
-              playFocused={creditsFocus === 'play'}
-              cancelFocused={creditsFocus === 'cancel'}
+              playFocused={ending.creditsFocus === 'play'}
+              cancelFocused={ending.creditsFocus === 'cancel'}
               scale={metrics.scale}
               onPlay={() => onPlayNext?.()}
               onCancel={credits.cancel}
@@ -338,6 +335,17 @@ function Root({
               overflow={metrics.overflow}
               onControl={runOverflow}
               onClose={() => nav.closeOverlay()}
+            />
+          ) : null}
+
+          {/* end of the film (§10) */}
+          {ending.over && postPlay ? (
+            <PostPlay
+              item={postPlay}
+              focus={ending.postPlayFocus}
+              stageWidth={stageSize.width}
+              onPlay={ending.playOffer}
+              onHome={ending.goHome}
             />
           ) : null}
 

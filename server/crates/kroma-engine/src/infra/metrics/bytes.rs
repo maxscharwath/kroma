@@ -42,6 +42,14 @@ impl ByteSink {
     }
 }
 
+#[cfg(test)]
+impl ByteSink {
+    pub(crate) fn counting() -> (Self, Arc<AtomicU64>) {
+        let counter = Arc::new(AtomicU64::new(0));
+        (ByteSink(Some(counter.clone())), counter)
+    }
+}
+
 pub(super) fn mbps(bytes: u64, dt: f64) -> f64 {
     (bytes as f64) * 8.0 / dt / 1_000_000.0
 }

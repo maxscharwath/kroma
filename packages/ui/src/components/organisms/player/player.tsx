@@ -9,6 +9,7 @@ import type { StoryboardTile } from '#ui/services/storyboard';
 import { usePlayerCredits } from './hooks/use-player-credits';
 import { usePlayerKeys } from './hooks/use-player-keys';
 import { usePlayerNav } from './hooks/use-player-nav';
+import { usePlayerOutro } from './hooks/use-player-outro';
 import { useSeekNudge } from './hooks/use-seek-nudge';
 import { clamp01, sliderToVolume, volumeToSlider } from './lib/fmt';
 import { chromeMetrics, panelGeometry, scaler, TRANSPORT_HEIGHT } from './lib/metrics';
@@ -179,6 +180,14 @@ function Root({
     locked,
     intro,
     credits: { active: credits.show, onKey: creditsKey },
+  });
+
+  usePlayerOutro({
+    endedNonce: c.endedNonce,
+    hasNext: Boolean(onPlayNext),
+    hasSuggestions: upNext.recommendations.length + upNext.nextEpisodes.length > 0,
+    onSuggest: () => nav.openOverlay('sheet'),
+    onLeave: () => close('ended'),
   });
 
   const panel = useMemo(() => panelGeometry(stageSize.width), [stageSize.width]);

@@ -8,6 +8,7 @@ import { I18nProvider } from '#ui/services/i18n';
 import { DEFAULT_SUB_APPEARANCE } from './lib/subtitle-appearance';
 import type { CreditsCardItem } from './parts/credits-card';
 import type { SubtitleGenBundle } from './parts/settings-panel/settings/gen';
+import type { UpNextData } from './parts/up-next-sheet';
 import { Player } from './player';
 import { fakeController } from './player.fixture';
 import { type PlayerCloseDetails, type PlayerController, WEB_FLAGS } from './types';
@@ -31,12 +32,15 @@ const media = (
   </Player.Media>
 );
 
+const NO_UP_NEXT: UpNextData = { nextEpisodes: [], recommendations: [] };
+
 interface Over {
   onClose?: (details: PlayerCloseDetails) => void;
   controller?: PlayerController;
   ref?: Ref<View>;
   onPlayNext?: () => void;
   nextTitle?: CreditsCardItem;
+  upNext?: UpNextData;
 }
 
 function player(children: ReactNode, over: Over = {}) {
@@ -51,7 +55,7 @@ function player(children: ReactNode, over: Over = {}) {
         appearance={DEFAULT_SUB_APPEARANCE}
         onAppearanceChange={() => {}}
         subtitleGen={NO_GEN}
-        upNext={{ nextEpisodes: [], recommendations: [] }}
+        upNext={over.upNext ?? NO_UP_NEXT}
         onPlayNext={over.onPlayNext}
         nextTitle={over.nextTitle}
         onClose={over.onClose ?? (() => {})}
@@ -153,6 +157,16 @@ describe('<Player.Root> says why it was closed', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledWith({ reason: 'back' });
   });
+
+  it('leaves on its own as `ended` when the film runs out with nothing to offer after it', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(player(media, { onClose }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    rerender(player(media, { onClose, controller: fakeController({ endedNonce: 1 }) }));
+
+    expect(onClose).toHaveBeenCalledWith({ reason: 'ended' });
+  });
 });
 
 describe('<Player.Root> and the overlays it owns', () => {
@@ -170,6 +184,22 @@ describe('<Player.Root> and the overlays it owns', () => {
 
     fireEvent.click(screen.getByLabelText('Close'));
     expect(screen.queryByText('Direct · HEVC passthrough')).toBeNull();
+  });
+
+  it('raises the up-next sheet instead of leaving when the film ends with something to suggest', () => {
+    const onClose = vi.fn();
+    const upNext = {
+      nextEpisodes: [],
+      recommendations: [{ id: 'br', title: 'Blade Runner' }],
+    };
+    const { rerender } = render(player(media, { onClose, upNext }));
+    // Parked, the sheet is a picture: its cards carry no control at all.
+    expect(screen.queryByLabelText('Blade Runner')).toBeNull();
+
+    rerender(player(media, { onClose, upNext, controller: fakeController({ endedNonce: 1 }) }));
+
+    expect(screen.getByLabelText('Blade Runner')).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('plays the next title from the credits card', () => {

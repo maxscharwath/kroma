@@ -726,6 +726,7 @@
   "admin.version": "Version installée",
   "admin.viewFullHistory": "Voir l'historique complet",
   "admin.viewMemberHistory": "Voir l'historique de lecture",
+  "admin.viewers": "{count} utilisateurs",
   "admin.viewers_one": "{count} utilisateur",
   "admin.viewers_other": "{count} utilisateurs",
   "admin.volumes": "Volumes",

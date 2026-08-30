@@ -726,6 +726,7 @@
   "admin.version": "Installed version",
   "admin.viewFullHistory": "See the full history",
   "admin.viewMemberHistory": "See playback history",
+  "admin.viewers": "{count} viewers",
   "admin.viewers_one": "{count} viewer",
   "admin.viewers_other": "{count} viewers",
   "admin.volumes": "Volumes",

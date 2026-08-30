@@ -27,12 +27,7 @@ export const WATCH_RANGES = [
   'all',
 ] as const satisfies readonly WatchRange[];
 
-export const WATCH_KINDS = [
-  'movie',
-  'tv',
-  'music',
-  'photo',
-] as const satisfies readonly WatchKind[];
+export const WATCH_KINDS = ['movie', 'tv'] as const satisfies readonly WatchKind[];
 
 export const EVERYONE = 'everyone';
 
@@ -56,8 +51,6 @@ const RANGE_LABEL = {
 const KIND_LABEL = {
   movie: 'admin.kindMovie',
   tv: 'admin.kindTv',
-  music: 'admin.kindMusic',
-  photo: 'admin.kindPhoto',
 } as const satisfies Record<WatchKind, string>;
 
 const SCOPE_LABEL = {

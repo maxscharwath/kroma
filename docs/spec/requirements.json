@@ -265,7 +265,7 @@
     "space": "admin",
     "number": 27,
     "status": "AGREED",
-    "text": "Each card breaks its total down by kind of media, one row per kind",
+    "text": "Each card breaks its total down by kind of media, one row for movies",
     "file": "docs/spec/admin/dashboard-audience.md",
     "line": 17
   },
@@ -277,7 +277,7 @@
     "status": "AGREED",
     "text": "An account that watched nothing in the window still appears, with",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 21
+    "line": 22
   },
   {
     "id": "ADMIN-29",
@@ -287,7 +287,7 @@
     "status": "AGREED",
     "text": "The window control offers the last 24 hours, 7 days, 30 days, 90",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 24
+    "line": 25
   },
   {
     "id": "ADMIN-30",
@@ -297,7 +297,7 @@
     "status": "AGREED",
     "text": "With more accounts than fit, the panel pages through them rather",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 27
+    "line": 28
   },
   {
     "id": "ADMIN-31",
@@ -307,7 +307,7 @@
     "status": "AGREED",
     "text": "Each card carries the account's avatar where it has one, and falls",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 30
+    "line": 31
   },
   {
     "id": "ADMIN-32",
@@ -317,7 +317,7 @@
     "status": "AGREED",
     "text": "The panel plots time watched per bucket over a chosen window,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 37
+    "line": 38
   },
   {
     "id": "ADMIN-33",
@@ -327,7 +327,7 @@
     "status": "AGREED",
     "text": "The bucket width is chosen from the window so the chart always",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 41
+    "line": 42
   },
   {
     "id": "ADMIN-34",
@@ -337,7 +337,7 @@
     "status": "AGREED",
     "text": "The panel carries three independent filters: kind of media, account,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 45
+    "line": 46
   },
   {
     "id": "ADMIN-35",
@@ -347,7 +347,7 @@
     "status": "AGREED",
     "text": "The account filter lists every account with history in the window,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 48
+    "line": 49
   },
   {
     "id": "ADMIN-36",
@@ -357,7 +357,7 @@
     "status": "AGREED",
     "text": "A footer states the total time for each kind of media over the whole",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 51
+    "line": 52
   },
   {
     "id": "ADMIN-37",
@@ -367,7 +367,7 @@
     "status": "AGREED",
     "text": "The panel links to the full history screen",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 54
+    "line": 55
   },
   {
     "id": "ADMIN-38",
@@ -377,7 +377,7 @@
     "status": "AGREED",
     "text": "Each kind of media keeps one colour across this panel, the top-viewer",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 58
+    "line": 59
   },
   {
     "id": "ADMIN-39",
@@ -397,7 +397,7 @@
     "status": "AGREED",
     "text": "Each column is headed by the artwork of its own top title, labelled",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 16
+    "line": 21
   },
   {
     "id": "ADMIN-41",
@@ -407,7 +407,7 @@
     "status": "AGREED",
     "text": "Each entry names the title, its play count, and how many distinct",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 19
+    "line": 24
   },
   {
     "id": "ADMIN-42",
@@ -417,7 +417,7 @@
     "status": "AGREED",
     "text": "An entry is a series where the plays were episodes, not a row per",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 23
+    "line": 28
   },
   {
     "id": "ADMIN-43",
@@ -427,7 +427,7 @@
     "status": "AGREED",
     "text": "Each entry carries its poster, and falls back to a title-seeded",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 27
+    "line": 32
   },
   {
     "id": "ADMIN-44",
@@ -437,7 +437,7 @@
     "status": "AGREED",
     "text": "A column with no plays in the window says so in its own words rather",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 30
+    "line": 35
   },
   {
     "id": "ADMIN-45",
@@ -447,7 +447,7 @@
     "status": "AGREED",
     "text": "The panel carries two filters, account and window, defaulting to",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 34
+    "line": 39
   },
   {
     "id": "ADMIN-46",
@@ -457,7 +457,7 @@
     "status": "AGREED",
     "text": "Selecting an entry opens that title's own watch history",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 37
+    "line": 42
   },
   {
     "id": "ADMIN-47",
@@ -467,7 +467,7 @@
     "status": "AGREED",
     "text": "A play is one finished session in the log, whatever fraction of the",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 45
+    "line": 50
   },
   {
     "id": "ADMIN-48",
@@ -477,7 +477,7 @@
     "status": "AGREED",
     "text": "Two sessions of the same title by the same account count as two",
     "file": "docs/spec/admin/dashboard-most-watched.md",
-    "line": 49
+    "line": 54
   },
   {
     "id": "ADMIN-49",
@@ -728,5 +728,15 @@
     "text": "A member can always read their own history. What the product does",
     "file": "docs/spec/admin/watch-history.md",
     "line": 84
+  },
+  {
+    "id": "ADMIN-74",
+    "domain": "ADMIN",
+    "space": "admin",
+    "number": 74,
+    "status": "AGREED",
+    "text": "A column is bounded in height and scrolls inside that bound. The",
+    "file": "docs/spec/admin/dashboard-most-watched.md",
+    "line": 17
   }
 ]

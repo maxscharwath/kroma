@@ -1,15 +1,15 @@
 import type { MessageKey, PlayEntry } from '@kroma/core';
-import { TABULAR, useSortedTable } from '@kroma/module-sdk';
 import { useT } from '@kroma/ui';
-import { Box, Button, Row, Text } from '@kroma/ui/kit';
+import { Box, Pagination, Row } from '@kroma/ui/kit';
 import { useMemo } from 'react';
 import { HISTORY_COLUMNS, ITEM_HISTORY_COLUMNS } from '#web/features/admin/history-columns';
 import { HistoryFilters } from '#web/features/admin/history-filters';
 import {
   HISTORY_PAGE,
   type HistorySearch,
+  historyOrderedBy,
   historyRequest,
-  NEWEST_FIRST,
+  historySort,
 } from '#web/features/admin/history-query';
 import { HistoryTable } from '#web/features/admin/history-table';
 import { Denied, PageHeader, useCap, usePoll } from '#web/features/admin/shell';
@@ -53,18 +53,10 @@ function HistoryPageInner({ search, onSearchChange }: Readonly<HistoryScreenProp
 
   const plays = data?.plays ?? [];
   const total = data?.total ?? 0;
+  const page = search.page ?? 1;
+  const pageCount = Math.max(1, Math.ceil(total / HISTORY_PAGE));
   const oneTitle = search.item !== undefined;
   const columns = oneTitle ? ITEM_HISTORY_COLUMNS : HISTORY_COLUMNS;
-
-  const { table, headings } = useSortedTable({
-    columns,
-    rows: plays,
-    page: { page: search.page ?? 1, perPage: HISTORY_PAGE, total },
-    query: search,
-    onQueryChange: onSearchChange,
-    defaultOrder: NEWEST_FIRST,
-    rowId: (play) => play.id,
-  });
 
   const named = oneTitle ? titleOf(plays) : null;
   const emptyKey: MessageKey = oneTitle ? 'admin.itemHistoryEmpty' : 'admin.noHistory';
@@ -90,32 +82,22 @@ function HistoryPageInner({ search, onSearchChange }: Readonly<HistoryScreenProp
       <Box mt={24}>
         <HistoryTable
           columns={columns}
-          headings={headings}
-          plays={table.getRowModel().rows.map((row) => row.original)}
+          plays={plays}
+          sort={historySort(search)}
+          onSortChange={(next) => onSearchChange(historyOrderedBy(search, next))}
           emptyKey={emptyKey}
           loaded={data !== null}
         />
       </Box>
 
-      {table.getPageCount() > 1 ? (
-        <Row between mt={14}>
-          <Button
-            variant="ghost"
-            disabled={!table.getCanPreviousPage()}
-            onPress={() => table.previousPage()}
-          >
-            {t('common.previous')}
-          </Button>
-          <Text variant="meta" color="textMuted" style={TABULAR}>
-            {`${table.getState().pagination.pageIndex + 1} / ${table.getPageCount()}`}
-          </Text>
-          <Button
-            variant="ghost"
-            disabled={!table.getCanNextPage()}
-            onPress={() => table.nextPage()}
-          >
-            {t('common.next')}
-          </Button>
+      {pageCount > 1 ? (
+        <Row justify="flex-end" mt={14}>
+          <Pagination.Root
+            page={page}
+            pageCount={pageCount}
+            onPageChange={(next) => onSearchChange({ ...search, page: next })}
+            label={t('admin.historyScreen')}
+          />
         </Row>
       ) : null}
     </>

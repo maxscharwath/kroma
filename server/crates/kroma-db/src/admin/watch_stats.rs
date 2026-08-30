@@ -133,24 +133,30 @@ pub fn most_watched(
                   COALESCE(s.title, h.show_title, i.title, h.title) AS title, \
                   h.kind AS kind, \
                   COALESCE(s.year, i.year) AS year, \
+                  COALESCE(ms.poster_url, json_extract(s.metadata,'$.posterUrl'), \
+                           mi.poster_url, json_extract(i.metadata,'$.posterUrl')) AS poster_url, \
                   COALESCE(h.user_id, h.username) AS who \
            FROM play_history h \
            LEFT JOIN items i ON i.id = h.item_id \
            LEFT JOIN shows s ON s.id = i.show_id \
+           LEFT JOIN metadata_core ms \
+             ON ms.subject_kind = 'show' AND ms.subject_id = i.show_id \
+           LEFT JOIN metadata_core mi \
+             ON mi.subject_kind = 'item' AND mi.subject_id = h.item_id \
            WHERE h.ended_at >= ?1 AND (?2 IS NULL OR h.user_id = ?2) \
          ) \
-         SELECT COALESCE(MAX(show_id), MIN(item_id), group_id), MAX(show_id), MIN(title), kind, \
-                MAX(year), COUNT(*), COUNT(DISTINCT who) \
+         SELECT COALESCE(MAX(show_id), MIN(item_id), group_id), MIN(title), kind, \
+                MAX(year), MAX(poster_url), COUNT(*), COUNT(DISTINCT who) \
          FROM rolled GROUP BY group_id, kind \
-         ORDER BY 6 DESC, 3 ASC LIMIT ?3",
+         ORDER BY 6 DESC, 2 ASC LIMIT ?3",
     )?;
     let rows = stmt.query_map(params![since, user, GROUP_SCAN_LIMIT], |r| {
         Ok(MostWatchedEntry {
             item_id: r.get(0)?,
-            show_id: r.get(1)?,
-            title: r.get(2)?,
-            kind: WatchKind::from_media_kind(&r.get::<_, String>(3)?),
-            year: r.get(4)?,
+            title: r.get(1)?,
+            kind: WatchKind::from_media_kind(&r.get::<_, String>(2)?),
+            year: r.get(3)?,
+            poster_url: r.get(4)?,
             plays: r.get(5)?,
             viewers: r.get(6)?,
         })
@@ -208,6 +214,17 @@ mod tests {
         columns.iter().find(|c| c.kind == kind).unwrap()
     }
 
+    fn seed_poster(pool: &Pool, subject_kind: &str, subject_id: &str, url: &str) {
+        pool.get()
+            .unwrap()
+            .execute(
+                "INSERT INTO metadata_core (subject_kind,subject_id,poster_url,updated_at) \
+                 VALUES (?1,?2,?3,0)",
+                rusqlite::params![subject_kind, subject_id, url],
+            )
+            .unwrap();
+    }
+
     #[test]
     fn the_panel_ranks_accounts_by_time_watched() {
         let p = pool();
@@ -237,7 +254,6 @@ mod tests {
     fn a_card_carries_every_kind_including_the_ones_at_zero() {
         let p = pool();
         seed_user(&p, "u1", "alice", None);
-        watched(&p, "u1", "alice", "dune", "movie", 60_000);
         watched(&p, "u1", "alice", "clip", "video", 5_000);
 
         let top = top_users(&p, 0, 10).unwrap();
@@ -245,13 +261,11 @@ mod tests {
         assert_eq!(
             top[0].by_kind,
             WatchTotals {
-                movie: 60_000,
-                tv: 5_000,
-                music: 0,
-                photo: 0
+                movie: 0,
+                tv: 5_000
             }
         );
-        assert_eq!(top[0].by_kind.get(WatchKind::Music), 0);
+        assert_eq!(top[0].by_kind.get(WatchKind::Tv), 5_000);
     }
 
     #[test]
@@ -301,9 +315,12 @@ mod tests {
                 .collect::<Vec<_>>(),
             [30_000]
         );
-        assert!(history_since(&p, 0, None, Some(WatchKind::Music))
-            .unwrap()
-            .is_empty());
+        assert_eq!(
+            history_since(&p, 0, None, Some(WatchKind::Movie))
+                .unwrap()
+                .len(),
+            2
+        );
         assert!(history_since(&p, 1_000, None, None).unwrap().is_empty());
     }
 
@@ -325,12 +342,10 @@ mod tests {
         assert_eq!(tv.len(), 1);
         assert_eq!(tv[0].title, "Severance");
         assert_eq!(tv[0].item_id, "sev");
-        assert_eq!(tv[0].show_id.as_deref(), Some("sev"));
         assert_eq!(tv[0].year, Some(2022));
         assert_eq!(tv[0].plays, 3);
         let films = &column(&columns, WatchKind::Movie).entries;
         assert_eq!(films[0].item_id, "dune");
-        assert_eq!(films[0].show_id, None);
         assert_eq!(films[0].year, Some(2021));
     }
 
@@ -360,8 +375,7 @@ mod tests {
             columns.iter().map(|c| c.kind).collect::<Vec<_>>(),
             WatchKind::ALL
         );
-        assert!(column(&columns, WatchKind::Music).entries.is_empty());
-        assert!(column(&columns, WatchKind::Photo).entries.is_empty());
+        assert!(column(&columns, WatchKind::Tv).entries.is_empty());
     }
 
     #[test]
@@ -391,5 +405,54 @@ mod tests {
         let columns = most_watched(&p, 0, None, 2).unwrap();
 
         assert_eq!(column(&columns, WatchKind::Movie).entries.len(), 2);
+    }
+
+    #[test]
+    fn an_entry_carries_the_artwork_the_catalogue_holds_for_it() {
+        let p = pool();
+        seed_movie(&p, "dune", "lib-films", "Dune", 2021);
+        seed_poster(&p, "item", "dune", "/api/images/dune.webp");
+        watched(&p, "u1", "alice", "dune", "movie", 1_000);
+
+        let columns = most_watched(&p, 0, None, 10).unwrap();
+
+        assert_eq!(
+            column(&columns, WatchKind::Movie).entries[0]
+                .poster_url
+                .as_deref(),
+            Some("/api/images/dune.webp")
+        );
+    }
+
+    #[test]
+    fn a_series_carries_the_shows_artwork_rather_than_an_episodes() {
+        let p = pool();
+        seed_show(&p, "sev", "lib-tv", "Severance", 2022);
+        seed_episode(&p, "ep1", "sev", "lib-tv", "Good News About Hell");
+        seed_poster(&p, "show", "sev", "/api/images/severance.webp");
+        seed_poster(&p, "item", "ep1", "/api/images/episode.webp");
+        episode_of(&p, "u1", "alice", "ep1", "Severance");
+
+        let columns = most_watched(&p, 0, None, 10).unwrap();
+
+        assert_eq!(
+            column(&columns, WatchKind::Tv).entries[0]
+                .poster_url
+                .as_deref(),
+            Some("/api/images/severance.webp")
+        );
+    }
+
+    #[test]
+    fn a_title_the_catalogue_has_no_art_for_carries_no_poster() {
+        let p = pool();
+        seed_movie(&p, "dune", "lib-films", "Dune", 2021);
+        watched(&p, "u1", "alice", "dune", "movie", 1_000);
+
+        let columns = most_watched(&p, 0, None, 10).unwrap();
+
+        assert!(column(&columns, WatchKind::Movie).entries[0]
+            .poster_url
+            .is_none());
     }
 }

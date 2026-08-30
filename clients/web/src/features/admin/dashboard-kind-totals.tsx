@@ -12,8 +12,6 @@ export function kindTotals(
   return {
     movie: byKind?.movie ?? films,
     tv: byKind?.tv ?? tv,
-    music: byKind?.music ?? 0,
-    photo: byKind?.photo ?? 0,
   };
 }
 

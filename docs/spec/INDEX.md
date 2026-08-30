@@ -3,7 +3,7 @@
 
 # Requirement index
 
-73 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
+74 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
 
 ## ADMIN - [admin](admin/)
 
@@ -33,7 +33,7 @@
 - **ADMIN-24** (AGREED) - Sampling runs whether or not anyone is looking, because the history <sub>[dashboard-resources.md](admin/dashboard-resources.md)</sub>
 - **ADMIN-25** (AGREED) - The server states its own sample interval alongside the data, so a <sub>[dashboard-resources.md](admin/dashboard-resources.md)</sub>
 - **ADMIN-26** (AGREED) - The panel ranks accounts by time watched over a chosen window, most <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
-- **ADMIN-27** (AGREED) - Each card breaks its total down by kind of media, one row per kind <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
+- **ADMIN-27** (AGREED) - Each card breaks its total down by kind of media, one row for movies <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
 - **ADMIN-28** (AGREED) - An account that watched nothing in the window still appears, with <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
 - **ADMIN-29** (AGREED) - The window control offers the last 24 hours, 7 days, 30 days, 90 <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
 - **ADMIN-30** (AGREED) - With more accounts than fit, the panel pages through them rather <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
@@ -80,3 +80,4 @@
 - **ADMIN-71** (AGREED) - An account deleted from the server keeps its rows, attributed to the <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-72** (AGREED) - The screen requires the permission to manage users. A watch history <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-73** (AGREED) - A member can always read their own history. What the product does <sub>[watch-history.md](admin/watch-history.md)</sub>
+- **ADMIN-74** (AGREED) - A column is bounded in height and scrolls inside that bound. The <sub>[dashboard-most-watched.md](admin/dashboard-most-watched.md)</sub>

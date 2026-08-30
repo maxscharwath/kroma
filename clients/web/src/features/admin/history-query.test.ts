@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { historyRequest, validateHistorySearch } from './history-query';
+import {
+  historyOrderedBy,
+  historyRequest,
+  historySort,
+  validateHistorySearch,
+} from './history-query';
 
 describe("the watch history's address", () => {
   it('asks for everything the log holds when no window is named', () => {
@@ -42,5 +47,38 @@ describe("the watch history's address", () => {
     const search = validateHistorySearch({ item: 'show-4', user: 'u-7' });
 
     expect(historyRequest(search)).toMatchObject({ item: 'show-4', user: 'u-7' });
+  });
+});
+
+describe("the table's order", () => {
+  it('says the newest is first until a column is picked', () => {
+    expect(historySort({})).toEqual([{ column: 'endedAt', direction: 'desc' }]);
+  });
+
+  it('says the column and the direction the address arrived with', () => {
+    expect(historySort({ sort: 'title', dir: 'asc' })).toEqual([
+      { column: 'title', direction: 'asc' },
+    ]);
+  });
+
+  it('writes a pressed heading into the address and returns to the first page', () => {
+    const search = historyOrderedBy({ item: 'dune', page: 4 }, [
+      { column: 'username', direction: 'asc' },
+    ]);
+
+    expect(search).toEqual({ item: 'dune', page: 1, sort: 'username', dir: 'asc' });
+  });
+
+  it('leaves the default order out of the address rather than spelling it', () => {
+    const search = historyOrderedBy({ sort: 'title', dir: 'asc' }, []);
+
+    expect(historySort(search)).toEqual([{ column: 'endedAt', direction: 'desc' }]);
+    expect(search.sort).toBeUndefined();
+  });
+
+  it('ignores a column the table cannot order by', () => {
+    const search = historyOrderedBy({}, [{ column: 'watchedMs', direction: 'asc' }]);
+
+    expect(search.sort).toBeUndefined();
   });
 });

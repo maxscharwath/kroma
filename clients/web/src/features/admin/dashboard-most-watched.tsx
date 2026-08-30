@@ -18,6 +18,7 @@ import {
   Text,
   tintGradient,
 } from '@kroma/ui/kit';
+import { ScrollView } from 'react-native';
 import { useAccountOptions } from '#web/features/admin/dashboard-accounts';
 import {
   daysOf,
@@ -38,9 +39,10 @@ const POLL_MS = 60000;
 const HEAD_HEIGHT = 128;
 const HEAD_CROP = '50% 30%';
 const THUMB_WIDTH = 36;
+const LIST_HEIGHT = 360;
 
-function posterOf(client: KromaClient, entry: MostWatchedEntry): string {
-  return entry.showId ? client.showPosterUrl(entry.showId) : client.posterFor({ id: entry.itemId });
+function posterOf(client: KromaClient, entry: MostWatchedEntry, width?: number): string | null {
+  return client.resolveArt(entry.posterUrl, width);
 }
 
 function viewersLabel(t: Translate, count: number): string {
@@ -75,7 +77,7 @@ export function MostWatchedSection() {
           </Row>
         </Section.Actions>
       </Section.Header>
-      <Grid min={260} gap={16}>
+      <Grid columns={2} gap={16}>
         {(data?.columns ?? []).map((column) => (
           <KindColumn key={column.kind} column={column} />
         ))}
@@ -108,11 +110,11 @@ function KindColumn({ column }: Readonly<{ column: MostWatchedColumn }>) {
           {t('admin.mostWatchedEmpty')}
         </Text>
       ) : (
-        <Box>
+        <ScrollView style={s.list}>
           {column.entries.map((entry) => (
             <EntryRow key={entry.itemId} entry={entry} />
           ))}
-        </Box>
+        </ScrollView>
       )}
     </Surface>
   );
@@ -131,7 +133,7 @@ function EntryRow({ entry }: Readonly<{ entry: MostWatchedEntry }>) {
     >
       <Box w={THUMB_WIDTH} aspect={2 / 3} radius="sm" overflow="hidden" shrink={0}>
         <Img
-          src={posterOf(client, entry)}
+          src={posterOf(client, entry, THUMB_WIDTH)}
           background={tintGradient(posterColors(entry.title))}
           fill
         />
@@ -150,4 +152,5 @@ function EntryRow({ entry }: Readonly<{ entry: MostWatchedEntry }>) {
 
 const s = styles({
   entry: { row: true, align: 'center', gap: 12, px: 14, py: 10 },
+  list: { maxH: LIST_HEIGHT },
 });

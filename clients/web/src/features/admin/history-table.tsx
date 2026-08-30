@@ -1,12 +1,11 @@
 import type { MessageKey, PlayEntry } from '@kroma/core';
-import { TABULAR, Table, type TableHeading } from '@kroma/module-sdk';
+import { TABULAR } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
-import { Box, EmptyState, Text } from '@kroma/ui/kit';
+import { Box, EmptyState, type SortColumn, Table, Text } from '@kroma/ui/kit';
 import type { ComponentType } from 'react';
 import {
   type HistoryColumn,
   type HistorySort,
-  historyGrid,
   kindKey,
   titleLines,
 } from '#web/features/admin/history-columns';
@@ -49,7 +48,7 @@ function TitleCell({ play }: Readonly<{ play: PlayEntry }>) {
 function PlayerCell({ play }: Readonly<{ play: PlayEntry }>) {
   return (
     <Text variant="meta" color="textMuted" lines={1}>
-      {play.device ?? ABSENT}
+      {play.player ?? ABSENT}
     </Text>
   );
 }
@@ -57,7 +56,7 @@ function PlayerCell({ play }: Readonly<{ play: PlayEntry }>) {
 function PlatformCell({ play }: Readonly<{ play: PlayEntry }>) {
   return (
     <Text variant="meta" color="textDim" lines={1}>
-      {play.player ?? ABSENT}
+      {play.device ?? ABSENT}
     </Text>
   );
 }
@@ -75,8 +74,8 @@ const CELLS: Record<HistorySort, ComponentType<{ play: PlayEntry }>> = {
   username: UserCell,
   kind: KindCell,
   title: TitleCell,
-  device: PlayerCell,
-  player: PlatformCell,
+  player: PlayerCell,
+  device: PlatformCell,
   endedAt: WhenCell,
 };
 
@@ -87,9 +86,9 @@ function HistoryRow({
   return (
     <Table.Row>
       {columns.map((column) => {
-        const Cell = CELLS[column.sortKey];
+        const Cell = CELLS[column.column];
         return (
-          <Table.Cell key={column.sortKey} wide={column.wide}>
+          <Table.Cell key={column.column}>
             <Cell play={play} />
           </Table.Cell>
         );
@@ -100,45 +99,49 @@ function HistoryRow({
 
 interface HistoryTableProps {
   columns: readonly HistoryColumn[];
-  headings: readonly TableHeading[];
   plays: readonly PlayEntry[];
+  sort: readonly SortColumn[];
+  onSortChange: (next: readonly SortColumn[]) => void;
   emptyKey: MessageKey;
   loaded: boolean;
 }
 
 export function HistoryTable({
   columns,
-  headings,
   plays,
+  sort,
+  onSortChange,
   emptyKey,
   loaded,
 }: Readonly<HistoryTableProps>) {
   const t = useT();
+  if (loaded && plays.length === 0) {
+    return (
+      <EmptyState.Root icon="history">
+        <EmptyState.Title>{t(emptyKey)}</EmptyState.Title>
+      </EmptyState.Root>
+    );
+  }
   return (
-    <Table.Root columns={historyGrid(columns)} label={t('admin.historyScreen')}>
+    <Table.Root
+      label={t('admin.historyScreen')}
+      columns={columns}
+      required
+      sort={sort}
+      onSortChange={onSortChange}
+    >
       <Table.Header>
-        {columns.map((column) => {
-          const heading = headings.find((candidate) => candidate.id === column.sortKey);
-          return (
-            <Table.Column
-              key={column.sortKey}
-              wide={column.wide}
-              sorted={heading?.sorted ?? false}
-              onSortPress={heading?.onSortPress}
-            >
-              {t(column.labelKey)}
-            </Table.Column>
-          );
-        })}
+        <Table.Row>
+          {columns.map((column) => (
+            <Table.Cell key={column.column}>{t(column.labelKey)}</Table.Cell>
+          ))}
+        </Table.Row>
       </Table.Header>
-      {plays.map((play) => (
-        <HistoryRow key={play.id} play={play} columns={columns} />
-      ))}
-      {loaded && plays.length === 0 ? (
-        <EmptyState.Root icon="history">
-          <EmptyState.Title>{t(emptyKey)}</EmptyState.Title>
-        </EmptyState.Root>
-      ) : null}
+      <Table.Body>
+        {plays.map((play) => (
+          <HistoryRow key={play.id} play={play} columns={columns} />
+        ))}
+      </Table.Body>
     </Table.Root>
   );
 }

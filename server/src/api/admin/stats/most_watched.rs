@@ -12,7 +12,7 @@ use crate::state::SharedState;
 
 use super::WindowQuery;
 
-const ENTRIES_PER_COLUMN: usize = 10;
+const ENTRIES_PER_COLUMN: usize = 20;
 
 /// `GET /api/admin/stats/most-watched?days=30&user=` → each kind's ranking,
 /// series counted as series rather than as their episodes.

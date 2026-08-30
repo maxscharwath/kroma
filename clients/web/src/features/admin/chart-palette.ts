@@ -17,6 +17,4 @@ export const CHART_SERIES = {
 export const KIND_SERIES = {
   movie: colors.success,
   tv: colors.danger,
-  music: colors.h265,
-  photo: colors.hdr,
 } as const satisfies Record<WatchKind, string>;

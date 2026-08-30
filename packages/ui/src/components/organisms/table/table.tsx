@@ -54,6 +54,9 @@ interface TableRootProps {
   /** A press adds its column to the sort as the last tiebreak instead of
    *  replacing it. */
   multiple?: boolean;
+  /** The sort can never be handed back empty: a press on the last column
+   *  sorting turns it around rather than dropping it. */
+  required?: boolean;
   /** A DIRECT <Table.Header>, <Table.Body> or <Table.Row> child. */
   children?: ReactNode;
 }
@@ -65,6 +68,7 @@ function Root({
   sort,
   onSortChange,
   multiple = false,
+  required = false,
   children,
 }: Readonly<TableRootProps>) {
   const sections = useMemo(() => parts(children), [children]);
@@ -77,7 +81,7 @@ function Root({
     return { list, boxes: list.map(columnBox), breakpoints: breakpointMask(list) };
   }, [columns]);
   const press = useStableCallback((column: string) => {
-    onSortChange?.(nextSort(sort ?? NO_SORT, column, multiple), { column });
+    onSortChange?.(nextSort(sort ?? NO_SORT, column, { multiple, required }), { column });
   });
   const sorting = useMemo<TableSort | null>(() => {
     if (!sort && !onSortChange) return null;

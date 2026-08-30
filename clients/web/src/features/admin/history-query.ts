@@ -1,5 +1,5 @@
 import type { MessageKey } from '@kroma/core';
-import type { TableOrder, TableQuery } from '@kroma/module-sdk';
+import type { SortColumn, SortDirection } from '@kroma/ui/kit';
 import { z } from 'zod';
 import { type HistorySort, isHistorySort } from '#web/features/admin/history-columns';
 
@@ -8,7 +8,7 @@ const MAX_ID_LENGTH = 128;
 
 export const HISTORY_PAGE = 50;
 
-export const NEWEST_FIRST: TableOrder<HistorySort> = { sort: 'endedAt', dir: 'desc' };
+const NEWEST_FIRST: SortColumn = { column: 'endedAt', direction: 'desc' };
 
 export const HISTORY_RANGES = [
   { value: '24h', labelKey: 'admin.range24h', days: 1 },
@@ -23,11 +23,14 @@ export type HistoryRange = (typeof HISTORY_RANGES)[number]['value'];
 
 export const EVERY_WINDOW = 'all' satisfies HistoryRange;
 
-export interface HistorySearch extends TableQuery<HistorySort> {
+export interface HistorySearch {
   library?: string;
   user?: string;
   item?: string;
   range?: HistoryRange;
+  sort?: HistorySort;
+  dir?: SortDirection;
+  page?: number;
 }
 
 export interface HistoryRequest {
@@ -76,11 +79,33 @@ export function validateHistorySearch(params: Record<string, unknown>): HistoryS
   return search;
 }
 
+/** The order the table draws: the one in the address, or the newest first. */
+export function historySort(search: HistorySearch): readonly SortColumn[] {
+  return [
+    { column: search.sort ?? NEWEST_FIRST.column, direction: search.dir ?? NEWEST_FIRST.direction },
+  ];
+}
+
+/** Pressing a column out of the sort leaves it out of the address rather than
+ *  naming the default. */
+export function historyOrderedBy(
+  search: HistorySearch,
+  sort: readonly SortColumn[],
+): HistorySearch {
+  const next: HistorySearch = { ...search, sort: undefined, dir: undefined, page: 1 };
+  const first = sort[0];
+  if (first && isHistorySort(first.column)) {
+    next.sort = first.column;
+    next.dir = first.direction;
+  }
+  return next;
+}
+
 export function historyRequest(search: HistorySearch): HistoryRequest {
   const page = search.page ?? 1;
   const request: HistoryRequest = {
     days: daysIn(search.range),
-    sort: `${search.sort ?? NEWEST_FIRST.sort}:${search.dir ?? NEWEST_FIRST.dir}`,
+    sort: `${search.sort ?? NEWEST_FIRST.column}:${search.dir ?? NEWEST_FIRST.direction}`,
     limit: HISTORY_PAGE,
     offset: (page - 1) * HISTORY_PAGE,
   };

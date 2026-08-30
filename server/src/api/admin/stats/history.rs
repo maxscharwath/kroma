@@ -139,7 +139,6 @@ mod tests {
         assert_eq!(stats.buckets[4].films_ms, 10_000);
         assert_eq!(stats.totals.movie, 70_000);
         assert_eq!(stats.totals.tv, 30_000);
-        assert_eq!(stats.totals.music, 0);
         assert_eq!(stats.total_films_ms, 70_000);
         assert_eq!(stats.total_tv_ms, 30_000);
     }

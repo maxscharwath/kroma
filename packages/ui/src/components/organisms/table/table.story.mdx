@@ -109,6 +109,8 @@ The whole heading is the control, so it is one D-pad stop with a hit area the si
 <Scene name="Sorting one column">
   A press walks ascending, then descending, then out of the sort. The arrow says which way, and a column that can sort but is not sorting shows the idle glyph, so a reader knows the heading is a control before pressing it. Only one column sorts here: pressing another takes the sort with it.
 
+  `required` cuts the third step, so the last column sorting turns around instead of dropping out. Set it wherever the rows arrive in some order whatever the reader does, which is every table a server pages: there the third press would put the idle glyph back on a heading while the rows underneath it did not move.
+
   {story.take(({ variant }) => <SortedByOne variant={variant} />)}
 </Scene>
 

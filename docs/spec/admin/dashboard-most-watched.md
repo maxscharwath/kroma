@@ -11,7 +11,12 @@ and what to add.
 Status: **AGREED**
 
 **ADMIN-39** (AGREED) - The panel ranks titles by number of plays over a chosen window, most
-first, in one column per kind of media the server holds.
+first, in one column for movies and one for shows. Equal play counts rank alphabetically by
+title, so two readers of the same window see the same order.
+
+**ADMIN-74** (AGREED) - A column is bounded in height and scrolls inside that bound. The
+panel keeps its size whatever the ranking holds, and a reader reaches every entry in it
+rather than the first few.
 
 **ADMIN-40** (AGREED) - Each column is headed by the artwork of its own top title, labelled
 with the kind of media, so a reader recognises the column before reading a word of it.

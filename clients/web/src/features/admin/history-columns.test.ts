@@ -2,8 +2,8 @@ import type { PlayEntry } from '@kroma/core';
 import { describe, expect, it } from 'vitest';
 import {
   HISTORY_COLUMNS,
-  historyGrid,
   ITEM_HISTORY_COLUMNS,
+  isHistorySort,
   kindKey,
   titleLines,
 } from './history-columns';
@@ -21,28 +21,29 @@ const play = (fields: Partial<PlayEntry>): PlayEntry => ({
 
 describe("the watch history's columns", () => {
   it('reads the account, the kind, the title, the player, the platform and when', () => {
-    expect(HISTORY_COLUMNS.map((column) => column.sortKey)).toEqual([
+    expect(HISTORY_COLUMNS.map((column) => column.column)).toEqual([
       'username',
       'kind',
       'title',
-      'device',
       'player',
+      'device',
       'endedAt',
     ]);
   });
 
   it('drops the title from one title of its own', () => {
-    expect(ITEM_HISTORY_COLUMNS.map((column) => column.sortKey)).not.toContain('title');
+    expect(ITEM_HISTORY_COLUMNS.map((column) => column.column)).not.toContain('title');
   });
 
   it('keeps when it was watched on a narrow screen once the title is gone', () => {
-    const when = ITEM_HISTORY_COLUMNS.find((column) => column.sortKey === 'endedAt');
+    const when = ITEM_HISTORY_COLUMNS.find((column) => column.column === 'endedAt');
 
-    expect(when?.wide).toBe(false);
+    expect(when?.from).toBe('base');
   });
 
-  it('lays one grid track per column', () => {
-    expect(historyGrid(ITEM_HISTORY_COLUMNS).split(' ')).toHaveLength(ITEM_HISTORY_COLUMNS.length);
+  it('orders by a column the table has and by nothing else', () => {
+    expect(isHistorySort('endedAt')).toBe(true);
+    expect(isHistorySort('watchedMs')).toBe(false);
   });
 });
 

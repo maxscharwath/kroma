@@ -8,6 +8,32 @@ import {
   isHistoryRange,
 } from '#web/features/admin/history-query';
 
+const ANY_ID = 'all';
+
+interface IdFilterProps {
+  label: string;
+  anyLabel: string;
+  value: string | undefined;
+  options: readonly { id: string; name: string }[];
+  onPick: (value: string | undefined) => void;
+}
+
+function IdFilter({ label, anyLabel, value, options, onPick }: Readonly<IdFilterProps>) {
+  return (
+    <Select.Root
+      label={label}
+      value={value ?? ANY_ID}
+      onValueChange={(next) => onPick(next === ANY_ID ? undefined : next)}
+    >
+      <Select.Trigger />
+      <Select.Item value={ANY_ID} label={anyLabel} />
+      {options.map((option) => (
+        <Select.Item key={option.id} value={option.id} label={option.name} />
+      ))}
+    </Select.Root>
+  );
+}
+
 interface HistoryFiltersProps {
   search: HistorySearch;
   libraries: readonly HistoryLibrary[];
@@ -29,29 +55,21 @@ export function HistoryFilters({
 
   return (
     <Row gap={10} wrap>
-      <Select.Root
+      <IdFilter
         label={t('admin.allLibrariesFilter')}
-        value={search.library ?? ''}
-        onValueChange={(value) => narrow({ library: value || undefined })}
-      >
-        <Select.Trigger />
-        <Select.Item value="" label={t('admin.allLibrariesFilter')} />
-        {libraries.map((library) => (
-          <Select.Item key={library.id} value={library.id} label={library.name} />
-        ))}
-      </Select.Root>
+        anyLabel={t('admin.allLibrariesFilter')}
+        value={search.library}
+        options={libraries}
+        onPick={(library) => narrow({ library })}
+      />
 
-      <Select.Root
+      <IdFilter
         label={t('admin.colUser')}
-        value={search.user ?? ''}
-        onValueChange={(value) => narrow({ user: value || undefined })}
-      >
-        <Select.Trigger />
-        <Select.Item value="" label={t('admin.everyMember')} />
-        {users.map((user) => (
-          <Select.Item key={user.id} value={user.id} label={user.username} />
-        ))}
-      </Select.Root>
+        anyLabel={t('admin.everyMember')}
+        value={search.user}
+        options={users.map((user) => ({ id: user.id, name: user.username }))}
+        onPick={(user) => narrow({ user })}
+      />
 
       <Select.Root
         label={t('admin.colWhen')}

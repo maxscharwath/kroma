@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 use crate::api::test_support::{get, seed_session, send, test_app, text};
-use crate::model::Permission;
+use crate::model::{Permission, PlayRecord};
 
 fn member(t: &crate::api::test_support::TestApp, tag: &str) -> String {
     let (_id, token) = seed_session(
@@ -68,8 +68,6 @@ async fn stats_top_users_and_history_return_their_shapes() {
     let owner = &top["users"][0];
     assert!(owner["userId"].is_string(), "{top}");
     assert_eq!(owner["byKind"]["movie"], json!(0));
-    assert_eq!(owner["byKind"]["music"], json!(0));
-    assert_eq!(owner["byKind"]["photo"], json!(0));
     assert_eq!(owner["byKind"]["tv"], json!(0));
 
     let (status, hist) = get(&t.app, "/api/admin/stats/history?days=28", Some(&t.token)).await;
@@ -152,12 +150,40 @@ async fn every_kind_gets_a_most_watched_column_and_a_filter_the_log_can_answer()
             .iter()
             .map(|c| c["kind"].as_str().unwrap())
             .collect::<Vec<_>>(),
-        ["movie", "tv", "music", "photo"]
+        ["movie", "tv"]
     );
 
     let (status, filter) = get(&t.app, "/api/admin/stats/libraries", Some(&t.token)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(filter["libraries"].is_array());
+}
+
+#[tokio::test]
+async fn a_most_watched_column_stops_at_twenty_entries() {
+    let t = test_app();
+    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+    for at in 0..25 {
+        crate::db::record_play(
+            &t.state.db,
+            &PlayRecord {
+                user_id: Some("u1".into()),
+                username: Some("alice".into()),
+                item_id: Some(format!("film-{at}")),
+                kind: "movie".into(),
+                title: format!("Film {at}"),
+                started_at: now - 60,
+                ended_at: now,
+                watched_ms: 60_000,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    }
+
+    let (status, panel) = get(&t.app, "/api/admin/stats/most-watched", Some(&t.token)).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(panel["columns"][0]["entries"].as_array().unwrap().len(), 20);
 }
 
 #[tokio::test]

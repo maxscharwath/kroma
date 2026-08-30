@@ -140,10 +140,7 @@ export const MetricMeans = z.object({
 });
 export type MetricMeans = z.infer<typeof MetricMeans>;
 
-/** The kinds a watch statistic is broken down by. `movie` and `tv` are the only
- *  two KROMA holds today; the other two are declared so a client renders an
- *  honest zero rather than hiding a row it has never seen. */
-export const WatchKind = z.enum(['movie', 'tv', 'music', 'photo']);
+export const WatchKind = z.enum(['movie', 'tv']);
 export type WatchKind = z.infer<typeof WatchKind>;
 
 /** Milliseconds watched per kind. Every kind is present, zeroes included. */
@@ -317,10 +314,8 @@ export const MostWatchedEntry = z.object({
   itemId: z.string(),
   title: z.string(),
   kind: WatchKind,
-  /** Set where the entry is a series, so the poster and the drill-down resolve
-   *  against the show rather than an arbitrary episode. */
-  showId: z.string().nullish(),
   year: z.number().nullish(),
+  posterUrl: z.string().nullish(),
   plays: z.number(),
   viewers: z.number(),
 });

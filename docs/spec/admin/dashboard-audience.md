@@ -14,9 +14,10 @@ Status: **AGREED**
 **ADMIN-26** (AGREED) - The panel ranks accounts by time watched over a chosen window, most
 first, and shows each one's play count beside their total.
 
-**ADMIN-27** (AGREED) - Each card breaks its total down by kind of media, one row per kind
-the server holds, and marks the kind that account spent most of its time on. A row with no
-time still appears, because "no music at all" is an answer.
+**ADMIN-27** (AGREED) - Each card breaks its total down by kind of media, one row for movies
+and one for shows, and marks the kind that account spent most of its time on. A kind with no
+time keeps its row, so an account that watched only shows is visibly an account that watched
+no movies.
 
 **ADMIN-28** (AGREED) - An account that watched nothing in the window still appears, with
 zeroes. An owner comparing members needs the absences as much as the totals.

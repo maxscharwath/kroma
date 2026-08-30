@@ -159,7 +159,10 @@ mod tests {
     #[test]
     fn the_walk_is_not_repeated_on_every_sample() {
         let mut tree = Tree::new();
-        assert!(tree.due_for_rescan(), "the first sample has to discover the tree");
+        assert!(
+            tree.due_for_rescan(),
+            "the first sample has to discover the tree"
+        );
 
         tree.scanned_at = Some(Instant::now());
 

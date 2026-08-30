@@ -77,6 +77,7 @@ export function NowPlayingCard({
   const fmt = useFormat();
   const playing = s.state === 'playing';
   const pct = s.durationMs ? (s.positionMs / s.durationMs) * 100 : 0;
+  const loaded = s.durationMs && s.bufferedMs != null ? s.bufferedMs / s.durationMs : undefined;
   const buffering = s.state === 'buffering';
   // What the CLIENT reported it is doing. The server's own account of a session,
   // including a picture it had to re-encode, is the Transcodage section.
@@ -152,7 +153,7 @@ export function NowPlayingCard({
             {fmt.timecode(s.positionMs)}
           </Text>
           <Box flex>
-            <Progress value={pct / 100} rounded />
+            <Progress value={pct / 100} buffered={loaded} waiting={buffering} rounded />
           </Box>
           <Text variant="meta" color="textDim" style={TABULAR}>
             {s.durationMs ? fmt.timecode(s.durationMs) : '-'}

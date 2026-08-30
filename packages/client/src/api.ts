@@ -815,12 +815,7 @@ export class KromaClient {
   mostWatched(opts?: { days?: number; user?: string }): Promise<MostWatched> {
     return admin.mostWatched(this.ctx, opts);
   }
-  adminPlays(opts?: {
-    days?: number;
-    user?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<PlaysPage> {
+  adminPlays(opts?: Parameters<typeof admin.adminPlays>[1]): Promise<PlaysPage> {
     return admin.adminPlays(this.ctx, opts);
   }
   adminOverview(): Promise<AdminOverview> {

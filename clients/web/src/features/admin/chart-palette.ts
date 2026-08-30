@@ -1,13 +1,9 @@
+import type { WatchKind } from '@kroma/core';
 import { colors } from '@kroma/ui/tokens/colors';
 
 /**
- * The admin charts' series colours, by role.
- *
- * Token VALUES rather than the custom properties everything else paints with: a
- * series is stroked into an SVG, and a role the reader has learned must survive
- * a series dropping out, which a palette slot assigned by position cannot
- * promise. Roles rather than hues, and never cycled, so a reader who learned
- * that amber is local traffic does not find it repainted.
+ * Token VALUES rather than the custom properties everything else paints with:
+ * a series is stroked into an SVG.
  */
 export const CHART_SERIES = {
   local: colors.accent,
@@ -16,6 +12,11 @@ export const CHART_SERIES = {
   cpuMedia: colors.accent,
   cpuSystem: colors.danger,
   ramSystem: colors.hdr,
-  films: colors.success,
-  tv: colors.danger,
 } as const;
+
+export const KIND_SERIES = {
+  movie: colors.success,
+  tv: colors.danger,
+  music: colors.h265,
+  photo: colors.hdr,
+} as const satisfies Record<WatchKind, string>;

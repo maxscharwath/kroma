@@ -406,6 +406,7 @@ export const PlaybackSession = z.object({
   ip: z.string(),
   state: z.string(),
   positionMs: z.number(),
+  bufferedMs: z.number().nullish(),
   durationMs: z.number().nullable(),
   startedAt: z.number(),
 });

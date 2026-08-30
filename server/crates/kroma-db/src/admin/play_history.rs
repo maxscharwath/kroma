@@ -1,10 +1,10 @@
-//! The play log, and the analytics read off it.
+//! The play log: appending a finished session, and reading it back.
 
 use anyhow::Result;
-use kroma_domain::{PlayEntry, PlayRecord};
+use kroma_domain::{HistoryLibrary, PlayEntry, PlayRecord};
 use rusqlite::{params, Row};
 
-use crate::rows::parse_kind;
+use super::play_sort::PlaySort;
 use crate::Pool;
 
 /// Append one finished playback to the history log.
@@ -47,78 +47,87 @@ pub fn record_play(pool: &Pool, play: &PlayRecord) -> Result<()> {
     Ok(())
 }
 
-/// Per-user watch aggregates since `since` (unix-seconds), best watchers first.
-pub fn top_users(pool: &Pool, since: i64, limit: usize) -> Result<Vec<kroma_domain::TopUser>> {
-    let conn = pool.get()?;
-    let mut stmt = conn.prepare(
-        "SELECT COALESCE(username,'?') AS u, COUNT(*) AS plays, \
-            SUM(watched_ms) AS total, \
-            SUM(CASE WHEN kind='movie' THEN watched_ms ELSE 0 END) AS films, \
-            SUM(CASE WHEN kind IN ('episode','video') THEN watched_ms ELSE 0 END) AS tv \
-         FROM play_history WHERE ended_at >= ?1 \
-         GROUP BY username ORDER BY total DESC LIMIT ?2",
-    )?;
-    let rows = stmt.query_map(params![since, limit as i64], |r| {
-        Ok(kroma_domain::TopUser {
-            username: r.get(0)?,
-            plays: r.get(1)?,
-            watched_ms: r.get::<_, Option<i64>>(2)?.unwrap_or(0),
-            films_ms: r.get::<_, Option<i64>>(3)?.unwrap_or(0),
-            tv_ms: r.get::<_, Option<i64>>(4)?.unwrap_or(0),
-        })
-    })?;
-    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+/// `item_or_show` matches one item, or every episode of one show when a show id
+/// is given.
+#[derive(Debug, Clone, Default)]
+pub struct PlayFilter {
+    pub since: i64,
+    pub user: Option<String>,
+    pub library: Option<String>,
+    pub item_or_show: Option<String>,
+    pub sort: PlaySort,
 }
 
-/// Raw history rows since `since` (unix-seconds) for client/server-side bucketing.
-pub fn history_since(pool: &Pool, since: i64) -> Result<Vec<kroma_domain::HistoryRow>> {
-    let conn = pool.get()?;
-    let mut stmt = conn.prepare(
-        "SELECT ended_at,kind,watched_ms FROM play_history WHERE ended_at >= ?1 ORDER BY ended_at",
-    )?;
-    let rows = stmt.query_map(params![since], |r| {
-        Ok(kroma_domain::HistoryRow {
-            ended_at: r.get(0)?,
-            kind: parse_kind(&r.get::<_, String>(1)?),
-            watched_ms: r.get(2)?,
-        })
-    })?;
-    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-}
+const COLUMNS: &str = "h.id,h.user_id,COALESCE(h.username,'?'),h.item_id,h.kind,h.title,\
+                       h.show_title,h.season,h.episode,h.device,h.player,h.mode,h.network,\
+                       h.video_label,h.audio_label,COALESCE(h.library,i.library),\
+                       h.started_at,h.ended_at,h.watched_ms";
 
-const COLUMNS: &str = "id,user_id,COALESCE(username,'?'),item_id,kind,title,show_title,\
-                       season,episode,device,player,mode,network,video_label,audio_label,\
-                       started_at,ended_at,watched_ms";
+const SCOPE: &str = "FROM play_history h LEFT JOIN items i ON i.id = h.item_id \
+                     WHERE h.ended_at >= ?1 \
+                     AND (?2 IS NULL OR h.user_id = ?2) \
+                     AND (?3 IS NULL OR COALESCE(h.library,i.library) = ?3) \
+                     AND (?4 IS NULL OR h.item_id = ?4 \
+                          OR h.item_id IN (SELECT id FROM items WHERE show_id = ?4))";
 
-/// The watch log since `since` (unix-seconds), newest first: one row per finished
-/// playback. `user` narrows it to one account, for the per-member view.
 pub fn plays(
     pool: &Pool,
-    since: i64,
-    user: Option<&str>,
+    filter: &PlayFilter,
     limit: usize,
     offset: usize,
 ) -> Result<Vec<PlayEntry>> {
     let conn = pool.get()?;
-    let sql = format!(
-        "SELECT {COLUMNS} FROM play_history \
-         WHERE ended_at >= ?1 AND (?2 IS NULL OR user_id = ?2) \
-         ORDER BY ended_at DESC LIMIT ?3 OFFSET ?4"
-    );
+    let order = filter.sort.clause();
+    let sql = format!("SELECT {COLUMNS} {SCOPE} ORDER BY {order} LIMIT ?5 OFFSET ?6");
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![since, user, limit as i64, offset as i64], entry)?;
+    let rows = stmt.query_map(
+        params![
+            filter.since,
+            filter.user,
+            filter.library,
+            filter.item_or_show,
+            limit as i64,
+            offset as i64
+        ],
+        entry,
+    )?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
-/// How many rows [`plays`] would page through, for the table's footer.
-pub fn plays_count(pool: &Pool, since: i64, user: Option<&str>) -> Result<i64> {
+/// How many rows [`plays`] would page through.
+pub fn plays_count(pool: &Pool, filter: &PlayFilter) -> Result<i64> {
     let conn = pool.get()?;
+    let sql = format!("SELECT COUNT(*) {SCOPE}");
     Ok(conn.query_row(
-        "SELECT COUNT(*) FROM play_history \
-         WHERE ended_at >= ?1 AND (?2 IS NULL OR user_id = ?2)",
-        params![since, user],
+        &sql,
+        params![
+            filter.since,
+            filter.user,
+            filter.library,
+            filter.item_or_show
+        ],
         |r| r.get(0),
     )?)
+}
+
+/// The libraries the watch log references, named. A library with no history is
+/// left out; one deleted since keeps its id as its name.
+pub fn history_libraries(pool: &Pool) -> Result<Vec<HistoryLibrary>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT h.lib, COALESCE(l.name, h.lib) AS name FROM \
+           (SELECT DISTINCT COALESCE(p.library, i.library) AS lib FROM play_history p \
+            LEFT JOIN items i ON i.id = p.item_id) h \
+         LEFT JOIN libraries l ON l.id = h.lib \
+         WHERE h.lib IS NOT NULL ORDER BY name",
+    )?;
+    let rows = stmt.query_map([], |r| {
+        Ok(HistoryLibrary {
+            id: r.get(0)?,
+            name: r.get(1)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 fn entry(r: &Row<'_>) -> rusqlite::Result<PlayEntry> {
@@ -138,9 +147,10 @@ fn entry(r: &Row<'_>) -> rusqlite::Result<PlayEntry> {
         network: r.get(12)?,
         video_label: r.get(13)?,
         audio_label: r.get(14)?,
-        started_at: r.get(15)?,
-        ended_at: r.get(16)?,
-        watched_ms: r.get(17)?,
+        library: r.get(15)?,
+        started_at: r.get(16)?,
+        ended_at: r.get(17)?,
+        watched_ms: r.get(18)?,
     })
 }
 
@@ -149,53 +159,11 @@ mod tests {
     use super::*;
     use crate::admin::test_support::*;
 
-    fn play(user: &str, name: &str, title: &str, kind: &str, watched: i64) -> PlayRecord {
-        PlayRecord {
-            user_id: Some(user.into()),
-            username: Some(name.into()),
-            item_id: Some("m1".into()),
-            kind: kind.into(),
-            title: title.into(),
-            watched_ms: watched,
-            ended_at: 100,
-            ..PlayRecord::default()
+    fn since(at: i64) -> PlayFilter {
+        PlayFilter {
+            since: at,
+            ..PlayFilter::default()
         }
-    }
-
-    #[test]
-    fn play_history_aggregates() {
-        let p = pool();
-        record_play(&p, &play("u1", "alice", "Dune", "movie", 60_000)).unwrap();
-        record_play(
-            &p,
-            &PlayRecord {
-                ended_at: 200,
-                ..play("u1", "alice", "Ep", "episode", 30_000)
-            },
-        )
-        .unwrap();
-        record_play(
-            &p,
-            &PlayRecord {
-                ended_at: 150,
-                ..play("u2", "bob", "Dune", "movie", 10_000)
-            },
-        )
-        .unwrap();
-
-        let top = top_users(&p, 0, 10).unwrap();
-        assert_eq!(top.len(), 2);
-        // alice watched 90s total > bob's 10s, so she ranks first.
-        assert_eq!(top[0].username, "alice");
-        assert_eq!(top[0].plays, 2);
-        assert_eq!(top[0].watched_ms, 90_000);
-        assert_eq!(top[0].films_ms, 60_000);
-        assert_eq!(top[0].tv_ms, 30_000);
-
-        // The `since` gate excludes older rows.
-        assert!(top_users(&p, 1000, 10).unwrap().is_empty());
-        assert_eq!(history_since(&p, 0).unwrap().len(), 3);
-        assert!(history_since(&p, 1000).unwrap().is_empty());
     }
 
     #[test]
@@ -214,16 +182,19 @@ mod tests {
                 show_title: Some("Severance".into()),
                 season: Some(2),
                 episode: Some(4),
+                library: Some("lib-tv".into()),
                 ..play("u1", "alice", "Chikhai Bardo", "episode", 42_000)
             },
         )
         .unwrap();
 
-        let row = &plays(&p, 0, None, 50, 0).unwrap()[0];
+        let row = &plays(&p, &since(0), 50, 0).unwrap()[0];
+
         assert_eq!(row.device.as_deref(), Some("Chrome · Windows"));
         assert_eq!(row.mode.as_deref(), Some("transcode"));
         assert_eq!(row.network.as_deref(), Some("WAN"));
         assert_eq!(row.show_title.as_deref(), Some("Severance"));
+        assert_eq!(row.library.as_deref(), Some("lib-tv"));
         assert_eq!((row.season, row.episode), (Some(2), Some(4)));
         assert_eq!(row.watched_ms, 42_000);
     }
@@ -231,25 +202,26 @@ mod tests {
     #[test]
     fn the_log_reads_newest_first_and_pages() {
         let p = pool();
-        for (n, ended) in [("first", 100), ("second", 200), ("third", 300)] {
+        for (title, ended) in [("first", 100), ("second", 200), ("third", 300)] {
             record_play(
                 &p,
                 &PlayRecord {
                     ended_at: ended,
-                    ..play("u1", "alice", n, "movie", 1)
+                    ..play("u1", "alice", title, "movie", 1)
                 },
             )
             .unwrap();
         }
 
-        let page = plays(&p, 0, None, 2, 0).unwrap();
+        let page = plays(&p, &since(0), 2, 0).unwrap();
 
         assert_eq!(
             page.iter().map(|r| r.title.as_str()).collect::<Vec<_>>(),
             ["third", "second"]
         );
-        assert_eq!(plays(&p, 0, None, 2, 2).unwrap()[0].title, "first");
-        assert_eq!(plays_count(&p, 0, None).unwrap(), 3);
+        assert_eq!(plays(&p, &since(0), 2, 2).unwrap()[0].title, "first");
+        assert_eq!(plays_count(&p, &since(0)).unwrap(), 3);
+        assert_eq!(plays_count(&p, &since(1000)).unwrap(), 0);
     }
 
     #[test]
@@ -257,12 +229,131 @@ mod tests {
         let p = pool();
         record_play(&p, &play("u1", "alice", "Dune", "movie", 1)).unwrap();
         record_play(&p, &play("u2", "bob", "Arrival", "movie", 1)).unwrap();
+        let mine = PlayFilter {
+            user: Some("u1".into()),
+            ..PlayFilter::default()
+        };
 
-        let alice = plays(&p, 0, Some("u1"), 50, 0).unwrap();
+        let alice = plays(&p, &mine, 50, 0).unwrap();
 
         assert_eq!(alice.len(), 1);
         assert_eq!(alice[0].title, "Dune");
-        assert_eq!(plays_count(&p, 0, Some("u1")).unwrap(), 1);
-        assert_eq!(plays_count(&p, 0, Some("nobody")).unwrap(), 0);
+        assert_eq!(plays_count(&p, &mine).unwrap(), 1);
+    }
+
+    #[test]
+    fn a_show_id_matches_every_episode_of_that_show() {
+        let p = pool();
+        seed_show(&p, "sev", "lib-tv", "Severance", 2022);
+        seed_episode(&p, "ep1", "sev", "lib-tv", "Good News About Hell");
+        seed_episode(&p, "ep2", "sev", "lib-tv", "Half Loop");
+        seed_movie(&p, "dune", "lib-films", "Dune", 2021);
+        for item in ["ep1", "ep2", "dune"] {
+            record_play(
+                &p,
+                &PlayRecord {
+                    item_id: Some(item.into()),
+                    ..play("u1", "alice", item, "episode", 1)
+                },
+            )
+            .unwrap();
+        }
+        let show = PlayFilter {
+            item_or_show: Some("sev".into()),
+            ..PlayFilter::default()
+        };
+
+        let episodes = plays(&p, &show, 50, 0).unwrap();
+
+        assert_eq!(episodes.len(), 2);
+        assert_eq!(plays_count(&p, &show).unwrap(), 2);
+        assert_eq!(
+            plays_count(
+                &p,
+                &PlayFilter {
+                    item_or_show: Some("ep1".into()),
+                    ..PlayFilter::default()
+                }
+            )
+            .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_row_logged_before_the_library_was_recorded_still_answers_the_filter() {
+        let p = pool();
+        seed_movie(&p, "dune", "lib-films", "Dune", 2021);
+        seed_library(&p, "lib-tv", "Séries");
+        record_play(
+            &p,
+            &PlayRecord {
+                item_id: Some("dune".into()),
+                library: None,
+                ..play("u1", "alice", "Dune", "movie", 1)
+            },
+        )
+        .unwrap();
+        let films = PlayFilter {
+            library: Some("lib-films".into()),
+            ..PlayFilter::default()
+        };
+
+        let rows = plays(&p, &films, 50, 0).unwrap();
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].library.as_deref(), Some("lib-films"));
+        assert_eq!(
+            plays_count(
+                &p,
+                &PlayFilter {
+                    library: Some("lib-tv".into()),
+                    ..PlayFilter::default()
+                }
+            )
+            .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn the_library_filter_lists_only_libraries_the_log_names() {
+        let p = pool();
+        seed_library(&p, "lib-films", "Films");
+        seed_library(&p, "lib-empty", "Jamais lue");
+        seed_movie(&p, "dune", "lib-films", "Dune", 2021);
+        record_play(
+            &p,
+            &PlayRecord {
+                item_id: Some("dune".into()),
+                ..play("u1", "alice", "Dune", "movie", 1)
+            },
+        )
+        .unwrap();
+
+        let libraries = history_libraries(&p).unwrap();
+
+        assert_eq!(libraries.len(), 1);
+        assert_eq!(libraries[0].id, "lib-films");
+        assert_eq!(libraries[0].name, "Films");
+    }
+
+    #[test]
+    fn the_table_orders_by_the_column_the_reader_picked() {
+        let p = pool();
+        for (title, watched) in [("Arrival", 30_000), ("Dune", 10_000), ("Sicario", 20_000)] {
+            record_play(&p, &play("u1", "alice", title, "movie", watched)).unwrap();
+        }
+        let by_length = PlayFilter {
+            sort: PlaySort::parse("watchedMs:asc").unwrap(),
+            ..PlayFilter::default()
+        };
+
+        let rows = plays(&p, &by_length, 50, 0).unwrap();
+
+        assert_eq!(
+            rows.iter().map(|r| r.title.as_str()).collect::<Vec<_>>(),
+            ["Dune", "Sicario", "Arrival"]
+        );
     }
 }

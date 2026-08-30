@@ -1,10 +1,14 @@
-import type { AdminUser } from '@kroma/core';
+import { type AdminUser, resolveImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
+import { Avatar } from '@kroma/ui/kit';
 import { EVERYONE, type FilterOption } from '#web/features/admin/dashboard-filters';
 import { useCap, usePoll } from '#web/features/admin/shell';
+import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 
 const POLL_MS = 60000;
+// The well a Select row gives its media slot.
+const MARK = 18;
 
 /** The authenticated roster, empty for an admin without `users.manage`. The
  *  dashboard itself opens to any admin, so asking regardless would be three
@@ -25,6 +29,18 @@ export function useAccountOptions(): FilterOption<string>[] {
   const roster = useAccountRoster();
   return [
     { value: EVERYONE, label: t('admin.everyMember') },
-    ...roster.map((user) => ({ value: user.id, label: user.username })),
+    ...roster.map((user) => ({
+      value: user.id,
+      label: user.username,
+      media: (
+        <Avatar
+          name={user.username}
+          src={resolveImageUrl(apiBase(), user.avatarUrl)}
+          size={MARK}
+          circle
+          shadow={false}
+        />
+      ),
+    })),
   ];
 }

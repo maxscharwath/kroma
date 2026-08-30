@@ -1,6 +1,7 @@
 import type { MetricRange, WatchKind } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Select } from '@kroma/ui/kit';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 /** The windows a panel reading the play log offers: no live ring, and nothing
@@ -83,6 +84,9 @@ export function kindLabelKey(kind: WatchKind) {
 export interface FilterOption<V extends string> {
   value: V;
   label: string;
+  /** Drawn in the row's media slot and in the trigger once picked. An account
+   *  filter carries the member's face here; a plain option leaves it out. */
+  media?: ReactNode;
 }
 
 export interface Choice<V extends string> {
@@ -134,7 +138,9 @@ export function FilterSelect<V extends string>({ label, choice }: Readonly<Filte
     >
       <Select.Trigger />
       {choice.options.map((one) => (
-        <Select.Item key={one.value} value={one.value} label={one.label} />
+        <Select.Item key={one.value} value={one.value} label={one.label}>
+          {one.media ? <Select.Media>{one.media}</Select.Media> : null}
+        </Select.Item>
       ))}
     </Select.Root>
   );

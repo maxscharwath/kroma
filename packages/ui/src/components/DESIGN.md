@@ -116,6 +116,11 @@ screen reader or steals a D-pad stop.
   contents walks its direct children once, sorts them, and publishes what it
   learned through context: a position (`first`/`middle`/`last`), a padding, the
   layout the shell takes. `<ButtonGroup>` and `<InputGroup>` are both this.
+- **What it publishes may be a face rather than a measurement.**
+  `<Select.Root>` keys each item's `<Select.Media>` by that item's value, so
+  `<Select.Value>` draws the pick's mark out of the context rather than out of a
+  surface that is not open yet. A part whose face has to appear somewhere else is
+  still a part; it is not an `avatar` prop.
 
 The corollary is real API, and it must be documented on the component. A part must
 be a direct child to be sorted, and only a part that reads the context takes part

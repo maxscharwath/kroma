@@ -15,6 +15,7 @@ use super::snapshot::snapshot;
 
 // Clients heartbeat every ~10s, so this tolerates a couple of missed beats.
 const SESSION_TTL: Duration = Duration::from_secs(30);
+const PLAYING: &str = "playing";
 const REAP_INTERVAL: Duration = Duration::from_secs(10);
 
 pub struct Ping {
@@ -74,6 +75,11 @@ pub struct Session {
     pub library: String,
     #[serde(skip)]
     last_seen: Instant,
+    // Time this session has actually spent playing, summed across the gaps
+    // between beats. Not the wall clock: a paused player still beats, and an
+    // abandoned one is reaped a TTL after its viewer left.
+    #[serde(skip)]
+    played_ms: i64,
 }
 
 // Long enough that in-flight heartbeats can't re-register a terminated session.
@@ -151,8 +157,17 @@ impl Registry {
                 started_at: unix_now(),
                 library: snap.library,
                 last_seen: now,
+                played_ms: 0,
             }
         });
+        // The interval that just closed was spent in the state the PREVIOUS beat
+        // reported, so this is folded in before the new one overwrites it. A gap
+        // longer than the TTL is capped: past it the server had already given up
+        // on the session, and counting the whole silence as viewing is a guess.
+        if entry.state == PLAYING {
+            let gap = now.duration_since(entry.last_seen).min(SESSION_TTL);
+            entry.played_ms += gap.as_millis() as i64;
+        }
         entry.position_ms = ping.position_ms;
         if ping.duration_ms.is_some() {
             entry.duration_ms = ping.duration_ms;
@@ -259,7 +274,16 @@ impl Default for Registry {
 /// Append one ended session to the play-history log; best-effort. Everything the
 /// card showed is written with it: once the session is reaped there is nowhere
 /// left to learn who watched this, on what, or whether the box re-encoded it.
+///
+/// A session that never played is not a viewing and is dropped. That is the
+/// server's own guard rather than a client's promise: a background tab is
+/// clamped to about one beat a minute, so its session is reaped between beats
+/// and the next one opens another, and one such tab left open wrote sixteen
+/// thousand rows before anybody noticed.
 pub fn record(pool: &Pool, s: &Session) {
+    if s.played_ms <= 0 {
+        return;
+    }
     let ended = unix_now();
     let some = |v: &str| (!v.is_empty()).then(|| v.to_owned());
     let _ = crate::db::record_play(
@@ -282,7 +306,7 @@ pub fn record(pool: &Pool, s: &Session) {
             audio_label: some(&s.audio_label),
             started_at: s.started_at,
             ended_at: ended,
-            watched_ms: ((ended - s.started_at).max(0)) * 1000,
+            watched_ms: s.played_ms,
         },
     );
 }
@@ -513,14 +537,7 @@ mod tests {
     fn the_log_records_the_library_the_title_came_from() {
         let pool = test_pool();
         let reg = Registry::new();
-        reg.upsert(
-            ping("s1", 0, "playing"),
-            Some("u1".into()),
-            "Alice".into(),
-            "ip".into(),
-            "LAN".into(),
-            Some(&film_in("cinema")),
-        );
+        played_for(&reg, "s1", 5, Some(&film_in("cinema")));
         let session = reg.remove("s1").unwrap();
 
         record(&pool, &session);
@@ -533,18 +550,108 @@ mod tests {
         assert_eq!(library.as_deref(), Some("cinema"));
     }
 
+    // The log only takes a session that played, so a fixture has to beat twice
+    // with time between: one beat opens the session, the rewind and the second
+    // fold that interval into its playing time.
+    fn played_for(reg: &Registry, id: &str, secs: u64, item: Option<&MediaItem>) {
+        reg.upsert(
+            ping(id, 0, "playing"),
+            Some("u1".into()),
+            "Alice".into(),
+            "ip".into(),
+            "LAN".into(),
+            item,
+        );
+        {
+            let mut map = reg.inner.write().unwrap();
+            let entry = map.get_mut(id).expect("the session was just opened");
+            entry.last_seen = Instant::now() - Duration::from_secs(secs);
+        }
+        reg.upsert(
+            ping(id, (secs as i64) * 1000, "playing"),
+            Some("u1".into()),
+            "Alice".into(),
+            "ip".into(),
+            "LAN".into(),
+            item,
+        );
+    }
+
     #[test]
-    fn record_appends_to_play_history() {
+    fn a_session_that_never_played_is_not_a_viewing() {
         let pool = test_pool();
         let reg = Registry::new();
+
         reg.upsert(
-            ping("s1", 0, "playing"),
+            ping("ghost", 0, "playing"),
             Some("u1".into()),
             "Alice".into(),
             "ip".into(),
             "LAN".into(),
             None,
         );
+        record(&pool, &reg.remove("ghost").expect("the session was opened"));
+
+        let count: i64 = pool
+            .get()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM play_history", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "one beat and silence is a reaped tab, not a play");
+    }
+
+    #[test]
+    fn the_log_counts_the_time_played_rather_than_the_time_open() {
+        let pool = test_pool();
+        let reg = Registry::new();
+
+        played_for(&reg, "s1", 12, None);
+        record(&pool, &reg.remove("s1").expect("the session played"));
+
+        let watched: i64 = pool
+            .get()
+            .unwrap()
+            .query_row("SELECT watched_ms FROM play_history", [], |r| r.get(0))
+            .unwrap();
+        assert!(
+            (11_000..=13_000).contains(&watched),
+            "twelve seconds of playing, not the session's wall clock: {watched}"
+        );
+    }
+
+    #[test]
+    fn a_paused_stretch_is_not_counted_as_watching() {
+        let reg = Registry::new();
+
+        reg.upsert(
+            ping("s1", 0, "paused"),
+            None,
+            "Alice".into(),
+            "ip".into(),
+            "LAN".into(),
+            None,
+        );
+        {
+            let mut map = reg.inner.write().unwrap();
+            map.get_mut("s1").expect("opened").last_seen = Instant::now() - Duration::from_secs(20);
+        }
+        reg.upsert(
+            ping("s1", 0, "paused"),
+            None,
+            "Alice".into(),
+            "ip".into(),
+            "LAN".into(),
+            None,
+        );
+
+        assert_eq!(reg.inner.read().unwrap()["s1"].played_ms, 0);
+    }
+
+    #[test]
+    fn record_appends_to_play_history() {
+        let pool = test_pool();
+        let reg = Registry::new();
+        played_for(&reg, "s1", 5, None);
         let session = reg.remove("s1").unwrap();
         record(&pool, &session);
         let count: i64 = pool
@@ -620,14 +727,7 @@ mod tests {
             "LAN".into(),
             None,
         );
-        reg.upsert(
-            ping("dead", 0, "playing"),
-            Some("u1".into()),
-            "Alice".into(),
-            "ip".into(),
-            "LAN".into(),
-            None,
-        );
+        played_for(&reg, "dead", 5, None);
         {
             let mut map = reg.inner.write().unwrap();
             map.get_mut("dead").unwrap().last_seen = Instant::now() - Duration::from_secs(120);

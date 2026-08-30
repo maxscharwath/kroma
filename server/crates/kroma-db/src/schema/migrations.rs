@@ -177,4 +177,41 @@ pub(crate) const MIGRATIONS: &[&str] = &[
     "ALTER TABLE play_history ADD COLUMN show_title TEXT",
     "ALTER TABLE play_history ADD COLUMN season INTEGER",
     "ALTER TABLE play_history ADD COLUMN episode INTEGER",
+    // The plays query joins items and filters on the library; nothing covered
+    // either, so both were a scan on a log with years in it.
+    "CREATE INDEX IF NOT EXISTS idx_history_library ON play_history(library, ended_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_history_item ON play_history(item_id)",
+    // Sixteen thousand rows on one live server were never viewings. A browser
+    // throttles a background tab to about one timer wake-up a minute, so the
+    // heartbeat landed after the 30s session TTL had already reaped and logged
+    // the session, and the next beat opened another the reaper logged a minute
+    // later, around the clock for two months.
+    //
+    // Their signature is exact and nothing else shares it: a run of at least
+    // three rows for one account, each starting exactly 60 seconds after the
+    // last, none lasting longer than the TTL plus one reap interval. Accounts
+    // that never ran a throttled tab match nothing. The server now refuses to
+    // log a session that never played, so no new ones can appear.
+    "DELETE FROM play_history WHERE id IN (
+        WITH gapped AS (
+          SELECT id, watched_ms, started_at,
+                 COALESCE(user_id, username, '?') AS who,
+                 started_at - LAG(started_at) OVER (
+                   PARTITION BY COALESCE(user_id, username, '?') ORDER BY started_at
+                 ) AS prev_gap
+          FROM play_history
+        ),
+        runs AS (
+          SELECT id, watched_ms, who,
+                 SUM(CASE WHEN prev_gap = 60 THEN 0 ELSE 1 END) OVER (
+                   PARTITION BY who ORDER BY started_at
+                 ) AS run
+          FROM gapped
+        )
+        SELECT id FROM runs
+        WHERE (who, run) IN (
+          SELECT who, run FROM runs GROUP BY who, run
+          HAVING COUNT(*) >= 3 AND MAX(watched_ms) <= 45000
+        )
+      )",
 ];

@@ -65,7 +65,12 @@ async fn stats_top_users_and_history_return_their_shapes() {
 
     let (status, top) = get(&t.app, "/api/admin/stats/top-users?days=7", Some(&t.token)).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(top["users"].is_array());
+    let owner = &top["users"][0];
+    assert!(owner["userId"].is_string(), "{top}");
+    assert_eq!(owner["byKind"]["movie"], json!(0));
+    assert_eq!(owner["byKind"]["music"], json!(0));
+    assert_eq!(owner["byKind"]["photo"], json!(0));
+    assert_eq!(owner["byKind"]["tv"], json!(0));
 
     let (status, hist) = get(&t.app, "/api/admin/stats/history?days=28", Some(&t.token)).await;
     assert_eq!(status, StatusCode::OK);
@@ -813,7 +818,11 @@ async fn a_finished_session_lands_in_the_watch_history_chart() {
     let (status, body) = get(&t.app, "/api/admin/stats/history?days=28", Some(&t.token)).await;
     assert_eq!(status, StatusCode::OK);
     let buckets = body["buckets"].as_array().expect("buckets");
-    assert_eq!(body["bucketDays"], json!(1), "a month is short enough for days");
+    assert_eq!(
+        body["bucketDays"],
+        json!(1),
+        "a month is short enough for days"
+    );
     assert_eq!(buckets.len(), 28, "{body}");
     assert!(buckets.iter().all(|b| b["tvMs"] == json!(0)), "{body}");
     assert_eq!(body["totalTvMs"], json!(0));

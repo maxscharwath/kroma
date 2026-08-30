@@ -122,6 +122,34 @@ export const StorageInfo = z.object({
 });
 export type StorageInfo = z.infer<typeof StorageInfo>;
 
+/** The windows every dashboard chart and the history screen offer. `live` is the
+ *  server's rolling in-memory ring; every other value is read from persisted
+ *  samples and survives a restart. */
+export const MetricRange = z.enum(['live', '12h', '24h', '7d', '30d', '90d', '1y', 'all']);
+export type MetricRange = z.infer<typeof MetricRange>;
+
+/** The mean of each series over the window on screen, for the chart footers. */
+export const MetricMeans = z.object({
+  cpuKroma: z.number(),
+  cpuSystem: z.number(),
+  cpuMedia: z.number(),
+  ramKroma: z.number(),
+  ramSystem: z.number(),
+  bwLocal: z.number(),
+  bwRemote: z.number(),
+});
+export type MetricMeans = z.infer<typeof MetricMeans>;
+
+/** The kinds a watch statistic is broken down by. `movie` and `tv` are the only
+ *  two KROMA holds today; the other two are declared so a client renders an
+ *  honest zero rather than hiding a row it has never seen. */
+export const WatchKind = z.enum(['movie', 'tv', 'music', 'photo']);
+export type WatchKind = z.infer<typeof WatchKind>;
+
+/** Milliseconds watched per kind. Every kind is present, zeroes included. */
+export const WatchTotals = z.record(WatchKind, z.number());
+export type WatchTotals = z.infer<typeof WatchTotals>;
+
 /** Time-series history (oldest → newest). Percentages are 0..100. */
 export const MetricsSeries = z.object({
   cpuKroma: z.array(z.number()),
@@ -153,6 +181,16 @@ export const MetricsSnapshot = z.object({
   uptimeSecs: z.number(),
   sampleIntervalMs: z.number().default(3000),
   series: MetricsSeries,
+  /** Which window `series` covers. */
+  range: MetricRange.default('live'),
+  /** Unix seconds of the first sample in `series`. */
+  startedAt: z.number().default(0),
+  /** Seconds between two samples in `series`. */
+  stepSecs: z.number().default(3),
+  means: MetricMeans.nullish(),
+  /** False where the server has no samples covering the whole window, so a
+   *  client says "not running that long" instead of drawing zeroes. */
+  complete: z.boolean().default(true),
 });
 export type MetricsSnapshot = z.infer<typeof MetricsSnapshot>;
 
@@ -234,11 +272,17 @@ export const PlayEntry = z.object({
   network: z.string().nullish(),
   videoLabel: z.string().nullish(),
   audioLabel: z.string().nullish(),
+  /** The library the title belongs to, for the history screen's filter. */
+  library: z.string().nullish(),
   startedAt: z.number(),
   endedAt: z.number(),
   watchedMs: z.number(),
 });
 export type PlayEntry = z.infer<typeof PlayEntry>;
+
+/** One entry of the history screen's library filter. */
+export const HistoryLibrary = z.object({ id: z.string(), name: z.string() });
+export type HistoryLibrary = z.infer<typeof HistoryLibrary>;
 
 /** `GET /api/admin/stats/plays`: one page of the watch log, newest first. */
 export const PlaysPage = z.object({
@@ -255,13 +299,46 @@ export const HistoryBucket = z.object({
 });
 export type HistoryBucket = z.infer<typeof HistoryBucket>;
 
-/** `GET /api/admin/stats/history`. */
+/** `GET /api/admin/stats/history`. `bucketDays` is the width the server chose
+ *  from the window, so a client labels the axis with what it actually got. */
 export const HistoryStats = z.object({
   buckets: z.array(HistoryBucket),
   totalFilmsMs: z.number(),
   totalTvMs: z.number(),
+  totals: WatchTotals.nullish(),
+  bucketDays: z.number().default(7),
 });
 export type HistoryStats = z.infer<typeof HistoryStats>;
+
+/** One title in the most-watched panel. `viewers` is the number of distinct
+ *  accounts, which is what separates one person watching eight times from eight
+ *  people watching once. */
+export const MostWatchedEntry = z.object({
+  itemId: z.string(),
+  title: z.string(),
+  kind: WatchKind,
+  /** Set where the entry is a series, so the poster and the drill-down resolve
+   *  against the show rather than an arbitrary episode. */
+  showId: z.string().nullish(),
+  year: z.number().nullish(),
+  plays: z.number(),
+  viewers: z.number(),
+});
+export type MostWatchedEntry = z.infer<typeof MostWatchedEntry>;
+
+/** One column of the most-watched panel: a kind, and its ranking. An empty
+ *  `entries` is an answer, not a reason to drop the column. */
+export const MostWatchedColumn = z.object({
+  kind: WatchKind,
+  entries: z.array(MostWatchedEntry),
+});
+export type MostWatchedColumn = z.infer<typeof MostWatchedColumn>;
+
+/** `GET /api/admin/stats/most-watched`. */
+export const MostWatched = z.object({
+  columns: z.array(MostWatchedColumn),
+});
+export type MostWatched = z.infer<typeof MostWatched>;
 
 /** Per-series aggregate over its episodes, for the elements list. */
 export const EpStats = z.object({
@@ -289,13 +366,19 @@ export const Activity = z.object({
 export type Activity = z.infer<typeof Activity>;
 
 /** Aggregated per-user watch stats over a window (dashboard "Top des
- * utilisateurs"). Keyed by `username` here, so it carries no branded id. */
+ * utilisateurs"). `filmsMs` and `tvMs` are kept beside `byKind` because they are
+ * what the first version of the card read; new callers use `byKind`, which
+ * carries every kind including the ones that are zero. */
 export const TopUser = z.object({
   username: z.string(),
+  /** Absent for a play recorded against no account. */
+  userId: z.string().nullish(),
+  avatarUrl: z.string().nullish(),
   plays: z.number(),
   watchedMs: z.number(),
   filmsMs: z.number(),
   tvMs: z.number(),
+  byKind: WatchTotals.nullish(),
 });
 export type TopUser = z.infer<typeof TopUser>;
 

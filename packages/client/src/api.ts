@@ -69,8 +69,10 @@ import type {
   MediaItem,
   MediaRequest,
   Metadata,
+  MetricRange,
   MetricsSnapshot,
   ModuleInfo,
+  MostWatched,
   NotificationImages,
   NotificationPrefs,
   NotificationsView,
@@ -764,8 +766,8 @@ export class KromaClient {
   terminateSession(id: string, message?: string): Promise<void> {
     return admin.terminateSession(this.ctx, id, message);
   }
-  adminMetrics(): Promise<MetricsSnapshot> {
-    return admin.adminMetrics(this.ctx);
+  adminMetrics(range?: MetricRange): Promise<MetricsSnapshot> {
+    return admin.adminMetrics(this.ctx, range);
   }
   adminTranscodes(): Promise<Transcodes> {
     return admin.adminTranscodes(this.ctx);
@@ -805,8 +807,13 @@ export class KromaClient {
   topUsers(days = 7): Promise<{ users: TopUser[] }> {
     return admin.topUsers(this.ctx, days);
   }
-  playHistory(days = 28): Promise<HistoryStats> {
-    return admin.playHistory(this.ctx, days);
+  playHistory(
+    opts?: number | { days?: number; kind?: string; user?: string },
+  ): Promise<HistoryStats> {
+    return admin.playHistory(this.ctx, opts);
+  }
+  mostWatched(opts?: { days?: number; user?: string }): Promise<MostWatched> {
+    return admin.mostWatched(this.ctx, opts);
   }
   adminPlays(opts?: {
     days?: number;

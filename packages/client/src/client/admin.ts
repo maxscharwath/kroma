@@ -10,7 +10,9 @@ import type {
   JobLog,
   JobsView,
   LogsView,
+  MetricRange,
   MetricsSnapshot,
+  MostWatched,
   Notification,
   Permission,
   PlaybackSession,
@@ -47,8 +49,13 @@ export async function terminateSession(
   });
 }
 
-export function adminMetrics(ctx: RequestContext): Promise<MetricsSnapshot> {
-  return ctx.json<MetricsSnapshot>('/admin/metrics');
+/** `range` defaults to the live rolling window; anything else is read from the
+ *  samples the server has persisted. */
+export function adminMetrics(
+  ctx: RequestContext,
+  range: MetricRange = 'live',
+): Promise<MetricsSnapshot> {
+  return ctx.json<MetricsSnapshot>(`/admin/metrics?range=${range}`);
 }
 
 /** Every remux running now, the silicon they run on, and whether each is keeping
@@ -175,20 +182,58 @@ export function topUsers(ctx: RequestContext, days = 7): Promise<{ users: TopUse
   return ctx.json<{ users: TopUser[] }>(`/admin/stats/top-users?days=${days}`);
 }
 
-/** Weekly films-vs-TV watch buckets. */
-export function playHistory(ctx: RequestContext, days = 28): Promise<HistoryStats> {
-  return ctx.json<HistoryStats>(`/admin/stats/history?days=${days}`);
+/** The titles played most over a window, one column per kind of media. */
+export function mostWatched(
+  ctx: RequestContext,
+  opts: { days?: number; user?: string } = {},
+): Promise<MostWatched> {
+  const params = new URLSearchParams();
+  params.set('days', String(opts.days ?? 30));
+  if (opts.user) params.set('user', opts.user);
+  return ctx.json<MostWatched>(`/admin/stats/most-watched?${params}`);
+}
+
+/** Time watched per bucket over a window, stacked by kind. `kind` and `user`
+ *  narrow it the way the dashboard panel's two other filters do. */
+export function playHistory(
+  ctx: RequestContext,
+  opts: number | { days?: number; kind?: string; user?: string } = 28,
+): Promise<HistoryStats> {
+  const o = typeof opts === 'number' ? { days: opts } : opts;
+  const params = new URLSearchParams();
+  params.set('days', String(o.days ?? 28));
+  if (o.kind) params.set('kind', o.kind);
+  if (o.user) params.set('user', o.user);
+  return ctx.json<HistoryStats>(`/admin/stats/history?${params}`);
 }
 
 /** The watch log, newest first: who watched what, when, and on which device.
  *  `user` narrows it to one account. */
 export function adminPlays(
   ctx: RequestContext,
-  opts: { days?: number; user?: string; limit?: number; offset?: number } = {},
+  opts: {
+    days?: number;
+    user?: string;
+    /** A library id, or absent for every library. */
+    library?: string;
+    /** An item or show id, for one title's own history. */
+    item?: string;
+    /** A column name plus `:asc` or `:desc`. */
+    sort?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
 ): Promise<PlaysPage> {
   const params = new URLSearchParams();
   params.set('days', String(opts.days ?? 30));
-  if (opts.user) params.set('user', opts.user);
+  for (const [key, value] of [
+    ['user', opts.user],
+    ['library', opts.library],
+    ['item', opts.item],
+    ['sort', opts.sort],
+  ] as const) {
+    if (value) params.set(key, value);
+  }
   if (opts.limit !== undefined) params.set('limit', String(opts.limit));
   if (opts.offset) params.set('offset', String(opts.offset));
   return ctx.json<PlaysPage>(`/admin/stats/plays?${params}`);

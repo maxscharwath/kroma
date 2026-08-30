@@ -200,6 +200,7 @@ describe('delegating methods issue the expected request', () => {
     ['topUsers', (c) => c.topUsers()],
     ['playHistory', (c) => c.playHistory()],
     ['adminPlays', (c) => c.adminPlays()],
+    ['mostWatched', (c) => c.mostWatched()],
     ['adminOverview', (c) => c.adminOverview()],
     ['adminLogs', (c) => c.adminLogs()],
     ['adminJobs', (c) => c.adminJobs()],

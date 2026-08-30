@@ -7,42 +7,36 @@ use kroma_domain::{Show, VideoStream};
 
 use crate::{parse_metadata, Pool, IN_CHUNK};
 
-// Callers append their own `WHERE`/`ORDER BY` and map rows with `row_to_show_counted`.
+// Callers append their own `WHERE`/`ORDER BY`. Rows are read by column name, so
+// a column added here cannot shift what the mappers below see.
 pub(super) const SHOWS_COUNTED_SELECT: &str = "SELECT s.id,s.title,s.year,s.library,s.added_at,\
-    (SELECT COUNT(DISTINCT i.season) FROM items i WHERE i.show_id=s.id),\
-    (SELECT COUNT(*) FROM items i WHERE i.show_id=s.id),\
+    (SELECT COUNT(DISTINCT i.season) FROM items i WHERE i.show_id=s.id) AS season_count,\
+    (SELECT COUNT(*) FROM items i WHERE i.show_id=s.id) AS episode_count,\
     s.metadata \
  FROM shows s";
 
-pub(super) fn row_to_show_counted(r: &Row) -> rusqlite::Result<Show> {
+fn row_to_show(r: &Row, season_count: u32, episode_count: u32) -> rusqlite::Result<Show> {
     Ok(Show {
-        id: r.get(0)?,
-        title: r.get(1)?,
-        year: r.get(2)?,
-        library: r.get(3)?,
-        added_at: r.get(4)?,
-        season_count: r.get::<_, i64>(5)? as u32,
-        episode_count: r.get::<_, i64>(6)? as u32,
+        id: r.get("id")?,
+        title: r.get("title")?,
+        year: r.get("year")?,
+        library: r.get("library")?,
+        added_at: r.get("added_at")?,
+        season_count,
+        episode_count,
         video: None,
-        metadata: parse_metadata(r.get(7)?),
+        metadata: parse_metadata(r.get("metadata")?),
         progress: None,
     })
 }
 
+fn row_to_show_counted(r: &Row) -> rusqlite::Result<Show> {
+    row_to_show(r, r.get("season_count")?, r.get("episode_count")?)
+}
+
 // Season/episode counts come back zeroed; the caller fills them in.
 pub(super) fn row_to_show_bare(r: &Row) -> rusqlite::Result<Show> {
-    Ok(Show {
-        id: r.get(0)?,
-        title: r.get(1)?,
-        year: r.get(2)?,
-        library: r.get(3)?,
-        added_at: r.get(4)?,
-        season_count: 0,
-        episode_count: 0,
-        video: None,
-        metadata: parse_metadata(r.get(5)?),
-        progress: None,
-    })
+    row_to_show(r, 0, 0)
 }
 
 // `base` is the index of `v_codec`; the five stream columns follow it in order.

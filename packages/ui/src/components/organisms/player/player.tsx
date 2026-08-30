@@ -6,6 +6,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Ground } from '#ui/components/atoms/ground';
 import { styles } from '#ui/core';
 import type { StoryboardTile } from '#ui/services/storyboard';
+import { PLAYER_ROOT_ID, useIdleCursor } from './hooks/use-idle-cursor';
 import { usePlayerEnding } from './hooks/use-player-ending';
 import { usePlayerKeys } from './hooks/use-player-keys';
 import { usePlayerNav } from './hooks/use-player-nav';
@@ -163,6 +164,8 @@ function Root({
     metrics.controls,
   );
 
+  useIdleCursor(flags.pointer && !nav.revealed);
+
   const ending = usePlayerEnding({
     controller: c,
     markers,
@@ -222,6 +225,7 @@ function Root({
     <PlayerSlotContext.Provider value={true}>
       <Box
         ref={ref}
+        nativeID={PLAYER_ROOT_ID}
         fill
         z={60}
         // Transparent ONLY over a hardware plane, which is behind the page and

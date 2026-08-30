@@ -1,8 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Animated, Platform, Pressable, type ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
-import { Spinner } from '#ui/components/atoms/spinner';
-import { EmptyState } from '#ui/components/molecules/empty-state';
 import { styles } from '#ui/core';
 import { ease } from '#ui/lib/ease';
 import { WEB } from '#ui/lib/platform';
@@ -17,6 +15,7 @@ import { VIRTUAL_FOCUS } from '../../lib/virtual-focus';
 import type { PlaneRect, PlayerController } from '../../types';
 import { SubtitleRenderer } from '../subtitle-renderer';
 import { SurfaceRadiusProvider } from '../surface-radius';
+import { StageOverlay } from './stage-overlay';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -276,19 +275,7 @@ function Stage({
             appearance={appearance}
             raised={raised}
           />
-          {c.error && !locked ? (
-            <Box fill z={4} center px={64}>
-              <EmptyState.Root size="tv" icon="device-tv">
-                <EmptyState.Title>{c.error}</EmptyState.Title>
-                {c.errorHint ? <EmptyState.Hint>{c.errorHint}</EmptyState.Hint> : null}
-              </EmptyState.Root>
-            </Box>
-          ) : null}
-          {c.waiting && !c.error && !locked ? (
-            <Box fill z={4} center>
-              <Spinner size={56} thickness={3} />
-            </Box>
-          ) : null}
+          {locked ? null : <StageOverlay error={c.error} hint={c.errorHint} waiting={c.waiting} />}
         </Animated.View>
       </AnimatedPressable>
 

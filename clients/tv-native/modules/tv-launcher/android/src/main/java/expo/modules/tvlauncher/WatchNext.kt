@@ -31,19 +31,7 @@ object WatchNext {
      */
     @Synchronized
     fun sync(context: Context, json: String) {
-        val arr = try {
-            JSONArray(json)
-        } catch (e: Exception) {
-            Log.w(TAG, "bad continue-watching payload", e)
-            return
-        }
-        val wanted = LinkedHashMap<String, JSONObject>()
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
-            val id = o.optString("id")
-            if (id.isNotEmpty()) wanted[id] = o
-        }
-
+        val wanted = wantedFrom(json) ?: return
         try {
             // Reconcile against what is ACTUALLY published, not a local record that
             // can go stale on reinstall or race with a concurrent sync (which was
@@ -55,27 +43,9 @@ object WatchNext {
             var published = 0
             var touched = 0
             for ((itemId, o) in wanted) {
-                val rows = existing[itemId].orEmpty()
-                // A card the user swiped away stays away until they watch more of it.
-                if (LauncherStore.isDismissed(dismissals, itemId, o.optLong("updatedAtMs", 0))) {
-                    for (row in rows) removeRow(context, row.id)
-                    continue
-                }
-                published++
-                // Keep one row per item and write ONLY when this item actually moved:
-                // rewriting the whole row on every sync is what the Watch Next
-                // guidelines forbid, and a delete + insert is a rewrite.
-                val keep = rows.firstOrNull()
-                for (row in rows.drop(1)) removeRow(context, row.id)
-                if (keep == null) {
-                    insertRow(context, itemId, o)
-                    touched++
-                } else if (keep.positionMs != o.optLong("progressMs", 0) ||
-                    keep.engagedAtMs != o.optLong("updatedAtMs", 0)
-                ) {
-                    updateRow(context, keep.id, itemId, o)
-                    touched++
-                }
+                val outcome = reconcile(context, itemId, o, existing[itemId].orEmpty(), dismissals)
+                if (outcome != Outcome.DISMISSED) published++
+                if (outcome == Outcome.WRITTEN) touched++
             }
             for ((itemId, rows) in existing) {
                 if (!wanted.containsKey(itemId)) for (row in rows) removeRow(context, row.id)
@@ -84,6 +54,52 @@ object WatchNext {
         } catch (e: Exception) {
             Log.w(TAG, "watch-next sync failed", e)
         }
+    }
+
+    private enum class Outcome { DISMISSED, UNCHANGED, WRITTEN }
+
+    private fun wantedFrom(json: String): Map<String, JSONObject>? {
+        val arr = try {
+            JSONArray(json)
+        } catch (e: Exception) {
+            Log.w(TAG, "bad continue-watching payload", e)
+            return null
+        }
+        val wanted = LinkedHashMap<String, JSONObject>()
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val id = o.optString("id")
+            if (id.isNotEmpty()) wanted[id] = o
+        }
+        return wanted
+    }
+
+    // One item's rows brought in line with the payload. Keeps ONE row per item and
+    // writes only when this item actually moved: rewriting the whole row on every
+    // sync is what the Watch Next guidelines forbid, and a delete + insert is a
+    // rewrite. A card the user swiped away stays away until they watch more of it.
+    private fun reconcile(
+        context: Context,
+        itemId: String,
+        o: JSONObject,
+        rows: List<Row>,
+        dismissals: JSONObject,
+    ): Outcome {
+        if (LauncherStore.isDismissed(dismissals, itemId, o.optLong("updatedAtMs", 0))) {
+            for (row in rows) removeRow(context, row.id)
+            return Outcome.DISMISSED
+        }
+        val keep = rows.firstOrNull()
+        for (row in rows.drop(1)) removeRow(context, row.id)
+        if (keep == null) {
+            insertRow(context, itemId, o)
+            return Outcome.WRITTEN
+        }
+        val moved = keep.positionMs != o.optLong("progressMs", 0) ||
+            keep.engagedAtMs != o.optLong("updatedAtMs", 0)
+        if (!moved) return Outcome.UNCHANGED
+        updateRow(context, keep.id, itemId, o)
+        return Outcome.WRITTEN
     }
 
     /** Remove every KROMA Watch Next row (called on sign-out). */

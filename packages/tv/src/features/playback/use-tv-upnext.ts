@@ -35,6 +35,7 @@ function toOffer(client: KromaClient, item: MediaItem): PostPlayItem {
     id: item.id,
     title: item.title,
     subtitle: metaLine(item),
+    rating: item.metadata?.rating,
     overview: item.metadata?.overview,
     artUrl: client.backdropFor(item, POST_PLAY_ART_W) ?? client.posterFor(item, POST_PLAY_ART_W),
   };

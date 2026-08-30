@@ -31,6 +31,7 @@ function toOffer(item: MediaItem): PostPlayItem {
     id: item.id,
     title: item.title,
     subtitle: metaLine(item),
+    rating: item.metadata?.rating,
     overview: item.metadata?.overview,
     artUrl: c.backdropFor(item, POST_PLAY_ART_W) ?? c.posterFor(item, POST_PLAY_ART_W),
   };

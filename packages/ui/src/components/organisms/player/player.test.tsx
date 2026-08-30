@@ -174,6 +174,14 @@ const OFFER: PostPlayItem = {
 };
 
 describe('<Player.Root> when the film is over', () => {
+  it('names the film that just finished, so the screen says where the viewer is', () => {
+    const { rerender } = render(player(media, { postPlay: OFFER }));
+
+    rerender(player(media, { postPlay: OFFER, controller: fakeController({ endedNonce: 1 }) }));
+
+    expect(screen.getByText('You finished Blade Runner 2049')).toBeTruthy();
+  });
+
   it('offers the next film instead of leaving', () => {
     const onClose = vi.fn();
     const { rerender } = render(player(media, { onClose, postPlay: OFFER }));

@@ -13,8 +13,10 @@ export const story = defineStory({
   viewport: 'tv',
   args: {
     stageWidth: 1920,
+    finished: 'Les Affranchis',
     title: 'Blade Runner',
     subtitle: '1982 · 1h57 · H.265 · 4K',
+    rating: 8.1,
     overview:
       "Dans un Los Angeles noyé de pluie, un ancien policier traque quatre répliquants revenus sur Terre pour arracher à leur créateur les quelques années qu'il leur reste.",
     focus: 'play',
@@ -22,13 +24,14 @@ export const story = defineStory({
   controls: {
     focus: { options: ['play', 'home'] },
     stageWidth: { min: 900, max: 1920, step: 20 },
+    rating: { min: 0, max: 10, step: 0.1 },
   },
-  render: ({ title, subtitle, overview, ...props }) => (
+  render: ({ title, subtitle, rating, overview, ...props }) => (
     <Ground tone="dark">
       <Box aspect={16 / 9} minH={420} bg="surface2" radius="lg" overflow="hidden">
         <PostPlay
           {...props}
-          item={{ id: 'br', title, subtitle, overview, artUrl: stillArt(3) }}
+          item={{ id: 'br', title, subtitle, rating, overview, artUrl: stillArt(3) }}
           onPlay={() => {}}
           onHome={() => {}}
         />
@@ -37,7 +40,9 @@ export const story = defineStory({
   ),
 });
 
-The screen a film ends on. It replaces the chrome rather than covering it: there is no playhead left to scrub and no transport worth showing, so what is left is the next film to watch and the way out.
+The screen a film ends on. It replaces the chrome rather than covering it: there is no playhead left to scrub and no transport worth showing, so what is left is the film that just finished, the next one to watch, and the way out.
+
+It arrives rather than cutting in: the art fades up and the copy settles into it over 420ms, which is the same easing every other travel in the player uses.
 
 `focus` is the player's, not the screen's. Both buttons are controlled, because the chrome runs its own virtual focus and a second, real one would let a television's focus engine light a button this machine is not on.
 
@@ -46,6 +51,7 @@ The screen a film ends on. It replaces the chrome rather than covering it: there
 ```tsx
 <PostPlay
   item={offer}
+  finished={title}
   focus={postPlayFocus}
   stageWidth={stageSize.width}
   onPlay={playOffer}
@@ -61,9 +67,9 @@ The screen a film ends on. It replaces the chrome rather than covering it: there
   The same layout under the desktop type tier.
 </Scene>
 
-<Scene name="Nothing written about it" args={{ overview: undefined }}>
-  A title the metadata provider has no synopsis for. The block shortens; nothing
-  else moves.
+<Scene name="Nothing written about it" args={{ overview: undefined, rating: undefined }}>
+  A title the metadata provider knows the name of and nothing else. The block
+  shortens; nothing else moves.
 </Scene>
 
 <Do>

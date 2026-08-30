@@ -346,6 +346,7 @@ function Root({
           {ending.over && postPlay ? (
             <PostPlay
               item={postPlay}
+              finished={title}
               focus={ending.postPlayFocus}
               stageWidth={stageSize.width}
               onPlay={ending.playOffer}

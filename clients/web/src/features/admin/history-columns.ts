@@ -1,4 +1,4 @@
-import type { MessageKey, PlayEntry } from '@kroma/core';
+import type { MessageKey, PlayEntry, Show } from '@kroma/core';
 import type { TableColumn } from '@kroma/ui/kit';
 
 export type HistorySort = 'username' | 'kind' | 'title' | 'device' | 'player' | 'endedAt';
@@ -38,4 +38,18 @@ export function titleLines(play: PlayEntry): TitleLines {
   if (!play.showTitle) return { lead: play.title, detail: null };
   const number = play.season == null ? null : `S${play.season}E${play.episode ?? '?'}`;
   return { lead: play.showTitle, detail: [number, play.title].filter(Boolean).join(' · ') };
+}
+
+/** The show each series title names. A title two shows share resolves to
+ *  nothing, because the play log keeps the series name and not its id, and a
+ *  guess would open the wrong series. */
+export function showIdsByTitle(shows: readonly Show[]): ReadonlyMap<string, string> {
+  const byTitle = new Map<string, string>();
+  const shared = new Set<string>();
+  for (const show of shows) {
+    if (byTitle.has(show.title)) shared.add(show.title);
+    byTitle.set(show.title, show.id);
+  }
+  for (const title of shared) byTitle.delete(title);
+  return byTitle;
 }

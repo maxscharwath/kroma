@@ -317,7 +317,7 @@
     "status": "AGREED",
     "text": "The panel plots time watched per bucket over a chosen window,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 38
+    "line": 45
   },
   {
     "id": "ADMIN-33",
@@ -327,7 +327,7 @@
     "status": "AGREED",
     "text": "The bucket width is chosen from the window so the chart always",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 42
+    "line": 49
   },
   {
     "id": "ADMIN-34",
@@ -337,7 +337,7 @@
     "status": "AGREED",
     "text": "The panel carries three independent filters: kind of media, account,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 46
+    "line": 53
   },
   {
     "id": "ADMIN-35",
@@ -347,7 +347,7 @@
     "status": "AGREED",
     "text": "The account filter lists every account with history in the window,",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 49
+    "line": 56
   },
   {
     "id": "ADMIN-36",
@@ -357,7 +357,7 @@
     "status": "AGREED",
     "text": "A footer states the total time for each kind of media over the whole",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 52
+    "line": 59
   },
   {
     "id": "ADMIN-37",
@@ -367,7 +367,7 @@
     "status": "AGREED",
     "text": "The panel links to the full history screen",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 55
+    "line": 62
   },
   {
     "id": "ADMIN-38",
@@ -377,7 +377,7 @@
     "status": "AGREED",
     "text": "Each kind of media keeps one colour across this panel, the top-viewer",
     "file": "docs/spec/admin/dashboard-audience.md",
-    "line": 59
+    "line": 66
   },
   {
     "id": "ADMIN-39",
@@ -497,7 +497,7 @@
     "status": "AGREED",
     "text": "The header names the title beside the number of plays in scope, so",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 17
+    "line": 18
   },
   {
     "id": "ADMIN-51",
@@ -507,7 +507,7 @@
     "status": "AGREED",
     "text": "The table drops the title column, which is the same on every row,",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 20
+    "line": 21
   },
   {
     "id": "ADMIN-52",
@@ -517,7 +517,7 @@
     "status": "AGREED",
     "text": "Rows are ordered by when they were watched, most recent first, and",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 23
+    "line": 24
   },
   {
     "id": "ADMIN-53",
@@ -527,7 +527,7 @@
     "status": "AGREED",
     "text": "A title nobody has played says so, rather than showing an empty",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 26
+    "line": 27
   },
   {
     "id": "ADMIN-54",
@@ -537,7 +537,7 @@
     "status": "AGREED",
     "text": "The view is reachable from every surface that names a title with a",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 33
+    "line": 34
   },
   {
     "id": "ADMIN-55",
@@ -547,7 +547,7 @@
     "status": "AGREED",
     "text": "The view has its own address. An owner can send it to someone, or",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 37
+    "line": 38
   },
   {
     "id": "ADMIN-56",
@@ -557,7 +557,7 @@
     "status": "AGREED",
     "text": "For a series, the view covers every episode of that series, and",
     "file": "docs/spec/admin/watch-history-item.md",
-    "line": 40
+    "line": 41
   },
   {
     "id": "ADMIN-57",
@@ -617,7 +617,7 @@
     "status": "AGREED",
     "text": "Any column can order the table, ascending or descending, and the",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 32
+    "line": 33
   },
   {
     "id": "ADMIN-63",
@@ -627,7 +627,7 @@
     "status": "AGREED",
     "text": "The table pages or virtualises rather than rendering everything.",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 35
+    "line": 45
   },
   {
     "id": "ADMIN-64",
@@ -637,7 +637,7 @@
     "status": "AGREED",
     "text": "The screen filters by library, by account, and by window, each",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 43
+    "line": 53
   },
   {
     "id": "ADMIN-65",
@@ -647,7 +647,7 @@
     "status": "AGREED",
     "text": "The window control offers the same choices as the dashboard's, plus",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 46
+    "line": 56
   },
   {
     "id": "ADMIN-66",
@@ -657,7 +657,7 @@
     "status": "AGREED",
     "text": "Filters live in the address, so a filtered view can be sent to",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 50
+    "line": 60
   },
   {
     "id": "ADMIN-67",
@@ -665,9 +665,9 @@
     "space": "admin",
     "number": 67,
     "status": "AGREED",
-    "text": "Arriving from a dashboard panel carries that panel's filters across,",
+    "text": "Arriving from a dashboard panel applies the filters that panel sent,",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 53
+    "line": 63
   },
   {
     "id": "ADMIN-68",
@@ -677,7 +677,7 @@
     "status": "AGREED",
     "text": "A session is written to the log when it ends, carrying everything",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 60
+    "line": 75
   },
   {
     "id": "ADMIN-69",
@@ -687,7 +687,7 @@
     "status": "AGREED",
     "text": "The log is kept indefinitely by default. It is small, it is the only",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 64
+    "line": 79
   },
   {
     "id": "ADMIN-70",
@@ -697,7 +697,7 @@
     "status": "AGREED",
     "text": "The log survives a backup and restore, because a restored server",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 68
+    "line": 83
   },
   {
     "id": "ADMIN-71",
@@ -707,7 +707,7 @@
     "status": "AGREED",
     "text": "An account deleted from the server keeps its rows, attributed to the",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 71
+    "line": 86
   },
   {
     "id": "ADMIN-72",
@@ -717,7 +717,7 @@
     "status": "AGREED",
     "text": "The screen requires the permission to manage users. A watch history",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 80
+    "line": 95
   },
   {
     "id": "ADMIN-73",
@@ -727,7 +727,7 @@
     "status": "AGREED",
     "text": "A member can always read their own history. What the product does",
     "file": "docs/spec/admin/watch-history.md",
-    "line": 84
+    "line": 99
   },
   {
     "id": "ADMIN-74",
@@ -738,5 +738,45 @@
     "text": "A column is bounded in height and scrolls inside that bound. The",
     "file": "docs/spec/admin/dashboard-most-watched.md",
     "line": 17
+  },
+  {
+    "id": "ADMIN-75",
+    "domain": "ADMIN",
+    "space": "admin",
+    "number": 75,
+    "status": "AGREED",
+    "text": "A card opens the full history screen",
+    "file": "docs/spec/admin/dashboard-audience.md",
+    "line": 34
+  },
+  {
+    "id": "ADMIN-76",
+    "domain": "ADMIN",
+    "space": "admin",
+    "number": 76,
+    "status": "AGREED",
+    "text": "A screen narrowed to one title names that title in the filter row",
+    "file": "docs/spec/admin/watch-history.md",
+    "line": 66
+  },
+  {
+    "id": "ADMIN-77",
+    "domain": "ADMIN",
+    "space": "admin",
+    "number": 77,
+    "status": "AGREED",
+    "text": "When a session was watched is written out in full, the date and the",
+    "file": "docs/spec/admin/watch-history.md",
+    "line": 36
+  },
+  {
+    "id": "ADMIN-78",
+    "domain": "ADMIN",
+    "space": "admin",
+    "number": 78,
+    "status": "AGREED",
+    "text": "A row opens the title it names, at that title's own page, wherever",
+    "file": "docs/spec/admin/watch-history.md",
+    "line": 40
   }
 ]

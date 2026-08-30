@@ -1,18 +1,27 @@
 import type { MessageKey, PlayEntry } from '@kroma/core';
 import { TABULAR } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
-import { Box, EmptyState, type SortColumn, Table, Text } from '@kroma/ui/kit';
+import { Box, EmptyState, Focusable, type SortColumn, Table, Text } from '@kroma/ui/kit';
 import type { ComponentType } from 'react';
 import {
   type HistoryColumn,
   type HistorySort,
   kindKey,
+  type TitleLines,
   titleLines,
 } from '#web/features/admin/history-columns';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 const ABSENT = '-';
 
-function UserCell({ play }: Readonly<{ play: PlayEntry }>) {
+type ShowIds = ReadonlyMap<string, string>;
+
+interface CellProps {
+  play: PlayEntry;
+  showIds: ShowIds;
+}
+
+function UserCell({ play }: Readonly<CellProps>) {
   return (
     <Text variant="label" lines={1}>
       {play.username}
@@ -20,7 +29,7 @@ function UserCell({ play }: Readonly<{ play: PlayEntry }>) {
   );
 }
 
-function KindCell({ play }: Readonly<{ play: PlayEntry }>) {
+function KindCell({ play }: Readonly<CellProps>) {
   const t = useT();
   return (
     <Text variant="meta" color="textMuted" lines={1}>
@@ -29,8 +38,7 @@ function KindCell({ play }: Readonly<{ play: PlayEntry }>) {
   );
 }
 
-function TitleCell({ play }: Readonly<{ play: PlayEntry }>) {
-  const { lead, detail } = titleLines(play);
+function TitleFace({ lead, detail }: Readonly<TitleLines>) {
   return (
     <Box minW={0}>
       <Text variant="meta" lines={1}>
@@ -45,7 +53,23 @@ function TitleCell({ play }: Readonly<{ play: PlayEntry }>) {
   );
 }
 
-function PlayerCell({ play }: Readonly<{ play: PlayEntry }>) {
+function TitleCell({ play, showIds }: Readonly<CellProps>) {
+  const lines = titleLines(play);
+  const face = <TitleFace {...lines} />;
+  const show = play.showTitle ? showIds.get(play.showTitle) : undefined;
+  if (!show) return face;
+  return (
+    <Focusable
+      ring="focusInset"
+      label={lines.lead}
+      as={<RouteLink to="/shows/$id" params={{ id: show }} />}
+    >
+      {face}
+    </Focusable>
+  );
+}
+
+function PlayerCell({ play }: Readonly<CellProps>) {
   return (
     <Text variant="meta" color="textMuted" lines={1}>
       {play.player ?? ABSENT}
@@ -53,7 +77,7 @@ function PlayerCell({ play }: Readonly<{ play: PlayEntry }>) {
   );
 }
 
-function PlatformCell({ play }: Readonly<{ play: PlayEntry }>) {
+function PlatformCell({ play }: Readonly<CellProps>) {
   return (
     <Text variant="meta" color="textDim" lines={1}>
       {play.device ?? ABSENT}
@@ -61,16 +85,16 @@ function PlatformCell({ play }: Readonly<{ play: PlayEntry }>) {
   );
 }
 
-function WhenCell({ play }: Readonly<{ play: PlayEntry }>) {
+function WhenCell({ play }: Readonly<CellProps>) {
   const fmt = useFormat();
   return (
     <Text variant="meta" color="textDim" style={TABULAR}>
-      {fmt.elapsed(play.endedAt * 1000)}
+      {fmt.stamp(play.endedAt * 1000) ?? ABSENT}
     </Text>
   );
 }
 
-const CELLS: Record<HistorySort, ComponentType<{ play: PlayEntry }>> = {
+const CELLS: Record<HistorySort, ComponentType<CellProps>> = {
   username: UserCell,
   kind: KindCell,
   title: TitleCell,
@@ -79,17 +103,18 @@ const CELLS: Record<HistorySort, ComponentType<{ play: PlayEntry }>> = {
   endedAt: WhenCell,
 };
 
-function HistoryRow({
-  play,
-  columns,
-}: Readonly<{ play: PlayEntry; columns: readonly HistoryColumn[] }>) {
+interface HistoryRowProps extends CellProps {
+  columns: readonly HistoryColumn[];
+}
+
+function HistoryRow({ play, columns, showIds }: Readonly<HistoryRowProps>) {
   return (
     <Table.Row>
       {columns.map((column) => {
         const Cell = CELLS[column.column];
         return (
           <Table.Cell key={column.column}>
-            <Cell play={play} />
+            <Cell play={play} showIds={showIds} />
           </Table.Cell>
         );
       })}
@@ -100,6 +125,7 @@ function HistoryRow({
 interface HistoryTableProps {
   columns: readonly HistoryColumn[];
   plays: readonly PlayEntry[];
+  showIds: ShowIds;
   sort: readonly SortColumn[];
   onSortChange: (next: readonly SortColumn[]) => void;
   emptyKey: MessageKey;
@@ -109,6 +135,7 @@ interface HistoryTableProps {
 export function HistoryTable({
   columns,
   plays,
+  showIds,
   sort,
   onSortChange,
   emptyKey,
@@ -139,7 +166,7 @@ export function HistoryTable({
       </Table.Header>
       <Table.Body>
         {plays.map((play) => (
-          <HistoryRow key={play.id} play={play} columns={columns} />
+          <HistoryRow key={play.id} play={play} columns={columns} showIds={showIds} />
         ))}
       </Table.Body>
     </Table.Root>

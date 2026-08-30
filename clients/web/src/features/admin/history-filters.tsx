@@ -1,6 +1,6 @@
 import { type AdminUser, type HistoryLibrary, resolveImageUrl } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Avatar, Row, Select } from '@kroma/ui/kit';
+import { Avatar, Chip, Row, Select } from '@kroma/ui/kit';
 import type { ReactNode } from 'react';
 import {
   EVERY_WINDOW,
@@ -44,6 +44,7 @@ interface HistoryFiltersProps {
   search: HistorySearch;
   libraries: readonly HistoryLibrary[];
   users: readonly AdminUser[];
+  pinnedTitle: string | null;
   onSearchChange: (next: HistorySearch) => void;
 }
 
@@ -51,6 +52,7 @@ export function HistoryFilters({
   search,
   libraries,
   users,
+  pinnedTitle,
   onSearchChange,
 }: Readonly<HistoryFiltersProps>) {
   const t = useT();
@@ -61,6 +63,15 @@ export function HistoryFilters({
 
   return (
     <Row gap={10} wrap>
+      {search.item ? (
+        <Chip
+          active
+          icon="x"
+          label={pinnedTitle ?? t('admin.colTitle')}
+          onPress={() => narrow({ item: undefined })}
+        />
+      ) : null}
+
       <IdFilter
         label={t('admin.allLibrariesFilter')}
         anyLabel={t('admin.allLibrariesFilter')}

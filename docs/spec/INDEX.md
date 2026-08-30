@@ -3,7 +3,7 @@
 
 # Requirement index
 
-74 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
+78 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
 
 ## ADMIN - [admin](admin/)
 
@@ -73,7 +73,7 @@
 - **ADMIN-64** (AGREED) - The screen filters by library, by account, and by window, each <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-65** (AGREED) - The window control offers the same choices as the dashboard's, plus <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-66** (AGREED) - Filters live in the address, so a filtered view can be sent to <sub>[watch-history.md](admin/watch-history.md)</sub>
-- **ADMIN-67** (AGREED) - Arriving from a dashboard panel carries that panel's filters across, <sub>[watch-history.md](admin/watch-history.md)</sub>
+- **ADMIN-67** (AGREED) - Arriving from a dashboard panel applies the filters that panel sent, <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-68** (AGREED) - A session is written to the log when it ends, carrying everything <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-69** (AGREED) - The log is kept indefinitely by default. It is small, it is the only <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-70** (AGREED) - The log survives a backup and restore, because a restored server <sub>[watch-history.md](admin/watch-history.md)</sub>
@@ -81,3 +81,7 @@
 - **ADMIN-72** (AGREED) - The screen requires the permission to manage users. A watch history <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-73** (AGREED) - A member can always read their own history. What the product does <sub>[watch-history.md](admin/watch-history.md)</sub>
 - **ADMIN-74** (AGREED) - A column is bounded in height and scrolls inside that bound. The <sub>[dashboard-most-watched.md](admin/dashboard-most-watched.md)</sub>
+- **ADMIN-75** (AGREED) - A card opens the full history screen <sub>[dashboard-audience.md](admin/dashboard-audience.md)</sub>
+- **ADMIN-76** (AGREED) - A screen narrowed to one title names that title in the filter row <sub>[watch-history.md](admin/watch-history.md)</sub>
+- **ADMIN-77** (AGREED) - When a session was watched is written out in full, the date and the <sub>[watch-history.md](admin/watch-history.md)</sub>
+- **ADMIN-78** (AGREED) - A row opens the title it names, at that title's own page, wherever <sub>[watch-history.md](admin/watch-history.md)</sub>

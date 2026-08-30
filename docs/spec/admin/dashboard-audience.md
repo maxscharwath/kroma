@@ -31,6 +31,13 @@ than shrinking the cards or scrolling the page sideways.
 **ADMIN-31** (AGREED) - Each card carries the account's avatar where it has one, and falls
 back to a name-seeded mark rather than a blank.
 
+**ADMIN-75** (AGREED) - A card opens the full history screen
+([`watch-history.md`](watch-history.md)) narrowed to that account, and the whole card is
+the place to press. It carries everything the log holds for that member rather than the
+window the panel is showing, because the question a card raises is what this person
+watches, not what they watched this week. A card for plays recorded against no account
+has nobody to open and stays a card.
+
 ## Playback over time
 
 Status: **AGREED**

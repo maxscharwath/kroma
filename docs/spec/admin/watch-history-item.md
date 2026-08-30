@@ -12,7 +12,8 @@ Status: **AGREED**
 
 **ADMIN-49** (AGREED) - The view is the full history screen ([`watch-history.md`](watch-history.md))
 narrowed to one title. It is the same screen, the same table and the same sorting, with the
-title fixed as a filter, so a reader who learned one has learned both.
+title pinned as a filter the reader can drop (ADMIN-76), so a reader who learned one has
+learned both.
 
 **ADMIN-50** (AGREED) - The header names the title beside the number of plays in scope, so
 the count that led the reader here is confirmed on arrival.

@@ -2,7 +2,7 @@
 
 import { type AdminUser, UserId } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { HistoryFilters } from '#web/features/admin/history-filters';
 import type { HistorySearch } from '#web/features/admin/history-query';
@@ -24,17 +24,20 @@ const USERS: AdminUser[] = [
   },
 ];
 
-function mount(search: HistorySearch) {
+function mount(search: HistorySearch, pinnedTitle: string | null = null) {
+  const onSearchChange = vi.fn();
   render(
     <I18nProvider locale="en">
       <HistoryFilters
         search={search}
         libraries={LIBRARIES}
         users={USERS}
-        onSearchChange={vi.fn()}
+        pinnedTitle={pinnedTitle}
+        onSearchChange={onSearchChange}
       />
     </I18nProvider>,
   );
+  return onSearchChange;
 }
 
 describe("the watch history's filters", () => {
@@ -60,5 +63,40 @@ describe("the watch history's filters", () => {
     mount({ user: 'u1' });
 
     expect(screen.getByText('maxime')).toBeTruthy();
+  });
+
+  it('names the title the screen is pinned to, so the short table has a reason', () => {
+    mount({ item: 'hotd' }, 'House of the Dragon');
+
+    expect(screen.getByText('House of the Dragon')).toBeTruthy();
+  });
+
+  it('names the filter rather than the raw id for a title nobody has played', () => {
+    mount({ item: '7490cee4b06f25f6' }, null);
+
+    expect(screen.getByText('Title')).toBeTruthy();
+  });
+
+  it('offers no title filter on a screen no title has narrowed', () => {
+    mount({});
+
+    expect(screen.queryByText('Title')).toBeNull();
+  });
+
+  it('drops the title in one press and leaves the other filters as they were', () => {
+    const asked = mount(
+      { item: 'hotd', library: 'nas-series', user: 'u1', range: '7d', page: 4 },
+      'House of the Dragon',
+    );
+
+    fireEvent.click(screen.getByText('House of the Dragon'));
+
+    expect(asked).toHaveBeenCalledWith({
+      item: undefined,
+      library: 'nas-series',
+      user: 'u1',
+      range: '7d',
+      page: 1,
+    });
   });
 });

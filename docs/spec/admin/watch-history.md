@@ -26,11 +26,21 @@ player, the platform, and when it was watched. Every one of these was known whil
 session was live, and none of it can be recovered afterwards, so the log records all of it.
 
 **ADMIN-61** (AGREED) - An episode's title names its series, its season, its episode number
-and its own name in one cell. A row that said only "Chikhai Bardo" would make the reader
-go and look it up.
+and its own name in one cell, including a row logged before the log kept any of them, as
+long as the catalog still holds the title. A row that said only "Chikhai Bardo" would make
+the reader go and look it up.
 
 **ADMIN-62** (AGREED) - Any column can order the table, ascending or descending, and the
 column currently ordering it says which way.
+
+**ADMIN-77** (AGREED) - When a session was watched is written out in full, the date and the
+time of day, rather than as how long ago it was. An evening's six plays all reading "2 days
+ago" tells a reader auditing a history nothing, which is the moment the column exists for.
+
+**ADMIN-78** (AGREED) - A row opens the title it names, at that title's own page, wherever
+the catalog still holds it. An episode opens its series, which is the page a series has. A
+row whose title has left the catalog offers nothing rather than a link to a page that is
+gone, because the log outlives the library.
 
 **ADMIN-63** (AGREED) - The table pages or virtualises rather than rendering everything.
 A server with years of history holds tens of thousands of rows, and the screen must open in
@@ -50,8 +60,13 @@ is about the record.
 **ADMIN-66** (AGREED) - Filters live in the address, so a filtered view can be sent to
 someone or reloaded without being rebuilt.
 
-**ADMIN-67** (AGREED) - Arriving from a dashboard panel carries that panel's filters across,
-as ADMIN-37 requires.
+**ADMIN-67** (AGREED) - Arriving from a dashboard panel applies the filters that panel sent,
+as ADMIN-37 and ADMIN-75 require.
+
+**ADMIN-76** (AGREED) - A screen narrowed to one title names that title in the filter row
+beside the other three, and drops it in one action, returning to the whole log with the
+library, account and window the reader had chosen still applied. A filter a reader can
+enter and never leave is a trap.
 
 ## What the log keeps, and for how long
 

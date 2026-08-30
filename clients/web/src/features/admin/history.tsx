@@ -2,7 +2,11 @@ import type { MessageKey, PlayEntry } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, Pagination, Row } from '@kroma/ui/kit';
 import { useMemo } from 'react';
-import { HISTORY_COLUMNS, ITEM_HISTORY_COLUMNS } from '#web/features/admin/history-columns';
+import {
+  HISTORY_COLUMNS,
+  ITEM_HISTORY_COLUMNS,
+  showIdsByTitle,
+} from '#web/features/admin/history-columns';
 import { HistoryFilters } from '#web/features/admin/history-filters';
 import {
   HISTORY_PAGE,
@@ -50,6 +54,8 @@ function HistoryPageInner({ search, onSearchChange }: Readonly<HistoryScreenProp
     () => client.adminLibraries(),
     FILTER_POLL_MS,
   );
+  const { data: shows } = usePoll(['shows'], () => client.shows(), FILTER_POLL_MS);
+  const showIds = useMemo(() => showIdsByTitle(shows ?? []), [shows]);
 
   const plays = data?.plays ?? [];
   const total = data?.total ?? 0;
@@ -74,6 +80,7 @@ function HistoryPageInner({ search, onSearchChange }: Readonly<HistoryScreenProp
             search={search}
             libraries={libraries?.libraries ?? []}
             users={users?.users ?? []}
+            pinnedTitle={named}
             onSearchChange={onSearchChange}
           />
         </PageHeader.Actions>
@@ -83,6 +90,7 @@ function HistoryPageInner({ search, onSearchChange }: Readonly<HistoryScreenProp
         <HistoryTable
           columns={columns}
           plays={plays}
+          showIds={showIds}
           sort={historySort(search)}
           onSortChange={(next) => onSearchChange(historyOrderedBy(search, next))}
           emptyKey={emptyKey}

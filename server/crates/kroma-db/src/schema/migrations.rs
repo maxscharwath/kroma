@@ -214,4 +214,18 @@ pub(crate) const MIGRATIONS: &[&str] = &[
           HAVING COUNT(*) >= 3 AND MAX(watched_ms) <= 45000
         )
       )",
+    // The series, the season, the episode number and the library only started
+    // being written with the columns above, so every row logged before them
+    // reads as a bare episode name.
+    "UPDATE play_history AS h \
+        SET show_title = COALESCE(h.show_title, s.title, i.show_title), \
+            season     = COALESCE(h.season, i.season), \
+            episode    = COALESCE(h.episode, i.episode) \
+       FROM items i LEFT JOIN shows s ON s.id = i.show_id \
+      WHERE i.id = h.item_id \
+        AND ((h.show_title IS NULL AND COALESCE(s.title, i.show_title) IS NOT NULL) \
+          OR (h.season IS NULL AND i.season IS NOT NULL) \
+          OR (h.episode IS NULL AND i.episode IS NOT NULL))",
+    "UPDATE play_history AS h SET library = i.library \
+       FROM items i WHERE i.id = h.item_id AND h.library IS NULL",
 ];

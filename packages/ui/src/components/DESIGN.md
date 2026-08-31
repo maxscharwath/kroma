@@ -249,9 +249,23 @@ paints, animates or carries semantics keeps its element.
 
 ### `asChild` on a control, and why it is the same rule
 
+**`asChild` is how a control goes somewhere. It is the recommended pattern, and a
+control that navigates uses it rather than a press handler.** A press that calls
+the router is a link the browser cannot see: cmd-click and middle-click do
+nothing, there is no address to copy, the status bar stays empty on hover, and
+assistive tech is told "button" for a thing that is a link. `clients/web` holds a
+gate that fails a build where a press handler navigates, including one that calls
+a navigator a hook handed it.
+
 A control takes `asChild` too, and it is Radix's spelling: the one element the
 children resolve to becomes the control's host, so a route is a real `<a href>`
 the browser can open in a tab, copy or middle-click.
+
+It is also not a cost. Delegation deletes a pressable pair per control, so a
+delegated grid touches FEWER fibers than the same grid without it, and under the
+spatial navigator the host element is dropped before it is ever built, which is
+why a television pays nothing for the pattern. The numbers are pinned in
+[`audit/delegation.test.tsx`](../../audit/delegation.test.tsx).
 
 ```tsx
 <Button label="More info" asChild>

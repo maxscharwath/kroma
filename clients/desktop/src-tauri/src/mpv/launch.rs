@@ -172,7 +172,7 @@ pub(super) fn start_mpv(binary: &str, sock: &Path) -> Result<(Child, UnixStream)
         };
 
         match await_socket(&mut child, sock) {
-            Some(stream) if await_video_output(&stream) => {
+            Some(stream) if await_video_output(sock) => {
                 eprintln!("KROMA: mpv up [{}]", cfg.join(" "));
                 return Ok((child, stream));
             }
@@ -202,20 +202,22 @@ pub(super) fn start_mpv(binary: &str, sock: &Path) -> Result<(Child, UnixStream)
 // `--force-window=yes` configures the output at startup, so a working rung
 // answers `true` while still idle - but only once it has finished initialising,
 // which is why this waits for `true` rather than trusting the first reading.
-fn await_video_output(stream: &UnixStream) -> bool {
-    // Restored before returning: the event pump reads this same file description
-    // with a blocking `lines()`, which a lingering timeout would cut short.
-    if stream
+fn await_video_output(sock: &Path) -> bool {
+    // A SECOND connection, never the one handed back to the caller: probing on
+    // the app's own stream would consume the events its pump is there to read
+    // and leave a read timeout on a file description the pump blocks in.
+    let Ok(probe) = UnixStream::connect(sock) else {
+        return true;
+    };
+    if probe
         .set_read_timeout(Some(Duration::from_millis(250)))
         .is_err()
     {
         return true;
     }
-    let configured = poll_vo_configured(stream);
-    let _ = stream.set_read_timeout(None);
     // An mpv too old to know the property never answers one, and a rung that
     // cannot be measured must not be failed on a guess.
-    configured.unwrap_or(true)
+    poll_vo_configured(&probe).unwrap_or(true)
 }
 
 fn poll_vo_configured(stream: &UnixStream) -> Option<bool> {

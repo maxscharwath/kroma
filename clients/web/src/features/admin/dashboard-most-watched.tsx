@@ -11,6 +11,7 @@ import {
   Focusable,
   Grid,
   Img,
+  RingScopeProvider,
   Row,
   Section,
   Surface,
@@ -110,11 +111,13 @@ function KindColumn({ column }: Readonly<{ column: MostWatchedColumn }>) {
           {t('admin.mostWatchedEmpty')}
         </Text>
       ) : (
-        <ScrollView style={s.list}>
-          {column.entries.map((entry) => (
-            <EntryRow key={entry.itemId} entry={entry} />
-          ))}
-        </ScrollView>
+        <RingScopeProvider value="focusInset">
+          <ScrollView style={s.list}>
+            {column.entries.map((entry) => (
+              <EntryRow key={entry.itemId} entry={entry} />
+            ))}
+          </ScrollView>
+        </RingScopeProvider>
       )}
     </Surface>
   );
@@ -126,7 +129,6 @@ function EntryRow({ entry }: Readonly<{ entry: MostWatchedEntry }>) {
   const openHistory = useHistoryLink();
   return (
     <Focusable
-      ring="focusInset"
       style={s.entry}
       label={entry.title}
       onPress={() => openHistory({ item: entry.itemId })}

@@ -1,7 +1,10 @@
 import { defineStory } from '@kroma/workbench/story';
+import { ScrollView } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
+import { Surface } from '#ui/components/atoms/surface';
 import { Text } from '#ui/components/atoms/text';
 import { styles } from '#ui/core';
+import { RingScopeProvider } from '#ui/lib/ring-scope';
 import { Focusable } from './focusable';
 import { s } from './focusable.fixtures';
 
@@ -25,3 +28,23 @@ export const story = defineStory({
 });
 
 The kit's only focusable primitive. Every control reachable with the remote is one, and it carries the 10-foot affordance: a solid amber ring plus a dark elevation, with an optional scale.
+
+<Scene name="In a card that clips">
+  A row flush with a card that clips has no outside to stand a ring off, so the card says which ring its controls draw and they stop naming one. That ring goes inward and states its own corner: the row has none to lend it, and a square drawn inside a round card reads as a rectangle sliced off at both ends rather than as a ring around a row.
+
+  <Box w={520}>
+    <Surface elevated pad="none" radius="xl" border="border" overflow="hidden">
+      <Box h={80} bg="surface2" />
+      <RingScopeProvider value="focusInset">
+        <ScrollView style={s.list}>
+          {['Alien', 'Blade Runner', 'Dune', 'Heat'].map((title) => (
+            <Focusable key={title} label={title} style={s.row} onPress={() => {}}>
+              <Box w={36} h={54} radius="sm" bg="surface3" />
+              <Text variant="label">{title}</Text>
+            </Focusable>
+          ))}
+        </ScrollView>
+      </RingScopeProvider>
+    </Surface>
+  </Box>
+</Scene>

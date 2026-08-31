@@ -1,7 +1,7 @@
-import { Children, isValidElement, type ReactElement, type ReactNode, useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import type { ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
-import { styles, useBreakpointStep } from '#ui/core';
+import { useBreakpointStep } from '#ui/core';
 import { useStableCallback } from '#ui/lib/stable-callback';
 import { Cell } from './table-cell';
 import {
@@ -12,31 +12,11 @@ import {
   NO_COLUMNS,
   type TableColumn,
 } from './table-columns';
-import {
-  type Place,
-  TableContext,
-  type TableSectionProps,
-  type TableVariant,
-  useTable,
-} from './table-context';
+import { type TableSectionProps, type TableVariant, useTable } from './table-context';
 import { Frame } from './table-frame';
+import { Placed, parts } from './table-place';
+import { Row, type TableRowProps } from './table-row';
 import { nextSort, type SortColumn, SortContext, type TableSort } from './table-sort';
-
-function parts(children: ReactNode): ReactElement[] {
-  return Children.toArray(children).filter(isValidElement);
-}
-
-function Placed({ items, places }: Readonly<{ items: ReactElement[]; places: Place[] }>) {
-  return (
-    <>
-      {items.map((child, at) => (
-        <TableContext.Provider key={child.key ?? at} value={places[at] as Place}>
-          {child}
-        </TableContext.Provider>
-      ))}
-    </>
-  );
-}
 
 interface TableRootProps {
   /** Defaults to `framed`. */
@@ -140,29 +120,6 @@ function Header({ children }: Readonly<TableSectionProps>) {
 function Body({ children }: Readonly<TableSectionProps>) {
   return <Section head={false}>{children}</Section>;
 }
-
-interface TableRowProps {
-  /** A DIRECT <Table.Cell> child per column. */
-  children?: ReactNode;
-}
-
-function Row({ children }: Readonly<TableRowProps>) {
-  const { variant, head, ruled } = useTable('Row');
-  const cells = useMemo(() => parts(children), [children]);
-  const places = useMemo(
-    () => cells.map((_, at) => ({ variant, head, ruled, at })),
-    [variant, head, ruled, cells],
-  );
-  return (
-    <Box row role="row" style={ruled ? s.rule : undefined}>
-      <Placed places={places} items={cells} />
-    </Box>
-  );
-}
-
-const s = styles({
-  rule: { borderTopWidth: 1, borderTopColor: 'border' },
-});
 
 /**
  * Rows of the same shape.

@@ -33,8 +33,6 @@ afterEach(() => {
   pinDesignWidth();
 });
 
-const SHOW_IDS = new Map([['Severance', 'sev']]);
-
 async function mount(plays: readonly PlayEntry[], onSortChange = vi.fn()) {
   pinDesignWidth(1200);
   const root = createRootRoute({
@@ -43,7 +41,6 @@ async function mount(plays: readonly PlayEntry[], onSortChange = vi.fn()) {
         <HistoryTable
           columns={HISTORY_COLUMNS}
           plays={plays}
-          showIds={SHOW_IDS}
           sort={historySort({})}
           onSortChange={onSortChange}
           emptyKey="admin.noHistory"
@@ -53,8 +50,9 @@ async function mount(plays: readonly PlayEntry[], onSortChange = vi.fn()) {
     ),
   });
   const show = createRoute({ getParentRoute: () => root, path: '/shows/$id' });
+  const movie = createRoute({ getParentRoute: () => root, path: '/movies/$id' });
   const router = createRouter({
-    routeTree: root.addChildren([show]),
+    routeTree: root.addChildren([show, movie]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
   await router.load();
@@ -119,28 +117,45 @@ describe('the watch history table', () => {
     expect(screen.queryByRole('table')).toBeNull();
   });
 
-  it('sends a film nowhere, because the log cannot say whether the catalog still holds it', async () => {
+  it('opens a film on its own page', async () => {
     await mount([play({ itemId: 'goodfellas', kind: 'movie' })]);
 
-    expect(within(firstRow()).queryByRole('link')).toBeNull();
+    expect(firstRow().getAttribute('href')).toBe('/movies/goodfellas');
   });
 
   it('opens the series an episode belongs to, which is the page that exists', async () => {
     await mount([
-      play({ itemId: 'ep7', kind: 'episode', title: 'Chikhai Bardo', showTitle: 'Severance' }),
+      play({
+        itemId: 'ep7',
+        showId: 'sev',
+        kind: 'episode',
+        title: 'Chikhai Bardo',
+        showTitle: 'Severance',
+      }),
     ]);
 
-    const link = within(firstRow()).getByRole('link');
+    expect(firstRow().getAttribute('href')).toBe('/shows/sev');
+  });
 
-    expect(link.getAttribute('href')).toBe('/shows/sev');
+  it('makes the whole row the link rather than the title written inside it', async () => {
+    await mount([play({ itemId: 'goodfellas', kind: 'movie' })]);
+
+    expect(firstRow().tagName).toBe('A');
+    expect(within(firstRow()).queryByRole('link')).toBeNull();
   });
 
   it('leaves a row whose title has left the catalog with nowhere to send the reader', async () => {
     await mount([
-      play({ itemId: 'gone', kind: 'episode', title: 'The Dundies', showTitle: 'The Office' }),
+      play({
+        itemId: 'gone',
+        kind: 'episode',
+        inCatalog: false,
+        title: 'The Dundies',
+        showTitle: 'The Office',
+      }),
     ]);
 
-    expect(within(firstRow()).queryByRole('link')).toBeNull();
+    expect(firstRow().getAttribute('href')).toBeNull();
     expect(screen.getByText('The Office')).toBeTruthy();
   });
 

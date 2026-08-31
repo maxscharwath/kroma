@@ -6,6 +6,7 @@ import {
   isHistorySort,
   kindKey,
   titleLines,
+  titlePage,
 } from './history-columns';
 
 const play = (fields: Partial<PlayEntry>): PlayEntry => ({
@@ -71,6 +72,31 @@ describe("a row's title", () => {
     const episode = play({ title: 'Pilot', showTitle: 'Severance' });
 
     expect(titleLines(episode)).toEqual({ lead: 'Severance', detail: 'Pilot' });
+  });
+});
+
+describe('the page a row opens', () => {
+  it('is the series an episode belongs to, rather than the episode', () => {
+    const episode = play({ kind: 'episode', itemId: 'ep7', showId: 'sev' });
+
+    expect(titlePage(episode)).toEqual({ page: 'show', id: 'sev' });
+  });
+
+  it('is the film itself', () => {
+    expect(titlePage(play({ kind: 'movie', itemId: 'arrival' }))).toEqual({
+      page: 'movie',
+      id: 'arrival',
+    });
+  });
+
+  it('is nowhere once the title has left the catalog', () => {
+    const gone = play({ kind: 'movie', itemId: 'arrival', inCatalog: false });
+
+    expect(titlePage(gone)).toBeNull();
+  });
+
+  it('is nowhere for an episode the log kept no series for', () => {
+    expect(titlePage(play({ kind: 'episode', itemId: 'ep7' }))).toBeNull();
   });
 });
 

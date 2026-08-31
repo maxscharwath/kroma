@@ -1,7 +1,7 @@
 import type { MessageKey, PlayEntry } from '@kroma/core';
 import { TABULAR } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
-import { Box, EmptyState, Focusable, type SortColumn, Table, Text } from '@kroma/ui/kit';
+import { Box, EmptyState, type SortColumn, Table, Text } from '@kroma/ui/kit';
 import type { ComponentType } from 'react';
 import {
   type HistoryColumn,
@@ -9,16 +9,14 @@ import {
   kindKey,
   type TitleLines,
   titleLines,
+  titlePage,
 } from '#web/features/admin/history-columns';
 import { RouteLink } from '#web/shared/ui/route-link';
 
 const ABSENT = '-';
 
-type ShowIds = ReadonlyMap<string, string>;
-
 interface CellProps {
   play: PlayEntry;
-  showIds: ShowIds;
 }
 
 function UserCell({ play }: Readonly<CellProps>) {
@@ -53,18 +51,8 @@ function TitleFace({ lead, detail }: Readonly<TitleLines>) {
   );
 }
 
-function TitleCell({ play, showIds }: Readonly<CellProps>) {
-  const lines = titleLines(play);
-  const face = <TitleFace {...lines} />;
-  const show = play.showTitle ? showIds.get(play.showTitle) : undefined;
-  if (!show) return face;
-  return (
-    <Focusable ring="focusInset" label={lines.lead} asChild>
-      <RouteLink to="/shows/$id" params={{ id: show }}>
-        {face}
-      </RouteLink>
-    </Focusable>
-  );
+function TitleCell({ play }: Readonly<CellProps>) {
+  return <TitleFace {...titleLines(play)} />;
 }
 
 function PlayerCell({ play }: Readonly<CellProps>) {
@@ -105,17 +93,28 @@ interface HistoryRowProps extends CellProps {
   columns: readonly HistoryColumn[];
 }
 
-function HistoryRow({ play, columns, showIds }: Readonly<HistoryRowProps>) {
+function HistoryRow({ play, columns }: Readonly<HistoryRowProps>) {
+  const cells = columns.map((column) => {
+    const Cell = CELLS[column.column];
+    return (
+      <Table.Cell key={column.column}>
+        <Cell play={play} />
+      </Table.Cell>
+    );
+  });
+  const goes = titlePage(play);
+  if (!goes) return <Table.Row>{cells}</Table.Row>;
   return (
-    <Table.Row>
-      {columns.map((column) => {
-        const Cell = CELLS[column.column];
-        return (
-          <Table.Cell key={column.column}>
-            <Cell play={play} showIds={showIds} />
-          </Table.Cell>
-        );
-      })}
+    <Table.Row asChild>
+      {goes.page === 'show' ? (
+        <RouteLink to="/shows/$id" params={{ id: goes.id }}>
+          {cells}
+        </RouteLink>
+      ) : (
+        <RouteLink to="/movies/$id" params={{ id: goes.id }}>
+          {cells}
+        </RouteLink>
+      )}
     </Table.Row>
   );
 }
@@ -123,7 +122,6 @@ function HistoryRow({ play, columns, showIds }: Readonly<HistoryRowProps>) {
 interface HistoryTableProps {
   columns: readonly HistoryColumn[];
   plays: readonly PlayEntry[];
-  showIds: ShowIds;
   sort: readonly SortColumn[];
   onSortChange: (next: readonly SortColumn[]) => void;
   emptyKey: MessageKey;
@@ -133,7 +131,6 @@ interface HistoryTableProps {
 export function HistoryTable({
   columns,
   plays,
-  showIds,
   sort,
   onSortChange,
   emptyKey,
@@ -164,7 +161,7 @@ export function HistoryTable({
       </Table.Header>
       <Table.Body>
         {plays.map((play) => (
-          <HistoryRow key={play.id} play={play} columns={columns} showIds={showIds} />
+          <HistoryRow key={play.id} play={play} columns={columns} />
         ))}
       </Table.Body>
     </Table.Root>

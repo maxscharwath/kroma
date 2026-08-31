@@ -30,10 +30,10 @@ import {
   useRangeOptions,
   WATCH_RANGES,
 } from '#web/features/admin/dashboard-filters';
-import { useHistoryLink } from '#web/features/admin/dashboard-history-link';
 import { Pill } from '#web/features/admin/pill';
 import { usePoll } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 const POLL_MS = 60000;
 
@@ -126,28 +126,25 @@ function KindColumn({ column }: Readonly<{ column: MostWatchedColumn }>) {
 function EntryRow({ entry }: Readonly<{ entry: MostWatchedEntry }>) {
   const t = useT();
   const { client } = useAuth();
-  const openHistory = useHistoryLink();
   return (
-    <Focusable
-      style={s.entry}
-      label={entry.title}
-      onPress={() => openHistory({ item: entry.itemId })}
-    >
-      <Box w={THUMB_WIDTH} aspect={2 / 3} radius="sm" overflow="hidden" shrink={0}>
-        <Img
-          src={posterOf(client, entry, THUMB_WIDTH)}
-          background={tintGradient(posterColors(entry.title))}
-          fill
-        />
-      </Box>
-      <Box flex minW={0}>
-        <Text variant="label" lines={1}>
-          {entry.title}
-        </Text>
-        <Text variant="meta" color="textDim" lines={1}>
-          {`${t('admin.plays', { count: entry.plays })} · ${viewersLabel(t, entry.viewers)}`}
-        </Text>
-      </Box>
+    <Focusable style={s.entry} label={entry.title} asChild>
+      <RouteLink to="/admin/history" search={{ item: entry.itemId }}>
+        <Box w={THUMB_WIDTH} aspect={2 / 3} radius="sm" overflow="hidden" shrink={0}>
+          <Img
+            src={posterOf(client, entry, THUMB_WIDTH)}
+            background={tintGradient(posterColors(entry.title))}
+            fill
+          />
+        </Box>
+        <Box flex minW={0}>
+          <Text variant="label" lines={1}>
+            {entry.title}
+          </Text>
+          <Text variant="meta" color="textDim" lines={1}>
+            {`${t('admin.plays', { count: entry.plays })} · ${viewersLabel(t, entry.viewers)}`}
+          </Text>
+        </Box>
+      </RouteLink>
     </Focusable>
   );
 }

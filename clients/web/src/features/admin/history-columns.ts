@@ -1,4 +1,4 @@
-import type { MessageKey, PlayEntry, Show } from '@kroma/core';
+import type { MessageKey, PlayEntry } from '@kroma/core';
 import type { TableColumn } from '@kroma/ui/kit';
 
 export type HistorySort = 'username' | 'kind' | 'title' | 'device' | 'player' | 'endedAt';
@@ -40,16 +40,14 @@ export function titleLines(play: PlayEntry): TitleLines {
   return { lead: play.showTitle, detail: [number, play.title].filter(Boolean).join(' · ') };
 }
 
-/** The show each series title names. A title two shows share resolves to
- *  nothing, because the play log keeps the series name and not its id, and a
- *  guess would open the wrong series. */
-export function showIdsByTitle(shows: readonly Show[]): ReadonlyMap<string, string> {
-  const byTitle = new Map<string, string>();
-  const shared = new Set<string>();
-  for (const show of shows) {
-    if (byTitle.has(show.title)) shared.add(show.title);
-    byTitle.set(show.title, show.id);
-  }
-  for (const title of shared) byTitle.delete(title);
-  return byTitle;
+interface TitlePage {
+  page: 'show' | 'movie';
+  id: string;
+}
+
+export function titlePage(play: PlayEntry): TitlePage | null {
+  if (!play.inCatalog) return null;
+  if (play.showId) return { page: 'show', id: play.showId };
+  if (play.kind === 'movie' && play.itemId) return { page: 'movie', id: play.itemId };
+  return null;
 }

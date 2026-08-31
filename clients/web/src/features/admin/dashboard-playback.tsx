@@ -15,10 +15,10 @@ import {
   WATCH_KINDS,
   WATCH_RANGES,
 } from '#web/features/admin/dashboard-filters';
-import { useHistoryLink } from '#web/features/admin/dashboard-history-link';
 import { kindTotals } from '#web/features/admin/dashboard-kind-totals';
 import { usePoll } from '#web/features/admin/shell';
 import { useAuth } from '#web/shared/lib/auth';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 const POLL_MS = 60000;
 
@@ -29,7 +29,6 @@ export function PlaybackSection() {
   const t = useT();
   const fmt = useFormat();
   const { client } = useAuth();
-  const openHistory = useHistoryLink();
 
   const range = useChoice(useRangeOptions(WATCH_RANGES), '30d');
   const kind = useChoice(useKindOptions(), ANY_KIND);
@@ -67,12 +66,9 @@ export function PlaybackSection() {
         <HistoryBars buckets={data.buckets} label={t('admin.playHistory')} footer={footer} />
       ) : null}
       <Row justify="flex-end" mt={14}>
-        <Button
-          variant="ghost"
-          icon="arrow-right"
-          label={t('admin.viewFullHistory')}
-          onPress={() => openHistory({ range: range.value, user: who })}
-        />
+        <Button variant="ghost" icon="arrow-right" label={t('admin.viewFullHistory')} asChild>
+          <RouteLink to="/admin/history" search={{ range: range.value, user: who }} />
+        </Button>
       </Row>
     </Section.Root>
   );

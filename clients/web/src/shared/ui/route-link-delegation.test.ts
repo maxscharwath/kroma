@@ -9,11 +9,20 @@ const PRESS = /\bon(?:Press|LongPress|Select|Click)\s*=\s*\{/g;
 
 const DESTINATION = /\bto:\s*'([^']+)'/;
 
-function sources(dir: string, out: string[] = []): string[] {
+const HOOK = /\bfunction (use[A-Z]\w*)\b/g;
+
+interface Source {
+  path: string;
+  text: string;
+}
+
+function sources(dir: string, out: Source[] = []): Source[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const at = join(dir, entry.name);
     if (entry.isDirectory()) sources(at, out);
-    else if (/\.tsx?$/.test(entry.name) && !/\.(test|fixture)\./.test(entry.name)) out.push(at);
+    else if (/\.tsx?$/.test(entry.name) && !/\.(test|fixture)\./.test(entry.name)) {
+      out.push({ path: relative(ROOT, at), text: readFileSync(at, 'utf8') });
+    }
   }
   return out;
 }
@@ -45,23 +54,86 @@ function handlerOf(source: string, written: string): string {
   return declared ? statementAt(source, declared.index) : '';
 }
 
-function pressHandlersThatNavigate(): string[] {
+function calls(handler: string, name: string): boolean {
+  return new RegExp(`\\b${name}\\s*\\(`).test(handler);
+}
+
+function navigatorHooks(files: readonly Source[]): string[] {
+  const named = new Set(['useNavigate']);
+  for (const { text } of files) {
+    for (const hook of text.matchAll(HOOK)) {
+      const body = braced(text, text.indexOf('{', hook.index + hook[0].length));
+      if (calls(body, 'useNavigate')) named.add(hook[1] as string);
+    }
+  }
+  return [...named];
+}
+
+function navigatorsOf(text: string, hooks: readonly string[]): Map<string, string> {
+  const bound = new Map<string, string>();
+  for (const hook of hooks) {
+    for (const held of text.matchAll(new RegExp(`\\bconst ([\\w$]+)\\s*=\\s*${hook}\\(`, 'g'))) {
+      bound.set(held[1] as string, hook);
+    }
+  }
+  return bound;
+}
+
+function handlersThatNavigate(files: readonly Source[]): string[] {
+  const hooks = navigatorHooks(files);
   const found: string[] = [];
-  for (const file of sources(ROOT)) {
-    const source = readFileSync(file, 'utf8');
-    for (const press of source.matchAll(PRESS)) {
-      const handler = handlerOf(source, braced(source, press.index + press[0].length - 1));
-      if (!/\bnavigate\(/.test(handler)) continue;
-      found.push(`${relative(ROOT, file)} -> ${DESTINATION.exec(handler)?.[1] ?? 'unknown'}`);
+  for (const { path, text } of files) {
+    const navigators = [...navigatorsOf(text, hooks)];
+    for (const press of text.matchAll(PRESS)) {
+      const handler = handlerOf(text, braced(text, press.index + press[0].length - 1));
+      const through = navigators.find(([held]) => calls(handler, held));
+      if (!through) continue;
+      found.push(`${path} -> ${DESTINATION.exec(handler)?.[1] ?? through[1]}`);
     }
   }
   return found.sort();
 }
 
+const OUR_HOOK: Source = {
+  path: 'features/admin/history-link.ts',
+  text: [
+    'export function useHistoryLink() {',
+    '  const navigate = useNavigate();',
+    "  return (filters) => void navigate({ to: '/admin/history', search: filters });",
+    '}',
+  ].join('\n'),
+};
+
 describe('a control that goes somewhere', () => {
   it('is a link rather than a press handler that navigates', () => {
-    const offenders = pressHandlersThatNavigate();
+    const offenders = handlersThatNavigate(sources(ROOT));
 
     expect(offenders).toEqual([]);
+  });
+
+  it('is caught when its handler calls the router itself', () => {
+    const caller: Source = {
+      path: 'features/admin/panel.tsx',
+      text: [
+        'const navigate = useNavigate();',
+        "<Button onPress={() => navigate({ to: '/admin/history' })} />",
+      ].join('\n'),
+    };
+
+    expect(handlersThatNavigate([caller])).toEqual(['features/admin/panel.tsx -> /admin/history']);
+  });
+
+  it('is caught when its handler calls a navigator a hook handed it', () => {
+    const caller: Source = {
+      path: 'features/admin/panel.tsx',
+      text: [
+        'const openHistory = useHistoryLink();',
+        '<Button onPress={() => openHistory({ item })} />',
+      ].join('\n'),
+    };
+
+    expect(handlersThatNavigate([OUR_HOOK, caller])).toEqual([
+      'features/admin/panel.tsx -> useHistoryLink',
+    ]);
   });
 });

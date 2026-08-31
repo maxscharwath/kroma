@@ -36,6 +36,10 @@ mod libmpv_linux;
 #[cfg(target_os = "linux")]
 mod webview_gpu;
 
+// Prunes the AppImage's GStreamer plugin path down to the entries that exist.
+#[allow(dead_code)]
+mod gst_env;
+
 // In-process libmpv (macOS): renders into a native NSView behind the webview.
 #[cfg(all(target_os = "macos", feature = "libmpv"))]
 #[allow(dead_code)]
@@ -62,16 +66,8 @@ fn prepare_linux_env() {
     }
     // Tauri AppImages export GST_PLUGIN_SYSTEM_PATH(_1_0) at a directory that's
     // never created when bundleMediaFramework is off; GStreamer then searches
-    // ONLY there and webview audio dies (tauri-apps/tauri#15665). Drop the var
-    // when it points at a missing directory.
-    for var in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_SYSTEM_PATH"] {
-        if let Some(path) = std::env::var_os(var) {
-            let single_path = !path.to_string_lossy().contains(':');
-            if single_path && !std::path::Path::new(&path).is_dir() {
-                std::env::remove_var(var);
-            }
-        }
-    }
+    // ONLY there and webview audio dies (tauri-apps/tauri#15665).
+    gst_env::sanitize_plugin_path();
 }
 
 // macOS: tell the frontend the mpv engine is available (+ the debug test URL) up

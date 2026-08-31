@@ -20,6 +20,7 @@ import { ConsoleToast, useConsoleToast } from '#web/features/admin/table-console
 import { useRequestLedger } from '#web/features/admin/use-request-ledger';
 import { useAuth } from '#web/shared/lib/auth';
 import { seasonsSummary } from '#web/shared/lib/request-status';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 export function RequestDetailPage({ id }: Readonly<{ id: string }>) {
   const t = useT();
@@ -72,7 +73,7 @@ export function RequestDetailPage({ id }: Readonly<{ id: string }>) {
               size="sm"
               icon="chevron-left"
               label={t('requests.backToQueue')}
-              onPress={backToQueue}
+              as={<RouteLink to="/admin/requests" />}
             />
           </EmptyState.Actions>
         </EmptyState.Root>

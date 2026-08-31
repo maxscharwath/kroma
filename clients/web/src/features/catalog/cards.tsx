@@ -1,7 +1,6 @@
 import { genreLabels, metaLine, posterColors, type Section } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Badge, Box, Button, gradient, Row, Text } from '@kroma/ui/kit';
-import { useNavigate } from '@tanstack/react-router';
 import { type CSSProperties, memo } from 'react';
 import { VirtualTileGrid } from '#web/features/catalog/virtual-tile-grid';
 import type { MovieView, ShowView } from '#web/shared/lib/api';
@@ -76,7 +75,6 @@ const HERO_SCRIM = gradient(
  * content edges (cancels the page gutter) and faded into the rails below. */
 export function Hero({ entry }: Readonly<{ entry: HeroEntry }>) {
   const t = useT();
-  const navigate = useNavigate();
   const media = entry.type === 'movie' ? entry.movie : entry.show;
   const colors = posterColors(media.id);
   const gradient = `linear-gradient(158deg, ${colors[0]}, ${colors[1]})`;
@@ -125,18 +123,18 @@ export function Hero({ entry }: Readonly<{ entry: HeroEntry }>) {
             <>
               <Button
                 label={t('content.play')}
-                onPress={() => navigate({ to: '/watch/$id', params: { id: media.id } })}
+                as={<RouteLink to="/watch/$id" params={{ id: media.id }} />}
               />
               <Button
                 variant="glass"
                 label={t('content.moreInfo')}
-                onPress={() => navigate({ to: '/movies/$id', params: { id: media.id } })}
+                as={<RouteLink to="/movies/$id" params={{ id: media.id }} />}
               />
             </>
           ) : (
             <Button
               label={t('content.moreInfo')}
-              onPress={() => navigate({ to: '/shows/$id', params: { id: media.id } })}
+              as={<RouteLink to="/shows/$id" params={{ id: media.id }} />}
             />
           )}
         </Row>

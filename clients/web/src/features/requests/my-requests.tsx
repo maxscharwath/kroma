@@ -12,6 +12,7 @@ import {
   Button,
   EmptyState,
   Focusable,
+  type HostElement,
   Icon,
   IconButton,
   Img,
@@ -22,7 +23,6 @@ import {
   Text,
 } from '@kroma/ui/kit';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
@@ -30,12 +30,12 @@ import { userQueries } from '#web/shared/lib/queries';
 import { requestStatusMeta, seasonsSummary } from '#web/shared/lib/request-status';
 import { PageFrame, Skeleton } from '#web/shared/ui';
 import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 export function MyRequestsPage() {
   const t = useT();
   const { client } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const requestsQuery = userQueries.myRequests();
   const { data: requests, isPending } = useQuery({
     ...requestsQuery,
@@ -96,7 +96,7 @@ export function MyRequestsPage() {
             <Button
               size="sm"
               label={t('requests.myEmptyCta')}
-              onPress={() => navigate({ to: '/search', search: { q: '', type: 'all' } })}
+              as={<RouteLink to="/search" search={{ q: '', type: 'all' }} />}
             />
           </EmptyState.Actions>
         </EmptyState.Root>
@@ -110,19 +110,19 @@ export function MyRequestsPage() {
             progress={progress[req.id]}
             busy={busyId === req.id}
             onCancel={() => cancel(req)}
-            onOpen={() => {
-              if (req.status === 'available') {
-                navigate({ to: '/search', search: { q: '', type: 'all' } });
-              } else {
-                navigate({
-                  to: '/discover/$type/$tmdbId',
-                  params: {
+            as={
+              req.status === 'available' ? (
+                <RouteLink to="/search" search={{ q: '', type: 'all' }} />
+              ) : (
+                <RouteLink
+                  to="/discover/$type/$tmdbId"
+                  params={{
                     type: req.kind === 'show' ? 'tv' : 'movie',
                     tmdbId: String(req.tmdbId),
-                  },
-                });
-              }
-            }}
+                  }}
+                />
+              )
+            }
           />
         ))}
       </Box>
@@ -135,13 +135,13 @@ function RequestRow({
   progress,
   busy,
   onCancel,
-  onOpen,
+  as,
 }: Readonly<{
   req: MediaRequest;
   progress?: number;
   busy: boolean;
   onCancel: () => void;
-  onOpen: () => void;
+  as: HostElement;
 }>) {
   const t = useT();
   const locale = useLocale();
@@ -164,7 +164,7 @@ function RequestRow({
   return (
     <Surface pad="none" p={14} radius="2xl" border="border" row align="center" gap={16}>
       <Focusable
-        onPress={onOpen}
+        as={as}
         label={`${req.title} · ${t(requestStatusMeta(req.status).labelKey)}`}
         style={s.head}
       >

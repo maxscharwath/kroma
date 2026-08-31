@@ -20,6 +20,7 @@ import {
   Checkbox,
   Divider,
   Focusable,
+  type HostElement,
   Img,
   Row,
   Surface,
@@ -43,7 +44,7 @@ export function MissingGroupCard({
   onToggleRow,
   onToggleGroup,
   onSearch,
-  onOpen,
+  as,
 }: Readonly<{
   group: MissingGroup;
   canManage: boolean;
@@ -53,7 +54,7 @@ export function MissingGroupCard({
   onToggleRow: (key: string) => void;
   onToggleGroup: (pick: boolean) => void;
   onSearch: (items: CalendarEntry[]) => void;
-  onOpen: () => void;
+  as: HostElement;
 }>) {
   const t = useT();
   const [c1, c2] = posterColors(String(group.tmdbId));
@@ -81,7 +82,7 @@ export function MissingGroupCard({
         ) : (
           <Box w={20} />
         )}
-        <Focusable onPress={onOpen} label={group.title} style={s.head}>
+        <Focusable as={as} label={group.title} style={s.head}>
           {(state) => (
             <>
               <Box w={36} h={52} shrink={0}>

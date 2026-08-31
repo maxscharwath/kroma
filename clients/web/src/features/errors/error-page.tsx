@@ -87,15 +87,19 @@ function ErrorScreen({
                 />
               ) : null}
               {signIn ? (
-                <Button size="sm" icon="login" label={t('auth.login')} as={signIn} />
+                <Button size="sm" icon="login" label={t('auth.login')} asChild>
+                  {signIn}
+                </Button>
               ) : null}
               <Button
                 variant={signIn ? 'glass' : 'primary'}
                 size="sm"
                 icon="home"
                 label={t('error.home')}
-                as={<RouteLink to="/" />}
-              />
+                asChild
+              >
+                <RouteLink to="/" />
+              </Button>
             </Row>
           </EmptyState.Actions>
         </EmptyState.Root>

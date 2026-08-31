@@ -9,14 +9,6 @@ const PRESS = /\bon(?:Press|LongPress|Select|Click)\s*=\s*\{/g;
 
 const DESTINATION = /\bto:\s*'([^']+)'/;
 
-const KIT_TAKES_NO_DELEGATE = [
-  'features/admin/module-detail.tsx -> /admin/modules',
-  'features/admin/request-detail.tsx -> /admin/requests',
-  'features/catalog/sidebar-account.tsx -> /account',
-  'features/catalog/sidebar-account.tsx -> /login',
-  'routes/_app.genres.$id.tsx -> /genres',
-];
-
 function sources(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const at = join(dir, entry.name);
@@ -67,9 +59,9 @@ function pressHandlersThatNavigate(): string[] {
 }
 
 describe('a control that goes somewhere', () => {
-  it('navigates from a press handler only where the kit control takes no delegate', () => {
+  it('is a link rather than a press handler that navigates', () => {
     const offenders = pressHandlersThatNavigate();
 
-    expect(offenders).toEqual(KIT_TAKES_NO_DELEGATE);
+    expect(offenders).toEqual([]);
   });
 });

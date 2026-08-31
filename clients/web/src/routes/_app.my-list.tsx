@@ -125,11 +125,9 @@ function TabEmpty({ tab }: Readonly<{ tab: SavedTab }>) {
       <EmptyState.Title>{t(copy.emptyTitle)}</EmptyState.Title>
       <EmptyState.Hint>{t(copy.emptyHint)}</EmptyState.Hint>
       <EmptyState.Actions>
-        <Button
-          icon="search"
-          label={t('requests.myEmptyCta')}
-          as={<RouteLink to="/search" search={{ q: '', type: 'all' }} />}
-        />
+        <Button icon="search" label={t('requests.myEmptyCta')} asChild>
+          <RouteLink to="/search" search={{ q: '', type: 'all' }} />
+        </Button>
       </EmptyState.Actions>
     </EmptyState.Root>
   );

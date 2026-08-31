@@ -194,7 +194,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
     genre: s.genre,
     badge: null,
     poster: s.poster,
-    as: similarLink(s),
+    link: similarLink(s),
   }));
 
   return (

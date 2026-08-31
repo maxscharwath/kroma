@@ -59,12 +59,10 @@ function TitleCell({ play, showIds }: Readonly<CellProps>) {
   const show = play.showTitle ? showIds.get(play.showTitle) : undefined;
   if (!show) return face;
   return (
-    <Focusable
-      ring="focusInset"
-      label={lines.lead}
-      as={<RouteLink to="/shows/$id" params={{ id: show }} />}
-    >
-      {face}
+    <Focusable ring="focusInset" label={lines.lead} asChild>
+      <RouteLink to="/shows/$id" params={{ id: show }}>
+        {face}
+      </RouteLink>
     </Focusable>
   );
 }

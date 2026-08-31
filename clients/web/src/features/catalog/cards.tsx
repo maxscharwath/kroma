@@ -121,21 +121,17 @@ export function Hero({ entry }: Readonly<{ entry: HeroEntry }>) {
         <Row wrap gap={14}>
           {entry.type === 'movie' ? (
             <>
-              <Button
-                label={t('content.play')}
-                as={<RouteLink to="/watch/$id" params={{ id: media.id }} />}
-              />
-              <Button
-                variant="glass"
-                label={t('content.moreInfo')}
-                as={<RouteLink to="/movies/$id" params={{ id: media.id }} />}
-              />
+              <Button label={t('content.play')} asChild>
+                <RouteLink to="/watch/$id" params={{ id: media.id }} />
+              </Button>
+              <Button variant="glass" label={t('content.moreInfo')} asChild>
+                <RouteLink to="/movies/$id" params={{ id: media.id }} />
+              </Button>
             </>
           ) : (
-            <Button
-              label={t('content.moreInfo')}
-              as={<RouteLink to="/shows/$id" params={{ id: media.id }} />}
-            />
+            <Button label={t('content.moreInfo')} asChild>
+              <RouteLink to="/shows/$id" params={{ id: media.id }} />
+            </Button>
           )}
         </Row>
       </Box>
@@ -165,8 +161,10 @@ export const MoviePoster = memo(function MoviePoster({
       onToggleWatched={() => toggleWatched(item.id)}
       inList={inList(item.id)}
       onToggleList={() => toggleList(item.id)}
-      as={<RouteLink to="/movies/$id" params={{ id: item.id }} />}
-    />
+      asChild
+    >
+      <RouteLink to="/movies/$id" params={{ id: item.id }} />
+    </Poster>
   );
 });
 
@@ -191,8 +189,10 @@ export const ShowPoster = memo(function ShowPoster({
       onToggleWatched={() => toggleWatched(show.id)}
       inList={inList(show.id)}
       onToggleList={() => toggleList(show.id)}
-      as={<RouteLink to="/shows/$id" params={{ id: show.id }} />}
-    />
+      asChild
+    >
+      <RouteLink to="/shows/$id" params={{ id: show.id }} />
+    </Poster>
   );
 });
 
@@ -222,8 +222,10 @@ export const SectionPoster = memo(function SectionPoster({
         onToggleWatched={() => toggleWatched(show.id)}
         inList={inList(show.id)}
         onToggleList={() => toggleList(show.id)}
-        as={<RouteLink to="/shows/$id" params={{ id: show.id }} />}
-      />
+        asChild
+      >
+        <RouteLink to="/shows/$id" params={{ id: show.id }} />
+      </Poster>
     );
   }
   const { item } = entry;
@@ -239,14 +241,14 @@ export const SectionPoster = memo(function SectionPoster({
       onToggleWatched={() => toggleWatched(item.id)}
       inList={inList(item.id)}
       onToggleList={() => toggleList(item.id)}
-      as={
-        isEpisode ? (
-          <RouteLink to="/shows/$id" params={{ id: item.showId ?? item.id }} />
-        ) : (
-          <RouteLink to="/movies/$id" params={{ id: item.id }} />
-        )
-      }
-    />
+      asChild
+    >
+      {isEpisode ? (
+        <RouteLink to="/shows/$id" params={{ id: item.showId ?? item.id }} />
+      ) : (
+        <RouteLink to="/movies/$id" params={{ id: item.id }} />
+      )}
+    </Poster>
   );
 });
 

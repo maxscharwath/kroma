@@ -51,12 +51,12 @@ export function TopViewerCard({ user }: Readonly<{ user: TopUser }>) {
   }
 
   return (
-    <Focusable
-      sv={viewerCard}
-      label={`${t('admin.viewMemberHistory')} · ${user.username}`}
-      as={<RouteLink to="/admin/history" search={{ user: account }} />}
-    >
-      {({ hovered, focused }) => <ViewerFace user={user} active={hovered || focused} />}
+    <Focusable sv={viewerCard} label={`${t('admin.viewMemberHistory')} · ${user.username}`} asChild>
+      {({ hovered, focused }) => (
+        <RouteLink to="/admin/history" search={{ user: account }}>
+          <ViewerFace user={user} active={hovered || focused} />
+        </RouteLink>
+      )}
     </Focusable>
   );
 }

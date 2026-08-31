@@ -73,8 +73,10 @@ export function RequestDetailPage({ id }: Readonly<{ id: string }>) {
               size="sm"
               icon="chevron-left"
               label={t('requests.backToQueue')}
-              as={<RouteLink to="/admin/requests" />}
-            />
+              asChild
+            >
+              <RouteLink to="/admin/requests" />
+            </Button>
           </EmptyState.Actions>
         </EmptyState.Root>
       </>
@@ -89,7 +91,9 @@ export function RequestDetailPage({ id }: Readonly<{ id: string }>) {
   return (
     <>
       <PageHeader.Root>
-        <PageHeader.Back label={t('admin.requestsTitle')} onPress={backToQueue} />
+        <PageHeader.Back label={t('admin.requestsTitle')} asChild>
+          <RouteLink to="/admin/requests" />
+        </PageHeader.Back>
         <PageHeader.Title>{req.title}</PageHeader.Title>
         <PageHeader.Subtitle>{metaLine(req, t)}</PageHeader.Subtitle>
         <PageHeader.Actions>

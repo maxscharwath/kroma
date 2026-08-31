@@ -58,14 +58,14 @@ export function IdentityCard({
               size="sm"
               icon="external-link"
               label={t('requests.openInLibrary')}
-              as={
-                req.kind === 'show' ? (
-                  <RouteLink to="/shows/$id" params={{ id: localId }} />
-                ) : (
-                  <RouteLink to="/movies/$id" params={{ id: localId }} />
-                )
-              }
-            />
+              asChild
+            >
+              {req.kind === 'show' ? (
+                <RouteLink to="/shows/$id" params={{ id: localId }} />
+              ) : (
+                <RouteLink to="/movies/$id" params={{ id: localId }} />
+              )}
+            </Button>
           ) : null}
         </Box>
       </Box>

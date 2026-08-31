@@ -33,8 +33,10 @@ export function ModuleLogs({ id }: Readonly<{ id: string }>) {
           size="sm"
           icon="terminal-2"
           label={t('admin.modulesLogsOpenAll')}
-          as={<RouteLink to="/admin/logs" search={{ source: id }} />}
-        />
+          asChild
+        >
+          <RouteLink to="/admin/logs" search={{ source: id }} />
+        </Button>
       </Row>
       <Text variant="meta" color="textMuted" mb={12}>
         {t('admin.modulesLogsHint')}

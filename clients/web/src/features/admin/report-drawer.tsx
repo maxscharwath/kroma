@@ -148,8 +148,10 @@ export const ReportDrawer = createCallable<
                 size="sm"
                 icon="external-link"
                 label={t('reports.viewTitle')}
-                as={fiche}
-              />
+                asChild
+              >
+                {fiche}
+              </Button>
             </Row>
           ) : null}
         </Box>

@@ -153,8 +153,10 @@ export function MissingPage() {
               size="sm"
               icon="search"
               label={t('requests.myEmptyCta')}
-              as={<RouteLink to="/search" search={{ q: '', type: 'all' }} />}
-            />
+              asChild
+            >
+              <RouteLink to="/search" search={{ q: '', type: 'all' }} />
+            </Button>
           </EmptyState.Actions>
         </EmptyState.Root>
       ) : null}
@@ -171,15 +173,6 @@ export function MissingPage() {
             onToggleRow={(key) => setSelected((s) => toggleKey(s, key))}
             onToggleGroup={(pick) => setSelected((s) => toggleKeys(s, g.items.map(epKey), pick))}
             onSearch={(items) => runGroup(g, items)}
-            as={
-              <RouteLink
-                to="/discover/$type/$tmdbId"
-                params={{
-                  type: g.kind === 'movie' ? 'movie' : 'tv',
-                  tmdbId: String(g.tmdbId),
-                }}
-              />
-            }
           />
         ))}
       </Box>

@@ -9,13 +9,14 @@ check is either a rule that is simply never allowed, or a worklist you read.
 | Broken views | `audit.test.tsx` | A story that stopped rendering |
 | Accessible tree (`a11y.ts`) | `audit.test.tsx` | Nameless controls, roles claiming a state they never report, aria references pointing at nothing |
 | List-render allocations (`fanout-scan.ts`) | `audit.test.tsx` | A prop the React Compiler cannot cache, so a whole list re-renders when one item changed |
+| `asChild` fan-out | `delegation.test.tsx` | A delegated row reaching the rows beside it when it takes the focus |
 | Rail interaction cost (`rail-cost.test.tsx`) | `--project audit` | What one press of Right costs the row the home screen is built from |
 | Native driver left off (`perf-scan.ts`) | `audit.test.tsx` | An animation running through JS that the native driver would have taken |
 | Source perf worklist (`perf-scan.ts`) | `bun run perf:scan` | Faults a rendered tree cannot show: a layout animation, a memo that memoises nothing, a context value rebuilt per render |
 | DOM structure (`cost.ts`) | `bun run kit:dom` | Elements that paint nothing, carry no semantics and hold no text |
 | Interaction cost (`sweep.ts`, `perf.ts`) | `bun run kit:perf` | Components destroyed and rebuilt by a single press |
 
-The first three are gates because they pass today, so a failure means something
+The first four are gates because they pass today, so a failure means something
 broke rather than something was already broken. The last two are worklists: the
 kit still carries real faults in both, and a gate born red is not a gate.
 

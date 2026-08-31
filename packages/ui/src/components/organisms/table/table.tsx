@@ -15,7 +15,7 @@ import {
 import { type TableSectionProps, type TableVariant, useTable } from './table-context';
 import { Frame } from './table-frame';
 import { Placed, parts } from './table-place';
-import { Row, type TableRowProps } from './table-row';
+import { Row } from './table-row';
 import { nextSort, type SortColumn, SortContext, type TableSort } from './table-sort';
 
 interface TableRootProps {
@@ -144,13 +144,7 @@ function Body({ children }: Readonly<TableSectionProps>) {
 const Table = { Root, Header, Body, Row, Cell };
 
 export type { TableCellProps } from './table-cell';
+export type { TableRowProps } from './table-row';
 export type { SortDirection } from './table-sort';
-export type {
-  SortColumn,
-  TableColumn,
-  TableRootProps,
-  TableRowProps,
-  TableSectionProps,
-  TableVariant,
-};
+export type { SortColumn, TableColumn, TableRootProps, TableSectionProps, TableVariant };
 export { Table };

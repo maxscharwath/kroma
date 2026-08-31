@@ -99,8 +99,8 @@ export function useChoice<V extends string>(
   options: readonly FilterOption<V>[],
   initial: V,
 ): Choice<V> {
-  const [value, onChange] = useState(initial);
-  return { value, options, onChange };
+  const [value, setValue] = useState(initial);
+  return { value, options, onChange: setValue };
 }
 
 export function useRangeOptions<R extends MetricRange>(ranges: readonly R[]): FilterOption<R>[] {

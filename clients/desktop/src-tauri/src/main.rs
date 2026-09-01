@@ -40,6 +40,11 @@ mod webview_gpu;
 #[allow(dead_code)]
 mod gst_env;
 
+// Cuts the picture's box out of the window's shape so the mpv plane shows through
+// it (Linux; WebKitGTK never honours alpha, so a hole is the only way).
+#[allow(dead_code)]
+mod video_hole;
+
 // In-process libmpv (macOS): renders into a native NSView behind the webview.
 #[cfg(all(target_os = "macos", feature = "libmpv"))]
 #[allow(dead_code)]
@@ -205,6 +210,7 @@ fn main() {
     #[cfg(target_os = "linux")]
     {
         builder = builder.manage(mpv::MpvState::default());
+        builder = builder.manage(video_hole::HoleState::default());
         // In-process libmpv state (empty until init succeeds); the dispatcher routes
         // commands to it or the binary. Only present in a libmpv build.
         #[cfg(feature = "libmpv")]
@@ -218,6 +224,7 @@ fn main() {
             webview_gpu::webview_gpu_get,
             webview_gpu::webview_gpu_set,
             webview_gpu::webview_boot_ok,
+            video_hole::video_hole_set,
             app_quit,
             app_relaunch
         ]);
@@ -269,8 +276,19 @@ fn main() {
         // or a terminal actually reveals it.
         .on_window_event(|_window, _event| {
             #[cfg(target_os = "linux")]
-            if let tauri::WindowEvent::Focused(focused) = _event {
-                let _ = _window.set_always_on_top(*focused);
+            {
+                use tauri::Manager;
+                if let tauri::WindowEvent::Focused(focused) = _event {
+                    let _ = _window.set_always_on_top(*focused);
+                }
+                // The hole is fractional, so a resize only moves its pixels.
+                if matches!(_event, tauri::WindowEvent::Resized(_)) {
+                    if let Some(view) = _window.get_webview_window(_window.label()) {
+                        if let Some(state) = view.try_state::<video_hole::HoleState>() {
+                            video_hole::refresh(&view, &state);
+                        }
+                    }
+                }
             }
         })
         .setup(|_app| {

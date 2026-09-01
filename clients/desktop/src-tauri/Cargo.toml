@@ -75,6 +75,10 @@ libmpv2 = { version = "6.0.0", optional = true }
 # so `WebviewWindow::window_handle()` returns a matching RawWindowHandle). Only used
 # in a libmpv build; harmless otherwise.
 raw-window-handle = "0.6"
+# The window's X11 shape (video_hole.rs): GDK's shape_combine_region cuts the
+# picture's box out of the window so the mpv plane below shows through. 0.18 is
+# Tauri v2's own gtk, so `WebviewWindow::gtk_window()` hands back a matching type.
+gtk = "0.18"
 # Process-group kill of the mpv sidecar tree (the AppImage runtime execs the real
 # mpv as a grandchild, so Child::kill alone orphans the player).
 libc = "0.2"

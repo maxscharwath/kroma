@@ -125,6 +125,16 @@ describe('the discovered catalogs', () => {
     expect(Object.keys(lazy).sort()).toEqual(namespaces);
   });
 
+  it('fetch a namespace one locale at a time', async () => {
+    // `lazy` is `{}` to the type checker: tsc reads the Metro half, which ships
+    // every namespace eagerly and offers none.
+    const sources = lazy as Record<string, Record<string, () => Promise<Catalog>>>;
+
+    const nav = await sources.nav?.[i18n.defaultLocale]?.();
+
+    expect(nav).toEqual(fileOf('nav', i18n.defaultLocale));
+  });
+
   it('resolve every $t() reference they write', () => {
     for (const { namespace, locale, catalog } of files)
       i18n.register(namespace, { [locale]: catalog });

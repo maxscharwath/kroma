@@ -100,7 +100,18 @@ export function namespacesNamedIn(
     const own = keys.get(namespace);
     if (own && names(literal, own)) found.add(namespace);
   }
-  return [...found].sort();
+  return [...found].sort((a, b) => a.localeCompare(b));
+}
+
+const UNQUOTABLE = /["'`\\\r\n\u2028\u2029]/;
+
+/** A path as a specifier in generated source. Forward slashes, so Windows
+ *  reads like everywhere else, and nothing that could close the quote: a
+ *  directory named with one is refused rather than written into a module. */
+export function specifier(path: string): string {
+  const forward = path.split(sep).join('/');
+  if (UNQUOTABLE.test(forward)) throw new Error(`catalog path cannot be imported: ${path}`);
+  return `"${forward}"`;
 }
 
 /** The module that hands a namespace to the engine: a loader per locale, so
@@ -112,9 +123,8 @@ export function renderNamespaceModule(
   eager: boolean,
 ): string {
   const own = files.filter((file) => file.namespace === namespace);
-  const path = (file: CatalogPath) =>
-    JSON.stringify(join(root, file.locale, `${file.namespace}.json`));
-  const lines = [`import { announceCatalogs } from ${JSON.stringify(ANNOUNCE)};`];
+  const path = (file: CatalogPath) => specifier(join(root, file.locale, `${file.namespace}.json`));
+  const lines = [`import { announceCatalogs } from ${specifier(ANNOUNCE)};`];
   const entries = own.map((file, at) => {
     if (!eager)
       return `${JSON.stringify(file.locale)}: () => import(${path(file)}).then((m) => m.default)`;

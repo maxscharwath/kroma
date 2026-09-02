@@ -11,9 +11,10 @@ const HEADER = `// Written by @kroma/i18n/vite from the catalog files beside it,
 // Do not edit.`;
 
 function pascal(word: string): string {
-  return word.replace(/(?:^|[^A-Za-z0-9]+)([A-Za-z0-9])/g, (_, first: string) =>
-    first.toUpperCase(),
-  );
+  return word
+    .split(/[^A-Za-z0-9]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
 }
 
 function binding(namespace: string): string {
@@ -28,27 +29,37 @@ function binding(namespace: string): string {
  * Pure, so a test can render it without a disk; the Vite plugin scans and
  * writes.
  */
+const alphabetical = (a: string, b: string) => a.localeCompare(b);
+
 export function renderCatalogTypes({ files, defaultLocale }: CatalogTypesSource): string {
-  const locales = [...new Set(files.map((file) => file.locale))].sort();
+  const locales = [...new Set(files.map((file) => file.locale))].sort(alphabetical);
   if (!locales.includes(defaultLocale)) {
     throw new Error(`no catalog folder for the default locale "${defaultLocale}"`);
   }
   const namespaces = files
     .filter((file) => file.locale === defaultLocale)
     .map((file) => file.namespace)
-    .sort();
+    .sort(alphabetical);
+  const union = locales.map((locale) => `'${locale}'`).join(' | ');
 
-  const lines = [HEADER, ''];
-  for (const namespace of namespaces) {
-    lines.push(`import type ${binding(namespace)} from './${defaultLocale}/${namespace}.json';`);
-  }
-  lines.push('', "declare module '@kroma/i18n' {", '  interface Register {');
-  lines.push(`    locale: ${locales.map((locale) => `'${locale}'`).join(' | ')};`);
-  lines.push('    messages:');
-  namespaces.forEach((namespace, at) => {
-    const tail = at === namespaces.length - 1 ? ';' : ' &';
-    lines.push(`      typeof ${binding(namespace)}${tail}`);
-  });
-  lines.push('  }', '}');
-  return `${lines.join('\n')}\n`;
+  return [
+    HEADER,
+    '',
+    ...namespaces.map(
+      (namespace) =>
+        `import type ${binding(namespace)} from './${defaultLocale}/${namespace}.json';`,
+    ),
+    '',
+    "declare module '@kroma/i18n' {",
+    '  interface Register {',
+    `    locale: ${union};`,
+    '    messages:',
+    ...namespaces.map(
+      (namespace, at) =>
+        `      typeof ${binding(namespace)}${at === namespaces.length - 1 ? ';' : ' &'}`,
+    ),
+    '  }',
+    '}',
+    '',
+  ].join('\n');
 }

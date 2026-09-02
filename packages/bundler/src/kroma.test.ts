@@ -46,7 +46,7 @@ describe('kroma', () => {
     const plain = names(kroma());
     const start = names(kroma({ start: {} }));
 
-    expect(names(kroma({ mdx: true })).length).toBe(plain.length + 1);
+    expect(names(kroma({ mdx: true }))).toHaveLength(plain.length + 1);
     expect(start.findIndex((name) => name.startsWith('tanstack'))).toBeLessThan(
       start.findIndex((name) => name.startsWith('vite:react')),
     );

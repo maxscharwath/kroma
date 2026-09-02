@@ -41,8 +41,14 @@ const KEYS = new Map<string, string[]>([
   ['nav', ['nav.home']],
 ]);
 
+interface Watcher {
+  add(path: string): void;
+  on(event: string, listener: (file: string) => void): void;
+}
+
 interface Hooks {
   configResolved: (this: unknown) => void;
+  configureServer: (this: unknown, server: { watcher: Watcher }) => void;
   resolveId: (this: unknown, id: string) => string | undefined;
   load: (this: unknown, id: string) => string | undefined;
   transform: (this: unknown, code: string, id: string) => { code: string } | undefined;
@@ -50,6 +56,30 @@ interface Hooks {
 
 function plugin(dir: string, eager = false): Hooks {
   return catalogs({ dir, defaultLocale: 'fr', eager }) as unknown as Hooks;
+}
+
+// A watcher that hands back the listeners the plugin registered on it, so a
+// test can save a file the way the dev server would.
+function watched(hooks: Hooks): {
+  watching: string[];
+  fire: (event: string, file: string) => void;
+} {
+  const listeners = new Map<string, ((file: string) => void)[]>();
+  const watching: string[] = [];
+  hooks.configureServer.call(null, {
+    watcher: {
+      add: (path) => watching.push(path),
+      on: (event, listener) => {
+        listeners.set(event, [...(listeners.get(event) ?? []), listener]);
+      },
+    },
+  });
+  return {
+    watching,
+    fire: (event, file) => {
+      for (const listener of listeners.get(event) ?? []) listener(file);
+    },
+  };
 }
 
 const byPath = (a: { locale: string; namespace: string }, b: typeof a) =>
@@ -177,5 +207,51 @@ describe('the plugin', () => {
     ).toBeUndefined();
     expect(hooks.transform.call(null, source, '/app/node_modules/x/index.js')).toBeUndefined();
     expect(hooks.transform.call(null, source, join(dir, 'x.ts'))).toBeUndefined();
+  });
+
+  it('watches the folder, and reads a namespace again when its default-locale file is saved', () => {
+    const dir = folder(TWO);
+    const hooks = plugin(dir);
+    hooks.configResolved.call(null);
+    const { watching, fire } = watched(hooks);
+
+    writeFileSync(
+      join(dir, 'fr/admin.json'),
+      JSON.stringify({ 'admin.title': 'x', 'admin.new': 'y' }),
+    );
+    writeFileSync(
+      join(dir, 'en/admin.json'),
+      JSON.stringify({ 'admin.title': 'x', 'admin.only': 'z' }),
+    );
+    fire('change', join(dir, 'fr/admin.json'));
+    fire('change', join(dir, 'en/admin.json'));
+    fire('change', join(dir, 'notes.md'));
+
+    expect(watching).toEqual([dir]);
+    const out = hooks.transform.call(null, "t('admin.new'); t('admin.only')", '/app/src/page.tsx');
+    expect(out?.code).toContain('import "virtual:kroma-catalog/admin";');
+    // The default locale decides what a literal names: `admin.only` exists in
+    // English alone, so it must not be what pulled the namespace in.
+    expect(hooks.transform.call(null, "t('admin.only')", '/app/src/other.tsx')).toBeUndefined();
+  });
+
+  it('rescans when a namespace appears and when one is deleted', () => {
+    const dir = folder(TWO);
+    const hooks = plugin(dir);
+    hooks.configResolved.call(null);
+    const { fire } = watched(hooks);
+
+    writeFileSync(join(dir, 'fr/nav.json'), JSON.stringify({ 'nav.home': 'Accueil' }));
+    writeFileSync(join(dir, 'en/nav.json'), JSON.stringify({ 'nav.home': 'Home' }));
+    fire('add', join(dir, 'fr/nav.json'));
+    const known = hooks.transform.call(null, "t('nav.home')", '/app/src/page.tsx');
+
+    rmSync(join(dir, 'fr/nav.json'));
+    rmSync(join(dir, 'en/nav.json'));
+    fire('unlink', join(dir, 'fr/nav.json'));
+
+    expect(known?.code).toContain('import "virtual:kroma-catalog/nav";');
+    expect(hooks.transform.call(null, "t('nav.home')", '/app/src/page.tsx')).toBeUndefined();
+    expect(readFileSync(join(dir, TYPES_FILE), 'utf8')).not.toContain('navMessages');
   });
 });

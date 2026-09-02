@@ -3,6 +3,7 @@
 //! TypeScript clients bundle without naming each namespace by hand.
 
 use std::env;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -22,7 +23,7 @@ fn main() {
         rerun_if_changed(&locale);
         let code = locale
             .file_name()
-            .and_then(|name| name.to_str())
+            .and_then(OsStr::to_str)
             .expect("a locale folder is named after its code")
             .to_owned();
         for file in sorted_children(&locale, |p| p.extension().is_some_and(|e| e == "json")) {

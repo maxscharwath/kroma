@@ -212,6 +212,7 @@ export const catalogs = {
 
 export const lazy = {
   admin: () => part(import('./en/admin.json'), import('./fr/admin.json')),
+  email: () => part(import('./en/email.json'), import('./fr/email.json')),
   jobs: () => part(import('./en/jobs.json'), import('./fr/jobs.json')),
   logs: () => part(import('./en/logs.json'), import('./fr/logs.json')),
   pipeline: () => part(import('./en/pipeline.json'), import('./fr/pipeline.json')),

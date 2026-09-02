@@ -149,6 +149,7 @@ describe('delegating methods issue the expected request', () => {
     ['changePassword', (c) => c.changePassword('a', 'bbbb')],
     ['resetUser', (c) => c.resetUser('u1')],
     ['clearUserPin', (c) => c.clearUserPin('u1')],
+    ['testSmtpSettings', (c) => c.testSmtpSettings()],
     ['passkeyRegisterStart', (c) => c.passkeyRegisterStart()],
     [
       'passkeyRegisterFinish',

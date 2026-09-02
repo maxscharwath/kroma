@@ -244,6 +244,10 @@ fn smtp_transport(
 
 #[cfg(test)]
 mod tests {
+    use kroma_db::testing::TempPool;
+    use kroma_db::Pool;
+    use serde_json::{json, Value};
+
     use super::*;
 
     fn strings() -> ResetStrings {
@@ -295,5 +299,124 @@ mod tests {
         assert!(fr.subject.contains('·'));
         assert!(en.subject.contains("Home"));
         assert_ne!(fr.heading, en.heading);
+    }
+
+    fn settings() -> (TempPool, Settings) {
+        let pool = crate::db::testing::temp_pool("email");
+        let settings = Settings::load(&pool);
+        (pool, settings)
+    }
+
+    fn configure(pool: &Pool, settings: &Settings, patch: &[(&str, Value)]) {
+        settings.set_patch(
+            pool,
+            patch
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), v.clone()))
+                .collect(),
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unconfigured_server_reports_manual_rather_than_failing() {
+        let (_pool, settings) = settings();
+
+        let mode = send(&settings, &outbound()).await.expect("a delivery mode");
+
+        assert_eq!(mode, "manual");
+    }
+
+    #[tokio::test]
+    async fn sending_without_a_from_address_names_the_missing_setting() {
+        let (pool, settings) = settings();
+        configure(
+            &pool,
+            &settings,
+            &[("smtpEnabled", json!(true)), ("smtpHost", json!("localhost"))],
+        );
+
+        let err = send(&settings, &outbound()).await.expect_err("a refusal");
+
+        assert!(err.contains("smtpFrom"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn sending_without_a_host_names_the_missing_setting() {
+        let (pool, settings) = settings();
+        configure(
+            &pool,
+            &settings,
+            &[
+                ("smtpEnabled", json!(true)),
+                ("smtpFrom", json!("kroma@example.test")),
+            ],
+        );
+
+        let err = send(&settings, &outbound()).await.expect_err("a refusal");
+
+        assert!(err.contains("smtpHost"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn an_unparseable_recipient_is_a_refusal_not_a_panic() {
+        let (pool, settings) = settings();
+        configure(
+            &pool,
+            &settings,
+            &[
+                ("smtpEnabled", json!(true)),
+                ("smtpHost", json!("localhost")),
+                ("smtpFrom", json!("kroma@example.test")),
+            ],
+        );
+        let mut email = outbound();
+        email.to = "not an address".to_string();
+
+        let err = send(&settings, &email).await.expect_err("a refusal");
+
+        assert!(err.starts_with("to:"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_test_probe_refuses_before_it_dials_when_the_address_is_junk() {
+        let (pool, settings) = settings();
+        configure(
+            &pool,
+            &settings,
+            &[
+                ("smtpHost", json!("localhost")),
+                ("smtpFrom", json!("kroma@example.test")),
+            ],
+        );
+
+        let err = send_test(&settings, "not an address", "en")
+            .await
+            .expect_err("a refusal");
+
+        assert!(err.starts_with("to:"), "{err}");
+        assert!(send_test(&settings, "owner@example.test", "en")
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn a_test_probe_needs_a_from_address_too() {
+        let (_pool, settings) = settings();
+
+        let err = send_test(&settings, "owner@example.test", "en")
+            .await
+            .expect_err("a refusal");
+
+        assert!(err.contains("smtpFrom"), "{err}");
+    }
+
+    fn outbound() -> OutboundEmail {
+        OutboundEmail {
+            to: "user@example.test".to_string(),
+            locale: "fr",
+            url: "https://x/reset?token=abc".to_string(),
+            server_name: "Home".to_string(),
+            kind: EmailKind::Reset,
+        }
     }
 }

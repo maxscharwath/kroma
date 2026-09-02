@@ -88,6 +88,8 @@ mod it_playback_faults;
 mod it_rematch;
 #[cfg(test)]
 mod it_reports;
+mod it_reset;
+mod it_verify_email;
 #[cfg(test)]
 mod it_stream_hls;
 #[cfg(test)]

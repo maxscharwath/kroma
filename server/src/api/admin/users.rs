@@ -1,5 +1,8 @@
 //! Member management: the full account list plus permission / username edits and
-//! account removal (the "Membres & partage" table).
+//! account removal (the "Membres & partage" table). The reset and
+//! verification links the owner mints live in `users/links.rs`.
+
+mod links;
 
 use axum::extract::{Path as AxPath, State};
 use axum::http::StatusCode;
@@ -12,8 +15,7 @@ use crate::api::extract::AuthUser;
 use crate::api::util::query;
 use crate::db;
 use crate::infra::events::ServerEvent;
-use crate::model::Permission;
-use crate::services::auth;
+use crate::model::{Permission, User};
 use crate::state::SharedState;
 use axum::routing::{get, patch, post};
 use axum::Router;
@@ -23,9 +25,25 @@ pub fn routes() -> Router<SharedState> {
     Router::new()
         .route("/users", get(list_users))
         .route("/users/{id}", patch(update_user).delete(delete_user))
-        .route("/users/{id}/reset", post(reset_user))
-        .route("/users/{id}/email-verification", post(send_email_verification))
+        .route("/users/{id}/reset", post(links::reset_user))
+        .route(
+            "/users/{id}/email-verification",
+            post(links::send_email_verification),
+        )
         .route("/users/{id}/pin", axum::routing::delete(clear_user_pin))
+}
+
+async fn target_or_404(state: &SharedState, user: &User, id: &str) -> Result<User, Response> {
+    let id = id.to_string();
+    query(&state.db, move |pool| db::user_by_id(&pool, &id))
+        .await?
+        .ok_or_else(|| {
+            lerr(
+                super::user_locale(user),
+                StatusCode::NOT_FOUND,
+                "error.userNotFound",
+            )
+        })
 }
 
 /// `GET /api/admin/users` → full member list (the "Membres & partage" table).
@@ -138,124 +156,10 @@ pub async fn delete_user(
             "admin.cantDeleteSelf",
         ));
     }
-    let id2 = id.clone();
-    if query(&state.db, move |pool| db::user_by_id(&pool, &id2))
-        .await?
-        .is_none()
-    {
-        return Err(lerr(
-            super::user_locale(&user),
-            StatusCode::NOT_FOUND,
-            "error.userNotFound",
-        ));
-    }
+    target_or_404(&state, &user, &id).await?;
     query(&state.db, move |pool| db::delete_user(&pool, &id)).await?;
     state.events.publish(ServerEvent::LibraryUpdated);
     Ok(StatusCode::NO_CONTENT.into_response())
-}
-
-/// `POST /api/admin/users/:id/reset` → mint a credential reset. The link alone
-/// is not enough; the owner reads the returned code to the user.
-pub async fn reset_user(
-    State(state): State<SharedState>,
-    AuthUser(user): AuthUser,
-    AxPath(id): AxPath<String>,
-) -> Result<Response, Response> {
-    super::require(&user, Permission::UsersManage)?;
-    let id2 = id.clone();
-    let Some(target) = query(&state.db, move |pool| db::user_by_id(&pool, &id2)).await? else {
-        return Err(lerr(
-            super::user_locale(&user),
-            StatusCode::NOT_FOUND,
-            "error.userNotFound",
-        ));
-    };
-    let token = auth::random_token();
-    let code = auth::random_code();
-    let code_hash = auth::hash_password(&code);
-    let expires_at = time::OffsetDateTime::now_utc().unix_timestamp() + 48 * 3600;
-    let token_db = token.clone();
-    let uid = user.id.clone();
-    let id3 = id.clone();
-    query(&state.db, move |pool| {
-        db::create_reset(&pool, &token_db, &id3, &code_hash, &uid, expires_at)
-    })
-    .await?;
-    let url = web_base(&state).map(|w| format!("{w}/reset?token={token}"));
-    // A send failure never fails the mint: the owner can still copy the link and
-    // code by hand, which is the default delivery anyway.
-    let mut delivered = "manual".to_string();
-    if let Some(url) = url.clone() {
-        let email = crate::services::email::OutboundEmail {
-            to: target.email.clone(),
-            locale: super::user_locale(&target),
-            url,
-            server_name: state.settings.get_str("serverName", "KROMA"),
-            kind: crate::services::email::EmailKind::Reset,
-        };
-        if let Ok(mode) = crate::services::email::send(&state.settings, &email).await {
-            delivered = mode.to_string();
-        }
-    }
-    Ok(Json(crate::api::dto::ResetCreated {
-        token,
-        code,
-        url,
-        expires_at,
-        delivered,
-    })
-    .into_response())
-}
-
-/// `POST /api/admin/users/:id/email-verification` → mint a verification link for
-/// the account's current address and try to deliver it. No code: reaching the
-/// mailbox is itself the proof. A send failure never fails the mint; the owner
-/// can still copy the link by hand.
-pub async fn send_email_verification(
-    State(state): State<SharedState>,
-    AuthUser(user): AuthUser,
-    AxPath(id): AxPath<String>,
-) -> Result<Response, Response> {
-    super::require(&user, Permission::UsersManage)?;
-    let id2 = id.clone();
-    let Some(target) = query(&state.db, move |pool| db::user_by_id(&pool, &id2)).await? else {
-        return Err(lerr(
-            super::user_locale(&user),
-            StatusCode::NOT_FOUND,
-            "error.userNotFound",
-        ));
-    };
-    let token = auth::random_token();
-    let expires_at = time::OffsetDateTime::now_utc().unix_timestamp() + 7 * 24 * 3600;
-    let token_db = token.clone();
-    let uid = user.id.clone();
-    let id3 = id.clone();
-    let email = target.email.clone();
-    query(&state.db, move |pool| {
-        db::create_verification(&pool, &token_db, &id3, &email, &uid, expires_at)
-    })
-    .await?;
-    let url = web_base(&state).map(|w| format!("{w}/verify-email?token={token}"));
-    let mut delivered = "manual".to_string();
-    if let Some(url) = url.clone() {
-        let outbound = crate::services::email::OutboundEmail {
-            to: target.email.clone(),
-            locale: super::user_locale(&target),
-            url,
-            server_name: state.settings.get_str("serverName", "KROMA"),
-            kind: crate::services::email::EmailKind::Verify,
-        };
-        if let Ok(mode) = crate::services::email::send(&state.settings, &outbound).await {
-            delivered = mode.to_string();
-        }
-    }
-    Ok(Json(crate::api::dto::VerificationCreated {
-        token,
-        url,
-        expires_at,
-        delivered,
-    })
-    .into_response())
 }
 
 /// `DELETE /api/admin/users/:id/pin` → clear a user's profile PIN. The PIN is a
@@ -268,17 +172,7 @@ pub async fn clear_user_pin(
     AxPath(id): AxPath<String>,
 ) -> Result<Response, Response> {
     super::require(&user, Permission::UsersManage)?;
-    let id2 = id.clone();
-    if query(&state.db, move |pool| db::user_by_id(&pool, &id2))
-        .await?
-        .is_none()
-    {
-        return Err(lerr(
-            super::user_locale(&user),
-            StatusCode::NOT_FOUND,
-            "error.userNotFound",
-        ));
-    }
+    target_or_404(&state, &user, &id).await?;
     let id3 = id.clone();
     query(&state.db, move |pool| {
         db::set_user_pin(&pool, &id3, None)?;
@@ -288,15 +182,4 @@ pub async fn clear_user_pin(
     crate::api::pin::reset(&id);
     state.events.publish(ServerEvent::LibraryUpdated);
     Ok(StatusCode::NO_CONTENT.into_response())
-}
-
-/// The base reset/verify links are built against: the configured web URL, else
-/// the Remote Access public URL (the same fallback quick-connect links use).
-/// Still `None` when neither is set — the client then composes from its own
-/// origin, which is right for an owner browsing the very server they admin.
-fn web_base(state: &SharedState) -> Option<String> {
-    state.config.web_url.clone().or_else(|| {
-        let url = crate::services::settings::public_url(&state.settings);
-        (!url.is_empty()).then_some(url)
-    })
 }

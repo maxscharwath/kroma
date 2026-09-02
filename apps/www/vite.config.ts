@@ -1,9 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { cloudflare } from '@cloudflare/vite-plugin';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import { kromaCatalogs } from '@kroma/core/vite';
-import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
-import { kromaUI } from '@kroma/ui/vite';
+import { kroma } from '@kroma/bundler';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -18,9 +16,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 export default defineConfig({
   plugins: [
     cloudflare({ configPath: './wrangler.jsonc', viteEnvironment: { name: 'ssr' } }),
-    kromaCatalogs(),
-    kromaUI(),
-    kromaI18nDevtools(),
+    kroma(),
     tailwindcss(),
     mdxPlugin(),
     modulesPlugin(),

@@ -10,16 +10,10 @@ const HEADER = `// Written by @kroma/i18n/vite from the catalog files beside it,
 // git. The Vite dev server refreshes it; \`bun run i18n:types\` does without one.
 // Do not edit.`;
 
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
-
 function pascal(word: string): string {
   return word.replace(/(?:^|[^A-Za-z0-9]+)([A-Za-z0-9])/g, (_, first: string) =>
     first.toUpperCase(),
   );
-}
-
-function key(name: string): string {
-  return IDENTIFIER.test(name) ? name : JSON.stringify(name);
 }
 
 function binding(namespace: string): string {
@@ -29,8 +23,8 @@ function binding(namespace: string): string {
 
 /**
  * The declaration that teaches `@kroma/i18n` a folder of catalogs: `Register`
- * gains the locales, `Namespaces` one entry per file of the default locale, so
- * `MessageKey` covers every namespace without a line of hand-written code.
+ * gains the locales and every namespace's messages folded into one map, so
+ * `MessageKey` covers the whole folder without a line of hand-written code.
  * Pure, so a test can render it without a disk; the Vite plugin scans and
  * writes.
  */
@@ -50,10 +44,11 @@ export function renderCatalogTypes({ files, defaultLocale }: CatalogTypesSource)
   }
   lines.push('', "declare module '@kroma/i18n' {", '  interface Register {');
   lines.push(`    locale: ${locales.map((locale) => `'${locale}'`).join(' | ')};`);
-  lines.push('  }', '  interface Namespaces {');
-  for (const namespace of namespaces) {
-    lines.push(`    ${key(namespace)}: typeof ${binding(namespace)};`);
-  }
+  lines.push('    messages:');
+  namespaces.forEach((namespace, at) => {
+    const tail = at === namespaces.length - 1 ? ';' : ' &';
+    lines.push(`      typeof ${binding(namespace)}${tail}`);
+  });
   lines.push('  }', '}');
   return `${lines.join('\n')}\n`;
 }

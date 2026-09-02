@@ -76,8 +76,39 @@ describe('the vite half', () => {
     }
   });
 
-  it('applies to builds only, so dev keeps the full set and its own resolution', () => {
-    expect(kromaUi.vite({ repoRoot: REPO_ROOT }).apply).toBe('build');
+  it('learns an icon a saved file names, and reloads the glyph module with it', () => {
+    const root = rootWithBarrel(
+      [
+        "export { default as IconHelpCircle } from './icons/IconHelpCircle.mjs';",
+        "export { default as IconAlpha } from './icons/IconAlpha.mjs';",
+        "export { default as IconBeta } from './icons/IconBeta.mjs';",
+      ].join('\n'),
+    );
+    const page = join(root, 'packages', 'app', 'src', 'page.tsx');
+    mkdirSync(join(page, '..'), { recursive: true });
+    writeFileSync(page, "icon('alpha')");
+    const plugin = kromaUi.vite({ repoRoot: root });
+    const listeners: Array<(file: string) => void> = [];
+    const reloaded: unknown[] = [];
+    const target = join(root, GLYPH_SOURCE);
+    plugin.configureServer({
+      watcher: { on: (_event, listener) => listeners.push(listener) },
+      moduleGraph: {
+        getModulesByFile: (file) => (file === target ? new Set(['glyphs']) : undefined),
+      },
+      reloadModule: (module) => reloaded.push(module),
+    });
+    const before = plugin.load.call({}, target) ?? '';
+
+    writeFileSync(page, "icon('alpha'); icon('beta')");
+    for (const listener of listeners) listener(page);
+    const after = plugin.load.call({}, target) ?? '';
+
+    expect(before).toContain('IconAlpha');
+    expect(before).not.toContain('IconBeta');
+    expect(reloaded).toEqual(['glyphs']);
+    expect(after).toContain('import IconBeta from');
+    rmSync(root, { recursive: true, force: true });
   });
 
   it('hands back a module that names every icon it imports', () => {

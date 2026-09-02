@@ -10,13 +10,12 @@ const FILES = [
 ];
 
 describe('renderCatalogTypes', () => {
-  it('declares the locales and one namespace entry per file of the default locale', () => {
+  it('declares the locales and folds every file of the default locale into the messages', () => {
     const out = renderCatalogTypes({ files: FILES, defaultLocale: 'en' });
 
     expect(out).toContain("import type aboutMessages from './en/about.json';");
     expect(out).toContain("    locale: 'en' | 'fr';");
-    expect(out).toContain('    about: typeof aboutMessages;');
-    expect(out).toContain('    addProfile: typeof addProfileMessages;');
+    expect(out).toContain('      typeof aboutMessages &\n      typeof addProfileMessages;');
     expect(out).not.toContain('draft');
   });
 

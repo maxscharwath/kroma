@@ -100,7 +100,7 @@ describe('writeCatalogTypes', () => {
     const again = writeCatalogTypes(dir, 'fr');
 
     expect(again.changed).toBe(true);
-    expect(readFileSync(again.path, 'utf8')).toContain('nav: typeof navMessages;');
+    expect(readFileSync(again.path, 'utf8')).toContain('typeof navMessages');
   });
 });
 

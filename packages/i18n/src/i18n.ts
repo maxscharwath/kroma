@@ -3,7 +3,6 @@ import { resolveInChain, translateChain } from './chain';
 import { activeKeyInspector, onOverridesChange, overridesRevision } from './dev-overrides';
 import { namespaceOf } from './layout';
 import { Namespaces } from './namespaces';
-import type { UnionToIntersection } from './registry';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
@@ -14,19 +13,11 @@ export type CatalogMessages<C> = Omit<C, typeof SCHEMA_KEY>;
 /** Namespaces offered for fetching: by name, then by locale. */
 export type LazyCatalogs = Readonly<Record<string, NamespaceCatalogs>>;
 
-type Resolved<S> = S extends () => Promise<infer C> ? C : S;
-
-/** The messages every lazy namespace declares in the default locale, folded
- *  into one map so they type `MessageKey` beside the eager ones. */
-export type LazyMessages<Z extends LazyCatalogs, D extends string> = UnionToIntersection<
-  { [N in keyof Z]: Resolved<Z[N][D & keyof Z[N]]> }[keyof Z]
->;
-
 /** A translator bound to one scope: the scope's own keys are not knowable from
  *  here, so any string is accepted while the base keys still autocomplete. */
 export type ScopedTranslate<K extends string> = (key: K | (string & {}), vars?: TVars) => string;
 
-export interface I18n<L extends string, M extends Catalog, N extends string = string> {
+export interface I18n<L extends string, M extends Catalog> {
   readonly defaultLocale: L;
   /** Every locale the base catalogs answer in, the default one first. */
   locales(): readonly L[];
@@ -51,7 +42,7 @@ export interface I18n<L extends string, M extends Catalog, N extends string = st
    *  everything needed has landed. */
   pending(locale: L): Promise<void> | null;
   /** Fetch `names` in every locale they have a source for. */
-  load(...names: N[]): Promise<void>;
+  load(...names: string[]): Promise<void>;
   /** Whether the base catalogs declare `key`. */
   has(key: string): boolean;
   /** A snapshot that changes whenever a scope is added or removed. */
@@ -59,29 +50,16 @@ export interface I18n<L extends string, M extends Catalog, N extends string = st
   subscribe(listener: () => void): () => void;
 }
 
-export interface I18nConfig<
-  C extends Record<string, Record<string, string>>,
-  Z extends LazyCatalogs = Record<never, never>,
-> {
+export interface I18nConfig<C extends Record<string, Record<string, string>>> {
   catalogs: C;
   defaultLocale: keyof C & string;
   /** Override plural category selection. Only needed where `Intl.PluralRules`
    *  is absent or disagrees with a peer implementation you have to match. */
   plural?: PluralRule;
   /** Namespaces not shipped in `catalogs`, fetched per locale when a key of
-   *  theirs misses. Their keys type like the eager ones. */
-  lazy?: Z;
+   *  theirs misses. */
+  lazy?: LazyCatalogs;
 }
-
-/** What {@link Register} should be augmented with for a given instance:
- *
- *  ```ts
- *  declare module '@kroma/i18n' {
- *    interface Register extends InferRegister<typeof i18n> {}
- *  }
- *  ``` */
-export type InferRegister<I> =
-  I extends I18n<infer L, infer M, string> ? { locale: L; messages: M } : never;
 
 /**
  * Build a translator from JSON catalogs.
@@ -94,10 +72,7 @@ export type InferRegister<I> =
 export function createI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
-  const Z extends LazyCatalogs = Record<never, never>,
->(
-  config: I18nConfig<C, Z> & { defaultLocale: D },
-): I18n<keyof C & string, CatalogMessages<C[D]> & LazyMessages<Z, D>, keyof Z & string> {
+>(config: I18nConfig<C> & { defaultLocale: D }): I18n<keyof C & string, CatalogMessages<C[D]>> {
   type L = keyof C & string;
   type K = keyof CatalogMessages<C[D]> & string;
 
@@ -180,5 +155,5 @@ export function createI18n<
         stopInspector();
       };
     },
-  } as I18n<L, CatalogMessages<C[D]> & LazyMessages<Z, D>, keyof Z & string>;
+  } as I18n<L, CatalogMessages<C[D]>>;
 }

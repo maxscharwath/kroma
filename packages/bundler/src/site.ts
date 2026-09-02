@@ -1,8 +1,7 @@
 import { fileURLToPath } from 'node:url';
+import { kroma } from '@kroma/bundler';
 import { messageSubset } from '@kroma/bundler/message-subset';
 import { RNW_DEFINE, RNW_SSR_NO_EXTERNAL, webResolve } from '@kroma/bundler/rnw';
-import { kromaCatalogs } from '@kroma/core/vite';
-import { kromaUI } from '@kroma/ui/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react from '@vitejs/plugin-react';
 import type { Plugin, UserConfig } from 'vite';
@@ -44,8 +43,7 @@ export function kromaSite(siteUrl: string, options: KromaSiteOptions = {}): User
   return {
     plugins: [
       ...(options.appMessages ? [] : [messageSubset({ roots: [`${root}src`] })]),
-      kromaCatalogs(),
-      kromaUI(),
+      kroma(),
       tanstackStart(options.prerender ? { prerender: { enabled: true, crawlLinks: true } } : {}),
       workerdBuiltins(),
       react(),

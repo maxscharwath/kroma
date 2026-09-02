@@ -5,19 +5,11 @@
 import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { collectBuildInfo, productVersion } from '@kroma/build-info';
+import { kroma } from '@kroma/bundler';
 import { legacyFinalize } from '@kroma/bundler/legacy-finalize';
-import { kromaMdx } from '@kroma/bundler/mdx';
-import {
-  KROMA_SOURCE_PACKAGES,
-  RNW_DEFINE,
-  RNW_OPTIMIZE_INCLUDE,
-  webResolve,
-} from '@kroma/bundler/rnw';
+import { RNW_DEFINE, rnwOptimizeDeps, webResolve } from '@kroma/bundler/rnw';
 import { tvFrame } from '@kroma/bundler/tv-frame';
 import { tvShellHead } from '@kroma/bundler/tv-shell-head';
-import { kromaCatalogs } from '@kroma/core/vite';
-import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
-import { kromaUI } from '@kroma/ui/vite';
 import babel from '@rolldown/plugin-babel';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import type { ConfigEnv, UserConfig } from 'vite';
@@ -79,12 +71,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
     // tvFrame() is dev-only: letterboxes into a 1920x1080 stage in a desktop
     // browser; off in device mode, where the panel already is that canvas.
     plugins: [
-      kromaCatalogs(),
-      kromaUI(),
-      kromaI18nDevtools(),
-      // Before react(): the workbench behind `?workbench` reads the kit's
-      // `.docs.mdx` files, which have to be JSX before the React transform.
-      kromaMdx(),
+      kroma({ mdx: true }),
       react(),
       // The same auto-memoisation the web client gets, over the same kit source
       // (plugin-react v6 dropped its built-in Babel pass, so the compiler runs
@@ -113,10 +100,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
       hmr: deviceDev ? { host: lanIp(), protocol: 'ws' } : undefined,
       fs: { allow: [repoRoot] },
     },
-    optimizeDeps: {
-      exclude: KROMA_SOURCE_PACKAGES,
-      include: RNW_OPTIMIZE_INCLUDE,
-    },
+    optimizeDeps: rnwOptimizeDeps(),
     // Down-levels modern CSS (color-mix, oklch) to plain fallbacks. Chrome
     // version is encoded as major << 16.
     css: {
@@ -175,7 +159,7 @@ export function tvShellLegacyConfig(
   const gate = dir === tiers.at(-1)?.dir ? tiers : undefined;
   return {
     plugins: [
-      kromaUI(),
+      kroma(),
       tvShellHead(),
       react(),
       // The legacy tier wants this MORE than the modern one: these are the

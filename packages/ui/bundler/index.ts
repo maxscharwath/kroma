@@ -228,10 +228,37 @@ function assertTargetExists(repoRoot: string): void {
   );
 }
 
+interface ViteServerLike {
+  watcher: { on(event: 'add' | 'change', listener: (file: string) => void): unknown };
+  moduleGraph: { getModulesByFile(file: string): Set<unknown> | undefined };
+  reloadModule(module: unknown): unknown;
+}
+
 interface VitePluginLike {
   name: string;
-  apply: 'build';
   load(this: { info?: (msg: string) => void }, id: string): string | null;
+  configureServer(server: ViteServerLike): void;
+}
+
+// A file just saved may name an icon the walk never saw. Reading that one file
+// is enough: an icon only ever joins the subset in dev, and the full walk stays
+// a one-time cost.
+function learn(scan: IconScan, file: string): boolean {
+  let source: string;
+  try {
+    source = readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  let grew = false;
+  for (const [, slug] of source.matchAll(LITERAL)) {
+    const name = exportName(slug as string);
+    if (!scan.available.has(name) || scan.used.has(name)) continue;
+    scan.used.add(name);
+    grew = true;
+  }
+  if (grew) scan.subset = undefined;
+  return grew;
 }
 
 type MetroResolve = (
@@ -247,17 +274,32 @@ interface MetroConfigLike {
 
 export const kromaUi = {
   /** The Vite half. Browser targets render DOM `<svg>`, so this draws from
-   * `@tabler/icons-react`. */
+   * `@tabler/icons-react`. In dev the subset is the same, plus whatever a saved
+   * file names since: the glyph module reloads with the new icon in it. */
   vite({ repoRoot, icons = 'subset' }: KromaUiOptions): VitePluginLike {
     if (icons === 'subset') assertTargetExists(repoRoot);
+    const pkg: TablerPkg = '@tabler/icons-react';
     return {
       name: 'kroma-ui',
-      apply: 'build',
       load(id) {
         if (icons === 'full' || !id.endsWith(GLYPH_SOURCE)) return null;
-        const { code, note } = iconSubset(repoRoot, '@tabler/icons-react');
+        const { code, note } = iconSubset(repoRoot, pkg);
         this.info?.(note);
         return code;
+      },
+      configureServer(server) {
+        if (icons === 'full') return;
+        const roots = sourceRoots(repoRoot);
+        const target = join(repoRoot, GLYPH_SOURCE);
+        const onSaved = (file: string) => {
+          if (!walkReaches(roots, file) || NOT_SHIPPED.test(file)) return;
+          if (!learn(iconScan(repoRoot, pkg), file)) return;
+          for (const module of server.moduleGraph.getModulesByFile(target) ?? []) {
+            server.reloadModule(module);
+          }
+        };
+        server.watcher.on('add', onSaved);
+        server.watcher.on('change', onSaved);
       },
     };
   },

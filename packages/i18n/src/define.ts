@@ -1,7 +1,7 @@
 import { drainAnnouncements } from './announce';
 import { createI18n, type I18n, type LazyCatalogs } from './i18n';
 import { createLocales, labelKey } from './locales';
-import type { Locale, Messages, Namespace } from './registry';
+import type { Locale, Messages } from './registry';
 import type { Catalog, LocaleSet, PluralRule } from './types';
 
 export interface DefineI18nConfig {
@@ -23,7 +23,7 @@ export interface DefineI18nConfig {
   locales?: Readonly<Partial<Record<Locale, string>>>;
 }
 
-type AppI18n = I18n<Locale, Messages, Namespace>;
+type AppI18n = I18n<Locale, Messages>;
 
 export interface DefinedI18n extends LocaleSet<Locale> {
   readonly i18n: AppI18n;

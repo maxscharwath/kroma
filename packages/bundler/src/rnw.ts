@@ -84,6 +84,12 @@ export function webResolve(
 // the dev server's module graph small enough for a TV's slow connection.
 export const RNW_OPTIMIZE_INCLUDE = ['react-native-web'];
 
+/** The dev server's dependency pre-bundle, the same for every shell: the
+ *  workspace packages served from source stay out, react-native-web goes in. */
+export function rnwOptimizeDeps() {
+  return { exclude: KROMA_SOURCE_PACKAGES, include: RNW_OPTIMIZE_INCLUDE };
+}
+
 // The packages an SSR target must NOT externalize, as a consequence of the
 // aliases above: `webResolve` lands inline-style-prefixer and css-in-js-utils
 // on their ESM `es/` builds (extensionless relative imports, resolved only
@@ -96,7 +102,7 @@ export const RNW_SSR_NO_EXTERNAL = ['react-native-web', 'inline-style-prefixer',
 // until the cache is cleared. Kept as one list because a source package
 // missing from a shell's copy is a dev server quietly serving a stale build
 // of it.
-export const KROMA_SOURCE_PACKAGES = [
+const KROMA_SOURCE_PACKAGES = [
   '@kroma/ui',
   '@kroma/core',
   '@kroma/tv',

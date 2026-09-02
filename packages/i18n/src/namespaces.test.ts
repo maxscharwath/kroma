@@ -39,10 +39,9 @@ describe('a namespace a chunk registers', () => {
     expect(pending).toBeInstanceOf(Promise);
     expect(i18n.pending('en')).toBeNull();
     await pending;
-    expect([i18n.translate('fr', 'admin.title'), loads.en.mock.calls.length]).toEqual([
-      'Console (fr)',
-      0,
-    ]);
+    expect([i18n.translate('fr', 'admin.title' as 'greeting'), loads.en.mock.calls.length]).toEqual(
+      ['Console (fr)', 0],
+    );
     expect(i18n.pending('fr')).toBeNull();
   });
 
@@ -56,7 +55,7 @@ describe('a namespace a chunk registers', () => {
 
     expect(first).toBe(second);
     await first;
-    expect(i18n.translate('en', 'admin.title')).toBe('Console');
+    expect(i18n.translate('en', 'admin.title' as 'greeting')).toBe('Console');
   });
 
   it('lands at once when given the catalog itself', () => {
@@ -64,7 +63,7 @@ describe('a namespace a chunk registers', () => {
 
     i18n.register('admin', { en: ADMIN.en });
 
-    expect(i18n.translate('en', 'admin.by')).toBe('By KROMA');
+    expect(i18n.translate('en', 'admin.by' as 'greeting')).toBe('By KROMA');
     expect(i18n.pending('en')).toBeNull();
   });
 
@@ -87,10 +86,12 @@ describe('a namespace only the folder offers', () => {
     i18n.warm('fr');
 
     expect(loads.fr).not.toHaveBeenCalled();
-    const before = i18n.translate('fr', 'admin.title');
-    await vi.waitFor(() => expect(i18n.translate('fr', 'admin.title')).toBe('Console (fr)'));
+    const before = i18n.translate('fr', 'admin.title' as 'greeting');
+    await vi.waitFor(() =>
+      expect(i18n.translate('fr', 'admin.title' as 'greeting')).toBe('Console (fr)'),
+    );
 
-    expect(before).toBe('admin.title');
+    expect(before).toBe('admin.title' as 'greeting');
     expect([loads.fr.mock.calls.length, loads.en.mock.calls.length]).toEqual([1, 0]);
   });
 
@@ -124,11 +125,11 @@ describe('a namespace only the folder offers', () => {
     });
 
     await expect(i18n.load('admin')).rejects.toThrow('offline');
-    i18n.translate('en', 'admin.title');
+    i18n.translate('en', 'admin.title' as 'greeting');
     expect(attempts).toBe(1);
 
     await i18n.load('admin');
-    expect(i18n.translate('en', 'admin.title')).toBe('Console');
+    expect(i18n.translate('en', 'admin.title' as 'greeting')).toBe('Console');
   });
 
   it('rejects a namespace it was never given', async () => {
@@ -158,16 +159,13 @@ describe('pending', () => {
 });
 
 describe('types', () => {
-  it('cover the keys of a lazy namespace beside the eager ones', () => {
+  it('come from the default locale catalog handed in', () => {
     const i18n = createI18n({
-      catalogs: { en: { greeting: 'Hi' } },
+      catalogs: { en: { greeting: 'Hi' }, fr: { greeting: 'Bonjour', extra: 'x' } },
       defaultLocale: 'en',
-      lazy: { admin: { en: () => Promise.resolve({ 'admin.title': 'Console' }) } },
     });
 
-    expectTypeOf<Parameters<typeof i18n.translate>[1]>().toEqualTypeOf<
-      'greeting' | 'admin.title'
-    >();
-    expectTypeOf<Parameters<typeof i18n.load>[0]>().toEqualTypeOf<'admin'>();
+    expectTypeOf<Parameters<typeof i18n.translate>[1]>().toEqualTypeOf<'greeting'>();
+    expectTypeOf<Parameters<typeof i18n.translate>[0]>().toEqualTypeOf<'en' | 'fr'>();
   });
 });

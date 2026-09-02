@@ -3,7 +3,6 @@ import {
   hasUnresolvedRef,
   type Locale,
   type MessageKey,
-  type Namespace,
   namespaceOf,
   parseCatalogPath,
   SCHEMA_KEY,
@@ -128,7 +127,7 @@ describe('the discovered catalogs', () => {
   });
 
   it('resolve every $t() reference they write', async () => {
-    await i18n.load(...(namespaces as Namespace[]));
+    await i18n.load(...namespaces);
 
     const dangling = files.flatMap(({ locale, catalog }) =>
       messageKeys(catalog).filter((key) =>

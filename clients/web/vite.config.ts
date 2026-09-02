@@ -1,17 +1,10 @@
 import { fileURLToPath } from 'node:url';
+import { kroma } from '@kroma/bundler';
 import { buildInfoPlugin } from '@kroma/bundler/build-info';
 import { exitAfterBuild } from '@kroma/bundler/exit-after-build';
-import {
-  RNW_DEFINE,
-  RNW_OPTIMIZE_INCLUDE,
-  RNW_SSR_NO_EXTERNAL,
-  webResolve,
-} from '@kroma/bundler/rnw';
+import { RNW_DEFINE, RNW_SSR_NO_EXTERNAL, rnwOptimizeDeps, webResolve } from '@kroma/bundler/rnw';
 import { standaloneScript } from '@kroma/bundler/standalone-script';
-import { kromaCatalogs } from '@kroma/core/vite';
-import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
 import { kromaModule } from '@kroma/module-sdk/vite';
-import { kromaUI } from '@kroma/ui/vite';
 import babel from '@rolldown/plugin-babel';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
@@ -25,10 +18,8 @@ const apiTarget = process.env.KROMA_SERVER_URL ?? 'http://localhost:4040';
 export default defineConfig({
   define: RNW_DEFINE,
   plugins: [
-    kromaCatalogs(),
-    kromaUI(),
+    kroma(),
     kromaModule(),
-    kromaI18nDevtools(),
     buildInfoPlugin({ projectRoot: fileURLToPath(new URL('.', import.meta.url)) }),
     standaloneScript(swScript),
     tanstackStart({ spa: { enabled: true } }),
@@ -46,8 +37,5 @@ export default defineConfig({
   ssr: {
     noExternal: ['@kroma/ui', '@kroma/core', '@kroma/spatial-nav', ...RNW_SSR_NO_EXTERNAL],
   },
-  optimizeDeps: {
-    exclude: ['@kroma/ui', '@kroma/core'],
-    include: RNW_OPTIMIZE_INCLUDE,
-  },
+  optimizeDeps: rnwOptimizeDeps(),
 });

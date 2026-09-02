@@ -89,15 +89,13 @@ export class Namespaces {
     return Promise.all(started).then(() => undefined);
   }
 
-  /** A key nothing answered in `locale`: fetch its namespace for that locale
-   *  and for the fallback, unless a fetch already failed. */
-  missed(key: string, locale: string, fallback: string): void {
-    const entry = this.entries.get(namespaceOf(key));
-    if (!entry) return;
-    for (const code of new Set([locale, fallback])) {
-      if (entry.failed.has(code)) continue;
-      this.ensure(namespaceOf(key), code)?.catch(() => undefined);
-    }
+  /** A key nothing answered in `locale`: fetch its namespace for that locale,
+   *  unless a fetch already failed. */
+  missed(key: string, locale: string): void {
+    const namespace = namespaceOf(key);
+    const entry = this.entries.get(namespace);
+    if (!entry || entry.failed.has(locale)) return;
+    this.ensure(namespace, locale)?.catch(() => undefined);
   }
 
   private ensure(namespace: string, locale: string): Promise<void> | null {

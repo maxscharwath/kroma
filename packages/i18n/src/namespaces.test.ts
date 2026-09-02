@@ -82,7 +82,7 @@ describe('a namespace a chunk registers', () => {
 });
 
 describe('a namespace only the folder offers', () => {
-  it('is not fetched by warming, only by a miss, in the missed locale and the fallback', async () => {
+  it('is not fetched by warming, only by a miss, and in the missed locale alone', async () => {
     const { i18n, loads } = build();
     i18n.warm('fr');
 
@@ -91,7 +91,7 @@ describe('a namespace only the folder offers', () => {
     await vi.waitFor(() => expect(i18n.translate('fr', 'admin.title')).toBe('Console (fr)'));
 
     expect(before).toBe('admin.title');
-    expect([loads.fr.mock.calls.length, loads.en.mock.calls.length]).toEqual([1, 1]);
+    expect([loads.fr.mock.calls.length, loads.en.mock.calls.length]).toEqual([1, 0]);
   });
 
   it('is fetched once per locale across concurrent and repeated asks', async () => {

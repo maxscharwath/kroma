@@ -111,7 +111,7 @@ export function createI18n<
     namespaces.announce(namespace, sources, false);
   }
   const missed = (locale: string, key: string): string => {
-    namespaces.missed(key, locale, defaultLocale);
+    namespaces.missed(key, locale);
     return key;
   };
 

@@ -1,10 +1,12 @@
 import { useT } from '@kroma/ui';
-import { Box, Button, Field, Logo, Text } from '@kroma/ui/kit';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
-import { Spinner } from '#web/features/accounts/auth-gate';
+import { Field } from '@kroma/ui/kit';
+import { createFileRoute } from '@tanstack/react-router';
+import { useState } from 'react';
+import { TokenScreen, useTokenLink } from '#web/features/accounts/token-page';
 import { useAuth } from '#web/shared/lib/auth';
-import { PAGE_RADIAL } from '#web/shared/ui';
+
+const CODE_LEN = 8;
+const MIN_PASSWORD_LEN = 8;
 
 // Public credential-reset page. An admin (with `users.manage`) mints a reset and
 // shares `/reset?token=TOKEN`. The emailed link never carries more: the user also
@@ -24,159 +26,56 @@ function ResetPage() {
   const t = useT();
   const { token, code: codeFromUrl } = Route.useSearch();
   const { client } = useAuth();
-  const navigate = useNavigate();
 
-  const [status, setStatus] = useState<'checking' | 'invalid' | 'ok' | 'done'>('checking');
-  const [username, setUsername] = useState<string | null>(null);
   const [code, setCode] = useState(codeFromUrl ?? '');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const link = useTokenLink(token, (tok) => client.checkReset(tok));
 
-  useEffect(() => {
-    if (!token) {
-      setStatus('invalid');
-      return;
-    }
-    let cancelled = false;
-    client
-      .checkReset(token)
-      .then((r) => {
-        if (cancelled) return;
-        setUsername(r.username ?? null);
-        setStatus(r.valid ? 'ok' : 'invalid');
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('invalid');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [client, token]);
-
-  const valid = code.trim().length === 8 && password.length >= 8;
-
-  async function submit() {
-    if (!valid || !token) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await client.redeemReset(token, code.trim(), password);
-      setStatus('done');
-      setTimeout(() => void navigate({ to: '/login' }), 2500);
-    } catch {
-      setError(t('auth.resetFailed'));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const ready = code.trim().length === CODE_LEN && password.length >= MIN_PASSWORD_LEN;
+  const submit = () => {
+    if (!ready || !token) return;
+    void link.run(() => client.redeemReset(token, code.trim(), password), t('auth.resetFailed'));
+  };
 
   return (
-    <main style={{ ...SCREEN, background: PAGE_RADIAL }}>
-      {/* Auto margins (not justify-center) so a form taller than a small phone
-          viewport scrolls instead of clipping its top. */}
-      <Box w="100%" align="center" m="auto">
-        <Box mb={40}>
-          <Logo size={24} />
-        </Box>
-
-        {status === 'checking' ? <Spinner /> : null}
-        {status === 'invalid' ? (
-          <Box>
-            <Text variant="heading" accessibilityRole="header" textAlign="center" mb={8}>
-              {t('auth.resetInvalidTitle')}
-            </Text>
-            <Text variant="body" color="textMuted" textAlign="center">
-              {t('auth.resetInvalidDesc')}
-            </Text>
-          </Box>
-        ) : null}
-        {status === 'done' ? (
-          <Box>
-            <Text variant="heading" accessibilityRole="header" textAlign="center" mb={8}>
-              {t('auth.resetDoneTitle')}
-            </Text>
-            <Text variant="body" color="textMuted" textAlign="center">
-              {t('auth.resetDoneDesc')}
-            </Text>
-          </Box>
-        ) : null}
-        {status === 'ok' ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
-            }}
-            style={FORM}
-          >
-            <Text variant="heading" accessibilityRole="header">
-              {t('auth.resetTitle')}
-            </Text>
-            {username ? (
-              <Text variant="body" color="textMuted" textAlign="center">
-                {username}
-              </Text>
-            ) : null}
-
-            <Field.Root w="100%" size="md" label={t('auth.resetCode')} hideLabel>
-              <Field.Input
-                lift
-                icon="key"
-                placeholder={t('auth.resetCode')}
-                value={code}
-                onValueChange={setCode}
-                autoComplete="one-time-code"
-              />
-            </Field.Root>
-            <Field.Root w="100%" size="md" label={t('auth.newPassword')} hideLabel>
-              <Field.Input
-                lift
-                type="password"
-                icon="lock"
-                placeholder={t('auth.newPassword')}
-                value={password}
-                onValueChange={setPassword}
-                autoComplete="new-password"
-                autoFocus={Boolean(codeFromUrl)}
-              />
-            </Field.Root>
-
-            {error ? (
-              <Text variant="meta" color="danger">
-                {error}
-              </Text>
-            ) : null}
-
-            <Button
-              block
-              label={busy ? t('common.saving') : t('auth.resetSubmit')}
-              onPress={() => void submit()}
-              loading={busy}
-              disabled={!valid}
-            />
-          </form>
-        ) : null}
-      </Box>
-    </main>
+    <TokenScreen
+      status={link.status}
+      username={link.username}
+      error={link.error}
+      busy={link.busy}
+      disabled={!ready}
+      onSubmit={submit}
+      copy={{
+        invalidTitle: t('auth.resetInvalidTitle'),
+        invalidDesc: t('auth.resetInvalidDesc'),
+        doneTitle: t('auth.resetDoneTitle'),
+        doneDesc: t('auth.resetDoneDesc'),
+        title: t('auth.resetTitle'),
+        submit: link.busy ? t('common.saving') : t('auth.resetSubmit'),
+      }}
+    >
+      <Field.Root w="100%" size="md" label={t('auth.resetCode')} hideLabel>
+        <Field.Input
+          lift
+          icon="key"
+          placeholder={t('auth.resetCode')}
+          value={code}
+          onValueChange={setCode}
+          autoComplete="one-time-code"
+        />
+      </Field.Root>
+      <Field.Root w="100%" size="md" label={t('auth.newPassword')} hideLabel>
+        <Field.Input
+          lift
+          type="password"
+          icon="lock"
+          placeholder={t('auth.newPassword')}
+          value={password}
+          onValueChange={setPassword}
+          autoComplete="new-password"
+          autoFocus={Boolean(codeFromUrl)}
+        />
+      </Field.Root>
+    </TokenScreen>
   );
 }
-
-const SCREEN = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: 100,
-  display: 'flex',
-  flexDirection: 'column',
-  overflowY: 'auto',
-  paddingInline: 24,
-  paddingBlock: 48,
-} as const;
-
-const FORM = {
-  display: 'flex',
-  width: '100%',
-  maxWidth: 380,
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: 20,
-} as const;

@@ -33,7 +33,6 @@ import optEn from './en/opt.json';
 import passkeyEn from './en/passkey.json';
 import personEn from './en/person.json';
 import pinEn from './en/pin.json';
-import pipelineEn from './en/pipeline.json';
 import playbackEngineEn from './en/playbackEngine.json';
 import playerEn from './en/player.json';
 import profileMenuEn from './en/profileMenu.json';
@@ -42,7 +41,6 @@ import pushEn from './en/push.json';
 import rematchEn from './en/rematch.json';
 import reportEn from './en/report.json';
 import reportsEn from './en/reports.json';
-import requestsEn from './en/requests.json';
 import searchEn from './en/search.json';
 import settingsEn from './en/settings.json';
 import statsEn from './en/stats.json';
@@ -84,7 +82,6 @@ import optFr from './fr/opt.json';
 import passkeyFr from './fr/passkey.json';
 import personFr from './fr/person.json';
 import pinFr from './fr/pin.json';
-import pipelineFr from './fr/pipeline.json';
 import playbackEngineFr from './fr/playbackEngine.json';
 import playerFr from './fr/player.json';
 import profileMenuFr from './fr/profileMenu.json';
@@ -93,7 +90,6 @@ import pushFr from './fr/push.json';
 import rematchFr from './fr/rematch.json';
 import reportFr from './fr/report.json';
 import reportsFr from './fr/reports.json';
-import requestsFr from './fr/requests.json';
 import searchFr from './fr/search.json';
 import settingsFr from './fr/settings.json';
 import statsFr from './fr/stats.json';
@@ -146,7 +142,6 @@ export const catalogs = {
     ...passkeyEn,
     ...personEn,
     ...pinEn,
-    ...pipelineEn,
     ...playbackEngineEn,
     ...playerEn,
     ...profileMenuEn,
@@ -155,7 +150,6 @@ export const catalogs = {
     ...rematchEn,
     ...reportEn,
     ...reportsEn,
-    ...requestsEn,
     ...searchEn,
     ...settingsEn,
     ...statsEn,
@@ -199,7 +193,6 @@ export const catalogs = {
     ...passkeyFr,
     ...personFr,
     ...pinFr,
-    ...pipelineFr,
     ...playbackEngineFr,
     ...playerFr,
     ...profileMenuFr,
@@ -208,7 +201,6 @@ export const catalogs = {
     ...rematchFr,
     ...reportFr,
     ...reportsFr,
-    ...requestsFr,
     ...searchFr,
     ...settingsFr,
     ...statsFr,
@@ -222,4 +214,6 @@ export const lazy = {
   admin: () => part(import('./en/admin.json'), import('./fr/admin.json')),
   jobs: () => part(import('./en/jobs.json'), import('./fr/jobs.json')),
   logs: () => part(import('./en/logs.json'), import('./fr/logs.json')),
+  pipeline: () => part(import('./en/pipeline.json'), import('./fr/pipeline.json')),
+  requests: () => part(import('./en/requests.json'), import('./fr/requests.json')),
 };

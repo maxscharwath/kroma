@@ -1,3 +1,4 @@
+import { loadNamespaces } from '@kroma/core';
 import { CastProvider } from '@kroma/ui';
 import { Box, useBreakpoint } from '@kroma/ui/kit';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
@@ -18,6 +19,9 @@ export const Route = createFileRoute('/_app')({
   beforeLoad: async () => {
     if (isAuthed()) await ensureSession();
   },
+  // Request status reaches every signed-in screen, from a card's badge to the
+  // sidebar's counter, so the layout is where its namespace is loaded once.
+  loader: () => loadNamespaces('requests'),
   component: AppLayout,
 });
 

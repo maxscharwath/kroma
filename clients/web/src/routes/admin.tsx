@@ -9,7 +9,7 @@ import { useRequireAuth } from '#web/shared/lib/require-auth';
 
 // Any management capability unlocks the console; pages further gate their writes.
 export const Route = createFileRoute('/admin')({
-  loader: () => loadNamespaces('admin', 'jobs', 'logs'),
+  loader: () => loadNamespaces('admin', 'jobs', 'logs', 'pipeline', 'requests'),
   component: AdminRoute,
 });
 

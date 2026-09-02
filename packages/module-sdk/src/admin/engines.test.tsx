@@ -5,7 +5,7 @@
 // not offered, and `enabled` defaults to true while the module list is still
 // loading, so add-flows don't blink off on every page load.
 
-import type { EngineField, ModuleInfo } from '@kroma/core';
+import { type EngineField, loadNamespaces, type ModuleInfo } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
 import { clearPressGuard, setEntryDefaults } from '@kroma/ui/kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,7 +19,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AdminHostProvider } from './context';
 import {
   AddEngineHost,
@@ -29,6 +29,8 @@ import {
   useEnabledEngines,
   useModuleEnabled,
 } from './engines';
+
+beforeAll(() => loadNamespaces('admin', 'requests'));
 
 // A provider whose `client.modules()` answers `modules`; retries off so a
 // rejected fetch settles once instead of backing off through the test.

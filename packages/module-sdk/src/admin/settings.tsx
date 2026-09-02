@@ -197,11 +197,14 @@ function Control({ row, onChange }: Readonly<{ row: SettingRow; onChange: (v: un
   if (row.kind === 'text') {
     return <EditableText label={row.label} value={asText(row.value)} onCommit={onChange} />;
   }
-  if (row.kind === 'secret') {
-    return <SecretInput configured={Boolean(row.configured)} onCommit={onChange} />;
-  }
-  if (row.kind === 'password') {
-    return <PasswordInput configured={Boolean(row.configured)} onCommit={onChange} />;
+  if (row.kind === 'secret' || row.kind === 'password') {
+    return (
+      <SecretInput
+        configured={Boolean(row.configured)}
+        masked={row.kind === 'password'}
+        onCommit={onChange}
+      />
+    );
   }
   if (row.kind === 'action') {
     return <ActionControl actionKey={row.key} />;
@@ -240,16 +243,25 @@ function SettingSelect({
   );
 }
 
-// A write-only credential (PEM key or service-account JSON): starts empty
-// every time, since the server never sends a stored secret back, and blur
-// commits only a non-empty value so leaving the field alone can never wipe a
-// working key by accident. Removing one is the Clear button's job.
+// A write-only credential: starts empty every time, since the server never
+// sends a stored secret back, and blur commits only a non-empty value so
+// leaving the field alone can never wipe a working key by accident. Removing
+// one is the Clear button's job. `masked` picks the shape the credential
+// wants: one hidden line for a password, a wrapping box for a PEM key or a
+// service-account JSON.
 function SecretInput({
   configured,
+  masked,
   onCommit,
-}: Readonly<{ configured: boolean; onCommit: (v: string) => void }>) {
+}: Readonly<{ configured: boolean; masked: boolean; onCommit: (v: string) => void }>) {
   const t = useT();
   const [v, setV] = useState('');
+  const commit = () => {
+    if (!v.trim()) return;
+    onCommit(v);
+    setV('');
+  };
+  const placeholder = configured ? t('admin.secretReplace') : undefined;
   return (
     <Box align="flex-end" gap={6}>
       <Field.Root
@@ -258,16 +270,17 @@ function SecretInput({
         value={v}
         onValueChange={setV}
       >
-        <Field.Textarea
-          rows={3}
-          placeholder={configured ? t('admin.secretReplace') : undefined}
-          minW={280}
-          onBlur={() => {
-            if (!v.trim()) return;
-            onCommit(v);
-            setV('');
-          }}
-        />
+        {masked ? (
+          <Field.Input
+            type="password"
+            autoComplete="off"
+            placeholder={placeholder}
+            minW={280}
+            onBlur={commit}
+          />
+        ) : (
+          <Field.Textarea rows={3} placeholder={placeholder} minW={280} onBlur={commit} />
+        )}
       </Field.Root>
       <Box row align="center" gap={10}>
         <Text variant="overline" color={configured ? 'success' : 'text/30'}>
@@ -277,57 +290,6 @@ function SecretInput({
           // A Focusable, not a pressable Text: react-native-web wires Text
           // onPress as click only, so Enter/Space on the tabbed control would
           // do nothing.
-          <Focusable
-            label={t('admin.secretClear')}
-            onPress={() => {
-              setV('');
-              onCommit('');
-            }}
-          >
-            <Text variant="overline" color="text/40">
-              {t('admin.secretClear')}
-            </Text>
-          </Focusable>
-        ) : null}
-      </Box>
-    </Box>
-  );
-}
-
-// The single-line write-only credential (a password): same rules as
-// SecretInput — starts empty, blur commits only a non-empty value, Clear wipes
-// — but masked and one line, so a password never wraps or shows.
-function PasswordInput({
-  configured,
-  onCommit,
-}: Readonly<{ configured: boolean; onCommit: (v: string) => void }>) {
-  const t = useT();
-  const [v, setV] = useState('');
-  return (
-    <Box align="flex-end" gap={6}>
-      <Field.Root
-        label={t(configured ? 'admin.secretReplace' : 'admin.secretUnset')}
-        hideLabel
-        value={v}
-        onValueChange={setV}
-      >
-        <Field.Input
-          type="password"
-          autoComplete="off"
-          placeholder={configured ? t('admin.secretReplace') : undefined}
-          minW={280}
-          onBlur={() => {
-            if (!v.trim()) return;
-            onCommit(v);
-            setV('');
-          }}
-        />
-      </Field.Root>
-      <Box row align="center" gap={10}>
-        <Text variant="overline" color={configured ? 'success' : 'text/30'}>
-          {configured ? t('admin.secretSet') : t('admin.secretUnset')}
-        </Text>
-        {configured ? (
           <Focusable
             label={t('admin.secretClear')}
             onPress={() => {

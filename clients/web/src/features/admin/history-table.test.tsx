@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { PlayEntry } from '@kroma/core';
+import { loadNamespaces, type PlayEntry } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
 import { pinDesignWidth } from '@kroma/ui/kit';
 import {
@@ -11,10 +11,12 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HISTORY_COLUMNS } from '#web/features/admin/history-columns';
 import { historySort } from '#web/features/admin/history-query';
 import { HistoryTable } from '#web/features/admin/history-table';
+
+beforeAll(() => loadNamespaces('admin'));
 
 const play = (fields: Partial<PlayEntry>): PlayEntry => ({
   id: 'p1',

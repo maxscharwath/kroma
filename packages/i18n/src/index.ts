@@ -14,9 +14,11 @@ export {
   type I18n,
   type I18nConfig,
   type InferRegister,
+  type LazyMessages,
   type ScopedTranslate,
 } from './i18n';
 export { hasToken, interpolate, tokensIn } from './interpolate';
+export type { NamespaceLoaders } from './lazy-namespaces';
 export { createLocales } from './locales';
 export { expandRefs, hasUnresolvedRef } from './nest';
 export { resolvePluralKey, selectCategory } from './plural';

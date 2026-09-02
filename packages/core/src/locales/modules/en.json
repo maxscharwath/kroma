@@ -1,0 +1,6 @@
+{
+  "modules.loadFailed": "This page could not be loaded",
+  "modules.loadFailedHint": "The module is installed; its data did not answer.",
+  "modules.unavailable": "Module unavailable",
+  "modules.unavailableHint": "It is not installed, or it has been turned off."
+}

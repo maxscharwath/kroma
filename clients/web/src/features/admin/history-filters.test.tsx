@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { type AdminUser, UserId } from '@kroma/core';
+import { type AdminUser, loadNamespaces, UserId } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { HistoryFilters } from '#web/features/admin/history-filters';
 import type { HistorySearch } from '#web/features/admin/history-query';
+
+beforeAll(() => loadNamespaces('admin'));
 
 const LIBRARIES = [
   { id: 'nas-films', name: 'Films' },

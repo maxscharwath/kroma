@@ -103,8 +103,22 @@ export class CatalogStore<L extends string> {
     };
   }
 
-  /** Bumped whenever a scope is added or removed, so a UI can hold it as a
-   *  snapshot and re-render when a late-arriving catalog lands. */
+  /** Merge catalogs into the base ones, as a namespace loaded on demand does:
+   *  visible to every translator, scoped or not, and never removed. */
+  extend(catalogs: Catalogs<string>): void {
+    const part = expandRefs(
+      withoutSchema(catalogs as Record<string, Catalog>),
+      this.defaultLocale,
+      this.base,
+    );
+    for (const [locale, catalog] of Object.entries(part)) {
+      this.base[locale] = { ...this.base[locale], ...catalog };
+    }
+    this.changed();
+  }
+
+  /** Bumped whenever a scope is added or removed or a namespace lands, so a UI
+   *  can hold it as a snapshot and re-render when a late catalog arrives. */
   version(): number {
     return this.revision;
   }

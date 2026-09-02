@@ -1,10 +1,12 @@
 import { createI18n, type I18nConfig } from './i18n';
+import type { NamespaceLoaders } from './lazy-namespaces';
 import { createLocales, labelKey } from './locales';
 
 export interface DefineI18nConfig<
   C extends Record<string, Record<string, string>>,
   D extends keyof C & string,
-> extends Omit<I18nConfig<C>, 'catalogs' | 'defaultLocale'> {
+  Z extends NamespaceLoaders = Record<never, never>,
+> extends Omit<I18nConfig<C, Z>, 'catalogs' | 'defaultLocale'> {
   /** One catalog per locale, keyed by code. The default locale's is the
    *  complete one: it types the message keys and every other locale falls back
    *  to it. */
@@ -32,8 +34,9 @@ function endonyms<C extends Record<string, Record<string, string>>>(
  * Everything an app needs from this package, from one call.
  *
  * ```ts
- * export const { i18n, translate, LOCALES, DEFAULT_LOCALE } = defineI18n({
+ * export const { i18n, translate, loadNamespaces, LOCALES, DEFAULT_LOCALE } = defineI18n({
  *   catalogs: { fr, en },
+ *   lazy: { admin: () => import('./admin') },
  *   defaultLocale: 'fr',
  * });
  *
@@ -49,7 +52,8 @@ function endonyms<C extends Record<string, Record<string, string>>>(
  *
  * The `declare module` block is the one part that cannot be inferred, because a
  * type has to be written where the compiler can see it. After it, `Locale`,
- * `MessageKey` and `Translate` are this app's own everywhere they are imported.
+ * `MessageKey` and `Translate` are this app's own everywhere they are imported,
+ * the keys of a `lazy` namespace included.
  *
  * {@link createLocales} and {@link createI18n} stay separate underneath, for a
  * build that wants the locales without pulling the catalogs in.
@@ -57,7 +61,8 @@ function endonyms<C extends Record<string, Record<string, string>>>(
 export function defineI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
->(config: DefineI18nConfig<C, D>) {
+  const Z extends NamespaceLoaders = Record<never, never>,
+>(config: DefineI18nConfig<C, D, Z>) {
   const { locales, catalogs, defaultLocale, ...rest } = config;
   const set = createLocales(endonyms(catalogs, locales), defaultLocale);
   const i18n = createI18n({ ...rest, catalogs, defaultLocale });
@@ -67,5 +72,6 @@ export function defineI18n<
     translate: i18n.translate,
     translator: i18n.translator,
     addCatalogs: i18n.add,
+    loadNamespaces: i18n.load,
   };
 }

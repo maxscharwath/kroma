@@ -1,25 +1,27 @@
 // KROMA's whole i18n configuration: which languages the product speaks, what
 // they say, and the instance every client and the workbench translate through.
-// Each catalog names its own language under `lang.<code>`, so the set of
-// locales is read from the catalogs rather than written down twice.
+// The messages live in `locales/<namespace>/<locale>.json`, and `./locales/catalogs`
+// says which namespaces ship up front and which are fetched on first use. Each
+// catalog names its own language under `lang.<code>`, so the set of locales is
+// read from the catalogs rather than written down twice.
 
 import { loadLocalePref } from '@kroma/client';
 import { defineI18n, type InferRegister, type Locale } from '@kroma/i18n';
-import en from './locales/en.json';
-import fr from './locales/fr.json';
+import { catalogs, lazy } from './locales/catalogs';
 
 export const {
   i18n,
   translate,
   translator: createTranslator,
   addCatalogs,
+  loadNamespaces,
   detectLocale,
   isLocale,
   normalizeLocale,
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
   LOCALES,
-} = defineI18n({ catalogs: { fr, en }, defaultLocale: 'fr' });
+} = defineI18n({ catalogs, lazy, defaultLocale: 'fr' });
 
 /** The locale a device starts in, before any account preference is known: the
  *  override last picked here, else the browser's, else {@link DEFAULT_LOCALE}. */

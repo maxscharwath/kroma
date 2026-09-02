@@ -12,8 +12,8 @@ import {
   genreSlugs,
 } from './genre';
 import { createTranslator } from './i18n';
-import en from './locales/en.json';
-import fr from './locales/fr.json';
+import en from './locales/genre/en.json';
+import fr from './locales/genre/fr.json';
 
 describe('findGenre', () => {
   it('folds both localizations of a genre onto one identity', () => {

@@ -284,5 +284,8 @@ the build on anything a legacy engine cannot parse.
   relay Worker's secrets (`packages/push-relay/`).
 - **English for code, comments, identifiers and commit messages.** User-facing copy
   is French. That is content, not code. No emoji in the product.
-- Every user-visible string is a translation key; modules ship their own
-  `locales/{en,fr}.json` resolved against the module's catalog first.
+- Every user-visible string is a translation key. The core catalogs are one
+  folder per namespace, `packages/core/src/locales/<namespace>/{en,fr}.json`,
+  indexed by `catalogs.ts` beside them (see [`docs/i18n.md`](docs/i18n.md) for
+  the lazy ones); modules ship their own `locales/{en,fr}.json` resolved against
+  the module's catalog first.

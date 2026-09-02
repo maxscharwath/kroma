@@ -19,7 +19,7 @@ vi.mock('@tanstack/react-start/plugin/vite', async (importOriginal) => {
   };
 });
 
-const EN = fileURLToPath(new URL('../../core/src/locales/en.json', import.meta.url));
+const EN = fileURLToPath(new URL('../../core/src/locales/admin/en.json', import.meta.url));
 
 function siteRoot(files: Record<string, string> = {}): string {
   const root = mkdtempSync(join(tmpdir(), 'kroma-site-'));

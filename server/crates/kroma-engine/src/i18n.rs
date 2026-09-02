@@ -1,6 +1,7 @@
 //! KROMA's i18n wiring over the generic [`kroma_i18n`] engine: the default
 //! locale, the supported set, and the shared catalogs in
-//! `packages/core/src/locales` (the same files the TS clients bundle).
+//! `packages/core/src/locales/<namespace>/<locale>.json` (the same files the TS
+//! clients bundle), gathered by `build.rs` into one list of parts.
 
 use std::convert::Infallible;
 use std::sync::OnceLock;
@@ -15,16 +16,8 @@ pub const DEFAULT_LOCALE: &str = "fr";
 
 pub const SUPPORTED_LOCALES: &[&str] = &["fr", "en"];
 
-// Path anchored to this crate's manifest dir, so `../../../` reaches the repo root.
-macro_rules! catalog {
-    ($code:literal) => {
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/core/src/locales/",
-            $code,
-            ".json"
-        ))
-    };
+mod parts {
+    include!(concat!(env!("OUT_DIR"), "/catalog_parts.rs"));
 }
 
 // The catalogs are shared with the TypeScript clients, which select a variant
@@ -34,11 +27,14 @@ macro_rules! catalog {
 fn i18n() -> &'static I18n {
     static ENGINE: OnceLock<I18n> = OnceLock::new();
     ENGINE.get_or_init(|| {
-        I18n::builder()
-            .default_locale(DEFAULT_LOCALE)
-            .plural_rule(kroma_i18n::cldr)
-            .catalog_json("fr", catalog!("fr"))
-            .catalog_json("en", catalog!("en"))
+        parts::CATALOG_PARTS
+            .iter()
+            .fold(
+                I18n::builder()
+                    .default_locale(DEFAULT_LOCALE)
+                    .plural_rule(kroma_i18n::cldr),
+                |builder, (code, json)| builder.catalog_json(*code, *json),
+            )
             .build()
             .expect("KROMA i18n catalogs")
     })
@@ -140,6 +136,22 @@ mod tests {
             "1 season"
         );
         assert_eq!(normalize("en-US"), Some("en"));
+    }
+
+    #[test]
+    fn every_catalog_file_speaks_a_supported_locale() {
+        let stray: Vec<_> = parts::CATALOG_PARTS
+            .iter()
+            .map(|(code, _)| *code)
+            .filter(|code| !SUPPORTED_LOCALES.contains(code))
+            .collect();
+        assert!(stray.is_empty(), "{stray:?}");
+        assert!(parts::CATALOG_PARTS.len() >= 2 * SUPPORTED_LOCALES.len());
+    }
+
+    #[test]
+    fn the_lazy_namespaces_of_the_clients_are_eager_here() {
+        assert_ne!(t("fr", "admin.noAdminAccess", &[]), "admin.noAdminAccess");
     }
 
     #[test]

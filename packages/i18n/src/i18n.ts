@@ -1,5 +1,6 @@
 import { resolveInChain, translateChain } from './chain';
 import { activeKeyInspector, onOverridesChange, overridesRevision } from './dev-overrides';
+import { LazyNamespaces, type NamespaceLoaders } from './lazy-namespaces';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
@@ -7,11 +8,25 @@ import type { Catalog, Catalogs, PluralRule, TVars } from './types';
  *  `Messages` in ./registry, which is the augmented map for the whole app. */
 export type CatalogMessages<C> = Omit<C, typeof SCHEMA_KEY>;
 
+type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (
+  u: infer I,
+) => void
+  ? I
+  : never;
+
+/** The messages every lazy namespace declares in the default locale, folded
+ *  into one map so they type `MessageKey` beside the eager ones. */
+export type LazyMessages<Z extends NamespaceLoaders, D extends string> = UnionToIntersection<
+  {
+    [N in keyof Z]: Z[N] extends () => Promise<infer P> ? NonNullable<P[D & keyof P]> : never;
+  }[keyof Z]
+>;
+
 /** A translator bound to one scope: the scope's own keys are not knowable from
  *  here, so any string is accepted while the base keys still autocomplete. */
 export type ScopedTranslate<K extends string> = (key: K | (string & {}), vars?: TVars) => string;
 
-export interface I18n<L extends string, M extends Catalog> {
+export interface I18n<L extends string, M extends Catalog, N extends string = string> {
   readonly defaultLocale: L;
   /** Every locale the base catalogs answer in, the default one first. */
   locales(): readonly L[];
@@ -25,6 +40,11 @@ export interface I18n<L extends string, M extends Catalog> {
   /** Add a scope's catalogs at runtime, as a module being loaded would.
    *  Returns a disposer; adding the same scope again replaces it. */
   add(scope: string, catalogs: Catalogs<string>): () => void;
+  /** Fetch lazy namespaces, once each: repeated and concurrent calls share the
+   *  fetch. Resolves when every one named has landed. A key of a namespace
+   *  nobody loaded starts its fetch on first miss, so this is how a screen
+   *  avoids the flash rather than the only way its messages arrive. */
+  load(...names: N[]): Promise<void>;
   /** Whether the base catalogs declare `key`. */
   has(key: string): boolean;
   /** A snapshot that changes whenever a scope is added or removed. */
@@ -32,12 +52,18 @@ export interface I18n<L extends string, M extends Catalog> {
   subscribe(listener: () => void): () => void;
 }
 
-export interface I18nConfig<C extends Record<string, Record<string, string>>> {
+export interface I18nConfig<
+  C extends Record<string, Record<string, string>>,
+  Z extends NamespaceLoaders = Record<never, never>,
+> {
   catalogs: C;
   defaultLocale: keyof C & string;
   /** Override plural category selection. Only needed where `Intl.PluralRules`
    *  is absent or disagrees with a peer implementation you have to match. */
   plural?: PluralRule;
+  /** Namespaces fetched on first use rather than shipped in `catalogs`, one
+   *  loader per key prefix. Their keys type like the eager ones. */
+  lazy?: Z;
 }
 
 /** What {@link Register} should be augmented with for a given instance:
@@ -48,7 +74,7 @@ export interface I18nConfig<C extends Record<string, Record<string, string>>> {
  *  }
  *  ``` */
 export type InferRegister<I> =
-  I extends I18n<infer L, infer M> ? { locale: L; messages: M } : never;
+  I extends I18n<infer L, infer M, string> ? { locale: L; messages: M } : never;
 
 /**
  * Build a translator from JSON catalogs.
@@ -61,12 +87,20 @@ export type InferRegister<I> =
 export function createI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
->(config: I18nConfig<C> & { defaultLocale: D }): I18n<keyof C & string, CatalogMessages<C[D]>> {
+  const Z extends NamespaceLoaders = Record<never, never>,
+>(
+  config: I18nConfig<C, Z> & { defaultLocale: D },
+): I18n<keyof C & string, CatalogMessages<C[D]> & LazyMessages<Z, D>, keyof Z & string> {
   type L = keyof C & string;
   type K = keyof CatalogMessages<C[D]> & string;
 
-  const { catalogs, defaultLocale, plural } = config;
+  const { catalogs, defaultLocale, plural, lazy } = config;
   const store = new CatalogStore<L>(catalogs as unknown as Catalogs<L>, defaultLocale as L);
+  const namespaces = new LazyNamespaces<keyof Z & string>(lazy ?? {}, (part) => store.extend(part));
+  const missed = (key: string): string => {
+    namespaces.missed(key);
+    return key;
+  };
 
   type Bound = (key: K | (string & {}), vars?: TVars) => string;
 
@@ -98,10 +132,10 @@ export function createI18n<
               plural,
             );
             const from = at === -1 ? undefined : store.sources(locale, scope)[at];
-            return inspector({ key, from, locale, text: text ?? key, vars });
+            return inspector({ key, from, locale, text: text ?? missed(key), vars });
           }
         : (key, vars) =>
-            translateChain(store.chain(locale, scope), locale, key, vars, plural) ?? key;
+            translateChain(store.chain(locale, scope), locale, key, vars, plural) ?? missed(key);
       bound.set(cacheKey, fn);
     }
     return fn;
@@ -118,6 +152,7 @@ export function createI18n<
     translate: (locale, key, vars) => translator(locale)(key, vars),
     translator,
     add: (scope, added) => store.add(scope, added),
+    load: (...names) => namespaces.load(names),
     has: (key) => store.has(key),
     version: () => store.version() + overridesRevision(),
     subscribe: (listener) => {
@@ -128,5 +163,5 @@ export function createI18n<
         stopInspector();
       };
     },
-  } as I18n<L, CatalogMessages<C[D]>>;
+  } as I18n<L, CatalogMessages<C[D]> & LazyMessages<Z, D>, keyof Z & string>;
 }

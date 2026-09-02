@@ -5,6 +5,7 @@ import { propDocs } from '@kroma/bundler/props-docs';
 import { reactCompiler } from '@kroma/bundler/react-compiler';
 import { WEB_EXTENSIONS } from '@kroma/bundler/rnw';
 import { storyCode } from '@kroma/bundler/story-code';
+import { kromaCatalogs } from '@kroma/core/vite';
 import { kromaModule } from '@kroma/module-sdk/vite';
 import react from '@vitejs/plugin-react';
 import { configDefaults, defineConfig } from 'vitest/config';
@@ -25,6 +26,10 @@ const plugins = () => [
   // Without this, `defineModule({ ... })` throws "no manifest" on import: a
   // module's entry file imports neither its manifest nor its locales.
   kromaModule(),
+  // A component under test that names a key gets its namespace the way a shell
+  // does, bundled with it; eager, so it is there synchronously and no test has
+  // to wait on a fetch.
+  kromaCatalogs({ eager: true }),
 ];
 
 // Shared by both projects below: they differ only in which half of a platform

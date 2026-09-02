@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, use, useContext } from 'react';
 import type { I18n, ScopedTranslate } from '../i18n';
 import type { Locale, MessageKey, Translate } from '../registry';
 import type { Catalog } from '../types';
@@ -25,6 +25,16 @@ function useI18nValue(): I18nValue {
   return value;
 }
 
+// The catalogs a screen needs are fetched the moment its chunk evaluates, in
+// the rendered locale only; until they land, the component waits behind the
+// nearest Suspense boundary rather than painting keys.
+function useSettled(): I18nValue {
+  const value = useI18nValue();
+  const pending = value.i18n.pending(value.locale);
+  if (pending) use(pending);
+  return value;
+}
+
 /**
  * A translator for the active locale.
  *
@@ -41,13 +51,13 @@ function useI18nValue(): I18nValue {
 export function useT(scope: string): ScopedTranslate<MessageKey>;
 export function useT(): Translate;
 export function useT(scope?: string): ScopedTranslate<MessageKey> {
-  return useI18nValue().translator(scope);
+  return useSettled().translator(scope);
 }
 
 /** A factory for scoped translators, for a view that renders rows belonging to
  *  several scopes at once and so cannot call {@link useT} once per row. */
 export function useScopedT(): (scope: string) => ScopedTranslate<MessageKey> {
-  return useI18nValue().translator;
+  return useSettled().translator;
 }
 
 export function useLocale(): Locale {

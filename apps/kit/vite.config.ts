@@ -10,6 +10,7 @@ import {
   webResolve,
 } from '@kroma/bundler/rnw';
 import { storyCode } from '@kroma/bundler/story-code';
+import { kromaCatalogs } from '@kroma/core/vite';
 import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
 import { kromaUI } from '@kroma/ui/vite';
 import { kromaIconCatalog } from '@kroma/ui/vite/icon-catalog';
@@ -22,6 +23,7 @@ const kitDir = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   define: { __KROMA_BUILD__: JSON.stringify(collectBuildInfo(kitDir)), ...RNW_DEFINE },
   plugins: [
+    kromaCatalogs(),
     kromaUI(),
     kromaIconCatalog(),
     kromaI18nDevtools(),

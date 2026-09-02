@@ -1,4 +1,4 @@
-import { hasPermission, loadNamespaces } from '@kroma/core';
+import { hasPermission } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Box, Text } from '@kroma/ui/kit';
 import { createFileRoute, Outlet } from '@tanstack/react-router';
@@ -9,7 +9,6 @@ import { useRequireAuth } from '#web/shared/lib/require-auth';
 
 // Any management capability unlocks the console; pages further gate their writes.
 export const Route = createFileRoute('/admin')({
-  loader: () => loadNamespaces('admin', 'jobs', 'logs', 'pipeline', 'requests'),
   component: AdminRoute,
 });
 

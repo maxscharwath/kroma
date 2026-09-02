@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { loadNamespaces, type TopUser } from '@kroma/core';
+import type { TopUser } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
 import {
   createMemoryHistory,
@@ -10,11 +10,10 @@ import {
   RouterProvider,
 } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { TopViewerCard } from '#web/features/admin/dashboard-top-viewer-card';
 import { validateHistorySearch } from '#web/features/admin/history-query';
 
-beforeAll(() => loadNamespaces('admin'));
 afterEach(cleanup);
 
 const viewer = (fields: Partial<TopUser> = {}): TopUser => ({

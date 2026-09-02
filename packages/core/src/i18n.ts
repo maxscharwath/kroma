@@ -1,27 +1,30 @@
+/// <reference path="./locales/catalogs.d.ts" />
+
 // KROMA's whole i18n configuration: which languages the product speaks, what
 // they say, and the instance every client and the workbench translate through.
-// The messages live in `locales/<locale>/<namespace>.json`, and `./locales/catalogs`
-// says which namespaces ship up front and which are fetched on first use. Each
-// catalog names its own language under `lang.<code>`, so the set of locales is
-// read from the catalogs rather than written down twice.
+// The messages live in `locales/<locale>/<namespace>.json`, found by
+// `./locales/catalogs` and typed by the declaration the Vite plugin writes
+// beside them (`bun run i18n:types` without a dev server). Each catalog names
+// its own language under `lang.<code>`, so the set of locales is read from the
+// catalogs rather than written down twice.
 
 import { loadLocalePref } from '@kroma/client';
-import { defineI18n, type InferRegister, type Locale } from '@kroma/i18n';
+import { defineI18n, type Locale } from '@kroma/i18n';
 import { catalogs, lazy } from './locales/catalogs';
+import { DEFAULT_LOCALE_CODE } from './locales/default-locale';
 
 export const {
   i18n,
   translate,
   translator: createTranslator,
   addCatalogs,
-  loadNamespaces,
   detectLocale,
   isLocale,
   normalizeLocale,
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
   LOCALES,
-} = defineI18n({ catalogs, lazy, defaultLocale: 'fr' });
+} = defineI18n({ catalogs, lazy, defaultLocale: DEFAULT_LOCALE_CODE });
 
 /** The locale a device starts in, before any account preference is known: the
  *  override last picked here, else the browser's, else {@link DEFAULT_LOCALE}. */
@@ -40,12 +43,6 @@ export function activeLocale(): Locale {
 
 export function setActiveLocale(locale: Locale): void {
   active = locale;
-}
-
-/** Taught to @kroma/i18n once, so `Locale`, `MessageKey` and `Translate` are
- *  KROMA's own wherever they are imported and no call site carries a generic. */
-declare module '@kroma/i18n' {
-  interface Register extends InferRegister<typeof i18n> {}
 }
 
 export type { Catalogs, Locale, MessageKey, Translate, TVars } from '@kroma/i18n';

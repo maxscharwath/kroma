@@ -1,4 +1,4 @@
-import { genreSlugs, loadNamespaces } from '@kroma/core';
+import { genreSlugs } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
@@ -21,7 +21,6 @@ export const Route = createFileRoute('/_app/movies/$id')({
       queryClient.ensureQueryData(catalogQueries.item(params.id)),
       queryClient.ensureQueryData(catalogQueries.movies()),
       queryClient.ensureQueryData(catalogQueries.similar(params.id)),
-      loadNamespaces('pipeline'),
     ]);
   },
   pendingComponent: DetailSkeleton,

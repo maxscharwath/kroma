@@ -1,6 +1,9 @@
+import type { NamespaceCatalogs } from './announce';
 import { resolveInChain, translateChain } from './chain';
 import { activeKeyInspector, onOverridesChange, overridesRevision } from './dev-overrides';
-import { LazyNamespaces, type NamespaceLoaders } from './lazy-namespaces';
+import { namespaceOf } from './layout';
+import { Namespaces } from './namespaces';
+import type { UnionToIntersection } from './registry';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
 
@@ -8,18 +11,15 @@ import type { Catalog, Catalogs, PluralRule, TVars } from './types';
  *  `Messages` in ./registry, which is the augmented map for the whole app. */
 export type CatalogMessages<C> = Omit<C, typeof SCHEMA_KEY>;
 
-type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (
-  u: infer I,
-) => void
-  ? I
-  : never;
+/** Namespaces offered for fetching: by name, then by locale. */
+export type LazyCatalogs = Readonly<Record<string, NamespaceCatalogs>>;
+
+type Resolved<S> = S extends () => Promise<infer C> ? C : S;
 
 /** The messages every lazy namespace declares in the default locale, folded
  *  into one map so they type `MessageKey` beside the eager ones. */
-export type LazyMessages<Z extends NamespaceLoaders, D extends string> = UnionToIntersection<
-  {
-    [N in keyof Z]: Z[N] extends () => Promise<infer P> ? NonNullable<P[D & keyof P]> : never;
-  }[keyof Z]
+export type LazyMessages<Z extends LazyCatalogs, D extends string> = UnionToIntersection<
+  { [N in keyof Z]: Resolved<Z[N][D & keyof Z[N]]> }[keyof Z]
 >;
 
 /** A translator bound to one scope: the scope's own keys are not knowable from
@@ -40,10 +40,17 @@ export interface I18n<L extends string, M extends Catalog, N extends string = st
   /** Add a scope's catalogs at runtime, as a module being loaded would.
    *  Returns a disposer; adding the same scope again replaces it. */
   add(scope: string, catalogs: Catalogs<string>): () => void;
-  /** Fetch lazy namespaces, once each: repeated and concurrent calls share the
-   *  fetch. Resolves when every one named has landed. A key of a namespace
-   *  nobody loaded starts its fetch on first miss, so this is how a screen
-   *  avoids the flash rather than the only way its messages arrive. */
+  /** A namespace the running code needs, as the chunk carrying it says on
+   *  evaluation: a catalog given outright lands now, a loader is fetched for
+   *  every warmed locale. */
+  register(namespace: string, catalogs: NamespaceCatalogs): void;
+  /** Fetch every needed namespace in `locale`, now and as more are registered.
+   *  The provider calls it for the locale it renders. */
+  warm(locale: L): void;
+  /** What is still being fetched for `locale`, to suspend on; `null` when
+   *  everything needed has landed. */
+  pending(locale: L): Promise<void> | null;
+  /** Fetch `names` in every locale they have a source for. */
   load(...names: N[]): Promise<void>;
   /** Whether the base catalogs declare `key`. */
   has(key: string): boolean;
@@ -54,15 +61,15 @@ export interface I18n<L extends string, M extends Catalog, N extends string = st
 
 export interface I18nConfig<
   C extends Record<string, Record<string, string>>,
-  Z extends NamespaceLoaders = Record<never, never>,
+  Z extends LazyCatalogs = Record<never, never>,
 > {
   catalogs: C;
   defaultLocale: keyof C & string;
   /** Override plural category selection. Only needed where `Intl.PluralRules`
    *  is absent or disagrees with a peer implementation you have to match. */
   plural?: PluralRule;
-  /** Namespaces fetched on first use rather than shipped in `catalogs`, one
-   *  loader per key prefix. Their keys type like the eager ones. */
+  /** Namespaces not shipped in `catalogs`, fetched per locale when a key of
+   *  theirs misses. Their keys type like the eager ones. */
   lazy?: Z;
 }
 
@@ -87,7 +94,7 @@ export type InferRegister<I> =
 export function createI18n<
   const C extends Record<string, Record<string, string>>,
   const D extends keyof C & string,
-  const Z extends NamespaceLoaders = Record<never, never>,
+  const Z extends LazyCatalogs = Record<never, never>,
 >(
   config: I18nConfig<C, Z> & { defaultLocale: D },
 ): I18n<keyof C & string, CatalogMessages<C[D]> & LazyMessages<Z, D>, keyof Z & string> {
@@ -96,9 +103,15 @@ export function createI18n<
 
   const { catalogs, defaultLocale, plural, lazy } = config;
   const store = new CatalogStore<L>(catalogs as unknown as Catalogs<L>, defaultLocale as L);
-  const namespaces = new LazyNamespaces<keyof Z & string>(lazy ?? {}, (part) => store.extend(part));
-  const missed = (key: string): string => {
-    namespaces.missed(key);
+  const namespaces = new Namespaces((locale, catalog) => store.extend({ [locale]: catalog }));
+  for (const [locale, catalog] of Object.entries(catalogs)) {
+    for (const key of Object.keys(catalog)) namespaces.settle(namespaceOf(key), locale);
+  }
+  for (const [namespace, sources] of Object.entries(lazy ?? {})) {
+    namespaces.announce(namespace, sources, false);
+  }
+  const missed = (locale: string, key: string): string => {
+    namespaces.missed(key, locale, defaultLocale);
     return key;
   };
 
@@ -118,7 +131,7 @@ export function createI18n<
       bound.clear();
       revision = current;
     }
-    const cacheKey = scope === undefined ? locale : `${locale}\u0000${scope}`;
+    const cacheKey = scope === undefined ? locale : `${locale} ${scope}`;
     let fn = bound.get(cacheKey);
     if (!fn) {
       const inspector = activeKeyInspector();
@@ -132,10 +145,11 @@ export function createI18n<
               plural,
             );
             const from = at === -1 ? undefined : store.sources(locale, scope)[at];
-            return inspector({ key, from, locale, text: text ?? missed(key), vars });
+            return inspector({ key, from, locale, text: text ?? missed(locale, key), vars });
           }
         : (key, vars) =>
-            translateChain(store.chain(locale, scope), locale, key, vars, plural) ?? missed(key);
+            translateChain(store.chain(locale, scope), locale, key, vars, plural) ??
+            missed(locale, key);
       bound.set(cacheKey, fn);
     }
     return fn;
@@ -152,6 +166,9 @@ export function createI18n<
     translate: (locale, key, vars) => translator(locale)(key, vars),
     translator,
     add: (scope, added) => store.add(scope, added),
+    register: (namespace, announced) => namespaces.announce(namespace, announced, true),
+    warm: (locale) => namespaces.warm(locale),
+    pending: (locale) => namespaces.pending(locale),
     load: (...names) => namespaces.load(names),
     has: (key) => store.has(key),
     version: () => store.version() + overridesRevision(),

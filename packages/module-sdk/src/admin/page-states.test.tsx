@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 
-import { KromaApiError, loadNamespaces } from '@kroma/core';
+import { KromaApiError } from '@kroma/core';
 import { I18nProvider } from '@kroma/ui';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ModuleFailed } from './page-states';
-
-beforeAll(() => loadNamespaces('admin'));
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <I18nProvider locale="en">{children}</I18nProvider>

@@ -15,6 +15,7 @@ import {
 } from '@kroma/bundler/rnw';
 import { tvFrame } from '@kroma/bundler/tv-frame';
 import { tvShellHead } from '@kroma/bundler/tv-shell-head';
+import { kromaCatalogs } from '@kroma/core/vite';
 import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
 import { kromaUI } from '@kroma/ui/vite';
 import babel from '@rolldown/plugin-babel';
@@ -78,6 +79,7 @@ export function tvShellConfig(shellUrl: string, target: TvTarget) {
     // tvFrame() is dev-only: letterboxes into a 1920x1080 stage in a desktop
     // browser; off in device mode, where the panel already is that canvas.
     plugins: [
+      kromaCatalogs(),
       kromaUI(),
       kromaI18nDevtools(),
       // Before react(): the workbench behind `?workbench` reads the kit's

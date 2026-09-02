@@ -1,4 +1,11 @@
-export { type DefineI18nConfig, defineI18n } from './define';
+export {
+  type Announced,
+  announceCatalogs,
+  drainAnnouncements,
+  type LocaleCatalog,
+  type NamespaceCatalogs,
+} from './announce';
+export { type DefinedI18n, type DefineI18nConfig, defineI18n } from './define';
 export {
   type AppLocales,
   activeAppLocales,
@@ -14,15 +21,30 @@ export {
   type I18n,
   type I18nConfig,
   type InferRegister,
+  type LazyCatalogs,
   type LazyMessages,
   type ScopedTranslate,
 } from './i18n';
 export { hasToken, interpolate, tokensIn } from './interpolate';
-export type { NamespaceLoaders } from './lazy-namespaces';
+export {
+  type CatalogPath,
+  catalogsByLocale,
+  namespaceOf,
+  parseCatalogPath,
+  sourcesByNamespace,
+} from './layout';
 export { createLocales } from './locales';
 export { expandRefs, hasUnresolvedRef } from './nest';
 export { resolvePluralKey, selectCategory } from './plural';
-export type { Locale, MessageKey, Messages, Register, Translate } from './registry';
+export type {
+  Locale,
+  MessageKey,
+  Messages,
+  Namespace,
+  Namespaces,
+  Register,
+  Translate,
+} from './registry';
 export { SCHEMA_KEY } from './store';
 export type {
   Catalog,

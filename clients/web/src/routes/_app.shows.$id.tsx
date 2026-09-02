@@ -1,4 +1,3 @@
-import { loadNamespaces } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
@@ -13,10 +12,7 @@ import { DetailSkeleton } from '#web/shared/ui';
 export const Route = createFileRoute('/_app/shows/$id')({
   loader: async ({ params, context: { queryClient } }) => {
     if (!isAuthed()) throw redirect({ to: '/' });
-    await Promise.all([
-      queryClient.ensureQueryData(catalogQueries.showBundle(params.id)),
-      loadNamespaces('pipeline'),
-    ]);
+    await queryClient.ensureQueryData(catalogQueries.showBundle(params.id));
   },
   pendingComponent: DetailSkeleton,
   component: ShowDetailPage,

@@ -8,6 +8,7 @@ import {
   webResolve,
 } from '@kroma/bundler/rnw';
 import { standaloneScript } from '@kroma/bundler/standalone-script';
+import { kromaCatalogs } from '@kroma/core/vite';
 import { kromaI18nDevtools } from '@kroma/i18n-devtools/vite';
 import { kromaModule } from '@kroma/module-sdk/vite';
 import { kromaUI } from '@kroma/ui/vite';
@@ -24,6 +25,7 @@ const apiTarget = process.env.KROMA_SERVER_URL ?? 'http://localhost:4040';
 export default defineConfig({
   define: RNW_DEFINE,
   plugins: [
+    kromaCatalogs(),
     kromaUI(),
     kromaModule(),
     kromaI18nDevtools(),

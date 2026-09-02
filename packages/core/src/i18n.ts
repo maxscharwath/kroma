@@ -1,12 +1,9 @@
-/// <reference path="./locales/catalogs.d.ts" />
+/// <reference path="./locales/messages.d.ts" />
 
 // KROMA's whole i18n configuration: which languages the product speaks, what
 // they say, and the instance every client and the workbench translate through.
-// The messages live in `locales/<locale>/<namespace>.json`, found by
-// `./locales/catalogs` and typed by the declaration the Vite plugin writes
-// beside them (`bun run i18n:types` without a dev server). Each catalog names
-// its own language under `lang.<code>`, so the set of locales is read from the
-// catalogs rather than written down twice.
+// Each catalog names its own language under `lang.<code>`, so the set of
+// locales is read from the catalogs rather than written down twice.
 
 import { loadLocalePref } from '@kroma/client';
 import { defineI18n, type Locale } from '@kroma/i18n';

@@ -1,11 +1,11 @@
 import type { Catalog } from './types';
 
 /** One locale's catalog, or a loader that fetches it when the locale is wanted. */
-export type LocaleCatalog = Catalog | (() => Promise<Catalog>);
+export type CatalogOrLoader = Catalog | (() => Promise<Catalog>);
 
 /** A namespace's catalogs by locale, as the module that carries them hands
  *  them over. */
-export type NamespaceCatalogs = Readonly<Record<string, LocaleCatalog>>;
+export type NamespaceCatalogs = Readonly<Record<string, CatalogOrLoader>>;
 
 export interface Announced {
   readonly namespace: string;

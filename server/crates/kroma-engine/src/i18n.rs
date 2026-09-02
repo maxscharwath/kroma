@@ -14,11 +14,13 @@ use crate::state::SharedState;
 
 pub const DEFAULT_LOCALE: &str = "fr";
 
-pub const SUPPORTED_LOCALES: &[&str] = &["fr", "en"];
-
 mod parts {
     include!(concat!(env!("OUT_DIR"), "/catalog_parts.rs"));
 }
+
+/// Every locale with a catalog folder, in folder order. The folder is the one
+/// place a language is added, so this is read from it rather than repeated.
+pub const SUPPORTED_LOCALES: &[&str] = parts::LOCALES;
 
 // The catalogs are shared with the TypeScript clients, which select a variant
 // through `Intl.PluralRules`. French puts zero in `one` there and English does
@@ -119,10 +121,10 @@ mod tests {
     fn config_matches_built_engine() {
         let e = i18n();
         assert_eq!(e.default_locale(), DEFAULT_LOCALE);
-        assert_eq!(
-            e.supported().collect::<Vec<_>>(),
-            SUPPORTED_LOCALES.to_vec()
-        );
+        let mut supported = e.supported().collect::<Vec<_>>();
+        supported.sort_unstable();
+        assert_eq!(supported, SUPPORTED_LOCALES.to_vec());
+        assert!(SUPPORTED_LOCALES.contains(&DEFAULT_LOCALE));
         assert_eq!(
             t("fr", "content.seasonCount", &[("count", "1")]),
             "1 saison"
@@ -136,17 +138,6 @@ mod tests {
             "1 season"
         );
         assert_eq!(normalize("en-US"), Some("en"));
-    }
-
-    #[test]
-    fn every_catalog_file_speaks_a_supported_locale() {
-        let stray: Vec<_> = parts::CATALOG_PARTS
-            .iter()
-            .map(|(code, _)| *code)
-            .filter(|code| !SUPPORTED_LOCALES.contains(code))
-            .collect();
-        assert!(stray.is_empty(), "{stray:?}");
-        assert!(parts::CATALOG_PARTS.len() >= 2 * SUPPORTED_LOCALES.len());
     }
 
     #[test]

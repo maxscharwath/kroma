@@ -26,9 +26,7 @@ const plugins = () => [
   // Without this, `defineModule({ ... })` throws "no manifest" on import: a
   // module's entry file imports neither its manifest nor its locales.
   kromaModule(),
-  // A component under test that names a key gets its namespace the way a shell
-  // does, bundled with it; eager, so it is there synchronously and no test has
-  // to wait on a fetch.
+  // A component under test gets the namespaces its keys name, synchronously.
   kromaCatalogs({ eager: true }),
 ];
 

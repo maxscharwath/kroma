@@ -1,16 +1,16 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { catalogsByLocale } from '@kroma/i18n';
 
 const CATALOGS = fileURLToPath(new URL('../../core/src/locales/', import.meta.url));
 
 function catalog(locale: string): Map<string, unknown> {
-  const merged = new Map<string, unknown>();
+  const files: Record<string, Record<string, string>> = {};
   for (const file of readdirSync(`${CATALOGS}${locale}`)) {
     if (!file.endsWith('.json')) continue;
-    const parsed: unknown = JSON.parse(readFileSync(`${CATALOGS}${locale}/${file}`, 'utf8'));
-    for (const [key, text] of Object.entries(parsed ?? {})) merged.set(key, text);
+    files[`${locale}/${file}`] = JSON.parse(readFileSync(`${CATALOGS}${locale}/${file}`, 'utf8'));
   }
-  return merged;
+  return new Map(Object.entries(catalogsByLocale(files)[locale] ?? {}));
 }
 
 export function locales(): string[] {

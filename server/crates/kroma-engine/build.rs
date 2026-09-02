@@ -16,23 +16,28 @@ fn main() {
         .expect("the shared catalogs live in packages/core/src/locales");
     rerun_if_changed(&locales);
 
+    let mut codes = Vec::new();
     let mut parts = Vec::new();
     for locale in sorted_children(&locales, Path::is_dir) {
         rerun_if_changed(&locale);
         let code = locale
             .file_name()
             .and_then(|name| name.to_str())
-            .expect("a locale folder is named after its code");
+            .expect("a locale folder is named after its code")
+            .to_owned();
         for file in sorted_children(&locale, |p| p.extension().is_some_and(|e| e == "json")) {
             rerun_if_changed(&file);
             let path = file.display().to_string();
             parts.push(format!("    ({code:?}, include_str!({path:?})),"));
         }
+        codes.push(format!("{code:?}"));
     }
 
     let out = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR")).join("catalog_parts.rs");
     let body = format!(
-        "pub(crate) const CATALOG_PARTS: &[(&str, &str)] = &[\n{}\n];\n",
+        "pub(crate) const LOCALES: &[&str] = &[{}];\n\
+         pub(crate) const CATALOG_PARTS: &[(&str, &str)] = &[\n{}\n];\n",
+        codes.join(", "),
         parts.join("\n")
     );
     fs::write(&out, body).expect("write catalog_parts.rs");

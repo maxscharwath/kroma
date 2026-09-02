@@ -175,15 +175,26 @@ function iconScan(repoRoot: string, pkg: TablerPkg): IconScan {
   return fresh;
 }
 
+// Every icon `source` names joins the subset; whether any was new is what a
+// dev server acts on.
+function absorb(scan: IconScan, source: string): boolean {
+  let grew = false;
+  for (const [, slug] of source.matchAll(LITERAL)) {
+    const name = exportName(slug as string);
+    if (!scan.available.has(name) || scan.used.has(name)) continue;
+    scan.used.add(name);
+    grew = true;
+  }
+  if (grew) scan.subset = undefined;
+  return grew;
+}
+
 function scanPass(scan: IconScan): SourcePass | null {
   if (scan.walked) return null;
   return {
     wants: (name) => !NOT_SHIPPED.test(name),
     read(source) {
-      for (const [, slug] of source.matchAll(LITERAL)) {
-        const name = exportName(slug as string);
-        if (scan.available.has(name)) scan.used.add(name);
-      }
+      absorb(scan, source);
     },
     done() {
       scan.walked = true;
@@ -229,7 +240,6 @@ function assertTargetExists(repoRoot: string): void {
 }
 
 interface ViteServerLike {
-  watcher: { on(event: 'add' | 'change', listener: (file: string) => void): unknown };
   moduleGraph: { getModulesByFile(file: string): Set<unknown> | undefined };
   reloadModule(module: unknown): unknown;
 }
@@ -238,27 +248,7 @@ interface VitePluginLike {
   name: string;
   load(this: { info?: (msg: string) => void }, id: string): string | null;
   configureServer(server: ViteServerLike): void;
-}
-
-// A file just saved may name an icon the walk never saw. Reading that one file
-// is enough: an icon only ever joins the subset in dev, and the full walk stays
-// a one-time cost.
-function learn(scan: IconScan, file: string): boolean {
-  let source: string;
-  try {
-    source = readFileSync(file, 'utf8');
-  } catch {
-    return false;
-  }
-  let grew = false;
-  for (const [, slug] of source.matchAll(LITERAL)) {
-    const name = exportName(slug as string);
-    if (!scan.available.has(name) || scan.used.has(name)) continue;
-    scan.used.add(name);
-    grew = true;
-  }
-  if (grew) scan.subset = undefined;
-  return grew;
+  transform(code: string, id: string): undefined;
 }
 
 type MetroResolve = (
@@ -274,11 +264,14 @@ interface MetroConfigLike {
 
 export const kromaUi = {
   /** The Vite half. Browser targets render DOM `<svg>`, so this draws from
-   * `@tabler/icons-react`. In dev the subset is the same, plus whatever a saved
-   * file names since: the glyph module reloads with the new icon in it. */
+   * `@tabler/icons-react`. In dev the subset is the same, plus whatever a module
+   * the server transforms names since: the glyph module reloads with the new
+   * icon in it, so a freshly typed name draws without a restart. */
   vite({ repoRoot, icons = 'subset' }: KromaUiOptions): VitePluginLike {
     if (icons === 'subset') assertTargetExists(repoRoot);
     const pkg: TablerPkg = '@tabler/icons-react';
+    const target = join(repoRoot, GLYPH_SOURCE);
+    let server: ViteServerLike | undefined;
     return {
       name: 'kroma-ui',
       load(id) {
@@ -287,19 +280,18 @@ export const kromaUi = {
         this.info?.(note);
         return code;
       },
-      configureServer(server) {
-        if (icons === 'full') return;
-        const roots = sourceRoots(repoRoot);
-        const target = join(repoRoot, GLYPH_SOURCE);
-        const onSaved = (file: string) => {
-          if (!walkReaches(roots, file) || NOT_SHIPPED.test(file)) return;
-          if (!learn(iconScan(repoRoot, pkg), file)) return;
-          for (const module of server.moduleGraph.getModulesByFile(target) ?? []) {
-            server.reloadModule(module);
-          }
-        };
-        server.watcher.on('add', onSaved);
-        server.watcher.on('change', onSaved);
+      configureServer(dev) {
+        server = dev;
+      },
+      transform(code, id) {
+        if (!server || icons === 'full') return undefined;
+        const [file = ''] = id.split('?');
+        if (file.includes(`${sep}node_modules${sep}`) || !SOURCE_EXT.test(file)) return undefined;
+        if (file.endsWith(GLYPH_SOURCE) || !absorb(iconScan(repoRoot, pkg), code)) return undefined;
+        for (const module of server.moduleGraph.getModulesByFile(target) ?? []) {
+          server.reloadModule(module);
+        }
+        return undefined;
       },
     };
   },

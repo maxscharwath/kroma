@@ -8,7 +8,7 @@ describe('parseCatalogPath', () => {
   });
 
   it('answers null for anything that is not a catalog file', () => {
-    expect(parseCatalogPath('./catalogs.d.ts')).toBeNull();
+    expect(parseCatalogPath('./messages.d.ts')).toBeNull();
     expect(parseCatalogPath('./stray.json')).toBeNull();
     expect(parseCatalogPath('./en/about.ts')).toBeNull();
     expect(parseCatalogPath('./en/deeper/x.json')).toBeNull();

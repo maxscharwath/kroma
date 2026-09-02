@@ -27,7 +27,7 @@
     // Written by `bun run modules:gen` from the module manifests.
     "packages/modules-generated/**",
     // Written by the i18n Vite plugin from the catalog folder, and gitignored.
-    "packages/core/src/locales/catalogs.d.ts",
+    "packages/core/src/locales/messages.d.ts",
     "**/*.gen.ts",
     "**/routeTree.gen.ts"
   ],

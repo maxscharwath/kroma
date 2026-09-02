@@ -42,7 +42,7 @@ const KEYS = new Map<string, string[]>([
 ]);
 
 interface Hooks {
-  buildStart: (this: unknown) => void;
+  configResolved: (this: unknown) => void;
   resolveId: (this: unknown, id: string) => string | undefined;
   load: (this: unknown, id: string) => string | undefined;
   transform: (this: unknown, code: string, id: string) => { code: string } | undefined;
@@ -131,7 +131,7 @@ describe('the plugin', () => {
   it('writes the types when a build starts', () => {
     const dir = folder(TWO);
 
-    plugin(dir).buildStart.call(null);
+    plugin(dir).configResolved.call(null);
 
     expect(existsSync(join(dir, TYPES_FILE))).toBe(true);
   });
@@ -139,7 +139,7 @@ describe('the plugin', () => {
   it('serves a namespace module with one loader per locale', () => {
     const dir = folder(TWO);
     const hooks = plugin(dir);
-    hooks.buildStart.call(null);
+    hooks.configResolved.call(null);
 
     const id = hooks.resolveId.call(null, 'virtual:kroma-catalog/admin');
     const code = hooks.load.call(null, id ?? '');
@@ -155,7 +155,7 @@ describe('the plugin', () => {
   it('bundles every locale into the namespace module when eager', () => {
     const dir = folder(TWO);
     const hooks = plugin(dir, true);
-    hooks.buildStart.call(null);
+    hooks.configResolved.call(null);
 
     const code = hooks.load.call(null, '\0kroma-catalog:admin');
 
@@ -166,7 +166,7 @@ describe('the plugin', () => {
   it('appends an import of each named namespace to a source module and leaves the rest alone', () => {
     const dir = folder(TWO);
     const hooks = plugin(dir);
-    hooks.buildStart.call(null);
+    hooks.configResolved.call(null);
     const source = "export const label = t('admin.title');";
 
     const out = hooks.transform.call(null, source, '/app/src/page.tsx');

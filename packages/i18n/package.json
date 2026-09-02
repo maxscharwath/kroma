@@ -22,9 +22,6 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "magic-string": "^0.30.17"
-  },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "react": "19.2.8",

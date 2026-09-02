@@ -5,6 +5,5 @@ export {
   namespacesNamedIn,
   scanCatalogs,
   TYPES_FILE,
-  type Written,
   writeCatalogTypes,
 } from './catalogs.ts';

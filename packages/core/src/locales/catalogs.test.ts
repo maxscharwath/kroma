@@ -1,10 +1,10 @@
 import {
   type Catalog,
   hasUnresolvedRef,
+  LABEL_NAMESPACE,
   type Locale,
   type MessageKey,
   namespaceOf,
-  parseCatalogPath,
   SCHEMA_KEY,
 } from '@kroma/i18n';
 import { describe, expect, it } from 'vitest';
@@ -31,9 +31,9 @@ const ON_DISK = (import.meta as unknown as GlobHost).glob('./*/*.json', {
 const CATEGORY = /_(zero|one|two|few|many|other)$/;
 const QUOTED = /\$t\(\s*([A-Za-z]+)\./g;
 
-const files: CatalogFile[] = Object.entries(ON_DISK).flatMap(([path, catalog]) => {
-  const at = parseCatalogPath(path);
-  return at ? [{ ...at, catalog }] : [];
+const files: CatalogFile[] = Object.entries(ON_DISK).map(([path, catalog]) => {
+  const [locale = '', file = ''] = path.slice('./'.length).split('/');
+  return { locale, namespace: file.replace(/\.json$/, ''), catalog };
 });
 const namespaces = [...new Set(files.map((file) => file.namespace))].sort();
 const locales = [...new Set(files.map((file) => file.locale))].sort();
@@ -119,15 +119,15 @@ describe('the catalog files', () => {
 describe('the discovered catalogs', () => {
   it('ship only the language names up front, and offer every namespace on demand', () => {
     for (const locale of locales) {
-      expect(Object.keys(catalogs[locale] ?? {}).map(namespaceOf)).toEqual(
-        Object.keys(catalogs[locale] ?? {}).map(() => 'lang'),
-      );
+      const shipped = new Set(Object.keys(catalogs[locale] ?? {}).map(namespaceOf));
+      expect([...shipped]).toEqual([LABEL_NAMESPACE]);
     }
     expect(Object.keys(lazy).sort()).toEqual(namespaces);
   });
 
-  it('resolve every $t() reference they write', async () => {
-    await i18n.load(...namespaces);
+  it('resolve every $t() reference they write', () => {
+    for (const { namespace, locale, catalog } of files)
+      i18n.register(namespace, { [locale]: catalog });
 
     const dangling = files.flatMap(({ locale, catalog }) =>
       messageKeys(catalog).filter((key) =>

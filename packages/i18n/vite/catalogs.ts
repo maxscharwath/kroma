@@ -1,12 +1,14 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import MagicString from 'magic-string';
 import type { Plugin } from 'vite';
 import { renderCatalogTypes } from '../src/catalog-types.ts';
-import { type CatalogPath, parseCatalogPath } from '../src/layout.ts';
+import { type CatalogPath, namespaceOf, parseCatalogPath } from '../src/layout.ts';
 
-export const TYPES_FILE = 'catalogs.d.ts';
+/** The declaration the plugin keeps beside the catalogs, gitignored. Named
+ *  after the messages rather than a source file, so no editor pairs it with
+ *  `catalogs.ts` as that module's own declaration. */
+export const TYPES_FILE = 'messages.d.ts';
 
 const ANNOUNCE = fileURLToPath(new URL('../src/announce.ts', import.meta.url));
 const VIRTUAL = 'virtual:kroma-catalog/';
@@ -28,15 +30,22 @@ export function scanCatalogs(dir: string): CatalogPath[] {
   return files;
 }
 
+function keysOf(dir: string, file: CatalogPath): string[] {
+  const parsed: unknown = JSON.parse(
+    readFileSync(join(dir, file.locale, `${file.namespace}.json`), 'utf8'),
+  );
+  return Object.keys(parsed ?? {});
+}
+
 /** The keys of every namespace, read from one locale's files. */
-export function keysByNamespace(dir: string, locale: string): Map<string, string[]> {
+export function keysByNamespace(
+  dir: string,
+  locale: string,
+  files: readonly CatalogPath[] = scanCatalogs(dir),
+): Map<string, string[]> {
   const keys = new Map<string, string[]>();
-  for (const file of scanCatalogs(dir)) {
-    if (file.locale !== locale) continue;
-    const parsed: unknown = JSON.parse(
-      readFileSync(join(dir, locale, `${file.namespace}.json`), 'utf8'),
-    );
-    keys.set(file.namespace, Object.keys(parsed ?? {}));
+  for (const file of files) {
+    if (file.locale === locale) keys.set(file.namespace, keysOf(dir, file));
   }
   return keys;
 }
@@ -52,15 +61,14 @@ export interface CatalogsOptions {
   eager?: boolean;
 }
 
-export interface Written {
-  readonly path: string;
-  readonly changed: boolean;
-}
-
 /** Render the declaration for `dir` and write it only when its text moved. */
-export function writeCatalogTypes(dir: string, defaultLocale: string): Written {
+export function writeCatalogTypes(
+  dir: string,
+  defaultLocale: string,
+  files: readonly CatalogPath[] = scanCatalogs(dir),
+): { path: string; changed: boolean } {
   const path = join(dir, TYPES_FILE);
-  const next = renderCatalogTypes({ files: scanCatalogs(dir), defaultLocale });
+  const next = renderCatalogTypes({ files, defaultLocale });
   const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
   if (current === next) return { path, changed: false };
   writeFileSync(path, next);
@@ -87,7 +95,7 @@ export function namespacesNamedIn(
   const found = new Set<string>();
   for (const match of code.matchAll(KEY_LITERAL)) {
     const literal = match[1] ?? '';
-    const namespace = literal.slice(0, literal.indexOf('.'));
+    const namespace = namespaceOf(literal);
     if (found.has(namespace)) continue;
     const own = keys.get(namespace);
     if (own && names(literal, own)) found.add(namespace);
@@ -120,10 +128,10 @@ export function renderNamespaceModule(
 /**
  * Catalogs discovered from a folder, wired two ways.
  *
- * Types: `<dir>/catalogs.d.ts` is rewritten at build start and, under the dev
- * server, whenever a catalog file appears or disappears. It augments the
- * registry, so a namespace is known to the type checker the moment its file
- * exists.
+ * Types: `<dir>/messages.d.ts` is rewritten when the config resolves and, under
+ * the dev server, whenever a catalog file appears or disappears. It augments
+ * the registry, so a namespace is known to the type checker the moment its
+ * file exists.
  *
  * Code: every source module whose string literals name a key gets an import of
  * that key's namespace appended, so the namespace travels in the chunk graph of
@@ -138,8 +146,17 @@ export function catalogs({ dir, defaultLocale, eager = false }: CatalogsOptions)
   let keys = new Map<string, string[]>();
   const rescan = () => {
     files = scanCatalogs(root);
-    keys = keysByNamespace(root, defaultLocale);
-    writeCatalogTypes(root, defaultLocale);
+    keys = keysByNamespace(root, defaultLocale, files);
+    writeCatalogTypes(root, defaultLocale, files);
+  };
+  const reread = (file: string) => {
+    const at = parseCatalogPath(
+      file
+        .slice(root.length + 1)
+        .split(sep)
+        .join('/'),
+    );
+    if (at?.locale === defaultLocale) keys.set(at.namespace, keysOf(root, at));
   };
   const isCatalog = (file: string) => within(root, file) && file.endsWith('.json');
   const isSource = (id: string) => {
@@ -155,17 +172,19 @@ export function catalogs({ dir, defaultLocale, eager = false }: CatalogsOptions)
     // component. Appending before the cut would put every route's catalogs in
     // the entry.
     enforce: 'post',
-    buildStart() {
+    configResolved() {
       rescan();
     },
     configureServer(server) {
       server.watcher.add(root);
-      const onCatalog = (file: string) => {
+      const onMoved = (file: string) => {
         if (isCatalog(file)) rescan();
       };
-      server.watcher.on('add', onCatalog);
-      server.watcher.on('unlink', onCatalog);
-      server.watcher.on('change', onCatalog);
+      server.watcher.on('add', onMoved);
+      server.watcher.on('unlink', onMoved);
+      server.watcher.on('change', (file: string) => {
+        if (isCatalog(file)) reread(file);
+      });
     },
     resolveId(id) {
       return id.startsWith(VIRTUAL) ? RESOLVED + id.slice(VIRTUAL.length) : undefined;
@@ -178,13 +197,12 @@ export function catalogs({ dir, defaultLocale, eager = false }: CatalogsOptions)
     },
     transform(code, id) {
       if (!isSource(id)) return undefined;
-      if (keys.size === 0) rescan();
       const named = namespacesNamedIn(code, keys);
       if (named.length === 0) return undefined;
-      const patched = new MagicString(code);
       const imports = named.map((namespace) => `import ${JSON.stringify(VIRTUAL + namespace)};`);
-      patched.append(`\n${imports.join('\n')}\n`);
-      return { code: patched.toString(), map: patched.generateMap({ hires: true }) };
+      // Appended, never inserted: no line the upstream map knows about moves, so
+      // that map still describes the result and nothing has to be regenerated.
+      return { code: `${code}\n${imports.join('\n')}\n`, map: null };
     },
   };
 }

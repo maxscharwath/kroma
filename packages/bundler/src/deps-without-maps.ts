@@ -1,6 +1,5 @@
+import { sep } from 'node:path';
 import type { Plugin } from 'vite';
-
-const PREBUNDLED = /[\\/]node_modules[\\/]\.vite[\\/]deps[\\/]/;
 
 /**
  * Serve pre-bundled dependencies without their source map in dev.
@@ -13,12 +12,16 @@ const PREBUNDLED = /[\\/]node_modules[\\/]\.vite[\\/]deps[\\/]/;
  * decides its own maps.
  */
 export function depsWithoutMaps(): Plugin {
+  let deps = '';
   return {
     name: 'kroma:deps-without-maps',
     apply: 'serve',
     enforce: 'post',
+    configResolved(config) {
+      deps = `${config.cacheDir}${sep}deps${sep}`;
+    },
     transform(code, id) {
-      if (!PREBUNDLED.test(id)) return undefined;
+      if (!id.startsWith(deps)) return undefined;
       return { code, map: { mappings: '' } };
     },
   };

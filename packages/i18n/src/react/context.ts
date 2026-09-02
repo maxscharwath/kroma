@@ -25,9 +25,6 @@ function useI18nValue(): I18nValue {
   return value;
 }
 
-// The catalogs a screen needs are fetched the moment its chunk evaluates, in
-// the rendered locale only; until they land, the component waits behind the
-// nearest Suspense boundary rather than painting keys.
 function useSettled(): I18nValue {
   const value = useI18nValue();
   const pending = value.i18n.pending(value.locale);
@@ -36,7 +33,9 @@ function useSettled(): I18nValue {
 }
 
 /**
- * A translator for the active locale.
+ * A translator for the active locale. Waits, behind the nearest Suspense
+ * boundary, for the catalogs the screen's chunk announced to land in that
+ * locale, so no key is painted.
  *
  * Pass a scope to read a runtime-added catalog first, which is how a module
  * reads its own messages while still falling back to the app's. A catalog that

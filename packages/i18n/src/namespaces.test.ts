@@ -58,25 +58,35 @@ describe('a namespace a chunk registers', () => {
     expect(i18n.translate('en', 'admin.title' as 'greeting')).toBe('Console');
   });
 
-  it('lands at once when given the catalog itself', () => {
+  it('lands at once when given the catalog itself, and announces it', () => {
     const { i18n } = build();
+    const listener = vi.fn();
+    i18n.subscribe(listener);
 
     i18n.register('admin', { en: ADMIN.en });
 
     expect(i18n.translate('en', 'admin.by' as 'greeting')).toBe('By KROMA');
     expect(i18n.pending('en')).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('announces the landing so a view re-reads', async () => {
-    const { i18n, loads } = build();
+  it('announces a locale once, when the last fetch in flight for it lands', async () => {
+    const { i18n } = build();
     const listener = vi.fn();
     i18n.subscribe(listener);
+    const slow = deferred<Catalog>();
     i18n.warm('en');
 
-    i18n.register('admin', loads);
+    i18n.register('admin', { en: () => Promise.resolve(ADMIN.en) });
+    i18n.register('nav', { en: () => slow.promise });
+    await Promise.resolve();
+    const beforeSlow = listener.mock.calls.length;
+    slow.resolve({ 'nav.home': 'Home' });
     await i18n.pending('en');
 
+    expect(beforeSlow).toBe(0);
     expect(listener).toHaveBeenCalledTimes(1);
+    expect(i18n.translate('en', 'nav.home' as 'greeting')).toBe('Home');
   });
 });
 
@@ -91,17 +101,20 @@ describe('a namespace only the folder offers', () => {
       expect(i18n.translate('fr', 'admin.title' as 'greeting')).toBe('Console (fr)'),
     );
 
-    expect(before).toBe('admin.title' as 'greeting');
+    expect(before).toBe('admin.title');
     expect([loads.fr.mock.calls.length, loads.en.mock.calls.length]).toEqual([1, 0]);
   });
 
-  it('is fetched once per locale across concurrent and repeated asks', async () => {
+  it('is fetched once per locale however many keys miss', async () => {
     const { i18n, loads } = build();
 
-    await Promise.all([i18n.load('admin'), i18n.load('admin')]);
-    await i18n.load('admin');
+    i18n.translate('en', 'admin.title' as 'greeting');
+    i18n.translate('en', 'admin.by' as 'greeting');
+    await vi.waitFor(() =>
+      expect(i18n.translate('en', 'admin.title' as 'greeting')).toBe('Console'),
+    );
 
-    expect([loads.en.mock.calls.length, loads.fr.mock.calls.length]).toEqual([1, 1]);
+    expect(loads.en).toHaveBeenCalledTimes(1);
   });
 
   it('leaves a miss outside every namespace alone', () => {
@@ -112,30 +125,21 @@ describe('a namespace only the folder offers', () => {
     expect(loads.en).not.toHaveBeenCalled();
   });
 
-  it('does not retry a failed fetch from a miss, but does when asked outright', async () => {
-    let attempts = 0;
-    const flaky = () => {
-      attempts += 1;
-      return attempts === 1 ? Promise.reject(new Error('offline')) : Promise.resolve(ADMIN.en);
-    };
+  it('does not retry a failed fetch from a miss', async () => {
+    const loader = vi.fn(() => Promise.reject(new Error('offline')));
     const i18n = createI18n({
       catalogs: { en: { greeting: 'Hi' } },
       defaultLocale: 'en',
-      lazy: { admin: { en: flaky } },
+      lazy: { admin: { en: loader } },
     });
+    i18n.warm('en');
 
-    await expect(i18n.load('admin')).rejects.toThrow('offline');
+    i18n.register('admin', { en: loader });
+    await i18n.pending('en');
     i18n.translate('en', 'admin.title' as 'greeting');
-    expect(attempts).toBe(1);
+    i18n.translate('en', 'admin.title' as 'greeting');
 
-    await i18n.load('admin');
-    expect(i18n.translate('en', 'admin.title' as 'greeting')).toBe('Console');
-  });
-
-  it('rejects a namespace it was never given', async () => {
-    const { i18n } = build();
-
-    await expect(i18n.load('nope' as 'admin')).rejects.toThrow('no namespace "nope"');
+    expect(loader).toHaveBeenCalledTimes(1);
   });
 });
 

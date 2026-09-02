@@ -1,7 +1,6 @@
 import type { NamespaceCatalogs } from './announce';
 import { resolveInChain, translateChain } from './chain';
 import { activeKeyInspector, onOverridesChange, overridesRevision } from './dev-overrides';
-import { namespaceOf } from './layout';
 import { Namespaces } from './namespaces';
 import { CatalogStore, type SCHEMA_KEY } from './store';
 import type { Catalog, Catalogs, PluralRule, TVars } from './types';
@@ -41,11 +40,8 @@ export interface I18n<L extends string, M extends Catalog> {
   /** What is still being fetched for `locale`, to suspend on; `null` when
    *  everything needed has landed. */
   pending(locale: L): Promise<void> | null;
-  /** Fetch `names` in every locale they have a source for. */
-  load(...names: string[]): Promise<void>;
-  /** Whether the base catalogs declare `key`. */
-  has(key: string): boolean;
-  /** A snapshot that changes whenever a scope is added or removed. */
+  /** A snapshot that changes whenever a scope is added or removed, or a
+   *  locale's fetches have all landed. */
   version(): number;
   subscribe(listener: () => void): () => void;
 }
@@ -78,10 +74,13 @@ export function createI18n<
 
   const { catalogs, defaultLocale, plural, lazy } = config;
   const store = new CatalogStore<L>(catalogs as unknown as Catalogs<L>, defaultLocale as L);
-  const namespaces = new Namespaces((locale, catalog) => store.extend({ [locale]: catalog }));
-  for (const [locale, catalog] of Object.entries(catalogs)) {
-    for (const key of Object.keys(catalog)) namespaces.settle(namespaceOf(key), locale);
-  }
+  const namespaces = new Namespaces(
+    {
+      extend: (locale, catalog) => store.extend({ [locale]: catalog }),
+      changed: () => store.changed(),
+    },
+    catalogs,
+  );
   for (const [namespace, sources] of Object.entries(lazy ?? {})) {
     namespaces.announce(namespace, sources, false);
   }
@@ -144,8 +143,6 @@ export function createI18n<
     register: (namespace, announced) => namespaces.announce(namespace, announced, true),
     warm: (locale) => namespaces.warm(locale),
     pending: (locale) => namespaces.pending(locale),
-    load: (...names) => namespaces.load(names),
-    has: (key) => store.has(key),
     version: () => store.version() + overridesRevision(),
     subscribe: (listener) => {
       const stopStore = store.subscribe(listener);

@@ -1,4 +1,4 @@
-//! Gathers the shared message catalogs, `packages/core/src/locales/<namespace>/<locale>.json`,
+//! Gathers the shared message catalogs, `packages/core/src/locales/<locale>/<namespace>.json`,
 //! into one `include_str!` list, so the server embeds exactly the files the
 //! TypeScript clients bundle without naming each namespace by hand.
 
@@ -17,14 +17,14 @@ fn main() {
     rerun_if_changed(&locales);
 
     let mut parts = Vec::new();
-    for namespace in sorted_children(&locales, Path::is_dir) {
-        rerun_if_changed(&namespace);
-        for file in sorted_children(&namespace, |p| p.extension().is_some_and(|e| e == "json")) {
+    for locale in sorted_children(&locales, Path::is_dir) {
+        rerun_if_changed(&locale);
+        let code = locale
+            .file_name()
+            .and_then(|name| name.to_str())
+            .expect("a locale folder is named after its code");
+        for file in sorted_children(&locale, |p| p.extension().is_some_and(|e| e == "json")) {
             rerun_if_changed(&file);
-            let code = file
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .expect("a catalog file is named after its locale");
             let path = file.display().to_string();
             parts.push(format!("    ({code:?}, include_str!({path:?})),"));
         }

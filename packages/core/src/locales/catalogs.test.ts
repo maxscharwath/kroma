@@ -28,8 +28,8 @@ const LOCALES = Object.keys(catalogs);
 const LAZY = Object.keys(lazy) as Array<keyof typeof lazy>;
 
 const files: CatalogFile[] = Object.entries(ON_DISK).map(([path, catalog]) => {
-  const [namespace, file] = path.slice('./'.length).split('/');
-  return { namespace: namespace ?? '', locale: file?.replace(/\.json$/, '') ?? '', catalog };
+  const [locale, file] = path.slice('./'.length).split('/');
+  return { namespace: file?.replace(/\.json$/, '') ?? '', locale: locale ?? '', catalog };
 });
 const namespaces = [...new Set(files.map((file) => file.namespace))].sort();
 
@@ -55,7 +55,7 @@ describe('the catalog files', () => {
     const strays = files.flatMap(({ namespace, locale, catalog }) =>
       messageKeys(catalog)
         .filter((key) => !key.startsWith(`${namespace}.`))
-        .map((key) => `${namespace}/${locale}.json: ${key}`),
+        .map((key) => `${locale}/${namespace}.json: ${key}`),
     );
 
     expect(strays).toEqual([]);
@@ -65,7 +65,7 @@ describe('the catalog files', () => {
     const missing = namespaces.flatMap((namespace) =>
       LOCALES.filter(
         (locale) => !files.some((f) => f.namespace === namespace && f.locale === locale),
-      ).map((locale) => `${namespace}/${locale}.json`),
+      ).map((locale) => `${locale}/${namespace}.json`),
     );
 
     expect(missing).toEqual([]);
@@ -92,7 +92,7 @@ describe('the catalog files', () => {
     const orphans = files.flatMap(({ namespace, locale, catalog }) =>
       Object.keys(catalog)
         .filter((key) => CATEGORY.test(key) && catalog[stemOf(key)] === undefined)
-        .map((key) => `${namespace}/${locale}.json: ${key}`),
+        .map((key) => `${locale}/${namespace}.json: ${key}`),
     );
 
     expect(orphans).toEqual([]);
@@ -125,7 +125,7 @@ describe('the catalog index', () => {
         Object.entries(catalog).flatMap(([key, template]) =>
           [...template.matchAll(QUOTED_NAMESPACE)]
             .filter((match) => LAZY.includes(match[1] as (typeof LAZY)[number]))
-            .map(() => `${namespace}/${locale}.json: ${key}`),
+            .map(() => `${locale}/${namespace}.json: ${key}`),
         ),
       );
 

@@ -3,35 +3,21 @@ import { fileURLToPath } from 'node:url';
 
 const CATALOGS = fileURLToPath(new URL('../../core/src/locales/', import.meta.url));
 
-function namespaces(): string[] {
-  return readdirSync(CATALOGS, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
-}
-
 function catalog(locale: string): Map<string, unknown> {
   const merged = new Map<string, unknown>();
-  for (const namespace of namespaces()) {
-    let raw: string;
-    try {
-      raw = readFileSync(`${CATALOGS}${namespace}/${locale}.json`, 'utf8');
-    } catch {
-      continue;
-    }
-    const parsed: unknown = JSON.parse(raw);
+  for (const file of readdirSync(`${CATALOGS}${locale}`)) {
+    if (!file.endsWith('.json')) continue;
+    const parsed: unknown = JSON.parse(readFileSync(`${CATALOGS}${locale}/${file}`, 'utf8'));
     for (const [key, text] of Object.entries(parsed ?? {})) merged.set(key, text);
   }
   return merged;
 }
 
 export function locales(): string[] {
-  const codes = new Set<string>();
-  for (const namespace of namespaces()) {
-    for (const file of readdirSync(`${CATALOGS}${namespace}`)) {
-      if (file.endsWith('.json')) codes.add(file.replace(/\.json$/, ''));
-    }
-  }
-  return [...codes].sort();
+  return readdirSync(CATALOGS, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
 }
 
 /**

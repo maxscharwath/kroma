@@ -1,6 +1,6 @@
 //! KROMA's i18n wiring over the generic [`kroma_i18n`] engine: the default
 //! locale, the supported set, and the shared catalogs in
-//! `packages/core/src/locales/<namespace>/<locale>.json` (the same files the TS
+//! `packages/core/src/locales/<locale>/<namespace>.json` (the same files the TS
 //! clients bundle), gathered by `build.rs` into one list of parts.
 
 use std::convert::Infallible;

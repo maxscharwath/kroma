@@ -40,6 +40,19 @@ async function copyText(url: string): Promise<boolean> {
   }
 }
 
+const LINK_KIND = {
+  reset: {
+    path: '/reset',
+    manualKey: 'admin.resetManual',
+    sentKey: 'admin.resetSent',
+  },
+  verify: {
+    path: '/verify-email',
+    manualKey: 'admin.verificationManual',
+    sentKey: 'admin.verificationSent',
+  },
+} as const;
+
 /** A minted link (reset or verification) with its copy button and the delivery
  * outcome: sent by email, or manual when no delivery is configured. A reset's
  * HAND-COPY link embeds the code (the owner holds both halves anyway, and their
@@ -64,13 +77,10 @@ function LinkResult({
 }>) {
   const t = useT();
   const [copied, setCopied] = useState(false);
-  const manualKey = kind === 'reset' ? 'admin.resetManual' : 'admin.verificationManual';
-  const sentKey = kind === 'reset' ? 'admin.resetSent' : 'admin.verificationSent';
+  const { path, manualKey, sentKey } = LINK_KIND[kind];
   const base =
     url ??
-    (typeof window !== 'undefined'
-      ? `${window.location.origin}${kind === 'reset' ? '/reset' : '/verify-email'}?token=${token}`
-      : null);
+    (typeof window !== 'undefined' ? `${window.location.origin}${path}?token=${token}` : null);
   const shown =
     kind === 'reset' && delivered === 'manual' && base && code ? `${base}&code=${code}` : base;
   return (

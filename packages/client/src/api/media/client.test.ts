@@ -1,8 +1,121 @@
 import { describe, expect, it } from 'vitest';
+import { checkEndpoints } from '../../endpoints.fixture';
 import { recordingClient } from '../../kroma-client.fixture';
-import { ItemId } from './ids';
+import { ItemId, LibraryId, ShowId } from './ids';
 
 const item = ItemId.parse('i1');
+const spaced = ItemId.parse('i 1');
+const show = ShowId.parse('s1');
+const library = LibraryId.parse('lib1');
+
+describe('the media endpoints', () => {
+  checkEndpoints([
+    { name: 'health', call: (c) => c.media.health(), method: 'GET', path: '/health' },
+    { name: 'splash', call: (c) => c.media.splash(), method: 'GET', path: '/splash' },
+    { name: 'libraries', call: (c) => c.media.libraries(), method: 'GET', path: '/libraries' },
+    { name: 'items', call: (c) => c.media.items(), method: 'GET', path: '/items' },
+    {
+      name: 'items scoped to one library',
+      call: (c) => c.media.items(library),
+      method: 'GET',
+      path: '/items?library=lib1',
+    },
+    {
+      name: 'movies',
+      call: (c) => c.media.movies(library),
+      method: 'GET',
+      path: '/movies?library=lib1',
+    },
+    { name: 'shows', call: (c) => c.media.shows(), method: 'GET', path: '/shows' },
+    { name: 'show', call: (c) => c.media.show(show), method: 'GET', path: '/shows/s1' },
+    { name: 'item', call: (c) => c.media.item(spaced), method: 'GET', path: '/items/i%201' },
+    {
+      name: 'similar',
+      call: (c) => c.media.similar(spaced),
+      method: 'GET',
+      path: '/items/i%201/similar',
+    },
+    {
+      name: 'themed',
+      call: (c) => c.media.themed('christmas & co'),
+      method: 'GET',
+      path: '/themed?q=christmas+%26+co',
+    },
+    { name: 'home', call: (c) => c.media.home(), method: 'GET', path: '/home' },
+    { name: 'featured', call: (c) => c.media.featured(), method: 'GET', path: '/home/featured' },
+    {
+      name: 'aiSuggest',
+      call: (c) => c.media.aiSuggest(spaced),
+      method: 'GET',
+      path: '/items/i%201/ai-suggest',
+    },
+    {
+      name: 'search',
+      call: (c) => c.media.search('dune', { limit: 20 }),
+      method: 'GET',
+      path: '/search?q=dune&limit=20',
+    },
+    {
+      name: 'people',
+      call: (c) => c.media.people('Denis V', { library }),
+      method: 'GET',
+      path: '/people?name=Denis+V&library=lib1',
+    },
+    {
+      name: 'person',
+      call: (c) => c.media.person('Denis V'),
+      method: 'GET',
+      path: '/people/details?name=Denis+V',
+    },
+    { name: 'scan', call: (c) => c.media.scan(), method: 'POST', path: '/scan' },
+    { name: 'logs', call: (c) => c.media.logs(), method: 'GET', path: '/logs?tail=200' },
+    {
+      name: 'rematch.candidates',
+      call: (c) => c.media.rematch.candidates('movie', spaced),
+      method: 'GET',
+      path: '/rematch/movie/i%201/candidates',
+    },
+    {
+      name: 'rematch.candidates with a typed query',
+      call: (c) => c.media.rematch.candidates('show', show, ' the wire & co '),
+      method: 'GET',
+      path: '/rematch/show/s1/candidates?q=the+wire+%26+co',
+    },
+    {
+      name: 'rematch.set',
+      call: (c) => c.media.rematch.set('movie', spaced, 603),
+      method: 'POST',
+      path: '/rematch/movie/i%201',
+      body: { tmdbId: 603 },
+    },
+  ]);
+});
+
+describe('the URL builders, which make no request', () => {
+  const { client } = recordingClient();
+
+  it.each([
+    ['streamUrl', client.media.streamUrl(spaced), '/items/i%201/stream'],
+    ['subtitleUrl', client.media.subtitleUrl(spaced, 3), '/items/i%201/subtitles/3.vtt'],
+    ['storyboardUrl', client.media.storyboardUrl(spaced), '/items/i%201/storyboard'],
+    ['posterUrl', client.media.artwork.posterUrl(spaced), '/items/i%201/poster'],
+    ['showPosterUrl', client.media.artwork.showPosterUrl(show), '/shows/s1/poster'],
+    ['logsUrl', client.media.logsUrl(), '/logs?tail=200'],
+    ['downloadUrl', client.media.downloadUrl(spaced), '/items/i%201/download'],
+    [
+      'downloadUrl keeps "copy nothing" distinct from "no preference"',
+      client.media.downloadUrl(spaced, [], []),
+      '/items/i%201/download?copy=&video=',
+    ],
+    [
+      'downloadUrl with a codec set',
+      client.media.downloadUrl(spaced, ['aac', 'ac3']),
+      '/items/i%201/download?copy=aac%2Cac3',
+    ],
+  ])('%s', (_name, url, path) => {
+    expect(url).toBe(`http://kroma.test/api${path}`);
+  });
+});
 
 const SPLASH = {
   kind: 'movie',

@@ -19,6 +19,9 @@ interface Reply {
 
 const BASE = 'http://kroma.test';
 
+/** The session bearer `recordRequest` signs its calls with. */
+export const BEARER = 'session-bearer';
+
 function requestUrl(input: RequestInfo | URL): string {
   if (typeof input === 'string') return input;
   return input instanceof URL ? input.href : input.url;
@@ -56,13 +59,13 @@ export function recordingClient(
   return { client: createKromaClient({ baseUrl: BASE, fetch, ...options }), calls, fetch };
 }
 
-/** Run `call`, swallowing the response-schema rejection a canned reply causes,
- * and hand back the request it made. */
+/** Run `call` on a client holding {@link BEARER}, swallowing the response-schema
+ * rejection a canned reply causes, and hand back the request it made. */
 export async function recordRequest(
   call: (client: KromaClient) => unknown,
   reply?: (url: string, init?: RequestInit) => Reply,
 ): Promise<RecordedCall> {
-  const { client, calls } = recordingClient(reply);
+  const { client, calls } = recordingClient(reply, { authToken: BEARER });
   await Promise.resolve(call(client)).catch(() => undefined);
   const first = calls[0];
   if (!first) throw new Error('no request was made');

@@ -510,7 +510,6 @@
         "@babel/plugin-transform-classes": "^7.29.7",
         "@babel/preset-env": "^7.29.7",
         "@kroma/build-info": "workspace:*",
-        "@kroma/client": "workspace:*",
         "@kroma/core": "workspace:*",
         "@kroma/i18n": "workspace:*",
         "@kroma/i18n-devtools": "workspace:*",
@@ -565,11 +564,9 @@
       },
       "peerDependencies": {
         "@tanstack/react-query": "^5",
-        "vite": ">=6",
       },
       "optionalPeers": [
         "@tanstack/react-query",
-        "vite",
       ],
     },
     "packages/core": {

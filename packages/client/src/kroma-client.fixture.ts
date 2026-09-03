@@ -19,6 +19,11 @@ interface Reply {
 
 const BASE = 'http://kroma.test';
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  return input instanceof URL ? input.href : input.url;
+}
+
 /** A `KromaClient` over a fetch that records every request and answers with
  * whatever `reply` returns. Responses are schema-parsed, so a test that only
  * cares about the REQUEST lets the parse fail and reads the recorded call. */
@@ -28,7 +33,7 @@ export function recordingClient(
 ) {
   const calls: RecordedCall[] = [];
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
+    const url = requestUrl(input);
     calls.push({
       method: init?.method ?? 'GET',
       url,

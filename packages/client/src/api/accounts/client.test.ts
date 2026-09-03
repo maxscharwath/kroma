@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { CeremonyId, InviteToken, PasskeyId, SessionId } from './ids';
 
 const ceremonyId = CeremonyId.parse('cer1');
 const credential = { id: 'cred', type: 'public-key' };
 
 describe('the accounts endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'register',
       call: (c) => c.accounts.register('max@kroma.tv', 'max', 'pw', InviteToken.parse('inv1')),
@@ -175,11 +175,11 @@ describe('the accounts endpoints', () => {
       method: 'DELETE',
       path: '/invites/t%201',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('the passkey ceremonies', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'list',
       call: (c) => c.accounts.passkeys.list(),
@@ -218,11 +218,11 @@ describe('the passkey ceremonies', () => {
       path: '/auth/passkeys/authenticate/finish',
       body: { ceremonyId: 'cer1', credential },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('the quick-connect endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'initiate, rotating an expiring code',
       call: (c) => c.accounts.quickConnect.initiate('old'),
@@ -238,5 +238,5 @@ describe('the quick-connect endpoints', () => {
       path: '/auth/quickconnect/authorize',
       body: { code: '123456' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

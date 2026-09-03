@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DeviceId } from '../../core/ids';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { recordingClient } from '../../kroma-client.fixture';
 
 const receiver = DeviceId.parse('tv-salon-01');
 
 describe('the cast endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'announce',
       call: (c) =>
@@ -34,7 +34,7 @@ describe('the cast endpoints', () => {
       path: '/cast/receivers/tv-salon-01/command',
       body: { type: 'pause' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('sending a command', () => {

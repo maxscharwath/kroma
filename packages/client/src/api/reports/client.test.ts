@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { ReportId } from './ids';
 
 const report = ReportId.parse('rep1');
 const CREATE = { subjectKind: 'movie' as const, subjectId: 'i1', category: 'audio' as const };
 
 describe('the report endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'create',
       call: (c) => c.reports.create(CREATE),
@@ -51,5 +51,5 @@ describe('the report endpoints', () => {
       method: 'DELETE',
       path: '/admin/reports/rep1',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

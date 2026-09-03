@@ -1,5 +1,5 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { ItemId, ShowId } from '../media';
 import { PlaybackSessionId } from './ids';
 
@@ -9,7 +9,7 @@ const session = PlaybackSessionId.parse('sess1');
 const PING = { sessionId: session, itemId: item, positionMs: 4000, state: 'playing' as const };
 
 describe('the playback endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'progress', call: (c) => c.playback.progress(), method: 'GET', path: '/progress' },
     {
       name: 'itemProgress',
@@ -102,5 +102,5 @@ describe('the playback endpoints', () => {
       path: '/playback/stop',
       body: { sessionId: 'sess1' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

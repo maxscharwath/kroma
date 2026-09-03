@@ -1,8 +1,8 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 
 describe('the notification console endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'samples',
       call: (c) => c.admin.notifications.samples(),
@@ -35,5 +35,5 @@ describe('the notification console endpoints', () => {
       method: 'GET',
       path: '/admin/notifications/images',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

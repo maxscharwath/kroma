@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { NotificationId } from './ids';
 
 const notification = NotificationId.parse('n 1');
 const PREFS = { categories: [{ category: 'requests' as const, inApp: true, push: false }] };
 
 describe('the notification-centre endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'list', call: (c) => c.notifications.list(), method: 'GET', path: '/notifications' },
     {
       name: 'markRead',
@@ -48,11 +48,11 @@ describe('the notification-centre endpoints', () => {
       path: '/notifications/prefs',
       body: PREFS,
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('running a notification action', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'strips the /api the transport adds back',
       call: (c) => c.notifications.runAction({ href: '/api/requests/r1/approve' }),
@@ -77,11 +77,11 @@ describe('running a notification action', () => {
       method: 'PATCH',
       path: '/requests/r1',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('the push endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'key', call: (c) => c.notifications.push.key(), method: 'GET', path: '/push/key' },
     {
       name: 'subscribe',
@@ -99,5 +99,5 @@ describe('the push endpoints', () => {
       body: { endpoint: 'https://push/x' },
     },
     { name: 'test', call: (c) => c.notifications.push.test(), method: 'POST', path: '/push/test' },
-  ]);
+  ])('$name', checkEndpoint);
 });

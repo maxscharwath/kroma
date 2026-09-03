@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { ItemId, ShowId } from '../media';
 
 const item = ItemId.parse('i 1');
 const show = ShowId.parse('s1');
 
 describe('the pipeline endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'overview',
       call: (c) => c.pipeline.overview(),
@@ -95,5 +95,5 @@ describe('the pipeline endpoints', () => {
       path: '/admin/pipeline/subject/reprocess',
       body: { kind: 'show', id: 's1' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

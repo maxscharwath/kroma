@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { ItemId } from '../media';
 import { GenerationId, SubtitleId } from './ids';
 
 const item = ItemId.parse('i 1');
 
 describe('the subtitle endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'capabilities',
       call: (c) => c.subtitles.capabilities(item),
@@ -44,5 +44,5 @@ describe('the subtitle endpoints', () => {
       method: 'DELETE',
       path: '/items/i%201/subtitles/generations/g%201',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

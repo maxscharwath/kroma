@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { recordingClient } from '../../kroma-client.fixture';
 import { ModuleId } from './ids';
 
@@ -18,9 +18,9 @@ const TORRENTS = {
 };
 
 describe('the module endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'list', call: (c) => c.modules.list(), method: 'GET', path: '/modules' },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe("a module's own admin API", () => {

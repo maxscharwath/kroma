@@ -1,11 +1,11 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { LibraryId } from '../media';
 
 const library = LibraryId.parse('lib1');
 
 describe('the library endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'list', call: (c) => c.library.list(), method: 'GET', path: '/admin/libraries' },
     {
       name: 'create',
@@ -45,5 +45,5 @@ describe('the library endpoints', () => {
       method: 'GET',
       path: '/admin/libraries/browse',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

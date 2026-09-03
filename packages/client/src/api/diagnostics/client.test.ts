@@ -1,5 +1,5 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 
 const CRASH = {
   message: 'boom',
@@ -11,7 +11,7 @@ const CRASH = {
 };
 
 describe('the diagnostics endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'crash',
       call: (c) => c.diagnostics.crash(CRASH),
@@ -19,5 +19,5 @@ describe('the diagnostics endpoints', () => {
       path: '/diagnostics/crash',
       body: CRASH,
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

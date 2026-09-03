@@ -1,10 +1,10 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 
 const SAVE = { enabled: true, defaultIndex: 0, providers: [] };
 
 describe('the LLM endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'config', call: (c) => c.llm.config(), method: 'GET', path: '/admin/llm' },
     {
       name: 'save',
@@ -27,5 +27,5 @@ describe('the LLM endpoints', () => {
       path: '/admin/llm/test',
       body: { model: 'gpt' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

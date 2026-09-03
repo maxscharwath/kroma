@@ -1,5 +1,5 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { IndexerId, RequestId } from './ids';
 
 const request = RequestId.parse('r1');
@@ -8,7 +8,7 @@ const COVERAGE = { seasons: [1, 2], episodes: null };
 const GRAB = { guid: 'rel-1', indexerId: IndexerId.parse('idx1'), scope: 'all' as const };
 
 describe('the request endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'list', call: (c) => c.requests.list(), method: 'GET', path: '/requests' },
     {
       name: 'list narrowed to the caller',
@@ -117,5 +117,5 @@ describe('the request endpoints', () => {
       path: '/requests/r1/grab',
       body: GRAB,
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

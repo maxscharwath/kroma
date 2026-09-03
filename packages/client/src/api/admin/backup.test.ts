@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { recordRequest } from '../../kroma-client.fixture';
 
 const archive = new Blob(['zip'], { type: 'application/zip' });
 
 describe('the backup endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'export',
       call: (c) => c.admin.backup.export(),
@@ -18,7 +18,7 @@ describe('the backup endpoints', () => {
       method: 'POST',
       path: '/admin/backup/import',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('the backup password header', () => {

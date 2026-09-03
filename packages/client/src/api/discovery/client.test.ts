@@ -1,8 +1,8 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 
 describe('the discovery endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'search',
       call: (c) => c.discovery.search('dune', { type: 'movie', page: 2 }),
@@ -27,5 +27,5 @@ describe('the discovery endpoints', () => {
       method: 'GET',
       path: '/discover/tv/1399',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

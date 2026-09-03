@@ -1,12 +1,12 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { UserId } from '../accounts';
 import { PlaybackSessionId } from '../playback';
 
 const user = UserId.parse('u1');
 
 describe('the admin console endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'server', call: (c) => c.admin.server(), method: 'GET', path: '/admin/server' },
     { name: 'status', call: (c) => c.admin.status(), method: 'GET', path: '/status' },
     { name: 'sessions', call: (c) => c.admin.sessions(), method: 'GET', path: '/admin/sessions' },
@@ -167,5 +167,5 @@ describe('the admin console endpoints', () => {
       path: '/admin/logs?level=warn',
     },
     { name: 'logs unfiltered', call: (c) => c.admin.logs(), method: 'GET', path: '/admin/logs' },
-  ]);
+  ])('$name', checkEndpoint);
 });

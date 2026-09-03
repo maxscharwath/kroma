@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { recordingClient } from '../../kroma-client.fixture';
 import { ItemId, LibraryId, ShowId } from './ids';
 
@@ -9,7 +9,7 @@ const show = ShowId.parse('s1');
 const library = LibraryId.parse('lib1');
 
 describe('the media endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'health', call: (c) => c.media.health(), method: 'GET', path: '/health' },
     { name: 'splash', call: (c) => c.media.splash(), method: 'GET', path: '/splash' },
     { name: 'libraries', call: (c) => c.media.libraries(), method: 'GET', path: '/libraries' },
@@ -88,7 +88,7 @@ describe('the media endpoints', () => {
       path: '/rematch/movie/i%201',
       body: { tmdbId: 603 },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });
 
 describe('the URL builders, which make no request', () => {

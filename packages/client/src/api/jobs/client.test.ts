@@ -1,11 +1,11 @@
-import { describe } from 'vitest';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { describe, it } from 'vitest';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { JobKey, JobRunId } from './ids';
 
 const job = JobKey.parse('library.scan');
 
 describe('the job endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     { name: 'list', call: (c) => c.jobs.list(), method: 'GET', path: '/admin/jobs' },
     {
       name: 'detail',
@@ -38,5 +38,5 @@ describe('the job endpoints', () => {
       method: 'GET',
       path: '/admin/job-runs/run%201/logs',
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

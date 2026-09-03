@@ -1,13 +1,13 @@
-import { describe } from 'vitest';
+import { describe, it } from 'vitest';
 import { DeviceId } from '../../core/ids';
-import { checkEndpoints } from '../../endpoints.fixture';
+import { checkEndpoint, type Endpoint } from '../../endpoints.fixture';
 import { HandoffHandle } from './ids';
 
 const device = DeviceId.parse('tv-salon-01');
 const handle = HandoffHandle.parse('h 1');
 
 describe('the handoff endpoints', () => {
-  checkEndpoints([
+  it.each<Endpoint>([
     {
       name: 'announce',
       call: (c) => c.handoff.announce({ deviceId: device, name: 'Salon', platform: 'tizen' }),
@@ -47,5 +47,5 @@ describe('the handoff endpoints', () => {
       path: '/handoff/grant',
       body: { handle: 'h 1' },
     },
-  ]);
+  ])('$name', checkEndpoint);
 });

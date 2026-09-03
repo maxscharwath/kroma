@@ -4,6 +4,7 @@ import { Box, Img, rhythm, Text } from '@kroma/ui/kit';
 import { type ReactNode, useState } from 'react';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
+import { savedTitleId } from '#web/shared/lib/saved-title-id';
 import { useWatched } from '#web/shared/lib/watched';
 import type { PosterAction } from '#web/shared/ui/poster-action-bar';
 import { PosterTile } from '#web/shared/ui/poster-tile';
@@ -24,9 +25,7 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
   const showImg = Boolean(poster) && imgOk;
   const owned = entry.inLibrary && entry.localId;
   const canRequest = !owned && !optimisticStatus;
-  // One id for both owned and discover titles, so a bookmark on a title that is
-  // not in the library yet survives the rescan that brings it in.
-  const listId = owned ? (entry.localId ?? '') : `tmdb:${entry.tmdbId}`;
+  const listId = savedTitleId(entry.kind, owned ? entry.localId : null, entry.tmdbId);
   const tint = `linear-gradient(158deg, ${c1} 0%, ${c2} 70%)`;
 
   let statusChip: ReactNode = null;
@@ -52,15 +51,15 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
 
   const request = () => {
     setRequesting(true);
-    client
-      .createRequest({ kind: entry.kind, tmdbId: entry.tmdbId, seasons: null })
+    client.requests
+      .create({ kind: entry.kind, tmdbId: entry.tmdbId, seasons: null })
       .then((req) => setOptimisticStatus(req.status))
       .catch(() => undefined)
       .finally(() => setRequesting(false));
   };
 
-  const bookmarked = inList(listId);
-  const seen = isWatched(listId);
+  const bookmarked = listId != null && inList(listId);
+  const seen = listId != null && isWatched(listId);
   const actions: PosterAction[] = [];
   if (canRequest) {
     actions.push({
@@ -71,22 +70,24 @@ export function DiscoverCard({ entry, width }: Readonly<{ entry: DiscoverEntry; 
       onSelect: request,
     });
   }
-  actions.push(
-    {
-      key: 'list',
-      icon: bookmarked ? 'bookmark-filled' : 'bookmark',
-      label: t(bookmarked ? 'content.removeFromList' : 'content.addToList'),
-      active: bookmarked,
-      onSelect: () => toggleMyList(listId),
-    },
-    {
-      key: 'watched',
-      icon: 'eye',
-      label: t(seen ? 'content.markUnwatched' : 'content.markWatched'),
-      active: seen,
-      onSelect: () => toggleWatched(listId),
-    },
-  );
+  if (listId) {
+    actions.push(
+      {
+        key: 'list',
+        icon: bookmarked ? 'bookmark-filled' : 'bookmark',
+        label: t(bookmarked ? 'content.removeFromList' : 'content.addToList'),
+        active: bookmarked,
+        onSelect: () => toggleMyList(listId),
+      },
+      {
+        key: 'watched',
+        icon: 'eye',
+        label: t(seen ? 'content.markUnwatched' : 'content.markWatched'),
+        active: seen,
+        onSelect: () => toggleWatched(listId),
+      },
+    );
+  }
 
   return (
     <PosterTile

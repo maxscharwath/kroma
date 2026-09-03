@@ -10,28 +10,35 @@ type Call = { method: string; path: string; body?: unknown };
 
 const calls: Call[] = [];
 
-const record = (method: string) => (path: string, body?: unknown) => {
+const read = (method: string) => (path: string) => {
+  calls.push({ method, path, body: undefined });
+  return Promise.resolve({ ok: true });
+};
+
+const write = (method: string) => (path: string, body?: unknown) => {
   calls.push({ method, path, body });
   return Promise.resolve({ ok: true });
 };
 
-const recordSend = (path: string, init: RequestInit) => {
-  calls.push({ method: init.method ?? 'GET', path, body: init.body });
+const upload = (path: string, file: Blob) => {
+  calls.push({ method: 'POST', path, body: file });
   return Promise.resolve({ ok: true });
 };
 
 const scopedTo = { id: '' };
 
 const client = {
-  module(id: string) {
-    scopedTo.id = id;
-    return {
-      get: record('GET'),
-      post: record('POST'),
-      put: record('PUT'),
-      delete: record('DELETE'),
-      send: recordSend,
-    };
+  modules: {
+    api(id: string) {
+      scopedTo.id = id;
+      return {
+        get: read('GET'),
+        post: write('POST'),
+        put: write('PUT'),
+        delete: read('DELETE'),
+        upload,
+      };
+    },
   },
 };
 

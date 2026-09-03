@@ -84,6 +84,17 @@ describe('resolving stored art', () => {
     );
   });
 
+  it('showPosterFor uses cached art when present, else the generated poster', () => {
+    const metadata = { posterUrl: '/api/images/s.webp' } as never;
+
+    expect(artwork.showPosterFor({ id: show, metadata })).toBe(
+      'http://kroma.test/api/images/s.webp',
+    );
+    expect(artwork.showPosterFor({ id: show, metadata: null })).toBe(
+      'http://kroma.test/api/shows/s%201/poster',
+    );
+  });
+
   it('backdropFor and themeFor resolve or answer null', () => {
     const metadata = { backdropUrl: '/api/images/b.webp', themeUrl: null } as never;
     expect(artwork.backdropFor({ metadata })).toBe('http://kroma.test/api/images/b.webp');

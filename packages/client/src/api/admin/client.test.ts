@@ -143,10 +143,22 @@ describe('the admin console endpoints', () => {
       path: '/admin/stats/history?kind=movie&user=u1&days=28',
     },
     {
+      name: 'history over the default window',
+      call: (c) => c.admin.history(),
+      method: 'GET',
+      path: '/admin/stats/history?days=28',
+    },
+    {
       name: 'plays',
       call: (c) => c.admin.plays({ limit: 50 }),
       method: 'GET',
       path: '/admin/stats/plays?limit=50&days=30',
+    },
+    {
+      name: 'plays unfiltered',
+      call: (c) => c.admin.plays(),
+      method: 'GET',
+      path: '/admin/stats/plays?days=30',
     },
     {
       name: 'logs',
@@ -154,5 +166,6 @@ describe('the admin console endpoints', () => {
       method: 'GET',
       path: '/admin/logs?level=warn',
     },
+    { name: 'logs unfiltered', call: (c) => c.admin.logs(), method: 'GET', path: '/admin/logs' },
   ]);
 });

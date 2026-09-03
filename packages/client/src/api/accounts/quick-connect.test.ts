@@ -55,6 +55,23 @@ describe('poll', () => {
     expect(calls[1]?.path).toBe('/auth/quickconnect/poll?secret=sec');
   });
 
+  it('keeps polling the legacy way once a server has demanded it, without asking twice', async () => {
+    let seen = 0;
+    const { client, calls } = pollClient(() => {
+      seen += 1;
+      return seen === 1 ? { ok: false, status: 400, json: {} } : { json: PENDING };
+    });
+
+    await client.accounts.quickConnect.poll('sec');
+    await client.accounts.quickConnect.poll('sec');
+
+    expect(calls.map((c) => c.path)).toEqual([
+      '/auth/quickconnect/poll',
+      '/auth/quickconnect/poll?secret=sec',
+      '/auth/quickconnect/poll?secret=sec',
+    ]);
+  });
+
   it('does not downgrade on a failure an updated server can produce', async () => {
     const { client } = pollClient(() => ({ ok: false, status: 500, json: {} }));
 

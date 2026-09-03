@@ -1,11 +1,11 @@
 export type Concurrency = 'share' | 'latest';
 
-// Two signals, one abort: the caller's and the policy's. Built by hand rather
+// Two signals, one abort: the policy's and the caller's. Built by hand rather
 // than with `AbortSignal.any`, which the legacy webOS tier has not got.
-function linked(a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined {
-  if (!a || !b) return a ?? b;
+function linked(policy: AbortSignal, caller?: AbortSignal): AbortSignal {
+  if (!caller) return policy;
   const controller = new AbortController();
-  for (const signal of [a, b]) {
+  for (const signal of [policy, caller]) {
     if (signal.aborted) return signal;
     signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
   }

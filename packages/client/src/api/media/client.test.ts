@@ -142,6 +142,14 @@ describe('splash', () => {
     expect(entries[0]).toEqual(absolute);
   });
 
+  it('keeps an entry whose backdrop resolves to nothing as the server sent it', async () => {
+    const { client } = recordingClient(() => ({ json: [{ ...SPLASH, backdropUrl: '' }] }));
+
+    const entries = await client.media.splash();
+
+    expect(entries[0]?.backdropUrl).toBe('');
+  });
+
   it('answers an empty sample with an empty list', async () => {
     const { client } = recordingClient(() => ({ json: [] }));
 

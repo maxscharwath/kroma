@@ -20,6 +20,7 @@ describe('domain discovery', () => {
 
   it('names each domain after its folder, so a key cannot drift from a path', () => {
     expect(domainKey('./media/client.ts')).toBe('media');
+    expect(domainKey('client.ts')).toBe('');
     for (const name of folders) expect(domains[name]).toBeTypeOf('function');
   });
 

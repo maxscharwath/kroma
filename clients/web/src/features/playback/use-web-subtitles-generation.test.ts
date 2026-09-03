@@ -77,6 +77,15 @@ describe('useWebSubtitles generation lifecycle', () => {
     expect(H.deleteSubtitle).toHaveBeenCalledWith('movie-1', 'd1');
   });
 
+  it('cancels a running generation by the id the panel showed', async () => {
+    const { result } = renderHook(() => useWebSubtitles(movie([]), t));
+    await settle();
+
+    act(() => result.current.subtitleGen.onCancel('g1'));
+
+    expect(H.cancel).toHaveBeenCalledWith('g1');
+  });
+
   it('reports canCreate from caps and dispatches transcribe/translate requests', async () => {
     H.subtitleCapabilities.mockResolvedValue({ transcribe: true, translate: true });
     const item = movie([{ index: 0, language: 'eng', codec: 'subrip', url: '/0.vtt' }]);

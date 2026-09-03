@@ -43,6 +43,7 @@ interface Over {
   nextTitle?: CreditsCardItem;
   upNext?: UpNextData;
   postPlay?: PostPlayItem;
+  finished?: string;
   onGoHome?: () => void;
   onPlayItem?: (item: { id: string }) => void;
 }
@@ -63,6 +64,7 @@ function player(children: ReactNode, over: Over = {}) {
         onPlayNext={over.onPlayNext}
         nextTitle={over.nextTitle}
         postPlay={over.postPlay}
+        finished={over.finished}
         onGoHome={over.onGoHome}
         onPlayItem={over.onPlayItem}
         onClose={over.onClose ?? (() => {})}
@@ -180,6 +182,20 @@ describe('<Player.Root> when the film is over', () => {
     rerender(player(media, { postPlay: OFFER, controller: fakeController({ endedNonce: 1 }) }));
 
     expect(screen.getByText('You finished Blade Runner 2049')).toBeTruthy();
+  });
+
+  it('names the trailer that just finished, so the screen does not pretend the movie did', () => {
+    const { rerender } = render(player(media, { postPlay: OFFER, finished: 'the trailer' }));
+
+    rerender(
+      player(media, {
+        postPlay: OFFER,
+        finished: 'the trailer',
+        controller: fakeController({ endedNonce: 1 }),
+      }),
+    );
+
+    expect(screen.getByText('You finished the trailer')).toBeTruthy();
   });
 
   it('offers the next film instead of leaving', () => {

@@ -192,6 +192,7 @@ export function createTvEngine(args: {
   rendition: number;
   startSec: number;
   audioFilter: AudioFilterMode;
+  trailerKey?: string;
   dom: { video: HTMLVideoElement | null; nativeHls: boolean | undefined };
   listeners: EngineListeners;
 }): TvEngine | null {
@@ -217,6 +218,7 @@ export function createTvEngine(args: {
       startSec,
       direct: true,
       audioFilter,
+      trailerKey: args.trailerKey,
       listeners,
     });
     engine.start(); // async subscribe/open kept out of the constructor
@@ -231,6 +233,7 @@ export function createTvEngine(args: {
       startSec,
       direct: avplayDirect,
       audioFilter,
+      trailerKey: args.trailerKey,
       listeners,
     });
   }
@@ -246,6 +249,7 @@ export function createTvEngine(args: {
     initialRendition: rendition,
     durationSec,
     startSec,
+    trailerKey: args.trailerKey,
     listeners,
   });
 }

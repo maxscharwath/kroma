@@ -33,6 +33,8 @@ pub(super) fn meta(title: &str) -> Metadata {
         keywords: vec![],
         tvdb_id: None,
         tmdb_url: "x".into(),
+        videos: Vec::new(),
+        videos_fetched: false,
     }
 }
 
@@ -63,6 +65,7 @@ pub(super) fn item(id: &str, kind: Kind) -> MediaItem {
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     }
 }
 

@@ -109,3 +109,32 @@ describe('the id map the router is handed', () => {
     await waitFor(() => expect(result.current.data.recommendations).toHaveLength(18));
   });
 });
+
+describe('the film the end of this one offers', () => {
+  it('skips this movie when it comes back as its own neighbour', async () => {
+    const neighbour = { ...MOVIE, id: 'm2', title: 'Sicario' } as MediaItem;
+    const client = stubClient([MOVIE, neighbour]);
+
+    const { result } = renderHook(() => useTvUpNext(client, t, MOVIE));
+
+    await waitFor(() =>
+      expect(result.current.postPlay).toMatchObject({ id: 'm2', title: 'Sicario' }),
+    );
+  });
+});
+
+describe('a trailer that has just ended', () => {
+  it('offers this movie rather than a neighbour', () => {
+    const clip = { ...MOVIE, trailer: true, durationMs: 120_000 } as MediaItem & {
+      trailer?: boolean;
+    };
+    const neighbour = { ...MOVIE, id: 'm2', title: 'Sicario' } as MediaItem;
+    const client = stubClient([neighbour]);
+
+    const { result } = renderHook(() => useTvUpNext(client, t, clip));
+
+    expect(result.current.postPlay).toMatchObject({ id: 'm1', title: 'Arrival' });
+    expect(result.current.data.recommendations).toEqual([]);
+    expect(client.similar).not.toHaveBeenCalled();
+  });
+});

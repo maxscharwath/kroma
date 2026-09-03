@@ -137,7 +137,9 @@ enumerated the same way once known.
 Status: **AGREED**
 
 Every title carries images: **poster**, **backdrop**, **logo**, and per-episode **thumb**.
-These are media too, and are treated with the same discipline.
+These are media too, and are treated with the same discipline. A trailer is not
+artwork and not a media file of the title; it is promotional video, specified in
+[`library/trailers.md`](../library/trailers.md).
 
 - **Sources**, in order of trust: images embedded in the media file, sidecar image files
   next to it, then images fetched by the [`library.md`](../library/README.md) metadata refresh. A

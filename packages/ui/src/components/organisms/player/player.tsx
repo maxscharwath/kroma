@@ -42,6 +42,10 @@ export interface PlayerRootProps {
   controller: PlayerController;
   flags: PlayerFlags;
   title: string;
+  /** Name shown in "You finished {title}" on the post-play screen. Defaults to
+   *  {@link title}. Pass a different phrase after a trailer so the screen does
+   *  not claim the movie itself just ended. */
+  finished?: string;
   subtitle?: string;
   /** Pre-translated warning, drawn as a pill in the top bar; null to hide it. */
   warn?: string | null;
@@ -92,6 +96,7 @@ function Root({
   controller: c,
   flags,
   title,
+  finished,
   subtitle,
   warn,
   chapters: rawChapters,
@@ -346,7 +351,7 @@ function Root({
           {ending.over && postPlay ? (
             <PostPlay
               item={postPlay}
-              finished={title}
+              finished={finished ?? title}
               focus={ending.postPlayFocus}
               stageWidth={stageSize.width}
               onPlay={ending.playOffer}

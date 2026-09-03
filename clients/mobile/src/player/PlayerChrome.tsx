@@ -99,6 +99,7 @@ function usePhoneStats(engine: Engine, item: MediaItem): () => PlayerStats {
 export function PlayerChrome({
   engine,
   item,
+  trailer,
   cue,
   appearance,
   statsOn,
@@ -116,6 +117,7 @@ export function PlayerChrome({
 }: Readonly<{
   engine: Engine;
   item: MediaItem;
+  trailer?: boolean;
   cue: string;
   appearance: SubtitleAppearance;
   statsOn: boolean;
@@ -250,6 +252,7 @@ export function PlayerChrome({
           <ControlsLayer
             engine={engine}
             item={item}
+            trailer={trailer}
             insets={insets}
             poke={poke}
             onBack={onBack}

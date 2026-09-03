@@ -17,6 +17,7 @@ pub async fn spawn(state: &state::SharedState) {
     );
 
     services::search::spawn_reindex(state.clone());
+    services::trailers::maybe_spawn(state);
 
     state.hls.spawn_reaper();
     // Shells out to make each candidate device encode a test frame, so it must

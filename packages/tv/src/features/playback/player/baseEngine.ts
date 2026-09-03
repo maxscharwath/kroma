@@ -21,6 +21,7 @@ export interface EngineOptions {
   startSec: number;
   direct: boolean;
   audioFilter?: AudioFilterMode;
+  trailerKey?: string;
   listeners: EngineListeners;
 }
 
@@ -54,6 +55,7 @@ export abstract class BaseTvEngine implements TvEngine {
   protected filterMaster = false;
   protected forceAac = false;
   protected resumeOnLoad = false;
+  protected readonly trailerKey?: string;
 
   protected constructor(opts: EngineOptions) {
     this.client = opts.client;
@@ -62,6 +64,7 @@ export abstract class BaseTvEngine implements TvEngine {
     this.durSec = opts.durationSec;
     this.rendition = opts.initialRendition;
     this.filter = opts.audioFilter ?? 'off';
+    this.trailerKey = opts.trailerKey;
     this.mode = opts.direct ? 'direct' : 'master';
     if (this.mode === 'direct') {
       this.elSec = opts.startSec;
@@ -71,6 +74,9 @@ export abstract class BaseTvEngine implements TvEngine {
   }
 
   protected sourceUrl(): string {
+    if (this.trailerKey) {
+      return this.client.streamUrl(this.item.id, { role: 'trailer', key: this.trailerKey });
+    }
     return this.mode === 'direct'
       ? this.client.media.streamUrl(this.item.id)
       : this.client.media.hlsMasterUrl(
@@ -89,6 +95,10 @@ export abstract class BaseTvEngine implements TvEngine {
   // the master must transcode it to AAC. Each fallback below fires once.
   protected fail(audioUnsupported = false): void {
     if (this.destroyed) return;
+    if (this.trailerKey) {
+      this.listeners.onError();
+      return;
+    }
     const pos = this.position();
     if (audioUnsupported && !this.forceAac) {
       this.forceAac = true;

@@ -11,12 +11,17 @@ export interface PersistPort {
 
 /** Persists progress every 10 s, on pause, near the end, and on exit. The resume
  * position is applied by `useDirectPlayback` as `startSec`, not re-seeked here. */
-export function useResumeAndPersist(client: KromaClient, item: MediaItem, port: PersistPort): void {
+export function useResumeAndPersist(
+  client: KromaClient,
+  item: MediaItem,
+  port: PersistPort,
+  persist = true,
+): void {
   const portRef = useRef(port);
   portRef.current = port;
 
   const save = useCallback(() => {
-    if (!client.hasAuth) return;
+    if (!persist || !client.hasAuth) return;
     const p = portRef.current;
     const d = p.getDuration();
     const pos = p.getPosition();
@@ -24,22 +29,22 @@ export function useResumeAndPersist(client: KromaClient, item: MediaItem, port: 
     // Marking watched also clears the resume position server-side.
     if (pos > d * 0.97) void client.playback.markWatched(item.id);
     else void client.playback.save(item.id, pos * 1000, d * 1000);
-  }, [client, item]);
+  }, [client, item, persist]);
 
   useEffect(() => {
-    if (!client.hasAuth) return;
+    if (!persist || !client.hasAuth) return;
     const interval = setInterval(save, 10000);
     return () => {
       clearInterval(interval);
       save();
     };
-  }, [client, save]);
+  }, [client, save, persist]);
 
   useEffect(() => {
     if (port.paused) save();
   }, [port.paused, save]);
 
   useEffect(() => {
-    if (port.endedNonce > 0 && client.hasAuth) void client.playback.markWatched(item.id);
-  }, [port.endedNonce, client, item]);
+    if (port.endedNonce > 0 && persist && client.hasAuth) void client.playback.markWatched(item.id);
+  }, [port.endedNonce, client, item, persist]);
 }

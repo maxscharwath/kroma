@@ -96,6 +96,7 @@ export function createTvEngine(args: {
   rendition: number;
   startSec: number;
   audioFilter: AudioFilterMode;
+  trailerKey?: string;
   dom: { video: HTMLVideoElement | null; nativeHls: boolean | undefined };
   listeners: EngineListeners;
 }): TvEngine | null {
@@ -108,6 +109,7 @@ export function createTvEngine(args: {
       startSec: args.startSec,
       direct: true,
       audioFilter: args.audioFilter,
+      trailerKey: args.trailerKey,
       listeners: args.listeners,
     });
   }
@@ -119,6 +121,7 @@ export function createTvEngine(args: {
     startSec: args.startSec,
     direct: args.plan.eng === 'expo-direct',
     audioFilter: args.audioFilter,
+    trailerKey: args.trailerKey,
     listeners: args.listeners,
   });
 }

@@ -25,6 +25,7 @@ export function TitleHero({
   inList,
   toggleList,
   onPlay,
+  onTrailer,
   onRequest,
   back,
 }: Readonly<{
@@ -38,6 +39,7 @@ export function TitleHero({
   inList: (id: SubjectId) => boolean;
   toggleList: (id: SubjectId) => void;
   onPlay: (id: ItemId) => void;
+  onTrailer?: () => void;
   onRequest: () => void;
   back: HostElement;
 }>) {
@@ -90,6 +92,7 @@ export function TitleHero({
       }
       back={back}
       onPlay={playable ? () => onPlay(playable.id) : undefined}
+      onTrailer={playable?.hasTrailer ? onTrailer : undefined}
       onReport={
         owned && localId
           ? () =>

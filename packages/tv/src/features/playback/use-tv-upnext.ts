@@ -46,6 +46,12 @@ function toOffer(client: KromaClient, item: MediaItem): PostPlayItem {
   };
 }
 
+function toMovieOffer(client: KromaClient, item: MediaItem): PostPlayItem {
+  return toOffer(client, { ...item, durationMs: null, video: null });
+}
+
+type PlayedItem = MediaItem & { trailer?: boolean };
+
 export interface TvUpNext {
   data: UpNextData;
   byId: Map<string, MediaItem>;
@@ -58,17 +64,20 @@ const NO_EPISODES: MediaItem[] = [];
 
 /** Up-next data for the TV player: upcoming episodes and recommendations, with an
  * id -> item map so a chosen card can be handed to the router, and the nearest
- * neighbour as the film the end of this one offers. */
+ * neighbour as the film the end of this one offers. A trailer offers this movie
+ * instead. */
 export function useTvUpNext(
   client: KromaClient,
   t: Translate,
-  item: MediaItem,
+  item: PlayedItem,
   following: MediaItem[] = NO_EPISODES,
 ): TvUpNext {
   const [similar, setSimilar] = useState<MediaItem[]>([]);
+  const trailer = Boolean(item.trailer);
   // Episodes carry no embedding of their own, so recommend against the show.
   const recoId = item.showId ?? item.id;
   useEffect(() => {
+    if (trailer) return;
     let cancelled = false;
     client.media
       .similar(ItemId.parse(recoId))
@@ -77,9 +86,16 @@ export function useTvUpNext(
     return () => {
       cancelled = true;
     };
-  }, [client, recoId]);
+  }, [client, recoId, trailer]);
 
   return useMemo(() => {
+    if (trailer) {
+      return {
+        data: { nextEpisodes: [], recommendations: [] },
+        byId: new Map(),
+        postPlay: toMovieOffer(client, item),
+      };
+    }
     const recos = similar.slice(0, 18);
     const byId = new Map<string, MediaItem>();
     for (const e of following) byId.set(e.id, e);
@@ -96,5 +112,5 @@ export function useTvUpNext(
       byId,
       postPlay: offer ? toOffer(client, offer) : null,
     };
-  }, [client, t, item.id, following, similar]);
+  }, [client, t, item, trailer, following, similar]);
 }

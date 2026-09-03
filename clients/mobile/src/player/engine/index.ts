@@ -37,12 +37,16 @@ export function useKromaEngine(
   /** The audio track the title OPENS on - the account's preferred language,
    *  resolved by the caller (see @kroma/core preferredAudioIndex). */
   startAudioIndex = 0,
+  /** Plays the server's trailer clip instead of the feature file. `item` must
+   *  already carry the clip's own shape (@kroma/core `asTrailerItem`). */
+  trailerKey?: string,
 ): Engine {
   const decision = useMemo(() => decideSource(item), [item]);
   const core = useRef<EngineCore>({
     // A non-default OPENING track forces the master, same as a manual switch:
     // direct play always carries the container's default audio.
-    mode: localUri || (decision.direct && startAudioIndex === 0) ? 'direct' : 'master',
+    mode:
+      localUri || trailerKey || (decision.direct && startAudioIndex === 0) ? 'direct' : 'master',
     baseSec: 0,
     elSec: 0,
     bufSec: 0,
@@ -78,12 +82,13 @@ export function useKromaEngine(
 
   const sourceUrl = useCallback((): string => {
     if (localUri) return localUri;
+    if (trailerKey) return client.media.streamUrl(item.id, { role: 'trailer', key: trailerKey });
     if (core.mode === 'direct') return client.media.streamUrl(item.id);
     const f = core.filter === 'off' ? undefined : core.filter;
     return client.media.hlsMasterUrl(item.id, core.forceAac, core.baseSec, core.audioIndex, {
       filter: f,
     });
-  }, [client, item.id, core, localUri]);
+  }, [client, item.id, core, localUri, trailerKey]);
 
   // Master anchors resolve their REAL keyframe start first so the absolute
   // clock stays honest.
@@ -131,8 +136,9 @@ export function useKromaEngine(
   // Failure ladder: direct falls back to the master once; a copy-audio master
   // retries once as AAC; anything else surfaces.
   const fail = useCallback(() => {
-    if (localUri) {
-      // Offline: there is no server to fall back to.
+    // Offline has no server to fall back to. A trailer has no master but the
+    // FEATURE's, so falling back would play the film instead.
+    if (localUri || trailerKey) {
       setFailed(true);
       setWaiting(false);
       return;
@@ -151,7 +157,7 @@ export function useKromaEngine(
     }
     setFailed(true);
     setWaiting(false);
-  }, [core, load, localUri]);
+  }, [core, load, localUri, trailerKey]);
 
   useEffect(() => {
     const subs = [

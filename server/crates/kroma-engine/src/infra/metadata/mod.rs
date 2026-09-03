@@ -16,3 +16,4 @@ pub use client::{
     curl_available, lookup, lookup_all, lookup_all_by_id, season_episodes, season_episodes_multi,
     EpisodeArt, SeasonData, Target,
 };
+pub(crate) use client::movie_videos;

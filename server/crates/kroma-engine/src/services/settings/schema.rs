@@ -160,6 +160,15 @@ pub fn groups(
                         true,
                     ),
                     row(
+                        "trailers",
+                        t("admin.trailers"),
+                        Some(t("admin.trailersHint")),
+                        "toggle",
+                        &[],
+                        g("trailers"),
+                        true,
+                    ),
+                    row(
                         "introDetection",
                         t("admin.introDetection"),
                         Some(t("admin.introDetectionHint")),

@@ -222,3 +222,5 @@ allowed to destroy history is a human who asks for it, on the admin surface,
   artwork sizes, is [`media.md`](../media/README.md).
 - **Choosing what to send a client** at play time is [`playback.md`](../playback/README.md).
 - **Who may see which source or title** is [`accounts.md`](../accounts/README.md).
+- **Trailers** on a matched movie, which clip, which language, and when the bytes are
+  kept, are [`trailers.md`](trailers.md).

@@ -61,6 +61,7 @@ export interface HtmlOptions {
   durationSec: number;
   startSec: number;
   listeners: EngineListeners;
+  trailerKey?: string;
 }
 
 export class HtmlEngine implements TvEngine {
@@ -137,8 +138,13 @@ export class HtmlEngine implements TvEngine {
       for (const [t, fn] of evs) v.removeEventListener(t, fn);
     };
 
-    if (opts.direct) {
-      attachDirectPlay(v, opts.client, opts.item, { autoplay: false });
+    if (opts.direct || opts.trailerKey) {
+      attachDirectPlay(v, opts.client, opts.item, {
+        autoplay: true,
+        url: opts.trailerKey
+          ? opts.client.streamUrl(opts.item.id, { role: 'trailer', key: opts.trailerKey })
+          : undefined,
+      });
       if (opts.startSec > 0.5) {
         const seekOnce = () => {
           v.currentTime = opts.startSec;

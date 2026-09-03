@@ -62,10 +62,11 @@ export function useDirectPlayback(
   client: KromaClient,
   item: MediaItem,
   audioLanguage?: string | null,
+  trailerKey?: string,
 ): Playback {
   const t = useT();
   const objectRef = useRef<HTMLObjectElement>(null);
-  const engine = useEngineLifecycle(client, item, audioLanguage);
+  const engine = useEngineLifecycle(client, item, audioLanguage, trailerKey);
   const {
     videoRef,
     engineRef,
@@ -104,16 +105,21 @@ export function useDirectPlayback(
     [engineRef, durationSec],
   );
 
-  useResumeAndPersist(client, item, {
-    getPosition,
-    getDuration: runtime,
-    paused: !playing,
-    endedNonce,
-  });
+  useResumeAndPersist(
+    client,
+    item,
+    {
+      getPosition,
+      getDuration: runtime,
+      paused: !playing,
+      endedNonce,
+    },
+    !trailerKey,
+  );
 
   usePlaybackHeartbeat({
     client,
-    enabled: client.hasAuth,
+    enabled: client.hasAuth && !trailerKey,
     eventsToken: () => client.sessionToken,
     itemId: item.id,
     durationMs: item.durationMs ?? null,

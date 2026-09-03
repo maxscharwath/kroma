@@ -103,3 +103,30 @@ describe('the cards', () => {
     expect(result.current.data.nextEpisodes[0]?.categoryLabel).toBe('genre.science-fiction');
   });
 });
+
+describe('the film the end of this one offers', () => {
+  it('skips this movie when it comes back as its own neighbour', async () => {
+    api.similar.mockResolvedValue([MOVIE, { ...MOVIE, id: 'm2', title: 'Sicario' }]);
+
+    const { result } = renderHook(() => useWebUpNext(t, MOVIE));
+
+    await waitFor(() =>
+      expect(result.current.postPlay).toMatchObject({ id: 'm2', title: 'Sicario' }),
+    );
+  });
+});
+
+describe('a trailer that has just ended', () => {
+  it('offers this movie rather than a neighbour', () => {
+    const clip = { ...MOVIE, trailer: true, durationMs: 120_000 } as MediaItem & {
+      trailer?: boolean;
+    };
+    api.similar.mockResolvedValue([{ ...MOVIE, id: 'm2', title: 'Sicario' }]);
+
+    const { result } = renderHook(() => useWebUpNext(t, clip));
+
+    expect(result.current.postPlay).toMatchObject({ id: 'm1', title: 'Arrival' });
+    expect(result.current.data.recommendations).toEqual([]);
+    expect(api.similar).not.toHaveBeenCalled();
+  });
+});

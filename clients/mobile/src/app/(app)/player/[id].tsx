@@ -1,15 +1,17 @@
 // The player screen: full-screen expo-video surface + Kroma chrome. Locks
 // landscape on phones, keeps the screen awake, resumes from saved progress,
-// reports the playback heartbeat, and autoplays the next episode on end.
+// reports the playback heartbeat, and autoplays the next episode on end. A
+// trailer (`?trailer=1`) gets the same chrome and none of that.
 
-import { ItemId } from '@kroma/core';
+import { asTrailerItem, ItemId } from '@kroma/core';
 import { useQuery } from '@tanstack/react-query';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Redirect, useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { ErrorView, Loading } from '#mobile/components/ui';
 import { useDownloads } from '#mobile/lib/downloads';
 import { useT } from '#mobile/lib/i18n';
-import { routeParam } from '#mobile/lib/nav';
+import { goBack, routeParam } from '#mobile/lib/nav';
 import { useClient } from '#mobile/lib/session';
 import { PlayerBody } from '#mobile/player/PlayerBody';
 
@@ -22,9 +24,49 @@ function resumeSec(positionMs: number | undefined, durationMs: number | null): n
   return positionMs / 1000;
 }
 
+function wantsTrailer(flag: string | undefined): boolean {
+  return flag === '1' || flag === 'true';
+}
+
 export default function PlayerRoute() {
-  const id = routeParam(useLocalSearchParams<{ id?: string }>().id);
-  return id ? <PlayerScreen id={ItemId.parse(id)} /> : <Redirect href="/" />;
+  const { id, trailer } = useLocalSearchParams<{ id?: string; trailer?: string }>();
+  const localId = routeParam(id);
+  if (!localId) return <Redirect href="/" />;
+  const itemId = ItemId.parse(localId);
+  return wantsTrailer(trailer) ? <TrailerScreen id={itemId} /> : <PlayerScreen id={itemId} />;
+}
+
+function TrailerScreen({ id }: Readonly<{ id: ItemId }>) {
+  const t = useT();
+  const client = useClient();
+  const router = useRouter();
+  useKeepAwake();
+
+  const item = useQuery({ queryKey: ['item', id], queryFn: () => client.media.item(id) });
+  const ready = useQuery({
+    queryKey: ['trailer', id],
+    queryFn: () => client.media.prepareTrailer(id),
+    retry: 0,
+  });
+  const clip = useMemo(
+    () =>
+      item.data && ready.data
+        ? { item: asTrailerItem(item.data, ready.data), key: ready.data.key }
+        : null,
+    [item.data, ready.data],
+  );
+
+  if (item.isError || ready.isError)
+    return (
+      <ErrorView
+        message={t('player.trailerUnavailable')}
+        retryLabel={t('player.back')}
+        onRetry={() => goBack(router)}
+      />
+    );
+  if (!clip) return <Loading label={t('common.loading')} />;
+
+  return <PlayerBody key={id} item={clip.item} startSec={0} trailerKey={clip.key} />;
 }
 
 function PlayerScreen({ id }: Readonly<{ id: ItemId }>) {

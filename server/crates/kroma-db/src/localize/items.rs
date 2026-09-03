@@ -55,6 +55,7 @@ pub fn overlay_each<'a>(
     let movie_tr = translations::resolve_many(&conn, metadata_core::ITEM, &movie_ids, locale)?;
     let ep_tr = translations::resolve_many(&conn, "episode", &ep_ids, locale)?;
     let show_tr = translations::resolve_many(&conn, metadata_core::SHOW, &show_ids, locale)?;
+    let trailers_on = super::trailer_flag::enabled(&conn);
     for item in items.iter_mut() {
         let table = if item.kind == Kind::Episode {
             &ep_tr
@@ -72,6 +73,7 @@ pub fn overlay_each<'a>(
         {
             item.show_title = Some(name.to_string());
         }
+        super::trailer_flag::apply(item, trailers_on);
     }
     Ok(())
 }
@@ -98,12 +100,14 @@ pub fn overlay_section_items(pool: &Pool, items: &mut [SectionItem], locale: &st
         .collect();
     let m_tr = translations::resolve_many(&conn, metadata_core::ITEM, &movie_ids, locale)?;
     let s_tr = translations::resolve_many(&conn, metadata_core::SHOW, &show_ids, locale)?;
+    let trailers_on = super::trailer_flag::enabled(&conn);
     for it in items.iter_mut() {
         match it {
             SectionItem::Movie { item } => {
                 if let Some(t) = m_tr.get(&item.id) {
                     apply_item(item, t);
                 }
+                super::trailer_flag::apply(item, trailers_on);
             }
             SectionItem::Show { show } => {
                 if let Some(t) = s_tr.get(&show.id) {

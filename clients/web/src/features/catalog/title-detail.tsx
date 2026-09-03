@@ -3,7 +3,7 @@
 import { ItemId, type SubjectId } from '@kroma/core';
 import { useCast, useT } from '@kroma/ui';
 import { type HostElement, Text } from '@kroma/ui/kit';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
 import { AiSuggestRail } from '#web/features/catalog/ai-suggest-rail';
@@ -14,7 +14,7 @@ import { TreatmentsPanel } from '#web/features/catalog/treatments-panel';
 import { useTitleRequest } from '#web/features/catalog/use-title-request';
 import { useAuth } from '#web/shared/lib/auth';
 import { useMyList } from '#web/shared/lib/mylist';
-import { userQueries } from '#web/shared/lib/queries';
+import { catalogQueries, userQueries } from '#web/shared/lib/queries';
 import type { SimilarTarget, TitleView } from '#web/shared/lib/titleView';
 import { useWatched } from '#web/shared/lib/watched';
 import { RouteLink } from '#web/shared/ui/route-link';
@@ -148,6 +148,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
   const t = useT();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     view,
     busy,
@@ -183,6 +184,11 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
     }
     navigate({ to: '/watch/$id', params: { id } });
   };
+  const playTrailer = () => {
+    if (!localId) return;
+    void queryClient.prefetchQuery(catalogQueries.watch(localId, true));
+    navigate({ to: '/watch/$id/trailer', params: { id: localId } });
+  };
 
   const fallbackOverlineKey = view.kind === 'show' ? 'content.series' : 'content.film';
   const overline = view.genres.length
@@ -210,6 +216,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
         inList={inList}
         toggleList={toggleList}
         onPlay={play}
+        onTrailer={playTrailer}
         onRequest={onRequestClick}
         back={<RouteLink to={backTo} />}
       />

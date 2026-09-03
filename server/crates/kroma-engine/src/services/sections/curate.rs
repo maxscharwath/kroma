@@ -552,6 +552,8 @@ mod tests {
             keywords: Vec::new(),
             tvdb_id: None,
             tmdb_url: String::new(),
+            videos: Vec::new(),
+            videos_fetched: false,
         }
     }
 
@@ -582,6 +584,7 @@ mod tests {
             default_file_id: None,
             markers: Vec::new(),
             audio_analysis: None,
+            has_trailer: false,
         }
     }
 

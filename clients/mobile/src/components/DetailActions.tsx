@@ -52,6 +52,7 @@ function barIcon(state: DownloadState) {
 export function DetailActions({
   playLabel,
   onPlay,
+  onTrailer,
   inList,
   onToggleList,
   watched,
@@ -61,6 +62,7 @@ export function DetailActions({
 }: Readonly<{
   playLabel: string;
   onPlay(): void;
+  onTrailer?(): void;
   inList: boolean;
   onToggleList(): void;
   watched?: boolean;
@@ -79,6 +81,14 @@ export function DetailActions({
   return (
     <Box style={s.actions}>
       <Button icon="player-play-filled" label={playLabel} onPress={onPlay} />
+      {onTrailer ? (
+        <Button
+          variant="outline"
+          icon="player-play"
+          label={t('player.trailer')}
+          onPress={onTrailer}
+        />
+      ) : null}
       <Pressable
         onPress={() => {
           const title = item.metadata?.title ?? item.title;

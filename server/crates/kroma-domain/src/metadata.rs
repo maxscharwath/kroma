@@ -53,6 +53,24 @@ pub struct Metadata {
     pub tvdb_id: Option<u64>,
     #[serde(rename = "tmdbUrl")]
     pub tmdb_url: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub videos: Vec<TrailerClip>,
+    #[serde(default, rename = "videosFetched")]
+    pub videos_fetched: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct TrailerClip {
+    pub key: String,
+    pub site: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default)]
+    pub official: bool,
+    #[serde(rename = "iso6391")]
+    pub iso_639_1: String,
+    #[serde(default)]
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -221,6 +239,8 @@ mod tests {
             keywords: Vec::new(),
             tvdb_id: None,
             tmdb_url: "https://themoviedb.org/movie/603".into(),
+            videos: Vec::new(),
+            videos_fetched: false,
         }
     }
 

@@ -29,7 +29,8 @@ function mkListeners(): EngineListeners {
 // EXACT direct / master URL the engine composed for the current mode.
 const client = fakeClient({
   media: {
-    streamUrl: (id: string) => `stream:${id}`,
+    streamUrl: (id: string, opts?: { role?: string; key: string }) =>
+      opts?.role === 'trailer' ? `trailer:${id}:${opts.key}` : `stream:${id}`,
     hlsMasterUrl: (id: string, aac = false, startSec = 0, audio = 0) =>
       `master:${id}:${aac}:${startSec}:${audio}`,
   },
@@ -135,6 +136,10 @@ describe('BaseTvEngine sourceUrl', () => {
     expect(make({ direct: true }).url()).toBe('stream:m1');
   });
 
+  it('direct mode opens the trailer stream when a key is set', () => {
+    expect(make({ direct: true, trailerKey: 'abc' }).url()).toBe('trailer:m1:abc');
+  });
+
   it('master mode returns the anchored HLS master with the chosen audio rendition', () => {
     const e = make({ direct: false, startSec: 30, initialRendition: 2 });
     expect(e.url()).toBe('master:m1:false:30:2');
@@ -155,6 +160,19 @@ describe('BaseTvEngine position / duration / paused', () => {
 });
 
 describe('BaseTvEngine fail / direct->master fallback', () => {
+  it('a trailer failure does not fall back to the movie master', () => {
+    const listeners = mkListeners();
+    const e = make({ direct: true, trailerKey: 'abc', startSec: 10, listeners });
+
+    e.triggerFail();
+
+    expect(e.modeNow).toBe('direct');
+    expect(e.url()).toBe('trailer:m1:abc');
+    expect(listeners.onError).toHaveBeenCalledTimes(1);
+    expect(listeners.onWaiting).not.toHaveBeenCalled();
+    expect(e.reanchorCalls).toEqual([]);
+  });
+
   it('a direct failure falls back ONCE to the master at the same position', () => {
     const listeners = mkListeners();
     const e = make({ direct: true, startSec: 55, listeners });

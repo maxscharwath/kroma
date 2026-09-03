@@ -33,6 +33,7 @@ import type { StoryboardTile } from '#mobile/player/useStoryboard';
 export function ControlsLayer({
   engine,
   item,
+  trailer,
   insets,
   poke,
   onBack,
@@ -45,6 +46,7 @@ export function ControlsLayer({
 }: Readonly<{
   engine: Engine;
   item: MediaItem;
+  trailer?: boolean;
   insets: EdgeInsets;
   poke(): void;
   onBack(): void;
@@ -62,7 +64,9 @@ export function ControlsLayer({
   // player's top bar reads.
   const tag = episodeTag(item);
   const episodeName = item.showTitle ? (item.metadata?.title ?? item.title) : undefined;
-  const sub = [tag, episodeName].filter(Boolean).join(' · ') || undefined;
+  const sub = trailer
+    ? t('player.trailer')
+    : [tag, episodeName].filter(Boolean).join(' · ') || undefined;
 
   const open = (view?: SheetView) => {
     onOpenSheet(view);

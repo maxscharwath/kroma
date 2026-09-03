@@ -99,6 +99,13 @@ pub fn theme_songs_enabled(settings: &Settings) -> bool {
     settings.get_bool("themeSongs", false)
 }
 
+/// Whether trailers are on for the whole server (spec LIB-10): while off, no
+/// catalog is fetched, no copy is made, and no movie offers a trailer. On by
+/// default; the operator turns them off.
+pub fn trailers_enabled(settings: &Settings) -> bool {
+    settings.get_bool("trailers", true)
+}
+
 /// The TMDB metadata language used when enriching the catalog (e.g. `fr-FR`)
 /// the persisted `tmdbLanguage` setting, falling back to the env-configured
 /// `config.tmdb_language` (default `en-US`) when unset. The catalog stores ONE
@@ -520,6 +527,7 @@ mod tests {
         let pool = test_pool();
         let s = settings(&pool);
         assert!(!theme_songs_enabled(&s));
+        assert!(trailers_enabled(&s));
         assert!(!remote_access_enabled(&s));
         assert_eq!(public_url(&s), "");
         assert_eq!(remote_access_token(&s), "");
@@ -527,12 +535,14 @@ mod tests {
             &pool,
             BTreeMap::from([
                 ("themeSongs".to_string(), json!(true)),
+                ("trailers".to_string(), json!(false)),
                 ("remoteAccess".to_string(), json!(true)),
                 ("remoteUrl".to_string(), json!("https://kroma.example.com/")),
                 ("remoteAccessToken".to_string(), json!("secret")),
             ]),
         );
         assert!(theme_songs_enabled(&s));
+        assert!(!trailers_enabled(&s));
         assert!(remote_access_enabled(&s));
         assert_eq!(public_url(&s), "https://kroma.example.com"); // trailing slash trimmed
         assert_eq!(remote_access_token(&s), "secret");

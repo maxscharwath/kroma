@@ -199,3 +199,30 @@ television must not fail with a blank error. It says, plainly:
 The message names the real cause (the device, not the file), points at a surface that *does* work,
 and names the one lever that would fix it (admin-enabled transcode). It never blames the user, and
 it never pretends the file is broken. The file is fine; this screen just can't decode it.
+
+## Trailers
+
+Status: **AGREED**. Which clip exists, and in which language, is
+[`library/trailers.md`](../library/trailers.md). This section is only how it plays.
+
+A trailer uses the same player as the movie. The person already knows that player. A
+second player, or a jump to another site, is not the product.
+
+**PLAY-1** (AGREED) - Playing a trailer opens the same player the movie uses, with the
+movie's title and artwork still on screen, labelled as a trailer.
+
+**PLAY-2** (AGREED) - A trailer always starts from the beginning. There is no resume
+point.
+
+**PLAY-3** (AGREED) - Watching a trailer does not write watch progress for the movie,
+does not put the movie in continue-watching, and does not mark the movie watched.
+
+**PLAY-4** (AGREED) - When a trailer ends, the player offers this movie. Home or
+back returns to the movie they came from. The next episode, if any, does not
+autoplay.
+
+**PLAY-5** (AGREED) - A trailer that cannot start says so in one sentence. It does not
+start the movie instead.
+
+**PLAY-6** (AGREED) - The first play of a trailer does not wait for the whole
+copy before the picture can start, when a playable prefix is already available.

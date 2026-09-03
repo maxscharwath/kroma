@@ -127,6 +127,8 @@ pub(crate) fn row_to_item(r: &Row) -> rusqlite::Result<MediaItem> {
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        // No trailer storage in this crate; the trailers service flips the flag.
+        has_trailer: false,
     })
 }
 

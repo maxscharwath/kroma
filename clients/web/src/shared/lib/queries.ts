@@ -10,7 +10,7 @@ import type {
   ShowId,
   UpNext,
 } from '@kroma/core';
-import { genreSlugs } from '@kroma/core';
+import { asTrailerItem, genreSlugs } from '@kroma/core';
 import { queryOptions } from '@tanstack/react-query';
 import {
   kromaClient,
@@ -139,12 +139,27 @@ export const catalogQueries = {
 
   /** The player payload: the item (art/stream URLs resolved) + its upcoming
    * episodes. `next` (the immediate one) drives autoplay; the full list fills the
-   * player's "up next" episode rail. */
-  watch: (id: ItemId) =>
+   * player's "up next" episode rail. A trailer play skips that and starts the
+   * local copy without waiting for it to finish. */
+  watch: (id: ItemId, trailer = false) =>
     queryOptions({
-      queryKey: ['watch', id] as const,
+      queryKey: ['watch', id, trailer ? 'trailer' : 'movie'] as const,
       queryFn: async () => {
         const c = kromaClient();
+        if (trailer) {
+          const [item, ready] = await Promise.all([c.media.item(id), c.media.prepareTrailer(id)]);
+          const patched = asTrailerItem(item, ready);
+          return {
+            item: {
+              ...toMovieView(c, patched),
+              stream: c.media.streamUrl(id, { role: 'trailer', key: ready.key }),
+              subs: [],
+              trailer: true,
+            },
+            next: null,
+            following: [],
+          };
+        }
         const [item, following] = await Promise.all([c.media.item(id), c.playback.following(id)]);
         return { item: toMovieView(c, item), next: following[0] ?? null, following };
       },

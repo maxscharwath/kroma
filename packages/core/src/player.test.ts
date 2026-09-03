@@ -1,6 +1,6 @@
 import { createKromaClient, type MediaItem } from '@kroma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { attachDirectPlay, declaredAspect, formatRuntime } from './player';
+import { attachDirectPlay, beginPlayback, declaredAspect, formatRuntime } from './player';
 
 const client = createKromaClient({ baseUrl: 'http://nas' });
 const ITEM = { id: 'i1', video: { codec: 'h264', bitDepth: 8 } } as unknown as MediaItem;
@@ -47,6 +47,14 @@ describe('attachDirectPlay', () => {
     expect(verdict.messageKey).toBeTruthy();
   });
 
+  it('uses an explicit url when the caller already resolved one', () => {
+    const { el } = fakeVideo();
+
+    attachDirectPlay(el, client, ITEM, { url: 'http://nas/api/items/i1/trailer/stream?key=abc' });
+
+    expect(el.src).toBe('http://nas/api/items/i1/trailer/stream?key=abc');
+  });
+
   it('seeks once metadata loads, then unsubscribes itself', () => {
     const { el, fire, count } = fakeVideo();
     attachDirectPlay(el, client, ITEM, { startMs: 90_000 });
@@ -76,9 +84,45 @@ describe('attachDirectPlay', () => {
     expect(quiet.play).not.toHaveBeenCalled();
 
     const blocked = fakeVideo({ playRejects: true });
-    attachDirectPlay(blocked.el, client, ITEM, { autoplay: true });
-    expect(blocked.play).toHaveBeenCalledTimes(1);
-    await expect(blocked.play.mock.results[0]?.value).rejects.toThrow('autoplay blocked');
+    expect(() => attachDirectPlay(blocked.el, client, ITEM, { autoplay: true })).not.toThrow();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(blocked.play).toHaveBeenCalled();
+  });
+});
+
+describe('beginPlayback', () => {
+  it('falls back to muted play and unmutes when sound autoplay is blocked', async () => {
+    let attempts = 0;
+    const el = {
+      muted: false,
+      async play() {
+        attempts += 1;
+        if (attempts === 1) throw new Error('NotAllowedError');
+      },
+    };
+
+    beginPlayback(el as unknown as HTMLVideoElement);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(attempts).toBe(2);
+    expect(el.muted).toBe(false);
+  });
+
+  it('does not leave the element muted when even muted play is refused', async () => {
+    const el = {
+      muted: false,
+      async play() {
+        throw new Error('NotAllowedError');
+      },
+    };
+
+    beginPlayback(el as unknown as HTMLVideoElement);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(el.muted).toBe(false);
   });
 });
 

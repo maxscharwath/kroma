@@ -67,6 +67,18 @@ describe('the media endpoints', () => {
       method: 'GET',
       path: '/people/details?name=Denis+V',
     },
+    {
+      name: 'trailer',
+      call: (c) => c.media.trailer(spaced),
+      method: 'GET',
+      path: '/items/i%201/trailer',
+    },
+    {
+      name: 'prepareTrailer',
+      call: (c) => c.media.prepareTrailer(spaced),
+      method: 'POST',
+      path: '/items/i%201/trailer/prepare',
+    },
     { name: 'scan', call: (c) => c.media.scan(), method: 'POST', path: '/scan' },
     { name: 'logs', call: (c) => c.media.logs(), method: 'GET', path: '/logs?tail=200' },
     {
@@ -96,6 +108,11 @@ describe('the URL builders, which make no request', () => {
 
   it.each([
     ['streamUrl', client.media.streamUrl(spaced), '/items/i%201/stream'],
+    [
+      'streamUrl for a trailer',
+      client.media.streamUrl(spaced, { role: 'trailer', key: 'dQw4w9WgXcQ' }),
+      '/items/i%201/trailer/stream?key=dQw4w9WgXcQ',
+    ],
     ['subtitleUrl', client.media.subtitleUrl(spaced, 3), '/items/i%201/subtitles/3.vtt'],
     ['storyboardUrl', client.media.storyboardUrl(spaced), '/items/i%201/storyboard'],
     ['posterUrl', client.media.artwork.posterUrl(spaced), '/items/i%201/poster'],

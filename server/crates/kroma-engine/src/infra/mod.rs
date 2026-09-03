@@ -20,4 +20,5 @@ pub mod storyboard;
 pub mod stream;
 pub mod subtitles;
 pub mod theme;
+pub mod trailers;
 pub mod watch;

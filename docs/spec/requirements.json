@@ -878,5 +878,195 @@
     "text": "A user who cannot sign in can ask for a reset from the sign-in",
     "file": "docs/spec/admin/README.md",
     "line": 136
+  },
+  {
+    "id": "LIB-1",
+    "domain": "LIB",
+    "space": "library",
+    "number": 1,
+    "status": "AGREED",
+    "text": "A matched movie may carry a trailer catalog from its",
+    "file": "docs/spec/library/trailers.md",
+    "line": 19
+  },
+  {
+    "id": "LIB-2",
+    "domain": "LIB",
+    "space": "library",
+    "number": 2,
+    "status": "AGREED",
+    "text": "The catalog is stored with the title. A later browse does",
+    "file": "docs/spec/library/trailers.md",
+    "line": 23
+  },
+  {
+    "id": "LIB-3",
+    "domain": "LIB",
+    "space": "library",
+    "number": 3,
+    "status": "AGREED",
+    "text": "A library that was matched before trailers existed still",
+    "file": "docs/spec/library/trailers.md",
+    "line": 26
+  },
+  {
+    "id": "LIB-4",
+    "domain": "LIB",
+    "space": "library",
+    "number": 4,
+    "status": "AGREED",
+    "text": "KROMA picks one clip from the catalog, in this order: a",
+    "file": "docs/spec/library/trailers.md",
+    "line": 37
+  },
+  {
+    "id": "LIB-5",
+    "domain": "LIB",
+    "space": "library",
+    "number": 5,
+    "status": "AGREED",
+    "text": "An official clip of a given kind and language outranks an",
+    "file": "docs/spec/library/trailers.md",
+    "line": 41
+  },
+  {
+    "id": "LIB-6",
+    "domain": "LIB",
+    "space": "library",
+    "number": 6,
+    "status": "AGREED",
+    "text": "When the catalog has no clip at all, the movie has no",
+    "file": "docs/spec/library/trailers.md",
+    "line": 44
+  },
+  {
+    "id": "LIB-7",
+    "domain": "LIB",
+    "space": "library",
+    "number": 7,
+    "status": "AGREED",
+    "text": "Trailer bytes are fetched only when someone plays that",
+    "file": "docs/spec/library/trailers.md",
+    "line": 54
+  },
+  {
+    "id": "LIB-8",
+    "domain": "LIB",
+    "space": "library",
+    "number": 8,
+    "status": "AGREED",
+    "text": "The copy is in a form every first-class surface can",
+    "file": "docs/spec/library/trailers.md",
+    "line": 59
+  },
+  {
+    "id": "LIB-9",
+    "domain": "LIB",
+    "space": "library",
+    "number": 9,
+    "status": "AGREED",
+    "text": "Offline, a trailer that already has a local copy still",
+    "file": "docs/spec/library/trailers.md",
+    "line": 63
+  },
+  {
+    "id": "LIB-10",
+    "domain": "LIB",
+    "space": "library",
+    "number": 10,
+    "status": "AGREED",
+    "text": "An operator may turn trailers off for the whole server.",
+    "file": "docs/spec/library/trailers.md",
+    "line": 67
+  },
+  {
+    "id": "PLAY-1",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 1,
+    "status": "AGREED",
+    "text": "Playing a trailer opens the same player the movie uses, with the",
+    "file": "docs/spec/playback/README.md",
+    "line": 211
+  },
+  {
+    "id": "PLAY-2",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 2,
+    "status": "AGREED",
+    "text": "A trailer always starts from the beginning. There is no resume",
+    "file": "docs/spec/playback/README.md",
+    "line": 214
+  },
+  {
+    "id": "PLAY-3",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 3,
+    "status": "AGREED",
+    "text": "Watching a trailer does not write watch progress for the movie,",
+    "file": "docs/spec/playback/README.md",
+    "line": 217
+  },
+  {
+    "id": "PLAY-4",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 4,
+    "status": "AGREED",
+    "text": "When a trailer ends, the player offers this movie. Home or",
+    "file": "docs/spec/playback/README.md",
+    "line": 220
+  },
+  {
+    "id": "PLAY-5",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 5,
+    "status": "AGREED",
+    "text": "A trailer that cannot start says so in one sentence. It does not",
+    "file": "docs/spec/playback/README.md",
+    "line": 224
+  },
+  {
+    "id": "PLAY-6",
+    "domain": "PLAY",
+    "space": "playback",
+    "number": 6,
+    "status": "AGREED",
+    "text": "The first play of a trailer does not wait for the whole",
+    "file": "docs/spec/playback/README.md",
+    "line": 227
+  },
+  {
+    "id": "SURF-1",
+    "domain": "SURF",
+    "space": "surfaces",
+    "number": 1,
+    "status": "AGREED",
+    "text": "Movie detail offers a Trailer action when that movie has a trailer",
+    "file": "docs/spec/surfaces/README.md",
+    "line": 57
+  },
+  {
+    "id": "SURF-2",
+    "domain": "SURF",
+    "space": "surfaces",
+    "number": 2,
+    "status": "AGREED",
+    "text": "The Trailer action is hidden when the movie has no trailer, when",
+    "file": "docs/spec/surfaces/README.md",
+    "line": 60
+  },
+  {
+    "id": "SURF-3",
+    "domain": "SURF",
+    "space": "surfaces",
+    "number": 3,
+    "status": "AGREED",
+    "text": "The Trailer action is not required of show detail in this version.",
+    "file": "docs/spec/surfaces/README.md",
+    "line": 64
   }
 ]

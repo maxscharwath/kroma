@@ -44,6 +44,7 @@ struct Engine {
     language: String,
     data_dir: PathBuf,
     theme_songs: bool,
+    trailers: bool,
     bus: Bus,
     embedder: Point,
 }
@@ -153,6 +154,7 @@ fn engine_for(state: &SharedState, api_key: String) -> Engine {
         language: crate::services::settings::metadata_language(&state.settings, &state.config),
         data_dir: state.config.data_dir.clone(),
         theme_songs: crate::services::settings::theme_songs_enabled(&state.settings),
+        trailers: crate::services::settings::trailers_enabled(&state.settings),
         bus: state.events.clone(),
         embedder: state.embedder.clone(),
     }
@@ -202,6 +204,8 @@ fn blank_metadata() -> Metadata {
         keywords: Vec::new(),
         tvdb_id: None,
         tmdb_url: String::new(),
+        videos: Vec::new(),
+        videos_fetched: false,
     }
 }
 
@@ -471,6 +475,14 @@ fn process_job(
         if !stale.is_empty() {
             fill_langs(eng, &job, tmdb_id, &stale);
         }
+        if !job.is_show
+            && eng.trailers
+            && crate::services::trailers::fill_matched(&eng.pool, &eng.api_key, &job.id)
+        {
+            eng.bus.publish(ServerEvent::ItemUpdated {
+                id: job.id.clone(),
+            });
+        }
         counters.resolved.fetch_add(1, Ordering::Relaxed);
         bump(eng, counters, total, activity);
         return;
@@ -515,11 +527,14 @@ fn process_job(
         .collect();
     // Disabled leaves `theme_url` None, so a re-scan also clears any theme
     // cached while the feature was on.
-    let meta = if eng.theme_songs {
+    let mut meta = if eng.theme_songs {
         theme::localize(&eng.data_dir, meta)
     } else {
         meta
     };
+    if !job.is_show && eng.trailers {
+        crate::services::trailers::attach_movie_videos(&eng.api_key, &mut meta);
+    }
     let doc = kroma_domain::build_doc(&job.title, job.year, &meta);
     let vector = crate::services::embeddings::embed(&eng.embedder, &doc);
     let write = if job.is_show {
@@ -848,12 +863,15 @@ mod tests {
                 keywords: Vec::new(),
                 tvdb_id: None,
                 tmdb_url: String::new(),
+                videos: Vec::new(),
+                videos_fetched: false,
             }),
             abs_path: None,
             files: Vec::new(),
             default_file_id: None,
             markers: Vec::new(),
             audio_analysis: None,
+            has_trailer: false,
         }
     }
 

@@ -1,6 +1,7 @@
-import { formatRuntime, genreLabels, qualityBadge } from '@kroma/core';
+import { asTrailerItem, formatRuntime, genreLabels, qualityBadge } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Button, FocusRegion, styles, useFocusNav } from '@kroma/ui/kit';
+import { Button, FocusRegion, styles, Text, useFocusNav } from '@kroma/ui/kit';
+import { useState } from 'react';
 import { useMyList } from '#tv/app/providers/mylist';
 import { useWatched } from '#tv/app/providers/watched';
 import { useClient, useNav, useParams } from '#tv/app/router';
@@ -29,6 +30,8 @@ export function TvMovieDetail() {
   const myList = useMyList();
   const watched = useWatched();
   useFocusNav({ onBack: nav.back });
+  const [trailerBusy, setTrailerBusy] = useState(false);
+  const [trailerErr, setTrailerErr] = useState<string | null>(null);
 
   const meta = item.metadata;
   const metaLong = [
@@ -64,6 +67,26 @@ export function TvMovieDetail() {
             label={t('player.play')}
             onPress={() => nav.go('player', { item })}
           />
+          {item.hasTrailer ? (
+            <Button
+              size="lg"
+              variant="outline"
+              icon="player-play"
+              label={t('player.trailer')}
+              loading={trailerBusy}
+              onPress={() => {
+                setTrailerBusy(true);
+                setTrailerErr(null);
+                void client
+                  .prepareTrailer(item.id)
+                  .then((ready) => {
+                    nav.go('player', { item: asTrailerItem(item, ready), trailerKey: ready.key });
+                  })
+                  .catch(() => setTrailerErr(t('player.trailerUnavailable')))
+                  .finally(() => setTrailerBusy(false));
+              }}
+            />
+          ) : null}
           <ListButton inList={myList.has(item.id)} onToggle={() => myList.toggle(item.id)} />
           <WatchedButton watched={watched.has(item.id)} onToggle={() => watched.toggle(item.id)} />
           <ReportButton
@@ -73,6 +96,11 @@ export function TvMovieDetail() {
       }
     >
       <EndsAtHint runtimeMs={item.durationMs} />
+      {trailerErr ? (
+        <Text variant="bodyTv" color="danger">
+          {trailerErr}
+        </Text>
+      ) : null}
       <CastRow cast={item.metadata?.cast} crew={item.metadata?.crew} />
       <TvAiSuggestRow id={item.id} />
     </TvDetailScaffold>

@@ -603,6 +603,8 @@
   "admin.topUsers": "Top des utilisateurs",
   "admin.topUsersEmpty": "Aucun compte n'a regardé quoi que ce soit sur cette période.",
   "admin.totalCapacity": "Capacité totale",
+  "admin.trailers": "Bandes-annonces",
+  "admin.trailersHint": "Ouvrir une fiche ne télécharge rien. La bande-annonce n'est récupérée que lorsqu'on la lance.",
   "admin.transcodeCacheBudget": "sur {limit} alloués",
   "admin.transcodeCacheFolder": "Dossier de cache des transcodages",
   "admin.transcodeCacheFolderDesc": "Fichiers temporaires générés pendant le transcodage",

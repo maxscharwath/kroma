@@ -26,3 +26,4 @@ export * from './push-labels';
 export * from './remote';
 export * from './slug';
 export * from './subtitles';
+export * from './trailer';

@@ -29,6 +29,7 @@ pub(super) fn item(id: &str) -> MediaItem {
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     }
 }
 

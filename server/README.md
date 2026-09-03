@@ -12,10 +12,14 @@ It does three things:
 2. Exposes metadata over a small JSON REST API.
 3. Range-streams the original media files to clients.
 
-It **never transcodes**. Playback is always direct-play: the client (web / TV)
-decodes HEVC/H.265, AV1, H.264, etc. itself. `ffprobe` is used *only* to read
-metadata, and there is no ffmpeg encode pipeline. If `ffprobe` is missing, the
-server still runs and infers the codec from the file extension.
+Playback of library files is always direct-play: the client (web / TV) decodes
+HEVC/H.265, AV1, H.264, etc. itself. `ffprobe` is used *only* to read metadata.
+If `ffprobe` is missing, the server still runs and infers the codec from the
+file extension.
+
+Movie trailers are the exception: the first play shells out to `yt-dlp` and
+`ffmpeg` to keep a local H.264 MP4. Opening a title does not start that
+download. `yt-dlp` must be on `PATH` for a trailer that is not already cached.
 
 The library is persisted in SQLite (`<data>/kroma.db`, WAL mode). A scan
 computes the full set of libraries/shows/items and atomically swaps it in; reads
@@ -300,6 +304,9 @@ is a list, not a wildcard: see [Which browsers are answered](#which-browsers-are
 | GET    | `/api/shows/:id/poster`    | Deterministic SVG show poster.                |
 | GET    | `/api/shows/:id/metadata`  | TMDB details + IDs for the show.              |
 | GET    | `/api/items/:id`           | One item, movie or episode (404 if missing). |
+| GET    | `/api/items/:id/trailer`   | Session. Picks a trailer clip for this viewer. |
+| POST   | `/api/items/:id/trailer/prepare` | Session. Starts the local copy; does not wait. |
+| GET    | `/api/items/:id/trailer/stream?key=` | Public. Range of a finished copy, or a growing fMP4. |
 | GET    | `/api/items/:id/stream`    | Range-streamed original file.                 |
 | GET    | `/api/items/:id/poster`    | Deterministic SVG placeholder poster.         |
 | GET    | `/api/items/:id/metadata`  | TMDB details + IDs (episode → parent show).   |

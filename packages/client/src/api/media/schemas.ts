@@ -61,8 +61,18 @@ export const MediaItem = CatalogEntry.extend(Tracks.shape).extend({
   defaultFileId: MediaFileId.nullish(),
   markers: z.array(Marker).nullish(),
   audioAnalysis: AudioAnalysis.nullish(),
+  hasTrailer: z.boolean().optional(),
 });
 export type MediaItem = z.infer<typeof MediaItem>;
+
+export const TrailerReady = z.object({
+  language: z.string(),
+  key: z.string(),
+  durationMs: z.number().nullish(),
+  container: z.string(),
+  video: VideoTrack.nullish(),
+});
+export type TrailerReady = z.infer<typeof TrailerReady>;
 
 /** Episodes are sorted by episode number. */
 export const Season = z.object({

@@ -48,6 +48,21 @@ Everything past these six is a *may*, not a *must*. "Not on TV yet" is measurabl
 this list and nothing else: name the rung, and the gap is a line in the matrix rather than an
 argument.
 
+## Trailers
+
+Status: **AGREED**. Which clip exists is [`library/trailers.md`](../library/trailers.md).
+How it plays is [`playback.md`](../playback/README.md). This section is only whether a
+surface offers the action.
+
+**SURF-1** (AGREED) - Movie detail offers a Trailer action when that movie has a trailer
+in the catalog.
+
+**SURF-2** (AGREED) - The Trailer action is hidden when the movie has no trailer, when
+trailers are turned off, or when the bytes cannot be kept. The person is not offered a
+control that will fail.
+
+**SURF-3** (AGREED) - The Trailer action is not required of show detail in this version.
+
 ## First-class and best-effort
 
 Status: **AGREED**

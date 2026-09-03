@@ -1,5 +1,5 @@
 export * from './artwork-scale';
-export type { HlsMasterDeclaration } from './client';
+export type { HlsMasterDeclaration, StreamUrlOpts } from './client';
 export * from './credits';
 export * from './ids';
 export * from './schemas';

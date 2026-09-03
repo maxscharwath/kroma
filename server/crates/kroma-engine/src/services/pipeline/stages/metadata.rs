@@ -27,16 +27,22 @@ fn enumerate(state: &SharedState) -> Result<Vec<(String, String)>> {
     // done under its old `title:year` and a correction never gets revisited.
     let item_pins = crate::db::tmdb_pin::all_for_kind(&state.db, ITEM)?;
     let show_pins = crate::db::tmdb_pin::all_for_kind(&state.db, SHOW)?;
-    // The languages and the stored payload's revision are part of it too, or a
-    // title already done is never revisited when either of them changes.
+    // The languages, the stored payload's revision, and the trailer catalog
+    // generation are part of it too, or a title already done is never
+    // revisited when any of them changes.
     let langs = crate::i18n::SUPPORTED_LOCALES.join(",");
     let rev = crate::db::translations::REV;
+    let trailers = crate::services::trailers::CATALOG_REV;
     for i in crate::db::list_items(&state.db, None)? {
         if matches!(i.kind, Kind::Movie | Kind::Video) {
             let pin = item_pins.get(&i.id).copied().unwrap_or(0);
             out.push((
                 i.id,
-                format!("{}:{}:{pin}:{langs}:r{rev}", i.title, i.year.unwrap_or(0)),
+                format!(
+                    "{}:{}:{pin}:{langs}:r{rev}:t{trailers}",
+                    i.title,
+                    i.year.unwrap_or(0)
+                ),
             ));
         }
     }
@@ -75,8 +81,22 @@ mod tests {
 
         let (_, sig) = sigs.iter().find(|(id, _)| id == "m1").expect("the movie");
         assert!(
-            sig.ends_with(&format!(":r{}", crate::db::translations::REV)),
+            sig.contains(&format!(":r{}", crate::db::translations::REV)),
             "signature {sig} does not carry the revision"
+        );
+    }
+
+    #[test]
+    fn the_signature_carries_the_trailer_catalog_generation() {
+        let state = test_support::test_state();
+        test_support::seed_movie(&state, "m1");
+
+        let sigs = enumerate(&state).unwrap();
+
+        let (_, sig) = sigs.iter().find(|(id, _)| id == "m1").expect("the movie");
+        assert!(
+            sig.ends_with(&format!(":t{}", crate::services::trailers::CATALOG_REV)),
+            "signature {sig} does not carry the trailer catalog generation"
         );
     }
 }

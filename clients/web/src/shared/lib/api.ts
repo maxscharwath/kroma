@@ -118,6 +118,7 @@ export interface MovieView extends MediaItem {
   backdrop: string | null;
   stream: string;
   subs: SubtitleView[];
+  trailer?: boolean;
 }
 
 /** A show with art pre-resolved. */

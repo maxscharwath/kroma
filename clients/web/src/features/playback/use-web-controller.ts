@@ -133,6 +133,7 @@ export function useWebController(item: MovieView): WebController {
 
   const [bytes, setBytes] = useState(0);
   useEffect(() => {
+    if (item.trailer) return;
     let cancelled = false;
     fetch(item.stream, { headers: { Range: 'bytes=0-1' } })
       .then((r) => {
@@ -144,7 +145,7 @@ export function useWebController(item: MovieView): WebController {
     return () => {
       cancelled = true;
     };
-  }, [item.stream]);
+  }, [item.stream, item.trailer]);
 
   const fpsSamplerRef = useRef(makeFpsSampler());
   const statsRef = useRef<() => PlayerStats>(() => ({}));

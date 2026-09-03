@@ -36,7 +36,7 @@ export class AvplayEngine extends BaseTvEngine {
     const api = getAvplay();
     if (!api) throw new Error('AVPlay unavailable');
     this.api = api;
-    if (this.filter !== 'off' && this.mode === 'direct') {
+    if (this.filter !== 'off' && this.mode === 'direct' && !this.trailerKey) {
       // The filter runs server-side, so a filtered start opens the remux (at the
       // same position) instead of the original file.
       this.filterMaster = true;
@@ -57,6 +57,7 @@ export class AvplayEngine extends BaseTvEngine {
   /** A filtered master carries the loudness filter in its mode segment: AVPlay
    * has no client-side audio DSP, so the server's remux applies it instead. */
   protected sourceUrl(): string {
+    if (this.trailerKey) return super.sourceUrl();
     if (this.mode === 'master' && this.filter !== 'off') {
       return this.client.media.hlsMasterUrl(this.item.id, false, this.baseSec, this.rendition, {
         filter: serverAudioFilter(this.filter),
@@ -70,6 +71,10 @@ export class AvplayEngine extends BaseTvEngine {
    * filtered direct source moves onto the remux, and vice versa when turned off. */
   setAudioFilter(mode: AudioFilterMode): void {
     if (mode === this.filter) return;
+    if (this.trailerKey) {
+      this.listeners.onAudioFilterUnavailable?.();
+      return;
+    }
     this.filter = mode;
     if (this.mode === 'direct') {
       this.filterMaster = true;

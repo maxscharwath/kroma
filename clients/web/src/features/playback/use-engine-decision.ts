@@ -34,6 +34,7 @@ export function useEngineDecision(item: MovieView): EngineChoice {
   const [forceHls, setForceHls] = useState(false);
   const [enginePref, setEnginePref] = useState<WebEnginePref>(getWebEnginePref);
   const decision = useMemo<EngineDecision>(() => {
+    if (item.trailer) return { kind: 'direct', aacMaster: false };
     if (forceHls || enginePref === 'remux' || enginePref === 'shaka') {
       return {
         kind: 'web-mse',

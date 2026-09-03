@@ -1,48 +1,25 @@
 import { ItemId } from '@kroma/core';
-import { color } from '@kroma/ui/kit';
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Player } from '#web/features/playback/player';
-import { isAuthed } from '#web/shared/lib/api';
-import { catalogQueries } from '#web/shared/lib/queries';
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import {
+  ensureWatch,
+  trailerSearch,
+  WatchPage,
+  WatchPending,
+} from '#web/features/playback/watch-page';
 
 export const Route = createFileRoute('/_app/watch/$id')({
-  loader: async ({ params, context: { queryClient } }) => {
-    if (!isAuthed()) throw redirect({ to: '/' });
-    // The next episode (for the Netflix-style "up next" autoplay) is sequence-based
-    // and public, so it loads alongside the item.
-    await queryClient.ensureQueryData(catalogQueries.watch(ItemId.parse(params.id)));
+  validateSearch: trailerSearch,
+  beforeLoad: ({ search, params }) => {
+    if (search.trailer) throw redirect({ to: '/watch/$id/trailer', params });
   },
-  // Player is fullscreen with its own buffering spinner; a black hold beats a
-  // structural skeleton here.
-  pendingComponent: () => (
-    <div style={{ position: 'fixed', inset: 0, background: color('black') }} />
-  ),
-  component: WatchPage,
+  loader: async ({ params, context: { queryClient } }) => {
+    await ensureWatch(queryClient, ItemId.parse(params.id), false);
+  },
+  pendingComponent: WatchPending,
+  component: WatchMoviePage,
 });
 
-function WatchPage() {
+function WatchMoviePage() {
   const id = ItemId.parse(Route.useParams().id);
-  const {
-    data: { item, next, following },
-  } = useSuspenseQuery(catalogQueries.watch(id));
-  const navigate = useNavigate();
-  return (
-    <Player
-      key={item.id}
-      item={item}
-      next={next}
-      following={following}
-      onPlayNext={next ? () => navigate({ to: '/watch/$id', params: { id: next.id } }) : undefined}
-      onPlayItem={(id) => navigate({ to: '/watch/$id', params: { id } })}
-      onGoHome={() => navigate({ to: '/', replace: true })}
-      // Back returns to the detail page of what was playing: the series page for an
-      // episode, otherwise the movie page (mirrors the catalog cards' deep-link rule).
-      onClose={() =>
-        item.kind === 'episode' && item.showId
-          ? navigate({ to: '/shows/$id', params: { id: item.showId }, replace: true })
-          : navigate({ to: '/movies/$id', params: { id: item.id }, replace: true })
-      }
-    />
-  );
+  return <WatchPage id={id} trailer={false} />;
 }

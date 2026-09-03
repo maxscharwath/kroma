@@ -6,12 +6,16 @@ export interface ResolvedStart {
   setStartSec: (sec: number) => void;
 }
 
-export function useResolvedStart(client: KromaClient, item: MediaItem): ResolvedStart {
+export function useResolvedStart(
+  client: KromaClient,
+  item: MediaItem,
+  opts?: { skipResume?: boolean },
+): ResolvedStart {
   // Resolved BEFORE the engine is built so it opens there; loading at 0 and re-seeking
   // reloads the whole stream. Keyed by id: an item swap leaves this stale for a render.
   const [resolved, setResolved] = useState<{ id: string; sec: number } | null>(null);
   useEffect(() => {
-    if (!client.hasAuth) {
+    if (opts?.skipResume || !client.hasAuth) {
       setResolved({ id: item.id, sec: 0 });
       return;
     }
@@ -36,7 +40,7 @@ export function useResolvedStart(client: KromaClient, item: MediaItem): Resolved
       done = true;
       clearTimeout(timer);
     };
-  }, [client, item]);
+  }, [client, item, opts?.skipResume]);
 
   const setStartSec = useCallback((sec: number) => setResolved({ id: item.id, sec }), [item.id]);
 

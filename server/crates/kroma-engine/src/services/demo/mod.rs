@@ -288,6 +288,7 @@ fn movie(
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     })
 }
 
@@ -334,6 +335,7 @@ fn episode(
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     })
 }
 

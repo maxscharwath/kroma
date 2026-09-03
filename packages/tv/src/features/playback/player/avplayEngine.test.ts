@@ -94,7 +94,8 @@ function mkListeners(): EngineListeners {
 
 const client = fakeClient({
   media: {
-    streamUrl: (id: string) => `stream:${id}`,
+    streamUrl: (id: string, opts?: { role?: string; key: string }) =>
+      opts?.role === 'trailer' ? `trailer:${id}:${opts.key}` : `stream:${id}`,
     hlsMasterUrl: (
       id: string,
       aac = false,
@@ -324,6 +325,17 @@ describe('AvplayEngine visibility + destroy', () => {
 });
 
 describe('AvplayEngine audio filter (server-side remux)', () => {
+  it('a trailer never opens the movie remux, even with a persisted filter', () => {
+    const { lastArgs } = make({
+      direct: true,
+      startSec: 0,
+      audioFilter: 'night',
+      trailerKey: 'abc',
+    });
+
+    expect(lastArgs('open')).toEqual(['trailer:sm1:abc']);
+  });
+
   it('a persisted filter opens the FILTERED master even for a direct-playable file', () => {
     const { lastArgs } = make({ direct: true, startSec: 0, audioFilter: 'night' });
     expect(lastArgs('open')).toEqual(['master:sm1:false:0:0:night']);

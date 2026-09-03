@@ -108,7 +108,7 @@ describe('bindMediaEvents', () => {
   });
 
   it('maps pause / waiting / playing / volume / rate events', () => {
-    const fv = fakeVideo();
+    const fv = fakeVideo({ src: 'stream://w1', readyState: 4 });
     const s = mkSetters();
     bindMediaEvents(fv.el, item, s, 0);
     fv.fire('pause');
@@ -128,7 +128,7 @@ describe('bindMediaEvents', () => {
   });
 
   it('ready-gates autoplay: plays once when ready+paused, then a play event latches', () => {
-    const fv = fakeVideo();
+    const fv = fakeVideo({ src: 'stream://w1' });
     const s = mkSetters();
     bindMediaEvents(fv.el, item, s, 0);
     fv.fire('canplay');
@@ -138,6 +138,52 @@ describe('bindMediaEvents', () => {
     expect(s.setPlaying).toHaveBeenCalledWith(true);
     fv.set('paused', true);
     fv.fire('canplay');
+    expect(fv.playCalls()).toBe(1);
+  });
+
+  it('starts playback as soon as it binds, without waiting for canplay', () => {
+    const fv = fakeVideo({ src: 'stream://w1' });
+    const s = mkSetters();
+
+    bindMediaEvents(fv.el, item, s, 0);
+
+    expect(fv.playCalls()).toBe(1);
+  });
+
+  it('does not start playback before the element has a source', () => {
+    const fv = fakeVideo();
+    const s = mkSetters();
+
+    bindMediaEvents(fv.el, item, s, 0);
+
+    expect(fv.playCalls()).toBe(0);
+  });
+
+  it('starts playback once a source can play, even if bind ran too early', () => {
+    const fv = fakeVideo();
+    const s = mkSetters();
+    bindMediaEvents(fv.el, item, s, 0);
+    fv.set('src', 'stream://w1');
+    fv.set('paused', true);
+    fv.set('readyState', 4);
+
+    fv.fire('canplay');
+
+    expect(fv.playCalls()).toBe(1);
+  });
+
+  it('does not treat a pause while the source is still empty as the viewer stopping', () => {
+    const fv = fakeVideo({ readyState: 0 });
+    const s = mkSetters();
+    bindMediaEvents(fv.el, item, s, 0);
+    fv.fire('pause');
+    fv.set('src', 'stream://w1');
+    fv.set('paused', true);
+    fv.set('readyState', 4);
+
+    fv.fire('canplay');
+
+    expect(s.setPlaying).not.toHaveBeenCalledWith(false);
     expect(fv.playCalls()).toBe(1);
   });
 
@@ -170,7 +216,10 @@ describe('bindMediaEvents', () => {
   });
 
   it('swallows an autoplay the browser refuses', () => {
-    const fv = fakeVideo({ play: () => Promise.reject(new Error('NotAllowedError')) });
+    const fv = fakeVideo({
+      src: 'stream://w1',
+      play: () => Promise.reject(new Error('NotAllowedError')),
+    });
     const s = mkSetters();
     bindMediaEvents(fv.el, item, s, 0);
     expect(() => fv.fire('canplay')).not.toThrow();

@@ -22,7 +22,7 @@ export function useResumeAnchor(
   const [bootAnchor, setBootAnchor] = useState<number | null>(null);
   useEffect(() => {
     setBootAnchor(null);
-    if (!user) {
+    if (!user || item.trailer) {
       setAnchor(0);
       setBootAnchor(0);
       return;
@@ -47,7 +47,7 @@ export function useResumeAnchor(
     return () => {
       cancelled = true;
     };
-  }, [client, user, item.id, item.durationMs]);
+  }, [client, user, item.id, item.durationMs, item.trailer]);
 
   return { anchor, setAnchor, bootAnchor };
 }

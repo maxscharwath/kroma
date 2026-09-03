@@ -213,6 +213,7 @@ fn index_parsed(
                 default_file_id: None,
                 markers: Vec::new(),
                 audio_analysis: None,
+                has_trailer: false,
             });
             mtimes.insert(file.id.clone(), mtime);
             item.files.push(file);
@@ -278,6 +279,7 @@ fn index_parsed(
                 default_file_id: None,
                 markers: Vec::new(),
                 audio_analysis: None,
+                has_trailer: false,
             });
             mtimes.insert(file.id.clone(), mtime);
             item.files.push(file);

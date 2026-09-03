@@ -127,18 +127,19 @@ export function castReport(t: Translate): CastPlaybackReport | null {
 
 /** Publish the running player to the cast receiver, and apply a position a
  * cast `play` asked for once the engine is ready to honour it. */
-export function useCastTarget(item: MediaItem, controller: PlayerController): void {
+export function useCastTarget(item: MediaItem, controller: PlayerController, active = true): void {
   // No dependency array: `controller` is a new object every playback tick, so
   // this re-registers as a plain assignment rather than a diffed effect.
   useEffect(() => {
+    if (!active) return;
     setCastTarget({ item, controller });
     return () => setCastTarget(null);
   });
 
   const { ready, seekTo } = controller;
   useEffect(() => {
-    if (!ready) return;
+    if (!active || !ready) return;
     const positionMs = takeCastSeek(item.id);
     if (positionMs != null) seekTo(positionMs / 1000);
-  }, [ready, item.id, seekTo]);
+  }, [active, ready, item.id, seekTo]);
 }

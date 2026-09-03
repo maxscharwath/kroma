@@ -46,6 +46,12 @@ function toOffer(item: MediaItem): PostPlayItem {
   };
 }
 
+function toMovieOffer(item: MediaItem): PostPlayItem {
+  return toOffer({ ...item, durationMs: null, video: null });
+}
+
+type PlayedItem = MediaItem & { trailer?: boolean };
+
 // Stable empty default so the memo below doesn't recompute for a movie.
 const NO_EPISODES: MediaItem[] = [];
 
@@ -58,18 +64,21 @@ export interface WebUpNext {
 /**
  * "À suivre" data (§10) for the web player: the upcoming episodes plus
  * content-similar recommendations, mapped to the shared up-next card shape,
- * and the nearest neighbour as the film the end of this one offers.
+ * and the nearest neighbour as the film the end of this one offers. A trailer
+ * offers this movie instead.
  */
 export function useWebUpNext(
   t: Translate,
-  item: MediaItem,
+  item: PlayedItem,
   following: MediaItem[] = NO_EPISODES,
 ): WebUpNext {
   const [similar, setSimilar] = useState<MediaItem[]>([]);
+  const trailer = Boolean(item.trailer);
   // Recommend against the SHOW when watching an episode: episodes carry no
   // embedding of their own, so similar(episodeId) would be empty.
   const recoId = item.showId ?? item.id;
   useEffect(() => {
+    if (trailer) return;
     let cancelled = false;
     kromaClient()
       .media.similar(ItemId.parse(recoId))
@@ -78,9 +87,15 @@ export function useWebUpNext(
     return () => {
       cancelled = true;
     };
-  }, [recoId]);
+  }, [recoId, trailer]);
 
   return useMemo(() => {
+    if (trailer) {
+      return {
+        data: { nextEpisodes: [], recommendations: [] },
+        postPlay: toMovieOffer(item),
+      };
+    }
     // A library that holds the same film twice answers itself as its own
     // nearest neighbour, and offering what just finished is worse than offering
     // nothing.
@@ -92,5 +107,5 @@ export function useWebUpNext(
       },
       postPlay: offer ? toOffer(offer) : null,
     };
-  }, [t, item.id, following, similar]);
+  }, [t, item, trailer, following, similar]);
 }

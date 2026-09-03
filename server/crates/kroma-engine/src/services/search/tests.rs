@@ -30,6 +30,8 @@ fn meta(title: &str, overview: &str, genres: &[&str], cast: &[&str]) -> Metadata
         keywords: Vec::new(),
         tvdb_id: None,
         tmdb_url: String::new(),
+        videos: Vec::new(),
+        videos_fetched: false,
     }
 }
 
@@ -60,6 +62,7 @@ fn movie(id: &str, title: &str, m: Option<Metadata>) -> MediaItem {
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     }
 }
 

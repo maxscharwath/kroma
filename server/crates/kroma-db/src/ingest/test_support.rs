@@ -72,6 +72,7 @@ pub(super) fn movie(id: &str, title: &str, library: &str, files: Vec<MediaFile>)
         default_file_id: None,
         markers: Vec::new(),
         audio_analysis: None,
+        has_trailer: false,
     }
 }
 
@@ -109,5 +110,7 @@ pub(super) fn meta(tmdb: u64, title: &str) -> Metadata {
         keywords: vec![],
         tvdb_id: None,
         tmdb_url: "https://tmdb/1".into(),
+        videos: Vec::new(),
+        videos_fetched: false,
     }
 }

@@ -26,3 +26,4 @@ pub mod search;
 pub mod sections;
 pub mod settings;
 pub mod subtitles;
+pub mod trailers;

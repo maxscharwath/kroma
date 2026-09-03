@@ -18,6 +18,7 @@ use kroma_domain::{CastMember, Metadata, Season, Show};
 
 mod items;
 mod shows;
+mod trailer_flag;
 
 #[cfg(test)]
 mod test_support;

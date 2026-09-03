@@ -4,6 +4,27 @@ import { canDirectPlay, capabilities, type DirectPlayVerdict } from './hevc';
 export interface AttachOptions {
   startMs?: number;
   autoplay?: boolean;
+  url?: string;
+}
+
+/** Sound-first `play()`. If the browser blocks it, retry muted and unmute. */
+export function beginPlayback(video: HTMLVideoElement): void {
+  const p = video.play();
+  if (typeof p?.then !== 'function') return;
+  void p.catch(() => {
+    if (video.muted) return;
+    video.muted = true;
+    const retry = video.play();
+    if (typeof retry?.then !== 'function') return;
+    void retry.then(
+      () => {
+        video.muted = false;
+      },
+      () => {
+        video.muted = false;
+      },
+    );
+  });
 }
 
 /**
@@ -19,7 +40,7 @@ export function attachDirectPlay(
 ): DirectPlayVerdict {
   const verdict = canDirectPlay(item, capabilities());
 
-  video.src = client.media.streamUrl(item.id);
+  video.src = opts.url ?? client.media.streamUrl(item.id);
   video.preload = 'auto';
   if (opts.startMs && opts.startMs > 0) {
     const seekTo = opts.startMs / 1000;
@@ -33,11 +54,7 @@ export function attachDirectPlay(
     };
     video.addEventListener('loadedmetadata', onLoaded);
   }
-  if (opts.autoplay) {
-    void video.play().catch(() => {
-      /* autoplay may be blocked; caller can surface a Play button */
-    });
-  }
+  if (opts.autoplay) beginPlayback(video);
   return verdict;
 }
 

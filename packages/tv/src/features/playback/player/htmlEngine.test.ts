@@ -152,7 +152,9 @@ function mkClient() {
     (id: string, aac = false, startSec = 0, audio = 0) =>
       `master:${id}:${aac}:${startSec}:${audio}`,
   );
-  const streamUrl = vi.fn((id: string) => `stream:${id}`);
+  const streamUrl = vi.fn((id: string, opts?: { role?: string; key: string }) =>
+    opts?.role === 'trailer' ? `trailer:${id}:${opts.key}` : `stream:${id}`,
+  );
   return {
     client: fakeClient({ media: { streamUrl, hlsMasterUrl } }),
     hlsMasterUrl,
@@ -169,6 +171,7 @@ function makeEngine(opts: {
   masterShaka?: boolean;
   forceNativeHls?: boolean;
   durationSec?: number;
+  trailerKey?: string;
   listeners?: EngineListeners;
 }) {
   const { client, hlsMasterUrl, streamUrl } = mkClient();
@@ -184,6 +187,7 @@ function makeEngine(opts: {
     initialRendition: opts.rendition ?? 0,
     durationSec: opts.durationSec ?? 120,
     startSec: opts.startSec ?? 0,
+    trailerKey: opts.trailerKey,
     listeners,
   });
   return { engine, listeners, hlsMasterUrl, streamUrl };
@@ -563,6 +567,22 @@ describe('HtmlEngine audio rendition (master)', () => {
   });
 });
 
+describe('HtmlEngine trailer', () => {
+  it('opens the trailer stream even when the plan asked for a master', async () => {
+    const fv = fakeVideo();
+
+    const { hlsMasterUrl, streamUrl } = makeEngine({
+      fv,
+      direct: false,
+      trailerKey: 'abc',
+    });
+
+    expect(streamUrl).toHaveBeenCalledWith('vid1', { role: 'trailer', key: 'abc' });
+    expect(hlsMasterUrl).not.toHaveBeenCalled();
+    expect(fv.get('src')).toBe('trailer:vid1:abc');
+  });
+});
+
 describe('HtmlEngine direct mode', () => {
   it('attaches the original file and seeks to the resume offset once metadata loads', () => {
     const fv = fakeVideo();
@@ -573,6 +593,14 @@ describe('HtmlEngine direct mode', () => {
     fv.fire('loadedmetadata');
     expect(fv.get('currentTime')).toBe(20);
     expect(listeners.onReady).toHaveBeenCalled();
+  });
+
+  it('starts the original file as soon as it is attached', () => {
+    const fv = fakeVideo();
+
+    makeEngine({ fv, direct: true, startSec: 0 });
+
+    expect(fv.get('paused')).toBe(false);
   });
 
   it('seekTo sets the absolute element time and audio switching is a no-op', () => {

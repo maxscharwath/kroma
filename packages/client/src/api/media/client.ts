@@ -12,6 +12,7 @@ import {
   Show,
   ShowDetail,
   SplashEntry,
+  TrailerReady,
 } from './schemas';
 import { PersonDetailResponse, PersonResponse, SearchResponse } from './search';
 import { type HlsAudioFilter, StoryboardManifest } from './tracks';
@@ -25,6 +26,9 @@ import { type HlsAudioFilter, StoryboardManifest } from './tracks';
  * decoder accepts: a bigger source is fitted inside the nearest rung under it.
  * Both axes, because a scope frame breaks the width limit while clearing the
  * height one. */
+/** Which of an item's videos a stream URL points at. Absent means the feature file. */
+export type StreamUrlOpts = { role: 'trailer'; key: string };
+
 export interface HlsMasterDeclaration {
   filter?: HlsAudioFilter;
   copyCodecs?: string[];
@@ -136,8 +140,21 @@ export default function mediaApi(ctx: RequestContext) {
     /** URL of the server's recent log lines (text/plain). */
     logsUrl: (tail = 200) => ctx.url('/logs', { query: { tail } }),
 
-    /** Direct-play stream URL for a `<video>` src. Range requests are served. */
-    streamUrl: (id: ItemId) => ctx.url('/items/:id/stream', { params: { id } }),
+    /** Direct-play stream URL for a `<video>` src. Range requests are served.
+     * With `role: 'trailer'` this is the cached trailer clip instead of the
+     * feature file, and `key` must be one the item's own catalog carries. */
+    streamUrl: (id: ItemId, opts?: StreamUrlOpts) =>
+      opts?.role === 'trailer'
+        ? ctx.url('/items/:id/trailer/stream', { params: { id }, query: { key: opts.key } })
+        : ctx.url('/items/:id/stream', { params: { id } }),
+
+    /** Which clip this account would get, without starting a download. */
+    trailer: (id: ItemId) => ctx.get('/items/:id/trailer', TrailerReady, { params: { id } }),
+
+    /** Picks the clip and starts the local copy. Answers as soon as the clip is
+     * known, so the caller can open the player while bytes are still landing. */
+    prepareTrailer: (id: ItemId) =>
+      ctx.post('/items/:id/trailer/prepare', TrailerReady, { params: { id } }),
 
     /** One-file offline download: video stream-copied, every audio track copied
      * or AAC-transcoded server-side. `copyCodecs`/`videoCodecs` must distinguish

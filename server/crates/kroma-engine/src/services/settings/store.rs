@@ -147,6 +147,7 @@ fn defaults() -> BTreeMap<String, Value> {
     // `GET /api/users` returns an empty list.
     m.insert("publicUserList".into(), json!(false));
     m.insert("themeSongs".into(), json!(false));
+    m.insert("trailers".into(), json!(true));
     // off | chapters (free, from embedded chapters) | fingerprint (heavy audio job).
     m.insert("introDetection".into(), json!("chapters"));
     m.insert("theme".into(), json!("Sombre (Kroma)"));

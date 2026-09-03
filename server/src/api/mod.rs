@@ -41,6 +41,7 @@ mod search;
 mod stream;
 mod suggest;
 mod themes;
+mod trailer;
 mod util;
 
 // Integration-test harness + suites for the HTTP handler layer. `test_support`
@@ -94,6 +95,8 @@ mod it_reset;
 mod it_reset_faults;
 #[cfg(test)]
 mod it_stream_hls;
+#[cfg(test)]
+mod it_trailer;
 #[cfg(test)]
 mod it_verify_email;
 #[cfg(test)]
@@ -179,6 +182,7 @@ pub fn router(
         .merge(stream::routes())
         .merge(online_subs::public_routes())
         .merge(themes::routes())
+        .merge(trailer::public_routes())
         .merge(modules::public_routes())
         .merge(diagnostics::routes())
         .merge(ws::routes());
@@ -194,6 +198,7 @@ pub fn router(
         .merge(search::routes())
         .merge(people::routes())
         .merge(metadata::routes())
+        .merge(trailer::routes())
         .merge(recommend::routes())
         .merge(suggest::routes())
         .merge(online_subs::routes())

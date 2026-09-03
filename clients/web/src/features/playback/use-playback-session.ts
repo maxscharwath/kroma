@@ -56,7 +56,7 @@ export function usePlaybackSession(params: Params): void {
   const ua = uaInfo();
   usePlaybackHeartbeat({
     client,
-    enabled: !!user,
+    enabled: !!user && !params.item.trailer,
     itemId: params.item.id,
     durationMs: params.item.durationMs ?? null,
     getPosition: params.getPosition,

@@ -274,6 +274,7 @@ tower = { workspace = true }
 tempfile = { workspace = true }
 # The scratch directory the TLS test writes its cert pair into.
 kroma-testing = { workspace = true }
+kroma-db = { workspace = true, features = ["testing"] }
 
 # musl's malloc serializes under our thread mix (tokio + rayon + candle + tantivy);
 # mimalloc removes that contention. Linux-only; macOS dev keeps the system

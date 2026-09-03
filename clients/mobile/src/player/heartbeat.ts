@@ -85,6 +85,7 @@ export function useHeartbeat(
   /** Fired ONCE when an admin terminates this session: the custom message, or
    *  '' for the localized default. The player pauses and shows it. */
   onTerminated?: (message: string) => void,
+  enabled = true,
 ): void {
   const snapRef = useRef(snapshot);
   snapRef.current = snapshot;
@@ -102,6 +103,7 @@ export function useHeartbeat(
   clientRef.current = client;
 
   useEffect(() => {
+    if (!enabled) return;
     if (session.current?.itemId !== item.id) session.current = openSession(item.id, device);
     const live = session.current;
     const fireTerminated = (message: string) => {
@@ -175,13 +177,14 @@ export function useHeartbeat(
       events.close();
       save();
     };
-  }, [client, item.id, device]);
+  }, [client, item.id, device, enabled]);
 
   // Ending the session is the TITLE's lifecycle, not the loop's: a client
   // swapped underneath a running player rebinds the loop above, and stopping
   // here would log a second history row for one viewing.
   // biome-ignore lint/correctness/useExhaustiveDependencies: item.id is the reset key that ends one title's session, not a value this closure reads.
   useEffect(() => {
+    if (!enabled) return;
     return () => {
       const live = session.current;
       if (!live || live.terminated || !live.opened) return;
@@ -191,5 +194,5 @@ export function useHeartbeat(
         .then(() => owner.playback.stop(live.id))
         .catch(() => undefined);
     };
-  }, [item.id]);
+  }, [item.id, enabled]);
 }

@@ -223,6 +223,12 @@ pub struct MediaItem {
         skip_serializing_if = "Option::is_none"
     )]
     pub audio_analysis: Option<AudioAnalysis>,
+    #[serde(
+        rename = "hasTrailer",
+        default,
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub has_trailer: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

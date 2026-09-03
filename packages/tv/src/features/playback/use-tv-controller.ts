@@ -37,10 +37,14 @@ export interface TvController {
  * Volume, PiP, fullscreen and rate are no-ops on a TV, so the shared chrome hides
  * or disables them.
  */
-export function useTvController(client: KromaClient, item: MediaItem): TvController {
+export function useTvController(
+  client: KromaClient,
+  item: MediaItem,
+  trailerKey?: string,
+): TvController {
   const t = useT();
   const langs = useLangPrefs();
-  const pb = useDirectPlayback(client, item, langs.audio);
+  const pb = useDirectPlayback(client, item, langs.audio, trailerKey);
   const subs = useTvSubtitles(client, item, langs);
 
   // One persisted mode across every engine: Web Audio taps the in-page <video>,

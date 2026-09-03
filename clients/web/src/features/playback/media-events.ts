@@ -1,7 +1,7 @@
 // The `<video>` element event wiring; `useVideoPlayback` owns the React
 // state/effects that drive these helpers.
 
-import { reachableBufferEnd } from '@kroma/core';
+import { beginPlayback, reachableBufferEnd } from '@kroma/core';
 import type { MovieView } from '#web/shared/lib/api';
 
 export interface MediaEventSetters {
@@ -56,7 +56,10 @@ export function bindMediaEvents(
     const end = reachableBufferEnd(v.buffered, v.currentTime);
     setBufEnd(end > 0 ? baseSec + end : 0);
   };
-  const onPause = () => setPlaying(false);
+  const onPause = () => {
+    if (v.readyState === 0) return;
+    setPlaying(false);
+  };
   const onWaiting = () => setWaiting(true);
   const onPlaying = () => setWaiting(false);
   const onVol = () => {
@@ -65,15 +68,15 @@ export function bindMediaEvents(
   };
   const onRate = () => setRate(v.playbackRate);
 
-  // Stop retrying once playback actually starts, so we never fight a real user pause.
   let started = false;
+  const sourced = () => Boolean(v.currentSrc || v.src);
   const onReady = () => {
     setReady(true);
-    if (started || !autoplay || !v.paused) return;
-    const p = v.play();
-    p?.catch(() => undefined);
+    if (started || !autoplay || !v.paused || !sourced()) return;
+    beginPlayback(v);
   };
   const onStarted = () => {
+    if (!sourced()) return;
     started = true;
     setPlaying(true);
   };
@@ -93,6 +96,7 @@ export function bindMediaEvents(
   v.addEventListener('loadedmetadata', onReady);
   v.addEventListener('loadeddata', onReady);
   v.addEventListener('canplay', onReady);
+  if (autoplay && v.paused && sourced()) beginPlayback(v);
   return () => {
     v.removeEventListener('timeupdate', onTime);
     v.removeEventListener('durationchange', onDur);

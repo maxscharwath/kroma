@@ -27,11 +27,13 @@ export function PlayerBody({
   startSec,
   localUri,
   offline,
+  trailerKey,
 }: Readonly<{
   item: MediaItem;
   startSec: number;
   localUri?: string;
   offline?: DownloadEntry;
+  trailerKey?: string;
 }>) {
   const t = useT();
   const client = useClient();
@@ -41,10 +43,10 @@ export function PlayerBody({
   // it (same as TV). Offline keeps the file's default: local ordinals are the
   // native player's business.
   const startAudio = localUri ? 0 : (preferredAudioIndex(audioTracksOf(item), prefs.audio) ?? 0);
-  const engine = useKromaEngine(client, item, startSec, localUri, startAudio);
+  const engine = useKromaEngine(client, item, startSec, localUri, startAudio, trailerKey);
   const navigation = useNavigation();
   const subs = useSubtitles(client, item, offline, prefs.subtitle);
-  const tileFor = useStoryboard(client, item, !localUri, offline);
+  const tileFor = useStoryboard(client, item, !localUri && !trailerKey, offline);
   // Which sheet view is open, or null: the gear opens the menu, the CC capsule
   // jumps straight to subtitles.
   const [sheet, setSheet] = useState<SheetView | null>(null);
@@ -73,7 +75,7 @@ export function PlayerBody({
   const viewRef = useRef<VideoViewRef>(null);
   const next = useQuery({
     ...client.query.playback.nextEpisode(item.id),
-    enabled: !localUri && item.kind === 'episode',
+    enabled: !localUri && !trailerKey && item.kind === 'episode',
     staleTime: 5 * 60_000,
   });
 
@@ -107,6 +109,7 @@ export function PlayerBody({
       engine.shutdown();
       setTerminated(message.trim() || '');
     },
+    !trailerKey,
   );
 
   // The screen leaving the stack for ANY reason (pop, replace, gesture) must
@@ -119,6 +122,10 @@ export function PlayerBody({
     if (engine.endedNonce === 0 || navigatedRef.current) return;
     navigatedRef.current = true;
     engine.shutdown();
+    if (trailerKey) {
+      goBack(router);
+      return;
+    }
     void client.playback
       .nextEpisode(item.id)
       .then((next) => {
@@ -126,7 +133,7 @@ export function PlayerBody({
         else goBack(router);
       })
       .catch(() => goBack(router));
-  }, [engine.endedNonce, engine, client, item.id, router]);
+  }, [engine.endedNonce, engine, client, item.id, router, trailerKey]);
 
   if (terminated != null) {
     return (
@@ -162,6 +169,7 @@ export function PlayerBody({
       <PlayerChrome
         engine={engine}
         item={item}
+        trailer={!!trailerKey}
         cue={subs.cueAt(engine.cur)}
         appearance={appearance}
         statsOn={statsOn}
@@ -175,7 +183,7 @@ export function PlayerBody({
         }}
         onOpenSheet={(view) => setSheet(view ?? 'menu')}
         onPip={() => viewRef.current?.startPictureInPicture()}
-        onCast={() => setCastOpen(true)}
+        onCast={trailerKey ? undefined : () => setCastOpen(true)}
         tileFor={tileFor}
         next={next.data ?? null}
         onPlayNext={() => {
@@ -184,21 +192,23 @@ export function PlayerBody({
           if (next.data) router.replace(`/player/${next.data.id}` as never);
         }}
       />
-      <CastPanel
-        visible={castOpen}
-        onClose={() => setCastOpen(false)}
-        onPick={async (id) => {
-          setCastOpen(false);
-          if (!id) return;
-          const ok = await cast.playOn(id, item.id, Math.round(engine.cur * 1000));
-          // Stop local playback once the TV picks up the same title, to avoid
-          // two screens playing it at once.
-          if (ok) {
-            engine.shutdown();
-            goBack(router);
-          }
-        }}
-      />
+      {trailerKey ? null : (
+        <CastPanel
+          visible={castOpen}
+          onClose={() => setCastOpen(false)}
+          onPick={async (id) => {
+            setCastOpen(false);
+            if (!id) return;
+            const ok = await cast.playOn(id, item.id, Math.round(engine.cur * 1000));
+            // Stop local playback once the TV picks up the same title, to avoid
+            // two screens playing it at once.
+            if (ok) {
+              engine.shutdown();
+              goBack(router);
+            }
+          }}
+        />
+      )}
       <TrackSheet
         visible={sheet !== null}
         initialView={sheet ?? 'menu'}

@@ -64,6 +64,7 @@ export function useEngineLifecycle(
   client: KromaClient,
   item: MediaItem,
   audioLanguage?: string | null,
+  trailerKey?: string,
 ): EngineLifecycle {
   const videoRef = useRef<HTMLVideoElement>(null);
   const engineRef = useRef<TvEngine | null>(null);
@@ -137,7 +138,9 @@ export function useEngineLifecycle(
       ? playVerdict
       : { messageKey: 'player.cantPlay', hintKey: 'player.cantPlayHint' };
 
-  const { startSec, setStartSec } = useResolvedStart(client, item);
+  const { startSec, setStartSec } = useResolvedStart(client, item, {
+    skipResume: Boolean(trailerKey),
+  });
 
   // Audio switches do NOT re-create the engine; they call setAudioRendition in place.
   // biome-ignore lint/correctness/useExhaustiveDependencies: env.nativeHls is a session-constant capability; the dep list is intentionally curated to rebuild only on item/engine changes.
@@ -193,6 +196,7 @@ export function useEngineLifecycle(
       startSec,
       // Read at build time because AVPlay picks its source from it.
       audioFilter: storedAudioFilter(),
+      trailerKey,
       dom: { video: videoRef.current, nativeHls: env.nativeHls },
       listeners,
     });
@@ -204,7 +208,7 @@ export function useEngineLifecycle(
       engine.destroy();
     };
     // `rebuildKey` stands in for every backend flag the plan resolved.
-  }, [client, item, rebuildKey, durationSec, startSec, failure.messageKey]);
+  }, [client, item, rebuildKey, durationSec, startSec, failure.messageKey, trailerKey]);
 
   useEffect(() => {
     engineRef.current?.setAudioRendition(renditionFor(item, audioIndex));

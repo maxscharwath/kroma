@@ -603,6 +603,8 @@
   "admin.topUsers": "Top users",
   "admin.topUsersEmpty": "No account has watched anything in this window.",
   "admin.totalCapacity": "Total capacity",
+  "admin.trailers": "Trailers",
+  "admin.trailersHint": "Opening a title does not download anything. A trailer is fetched the first time someone plays it.",
   "admin.transcodeCacheBudget": "of {limit} budget",
   "admin.transcodeCacheFolder": "Transcode cache folder",
   "admin.transcodeCacheFolderDesc": "Temporary files generated during transcoding",

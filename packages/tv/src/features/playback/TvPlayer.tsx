@@ -49,7 +49,7 @@ function playerWarn(pb: Playback, item: MediaItem, t: Translate): string | null 
  */
 export function TvPlayer() {
   const nav = useNav();
-  const { item } = useParams('player');
+  const { item, trailerKey } = useParams('player');
   const client = useClient();
   const t = useT();
   // Reveal-on-pointer only with a real desktop mouse: a TV remote emits
@@ -57,14 +57,18 @@ export function TvPlayer() {
   // drives reveal instead (see env.mousePointer).
   const { mousePointer } = useEnv();
   const playerFlags = useMemo(() => ({ ...TV_FLAGS, pointer: mousePointer }), [mousePointer]);
+  const trailer = Boolean(trailerKey);
 
-  const { controller, pb, subtitleGen } = useTvController(client, item);
+  const { controller, pb, subtitleGen } = useTvController(client, item, trailerKey);
   // Publish this player to the cast receiver, so a phone can drive it (and pick
   // up the position a cast "play" asked to start from).
-  useCastTarget(item, controller);
+  useCastTarget(item, controller, !trailer);
   const [appearance, setAppearance] = useSubtitleAppearance();
-  const storyboard = useStoryboard(client, item.id);
-  const tileAt = useCallback((sec: number) => storyboard.tile(sec, PREVIEW_W), [storyboard]);
+  const storyboard = useStoryboard(client, trailer ? '' : item.id);
+  const tileAt = useCallback(
+    (sec: number) => (trailer ? null : storyboard.tile(sec, PREVIEW_W)),
+    [storyboard, trailer],
+  );
 
   // Upcoming episodes (series autoplay uses [0]) + the up-next sheet data.
   const [following, setFollowing] = useState<MediaItem[]>([]);
@@ -72,6 +76,7 @@ export function TvPlayer() {
   useEffect(() => {
     advancedRef.current = false;
     setFollowing([]);
+    if (trailer) return;
     let cancelled = false;
     client.playback
       .following(item.id)
@@ -80,9 +85,10 @@ export function TvPlayer() {
     return () => {
       cancelled = true;
     };
-  }, [client, item.id]);
-  const next = following[0] ?? null;
-  const up = useTvUpNext(client, t, item, following);
+  }, [client, item.id, trailer]);
+  const next = trailer ? null : (following[0] ?? null);
+  const played = useMemo(() => (trailer ? { ...item, trailer: true } : item), [item, trailer]);
+  const up = useTvUpNext(client, t, played, trailer ? [] : following);
 
   const goNext = useCallback(() => {
     if (advancedRef.current || !next) return;
@@ -92,13 +98,20 @@ export function TvPlayer() {
   }, [next, nav]);
   const onPlayItem = useCallback(
     (i: UpNextItem) => {
+      if (trailer && i.id === item.id) {
+        void client
+          .item(item.id)
+          .then((movie) => nav.swap('player', { item: movie }))
+          .catch(() => undefined);
+        return;
+      }
       const full = up.byId.get(i.id);
       if (full) nav.swap('player', { item: full });
     },
-    [up.byId, nav],
+    [trailer, item.id, client, up.byId, nav],
   );
 
-  const subtitle = playerSubtitle(item);
+  const subtitle = trailer ? t('player.trailer') : playerSubtitle(item);
   useNowPlaying({
     client,
     item,
@@ -153,6 +166,7 @@ export function TvPlayer() {
       controller={controller}
       flags={playerFlags}
       title={item.title}
+      finished={trailer ? t('player.finishedTrailer') : undefined}
       subtitle={subtitle}
       warn={warn}
       markers={item.markers ?? undefined}

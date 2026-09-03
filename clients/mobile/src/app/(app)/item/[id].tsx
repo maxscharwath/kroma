@@ -130,6 +130,14 @@ function ItemDetail({ id }: Readonly<{ id: ItemId }>) {
   const cardW = posterWidth(width);
   const cast = media.metadata?.cast ?? [];
 
+  const playTrailer = () => {
+    void queryClient.prefetchQuery({
+      queryKey: ['trailer', media.id],
+      queryFn: () => client.prepareTrailer(media.id),
+    });
+    router.push(`/player/${media.id}?trailer=1` as never);
+  };
+
   return (
     <Animated.ScrollView
       style={s.screen}
@@ -153,6 +161,7 @@ function ItemDetail({ id }: Readonly<{ id: ItemId }>) {
           <DetailActions
             playLabel={playLabel(t, device?.name, resumeSec)}
             onPlay={() => void play(media.id, resumeSec * 1000)}
+            onTrailer={media.hasTrailer ? playTrailer : undefined}
             inList={inList}
             onToggleList={() => toggleList.mutate()}
             watched={isWatched}

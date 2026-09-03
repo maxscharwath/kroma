@@ -3,7 +3,7 @@
 
 # Requirement index
 
-88 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
+107 requirements across the spec. The machine-readable source is [`requirements.json`](requirements.json).
 
 ## ADMIN - [admin](admin/)
 
@@ -95,3 +95,31 @@
 - **ADMIN-86** (AGREED) - The owner sends a verification from the member editor, with the <sub>[README.md](admin/README.md)</sub>
 - **ADMIN-87** (AGREED) - Changing the address clears the verified state: the proof belongs <sub>[README.md](admin/README.md)</sub>
 - **ADMIN-88** (AGREED) - A user who cannot sign in can ask for a reset from the sign-in <sub>[README.md](admin/README.md)</sub>
+
+## LIB - [library](library/)
+
+- **LIB-1** (AGREED) - A matched movie may carry a trailer catalog from its
+- **LIB-2** (AGREED) - The catalog is stored with the title. A later browse does
+- **LIB-3** (AGREED) - A library that was matched before trailers existed still
+- **LIB-4** (AGREED) - KROMA picks one clip from the catalog, in this order: a
+- **LIB-5** (AGREED) - An official clip of a given kind and language outranks an
+- **LIB-6** (AGREED) - When the catalog has no clip at all, the movie has no
+- **LIB-7** (AGREED) - Trailer bytes are fetched only when someone plays that
+- **LIB-8** (AGREED) - The copy is in a form every first-class surface can
+- **LIB-9** (AGREED) - Offline, a trailer that already has a local copy still
+- **LIB-10** (AGREED) - An operator may turn trailers off for the whole server.
+
+## PLAY - [playback](playback/)
+
+- **PLAY-1** (AGREED) - Playing a trailer opens the same player the movie uses, with the
+- **PLAY-2** (AGREED) - A trailer always starts from the beginning. There is no resume
+- **PLAY-3** (AGREED) - Watching a trailer does not write watch progress for the movie,
+- **PLAY-4** (AGREED) - When a trailer ends, the player offers this movie. Home or
+- **PLAY-5** (AGREED) - A trailer that cannot start says so in one sentence. It does not
+- **PLAY-6** (AGREED) - The first play of a trailer does not wait for the whole
+
+## SURF - [surfaces](surfaces/)
+
+- **SURF-1** (AGREED) - Movie detail offers a Trailer action when that movie has a trailer
+- **SURF-2** (AGREED) - The Trailer action is hidden when the movie has no trailer, when
+- **SURF-3** (AGREED) - The Trailer action is not required of show detail in this version.

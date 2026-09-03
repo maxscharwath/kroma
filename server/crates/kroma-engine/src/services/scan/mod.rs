@@ -197,6 +197,7 @@ pub fn spawn_follow_ups(state: &crate::state::SharedState, data: &ScanData) {
     );
     crate::services::search::spawn_reindex(state.clone());
     crate::services::enrich::maybe_spawn(state, &data.items, &data.shows);
+    crate::services::trailers::maybe_spawn(state);
 }
 
 #[cfg(test)]

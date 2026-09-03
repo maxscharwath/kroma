@@ -55,8 +55,10 @@ vi.mock('expo-video', () => ({
   },
 }));
 
+const CAPS = vi.hoisted(() => ({ direct: true, aacMaster: false }));
+
 vi.mock('#mobile/player/caps', () => ({
-  decideSource: () => ({ direct: true, aacMaster: false }),
+  decideSource: () => ({ ...CAPS }),
 }));
 
 import { useKromaEngine } from './index';
@@ -70,7 +72,7 @@ const ITEM = {
 
 const CLIENT = fakeClient({
   media: {
-    streamUrl: (id) => `stream://${id}`,
+    streamUrl: (id, opts) => (opts ? `trailer://${id}/${opts.key}` : `stream://${id}`),
     hlsMasterUrl: (id, _aac, anchor) => `hls://${id}@${anchor}`,
     artwork: { resolve: () => null },
   },
@@ -78,6 +80,10 @@ const CLIENT = fakeClient({
 
 function open(startSec = 0) {
   return renderHook(() => useKromaEngine(CLIENT, ITEM, startSec));
+}
+
+function openTrailer() {
+  return renderHook(() => useKromaEngine(CLIENT, ITEM, 0, undefined, 0, 'k9'));
 }
 
 const player = () => P.box.current;
@@ -97,6 +103,7 @@ async function playFor(sec: number) {
 describe('useKromaEngine', () => {
   beforeEach(() => {
     P.fresh();
+    CAPS.direct = true;
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ headers: { get: () => '900' } })),
@@ -154,5 +161,36 @@ describe('useKromaEngine', () => {
     await waitFor(() => expect(player().replaceAsync).toHaveBeenCalledTimes(2));
 
     expect(result.current.buffered).toBe(900);
+  });
+
+  it('opens a trailer on the trailer stream, never on the feature file', async () => {
+    openTrailer();
+
+    await waitFor(() =>
+      expect(player().replaceAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ uri: 'trailer://itm_1/k9' }),
+      ),
+    );
+  });
+
+  it('plays a trailer directly even where the feature would have needed the remux', async () => {
+    CAPS.direct = false;
+
+    const { result } = openTrailer();
+    await waitFor(() => expect(player().replaceAsync).toHaveBeenCalledTimes(1));
+
+    expect(result.current.mode).toBe('direct');
+  });
+
+  it('gives up on a rejected trailer rather than falling back to the feature', async () => {
+    const { result } = openTrailer();
+    await waitFor(() => expect(player().replaceAsync).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      player().emit('statusChange', { status: 'error' });
+    });
+
+    expect(result.current.failed).toBe(true);
+    expect(player().replaceAsync).toHaveBeenCalledTimes(1);
   });
 });

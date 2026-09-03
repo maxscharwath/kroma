@@ -72,6 +72,8 @@ fn metadata_from(d: Details, target: Target, id: u64, lang2: &str) -> Metadata {
         theme_url: None,
         tvdb_id,
         tmdb_url: format!("https://www.themoviedb.org/{}/{id}", target.web_kind()),
+        videos: Vec::new(),
+        videos_fetched: false,
     }
 }
 

@@ -68,7 +68,7 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
   useEffect(() => {
     if (bootAnchor === null) return; // wait until resume has picked the anchor
     setSrcReady(false);
-    if (decision.kind === 'direct') {
+    if (item.trailer || decision.kind === 'direct') {
       setBaseSec(0);
       setSrcReady(true);
       return;
@@ -96,42 +96,13 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     return () => {
       cancelled = true;
     };
-  }, [item.id, decision, anchor, audioIndex, bootAnchor]);
+  }, [item.id, item.trailer, decision, anchor, audioIndex, bootAnchor]);
 
   const knownDurationMs =
     item.durationMs || (serverDurSec > 0 ? Math.round(serverDurSec * 1000) : 0);
   useEffect(() => {
     if (knownDurationMs > 0) setDur(knownDurationMs / 1000);
   }, [knownDurationMs]);
-
-  // Re-binds on anchor/audio change: those remount the <video> (keyed by
-  // anchor+audio in the parent), so this must rebind to the fresh element.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rebind on remount.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    return bindMediaEvents(
-      v,
-      item,
-      {
-        setCur,
-        setDur,
-        setBufEnd,
-        setPlaying: (on: boolean) => {
-          wantPlay.current = on;
-          setPlaying(on);
-        },
-        setWaiting,
-        setVolume,
-        setMuted,
-        setRate,
-        setReady,
-      },
-      baseSec,
-      knownDurationMs,
-      wantPlay.current,
-    );
-  }, [item, anchor, audioIndex, baseSec, knownDurationMs]);
 
   const absNow = useCallback(() => baseSec + (videoRef.current?.currentTime ?? 0), [baseSec]);
   const restartAt = useCallback((absSec: number) => setAnchor(Math.max(0, absSec)), [setAnchor]);
@@ -161,6 +132,35 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     });
   }, [item, decision, env.safari, enginePref, anchor, audioIndex, bootAnchor, srcReady, giveUp]);
 
+  // Re-binds on anchor/audio change: those remount the <video> (keyed by
+  // anchor+audio in the parent), so this must rebind to the fresh element.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rebind on remount.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !srcReady) return;
+    return bindMediaEvents(
+      v,
+      item,
+      {
+        setCur,
+        setDur,
+        setBufEnd,
+        setPlaying: (on: boolean) => {
+          wantPlay.current = on;
+          setPlaying(on);
+        },
+        setWaiting,
+        setVolume,
+        setMuted,
+        setRate,
+        setReady,
+      },
+      baseSec,
+      knownDurationMs,
+      wantPlay.current,
+    );
+  }, [item, anchor, audioIndex, baseSec, knownDurationMs, srcReady]);
+
   const stalled = useStallRecovery({
     videoRef,
     hlsRef,
@@ -183,12 +183,13 @@ export function useVideoPlayback(item: MovieView): VideoPlayback {
     const v = videoRef.current;
     if (!v || decision.kind !== 'direct') return;
     const onErr = () => {
+      if (item.trailer) return;
       setAnchor(Math.max(0, Math.floor(v.currentTime)));
       setForceHls(true);
     };
     v.addEventListener('error', onErr);
     return () => v.removeEventListener('error', onErr);
-  }, [decision.kind, item.id, anchor, audioIndex, setAnchor, setForceHls]);
+  }, [decision.kind, item.id, item.trailer, anchor, audioIndex, setAnchor, setForceHls]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: item.id is an intentional trigger (not referenced in the effect); reset forceHls whenever the item changes, not on every render.
   useEffect(() => setForceHls(false), [item.id, setForceHls]);

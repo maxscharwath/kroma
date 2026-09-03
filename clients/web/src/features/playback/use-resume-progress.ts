@@ -27,7 +27,7 @@ export function useResumeProgress(
   const [showResume, setShowResume] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || item.trailer) return;
     let cancelled = false;
     client.playback
       .itemProgress(item.id)
@@ -41,7 +41,7 @@ export function useResumeProgress(
     return () => {
       cancelled = true;
     };
-  }, [client, user, item.id, item.durationMs]);
+  }, [client, user, item.id, item.durationMs, item.trailer]);
 
   // Flash the "resumed at …" toast. The actual resume is NOT a seek here: the
   // player attaches the source already anchored at the saved position (a fresh
@@ -55,7 +55,7 @@ export function useResumeProgress(
 
   const saveProgress = useCallback(() => {
     const v = videoRef.current;
-    if (!v || !user) return;
+    if (!v || !user || item.trailer) return;
     // ABSOLUTE position + catalogue runtime the seamless stream's own
     // currentTime/duration is relative to the -ss offset, so never use them here.
     const pos = position ? position.getPosition() : v.currentTime;
@@ -68,10 +68,20 @@ export function useResumeProgress(
     const finished = pos > durSec * 0.97 || (creditsMs != null && pos >= creditsMs / 1000);
     if (finished) setWatched(item.id, true);
     else void client.playback.save(item.id, pos * 1000, durSec * 1000).catch(() => undefined);
-  }, [videoRef, client, user, item.id, item.durationMs, item.markers, position, setWatched]);
+  }, [
+    videoRef,
+    client,
+    user,
+    item.id,
+    item.durationMs,
+    item.markers,
+    item.trailer,
+    position,
+    setWatched,
+  ]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || item.trailer) return;
     const v = videoRef.current;
     const interval = setInterval(saveProgress, 10000);
     const onUnload = () => saveProgress();
@@ -86,7 +96,7 @@ export function useResumeProgress(
       v?.removeEventListener('ended', onEnded);
       saveProgress(); // final save when leaving the player
     };
-  }, [videoRef, user, saveProgress, setWatched, item.id]);
+  }, [videoRef, user, saveProgress, setWatched, item.id, item.trailer]);
 
   return { resumeAt, showResume, setShowResume };
 }

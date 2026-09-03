@@ -5,9 +5,11 @@ mod details;
 mod details_json;
 mod lookup;
 mod seasons;
+mod videos;
 
 pub use lookup::{lookup, lookup_all, lookup_all_by_id};
 pub use seasons::{season_episodes, season_episodes_multi, EpisodeArt, SeasonData};
+pub(crate) use videos::movie_videos;
 
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -96,6 +96,7 @@ export interface DetailHeroProps {
   primaryAction?: ReactNode;
   back: HostElement;
   onPlay?: () => void;
+  onTrailer?: () => void;
   castItemId?: ItemId;
   watched?: boolean;
   onToggleWatched?: () => void;
@@ -126,6 +127,7 @@ export function DetailHero({
   primaryAction,
   back,
   onPlay,
+  onTrailer,
   castItemId,
   watched,
   onToggleWatched,
@@ -235,6 +237,14 @@ export function DetailHero({
                     onPress={onPlay}
                   />
                 ) : null)}
+              {onTrailer ? (
+                <Button
+                  variant="outline"
+                  icon="player-play"
+                  label={t('player.trailer')}
+                  onPress={onTrailer}
+                />
+              ) : null}
               {castItemId ? <CastButton itemId={castItemId} /> : null}
               <WatchedButton watched={watched} onToggle={onToggleWatched} />
               <ListButton inList={inList} onToggle={onToggleList} />

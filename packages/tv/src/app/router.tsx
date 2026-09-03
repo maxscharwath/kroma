@@ -34,7 +34,7 @@ export interface TvRoutes {
   person: { name: string };
   movie: { item: MediaItem };
   show: { show: Show };
-  player: { item: MediaItem };
+  player: { item: MediaItem; trailerKey?: string };
   report: {
     kind: ReportSubjectKind;
     id: string;

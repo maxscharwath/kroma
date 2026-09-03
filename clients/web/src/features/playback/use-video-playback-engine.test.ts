@@ -144,6 +144,43 @@ describe('useVideoPlayback engine override', () => {
   });
 });
 
+describe('useVideoPlayback trailer', () => {
+  it('stays on the trailer stream even when this device prefers the remux', async () => {
+    localStorage.setItem('kroma:web-engine', 'remux');
+    const { result } = render(movie({ trailer: true, stream: 'trailer://m1' }));
+    await settle();
+    result.current.videoRef.current = fakeVideo() as unknown as HTMLVideoElement;
+    act(() => result.current.setAudio(1));
+    await settle();
+
+    expect(result.current.enginePref).toBe('remux');
+    expect(lastAttach().decision.kind).toBe('direct');
+    expect(lastAttach().item.stream).toBe('trailer://m1');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to the movie remux when the trailer element errors', async () => {
+    const { result } = render(movie({ trailer: true, stream: 'trailer://m1' }));
+    await settle();
+    let onError: (() => void) | undefined;
+    result.current.videoRef.current = fakeVideo({
+      currentTime: 12,
+      addEventListener: vi.fn((type: string, handler: () => void) => {
+        if (type === 'error') onError = handler;
+      }),
+    }) as unknown as HTMLVideoElement;
+    act(() => result.current.setAudio(1));
+    await settle();
+
+    act(() => onError?.());
+    await settle();
+
+    expect(onError).toBeTypeOf('function');
+    expect(lastAttach().decision.kind).toBe('direct');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('useVideoPlayback direct-play safety net', () => {
   it('re-anchors on the HLS master at the position a media error killed', async () => {
     const { result } = render();

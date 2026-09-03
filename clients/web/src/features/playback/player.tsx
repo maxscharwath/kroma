@@ -52,10 +52,16 @@ export function Player({
   const wc = useWebController(item);
   const { controller, videoRef, containerRef, pb, subtitleGen } = wc;
   const [appearance, setAppearance] = useSubtitleAppearance();
-  const storyboard = useStoryboard(item.id);
-  const tileAt = useCallback((sec: number) => storyboard.tile(sec, PREVIEW_W), [storyboard]);
-  const upNext = useWebUpNext(t, item, following);
-  const flags = useMemo(() => ({ ...WEB_FLAGS, cast: cast.available }), [cast.available]);
+  const storyboard = useStoryboard(item.trailer ? '' : item.id);
+  const tileAt = useCallback(
+    (sec: number) => (item.trailer ? null : storyboard.tile(sec, PREVIEW_W)),
+    [storyboard, item.trailer],
+  );
+  const upNext = useWebUpNext(t, item, item.trailer ? [] : following);
+  const flags = useMemo(
+    () => ({ ...WEB_FLAGS, cast: cast.available && !item.trailer }),
+    [cast.available, item.trailer],
+  );
 
   // The engine already anchors at the saved position; this only shows the toast
   // and offers a restart.
@@ -115,6 +121,7 @@ export function Player({
     <video
       key={`${pb.anchor}:${pb.audioIndex}`}
       ref={videoRef}
+      autoPlay
       playsInline
       crossOrigin="anonymous"
       style={{ borderRadius: 'inherit' }}
@@ -129,14 +136,19 @@ export function Player({
       controller={controller}
       flags={flags}
       title={item.title}
-      subtitle={playerSubtitle(item)}
+      finished={item.trailer ? t('player.finishedTrailer') : undefined}
+      subtitle={item.trailer ? t('player.trailer') : playerSubtitle(item)}
       warn={warn}
-      onCast={async () => {
-        const picked = await castPicker();
-        if (!picked) return;
-        const ok = await cast.playOn(picked, item.id, Math.round(pb.getPosition() * 1000));
-        if (ok) onClose();
-      }}
+      onCast={
+        item.trailer
+          ? undefined
+          : async () => {
+              const picked = await castPicker();
+              if (!picked) return;
+              const ok = await cast.playOn(picked, item.id, Math.round(pb.getPosition() * 1000));
+              if (ok) onClose();
+            }
+      }
       markers={item.markers ?? undefined}
       tileAt={tileAt}
       appearance={appearance}

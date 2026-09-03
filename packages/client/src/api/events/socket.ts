@@ -139,7 +139,6 @@ export class KromaEvents<E extends { type: string } = ServerEvent> {
   }
 
   private waitForToken(): void {
-    if (this.closed) return;
     const base = this.opts.tokenWaitMs ?? 150;
     this.timer = this.after(Math.min(base * 2 ** this.tokenWaits, this.maxBackoff));
     this.tokenWaits += 1;

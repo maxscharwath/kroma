@@ -63,19 +63,20 @@ describe('the latest policy', () => {
     expect(seen[0]?.aborted).toBe(false);
   });
 
-  it("aborts on the caller's own signal as well as the policy's", () => {
+  it("aborts on the caller's own signal as well as the policy's, carrying its reason", () => {
     const gate = concurrencyGate();
     const caller = new AbortController();
+    const reason = new Error('walked away');
     let signal: AbortSignal | undefined;
 
     gate('GET /search', { concurrency: 'latest', signal: caller.signal }, (s) => {
       signal = s;
       return pending();
     });
-    caller.abort(new Error('walked away'));
+    caller.abort(reason);
 
     expect(signal?.aborted).toBe(true);
-    expect((signal?.reason as Error).message).toBe('walked away');
+    expect(signal?.reason).toBe(reason);
   });
 
   it('starts already aborted when the caller walked away first', () => {

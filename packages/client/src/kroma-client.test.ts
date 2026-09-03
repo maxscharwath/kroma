@@ -108,6 +108,18 @@ describe('refreshing a dead session', () => {
   });
 });
 
+describe('the recording client', () => {
+  it('records the URL whether fetch was handed a string, a URL or a Request', async () => {
+    const { fetch, calls } = recordingClient();
+
+    await fetch('http://kroma.test/api/a');
+    await fetch(new URL('http://kroma.test/api/b'));
+    await fetch(new Request('http://kroma.test/api/c'));
+
+    expect(calls.map((c) => c.path)).toEqual(['/a', '/b', '/c']);
+  });
+});
+
 describe('fakeClient', () => {
   it('takes a namespace as far as the test needs it, nested members included', async () => {
     const resolve = () => 'http://kroma.test/api/images/p.webp';
@@ -116,6 +128,20 @@ describe('fakeClient', () => {
     expect(client.media.artwork.resolve('/api/images/p.webp')).toBe(
       'http://kroma.test/api/images/p.webp',
     );
+  });
+
+  it('carries the controls whole, so a test needs no cast at the call site', async () => {
+    const client = fakeClient();
+
+    client.setAuthToken('tok');
+    client.setLocale('fr');
+    client.setRefreshHandler(async () => 'fresh');
+
+    expect(client.baseUrl).toBe('http://kroma.test');
+    expect(client.hasAuth).toBe(false);
+    expect(client.sessionToken).toBeUndefined();
+    expect(client.authHeaders()).toEqual({});
+    await expect(client.refreshSession()).resolves.toBeUndefined();
   });
 
   it('names the member a test did not provide, rather than failing as undefined', () => {

@@ -41,6 +41,6 @@ describe('sending a command', () => {
   it('resolves with the sequence number the receiver will apply it under', async () => {
     const { client } = recordingClient(() => ({ json: { seq: 7 } }));
 
-    await expect(client.cast.command(receiver, { type: 'play' })).resolves.toBe(7);
+    await expect(client.cast.command(receiver, { type: 'resume' })).resolves.toBe(7);
   });
 });

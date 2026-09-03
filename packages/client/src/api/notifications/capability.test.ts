@@ -13,18 +13,35 @@ const capability = (parts: Partial<PushCapability> = {}): PushCapability => ({
   ...parts,
 });
 
-describe('turning push on', () => {
-  it('registers the device against the key the server minted', async () => {
-    const subscribe = vi.fn(async () => SUBSCRIPTION);
-    const client = fakeClient({
-      notifications: {
-        push: { key: async () => ({ publicKey: 'vapid', subscribed: false }), subscribe },
+const enabling = (parts: Partial<PushCapability> = {}) => {
+  const registered = vi.fn(async () => undefined);
+  const client = fakeClient({
+    notifications: {
+      push: {
+        key: async () => ({ publicKey: 'vapid', subscribed: false }),
+        subscribe: registered,
       },
-    });
+    },
+  });
+  return { client, registered, capability: capability(parts) };
+};
 
-    await enablePush(capability({ subscribe }), client);
+describe('turning push on', () => {
+  it('asks the device to subscribe against the key the server minted', async () => {
+    const subscribe = vi.fn(async () => SUBSCRIPTION);
+    const { client, capability } = enabling({ subscribe });
+
+    await enablePush(capability, client);
 
     expect(subscribe).toHaveBeenCalledWith({ applicationServerKey: 'vapid' });
+  });
+
+  it('registers with the server whatever the device subscription turned out to be', async () => {
+    const { client, registered, capability } = enabling();
+
+    await enablePush(capability, client);
+
+    expect(registered).toHaveBeenCalledWith(SUBSCRIPTION);
   });
 
   it('names the blocker rather than prompting a device that cannot receive push', async () => {

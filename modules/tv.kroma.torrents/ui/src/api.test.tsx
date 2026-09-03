@@ -185,6 +185,12 @@ describe('useTorrentsApi', () => {
     ]);
   });
 
+  it('asks for the bandwidth split over the window the panel is showing', async () => {
+    await api().bandwidth('7d');
+
+    expect(one().path).toBe('/downloads/bandwidth?range=7d');
+  });
+
   it('asks the server what a queued torrent holds, never handing the magnet back', async () => {
     await api().contents('a/b');
     expect(one()).toEqual({ method: 'GET', path: '/downloads/a%2Fb/contents', body: undefined });

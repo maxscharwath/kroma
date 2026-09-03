@@ -8,7 +8,8 @@
 // a rejected direct file falls back to the master once, and a failing
 // copy-audio master retries once as AAC.
 
-import type { KromaClient, MediaItem } from '@kroma/core';
+import type { MediaItem } from '@kroma/client/media';
+import type { KromaClient } from '@kroma/core';
 import { type AudioTrack, useVideoPlayer, type VideoPlayer } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { decideSource } from '#mobile/player/caps';

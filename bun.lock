@@ -411,6 +411,7 @@
       "name": "@kroma/module-acquisition",
       "version": "0.0.0",
       "dependencies": {
+        "@kroma/client": "workspace:*",
         "@kroma/core": "workspace:*",
         "@kroma/module-sdk": "workspace:*",
         "@kroma/ui": "workspace:*",
@@ -465,7 +466,7 @@
       "name": "@kroma/module-torrents",
       "version": "0.0.0",
       "dependencies": {
-        "@kroma/core": "workspace:*",
+        "@kroma/client": "workspace:*",
         "@kroma/module-acquisition": "workspace:*",
         "@kroma/module-sdk": "workspace:*",
         "@kroma/module-vpn": "workspace:*",
@@ -680,6 +681,7 @@
       "name": "@kroma/module-sdk",
       "version": "0.0.0",
       "dependencies": {
+        "@kroma/client": "workspace:*",
         "@kroma/core": "workspace:*",
         "@kroma/registry": "workspace:*",
         "@kroma/ui": "workspace:*",

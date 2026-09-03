@@ -21,9 +21,13 @@ const H = vi.hoisted(() => ({
   exchange: vi.fn(),
 }));
 
+vi.mock('@kroma/client/accounts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@kroma/client/accounts')>()),
+  loadSession: () => H.session,
+}));
+
 vi.mock('@kroma/core', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@kroma/core')>()),
-  loadSession: () => H.session,
   sharedTokenExchange: (run: () => Promise<unknown>) => H.exchange(run),
 }));
 

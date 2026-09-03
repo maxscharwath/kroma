@@ -3,13 +3,8 @@
 // Changes persist immediately (optimistic) via PUT /api/admin/settings. Shared
 // by the built-in settings pages AND the VPN / Acquisition module pages.
 
-import {
-  apiErrorText,
-  type KromaClient,
-  type MessageKey,
-  type SettingGroup,
-  type SettingRow,
-} from '@kroma/core';
+import type { SettingGroup, SettingRow } from '@kroma/client/admin';
+import { apiErrorText, type KromaClient, type MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,

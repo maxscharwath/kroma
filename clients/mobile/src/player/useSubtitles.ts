@@ -3,13 +3,13 @@
 // on-device generated tracks (indices 1000+); the app fetches the WebVTT itself
 // and renders cues as an overlay, so a "pick" is just state.
 
+import type { MediaItem } from '@kroma/client/media';
+import type { DownloadedSub } from '@kroma/client/subtitles';
 import {
   activeCueText,
   type Cue,
-  type DownloadedSub,
   isTextSubtitle,
   type KromaClient,
-  type MediaItem,
   parseVtt,
   preferredSubIndex,
 } from '@kroma/core';

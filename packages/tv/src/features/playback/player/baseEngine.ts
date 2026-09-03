@@ -3,11 +3,11 @@
 // timeline, and a `master` mode on the server's HLS remux anchored at `baseSec`
 // (its clock restarts at 0, so the absolute position is `baseSec + elSec`).
 
+import type { MediaItem } from '@kroma/client/media';
 import {
   decodableAudioCodecs,
   decoderMaxFrame,
   type KromaClient,
-  type MediaItem,
   STALL_NUDGE_SEC,
 } from '@kroma/core';
 import type { AudioFilterMode } from '@kroma/ui';

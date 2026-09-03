@@ -5,16 +5,15 @@ import {
   type AuthResult,
   clearSession,
   forgetAccount as forgetAccountStore,
-  type KromaClient,
   loadAccounts,
   loadSession,
   normalizeServerUrl as norm,
   type StoredSession,
   saveSession,
-  sharedTokenExchange,
   User,
   type UserId,
-} from '@kroma/core';
+} from '@kroma/client/accounts';
+import { type KromaClient, sharedTokenExchange } from '@kroma/core';
 import {
   createContext,
   type ReactNode,

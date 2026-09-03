@@ -1,12 +1,7 @@
-import {
-  type ElementRow,
-  ItemId,
-  type KromaClient,
-  KromaEvents,
-  type MessageKey,
-  ShowId,
-  type SubjectId,
-} from '@kroma/core';
+import { KromaEvents } from '@kroma/client/events';
+import { ItemId, ShowId, type SubjectId } from '@kroma/client/media';
+import type { ElementRow } from '@kroma/client/pipeline';
+import type { KromaClient, MessageKey } from '@kroma/core';
 import type { useT } from '@kroma/ui';
 import { type Dispatch, type SetStateAction, useEffect } from 'react';
 import { apiBase } from '#web/shared/lib/api';

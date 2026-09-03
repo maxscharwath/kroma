@@ -1,11 +1,7 @@
 // Data hooks backing the sign-in screen.
 
-import {
-  type DiscoveredServer,
-  discoverServers,
-  type KromaClient,
-  type PublicUser,
-} from '@kroma/core';
+import type { PublicUser } from '@kroma/client/accounts';
+import { type DiscoveredServer, discoverServers, type KromaClient } from '@kroma/core';
 import { useEffect, useRef, useState } from 'react';
 import { makeClient } from '#mobile/lib/device';
 import { getDeviceLocalIp } from '#mobile/lib/localIp';

@@ -2,7 +2,8 @@
 // the storyboard sprite, so the offline player keeps subtitles and scrub
 // previews. Every failure here costs the extra, never the download.
 
-import { isTextSubtitle, type KromaClient, type MediaItem } from '@kroma/core';
+import type { MediaItem } from '@kroma/client/media';
+import { isTextSubtitle, type KromaClient } from '@kroma/core';
 import * as FileSystem from 'expo-file-system/legacy';
 import { type DownloadEntry, mediaPath, type OfflineSub } from './store';
 

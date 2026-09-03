@@ -6,19 +6,21 @@
 
 import {
   type AuthResult,
-  apiErrorBody,
-  apiErrorText,
   clearSession,
   forgetAccount,
-  KromaApiError,
-  type KromaClient,
   loadAccounts,
   loadSession,
   type StoredSession,
   saveSession,
-  sharedTokenExchange,
   type User,
   type UserId,
+} from '@kroma/client/accounts';
+import {
+  apiErrorBody,
+  apiErrorText,
+  KromaApiError,
+  type KromaClient,
+  sharedTokenExchange,
 } from '@kroma/core';
 import {
   type Dispatch,

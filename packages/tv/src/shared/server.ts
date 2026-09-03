@@ -4,7 +4,7 @@
 // and a build-time `VITE_KROMA_SERVER` default baked in at deploy time so a fresh
 // install of a single-server appliance still finds its server.
 
-import { loadServers, migrateStorage, type SavedServer, saveServer } from '@kroma/core';
+import { loadServers, migrateStorage, type SavedServer, saveServer } from '@kroma/client/accounts';
 
 const ENV_DEFAULT = (import.meta as unknown as { env?: Record<string, string | undefined> }).env
   ?.VITE_KROMA_SERVER;

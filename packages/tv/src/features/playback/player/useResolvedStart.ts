@@ -1,4 +1,5 @@
-import type { KromaClient, MediaItem } from '@kroma/core';
+import type { MediaItem } from '@kroma/client/media';
+import type { KromaClient } from '@kroma/core';
 import { useCallback, useEffect, useState } from 'react';
 
 export interface ResolvedStart {

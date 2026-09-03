@@ -1,9 +1,8 @@
+import { ItemId, type MediaItem } from '@kroma/client/media';
 import {
   formatRuntime,
   genreLabels,
-  ItemId,
   type KromaClient,
-  type MediaItem,
   metaLine,
   type Translate,
 } from '@kroma/core';

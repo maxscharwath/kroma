@@ -12,8 +12,8 @@ import {
   StoreRegistryPreview,
   StoreUninstallConflict,
   StoreUpdateResult,
-  sessionToken,
-} from '@kroma/core';
+} from '@kroma/client/modules';
+import { sessionToken } from '@kroma/core';
 import type { ModuleManifest } from '@kroma/module-sdk';
 import { apiBase } from '#web/shared/lib/api';
 

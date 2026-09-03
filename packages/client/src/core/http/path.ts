@@ -14,7 +14,7 @@ export type PathParam<P extends string> = NameOf<Segments<P>>;
 /** The `params` a path template demands: exactly its names, nothing else. */
 export type PathParams<P extends string> = Record<PathParam<P>, string | number>;
 
-const PARAM = /:([A-Za-z0-9_]+)/g;
+const PARAM = /:(\w+)/g;
 
 /** Fill a path template. Every value is `encodeURIComponent`-ed, so an id
  * carrying a slash or a space cannot reshape the URL. */

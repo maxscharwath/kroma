@@ -16,7 +16,8 @@
     ".": "./src/index.ts",
     "./query": "./src/query/index.ts",
     "./test": "./src/kroma-client.fixture.ts",
-    "./vite": "./vite/index.ts"
+    "./vite": "./vite/index.ts",
+    "./*": "./src/api/*/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -1,5 +1,6 @@
-// Shared domain logic. Re-exports @kroma/client so app code can import the API
-// client, wire types and schemas from `@kroma/core`.
+// Shared domain logic. Re-exports the core of @kroma/client - the client, the
+// transport, the session - so app code reaches those from `@kroma/core`; a
+// domain's schemas come from `@kroma/client/<domain>`.
 export * from '@kroma/client';
 export * from './airdate';
 export * from './browse';

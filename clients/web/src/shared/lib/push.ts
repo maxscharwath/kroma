@@ -1,6 +1,6 @@
 // The browser-specific half of push: capability check, service worker
 // registration, and `PushSubscription` → `SubscribeBody`. The shared flow lives
-// in `enablePush` / `disablePush` in `@kroma/core`.
+// in `enablePush` / `disablePush` in `@kroma/client/notifications`.
 
 import type {
   PushBlocker,

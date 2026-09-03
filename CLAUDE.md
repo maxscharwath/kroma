@@ -212,7 +212,8 @@ Three workspace roots, and the split is what each one is FOR:
 packages/  libraries, consumed by name and never by path
   client/   one KromaClient namespace per domain (src/api/<domain>/), whose zod
             schemas ARE the wire types; the transport and events in src/core/
-  core/     re-exports @kroma/client, plus HEVC detection, direct-play, i18n, remote map
+  core/     re-exports @kroma/client's core, plus HEVC detection, direct-play,
+            i18n, remote map
   ui/       @kroma/ui: the design system, authored against React Native
   tv/       the whole 10-foot experience (spatial focus nav, home, detail, player)
   workbench the component atelier + the story SDK the kit's stories are written in
@@ -252,10 +253,17 @@ each other, and both reach a library by its `@kroma/*` name.
   experience in `@kroma/tv`. Write platform code once.
 - Both `clients/web/src` and `packages/tv/src` are **feature-sliced**
   (`features/{catalog,playback,accounts,admin,…}` + `shared/` + `app`/`routes`).
-  Dependency rule: `features/* → shared/* → @kroma/ui → @kroma/core`. A feature
-  **must not import a sibling feature**: lift shared code to `shared/`.
-- Wire types come only from `@kroma/core`, never hand-redefined. Adding or changing
-  a payload means editing the zod schema in `packages/client/src/api/<domain>/`.
+  Dependency rule: `features/* → shared/* → @kroma/ui → @kroma/core →
+  @kroma/client/<domain>`. A feature **must not import a sibling feature**: lift
+  shared code to `shared/`.
+- Wire types come only from the domain that owns them, never hand-redefined:
+  `@kroma/client/media`, `@kroma/client/accounts`, `@kroma/client/requests` and
+  so on carry a domain's schemas, ids and response types; `@kroma/core` carries
+  the client itself, the transport, the session and the shared domain logic
+  around them. Adding or changing a payload means editing the zod schema in
+  `packages/client/src/api/<domain>/`. Nothing lists the domains: the package's
+  `exports` maps `./*` onto `src/api/*/index.ts`, so **adding a domain is adding
+  a folder**.
 - Subpath imports: `#ui/*`, `#tv/*`, `#web/*` (see `tsconfig.base.json`).
 - Design tokens live in TypeScript only. `kromaUI()` (`@kroma/ui/vite`) expands
   `@import "@kroma/ui/css"` into them at build time, so there is no generated CSS

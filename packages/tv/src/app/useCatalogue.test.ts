@@ -51,7 +51,7 @@ vi.mock('@kroma/client/events', () => ({
   },
 }));
 
-vi.mock('@kroma/core', () => ({
+vi.mock('@kroma/client', () => ({
   createKromaClient: (opts: { baseUrl: string }) => {
     const client = {
       baseUrl: opts.baseUrl,
@@ -63,6 +63,9 @@ vi.mock('@kroma/core', () => ({
     H.instances.push(client);
     return client;
   },
+}));
+
+vi.mock('@kroma/core', () => ({
   activeLocale: () => 'fr',
   discoverServer: H.discoverServer,
   checkServerCompat: H.checkServerCompat,

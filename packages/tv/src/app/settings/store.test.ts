@@ -183,7 +183,7 @@ describe('a preference stored by an earlier run', () => {
   it('re-applies the artwork scale when the device store arrives late', async () => {
     vi.resetModules();
     const media = await import('@kroma/client/media');
-    const { setSessionStorage } = await import('@kroma/core');
+    const { setSessionStorage } = await import('@kroma/client');
     await import('./store');
     const late = new Map([['kroma:artwork', 'medium']]);
     expect(media.artworkScaleValue()).toBe(1);

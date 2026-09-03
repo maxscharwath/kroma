@@ -1,5 +1,5 @@
+import type { KromaClient } from '@kroma/client';
 import type { User } from '@kroma/client/accounts';
-import type { KromaClient } from '@kroma/core';
 import { useEffect, useState } from 'react';
 import type { MovieView } from '#web/shared/lib/api';
 

@@ -5,6 +5,13 @@
 // access token for a short-lived SESSION token, kept in memory.
 
 import {
+  apiErrorBody,
+  apiErrorText,
+  KromaApiError,
+  type KromaClient,
+  sharedTokenExchange,
+} from '@kroma/client';
+import {
   type AuthResult,
   clearSession,
   forgetAccount,
@@ -15,13 +22,6 @@ import {
   type User,
   type UserId,
 } from '@kroma/client/accounts';
-import {
-  apiErrorBody,
-  apiErrorText,
-  KromaApiError,
-  type KromaClient,
-  sharedTokenExchange,
-} from '@kroma/core';
 import {
   type Dispatch,
   type SetStateAction,

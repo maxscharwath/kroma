@@ -1,5 +1,5 @@
+import { apiErrorText } from '@kroma/client';
 import type { EpisodeRef } from '@kroma/client/requests';
-import { apiErrorText } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { useState } from 'react';
 import { EPISODES_ANCHOR } from '#web/features/catalog/episode-list';

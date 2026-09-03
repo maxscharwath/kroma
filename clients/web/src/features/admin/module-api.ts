@@ -3,6 +3,7 @@
 // Store responses cross a trust boundary and are parsed with the zod wire
 // schemas from @kroma/client/modules.
 
+import { sessionToken } from '@kroma/client';
 import {
   ModuleEnabledResult,
   ModuleRestartResult,
@@ -13,7 +14,6 @@ import {
   StoreUninstallConflict,
   StoreUpdateResult,
 } from '@kroma/client/modules';
-import { sessionToken } from '@kroma/core';
 import type { ModuleManifest } from '@kroma/module-sdk';
 import { apiBase } from '#web/shared/lib/api';
 

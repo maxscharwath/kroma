@@ -1,5 +1,6 @@
+import type { KromaClient } from '@kroma/client';
 import type { MostWatchedColumn, MostWatchedEntry } from '@kroma/client/admin';
-import { type KromaClient, posterColors, type Translate } from '@kroma/core';
+import { posterColors, type Translate } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,

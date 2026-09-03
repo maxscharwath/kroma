@@ -8,9 +8,9 @@
 // must fire exactly once - it shows the viewer a message and halts playback, so
 // a second firing on the next ping would talk over itself.
 
+import { KromaApiError, type KromaClient } from '@kroma/client';
 import { ItemId } from '@kroma/client/media';
 import { fakeClient } from '@kroma/client/test';
-import { KromaApiError, type KromaClient } from '@kroma/core';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePlaybackHeartbeat } from './playback';

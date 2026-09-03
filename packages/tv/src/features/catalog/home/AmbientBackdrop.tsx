@@ -1,5 +1,6 @@
+import type { KromaClient } from '@kroma/client';
 import type { MediaItem, Show } from '@kroma/client/media';
-import { type KromaClient, posterColors } from '@kroma/core';
+import { posterColors } from '@kroma/core';
 import {
   Box,
   colors,

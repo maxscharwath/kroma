@@ -4,10 +4,10 @@
 // (<CastPanel>): the player is a native fullScreenModal, and @gorhom's sheet
 // renders into a host that sits behind it.
 
+import type { DeviceId } from '@kroma/client';
 import type { CastReceiver } from '@kroma/client/cast';
 import {
   checkRetryable,
-  type DeviceId,
   type DiscoveredTv,
   type FinalRefusal,
   type GrantResult,

@@ -8,10 +8,10 @@
 // message rather than a silent no-op. And the position has to advance between
 // heartbeats, because a bar that steps once every ten seconds reads as broken.
 
+import { DeviceId, KromaApiError, type KromaClient } from '@kroma/client';
 import type { CastReceiver } from '@kroma/client/cast';
 import { ItemId } from '@kroma/client/media';
 import { fakeClient } from '@kroma/client/test';
-import { DeviceId, KromaApiError, type KromaClient } from '@kroma/core';
 import { act, render, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

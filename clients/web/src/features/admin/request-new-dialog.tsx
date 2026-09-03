@@ -1,5 +1,6 @@
+import { apiErrorText } from '@kroma/client';
 import type { DiscoverEntry } from '@kroma/client/discovery';
-import { apiErrorText, posterGradient } from '@kroma/core';
+import { posterGradient } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import {
   Box,

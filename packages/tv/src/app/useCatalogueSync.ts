@@ -1,6 +1,6 @@
+import type { KromaClient } from '@kroma/client';
 import type { Activity } from '@kroma/client/admin';
 import { KromaEvents } from '@kroma/client/events';
-import type { KromaClient } from '@kroma/core';
 import { useEffect, useState } from 'react';
 
 const EMPTY_ACTIVITY: Activity = {

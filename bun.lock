@@ -288,6 +288,7 @@
       "name": "@kroma/tv-native",
       "version": "0.0.0",
       "dependencies": {
+        "@kroma/client": "workspace:*",
         "@kroma/core": "workspace:*",
         "@kroma/lan-beacon": "workspace:*",
         "@kroma/media3-ffmpeg": "workspace:*",

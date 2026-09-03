@@ -1,10 +1,10 @@
+import type { KromaClient } from '@kroma/client';
 import type { AudioTrack, MediaItem } from '@kroma/client/media';
 import {
   audioTrackLabel,
   audioTracksOf,
   type DirectPlayVerdict,
   declaredAspect,
-  type KromaClient,
 } from '@kroma/core';
 import { type AudioFilterMode, type PlaneRect, usePlaybackHeartbeat, useT } from '@kroma/ui';
 import { useCallback, useRef, useState } from 'react';

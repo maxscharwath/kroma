@@ -1,8 +1,8 @@
+import type { KromaClient } from '@kroma/client';
 import type { MediaItem, Section, SectionItem, Show } from '@kroma/client/media';
 import {
   formatRuntime,
   genreLabels,
-  type KromaClient,
   posterColors,
   qualityBadge,
   qualityBadgeForVideo,

@@ -1,5 +1,6 @@
+import { KromaApiError, type KromaClient } from '@kroma/client';
 import type { StoredSession, User } from '@kroma/client/accounts';
-import { KromaApiError, type KromaClient, type MessageKey } from '@kroma/core';
+import type { MessageKey } from '@kroma/core';
 import { useT } from '@kroma/ui';
 import { Avatar, Box, Icon, Keypad, PinField, Spinner, Text, useFocusNav } from '@kroma/ui/kit';
 import { useEffect, useMemo, useState } from 'react';

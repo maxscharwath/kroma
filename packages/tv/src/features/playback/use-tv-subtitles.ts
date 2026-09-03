@@ -1,6 +1,7 @@
+import type { KromaClient } from '@kroma/client';
 import type { MediaItem } from '@kroma/client/media';
 import { GEN_LANGS, GenerationId, type SubCapabilities, SubtitleId } from '@kroma/client/subtitles';
-import { type KromaClient, LANG_OFF } from '@kroma/core';
+import { LANG_OFF } from '@kroma/core';
 import {
   type PlayerSub,
   type SubtitleGenBundle,

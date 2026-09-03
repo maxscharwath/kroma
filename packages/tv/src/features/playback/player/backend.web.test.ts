@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
+import type { KromaClient } from '@kroma/client';
 import type { AudioTrack, MediaItem } from '@kroma/client/media';
-import type { KromaClient, PlayEnv } from '@kroma/core';
+import type { PlayEnv } from '@kroma/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const E = vi.hoisted(() => ({ mpv: vi.fn(), start: vi.fn(), avplay: vi.fn(), html: vi.fn() }));

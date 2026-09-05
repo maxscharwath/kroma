@@ -98,7 +98,7 @@ describe('the mobile-first cascade', () => {
 
 describe('a token inside a breakpoint object', () => {
   it('resolves exactly as the flat form does', () => {
-    const asked = boxStyle({ bg: 'surface2', radius: 'lg' });
+    const asked = boxStyle({ bg: 'surface2', radius: 'lg' }, 0);
     const fluid = boxStyle({ bg: { base: 'surface1', lg: 'surface2' }, radius: { base: 'lg' } }, 2);
     expect(fluid.backgroundColor).toBe(asked.backgroundColor);
     expect(fluid.borderRadius).toBe(asked.borderRadius);

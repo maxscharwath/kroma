@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Text } from '#ui/components/atoms/text';
 import { CONTROL } from '#ui/lib/field-shell';
-import { onScreen } from '#ui/testing';
+import { declared, onScreen } from '#ui/testing';
 import { ListRow } from './list-row';
 
 function Anchor({ to, ...host }: Readonly<Record<string, unknown>>) {
@@ -122,9 +122,9 @@ describe('ListRow', () => {
         </ListRow.Root>
       </>,
     );
-    expect(getComputedStyle(rowOf(container, 'Petite')).minHeight).toBe(`${CONTROL.sm.height}px`);
-    expect(getComputedStyle(rowOf(container, 'Moyenne')).minHeight).toBe(`${CONTROL.md.height}px`);
-    expect(getComputedStyle(rowOf(container, 'Télé')).minHeight).toBe(`${CONTROL.tv.height}px`);
+    expect(declared(rowOf(container, 'Petite'), 'minHeight')).toBe(`${CONTROL.sm.height}px`);
+    expect(declared(rowOf(container, 'Moyenne'), 'minHeight')).toBe(`${CONTROL.md.height}px`);
+    expect(declared(rowOf(container, 'Télé'), 'minHeight')).toBe(`${CONTROL.tv.height}px`);
   });
 
   it('is one focus stop, whatever the parts hold', () => {
@@ -230,9 +230,7 @@ describe('ListRow', () => {
       </>,
     );
     const [plain, picked] = [rowOf(container, 'Hier'), rowOf(container, "Aujourd'hui")];
-    expect(getComputedStyle(picked).backgroundColor).not.toBe(
-      getComputedStyle(plain).backgroundColor,
-    );
+    expect(declared(picked, 'backgroundColor')).not.toBe(declared(plain, 'backgroundColor'));
   });
 
   it('lets a long tail truncate only when the tail says it may', () => {
@@ -273,7 +271,7 @@ describe('ListRow', () => {
       </ListRow.Root>,
     );
 
-    expect(getComputedStyle(rowOf(container, "Sur l'affiche")).boxShadow).toBeTruthy();
+    expect(declared(rowOf(container, "Sur l'affiche"), 'boxShadow')).toBeTruthy();
   });
 
   it('drops the lift on a surface, and keeps the row its own object', () => {
@@ -299,7 +297,7 @@ describe('ListRow', () => {
     );
 
     expect(
-      Number(rowOf(container, 'Sur la carte').style.outlineOffset.replace('px', '')),
+      Number((declared(rowOf(container, 'Sur la carte'), 'outlineOffset') ?? '').replace('px', '')),
     ).toBeGreaterThan(0);
   });
 });

@@ -24,6 +24,10 @@ import { Painted, TouchPressable } from './touch-pressable';
 type NavigatorStyle = NavigatorItemProps['style'];
 const flat = (style: StyleProp<ViewStyle>[]): NavigatorStyle =>
   StyleSheet.flatten(style) as NavigatorStyle;
+// The browser keeps the array: flattened, a style is a fresh object nothing
+// registered, which react-native-web serialises inline on every control, and
+// the classes its declarations compiled to never reach the element.
+const layered = (style: StyleProp<ViewStyle>[]): NavigatorStyle => style as NavigatorStyle;
 
 type ItemViewProps = NavigatorItemProps['viewProps'];
 
@@ -188,7 +192,7 @@ function NavigatorForm({
       // On the browser targets the control is ONE element: a second view per
       // control is a cost Tizen pays on every focus move. The native builds keep
       // the inner view because their focus scale is a real Animated value.
-      style={WEB ? flat(painted) : liftedBox(at.layers, at.focused)}
+      style={WEB ? layered(painted) : liftedBox(at.layers, at.focused)}
       viewProps={
         {
           accessibilityRole: platformRole(at.role),

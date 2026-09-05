@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-native-web/.bun-tag-65cd760928415cf b/.bun-tag-65cd760928415cf
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/react-native-web/.bun-tag-819891abbb95d2f5 b/.bun-tag-819891abbb95d2f5
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/cjs/exports/StyleSheet/index.js b/dist/cjs/exports/StyleSheet/index.js
+index eedf49039dce440eb60bb4eefbc5c4c8be952f30..57fe161291a7575200d36ef400156475111c88bd 100644
+--- a/dist/cjs/exports/StyleSheet/index.js
++++ b/dist/cjs/exports/StyleSheet/index.js
+@@ -60,7 +60,11 @@ function compileAndInsertAtomic(style) {
+   var _atomic = (0, _compiler.atomic)((0, _preprocess.preprocess)(style, defaultPreprocessOptions)),
+     compiledStyle = _atomic[0],
+     compiledOrderedRules = _atomic[1];
+-  insertRules(compiledOrderedRules);
++  // KROMA: a style whose rules a build wrote into the static stylesheet is
++  // compiled to the same classes and inserted nowhere.
++  if (style.$$static !== true) {
++    insertRules(compiledOrderedRules);
++  }
+   return compiledStyle;
+ }
+ function compileAndInsertReset(style, key) {
+diff --git a/dist/exports/StyleSheet/index.js b/dist/exports/StyleSheet/index.js
+index 891994c511839216d523e68786daea85261539fb..c0867b48596a52b233affad837548a6c09ac67a8 100644
+--- a/dist/exports/StyleSheet/index.js
++++ b/dist/exports/StyleSheet/index.js
+@@ -56,7 +56,11 @@ function compileAndInsertAtomic(style) {
+   var _atomic = atomic(preprocess(style, defaultPreprocessOptions)),
+     compiledStyle = _atomic[0],
+     compiledOrderedRules = _atomic[1];
+-  insertRules(compiledOrderedRules);
++  // KROMA: a style whose rules a build wrote into the static stylesheet is
++  // compiled to the same classes and inserted nowhere.
++  if (style.$$static !== true) {
++    insertRules(compiledOrderedRules);
++  }
+   return compiledStyle;
+ }
+ function compileAndInsertReset(style, key) {

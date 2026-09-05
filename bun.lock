@@ -932,6 +932,7 @@
         "@types/node": "^22.20.1",
         "@types/react": "^19.2.18",
         "@types/react-dom": "^19.2.4",
+        "magic-string": "^0.30.21",
         "react": "19.2.8",
         "react-dom": "19.2.8",
         "react-native": "npm:react-native-tvos@0.86.0-2",
@@ -993,6 +994,7 @@
   },
   "patchedDependencies": {
     "expo-video@57.0.2": "patches/expo-video@57.0.2.patch",
+    "react-native-web@0.21.2": "patches/react-native-web@0.21.2.patch",
     "react-native-svg@15.15.5": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",
     "@expo/require-utils@57.0.4": "patches/@expo%2Frequire-utils@57.0.4.patch",
     "react-native-svg@15.15.4": "patches/react-native-svg-rnsvg-utils-alias-resolution.patch",

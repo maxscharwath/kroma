@@ -2,7 +2,14 @@
 // keyframe in a browser, never a per-frame JS callback per skeleton.
 
 import { Animated, type StyleProp, View, type ViewStyle } from 'react-native';
-import { type BoxStyleProps, boxStyle, radiusValue, styles, useTheme } from '#ui/core';
+import {
+  type BoxStyleProps,
+  boxStyle,
+  breakpointIndex,
+  radiusValue,
+  styles,
+  useTheme,
+} from '#ui/core';
 import { motion, type TypeRole, type TypeSpec } from '#ui/core/tokens';
 import { useLoop } from '#ui/lib/loop';
 
@@ -58,7 +65,12 @@ function Skeleton({
       // Half a leading top and bottom, so `lines` lines occupy exactly the
       // height the real text will and nothing shifts when it arrives.
       <Animated.View
-        style={[{ gap: leading, paddingVertical: leading / 2 }, boxStyle(box), style, pulse]}
+        style={[
+          { gap: leading, paddingVertical: leading / 2 },
+          boxStyle(box, breakpointIndex()),
+          style,
+          pulse,
+        ]}
       >
         {Array.from({ length: lines }, (_, i) => (
           <View
@@ -80,7 +92,7 @@ function Skeleton({
       ? { width: size, height: size, borderRadius: radiusValue('circle', size) }
       : s[shape];
 
-  return <Animated.View style={[s.wash, shaped, boxStyle(box), style, pulse]} />;
+  return <Animated.View style={[s.wash, shaped, boxStyle(box, breakpointIndex()), style, pulse]} />;
 }
 
 function textRhythm(spec: TypeSpec): { bar: number; leading: number } {

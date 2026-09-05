@@ -94,3 +94,14 @@ describe('sharedStyle', () => {
     expect(second).not.toBe(first);
   });
 });
+
+describe('styles over a static entry', () => {
+  it('hands the static entry back as it is, beside the entries it resolves', async () => {
+    const { staticStyle } = await import('./atomic/register');
+    const compiled = staticStyle({ opacity: 0.5 });
+    const s = styles({ dim: compiled as never, row: { row: true } });
+
+    expect(s.dim).toBe(compiled);
+    expect(flat(s.row)).toEqual({ flexDirection: 'row' });
+  });
+});

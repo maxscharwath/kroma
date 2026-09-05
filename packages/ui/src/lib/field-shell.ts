@@ -19,6 +19,7 @@ import {
   type ColorValue,
   type RadiusToken,
   radiusValue,
+  type StyleDecl,
   styles,
   useBreakpoint,
 } from '#ui/core';
@@ -249,6 +250,8 @@ export function useEntryFontSize(fontSize: number): number {
  * browser ring inside the kit's amber one until the STYLE was cleared. React
  * Native's types don't know `none` (native has no outline at all), hence the
  * cast. */
-export const NO_OUTLINE = { outlineStyle: 'none', outlineWidth: 0 } as unknown as TextStyle;
+export const NO_OUTLINE: TextStyle = styles({
+  none: { outlineStyle: 'none', outlineWidth: 0 } as unknown as StyleDecl,
+}).none;
 
 export type { ControlMetrics, ControlSize };

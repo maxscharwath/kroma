@@ -4,9 +4,10 @@
 // This covers the rest: the shapes a file reuses, which had no home but a
 // module constant.
 
-import { breakpointStep } from '#ui/core/breakpoint';
-import { normalize, stabilise } from '#ui/core/normalize';
+import { breakpointIndex, breakpointStep } from '#ui/core/breakpoint';
+import { normalize } from '#ui/core/normalize';
 import { declaredBreakpoints } from '#ui/core/shorthand-resolve';
+import { stabilise } from '#ui/core/stabilise';
 import { themedCache, themeVersion } from '#ui/core/theme';
 import type { AnyStyle, StyleDecl } from '#ui/core/types';
 
@@ -49,11 +50,12 @@ export function styles<const S extends Record<string, StyleDecl>>(decls: S): Sty
     const at = themeVersion();
     if (builtAt !== at || breakpointStep(breakpoints) !== builtStep) {
       const resolved: Record<string, AnyStyle> = {};
+      const index = breakpointIndex();
       breakpoints = 0;
       for (const name of Object.keys(decls)) {
         const decl = decls[name] as Record<string, unknown>;
         breakpoints |= declaredBreakpoints(decl);
-        resolved[name] = stabilise(normalize(decl)) as AnyStyle;
+        resolved[name] = stabilise(normalize(decl, index)) as AnyStyle;
       }
       built = resolved;
       builtAt = at;
@@ -97,5 +99,8 @@ const shared = themedCache<AnyStyle>(4096);
  * of the key by itself, which is what keeps a flat declaration at one entry.
  */
 export function sharedStyle(key: string, decl: StyleDecl): AnyStyle {
-  return shared(key, () => stabilise(normalize(decl as Record<string, unknown>)) as AnyStyle);
+  return shared(
+    key,
+    () => stabilise(normalize(decl as Record<string, unknown>, breakpointIndex())) as AnyStyle,
+  );
 }

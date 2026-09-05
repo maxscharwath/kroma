@@ -14,7 +14,7 @@ import { IconButton, type IconButtonProps } from '#ui/components/atoms/icon-butt
 import { Text } from '#ui/components/atoms/text';
 import { TextArea, type TextAreaProps } from '#ui/components/atoms/text-area';
 import { TextField, type TextFieldProps } from '#ui/components/atoms/text-field';
-import { type BoxStyleProps, boxStyle, styles } from '#ui/core';
+import { type BoxStyleProps, boxStyle, breakpointIndex, styles } from '#ui/core';
 import { nestedRadius } from '#ui/core/tokens';
 import { controlRadius } from '#ui/lib/field-shell';
 import {
@@ -155,7 +155,7 @@ function Addon({
         onPress?.();
         focusControl();
       }}
-      style={[boxStyle(shape), ...coats]}
+      style={[boxStyle(shape, breakpointIndex()), ...coats]}
     >
       {slotted}
     </Pressable>

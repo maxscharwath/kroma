@@ -75,7 +75,7 @@ export abstract class BaseTvEngine implements TvEngine {
 
   protected sourceUrl(): string {
     if (this.trailerKey) {
-      return this.client.streamUrl(this.item.id, { role: 'trailer', key: this.trailerKey });
+      return this.client.media.streamUrl(this.item.id, { role: 'trailer', key: this.trailerKey });
     }
     return this.mode === 'direct'
       ? this.client.media.streamUrl(this.item.id)

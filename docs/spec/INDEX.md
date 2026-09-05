@@ -116,7 +116,7 @@
 - **PLAY-3** (AGREED) - Watching a trailer does not write watch progress for the movie,
 - **PLAY-4** (AGREED) - When a trailer ends, the player offers this movie. Home or
 - **PLAY-5** (AGREED) - A trailer that cannot start says so in one sentence. It does not
-- **PLAY-6** (AGREED) - The first play of a trailer does not wait for the whole
+- **PLAY-6** (AGREED) - While the copy is being made the person is told so, and
 
 ## SURF - [surfaces](surfaces/)
 

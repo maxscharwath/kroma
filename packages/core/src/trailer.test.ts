@@ -22,6 +22,8 @@ const READY: TrailerReady = {
   durationMs: 120_000,
   container: 'mp4',
   video: { codec: 'h264', width: 1920, height: 1080, hdr: false, bitDepth: 8 },
+  state: 'ready',
+  percent: 100,
 };
 
 describe('asTrailerItem', () => {

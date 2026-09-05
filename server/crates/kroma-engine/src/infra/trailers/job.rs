@@ -1,173 +1,207 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use super::pipeline;
+use super::normalise::{self, MIN_BYTES};
+use super::pipeline::{self, Event};
+use super::source::ClipMeta;
 
-const PLAYABLE_BYTES: u64 = 8 * 1024;
-const MIN_COMPLETE: u64 = 32 * 1024;
-const DOWNLOAD_SECS: u64 = 180;
+/// How long a failure is remembered, so a client polling `prepare` sees the
+/// error instead of starting the same doomed download again every second.
+const FAILURE_COOLDOWN: Duration = Duration::from_secs(60);
+
+#[derive(Debug, Clone, Default)]
+pub struct Status {
+    pub meta: Option<ClipMeta>,
+    pub percent: u8,
+    pub finished: bool,
+    pub failed: Option<String>,
+}
 
 pub struct Job {
-    pub part: PathBuf,
     pub final_path: PathBuf,
-    pub finished: Arc<AtomicBool>,
-    pub failed: Arc<Mutex<Option<String>>>,
-    playable: Arc<(Mutex<bool>, Condvar)>,
+    state: Mutex<Status>,
+    changed: Condvar,
+    settled_at: Mutex<Option<Instant>>,
 }
 
-static JOBS: std::sync::OnceLock<Mutex<std::collections::HashMap<String, Arc<Job>>>> =
-    std::sync::OnceLock::new();
+impl Job {
+    pub fn status(&self) -> Status {
+        self.state.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
 
-fn jobs() -> &'static Mutex<std::collections::HashMap<String, Arc<Job>>> {
-    JOBS.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+    /// Blocks until the clip's length is known, the copy is done, or it failed.
+    /// The length comes from the source before the first byte, so this is the
+    /// one wait a player has to sit through.
+    pub fn wait_meta(&self, timeout: Duration) -> Status {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let deadline = Instant::now() + timeout;
+        while state.meta.is_none() && !state.finished && state.failed.is_none() {
+            let now = Instant::now();
+            if now >= deadline {
+                break;
+            }
+            let (next, _) = self
+                .changed
+                .wait_timeout(state, deadline - now)
+                .unwrap_or_else(|e| e.into_inner());
+            state = next;
+        }
+        state.clone()
+    }
+
+    fn update(&self, f: impl FnOnce(&mut Status)) {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        f(&mut state);
+        self.changed.notify_all();
+    }
 }
 
-pub fn file_len(path: &Path) -> u64 {
-    std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
+fn jobs() -> &'static Mutex<HashMap<String, Arc<Job>>> {
+    static JOBS: OnceLock<Mutex<HashMap<String, Arc<Job>>>> = OnceLock::new();
+    JOBS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 pub fn is_complete(path: &Path) -> bool {
-    path.exists() && file_len(path) >= MIN_COMPLETE
+    normalise::file_len(path) >= MIN_BYTES
 }
 
-fn shorter_than_1080(path: &Path) -> bool {
-    crate::infra::probe::probe_file(path, crate::infra::probe::ffprobe_available())
-        .video
-        .as_ref()
-        .and_then(|v| v.height)
-        .is_some_and(|h| h < 1080)
+/// What is already known about one key, without starting anything. A cached
+/// file is probed once per process, never once per request.
+pub fn peek(data_dir: &Path, key: &str) -> Option<Arc<Job>> {
+    if !super::cache::is_key_safe(key) {
+        return None;
+    }
+    let final_path = super::cache::cached_path(data_dir, key);
+    let mut map = jobs().lock().unwrap_or_else(|e| e.into_inner());
+    known(&mut map, &final_path)
 }
 
+/// The job for one key, starting the download if nothing has it yet.
 pub fn begin(data_dir: &Path, key: &str) -> Result<Arc<Job>, String> {
     if !super::cache::is_key_safe(key) {
         return Err("invalid trailer key".into());
     }
     let final_path = super::cache::cached_path(data_dir, key);
-    if is_complete(&final_path) && !shorter_than_1080(&final_path) {
-        return Ok(Arc::new(Job {
-            part: final_path.clone(),
-            final_path,
-            finished: Arc::new(AtomicBool::new(true)),
-            failed: Arc::new(Mutex::new(None)),
-            playable: Arc::new((Mutex::new(true), Condvar::new())),
-        }));
-    }
-    if is_complete(&final_path) {
-        let _ = std::fs::remove_file(&final_path);
-    }
     let mut map = jobs().lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(job) = map.get(key) {
-        return Ok(job.clone());
+    if let Some(job) = known(&mut map, &final_path) {
+        return Ok(job);
     }
-    std::fs::create_dir_all(super::cache::trailers_dir(data_dir))
-        .map_err(|e| format!("could not create trailers dir: {e}"))?;
-    let part = super::cache::part_path(data_dir, key);
     let job = Arc::new(Job {
-        part: part.clone(),
         final_path: final_path.clone(),
-        finished: Arc::new(AtomicBool::new(false)),
-        failed: Arc::new(Mutex::new(None)),
-        playable: Arc::new((Mutex::new(false), Condvar::new())),
+        state: Mutex::new(Status::default()),
+        changed: Condvar::new(),
+        settled_at: Mutex::new(None),
     });
-    map.insert(key.to_string(), job.clone());
+    map.insert(slot(&final_path), job.clone());
     drop(map);
-    let worker = job.clone();
-    let spawn_key = key.to_string();
-    if let Err(e) = std::thread::Builder::new()
-        .name(format!("trailer-{spawn_key}"))
-        .spawn(move || run(worker, spawn_key))
-    {
-        jobs()
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .remove(key);
-        return Err(format!("could not start trailer download: {e}"));
-    }
+    spawn_worker(data_dir, key, &final_path, &job)?;
     Ok(job)
 }
 
-pub fn wait_playable(job: &Job, timeout: Duration) -> Result<(), String> {
-    let (lock, cv) = &*job.playable;
-    let mut ready = lock.lock().unwrap_or_else(|e| e.into_inner());
-    let deadline = Instant::now() + timeout;
-    while !*ready {
-        if let Some(err) = job.failed.lock().ok().and_then(|g| g.clone()) {
-            return Err(err);
-        }
-        if job.finished.load(Ordering::SeqCst) {
-            break;
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            return Err("trailer took too long to start".into());
-        }
-        let (next, wait) = cv
-            .wait_timeout(ready, deadline - now)
-            .unwrap_or_else(|e| e.into_inner());
-        ready = next;
-        if wait.timed_out() && !*ready {
-            return Err("trailer took too long to start".into());
-        }
-    }
-    if let Some(err) = job.failed.lock().ok().and_then(|g| g.clone()) {
-        return Err(err);
-    }
-    if !is_complete(&job.final_path)
-        && file_len(&job.part) < PLAYABLE_BYTES
-        && file_len(&job.final_path) < PLAYABLE_BYTES
-    {
-        return Err("downloaded trailer was empty".into());
-    }
-    Ok(())
+/// One entry per cached file, not per YouTube key: two data dirs on one process
+/// hold two different copies of the same clip.
+fn slot(final_path: &Path) -> String {
+    final_path.to_string_lossy().into_owned()
 }
 
-fn mark_playable(job: &Job) {
-    let (lock, cv) = &*job.playable;
-    let mut ready = lock.lock().unwrap_or_else(|e| e.into_inner());
-    *ready = true;
-    cv.notify_all();
-}
-
-fn finish(job: &Job, key: &str, result: Result<(), String>) {
-    if let Err(err) = &result {
-        if let Ok(mut slot) = job.failed.lock() {
-            *slot = Some(err.clone());
-        }
-        let _ = std::fs::remove_file(&job.part);
+fn known(map: &mut HashMap<String, Arc<Job>>, final_path: &Path) -> Option<Arc<Job>> {
+    let slot = slot(final_path);
+    if let Some(job) = map.get(&slot).filter(|job| still_useful(job, final_path)) {
+        return Some(job.clone());
     }
-    job.finished.store(true, Ordering::SeqCst);
-    mark_playable(job);
-    let mut map = jobs().lock().unwrap_or_else(|e| e.into_inner());
-    map.remove(key);
+    map.remove(&slot);
+    if !is_complete(final_path) {
+        return None;
+    }
+    let job = settled(
+        final_path.to_path_buf(),
+        Status {
+            meta: Some(normalise::measure(final_path)),
+            percent: 100,
+            finished: true,
+            failed: None,
+        },
+    );
+    map.insert(slot, job.clone());
+    Some(job)
 }
 
-fn run(job: Arc<Job>, key: String) {
-    let watcher = job.clone();
-    std::thread::spawn(move || {
-        let start = Instant::now();
-        while start.elapsed() < Duration::from_secs(DOWNLOAD_SECS) {
-            if watcher.finished.load(Ordering::SeqCst) {
-                return;
-            }
-            if file_len(&watcher.part) >= PLAYABLE_BYTES || file_len(&watcher.final_path) >= PLAYABLE_BYTES
-            {
-                mark_playable(&watcher);
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(40));
+/// A cached entry is stale once the file it describes is gone, and a failure is
+/// only worth repeating after a cooldown.
+fn still_useful(job: &Arc<Job>, final_path: &Path) -> bool {
+    let status = job.status();
+    if !status.finished {
+        return true;
+    }
+    if let Some(at) = *job.settled_at.lock().unwrap_or_else(|e| e.into_inner()) {
+        if status.failed.is_some() {
+            return at.elapsed() < FAILURE_COOLDOWN;
         }
-    });
-    let result = pipeline::download(&key, &job.part).and_then(|()| {
-        if file_len(&job.part) < MIN_COMPLETE {
-            let _ = std::fs::remove_file(&job.part);
-            return Err("downloaded trailer was empty".into());
-        }
-        std::fs::rename(&job.part, &job.final_path).map_err(|e| {
-            let _ = std::fs::remove_file(&job.part);
-            format!("could not move trailer into place: {e}")
+    }
+    status.failed.is_none() && is_complete(final_path)
+}
+
+fn settled(final_path: PathBuf, status: Status) -> Arc<Job> {
+    Arc::new(Job {
+        final_path,
+        state: Mutex::new(status),
+        changed: Condvar::new(),
+        settled_at: Mutex::new(Some(Instant::now())),
+    })
+}
+
+fn spawn_worker(
+    data_dir: &Path,
+    key: &str,
+    final_path: &Path,
+    job: &Arc<Job>,
+) -> Result<(), String> {
+    let worker = job.clone();
+    let work = super::cache::work_dir(data_dir, key);
+    let part = super::cache::part_path(data_dir, key);
+    let spawn_key = key.to_string();
+    std::thread::Builder::new()
+        .name(format!("trailer-{key}"))
+        .spawn(move || run(worker, spawn_key, work, part))
+        .map(|_| ())
+        .map_err(|e| {
+            jobs()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove(&slot(final_path));
+            format!("could not start trailer download: {e}")
         })
+}
+
+fn run(job: Arc<Job>, key: String, work: PathBuf, part: PathBuf) {
+    let mut on_event = |event: Event| match event {
+        Event::Meta(meta) => job.update(|s| s.meta = Some(*meta)),
+        Event::Percent(p) => job.update(|s| s.percent = p),
+    };
+    let result = pipeline::download(&key, &work, &part, &mut on_event)
+        .and_then(|()| {
+            std::fs::rename(&part, &job.final_path)
+                .map_err(|e| format!("could not move trailer into place: {e}"))
+        });
+    let _ = std::fs::remove_dir_all(&work);
+    if result.is_err() {
+        let _ = std::fs::remove_file(&part);
+    }
+    let measured = result.is_ok().then(|| normalise::measure(&job.final_path));
+    job.update(|s| {
+        if let Some(meta) = measured {
+            s.meta = Some(meta);
+            s.percent = 100;
+        }
+        s.failed = result.err();
+        s.finished = true;
     });
-    finish(&job, &key, result);
+    *job.settled_at.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+}
+
+#[cfg(test)]
+pub(crate) fn forget_all() {
+    jobs().lock().unwrap_or_else(|e| e.into_inner()).clear();
 }

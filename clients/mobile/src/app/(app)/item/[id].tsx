@@ -133,7 +133,7 @@ function ItemDetail({ id }: Readonly<{ id: ItemId }>) {
   const playTrailer = () => {
     void queryClient.prefetchQuery({
       queryKey: ['trailer', media.id],
-      queryFn: () => client.prepareTrailer(media.id),
+      queryFn: () => client.media.prepareTrailer(media.id),
     });
     router.push(`/player/${media.id}?trailer=1` as never);
   };

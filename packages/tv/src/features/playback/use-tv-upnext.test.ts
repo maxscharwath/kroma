@@ -113,7 +113,7 @@ describe('the id map the router is handed', () => {
 describe('the film the end of this one offers', () => {
   it('skips this movie when it comes back as its own neighbour', async () => {
     const neighbour = { ...MOVIE, id: 'm2', title: 'Sicario' } as MediaItem;
-    const client = stubClient([MOVIE, neighbour]);
+    const { client } = stubClient([MOVIE, neighbour]);
 
     const { result } = renderHook(() => useTvUpNext(client, t, MOVIE));
 
@@ -129,12 +129,12 @@ describe('a trailer that has just ended', () => {
       trailer?: boolean;
     };
     const neighbour = { ...MOVIE, id: 'm2', title: 'Sicario' } as MediaItem;
-    const client = stubClient([neighbour]);
+    const { client, similar } = stubClient([neighbour]);
 
     const { result } = renderHook(() => useTvUpNext(client, t, clip));
 
     expect(result.current.postPlay).toMatchObject({ id: 'm1', title: 'Arrival' });
     expect(result.current.data.recommendations).toEqual([]);
-    expect(client.similar).not.toHaveBeenCalled();
+    expect(similar).not.toHaveBeenCalled();
   });
 });

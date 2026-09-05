@@ -140,9 +140,8 @@ export class HtmlEngine implements TvEngine {
 
     if (opts.direct || opts.trailerKey) {
       attachDirectPlay(v, opts.client, opts.item, {
-        autoplay: true,
         url: opts.trailerKey
-          ? opts.client.streamUrl(opts.item.id, { role: 'trailer', key: opts.trailerKey })
+          ? opts.client.media.streamUrl(opts.item.id, { role: 'trailer', key: opts.trailerKey })
           : undefined,
       });
       if (opts.startSec > 0.5) {

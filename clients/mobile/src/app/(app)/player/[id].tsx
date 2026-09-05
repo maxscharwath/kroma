@@ -36,6 +36,9 @@ export default function PlayerRoute() {
   return wantsTrailer(trailer) ? <TrailerScreen id={itemId} /> : <PlayerScreen id={itemId} />;
 }
 
+/** The copy is seconds, not minutes: this is a progress cadence, not a poll. */
+const PREPARE_POLL_MS = 1000;
+
 function TrailerScreen({ id }: Readonly<{ id: ItemId }>) {
   const t = useT();
   const client = useClient();
@@ -46,11 +49,12 @@ function TrailerScreen({ id }: Readonly<{ id: ItemId }>) {
   const ready = useQuery({
     queryKey: ['trailer', id],
     queryFn: () => client.media.prepareTrailer(id),
+    refetchInterval: (q) => (q.state.data?.state === 'preparing' ? PREPARE_POLL_MS : false),
     retry: 0,
   });
   const clip = useMemo(
     () =>
-      item.data && ready.data
+      item.data && ready.data?.state === 'ready'
         ? { item: asTrailerItem(item.data, ready.data), key: ready.data.key }
         : null,
     [item.data, ready.data],
@@ -64,7 +68,7 @@ function TrailerScreen({ id }: Readonly<{ id: ItemId }>) {
         onRetry={() => goBack(router)}
       />
     );
-  if (!clip) return <Loading label={t('common.loading')} />;
+  if (!clip) return <Loading label={t('player.trailerPreparing')} />;
 
   return <PlayerBody key={id} item={clip.item} startSec={0} trailerKey={clip.key} />;
 }

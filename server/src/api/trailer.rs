@@ -10,10 +10,9 @@ use crate::api::extract::AuthUser;
 use crate::i18n::ReqLocale;
 use crate::infra::metrics::ByteSink;
 use crate::infra::stream::stream_file;
-use crate::infra::trailers::{stream_growing, TrailerBytes};
 use crate::model::{User, VideoStream};
 use crate::services::settings::trailers_enabled;
-use crate::services::trailers::{self, TrailerError};
+use crate::services::trailers::{self, TrailerError, TrailerState};
 use crate::state::SharedState;
 
 pub fn public_routes() -> Router<SharedState> {
@@ -36,6 +35,8 @@ struct TrailerBody {
     container: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     video: Option<VideoStream>,
+    state: &'static str,
+    percent: u8,
 }
 
 fn locale(user: &User, header: &str) -> String {
@@ -45,6 +46,9 @@ fn locale(user: &User, header: &str) -> String {
         .unwrap_or_else(|| header.to_string())
 }
 
+/// A cache failure carries yt-dlp's and ffmpeg's own words, which name signed
+/// source URLs and paths under the data dir. The operator gets those in the log;
+/// the caller gets one sentence.
 fn map_err(err: TrailerError) -> Response {
     match err {
         TrailerError::NotFound => json_error(StatusCode::NOT_FOUND, "item not found"),
@@ -54,7 +58,10 @@ fn map_err(err: TrailerError) -> Response {
         TrailerError::Unavailable => json_error(StatusCode::NOT_FOUND, "trailers unavailable"),
         TrailerError::NotCached => json_error(StatusCode::NOT_FOUND, "trailer not prepared"),
         TrailerError::BadKey => json_error(StatusCode::BAD_REQUEST, "invalid trailer key"),
-        TrailerError::Cache(msg) => json_error(StatusCode::BAD_GATEWAY, &msg),
+        TrailerError::Cache(msg) => {
+            tracing::warn!(error = %msg, "trailer download failed");
+            json_error(StatusCode::BAD_GATEWAY, "trailer download failed")
+        }
     }
 }
 
@@ -74,6 +81,11 @@ fn body(ready: trailers::TrailerReady) -> TrailerBody {
         duration_ms: ready.duration_ms,
         container: ready.container,
         video: ready.video,
+        state: match ready.state {
+            TrailerState::Ready => "ready",
+            TrailerState::Preparing => "preparing",
+        },
+        percent: ready.percent,
     }
 }
 
@@ -88,8 +100,10 @@ async fn info(
     }
     let locale = locale(&user, header);
     let api_key = state.config.tmdb_api_key.clone();
+    let data_dir = state.config.data_dir.clone();
     let pool = state.db.clone();
-    let ready = run(move || trailers::info(&pool, api_key.as_deref(), &locale, &id)).await?;
+    let ready =
+        run(move || trailers::info(&pool, &data_dir, api_key.as_deref(), &locale, &id)).await?;
     Ok(Json(body(ready)))
 }
 
@@ -106,10 +120,8 @@ async fn prepare(
     let api_key = state.config.tmdb_api_key.clone();
     let data_dir = state.config.data_dir.clone();
     let pool = state.db.clone();
-    let ready = run(move || {
-        trailers::prepare(&pool, &data_dir, api_key.as_deref(), &locale, &id)
-    })
-    .await?;
+    let ready =
+        run(move || trailers::prepare(&pool, &data_dir, api_key.as_deref(), &locale, &id)).await?;
     Ok(Json(body(ready)))
 }
 
@@ -118,6 +130,8 @@ struct StreamQuery {
     key: String,
 }
 
+/// Serves the finished copy only. Preparing one is `prepare`'s job, behind auth:
+/// this route reads bytes that already exist and starts no process.
 async fn stream(
     State(state): State<SharedState>,
     Path(id): Path<String>,
@@ -129,16 +143,8 @@ async fn stream(
     }
     let data_dir = state.config.data_dir.clone();
     let pool = state.db.clone();
-    let bytes = match run(move || trailers::stream_source(&pool, &data_dir, &id, &q.key)).await {
-        Ok(b) => b,
-        Err(resp) => return resp,
-    };
-    match bytes {
-        TrailerBytes::Complete(path) => stream_file(&path, &headers, ByteSink::none()).await,
-        TrailerBytes::Growing {
-            path,
-            finished,
-            failed,
-        } => stream_growing(&path, finished, failed, ByteSink::none()).await,
+    match run(move || trailers::stream_source(&pool, &data_dir, &id, &q.key)).await {
+        Ok(path) => stream_file(&path, &headers, ByteSink::none()).await,
+        Err(resp) => resp,
     }
 }

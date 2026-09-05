@@ -5,9 +5,11 @@ import type {
   DiscoverDetail,
   DiscoverType,
   ItemId,
+  MediaItem,
   Show,
   ShowDetail,
   ShowId,
+  TrailerReady,
   UpNext,
 } from '@kroma/core';
 import { asTrailerItem, genreSlugs } from '@kroma/core';
@@ -19,6 +21,10 @@ import {
   toMovieView,
   toShowView,
 } from '#web/shared/lib/api';
+
+/** How often a preparing trailer is re-asked. The copy is seconds, not minutes,
+ * so this is a progress bar's cadence rather than a poll for a long job. */
+const PREPARE_POLL_MS = 1000;
 
 /** Everything the show-detail page needs, in one cache entry. It's inherently
  * two-stage (the TMDB discover overlay keys off the show's tmdbId, known only
@@ -139,32 +145,39 @@ export const catalogQueries = {
 
   /** The player payload: the item (art/stream URLs resolved) + its upcoming
    * episodes. `next` (the immediate one) drives autoplay; the full list fills the
-   * player's "up next" episode rail. A trailer play skips that and starts the
-   * local copy without waiting for it to finish. */
-  watch: (id: ItemId, trailer = false) =>
+   * player's "up next" episode rail. */
+  watch: (id: ItemId) =>
     queryOptions({
-      queryKey: ['watch', id, trailer ? 'trailer' : 'movie'] as const,
+      queryKey: ['watch', id] as const,
       queryFn: async () => {
         const c = kromaClient();
-        if (trailer) {
-          const [item, ready] = await Promise.all([c.media.item(id), c.media.prepareTrailer(id)]);
-          const patched = asTrailerItem(item, ready);
-          return {
-            item: {
-              ...toMovieView(c, patched),
-              stream: c.media.streamUrl(id, { role: 'trailer', key: ready.key }),
-              subs: [],
-              trailer: true,
-            },
-            next: null,
-            following: [],
-          };
-        }
         const [item, following] = await Promise.all([c.media.item(id), c.playback.following(id)]);
         return { item: toMovieView(c, item), next: following[0] ?? null, following };
       },
     }),
+
+  /** The clip and its local copy. `prepare` is idempotent, so polling it joins
+   * the copy already running rather than starting a second one; it answers with
+   * the clip's length long before the bytes are here. */
+  trailer: (id: ItemId) =>
+    queryOptions({
+      queryKey: ['trailer', id] as const,
+      queryFn: () => kromaClient().media.prepareTrailer(id),
+      refetchInterval: (q) => (q.state.data?.state === 'preparing' ? PREPARE_POLL_MS : false),
+      retry: false,
+    }),
 } as const;
+
+/** Turns a movie plus its ready clip into what the player mounts. */
+export function toTrailerView(item: MediaItem, ready: TrailerReady) {
+  const c = kromaClient();
+  return {
+    ...toMovieView(c, asTrailerItem(item, ready)),
+    stream: c.media.streamUrl(item.id, { role: 'trailer', key: ready.key }),
+    subs: [],
+    trailer: true,
+  };
+}
 
 // Only mount once `ready && user`.
 export const userQueries = {

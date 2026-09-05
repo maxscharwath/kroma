@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app/watch/$id')({
     if (search.trailer) throw redirect({ to: '/watch/$id/trailer', params });
   },
   loader: async ({ params, context: { queryClient } }) => {
-    await ensureWatch(queryClient, ItemId.parse(params.id), false);
+    await ensureWatch(queryClient, ItemId.parse(params.id));
   },
   pendingComponent: WatchPending,
   component: WatchMoviePage,
@@ -21,5 +21,5 @@ export const Route = createFileRoute('/_app/watch/$id')({
 
 function WatchMoviePage() {
   const id = ItemId.parse(Route.useParams().id);
-  return <WatchPage id={id} trailer={false} />;
+  return <WatchPage id={id} />;
 }

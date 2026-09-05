@@ -5,6 +5,6 @@ import { useStoryboard as useSharedStoryboard } from '@kroma/ui';
 
 export type { Storyboard, StoryboardTile } from '@kroma/ui';
 
-export function useStoryboard(client: KromaClient, itemId: ItemId) {
-  return useSharedStoryboard(client, itemId);
+export function useStoryboard(client: KromaClient, itemId: ItemId, enabled = true) {
+  return useSharedStoryboard(client, itemId, { enabled });
 }

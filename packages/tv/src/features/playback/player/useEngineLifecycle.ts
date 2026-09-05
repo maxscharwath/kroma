@@ -121,8 +121,12 @@ export function useEngineLifecycle(
   // precisely the silently-undecodable case this engine exists for. Only from
   // `auto`, and only once: an explicit choice is the viewer's, and a VLC failure
   // has nowhere left to fall.
+  // A trailer is excluded: the clip is H.264/AAC by construction, so a failure is
+  // the copy, not the decoder. Falling back would reopen the same dead URL under
+  // VLC and pin `vlcFallbackFor` to the MOVIE's id, sending the feature to the
+  // software decoder afterwards.
   const giveUp = useEffectEvent(() => {
-    if (!overrun && enginePref === 'auto' && !fellBackToVlc && vlcAvailable()) {
+    if (!trailerKey && !overrun && enginePref === 'auto' && !fellBackToVlc && vlcAvailable()) {
       setVlcFallbackFor(item.id);
       return;
     }
@@ -133,8 +137,9 @@ export function useEngineLifecycle(
   const durationSec = item.durationMs ? item.durationMs / 1000 : 0;
   // Remux-only server: an undecodable video codec here truly cannot play.
   const playVerdict = useMemo(() => canDirectPlay(item), [item]);
-  const failure: PlayerFailure =
-    surface === 'video' && !playVerdict.canDirectPlay
+  const failure: PlayerFailure = trailerKey
+    ? { messageKey: 'player.trailerUnavailable' }
+    : surface === 'video' && !playVerdict.canDirectPlay
       ? playVerdict
       : { messageKey: 'player.cantPlay', hintKey: 'player.cantPlayHint' };
 

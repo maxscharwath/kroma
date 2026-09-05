@@ -10,7 +10,7 @@ import { kromaClient } from '#web/shared/lib/api';
 
 export type { Storyboard, StoryboardTile } from '@kroma/ui';
 
-export function useStoryboard(itemId: ItemId, opts?: { generate?: boolean }) {
+export function useStoryboard(itemId: ItemId, opts?: { generate?: boolean; enabled?: boolean }) {
   // `kromaClient()` mints a fresh instance every call, and the Player re-renders
   // constantly; the shared hook keys its polling effect on `client`, so an
   // unstable reference would tear it down and hammer the endpoint every render.

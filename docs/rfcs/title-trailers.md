@@ -59,18 +59,22 @@ order. Official outranks unofficial inside a rung.
 ### Bytes
 
 Bytes move only when someone hits play, never when they open a fiche or when
-enrichment runs. On first play the server runs `yt-dlp` against that YouTube
-key, prefers H.264 up to 1080p plus AAC, and remuxes through ffmpeg to a
-fragmented MP4 (`empty_moov`) so the player can start before the download
-finishes. The growing file is `<data>/trailers/{key}.part.mp4`, renamed to
-`{key}.mp4` when the copy is complete. Later plays Range-serve that file.
+enrichment runs. On first play `yt-dlp` fetches AND merges the clip, preferring
+H.264 up to 1080p plus AAC; ffmpeg is used only to re-encode a source whose best
+rendition is a codec a television cannot decode. yt-dlp does the fetching
+because a googlevideo URL refuses a whole-file Range and throttles a single
+sequential connection: anything that pulls the bytes itself gets a 403 or about
+1.4x realtime. The copy lands at `<data>/trailers/{key}.part.mp4` and is renamed
+to `{key}.mp4`, moov first, when it is complete.
 
 The player asks for `/api/items/:id/trailer/stream?key=`, never for the movie's
 `/stream` and never for YouTube. Prepare (`POST /api/items/:id/trailer/prepare`)
-picks the clip and starts the download; it does not wait for the file. The
-stream handler joins an in-flight copy and serves bytes as they land, without a
-Content-Length, so a Range against a partial size cannot lie to the player.
-Concurrent plays of one key share the same download.
+picks the clip, starts the copy, and answers as soon as the source reports the
+clip's length, which is well before the first byte: the player therefore always
+knows its duration. It answers `preparing` with a percentage until the file is
+whole, and the client shows that rather than opening on nothing. The stream
+route serves the finished file with Range and starts no work of its own, so it
+stays safe to leave unauthenticated. Concurrent plays of one key share the copy.
 
 If `yt-dlp` is missing or the download fails, the movie has no trailer. The
 button is not shown, or it fails with one sentence and does not start the movie.

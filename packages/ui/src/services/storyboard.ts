@@ -41,11 +41,12 @@ const MAX_TRIES = FAST_POLLS + 240; // ~1 h overall bound
 /**
  * Loads an item's scrub-bar storyboard for the seek preview. `generate: false`
  * (dashboard thumbnails) does a single fetch and never awaits lazy generation.
+ * `enabled: false` fetches nothing at all: a trailer has no sheet to ask for.
  */
 export function useStoryboard(
   client: KromaClient,
   itemId: ItemId,
-  { generate = true }: { generate?: boolean } = {},
+  { generate = true, enabled = true }: { generate?: boolean; enabled?: boolean } = {},
 ): Storyboard {
   const [manifest, setManifest] = useState<StoryboardManifest | null>(null);
   const [sheetUrl, setSheetUrl] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export function useStoryboard(
     setManifest(null);
     setSheetUrl(null);
     setLoaded(false);
+    if (!enabled) return;
 
     // `Image.prefetch`, not `new Image()`: the DOM constructor doesn't exist on
     // a television, and inside this poll's promise chain the ReferenceError was
@@ -113,7 +115,7 @@ export function useStoryboard(
       if (timer) clearTimeout(timer);
       if (generate) doc?.removeEventListener('visibilitychange', onVisible);
     };
-  }, [client, itemId, generate]);
+  }, [client, itemId, generate, enabled]);
 
   const tile = useCallback(
     (sec: number, displayW: number): StoryboardTile | null => {

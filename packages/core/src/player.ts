@@ -7,7 +7,10 @@ export interface AttachOptions {
   url?: string;
 }
 
-/** Sound-first `play()`. If the browser blocks it, retry muted and unmute. */
+/** Sound-first `play()`. If the browser blocks it, retry muted and stay muted:
+ * unmuting outside a user gesture is answered by pausing the element, which
+ * leaves the viewer on a single frame. The chrome's mute control is the way
+ * back, and it runs inside a gesture. */
 export function beginPlayback(video: HTMLVideoElement): void {
   const p = video.play();
   if (typeof p?.then !== 'function') return;
@@ -16,14 +19,10 @@ export function beginPlayback(video: HTMLVideoElement): void {
     video.muted = true;
     const retry = video.play();
     if (typeof retry?.then !== 'function') return;
-    void retry.then(
-      () => {
-        video.muted = false;
-      },
-      () => {
-        video.muted = false;
-      },
-    );
+    void retry.catch(() => {
+      // Nothing is playing, so the chrome must not claim the sound is off.
+      video.muted = false;
+    });
   });
 }
 

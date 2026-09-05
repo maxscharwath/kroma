@@ -52,7 +52,7 @@ export function Player({
   const wc = useWebController(item);
   const { controller, videoRef, containerRef, pb, subtitleGen } = wc;
   const [appearance, setAppearance] = useSubtitleAppearance();
-  const storyboard = useStoryboard(item.trailer ? '' : item.id);
+  const storyboard = useStoryboard(item.id, { enabled: !item.trailer });
   const tileAt = useCallback(
     (sec: number) => (item.trailer ? null : storyboard.tile(sec, PREVIEW_W)),
     [storyboard, item.trailer],
@@ -121,7 +121,6 @@ export function Player({
     <video
       key={`${pb.anchor}:${pb.audioIndex}`}
       ref={videoRef}
-      autoPlay
       playsInline
       crossOrigin="anonymous"
       style={{ borderRadius: 'inherit' }}

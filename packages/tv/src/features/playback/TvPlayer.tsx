@@ -64,7 +64,7 @@ export function TvPlayer() {
   // up the position a cast "play" asked to start from).
   useCastTarget(item, controller, !trailer);
   const [appearance, setAppearance] = useSubtitleAppearance();
-  const storyboard = useStoryboard(client, trailer ? '' : item.id);
+  const storyboard = useStoryboard(client, item.id, !trailer);
   const tileAt = useCallback(
     (sec: number) => (trailer ? null : storyboard.tile(sec, PREVIEW_W)),
     [storyboard, trailer],
@@ -99,7 +99,7 @@ export function TvPlayer() {
   const onPlayItem = useCallback(
     (i: UpNextItem) => {
       if (trailer && i.id === item.id) {
-        void client
+        void client.media
           .item(item.id)
           .then((movie) => nav.swap('player', { item: movie }))
           .catch(() => undefined);

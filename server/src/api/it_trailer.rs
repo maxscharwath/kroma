@@ -81,6 +81,52 @@ async fn prepare_is_fast_when_the_file_is_already_cached() {
 }
 
 #[tokio::test]
+async fn a_clip_that_is_not_here_yet_reports_preparing_and_fetches_nothing() {
+    let t = test_app();
+    let id = seed_movie_trailer(&t);
+    std::fs::remove_file(t.state.config.data_dir.join("trailers").join(format!("{KEY}.mp4")))
+        .expect("drop the cached copy");
+
+    let (status, body) = get(&t.app, &format!("/api/items/{id}/trailer"), Some(&t.token)).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["state"], json!("preparing"));
+    assert_eq!(body["percent"], json!(0));
+    assert!(body["durationMs"].is_null());
+    assert!(!t.state.config.data_dir.join("trailers").join(format!("{KEY}.part.mp4")).exists());
+}
+
+#[tokio::test]
+async fn a_clip_that_is_here_reports_ready_so_the_player_can_open() {
+    let t = test_app();
+    let id = seed_movie_trailer(&t);
+
+    let (status, body) = get(&t.app, &format!("/api/items/{id}/trailer"), Some(&t.token)).await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["state"], json!("ready"));
+    assert_eq!(body["percent"], json!(100));
+}
+
+#[tokio::test]
+async fn streaming_a_clip_nobody_prepared_answers_404_rather_than_starting_a_download() {
+    let t = test_app();
+    let id = seed_movie_trailer(&t);
+    let dir = t.state.config.data_dir.join("trailers");
+    std::fs::remove_file(dir.join(format!("{KEY}.mp4"))).expect("drop the cached copy");
+
+    let (status, _) = get(
+        &t.app,
+        &format!("/api/items/{id}/trailer/stream?key={KEY}"),
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(!dir.join(format!("{KEY}.part.mp4")).exists());
+}
+
+#[tokio::test]
 async fn a_cached_trailer_stream_honours_range() {
     let t = test_app();
     let id = seed_movie_trailer(&t);

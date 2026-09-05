@@ -224,5 +224,6 @@ autoplay.
 **PLAY-5** (AGREED) - A trailer that cannot start says so in one sentence. It does not
 start the movie instead.
 
-**PLAY-6** (AGREED) - The first play of a trailer does not wait for the whole
-copy before the picture can start, when a playable prefix is already available.
+**PLAY-6** (AGREED) - While the copy is being made the person is told so, and
+how far it has got. The clip's length is known from the first moment, so the
+player never opens on a scrub bar it cannot size.

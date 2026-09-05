@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { MediaItem, Translate } from '@kroma/core';
+import { ItemId, type MediaItem, type Translate } from '@kroma/core';
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -106,7 +106,7 @@ describe('the cards', () => {
 
 describe('the film the end of this one offers', () => {
   it('skips this movie when it comes back as its own neighbour', async () => {
-    api.similar.mockResolvedValue([MOVIE, { ...MOVIE, id: 'm2', title: 'Sicario' }]);
+    api.similar.mockResolvedValue([MOVIE, { ...MOVIE, id: ItemId.parse('m2'), title: 'Sicario' }]);
 
     const { result } = renderHook(() => useWebUpNext(t, MOVIE));
 
@@ -121,7 +121,7 @@ describe('a trailer that has just ended', () => {
     const clip = { ...MOVIE, trailer: true, durationMs: 120_000 } as MediaItem & {
       trailer?: boolean;
     };
-    api.similar.mockResolvedValue([{ ...MOVIE, id: 'm2', title: 'Sicario' }]);
+    api.similar.mockResolvedValue([{ ...MOVIE, id: ItemId.parse('m2'), title: 'Sicario' }]);
 
     const { result } = renderHook(() => useWebUpNext(t, clip));
 

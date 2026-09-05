@@ -14,8 +14,6 @@ use crate::api::extract::AuthUser;
 use crate::api::util::{blocking, query};
 use crate::db;
 use crate::i18n::ReqLocale;
-use crate::services::settings::trailers_enabled;
-use crate::services::trailers;
 use crate::state::SharedState;
 use axum::routing::{get, post};
 use axum::Router;
@@ -174,18 +172,10 @@ pub async fn get_item(
     ReqLocale(locale): ReqLocale,
     Path(id): Path<String>,
 ) -> Result<Response, Response> {
-    let fill = trailers_enabled(&state.settings);
-    let api_key = state.config.tmdb_api_key.clone();
     let item = query(&state.db, move |pool| {
         let Some(mut item) = db::get_item(&pool, &id)? else {
             return Ok(None);
         };
-        if fill {
-            trailers::fill_catalog(&pool, api_key.as_deref(), &item);
-            if let Ok(Some(fresh)) = db::get_item(&pool, &item.id) {
-                item = fresh;
-            }
-        }
         db::localize::overlay_items(&pool, std::slice::from_mut(&mut item), locale)?;
         Ok(Some(item))
     })

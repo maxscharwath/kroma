@@ -83,6 +83,24 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# yt-dlp = the trailer fetcher. The self-contained upstream build, not Debian's:
+# YouTube changes its extractor often enough that a distro package is stale on
+# arrival, and this one carries its own Python. Pinned and checksummed; bumping
+# it is how a release fixes trailers after a YouTube change.
+ARG YTDLP_VERSION=2026.06.09
+ARG YTDLP_SHA256_amd64=bf8aac79b72287a6d2043074415132558b43743a8f9461a22b0141e90f16ce66
+ARG YTDLP_SHA256_arm64=cabd246445bdfde0eda0dfe68bbe90354be83f3fdbbf077df11a2ea55f41cdbd
+RUN set -eux; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) asset=yt-dlp_linux; sum="$YTDLP_SHA256_amd64" ;; \
+      arm64) asset=yt-dlp_linux_aarch64; sum="$YTDLP_SHA256_arm64" ;; \
+      *) echo "no yt-dlp build for this arch; trailers stay unavailable" >&2; exit 0 ;; \
+    esac; \
+    curl -fsSL "https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_VERSION}/${asset}" \
+      -o /usr/local/bin/yt-dlp; \
+    echo "${sum}  /usr/local/bin/yt-dlp" | sha256sum -c -; \
+    chmod +x /usr/local/bin/yt-dlp
+
 COPY --from=builder /src/server/target/release/kroma-server /usr/local/bin/kroma-server
 COPY --from=web /app/clients/web/dist/client /app/web
 

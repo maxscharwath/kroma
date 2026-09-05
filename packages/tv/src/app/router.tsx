@@ -223,8 +223,14 @@ export function useClient(): KromaClient {
 // reconcile in place, keeping the previous engine and leaving the ring on a card
 // that has just unmounted; keyed by the subject they remount.
 function subjectKey(route: TvRoute): string {
-  if (route.name === 'player' || route.name === 'movie') {
-    return `${route.name}:${route.params.item.id}`;
+  if (route.name === 'player') {
+    // The clip and the film share an id. Without the trailer key in here, playing
+    // the film from a trailer's post-play card reconciles in place and it opens
+    // with the clip's audio track, start position and decoder fallback.
+    return `player:${route.params.item.id}:${route.params.trailerKey ?? ''}`;
+  }
+  if (route.name === 'movie') {
+    return `movie:${route.params.item.id}`;
   }
   return route.name;
 }

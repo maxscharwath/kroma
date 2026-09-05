@@ -14,6 +14,7 @@ import {
   WatchedButton,
 } from '#tv/features/catalog/detail/parts';
 import { TvAiSuggestRow } from '#tv/features/catalog/detail/TvAiSuggestRow';
+import { awaitTrailer } from '#tv/shared/trailer';
 
 /** Film detail backdrop, synopsis, metadata, a Lecture button, my-list, an
  * "ends at" hint and the cast. The movie already carries its TMDB metadata from
@@ -77,8 +78,7 @@ export function TvMovieDetail() {
               onPress={() => {
                 setTrailerBusy(true);
                 setTrailerErr(null);
-                void client
-                  .prepareTrailer(item.id)
+                void awaitTrailer(client, item.id)
                   .then((ready) => {
                     nav.go('player', { item: asTrailerItem(item, ready), trailerKey: ready.key });
                   })

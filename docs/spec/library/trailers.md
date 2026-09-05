@@ -53,8 +53,8 @@ not a playback source.
 
 **LIB-7** (AGREED) - Trailer bytes are fetched only when someone plays that
 trailer. Opening a movie, browsing the library, and enrichment do not download
-clips. The first play starts as soon as a playable prefix exists and KROMA
-keeps the finished copy for later plays.
+clips. KROMA keeps the finished copy, so only the first play waits and every
+play after it is immediate and seekable.
 
 **LIB-8** (AGREED) - The copy is in a form every first-class surface can
 direct-play. A format a television cannot decode is converted once, when the

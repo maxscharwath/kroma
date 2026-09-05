@@ -186,7 +186,7 @@ export function TitleDetail({ initial }: Readonly<{ initial: TitleView }>) {
   };
   const playTrailer = () => {
     if (!localId) return;
-    void queryClient.prefetchQuery(catalogQueries.watch(localId, true));
+    void queryClient.prefetchQuery(catalogQueries.trailer(ItemId.parse(localId)));
     navigate({ to: '/watch/$id/trailer', params: { id: localId } });
   };
 

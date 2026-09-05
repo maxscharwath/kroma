@@ -92,7 +92,7 @@ describe('attachDirectPlay', () => {
 });
 
 describe('beginPlayback', () => {
-  it('falls back to muted play and unmutes when sound autoplay is blocked', async () => {
+  it('stays muted after a blocked sound autoplay, rather than being paused for unmuting', async () => {
     let attempts = 0;
     const el = {
       muted: false,
@@ -107,7 +107,7 @@ describe('beginPlayback', () => {
     await Promise.resolve();
 
     expect(attempts).toBe(2);
-    expect(el.muted).toBe(false);
+    expect(el.muted).toBe(true);
   });
 
   it('does not leave the element muted when even muted play is refused', async () => {

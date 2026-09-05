@@ -128,6 +128,7 @@
   "player.subtitles": "Subtitles",
   "player.subtitlesOff": "Off",
   "player.trailer": "Trailer",
+  "player.trailerPreparing": "Preparing the trailer…",
   "player.trailerUnavailable": "This trailer is not available.",
   "player.upNextTitle": "Up next",
   "player.volume": "Volume",

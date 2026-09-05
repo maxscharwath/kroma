@@ -65,12 +65,17 @@ export const MediaItem = CatalogEntry.extend(Tracks.shape).extend({
 });
 export type MediaItem = z.infer<typeof MediaItem>;
 
+/** A trailer clip. `preparing` means the local copy is still landing: `percent`
+ * is how far, and the stream URL answers 404 until the state turns `ready`.
+ * `durationMs` and `video` are the source's own, known before the first byte. */
 export const TrailerReady = z.object({
   language: z.string(),
   key: z.string(),
   durationMs: z.number().nullish(),
   container: z.string(),
   video: VideoTrack.nullish(),
+  state: z.enum(['ready', 'preparing']),
+  percent: z.number(),
 });
 export type TrailerReady = z.infer<typeof TrailerReady>;
 

@@ -7,7 +7,7 @@ import { Box } from '#ui/components/atoms/box';
 import { sharedStyle, styles } from '#ui/core';
 import { ease } from '#ui/lib/ease';
 import { WEB } from '#ui/lib/platform';
-import type { LensRect } from './nav-pill-context';
+import type { LensRect, NavPillTone } from './nav-pill-context';
 
 const TRAVEL_MS = 260;
 const CHASE_MS = 160;
@@ -17,6 +17,7 @@ const EASE_NATIVE = ease.spring.native;
 interface LensProps {
   rect: LensRect | null;
   chase: boolean;
+  tone: NavPillTone;
 }
 
 const motionOf = (entering: boolean, chase: boolean) =>
@@ -25,12 +26,12 @@ const motionOf = (entering: boolean, chase: boolean) =>
     transitionDuration: `${chase ? CHASE_MS : TRAVEL_MS}ms`,
     transitionTimingFunction: EASE_CSS,
   });
-function Lens({ rect, chase }: Readonly<LensProps>) {
-  if (WEB) return <WebLens rect={rect} chase={chase} />;
-  return <NativeLens rect={rect} chase={chase} />;
+function Lens({ rect, chase, tone }: Readonly<LensProps>) {
+  if (WEB) return <WebLens rect={rect} chase={chase} tone={tone} />;
+  return <NativeLens rect={rect} chase={chase} tone={tone} />;
 }
 
-function WebLens({ rect, chase }: Readonly<LensProps>) {
+function WebLens({ rect, chase, tone }: Readonly<LensProps>) {
   // Both are state updated during render - the sanctioned previous-value shape.
   // `last` is the rect the lens HELD, so a lens fading out keeps its place;
   // `entering` is true until the first MOVE, so the first rect is taken with an
@@ -45,9 +46,9 @@ function WebLens({ rect, chase }: Readonly<LensProps>) {
     <Box
       absolute
       radius="pill"
-      bg="accentSoft"
       style={[
         s.lens,
+        fill[tone],
         motionOf(entering, chase),
         {
           // The travel rides a transform, not `left`. Both land the pill in the
@@ -76,7 +77,7 @@ interface LensMotion {
   shown: Animated.Value;
 }
 
-function NativeLens({ rect, chase }: Readonly<LensProps>) {
+function NativeLens({ rect, chase, tone }: Readonly<LensProps>) {
   const [motion] = useState<LensMotion>(() => ({
     left: new Animated.Value(0),
     width: new Animated.Value(0),
@@ -118,13 +119,15 @@ function NativeLens({ rect, chase }: Readonly<LensProps>) {
   // Only x and width travel: every item shares the row's height and baseline.
   return (
     <Animated.View
-      style={[s.lens, { left, width, opacity: shown, top: box.y, height: box.height }]}
+      style={[s.lens, fill[tone], { left, width, opacity: shown, top: box.y, height: box.height }]}
     />
   );
 }
 
 const s = styles({
-  lens: { absolute: true, left: 0, radius: 'pill', bg: 'accentSoft', willChange: 'transform' },
+  lens: { absolute: true, left: 0, radius: 'pill', willChange: 'transform' },
 });
+
+const fill = styles({ accent: { bg: 'accentSoft' }, neutral: { bg: 'tint/12' } });
 
 export { Lens };

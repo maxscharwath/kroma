@@ -10,11 +10,11 @@ const HOME: LensRect = { x: 8, y: 4, width: 96, height: 44 };
 const SEARCH: LensRect = { x: 128, y: 4, width: 120, height: 44 };
 
 function lens(rect: LensRect | null, chase = false) {
-  const { container, rerender } = render(<Lens rect={rect} chase={chase} />);
+  const { container, rerender } = render(<Lens rect={rect} chase={chase} tone="accent" />);
   return {
     container,
     node: container.firstElementChild as HTMLElement,
-    move: (next: LensRect | null) => rerender(<Lens rect={next} chase={chase} />),
+    move: (next: LensRect | null) => rerender(<Lens rect={next} chase={chase} tone="accent" />),
   };
 }
 
@@ -65,5 +65,15 @@ describe('the lens on the web', () => {
 
   it('draws nothing at all until an item claims it', () => {
     expect(lens(null).container.innerHTML).toBe('');
+  });
+
+  it('gives up the amber where the bar asked for a neutral one', () => {
+    const amber = render(<Lens rect={HOME} chase={false} tone="accent" />);
+    const plain = render(<Lens rect={HOME} chase={false} tone="neutral" />);
+
+    const fill = (view: typeof amber) =>
+      getComputedStyle(view.container.firstElementChild as HTMLElement).backgroundColor;
+
+    expect(fill(plain)).not.toBe(fill(amber));
   });
 });

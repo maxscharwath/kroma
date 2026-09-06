@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { declared, layout } from '#ui/testing';
@@ -174,6 +174,17 @@ describe('NavPill items', () => {
     const lens = capsule.firstElementChild as HTMLElement;
     expect(declared(lens, 'transform')).toBe('translateX(128px)');
     expect(lens.style.width).toBe('120px');
+  });
+
+  it('paints the lens in the tone the capsule was given', () => {
+    const fill = (props: Partial<NavPillRootProps>) => {
+      const { container } = render(bar(props));
+      layout(within(container).getByLabelText('Search'), { x: 8, y: 4, width: 96, height: 44 });
+      const lens = container.firstElementChild?.firstElementChild as HTMLElement;
+      return getComputedStyle(lens).backgroundColor;
+    };
+
+    expect(fill({ tone: 'neutral' })).not.toBe(fill({}));
   });
 
   it('survives having no active item at all', () => {

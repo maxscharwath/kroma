@@ -12,7 +12,6 @@ import {
   Box,
   Chip,
   classes,
-  color,
   genreIcon,
   Row,
   ringRoomBlock,
@@ -58,7 +57,6 @@ const barStyle = styles({
     backgroundColor: 'color-mix(in srgb, var(--kroma-bg) 72%, transparent)',
     backdropFilter: 'blur(24px)',
     WebkitBackdropFilter: 'blur(24px)',
-    boxShadow: `0 16px 32px -20px ${color('black/85')}`,
   },
 });
 

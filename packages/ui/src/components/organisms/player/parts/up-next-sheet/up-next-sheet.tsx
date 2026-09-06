@@ -245,7 +245,7 @@ const s = styles({
   },
   sheetTitle: { font: 'display', fontSize: 22, fontWeight: '700' },
   headerRow: { row: true, align: 'flex-start' },
-  headerBox: { px: 56, pt: 28, pb: 18, radius: 'lg' },
+  headerBox: { px: 56, pt: 28, pb: 18, radius: 'xl' },
   fill: { flex: true, minH: 0 },
   list: { flex: true, minH: 0 },
   grid: { gap: 32 },

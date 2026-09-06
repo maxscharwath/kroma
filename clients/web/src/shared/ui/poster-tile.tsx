@@ -33,22 +33,18 @@ export const ART_FADE = move.artFade;
 
 const washOf = (image: string) => sharedStyle(`poster:wash:${image}`, { backgroundImage: image });
 
-// An outline, not a second shadow: a shadow list interpolates item by item, so
-// growing [card] into [ring, pop] faded the card's 28px blur into the ring's
-// slot and the ring arrived as a halo before it snapped.
 const s = styles({
-  hit: { w: '100%', radius: 'lg' },
+  hit: { w: '100%', radius: 'xl' },
   lift: { transform: [{ translateY: motion.focusLift }] },
   art: {
     aspect: 2 / 3,
-    radius: 'lg',
+    radius: 'xl',
     overflow: 'hidden',
-    shadow: 'card',
     outlineStyle: 'solid',
     outlineWidth: 3,
     outlineColor: 'transparent',
   },
-  artLit: { shadow: 'pop', outlineColor: color('accent') },
+  artLit: { outlineColor: color('accent') },
 });
 
 export interface PosterTileProps {

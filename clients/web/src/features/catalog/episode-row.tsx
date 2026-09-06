@@ -41,7 +41,7 @@ const episodeRow = sv({
     row: true,
     align: 'center',
     gap: ROW_GAP,
-    radius: 'lg',
+    radius: 'xl',
     p: 14,
     bg: 'white/2.5',
     border: 'white/5',
@@ -154,7 +154,7 @@ const missingRow = sv({
     row: true,
     align: 'center',
     gap: ROW_GAP,
-    radius: 'lg',
+    radius: 'xl',
     p: 14,
     bg: 'white/1.5',
     border: 'white/5',
@@ -185,7 +185,7 @@ export function MissingEpisodeRow({
   const label = t('content.episodeN', { n: episode });
   if (pending) {
     return (
-      <Box row align="center" gap={ROW_GAP} radius="lg" p={14} bg="white/1.5" border="white/5">
+      <Box row align="center" gap={ROW_GAP} radius="xl" p={14} bg="white/1.5" border="white/5">
         <MissingStill episode={episode} />
         <Box minW={0} flex>
           <Text variant="label" lines={1} color="white/70" style={s.bold}>

@@ -45,7 +45,7 @@ export function RequestBar({
   if (count === 0 && !seasonPickable && !allPickable) return null;
   return (
     <div className={classes(s.sticky)}>
-      <Surface elevated radius="2xl" pad="md">
+      <Surface elevated radius="xl" pad="md">
         <Row wrap between gap={12}>
           <Text variant="meta" color={count > 0 ? 'text' : 'textDim'}>
             {count > 0 ? t('requests.selectedEpisodes', { count }) : t('requests.pickEpisodesHint')}

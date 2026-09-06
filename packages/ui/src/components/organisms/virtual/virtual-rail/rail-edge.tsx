@@ -138,7 +138,6 @@ const s = styles({
     center: true,
     bg: 'tint/12',
     border: 'borderStrong',
-    shadow: 'card',
   },
   arrowHover: { bg: 'tint/20' },
   arrowPressed: { bg: 'tint/28', transform: [{ scale: 0.94 }] },

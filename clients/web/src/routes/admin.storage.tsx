@@ -246,7 +246,7 @@ function VolumeCard({ v }: Readonly<{ v: Volume }>) {
   const pct = v.totalBytes ? Math.round((v.usedBytes / v.totalBytes) * 100) : 0;
   const nearFull = pct >= 80;
   return (
-    <Surface elevated pad="none" radius={16} border="border" px={22} py={18}>
+    <Surface elevated pad="none" border="border" px={22} py={18}>
       <Box row align="center" justify="space-between" gap={16} mb={12}>
         <Box row align="center" gap={14} minW={0}>
           <Box w={40} h={40} shrink={0} center radius="xs" bg="accentSoft">

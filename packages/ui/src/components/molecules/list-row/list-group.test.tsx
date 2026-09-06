@@ -47,7 +47,6 @@ describe('ListRow.Group', () => {
       </ListRow.Root>,
     );
     const standalone = alone.querySelector('[aria-label="Seule"]') as HTMLElement;
-    expect(declared(standalone, 'boxShadow')).toBeTruthy();
     expect(declared(standalone, 'backgroundColor')).toBeTruthy();
 
     cleanup();

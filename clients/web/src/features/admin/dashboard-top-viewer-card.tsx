@@ -32,7 +32,6 @@ const viewerCard = sv({
     radius: 'xl',
     border: 'border',
     bg: 'surface1',
-    shadow: 'card',
     overflow: 'hidden',
     _hover: { border: 'accent/40', bg: 'accentSoft' },
     _focus: { border: 'accent/40', bg: 'accentSoft' },

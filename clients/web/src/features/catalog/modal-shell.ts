@@ -1,4 +1,4 @@
-import { color, sharedStyle, styles } from '@kroma/ui/kit';
+import { sharedStyle, styles } from '@kroma/ui/kit';
 import { SCRIM_Z } from '#web/shared/ui/page';
 
 const s = styles({
@@ -19,12 +19,11 @@ const s = styles({
     maxHeight: '88%',
     width: '100%',
     overflow: 'hidden',
-    radius: '2xl',
+    radius: 'xl',
     borderWidth: 1,
     borderStyle: 'solid',
     borderColor: 'white/10',
     backgroundColor: 'var(--kroma-bg)',
-    boxShadow: `0 30px 90px ${color('black/60')}`,
   },
   body: {
     display: 'flex',

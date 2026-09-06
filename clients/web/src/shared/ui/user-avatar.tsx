@@ -13,6 +13,12 @@ export { gradientFor as avatarGradient, initialsOf as initials } from '@kroma/ui
 
 const s = styles({ block: { display: 'block' } });
 
+/** The corner every account avatar takes at a given size: the KROMA rounded
+ *  square is a proportion of the box, so a small one is as square as a large. */
+export function avatarCorner(size: number): number {
+  return Math.round(size * 0.13);
+}
+
 const boxOf = (size: number, corner: number) =>
   sharedStyle(`avatar:${size}:${corner}`, { width: size, height: size, borderRadius: corner });
 export function UserAvatar({
@@ -30,7 +36,7 @@ export function UserAvatar({
   radius?: number;
   className?: string;
 }>) {
-  const corner = radius ?? Math.round(size * 0.13);
+  const corner = radius ?? avatarCorner(size);
   return (
     // Block, sized and rounded to exactly the avatar's box: callers put their
     // shadow/ring classes HERE, and a box-shadow only traces a rounded corner
@@ -44,7 +50,6 @@ export function UserAvatar({
         src={avatarUrl ? imageUrl(avatarUrl) : null}
         size={size}
         roundness={corner / size}
-        shadow={false}
       />
     </span>
   );

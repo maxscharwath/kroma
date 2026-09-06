@@ -40,15 +40,7 @@ function NowPlayingThumb({ s }: Readonly<{ s: PlaybackSession }>) {
   const poster = kromaClient().media.artwork.posterUrl(s.itemId);
 
   return (
-    <Box
-      w={THUMB_W}
-      aspect={16 / 9}
-      shrink={0}
-      self="flex-start"
-      radius="xs"
-      overflow="hidden"
-      shadow="card"
-    >
+    <Box w={THUMB_W} aspect={16 / 9} shrink={0} self="flex-start" radius="xs" overflow="hidden">
       <Box fill style={posterScrim(s.title)} />
       {posterFailed ? null : (
         <Image src={poster} fit="cover" fill onError={() => setPosterFailed(true)} />
@@ -113,7 +105,7 @@ export function NowPlayingCard({
   const sub = subtitleOf(s, t);
 
   return (
-    <Surface elevated pad="none" radius={16} border="border" row gap={18} px={20} py={18}>
+    <Surface elevated pad="none" border="border" row gap={18} px={20} py={18}>
       <NowPlayingThumb s={s} />
 
       <Box flex minW={0} gap={12}>
@@ -169,7 +161,7 @@ export function NowPlayingCard({
         <Row wrap gapX={26} gapY={10}>
           <DataField.Root size="sm">
             <DataField.Label>{t('admin.statPlayback')}</DataField.Label>
-            <Row self="flex-start" radius={4} px={9} py={3} bg={pipe.bg}>
+            <Row self="flex-start" radius="xs" px={9} py={3} bg={pipe.bg}>
               <Text variant="meta" color={pipe.ink}>
                 {pipe.label}
               </Text>
@@ -201,7 +193,7 @@ export function NowPlayingCard({
           </DataField.Root>
           <DataField.Root size="sm">
             <DataField.Label>{t('admin.statNetwork')}</DataField.Label>
-            <Row self="flex-start" radius={4} px={9} py={3} bg={lan ? 'success/12' : 'info/12'}>
+            <Row self="flex-start" radius="xs" px={9} py={3} bg={lan ? 'success/12' : 'info/12'}>
               <Text variant="meta" color={lan ? 'success' : 'info'}>
                 {s.network} · {s.ip}
               </Text>

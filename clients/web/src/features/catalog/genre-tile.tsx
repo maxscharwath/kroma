@@ -30,7 +30,7 @@ const genreTile = svFor<{ root: StyleDecl; art: StyleDecl }>()({
     root: {
       overflow: 'hidden',
       aspect: 3 / 2,
-      radius: '2xl',
+      radius: 'xl',
       borderWidth: 1,
       border: 'tint/6',
       _hover: { border: 'accent/50' },

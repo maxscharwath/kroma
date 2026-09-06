@@ -43,7 +43,7 @@ export function IdentityCard({
   return (
     <Surface elevated radius="xl" pad="lg">
       <Box row gap={16}>
-        <Box w={70} h={104} shrink={0} radius="xs" overflow="hidden" shadow="pop">
+        <Box w={70} h={104} shrink={0} radius="xs" overflow="hidden">
           <Box fill style={posterScrim(req.title)} />
           <Image src={posterUrl ?? req.posterUrl} fit="cover" fill />
         </Box>
@@ -93,7 +93,7 @@ export function RequesterCard({ req }: Readonly<{ req: MediaRequest }>) {
         {t('requests.requestedBy')}
       </Text>
       <Row gap={12}>
-        <Avatar name={req.requestedByName ?? '?'} size={34} circle shadow={false} />
+        <Avatar name={req.requestedByName ?? '?'} size={34} circle />
         <Box minW={0}>
           <Text variant="label" lines={1}>
             {req.requestedByName ?? t('requests.unknownUser')}

@@ -121,7 +121,6 @@ function UsersPageInner() {
                     src={resolveImageUrl(apiBase(), u.avatarUrl)}
                     size={42}
                     circle
-                    shadow={false}
                   />
                   <Box minW={0}>
                     <Box row align="center" gap={8}>

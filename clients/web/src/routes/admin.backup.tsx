@@ -36,7 +36,6 @@ function BackupPage() {
       <Surface
         elevated
         pad="none"
-        radius={16}
         border="border"
         row
         align="flex-start"
@@ -116,7 +115,6 @@ function ActionRow({ desc, action }: Readonly<{ desc: string; action: React.Reac
     <Surface
       elevated
       pad="none"
-      radius={16}
       border="border"
       row
       align="center"

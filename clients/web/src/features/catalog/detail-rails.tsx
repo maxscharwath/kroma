@@ -31,7 +31,6 @@ const s = styles({
     aspectRatio: 1,
     radius: 'circle',
     mb: 11,
-    boxShadow: `0 8px 22px ${color('black/45')}`,
     transitionProperty: 'outline-color',
     transitionDuration: '200ms',
     outlineColor: 'transparent',

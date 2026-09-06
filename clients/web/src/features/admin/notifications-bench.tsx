@@ -157,7 +157,7 @@ export function NotificationBench() {
           {/* Said before the press: "everyone" writes a row into every account
           on this server, and there is no unsend. */}
           {target === 'everyone' ? (
-            <Row gap={10} align="flex-start" bg="accent/12" radius={10} px={12} py={10}>
+            <Row gap={10} align="flex-start" bg="accent/12" radius="sm" px={12} py={10}>
               <Icon name="alert-triangle" size={16} color="accent" />
               <Text variant="meta" color="accent" style={s.note}>
                 {t('admin.notifTestEveryoneWarning')}
@@ -198,7 +198,7 @@ export function NotificationBench() {
 // <ListRow.Root>'s.
 const s = styles({
   centred: { textAlign: 'center' },
-  previewCard: { radius: 16, bg: 'surface2', p: 10, pl: 8 },
+  previewCard: { radius: 'xl', bg: 'surface2', p: 10, pl: 8 },
   note: { flex: true },
 });
 

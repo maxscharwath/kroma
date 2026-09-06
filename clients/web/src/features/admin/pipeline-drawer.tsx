@@ -18,7 +18,7 @@ function DrawerPoster({ el }: Readonly<{ el: ElementRow }>) {
       ? client.media.artwork.showPosterUrl(ShowId.parse(el.id))
       : client.media.artwork.posterUrl(ItemId.parse(el.id)));
   return (
-    <Box w={70} h={104} shrink={0} radius="xs" overflow="hidden" shadow="pop">
+    <Box w={70} h={104} shrink={0} radius="xs" overflow="hidden">
       <Box fill style={posterScrim(el.title)} />
       <Image src={src} fit="cover" fill />
     </Box>
@@ -92,7 +92,7 @@ export const PipelineDrawer = createCallable<
             const m = statusMeta(tr.status);
             const failed = tr.status === 'failed';
             return (
-              <Box key={tr.key} px={16} py={14} radius="lg" bg="surface1" border="tint/7">
+              <Box key={tr.key} px={16} py={14} radius="xl" bg="surface1" border="tint/7">
                 <Row between gap={12}>
                   <Text variant="label">{t(`pipeline.t.${tr.key}` as MessageKey)}</Text>
                   <Row gap={8}>
@@ -127,7 +127,7 @@ export const PipelineDrawer = createCallable<
         </Box>
 
         {el.kind === 'series' && eps ? (
-          <Box mt={20} px={16} py={14} radius="lg" bg="bg" border="tint/7">
+          <Box mt={20} px={16} py={14} radius="xl" bg="bg" border="tint/7">
             <Text variant="overline" color="textDim" mb={8}>
               {t('pipeline.epsAggregated')}
             </Text>

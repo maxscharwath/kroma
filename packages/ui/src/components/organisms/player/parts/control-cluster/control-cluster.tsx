@@ -408,7 +408,6 @@ function VolumeControl({
             radius="pill"
             bg="#FFFFFF"
             style={[
-              s.thumb,
               // Half its own size, so the handle stays centred on the level at
               // whatever scale the row is drawn.
               {
@@ -424,7 +423,6 @@ function VolumeControl({
 }
 
 const s = styles({
-  thumb: { boxShadow: '0 1px 4px rgba(0, 0, 0, 0.5)' },
   inert: { pointerEvents: 'none' },
 });
 

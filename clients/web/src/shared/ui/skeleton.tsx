@@ -46,7 +46,7 @@ export function PageSkeleton({ rails = 3 }: Readonly<{ rails?: number }>) {
   return (
     <PageFrame>
       <div className={classes(s.homeBand)}>
-        <Skeleton h="100%" w="100%" radius={16} />
+        <Skeleton h="100%" w="100%" radius="xl" />
       </div>
       {Array.from({ length: rails }, (_, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rails
@@ -74,8 +74,8 @@ export function DetailSkeleton() {
             <Skeleton shape="text" lines={3} />
           </Box>
           <Box row gap={12} mt={32}>
-            <Skeleton h={48} w={144} radius="lg" />
-            <Skeleton h={48} w={48} radius="lg" />
+            <Skeleton h={48} w={144} radius="xl" />
+            <Skeleton h={48} w={48} radius="xl" />
           </Box>
           <RailSkeleton count={6} />
         </Box>

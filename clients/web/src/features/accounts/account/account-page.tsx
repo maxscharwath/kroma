@@ -130,7 +130,7 @@ function ProfileEditor() {
           <Section.Header>
             <Section.Title>{t('account.sectionInfo')}</Section.Title>
           </Section.Header>
-          <Surface elevated pad="none" p={22} radius="lg" border="border" gap={18}>
+          <Surface elevated pad="none" p={22} radius="xl" border="border" gap={18}>
             <Box maxW={{ base: '100%', md: '50%' }}>
               <Field.Root label={t('auth.username')}>
                 <Field.Input
@@ -187,7 +187,6 @@ function ProfileEditor() {
             radius="sm"
             border="borderStrong"
             bg="surface2"
-            shadow="pop"
             py={12}
             pl={20}
             pr={12}

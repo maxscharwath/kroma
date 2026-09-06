@@ -17,7 +17,7 @@ import { useFocusRing } from '#web/shared/lib/use-focus-ring';
 const FIELD_GAP_X = { base: 24, md: 44 } as const;
 const s = styles({
   rule: { borderTopWidth: 1, borderTopColor: 'white/8' },
-  link: { color: 'inherit', textDecorationLine: 'underline', textUnderlineOffset: 2, radius: 4 },
+  link: { color: 'inherit', textDecorationLine: 'underline', textUnderlineOffset: 2, radius: 'xs' },
   bold: { fontWeight: '600' },
 });
 

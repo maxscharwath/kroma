@@ -70,7 +70,6 @@ function PersonPage() {
             h={{ base: 80, md: 104 }}
             radius="circle"
             overflow="hidden"
-            shadow="card"
           >
             <Image
               src={photo}
@@ -155,7 +154,7 @@ function TmdbFilmography({ credits }: Readonly<{ credits: readonly TmdbCredit[] 
                 tmdbId: String(credit.tmdbId),
               }}
             >
-              <Box aspect={2 / 3} radius="md" overflow="hidden" shadow="card">
+              <Box aspect={2 / 3} radius="md" overflow="hidden">
                 <Image src={credit.posterUrl ?? null} alt={credit.title} fit="cover" fill />
               </Box>
               <Text variant="label" lines={2}>

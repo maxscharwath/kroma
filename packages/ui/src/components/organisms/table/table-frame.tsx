@@ -21,7 +21,7 @@ function Frame({ variant, label, children }: Readonly<FrameProps>) {
 }
 
 const s = styles({
-  framed: { border: 'border', radius: 'xl', bg: 'surface1', overflow: 'hidden', shadow: 'card' },
+  framed: { border: 'border', radius: 'xl', bg: 'surface1', overflow: 'hidden' },
 });
 
 export { Frame };

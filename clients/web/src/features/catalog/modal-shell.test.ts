@@ -58,7 +58,7 @@ describe('the modal panel', () => {
   });
 
   it('takes its corner and its edge from the kit rather than a copy of them', () => {
-    expect(PANEL.borderRadius).toBe(radius['2xl']);
+    expect(PANEL.borderRadius).toBe(radius.xl);
     expect(PANEL.borderColor).toBe(color('white/10'));
     expect(PANEL.borderStyle).toBe('solid');
     expect(PANEL.borderWidth).toBe(1);
@@ -66,10 +66,6 @@ describe('the modal panel', () => {
 
   it('paints on the theme’s ground, so a repainted theme repaints the panel', () => {
     expect(PANEL.backgroundColor).toMatch(/^var\(--kroma-/);
-  });
-
-  it('casts its shadow in a palette colour', () => {
-    expect(PANEL.boxShadow).toContain(color('black/60'));
   });
 });
 

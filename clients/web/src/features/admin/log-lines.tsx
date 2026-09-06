@@ -102,14 +102,14 @@ function LogLine({ entry }: Readonly<{ entry: LogEntry }>) {
       <Text variant="meta" font="mono" color="textDim" style={TABULAR}>
         {time}
       </Text>
-      <Box radius={4} bg={tone.bg} px={6}>
+      <Box radius="xs" bg={tone.bg} px={6}>
         <Text variant="overline" color={tone.ink} textAlign="center" lines={1}>
           {entry.level}
         </Text>
       </Box>
       <Row align="baseline" gap={8}>
         {entry.source === 'core' ? null : (
-          <Box shrink={0} radius={4} bg="accentSoft" px={6}>
+          <Box shrink={0} radius="xs" bg="accentSoft" px={6}>
             <Text variant="overline" color="accentText" lines={1}>
               {entry.source.replace(/^dev\.kroma\./, '')}
             </Text>

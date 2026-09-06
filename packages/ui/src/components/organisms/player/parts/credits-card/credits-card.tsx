@@ -84,7 +84,6 @@ export function CreditsCard({
       border="white/12"
       bg="rgba(16, 16, 20, 0.9)"
       p={px(20)}
-      style={s.cardShadow}
     >
       <Box h={px(150)} mb={px(16)} radius={px(theme.radius.lg)} overflow="hidden">
         <Img src={item.posterUrl ?? null} background={ART_FILL} fill />
@@ -144,7 +143,6 @@ export function CreditsCard({
 const COUNTDOWN_SIZE = 19;
 
 const s = styles({
-  cardShadow: { boxShadow: '0 26px 64px rgba(0, 0, 0, 0.62)' },
   vignette: { pointerEvents: 'none' },
   countdown: {
     font: 'ui',

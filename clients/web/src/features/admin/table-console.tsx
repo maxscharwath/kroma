@@ -138,7 +138,7 @@ export function Chip({
 export function ConsoleToast({ toast }: Readonly<{ toast: { text: string; on: boolean } }>) {
   return (
     <div className={classes(s.toast, toast.on ? s.toastOn : s.toastOff)}>
-      <Row gap={10} px={18} py={10} radius="pill" bg="surface2" border="borderStrong" shadow="pop">
+      <Row gap={10} px={18} py={10} radius="pill" bg="surface2" border="borderStrong">
         <Box w={8} h={8} shrink={0} radius="circle" bg="accent" />
         <Text variant="label">{toast.text}</Text>
       </Row>

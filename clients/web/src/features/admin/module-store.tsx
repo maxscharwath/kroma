@@ -118,7 +118,7 @@ function StoreCard({
             w={40}
             h={40}
             mt={2}
-            radius="lg"
+            radius="sm"
             overflow="hidden"
             bg={m.icon ? undefined : 'tint/5'}
           >

@@ -61,7 +61,7 @@ function MediaCard({
       focusScale={1.06}
       style={frameOf(width)}
     >
-      <Box w={width} aspect={16 / 9} radius="xl" overflow="hidden" bg="surface1" shadow="card">
+      <Box w={width} aspect={16 / 9} radius="xl" overflow="hidden" bg="surface1">
         {/* Every layer rounds itself as well as being clipped by the parent:
             Chrome fails to apply an `overflow: hidden` + `border-radius` clip to
             a composited descendant, which the `<img decoding="async">` is. */}

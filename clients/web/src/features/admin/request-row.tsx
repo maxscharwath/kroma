@@ -15,7 +15,7 @@ import { RequestStatusChip } from '#web/shared/ui/request-status-chip';
 
 function Poster({ req }: Readonly<{ req: MediaRequest }>) {
   return (
-    <Box w={32} h={46} shrink={0} radius={4} overflow="hidden" shadow="card">
+    <Box w={32} h={46} shrink={0} radius="xs" overflow="hidden">
       <Box fill style={posterScrim(req.title)} />
       <Image src={req.posterUrl} fit="cover" fill />
     </Box>
@@ -67,7 +67,7 @@ export function RequestRowView({
       </Table.Cell>
 
       <Table.Cell row gap={10}>
-        <Avatar name={req.requestedByName ?? '?'} size={26} circle shadow={false} />
+        <Avatar name={req.requestedByName ?? '?'} size={26} circle />
         <Text variant="meta" color="textMuted" lines={1}>
           {req.requestedByName ?? t('requests.unknownUser')}
         </Text>

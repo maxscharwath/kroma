@@ -140,7 +140,7 @@ function ConnectionStatus({ online, label }: Readonly<{ online: boolean; label: 
       <Box absolute>
         <Spinner size={34} thickness={2} color="danger/80" />
       </Box>
-      <Box w={28} h={28} center radius="pill" bg="danger" style={s.offlineBadge}>
+      <Box w={28} h={28} center radius="pill" bg="danger">
         <Icon name="wifi-off" size={16} thickness={2.2} color="white" />
       </Box>
     </Box>
@@ -153,5 +153,4 @@ const s = styles({
     fontVariant: ['tabular-nums'],
     textShadow: '0 1px 4px rgba(0, 0, 0, 0.6)',
   },
-  offlineBadge: { boxShadow: '0 2px 8px rgba(0, 0, 0, 0.6)' },
 });

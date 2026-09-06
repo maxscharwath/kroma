@@ -46,7 +46,7 @@ const s = styles({
   wash: { bg: 'wash' },
   line: { bg: 'wash', radius: 'pill' },
   block: { radius: 'sm' },
-  poster: { aspect: 2 / 3, radius: 'lg' },
+  poster: { aspect: 2 / 3, radius: 'xl' },
   still: { aspect: 16 / 9, radius: 'xl' },
 });
 

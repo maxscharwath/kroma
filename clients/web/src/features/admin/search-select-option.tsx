@@ -15,7 +15,7 @@ const s = styles({
     pl: 12,
     borderWidth: 0,
     bg: 'transparent',
-    radius: 4,
+    radius: 'xs',
     textAlign: 'left',
     cursor: 'pointer',
     outlineStyle: 'none',

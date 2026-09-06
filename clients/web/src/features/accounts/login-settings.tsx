@@ -117,7 +117,6 @@ export function LoginSettings() {
               radius="xl"
               border="white/10"
               bg="bg"
-              shadow="pop"
               style={s.panel}
             >
               <Row between gap={16} px={24} py={16}>

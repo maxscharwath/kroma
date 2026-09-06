@@ -132,14 +132,14 @@ export function Poster({
               src={poster ? sizedImageUrl(poster, width ?? RAIL_TILE) : null}
               alt={title}
               fit="cover"
-              radius="lg"
+              radius="xl"
               fill
               onError={() => setImgOk(false)}
             />
             {caption ? (
               <>
                 <Box fill pointerEvents="none" opacity={revealed ? 1 : 0} style={ART_FADE}>
-                  <ArtScrim variant="deep" radius="lg" />
+                  <ArtScrim variant="deep" radius="xl" />
                 </Box>
                 <Box
                   absolute

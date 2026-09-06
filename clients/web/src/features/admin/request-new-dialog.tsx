@@ -170,7 +170,7 @@ export function NewRequestDialog({
           {!short && busy && results == null ? (
             <Box gap={8}>
               {[0, 1, 2, 3].map((n) => (
-                <Skeleton key={n} w="100%" h={92} radius="lg" />
+                <Skeleton key={n} w="100%" h={92} radius="xl" />
               ))}
             </Box>
           ) : null}

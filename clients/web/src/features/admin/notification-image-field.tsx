@@ -49,7 +49,7 @@ export function NotificationImageField({
           <Img
             src={value ? kromaClient().media.artwork.resolve(value, 160) : null}
             alt=""
-            radius={4}
+            radius="xs"
             style={s.thumb}
             background={WASH}
             fallback={<Icon name="photo" size={18} color="textDim" />}
@@ -189,7 +189,7 @@ function ServerImageGrid({ onPick }: Readonly<{ onPick: (url: string) => void }>
           <Img
             src={kromaClient().media.artwork.resolve(img.url, 320)}
             alt={img.name}
-            radius={8}
+            radius="sm"
             style={s.art}
             background={WASH}
           />

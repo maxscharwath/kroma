@@ -61,7 +61,7 @@ function Poster({
       ? client.media.artwork.showPosterUrl(ShowId.parse(id))
       : client.media.artwork.posterUrl(ItemId.parse(id)));
   return (
-    <Box w={32} h={46} shrink={0} radius={4} overflow="hidden" shadow="card">
+    <Box w={32} h={46} shrink={0} radius="xs" overflow="hidden">
       <Box fill style={posterScrim(seed)} />
       <Image src={src} fit="cover" fill />
     </Box>

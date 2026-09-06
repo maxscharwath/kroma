@@ -46,7 +46,7 @@ function AdminBrand() {
   return (
     <Row gap={10}>
       <Logo size={19} />
-      <Box radius={4} bg="accent" px={6} py={3}>
+      <Box radius="xs" bg="accent" px={6} py={3}>
         <Text variant="overline" color="accentInk">
           {t('admin.badge')}
         </Text>
@@ -122,7 +122,7 @@ function ServerStatusCard() {
   const fmt = useFormat();
   const { serverInfo } = useAdmin();
   return (
-    <Box p={14} radius="lg" bg="surface1" border="border">
+    <Box p={14} radius="xl" bg="surface1" border="border">
       <Row gap={10} mb={8}>
         <PillDot tone="success" size={8} pulse />
         <Text variant="meta" color="success">

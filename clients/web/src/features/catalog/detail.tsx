@@ -168,8 +168,7 @@ export function DetailHero({
               aspect={2 / 3}
               shrink={0}
               overflow="hidden"
-              radius="lg"
-              shadow="hero"
+              radius="xl"
               style={wash(c1, c2)}
             >
               <Image src={art.poster} fit="cover" fill />

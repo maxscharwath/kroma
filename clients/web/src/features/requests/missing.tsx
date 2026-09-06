@@ -258,7 +258,7 @@ function MissingSkeleton() {
 
 function GroupSkeleton({ rows }: Readonly<{ rows: number }>) {
   return (
-    <Surface pad="none" radius="2xl" border="border" overflow="hidden">
+    <Surface pad="none" radius="xl" border="border" overflow="hidden">
       <Row gap={14} p={14}>
         <Skeleton w={20} h={20} radius="sm" />
         <Skeleton w={36} h={52} radius="sm" />

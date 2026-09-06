@@ -53,7 +53,7 @@ function ReportRow({ report, onOpen }: Readonly<{ report: Report; onOpen: () => 
       </Table.Cell>
 
       <Table.Cell row gap={10}>
-        <Avatar name={report.reportedByName ?? '?'} size={26} circle shadow={false} />
+        <Avatar name={report.reportedByName ?? '?'} size={26} circle />
         <Text variant="meta" color="textMuted" lines={1}>
           {report.reportedByName ?? t('reports.unknownUser')}
         </Text>

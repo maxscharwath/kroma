@@ -137,13 +137,7 @@ function UserChipTrigger({
         radius="md"
         bg={expanded || hovered ? 'white/4' : undefined}
       >
-        <UserAvatar
-          name={user.username}
-          avatarUrl={user.avatarUrl}
-          seed={user.id}
-          size={36}
-          radius={10}
-        />
+        <UserAvatar name={user.username} avatarUrl={user.avatarUrl} seed={user.id} size={36} />
         <Box minW={0}>
           <Text variant="label" lines={1}>
             {user.username}

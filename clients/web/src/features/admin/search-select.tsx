@@ -54,7 +54,6 @@ const s = styles({
     borderStyle: 'solid',
     borderColor: 'borderStrong',
     bg: 'surface1',
-    shadow: 'pop',
   },
   entry: {
     text: 'meta',

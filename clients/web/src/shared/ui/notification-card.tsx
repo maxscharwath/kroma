@@ -17,7 +17,7 @@ import type { ReactNode } from 'react';
 
 const s = styles({
   row: { display: 'flex', flex: true, alignItems: 'flex-start' },
-  tile: { width: 48, height: 48, flexShrink: 0, mr: 12, radius: 'lg', objectFit: 'cover' },
+  tile: { width: 48, height: 48, flexShrink: 0, mr: 12, radius: 'sm', objectFit: 'cover' },
 });
 
 export function NotificationCard({
@@ -91,7 +91,7 @@ export function NotificationTile({
     return <img src={src} alt="" loading="lazy" className={classes(s.tile)} />;
   }
   return (
-    <Box w={48} h={48} shrink={0} mr={12} center radius="lg" bg="white/6">
+    <Box w={48} h={48} shrink={0} mr={12} center radius="sm" bg="white/6">
       <NotificationGlyph event={event} />
     </Box>
   );

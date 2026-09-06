@@ -97,7 +97,7 @@ const rebuilt = themedCache<AnyStyle>(4096);
  * every link carrying the same paint shares one entry and one set of classes.
  */
 export function registered(style: StyleProp<AnyStyle>): AnyStyle {
-  const flat = StyleSheet.flatten(style) as Record<string, unknown>;
+  const flat = (StyleSheet.flatten(style) ?? {}) as Record<string, unknown>;
   return rebuilt(JSON.stringify(flat), () => stabilise(flat) as AnyStyle);
 }
 

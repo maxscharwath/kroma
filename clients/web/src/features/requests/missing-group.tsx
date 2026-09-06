@@ -63,7 +63,7 @@ export function MissingGroupCard({
   const canAct = group.requestId ? canManage : true;
 
   return (
-    <Surface pad="none" radius="2xl" border="border" overflow="hidden" role="region">
+    <Surface pad="none" radius="xl" border="border" overflow="hidden" role="region">
       <Row gap={14} p={14}>
         {canAct ? (
           <Checkbox

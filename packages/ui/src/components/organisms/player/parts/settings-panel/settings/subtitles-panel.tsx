@@ -196,7 +196,7 @@ function GenRow({
   const engine = gen.mode === 'translate' ? t('player.subAiBadge') : 'Whisper';
   return (
     <Box
-      radius="lg"
+      radius="xl"
       borderWidth={1}
       border="rgba(124, 92, 255, 0.4)"
       bg="rgba(124, 92, 255, 0.06)"

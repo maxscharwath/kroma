@@ -111,8 +111,8 @@ export const ReportDrawer = createCallable<
           <Text variant="overline" color="textDim" mb={12}>
             {t('reports.reportedBy')}
           </Text>
-          <Row gap={12} px={16} py={14} radius="lg" bg="surface1" border="tint/7">
-            <Avatar name={report.reportedByName ?? '?'} size={34} circle shadow={false} />
+          <Row gap={12} px={16} py={14} radius="xl" bg="surface1" border="tint/7">
+            <Avatar name={report.reportedByName ?? '?'} size={34} circle />
             <Box minW={0}>
               <Text variant="label" lines={1}>
                 {report.reportedByName ?? t('reports.unknownUser')}
@@ -128,7 +128,7 @@ export const ReportDrawer = createCallable<
           </Row>
 
           {report.message ? (
-            <Box mt={16} px={16} py={14} radius="lg" bg="surface1" border="tint/7">
+            <Box mt={16} px={16} py={14} radius="xl" bg="surface1" border="tint/7">
               <Text variant="meta" color="textMuted">
                 {report.message}
               </Text>

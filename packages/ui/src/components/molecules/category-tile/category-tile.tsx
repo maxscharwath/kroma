@@ -23,7 +23,7 @@ const GLYPH: Record<CategoryTileSize, number> = { md: 18, tv: 23 };
 
 const categoryTileVariants = sv({
   slots: {
-    frame: { shrink: 0, radius: 'lg' },
+    frame: { shrink: 0, radius: 'xl' },
     label: { font: 'display', fontWeight: '700', color: 'white' },
     meta: {
       font: 'ui',
@@ -92,7 +92,7 @@ function CategoryTile({
       // gap and a corner nobody could keep concentric.
       style={[s.frame, widthOf(width ?? '100%'), style]}
     >
-      <Box aspect={aspect} radius="lg" overflow="hidden" bg="surface1">
+      <Box aspect={aspect} radius="xl" overflow="hidden" bg="surface1">
         <Img src={art} background={background} position="50% 25%" fill />
         {wash ? <Box fill style={[NO_POINTER, washOf(wash)]} /> : null}
         <Box absolute left={20} right={20} bottom={16} gap={2}>

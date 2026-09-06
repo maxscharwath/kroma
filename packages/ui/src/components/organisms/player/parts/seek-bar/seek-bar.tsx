@@ -200,7 +200,7 @@ export function SeekBar({
             style={[s.inert, { transform: [{ translateX: previewX - previewHalf }] }]}
           >
             {previewTile ? <StoryboardThumb tile={previewTile} /> : null}
-            <Box radius="md" bg="black/80" px={px(12)} py={px(4)}>
+            <Box radius="sm" bg="black/80" px={px(12)} py={px(4)}>
               <Text style={sized.stamp}>{formatTimecode(previewSec)}</Text>
             </Box>
           </Box>
@@ -256,7 +256,7 @@ export function SeekBar({
             bg="#FFFFFF"
             style={[
               s.inert,
-              playheadShadow(),
+              playheadRing(),
               {
                 transform: [{ translateX: playheadX - px(16) / 2 }, { translateY: -px(16) / 2 }],
               },
@@ -276,9 +276,7 @@ const playedFill = themed(() =>
   style(gradient(`linear-gradient(90deg, ${seekBar().played[0]}, ${seekBar().played[1]})`)),
 );
 
-const playheadShadow = themed(() =>
-  style({ boxShadow: `0 0 0 4px ${seekBar().playheadHalo}, 0 2px 8px rgba(0, 0, 0, 0.6)` }),
-);
+const playheadRing = themed(() => style({ boxShadow: `0 0 0 4px ${seekBar().playheadHalo}` }));
 
 const s = styles({
   time: { font: 'ui', fontWeight: '600', color: 'text', fontVariant: ['tabular-nums'] },

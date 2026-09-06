@@ -42,7 +42,7 @@ function ConnectPage() {
   return (
     <main className={classes(page.screen)}>
       <Box flex center px={24} py={64}>
-        <Box w="100%" maxW={420} radius="xl" border="border" bg="surface1" p={32} shadow="card">
+        <Box w="100%" maxW={420} radius="xl" border="border" bg="surface1" p={32}>
           <Text variant="subheading" accessibilityRole="header" textAlign="center" mb={8}>
             {t('connect.title')}
           </Text>
@@ -56,7 +56,7 @@ function ConnectPage() {
           </Text>
 
           {status === 'ok' ? (
-            <Box radius="lg" border="success/40" bg="success/10" px={16} py={24}>
+            <Box radius="xl" border="success/40" bg="success/10" px={16} py={24}>
               <Box center mb={4}>
                 <Icon name="check" size={38} thickness={2.4} color="success" />
               </Box>

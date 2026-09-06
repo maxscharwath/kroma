@@ -71,7 +71,7 @@ export function ComingSoonPage() {
         <Box mt={24} gap={10}>
           {Array.from({ length: 5 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} h={76} radius={16} />
+            <Skeleton key={i} h={76} radius="xl" />
           ))}
         </Box>
       ) : null}
@@ -139,7 +139,7 @@ function CalendarRow({
     <ListRow.Root size="md" onPress={onOpen} chevron={false}>
       <ListRow.Leading>
         <Box w={40} h={60}>
-          <Img src={poster} background={`linear-gradient(158deg, ${c1}, ${c2})`} radius="lg" fill />
+          <Img src={poster} background={`linear-gradient(158deg, ${c1}, ${c2})`} radius="xl" fill />
         </Box>
       </ListRow.Leading>
       <ListRow.Label>{entry.title}</ListRow.Label>

@@ -57,7 +57,7 @@ export function PanelHeader({
           <IconButton
             variant="ghost"
             diameter={36}
-            radius="lg"
+            radius="sm"
             label={t('notifications.markAllRead')}
             onPress={() => void markAll()}
             disabled={markAllOff}
@@ -65,7 +65,7 @@ export function PanelHeader({
           >
             {busy ? <Spinner size={17} /> : <Icon name="checks" size={18} />}
           </IconButton>
-          <Drawer.Close diameter={36} radius="lg" glyph={18} />
+          <Drawer.Close diameter={36} radius="sm" glyph={18} />
         </Row>
       </Row>
       <SegmentGroup.Root<NotificationFilter>

@@ -264,14 +264,14 @@ describe('ListRow', () => {
     expect(tail(fixed, 'on').flexShrink).toBe('0');
     expect(tail(supple, 'a very long value indeed').flexShrink).toBe('1');
   });
-  it('lifts a row that stands on artwork', () => {
+  it('casts no shadow on artwork: nothing in the kit floats', () => {
     const { container } = render(
       <ListRow.Root>
         <ListRow.Label>Sur l'affiche</ListRow.Label>
       </ListRow.Root>,
     );
 
-    expect(declared(rowOf(container, "Sur l'affiche"), 'boxShadow')).toBeTruthy();
+    expect(declared(rowOf(container, "Sur l'affiche"), 'boxShadow')).toBeNull();
   });
 
   it('drops the lift on a surface, and keeps the row its own object', () => {

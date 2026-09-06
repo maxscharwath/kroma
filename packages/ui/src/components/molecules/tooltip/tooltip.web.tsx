@@ -35,7 +35,6 @@ const s = styles({
     fontWeight: '600',
     lineHeight: '1.4',
     pointerEvents: 'none',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
   },
 });
 function Tooltip({ label, children }: Readonly<TooltipProps>) {

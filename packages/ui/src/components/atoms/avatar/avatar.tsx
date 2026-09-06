@@ -7,7 +7,7 @@ import { Box } from '#ui/components/atoms/box';
 import { Icon } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Text } from '#ui/components/atoms/text';
-import { type CornerValue, sharedStyle, styles } from '#ui/core';
+import { type CornerValue, sharedStyle } from '#ui/core';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #F4B642, #E8743B)',
@@ -77,8 +77,6 @@ interface AvatarProps {
   circle?: boolean;
   /** Amber padlock badge for a PIN-protected profile. */
   locked?: boolean;
-  /** Drop shadow. On by default: a profile disc floats above the backdrop. */
-  shadow?: boolean;
 }
 
 /** The design's rounded square, as a FRACTION of the side. Exported because a
@@ -109,7 +107,6 @@ function Avatar({
   roundness = ROUNDNESS,
   circle = false,
   locked = false,
-  shadow = true,
 }: Readonly<AvatarProps>) {
   // Clamped, and a non-finite value falls back on the design's default: a corner
   // of NaN renders a square on the web and throws on Android.
@@ -135,7 +132,7 @@ function Avatar({
     // No `overflow="hidden"`: `Img` already clips the art to `corner` itself, and
     // clipping HERE cropped the padlock badge against the disc's own corner - the
     // rounder the avatar, the more of the badge the arc cut away.
-    <Box w={size} h={size} radius={shape} center style={shadow ? s.shadow : null}>
+    <Box w={size} h={size} radius={shape} center>
       <Img
         src={src}
         background={fill}
@@ -162,8 +159,6 @@ function Avatar({
     </Box>
   );
 }
-
-const s = styles({ shadow: { boxShadow: '0 16px 40px rgba(0, 0, 0, 0.45)' } });
 
 export type { AvatarProps };
 export { AVATAR_GRADIENT, AVATAR_GRADIENTS, AVATAR_ROUNDNESS, Avatar, gradientFor, initialsOf };

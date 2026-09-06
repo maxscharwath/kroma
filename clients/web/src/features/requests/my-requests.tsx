@@ -79,7 +79,7 @@ export function MyRequestsPage() {
         <Box mt={24} gap={10}>
           {Array.from({ length: 4 }, (_, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} h={92} radius={16} />
+            <Skeleton key={i} h={92} radius="xl" />
           ))}
         </Box>
       ) : null}
@@ -165,7 +165,7 @@ function RequestRow({
   // only the part it did not cover. It joins the label rather than being read
   // separately, which is what a row announcing "Mutiny, approved" wants.
   return (
-    <Surface pad="none" p={14} radius="2xl" border="border" row align="center" gap={16}>
+    <Surface pad="none" p={14} radius="xl" border="border" row align="center" gap={16}>
       <Focusable
         asChild
         label={`${req.title} · ${t(requestStatusMeta(req.status).labelKey)}`}
@@ -176,7 +176,7 @@ function RequestRow({
             <Img
               src={poster}
               background={`linear-gradient(158deg, ${c1}, ${c2})`}
-              radius="lg"
+              radius="sm"
               fill
             />
           </Box>

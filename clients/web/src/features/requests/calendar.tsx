@@ -138,8 +138,8 @@ function CalendarRow({
   return (
     <ListRow.Root size="md" onPress={onOpen} chevron={false}>
       <ListRow.Leading>
-        <Box w={40} h={60}>
-          <Img src={poster} background={`linear-gradient(158deg, ${c1}, ${c2})`} radius="xl" fill />
+        <Box w={46} h={68}>
+          <Img src={poster} background={`linear-gradient(158deg, ${c1}, ${c2})`} radius="sm" fill />
         </Box>
       </ListRow.Leading>
       <ListRow.Label>{entry.title}</ListRow.Label>

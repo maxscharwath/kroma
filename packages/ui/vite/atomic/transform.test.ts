@@ -31,7 +31,7 @@ const s = styles({
     expect(out?.rules.map((rule) => rule.css)).toContain(
       out?.rules.find((rule) => rule.css.includes('flex-direction:row'))?.css,
     );
-    expect(out?.map.mappings.length).toBeGreaterThan(0);
+    expect(out?.map?.mappings.length).toBeGreaterThan(0);
   });
 
   it('compiles the single form and a recipe with its states', () => {
@@ -96,5 +96,30 @@ const v = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color'> }>()({
 
     expect(out?.code).toContain('injectRules as __kromaInject');
     expect(out?.code).toMatch(/__kromaInject\(\[\[3,"\.[a-d][\w-]{5}\{opacity:0\.5;\}"\]\]\);/);
+  });
+
+  it('leaves a declaration that is not an object, and says so', () => {
+    const out = run("import { style } from '#ui/core';\nexport const s = style(5);");
+    expect(out?.skipped.map((skip) => skip.reason)).toEqual([
+      'a declaration that is not an object',
+    ]);
+  });
+
+  it('leaves a recipe whose config or layers are not written inline', () => {
+    const config = run(
+      "import { sv } from '#ui/core';\nconst C = { base: { p: 4 } };\nexport const v = sv(C);",
+    );
+    expect(config?.skipped.map((skip) => skip.reason)).toEqual(['a recipe not written inline']);
+    const layer = run(
+      "import { sv } from '#ui/core';\nconst SM = { root: { p: 1 } };\nexport const v = sv({ slots: { root: { p: 2 } }, variants: { size: { sm: SM } } });",
+    );
+    expect(layer?.skipped.map((skip) => skip.reason)).toEqual(['a layer not written inline']);
+  });
+
+  it('leaves an svFor whose slot type is named rather than written', () => {
+    const out = run(
+      "import { svFor } from '#ui/core';\ntype Slots = { root: object };\nexport const v = svFor<Slots>()({ slots: { root: { p: 2 } } });",
+    );
+    expect(out?.skipped.map((skip) => skip.reason)).toEqual(['svFor without an inline slot type']);
   });
 });

@@ -16,7 +16,7 @@ import {
   scopeOf,
   Unstatic,
 } from './module-scope.ts';
-import { properties, recipeLayers, styleSlotsOf } from './recipe-shape.ts';
+import { properties, type RecipeLayers, recipeLayers, styleSlotsOf } from './recipe-shape.ts';
 
 const KIT_SOURCES = new Set([
   '#ui/core',
@@ -44,8 +44,9 @@ export interface Skip {
 }
 
 export interface TransformResult {
-  readonly code: string;
-  readonly map: ReturnType<MagicString['generateMap']>;
+  /** Null when nothing compiled: the module is left as written, and `skipped` says why. */
+  readonly code: string | null;
+  readonly map: ReturnType<MagicString['generateMap']> | null;
   readonly rules: readonly CompiledRule[];
   readonly compiled: number;
   readonly skipped: readonly Skip[];
@@ -98,7 +99,7 @@ class Rewrite {
 
   skip(node: Node, reason: string): void {
     let line = 1;
-    for (let i = 0; i < node.start; i++) if (this.code.charCodeAt(i) === 10) line++;
+    for (let i = 0; i < node.start; i++) if (this.code.codePointAt(i) === 10) line++;
     this.skipped.push({ line, reason });
   }
 
@@ -135,29 +136,34 @@ class Rewrite {
       this.skip(config, shape);
       return;
     }
-    const compiledSlots = styled(shape.slots);
-    const nodes: Node[] = [];
-    for (const layer of shape.layers) {
-      if (shape.flat) {
-        if (compiledSlots.has('root')) nodes.push(layer);
-        continue;
-      }
-      if (layer.type !== 'ObjectExpression') {
-        this.skip(layer, 'a layer not written inline');
-        return;
-      }
-      for (const [slot, node] of properties(layer)) {
-        if (compiledSlots.has(slot)) nodes.push(node);
-      }
+    const slots = slotNodes(shape, styled(shape.slots));
+    if (!Array.isArray(slots)) {
+      this.skip(slots, 'a layer not written inline');
+      return;
     }
     const edits: Edit[] = [];
-    for (const node of nodes) {
+    for (const node of slots) {
       const leaf = this.leaf(node);
       if (!leaf) return;
       edits.push({ node, leaf });
     }
     this.edits.push(...edits);
   }
+}
+
+function slotNodes(shape: RecipeLayers, compiledSlots: Set<string>): Node[] | Node {
+  const nodes: Node[] = [];
+  for (const layer of shape.layers) {
+    if (shape.flat) {
+      if (compiledSlots.has('root')) nodes.push(layer);
+      continue;
+    }
+    if (layer.type !== 'ObjectExpression') return layer;
+    for (const [slot, node] of properties(layer)) {
+      if (compiledSlots.has(slot)) nodes.push(node);
+    }
+  }
+  return nodes;
 }
 
 function walk(node: unknown, visit: (node: Node) => void): void {
@@ -221,7 +227,10 @@ export function transformModule({
   walk(program.body, (node) => {
     if (node.type === 'CallExpression') visitCall(node, bindings, rewrite);
   });
-  if (rewrite.edits.length === 0) return null;
+  if (rewrite.edits.length === 0) {
+    if (rewrite.skipped.length === 0) return null;
+    return { code: null, map: null, rules: [], compiled: 0, skipped: rewrite.skipped };
+  }
 
   const s = new MagicString(code);
   const rules: CompiledRule[] = [];

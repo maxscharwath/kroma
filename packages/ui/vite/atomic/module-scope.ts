@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { parseAst } from 'vite';
+import { parseSync } from 'vite';
 
 export interface Node {
   type: string;
@@ -49,7 +49,7 @@ const lang = (file: string) => (file.endsWith('.tsx') ? 'tsx' : 'ts');
 
 /** Parses a module the way the browser build will read it. */
 export function parseModule(code: string, file: string): Program {
-  return parseAst(code, { lang: lang(file) } as never) as unknown as Program;
+  return parseSync(file, code, { lang: lang(file) }).program as unknown as Program;
 }
 
 /** The name an identifier or a string key spells. */

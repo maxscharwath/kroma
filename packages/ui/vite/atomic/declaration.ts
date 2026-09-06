@@ -2,6 +2,7 @@
 // writes in its place: the engine's own resolver turns the vocabulary into
 // longhands, the compiler turns those into classes.
 
+import { breakpointBits } from '../../src/core/breakpoint-cascade.ts';
 import { type Split, split } from '../../src/core/normalize.ts';
 import { type CompiledRule, rulesOf } from './compile.ts';
 import { Unstatic } from './module-scope.ts';
@@ -31,7 +32,12 @@ function checkSerializable(value: unknown, at: string): void {
 }
 
 function layer(perStep: readonly Record<string, unknown>[], at: string): StepLayer {
-  for (const longhands of perStep) checkSerializable(longhands, at);
+  for (const longhands of perStep) {
+    for (const [key, value] of Object.entries(longhands)) {
+      if (breakpointBits(value) !== 0) throw new Unstatic(`a ${key} stated per breakpoint`);
+    }
+    checkSerializable(longhands, at);
+  }
   const { values, rules } = compileSteps(perStep);
   return { values, rules: [...rules, ...rulesOf(values)] };
 }

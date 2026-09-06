@@ -60,12 +60,8 @@ function Surface({
   // Resolved here so the layers land in the order a reader expects: recipe,
   // then the caller's shorthands, then the one-off `style`.
   const split = splitShorthand(box);
-  const asked = split.key
-    ? sharedBoxStyle(
-        split.breakpoints === 0 ? split.key : `${breakpointIndex()}|${split.key}`,
-        split.shorthand as BoxStyleProps,
-      )
-    : null;
+  const key = split.breakpoints === 0 ? split.key : `${breakpointIndex()}|${split.key}`;
+  const asked = split.key ? sharedBoxStyle(key, split.shorthand as BoxStyleProps) : null;
   const panel = (
     <Box {...split.rest} style={[root, asked, style]}>
       {children}

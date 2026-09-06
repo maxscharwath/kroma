@@ -104,4 +104,55 @@ describe('kromaAtomic', () => {
 
     expect(out?.code).toContain('__kromaInject([[3,');
   });
+
+  it('counts what a build compiled, from the start of each environment', () => {
+    const atomic = plugin();
+    const ctx = context();
+    atomic.transform.call(ctx, SOURCE, `${REPO}/packages/ui/src/probe.ts`);
+    atomic.buildEnd.call(ctx);
+    expect(ctx.info).toHaveBeenLastCalledWith(
+      '[kroma-atomic] 1 declarations compiled ahead of time, 0 left to the runtime',
+    );
+    atomic.buildStart.call(ctx);
+    atomic.buildEnd.call(ctx);
+    expect(ctx.info).toHaveBeenLastCalledWith(
+      '[kroma-atomic] 0 declarations compiled ahead of time, 0 left to the runtime',
+    );
+  });
+
+  it('names each declaration left to the runtime when asked to report', () => {
+    vi.stubEnv('KROMA_ATOMIC_REPORT', '1');
+    try {
+      const atomic = plugin();
+      const ctx = context();
+      atomic.transform.call(
+        ctx,
+        "import { style } from '#ui/core';\nexport const s = style(width());",
+        `${REPO}/packages/ui/src/probe.ts`,
+      );
+      expect(ctx.info).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^\[kroma-atomic\] .*probe\.ts:2 left to the runtime: a call to width$/,
+        ),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('skips a stylesheet whose source it cannot read', () => {
+    const atomic = plugin();
+    const ctx = context();
+    atomic.transform.call(ctx, SOURCE, `${REPO}/packages/ui/src/probe.ts`);
+    const bundle = {
+      'assets/kroma-abc.css': {
+        type: 'asset',
+        fileName: 'assets/kroma-abc.css',
+        source: undefined,
+      },
+    };
+    atomic.generateBundle.handler.call(ctx, {}, bundle);
+    expect(bundle['assets/kroma-abc.css'].source).toBeUndefined();
+    expect(ctx.warn).toHaveBeenCalled();
+  });
 });

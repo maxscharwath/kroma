@@ -91,14 +91,12 @@ export function MissingGroupCard({
           />
         ) : null
       }
-      link={(content) => (
+      link={
         <RouteLink
           to="/discover/$type/$tmdbId"
           params={{ type: movie ? 'movie' : 'tv', tmdbId: String(group.tmdbId) }}
-        >
-          {content}
-        </RouteLink>
-      )}
+        />
+      }
     >
       {episodes.length > 0 ? <Divider color="tint/6" /> : null}
       <EpisodeList

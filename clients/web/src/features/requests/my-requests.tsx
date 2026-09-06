@@ -96,7 +96,7 @@ function RequestLink({
   req,
   children,
   ...link
-}: Readonly<{ req: MediaRequest; children: ReactNode } & ViewProps>) {
+}: Readonly<{ req: MediaRequest; children?: ReactNode } & ViewProps>) {
   if (req.status === 'available') {
     return (
       <RouteLink to="/search" search={{ q: '', type: 'all' }} {...link}>
@@ -187,7 +187,7 @@ function RequestRow({
           />
         ) : null
       }
-      link={(content) => <RequestLink req={req}>{content}</RequestLink>}
+      link={<RequestLink req={req} />}
     />
   );
 }

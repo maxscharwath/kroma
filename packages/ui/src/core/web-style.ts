@@ -2,7 +2,9 @@ import type { ImageStyle, TextStyle, ViewStyle } from 'react-native';
 
 type Native = ViewStyle & TextStyle & ImageStyle;
 
-type Wide<K extends string, T = string> = (K extends keyof Native ? Native[K] : never) | T;
+type Wide<K extends string, T = string> =
+  | Exclude<K extends keyof Native ? Native[K] : never, undefined>
+  | T;
 
 /**
  * Browser-only properties a declaration may state beside React Native's, and
@@ -94,6 +96,6 @@ export interface WebStyle {
   rowGap?: number | string;
   backgroundRepeat?: string;
   outlineStyle?: Wide<'outlineStyle', 'none' | 'solid' | 'dashed' | 'dotted'>;
-  outlineColor?: ViewStyle['outlineColor'] | TextStyle['outlineColor'] | string;
-  filter?: ViewStyle['filter'] | string;
+  outlineColor?: Exclude<ViewStyle['outlineColor'] | TextStyle['outlineColor'], undefined> | string;
+  filter?: Exclude<ViewStyle['filter'], undefined> | string;
 }

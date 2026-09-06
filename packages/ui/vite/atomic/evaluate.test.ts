@@ -111,4 +111,56 @@ describe('resolveModule', () => {
     expect(resolveModule('react', from, { repoRoot: REPO })).toBeNull();
     expect(resolveModule('./missing', from, { repoRoot: REPO })).toBeNull();
   });
+
+  it('does every arithmetic and unary operator a metric may be written with', () => {
+    expect(probe('const PROBE = [1 + 2, 7 - 2, 3 * 4, 8 / 2, 9 % 4, 2 ** 3, -4, +4, !0];')).toEqual(
+      [3, 5, 12, 4, 1, 8, -4, 4, true],
+    );
+    expect(
+      probe("const PROBE = [0 || 5, 1 && 6, null ?? 7, 1 ? 'y' : 'n', 0 ? 'y' : 'n'];"),
+    ).toEqual([5, 6, 7, 'y', 'n']);
+  });
+
+  it('names the operator it cannot do', () => {
+    expect(() => probe('const PROBE = 1 < 2;')).toThrow(/the operator </);
+    expect(() => probe("const PROBE = -'x';")).toThrow(/the operator -/);
+    expect(() => probe("const PROBE = +'x';")).toThrow(/the operator \+/);
+  });
+
+  it('reads holes, spreads and joins of an array, and refuses a spread of anything else', () => {
+    expect(probe('const A = [1, 2]; const PROBE = [0, , ...A];')).toEqual([0, null, 1, 2]);
+    expect(probe("const A = ['a', 'b']; const PROBE = [A.join(), A.join('-')];")).toEqual([
+      'a,b',
+      'a-b',
+    ]);
+    expect(() => probe('const A = 1; const PROBE = [...A];')).toThrow(/a spread of a non-array/);
+    expect(() => probe('const A = 1; const PROBE = { ...A };')).toThrow(/a spread of a non-object/);
+  });
+
+  it('refuses what is not a value: an accessor, a member of a number, a call, a function', () => {
+    expect(() => probe('const PROBE = { get x() { return 1; } };')).toThrow(/a Property member/);
+    expect(() => probe('const A = 1; const PROBE = A.x;')).toThrow(/a member of number/);
+    expect(() => probe('const A = { b: {} }; const PROBE = A.b.c();')).toThrow(/a call to A\.b\.c/);
+    expect(() => probe("const A = {}; const PROBE = A['x']();")).toThrow(
+      /a call to MemberExpression/,
+    );
+    expect(() => probe('const PROBE = () => 1;')).toThrow(/a ArrowFunctionExpression/);
+    expect(probe("const PROBE = { 'a-b': 1 };")).toEqual({ 'a-b': 1 });
+  });
+
+  it('follows a default import as far as the module goes', () => {
+    expect(() => probe("import M from './lib/metrics';\nconst PROBE = M;")).toThrow(Unstatic);
+  });
+
+  it('gives up on a re-export chain deeper than a module graph should be', () => {
+    for (let i = 0; i < 8; i++) {
+      writeFileSync(
+        join(REPO, `packages/ui/src/lib/chain${i}.ts`),
+        i < 7 ? `export * from './chain${i + 1}';` : 'export const DEEP = 1;',
+      );
+    }
+    expect(() => probe("import { DEEP } from './lib/chain0';\nconst PROBE = DEEP;")).toThrow(
+      Unstatic,
+    );
+  });
 });

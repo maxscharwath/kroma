@@ -61,6 +61,22 @@ function cascadeOf(
 // Each active state sweeps every layer again, so a variant's `_hover` beats the
 // base's. The layers come back in cascade order; a slot the build compiled
 // merges without registering new rules, any other as it always did.
+function coatsOf(
+  layers: (Split | undefined)[][],
+  slot: number,
+  state: SvState,
+): Record<string, unknown>[] {
+  const coats: Record<string, unknown>[] = [];
+  for (const name of SV_STATES) {
+    if (state[name] !== true) continue;
+    for (const layer of layers) {
+      const coat = layer[slot]?.states[name];
+      if (coat) coats.push(coat);
+    }
+  }
+  return coats;
+}
+
 function mergeSlot(
   layers: (Split | undefined)[][],
   slot: number,
@@ -72,15 +88,7 @@ function mergeSlot(
     const rest = layer[slot]?.rest;
     if (rest) parts.push(rest);
   }
-  if (stateful && state) {
-    for (const name of SV_STATES) {
-      if (state[name] !== true) continue;
-      for (const layer of layers) {
-        const coat = layer[slot]?.states[name];
-        if (coat) parts.push(coat);
-      }
-    }
-  }
+  if (stateful && state) parts.push(...coatsOf(layers, slot, state));
   if (isStaticStyle(parts[0])) return mergeStatic(parts);
   return stabilise(Object.assign({}, ...parts));
 }

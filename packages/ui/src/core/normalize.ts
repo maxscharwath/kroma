@@ -45,39 +45,55 @@ function conditional(value: unknown): Record<string, unknown> | null {
   return stated ? (value as Record<string, unknown>) : null;
 }
 
+type StateLayers = Partial<Record<SvStateName, Record<string, unknown>>>;
+
+interface Sorted {
+  authored: Record<string, unknown>;
+  byState: StateLayers;
+  explicit: StateLayers;
+}
+
+function stateOf(key: string): SvStateName {
+  if (!STATE_KEYS.has(key)) {
+    throw new Error(
+      `sv: unknown state "${key}". States are ${[...STATE_KEYS].join(', ')}; anything else a component can be in is a variant.`,
+    );
+  }
+  return key.slice(1) as SvStateName;
+}
+
+function sortValue(key: string, value: unknown, into: Sorted): void {
+  const stated = conditional(value);
+  if (!stated) {
+    into.authored[key] = value;
+    return;
+  }
+  if ('base' in stated) into.authored[key] = stated.base;
+  for (const name of SV_STATES) {
+    if (!(name in stated)) continue;
+    const layer = into.byState[name] ?? {};
+    layer[key] = stated[name];
+    into.byState[name] = layer;
+  }
+}
+
+function sortKeys(decl: Record<string, unknown>): Sorted {
+  const sorted: Sorted = { authored: {}, byState: {}, explicit: {} };
+  for (const key of Object.keys(decl)) {
+    const value = decl[key];
+    if (key.startsWith('_')) sorted.explicit[stateOf(key)] = value as Record<string, unknown>;
+    else sortValue(key, value, sorted);
+  }
+  return sorted;
+}
+
 export function split(decl: Record<string, unknown> | undefined, index: number): Split | undefined {
   if (!decl) return undefined;
   if (isStaticStyle(decl)) {
     const states = staticStates(decl);
     return { rest: decl, states, declared: Object.keys(states) as SvStateName[], breakpoints: 0 };
   }
-  const authored: Record<string, unknown> = {};
-  const byState: Partial<Record<SvStateName, Record<string, unknown>>> = {};
-  const explicit: Partial<Record<SvStateName, Record<string, unknown>>> = {};
-  for (const key of Object.keys(decl)) {
-    const value = decl[key];
-    if (!key.startsWith('_')) {
-      const stated = conditional(value);
-      if (!stated) {
-        authored[key] = value;
-        continue;
-      }
-      if ('base' in stated) authored[key] = stated.base;
-      for (const name of SV_STATES) {
-        if (!(name in stated)) continue;
-        const layer = byState[name] ?? {};
-        layer[key] = stated[name];
-        byState[name] = layer;
-      }
-      continue;
-    }
-    if (!STATE_KEYS.has(key)) {
-      throw new Error(
-        `sv: unknown state "${key}". States are ${[...STATE_KEYS].join(', ')}; anything else a component can be in is a variant.`,
-      );
-    }
-    explicit[key.slice(1) as SvStateName] = value as Record<string, unknown>;
-  }
+  const { authored, byState, explicit } = sortKeys(decl);
   const states: Split['states'] = {};
   const declared: SvStateName[] = [];
   let breakpoints = 0;

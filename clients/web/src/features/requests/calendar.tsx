@@ -131,14 +131,12 @@ function CalendarRow({ entry, locale }: Readonly<{ entry: CalendarEntry; locale:
           </Text>
         </Box>
       }
-      link={(content) => (
+      link={
         <RouteLink
           to="/discover/$type/$tmdbId"
           params={{ type: entry.kind === 'show' ? 'tv' : 'movie', tmdbId: String(entry.tmdbId) }}
-        >
-          {content}
-        </RouteLink>
-      )}
+        />
+      }
     />
   );
 }

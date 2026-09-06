@@ -97,7 +97,7 @@ export function kromaAtomic({ repoRoot }: AtomicOptions): AtomicPlugin {
         if (report)
           this.info?.(`[kroma-atomic] ${file}:${skip.line} left to the runtime: ${skip.reason}`);
       }
-      return { code: out.code, map: out.map };
+      return out.code === null ? null : { code: out.code, map: out.map };
     },
     // After Vite's own CSS plugin: a bundle that keeps its CSS in one file
     // only emits it from that plugin's post-ordered hook, so an earlier look
@@ -111,7 +111,7 @@ export function kromaAtomic({ repoRoot }: AtomicOptions): AtomicPlugin {
         for (const file of Object.values(bundle)) {
           if (file.type !== 'asset' || !file.fileName.endsWith('.css')) continue;
           const source = textOf(file.source);
-          if (source === null || !source.includes(TOKENS_MARKER)) continue;
+          if (!source?.includes(TOKENS_MARKER)) continue;
           file.source = `${source}\n${css}\n`;
           landed = true;
         }

@@ -128,6 +128,21 @@ describe('compileDeclaration', () => {
     expect(leaf.rules.filter((rule) => rule.css.startsWith(':root'))).toHaveLength(2);
   });
 
+  it('leaves the runtime a longhand one step states and another does not', () => {
+    expect(() => compileDeclaration({ row: { base: false, md: true } })).toThrow(
+      /stated at some breakpoints and not others/,
+    );
+  });
+
+  it('refuses a step on a property the vocabulary does not cascade, rather than a bag', () => {
+    expect(() => compileDeclaration({ display: { base: 'flex', md: 'none' } } as never)).toThrow(
+      /a display stated per breakpoint/,
+    );
+    expect(() =>
+      compileDeclaration({ transform: { base: [{ scale: 1 }], md: [{ scale: 2 }] } } as never),
+    ).toThrow(/a transform stated per breakpoint/);
+  });
+
   it('keeps what the browser cannot paint in the values, with no rule for it', () => {
     const leaf = compileDeclaration({ resizeMode: 'cover', tintColor: 'accent' } as never);
 

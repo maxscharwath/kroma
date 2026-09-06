@@ -1,6 +1,6 @@
 import { posterColors, sizedImageUrl } from '@kroma/core';
 import { Box, Focusable, Img, Row, Surface, styles, Text } from '@kroma/ui/kit';
-import type { ReactElement, ReactNode } from 'react';
+import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { Skeleton } from '#web/shared/ui';
 
 const POSTER = { w: 46, h: 68 } as const;
@@ -27,10 +27,11 @@ export function RequestPoster({
 
 /**
  * One card of the requests pages: a poster, the title over its meta, and what
- * the row says on its right. Everything `link` wraps is the one press target,
- * so a chip or a date inside it belongs to the row; `leading` and `aside` sit
- * beside the link for a control of the row's own, and `children` go under the
- * row, inside the card.
+ * the row says on its right. `link` is the anchor the row renders into, and
+ * everything the row shows is the one press target, so a chip or a date
+ * inside it belongs to the row; `leading` and `aside` sit beside the link for
+ * a control of the row's own, and `children` go under the row, inside the
+ * card.
  */
 export function RequestCard({
   label,
@@ -52,7 +53,7 @@ export function RequestCard({
   trailing?: ReactNode;
   leading?: ReactNode;
   aside?: ReactNode;
-  link: (content: ReactNode) => ReactElement;
+  link: ReactElement<{ children?: ReactNode }>;
   children?: ReactNode;
 }>) {
   return (
@@ -60,18 +61,18 @@ export function RequestCard({
       <Row align="center" gap={16} p={14}>
         {leading}
         <Focusable asChild label={label} style={s.head}>
-          {link(
-            <>
-              <RequestPoster tmdbId={tmdbId} posterUrl={posterUrl} />
-              <Box minW={0} shrink={1}>
-                <Text variant="label" lines={1}>
-                  {title}
-                </Text>
-                {meta}
-              </Box>
-              <Box flex />
-              {trailing}
-            </>,
+          {cloneElement(
+            link,
+            undefined,
+            <RequestPoster tmdbId={tmdbId} posterUrl={posterUrl} />,
+            <Box minW={0} shrink={1}>
+              <Text variant="label" lines={1}>
+                {title}
+              </Text>
+              {meta}
+            </Box>,
+            <Box flex />,
+            trailing,
           )}
         </Focusable>
         {aside}

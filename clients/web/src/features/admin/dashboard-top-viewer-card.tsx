@@ -5,12 +5,12 @@ import { useFormat, useT } from '@kroma/ui';
 import {
   Avatar,
   Box,
-  color,
   Divider,
   Focusable,
   Icon,
   Row,
   Surface,
+  styles,
   sv,
   Text,
 } from '@kroma/ui/kit';
@@ -25,7 +25,7 @@ const FACE = 48;
 const HEAD_PAD = 18;
 const HEAD_HEIGHT = FACE + HEAD_PAD * 2;
 
-const ROW_RULE = { borderBottomWidth: 1, borderBottomColor: color('tint/4') } as const;
+const s = styles({ rowRule: { borderBottomWidth: 1, borderBottomColor: 'tint/4' } });
 
 const viewerCard = sv({
   base: {
@@ -125,7 +125,7 @@ function KindRow({ kind, watchedMs, dominant }: Readonly<KindRowProps>) {
   const t = useT();
   const fmt = useFormat();
   return (
-    <Row between px={20} py={11} bg={dominant ? 'accentWash/16' : 'transparent'} style={ROW_RULE}>
+    <Row between px={20} py={11} bg={dominant ? 'accentWash/16' : 'transparent'} style={s.rowRule}>
       <Row gap={8}>
         <PillDot tone={KIND_SERIES[kind]} size={7} />
         <Text variant="meta" color={dominant ? 'accentText' : 'textMuted'}>

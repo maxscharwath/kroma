@@ -337,11 +337,11 @@ describe('a ListRow that delegates its host to a link', () => {
       </ListRow.Root>,
     );
     const row = rowOf(container, 'Reglages');
-    const resting = row.style.backgroundColor;
+    const resting = declared(row, 'background-color');
 
     fireEvent.pointerEnter(row);
 
-    expect(row.style.backgroundColor).not.toBe(resting);
+    expect(declared(row, 'background-color')).not.toBe(resting);
   });
 
   it('draws the disclosure chevron a row that goes somewhere draws', () => {

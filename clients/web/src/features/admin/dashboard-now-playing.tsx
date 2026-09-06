@@ -1,5 +1,5 @@
 import type { PlaybackSession } from '@kroma/client/admin';
-import { posterGradient, resolveImageUrl } from '@kroma/core';
+import { resolveImageUrl } from '@kroma/core';
 import type { Translate } from '@kroma/i18n';
 import { TABULAR } from '@kroma/module-sdk';
 import { useFormat, useT } from '@kroma/ui';
@@ -22,6 +22,7 @@ import { useState } from 'react';
 import { createCallable } from 'react-call';
 import { PillDot } from '#web/features/admin/pill';
 import { apiBase, kromaClient } from '#web/shared/lib/api';
+import { posterScrim } from '#web/shared/lib/art-styles';
 import { useAuth } from '#web/shared/lib/auth';
 import { useStoryboard } from '#web/shared/lib/use-storyboard';
 import { Image } from '#web/shared/ui';
@@ -48,7 +49,7 @@ function NowPlayingThumb({ s }: Readonly<{ s: PlaybackSession }>) {
       overflow="hidden"
       shadow="card"
     >
-      <div style={{ position: 'absolute', inset: 0, background: posterGradient(s.title) }} />
+      <Box fill style={posterScrim(s.title)} />
       {posterFailed ? null : (
         <Image src={poster} fit="cover" fill onError={() => setPosterFailed(true)} />
       )}

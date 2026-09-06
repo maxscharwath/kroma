@@ -20,6 +20,7 @@ import {
   type RadiusToken,
   radiusValue,
   type StyleDecl,
+  sharedStyle,
   styles,
   useBreakpoint,
 } from '#ui/core';
@@ -194,10 +195,10 @@ export function fieldShell(
       // artwork. Only <TextField> asks for it; a textarea sits in a form.
       ...(at.lift ? { shadow: 'card' } : null),
     },
-    edge: {
+    edge: sharedStyle(`field:edge:${at.focused}:${at.invalid}`, {
       borderColor: edgeColor(at.focused, at.invalid),
       ...(at.focused ? fieldRing() : null),
-    } as TextStyle,
+    }) as TextStyle,
   };
 }
 

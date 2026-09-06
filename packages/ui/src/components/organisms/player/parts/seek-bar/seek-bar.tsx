@@ -10,7 +10,7 @@ import { msAtOffset, offsetAt, SEGMENT_GAP } from '#ui/components/organisms/play
 import { seekBar } from '#ui/components/organisms/player/lib/style';
 import { StoryboardThumb } from '#ui/components/organisms/player/parts/storyboard-thumb';
 import type { Chapter } from '#ui/components/organisms/player/types';
-import { styles, sv, themed } from '#ui/core';
+import { sharedStyle, style, styles, sv, themed } from '#ui/core';
 import { a11yValue } from '#ui/lib/a11y';
 import { gradient } from '#ui/lib/css';
 import { suppressSelection } from '#ui/lib/drag-select';
@@ -273,12 +273,12 @@ const STAMP_SIZE = 14;
 const TRACK_HEIGHT = 6;
 
 const playedFill = themed(() =>
-  gradient(`linear-gradient(90deg, ${seekBar().played[0]}, ${seekBar().played[1]})`),
+  style(gradient(`linear-gradient(90deg, ${seekBar().played[0]}, ${seekBar().played[1]})`)),
 );
 
-const playheadShadow = themed(() => ({
-  boxShadow: `0 0 0 4px ${seekBar().playheadHalo}, 0 2px 8px rgba(0, 0, 0, 0.6)`,
-}));
+const playheadShadow = themed(() =>
+  style({ boxShadow: `0 0 0 4px ${seekBar().playheadHalo}, 0 2px 8px rgba(0, 0, 0, 0.6)` }),
+);
 
 const s = styles({
   time: { font: 'ui', fontWeight: '600', color: 'text', fontVariant: ['tabular-nums'] },
@@ -291,13 +291,13 @@ const s = styles({
 
 function scaled(scale: number) {
   const px = scaler(scale);
-  const time = { fontSize: px(TIME_SIZE) };
+  const time = sharedStyle(`seek:time:${scale}`, { fontSize: px(TIME_SIZE) });
   return {
     time: [s.time, time],
     timeMuted: [s.time, time, s.muted],
     timeShrink: [s.time, time, s.shrink],
-    stamp: [s.stamp, { fontSize: px(STAMP_SIZE) }],
-    track: [s.track, { height: px(TRACK_HEIGHT) }],
+    stamp: [s.stamp, sharedStyle(`seek:stamp:${scale}`, { fontSize: px(STAMP_SIZE) })],
+    track: [s.track, sharedStyle(`seek:track:${scale}`, { height: px(TRACK_HEIGHT) })],
   };
 }
 

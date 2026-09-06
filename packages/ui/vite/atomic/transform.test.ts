@@ -98,6 +98,6 @@ const v = svFor<{ root: StyleDecl; icon: Pick<IconProps, 'color'> }>()({
     );
 
     expect(out?.code).toContain('injectRules as __kromaInject');
-    expect(out?.code).toMatch(/__kromaInject\(\[\[3,"\.r-[\w-]+\{opacity:0\.5;\}"\]\]\);/);
+    expect(out?.code).toMatch(/__kromaInject\(\[\[3,"\.[a-d][\w-]{5}\{opacity:0\.5;\}"\]\]\);/);
   });
 });

@@ -18,6 +18,7 @@ import {
 } from '@kroma/ui/kit';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import type { ViewProps } from 'react-native';
 import { apiBase } from '#web/shared/lib/api';
 import { useAuth } from '#web/shared/lib/auth';
 import { userQueries } from '#web/shared/lib/queries';
@@ -109,10 +110,16 @@ export function MyRequestsPage() {
   );
 }
 
-function RequestLink({ req, children }: Readonly<{ req: MediaRequest; children: ReactNode }>) {
+// The rest is what the focusable around it hands its host: the row's paint,
+// its ref and its handlers all have to reach the anchor itself.
+function RequestLink({
+  req,
+  children,
+  ...link
+}: Readonly<{ req: MediaRequest; children: ReactNode } & ViewProps>) {
   if (req.status === 'available') {
     return (
-      <RouteLink to="/search" search={{ q: '', type: 'all' }}>
+      <RouteLink to="/search" search={{ q: '', type: 'all' }} {...link}>
         {children}
       </RouteLink>
     );
@@ -121,6 +128,7 @@ function RequestLink({ req, children }: Readonly<{ req: MediaRequest; children: 
     <RouteLink
       to="/discover/$type/$tmdbId"
       params={{ type: req.kind === 'show' ? 'tv' : 'movie', tmdbId: String(req.tmdbId) }}
+      {...link}
     >
       {children}
     </RouteLink>

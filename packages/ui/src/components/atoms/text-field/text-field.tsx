@@ -9,7 +9,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { useFrostCoat } from '#ui/components/atoms/frost';
 import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Text } from '#ui/components/atoms/text';
-import { color, styles, useTheme } from '#ui/core';
+import { color, sharedStyle, styles, useTheme } from '#ui/core';
 import { Caret } from '#ui/lib/caret';
 import {
   type ControlSize,
@@ -83,6 +83,13 @@ interface TextFieldProps extends Omit<BoxProps, 'children' | 'ring'> {
   flat?: boolean;
 }
 
+const typeOf = (fontSize: number, lineHeight: number) =>
+  sharedStyle(`text-field:type:${fontSize}:${lineHeight}`, { fontSize, lineHeight });
+
+const revealAt = (right: number) => sharedStyle(`text-field:reveal:${right}`, { right });
+
+const inputOf = (fontSize: number, minHeight: number) =>
+  sharedStyle(`text-field:input:${fontSize}:${minHeight}`, { color: 'text', minHeight, fontSize });
 function TextField({
   value: valueProp,
   defaultValue = '',
@@ -186,12 +193,7 @@ function TextField({
           {...keyboardProps}
           {...autoCompleteProps}
           selectionColor={theme.colors.accent}
-          style={[
-            s.input,
-            NO_OUTLINE,
-            { color: theme.colors.text, minHeight: CONTENT, fontSize },
-            textStyle,
-          ]}
+          style={[s.input, NO_OUTLINE, inputOf(fontSize, CONTENT), textStyle]}
         />
       ) : (
         <SoftValue
@@ -249,7 +251,7 @@ function SoftValue({
     <Box row align="center" flex gap={2} h={content}>
       <Text
         lines={1}
-        style={[s.tvValue, { fontSize, lineHeight: content }, textStyle]}
+        style={[s.tvValue, typeOf(fontSize, content), textStyle]}
         color={value ? 'text' : PLACEHOLDER}
       >
         {shown || placeholder || ''}
@@ -265,7 +267,7 @@ function RevealButton({
   right,
 }: Readonly<{ revealed: boolean; onToggle: () => void; right: number }>) {
   return (
-    <Box absolute style={[s.revealSlot, { right }]}>
+    <Box absolute style={[s.revealSlot, revealAt(right)]}>
       <Focusable
         label={revealed ? 'Hide password' : 'Show password'}
         ring="focusEdge"

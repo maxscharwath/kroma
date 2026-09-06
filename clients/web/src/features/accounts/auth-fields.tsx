@@ -4,7 +4,16 @@
 // block lives here once and is driven by controlled props.
 
 import { useT } from '@kroma/ui';
-import { Box, Field, Focusable, gradient, Icon, type StyleDecl, svFor, Text } from '@kroma/ui/kit';
+import {
+  Box,
+  Field,
+  Focusable,
+  Icon,
+  type StyleDecl,
+  sharedStyle,
+  svFor,
+  Text,
+} from '@kroma/ui/kit';
 import { useEffect, useRef, useState } from 'react';
 import { Image } from '#web/shared/ui';
 import { avatarGradient, initials } from '#web/shared/ui/user-avatar';
@@ -35,6 +44,11 @@ const avatarPicker = svFor<{ root: StyleDecl; caption: StyleDecl }>()({
 /** Avatar picker tile + the three registration inputs, controlled by the parent
  * form. The object-URL preview and hidden file input are managed internally; the
  * chosen File is reported through `onAvatar`. */
+
+const avatarWash = (seed: string) => {
+  const image = avatarGradient(seed);
+  return sharedStyle(`avatar:wash:${image}`, { backgroundImage: image });
+};
 export function RegisterFields({
   values,
   onChange,
@@ -73,7 +87,7 @@ export function RegisterFields({
             {preview ? (
               <Image src={preview} fit="cover" fill />
             ) : (
-              <Box fill center style={gradient(avatarGradient(username || email || 'new'))}>
+              <Box fill center style={avatarWash(username || email || 'new')}>
                 {username.trim() ? (
                   <Text variant="h1" font="display" color="white/85">
                     {initials(username)}

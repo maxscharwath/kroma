@@ -8,14 +8,8 @@
 import type { ReactNode } from 'react';
 import { Box, type BoxProps } from '#ui/components/atoms/box';
 import { Frost } from '#ui/components/atoms/frost';
-import {
-  type BoxStyleProps,
-  boxStyle,
-  breakpointIndex,
-  splitShorthand,
-  sv,
-  type Variant,
-} from '#ui/core';
+import { type BoxStyleProps, breakpointIndex, splitShorthand, sv, type Variant } from '#ui/core';
+import { sharedBoxStyle } from '#ui/lib/box-style';
 
 const surfaceVariants = sv({
   base: { radius: 'lg' },
@@ -67,10 +61,15 @@ function Surface({
   const { root } = surfaceVariants({ tone, pad, elevated });
   // Resolved here so the layers land in the order a reader expects: recipe,
   // then the caller's shorthands, then the one-off `style`.
-  const { shorthand, rest, any } = splitShorthand(box);
-  const asked = any ? boxStyle(shorthand as BoxStyleProps, breakpointIndex()) : null;
+  const split = splitShorthand(box);
+  const asked = split.key
+    ? sharedBoxStyle(
+        split.breakpoints === 0 ? split.key : `${breakpointIndex()}|${split.key}`,
+        split.shorthand as BoxStyleProps,
+      )
+    : null;
   const panel = (
-    <Box {...rest} style={[root, asked, style]}>
+    <Box {...split.rest} style={[root, asked, style]}>
       {children}
     </Box>
   );

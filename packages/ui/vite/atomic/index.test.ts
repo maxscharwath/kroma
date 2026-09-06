@@ -50,7 +50,7 @@ describe('kromaAtomic', () => {
     atomic.generateBundle.handler.call(ctx, {}, bundle);
 
     expect(bundle['assets/kroma-abc.css'].source).toMatch(
-      /^:root\{--kroma-bg:#0a0a0c\}\n\.r-[\w-]+\{opacity:0\.5;\}\n$/,
+      /^:root\{--kroma-bg:#0a0a0c\}\n\.[a-d][\w-]{5}\{opacity:0\.5;\}\n$/,
     );
     expect(bundle['assets/other.css'].source).toBe('.x{}');
     expect(ctx.warn).not.toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe('kromaAtomic', () => {
 
     atomic.generateBundle.handler.call(ctx, {}, bundle);
 
-    expect(bundle['style.css'].source).toMatch(/^:root\{--kroma-bg:#0a0a0c\}\n\.r-/);
+    expect(bundle['style.css'].source).toMatch(/^:root\{--kroma-bg:#0a0a0c\}\n\.[a-d][\w-]{5}\{/);
   });
 
   it('warns when a build has no token stylesheet to land in', () => {

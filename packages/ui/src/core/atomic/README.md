@@ -36,7 +36,22 @@ The declaration is then rewritten in place as the longhands it resolved to:
 const s = styles({ row: { row: true, gap: 6 } });
 // becomes
 const s = styles({ row: __kromaStatic({ flexDirection: 'row', gap: 6 }) });
+// and the sheet gains
+.a1B2c3{flex-direction:row;}
+.dD4e5F{gap:6px;}
 ```
+
+A value stated per state compiles to the same layers a `_hover` layer does:
+`bg: { base: 'accent', hover: 'accentHover' }` is `bg: 'accent', _hover: { bg:
+'accentHover' }` to the engine, on the build and at runtime alike.
+
+A class is six characters, the same on a dev server and in a build: a 32-bit
+murmurhash of the property and value written in a 64-symbol alphabet, whose
+first symbol the two bits left over pick from `a` to `d`, so the name is
+legal without a prefix. StyleX names its classes the same way behind an `x`,
+and react-native-web upstream spells the property into the name on a dev
+server; the patch takes both out, since the rule a build wrote is the rule a
+dev server has to read.
 
 and the rules land in the token stylesheet the shell already loads
 (`virtual:kroma*.css` or `@import "@kroma/ui/css"`), after everything
@@ -65,9 +80,19 @@ style compiled at runtime: the same hashing, the same classes, the same cache
 hit on every render. Only the rule insertion is skipped, because the sheet
 already holds them.
 
-The patch on react-native-web carries three hunks, each a few lines:
+The patch on react-native-web carries seven hunks, each a few lines:
 
 - `StyleSheet.create` compiles a `$$static` style and inserts nothing.
+- The class name is the hash alone, six characters, on a dev server as in a
+  build.
+- The ordered sheet, when it is created, reads every atomic-shaped selector
+  already in the document's stylesheets, so a style registered at runtime
+  that compiles to a rule the build wrote inserts nothing: one rule per class
+  in the page, never a compiled copy and a runtime copy.
+- `StyleSheet.insertStatic(css, group)` is the dev server's door into that
+  ordered sheet.
+- `<Text numberOfLines>` clamps with a registered style per line count rather
+  than an inline declaration.
 - `ModalPortal` puts its container back into the document when React
   reconnects its effect. React disconnects the effects of a tree it hides
   behind a Suspense fallback, and upstream's cleanup removed the container for
@@ -101,10 +126,11 @@ compiler off with `kromaUI({ atomic: false })`.
 
 ## The dev server
 
-A dev server writes no sheet, so each compiled module injects its own rules as
-it loads, into one `<style data-kroma-atomic>` per priority group, in group
-order. The shipped build and the dev page therefore paint the same classes
-from different places. After the renderer patch first lands, a dev server with
+A dev server writes no sheet, so each compiled module inserts its own rules as
+it loads, into react-native-web's ordered sheet through `insertStatic`, where
+a rule holds the place its priority group gives it and a class the renderer
+registers later inserts nothing twice. The shipped build and the dev page
+therefore paint the same classes from different places. After the renderer patch first lands, a dev server with
 a warm optimizer cache still serves the unpatched copy: start it once with
 `--force`.
 
@@ -145,26 +171,24 @@ Two more habits paint inline, and both are handled:
   by nothing. `registered(style)` from `@kroma/ui/kit` registers it again by
   its content, and the web client's `RouteLink` anchor wears the result.
 
-A glyph on the browser is a DOM `<svg>` react-native-web never renders, so
-`<Icon>` asks the resolver for the classes its registered style compiles to
-and hands the element those. What legitimately stays inline is a value only a
-render knows: a measured width, an animated transform, a gradient built from a
-title's art. On the workbench's button page that is 13 elements of 181, down
-from 116; on the web client's home page 724 of 2311, down from 1054, most of
-them react-native-web's own `<Image>` internals and per-title gradients.
+An element react-native-web never renders (a glyph's `<svg>`, an `<img>`, a
+client's own `<div>` or `<a>`) takes `classes(...styles)` from `@kroma/ui/kit`:
+the resolver hands back the classes the registered styles compile to and the
+element wears those. A value a render computes but that takes few distinct
+values (a control's size, a title's key-art wash, a scale) goes through
+`sharedStyle(key, decl)`, one class per value; `<Slot>` registers the style it
+merges onto its host the same way, so every `asChild` host paints as classes.
 
-What the guard still reports on the web client's home page, for the sweep to
-finish, one shape each: `{paddingVertical}`, `{paddingHorizontal}`,
-`{paddingBottom}`, `{marginTop}`, `{marginBottom,marginTop}`,
-`{paddingBottom,paddingLeft,paddingRight,paddingTop}`,
-`{flexGrow,paddingHorizontal,paddingVertical}`, `{alignItems}`, `{overflow}`,
-`{position}`, `{pointerEvents}`, `{textTransform}`, `{fontVariant}`,
-`{fontFamily,fontSize,fontWeight,lineHeight}`, `{WebkitLineClamp}` and the
-transition triple. The known sources are the transition constants in
-`switch.tsx`, `shake.web.ts`, `drawer-slide.tsx`, the up-next sheet's
-`slide.web.ts`, the web client's `genre-tile.tsx` and `poster-tile.tsx`, and
-`player.tsx`'s `inert`. The rule for each is the same: declare it with
-`styles()`.
+What stays inline is what changes continuously: a progress bar's fill, a
+virtual list's row offsets and height, an anchored popup's measured box, a
+storyboard frame's sheet offset, and the values an `Animated` node drives.
+That set is the guard's whole allow-list (`width`, `height`, the four edges,
+`maxHeight`, `minWidth`, `paddingTop`, `transform`, `opacity`, `borderRadius`
+and the background image, position and size), and on a dev server it names,
+with its values, any other property that reaches an element inline. Every
+route of the web client audits clean under it; the boot intro is the one
+deliberate exception, a framework-free scene that renders before the kit's
+sheet exists.
 
 A test reads a control's paint with `declared(el, property)` from
 `@kroma/ui/testing`, which follows the classes into the stylesheets, and asks

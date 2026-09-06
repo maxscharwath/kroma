@@ -10,7 +10,7 @@ import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Text } from '#ui/components/atoms/text';
 import type { ColorValue } from '#ui/core';
-import { styles, sv } from '#ui/core';
+import { sharedStyle, styles, sv } from '#ui/core';
 import { gradient } from '#ui/lib/css';
 
 const NO_POINTER: ViewStyle = styles({ none: { pointerEvents: 'none' } }).none;
@@ -62,6 +62,9 @@ interface CategoryTileProps extends Omit<FocusableProps, 'children' | 'style' | 
   style?: StyleProp<ViewStyle>;
 }
 
+const washOf = (wash: string) => sharedStyle(`category:wash:${wash}`, gradient(wash));
+
+const widthOf = (width: number | string) => sharedStyle(`category:width:${width}`, { width });
 function CategoryTile({
   label,
   meta,
@@ -87,11 +90,11 @@ function CategoryTile({
       // Frame and artwork are the same box, on the same radius: the ring keeps
       // itself clear of the art (RING_GAP), so padding here would be a second
       // gap and a corner nobody could keep concentric.
-      style={[s.frame, { width: width ?? '100%' }, style]}
+      style={[s.frame, widthOf(width ?? '100%'), style]}
     >
       <Box aspect={aspect} radius="lg" overflow="hidden" bg="surface1">
         <Img src={art} background={background} position="50% 25%" fill />
-        {wash ? <Box fill style={[NO_POINTER, gradient(wash)]} /> : null}
+        {wash ? <Box fill style={[NO_POINTER, washOf(wash)]} /> : null}
         <Box absolute left={20} right={20} bottom={16} gap={2}>
           {accent ? <Box h={4} w={28} radius="pill" bg={accent} mb={8} /> : null}
           <Box row align="center" gap={8}>

@@ -6,6 +6,7 @@ import { useConnection } from '#tv/app/providers/connection';
 import { useEnv } from '#tv/app/providers/env';
 import { useNav } from '#tv/app/router';
 import { AuthScreen, GATE_MARK, KromaMark, UrlKeyboard } from '#tv/shared/ui';
+import { weight } from '#tv/shared/ui/weight';
 
 /**
  * Add a server by address via an on-screen URL keyboard; on submit the server is
@@ -140,7 +141,7 @@ export function TvConnect() {
           justify="center"
           mt={20}
           color="text/40"
-          textStyle={{ fontWeight: '500' }}
+          textStyle={weight.medium}
         />
       </Box>
     </AuthScreen>

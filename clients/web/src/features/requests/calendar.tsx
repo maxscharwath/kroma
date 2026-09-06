@@ -17,7 +17,18 @@ import {
   sizedImageUrl,
 } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
-import { Box, EmptyState, Icon, Img, ListRow, PageHeader, Row, Text } from '@kroma/ui/kit';
+import {
+  Box,
+  classes,
+  EmptyState,
+  Icon,
+  Img,
+  ListRow,
+  PageHeader,
+  Row,
+  styles,
+  Text,
+} from '@kroma/ui/kit';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { userQueries } from '#web/shared/lib/queries';
@@ -74,7 +85,7 @@ export function ComingSoonPage() {
 
       {groups.map((g) => (
         <section key={g.key}>
-          <h2 style={HEADING}>
+          <h2 className={classes(s.heading)}>
             <Row align="baseline" gap={8} mt={28} mb={10}>
               <Text variant="overline" color="textDim">
                 {g.label}
@@ -167,4 +178,4 @@ function CalendarRow({
   );
 }
 
-const HEADING = { margin: 0 } as const;
+const s = styles({ heading: { m: 0 } });

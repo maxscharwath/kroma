@@ -5,7 +5,7 @@ import { clamp01 } from '#ui/components/atoms/progress';
 import { ProgressRing } from '#ui/components/atoms/progress-ring';
 import { Text } from '#ui/components/atoms/text';
 import { scaler } from '#ui/components/organisms/player/lib/metrics';
-import { styles, sv, useTheme } from '#ui/core';
+import { sharedStyle, styles, sv, useTheme } from '#ui/core';
 import { gradient } from '#ui/lib/css';
 import { useT } from '#ui/services/i18n';
 
@@ -54,6 +54,8 @@ const playFill = sv({ base: { flex: 1, _focus: { bg: 'accentHover' } } });
  * a conic gradient is CSS-only, and an SVG arc is the same picture on every
  * platform.
  */
+
+const sizeOf = (fontSize: number) => sharedStyle(`credits-card:size:${fontSize}`, { fontSize });
 export function CreditsCard({
   item,
   secondsLeft,
@@ -98,9 +100,7 @@ export function CreditsCard({
             />
           </Box>
           <Box w={px(42)} h={px(42)} center radius="circle" bg="#101014">
-            <Text style={[s.countdown, { fontSize: px(COUNTDOWN_SIZE) }]}>
-              {String(secondsLeft)}
-            </Text>
+            <Text style={[s.countdown, sizeOf(px(COUNTDOWN_SIZE))]}>{String(secondsLeft)}</Text>
           </Box>
         </Box>
       </Box>

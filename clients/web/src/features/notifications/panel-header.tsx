@@ -2,6 +2,7 @@ import { useT } from '@kroma/ui';
 import {
   Badge,
   Box,
+  classes,
   Drawer,
   Icon,
   IconButton,
@@ -9,6 +10,7 @@ import {
   SegmentGroup,
   Spacer,
   Spinner,
+  styles,
   Text,
 } from '@kroma/ui/kit';
 import { useQueryClient } from '@tanstack/react-query';
@@ -46,7 +48,7 @@ export function PanelHeader({
   return (
     <Box gap={10}>
       <Row gap={8}>
-        <h2 style={HEADING}>
+        <h2 className={classes(s.heading)}>
           <Text variant="label">{t('notifications.title')}</Text>
         </h2>
         <Spacer />
@@ -59,7 +61,7 @@ export function PanelHeader({
             label={t('notifications.markAllRead')}
             onPress={() => void markAll()}
             disabled={markAllOff}
-            style={markAllOff ? OFF : undefined}
+            style={markAllOff ? s.off : undefined}
           >
             {busy ? <Spinner size={17} /> : <Icon name="checks" size={18} />}
           </IconButton>
@@ -92,6 +94,4 @@ export function PanelHeader({
   );
 }
 
-const HEADING = { margin: 0 } as const;
-
-const OFF = { opacity: 0.3 } as const;
+const s = styles({ heading: { m: 0 }, off: { opacity: 0.3 } });

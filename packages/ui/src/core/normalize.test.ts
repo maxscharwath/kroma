@@ -145,3 +145,44 @@ describe('a static layer', () => {
     });
   });
 });
+
+describe('split', () => {
+  it("reads a value stated per state into that state's layer, base into the rest", () => {
+    const out = split(
+      {
+        bg: { base: 'accent', hover: 'accentHover', press: 'accentPress' },
+        opacity: { press: 0.8 },
+        px: 12,
+      },
+      0,
+    );
+
+    expect(out?.rest).toEqual({
+      backgroundColor: 'var(--kroma-accent)',
+      paddingLeft: 12,
+      paddingRight: 12,
+    });
+    expect(out?.declared).toEqual(['hover', 'press']);
+    expect(out?.states.hover).toEqual({ backgroundColor: 'var(--kroma-accent-hover)' });
+    expect(out?.states.press).toEqual({
+      backgroundColor: 'var(--kroma-accent-press)',
+      opacity: 0.8,
+    });
+  });
+
+  it('merges a stated value under the state layer written beside it', () => {
+    const out = split(
+      { bg: { base: 'accent', hover: 'accentHover' }, _hover: { bg: 'danger' } },
+      0,
+    );
+
+    expect(out?.states.hover).toEqual({ backgroundColor: 'var(--kroma-danger)' });
+  });
+
+  it('keeps a value stated per breakpoint as one', () => {
+    const out = split({ px: { base: 8, md: 12 } }, 0);
+
+    expect(out?.rest).toEqual({ paddingLeft: 8, paddingRight: 8 });
+    expect(out?.declared).toEqual([]);
+  });
+});

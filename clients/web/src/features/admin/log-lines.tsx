@@ -5,21 +5,26 @@
 import type { LogEntry } from '@kroma/client/admin';
 import { TABULAR } from '@kroma/module-sdk';
 import { useLocaleDefault } from '@kroma/ui';
-import { Box, type ColorValue, Row, Text } from '@kroma/ui/kit';
-import { type CSSProperties, Fragment, useEffect, useRef } from 'react';
+import { Box, type ColorValue, classes, Row, sharedStyle, styles, Text } from '@kroma/ui/kit';
+import { Fragment, useEffect, useRef } from 'react';
 
 // A capped height, a single-axis scroll and a CSS grid have no React Native
 // spelling, so the viewport and its rows stay real elements.
-const LINES: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'max-content max-content minmax(0, 1fr)',
-  alignItems: 'baseline',
-  columnGap: 10,
-  rowGap: 8,
-  padding: '12px 16px',
-};
+const s = styles({
+  lines: {
+    display: 'grid',
+    gridTemplateColumns: 'max-content max-content minmax(0, 1fr)',
+    alignItems: 'baseline',
+    columnGap: 10,
+    rowGap: 8,
+    py: 12,
+    px: 16,
+  },
+  fullRow: { gridColumn: '1 / -1' },
+  scroller: { overflowY: 'auto' },
+});
 
-const FULL_ROW: CSSProperties = { gridColumn: '1 / -1' };
+const heightOf = (maxHeight: number | string) => sharedStyle(`log:max:${maxHeight}`, { maxHeight });
 
 /** Draws `entries` newest-last in a pane that scrolls past `maxHeight` (any CSS
  * length). With `follow`, every change re-pins the pane to the newest line. */
@@ -37,12 +42,12 @@ export function LogLines({
   }, [entries, follow]);
 
   return (
-    <div ref={scroller} style={{ maxHeight, overflowY: 'auto' }}>
-      <div style={LINES}>
+    <div ref={scroller} className={classes(s.scroller, heightOf(maxHeight))}>
+      <div className={classes(s.lines)}>
         {entries.map((e, i) => (
           <Fragment key={e.seq}>
             {sameDay(entries[i - 1]?.ts, e.ts) ? null : (
-              <div style={FULL_ROW}>
+              <div className={classes(s.fullRow)}>
                 <DayMark ts={e.ts} />
               </div>
             )}

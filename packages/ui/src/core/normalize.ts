@@ -11,7 +11,7 @@ import {
   textStyle,
 } from '#ui/core/shorthand-resolve';
 import type { BoxStyleProps } from '#ui/core/shorthands';
-import { STATE_KEYS, type SvStateName } from '#ui/core/states';
+import { STATE_KEYS, SV_STATES, type SvStateName } from '#ui/core/states';
 
 export interface Split {
   rest: Record<string, unknown>;
@@ -30,6 +30,21 @@ export interface Split {
  * A layer the build already compiled comes back as it is, its states read off
  * the compiled form.
  */
+const CONDITION_KEYS: ReadonlySet<string> = new Set(['base', ...SV_STATES]);
+
+// A value stated per interaction state, `base` for the rest: an object whose
+// keys are all conditions and at least one of them a state, which is what
+// tells it apart from a value stated per breakpoint.
+function conditional(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const keys = Object.keys(value);
+  const stated =
+    keys.length > 0 &&
+    keys.every((key) => CONDITION_KEYS.has(key)) &&
+    keys.some((key) => key !== 'base');
+  return stated ? (value as Record<string, unknown>) : null;
+}
+
 export function split(decl: Record<string, unknown> | undefined, index: number): Split | undefined {
   if (!decl) return undefined;
   if (isStaticStyle(decl)) {
@@ -37,12 +52,23 @@ export function split(decl: Record<string, unknown> | undefined, index: number):
     return { rest: decl, states, declared: Object.keys(states) as SvStateName[], breakpoints: 0 };
   }
   const authored: Record<string, unknown> = {};
-  const states: Split['states'] = {};
-  const declared: SvStateName[] = [];
-  let breakpoints = 0;
+  const byState: Partial<Record<SvStateName, Record<string, unknown>>> = {};
+  const explicit: Partial<Record<SvStateName, Record<string, unknown>>> = {};
   for (const key of Object.keys(decl)) {
+    const value = decl[key];
     if (!key.startsWith('_')) {
-      authored[key] = decl[key];
+      const stated = conditional(value);
+      if (!stated) {
+        authored[key] = value;
+        continue;
+      }
+      if ('base' in stated) authored[key] = stated.base;
+      for (const name of SV_STATES) {
+        if (!(name in stated)) continue;
+        const layer = byState[name] ?? {};
+        layer[key] = stated[name];
+        byState[name] = layer;
+      }
       continue;
     }
     if (!STATE_KEYS.has(key)) {
@@ -50,10 +76,18 @@ export function split(decl: Record<string, unknown> | undefined, index: number):
         `sv: unknown state "${key}". States are ${[...STATE_KEYS].join(', ')}; anything else a component can be in is a variant.`,
       );
     }
-    const name = key.slice(1) as SvStateName;
-    const layer = decl[key] as Record<string, unknown>;
-    breakpoints |= declaredBreakpoints(layer);
-    states[name] = normalize(layer, index);
+    explicit[key.slice(1) as SvStateName] = value as Record<string, unknown>;
+  }
+  const states: Split['states'] = {};
+  const declared: SvStateName[] = [];
+  let breakpoints = 0;
+  for (const name of SV_STATES) {
+    const stated = byState[name];
+    const layer = explicit[name];
+    if (!stated && !layer) continue;
+    const merged = { ...stated, ...layer };
+    breakpoints |= declaredBreakpoints(merged);
+    states[name] = normalize(merged, index);
     declared.push(name);
   }
   return {

@@ -4,7 +4,7 @@
 // runtime, so a module is never rejected, only left partly compiled.
 
 import MagicString from 'magic-string';
-import type { RuleEntry } from '../../src/core/atomic/inject.ts';
+import type { RuleEntry } from '#ui/core/atomic';
 import type { CompiledRule } from './compile.ts';
 import { type CompiledLeaf, compileDeclaration } from './declaration.ts';
 import { evaluate } from './evaluate.ts';

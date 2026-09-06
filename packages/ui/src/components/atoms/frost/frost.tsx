@@ -29,6 +29,8 @@ let PlatformFrost: ComponentType<FrostBackdropProps> | null = null;
  * module scope, before the first render. Generic over the component's own
  * props, since `ComponentType` is invariant in `P` and naming the props
  * directly would reject <BlurView> over tints the kit never passes. */
+
+const cornerStyle = (corner: number) => sharedStyle(`frost:corner:${corner}`, { radius: corner });
 function registerFrost<P extends FrostBackdropProps>(component: ComponentType<P>): void {
   PlatformFrost = component as ComponentType<FrostBackdropProps>;
 }
@@ -122,7 +124,7 @@ function coatOf(surface: StyleProp<ViewStyle>, options: FrostOptions): FrostCoat
         // expo-blur's 0-100 scale: about four steps to the CSS pixel.
         intensity={Math.min(100, amount * 4)}
         tint={tint ?? (onPaper() ? 'light' : 'dark')}
-        style={[s.fill, s.clip, typeof corner === 'number' ? { borderRadius: corner } : null]}
+        style={[s.fill, s.clip, typeof corner === 'number' ? cornerStyle(corner) : null]}
       />
     ),
   };

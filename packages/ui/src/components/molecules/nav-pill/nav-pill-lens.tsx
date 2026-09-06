@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, type ViewStyle } from 'react-native';
 import { Box } from '#ui/components/atoms/box';
-import { styles } from '#ui/core';
+import { sharedStyle, styles } from '#ui/core';
 import { ease } from '#ui/lib/ease';
 import { WEB } from '#ui/lib/platform';
 import type { LensRect } from './nav-pill-context';
@@ -19,6 +19,12 @@ interface LensProps {
   chase: boolean;
 }
 
+const motionOf = (entering: boolean, chase: boolean) =>
+  sharedStyle(`nav-pill:lens:${entering}:${chase}`, {
+    transitionProperty: entering ? 'opacity' : 'transform, width, opacity',
+    transitionDuration: `${chase ? CHASE_MS : TRAVEL_MS}ms`,
+    transitionTimingFunction: EASE_CSS,
+  });
 function Lens({ rect, chase }: Readonly<LensProps>) {
   if (WEB) return <WebLens rect={rect} chase={chase} />;
   return <NativeLens rect={rect} chase={chase} />;
@@ -40,7 +46,9 @@ function WebLens({ rect, chase }: Readonly<LensProps>) {
       absolute
       radius="pill"
       bg="accentSoft"
-      style={
+      style={[
+        s.lens,
+        motionOf(entering, chase),
         {
           // The travel rides a transform, not `left`. Both land the pill in the
           // same place, but `left` is laid out and painted on every frame of the
@@ -51,20 +59,13 @@ function WebLens({ rect, chase }: Readonly<LensProps>) {
           // too, and would stretch the pill's corner radius into ellipses for
           // the length of every move; the box is absolutely positioned, so
           // laying it out disturbs nothing around it.
-          left: 0,
           top: box.y,
           width: box.width,
           height: box.height,
           transform: `translateX(${box.x}px)`,
           opacity: rect ? 1 : 0,
-          transitionProperty: entering ? 'opacity' : 'transform, width, opacity',
-          transitionDuration: `${chase ? CHASE_MS : TRAVEL_MS}ms`,
-          transitionTimingFunction: EASE_CSS,
-          // Asked for up front, so the first frame of a slide is not also the
-          // frame that promotes the layer.
-          willChange: 'transform',
-        } as ViewStyle
-      }
+        } as ViewStyle,
+      ]}
     />
   );
 }
@@ -123,7 +124,7 @@ function NativeLens({ rect, chase }: Readonly<LensProps>) {
 }
 
 const s = styles({
-  lens: { absolute: true, radius: 'pill', bg: 'accentSoft' },
+  lens: { absolute: true, left: 0, radius: 'pill', bg: 'accentSoft', willChange: 'transform' },
 });
 
 export { Lens };

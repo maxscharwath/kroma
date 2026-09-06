@@ -9,6 +9,7 @@
 // where a translucent colour's alpha can land (below).
 
 import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { classes } from '#ui/lib/classed';
 import { type IconProps, resolveIcon } from '#ui/lib/glyph';
 import { STROKE_PROP } from '#ui/lib/icons/stroke-prop';
 import { WEB } from '#ui/lib/platform';
@@ -20,20 +21,6 @@ export type { IconName, IconProps } from '#ui/lib/glyph';
 // sliver rather than shortening the words beside it; React Native does not
 // shrink a child by default and needs none of this.
 const FIRM = WEB ? StyleSheet.create({ firm: { flexShrink: 0 } }).firm : null;
-
-// The DOM build's glyph is an <svg> react-native-web never renders, so its
-// style would land inline; the resolver hands back the classes a registered
-// style compiles to instead, and the glyph wears those.
-type Resolver = (styles: unknown) => [string, unknown];
-const CLASSES = new Map<ViewStyle, { className: string }>();
-function classed(style: ViewStyle | null): { className: string } | null {
-  if (!WEB || !style) return null;
-  const hit = CLASSES.get(style);
-  if (hit) return hit;
-  const dom = { className: (StyleSheet as unknown as Resolver)([style])[0] };
-  CLASSES.set(style, dom);
-  return dom;
-}
 
 // The palette holds a handful of alphas, and icons re-render on every focus
 // move in a 10-foot grid, so the fade styles are worth remembering. On the web
@@ -56,7 +43,8 @@ function Icon(props: Readonly<IconProps>) {
   // Spread rather than a literal prop: the key is decided per platform, and a
   // computed key cannot be written inline without losing the type of the rest.
   const weight = { [STROKE_PROP]: thickness };
-  if (opacity === 1) return <Glyph size={size} color={color} {...classed(FIRM)} {...weight} />;
+  if (opacity === 1)
+    return <Glyph size={size} color={color} className={classes(FIRM)} {...weight} />;
   // A translucent colour (`textDim`, `textMuted`) fades the FINISHED glyph, in
   // one composite, rather than each of its strokes - see `splitAlpha`. The DOM
   // build spreads extra props onto the <svg> element alone, where CSS opacity
@@ -64,7 +52,8 @@ function Icon(props: Readonly<IconProps>) {
   // itself. Tabler's React Native build spreads them onto every path too, which
   // would fade each stroke separately and show their overlaps - so that target
   // keeps a wrapper for the alpha to land on.
-  if (WEB) return <Glyph size={size} color={color} {...classed(fade(opacity))} {...weight} />;
+  if (WEB)
+    return <Glyph size={size} color={color} className={classes(fade(opacity))} {...weight} />;
   return (
     <View style={fade(opacity)}>
       <Glyph size={size} color={color} {...weight} />

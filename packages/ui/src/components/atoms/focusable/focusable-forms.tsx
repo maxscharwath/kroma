@@ -1,6 +1,6 @@
 import { NavigatorItem, type NavigatorItemProps, type NodeHandle } from '@kroma/spatial-nav/react';
 import type { ReactNode, RefObject } from 'react';
-import { Animated, type StyleProp, StyleSheet, type View, type ViewStyle } from 'react-native';
+import { Animated, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 import type { AnySv } from '#ui/core';
 import type { RingToken } from '#ui/core/theme';
 import type { splitBoxLayers } from '#ui/lib/box-layers';
@@ -49,7 +49,7 @@ function DisabledForm({
   };
 }>): ReactNode {
   return (
-    <Animated.View
+    <DisabledHost
       accessibilityRole={platformRole(at.role)}
       {...at.disabledState}
       accessibilityLabel={at.label}
@@ -64,9 +64,14 @@ function DisabledForm({
             slots: at.slots,
           })
         : at.children}
-    </Animated.View>
+    </DisabledHost>
   );
 }
+
+// A plain view on the browser: react-native-web's Animated rewrites a
+// `transform` in the style it is handed into plain values, so even a scale a
+// class already declares would paint inline on every disabled control.
+const DisabledHost = WEB ? View : Animated.View;
 
 function TouchForm({ at }: Readonly<{ at: TouchAt }>): ReactNode {
   // Not `at.controlled &&`: an uncontrolled control on a browser target reports

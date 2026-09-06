@@ -1,4 +1,4 @@
-import { Avatar } from '@kroma/ui/kit';
+import { Avatar, classes, sharedStyle, styles } from '@kroma/ui/kit';
 import { imageUrl } from '#web/shared/lib/api';
 
 // The deterministic gradient + initials are the design system's own, so an
@@ -10,6 +10,11 @@ export { gradientFor as avatarGradient, initialsOf as initials } from '@kroma/ui
  * initials, with the uploaded WebP photo layered over it once loaded (the kit
  * Avatar handles the swap, so SSR shows initials and the photo fades in).
  */
+
+const s = styles({ block: { display: 'block' } });
+
+const boxOf = (size: number, corner: number) =>
+  sharedStyle(`avatar:${size}:${corner}`, { width: size, height: size, borderRadius: corner });
 export function UserAvatar({
   name,
   avatarUrl,
@@ -32,10 +37,7 @@ export function UserAvatar({
     // the element itself has - while `inline` would add the line box's
     // descender under the disc and shift anything absolutely positioned
     // against the tile (the padlock overlay).
-    <span
-      className={className}
-      style={{ display: 'block', width: size, height: size, borderRadius: corner }}
-    >
+    <span className={[className, classes(s.block, boxOf(size, corner))].filter(Boolean).join(' ')}>
       <Avatar
         name={name}
         seed={seed}

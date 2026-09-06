@@ -6,7 +6,7 @@ import { Focusable } from '#ui/components/atoms/focusable';
 import { Img } from '#ui/components/atoms/img';
 import { Text } from '#ui/components/atoms/text';
 import { FOCUS_SCALE } from '#ui/components/organisms/player/lib/style';
-import { styles } from '#ui/core';
+import { style, styles } from '#ui/core';
 import { gradient } from '#ui/lib/css';
 import { FocusLiftHost, LIFTED } from '#ui/lib/focus-lift';
 import { useFocusScale } from '#ui/lib/focus-transition';
@@ -51,8 +51,10 @@ function placeholderGradient(id: string): string {
 
 // Dark at the foot, clear at the head: the caption sits IN the still, so the
 // artwork has to give it a floor to be read against.
-const VIGNETTE = gradient(
-  'linear-gradient(180deg, rgba(0,0,0,0.05) 38%, rgba(0,0,0,0.62) 76%, rgba(0,0,0,0.88) 100%)',
+const VIGNETTE = style(
+  gradient(
+    'linear-gradient(180deg, rgba(0,0,0,0.05) 38%, rgba(0,0,0,0.62) 76%, rgba(0,0,0,0.88) 100%)',
+  ),
 );
 
 /** The card's face: artwork, its scrim, and the caption ON it.

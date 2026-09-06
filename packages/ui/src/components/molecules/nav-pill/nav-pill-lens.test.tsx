@@ -2,6 +2,7 @@
 
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { declared } from '#ui/testing';
 import type { LensRect } from './nav-pill-context';
 import { Lens } from './nav-pill-lens';
 
@@ -20,15 +21,15 @@ function lens(rect: LensRect | null, chase = false) {
 function travelMs(chase: boolean) {
   const view = lens(HOME, chase);
   view.move(SEARCH);
-  return Number.parseFloat(view.node.style.transitionDuration);
+  return Number.parseFloat(declared(view.node, 'transition-duration') ?? '');
 }
 
 describe('the lens on the web', () => {
   it('rides a transform rather than a left, and asks for the layer up front', () => {
     const { node } = lens(HOME);
-    expect(node.style.left).toBe('0px');
+    expect(declared(node, 'left')).toBe('0px');
     expect(node.style.transform).toBe(`translateX(${HOME.x}px)`);
-    expect(node.style.willChange).toBe('transform');
+    expect(declared(node, 'will-change')).toBe('transform');
   });
 
   it('sits on the row the item measured', () => {
@@ -39,14 +40,14 @@ describe('the lens on the web', () => {
 
   it('takes its first rect without travelling to it', () => {
     const { node } = lens(HOME);
-    expect(node.style.transitionProperty).toBe('opacity');
+    expect(declared(node, 'transition-property')).toBe('opacity');
     expect(node.style.opacity).toBe('1');
   });
 
   it('travels to every rect after that, laying the width out rather than scaling it', () => {
     const { node, move } = lens(HOME);
     move(SEARCH);
-    expect(node.style.transitionProperty).toBe('transform, width, opacity');
+    expect(declared(node, 'transition-property')).toBe('transform, width, opacity');
     expect(node.style.transform).toBe(`translateX(${SEARCH.x}px)`);
     expect(node.style.width).toBe(`${SEARCH.width}px`);
   });

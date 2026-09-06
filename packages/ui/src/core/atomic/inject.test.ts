@@ -1,52 +1,59 @@
 // @vitest-environment jsdom
+import { StyleSheet } from 'react-native';
+// @ts-expect-error react-native-web ships no types for its sheet factory
+import createOrderedCSSStyleSheet from 'react-native-web/dist/exports/StyleSheet/dom/createOrderedCSSStyleSheet';
 import { describe, expect, it } from 'vitest';
 import { injectRules } from './inject';
 
-const sheets = () => [...document.querySelectorAll('style[data-kroma-atomic]')];
+type Sheet = { getSheet(): { textContent: string } };
 
-const rulesOf = (element: Element) =>
-  [...((element as HTMLStyleElement).sheet?.cssRules ?? [])].map((rule) =>
-    rule.cssText.replace(/\s+/g, ''),
-  );
+const sheetText = () => (StyleSheet as unknown as Sheet).getSheet().textContent.replace(/\s+/g, '');
 
 describe('injectRules', () => {
-  it('inserts each rule once, into a sheet per group, groups in order', () => {
+  it('inserts each rule once, in group order, into the renderer sheet', () => {
     injectRules([
-      [3, '.r-a{opacity:0.5;}'],
-      [2, '.r-b{margin:0px;}'],
+      [3, '.aaaaa1{opacity:0.5;}'],
+      [2, '.aaaaa2{margin:0px;}'],
     ]);
     injectRules([
-      [3, '.r-a{opacity:0.5;}'],
-      [3, '.r-c{top:0px;}'],
+      [3, '.aaaaa1{opacity:0.5;}'],
+      [3, '.aaaaa3{top:0px;}'],
     ]);
 
-    const [low, high] = sheets();
-    expect(sheets().map((element) => element.getAttribute('data-kroma-atomic'))).toEqual([
-      '2',
-      '3',
-    ]);
-    expect(rulesOf(low as Element)).toEqual(['.r-b{margin:0px;}']);
-    expect(rulesOf(high as Element)).toEqual(['.r-a{opacity:0.5;}', '.r-c{top:0px;}']);
-  });
-
-  it('places a group that arrives late before the groups above it', () => {
-    injectRules([[1, '.r-reset{padding:0px;}']]);
-
-    expect(sheets().map((element) => element.getAttribute('data-kroma-atomic'))).toEqual([
-      '1',
-      '2',
-      '3',
-    ]);
+    const text = sheetText();
+    expect(text.split('.aaaaa1{')).toHaveLength(2);
+    expect(text.indexOf('.aaaaa2{')).toBeLessThan(text.indexOf('.aaaaa1{'));
+    expect(text.indexOf('.aaaaa1{')).toBeLessThan(text.indexOf('.aaaaa3{'));
   });
 
   it('skips a rule the engine cannot parse and keeps going', () => {
     expect(() =>
       injectRules([
         [3, 'not css at all'],
-        [3, '.r-d{left:0px;}'],
+        [3, '.aaaaa4{left:0px;}'],
       ]),
     ).not.toThrow();
 
-    expect(rulesOf(sheets()[2] as Element)).toContain('.r-d{left:0px;}');
+    expect(sheetText()).toContain('.aaaaa4{left:0px;}');
+  });
+});
+
+describe('the renderer sheet', () => {
+  it('inserts nothing for a selector the static stylesheet already holds', () => {
+    const built = document.createElement('style');
+    built.textContent = '.bbbbb1{opacity:0.5;}.not-atomic{opacity:0.5;}';
+    document.head.append(built);
+    const element = document.createElement('style');
+    document.head.append(element);
+
+    const sheet = createOrderedCSSStyleSheet(element.sheet);
+    sheet.insert('.bbbbb1{opacity:0.5;}', 3);
+    sheet.insert('.bbbbb2{opacity:0.5;}', 3);
+    sheet.insert('.not-atomic{opacity:0.5;}', 3);
+
+    const text = sheet.getTextContent().replace(/\s+/g, '');
+    expect(text).not.toContain('.bbbbb1{');
+    expect(text).toContain('.bbbbb2{opacity:0.5;}');
+    expect(text).toContain('.not-atomic{opacity:0.5;}');
   });
 });

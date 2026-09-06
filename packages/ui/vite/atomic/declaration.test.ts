@@ -39,7 +39,7 @@ describe('compileDeclaration', () => {
     const groups = Object.fromEntries(leaf.rules.map((rule) => [rule.css, rule.group]));
     const radius = Object.keys(groups).find((css) => css.includes('border-bottom-left-radius'));
     const corner = Object.keys(groups).find(
-      (css) => css.startsWith('.r-') && css.includes('{border-top-left-radius:0px;}'),
+      (css) => /^\.[a-d]/.test(css) && css.includes('{border-top-left-radius:0px;}'),
     );
     expect(groups[radius as string]).toBeLessThan(groups[corner as string] as number);
   });
@@ -57,6 +57,17 @@ describe('compileDeclaration', () => {
     expect(leaf.rules.map((rule) => rule.css)).toContainEqual(
       expect.stringContaining('{opacity:0.8;}'),
     );
+  });
+
+  it('compiles a value stated per state to the same layers', () => {
+    const leaf = compileDeclaration({
+      bg: { base: 'accent', hover: 'accentHover' },
+      opacity: { press: 0.8 },
+    });
+
+    expect(Object.keys(leaf.states ?? {})).toEqual(['hover', 'press']);
+    expect(leaf.states?.hover).toEqual({ backgroundColor: 'var(--kroma-accent-hover)' });
+    expect(leaf.states?.press).toEqual({ opacity: 0.8 });
   });
 
   it('leaves the runtime what only it can resolve', () => {

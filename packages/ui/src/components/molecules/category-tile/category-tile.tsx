@@ -10,10 +10,10 @@ import { Icon, type IconName } from '#ui/components/atoms/icon';
 import { Img } from '#ui/components/atoms/img';
 import { Text } from '#ui/components/atoms/text';
 import type { ColorValue } from '#ui/core';
-import { sv } from '#ui/core';
+import { styles, sv } from '#ui/core';
 import { gradient } from '#ui/lib/css';
 
-const NO_POINTER: ViewStyle = { pointerEvents: 'none' };
+const NO_POINTER: ViewStyle = styles({ none: { pointerEvents: 'none' } }).none;
 
 const WIDESCREEN = 16 / 9;
 

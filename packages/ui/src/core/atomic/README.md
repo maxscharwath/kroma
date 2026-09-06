@@ -63,7 +63,23 @@ carrying a non-enumerable `$$static` mark and, for a recipe layer, its
 static leaf of its own. The renderer registers it exactly as it registers a
 style compiled at runtime: the same hashing, the same classes, the same cache
 hit on every render. Only the rule insertion is skipped, because the sheet
-already holds them. That is the whole patch, one hunk in `StyleSheet.create`.
+already holds them.
+
+The patch on react-native-web carries three hunks, each a few lines:
+
+- `StyleSheet.create` compiles a `$$static` style and inserts nothing.
+- `ModalPortal` puts its container back into the document when React
+  reconnects its effect. React disconnects the effects of a tree it hides
+  behind a Suspense fallback, and upstream's cleanup removed the container for
+  good, which left every `<Drawer>` and `<Dialog>` on the browser rendering
+  into a detached node once anything around them suspended after they opened.
+  `useModalPortalRepair` is redundant with this and stays as a no-op.
+- The resolver warns, on a dev server only and once per shape, when a style
+  reaches an element unregistered: `[kroma] a style painted inline instead of
+  as classes: {paddingVertical}`. Properties a render legitimately computes
+  (sizes, offsets, transforms, opacity, an image, a colour) pass; the rest is
+  a declaration that belongs in `styles()`. That warning is the ban on inline
+  styling: open the console on a screen and it names what is left.
 
 Because the leaf is the longhands, nothing downstream changes: a spread, a key
 walk, `StyleSheet.flatten`, `<Text>`'s line-height fix, `<Frost>`'s corner and
@@ -117,12 +133,38 @@ style on the element inline instead, and both are gone from the kit:
   this on the browser to satisfy the navigator's type, and painted every
   control inline; it keeps the array now.
 
+Two more habits paint inline, and both are handled:
+
+- an animated component. `Animated.createAnimatedComponent` flattens its style
+  array into one object per render, which is right where the value animates
+  (native's press dip is an `Animated.Value`) and wrong on the browser, whose
+  dip is a CSS transition. `<Focusable>`'s pressable is a plain `Pressable`
+  there, and the press and focus scales are registered per scale value.
+- a router. TanStack's `createLink` spreads the style it is handed into its
+  own active-state style, so the object that reaches the anchor is registered
+  by nothing. `registered(style)` from `@kroma/ui/kit` registers it again by
+  its content, and the web client's `RouteLink` anchor wears the result.
+
 A glyph on the browser is a DOM `<svg>` react-native-web never renders, so
 `<Icon>` asks the resolver for the classes its registered style compiles to
 and hands the element those. What legitimately stays inline is a value only a
-render knows: a measured width, an animated transform, a colour picked at
-runtime. On the workbench's button page that is 13 elements of 181, down from
-116.
+render knows: a measured width, an animated transform, a gradient built from a
+title's art. On the workbench's button page that is 13 elements of 181, down
+from 116; on the web client's home page 724 of 2311, down from 1054, most of
+them react-native-web's own `<Image>` internals and per-title gradients.
+
+What the guard still reports on the web client's home page, for the sweep to
+finish, one shape each: `{paddingVertical}`, `{paddingHorizontal}`,
+`{paddingBottom}`, `{marginTop}`, `{marginBottom,marginTop}`,
+`{paddingBottom,paddingLeft,paddingRight,paddingTop}`,
+`{flexGrow,paddingHorizontal,paddingVertical}`, `{alignItems}`, `{overflow}`,
+`{position}`, `{pointerEvents}`, `{textTransform}`, `{fontVariant}`,
+`{fontFamily,fontSize,fontWeight,lineHeight}`, `{WebkitLineClamp}` and the
+transition triple. The known sources are the transition constants in
+`switch.tsx`, `shake.web.ts`, `drawer-slide.tsx`, the up-next sheet's
+`slide.web.ts`, the web client's `genre-tile.tsx` and `poster-tile.tsx`, and
+`player.tsx`'s `inert`. The rule for each is the same: declare it with
+`styles()`.
 
 A test reads a control's paint with `declared(el, property)` from
 `@kroma/ui/testing`, which follows the classes into the stylesheets, and asks

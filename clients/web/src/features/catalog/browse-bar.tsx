@@ -18,6 +18,7 @@ import {
   ringRoomInline,
   Select,
   SORT_ICON,
+  styles,
   useBreakpoint,
 } from '@kroma/ui/kit';
 import {
@@ -86,10 +87,11 @@ const ALL_GENRES = '*';
 
 // Roomier than the kit's sm chip: these are the page's primary filter, not a
 // tag row.
-const CHIP_PAD = { paddingVertical: 8, paddingHorizontal: 18 } as const;
-
-const GENRE_TRIGGER = { flexShrink: 0, minWidth: 150 } as const;
-const SORT_TRIGGER = { flexShrink: 0, minWidth: 196 } as const;
+const s = styles({
+  chip: { py: 8, px: 18 },
+  genre: { shrink: 0, minW: 150 },
+  sort: { shrink: 0, minW: 196 },
+});
 
 /** True once a `position: sticky` element has docked at its `top` offset. */
 function useStuck(bar: RefObject<HTMLDivElement | null>): boolean {
@@ -227,7 +229,7 @@ export function BrowseBar({
               active={!genre}
               variant="subtle"
               label={t('browse.allGenres')}
-              style={CHIP_PAD}
+              style={s.chip}
               onPress={() => onGenre(undefined)}
             />
             {inline.map((g) => (
@@ -237,7 +239,7 @@ export function BrowseBar({
                 variant="subtle"
                 icon={genreIcon(g.slug)}
                 label={genreLabel(t, g.name)}
-                style={CHIP_PAD}
+                style={s.chip}
                 onPress={() => onGenre(g.slug === active ? undefined : genreSegment(g.slug))}
               />
             ))}
@@ -252,7 +254,7 @@ export function BrowseBar({
             value={active ? genreSegment(active) : ALL_GENRES}
             onValueChange={(v) => onGenre(v === ALL_GENRES ? undefined : v)}
           >
-            <Select.Trigger size="sm" style={GENRE_TRIGGER} />
+            <Select.Trigger size="sm" style={s.genre} />
             <Select.Item value={ALL_GENRES} label={t('browse.allGenres')} />
             {genres.map((g) => (
               <Select.Item
@@ -270,7 +272,7 @@ export function BrowseBar({
           value={sort}
           onValueChange={(v) => onSort(v as SortMode)}
         >
-          <Select.Trigger size="sm" style={SORT_TRIGGER} />
+          <Select.Trigger size="sm" style={s.sort} />
           {SORT_MODES.map((mode) => (
             <Select.Item
               key={mode}

@@ -4,6 +4,7 @@
 // This covers the rest: the shapes a file reuses, which had no home but a
 // module constant.
 
+import { type StyleProp, StyleSheet } from 'react-native';
 import { breakpointIndex, breakpointStep } from '#ui/core/breakpoint';
 import { normalize } from '#ui/core/normalize';
 import { declaredBreakpoints } from '#ui/core/shorthand-resolve';
@@ -85,6 +86,20 @@ export function style<const T extends StyleDecl>(decl: T): AnyStyle {
 }
 
 const shared = themedCache<AnyStyle>(4096);
+
+const rebuilt = themedCache<AnyStyle>(4096);
+
+/**
+ * A style a third party rebuilt as a plain object, registered again by its
+ * content: a router's link spreads the style the kit hands it into its own
+ * active-state style, and the fresh object it makes is registered by nothing,
+ * so the browser paints every property of it inline. Keyed on the content,
+ * every link carrying the same paint shares one entry and one set of classes.
+ */
+export function registered(style: StyleProp<AnyStyle>): AnyStyle {
+  const flat = StyleSheet.flatten(style) as Record<string, unknown>;
+  return rebuilt(JSON.stringify(flat), () => stabilise(flat) as AnyStyle);
+}
 
 /**
  * A style shared by identity with every caller passing the same `key`, for the

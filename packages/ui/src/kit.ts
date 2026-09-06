@@ -41,6 +41,7 @@ export {
   onThemeChange,
   pinDesignWidth,
   readMode,
+  registered,
   setTheme,
   sharedStyle,
   style,

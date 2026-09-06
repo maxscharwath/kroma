@@ -23,13 +23,27 @@ function useSlide(open: boolean): { mounted: boolean; shown: boolean } {
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const raf = requestAnimationFrame(() => setShown(true));
-      return () => cancelAnimationFrame(raf);
+      return;
     }
     setShown(false);
     const out = setTimeout(() => setMounted(false), SLIDE_MS);
     return () => clearTimeout(out);
   }, [open]);
+  // Two frames after the panel mounts, not one: React may commit the mount in
+  // the same frame the first callback runs in, and a panel that is first
+  // painted where it ends has no off-screen start for the transition to play
+  // from. The second frame is on the far side of that paint.
+  useEffect(() => {
+    if (!open || !mounted) return;
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setShown(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [open, mounted]);
   return { mounted, shown };
 }
 

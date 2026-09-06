@@ -1,14 +1,86 @@
+diff --git a/node_modules/react-native-web/.bun-tag-53c7926c465f5221 b/.bun-tag-53c7926c465f5221
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/react-native-web/.bun-tag-65cd760928415cf b/.bun-tag-65cd760928415cf
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/react-native-web/.bun-tag-819891abbb95d2f5 b/.bun-tag-819891abbb95d2f5
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/react-native-web/.bun-tag-a1aac35d3c43e36b b/.bun-tag-a1aac35d3c43e36b
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/react-native-web/.bun-tag-b13be9ea39bf34b0 b/.bun-tag-b13be9ea39bf34b0
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/cjs/exports/Modal/ModalPortal.js b/dist/cjs/exports/Modal/ModalPortal.js
+index f94b0aa4f56db7d21b730cdaacc6c73e22d3bce0..0d4279ed4654be1808709c3adf233ffd3a6b0add 100644
+--- a/dist/cjs/exports/Modal/ModalPortal.js
++++ b/dist/cjs/exports/Modal/ModalPortal.js
+@@ -29,10 +29,17 @@ function ModalPortal(props) {
+   }
+   React.useEffect(() => {
+     if (_canUseDom.default) {
++      // KROMA: React disconnects this effect when a Suspense boundary above
++      // hides the tree, and reconnects it when the tree shows again. The
++      // container leaves the document with the effect and has to come back with
++      // it, into the same element the portal still renders into.
++      var element = elementRef.current;
++      if (element && document.body && !element.isConnected) {
++        document.body.appendChild(element);
++      }
+       return () => {
+-        if (document.body && elementRef.current) {
++        if (document.body && elementRef.current && elementRef.current.isConnected) {
+           document.body.removeChild(elementRef.current);
+-          elementRef.current = null;
+         }
+       };
+     }
 diff --git a/dist/cjs/exports/StyleSheet/index.js b/dist/cjs/exports/StyleSheet/index.js
-index eedf49039dce440eb60bb4eefbc5c4c8be952f30..57fe161291a7575200d36ef400156475111c88bd 100644
+index eedf49039dce440eb60bb4eefbc5c4c8be952f30..6aab9fd3c1623dcd95341f6341dbc16046792606 100644
 --- a/dist/cjs/exports/StyleSheet/index.js
 +++ b/dist/cjs/exports/StyleSheet/index.js
-@@ -60,7 +60,11 @@ function compileAndInsertAtomic(style) {
+@@ -27,6 +27,28 @@ var defaultPreprocessOptions = {
+   shadow: true,
+   textShadow: true
+ };
++
++// KROMA: a style nobody registered paints inline, one declaration per element.
++// A value only a render knows is allowed through; anything else is a
++// declaration that belongs in `styles()`, and is reported once per shape.
++var INLINE_ALLOWED = {
++  width: 1, height: 1, minWidth: 1, minHeight: 1, maxWidth: 1, maxHeight: 1,
++  top: 1, left: 1, right: 1, bottom: 1, inset: 1, flex: 1, flexBasis: 1,
++  transform: 1, transformOrigin: 1, opacity: 1, zIndex: 1, aspectRatio: 1,
++  backgroundImage: 1, backgroundPosition: 1, backgroundSize: 1, backgroundRepeat: 1,
++  backgroundColor: 1, color: 1, filter: 1, animationDuration: 1, animationDelay: 1,
++  objectFit: 1, objectPosition: 1, borderRadius: 1
++};
++var inlineReported = {};
++function reportInlineStyle(style) {
++  var keys = Object.keys(style).filter(function (key) { return style[key] != null && INLINE_ALLOWED[key] !== 1; });
++  if (keys.length === 0) return;
++  var shape = keys.sort().join(',');
++  if (inlineReported[shape]) return;
++  inlineReported[shape] = true;
++  console.warn('[kroma] a style painted inline instead of as classes: {' + shape + '}. Declare it with styles() so it is registered, or keep only the values a render computes.');
++}
++
+ function customStyleq(styles, options) {
+   if (options === void 0) {
+     options = {};
+@@ -41,6 +63,9 @@ function customStyleq(styles, options) {
+       if (compiledStyle != null) {
+         return (0, _transformLocalizeStyle.localizeStyle)(compiledStyle, isRTL);
+       }
++      if (process.env.NODE_ENV === 'development') {
++        reportInlineStyle(style);
++      }
+       return (0, _preprocess.preprocess)(style, (0, _objectSpread2.default)((0, _objectSpread2.default)({}, defaultPreprocessOptions), preprocessOptions));
+     }
+   })(styles);
+@@ -60,7 +85,11 @@ function compileAndInsertAtomic(style) {
    var _atomic = (0, _compiler.atomic)((0, _preprocess.preprocess)(style, defaultPreprocessOptions)),
      compiledStyle = _atomic[0],
      compiledOrderedRules = _atomic[1];
@@ -21,11 +93,74 @@ index eedf49039dce440eb60bb4eefbc5c4c8be952f30..57fe161291a7575200d36ef400156475
    return compiledStyle;
  }
  function compileAndInsertReset(style, key) {
+diff --git a/dist/exports/Modal/ModalPortal.js b/dist/exports/Modal/ModalPortal.js
+index df3bcbbd4dee13c614466ca30af52f10bf20398c..320adbb723af18ce36b514123d8bc5853fc19f94 100644
+--- a/dist/exports/Modal/ModalPortal.js
++++ b/dist/exports/Modal/ModalPortal.js
+@@ -23,10 +23,17 @@ function ModalPortal(props) {
+   }
+   React.useEffect(() => {
+     if (canUseDOM) {
++      // KROMA: React disconnects this effect when a Suspense boundary above
++      // hides the tree, and reconnects it when the tree shows again. The
++      // container leaves the document with the effect and has to come back with
++      // it, into the same element the portal still renders into.
++      var element = elementRef.current;
++      if (element && document.body && !element.isConnected) {
++        document.body.appendChild(element);
++      }
+       return () => {
+-        if (document.body && elementRef.current) {
++        if (document.body && elementRef.current && elementRef.current.isConnected) {
+           document.body.removeChild(elementRef.current);
+-          elementRef.current = null;
+         }
+       };
+     }
 diff --git a/dist/exports/StyleSheet/index.js b/dist/exports/StyleSheet/index.js
-index 891994c511839216d523e68786daea85261539fb..c0867b48596a52b233affad837548a6c09ac67a8 100644
+index 891994c511839216d523e68786daea85261539fb..5c93c774e78791120145fe13ecc4757bbb7e8805 100644
 --- a/dist/exports/StyleSheet/index.js
 +++ b/dist/exports/StyleSheet/index.js
-@@ -56,7 +56,11 @@ function compileAndInsertAtomic(style) {
+@@ -23,6 +23,28 @@ var defaultPreprocessOptions = {
+   shadow: true,
+   textShadow: true
+ };
++
++// KROMA: a style nobody registered paints inline, one declaration per element.
++// A value only a render knows is allowed through; anything else is a
++// declaration that belongs in `styles()`, and is reported once per shape.
++var INLINE_ALLOWED = {
++  width: 1, height: 1, minWidth: 1, minHeight: 1, maxWidth: 1, maxHeight: 1,
++  top: 1, left: 1, right: 1, bottom: 1, inset: 1, flex: 1, flexBasis: 1,
++  transform: 1, transformOrigin: 1, opacity: 1, zIndex: 1, aspectRatio: 1,
++  backgroundImage: 1, backgroundPosition: 1, backgroundSize: 1, backgroundRepeat: 1,
++  backgroundColor: 1, color: 1, filter: 1, animationDuration: 1, animationDelay: 1,
++  objectFit: 1, objectPosition: 1, borderRadius: 1
++};
++var inlineReported = {};
++function reportInlineStyle(style) {
++  var keys = Object.keys(style).filter(function (key) { return style[key] != null && INLINE_ALLOWED[key] !== 1; });
++  if (keys.length === 0) return;
++  var shape = keys.sort().join(',');
++  if (inlineReported[shape]) return;
++  inlineReported[shape] = true;
++  console.warn('[kroma] a style painted inline instead of as classes: {' + shape + '}. Declare it with styles() so it is registered, or keep only the values a render computes.');
++}
++
+ function customStyleq(styles, options) {
+   if (options === void 0) {
+     options = {};
+@@ -37,6 +59,9 @@ function customStyleq(styles, options) {
+       if (compiledStyle != null) {
+         return localizeStyle(compiledStyle, isRTL);
+       }
++      if (process.env.NODE_ENV === 'development') {
++        reportInlineStyle(style);
++      }
+       return preprocess(style, _objectSpread(_objectSpread({}, defaultPreprocessOptions), preprocessOptions));
+     }
+   })(styles);
+@@ -56,7 +81,11 @@ function compileAndInsertAtomic(style) {
    var _atomic = atomic(preprocess(style, defaultPreprocessOptions)),
      compiledStyle = _atomic[0],
      compiledOrderedRules = _atomic[1];

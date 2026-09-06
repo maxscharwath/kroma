@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
-import { type CornerValue, onPaper, radiusValue, styles } from '#ui/core';
+import { type CornerValue, onPaper, radiusValue, sharedStyle, styles } from '#ui/core';
 import { backdropBlur } from '#ui/lib/css';
 import { WEB } from '#ui/lib/platform';
 import { mergeSlotProps } from '#ui/lib/slot';
@@ -106,7 +106,10 @@ function coatOf(surface: StyleProp<ViewStyle>, options: FrostOptions): FrostCoat
   if (WEB) {
     const cached = webCoats.get(amount);
     if (cached) return cached;
-    const coat: FrostCoat = { style: backdropBlur(amount) as ViewStyle, layer: null };
+    const coat: FrostCoat = {
+      style: sharedStyle(`frost:${amount}`, backdropBlur(amount) as never) as ViewStyle,
+      layer: null,
+    };
     webCoats.set(amount, coat);
     return coat;
   }

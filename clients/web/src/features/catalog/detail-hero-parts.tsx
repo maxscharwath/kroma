@@ -1,7 +1,16 @@
 import type { CrewMember } from '@kroma/client/media';
 import { personSegment } from '@kroma/core';
 import { useT } from '@kroma/ui';
-import { Box, Button, color, DataField, IconButton, Text } from '@kroma/ui/kit';
+import {
+  Box,
+  Button,
+  CONTROL,
+  color,
+  DataField,
+  entryDefaultSize,
+  IconButton,
+  Text,
+} from '@kroma/ui/kit';
 import { Link } from '@tanstack/react-router';
 import type { CSSProperties } from 'react';
 import { useFocusRing } from '#web/shared/lib/use-focus-ring';
@@ -78,7 +87,7 @@ export function ListButton({
   if (!onToggle) return null;
   return (
     <IconButton
-      diameter={50}
+      diameter={CONTROL[entryDefaultSize()].height}
       glyph={20}
       radius="md"
       active={inList ?? false}
@@ -95,7 +104,7 @@ export function ReportButton({ onReport }: Readonly<{ onReport?: () => void }>) 
   if (!onReport) return null;
   return (
     <IconButton
-      diameter={50}
+      diameter={CONTROL[entryDefaultSize()].height}
       glyph={19}
       radius="md"
       icon="flag"

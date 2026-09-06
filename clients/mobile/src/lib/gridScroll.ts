@@ -2,7 +2,7 @@ import type { LetterMark } from '@kroma/core';
 import type { LetterRange } from '@kroma/ui/kit';
 
 /** Where a poster grid's rows sit in its scroll content: the header above
- * them, the gap between them, and how many items share a row. */
+ * them, the gap under each, and how many items share a row. */
 export interface GridGeometry {
   header: number;
   gap: number;
@@ -21,7 +21,7 @@ const pitch = (g: GridGeometry) => g.rowH + g.gap;
 
 /** The content offset of a row's top edge. */
 export function rowOffset(g: GridGeometry, row: number): number {
-  return g.header + g.gap + row * pitch(g);
+  return g.header + row * pitch(g);
 }
 
 /** The items whose rows show between `top` and `bottom` of the content, or
@@ -30,8 +30,8 @@ export function visibleItems(g: GridGeometry, top: number, bottom: number): Item
   const rows = Math.ceil(g.count / g.cols);
   if (rows === 0 || bottom <= top) return null;
   const step = pitch(g);
-  const firstRow = Math.max(0, Math.floor((top - g.header - g.gap - g.rowH) / step) + 1);
-  const lastRow = Math.min(rows - 1, Math.ceil((bottom - g.header - g.gap) / step) - 1);
+  const firstRow = Math.max(0, Math.floor((top - g.header - g.rowH) / step) + 1);
+  const lastRow = Math.min(rows - 1, Math.ceil((bottom - g.header) / step) - 1);
   if (lastRow < firstRow) return null;
   return { first: firstRow * g.cols, last: Math.min(g.count - 1, lastRow * g.cols + g.cols - 1) };
 }

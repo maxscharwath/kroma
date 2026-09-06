@@ -14,6 +14,7 @@ import {
   titleLetter,
 } from '@kroma/core';
 import { Box, Icon, styles } from '@kroma/ui/kit';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { type ItemRange, lettersOnScreen } from '#mobile/lib/gridScroll';
@@ -69,11 +70,18 @@ export function CatalogueScreen<T extends MediaItem | Show>({
   const [visible, setVisible] = useState<ItemRange | null>(null);
   const [pendingJump, setPendingJump] = useState<string | null>(null);
   const grid = useRef<PosterGridHandle>(null);
+  const watched = useQuery({ ...client.query.playback.watched(), staleTime: 60_000 });
+  const watchedIds = useMemo(() => new Set<string>(watched.data ?? []), [watched.data]);
 
-  const genres = useMemo(() => collectGenres(entries ?? []).slice(0, 14), [entries]);
+  // Sorted and bucketed by the name on the card, not the scanned file's.
+  const titled = useMemo(
+    () => (entries ?? []).map((e) => ({ ...e, title: e.metadata?.title ?? e.title })),
+    [entries],
+  );
+  const genres = useMemo(() => collectGenres(titled).slice(0, 14), [titled]);
   const filtered = useMemo(
-    () => (genre ? (entries ?? []).filter((e) => hasGenre(e, genre)) : (entries ?? [])),
-    [entries, genre],
+    () => (genre ? titled.filter((e) => hasGenre(e, genre)) : titled),
+    [titled, genre],
   );
   const view = useMemo(() => sortTitles(filtered, sort), [filtered, sort]);
   const marks = useMemo(() => (sort === 'title' ? letterMarks(view) : []), [view, sort]);
@@ -86,12 +94,13 @@ export function CatalogueScreen<T extends MediaItem | Show>({
   const { cardW } = gridMetrics(width, pad.left + pad.right);
   const cards: CardModel[] = useMemo(
     () =>
-      view.map((entry) =>
-        kind === 'show'
+      view.map((entry) => ({
+        ...(kind === 'show'
           ? showCard(entry as Show, client, cardW)
-          : movieCard(entry as MediaItem, client, cardW),
-      ),
-    [view, kind, client, cardW],
+          : movieCard(entry as MediaItem, client, cardW)),
+        watched: watchedIds.has(entry.id),
+      })),
+    [view, kind, client, cardW, watchedIds],
   );
 
   const scrollToLetter = useCallback(

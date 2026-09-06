@@ -5,6 +5,7 @@
 
 import { TITLE_LETTERS } from '@kroma/core';
 import { Box, type LetterRange, AlphabetRail as Rail, styles } from '@kroma/ui/kit';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useT } from '#mobile/lib/i18n';
 
@@ -22,12 +23,17 @@ export function AlphabetRail({
 }>) {
   const t = useT();
   const insets = useSafeAreaInsets();
+  // Every letter the finger crosses is felt, as every tab the pill slides over is.
+  const jump = (letter: string) => {
+    void Haptics.selectionAsync();
+    onJump(letter);
+  };
   return (
     <Box
       pointerEvents="box-none"
       style={[s.dock, { top: insets.top, bottom: Math.max(insets.bottom, 12) }]}
     >
-      <Rail.Root label={t('browse.letterNav')} range={range} onJump={onJump}>
+      <Rail.Root size="sm" label={t('browse.letterNav')} range={range} onJump={jump}>
         {TITLE_LETTERS.map((letter) => (
           <Rail.Item
             key={letter}

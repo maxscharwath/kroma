@@ -3,10 +3,11 @@
 // safe-area insets are already consumed, and window-width math overflows.
 //
 // Rows are a known height, so the grid also knows where every item sits: it
-// reports which rows are on screen and can land a row under the safe-area top
-// without a cell ever having been measured.
+// reports which rows are on screen without a cell ever having been measured.
+// The cells recycle (FlashList), so a library of thousands costs a screenful.
 
-import { Box } from '@kroma/ui/kit';
+import { Box, styles } from '@kroma/ui/kit';
+import { FlashList, type FlashListRef } from '@shopify/flash-list';
 import {
   type ReactElement,
   type Ref,
@@ -17,11 +18,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type GridGeometry, type ItemRange, rowOffset, visibleItems } from '#mobile/lib/gridScroll';
 import { spacing, TAB_BAR_CLEARANCE } from '#mobile/lib/theme';
-import { type CardModel, PosterCard, posterHeight } from './cards';
+import { type CardModel, POSTER_LABEL_H, PosterCard, posterHeight } from './cards';
 
 const GAP = 12;
 
@@ -65,8 +66,8 @@ export function PosterGrid({
   const insets = useSafeAreaInsets();
   const [listW, setListW] = useState<number | null>(null);
   const [headerH, setHeaderH] = useState(0);
-  const list = useRef<FlatList<CardModel>>(null);
-  const scroll = useRef({ y: 0, height: 0, content: 0 });
+  const list = useRef<FlashListRef<CardModel>>(null);
+  const scroll = useRef({ y: 0, height: 0 });
   const reported = useRef<ItemRange | null>(null);
   const pad = gutters ?? { left: spacing.md, right: spacing.md };
   const { cols, cardW } = gridMetrics(listW ?? 0, pad.left + pad.right);
@@ -74,7 +75,7 @@ export function PosterGrid({
     () => ({
       header: headerH,
       gap: spacing.md,
-      rowH: posterHeight(cardW),
+      rowH: posterHeight(cardW) + POSTER_LABEL_H,
       cols,
       count: cards.length,
     }),
@@ -83,10 +84,8 @@ export function PosterGrid({
 
   useImperativeHandle(ref, () => ({
     scrollToItem(index) {
-      const { height, content } = scroll.current;
-      const top = rowOffset(geometry, Math.floor(index / cols)) - insets.top - spacing.sm;
-      const offset = Math.min(Math.max(0, top), Math.max(0, content - height));
-      list.current?.scrollToOffset({ offset, animated: false });
+      const offset = rowOffset(geometry, Math.floor(index / cols)) - insets.top - spacing.sm;
+      list.current?.scrollToOffset({ offset: Math.max(0, offset), animated: false });
     },
   }));
 
@@ -102,53 +101,54 @@ export function PosterGrid({
   useEffect(() => spy(), [spy]);
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
-    scroll.current = {
-      y: contentOffset.y,
-      height: layoutMeasurement.height,
-      content: contentSize.height,
-    };
+    const { contentOffset, layoutMeasurement } = e.nativeEvent;
+    scroll.current = { y: contentOffset.y, height: layoutMeasurement.height };
     spy();
   };
 
+  // The cells carry the gaps, half on each side, so the content padding is
+  // the gutter less that half; the header undoes it to bleed edge to edge.
+  const bleed = { marginLeft: GAP / 2 - pad.left, marginRight: GAP / 2 - pad.right };
+
   return (
-    <FlatList
+    <FlashList
       ref={list}
       key={cols}
       onLayout={(e) => {
         scroll.current.height = e.nativeEvent.layout.height;
         setListW(e.nativeEvent.layout.width);
       }}
-      onContentSizeChange={(_w, h) => {
-        scroll.current.content = h;
-      }}
       onScroll={onScroll}
       scrollEventThrottle={32}
       data={listW === null ? [] : cards}
+      extraData={cardW}
       numColumns={cols}
+      drawDistance={600}
       keyExtractor={(c) => c.key}
-      renderItem={({ item }) => <PosterCard card={item} width={cardW} />}
-      getItemLayout={(_data, row) => ({
-        length: geometry.rowH,
-        offset: rowOffset(geometry, row),
-        index: row,
-      })}
-      columnWrapperStyle={{ gap: GAP, paddingLeft: pad.left, paddingRight: pad.right }}
+      renderItem={({ item }) => (
+        <Box style={s.cell}>
+          <PosterCard card={item} width={cardW} labelled />
+        </Box>
+      )}
       contentContainerStyle={{
+        paddingLeft: pad.left - GAP / 2,
+        paddingRight: pad.right - GAP / 2,
         paddingBottom: TAB_BAR_CLEARANCE,
-        gap: spacing.md,
-        flexGrow: cards.length === 0 ? 1 : undefined,
       }}
       ListHeaderComponent={
         header ? (
-          <Box onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>{header}</Box>
+          <Box style={bleed} onLayout={(e) => setHeaderH(e.nativeEvent.layout.height)}>
+            {header}
+          </Box>
         ) : undefined
       }
       ListEmptyComponent={listW === null ? undefined : empty}
       refreshing={refreshing}
       onRefresh={onRefresh}
-      initialNumToRender={12}
-      removeClippedSubviews
     />
   );
 }
+
+const s = styles({
+  cell: { px: GAP / 2, pb: spacing.md },
+});

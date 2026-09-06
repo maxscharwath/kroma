@@ -141,7 +141,7 @@ function Bubble({ letter, y }: Readonly<{ letter: string; y: number }>) {
       align="center"
       justify="center"
       bg="accent"
-      radius="2xl"
+      radius="xl"
       style={[s.bubble, { top: y - BUBBLE / 2 }]}
     >
       <Text selectable={false} variant="subheadingTv" color="accentInk">

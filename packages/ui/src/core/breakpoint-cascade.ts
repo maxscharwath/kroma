@@ -20,6 +20,19 @@ const WIDTH = BREAKPOINTS.map((name) => breakpoint[name]);
 
 export const LAST_BREAKPOINT = BREAKPOINTS.length - 1;
 
+/**
+ * The attribute the store writes on the document root: a declaration a build
+ * compiled paints through `:root[data-kroma-bp~="md"]` rather than a media
+ * query, so the classes and the resolver never disagree about the step.
+ */
+export const BREAKPOINT_ATTRIBUTE = 'data-kroma-bp';
+
+/** Every step reached at `index`, which is what the attribute carries: `~=`
+ *  then matches a step from where it starts upwards, as the cascade does. */
+export function stepsReached(index: number): string {
+  return BREAKPOINTS.slice(0, Math.min(index, LAST_BREAKPOINT) + 1).join(' ');
+}
+
 /** The step a design width falls in, as a position in {@link BREAKPOINTS}. */
 export function breakpointAt(width: number): number {
   let at = 0;

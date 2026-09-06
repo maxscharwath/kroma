@@ -63,9 +63,9 @@ A `styles()` set compiles per entry: the entries the reader cannot see stay as
 written and resolve at runtime beside the compiled ones. A recipe compiles per
 slot, whole or not at all, because a slot's layers are then merged without
 resolving them again; a slot `svFor` types as anything but `StyleDecl` feeds a
-component's props and stays as written. What stays on the runtime today: a
-value stated per breakpoint, a call (`keyRowWidth(...)`, `color(...)` inside a
-declaration), anything bound at render time. `KROMA_ATOMIC_REPORT=1` prints
+component's props and stays as written. What stays on the runtime today: a call
+(`keyRowWidth(...)`, `color(...)` inside a declaration), anything bound at
+render time. `KROMA_ATOMIC_REPORT=1` prints
 every declaration left behind and why; a build's summary counts them.
 `KROMA_ATOMIC=0` turns the compiler off for one build or dev server, which is
 how to tell a compiler fault from a runtime one.
@@ -112,6 +112,54 @@ the renderer's own `<Image>` reading `resizeMode` all see what they always saw.
 A recipe whose slot is static merges its cascade with `mergeStatic`, last wins
 per property, into a leaf registered the same way, cached per variant
 combination as before.
+
+## Per breakpoint
+
+The build resolves a layer at every step of the scale and diffs the longhands.
+One whose value never moves is written as it is; one that moves reads a custom
+property whose fallback is its base value, and each further step restates that
+property:
+
+```ts
+const s = styles({ page: { px: { base: 8, md: 12 } } });
+// the sheet gains
+.dtf4ZV{padding-left:var(--kc3zcbh,8px);}
+:root[data-kroma-bp~="md"] .dtf4ZV{--kc3zcbh:12px;}
+```
+
+The variable's name hashes the property and the whole cascade, so the class that
+reads it belongs to that cascade alone: one property, one class, however many
+steps. That is what keeps the merge right, because `styleq` and `mergeStatic`
+both decide per property and the last layer wins. A later `px` therefore
+replaces every step of an earlier one, and none of the loser's rules can reach
+the element: they name a class it no longer wears.
+
+A step rule only ever sets the variable, so it never argues with a property
+rule. The four step selectors weigh the same as each other, and a group per step
+puts `md` in the sheet before `lg` before `tv`.
+
+The step reaches the browser as `data-kroma-bp` on the document root, written by
+the breakpoint store, carrying every step reached (`base md lg` at `lg`) so `~=`
+matches from a step upwards as the cascade does. Not media queries, because the
+store's width is not always the window's: `<TvStage>` paints a fixed 1920 canvas
+at whatever scale it is given, `Platform.isTV` answers for a television, and
+`pinDesignWidth` states it for anything else. A media query would put the
+compiled classes on one step while `<Box>`, `sharedStyle` and every declaration
+left on the runtime resolved at another. One store decides the step and the
+browser reads what it decided.
+
+A server has no width to measure, so the HTML it sends carries no attribute and
+a prerendered page paints the base step until the client reads the store, which
+is the first `styles()` or `<Box>` on it. One attribute write settles it, where
+the runtime needed a re-render for the same crossing, and a shell that ships as
+an SPA paints nothing before it.
+
+A longhand the compiler does not write as one plain declaration stays on the
+runtime: a value it expands into vendor prefixes (`display: flex`) reads
+differently through a `var()`, so the build checks that the variable stands in
+for the value exactly, at every step, and refuses the declaration when it does
+not. So does a longhand one step states and another does not, which is what
+`row: { base: false, md: true }` is: no `flexDirection` at all below `md`.
 
 ## Themes
 
@@ -197,8 +245,8 @@ jsdom's computed style drops `z-index` and every `var()`.
 
 ## Not compiled yet
 
-`<Box>` props resolve at render as before. A value stated per breakpoint stays
-on the runtime; compiling it means one class per step under a `data-` attribute
-the breakpoint store writes on the root, and is the next step. Interaction
-states are still resolved by the recipe from the state `<Focusable>` passes it,
-merging static coats; attribute selectors would let the browser do that.
+`<Box>` props resolve at render as before, breakpoints and all: only a
+declaration a reader can see becomes classes, and a prop is written per call
+site. Interaction states are still resolved by the recipe from the state
+`<Focusable>` passes it, merging static coats; attribute selectors would let the
+browser do that.

@@ -2,9 +2,10 @@
 // writes in its place: the engine's own resolver turns the vocabulary into
 // longhands, the compiler turns those into classes.
 
-import { split } from '../../src/core/normalize.ts';
+import { type Split, split } from '../../src/core/normalize.ts';
 import { type CompiledRule, rulesOf } from './compile.ts';
 import { Unstatic } from './module-scope.ts';
+import { compileSteps, STEPS, type StepLayer } from './steps.ts';
 
 export interface CompiledLeaf {
   readonly values: Readonly<Record<string, unknown>>;
@@ -29,26 +30,33 @@ function checkSerializable(value: unknown, at: string): void {
   }
 }
 
-function layer(longhands: Record<string, unknown>, at: string): CompiledRule[] {
-  checkSerializable(longhands, at);
-  return rulesOf(longhands);
+function layer(perStep: readonly Record<string, unknown>[], at: string): StepLayer {
+  for (const longhands of perStep) checkSerializable(longhands, at);
+  const { values, rules } = compileSteps(perStep);
+  return { values, rules: [...rules, ...rulesOf(values)] };
 }
 
 /**
  * Compiles one declaration, or throws {@link Unstatic} for one only the
- * runtime can resolve: a value stated per breakpoint follows the design width
- * there, and nothing the build writes can.
+ * runtime can resolve.
  */
 export function compileDeclaration(decl: Record<string, unknown>): CompiledLeaf {
   const piece = split(decl, 0);
   if (!piece) throw new Unstatic('an empty declaration');
-  if (piece.breakpoints !== 0) throw new Unstatic('a value stated per breakpoint');
-  const rules = layer(piece.rest, 'rest');
+  const perStep = piece.breakpoints === 0 ? [piece] : STEPS.map((at) => split(decl, at) as Split);
+  const rest = layer(
+    perStep.map((step) => step.rest),
+    'rest',
+  );
+  const rules = [...rest.rules];
   const states: Record<string, Record<string, unknown>> = {};
   for (const name of piece.declared) {
-    const coat = piece.states[name] ?? {};
-    rules.push(...layer(coat, `_${name}`));
-    states[name] = coat;
+    const coat = layer(
+      perStep.map((step) => step.states[name] ?? {}),
+      `_${name}`,
+    );
+    rules.push(...coat.rules);
+    states[name] = coat.values;
   }
-  return { values: piece.rest, states: piece.declared.length > 0 ? states : undefined, rules };
+  return { values: rest.values, states: piece.declared.length > 0 ? states : undefined, rules };
 }

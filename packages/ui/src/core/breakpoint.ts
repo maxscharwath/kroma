@@ -10,8 +10,14 @@
 // rendering <TvStage> at half size) states it with `pinDesignWidth`.
 
 import { Dimensions, Platform } from 'react-native';
-import { breakpointAt, stepAt } from '#ui/core/breakpoint-cascade';
+import {
+  BREAKPOINT_ATTRIBUTE,
+  breakpointAt,
+  stepAt,
+  stepsReached,
+} from '#ui/core/breakpoint-cascade';
 import { BREAKPOINTS, type BreakpointName, CANVAS } from '#ui/core/tokens';
+import { webDocument } from '#ui/lib/dom';
 
 export type { Breakpoints, Responsive } from '#ui/core/breakpoint-cascade';
 export { breakpointBits, valueAt } from '#ui/core/breakpoint-cascade';
@@ -27,10 +33,15 @@ function measure(): number {
   return Dimensions.get('window').width;
 }
 
+function stampStepOnRoot(index: number): void {
+  webDocument()?.documentElement.setAttribute(BREAKPOINT_ATTRIBUTE, stepsReached(index));
+}
+
 function settle(): void {
   const next = breakpointAt(measure());
   if (next === current) return;
   current = next;
+  stampStepOnRoot(next);
   for (const listener of listeners) listener();
 }
 
@@ -40,6 +51,7 @@ export function breakpointIndex(): number {
   if (current < 0) {
     Dimensions.addEventListener('change', settle);
     current = breakpointAt(measure());
+    stampStepOnRoot(current);
   }
   return current;
 }

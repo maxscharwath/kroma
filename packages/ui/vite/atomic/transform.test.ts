@@ -22,15 +22,12 @@ const s = styles({
   computed: { width: measure() },
 });`);
 
-    expect(out?.compiled).toBe(1);
+    expect(out?.compiled).toBe(2);
     expect(out?.code).toContain("import { staticStyle as __kromaStatic } from '#ui/core/atomic';");
     expect(out?.code).toContain('row: __kromaStatic({"flexDirection":"row","gap":6})');
-    expect(out?.code).toContain('fluid: { px: { base: 8, md: 12 } }');
+    expect(out?.code).toMatch(/fluid: __kromaStatic\(\{"paddingLeft":"var\(--k[\w-]{6},8px\)"/);
     expect(out?.code).toContain('computed: { width: measure() }');
-    expect(out?.skipped).toEqual([
-      { line: 4, reason: 'a value stated per breakpoint' },
-      { line: 5, reason: 'a call to measure' },
-    ]);
+    expect(out?.skipped).toEqual([{ line: 5, reason: 'a call to measure' }]);
     expect(out?.rules.map((rule) => rule.css)).toContain(
       out?.rules.find((rule) => rule.css.includes('flex-direction:row'))?.css,
     );
@@ -60,14 +57,14 @@ const chip = sv({
     const out = run(`import { sv } from '#ui/core';
 const chip = sv({
   base: { radius: 'pill' },
-  variants: { size: { sm: { px: 8 }, fluid: { px: { base: 8, lg: 12 } } } },
+  variants: { size: { sm: { px: 8 }, fluid: { px: measure() } } },
 });
 const s = styles({ a: { p: 1 } });
 import { styles } from '#ui/core';`);
 
     expect(out?.compiled).toBe(1);
     expect(out?.code).toContain("base: { radius: 'pill' }");
-    expect(out?.skipped).toEqual([{ line: 4, reason: 'a value stated per breakpoint' }]);
+    expect(out?.skipped).toEqual([{ line: 4, reason: 'a call to measure' }]);
   });
 
   it('compiles only the slots svFor types as styles', () => {

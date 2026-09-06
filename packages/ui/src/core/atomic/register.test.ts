@@ -70,3 +70,27 @@ describe('mergeStatic', () => {
     expect(() => mergeStatic([base, { paddingTop: 4 }])).toThrow(/did not compile/);
   });
 });
+
+describe('a property stated per breakpoint, compiled', () => {
+  const cascade = () => staticStyle({ paddingLeft: 'var(--kaBcDeF,8px)' });
+
+  it('is replaced whole by a later layer that states the property', () => {
+    const flat = staticStyle({ paddingLeft: 20 });
+
+    const [className] = renderer([cascade(), flat]);
+
+    expect(className).toBe(renderer([flat])[0]);
+    expect({ ...mergeStatic([cascade(), flat]) }).toEqual({ paddingLeft: 20 });
+  });
+
+  it('replaces an earlier flat layer whole', () => {
+    const responsive = cascade();
+
+    const [className] = renderer([staticStyle({ paddingLeft: 20 }), responsive]);
+
+    expect(className).toBe(renderer([responsive])[0]);
+    expect({ ...mergeStatic([staticStyle({ paddingLeft: 20 }), responsive]) }).toEqual({
+      paddingLeft: 'var(--kaBcDeF,8px)',
+    });
+  });
+});

@@ -63,6 +63,26 @@ describe('the breakpoint a width lands on', () => {
   });
 });
 
+describe('the step a browser reads off the root', () => {
+  const stamped = () => document.documentElement.getAttribute('data-kroma-bp');
+
+  it('carries every step reached, so `~=` matches the cascade from a step upwards', () => {
+    at(0);
+    expect(stamped()).toBe('base');
+    at(breakpoint.md);
+    expect(stamped()).toBe('base md');
+    at(breakpoint.tv);
+    expect(stamped()).toBe('base md lg tv');
+  });
+
+  it('follows the design width rather than the window, as every resolution does', () => {
+    at(breakpoint.tv);
+    at(320);
+    expect(stamped()).toBe('base');
+    expect(currentBreakpoint()).toBe('base');
+  });
+});
+
 describe('the mobile-first cascade', () => {
   const px = { base: 16, md: 40, lg: 64 };
 

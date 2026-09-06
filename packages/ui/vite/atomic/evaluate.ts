@@ -43,16 +43,10 @@ function binary(node: Node, frame: Frame): unknown {
 
 function logical(node: Node, frame: Frame): unknown {
   const a = evaluateIn(node.left as Node, frame);
-  switch (node.operator) {
-    case '??':
-      return a ?? evaluateIn(node.right as Node, frame);
-    case '||':
-      return a || evaluateIn(node.right as Node, frame);
-    case '&&':
-      return a && evaluateIn(node.right as Node, frame);
-    default:
-      throw new Unstatic(`the operator ${String(node.operator)}`);
-  }
+  const right = () => evaluateIn(node.right as Node, frame);
+  if (node.operator === '??') return a ?? right();
+  if (node.operator === '||') return a || right();
+  return a && right();
 }
 
 function unary(node: Node, frame: Frame): unknown {

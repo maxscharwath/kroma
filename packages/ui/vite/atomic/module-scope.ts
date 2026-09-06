@@ -54,9 +54,7 @@ export function parseModule(code: string, file: string): Program {
 
 /** The name an identifier or a string key spells. */
 export function nameOf(node: Node): string {
-  if (node.type === 'Identifier') return node.name as string;
-  if (node.type === 'Literal') return String(node.value);
-  throw new Unstatic(`a ${node.type} name`);
+  return node.type === 'Identifier' ? (node.name as string) : String(node.value);
 }
 
 function bindDeclaration(scope: ModuleScope, decl: Node, exported: boolean): void {
@@ -187,7 +185,7 @@ export class ModuleLoader {
   }
 
   /** The initialiser of `name` as `file` exports it, following re-exports. */
-  exportOf(file: string, name: string, chain = 0): { init: Node; scope: ModuleScope } {
+  exportOf(file: string, name: string, chain: number): { init: Node; scope: ModuleScope } {
     if (chain > MAX_MODULE_CHAIN) throw new Unstatic(`re-export chain past ${file}`);
     const scope = this.scope(file);
     const binding = scope.exports.get(name);

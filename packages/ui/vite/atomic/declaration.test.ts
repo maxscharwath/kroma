@@ -132,6 +132,9 @@ describe('compileDeclaration', () => {
     expect(() => compileDeclaration({ row: { base: false, md: true } })).toThrow(
       /stated at some breakpoints and not others/,
     );
+    expect(() => compileDeclaration({ row: { base: true, md: false } })).toThrow(
+      /a flexDirection stated at some breakpoints and not others/,
+    );
   });
 
   it('refuses a step on a property the vocabulary does not cascade, rather than a bag', () => {

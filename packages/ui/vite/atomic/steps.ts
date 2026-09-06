@@ -29,7 +29,7 @@ function stepsOf(perStep: readonly Record<string, unknown>[], property: string):
     if (!(property in layer)) {
       throw new Unstatic(`a ${property} stated at some breakpoints and not others`);
     }
-    if (same(layer[property], steps[steps.length - 1]?.value)) continue;
+    if (same(layer[property], steps.at(-1)?.value)) continue;
     steps.push({ at, value: stated(layer[property], property) });
   }
   return steps;

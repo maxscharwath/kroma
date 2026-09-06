@@ -72,6 +72,32 @@ pub struct CastMember {
     pub profile_url: Option<String>,
 }
 
+/// The character each member of `core` plays according to `localized`, the same
+/// cast fetched in another language: matched by TMDB person id, then by name,
+/// never by position, since TMDB does not promise the two lists the same order.
+/// Index-aligned to `core`, so a reader can zip it; empty when nothing matched,
+/// so nothing is written and the reader keeps the core's own names.
+pub fn characters_aligned(core: &[CastMember], localized: &[CastMember]) -> Vec<Option<String>> {
+    let same = |member: &CastMember, other: &CastMember| match (member.tmdb_id, other.tmdb_id) {
+        (Some(a), Some(b)) => a == b,
+        _ => !member.name.is_empty() && other.name == member.name,
+    };
+    let aligned: Vec<Option<String>> = core
+        .iter()
+        .map(|member| {
+            localized
+                .iter()
+                .find(|other| same(member, other))
+                .and_then(|other| other.character.clone())
+        })
+        .collect();
+    if aligned.iter().all(Option::is_none) {
+        Vec::new()
+    } else {
+        aligned
+    }
+}
+
 /// `job` is the TMDB job title (`"Director"`, `"Writer"`, `"Creator"`, …).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrewMember {
@@ -189,6 +215,41 @@ pub struct MatchCandidates {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_character_follows_its_person_not_its_row() {
+        let member = |name: &str, id: Option<u64>, character: Option<&str>| super::CastMember {
+            name: name.into(),
+            tmdb_id: id,
+            character: character.map(String::from),
+            profile_url: None,
+        };
+        let core = vec![
+            member("Tom Hanks", Some(31), Some("Woody")),
+            member("Tim Allen", Some(12898), Some("Buzz")),
+            member("Joan Cusack", None, Some("Jessie")),
+        ];
+        let localized = vec![
+            member("Joan Cusack", None, Some("Jessie (voix)")),
+            member("Tim Allen", Some(12898), Some("Buzz (voix)")),
+            member("Tom Hanks", Some(31), Some("Woody (voix)")),
+            member("Someone New", Some(7), Some("Extra")),
+        ];
+
+        let aligned = super::characters_aligned(&core, &localized);
+
+        assert_eq!(
+            aligned,
+            vec![
+                Some("Woody (voix)".to_string()),
+                Some("Buzz (voix)".to_string()),
+                Some("Jessie (voix)".to_string()),
+            ]
+        );
+        assert!(
+            super::characters_aligned(&core, &[member("Nobody", Some(1), Some("X"))]).is_empty()
+        );
+    }
+
     use super::*;
 
     fn cast(name: &str) -> CastMember {

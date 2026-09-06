@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use rusqlite::params;
 
+use kroma_domain::metadata::characters_aligned;
 use kroma_domain::{CastMember, Metadata};
 
 use crate::metadata_core::{self, MetaCore};
@@ -56,7 +57,7 @@ pub fn store_localized(
             tagline: m.tagline.clone(),
             overview: m.overview.clone(),
             genres: m.genres.clone(),
-            characters: m.cast.iter().map(|c| c.character.clone()).collect(),
+            characters: characters_aligned(&core.cast, &m.cast),
             reason: None,
             poster_url: differing_from(&m.poster_url, Some(&core.poster_url)),
             logo_url: differing_from(&m.logo_url, Some(&core.logo_url)),
@@ -99,17 +100,13 @@ pub fn fill_languages(
             },
         )?;
     }
-    let core_cast = core.as_ref().map_or(0, |c| c.cast.len());
     for (lang, m) in by_lang {
-        // The character names are index-aligned to the core's cast, which this
-        // pass deliberately leaves alone. A credit added on TMDB since shifts
-        // them by one and labels every actor after it with the wrong part, so
-        // they are written only while the two still line up.
-        let characters: Vec<Option<String>> = if m.cast.len() == core_cast {
-            m.cast.iter().map(|c| c.character.clone()).collect()
-        } else {
-            Vec::new()
-        };
+        // Aligned to the core's cast, which this pass deliberately leaves
+        // alone, by person rather than by row: a credit TMDB added or reordered
+        // since must not hand every actor after it another actor's part.
+        let characters = core
+            .as_ref()
+            .map_or_else(Vec::new, |c| characters_aligned(&c.cast, &m.cast));
         let data = TransData {
             title: m.title.clone(),
             tagline: m.tagline.clone(),
@@ -256,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn character_names_are_not_written_onto_a_cast_that_has_moved_on() {
+    fn character_names_follow_the_person_when_the_cast_has_moved_on() {
         let p = pool();
         {
             let conn = p.get().unwrap();
@@ -276,8 +273,8 @@ mod tests {
         store_localized(&p, metadata_core::ITEM, "m1", &core, &HashMap::new()).unwrap();
 
         // TMDB gained a credit since, so this response has three where the core
-        // still has two. Aligned by index, the names would land on the wrong
-        // actors for every French reader.
+        // still has two. Aligned by row, the names would land on the wrong
+        // actors for every French reader; aligned by person, each keeps its own.
         let mut grown = meta(603, "Dune");
         grown.cast = vec![
             cast_member("Chalamet"),
@@ -291,7 +288,13 @@ mod tests {
 
         let all = crate::translations::load_all(&p, metadata_core::ITEM, &["m1"]).unwrap();
         let fr = all.get("m1").and_then(|by| by.get("fr")).unwrap();
-        assert!(fr.characters.is_empty());
+        assert_eq!(
+            fr.characters,
+            vec![
+                Some("Chalamet part".to_string()),
+                Some("Ferguson part".to_string())
+            ]
+        );
         assert_eq!(fr.title.as_deref(), Some("Dune"));
     }
 

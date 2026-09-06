@@ -50,6 +50,10 @@ export function sectionCard(entry: SectionItem, client: KromaClient, width: numb
     : showCard(entry.show, client, width);
 }
 
+/** A poster's height at a width, on whole points so a grid of them stacks
+ * without drift. */
+export const posterHeight = (width: number): number => Math.round(width * 1.5);
+
 export const PosterCard = memo(function PosterCard({
   card,
   width,
@@ -58,17 +62,16 @@ export const PosterCard = memo(function PosterCard({
   width: number | '100%';
 }>) {
   const router = useRouter();
+  const size =
+    typeof width === 'number'
+      ? { width, height: posterHeight(width) }
+      : { width, aspectRatio: 2 / 3 };
   return (
     <Pressable
       onPress={() => router.push(card.route as never)}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.75 : 1 }]}
     >
-      <FadeImage
-        uri={card.poster}
-        seed={card.key}
-        radius={radius.sm}
-        style={{ width, aspectRatio: 2 / 3 }}
-      />
+      <FadeImage uri={card.poster} seed={card.key} radius={radius.sm} style={size} />
     </Pressable>
   );
 });

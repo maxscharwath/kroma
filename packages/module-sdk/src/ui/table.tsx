@@ -13,7 +13,6 @@ import {
   type SortColumn,
   style,
   type TableColumn,
-  Text,
 } from '@kroma/ui/kit';
 import { Children, isValidElement, type ReactNode } from 'react';
 import { Pressable } from 'react-native';
@@ -92,13 +91,7 @@ interface TableColumnProps {
 
 /** A column's name, in the header band. */
 function Column({ children }: Readonly<TableColumnProps>) {
-  return (
-    <Kit.Cell>
-      <Text variant="overline" color="textDim" lines={1}>
-        {children}
-      </Text>
-    </Kit.Cell>
-  );
+  return <Kit.Cell>{children}</Kit.Cell>;
 }
 
 interface TableActionProps {
@@ -129,7 +122,7 @@ function Action({ tone, icon, label, onPress, disabled = false }: Readonly<Table
       onPress={onPress}
       disabled={disabled}
     >
-      <Icon name={icon} size={16} color={tone} thickness={2.4} />
+      <Icon name={icon} size={18} color={tone} thickness={2.2} />
     </IconButton>
   );
 }

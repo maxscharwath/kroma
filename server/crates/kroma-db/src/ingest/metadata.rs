@@ -43,6 +43,7 @@ pub fn store_localized(
         tvdb_id: core_meta.tvdb_id,
         release_date: core_meta.release_date.clone(),
         rating: core_meta.rating,
+        certification: core_meta.certification.clone(),
         poster_url: core_meta.poster_url.clone(),
         backdrop_url: core_meta.backdrop_url.clone(),
         logo_url: core_meta.logo_url.clone(),
@@ -603,6 +604,23 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(stored_fr.genres, vec!["Science-fiction".to_string()]);
+    }
+
+    #[test]
+    fn the_age_rating_lands_on_the_language_invariant_core() {
+        let p = pool();
+        let by_lang = HashMap::from([("fr".to_string(), meta(603, "Dune"))]);
+
+        store_localized(&p, metadata_core::ITEM, "m1", &meta(603, "Dune"), &by_lang).unwrap();
+
+        assert_eq!(
+            metadata_core::get_core(&p, metadata_core::ITEM, "m1")
+                .unwrap()
+                .unwrap()
+                .certification
+                .as_deref(),
+            Some("PG-13")
+        );
     }
 
     #[test]

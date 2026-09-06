@@ -1,9 +1,12 @@
-import type { ContinueItem, MediaItem, SectionItem, Show } from '@kroma/client/media';
+import type { ContinueItem, MediaItem, Metadata, SectionItem, Show } from '@kroma/client/media';
 import type { Translate } from '@kroma/core';
 import { describe, expect, it } from 'vitest';
 import { featuredMetaLine, featuredProgress } from './featured';
 
 const t = ((key: string) => key) as Translate;
+
+const meta = (over: Partial<Metadata> = {}): Metadata =>
+  ({ genres: ['Action', 'Thriller', 'Crime'], ...over }) as Metadata;
 
 const movie = (over: Partial<MediaItem> = {}): SectionItem => ({
   type: 'movie',
@@ -12,7 +15,7 @@ const movie = (over: Partial<MediaItem> = {}): SectionItem => ({
     title: 'Heat',
     year: 1995,
     durationMs: 10_620_000,
-    metadata: { genres: ['Action', 'Thriller', 'Crime'] },
+    metadata: meta(),
     ...over,
   } as unknown as MediaItem,
 });
@@ -23,7 +26,7 @@ const show = (over: Partial<Show> = {}): SectionItem => ({
     id: 'shw_1',
     title: 'Severance',
     year: 2022,
-    metadata: { genres: ['Drama'] },
+    metadata: meta({ genres: ['Drama'] }),
     ...over,
   } as unknown as Show,
 });
@@ -39,6 +42,18 @@ const resume = (itemId: string, positionMs: number, durationMs: number): Continu
 describe('featuredMetaLine', () => {
   it('reads a year, a runtime and no more than two genres', () => {
     expect(featuredMetaLine(t, movie())).toBe('1995 · 2h57 · genre.action · genre.thriller');
+  });
+
+  it('prints the age rating between the runtime and the genres', () => {
+    const entry = movie({ metadata: meta({ certification: 'PG-13' }) });
+
+    expect(featuredMetaLine(t, entry)).toBe('1995 · 2h57 · PG-13 · genre.action · genre.thriller');
+  });
+
+  it('prints the age rating a series carries too', () => {
+    const entry = show({ metadata: meta({ genres: ['Drama'], certification: 'TV-MA' }) });
+
+    expect(featuredMetaLine(t, entry)).toBe('2022 · TV-MA · genre.drama');
   });
 
   it('leaves out the runtime a series has no single one of', () => {

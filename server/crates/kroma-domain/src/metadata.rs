@@ -31,6 +31,10 @@ pub struct Metadata {
     pub tmdb_genre_ids: Vec<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rating: Option<f32>,
+    /// The provider's own spelling ("PG-13", "TV-MA", "12"), for the region the
+    /// enrichment language asked for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certification: Option<String>,
     #[serde(rename = "posterUrl", skip_serializing_if = "Option::is_none")]
     pub poster_url: Option<String>,
     #[serde(rename = "backdropUrl", skip_serializing_if = "Option::is_none")]
@@ -273,6 +277,7 @@ mod tests {
             genres: Vec::new(),
             tmdb_genre_ids: Vec::new(),
             rating: None,
+            certification: None,
             poster_url: None,
             backdrop_url: None,
             logo_url: None,
@@ -315,6 +320,34 @@ mod tests {
 
         assert_eq!(meta.genres, vec!["Science Fiction".to_string()]);
         assert!(meta.tmdb_genre_ids.is_empty());
+    }
+
+    #[test]
+    fn the_age_rating_survives_a_blob_round_trip_under_its_own_name() {
+        let meta = Metadata {
+            certification: Some("PG-13".into()),
+            ..metadata()
+        };
+
+        let json = serde_json::to_value(&meta).unwrap();
+
+        assert_eq!(json["certification"], serde_json::json!("PG-13"));
+        assert_eq!(
+            serde_json::from_value::<Metadata>(json)
+                .unwrap()
+                .certification,
+            Some("PG-13".to_string())
+        );
+    }
+
+    #[test]
+    fn a_blob_stored_before_the_age_rating_reads_as_having_none() {
+        let stored = r#"{"tmdbId":603,"title":"Dune","overview":null,"genres":[],
+            "tmdbUrl":"https://themoviedb.org/movie/603"}"#;
+
+        let meta: Metadata = serde_json::from_str(stored).unwrap();
+
+        assert!(meta.certification.is_none());
     }
 
     #[test]

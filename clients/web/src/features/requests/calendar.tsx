@@ -10,29 +10,17 @@ import {
   episodeTag,
   monthKey,
   monthLabel,
-  posterColors,
   relativeAirDate,
   sentenceCase,
   shortDayLabel,
-  sizedImageUrl,
 } from '@kroma/core';
 import { useLocale, useT } from '@kroma/ui';
-import {
-  Box,
-  classes,
-  EmptyState,
-  Icon,
-  Img,
-  ListRow,
-  PageHeader,
-  Row,
-  styles,
-  Text,
-} from '@kroma/ui/kit';
+import { Box, classes, EmptyState, Icon, PageHeader, Row, styles, Text } from '@kroma/ui/kit';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { RequestCard, RequestCardSkeleton } from '#web/features/requests/request-card';
 import { userQueries } from '#web/shared/lib/queries';
-import { PageFrame, Skeleton } from '#web/shared/ui';
+import { PageFrame } from '#web/shared/ui';
+import { RouteLink } from '#web/shared/ui/route-link';
 
 // Releases at most this many days out get the accent "imminent" date.
 const IMMINENT_DAYS = 7;
@@ -40,7 +28,6 @@ const IMMINENT_DAYS = 7;
 export function ComingSoonPage() {
   const t = useT();
   const locale = useLocale();
-  const navigate = useNavigate();
   const { data: entries, isPending } = useQuery({
     ...userQueries.calendar(),
     refetchInterval: 60_000,
@@ -67,14 +54,7 @@ export function ComingSoonPage() {
         <PageHeader.Subtitle>{t('requests.calendarSubtitle')}</PageHeader.Subtitle>
       </PageHeader.Root>
 
-      {isPending ? (
-        <Box mt={24} gap={10}>
-          {Array.from({ length: 5 }, (_, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length placeholder rows
-            <Skeleton key={i} h={76} radius="xl" />
-          ))}
-        </Box>
-      ) : null}
+      {isPending ? <RequestCardSkeleton rows={5} /> : null}
 
       {entries?.length === 0 ? (
         <EmptyState.Root icon="calendar-clock">
@@ -101,15 +81,6 @@ export function ComingSoonPage() {
                 key={`${e.requestId}:${e.season ?? 0}:${e.episode ?? 0}`}
                 entry={e}
                 locale={locale}
-                onOpen={() =>
-                  navigate({
-                    to: '/discover/$type/$tmdbId',
-                    params: {
-                      type: e.kind === 'show' ? 'tv' : 'movie',
-                      tmdbId: String(e.tmdbId),
-                    },
-                  })
-                }
               />
             ))}
           </Box>
@@ -119,14 +90,8 @@ export function ComingSoonPage() {
   );
 }
 
-function CalendarRow({
-  entry,
-  locale,
-  onOpen,
-}: Readonly<{ entry: CalendarEntry; locale: string; onOpen: () => void }>) {
+function CalendarRow({ entry, locale }: Readonly<{ entry: CalendarEntry; locale: string }>) {
   const t = useT();
-  const [c1, c2] = posterColors(String(entry.tmdbId));
-  const poster = sizedImageUrl(entry.posterUrl, 92);
   // `episodeTag` is empty for a movie (no season/episode numbering).
   const epTag = episodeTag(entry) || t('requests.movieLabel');
   const airDate = entry.airDate;
@@ -136,36 +101,28 @@ function CalendarRow({
   const imminent = days != null && days >= 0 && days <= IMMINENT_DAYS;
 
   return (
-    <ListRow.Root size="md" onPress={onOpen} chevron={false}>
-      <ListRow.Leading>
-        <Box w={46} h={68}>
-          <Img src={poster} background={`linear-gradient(158deg, ${c1}, ${c2})`} radius="sm" fill />
-        </Box>
-      </ListRow.Leading>
-      <ListRow.Label>{entry.title}</ListRow.Label>
-      <Row gap={6} mt={2}>
-        <Text variant="meta" color="accent">
-          {epTag}
-        </Text>
-        {entry.year ? (
-          <Text variant="meta" color="textDim">
-            · {entry.year}
+    <RequestCard
+      label={`${entry.title} · ${epTag}`}
+      tmdbId={entry.tmdbId}
+      posterUrl={entry.posterUrl}
+      title={entry.title}
+      meta={
+        <>
+          <Text variant="meta" color="textDim" mt={2}>
+            {[entry.year ? String(entry.year) : '', epTag].filter(Boolean).join(' · ')}
           </Text>
-        ) : null}
-        {entry.status === 'grabbed' ? (
-          <Row gap={3}>
-            <Text variant="meta" color="textDim">
-              ·
-            </Text>
-            <Icon name="checks" size={13} thickness={2} color="success" />
-            <Text variant="meta" color="success">
-              {t('requests.securedShort')}
-            </Text>
-          </Row>
-        ) : null}
-      </Row>
-      <ListRow.Trailing>
-        <Box align="flex-end">
+          {entry.status === 'grabbed' ? (
+            <Row gap={4} mt={4}>
+              <Icon name="checks" size={13} thickness={1.9} color="success" />
+              <Text variant="meta" color="success">
+                {t('requests.securedShort')}
+              </Text>
+            </Row>
+          ) : null}
+        </>
+      }
+      trailing={
+        <Box align="flex-end" shrink={0}>
           <Text variant="label" color={imminent ? 'accent' : 'text'}>
             {airDate ? shortDayLabel(airDate, locale) : ''}
           </Text>
@@ -173,8 +130,16 @@ function CalendarRow({
             {sentenceCase(relativeAirDate(airDate, locale), locale)}
           </Text>
         </Box>
-      </ListRow.Trailing>
-    </ListRow.Root>
+      }
+      link={(content) => (
+        <RouteLink
+          to="/discover/$type/$tmdbId"
+          params={{ type: entry.kind === 'show' ? 'tv' : 'movie', tmdbId: String(entry.tmdbId) }}
+        >
+          {content}
+        </RouteLink>
+      )}
+    />
   );
 }
 

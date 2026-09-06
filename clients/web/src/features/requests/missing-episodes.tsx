@@ -32,7 +32,7 @@ const s = styles({
   list: { m: 0, p: 0, listStyleType: 'none' },
   listItem: { display: 'block' },
   italic: { fontStyle: 'italic' },
-  episode: { row: true, align: 'center', gap: 14, flex: true, minW: 0, py: 10, pl: 14 },
+  episode: { row: true, align: 'center', gap: 16, flex: true, minW: 0, py: 10, pl: 14 },
   tag: { w: 62, shrink: 0, fontWeight: '700', fontVariant: ['tabular-nums'] },
 });
 
@@ -124,7 +124,7 @@ function EpisodeRow({
     return (
       <li className={classes(s.listItem)}>
         {rule}
-        <Row gap={14} py={10} pl={48} pr={14}>
+        <Row gap={16} py={10} pl={50} pr={14}>
           {cells}
         </Row>
       </li>
